@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING, Protocol, cast
 from sqlalchemy import (
     CTE,
     ColumnElement,
+    Integer,
+    Numeric,
     Select,
     SQLColumnExpression,
     String,
@@ -16,6 +18,9 @@ from sqlalchemy import (
     literal,
     or_,
     select,
+)
+from sqlalchemy import (
+    cast as sa_cast,
 )
 
 from polar.auth.models import AuthSubject, is_organization, is_user
@@ -38,6 +43,11 @@ from polar.models.product import ProductBillingType
 
 if TYPE_CHECKING:
     from .metrics import SQLMetric
+
+
+def _jsonb_to_int(jsonb_element: ColumnElement[str]) -> ColumnElement[int]:
+    """Cast a JSONB text value to integer, handling float strings like '106.0'."""
+    return sa_cast(sa_cast(jsonb_element, Numeric), Integer)
 
 
 class MetricQuery(StrEnum):
@@ -812,7 +822,7 @@ def _get_latest_payment_per_subscription_subquery(
     """Get the latest balance_order settlement amount per subscription."""
     ranked = select(
         Event.user_metadata["subscription_id"].astext.label("subscription_id"),
-        Event.user_metadata["amount"].as_integer().label("settlement_amount"),
+        _jsonb_to_int(Event.user_metadata["amount"].astext).label("settlement_amount"),
         func.row_number()
         .over(
             partition_by=Event.user_metadata["subscription_id"].astext,
@@ -946,15 +956,17 @@ def get_balance_orders_metrics_cte(
         historical_baseline = cte(
             select(
                 func.coalesce(
-                    func.sum(Event.user_metadata["amount"].as_integer()).filter(
-                        Event.name == SystemEvent.balance_order.value
-                    ),
+                    func.sum(
+                        _jsonb_to_int(Event.user_metadata["amount"].astext)
+                    ).filter(Event.name == SystemEvent.balance_order.value),
                     0,
                 ).label("hist_cumulative_revenue"),
                 func.coalesce(
                     func.sum(
-                        Event.user_metadata["amount"].as_integer()
-                        - func.coalesce(Event.user_metadata["fee"].as_integer(), 0)
+                        _jsonb_to_int(Event.user_metadata["amount"].astext)
+                        - func.coalesce(
+                            _jsonb_to_int(Event.user_metadata["fee"].astext), 0
+                        )
                     ),
                     0,
                 ).label("hist_net_cumulative_revenue"),

@@ -11,12 +11,16 @@ from sqlalchemy import (
     ColumnElement,
     Float,
     Integer,
+    Numeric,
     SQLColumnExpression,
     case,
     func,
     literal_column,
     or_,
     type_coerce,
+)
+from sqlalchemy import (
+    cast as sa_cast,
 )
 
 from polar.enums import SubscriptionRecurringInterval
@@ -28,6 +32,11 @@ from polar.models.event import Event
 from polar.models.subscription import CustomerCancellationReason
 
 from .queries import MetricQuery
+
+
+def _jsonb_to_int(jsonb_element: ColumnElement[str]) -> ColumnElement[int]:
+    """Cast a JSONB text value to integer, handling float strings like '106.0'."""
+    return sa_cast(sa_cast(jsonb_element, Numeric), Integer)
 
 
 class MetricType(StrEnum):
@@ -1055,7 +1064,7 @@ class SettlementRevenueMetric(SQLMetric):
     def get_sql_expression(
         cls, t: ColumnElement[datetime], i: TimeInterval, now: datetime
     ) -> ColumnElement[int]:
-        return func.sum(Event.user_metadata["amount"].as_integer()).filter(
+        return func.sum(_jsonb_to_int(Event.user_metadata["amount"].astext)).filter(
             Event.name == SystemEvent.balance_order.value
         )
 
@@ -1075,8 +1084,8 @@ class SettlementNetRevenueMetric(SQLMetric):
         cls, t: ColumnElement[datetime], i: TimeInterval, now: datetime
     ) -> ColumnElement[int]:
         return func.sum(
-            Event.user_metadata["amount"].as_integer()
-            - func.coalesce(Event.user_metadata["fee"].as_integer(), 0)
+            _jsonb_to_int(Event.user_metadata["amount"].astext)
+            - func.coalesce(_jsonb_to_int(Event.user_metadata["fee"].astext), 0)
         )
 
     @classmethod
@@ -1094,7 +1103,9 @@ class SettlementCumulativeRevenueMetric(SQLMetric):
     def get_sql_expression(
         cls, t: ColumnElement[datetime], i: TimeInterval, now: datetime
     ) -> ColumnElement[int]:
-        return func.sum(Event.user_metadata["amount"].as_integer())
+        return func.sum(_jsonb_to_int(Event.user_metadata["amount"].astext)).filter(
+            Event.name == SystemEvent.balance_order.value
+        )
 
     @classmethod
     def get_cumulative(cls, periods: Iterable["MetricsPeriod"]) -> int | float:
@@ -1112,8 +1123,8 @@ class SettlementNetCumulativeRevenueMetric(SQLMetric):
         cls, t: ColumnElement[datetime], i: TimeInterval, now: datetime
     ) -> ColumnElement[int]:
         return func.sum(
-            Event.user_metadata["amount"].as_integer()
-            - func.coalesce(Event.user_metadata["fee"].as_integer(), 0)
+            _jsonb_to_int(Event.user_metadata["amount"].astext)
+            - func.coalesce(_jsonb_to_int(Event.user_metadata["fee"].astext), 0)
         )
 
     @classmethod
@@ -1133,7 +1144,7 @@ class SettlementAverageOrderValueMetric(SQLMetric):
     ) -> ColumnElement[int]:
         return func.cast(
             func.ceil(
-                func.avg(Event.user_metadata["amount"].as_integer()).filter(
+                func.avg(_jsonb_to_int(Event.user_metadata["amount"].astext)).filter(
                     Event.name == SystemEvent.balance_order.value
                 )
             ),
@@ -1160,8 +1171,8 @@ class SettlementNetAverageOrderValueMetric(SQLMetric):
         return func.cast(
             func.ceil(
                 func.avg(
-                    Event.user_metadata["amount"].as_integer()
-                    - func.coalesce(Event.user_metadata["fee"].as_integer(), 0)
+                    _jsonb_to_int(Event.user_metadata["amount"].astext)
+                    - func.coalesce(_jsonb_to_int(Event.user_metadata["fee"].astext), 0)
                 ).filter(Event.name == SystemEvent.balance_order.value)
             ),
             Integer,
@@ -1204,7 +1215,7 @@ class SettlementOneTimeProductsRevenueMetric(SQLMetric):
     def get_sql_expression(
         cls, t: ColumnElement[datetime], i: TimeInterval, now: datetime
     ) -> ColumnElement[int]:
-        return func.sum(Event.user_metadata["amount"].as_integer()).filter(
+        return func.sum(_jsonb_to_int(Event.user_metadata["amount"].astext)).filter(
             Event.name == SystemEvent.balance_order.value,
             Event.user_metadata["subscription_id"].astext.is_(None),
         )
@@ -1225,8 +1236,8 @@ class SettlementOneTimeProductsNetRevenueMetric(SQLMetric):
         cls, t: ColumnElement[datetime], i: TimeInterval, now: datetime
     ) -> ColumnElement[int]:
         return func.sum(
-            Event.user_metadata["amount"].as_integer()
-            - func.coalesce(Event.user_metadata["fee"].as_integer(), 0)
+            _jsonb_to_int(Event.user_metadata["amount"].astext)
+            - func.coalesce(_jsonb_to_int(Event.user_metadata["fee"].astext), 0)
         ).filter(
             Event.user_metadata["subscription_id"].astext.is_(None),
         )
@@ -1246,7 +1257,7 @@ class SettlementNewSubscriptionsRevenueMetric(SQLMetric):
     def get_sql_expression(
         cls, t: ColumnElement[datetime], i: TimeInterval, now: datetime
     ) -> ColumnElement[int]:
-        return func.sum(Event.user_metadata["amount"].as_integer()).filter(
+        return func.sum(_jsonb_to_int(Event.user_metadata["amount"].astext)).filter(
             Event.name == SystemEvent.balance_order.value,
             Event.user_metadata.has_key("subscription_id"),
             i.sql_date_trunc(
@@ -1271,8 +1282,8 @@ class SettlementNewSubscriptionsNetRevenueMetric(SQLMetric):
         cls, t: ColumnElement[datetime], i: TimeInterval, now: datetime
     ) -> ColumnElement[int]:
         return func.sum(
-            Event.user_metadata["amount"].as_integer()
-            - func.coalesce(Event.user_metadata["fee"].as_integer(), 0)
+            _jsonb_to_int(Event.user_metadata["amount"].astext)
+            - func.coalesce(_jsonb_to_int(Event.user_metadata["fee"].astext), 0)
         ).filter(
             Event.user_metadata.has_key("subscription_id"),
             i.sql_date_trunc(
@@ -1322,7 +1333,7 @@ class SettlementRenewedSubscriptionsRevenueMetric(SQLMetric):
     def get_sql_expression(
         cls, t: ColumnElement[datetime], i: TimeInterval, now: datetime
     ) -> ColumnElement[int]:
-        return func.sum(Event.user_metadata["amount"].as_integer()).filter(
+        return func.sum(_jsonb_to_int(Event.user_metadata["amount"].astext)).filter(
             Event.name == SystemEvent.balance_order.value,
             Event.user_metadata.has_key("subscription_id"),
             i.sql_date_trunc(
@@ -1347,8 +1358,8 @@ class SettlementRenewedSubscriptionsNetRevenueMetric(SQLMetric):
         cls, t: ColumnElement[datetime], i: TimeInterval, now: datetime
     ) -> ColumnElement[int]:
         return func.sum(
-            Event.user_metadata["amount"].as_integer()
-            - func.coalesce(Event.user_metadata["fee"].as_integer(), 0)
+            _jsonb_to_int(Event.user_metadata["amount"].astext)
+            - func.coalesce(_jsonb_to_int(Event.user_metadata["fee"].astext), 0)
         ).filter(
             Event.user_metadata.has_key("subscription_id"),
             i.sql_date_trunc(
