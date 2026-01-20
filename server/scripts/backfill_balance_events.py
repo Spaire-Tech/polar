@@ -13,6 +13,7 @@ from sqlalchemy.orm import selectinload
 from polar.config import settings
 from polar.event.repository import EventRepository
 from polar.event.system import (
+    BalanceCreditOrderMetadata,
     BalanceDisputeMetadata,
     BalanceOrderMetadata,
     BalanceRefundMetadata,
@@ -157,8 +158,8 @@ async def create_missing_balance_order_events(
                     typer.echo(f"Warning: Transaction {tx.id} has no order or customer")
                     continue
 
-                assert tx.presentment_amount is not None
-                assert tx.presentment_currency is not None
+                presentment_amount = tx.presentment_amount or tx.amount
+                presentment_currency = tx.presentment_currency or tx.currency
 
                 order_id_str = str(tx.order.id)
                 metadata: BalanceOrderMetadata = {
@@ -166,8 +167,8 @@ async def create_missing_balance_order_events(
                     "order_id": order_id_str,
                     "amount": tx.amount,
                     "currency": tx.currency,
-                    "presentment_amount": tx.presentment_amount,
-                    "presentment_currency": tx.presentment_currency,
+                    "presentment_amount": presentment_amount,
+                    "presentment_currency": presentment_currency,
                     "tax_amount": tx.order.tax_amount,
                     "fee": fees_by_order.get(order_id_str, 0),
                 }
@@ -334,16 +335,16 @@ async def create_missing_balance_refund_events(
                     )
                     continue
 
-                assert tx.presentment_amount is not None
-                assert tx.presentment_currency is not None
+                presentment_amount = tx.presentment_amount or tx.amount
+                presentment_currency = tx.presentment_currency or tx.currency
 
                 metadata: BalanceRefundMetadata = {
                     "transaction_id": str(tx.id),
                     "refund_id": str(tx.refund.id),
                     "amount": tx.amount,
                     "currency": tx.currency,
-                    "presentment_amount": tx.presentment_amount,
-                    "presentment_currency": tx.presentment_currency,
+                    "presentment_amount": presentment_amount,
+                    "presentment_currency": presentment_currency,
                     "tax_amount": tx.tax_amount,
                     "tax_country": tx.tax_country or "",
                     "tax_state": tx.tax_state or "",
@@ -353,13 +354,14 @@ async def create_missing_balance_refund_events(
                     metadata["order_id"] = str(tx.order_id)
                 if tx.refund.order is not None:
                     order = tx.refund.order
+                    metadata["order_created_at"] = order.created_at.isoformat()
                     if order.product_id is not None:
                         metadata["product_id"] = str(order.product_id)
+                    if order.subscription_id is not None:
+                        metadata["subscription_id"] = str(order.subscription_id)
                 refund_id_str = str(tx.refund.id)
                 if refund_id_str in refundable_amounts:
                     metadata["refundable_amount"] = refundable_amounts[refund_id_str]
-                if tx.refund.subscription_id is not None:
-                    metadata["subscription_id"] = str(tx.refund.subscription_id)
                 if tx.presentment_amount is not None:
                     metadata["presentment_amount"] = tx.presentment_amount
                 if tx.presentment_currency is not None:
@@ -751,16 +753,16 @@ async def create_missing_balance_refund_reversal_events(
                     )
                     continue
 
-                assert tx.presentment_amount is not None
-                assert tx.presentment_currency is not None
+                presentment_amount = tx.presentment_amount or tx.amount
+                presentment_currency = tx.presentment_currency or tx.currency
 
                 metadata: BalanceRefundMetadata = {
                     "transaction_id": str(tx.id),
                     "refund_id": str(tx.refund.id),
                     "amount": tx.amount,
                     "currency": tx.currency,
-                    "presentment_amount": tx.presentment_amount,
-                    "presentment_currency": tx.presentment_currency,
+                    "presentment_amount": presentment_amount,
+                    "presentment_currency": presentment_currency,
                     "tax_amount": tx.tax_amount,
                     "tax_country": tx.tax_country or "",
                     "tax_state": tx.tax_state or "",
@@ -770,10 +772,11 @@ async def create_missing_balance_refund_reversal_events(
                     metadata["order_id"] = str(tx.order_id)
                 if tx.refund.order is not None:
                     order = tx.refund.order
+                    metadata["order_created_at"] = order.created_at.isoformat()
                     if order.product_id is not None:
                         metadata["product_id"] = str(order.product_id)
-                if tx.refund.subscription_id is not None:
-                    metadata["subscription_id"] = str(tx.refund.subscription_id)
+                    if order.subscription_id is not None:
+                        metadata["subscription_id"] = str(order.subscription_id)
 
                 events.append(
                     {
@@ -795,6 +798,128 @@ async def create_missing_balance_refund_reversal_events(
             await asyncio.sleep(rate_limit_delay)
 
     typer.echo(f"Created {created_count} balance.refund_reversal events")
+    return created_count
+
+
+async def create_missing_balance_credit_order_events(
+    session: AsyncSession,
+    batch_size: int,
+    rate_limit_delay: float,
+) -> int:
+    """
+    Create balance.credit_order events for orders paid via balance that don't have events.
+    These are orders that have no payment transaction but are paid.
+    """
+    typer.echo("\n=== Creating missing balance.credit_order events ===")
+
+    existing_order_ids_result = await session.execute(
+        select(Event.user_metadata["order_id"].as_string())
+        .where(
+            Event.name.in_(
+                [SystemEvent.balance_order, SystemEvent.balance_credit_order]
+            ),
+            Event.source == EventSource.system,
+        )
+        .distinct()
+    )
+    existing_order_ids = {row[0] for row in existing_order_ids_result.fetchall()}
+    typer.echo(f"Found {len(existing_order_ids)} orders with existing balance events")
+
+    all_paid_orders_result = await session.execute(
+        select(Order.id)
+        .where(
+            Order.status.in_(["paid", "partially_refunded", "refunded"]),
+            (Order.subtotal_amount - Order.discount_amount) > 0,
+        )
+        .outerjoin(Transaction, (Transaction.order_id == Order.id) & (Transaction.type == TransactionType.payment))
+        .where(Transaction.id.is_(None))
+    )
+    all_paid_order_ids = [row[0] for row in all_paid_orders_result.fetchall()]
+
+    missing_order_ids = [
+        order_id for order_id in all_paid_order_ids if str(order_id) not in existing_order_ids
+    ]
+    total_to_create = len(missing_order_ids)
+
+    if total_to_create == 0:
+        typer.echo("No missing balance.credit_order events to create")
+        return 0
+
+    typer.echo(
+        f"Found {total_to_create} balance-paid orders without balance.credit_order events"
+    )
+
+    created_count = 0
+
+    with Progress() as progress:
+        task = progress.add_task(
+            "[cyan]Creating balance.credit_order events...", total=total_to_create
+        )
+
+        for i in range(0, total_to_create, batch_size):
+            batch_ids = missing_order_ids[i : i + batch_size]
+
+            statement = (
+                select(Order)
+                .where(Order.id.in_(batch_ids))
+                .options(
+                    selectinload(Order.customer),
+                    selectinload(Order.subscription),
+                )
+            )
+
+            result = await session.execute(statement)
+            orders = result.scalars().all()
+
+            if not orders:
+                break
+
+            events = []
+            for order in orders:
+                if order.customer is None:
+                    typer.echo(f"Warning: Order {order.id} has no customer")
+                    continue
+
+                customer = order.customer
+                organization_id = customer.organization_id
+
+                metadata: BalanceCreditOrderMetadata = {
+                    "order_id": str(order.id),
+                    "amount": order.net_amount,
+                    "currency": order.currency,
+                    "tax_amount": order.tax_amount,
+                    "fee": order.platform_fee_amount,
+                }
+                if order.tax_rate is not None:
+                    if order.tax_rate.get("country") is not None:
+                        metadata["tax_country"] = order.tax_rate["country"]
+                    if order.tax_rate.get("state") is not None:
+                        metadata["tax_state"] = order.tax_rate["state"]
+                if order.subscription_id is not None:
+                    metadata["subscription_id"] = str(order.subscription_id)
+                if order.product_id is not None:
+                    metadata["product_id"] = str(order.product_id)
+
+                events.append(
+                    {
+                        "name": SystemEvent.balance_credit_order,
+                        "source": EventSource.system,
+                        "timestamp": order.created_at,
+                        "customer_id": customer.id,
+                        "organization_id": organization_id,
+                        "user_metadata": metadata,
+                    }
+                )
+
+            if events:
+                await EventRepository.from_session(session).insert_batch(events)
+                await session.commit()
+                created_count += len(events)
+
+            progress.update(task, advance=len(orders))
+            await asyncio.sleep(rate_limit_delay)
+
+    typer.echo(f"Created {created_count} balance.credit_order events")
     return created_count
 
 
@@ -848,6 +973,12 @@ async def run_backfill(
         results[
             "balance_refund_reversal_created"
         ] = await create_missing_balance_refund_reversal_events(
+            session, batch_size, rate_limit_delay
+        )
+
+        results[
+            "balance_credit_order_created"
+        ] = await create_missing_balance_credit_order_events(
             session, batch_size, rate_limit_delay
         )
 
