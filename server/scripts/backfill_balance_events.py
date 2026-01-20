@@ -185,7 +185,7 @@ async def create_missing_balance_order_events(
                     {
                         "name": SystemEvent.balance_order,
                         "source": EventSource.system,
-                        "timestamp": tx.created_at,
+                        "timestamp": tx.order.created_at,
                         "customer_id": tx.order.customer.id,
                         "organization_id": tx.order.customer.organization_id,
                         "user_metadata": metadata,

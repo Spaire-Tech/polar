@@ -94,48 +94,40 @@ async def delete_duplicate_balance_order_events(
     """
     typer.echo("\n=== Deleting duplicate balance.order events ===")
 
-    duplicate_count_result = await session.execute(
+    ids_result = await session.execute(
         text("""
-            SELECT COUNT(*) FROM (
-                SELECT user_metadata->>'order_id' as order_id, COUNT(*) as cnt
+            SELECT id FROM (
+                SELECT
+                    id,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY user_metadata->>'order_id'
+                        ORDER BY ingested_at ASC
+                    ) as rn
                 FROM events
                 WHERE source = 'system'
                   AND name = 'balance.order'
-                GROUP BY user_metadata->>'order_id'
-                HAVING COUNT(*) > 1
-            ) dupes
+            ) ranked
+            WHERE rn > 1
         """)
     )
-    orders_with_dupes = duplicate_count_result.scalar() or 0
+    duplicate_ids = [str(row[0]) for row in ids_result.fetchall()]
 
-    if orders_with_dupes == 0:
+    if not duplicate_ids:
         typer.echo("No duplicate events to delete")
         return 0
 
-    typer.echo(f"Found {orders_with_dupes} orders with duplicate balance.order events")
+    typer.echo(f"Found {len(duplicate_ids)} duplicate events to delete")
 
-    deleted_result = await session.execute(
-        text("""
-            DELETE FROM events
-            WHERE id IN (
-                SELECT id FROM (
-                    SELECT
-                        id,
-                        ROW_NUMBER() OVER (
-                            PARTITION BY user_metadata->>'order_id'
-                            ORDER BY created_at ASC
-                        ) as rn
-                    FROM events
-                    WHERE source = 'system'
-                      AND name = 'balance.order'
-                ) ranked
-                WHERE rn > 1
-            )
-        """)
-    )
-    await session.commit()
+    deleted_count = 0
+    for i in range(0, len(duplicate_ids), batch_size):
+        batch_ids = duplicate_ids[i : i + batch_size]
+        placeholders = ",".join(f"'{id}'" for id in batch_ids)
+        await session.execute(text(f"DELETE FROM events WHERE id IN ({placeholders})"))
+        await session.commit()
+        deleted_count += len(batch_ids)
+        typer.echo(f"Deleted {deleted_count}/{len(duplicate_ids)} duplicates...")
+        await asyncio.sleep(rate_limit_delay)
 
-    deleted_count = cast(CursorResult[Any], deleted_result).rowcount
     typer.echo(f"Deleted {deleted_count} duplicate events")
     return deleted_count
 
