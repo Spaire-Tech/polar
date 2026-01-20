@@ -84,6 +84,155 @@ async def fix_balance_order_timestamps(
     return updated_count
 
 
+async def fix_balance_order_fees(
+    session: AsyncSession,
+    batch_size: int,
+    rate_limit_delay: float,
+) -> int:
+    """
+    Fix balance.order event fees to match order.platform_fee_amount.
+    """
+    typer.echo("\n=== Fixing balance.order event fees ===")
+
+    mismatched_result = await session.execute(
+        text("""
+            SELECT COUNT(*)
+            FROM events e
+            JOIN orders o ON (e.user_metadata->>'order_id')::uuid = o.id
+            WHERE e.source = 'system'
+              AND e.name = 'balance.order'
+              AND o.platform_fee_amount != COALESCE((e.user_metadata->>'fee')::numeric::int, 0)
+        """)
+    )
+    mismatched_count = mismatched_result.scalar() or 0
+    typer.echo(f"Found {mismatched_count} events with mismatched fees")
+
+    if mismatched_count == 0:
+        typer.echo("No fees to fix")
+        return 0
+
+    updated_result = await session.execute(
+        text("""
+            UPDATE events e
+            SET user_metadata = jsonb_set(
+                e.user_metadata,
+                '{fee}',
+                to_jsonb(o.platform_fee_amount)
+            )
+            FROM orders o
+            WHERE (e.user_metadata->>'order_id')::uuid = o.id
+              AND e.source = 'system'
+              AND e.name = 'balance.order'
+              AND o.platform_fee_amount != COALESCE((e.user_metadata->>'fee')::numeric::int, 0)
+        """)
+    )
+    await session.commit()
+
+    updated_count = cast(CursorResult[Any], updated_result).rowcount
+    typer.echo(f"Updated {updated_count} event fees")
+    return updated_count
+
+
+async def fix_refund_event_subscription_id(
+    session: AsyncSession,
+    batch_size: int,
+    rate_limit_delay: float,
+) -> int:
+    """
+    Add subscription_id to balance.refund events that are missing it but order has subscription.
+    """
+    typer.echo("\n=== Adding subscription_id to balance.refund events ===")
+
+    missing_result = await session.execute(
+        text("""
+            SELECT COUNT(*)
+            FROM events e
+            JOIN orders o ON (e.user_metadata->>'order_id')::uuid = o.id
+            WHERE e.source = 'system'
+              AND e.name = 'balance.refund'
+              AND NOT e.user_metadata ? 'subscription_id'
+              AND o.subscription_id IS NOT NULL
+        """)
+    )
+    missing_count = missing_result.scalar() or 0
+    typer.echo(f"Found {missing_count} refund events missing subscription_id")
+
+    if missing_count == 0:
+        typer.echo("No refund events to fix")
+        return 0
+
+    updated_result = await session.execute(
+        text("""
+            UPDATE events e
+            SET user_metadata = jsonb_set(
+                e.user_metadata,
+                '{subscription_id}',
+                to_jsonb(o.subscription_id::text)
+            )
+            FROM orders o
+            WHERE (e.user_metadata->>'order_id')::uuid = o.id
+              AND e.source = 'system'
+              AND e.name = 'balance.refund'
+              AND NOT e.user_metadata ? 'subscription_id'
+              AND o.subscription_id IS NOT NULL
+        """)
+    )
+    await session.commit()
+
+    updated_count = cast(CursorResult[Any], updated_result).rowcount
+    typer.echo(f"Added subscription_id to {updated_count} refund events")
+    return updated_count
+
+
+async def fix_refund_event_order_created_at(
+    session: AsyncSession,
+    batch_size: int,
+    rate_limit_delay: float,
+) -> int:
+    """
+    Add order_created_at to balance.refund events that are missing it.
+    """
+    typer.echo("\n=== Adding order_created_at to balance.refund events ===")
+
+    missing_result = await session.execute(
+        text("""
+            SELECT COUNT(*)
+            FROM events e
+            JOIN orders o ON (e.user_metadata->>'order_id')::uuid = o.id
+            WHERE e.source = 'system'
+              AND e.name = 'balance.refund'
+              AND NOT e.user_metadata ? 'order_created_at'
+        """)
+    )
+    missing_count = missing_result.scalar() or 0
+    typer.echo(f"Found {missing_count} refund events missing order_created_at")
+
+    if missing_count == 0:
+        typer.echo("No refund events to fix")
+        return 0
+
+    updated_result = await session.execute(
+        text("""
+            UPDATE events e
+            SET user_metadata = jsonb_set(
+                e.user_metadata,
+                '{order_created_at}',
+                to_jsonb(to_char(o.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US+00:00'))
+            )
+            FROM orders o
+            WHERE (e.user_metadata->>'order_id')::uuid = o.id
+              AND e.source = 'system'
+              AND e.name = 'balance.refund'
+              AND NOT e.user_metadata ? 'order_created_at'
+        """)
+    )
+    await session.commit()
+
+    updated_count = cast(CursorResult[Any], updated_result).rowcount
+    typer.echo(f"Added order_created_at to {updated_count} refund events")
+    return updated_count
+
+
 async def delete_duplicate_balance_order_events(
     session: AsyncSession,
     batch_size: int,
@@ -163,7 +312,19 @@ async def run_fix(
             session, batch_size, rate_limit_delay
         )
 
+        results["fees_fixed"] = await fix_balance_order_fees(
+            session, batch_size, rate_limit_delay
+        )
+
         results["duplicates_deleted"] = await delete_duplicate_balance_order_events(
+            session, batch_size, rate_limit_delay
+        )
+
+        results["refund_order_created_at_added"] = await fix_refund_event_order_created_at(
+            session, batch_size, rate_limit_delay
+        )
+
+        results["refund_subscription_id_added"] = await fix_refund_event_subscription_id(
             session, batch_size, rate_limit_delay
         )
 
@@ -195,9 +356,12 @@ async def fix(
     ),
 ) -> None:
     """
-    Fix balance.order events:
-    1. Update timestamps to match order.created_at
-    2. Delete duplicate events (keeping oldest per order)
+    Fix balance events:
+    1. Update balance.order timestamps to match order.created_at
+    2. Update balance.order fees to match order.platform_fee_amount
+    3. Delete duplicate balance.order events (keeping oldest per order)
+    4. Add order_created_at to balance.refund events for proper categorization
+    5. Add subscription_id to balance.refund events that are missing it
     """
     logging.config.dictConfig(
         {
