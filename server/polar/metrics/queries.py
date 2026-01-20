@@ -1,12 +1,13 @@
 import uuid
 from collections.abc import Generator, Sequence
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import StrEnum
 from typing import TYPE_CHECKING, Protocol, cast
 
 from sqlalchemy import (
     CTE,
     ColumnElement,
+    DateTime,
     Integer,
     Numeric,
     Select,
@@ -831,7 +832,9 @@ def _get_latest_payment_per_subscription_subquery(
         .label("rn"),
     ).where(
         Event.source == EventSource.system,
-        Event.name == SystemEvent.balance_order.value,
+        Event.name.in_(
+            [SystemEvent.balance_order.value, SystemEvent.balance_credit_order.value]
+        ),
         Event.user_metadata.has_key("subscription_id"),
     )
 
@@ -861,6 +864,20 @@ def _get_latest_payment_per_subscription_subquery(
     )
 
 
+def _get_event_order_timestamp() -> ColumnElement[datetime]:
+    """
+    Get the order timestamp for an event.
+
+    For balance.order events, this returns Event.timestamp (which equals order.created_at).
+    For balance.refund events, this returns order_created_at from metadata.
+    This ensures refunds are attributed to the same period as their original order.
+    """
+    return func.coalesce(
+        sa_cast(Event.user_metadata["order_created_at"].astext, DateTime(timezone=True)),
+        Event.timestamp,
+    )
+
+
 def _get_readable_balance_events_statement(
     auth_subject: AuthSubject[User | Organization],
     *,
@@ -874,9 +891,10 @@ def _get_readable_balance_events_statement(
         Event.name.in_(
             [
                 SystemEvent.balance_order.value,
+                SystemEvent.balance_credit_order.value,
                 SystemEvent.balance_refund.value,
-                SystemEvent.balance_dispute.value,
-                SystemEvent.balance_dispute_reversal.value,
+                # SystemEvent.balance_dispute.value,
+                # SystemEvent.balance_dispute_reversal.value,
             ]
         ),
     )
@@ -914,6 +932,51 @@ def _get_readable_balance_events_statement(
     return statement
 
 
+def _get_balance_event_filters(
+    auth_subject: AuthSubject[User | Organization],
+    *,
+    organization_id: Sequence[uuid.UUID] | None = None,
+    product_id: Sequence[uuid.UUID] | None = None,
+    customer_id: Sequence[uuid.UUID] | None = None,
+) -> list[ColumnElement[bool]]:
+    """Build filter conditions for balance events, inlined for better performance."""
+    filters: list[ColumnElement[bool]] = [
+        Event.source == EventSource.system,
+        Event.name.in_(
+            [
+                SystemEvent.balance_order.value,
+                SystemEvent.balance_credit_order.value,
+                SystemEvent.balance_refund.value,
+            ]
+        ),
+    ]
+
+    if is_user(auth_subject):
+        filters.append(
+            Event.organization_id.in_(
+                select(UserOrganization.organization_id).where(
+                    UserOrganization.user_id == auth_subject.subject.id,
+                    UserOrganization.deleted_at.is_(None),
+                )
+            )
+        )
+    elif is_organization(auth_subject):
+        filters.append(Event.organization_id == auth_subject.subject.id)
+
+    if organization_id is not None:
+        filters.append(Event.organization_id.in_(organization_id))
+
+    if product_id is not None:
+        filters.append(
+            Event.user_metadata["product_id"].astext.in_([str(p) for p in product_id])
+        )
+
+    if customer_id is not None:
+        filters.append(Event.customer_id.in_(customer_id))
+
+    return filters
+
+
 def get_balance_orders_metrics_cte(
     timestamp_series: CTE,
     interval: TimeInterval,
@@ -930,26 +993,31 @@ def get_balance_orders_metrics_cte(
     start_timestamp, end_timestamp = bounds
     timestamp_column: ColumnElement[datetime] = timestamp_series.c.timestamp
 
-    readable_balance_events_statement = _get_readable_balance_events_statement(
-        auth_subject,
-        organization_id=organization_id,
-        product_id=product_id,
-        billing_type=billing_type,
-        customer_id=customer_id,
-    )
-
-    day_column = interval.sql_date_trunc(Event.timestamp)
+    order_timestamp = _get_event_order_timestamp()
+    day_column = interval.sql_date_trunc(order_timestamp)
 
     cumulative_metrics = ["cumulative_revenue", "net_cumulative_revenue"]
-    cumulative_metrics_to_compute = [
-        m
-        for m in metrics
-        if m.query == MetricQuery.balance_orders and m.slug in cumulative_metrics
-    ]
 
-    min_timestamp_subquery = select(
-        func.min(timestamp_series.c.timestamp)
-    ).scalar_subquery()
+    # For billing_type filter, we need a JOIN so fall back to subquery approach
+    if billing_type is not None:
+        readable_balance_events_statement = _get_readable_balance_events_statement(
+            auth_subject,
+            organization_id=organization_id,
+            product_id=product_id,
+            billing_type=billing_type,
+            customer_id=customer_id,
+        )
+        base_filters: list[ColumnElement[bool]] = [
+            Event.id.in_(readable_balance_events_statement)
+        ]
+    else:
+        # Inline filters for better performance (avoids subquery)
+        base_filters = _get_balance_event_filters(
+            auth_subject,
+            organization_id=organization_id,
+            product_id=product_id,
+            customer_id=customer_id,
+        )
 
     historical_baseline = None
     if any(m.slug in cumulative_metrics for m in metrics):
@@ -958,7 +1026,14 @@ def get_balance_orders_metrics_cte(
                 func.coalesce(
                     func.sum(
                         _jsonb_to_int(Event.user_metadata["amount"].astext)
-                    ).filter(Event.name == SystemEvent.balance_order.value),
+                    ).filter(
+                        Event.name.in_(
+                            [
+                                SystemEvent.balance_order.value,
+                                SystemEvent.balance_credit_order.value,
+                            ]
+                        )
+                    ),
                     0,
                 ).label("hist_cumulative_revenue"),
                 func.coalesce(
@@ -973,10 +1048,17 @@ def get_balance_orders_metrics_cte(
             )
             .select_from(Event)
             .where(
-                Event.id.in_(readable_balance_events_statement),
-                Event.timestamp < start_timestamp,
+                *base_filters,
+                order_timestamp < start_timestamp,
             )
         )
+
+    # Add timestamp index hint: filter on Event.timestamp to use ix_events_org_timestamp_id
+    # The 1-day buffer accounts for timezone differences between event timestamp and order_created_at
+    timestamp_index_filters = [
+        Event.timestamp >= start_timestamp - timedelta(days=1),
+        Event.timestamp <= end_timestamp + timedelta(days=1),
+    ]
 
     daily_metrics = cte(
         select(
@@ -996,9 +1078,10 @@ def get_balance_orders_metrics_cte(
             == func.cast(Subscription.id, String),
         )
         .where(
-            Event.id.in_(readable_balance_events_statement),
-            Event.timestamp >= start_timestamp,
-            Event.timestamp <= end_timestamp,
+            *base_filters,
+            *timestamp_index_filters,
+            order_timestamp >= start_timestamp,
+            order_timestamp <= end_timestamp,
         )
         .group_by(day_column)
     )

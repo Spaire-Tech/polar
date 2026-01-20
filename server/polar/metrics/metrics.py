@@ -9,10 +9,12 @@ if TYPE_CHECKING:
 
 from sqlalchemy import (
     ColumnElement,
+    DateTime,
     Float,
     Integer,
     Numeric,
     SQLColumnExpression,
+    String,
     case,
     func,
     literal_column,
@@ -37,6 +39,20 @@ from .queries import MetricQuery
 def _jsonb_to_int(jsonb_element: ColumnElement[str]) -> ColumnElement[int]:
     """Cast a JSONB text value to integer, handling float strings like '106.0'."""
     return sa_cast(sa_cast(jsonb_element, Numeric), Integer)
+
+
+def _get_order_timestamp() -> ColumnElement[datetime]:
+    """
+    Get the timestamp to use for categorization (new vs renewed subscription).
+
+    For balance.order events, this is Event.timestamp (which equals order.created_at).
+    For balance.refund events, this uses order_created_at from metadata if available,
+    otherwise falls back to Event.timestamp.
+    """
+    return func.coalesce(
+        sa_cast(Event.user_metadata["order_created_at"].astext, DateTime(timezone=True)),
+        Event.timestamp,
+    )
 
 
 class MetricType(StrEnum):
@@ -1046,7 +1062,9 @@ class SettlementOrdersMetric(SQLMetric):
         cls, t: ColumnElement[datetime], i: TimeInterval, now: datetime
     ) -> ColumnElement[int]:
         return func.count(Event.id).filter(
-            Event.name == SystemEvent.balance_order.value
+            Event.name.in_(
+                [SystemEvent.balance_order.value, SystemEvent.balance_credit_order.value]
+            )
         )
 
     @classmethod
@@ -1065,7 +1083,9 @@ class SettlementRevenueMetric(SQLMetric):
         cls, t: ColumnElement[datetime], i: TimeInterval, now: datetime
     ) -> ColumnElement[int]:
         return func.sum(_jsonb_to_int(Event.user_metadata["amount"].astext)).filter(
-            Event.name == SystemEvent.balance_order.value
+            Event.name.in_(
+                [SystemEvent.balance_order.value, SystemEvent.balance_credit_order.value]
+            )
         )
 
     @classmethod
@@ -1104,7 +1124,9 @@ class SettlementCumulativeRevenueMetric(SQLMetric):
         cls, t: ColumnElement[datetime], i: TimeInterval, now: datetime
     ) -> ColumnElement[int]:
         return func.sum(_jsonb_to_int(Event.user_metadata["amount"].astext)).filter(
-            Event.name == SystemEvent.balance_order.value
+            Event.name.in_(
+                [SystemEvent.balance_order.value, SystemEvent.balance_credit_order.value]
+            )
         )
 
     @classmethod
@@ -1145,7 +1167,9 @@ class SettlementAverageOrderValueMetric(SQLMetric):
         return func.cast(
             func.ceil(
                 func.avg(_jsonb_to_int(Event.user_metadata["amount"].astext)).filter(
-                    Event.name == SystemEvent.balance_order.value
+                    Event.name.in_(
+                [SystemEvent.balance_order.value, SystemEvent.balance_credit_order.value]
+            )
                 )
             ),
             Integer,
@@ -1168,12 +1192,21 @@ class SettlementNetAverageOrderValueMetric(SQLMetric):
     def get_sql_expression(
         cls, t: ColumnElement[datetime], i: TimeInterval, now: datetime
     ) -> ColumnElement[int]:
+        net_revenue = func.sum(
+            _jsonb_to_int(Event.user_metadata["amount"].astext)
+            - func.coalesce(_jsonb_to_int(Event.user_metadata["fee"].astext), 0)
+        )
+        orders_count = func.count(Event.id).filter(
+            Event.name.in_(
+                [SystemEvent.balance_order.value, SystemEvent.balance_credit_order.value]
+            )
+        )
         return func.cast(
             func.ceil(
-                func.avg(
-                    _jsonb_to_int(Event.user_metadata["amount"].astext)
-                    - func.coalesce(_jsonb_to_int(Event.user_metadata["fee"].astext), 0)
-                ).filter(Event.name == SystemEvent.balance_order.value)
+                case(
+                    (orders_count == 0, 0),
+                    else_=net_revenue / orders_count,
+                )
             ),
             Integer,
         )
@@ -1196,7 +1229,9 @@ class SettlementOneTimeProductsMetric(SQLMetric):
         cls, t: ColumnElement[datetime], i: TimeInterval, now: datetime
     ) -> ColumnElement[int]:
         return func.count(Event.id).filter(
-            Event.name == SystemEvent.balance_order.value,
+            Event.name.in_(
+                [SystemEvent.balance_order.value, SystemEvent.balance_credit_order.value]
+            ),
             Event.user_metadata["subscription_id"].astext.is_(None),
         )
 
@@ -1216,7 +1251,9 @@ class SettlementOneTimeProductsRevenueMetric(SQLMetric):
         cls, t: ColumnElement[datetime], i: TimeInterval, now: datetime
     ) -> ColumnElement[int]:
         return func.sum(_jsonb_to_int(Event.user_metadata["amount"].astext)).filter(
-            Event.name == SystemEvent.balance_order.value,
+            Event.name.in_(
+                [SystemEvent.balance_order.value, SystemEvent.balance_credit_order.value]
+            ),
             Event.user_metadata["subscription_id"].astext.is_(None),
         )
 
@@ -1258,12 +1295,14 @@ class SettlementNewSubscriptionsRevenueMetric(SQLMetric):
         cls, t: ColumnElement[datetime], i: TimeInterval, now: datetime
     ) -> ColumnElement[int]:
         return func.sum(_jsonb_to_int(Event.user_metadata["amount"].astext)).filter(
-            Event.name == SystemEvent.balance_order.value,
+            Event.name.in_(
+                [SystemEvent.balance_order.value, SystemEvent.balance_credit_order.value]
+            ),
             Event.user_metadata.has_key("subscription_id"),
             i.sql_date_trunc(
                 cast(SQLColumnExpression[datetime], Subscription.started_at)
             )
-            == i.sql_date_trunc(t),
+            == i.sql_date_trunc(_get_order_timestamp()),
         )
 
     @classmethod
@@ -1289,7 +1328,7 @@ class SettlementNewSubscriptionsNetRevenueMetric(SQLMetric):
             i.sql_date_trunc(
                 cast(SQLColumnExpression[datetime], Subscription.started_at)
             )
-            == i.sql_date_trunc(t),
+            == i.sql_date_trunc(_get_order_timestamp()),
         )
 
     @classmethod
@@ -1310,12 +1349,14 @@ class SettlementRenewedSubscriptionsMetric(SQLMetric):
         return func.count(
             func.distinct(Event.user_metadata["subscription_id"].astext)
         ).filter(
-            Event.name == SystemEvent.balance_order.value,
+            Event.name.in_(
+                [SystemEvent.balance_order.value, SystemEvent.balance_credit_order.value]
+            ),
             Event.user_metadata.has_key("subscription_id"),
             i.sql_date_trunc(
                 cast(SQLColumnExpression[datetime], Subscription.started_at)
             )
-            != i.sql_date_trunc(t),
+            != i.sql_date_trunc(_get_order_timestamp()),
         )
 
     @classmethod
@@ -1334,12 +1375,14 @@ class SettlementRenewedSubscriptionsRevenueMetric(SQLMetric):
         cls, t: ColumnElement[datetime], i: TimeInterval, now: datetime
     ) -> ColumnElement[int]:
         return func.sum(_jsonb_to_int(Event.user_metadata["amount"].astext)).filter(
-            Event.name == SystemEvent.balance_order.value,
+            Event.name.in_(
+                [SystemEvent.balance_order.value, SystemEvent.balance_credit_order.value]
+            ),
             Event.user_metadata.has_key("subscription_id"),
             i.sql_date_trunc(
                 cast(SQLColumnExpression[datetime], Subscription.started_at)
             )
-            != i.sql_date_trunc(t),
+            != i.sql_date_trunc(_get_order_timestamp()),
         )
 
     @classmethod
@@ -1365,7 +1408,7 @@ class SettlementRenewedSubscriptionsNetRevenueMetric(SQLMetric):
             i.sql_date_trunc(
                 cast(SQLColumnExpression[datetime], Subscription.started_at)
             )
-            != i.sql_date_trunc(t),
+            != i.sql_date_trunc(_get_order_timestamp()),
         )
 
     @classmethod
@@ -1386,12 +1429,14 @@ class SettlementNewSubscriptionsMetric(SQLMetric):
         return func.count(
             func.distinct(Event.user_metadata["subscription_id"].astext)
         ).filter(
-            Event.name == SystemEvent.balance_order.value,
+            Event.name.in_(
+                [SystemEvent.balance_order.value, SystemEvent.balance_credit_order.value]
+            ),
             Event.user_metadata.has_key("subscription_id"),
             i.sql_date_trunc(
                 cast(SQLColumnExpression[datetime], Subscription.started_at)
             )
-            == i.sql_date_trunc(t),
+            == i.sql_date_trunc(_get_order_timestamp()),
         )
 
     @classmethod
