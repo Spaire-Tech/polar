@@ -1420,7 +1420,7 @@ class SettlementNewSubscriptionsMetric(SQLMetric):
     slug = "new_subscriptions"
     display_name = "New Subscriptions"
     type = MetricType.scalar
-    query = MetricQuery.balance_orders
+    query = MetricQuery.events
 
     @classmethod
     def get_sql_expression(
@@ -1429,14 +1429,7 @@ class SettlementNewSubscriptionsMetric(SQLMetric):
         return func.count(
             func.distinct(Event.user_metadata["subscription_id"].astext)
         ).filter(
-            Event.name.in_(
-                [SystemEvent.balance_order.value, SystemEvent.balance_credit_order.value]
-            ),
-            Event.user_metadata.has_key("subscription_id"),
-            i.sql_date_trunc(
-                cast(SQLColumnExpression[datetime], Subscription.started_at)
-            )
-            == i.sql_date_trunc(_get_order_timestamp()),
+            Event.name == SystemEvent.subscription_created.value,
         )
 
     @classmethod
