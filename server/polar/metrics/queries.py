@@ -371,7 +371,7 @@ def get_settlement_active_subscriptions_cte(
     )
 
     latest_payments = _get_latest_payment_per_subscription_subquery(
-        auth_subject, organization_id
+        auth_subject, organization_id, now=now
     )
 
     subscription_join = timestamp_series.join(
@@ -470,6 +470,78 @@ def _get_readable_subscriptions_statement(
         ).where(Customer.id.in_(customer_id))
 
     return statement
+
+
+def _get_filtered_subscriptions_cte(
+    auth_subject: AuthSubject[User | Organization],
+    bounds: tuple[datetime, datetime],
+    *,
+    organization_id: Sequence[uuid.UUID] | None = None,
+    product_id: Sequence[uuid.UUID] | None = None,
+    billing_type: Sequence[ProductBillingType] | None = None,
+    customer_id: Sequence[uuid.UUID] | None = None,
+) -> CTE:
+    """
+    Pre-filter subscriptions once with all needed columns.
+    This avoids repeating the subscription filter subquery multiple times.
+    """
+    start_timestamp, end_timestamp = bounds
+
+    statement = (
+        select(
+            Subscription.id,
+            Subscription.customer_id,
+            Subscription.started_at,
+            Subscription.ended_at,
+            Subscription.ends_at,
+            Subscription.canceled_at,
+            Subscription.amount,
+            Subscription.recurring_interval,
+        )
+        .select_from(Subscription)
+        .join(Product, onclause=Subscription.product_id == Product.id)
+    )
+
+    if is_user(auth_subject):
+        statement = statement.where(
+            Product.organization_id.in_(
+                select(UserOrganization.organization_id).where(
+                    UserOrganization.user_id == auth_subject.subject.id,
+                    UserOrganization.deleted_at.is_(None),
+                )
+            )
+        )
+    elif is_organization(auth_subject):
+        statement = statement.where(Product.organization_id == auth_subject.subject.id)
+
+    if organization_id is not None:
+        statement = statement.where(Product.organization_id.in_(organization_id))
+
+    if product_id is not None:
+        statement = statement.where(Subscription.product_id.in_(product_id))
+
+    if billing_type is not None:
+        statement = statement.where(Product.billing_type.in_(billing_type))
+
+    if customer_id is not None:
+        statement = statement.join(
+            Customer,
+            onclause=Subscription.customer_id == Customer.id,
+        ).where(Customer.id.in_(customer_id))
+
+    statement = statement.where(
+        or_(
+            Subscription.started_at.is_(None),
+            Subscription.started_at <= end_timestamp,
+        ),
+        or_(
+            func.coalesce(Subscription.ended_at, Subscription.ends_at).is_(None),
+            func.coalesce(Subscription.ended_at, Subscription.ends_at)
+            >= start_timestamp,
+        ),
+    )
+
+    return cte(statement, name="filtered_subscriptions")
 
 
 def get_checkouts_cte(
@@ -819,6 +891,8 @@ def get_events_metrics_cte(
 def _get_latest_payment_per_subscription_subquery(
     auth_subject: AuthSubject[User | Organization],
     organization_id: Sequence[uuid.UUID] | None = None,
+    *,
+    now: datetime | None = None,
 ) -> CTE:
     """Get the latest balance_order settlement amount per subscription."""
     ranked = select(
@@ -837,6 +911,14 @@ def _get_latest_payment_per_subscription_subquery(
         ),
         Event.user_metadata.has_key("subscription_id"),
     )
+
+    # Add time filter to avoid scanning all historical events
+    # Look back 2 years max - subscriptions older than that without recent payments
+    # are unlikely to be active
+    if now is not None:
+        ranked = ranked.where(
+            Event.timestamp >= now - timedelta(days=730),
+        )
 
     if is_user(auth_subject):
         ranked = ranked.where(
@@ -873,7 +955,9 @@ def _get_event_order_timestamp() -> ColumnElement[datetime]:
     This ensures refunds are attributed to the same period as their original order.
     """
     return func.coalesce(
-        sa_cast(Event.user_metadata["order_created_at"].astext, DateTime(timezone=True)),
+        sa_cast(
+            Event.user_metadata["order_created_at"].astext, DateTime(timezone=True)
+        ),
         Event.timestamp,
     )
 
