@@ -71,6 +71,7 @@ from polar.models import (
     PaymentMethod,
     Product,
     ProductPrice,
+    ProductVisibility,
     Subscription,
     User,
 )
@@ -620,6 +621,18 @@ class CheckoutService:
                 ]
             )
 
+        if product.visibility == ProductVisibility.draft:
+            raise PolarRequestValidationError(
+                [
+                    {
+                        "type": "value_error",
+                        "loc": ("body", "product_id"),
+                        "msg": "Product is a draft.",
+                        "input": checkout_create.product_id,
+                    }
+                ]
+            )
+
         if product.organization.blocked_at is not None:
             raise PolarRequestValidationError(
                 [
@@ -747,7 +760,10 @@ class CheckoutService:
     ) -> Checkout:
         products: list[Product] = []
         for product in checkout_link.products:
-            if not product.is_archived:
+            if (
+                not product.is_archived
+                and product.visibility != ProductVisibility.draft
+            ):
                 products.append(product)
 
         if len(products) == 0:
@@ -1486,6 +1502,18 @@ class CheckoutService:
                 ]
             )
 
+        if product.visibility == ProductVisibility.draft:
+            raise PolarRequestValidationError(
+                [
+                    {
+                        "type": "value_error",
+                        "loc": ("body", "product_id"),
+                        "msg": "Product is a draft.",
+                        "input": product_id,
+                    }
+                ]
+            )
+
         currencies = self._get_currencies(
             currency, product, product.organization, ip_country
         )
@@ -1537,6 +1565,17 @@ class CheckoutService:
                         "type": "value_error",
                         "loc": ("body", "products", index),
                         "msg": "Product is archived.",
+                        "input": product_id,
+                    }
+                )
+                continue
+
+            if product.visibility == ProductVisibility.draft:
+                errors.append(
+                    {
+                        "type": "value_error",
+                        "loc": ("body", "products", index),
+                        "msg": "Product is a draft.",
                         "input": product_id,
                     }
                 )
