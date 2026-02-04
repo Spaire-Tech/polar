@@ -114,7 +114,7 @@ class State(TypedDict):
 
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[State]:
-    log.info("Starting Polar API")
+    log.info("Starting Spaire API")
 
     # Start HTTP metrics pusher (if configured)
     # Use include_queue_metrics=False since queue metrics are worker-specific
@@ -152,7 +152,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[State]:
         )
         ip_geolocation_client = None
 
-    log.info("Polar API started")
+    log.info("Spaire API started")
 
     yield {
         "async_engine": async_engine,
@@ -177,7 +177,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[State]:
     if ip_geolocation_client is not None:
         ip_geolocation_client.close()
 
-    log.info("Polar API stopped")
+    log.info("Spaire API stopped")
 
 
 def create_app() -> FastAPI:

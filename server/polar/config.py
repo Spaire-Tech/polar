@@ -174,11 +174,11 @@ class Settings(BaseSettings):
     EMAIL_SENDER: EmailSender = EmailSender.logger
     RESEND_API_KEY: str = ""
     RESEND_API_BASE_URL: str = "https://api.resend.com"
-    EMAIL_FROM_NAME: str = "Polar"
-    EMAIL_FROM_DOMAIN: str = "notifications.polar.sh"
+    EMAIL_FROM_NAME: str = "Spaire"
+    EMAIL_FROM_DOMAIN: str = "notifications.spaire.sh"
     EMAIL_FROM_LOCAL: str = "mail"
-    EMAIL_DEFAULT_REPLY_TO_NAME: str = "Polar Support"
-    EMAIL_DEFAULT_REPLY_TO_EMAIL_ADDRESS: str = "support@polar.sh"
+    EMAIL_DEFAULT_REPLY_TO_NAME: str = "Spaire Support"
+    EMAIL_DEFAULT_REPLY_TO_EMAIL_ADDRESS: str = "support@spaire.sh"
 
     # Github App
     GITHUB_CLIENT_ID: str = ""
@@ -220,7 +220,7 @@ class Settings(BaseSettings):
     # Stripe webhook secrets
     STRIPE_WEBHOOK_SECRET: str = ""
     STRIPE_CONNECT_WEBHOOK_SECRET: str = ""
-    STRIPE_STATEMENT_DESCRIPTOR: str = "POLAR"
+    STRIPE_STATEMENT_DESCRIPTOR: str = "SPAIRE"
 
     # Numeral
     NUMERAL_API_KEY: str | None = None
@@ -303,7 +303,7 @@ class Settings(BaseSettings):
     # Invoices
     S3_CUSTOMER_INVOICES_BUCKET_NAME: str = "polar-customer-invoices"
     S3_PAYOUT_INVOICES_BUCKET_NAME: str = "polar-payout-invoices"
-    INVOICES_NAME: str = "Polar Software, Inc."
+    INVOICES_NAME: str = "Spaire, Inc."
     INVOICES_ADDRESS: Address = Address(
         line1="548 Market St",
         line2="PMB 61301",
@@ -312,8 +312,8 @@ class Settings(BaseSettings):
         state="US-CA",
         country=CountryAlpha2("US"),
     )
-    INVOICES_ADDITIONAL_INFO: str | None = "[support@polar.sh](mailto:support@polar.sh)"
-    PAYOUT_INVOICES_PREFIX: str = "POLAR-"
+    INVOICES_ADDITIONAL_INFO: str | None = "[support@spaire.sh](mailto:support@spaire.sh)"
+    PAYOUT_INVOICES_PREFIX: str = "SPAIRE-"
 
     # Application behaviours
     API_PAGINATION_MAX_LIMIT: int = 100

@@ -89,7 +89,7 @@ export const platformFeesDisplayNames: {
   payout: 'Payout Fee',
   account: 'Active Payout Account Fee',
   dispute: 'Dispute Fee',
-  platform: 'Polar Fee',
+  platform: 'Spaire Fee',
   fee_credit: 'Fee Credit',
 }
 

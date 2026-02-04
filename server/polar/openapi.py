@@ -44,7 +44,7 @@ class APITag(StrEnum):
             {
                 "name": cls.public,
                 "description": (
-                    "Endpoints shown and documented in the Polar API documentation "
+                    "Endpoints shown and documented in the Spaire API documentation "
                     "and available in our SDKs."
                 ),
             },
@@ -74,10 +74,10 @@ class OpenAPIParameters(TypedDict):
 
 
 OPENAPI_PARAMETERS: OpenAPIParameters = {
-    "title": "Polar API",
-    "summary": "Polar HTTP and Webhooks API",
+    "title": "Spaire API",
+    "summary": "Spaire HTTP and Webhooks API",
     "version": "0.1.0",
-    "description": "Read the docs at https://polar.sh/docs/api-reference",
+    "description": "Read the docs at https://docs.spaire.sh/api-reference",
     "docs_url": None
     if settings.is_environment({Environment.sandbox, Environment.production})
     else "/docs",

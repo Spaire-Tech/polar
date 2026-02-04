@@ -6,7 +6,7 @@ import { SplitPromo } from './molecules/SplitPromo'
 export const MerchantOfRecord = () => {
   return (
     <SplitPromo
-      title="Polar as Merchant of Record"
+      title="Spaire as Merchant of Record"
       description="Forget all about billing & taxes. We handle it all for you as the merchant of record."
       bullets={[
         'Sales Tax, VAT, GST, etc.',

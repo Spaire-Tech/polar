@@ -14,20 +14,20 @@ export function OrganizationInvite({
 }: schemas['OrganizationInviteProps']) {
   return (
     <Wrapper>
-      <Preview>You've been added to {organization_name} on Polar</Preview>
+      <Preview>You've been added to {organization_name} on Spaire</Preview>
       <PolarHeader />
       <IntroWithHi>
         {inviter_email} has added you to{' '}
-        <span className="font-bold">{organization_name}</span> on Polar.
+        <span className="font-bold">{organization_name}</span> on Spaire.
       </IntroWithHi>
       <Section>
         <Text>
           As a member of {organization_name} you're now able to manage{' '}
-          {organization_name}'s products, customers, and subscriptions on Polar.
+          {organization_name}'s products, customers, and subscriptions on Spaire.
         </Text>
       </Section>
       <Section className="text-center">
-        <Button href={invite_url}>Go to the Polar dashboard</Button>
+        <Button href={invite_url}>Go to the Spaire dashboard</Button>
       </Section>
       <Footer email={email} />
     </Wrapper>

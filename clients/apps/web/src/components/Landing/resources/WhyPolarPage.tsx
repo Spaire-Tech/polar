@@ -80,25 +80,25 @@ export const WhyPolarPage = () => {
     },
     { id: 'developer-experience', title: 'Developer Experience' },
     { id: 'pricing', title: 'Pricing' },
-    { id: 'why-switch', title: 'Why switch to Polar?' },
+    { id: 'why-switch', title: 'Why switch to Spaire?' },
     { id: 'who-switches', title: 'Who else is switching?' },
   ]
 
   return (
     <ResourceLayout
-      title="Why Polar is the best way to monetize your software"
+      title="Why Spaire is the best way to monetize your software"
       toc={tocItems}
     >
       <ResourceSection id="introduction" title="Introduction">
         <p className="text-lg">Monetizing your software should be easy.</p>
         <p className="dark:text-polar-300 text-gray-500">
-          Polar is an open-source billing infrastructure platform designed
+          Spaire is an open-source billing infrastructure platform designed
           specifically for developers who want to monetize their software
           without the complexity of traditional payment systems.
         </p>
         <blockquote className="dark:border-polar-700 flex flex-col gap-y-4 border border-gray-200 p-4">
           <p>
-            The speed at which Polar is executing on the financial
+            The speed at which Spaire is executing on the financial
             infrastructure primitives the new world needs is very impressive
           </p>
           <span className="dark:text-polar-500 text-sm text-gray-500">
@@ -111,7 +111,7 @@ export const WhyPolarPage = () => {
             target="_blank"
             className="w-fit border-b border-black pb-0.5 dark:border-white"
           >
-            Compare Polar vs. Stripe
+            Compare Spaire vs. Stripe
             <ArrowOutwardOutlined className="ml-2" fontSize="inherit" />
           </Link>
           <Link
@@ -119,7 +119,7 @@ export const WhyPolarPage = () => {
             target="_blank"
             className="w-fit border-b border-black pb-0.5 dark:border-white"
           >
-            Compare Polar vs. Paddle
+            Compare Spaire vs. Paddle
             <ArrowOutwardOutlined className="ml-2" fontSize="inherit" />
           </Link>
           <Link
@@ -127,7 +127,7 @@ export const WhyPolarPage = () => {
             target="_blank"
             className="w-fit border-b border-black pb-0.5 dark:border-white"
           >
-            Compare Polar vs. Lemon Squeezy
+            Compare Spaire vs. Lemon Squeezy
             <ArrowOutwardOutlined className="ml-2" fontSize="inherit" />
           </Link>
         </div>
@@ -183,7 +183,7 @@ export const WhyPolarPage = () => {
         <div className="flex flex-col gap-2">
           <h3>Open Source</h3>
           <p className="dark:text-polar-300 text-gray-500">
-            Polar is open source, licensed under the Apache 2.0 license. We
+            Spaire is open source, licensed under the Apache 2.0 license. We
             believe that the best way to build a great developer experience is
             to build it with the community.
           </p>
@@ -203,7 +203,7 @@ export const WhyPolarPage = () => {
           <div className="flex flex-col gap-2">
             <h3>Cheapest MoR on the market</h3>
             <p className="dark:text-polar-300 text-gray-500">
-              Polar is priced 20% cheaper than other MoR alternatives. 4% and
+              Spaire is priced 20% cheaper than other MoR alternatives. 4% and
               40¢ per transaction.
             </p>
           </div>
@@ -211,7 +211,7 @@ export const WhyPolarPage = () => {
             <h3>No Hidden Fees</h3>
             <p className="dark:text-polar-300 text-gray-500">
               While payouts may incur fees charged by the payout providers (such
-              as Stripe), Polar does not add any extra fees or markup.
+              as Stripe), Spaire does not add any extra fees or markup.
             </p>
           </div>
         </div>
@@ -224,7 +224,7 @@ export const WhyPolarPage = () => {
           <p className="dark:text-polar-300 text-gray-500">
             We&apos;ve gone the extra mile to build ergonomic adapters that
             plugs right into the most popular frameworks. If that isn&apos;t
-            enough, our versatile SDKs allow you to integrate with Polar in any
+            enough, our versatile SDKs allow you to integrate with Spaire in any
             way you want.
           </p>
         </div>
@@ -239,7 +239,7 @@ export const WhyPolarPage = () => {
         <div className="flex flex-col gap-2">
           <h3>We&apos;re deeply invested in your success</h3>
           <p className="dark:text-polar-300 text-gray-500">
-            Polar is built by developers, for developers. We listen to your
+            Spaire is built by developers, for developers. We listen to your
             feedback, and we&apos;re always looking for ways to make it easier
             for you to succeed. We care.
           </p>
@@ -257,7 +257,7 @@ export const WhyPolarPage = () => {
               <span className="text-black dark:text-white">Midday</span>,{' '}
               <span className="text-black dark:text-white">Stilla AI</span> &
               thousands of other SaaS companies have already made the switch to
-              Polar.
+              Spaire.
             </p>
           </div>
           <div className="dark:border-polar-700 dark:divide-polar-700 grid grid-cols-3 items-center divide-x divide-gray-200 border border-gray-200">
@@ -278,18 +278,18 @@ export const WhyPolarPage = () => {
       <div className="dark:border-polar-700 flex flex-col border-t border-gray-200 pt-16">
         <FAQItem
           number="01"
-          question="Do I still pay Stripe fees if I use Polar?"
-          answer="Polar covers Stripe's 2.9% + 30¢ from our 4% + 40¢. Stripe's additional fees, like +1.5% for international cards, are passed through at cost."
+          question="Do I still pay Stripe fees if I use Spaire?"
+          answer="Spaire covers Stripe's 2.9% + 30¢ from our 4% + 40¢. Stripe's additional fees, like +1.5% for international cards, are passed through at cost."
         />
         <FAQItem
           number="02"
-          question="Is Polar built on Stripe? Why not just use Stripe directly?"
-          answer="We use Stripe rails for processing reliability and coverage. Processing ≠ the business layer. Polar is the MoR + billing + entitlements + unit-economics layer you'd otherwise build or buy on top of Stripe."
+          question="Is Spaire built on Stripe? Why not just use Stripe directly?"
+          answer="We use Stripe rails for processing reliability and coverage. Processing ≠ the business layer. Spaire is the MoR + billing + entitlements + unit-economics layer you'd otherwise build or buy on top of Stripe."
         />
         <FAQItem
           number="03"
           question="How are payouts handled internationally?"
-          answer="All payments are made to Polar as the Merchant of Record. We use Stripe Connect Express to make payouts across more countries than Stripe Payments supports directly."
+          answer="All payments are made to Spaire as the Merchant of Record. We use Stripe Connect Express to make payouts across more countries than Stripe Payments supports directly."
         />
         <FAQItem
           number="04"
@@ -316,7 +316,7 @@ export const WhyPolarPage = () => {
             <h3 className="text-xl">Ready to make the switch?</h3>
             <p className="dark:text-polar-300 text-center text-gray-700 md:w-[440px]">
               Join thousands of teams who have already transformed their payment
-              infrastructure with Polar.
+              infrastructure with Spaire.
             </p>
           </div>
           <GetStartedButton

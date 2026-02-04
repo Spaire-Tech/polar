@@ -23,7 +23,7 @@ export function OrganizationReviewed({
       </IntroWithHi>
       <Section>
         <BodyText>
-          You&apos;re now all set to start selling on Polar. You can create
+          You&apos;re now all set to start selling on Spaire. You can create
           products, set up subscriptions, and start accepting payments from
           customers around the world.
         </BodyText>
@@ -32,7 +32,7 @@ export function OrganizationReviewed({
         </BodyText>
         <BodyText>
           Head to your dashboard to finish setting up your products and
-          integrate Polar into your workflow. Then, you can start selling right
+          integrate Spaire into your workflow. Then, you can start selling right
           away!
         </BodyText>
         <BodyText>

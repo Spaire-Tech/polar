@@ -48,7 +48,7 @@ export const IOSAppBanner = () => {
       </button>
 
       <div className="flex flex-col gap-1">
-        <span className="font-medium">Polar is now available on App Store</span>
+        <span className="font-medium">Spaire is now available on App Store</span>
         <span className="dark:text-polar-500 text-gray-500">
           Your dashboard, always in your pocket. Get push notifications for new
           sales, subscribers and more.

@@ -44,7 +44,7 @@ export const Pricing = () => {
             className="text-lg leading-relaxed text-pretty"
             variants={itemVariants}
           >
-            Polar is proud to be the cheapest Merchant of Record on the market.
+            Spaire is proud to be the cheapest Merchant of Record on the market.
           </motion.p>
           <ul className="flex flex-col gap-y-1">
             <motion.li
@@ -93,7 +93,7 @@ export const Pricing = () => {
             </Link>
             <Link href="/resources/comparison/stripe" target="_blank">
               <Button variant="secondary" className="rounded-full">
-                Polar vs. Stripe
+                Spaire vs. Stripe
                 <ArrowOutwardOutlined fontSize="inherit" className="ml-2" />
               </Button>
             </Link>
@@ -118,7 +118,7 @@ export const Pricing = () => {
                   Feature
                 </th>
                 <th className="dark:border-polar-700 border-r border-gray-200 p-4 text-center font-medium">
-                  Polar
+                  Spaire
                 </th>
                 <th className="p-4 text-center font-medium">Stripe</th>
               </tr>

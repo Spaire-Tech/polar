@@ -13,7 +13,7 @@ export function NotificationCreateAccount({
 }: schemas['MaintainerCreateAccountNotificationPayload']) {
   return (
     <Wrapper>
-      <Preview>Your Polar account is being reviewed</Preview>
+      <Preview>Your Spaire account is being reviewed</Preview>
       <PolarHeader />
       <IntroWithHi>
         Now that you got your first payment to {organization_name}, you should

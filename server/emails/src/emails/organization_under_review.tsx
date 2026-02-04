@@ -25,7 +25,7 @@ export function OrganizationUnderReview({
       <Section>
         <BodyText>
           This is a completely normal step that all organizations go through
-          when joining Polar. As a Merchant of Record, we need to ensure
+          when joining Spaire. As a Merchant of Record, we need to ensure
           compliance with our acceptable use policies and verify account
           information.
         </BodyText>
@@ -40,7 +40,7 @@ export function OrganizationUnderReview({
         </BodyText>
         <BodyText>
           During this review period, you can continue setting up your products
-          and integrate Polar. We&apos;ll notify you as soon as the review is
+          and integrate Spaire. We&apos;ll notify you as soon as the review is
           complete.
         </BodyText>
         <BodyText>

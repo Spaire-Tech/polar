@@ -18,7 +18,7 @@ export function LoginCode({
       </Preview>
       <PolarHeader />
       <IntroWithHi>
-        Here is your code to sign in to Polar.{' '}
+        Here is your code to sign in to Spaire.{' '}
         <span className="font-bold">
           This code is only valid for the next {code_lifetime_minutes} minutes.
         </span>

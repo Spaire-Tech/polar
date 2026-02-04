@@ -14,19 +14,19 @@ export const PolarVsStripePage = () => {
     { id: 'pricing', title: 'Pricing' },
     { id: 'developer-experience', title: 'Developer Experience' },
     { id: 'merchant-of-record', title: 'Merchant of Record' },
-    { id: 'why-polar', title: 'Why Choose Polar?' },
+    { id: 'why-polar', title: 'Why Choose Spaire?' },
   ]
 
   return (
-    <ResourceLayout title="Polar vs Stripe" toc={tocItems}>
+    <ResourceLayout title="Spaire vs Stripe" toc={tocItems}>
       <ResourceSection id="overview" title="Overview">
         <p className="text-lg">
           Choosing the right payment infrastructure for your software business.
         </p>
         <p className="dark:text-polar-300 text-gray-500">
-          While Stripe is a powerful payment processor, Polar is a complete
+          While Stripe is a powerful payment processor, Spaire is a complete
           billing infrastructure platform built specifically for developers who
-          want to monetize software. The key difference: Polar acts as a
+          want to monetize software. The key difference: Spaire acts as a
           Merchant of Record, handling all tax compliance globally, while Stripe
           is a payment processor that leaves tax compliance to you.
         </p>
@@ -41,7 +41,7 @@ export const PolarVsStripePage = () => {
                   Feature
                 </th>
                 <th className="dark:border-polar-700 border-r border-gray-200 p-4 text-center font-medium">
-                  Polar
+                  Spaire
                 </th>
                 <th className="p-4 text-center font-medium">Stripe</th>
               </tr>
@@ -133,7 +133,7 @@ export const PolarVsStripePage = () => {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="dark:border-polar-700 flex flex-col gap-4 border border-gray-200 p-6">
             <div className="flex flex-col gap-2">
-              <h3 className="text-lg font-medium">Polar</h3>
+              <h3 className="text-lg font-medium">Spaire</h3>
               <div className="text-4xl">4% + 40¢</div>
               <p className="dark:text-polar-300 text-sm text-gray-500">
                 per transaction
@@ -192,7 +192,7 @@ export const PolarVsStripePage = () => {
           </div>
         </div>
         <p className="dark:text-polar-300 text-sm text-gray-500">
-          While Stripe&apos;s base processing fee appears lower, Polar&apos;s
+          While Stripe&apos;s base processing fee appears lower, Spaire&apos;s
           pricing includes Merchant of Record services, global tax compliance,
           and international sales tax handling that would require additional
           Stripe products and accounting services.
@@ -204,8 +204,8 @@ export const PolarVsStripePage = () => {
           <div className="flex flex-col gap-2">
             <h3 className="text-lg">Designed for developers</h3>
             <p className="dark:text-polar-300 text-gray-500">
-              Both Stripe and Polar offer excellent developer experiences, but
-              Polar is purpose-built for software monetization with modern
+              Both Stripe and Spaire offer excellent developer experiences, but
+              Spaire is purpose-built for software monetization with modern
               frameworks and ergonomic SDKs.
             </p>
           </div>
@@ -213,21 +213,21 @@ export const PolarVsStripePage = () => {
             <li>
               <h4 className="font-medium">6-line integration</h4>
               <p className="dark:text-polar-300 text-gray-500">
-                Polar provides a 6-line integration with framework adapters,
+                Spaire provides a 6-line integration with framework adapters,
                 making it easy to get started with minimal code.
               </p>
             </li>
             <li>
               <h4 className="font-medium">Framework adapters</h4>
               <p className="dark:text-polar-300 text-gray-500">
-                Polar provides native support for Next.js, BetterAuth, Laravel,
+                Spaire provides native support for Next.js, BetterAuth, Laravel,
                 and more.
               </p>
             </li>
             <li>
               <h4 className="font-medium">Open source</h4>
               <p className="dark:text-polar-300 text-gray-500">
-                Polar is open source, so you can inspect and contribute to the
+                Spaire is open source, so you can inspect and contribute to the
                 codebase.
               </p>
             </li>
@@ -239,14 +239,14 @@ export const PolarVsStripePage = () => {
         <div className="flex flex-col gap-4">
           <h3 className="text-lg">The key differentiator</h3>
           <p className="dark:text-polar-300 text-gray-500">
-            This is where Polar and Stripe fundamentally differ. Polar acts as
+            This is where Spaire and Stripe fundamentally differ. Spaire acts as
             the Merchant of Record, meaning we handle all the complexity of
             international sales tax, VAT, GST, and compliance.
           </p>
         </div>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <div className="dark:bg-polar-800 flex flex-col gap-3 bg-gray-50 p-6">
-            <h4 className="font-medium">With Polar (MoR)</h4>
+            <h4 className="font-medium">With Spaire (MoR)</h4>
             <ul className="flex flex-col gap-2">
               <li className="dark:text-polar-300 flex items-start gap-2 text-sm text-gray-600">
                 <CheckOutlined className="text-green-600" fontSize="small" />
@@ -291,15 +291,15 @@ export const PolarVsStripePage = () => {
         </div>
       </ResourceSection>
 
-      <ResourceSection id="why-polar" title="Why Choose Polar?">
+      <ResourceSection id="why-polar" title="Why Choose Spaire?">
         <div className="flex flex-col gap-4">
           <h3 className="text-lg">
-            Polar is purpose-built for software businesses
+            Spaire is purpose-built for software businesses
           </h3>
           <p className="dark:text-polar-300 text-gray-500">
-            While Stripe is a powerful general-purpose payment processor, Polar
+            While Stripe is a powerful general-purpose payment processor, Spaire
             is specifically designed for developers monetizing software. If you
-            want to sell globally without worrying about tax compliance, Polar
+            want to sell globally without worrying about tax compliance, Spaire
             is the better choice.
           </p>
         </div>
@@ -340,7 +340,7 @@ export const PolarVsStripePage = () => {
           <div className="flex flex-col items-center gap-4">
             <h3 className="text-xl">Ready to simplify your payments?</h3>
             <p className="dark:text-polar-300 text-center text-gray-700 md:w-[440px]">
-              Join thousands of developers who have chosen Polar for hassle-free
+              Join thousands of developers who have chosen Spaire for hassle-free
               global software monetization.
             </p>
           </div>
