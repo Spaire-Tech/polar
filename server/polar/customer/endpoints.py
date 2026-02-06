@@ -190,7 +190,7 @@ async def export(
                 )
             )
 
-    filename = "polar-customers.csv"
+    filename = "spaire-customers.csv"
     return StreamingResponse(
         create_csv(),
         media_type="text/csv",
