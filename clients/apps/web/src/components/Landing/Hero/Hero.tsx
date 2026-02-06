@@ -49,7 +49,7 @@ export const Hero = ({
         {title}
       </motion.h1>
       <motion.p
-        className="dark:text-polar-500 max-w-2xl text-center text-2xl leading-relaxed! text-balance text-gray-500"
+        className="dark:text-spaire-500 max-w-2xl text-center text-2xl leading-relaxed! text-balance text-gray-500"
         variants={itemVariants}
       >
         {description}

@@ -84,7 +84,7 @@ export default function EventDetailPage({
         <div className="flex flex-row items-center justify-between gap-x-4">
           <h3 className="text-4xl">{event.label}</h3>
           {'_cost' in event.metadata && event.metadata._cost && (
-            <h3 className="dark:text-polar-500 font-mono text-4xl text-gray-400">
+            <h3 className="dark:text-spaire-500 font-mono text-4xl text-gray-400">
               {formatCurrency('subcent')(
                 Number(event.metadata._cost?.amount ?? 0),
                 event.metadata._cost?.currency ?? 'usd',
@@ -92,7 +92,7 @@ export default function EventDetailPage({
             </h3>
           )}
         </div>
-        <span className="dark:text-polar-500 font-mono text-gray-500 capitalize">
+        <span className="dark:text-spaire-500 font-mono text-gray-500 capitalize">
           {new Date(event.timestamp).toLocaleDateString('en-US', {
             hour: '2-digit',
             minute: 'numeric',
@@ -117,7 +117,7 @@ export default function EventDetailPage({
         <div className="flex flex-col gap-y-8">
           <div className="flex flex-row justify-between">
             <h3 className="text-2xl">Child Events</h3>
-            <h3 className="dark:text-polar-500 text-2xl text-gray-400">
+            <h3 className="dark:text-spaire-500 text-2xl text-gray-400">
               {children.length} {children.length === 1 ? 'Event' : 'Events'}
             </h3>
           </div>

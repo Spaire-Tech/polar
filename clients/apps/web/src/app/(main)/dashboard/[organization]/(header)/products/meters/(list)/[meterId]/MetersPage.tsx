@@ -101,7 +101,7 @@ const ClientPage: React.FC<ClientPageProps> = ({ organization, meter }) => {
               />
               {'property' in meter.aggregation && (
                 <Status
-                  className="dark:bg-polar-700 dark:text-polar-500 bg-gray-200 text-gray-500"
+                  className="dark:bg-spaire-700 dark:text-spaire-500 bg-gray-200 text-gray-500"
                   status={meter.aggregation.property}
                 />
               )}
@@ -124,7 +124,7 @@ const ClientPage: React.FC<ClientPageProps> = ({ organization, meter }) => {
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="end"
-                className="dark:bg-polar-800 bg-gray-50 shadow-lg"
+                className="dark:bg-spaire-800 bg-gray-50 shadow-lg"
               >
                 <DropdownMenuItem
                   destructive={!meter.archived_at}

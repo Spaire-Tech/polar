@@ -167,7 +167,7 @@ export const OrganizationStep = ({
   }
 
   return (
-    <div className="dark:md:bg-polar-950 flex flex-col pt-16 md:items-center md:p-16">
+    <div className="dark:md:bg-spaire-950 flex flex-col pt-16 md:items-center md:p-16">
       <motion.div
         initial="hidden"
         animate="visible"
@@ -182,7 +182,7 @@ export const OrganizationStep = ({
                 ? 'Create a new organization'
                 : "Let's get you started"}
             </h1>
-            <p className="dark:text-polar-400 text-lg text-gray-600">
+            <p className="dark:text-spaire-400 text-lg text-gray-600">
               {hasExistingOrg ? (
                 'Follow the instructions below to create a new organization'
               ) : (
@@ -199,7 +199,7 @@ export const OrganizationStep = ({
               className="flex w-full flex-col gap-y-8"
             >
               <div className="flex flex-col gap-y-8">
-                <FadeUp className="dark:bg-polar-900 flex flex-col gap-y-4 rounded-3xl border-gray-200 bg-white p-6 md:border dark:border-none">
+                <FadeUp className="dark:bg-spaire-900 flex flex-col gap-y-4 rounded-3xl border-gray-200 bg-white p-6 md:border dark:border-none">
                   <FormField
                     control={control}
                     name="name"
@@ -241,11 +241,11 @@ export const OrganizationStep = ({
                   />
                 </FadeUp>
 
-                <FadeUp className="dark:bg-polar-900 flex flex-col gap-y-4 rounded-3xl border-gray-200 bg-white p-6 md:border dark:border-none">
+                <FadeUp className="dark:bg-spaire-900 flex flex-col gap-y-4 rounded-3xl border-gray-200 bg-white p-6 md:border dark:border-none">
                   <SupportedUseCases />
                 </FadeUp>
 
-                <FadeUp className="dark:bg-polar-900 flex flex-col gap-y-4 rounded-3xl border-gray-200 bg-white p-6 md:border dark:border-none">
+                <FadeUp className="dark:bg-spaire-900 flex flex-col gap-y-4 rounded-3xl border-gray-200 bg-white p-6 md:border dark:border-none">
                   <FormField
                     control={control}
                     name="terms"
@@ -273,7 +273,7 @@ export const OrganizationStep = ({
                                 I understand the restrictions above and agree to
                                 Spaire&apos;s terms
                               </label>
-                              <ul className="dark:text-polar-500 flex flex-col gap-y-1 text-sm text-gray-500">
+                              <ul className="dark:text-spaire-500 flex flex-col gap-y-1 text-sm text-gray-500">
                                 <li>
                                   <a
                                     href="https://docs.spairehq.com/merchant-of-record/account-reviews"

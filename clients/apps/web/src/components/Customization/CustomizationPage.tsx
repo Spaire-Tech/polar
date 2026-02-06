@@ -74,7 +74,7 @@ const Customization = ({
   })
 
   return (
-    <div className="dark:bg-polar-950 flex h-full flex-col bg-gray-100 px-8">
+    <div className="dark:bg-spaire-950 flex h-full flex-col bg-gray-100 px-8">
       <div className="relative z-50 flex flex-row items-center justify-between py-8">
         <div className="flex flex-row items-center gap-x-2">
           <Button

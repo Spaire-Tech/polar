@@ -250,7 +250,7 @@ const CustomerPortalSubscription = ({
 
           <div className="flex flex-col gap-y-2">
             <h3 className="text-lg">Invite Members</h3>
-            <p className="dark:text-polar-500 text-sm text-gray-500">
+            <p className="dark:text-spaire-500 text-sm text-gray-500">
               Send invitations to claim available seats
             </p>
           </div>
@@ -273,7 +273,7 @@ const CustomerPortalSubscription = ({
                   }}
                 />
                 {error && (
-                  <p className="dark:text-polar-400 mt-1 text-xs text-gray-500">
+                  <p className="dark:text-spaire-400 mt-1 text-xs text-gray-500">
                     {error}
                   </p>
                 )}
@@ -326,7 +326,7 @@ const CustomerPortalSubscription = ({
                   accessorKey: 'amount',
                   header: 'Amount',
                   cell: ({ row }) => (
-                    <span className="dark:text-polar-500 text-sm text-gray-500">
+                    <span className="dark:text-spaire-500 text-sm text-gray-500">
                       {formatCurrency('compact')(
                         row.original.total_amount,
                         row.original.currency,

@@ -266,7 +266,7 @@ const CustomerChangePlanModal = ({
               <div className="flex flex-col gap-y-2">
                 {addedBenefits.map((benefit) => (
                   <div key={benefit.id} className="flex flex-row align-middle">
-                    <span className="dark:bg-polar-700 flex h-6 w-6 shrink-0 flex-row items-center justify-center rounded-full bg-blue-50 text-2xl text-blue-500 dark:text-white">
+                    <span className="dark:bg-spaire-700 flex h-6 w-6 shrink-0 flex-row items-center justify-center rounded-full bg-blue-50 text-2xl text-blue-500 dark:text-white">
                       {resolveBenefitIcon(benefit.type, 'h-3 w-3')}
                     </span>
                     <span className="ml-2 text-sm">{benefit.description}</span>
@@ -283,7 +283,7 @@ const CustomerChangePlanModal = ({
               <div className="flex flex-col gap-y-2">
                 {removedBenefits.map((benefit) => (
                   <div key={benefit.id} className="flex flex-row align-middle">
-                    <span className="dark:bg-polar-700 flex h-6 w-6 shrink-0 flex-row items-center justify-center rounded-full bg-blue-50 text-2xl text-blue-500 dark:text-white">
+                    <span className="dark:bg-spaire-700 flex h-6 w-6 shrink-0 flex-row items-center justify-center rounded-full bg-blue-50 text-2xl text-blue-500 dark:text-white">
                       {resolveBenefitIcon(benefit.type, 'h-3 w-3')}
                     </span>
                     <span className="ml-2 text-sm">{benefit.description}</span>
@@ -303,14 +303,14 @@ const CustomerChangePlanModal = ({
                 />
               )}
 
-              <span className="dark:text-polar-500 text-sm text-gray-500">
+              <span className="dark:text-spaire-500 text-sm text-gray-500">
                 {invoicingMessage}
               </span>
             </label>
           )}
         </div>
         {needToAddPaymentMethod && (
-          <p className="dark:text-polar-500 text-sm text-gray-500">
+          <p className="dark:text-spaire-500 text-sm text-gray-500">
             You need to add a payment method before updating your plan. Head to
             the Customer Portal Settings to add a payment method.
           </p>

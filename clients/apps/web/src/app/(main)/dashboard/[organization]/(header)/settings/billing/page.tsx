@@ -5,7 +5,7 @@ import BillingPage from './BillingPage'
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
-    title: 'Billing Settings', // " | Polar is added by the template"
+    title: 'Billing Settings', // " | Spaire is added by the template"
   }
 }
 

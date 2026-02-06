@@ -36,8 +36,8 @@ const BenefitGrantCustom = ({
     return null
   }
   return (
-    <ShadowBox className="dark:bg-polar-800 bg-white p-6 lg:rounded-3xl">
-      <div className="prose dark:prose-invert prose-headings:font-medium prose-headings:text-black prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-h4:text-sm prose-h5:text-sm prose-h6:text-sm dark:prose-headings:text-white dark:text-polar-300 prose-p:text-sm leading-normal text-gray-800 [&>*>*:first-child]:mt-0">
+    <ShadowBox className="dark:bg-spaire-800 bg-white p-6 lg:rounded-3xl">
+      <div className="prose dark:prose-invert prose-headings:font-medium prose-headings:text-black prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-h4:text-sm prose-h5:text-sm prose-h6:text-sm dark:prose-headings:text-white dark:text-spaire-300 prose-p:text-sm leading-normal text-gray-800 [&>*>*:first-child]:mt-0">
         <Markdown options={markdownOptions}>{note}</Markdown>
       </div>
     </ShadowBox>
@@ -322,13 +322,13 @@ export const BenefitGrant = ({ api, benefitGrant }: BenefitGrantProps) => {
     <div className="flex w-full flex-col gap-4">
       <div className="flex flex-row items-center gap-x-4">
         <div className="flex flex-row items-center gap-x-2 text-xs text-gray-500 dark:text-white">
-          <span className="dark:bg-polar-700 flex h-8 w-8 flex-row items-center justify-center rounded-full bg-gray-50 text-sm">
+          <span className="dark:bg-spaire-700 flex h-8 w-8 flex-row items-center justify-center rounded-full bg-gray-50 text-sm">
             {resolveBenefitIcon(benefit.type, 'h-3 w-3')}
           </span>
         </div>
         <div className="flex flex-col">
           <h3 className="text-sm font-medium">{benefit.description}</h3>
-          <p className="dark:text-polar-500 flex flex-row gap-x-1 truncate text-sm text-gray-500">
+          <p className="dark:text-spaire-500 flex flex-row gap-x-1 truncate text-sm text-gray-500">
             {benefitsDisplayNames[benefit.type]}
           </p>
         </div>

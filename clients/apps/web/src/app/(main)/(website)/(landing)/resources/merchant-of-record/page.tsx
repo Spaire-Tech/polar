@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   keywords:
     'mor, merchant of record, lemon squeezy, paddle, taxes, compliance, monetization',
   openGraph: {
-    siteName: 'Polar',
+    siteName: 'Spaire',
     type: 'website',
     images: [
       {

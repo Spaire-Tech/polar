@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   keywords:
     'customer success, customer stories, customers, polar, merchant of record, payments, billing',
   openGraph: {
-    siteName: 'Polar',
+    siteName: 'Spaire',
     type: 'website',
     images: [
       {

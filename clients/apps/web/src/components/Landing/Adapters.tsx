@@ -96,7 +96,7 @@ export const Adapters = () => {
       <Tabs defaultValue={adapters[0].name}>
         <div className="flex w-full flex-col gap-y-16 md:h-full md:min-h-96">
           <div className="flex flex-col items-center gap-y-8">
-            <span className="dark:text-polar-500 text-lg text-gray-400">
+            <span className="dark:text-spaire-500 text-lg text-gray-400">
               Framework Adapters
             </span>
             <h1 className="w-fit max-w-2xl text-center text-3xl text-pretty md:text-5xl md:leading-normal">
@@ -126,7 +126,7 @@ export const Adapters = () => {
           {adapters.map((adapter) => (
             <TabsContent value={adapter.name} key={adapter.name}>
               <motion.div
-                className={`dark:bg-polar-900 flex w-full flex-col overflow-hidden rounded-2xl bg-white md:flex-row md:rounded-4xl`}
+                className={`dark:bg-spaire-900 flex w-full flex-col overflow-hidden rounded-2xl bg-white md:flex-row md:rounded-4xl`}
                 variants={containerVariants}
                 initial="hidden"
                 whileInView="visible"
@@ -203,7 +203,7 @@ export const Adapters = () => {
                   </div>
                 </div>
 
-                <div className="dark:bg-polar-800 relative flex flex-col justify-center bg-gray-100 p-8 text-sm md:w-1/2 md:p-16">
+                <div className="dark:bg-spaire-800 relative flex flex-col justify-center bg-gray-100 p-8 text-sm md:w-1/2 md:p-16">
                   <Image
                     className="absolute inset-0 h-full w-full object-cover"
                     src="/assets/landing/abstract.jpg"
@@ -212,7 +212,7 @@ export const Adapters = () => {
                     loading="lazy"
                     alt=""
                   />
-                  <div className="dark:bg-polar-900 z-1 rounded-lg bg-white p-4">
+                  <div className="dark:bg-spaire-900 z-1 rounded-lg bg-white p-4">
                     <SyntaxHighlighterClient
                       lang="typescript"
                       code={adapter.code}

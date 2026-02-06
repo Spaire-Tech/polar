@@ -1,6 +1,6 @@
 'use client'
 
-import ArrowBack from '@mui/icons-material/ArrowBack'
+import { ArrowLeft } from 'lucide-react'
 import { schemas } from '@polar-sh/client'
 import {
   SidebarMenu,
@@ -46,21 +46,20 @@ export const OrganizationNavigation = ({
               key={route.link}
               prefetch={true}
               className={twMerge(
-                'flex flex-row items-center rounded-lg border border-transparent px-2 transition-colors dark:border-transparent',
+                'flex flex-row items-center rounded-md px-2 py-1 transition-colors',
                 route.isActive
-                  ? 'dark:!bg-polar-900 dark:border-polar-800 border-gray-200 bg-white! text-black shadow-xs dark:text-white'
-                  : 'dark:text-polar-500 dark:hover:text-polar-200 text-gray-500 hover:text-black',
-                isCollapsed && '!dark:text-polar-600',
+                  ? 'bg-gray-100 text-gray-900 dark:bg-spaire-800 dark:text-white'
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-spaire-400 dark:hover:bg-spaire-800 dark:hover:text-spaire-200',
               )}
               href={route.link}
             >
               {'icon' in route && route.icon ? (
                 <span
                   className={twMerge(
-                    'flex flex-col items-center justify-center overflow-visible rounded-full bg-transparent text-[15px]',
+                    'flex items-center justify-center',
                     route.isActive
-                      ? 'text-blue-500 dark:text-white'
-                      : 'bg-transparent',
+                      ? 'text-gray-900 dark:text-white'
+                      : 'text-gray-400 dark:text-spaire-500',
                   )}
                 >
                   {route.icon}
@@ -70,7 +69,7 @@ export const OrganizationNavigation = ({
             </Link>
           </SidebarMenuButton>
           {route.isActive && route.subs && (
-            <SidebarMenuSub className="my-2 gap-y-2">
+            <SidebarMenuSub className="my-1 gap-y-0.5">
               {route.subs.map((subRoute: SubRouteWithActive) => {
                 return (
                   <SidebarMenuSubItem key={subRoute.link}>
@@ -78,8 +77,8 @@ export const OrganizationNavigation = ({
                       href={subRoute.link}
                       prefetch={true}
                       className={twMerge(
-                        'dark:text-polar-500 ml-4 inline-flex flex-row items-center gap-x-2 text-sm font-medium text-gray-500 transition-colors hover:text-black dark:hover:text-white',
-                        subRoute.isActive && 'text-blue-500 dark:text-white',
+                        'ml-4 inline-flex flex-row items-center gap-x-2 text-[13px] font-medium text-gray-500 transition-colors hover:text-gray-900 dark:text-spaire-500 dark:hover:text-white',
+                        subRoute.isActive && 'text-gray-900 dark:text-white',
                       )}
                     >
                       {subRoute.title}
@@ -109,12 +108,10 @@ export const AccountNavigation = () => {
         <SidebarMenuButton tooltip="Back to Dashboard" asChild>
           <Link
             href="/dashboard"
-            className="flex flex-row items-center gap-4 border border-transparent text-black dark:text-white"
+            className="flex flex-row items-center gap-3 text-gray-900 dark:text-white"
           >
-            <span className="flex flex-col items-center justify-center overflow-visible rounded-full bg-transparent text-[15px]">
-              <ArrowBack fontSize="inherit" />
-            </span>
-            <span>Account Settings</span>
+            <ArrowLeft className="h-4 w-4" />
+            <span className="text-sm font-medium">Account Settings</span>
           </Link>
         </SidebarMenuButton>
       </SidebarMenuItem>
@@ -129,21 +126,20 @@ export const AccountNavigation = () => {
               key={route.link}
               prefetch={true}
               className={twMerge(
-                'flex flex-row items-center rounded-lg border border-transparent px-2 transition-colors dark:border-transparent',
+                'flex flex-row items-center rounded-md px-2 py-1 transition-colors',
                 route.isActive
-                  ? 'dark:bg-polar-900 dark:border-polar-800 border-gray-200 bg-white text-black shadow-xs dark:text-white'
-                  : 'dark:text-polar-500 dark:hover:text-polar-200 text-gray-500 hover:text-black',
-                isCollapsed && '!dark:text-polar-600',
+                  ? 'bg-gray-100 text-gray-900 dark:bg-spaire-800 dark:text-white'
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-spaire-400 dark:hover:bg-spaire-800 dark:hover:text-spaire-200',
               )}
               href={route.link}
             >
               {'icon' in route && route.icon ? (
                 <span
                   className={twMerge(
-                    'flex flex-col items-center justify-center overflow-visible rounded-full bg-transparent text-[15px]',
+                    'flex items-center justify-center',
                     route.isActive
-                      ? 'text-blue-500 dark:text-white'
-                      : 'bg-transparent',
+                      ? 'text-gray-900 dark:text-white'
+                      : 'text-gray-400 dark:text-spaire-500',
                   )}
                 >
                   {route.icon}
@@ -153,7 +149,7 @@ export const AccountNavigation = () => {
             </Link>
           </SidebarMenuButton>
           {route.isActive && route.subs && (
-            <SidebarMenuSub className="my-2 gap-y-2">
+            <SidebarMenuSub className="my-1 gap-y-0.5">
               {route.subs.map((subRoute: SubRouteWithActive) => {
                 return (
                   <SidebarMenuSubItem key={subRoute.link}>
@@ -161,8 +157,8 @@ export const AccountNavigation = () => {
                       href={subRoute.link}
                       prefetch={true}
                       className={twMerge(
-                        'dark:text-polar-500 ml-4 inline-flex flex-row items-center gap-x-2 text-sm font-medium text-gray-500',
-                        subRoute.isActive && 'text-blue-500 dark:text-white',
+                        'ml-4 inline-flex flex-row items-center gap-x-2 text-[13px] font-medium text-gray-500 dark:text-spaire-500',
+                        subRoute.isActive && 'text-gray-900 dark:text-white',
                       )}
                     >
                       {subRoute.title}

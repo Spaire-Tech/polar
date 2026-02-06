@@ -55,11 +55,11 @@ export const CustomerPortalSettings = ({
   return (
     <div className="flex flex-col gap-y-8">
       <h3 className="text-2xl">Settings</h3>
-      <Well className="dark:bg-polar-900 flex flex-col gap-y-6 bg-gray-50">
+      <Well className="dark:bg-spaire-900 flex flex-col gap-y-6 bg-gray-50">
         <WellHeader className="flex-row items-start justify-between">
           <div className="flex flex-col gap-y-2">
             <h3 className="text-xl">Payment Methods</h3>
-            <p className="dark:text-polar-500 text-gray-500">
+            <p className="dark:text-spaire-500 text-gray-500">
               Methods used for subscriptions & one-time purchases
             </p>
           </div>
@@ -79,16 +79,16 @@ export const CustomerPortalSettings = ({
           ))}
         </WellContent>
       </Well>
-      <Well className="dark:bg-polar-900 flex flex-col gap-y-6 bg-gray-50">
+      <Well className="dark:bg-spaire-900 flex flex-col gap-y-6 bg-gray-50">
         <WellHeader className="flex-row items-center justify-between">
           <div className="flex flex-col gap-y-2">
             <h3 className="text-xl">Billing Details</h3>
-            <p className="dark:text-polar-500 text-gray-500">
+            <p className="dark:text-spaire-500 text-gray-500">
               Update your billing details
             </p>
           </div>
         </WellHeader>
-        <Separator className="dark:bg-polar-700" />
+        <Separator className="dark:bg-spaire-700" />
         <WellContent>
           <EditBillingDetails
             onSuccess={() => {

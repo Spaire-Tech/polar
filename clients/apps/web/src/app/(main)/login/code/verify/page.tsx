@@ -15,16 +15,16 @@ export default async function Page(props: {
   const error = searchParams.error as string | undefined
 
   return (
-    <div className="dark:bg-polar-950 flex h-screen w-full grow items-center justify-center bg-white">
+    <div className="dark:bg-spaire-950 flex h-screen w-full grow items-center justify-center bg-white">
       <div className="flex w-80 flex-col items-center">
         <LogoIcon size={60} className="mb-6 text-black dark:text-white" />
-        <div className="dark:text-polar-400 mb-2 text-center text-gray-500">
+        <div className="dark:text-spaire-400 mb-2 text-center text-gray-500">
           We sent a verification code to{' '}
-          <span className="dark:text-polar-300 font-medium text-gray-600">
+          <span className="dark:text-spaire-300 font-medium text-gray-600">
             {email}
           </span>
         </div>
-        <div className="dark:text-polar-400 mb-6 text-center text-sm text-gray-500">
+        <div className="dark:text-spaire-400 mb-6 text-center text-sm text-gray-500">
           Please enter the 6-character code below
         </div>
         <VerifyPage return_to={return_to} error={error} email={email} />

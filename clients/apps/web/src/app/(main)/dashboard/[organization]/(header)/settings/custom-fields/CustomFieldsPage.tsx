@@ -197,7 +197,7 @@ const ClientPage: React.FC<ClientPageProps> = ({
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="end"
-              className="dark:bg-polar-800 bg-gray-50 shadow-lg"
+              className="dark:bg-spaire-800 bg-gray-50 shadow-lg"
             >
               <DropdownMenuItem
                 onClick={() => onCustomFieldSelected(customField)}

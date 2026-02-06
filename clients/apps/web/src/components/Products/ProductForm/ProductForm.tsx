@@ -28,7 +28,7 @@ const ProductForm = ({
   benefitsSlot: React.ReactNode
 }) => {
   return (
-    <div className="dark:divide-polar-700 flex flex-col divide-y">
+    <div className="dark:divide-spaire-700 flex flex-col divide-y">
       <ProductInfoSection />
 
       <ProductPricingSection organization={organization} update={update} />

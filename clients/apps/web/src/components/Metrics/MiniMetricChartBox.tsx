@@ -21,7 +21,7 @@ export const MiniMetricChartBox = ({
   return (
     <Card className="rounded-2xl">
       <CardHeader className="pb-2">
-        <span className="dark:text-polar-500 text-gray-500">
+        <span className="dark:text-spaire-500 text-gray-500">
           {title ?? metric?.display_name}
         </span>
       </CardHeader>

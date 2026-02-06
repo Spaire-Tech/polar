@@ -17,7 +17,7 @@ export const AuthModal = ({
   const title = isSignup ? 'Sign Up' : 'Log In'
 
   const copy = isSignup ? (
-    <p className="dark:text-polar-500 text-xl text-gray-500">
+    <p className="dark:text-spaire-500 text-xl text-gray-500">
       Join thousands of developers &amp; startups monetizing their products with
       Spaire.
     </p>

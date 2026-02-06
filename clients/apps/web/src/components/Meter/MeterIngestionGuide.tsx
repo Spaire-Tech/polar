@@ -23,12 +23,12 @@ export const MeterIngestionGuide = () => {
             </WellHeader>
             <WellContent className="flex grow flex-col justify-between gap-6">
               <div className="flex flex-col gap-4">
-                <p className="dark:text-polar-300 text-gray-700">
+                <p className="dark:text-spaire-300 text-gray-700">
                   Meters are aggregated filters on ingested events. They are
                   used to calculate your customer&apos;s usage of whatever you
                   choose to measure.
                 </p>
-                <p className="dark:text-polar-300 text-gray-700">
+                <p className="dark:text-spaire-300 text-gray-700">
                   For example, if you want to measure the number of API calls
                   your customer makes, you can create a meter that counts the
                   number of events with an arbitrary name like{' '}
@@ -42,7 +42,7 @@ export const MeterIngestionGuide = () => {
               </Link>
             </WellContent>
           </div>
-          <Well className="dark:bg-polar-900 flex-1 shrink overflow-auto bg-white p-6 text-sm">
+          <Well className="dark:bg-spaire-900 flex-1 shrink overflow-auto bg-white p-6 text-sm">
             <SyntaxHighlighterClient
               lang="typescript"
               code={`import { Spaire } from "@spaire/sdk";

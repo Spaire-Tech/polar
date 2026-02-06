@@ -17,7 +17,7 @@ export const EventCreationGuideModal = ({
       <div className="flex flex-col gap-4 p-8">
         <h1 className="text-2xl">Event Ingestion</h1>
         <p>Events can only be created through the Spaire Ingestion API.</p>
-        <Well className="dark:bg-polar-900 rounded-lg bg-gray-100 p-4 text-sm">
+        <Well className="dark:bg-spaire-900 rounded-lg bg-gray-100 p-4 text-sm">
           <SyntaxHighlighterClient
             lang="typescript"
             code={`import { Spaire } from "@spaire/sdk";

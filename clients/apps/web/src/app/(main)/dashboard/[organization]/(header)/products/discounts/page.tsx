@@ -6,7 +6,7 @@ import DiscountsPage from './DiscountsPage'
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
-    title: 'Discounts', // " | Polar is added by the template"
+    title: 'Discounts', // " | Spaire is added by the template"
   }
 }
 

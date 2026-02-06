@@ -7,7 +7,7 @@ import CheckoutsPage from './CheckoutsPage'
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
-    title: 'Checkouts', // " | Polar is added by the template"
+    title: 'Checkouts', // " | Spaire is added by the template"
   }
 }
 

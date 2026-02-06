@@ -24,7 +24,7 @@ const AccountsList = ({ accounts }: AccountsListProps) => {
 
   return (
     <table className="-mx-4 w-full text-left">
-      <thead className="dark:text-polar-500 text-gray-500">
+      <thead className="dark:text-spaire-500 text-gray-500">
         <tr className="text-sm">
           <th
             scope="col"
@@ -74,7 +74,7 @@ interface AccountListItemProps {
 
 const AccountListItem = ({ account, organization }: AccountListItemProps) => {
   const childClass = twMerge(
-    'dark:group-hover:bg-polar-700 px-4 py-2 transition-colors group-hover:bg-blue-50 group-hover:text-gray-950 text-gray-700 dark:text-polar-200 group-hover:dark:text-white',
+    'dark:group-hover:bg-spaire-700 px-4 py-2 transition-colors group-hover:bg-blue-50 group-hover:text-gray-950 text-gray-700 dark:text-spaire-200 group-hover:dark:text-white',
   )
 
   const isActive = account?.stripe_id !== null

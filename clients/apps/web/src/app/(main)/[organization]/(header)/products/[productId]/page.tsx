@@ -28,11 +28,11 @@ export async function generateMetadata(props: {
   }
 
   return {
-    title: `${product.name} by ${organization.name}`, // " | Polar is added by the template"
+    title: `${product.name} by ${organization.name}`, // " | Spaire is added by the template"
     openGraph: {
       title: `${product.name}`,
       description: `A product from ${organization.name}`,
-      siteName: 'Polar',
+      siteName: 'Spaire',
       type: 'website',
       images: [
         {

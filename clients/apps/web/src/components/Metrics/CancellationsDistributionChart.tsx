@@ -87,7 +87,7 @@ export default function CancellationsDistributionChart({
 
       <div className="relative px-4 pb-4">
         <div
-          className="dark:bg-polar-600 flex w-full overflow-hidden rounded-xs bg-gray-100"
+          className="dark:bg-spaire-600 flex w-full overflow-hidden rounded-xs bg-gray-100"
           style={{ height }}
         >
           {chartData.map((item) => (
@@ -114,7 +114,7 @@ export default function CancellationsDistributionChart({
               />
               <span className="font-normal">{item.label}</span>
               <span
-                className="dark:text-polar-400 -m-1 ml-auto p-1 text-right font-medium text-gray-500 tabular-nums"
+                className="dark:text-spaire-400 -m-1 ml-auto p-1 text-right font-medium text-gray-500 tabular-nums"
                 onClick={() =>
                   setDisplayMode((previousValue) =>
                     previousValue === 'count' ? 'percentage' : 'count',
@@ -127,8 +127,8 @@ export default function CancellationsDistributionChart({
               </span>
             </div>
           ))}
-          <div className="dark:border-polar-600 mt-1 flex items-center justify-between gap-2 border-t border-gray-200 pt-2">
-            <span className="dark:text-polar-400 font-medium text-gray-500">
+          <div className="dark:border-spaire-600 mt-1 flex items-center justify-between gap-2 border-t border-gray-200 pt-2">
+            <span className="dark:text-spaire-400 font-medium text-gray-500">
               Total
             </span>
             <span className="ml-auto text-right font-medium tabular-nums">

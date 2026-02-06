@@ -22,7 +22,7 @@ export const CreateProductPageWrapper = ({
         className="gap-y-16"
       >
         <div className="flex items-center justify-center py-16">
-          <p className="dark:text-polar-500 text-gray-500">
+          <p className="dark:text-spaire-500 text-gray-500">
             Loading product...
           </p>
         </div>

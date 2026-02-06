@@ -31,7 +31,7 @@ export const AccountWidget = ({ className }: AccountWidgetProps) => {
   return (
     <div
       className={twMerge(
-        'dark:bg-polar-800 flex h-80 flex-col justify-between rounded-4xl bg-gray-50',
+        'dark:bg-spaire-800 flex h-80 flex-col justify-between rounded-4xl bg-gray-50',
         className,
       )}
     >
@@ -56,7 +56,7 @@ export const AccountWidget = ({ className }: AccountWidgetProps) => {
             )}
         </h2>
       </div>
-      <div className="dark:bg-polar-700 m-2 flex flex-col gap-y-4 rounded-3xl bg-white p-4">
+      <div className="dark:bg-spaire-700 m-2 flex flex-col gap-y-4 rounded-3xl bg-white p-4">
         {lastPayout ? (
           <div className="flex flex-col">
             <div className="flex flex-row items-center justify-between gap-x-2">
@@ -76,7 +76,7 @@ export const AccountWidget = ({ className }: AccountWidgetProps) => {
                 )}
               />
             </div>
-            <p className="dark:text-polar-500 text-sm text-gray-500">
+            <p className="dark:text-spaire-500 text-sm text-gray-500">
               {new Date(lastPayout.created_at).toLocaleDateString('en-US', {
                 month: 'long',
                 day: 'numeric',
@@ -87,7 +87,7 @@ export const AccountWidget = ({ className }: AccountWidgetProps) => {
         ) : (
           <div className="flex flex-col">
             <h3>No payouts yet</h3>
-            <p className="dark:text-polar-500 text-sm text-gray-500">
+            <p className="dark:text-spaire-500 text-sm text-gray-500">
               You may only withdraw funds above $10.
             </p>
           </div>

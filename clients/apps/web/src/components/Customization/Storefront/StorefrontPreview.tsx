@@ -25,7 +25,7 @@ export const StorefrontPreview = ({
     useProducts(organization.id, { is_archived: false }).data?.items ?? []
 
   return (
-    <ShadowBox className="dark:bg-polar-950 flex h-full w-full flex-col items-center overflow-y-auto bg-white">
+    <ShadowBox className="dark:bg-spaire-950 flex h-full w-full flex-col items-center overflow-y-auto bg-white">
       <div className="flex w-full max-w-7xl flex-col gap-y-12">
         <div className="relative flex flex-row items-center justify-end gap-x-6">
           <PolarLogotype

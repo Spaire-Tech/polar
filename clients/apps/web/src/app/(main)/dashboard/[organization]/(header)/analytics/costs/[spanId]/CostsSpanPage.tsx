@@ -211,7 +211,7 @@ export default function SpanDetailPage({
         <div className="mb-8 flex flex-col gap-y-6">
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3">
             <div className="col-span-1">
-              <div className="dark:bg-polar-700 rounded-3xl bg-gray-50 p-2">
+              <div className="dark:bg-spaire-700 rounded-3xl bg-gray-50 p-2">
                 <div className="flex flex-row items-center justify-between px-3 pt-2 pb-4">
                   <h3 className="text-lg font-medium">Occurrences</h3>
                   <span className="tabular-nums">
@@ -252,12 +252,12 @@ export default function SpanDetailPage({
             </div>
 
             <div className="col-span-1 2xl:col-span-2">
-              <div className="dark:bg-polar-700 rounded-3xl bg-gray-50 p-2">
+              <div className="dark:bg-spaire-700 rounded-3xl bg-gray-50 p-2">
                 <div className="flex flex-row items-center justify-between px-3 pt-2 pb-4">
                   <h3 className="text-lg font-medium">Cost</h3>
                   <dl className="flex flex-row gap-x-6">
                     <div className="flex flex-row gap-x-2">
-                      <dt className="dark:text-polar-500 text-gray-500">
+                      <dt className="dark:text-spaire-500 text-gray-500">
                         Total
                       </dt>
                       <dd className="tabular-nums">
@@ -268,7 +268,7 @@ export default function SpanDetailPage({
                       </dd>
                     </div>
                     <div className="flex flex-row gap-x-2">
-                      <dt className="dark:text-polar-500 text-gray-500">
+                      <dt className="dark:text-spaire-500 text-gray-500">
                         Average
                       </dt>
                       <dd className="tabular-nums">

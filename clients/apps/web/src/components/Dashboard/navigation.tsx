@@ -1,20 +1,18 @@
 import { PolarHog, usePostHog } from '@/hooks/posthog'
-import AllInclusiveOutlined from '@mui/icons-material/AllInclusiveOutlined'
-import AttachMoneyOutlined from '@mui/icons-material/AttachMoneyOutlined'
-import CodeOutlined from '@mui/icons-material/CodeOutlined'
-import DiamondOutlined from '@mui/icons-material/DiamondOutlined'
-import DiscountOutlined from '@mui/icons-material/DiscountOutlined'
-import DonutLargeOutlined from '@mui/icons-material/DonutLargeOutlined'
-import HiveOutlined from '@mui/icons-material/HiveOutlined'
-import LinkOutlined from '@mui/icons-material/LinkOutlined'
-import PeopleAltOutlined from '@mui/icons-material/PeopleAltOutlined'
-import ShoppingBagOutlined from '@mui/icons-material/ShoppingBagOutlined'
-import SpaceDashboardOutlined from '@mui/icons-material/SpaceDashboardOutlined'
-import TrendingUp from '@mui/icons-material/TrendingUp'
-import TuneOutlined from '@mui/icons-material/TuneOutlined'
 import { schemas } from '@polar-sh/client'
 import { Status } from '@polar-sh/ui/components/atoms/Status'
-import { ShoppingCart } from 'lucide-react'
+import {
+  ArrowLeft,
+  BarChart3,
+  Code2,
+  CreditCard,
+  DollarSign,
+  LayoutDashboard,
+  Package,
+  Settings,
+  ShoppingCart,
+  Users,
+} from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import { useMemo } from 'react'
 
@@ -160,7 +158,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
   {
     id: 'home',
     title: 'Home',
-    icon: <SpaceDashboardOutlined fontSize="inherit" />,
+    icon: <LayoutDashboard className="h-4 w-4" />,
     link: `/dashboard/${org?.slug}`,
     checkIsActive: (currentRoute: string) =>
       currentRoute === `/dashboard/${org?.slug}`,
@@ -169,7 +167,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
   {
     id: 'new-products',
     title: 'Products',
-    icon: <HiveOutlined fontSize="inherit" />,
+    icon: <Package className="h-4 w-4" />,
     link: `/dashboard/${org?.slug}/products`,
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/products`)
@@ -179,34 +177,29 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
       {
         title: 'Catalogue',
         link: `/dashboard/${org?.slug}/products`,
-        icon: <HiveOutlined fontSize="inherit" />,
       },
       {
         title: 'Checkout Links',
         link: `/dashboard/${org?.slug}/products/checkout-links`,
-        icon: <LinkOutlined fontSize="inherit" />,
       },
       {
         title: 'Discounts',
         link: `/dashboard/${org?.slug}/products/discounts`,
-        icon: <DiscountOutlined fontSize="inherit" />,
       },
       {
         title: 'Benefits',
         link: `/dashboard/${org?.slug}/products/benefits`,
-        icon: <DiamondOutlined fontSize="inherit" />,
       },
       {
         title: 'Meters',
         link: `/dashboard/${org?.slug}/products/meters`,
-        icon: <DonutLargeOutlined fontSize="inherit" />,
       },
     ],
   },
   {
     id: 'customers',
     title: 'Customers',
-    icon: <PeopleAltOutlined fontSize="inherit" />,
+    icon: <Users className="h-4 w-4" />,
     link: `/dashboard/${org?.slug}/customers`,
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/customers`)
@@ -216,7 +209,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
   {
     id: 'analytics',
     title: 'Analytics',
-    icon: <TrendingUp fontSize="inherit" />,
+    icon: <BarChart3 className="h-4 w-4" />,
     link: `/dashboard/${org?.slug}/analytics`,
     if: true,
     subs: [
@@ -245,7 +238,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
   {
     id: 'org-sales',
     title: 'Sales',
-    icon: <ShoppingBagOutlined fontSize="inherit" />,
+    icon: <ShoppingCart className="h-4 w-4" />,
     link: `/dashboard/${org?.slug}/sales`,
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/sales`)
@@ -255,17 +248,14 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
       {
         title: 'Orders',
         link: `/dashboard/${org?.slug}/sales`,
-        icon: <ShoppingBagOutlined fontSize="inherit" />,
       },
       {
         title: 'Subscriptions',
         link: `/dashboard/${org?.slug}/sales/subscriptions`,
-        icon: <AllInclusiveOutlined fontSize="inherit" />,
       },
       {
         title: 'Checkouts',
         link: `/dashboard/${org?.slug}/sales/checkouts`,
-        icon: <ShoppingCart />,
       },
     ],
   },
@@ -282,7 +272,7 @@ const accountRoutesList = (): Route[] => [
     id: 'preferences',
     title: 'Preferences',
     link: `/dashboard/account/preferences`,
-    icon: <TuneOutlined className="h-5 w-5" fontSize="inherit" />,
+    icon: <Settings className="h-4 w-4" />,
     if: true,
     subs: undefined,
   },
@@ -290,7 +280,7 @@ const accountRoutesList = (): Route[] => [
     id: 'developer',
     title: 'Developer',
     link: `/dashboard/account/developer`,
-    icon: <CodeOutlined fontSize="inherit" />,
+    icon: <Code2 className="h-4 w-4" />,
     if: true,
   },
 ]
@@ -315,7 +305,7 @@ const organizationRoutesList = (org?: schemas['Organization']): Route[] => [
     id: 'finance',
     title: 'Finance',
     link: `/dashboard/${org?.slug}/finance`,
-    icon: <AttachMoneyOutlined fontSize="inherit" />,
+    icon: <DollarSign className="h-4 w-4" />,
     if: true,
     subs: orgFinanceSubRoutesList(org),
   },
@@ -323,7 +313,7 @@ const organizationRoutesList = (org?: schemas['Organization']): Route[] => [
     id: 'settings',
     title: 'Settings',
     link: `/dashboard/${org?.slug}/settings`,
-    icon: <TuneOutlined fontSize="inherit" />,
+    icon: <Settings className="h-4 w-4" />,
     if: true,
     subs: [
       {
@@ -349,3 +339,5 @@ const organizationRoutesList = (org?: schemas['Organization']): Route[] => [
     ],
   },
 ]
+
+export { ArrowLeft }

@@ -127,12 +127,12 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
   return (
     <div
       className={twMerge(
-        'dark:border-polar-700 dark:bg-polar-800 dark:divide-polar-700 flex h-10 w-52 flex-row divide-x divide-gray-200 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xs',
+        'dark:border-spaire-700 dark:bg-spaire-800 dark:divide-spaire-700 flex h-10 w-52 flex-row divide-x divide-gray-200 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xs',
         className,
       )}
     >
       <Popover>
-        <PopoverTrigger className="dark:hover:bg-polar-700 flex cursor-pointer items-center justify-center px-4 py-3 duration-150 hover:bg-gray-100">
+        <PopoverTrigger className="dark:hover:bg-spaire-700 flex cursor-pointer items-center justify-center px-4 py-3 duration-150 hover:bg-gray-100">
           <CalendarMonthOutlined fontSize="inherit" />
         </PopoverTrigger>
         <PopoverContent>
@@ -153,7 +153,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
       </Popover>
 
       <Popover>
-        <PopoverTrigger className="dark:hover:bg-polar-700 flex-1 cursor-pointer truncate px-4 text-sm duration-150 hover:bg-gray-100">
+        <PopoverTrigger className="dark:hover:bg-spaire-700 flex-1 cursor-pointer truncate px-4 text-sm duration-150 hover:bg-gray-100">
           {interval ? (
             interval.label
           ) : date?.from ? (
@@ -220,9 +220,9 @@ const DateRangeIntervals = ({
           onClick={() => onIntervalChange(int)}
           role="button"
           className={twMerge(
-            'dark:hover:bg-polar-800 dark:text-polar-500 flex w-full items-center justify-between rounded-sm border border-transparent px-3 py-2 text-sm text-gray-500 select-none hover:bg-gray-100',
+            'dark:hover:bg-spaire-800 dark:text-spaire-500 flex w-full items-center justify-between rounded-sm border border-transparent px-3 py-2 text-sm text-gray-500 select-none hover:bg-gray-100',
             interval?.slug === int.slug &&
-              'dark:bg-polar-800 dark:border-polar-700 bg-gray-100 text-black dark:text-white',
+              'dark:bg-spaire-800 dark:border-spaire-700 bg-gray-100 text-black dark:text-white',
           )}
         >
           {int.label}

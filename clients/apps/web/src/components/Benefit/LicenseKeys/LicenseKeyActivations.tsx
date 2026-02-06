@@ -56,7 +56,7 @@ export const LicenseKeyActivations = ({
           <ListItem key={activation.id} size="small">
             <h3 className="text-sm">{activation.label}</h3>
             <div className="flex flex-row items-center gap-x-4">
-              <span className="dark:text-polar-500 text-sm text-gray-500">
+              <span className="dark:text-spaire-500 text-sm text-gray-500">
                 <FormattedDateTime datetime={activation.created_at} />
               </span>
               <Button

@@ -5,7 +5,7 @@ import CostsSpanPage from './CostsSpanPage'
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
-    title: 'Costs', // " | Polar is added by the template"
+    title: 'Costs', // " | Spaire is added by the template"
   }
 }
 

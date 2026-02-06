@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   keywords:
     'usage billing, metered billing, consumption billing, pay-as-you-go, usage tracking, saas billing',
   openGraph: {
-    siteName: 'Polar',
+    siteName: 'Spaire',
     type: 'website',
     images: [
       {

@@ -6,7 +6,7 @@ import PayoutsPage from './PayoutsPage'
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
-    title: `Finance - Payouts`, // " | Polar is added by the template"
+    title: `Finance - Payouts`, // " | Spaire is added by the template"
   }
 }
 

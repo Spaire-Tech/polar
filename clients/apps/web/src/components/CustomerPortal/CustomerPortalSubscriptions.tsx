@@ -48,7 +48,7 @@ export const ActiveSubscriptionsOverview = ({
             />
           ))
         ) : (
-          <div className="dark:border-polar-700 flex flex-col items-center justify-center rounded-2xl border border-gray-200 p-12 text-gray-500">
+          <div className="dark:border-spaire-700 flex flex-col items-center justify-center rounded-2xl border border-gray-200 p-12 text-gray-500">
             <p>No Subscriptions Found</p>
           </div>
         )}

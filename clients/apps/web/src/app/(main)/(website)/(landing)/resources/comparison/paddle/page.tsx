@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   keywords:
     'polar vs paddle, paddle, polar, comparison, pricing, pricing for polar, pricing for polar, pricing for polar',
   openGraph: {
-    siteName: 'Polar',
+    siteName: 'Spaire',
     type: 'website',
     images: [
       {

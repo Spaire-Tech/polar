@@ -3,10 +3,6 @@ import { OmniSearch } from '@/components/Search/OmniSearch'
 import { useAuth } from '@/hooks'
 import { CONFIG } from '@/utils/config'
 import { isImpersonating } from '@/utils/impersonation'
-import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
-import KeyboardArrowDown from '@mui/icons-material/KeyboardArrowDown'
-import Search from '@mui/icons-material/Search'
-import SupportIcon from '@mui/icons-material/Support'
 import { schemas } from '@polar-sh/client'
 import Avatar from '@polar-sh/ui/components/atoms/Avatar'
 import {
@@ -28,12 +24,17 @@ import {
   DropdownMenuTrigger,
 } from '@polar-sh/ui/components/ui/dropdown-menu'
 import { Separator } from '@polar-sh/ui/components/ui/separator'
+import {
+  ChevronDown,
+  ExternalLink,
+  HelpCircle,
+  Search,
+} from 'lucide-react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { twMerge } from 'tailwind-merge'
-import { PolarLogotype } from '../Public/PolarLogotype'
 import {
   AccountNavigation,
   OrganizationNavigation,
@@ -90,16 +91,26 @@ export const DashboardSidebar = ({
             : 'flex-row items-center justify-between',
         )}
       >
-        <PolarLogotype
-          size={32}
+        <Link
           href={organization ? `/dashboard/${organization.slug}` : '/dashboard'}
-        />
+          className="flex items-center"
+        >
+          {isCollapsed ? (
+            <span className="text-lg font-bold tracking-tight text-gray-900 dark:text-white">
+              S
+            </span>
+          ) : (
+            <span className="text-lg font-bold tracking-tight text-gray-900 dark:text-white">
+              Spaire
+            </span>
+          )}
+        </Link>
         <motion.div
           key={isCollapsed ? 'header-collapsed' : 'header-expanded'}
           className={`flex ${isCollapsed ? 'flex-row md:flex-col-reverse' : 'flex-row'} items-center gap-2`}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 1 }}
+          transition={{ duration: 0.5 }}
         >
           <NotificationsPopover />
           <SidebarTrigger />
@@ -112,22 +123,19 @@ export const DashboardSidebar = ({
             <button
               onClick={() => setSearchOpen(true)}
               className={twMerge(
-                'flex cursor-pointer items-center gap-4 rounded-lg border px-2 py-2 text-sm transition-colors',
-                'dark:bg-polar-950 dark:border-polar-800 dark:hover:bg-polar-900 border-gray-200 bg-white hover:bg-gray-50',
+                'flex cursor-pointer items-center gap-3 rounded-md border px-2.5 py-2 text-sm transition-colors',
+                'border-gray-200 bg-gray-50 hover:bg-gray-100 dark:border-spaire-700 dark:bg-spaire-900 dark:hover:bg-spaire-800',
                 isCollapsed && 'justify-center px-2',
               )}
             >
-              <Search
-                className="dark:text-polar-500 text-gray-500"
-                fontSize="inherit"
-              />
+              <Search className="h-3.5 w-3.5 text-gray-400 dark:text-spaire-500" />
               {!isCollapsed && (
                 <>
-                  <span className="dark:text-polar-500 flex-1 text-left text-gray-500">
+                  <span className="flex-1 text-left text-gray-500 dark:text-spaire-500">
                     Search...
                   </span>
-                  <kbd className="dark:border-polar-700 dark:bg-polar-800 dark:text-polar-400 pointer-events-none inline-flex h-5 items-center gap-1 rounded border border-gray-200 bg-gray-100 px-1.5 font-mono text-[11px] text-gray-600 select-none">
-                    <span className="text-sm">⌘</span>K
+                  <kbd className="pointer-events-none inline-flex h-5 items-center gap-1 rounded border border-gray-200 bg-white px-1.5 font-mono text-[11px] text-gray-500 select-none dark:border-spaire-700 dark:bg-spaire-800 dark:text-spaire-400">
+                    <span className="text-xs">&#8984;</span>K
                   </kbd>
                 </>
               )}
@@ -141,10 +149,10 @@ export const DashboardSidebar = ({
         )}
         <motion.div
           key={isCollapsed ? 'nav-collapsed' : 'nav-expanded'}
-          className="flex flex-col items-center gap-2"
+          className="flex flex-col items-center gap-1"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 1 }}
+          transition={{ duration: 0.5 }}
         >
           {type === 'account' && <AccountNavigation />}
           {type === 'organization' && organization && (
@@ -156,27 +164,23 @@ export const DashboardSidebar = ({
         <Link
           href="mailto:support@spairehq.com"
           className={twMerge(
-            'mt-2 flex cursor-pointer flex-row items-center rounded-lg border border-transparent px-2 text-sm transition-colors dark:border-transparent',
-            'dark:text-polar-500 dark:hover:text-polar-200 text-gray-500 hover:text-black',
-            isCollapsed && '!dark:text-polar-600',
+            'mt-2 flex cursor-pointer flex-row items-center gap-3 rounded-md px-2 py-1 text-sm transition-colors',
+            'text-gray-500 hover:text-gray-900 dark:text-spaire-500 dark:hover:text-spaire-200',
           )}
         >
-          <SupportIcon fontSize="inherit" />
-          {!isCollapsed && <span className="ml-4 font-medium">Support</span>}
+          <HelpCircle className="h-3.5 w-3.5" />
+          {!isCollapsed && <span className="font-medium">Support</span>}
         </Link>
         <Link
           className={twMerge(
-            'flex flex-row items-center rounded-lg border border-transparent text-sm transition-colors dark:border-transparent',
-            'dark:text-polar-500 dark:hover:text-polar-200 text-gray-500 hover:text-black',
-            isCollapsed && '!dark:text-polar-600',
+            'flex flex-row items-center gap-3 rounded-md px-2 py-1 text-sm transition-colors',
+            'text-gray-500 hover:text-gray-900 dark:text-spaire-500 dark:hover:text-spaire-200',
           )}
           href="https://docs.spairehq.com"
           target="_blank"
         >
-          <ArrowOutwardOutlined className="ml-2" fontSize="inherit" />
-          {!isCollapsed && (
-            <span className="ml-4 font-medium">Documentation</span>
-          )}
+          <ExternalLink className="h-3.5 w-3.5" />
+          {!isCollapsed && <span className="font-medium">Documentation</span>}
         </Link>
         <Separator />
         {type === 'organization' && organization && (
@@ -192,13 +196,10 @@ export const DashboardSidebar = ({
                     />
                     {!isCollapsed && (
                       <>
-                        <span className="min-w-0 truncate">
+                        <span className="min-w-0 truncate text-sm">
                           {organization.name}
                         </span>
-                        <KeyboardArrowDown
-                          className="ml-auto"
-                          fontSize="small"
-                        />
+                        <ChevronDown className="ml-auto h-4 w-4 text-gray-400" />
                       </>
                     )}
                   </SidebarMenuButton>

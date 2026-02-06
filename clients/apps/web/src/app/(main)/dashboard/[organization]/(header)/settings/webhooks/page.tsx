@@ -5,7 +5,7 @@ import WebhooksPage from './WebhooksPage'
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
-    title: 'Webhooks', // " | Polar is added by the template"
+    title: 'Webhooks', // " | Spaire is added by the template"
   }
 }
 

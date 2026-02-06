@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   keywords:
     'saas analytics, revenue metrics, customer insights, mrr tracking, saas dashboard, business analytics',
   openGraph: {
-    siteName: 'Polar',
+    siteName: 'Spaire',
     type: 'website',
     images: [
       {

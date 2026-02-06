@@ -58,7 +58,7 @@ export const LicenseKeysList = ({
             />
             <div className="flex flex-col">
               <span className="text-sm">{licenseKey.customer.name}</span>
-              <span className="dark:text-polar-500 text-xs text-gray-500">
+              <span className="dark:text-spaire-500 text-xs text-gray-500">
                 {licenseKey.customer.email}
               </span>
             </div>

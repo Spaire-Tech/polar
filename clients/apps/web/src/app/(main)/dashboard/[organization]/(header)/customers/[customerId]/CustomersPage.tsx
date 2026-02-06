@@ -180,7 +180,7 @@ const CustomerHeader = ({
         hide={hideDeleteCustomerModal}
         title={`Delete Customer "${customer.email}"?`}
         body={
-          <div className="dark:text-polar-400 flex flex-col gap-y-2 text-sm leading-relaxed text-gray-500">
+          <div className="dark:text-spaire-400 flex flex-col gap-y-2 text-sm leading-relaxed text-gray-500">
             <p>This action cannot be undone and will immediately:</p>
             <ol className="list-inside list-disc pl-4">
               <li>Cancel any active subscriptions for the customer</li>
@@ -252,7 +252,7 @@ const ClientPage: React.FC<ClientPageProps> = ({ organization, customer }) => {
               <p className="text-lg">
                 {(customer.name?.length ?? 0) > 0 ? customer.name : '—'}
               </p>
-              <div className="dark:text-polar-500 flex flex-row items-center text-base font-normal text-gray-500">
+              <div className="dark:text-spaire-500 flex flex-row items-center text-base font-normal text-gray-500">
                 <span>{customer.email}</span>
               </div>
             </div>

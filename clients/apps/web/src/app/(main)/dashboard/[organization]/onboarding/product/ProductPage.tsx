@@ -36,7 +36,7 @@ export default function ClientPage({
   }, [isAssistantFinished])
 
   return (
-    <div className="dark:md:bg-polar-950 flex flex-col pt-16 md:items-center md:p-16">
+    <div className="dark:md:bg-spaire-950 flex flex-col pt-16 md:items-center md:p-16">
       <motion.div
         initial="hidden"
         animate="visible"
@@ -47,7 +47,7 @@ export default function ClientPage({
           <LogoIcon size={50} />
           <div className="flex flex-col gap-y-4">
             <h1 className="text-center text-3xl">Your first product</h1>
-            <p className="dark:text-polar-400 text-center text-lg text-gray-600">
+            <p className="dark:text-spaire-400 text-center text-lg text-gray-600">
               Setup your first digital product to get started.
             </p>
           </div>
@@ -83,11 +83,11 @@ export default function ClientPage({
             organizations.length === 1 && !shouldShowSkip ? 'opacity-0!' : '',
           )}
         >
-          <div className="dark:text-polar-500 flex flex-row items-center justify-center gap-x-4 text-sm text-gray-500">
+          <div className="dark:text-spaire-500 flex flex-row items-center justify-center gap-x-4 text-sm text-gray-500">
             {mode === 'assistant' && (
               <>
                 <button
-                  className="dark:hover:text-polar-500 dark:hover:bg-polar-700 cursor-pointer rounded-full px-2.5 py-1 transition-colors duration-100 hover:bg-gray-100 hover:text-gray-500"
+                  className="dark:hover:text-spaire-500 dark:hover:bg-spaire-700 cursor-pointer rounded-full px-2.5 py-1 transition-colors duration-100 hover:bg-gray-100 hover:text-gray-500"
                   onClick={() => setMode('manual')}
                 >
                   Configure manually
@@ -97,7 +97,7 @@ export default function ClientPage({
             )}
             <Link
               href={`/dashboard/${organization.slug}`}
-              className="dark:hover:text-polar-500 dark:hover:bg-polar-700 rounded-full px-2.5 py-1 transition-colors duration-100 hover:bg-gray-100 hover:text-gray-500"
+              className="dark:hover:text-spaire-500 dark:hover:bg-spaire-700 rounded-full px-2.5 py-1 transition-colors duration-100 hover:bg-gray-100 hover:text-gray-500"
               onClick={() => trackStepSkipped('product', organization.id)}
             >
               Skip onboarding

@@ -18,7 +18,7 @@ export async function generateMetadata(props: {
     openGraph: {
       title: `Team | ${organization.name} on Spaire`,
       description: `Manage team members | ${organization.name} on Spaire`,
-      siteName: 'Polar',
+      siteName: 'Spaire',
       type: 'website',
       images: [
         {

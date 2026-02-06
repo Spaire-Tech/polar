@@ -13,7 +13,7 @@ export interface CheckoutPreviewProps {
 
 export const CheckoutPreview = ({}: CheckoutPreviewProps) => {
   return (
-    <ShadowBox className="dark:bg-polar-950 flex h-full w-full flex-col items-center overflow-y-auto bg-white">
+    <ShadowBox className="dark:bg-spaire-950 flex h-full w-full flex-col items-center overflow-y-auto bg-white">
       <div className="pointer-events-none flex w-full max-w-7xl flex-col items-center gap-y-12">
         <DummyCheckoutContextProvider checkout={CHECKOUT_PREVIEW}>
           <Checkout />

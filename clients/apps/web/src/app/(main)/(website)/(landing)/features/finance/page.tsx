@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   keywords:
     'finance, payouts, invoicing, tax compliance, revenue tracking, payment reporting',
   openGraph: {
-    siteName: 'Polar',
+    siteName: 'Spaire',
     type: 'website',
     images: [
       {

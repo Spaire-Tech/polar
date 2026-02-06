@@ -46,10 +46,10 @@ const OrderCard = ({ className, order }: OrderCardProps) => {
     <Card
       className={twMerge(
         className,
-        'dark:bg-polar-700 flex flex-col gap-y-1 rounded-2xl border-none bg-white transition-opacity hover:opacity-60',
+        'dark:bg-spaire-700 flex flex-col gap-y-1 rounded-2xl border-none bg-white transition-opacity hover:opacity-60',
       )}
     >
-      <CardHeader className="dark:text-polar-500 flex flex-row items-baseline justify-between bg-transparent p-4 pt-2 pb-0 text-sm text-gray-400">
+      <CardHeader className="dark:text-spaire-500 flex flex-row items-baseline justify-between bg-transparent p-4 pt-2 pb-0 text-sm text-gray-400">
         <span>{displayDate}</span>
         <Status
           className={twMerge(
@@ -81,7 +81,7 @@ export const OrdersWidget = ({ className }: OrdersWidgetProps) => {
   return (
     <div
       className={twMerge(
-        'dark:bg-polar-800 relative h-full min-h-80 rounded-4xl bg-gray-50 md:min-h-fit',
+        'dark:bg-spaire-800 relative h-full min-h-80 rounded-4xl bg-gray-50 md:min-h-fit',
         className,
       )}
     >
@@ -111,9 +111,9 @@ export const OrdersWidget = ({ className }: OrdersWidgetProps) => {
           </div>
         </div>
       ) : (
-        <Card className="dark:text-polar-500 flex h-full flex-col items-center justify-center gap-y-6 bg-gray-50 p-6 text-gray-400">
+        <Card className="dark:text-spaire-500 flex h-full flex-col items-center justify-center gap-y-6 bg-gray-50 p-6 text-gray-400">
           <ShoppingCartOutlined
-            className="dark:text-polar-600 text-gray-300"
+            className="dark:text-spaire-600 text-gray-300"
             fontSize="large"
           />
           <h3>No orders found</h3>

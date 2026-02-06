@@ -342,7 +342,7 @@ export const ProductPriceSeatBasedItem: React.FC<
         return (
           <div
             key={field.id}
-            className="dark:bg-polar-900 group dark:border-polar-800 relative rounded-2xl border border-gray-200 bg-white"
+            className="dark:bg-spaire-900 group dark:border-spaire-800 relative rounded-2xl border border-gray-200 bg-white"
             role="group"
             aria-labelledby={`tier-title-${index}-${tierIndex}`}
           >
@@ -358,7 +358,7 @@ export const ProductPriceSeatBasedItem: React.FC<
                   type="button"
                   size="icon"
                   variant="ghost"
-                  className="dark:text-polar-400 -mr-2 h-7 w-7 text-gray-400 opacity-0 transition-opacity group-hover:opacity-100 hover:text-gray-600 dark:hover:text-gray-300"
+                  className="dark:text-spaire-400 -mr-2 h-7 w-7 text-gray-400 opacity-0 transition-opacity group-hover:opacity-100 hover:text-gray-600 dark:hover:text-gray-300"
                   onClick={() => removeTier(tierIndex)}
                   aria-label={`Remove ${getTierTitle(tierIndex, currentTier)}`}
                 >
@@ -379,7 +379,7 @@ export const ProductPriceSeatBasedItem: React.FC<
                 }}
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="dark:text-polar-500 text-xs text-gray-600">
+                    <FormLabel className="dark:text-spaire-500 text-xs text-gray-600">
                       From
                     </FormLabel>
                     <FormControl>
@@ -425,12 +425,12 @@ export const ProductPriceSeatBasedItem: React.FC<
                 }}
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="dark:text-polar-500 text-xs text-gray-600">
+                    <FormLabel className="dark:text-spaire-500 text-xs text-gray-600">
                       To
                     </FormLabel>
                     <FormControl>
                       {isLast ? (
-                        <div className="dark:bg-polar-800 dark:text-polar-500 dark:border-polar-800 flex h-9 w-full items-center justify-center rounded-lg border border-gray-200 bg-gray-50 px-2.5 text-sm font-medium text-gray-500">
+                        <div className="dark:bg-spaire-800 dark:text-spaire-500 dark:border-spaire-800 flex h-9 w-full items-center justify-center rounded-lg border border-gray-200 bg-gray-50 px-2.5 text-sm font-medium text-gray-500">
                           ∞
                         </div>
                       ) : (
@@ -481,7 +481,7 @@ export const ProductPriceSeatBasedItem: React.FC<
                 }}
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="dark:text-polar-500 text-xs text-gray-600">
+                    <FormLabel className="dark:text-spaire-500 text-xs text-gray-600">
                       Price per seat
                     </FormLabel>
                     <FormControl>
@@ -737,8 +737,8 @@ const ProductPriceItem: React.FC<ProductPriceItemProps> = ({
       className={twMerge(
         'flex flex-col divide-y rounded-2xl border',
         amountType
-          ? 'dark:border-polar-700 dark:divide-polar-700 divide-gray-200 border-gray-200'
-          : 'dark:border-polar-700 dark:divide-polar-700 divide-gray-100 border-gray-100',
+          ? 'dark:border-spaire-700 dark:divide-spaire-700 divide-gray-200 border-gray-200'
+          : 'dark:border-spaire-700 dark:divide-spaire-700 divide-gray-100 border-gray-100',
       )}
     >
       <input type="hidden" {...register(`prices.${index}.id`)} />
@@ -770,7 +770,7 @@ const ProductPriceItem: React.FC<ProductPriceItemProps> = ({
                         className={twMerge(
                           field.value
                             ? ''
-                            : 'dark:text-polar-500 text-gray-400',
+                            : 'dark:text-spaire-500 text-gray-400',
                           'border-none bg-transparent shadow-none focus:border-none focus:ring-0 focus:ring-offset-0',
                         )}
                       >
@@ -885,7 +885,7 @@ const CurrencyTabs: React.FC<CurrencyTabsProps> = ({
                         onRemoveCurrency(currency)
                       }
                     }}
-                    className="dark:text-polar-400 dark:hover:text-polar-200 cursor-pointer text-gray-400 hover:text-gray-600"
+                    className="dark:text-spaire-400 dark:hover:text-spaire-200 cursor-pointer text-gray-400 hover:text-gray-600"
                   >
                     <CloseOutlined className="h-3.5 w-3.5" />
                   </span>
@@ -1226,7 +1226,7 @@ export const ProductPricingSection = ({
         className={className}
         compact={compact}
       >
-        <div className="prose dark:bg-polar-700 dark:text-polar-500 rounded-2xl bg-gray-100 p-6 text-sm text-gray-500">
+        <div className="prose dark:bg-spaire-700 dark:text-spaire-500 rounded-2xl bg-gray-100 p-6 text-sm text-gray-500">
           <p>
             This product uses a deprecated pricing model with both a monthly and
             yearly pricing.
@@ -1266,8 +1266,8 @@ export const ProductPricingSection = ({
                 htmlFor={`price-type-${option}`}
                 className={`flex flex-col gap-3 rounded-2xl border p-4 font-normal transition-colors not-aria-disabled:cursor-pointer ${
                   productType === option
-                    ? 'dark:bg-polar-800 bg-gray-50'
-                    : 'dark:border-polar-700 dark:not-aria-disabled:hover:border-polar-700 dark:text-polar-500 dark:not-aria-disabled:hover:bg-polar-700 dark:bg-polar-900 border-gray-100 text-gray-500 not-aria-disabled:hover:border-gray-200'
+                    ? 'dark:bg-spaire-800 bg-gray-50'
+                    : 'dark:border-spaire-700 dark:not-aria-disabled:hover:border-spaire-700 dark:text-spaire-500 dark:not-aria-disabled:hover:bg-spaire-700 dark:bg-spaire-900 border-gray-100 text-gray-500 not-aria-disabled:hover:border-gray-200'
                 }`}
                 aria-disabled={update}
               >
@@ -1411,9 +1411,9 @@ export const ProductPricingSection = ({
         ))}
 
         {update && recurringInterval && (
-          <ShadowBox className="dark:bg-polar-800 flex flex-col gap-2 rounded-2xl! border-none! p-4">
+          <ShadowBox className="dark:bg-spaire-800 flex flex-col gap-2 rounded-2xl! border-none! p-4">
             <h3 className="text-sm font-medium">Updating pricing model</h3>
-            <p className="dark:text-polar-500 text-gray-5 00 text-sm">
+            <p className="dark:text-spaire-500 text-gray-5 00 text-sm">
               Changing pricing model on subscription products will only affect
               new customers. Current customers will keep their original pricing
               model.

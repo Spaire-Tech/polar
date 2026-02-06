@@ -48,14 +48,14 @@ export function SpansTitle({
         </Link>
         {eventType && (
           <>
-            <ChevronRightIcon className="dark:text-polar-500 size-5 text-gray-400" />
+            <ChevronRightIcon className="dark:text-spaire-500 size-5 text-gray-400" />
             <Link href={backLink}>{eventType.label}</Link>
           </>
         )}
       </h2>
       {!eventType && (
         <button
-          className="dark:text-polar-500 dark:hover:text-polar-400 flex size-6 cursor-pointer items-center justify-center rounded-full text-gray-500 transition-colors hover:text-gray-600"
+          className="dark:text-spaire-500 dark:hover:text-spaire-400 flex size-6 cursor-pointer items-center justify-center rounded-full text-gray-500 transition-colors hover:text-gray-600"
           onClick={showEventCostCreationGuide}
         >
           <CircleQuestionMarkIcon className="size-4" />

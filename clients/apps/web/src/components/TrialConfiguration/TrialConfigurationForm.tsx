@@ -80,8 +80,8 @@ export const TrialConfigurationForm = ({
       className={twMerge(
         'w-full cursor-pointer rounded-2xl border p-4 transition-colors',
         trialEnabled
-          ? 'dark:bg-polar-800 bg-gray-50'
-          : 'dark:border-polar-700 dark:hover:border-polar-700 dark:text-polar-500 dark:hover:bg-polar-700 dark:bg-polar-900 border-gray-100 text-gray-500 hover:border-gray-200',
+          ? 'dark:bg-spaire-800 bg-gray-50'
+          : 'dark:border-spaire-700 dark:hover:border-spaire-700 dark:text-spaire-500 dark:hover:bg-spaire-700 dark:bg-spaire-900 border-gray-100 text-gray-500 hover:border-gray-200',
       )}
       htmlFor="trial-enable"
     >

@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   keywords:
     'monetize, monetization, switch, migration, payment infrastructure, saas, monetization, developer tools',
   openGraph: {
-    siteName: 'Polar',
+    siteName: 'Spaire',
     type: 'website',
     images: [
       {

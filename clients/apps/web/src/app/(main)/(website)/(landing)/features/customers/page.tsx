@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   keywords:
     'customer management, customer portal, subscription management, customer analytics, saas customers',
   openGraph: {
-    siteName: 'Polar',
+    siteName: 'Spaire',
     type: 'website',
     images: [
       {

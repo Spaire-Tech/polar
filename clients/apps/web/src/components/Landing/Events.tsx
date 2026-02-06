@@ -58,7 +58,7 @@ export const Events = () => {
 
   return (
     <Section className="flex flex-col gap-y-32 py-0 md:py-0">
-      <div className="dark:bg-polar-900 flex w-full flex-col gap-y-6 overflow-hidden rounded-4xl bg-gray-200 p-2 xl:flex-row">
+      <div className="dark:bg-spaire-900 flex w-full flex-col gap-y-6 overflow-hidden rounded-4xl bg-gray-200 p-2 xl:flex-row">
         <div className="flex w-full flex-1 flex-col gap-y-8 p-6 md:p-12">
           <span className="bg-blue w-fit rounded-full px-3 py-1 text-xs font-medium text-white">
             Now in Beta
@@ -66,7 +66,7 @@ export const Events = () => {
           <h3 className="text-3xl leading-tight! text-balance md:text-4xl">
             A realtime view of your revenue & costs
           </h3>
-          <p className="dark:text-polar-500 text-lg text-gray-500">
+          <p className="dark:text-spaire-500 text-lg text-gray-500">
             Track revenue, costs & profits in realtime. Understand your business
             performance like never before.
           </p>
@@ -84,13 +84,13 @@ export const Events = () => {
             </Button>
           </Link>
         </div>
-        <div className="dark:bg-polar-800 flex w-full flex-1 flex-col gap-y-4 rounded-3xl bg-gray-50 p-8">
+        <div className="dark:bg-spaire-800 flex w-full flex-1 flex-col gap-y-4 rounded-3xl bg-gray-50 p-8">
           <div className="flex flex-row items-center justify-between gap-x-4">
             <h3>Activity</h3>
             <div className="flex flex-row items-center gap-x-4">
               <div className="flex flex-row items-center gap-x-4 font-mono text-xs">
                 <span>Profit</span>
-                <span className="dark:text-polar-500 text-gray-500">
+                <span className="dark:text-spaire-500 text-gray-500">
                   {formatCurrency('subcent')(profit, 'usd')}
                 </span>
               </div>
@@ -125,10 +125,10 @@ export const Events = () => {
               {mockedEvents.map((event, idx) => (
                 <motion.div
                   key={idx}
-                  className="dark:bg-polar-700 flex flex-row items-center justify-between gap-x-8 rounded-md border border-gray-100 bg-gray-100 p-2 pl-4 font-mono text-xs md:justify-start dark:border-white/5"
+                  className="dark:bg-spaire-700 flex flex-row items-center justify-between gap-x-8 rounded-md border border-gray-100 bg-gray-100 p-2 pl-4 font-mono text-xs md:justify-start dark:border-white/5"
                 >
                   <h3 className="w-full truncate xl:w-36">{event.name}</h3>
-                  <p className="dark:text-polar-500 hidden w-28 text-xs text-gray-500 xl:flex">
+                  <p className="dark:text-spaire-500 hidden w-28 text-xs text-gray-500 xl:flex">
                     {event.timestamp.toLocaleDateString('en-US', {
                       day: 'numeric',
                       month: 'short',

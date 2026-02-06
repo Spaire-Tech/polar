@@ -7,7 +7,7 @@ export const Footer = ({ className }: { className?: string }) => {
   return (
     <div
       className={twMerge(
-        'border-polar-600 hidden flex-row gap-x-12 border-t pt-6 text-xs md:flex',
+        'border-spaire-600 hidden flex-row gap-x-12 border-t pt-6 text-xs md:flex',
         className,
       )}
     >

@@ -5,7 +5,7 @@ import MembersPage from './MembersPage'
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
-    title: 'Members', // " | Polar is added by the template"
+    title: 'Members', // " | Spaire is added by the template"
   }
 }
 

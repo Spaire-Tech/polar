@@ -24,7 +24,7 @@ import { NavPopover, NavPopoverSection } from './NavPopover'
 
 export default function Layout({ children }: PropsWithChildren) {
   return (
-    <div className="dark:bg-polar-950 relative flex flex-col bg-gray-50 px-0 md:w-full md:flex-1 md:items-center md:px-4">
+    <div className="dark:bg-spaire-950 relative flex flex-col bg-gray-50 px-0 md:w-full md:flex-1 md:items-center md:px-4">
       <div className="flex flex-col gap-y-2 md:w-full">
         <LandingPageDesktopNavigation />
         <SidebarProvider className="absolute inset-0 flex flex-col items-start md:hidden">
@@ -32,7 +32,7 @@ export default function Layout({ children }: PropsWithChildren) {
           <LandingPageMobileNavigation />
         </SidebarProvider>
 
-        <div className="dark:bg-polar-950 relative flex flex-col px-4 pt-32 md:w-full md:px-0 md:pt-0">
+        <div className="dark:bg-spaire-950 relative flex flex-col px-4 pt-32 md:w-full md:px-0 md:pt-0">
           {children}
         </div>
         <LandingPageFooter />
@@ -63,7 +63,7 @@ const NavLink = ({
       target={isExternal ? '_blank' : target}
       prefetch
       className={twMerge(
-        'dark:text-polar-500 -m-1 flex items-center gap-x-2 p-1 text-gray-500 transition-colors hover:text-black dark:hover:text-white',
+        'dark:text-spaire-500 -m-1 flex items-center gap-x-2 p-1 text-gray-500 transition-colors hover:text-black dark:hover:text-white',
         isActive && 'text-black dark:text-white',
         className,
       )}
@@ -285,7 +285,7 @@ const LandingPageDesktopNavigation = () => {
   ]
 
   return (
-    <div className="dark:text-polar-50 hidden w-full flex-col items-center gap-12 py-8 md:flex">
+    <div className="dark:text-spaire-50 hidden w-full flex-col items-center gap-12 py-8 md:flex">
       <div className="relative flex w-full flex-row items-center justify-between lg:max-w-6xl">
         <Link href="/">
           <PolarLogotype logoVariant="icon" size={40} />

@@ -14,7 +14,7 @@ import { PropsWithChildren, useEffect } from 'react'
 
 export { NavigationHistoryProvider }
 
-export function PolarPostHogProvider({
+export function SpairePostHogProvider({
   children,
   distinctId,
 }: {
@@ -40,7 +40,7 @@ export function PolarPostHogProvider({
   return <PostHogProvider client={posthog}>{children}</PostHogProvider>
 }
 
-export function PolarThemeProvider({
+export function SpaireThemeProvider({
   children,
   forceTheme,
 }: {
@@ -70,7 +70,7 @@ export function PolarThemeProvider({
   )
 }
 
-export function PolarQueryClientProvider({
+export function SpaireQueryClientProvider({
   children,
 }: {
   children: React.ReactNode
@@ -82,6 +82,6 @@ export function PolarQueryClientProvider({
   )
 }
 
-export function PolarNuqsProvider({ children }: PropsWithChildren) {
+export function SpaireNuqsProvider({ children }: PropsWithChildren) {
   return <NuqsAdapter>{children}</NuqsAdapter>
 }

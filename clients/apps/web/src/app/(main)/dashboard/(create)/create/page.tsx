@@ -8,7 +8,7 @@ import CreatePage from './CreatePage'
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
-    title: 'Create Organization', // " | Polar is added by the template"
+    title: 'Create Organization', // " | Spaire is added by the template"
   }
 }
 

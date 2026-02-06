@@ -177,7 +177,7 @@ export const CheckoutConfirmation = ({
           {status === 'failed' &&
             'A problem occurred while processing your order'}
         </h1>
-        <p className="dark:text-polar-500 text-gray-500">
+        <p className="dark:text-spaire-500 text-gray-500">
           {status === 'confirmed' &&
             'Please wait while we confirm your payment.'}
           {status === 'succeeded' && (
@@ -214,7 +214,7 @@ export const CheckoutConfirmation = ({
                   maxWaitingTimeMs={maxWaitingTimeMs}
                 />
               )}
-            <p className="dark:text-polar-500 text-center text-xs text-gray-500">
+            <p className="dark:text-spaire-500 text-center text-xs text-gray-500">
               This order was processed by our online reseller & Merchant of
               Record, Spaire, who also handles order-related inquiries and
               returns.
@@ -222,7 +222,7 @@ export const CheckoutConfirmation = ({
           </>
         )}
       </div>
-      <div className="dark:text-polar-500 flex w-full flex-row items-center justify-center gap-x-3 text-sm text-gray-500">
+      <div className="dark:text-spaire-500 flex w-full flex-row items-center justify-center gap-x-3 text-sm text-gray-500">
         <span>Powered by</span>
         <LogoType className="h-5" />
       </div>

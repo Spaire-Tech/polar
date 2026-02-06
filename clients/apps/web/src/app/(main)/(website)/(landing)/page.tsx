@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   keywords:
     'monetization, merchant of record, saas, digital products, platform, developer, open source, funding, open source, economy',
   openGraph: {
-    siteName: 'Polar',
+    siteName: 'Spaire',
     type: 'website',
     images: [
       {

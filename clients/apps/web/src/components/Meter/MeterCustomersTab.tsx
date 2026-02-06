@@ -69,13 +69,13 @@ const MeterCustomersTab = ({
               className="flex items-center gap-x-3"
             >
               <Avatar
-                className="dark:bg-polar-900 text-xxs h-8 w-8 bg-white"
+                className="dark:bg-spaire-900 text-xxs h-8 w-8 bg-white"
                 name={customer.name ?? customer.email ?? '—'}
                 avatar_url={customer.avatar_url ?? null}
               />
               <div className="flex flex-col">
                 <span className="text-xs">{customer.name ?? '—'}</span>
-                <span className="dark:text-polar-500 text-xxs text-gray-500">
+                <span className="dark:text-spaire-500 text-xxs text-gray-500">
                   {customer.email ?? '—'}
                 </span>
               </div>

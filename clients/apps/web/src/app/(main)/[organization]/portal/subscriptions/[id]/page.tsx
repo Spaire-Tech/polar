@@ -15,11 +15,11 @@ export async function generateMetadata(props: {
   )
 
   return {
-    title: `Customer Portal | ${organization.name}`, // " | Polar is added by the template"
+    title: `Customer Portal | ${organization.name}`, // " | Spaire is added by the template"
     openGraph: {
       title: `Customer Portal | ${organization.name} on Spaire`,
       description: `Customer Portal | ${organization.name} on Spaire`,
-      siteName: 'Polar',
+      siteName: 'Spaire',
       type: 'website',
       images: [
         {

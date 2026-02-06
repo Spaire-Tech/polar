@@ -10,16 +10,27 @@ import { getServerSideAPI } from '@/utils/client/serverside'
 import { CONFIG } from '@/utils/config'
 import { getAuthenticatedUser, getUserOrganizations } from '@/utils/user'
 import { schemas } from '@polar-sh/client'
-import { GeistMono } from 'geist/font/mono'
-import { GeistSans } from 'geist/font/sans'
+import { Inter, JetBrains_Mono } from 'next/font/google'
 import { PHASE_PRODUCTION_BUILD } from 'next/constants'
 import { Metadata } from 'next/types'
 import {
   NavigationHistoryProvider,
-  PolarNuqsProvider,
-  PolarPostHogProvider,
-  PolarQueryClientProvider,
+  SpaireNuqsProvider,
+  SpairePostHogProvider,
+  SpaireQueryClientProvider,
 } from './providers'
+
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+})
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  variable: '--font-jetbrains-mono',
+  display: 'swap',
+})
 
 export async function generateMetadata(): Promise<Metadata> {
   const baseMetadata: Metadata = {
@@ -114,7 +125,7 @@ export default async function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`antialiased ${GeistSans.variable} ${GeistMono.variable}`}
+      className={`antialiased ${inter.variable} ${jetbrainsMono.variable}`}
     >
       <head>
         {CONFIG.ENVIRONMENT === 'development' ? (
@@ -155,16 +166,16 @@ export default async function RootLayout({
             user={authenticatedUser}
             userOrganizations={userOrganizations}
           >
-            <PolarPostHogProvider distinctId={distinctId}>
-              <PolarQueryClientProvider>
-                <PolarNuqsProvider>
+            <SpairePostHogProvider distinctId={distinctId}>
+              <SpaireQueryClientProvider>
+                <SpaireNuqsProvider>
                   <NavigationHistoryProvider>
                     <SandboxBanner />
                     {children}
                   </NavigationHistoryProvider>
-                </PolarNuqsProvider>
-              </PolarQueryClientProvider>
-            </PolarPostHogProvider>
+                </SpaireNuqsProvider>
+              </SpaireQueryClientProvider>
+            </SpairePostHogProvider>
           </UserContextProvider>
         </ExperimentProvider>
       </body>

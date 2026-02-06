@@ -73,7 +73,7 @@ const AccountBalance: React.FC<AccountBalanceProps> = ({
           </div>
         </WellContent>
         <WellFooter>
-          <p className="dark:text-polar-500 text-gray-500">
+          <p className="dark:text-spaire-500 text-gray-500">
             You may only withdraw funds above $10.
           </p>
         </WellFooter>
@@ -102,7 +102,7 @@ const AccountBalance: React.FC<AccountBalanceProps> = ({
           </div>
         </WellContent>
         <WellFooter>
-          <p className="dark:text-polar-500 text-gray-500">
+          <p className="dark:text-spaire-500 text-gray-500">
             Fees are first deducted from any available credits.
           </p>
         </WellFooter>

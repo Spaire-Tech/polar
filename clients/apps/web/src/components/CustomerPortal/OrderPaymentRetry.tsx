@@ -373,7 +373,7 @@ export const OrderPaymentRetry = ({
   return (
     <div className="space-y-4">
       {/* Order Summary */}
-      <div className="dark:bg-polar-800 rounded-lg bg-gray-50 p-4">
+      <div className="dark:bg-spaire-800 rounded-lg bg-gray-50 p-4">
         <h3 className="mb-2 font-medium">Order Summary</h3>
         <div className="space-y-1 text-sm">
           <div className="flex justify-between">
@@ -412,7 +412,7 @@ export const OrderPaymentRetry = ({
             <p className="text-lg font-medium">
               {showRetryButton ? 'Payment Failed' : 'Payment Successful!'}
             </p>
-            <p className="dark:text-polar-500 mt-2 text-sm text-gray-500">
+            <p className="dark:text-spaire-500 mt-2 text-sm text-gray-500">
               {showRetryButton
                 ? 'You can try again or contact support if the issue persists.'
                 : 'Thank you for your payment. You can now close this window.'}

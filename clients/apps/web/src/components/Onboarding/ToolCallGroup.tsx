@@ -169,7 +169,7 @@ export const ToolCallGroup = ({
     const label = getToolLabel(part)
 
     return (
-      <p className="dark:text-polar-500 not-prose flex items-center gap-1 text-gray-500">
+      <p className="dark:text-spaire-500 not-prose flex items-center gap-1 text-gray-500">
         <LogoIcon size={24} className="-ml-1.5" />
         {label}
       </p>
@@ -184,7 +184,7 @@ export const ToolCallGroup = ({
       <div className="not-prose flex flex-col gap-2">
         <button
           onClick={() => setExpanded(false)}
-          className="dark:text-polar-500 flex items-center gap-1 text-left text-gray-500 hover:text-gray-700 dark:hover:text-gray-400"
+          className="dark:text-spaire-500 flex items-center gap-1 text-left text-gray-500 hover:text-gray-700 dark:hover:text-gray-400"
         >
           <LogoIcon size={24} className="-ml-1.5" />
           <span>
@@ -192,13 +192,13 @@ export const ToolCallGroup = ({
             configure your account
           </span>
         </button>
-        <div className="dark:border-polar-700 ml-6 flex flex-col gap-1.5 border-l-2 border-gray-200 pl-4">
+        <div className="dark:border-spaire-700 ml-6 flex flex-col gap-1.5 border-l-2 border-gray-200 pl-4">
           {parts.map((part, index) => {
             const label = getToolLabel(part)
             return (
               <p
                 key={`${messageId}-tool-${index}`}
-                className="dark:text-polar-500 flex items-center gap-1 text-sm text-gray-500"
+                className="dark:text-spaire-500 flex items-center gap-1 text-sm text-gray-500"
               >
                 {label}
               </p>
@@ -212,7 +212,7 @@ export const ToolCallGroup = ({
   return (
     <button
       onClick={() => setExpanded(true)}
-      className="dark:text-polar-500 not-prose flex items-center gap-1 text-left text-gray-500 hover:text-gray-700 dark:hover:text-gray-400"
+      className="dark:text-spaire-500 not-prose flex items-center gap-1 text-left text-gray-500 hover:text-gray-700 dark:hover:text-gray-400"
       disabled={!isComplete}
     >
       <LogoIcon size={24} className="-ml-1.5" />

@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   keywords:
     'subscription billing, recurring payments, saas subscriptions, pricing tiers, billing management',
   openGraph: {
-    siteName: 'Polar',
+    siteName: 'Spaire',
     type: 'website',
     images: [
       {

@@ -85,7 +85,7 @@ const ClientPage = ({
                         <InputOTPSlot
                           key={index}
                           index={index}
-                          className="dark:border-polar-600 h-12 w-12 border-gray-300 text-xl md:h-16 md:w-16 md:text-2xl"
+                          className="dark:border-spaire-600 h-12 w-12 border-gray-300 text-xl md:h-16 md:w-16 md:text-2xl"
                         />
                       ))}
                     </InputOTPGroup>

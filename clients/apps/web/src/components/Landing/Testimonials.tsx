@@ -156,7 +156,7 @@ export const Testamonial = ({
       href={link}
       target="_blank"
       className={twMerge(
-        'dark:bg-polar-900 dark:border-polar-800 dark:hover:bg-polar-800 flex h-full flex-col justify-between gap-x-4 gap-y-12 rounded-2xl border border-transparent bg-white p-8 transition-colors hover:bg-white',
+        'dark:bg-spaire-900 dark:border-spaire-800 dark:hover:bg-spaire-800 flex h-full flex-col justify-between gap-x-4 gap-y-12 rounded-2xl border border-transparent bg-white p-8 transition-colors hover:bg-white',
         className,
       )}
     >
@@ -178,7 +178,7 @@ export const Testamonial = ({
         </div>
         <div
           className={twMerge(
-            'dark:text-polar-50 flex flex-col text-gray-950',
+            'dark:text-spaire-50 flex flex-col text-gray-950',
             size === 'lg' ? 'gap-y-8 text-xl' : 'gap-y-4 text-lg',
           )}
         >
@@ -186,11 +186,11 @@ export const Testamonial = ({
         </div>
       </div>
       <div className="flex flex-col">
-        <p className="dark:text-polar-600 mb-4 text-gray-400">—</p>
+        <p className="dark:text-spaire-600 mb-4 text-gray-400">—</p>
         <div className="flex flex-row items-center gap-x-2">
           <span>{name}</span>
         </div>
-        <span className="dark:text-polar-500 text-gray-500">{company}</span>
+        <span className="dark:text-spaire-500 text-gray-500">{company}</span>
       </div>
     </Link>
   )
@@ -200,7 +200,7 @@ export const Testimonials = () => {
   return (
     <div className="flex flex-col items-center gap-y-12 md:gap-y-24 md:py-12">
       <div className="flex flex-col items-center gap-y-8">
-        <span className="dark:text-polar-500 text-lg text-gray-400">
+        <span className="dark:text-spaire-500 text-lg text-gray-400">
           Testimonials
         </span>
         <h1 className="w-fit max-w-2xl text-center text-3xl text-pretty md:text-5xl md:leading-normal">

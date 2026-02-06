@@ -97,7 +97,7 @@ const ClientPage = ({
             <h2 className="text-2xl text-black dark:text-white">
               Select an account
             </h2>
-            <p className="dark:text-polar-400 text-gray-500">
+            <p className="dark:text-spaire-400 text-gray-500">
               Multiple accounts are associated with this email. Please select
               the account you want to access.
             </p>
@@ -110,7 +110,7 @@ const ClientPage = ({
             {customers.map((customer) => (
               <div
                 key={customer.id}
-                className="dark:hover:bg-polar-800 flex items-center space-x-3 rounded-lg border p-4 hover:bg-gray-50"
+                className="dark:hover:bg-spaire-800 flex items-center space-x-3 rounded-lg border p-4 hover:bg-gray-50"
               >
                 <RadioGroupItem value={customer.id} id={customer.id} />
                 <Label
@@ -154,7 +154,7 @@ const ClientPage = ({
       <div className="flex w-full flex-col gap-y-6 md:max-w-sm">
         <div className="flex flex-col gap-4">
           <h2 className="text-2xl text-black dark:text-white">Sign in</h2>
-          <p className="dark:text-polar-400 text-gray-500">
+          <p className="dark:text-spaire-400 text-gray-500">
             Enter your email address to access your purchases. A verification
             code will be sent to you.
           </p>

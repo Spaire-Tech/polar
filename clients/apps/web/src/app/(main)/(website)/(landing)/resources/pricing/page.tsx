@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   keywords:
     'pricing, price, usage billing, polar, pricing, pricing for polar, pricing for polar, pricing for polar',
   openGraph: {
-    siteName: 'Polar',
+    siteName: 'Spaire',
     type: 'website',
     images: [
       {

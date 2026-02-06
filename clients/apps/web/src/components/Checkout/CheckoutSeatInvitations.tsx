@@ -131,10 +131,10 @@ const CheckoutSeatInvitations = ({
   }
 
   return (
-    <Well className="dark:border-polar-700 w-full border border-gray-200 bg-transparent dark:bg-transparent">
+    <Well className="dark:border-spaire-700 w-full border border-gray-200 bg-transparent dark:bg-transparent">
       <WellHeader className="gap-y-4">
         <h2 className="text-xl">Invite team members</h2>
-        <p className="dark:text-polar-500 text-sm text-gray-500">
+        <p className="dark:text-spaire-500 text-sm text-gray-500">
           You purchased {seats} {seats === 1 ? 'seat' : 'seats'}. Invite team
           members to access the benefits.
         </p>
@@ -149,7 +149,7 @@ const CheckoutSeatInvitations = ({
               onClick={inviteSelf}
               loading={isSendingSelf}
               disabled={isSendingSelf}
-              className="dark:text-polar-400 text-xs text-gray-600"
+              className="dark:text-spaire-400 text-xs text-gray-600"
             >
               Assign seat to yourself
             </Button>
@@ -166,10 +166,10 @@ const CheckoutSeatInvitations = ({
                   type="email"
                   value={checkout.customerEmail || ''}
                   disabled
-                  className="dark:bg-polar-800 bg-gray-50"
+                  className="dark:bg-spaire-800 bg-gray-50"
                 />
               </div>
-              <CheckCircleIcon className="dark:text-polar-500 mt-2 h-6 w-6 text-gray-400" />
+              <CheckCircleIcon className="dark:text-spaire-500 mt-2 h-6 w-6 text-gray-400" />
             </div>
           )}
           {emailInputs.map((input) => (
@@ -188,7 +188,7 @@ const CheckoutSeatInvitations = ({
                 )}
               </div>
               {input.sent ? (
-                <CheckCircleIcon className="dark:text-polar-500 mt-2 h-6 w-6 text-gray-400" />
+                <CheckCircleIcon className="dark:text-spaire-500 mt-2 h-6 w-6 text-gray-400" />
               ) : (
                 emailInputs.length > 1 &&
                 !input.sent && (
@@ -231,7 +231,7 @@ const CheckoutSeatInvitations = ({
         </Button>
 
         {(sentCount > 0 || selfInvited) && (
-          <p className="dark:text-polar-500 text-center text-sm text-gray-500">
+          <p className="dark:text-spaire-500 text-center text-sm text-gray-500">
             Successfully assigned {sentCount + (selfInvited ? 1 : 0)}{' '}
             {sentCount + (selfInvited ? 1 : 0) === 1 ? 'seat' : 'seats'}
           </p>

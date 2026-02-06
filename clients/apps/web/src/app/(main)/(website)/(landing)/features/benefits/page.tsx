@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   keywords:
     'product benefits, license keys, digital downloads, github access, discord integration, benefit fulfillment',
   openGraph: {
-    siteName: 'Polar',
+    siteName: 'Spaire',
     type: 'website',
     images: [
       {

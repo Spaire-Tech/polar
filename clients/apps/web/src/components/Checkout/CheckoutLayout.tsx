@@ -1,4 +1,4 @@
-import { PolarThemeProvider } from '@/app/providers'
+import { SpaireThemeProvider } from '@/app/providers'
 import type { CheckoutPublic } from '@spaire/sdk/models/components/checkoutpublic'
 import PublicLayout from '../Layout/PublicLayout'
 import CheckoutEmbedLayout from './Embed/CheckoutEmbedLayout'
@@ -21,13 +21,13 @@ const CheckoutLayout: React.FC<
   }
 
   return (
-    <PolarThemeProvider>
-      <div className="md:dark:bg-polar-950 dark:bg-polar-900 h-full bg-white md:bg-gray-100 dark:text-white">
+    <SpaireThemeProvider>
+      <div className="md:dark:bg-spaire-950 dark:bg-spaire-900 h-full bg-white md:bg-gray-100 dark:text-white">
         <PublicLayout className="gap-y-0 py-6 md:py-12" wide footer={false}>
           {children}
         </PublicLayout>
       </div>
-    </PolarThemeProvider>
+    </SpaireThemeProvider>
   )
 }
 

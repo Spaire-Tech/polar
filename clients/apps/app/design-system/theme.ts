@@ -18,8 +18,8 @@ export const palette = {
   blackOverlay: '#000000cc',
   whiteDisabled: '#ffffff11',
 
-  blue: '#0062FF',
-  blueLight: '#007AFF',
+  blue: '#1b4047',
+  blueLight: '#2a5f68',
   red: '#dc2626',
   redLight: '#ef4444',
   redDark: '#450a0a',

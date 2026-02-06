@@ -27,13 +27,13 @@ export default async function Page(props: {
 
   return (
     <div className="flex h-screen w-full flex-col items-center justify-center">
-      <div className="md:dark:border-polar-700 md:dark:bg-polar-900 grid w-full max-w-7xl grid-cols-1 gap-y-12 p-12 md:grid-cols-3 md:gap-x-32 md:rounded-4xl md:border md:border-gray-200 md:bg-gray-50 md:py-12 md:pr-0 md:pl-12">
+      <div className="md:dark:border-spaire-700 md:dark:bg-spaire-900 grid w-full max-w-7xl grid-cols-1 gap-y-12 p-12 md:grid-cols-3 md:gap-x-32 md:rounded-4xl md:border md:border-gray-200 md:bg-gray-50 md:py-12 md:pr-0 md:pl-12">
         <div className="flex flex-col justify-between gap-y-24">
           <LogoIcon className="text-blue-500 dark:text-white" size={80} />
 
           <div className="flex flex-col gap-y-4">
             <h1 className="text-3xl">Sign up to Spaire</h1>
-            <p className="dark:text-polar-500 text-xl text-gray-500">
+            <p className="dark:text-spaire-500 text-xl text-gray-500">
               The financial backbone for SaaS startups selling worldwide
             </p>
           </div>
@@ -41,7 +41,7 @@ export default async function Page(props: {
           <div className="flex flex-col gap-y-12">
             {/* <div className="flex flex-col gap-y-2">
               <label
-                className="dark:text-polar-500 text-sm text-gray-500"
+                className="dark:text-spaire-500 text-sm text-gray-500"
                 htmlFor="org-name"
               >
                 Organization Name
@@ -56,7 +56,7 @@ export default async function Page(props: {
                   intent: 'creator',
                 }}
               />
-              <p className="text-center text-sm text-gray-500 dark:text-polar-400">
+              <p className="text-center text-sm text-gray-500 dark:text-spaire-400">
                 Already have an account?{' '}
                 <Link
                   href="/login"
@@ -68,7 +68,7 @@ export default async function Page(props: {
             </div>
           </div>
         </div>
-        <div className="dark:bg-polar-950 dark:border-polar-700 col-span-2 hidden overflow-hidden rounded-4xl rounded-r-none border border-r-0 border-gray-200 bg-gray-100 md:flex">
+        <div className="dark:bg-spaire-950 dark:border-spaire-700 col-span-2 hidden overflow-hidden rounded-4xl rounded-r-none border border-r-0 border-gray-200 bg-gray-100 md:flex">
           <picture className="flex h-full">
             <source
               media="(prefers-color-scheme: dark)"

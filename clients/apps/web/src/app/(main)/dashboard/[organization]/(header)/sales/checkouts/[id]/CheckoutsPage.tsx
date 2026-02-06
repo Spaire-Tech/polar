@@ -33,7 +33,7 @@ const ClientPage: React.FC<ClientPageProps> = ({ organization, checkout }) => {
           <div className="flex flex-row items-center gap-4">
             <h2 className="text-xl font-normal">Checkout</h2>
           </div>
-          <span className="dark:text-polar-500 font-mono text-sm text-gray-500">
+          <span className="dark:text-spaire-500 font-mono text-sm text-gray-500">
             {checkout.id}
           </span>
         </div>

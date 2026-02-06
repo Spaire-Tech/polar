@@ -49,13 +49,13 @@ export const Storefront = ({
           {subscriptionProducts.length < 1 && oneTimeProducts.length < 1 ? (
             <ShadowBoxOnMd className="items-center justify-center gap-y-6 md:flex md:flex-col md:py-48">
               <HiveOutlined
-                className="dark:text-polar-600 text-5xl text-gray-300"
+                className="dark:text-spaire-600 text-5xl text-gray-300"
                 fontSize="large"
               />
               <div className="flex flex-col items-center gap-y-6">
                 <div className="flex flex-col items-center gap-y-2">
                   <h3 className="text-lg font-medium">No products found</h3>
-                  <p className="dark:text-polar-500 text-gray-500">
+                  <p className="dark:text-spaire-500 text-gray-500">
                     {organization.name} is not offering any products yet
                   </p>
                 </div>

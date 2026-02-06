@@ -38,15 +38,15 @@ export const MeterGetStarted = ({ meter }: MeterGetStartedProps) => {
     : 'some_arbitrary_name'
 
   return (
-    <div className="dark:bg-polar-800 dark:border-polar-700 flex flex-col gap-y-4 rounded-2xl border border-gray-200 bg-gray-100 p-6">
+    <div className="dark:bg-spaire-800 dark:border-spaire-700 flex flex-col gap-y-4 rounded-2xl border border-gray-200 bg-gray-100 p-6">
       <div className="flex flex-col gap-y-2">
         <h2 className="text-xl">Get started with metering</h2>
-        <p className="dark:text-polar-500 text-gray-500">
+        <p className="dark:text-spaire-500 text-gray-500">
           Meter usage by sending events which match the Meter Filter, to the
           Spaire Ingestion API.
         </p>
       </div>
-      <pre className="dark:bg-polar-900 rounded-lg bg-white p-4 font-mono text-sm">
+      <pre className="dark:bg-spaire-900 rounded-lg bg-white p-4 font-mono text-sm">
         <SyntaxHighlighterProvider>
           <SyntaxHighlighterClient
             lang="typescript"

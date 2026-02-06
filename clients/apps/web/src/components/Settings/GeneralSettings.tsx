@@ -72,7 +72,7 @@ const GeneralSettings: React.FC<GeneralSettingsProps> = () => {
         <div className="flex flex-row items-start justify-between">
           <div className="flex flex-col gap-y-1">
             <h3>Theme</h3>
-            <p className="dark:text-polar-500 text-sm text-gray-400">
+            <p className="dark:text-spaire-500 text-sm text-gray-400">
               Override your browser&apos;s preferred theme settings
             </p>
           </div>
@@ -87,7 +87,7 @@ const GeneralSettings: React.FC<GeneralSettingsProps> = () => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent
-                className="dark:bg-polar-800 bg-gray-50 shadow-lg"
+                className="dark:bg-spaire-800 bg-gray-50 shadow-lg"
                 align="end"
               >
                 <DropdownMenuItem onClick={handleThemeChange('system')}>

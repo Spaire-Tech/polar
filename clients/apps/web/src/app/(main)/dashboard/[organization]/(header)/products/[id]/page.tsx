@@ -11,7 +11,7 @@ export async function generateMetadata(props: {
   const api = await getServerSideAPI()
   const product = await getProductById(api, params.id)
   return {
-    title: product.name, // " | Polar is added by the template"
+    title: product.name, // " | Spaire is added by the template"
   }
 }
 

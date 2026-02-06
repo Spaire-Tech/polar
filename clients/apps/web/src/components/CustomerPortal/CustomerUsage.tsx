@@ -54,7 +54,7 @@ export const CustomerUsage = ({ api }: CustomerUsageProps) => {
                     return (
                       <div className="flex items-center gap-2">
                         <div className="relative h-3 w-3">
-                          <div className="dark:border-polar-700 absolute h-full w-full rounded-full border-2 border-gray-200" />
+                          <div className="dark:border-spaire-700 absolute h-full w-full rounded-full border-2 border-gray-200" />
                           <div
                             className="absolute h-full w-full rounded-full border-2 border-blue-500"
                             style={{

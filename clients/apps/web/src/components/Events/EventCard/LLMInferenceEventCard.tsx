@@ -14,7 +14,7 @@ const DataRow = ({
       <div className="flex w-48 flex-row items-center gap-x-4">
         <span>{label}</span>
       </div>
-      <span className="dark:text-polar-500 text-gray-500">{value}</span>
+      <span className="dark:text-spaire-500 text-gray-500">{value}</span>
     </div>
   )
 }

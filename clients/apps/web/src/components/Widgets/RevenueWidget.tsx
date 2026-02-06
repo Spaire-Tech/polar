@@ -39,13 +39,13 @@ const RevenueWidget = ({ className, productId }: RevenueWidgetProps) => {
   return (
     <Card
       className={twMerge(
-        'dark:bg-polar-800 flex h-full w-full flex-col gap-y-8 bg-gray-50 p-6',
+        'dark:bg-spaire-800 flex h-full w-full flex-col gap-y-8 bg-gray-50 p-6',
         className,
       )}
     >
       <div className="flex flex-col gap-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="dark:text-polar-500 text-lg text-gray-500">
+          <h2 className="dark:text-spaire-500 text-lg text-gray-500">
             Last 6 Months
           </h2>
         </div>
@@ -78,7 +78,7 @@ const RevenueWidget = ({ className, productId }: RevenueWidgetProps) => {
               <Tooltip>
                 <TooltipTrigger className="relative h-full min-h-48 overflow-hidden rounded-2xl bg-[repeating-linear-gradient(-45deg,rgba(0,0,0,0.05),rgba(0,0,0,0.05)_2px,transparent_2px,transparent_8px)] dark:bg-[repeating-linear-gradient(45deg,rgba(255,255,255,0.03),rgba(255,255,255,0.03)_2px,transparent_2px,transparent_8px)]">
                   {revenueMetrics.isLoading ? (
-                    <div className="dark:bg-polar-700 flex h-full w-full items-center justify-center rounded-2xl bg-gray-200">
+                    <div className="dark:bg-spaire-700 flex h-full w-full items-center justify-center rounded-2xl bg-gray-200">
                       <Spinner />
                     </div>
                   ) : (
@@ -87,7 +87,7 @@ const RevenueWidget = ({ className, productId }: RevenueWidgetProps) => {
                         'absolute bottom-0 w-full rounded-2xl',
                         index === array.length - 1
                           ? 'bg-indigo-300 dark:bg-indigo-500'
-                          : 'dark:bg-polar-600 bg-gray-300',
+                          : 'dark:bg-spaire-600 bg-gray-300',
                       )}
                       style={{
                         height: `${((period.revenue ?? 0) / maxRevenue) * 100}%`,
@@ -107,7 +107,7 @@ const RevenueWidget = ({ className, productId }: RevenueWidgetProps) => {
                   {format(period.timestamp, 'MMMM')}
                 </span>
                 <div className="flex flex-row items-center justify-between gap-x-2">
-                  <span className="dark:text-polar-500 text-sm text-gray-500">
+                  <span className="dark:text-spaire-500 text-sm text-gray-500">
                     {formatCurrency('statistics')(period.revenue ?? 0, 'usd')}
                   </span>
                   {!isTrendFlat ? (

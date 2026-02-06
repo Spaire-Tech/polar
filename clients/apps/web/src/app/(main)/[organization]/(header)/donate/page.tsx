@@ -14,12 +14,12 @@ export async function generateMetadata(props: {
   )
 
   return {
-    title: `Donate to ${organization.name}`, // " | Polar is added by the template"
+    title: `Donate to ${organization.name}`, // " | Spaire is added by the template"
     description: `Donate to ${organization.name}`,
     openGraph: {
       title: `Donate to ${organization.name}`,
       description: `Donate to ${organization.name}`,
-      siteName: 'Polar',
+      siteName: 'Spaire',
       type: 'website',
       images: [
         {
