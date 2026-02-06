@@ -1,4 +1,4 @@
-const POLAR_CHECKOUT_EVENT = 'POLAR_CHECKOUT'
+const SPAIRE_CHECKOUT_EVENT = 'SPAIRE_CHECKOUT'
 
 /**
  * Message sent to the parent window when the embedded checkout is fully loaded.
@@ -46,7 +46,7 @@ type EmbedCheckoutMessage =
 const isEmbedCheckoutMessage = (
   message: any,
 ): message is EmbedCheckoutMessage => {
-  return message.type === POLAR_CHECKOUT_EVENT
+  return message.type === SPAIRE_CHECKOUT_EVENT
 }
 
 /**
@@ -84,7 +84,7 @@ class EmbedCheckout {
     targetOrigin: string,
   ): void {
     window.parent.postMessage(
-      { ...message, type: POLAR_CHECKOUT_EVENT },
+      { ...message, type: SPAIRE_CHECKOUT_EVENT },
       targetOrigin,
     )
   }
@@ -116,18 +116,18 @@ class EmbedCheckout {
 
     const styleSheet = document.createElement('style')
     styleSheet.innerText = `
-      .polar-loader-spinner {
+      .spaire-loader-spinner {
         width: 20px;
         aspect-ratio: 1;
         border-radius: 50%;
         background: ${options?.theme === 'dark' ? '#000' : '#fff'};
         box-shadow: 0 0 0 0 ${options?.theme === 'dark' ? '#fff' : '#000'};
-        animation: polar-loader-spinner-animation 1s infinite;
+        animation: spaire-loader-spinner-animation 1s infinite;
       }
-      @keyframes polar-loader-spinner-animation {
+      @keyframes spaire-loader-spinner-animation {
         100% {box-shadow: 0 0 0 30px #0000}
       }
-      body.polar-no-scroll {
+      body.spaire-no-scroll {
         overflow: hidden;
       }
     `
@@ -144,11 +144,11 @@ class EmbedCheckout {
 
     // Create spinning icon
     const spinner = document.createElement('div')
-    spinner.className = 'polar-loader-spinner'
+    spinner.className = 'spaire-loader-spinner'
     loader.appendChild(spinner)
 
     // Insert into the DOM
-    document.body.classList.add('polar-no-scroll')
+    document.body.classList.add('spaire-no-scroll')
     document.body.appendChild(loader)
 
     // Add query parameters to the Checkout Link
@@ -197,18 +197,18 @@ class EmbedCheckout {
   /**
    * Initialize embedded checkout triggers.
    *
-   * This method will add a click event listener to all elements with the `data-polar-checkout` attribute.
-   * The Checkout Link is either the `href` attribute for a link element or the value of `data-polar-checkout` attribute.
+   * This method will add a click event listener to all elements with the `data-spaire-checkout` attribute.
+   * The Checkout Link is either the `href` attribute for a link element or the value of `data-spaire-checkout` attribute.
    *
-   * The theme can be optionally set using the `data-polar-checkout-theme` attribute.
+   * The theme can be optionally set using the `data-spaire-checkout-theme` attribute.
    *
    * @example
    * ```html
-   * <a href="https://buy.polar.sh/polar_cl_123" data-polar-checkout data-polar-checkout-theme="dark">Checkout</a>
+   * <a href="https://api.spairehq.com/v1/checkout-links/spaire_cl_123/redirect" data-spaire-checkout data-spaire-checkout-theme="dark">Checkout</a>
    * ```
    */
   public static init(): void {
-    const checkoutElements = document.querySelectorAll('[data-polar-checkout]')
+    const checkoutElements = document.querySelectorAll('[data-spaire-checkout]')
     checkoutElements.forEach((checkoutElement) => {
       checkoutElement.removeEventListener(
         'click',
@@ -228,7 +228,7 @@ class EmbedCheckout {
     window.removeEventListener('message', this.windowMessageListener)
     if (document.body.contains(this.iframe))
       document.body.removeChild(this.iframe)
-    document.body.classList.remove('polar-no-scroll')
+    document.body.classList.remove('spaire-no-scroll')
   }
 
   /**
@@ -295,9 +295,9 @@ class EmbedCheckout {
     e.preventDefault()
     let checkoutElement = e.target as HTMLElement
 
-    // Find the closest parent element with the `data-polar-checkout` attribute,
+    // Find the closest parent element with the `data-spaire-checkout` attribute,
     // in case the checkout element has children triggering the event.
-    while (!checkoutElement.hasAttribute('data-polar-checkout')) {
+    while (!checkoutElement.hasAttribute('data-spaire-checkout')) {
       if (!checkoutElement.parentElement) {
         return
       }
@@ -306,8 +306,8 @@ class EmbedCheckout {
 
     const url =
       checkoutElement.getAttribute('href') ||
-      (checkoutElement.getAttribute('data-polar-checkout') as string)
-    const theme = checkoutElement.getAttribute('data-polar-checkout-theme') as
+      (checkoutElement.getAttribute('data-spaire-checkout') as string)
+    const theme = checkoutElement.getAttribute('data-spaire-checkout-theme') as
       | 'light'
       | 'dark'
       | undefined
@@ -395,14 +395,14 @@ class EmbedCheckout {
 
 declare global {
   interface Window {
-    Polar: {
+    Spaire: {
       EmbedCheckout: typeof EmbedCheckout
     }
   }
 }
 
 if (typeof window !== 'undefined') {
-  window.Polar = {
+  window.Spaire = {
     EmbedCheckout,
   }
 }
