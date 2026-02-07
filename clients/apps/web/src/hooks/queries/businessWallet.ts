@@ -1,5 +1,4 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { defaultRetry } from './retry'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
 
@@ -122,7 +121,7 @@ export const useFinancialAccount = (organizationId?: string) =>
         `/v1/business-wallets/financial-account?organization_id=${organizationId}`,
       ),
     enabled: !!organizationId,
-    retry: defaultRetry,
+    retry: false,
   })
 
 export const useCreateFinancialAccount = () => {
@@ -155,7 +154,7 @@ export const useOnboardingStatus = (organizationId?: string) =>
         `/v1/business-wallets/onboarding-status?organization_id=${organizationId}`,
       ),
     enabled: !!organizationId,
-    retry: defaultRetry,
+    retry: false,
   })
 
 export const useOnboardingLink = () => {
@@ -186,7 +185,7 @@ export const useIssuingCards = (organizationId?: string) =>
         `/v1/business-wallets/cards?organization_id=${organizationId}`,
       ),
     enabled: !!organizationId,
-    retry: defaultRetry,
+    retry: false,
   })
 
 export const useCreateIssuingCard = () => {
@@ -248,7 +247,7 @@ export const useIssuingCardDetails = (cardId?: string) =>
         `/v1/business-wallets/cards/${cardId}/details`,
       ),
     enabled: false, // only fetch on demand
-    retry: defaultRetry,
+    retry: false,
   })
 
 // -----------------------------------------------------------------------
@@ -273,7 +272,7 @@ export const useTreasuryTransactions = (
         `/v1/business-wallets/transactions?financial_account_id=${financialAccountId}&page=${page ?? 1}&limit=${limit ?? 20}`,
       ),
     enabled: !!financialAccountId,
-    retry: defaultRetry,
+    retry: false,
   })
 
 export const useSyncTransactions = () => {

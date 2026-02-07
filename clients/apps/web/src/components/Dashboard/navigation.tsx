@@ -226,32 +226,16 @@ const accountRoutesList = (): Route[] => [
   },
 ]
 
-const orgBusinessWalletSubRoutesList = (
-  org?: schemas['Organization'],
-): SubRoute[] => [
-  {
-    title: 'Overview',
-    link: `/dashboard/${org?.slug}/business-wallet/overview`,
-  },
-  {
-    title: 'Cards',
-    link: `/dashboard/${org?.slug}/business-wallet/cards`,
-  },
-  {
-    title: 'Transactions',
-    link: `/dashboard/${org?.slug}/business-wallet/transactions`,
-  },
-]
-
-
 const organizationRoutesList = (org?: schemas['Organization']): Route[] => [
   {
     id: 'business-wallet',
     title: 'Business Wallet',
     link: `/dashboard/${org?.slug}/business-wallet`,
     icon: <AccountBalanceWalletOutlined fontSize="inherit" />,
+    checkIsActive: (currentRoute: string): boolean => {
+      return currentRoute.startsWith(`/dashboard/${org?.slug}/business-wallet`)
+    },
     if: true,
-    subs: orgBusinessWalletSubRoutesList(org),
   },
   {
     id: 'finance',
