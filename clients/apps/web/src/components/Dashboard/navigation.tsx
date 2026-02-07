@@ -1,4 +1,5 @@
 import { PolarHog, usePostHog } from '@/hooks/posthog'
+import AccountBalanceWalletOutlined from '@mui/icons-material/AccountBalanceWalletOutlined'
 import AttachMoneyOutlined from '@mui/icons-material/AttachMoneyOutlined'
 import CodeOutlined from '@mui/icons-material/CodeOutlined'
 import HiveOutlined from '@mui/icons-material/HiveOutlined'
@@ -225,7 +226,33 @@ const accountRoutesList = (): Route[] => [
   },
 ]
 
+const orgBusinessWalletSubRoutesList = (
+  org?: schemas['Organization'],
+): SubRoute[] => [
+  {
+    title: 'Overview',
+    link: `/dashboard/${org?.slug}/business-wallet/overview`,
+  },
+  {
+    title: 'Cards',
+    link: `/dashboard/${org?.slug}/business-wallet/cards`,
+  },
+  {
+    title: 'Transactions',
+    link: `/dashboard/${org?.slug}/business-wallet/transactions`,
+  },
+]
+
+
 const organizationRoutesList = (org?: schemas['Organization']): Route[] => [
+  {
+    id: 'business-wallet',
+    title: 'Business Wallet',
+    link: `/dashboard/${org?.slug}/business-wallet`,
+    icon: <AccountBalanceWalletOutlined fontSize="inherit" />,
+    if: true,
+    subs: orgBusinessWalletSubRoutesList(org),
+  },
   {
     id: 'finance',
     title: 'Balance',

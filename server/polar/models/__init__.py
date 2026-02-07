@@ -26,6 +26,8 @@ from .event import Event, EventClosure
 from .event_type import EventType
 from .external_event import ExternalEvent
 from .file import File
+from .financial_account import FinancialAccount
+from .issuing_card import IssuingCard
 from .held_balance import HeldBalance
 from .issue_reward import IssueReward
 from .license_key import LicenseKey
@@ -73,6 +75,7 @@ from .subscription import Subscription
 from .subscription_meter import SubscriptionMeter
 from .subscription_product_price import SubscriptionProductPrice
 from .transaction import Transaction
+from .treasury_transaction import TreasuryTransaction
 from .trial_redemption import TrialRedemption
 from .user import OAuthAccount, User
 from .user_notification import UserNotification
@@ -112,7 +115,9 @@ __all__ = [
     "EventType",
     "ExternalEvent",
     "File",
+    "FinancialAccount",
     "HeldBalance",
+    "IssuingCard",
     "IssueReward",
     "LegacyRecurringProductPriceCustom",
     "LegacyRecurringProductPriceFixed",
@@ -163,6 +168,7 @@ __all__ = [
     "SubscriptionProductPrice",
     "TimestampedModel",
     "Transaction",
+    "TreasuryTransaction",
     "TrialRedemption",
     "User",
     "UserNotification",

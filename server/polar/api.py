@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from polar.account.endpoints import router as accounts_router
 from polar.auth.endpoints import router as auth_router
 from polar.benefit.endpoints import router as benefits_router
+from polar.business_wallet.endpoints import router as business_wallet_router
 from polar.benefit.grant.endpoints import router as benefit_grants_router
 from polar.checkout.endpoints import router as checkout_router
 from polar.checkout_link.endpoints import router as checkout_link_router
@@ -159,3 +160,5 @@ router.include_router(payout_router)
 router.include_router(wallet_router)
 # /integrations/chargeback-stop
 router.include_router(chargeback_stop_router)
+# /business-wallets
+router.include_router(business_wallet_router)
