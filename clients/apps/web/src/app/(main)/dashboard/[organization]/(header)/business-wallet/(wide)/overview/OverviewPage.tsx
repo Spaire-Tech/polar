@@ -5,6 +5,7 @@ import {
   useIssuingCards,
   useOnboardingStatus,
 } from '@/hooks/queries'
+import type { IssuingCardData } from '@/hooks/queries/businessWallet'
 import { schemas } from '@polar-sh/client'
 import Button from '@polar-sh/ui/components/atoms/Button'
 import {
@@ -234,7 +235,7 @@ export default function OverviewPage({
   }
 
   const activeCards =
-    cards?.filter((c: any) => c.status !== 'canceled') ?? []
+    cards?.filter((c: IssuingCardData) => c.status !== 'canceled') ?? []
 
   return (
     <div className="flex flex-col gap-y-8">
@@ -382,7 +383,7 @@ export default function OverviewPage({
             Your Cards
           </h3>
           <div className="flex flex-wrap gap-6">
-            {activeCards.map((card: any) => (
+            {activeCards.map((card: IssuingCardData) => (
               <CardPreview key={card.id} card={card} />
             ))}
           </div>

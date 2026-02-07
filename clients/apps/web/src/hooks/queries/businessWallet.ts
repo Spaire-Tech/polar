@@ -1,6 +1,114 @@
-import { api } from '@/utils/client'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { defaultRetry } from './retry'
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
+
+async function fetchJSON<T>(
+  url: string,
+  init?: RequestInit,
+): Promise<T> {
+  const res = await fetch(`${API_BASE}${url}`, {
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(init?.headers || {}),
+    },
+    ...init,
+  })
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    throw body
+  }
+  return res.json()
+}
+
+// -----------------------------------------------------------------------
+// Types
+// -----------------------------------------------------------------------
+
+export interface FinancialAccountData {
+  id: string
+  created_at: string
+  modified_at: string | null
+  stripe_financial_account_id: string
+  status: string
+  currency: string
+  balance_cash: number
+  balance_inbound_pending: number
+  balance_outbound_pending: number
+  available_balance: number
+  pending_balance: number
+  aba_routing_number: string | null
+  aba_account_number: string | null
+  features_card_issuing: boolean
+  features_deposit_insurance: boolean
+  features_inbound_transfers_ach: boolean
+  features_outbound_payments_ach: boolean
+  features_outbound_transfers_ach: boolean
+  organization_id: string
+  onboarding_completed_at: string | null
+  is_active: boolean
+}
+
+export interface OnboardingStatusData {
+  has_financial_account: boolean
+  financial_account_status: string | null
+  has_cards: boolean
+  card_count: number
+  is_fully_onboarded: boolean
+  stripe_connected_account_id: string | null
+  requirements_pending: string[]
+}
+
+export interface IssuingCardData {
+  id: string
+  created_at: string
+  modified_at: string | null
+  stripe_card_id: string
+  stripe_cardholder_id: string
+  status: string
+  card_type: string
+  last4: string
+  exp_month: number
+  exp_year: number
+  brand: string
+  currency: string
+  cardholder_name: string
+  card_color: string
+  spending_limit_amount: number | null
+  spending_limit_interval: string | null
+  total_spent: number
+  canceled_at: string | null
+  financial_account_id: string
+  organization_id: string
+  is_active: boolean
+  display_name: string
+  expiration: string
+}
+
+export interface TreasuryTransactionData {
+  id: string
+  created_at: string
+  modified_at: string | null
+  stripe_transaction_id: string
+  transaction_type: string
+  status: string
+  amount: number
+  currency: string
+  description: string
+  flow_type: string | null
+  flow_id: string | null
+  counterparty_name: string | null
+  financial_account_id: string
+}
+
+interface PaginatedResult<T> {
+  items: T[]
+  pagination: {
+    total_count: number
+    max_page: number
+  }
+}
 
 // -----------------------------------------------------------------------
 // Financial Account
@@ -9,13 +117,10 @@ import { defaultRetry } from './retry'
 export const useFinancialAccount = (organizationId?: string) =>
   useQuery({
     queryKey: ['business-wallet', 'financial-account', organizationId],
-    queryFn: async () => {
-      const res = await api.GET('/v1/business-wallets/financial-account', {
-        params: { query: { organization_id: organizationId ?? '' } },
-      })
-      if (res.error) throw res.error
-      return res.data
-    },
+    queryFn: () =>
+      fetchJSON<FinancialAccountData>(
+        `/v1/business-wallets/financial-account?organization_id=${organizationId}`,
+      ),
     enabled: !!organizationId,
     retry: defaultRetry,
   })
@@ -23,13 +128,14 @@ export const useFinancialAccount = (organizationId?: string) =>
 export const useCreateFinancialAccount = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (organizationId: string) => {
-      const res = await api.POST('/v1/business-wallets/financial-account', {
-        body: { organization_id: organizationId },
-      })
-      if (res.error) throw res.error
-      return res.data
-    },
+    mutationFn: (organizationId: string) =>
+      fetchJSON<FinancialAccountData>(
+        '/v1/business-wallets/financial-account',
+        {
+          method: 'POST',
+          body: JSON.stringify({ organization_id: organizationId }),
+        },
+      ),
     onSuccess: (_data, organizationId) => {
       queryClient.invalidateQueries({
         queryKey: ['business-wallet', 'financial-account', organizationId],
@@ -44,37 +150,27 @@ export const useCreateFinancialAccount = () => {
 export const useOnboardingStatus = (organizationId?: string) =>
   useQuery({
     queryKey: ['business-wallet', 'onboarding-status', organizationId],
-    queryFn: async () => {
-      const res = await api.GET('/v1/business-wallets/onboarding-status', {
-        params: { query: { organization_id: organizationId ?? '' } },
-      })
-      if (res.error) throw res.error
-      return res.data
-    },
+    queryFn: () =>
+      fetchJSON<OnboardingStatusData>(
+        `/v1/business-wallets/onboarding-status?organization_id=${organizationId}`,
+      ),
     enabled: !!organizationId,
     retry: defaultRetry,
   })
 
 export const useOnboardingLink = () => {
   return useMutation({
-    mutationFn: async ({
+    mutationFn: ({
       organizationId,
       returnPath,
     }: {
       organizationId: string
       returnPath: string
-    }) => {
-      const res = await api.POST('/v1/business-wallets/onboarding-link', {
-        params: {
-          query: {
-            organization_id: organizationId,
-            return_path: returnPath,
-          },
-        },
-      })
-      if (res.error) throw res.error
-      return res.data
-    },
+    }) =>
+      fetchJSON<{ url: string }>(
+        `/v1/business-wallets/onboarding-link?organization_id=${organizationId}&return_path=${encodeURIComponent(returnPath)}`,
+        { method: 'POST' },
+      ),
   })
 }
 
@@ -85,13 +181,10 @@ export const useOnboardingLink = () => {
 export const useIssuingCards = (organizationId?: string) =>
   useQuery({
     queryKey: ['business-wallet', 'cards', organizationId],
-    queryFn: async () => {
-      const res = await api.GET('/v1/business-wallets/cards', {
-        params: { query: { organization_id: organizationId ?? '' } },
-      })
-      if (res.error) throw res.error
-      return res.data
-    },
+    queryFn: () =>
+      fetchJSON<IssuingCardData[]>(
+        `/v1/business-wallets/cards?organization_id=${organizationId}`,
+      ),
     enabled: !!organizationId,
     retry: defaultRetry,
   })
@@ -99,20 +192,18 @@ export const useIssuingCards = (organizationId?: string) =>
 export const useCreateIssuingCard = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (body: {
+    mutationFn: (body: {
       financial_account_id: string
       card_type?: 'virtual' | 'physical'
       cardholder_name: string
       card_color?: string
       spending_limit_amount?: number | null
       spending_limit_interval?: string | null
-    }) => {
-      const res = await api.POST('/v1/business-wallets/cards', {
-        body,
-      })
-      if (res.error) throw res.error
-      return res.data
-    },
+    }) =>
+      fetchJSON<IssuingCardData>('/v1/business-wallets/cards', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ['business-wallet', 'cards'],
@@ -124,7 +215,7 @@ export const useCreateIssuingCard = () => {
 export const useUpdateIssuingCard = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({
+    mutationFn: ({
       cardId,
       ...body
     }: {
@@ -133,14 +224,14 @@ export const useUpdateIssuingCard = () => {
       card_color?: string | null
       spending_limit_amount?: number | null
       spending_limit_interval?: string | null
-    }) => {
-      const res = await api.PATCH('/v1/business-wallets/cards/{card_id}', {
-        params: { path: { card_id: cardId } },
-        body,
-      })
-      if (res.error) throw res.error
-      return res.data
-    },
+    }) =>
+      fetchJSON<IssuingCardData>(
+        `/v1/business-wallets/cards/${cardId}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify(body),
+        },
+      ),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ['business-wallet', 'cards'],
@@ -152,16 +243,10 @@ export const useUpdateIssuingCard = () => {
 export const useIssuingCardDetails = (cardId?: string) =>
   useQuery({
     queryKey: ['business-wallet', 'card-details', cardId],
-    queryFn: async () => {
-      const res = await api.GET(
-        '/v1/business-wallets/cards/{card_id}/details',
-        {
-          params: { path: { card_id: cardId ?? '' } },
-        },
-      )
-      if (res.error) throw res.error
-      return res.data
-    },
+    queryFn: () =>
+      fetchJSON<{ number: string; cvc: string; exp_month: number; exp_year: number }>(
+        `/v1/business-wallets/cards/${cardId}/details`,
+      ),
     enabled: false, // only fetch on demand
     retry: defaultRetry,
   })
@@ -183,19 +268,10 @@ export const useTreasuryTransactions = (
       page,
       limit,
     ],
-    queryFn: async () => {
-      const res = await api.GET('/v1/business-wallets/transactions', {
-        params: {
-          query: {
-            financial_account_id: financialAccountId ?? '',
-            page: page ?? 1,
-            limit: limit ?? 20,
-          },
-        },
-      })
-      if (res.error) throw res.error
-      return res.data
-    },
+    queryFn: () =>
+      fetchJSON<PaginatedResult<TreasuryTransactionData>>(
+        `/v1/business-wallets/transactions?financial_account_id=${financialAccountId}&page=${page ?? 1}&limit=${limit ?? 20}`,
+      ),
     enabled: !!financialAccountId,
     retry: defaultRetry,
   })
@@ -203,15 +279,11 @@ export const useTreasuryTransactions = (
 export const useSyncTransactions = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (financialAccountId: string) => {
-      const res = await api.POST('/v1/business-wallets/transactions/sync', {
-        params: {
-          query: { financial_account_id: financialAccountId },
-        },
-      })
-      if (res.error) throw res.error
-      return res.data
-    },
+    mutationFn: (financialAccountId: string) =>
+      fetchJSON<{ synced: number }>(
+        `/v1/business-wallets/transactions/sync?financial_account_id=${financialAccountId}`,
+        { method: 'POST' },
+      ),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ['business-wallet', 'transactions'],

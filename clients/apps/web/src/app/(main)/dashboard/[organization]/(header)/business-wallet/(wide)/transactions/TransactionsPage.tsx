@@ -5,6 +5,7 @@ import {
   useSyncTransactions,
   useTreasuryTransactions,
 } from '@/hooks/queries'
+import type { TreasuryTransactionData } from '@/hooks/queries/businessWallet'
 import { schemas } from '@polar-sh/client'
 import Button from '@polar-sh/ui/components/atoms/Button'
 import {
@@ -228,7 +229,7 @@ export default function TransactionsPage({
               </div>
 
               {/* Rows */}
-              {transactions.map((tx: any) => (
+              {transactions.map((tx: TreasuryTransactionData) => (
                 <div
                   key={tx.id}
                   className="dark:border-polar-700 dark:hover:bg-polar-900/50 flex items-center border-b border-gray-100 px-6 py-4 transition-colors last:border-b-0 hover:bg-gray-50"

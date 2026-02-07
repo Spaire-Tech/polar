@@ -7,6 +7,7 @@ import {
   useIssuingCards,
   useUpdateIssuingCard,
 } from '@/hooks/queries'
+import type { IssuingCardData } from '@/hooks/queries/businessWallet'
 import { schemas } from '@polar-sh/client'
 import Button from '@polar-sh/ui/components/atoms/Button'
 import {
@@ -267,7 +268,7 @@ function CardItem({
   card,
   onUpdate,
 }: {
-  card: any
+  card: IssuingCardData
   onUpdate: () => void
 }) {
   const [showDetails, setShowDetails] = useState(false)
@@ -477,9 +478,9 @@ export default function CardsPage({
   }
 
   const activeCards =
-    cards?.filter((c: any) => c.status !== 'canceled') ?? []
+    cards?.filter((c: IssuingCardData) => c.status !== 'canceled') ?? []
   const canceledCards =
-    cards?.filter((c: any) => c.status === 'canceled') ?? []
+    cards?.filter((c: IssuingCardData) => c.status === 'canceled') ?? []
 
   return (
     <DashboardBody>
@@ -513,7 +514,7 @@ export default function CardsPage({
               Active Cards ({activeCards.length})
             </h3>
             <div className="flex flex-wrap gap-8">
-              {activeCards.map((card: any) => (
+              {activeCards.map((card: IssuingCardData) => (
                 <CardItem
                   key={card.id}
                   card={card}
@@ -547,7 +548,7 @@ export default function CardsPage({
               Canceled Cards ({canceledCards.length})
             </h3>
             <div className="flex flex-wrap gap-8 opacity-50">
-              {canceledCards.map((card: any) => (
+              {canceledCards.map((card: IssuingCardData) => (
                 <CardVisual
                   key={card.id}
                   last4={card.last4}
