@@ -5,7 +5,6 @@ import {
   useCreateIssuingCard,
   useFinancialAccount,
   useIssuingCards,
-  useIssuingCardDetails,
   useUpdateIssuingCard,
 } from '@/hooks/queries'
 import { schemas } from '@polar-sh/client'
@@ -15,7 +14,7 @@ import {
   CardContent,
   CardHeader,
 } from '@polar-sh/ui/components/atoms/Card'
-import { Input } from '@polar-sh/ui/components/atoms/Input'
+import Input from '@polar-sh/ui/components/atoms/Input'
 import { useCallback, useState } from 'react'
 
 function formatCurrency(cents: number): string {
