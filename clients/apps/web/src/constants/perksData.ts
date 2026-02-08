@@ -10,7 +10,7 @@ export interface Perk {
 export const PERKS: Perk[] = [
   {
     name: 'Mercury',
-    logo: 'https://spaire-production-files-public.s3.us-east-1.amazonaws.com/mercurylogo.png',
+    logo: 'https://spaire-production-files-public.s3.us-east-1.amazonaws.com/mercurybank_logo.jpeg',
     incentive: '$500 Signup Bonus',
     description:
       'The banking stack built for startups. Mercury offers FDIC-insured checking and savings, treasury management, and venture debt — all from one dashboard. It is the default choice for serious founders who want institutional-grade financial infrastructure from day one.',
