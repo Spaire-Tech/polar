@@ -8,7 +8,7 @@ const Header = () => (
       <Img
         alt="Spaire Logo"
         height="48"
-        src="https://polar-public-assets.s3.us-east-2.amazonaws.com/emails/polar-logo-black-badge.png"
+        src="https://spaire-production-files-public.s3.us-east-1.amazonaws.com/spaire+(27).png"
       />
     </div>
   </Section>
