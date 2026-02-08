@@ -50,8 +50,7 @@ export default function StartupStackPage() {
     <DashboardBody title="Startup Stack">
       <div className="flex flex-col gap-y-2">
         <p className="dark:text-polar-500 text-sm text-gray-500">
-          Verified deals and credits from the tools that high-growth startups
-          actually use. Each offer has been negotiated and confirmed.
+          Optimize your burn from day zero. Access $150k+ in verified credits and preferred terms from the companies that power the world’s fastest-growing startups.
         </p>
       </div>
       <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
