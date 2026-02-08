@@ -47,12 +47,7 @@ class StripeTreasuryService:
                 "treasury": {"requested": True},
                 "card_issuing": {"requested": True},
             },
-            controller={
-                "dashboard": {"type": "none"},
-                "losses": {"payments": "application"},
-                "fees": {"payer": "application"},
-                "requirement_collection": "application",
-            },
+            tos_acceptance={"service_agreement": "full"},
             settings={
                 "payouts": {"schedule": {"interval": "manual"}},
             },
