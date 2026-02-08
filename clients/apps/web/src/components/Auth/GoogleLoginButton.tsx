@@ -33,7 +33,6 @@ const GoogleLoginButton = ({ returnTo, signup }: GoogleLoginButtonProps) => {
       onClick={onClick}
     >
       <Button
-        variant="secondary"
         wrapperClassNames="space-x-3 p-2.5 px-5"
         className="text-md p-5"
         fullWidth
