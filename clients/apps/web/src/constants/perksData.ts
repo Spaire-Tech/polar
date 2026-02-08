@@ -10,7 +10,7 @@ export interface Perk {
 export const PERKS: Perk[] = [
   {
     name: 'Mercury',
-    logo: '/assets/perks/mercury.png',
+    logo: 'https://spaire-production-files-public.s3.us-east-1.amazonaws.com/mercurylogo.png',
     incentive: '$500 Signup Bonus',
     description:
       'The banking stack built for startups. Mercury offers FDIC-insured checking and savings, treasury management, and venture debt — all from one dashboard. It is the default choice for serious founders who want institutional-grade financial infrastructure from day one.',
@@ -20,7 +20,7 @@ export const PERKS: Perk[] = [
   },
   {
     name: 'AWS',
-    logo: '/assets/perks/aws.png',
+    logo: 'https://spaire-production-files-public.s3.us-east-1.amazonaws.com/amazon_web_services_logo.jpeg',
     incentive: '$5,000 in Credits',
     description:
       'Amazon Web Services is the backbone of modern cloud infrastructure. From compute and storage to machine learning and serverless, AWS gives you the scale and reliability that enterprise customers demand — and the flexibility to start small.',
@@ -30,7 +30,7 @@ export const PERKS: Perk[] = [
   },
   {
     name: 'Notion',
-    logo: '/assets/perks/notion.png',
+    logo: 'https://spaire-production-files-public.s3.us-east-1.amazonaws.com/notionhq_logo.jpeg',
     incentive: '6 Months Free + AI',
     description:
       'Notion consolidates your docs, wikis, project management, and knowledge base into one tool. It eliminates the sprawl of disconnected apps that slows early teams down and becomes the single source of truth for your entire organization.',
@@ -40,7 +40,7 @@ export const PERKS: Perk[] = [
   },
   {
     name: 'Stripe Atlas',
-    logo: '/assets/perks/stripe-atlas.png',
+    logo: 'https://spaire-production-files-public.s3.us-east-1.amazonaws.com/stripe_logo.jpeg',
     incentive: '$500 in Processing Credits',
     description:
       'Stripe Atlas incorporates your Delaware C-Corp, sets up your bank account, and gives you the legal templates to get funded — in days, not weeks. It is the fastest path from idea to a properly structured, investor-ready company.',
@@ -50,7 +50,7 @@ export const PERKS: Perk[] = [
   },
   {
     name: 'HubSpot',
-    logo: '/assets/perks/hubspot.png',
+    logo: 'https://spaire-production-files-public.s3.us-east-1.amazonaws.com/hubspot_logo.jpeg',
     incentive: '90% Off Year One',
     description:
       'HubSpot gives you CRM, email marketing, sales pipelines, and customer support in one platform. For startups, it replaces the patchwork of Mailchimp, Pipedrive, and Zendesk with a single system that scales from your first customer to your thousandth.',
@@ -60,7 +60,7 @@ export const PERKS: Perk[] = [
   },
   {
     name: 'PostHog',
-    logo: '/assets/perks/posthog.png',
+    logo: 'https://spaire-production-files-public.s3.us-east-1.amazonaws.com/posthog_logo.jpeg',
     incentive: '$50K in Credits',
     description:
       'PostHog is the open-source product analytics suite that replaces Amplitude, LaunchDarkly, and Hotjar in one self-serve tool. You get event tracking, feature flags, session recording, and A/B testing without sending your data to a third party.',
@@ -70,7 +70,7 @@ export const PERKS: Perk[] = [
   },
   {
     name: 'Linear',
-    logo: '/assets/perks/linear.png',
+    logo: 'https://spaire-production-files-public.s3.us-east-1.amazonaws.com/linear.jpeg',
     incentive: '12 Months Free',
     description:
       'Linear is the issue tracker that engineering teams actually want to use. It is fast, opinionated, and designed for the workflows that modern development teams run — sprints, cycles, and triage — without the bloat of legacy project management tools.',
@@ -80,7 +80,7 @@ export const PERKS: Perk[] = [
   },
   {
     name: 'Intercom',
-    logo: '/assets/perks/intercom.png',
+    logo: 'https://spaire-production-files-public.s3.us-east-1.amazonaws.com/intercom_logo.jpeg',
     incentive: '95% Off for Year One',
     description:
       'Intercom is the customer messaging platform that handles live chat, help center, bots, and product tours from one interface. It lets a small team deliver enterprise-level support and onboarding without hiring a large support org.',
@@ -90,7 +90,7 @@ export const PERKS: Perk[] = [
   },
   {
     name: 'Vercel',
-    logo: '/assets/perks/vercel.png',
+    logo: 'https://spaire-production-files-public.s3.us-east-1.amazonaws.com/vercel_logo.jpeg',
     incentive: '$3,000 in Credits',
     description:
       'Vercel is the deployment platform built for frontend teams. It gives you instant global deploys, edge functions, and built-in analytics — purpose-built for Next.js but compatible with any framework. It makes shipping fast the default, not the exception.',
@@ -100,7 +100,7 @@ export const PERKS: Perk[] = [
   },
   {
     name: 'OpenAI',
-    logo: '/assets/perks/openai.png',
+    logo: 'https://spaire-production-files-public.s3.us-east-1.amazonaws.com/open+ai+-+logo.jpg',
     incentive: '$2,500 in API Credits',
     description:
       'OpenAI provides the foundational AI models that power the next generation of software products. Whether you are building AI-native features or augmenting existing workflows, access to GPT-4 and beyond is a competitive requirement, not an option.',
@@ -110,7 +110,7 @@ export const PERKS: Perk[] = [
   },
   {
     name: 'Airtable',
-    logo: '/assets/perks/airtable.png',
+    logo: 'https://spaire-production-files-public.s3.us-east-1.amazonaws.com/airtable-logo.jpeg',
     incentive: '$2,000 in Credits',
     description:
       'Airtable is the programmable spreadsheet that ops teams use to build internal tools without engineering resources. From CRM to content calendars to inventory tracking, it lets non-technical team members move fast without waiting on dev cycles.',
@@ -120,7 +120,7 @@ export const PERKS: Perk[] = [
   },
   {
     name: 'Mixpanel',
-    logo: '/assets/perks/mixpanel.png',
+    logo: 'https://spaire-production-files-public.s3.us-east-1.amazonaws.com/mixpanel_inc__logo.jpeg',
     incentive: '$50K in Credits',
     description:
       'Mixpanel is the event-based analytics platform that tells you what users actually do in your product, not just how many visited a page. It gives you funnels, retention analysis, and cohort breakdowns that drive real product decisions.',
