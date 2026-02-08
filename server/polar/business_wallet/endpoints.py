@@ -61,7 +61,7 @@ async def create_financial_account(
     session: AsyncSession = Depends(get_db_session),
 ) -> FinancialAccountSchema:
     """Create a new financial account for an organization."""
-    org = await organization_service.get(session, body.organization_id)
+    org = await organization_service.get(session, auth_subject, body.organization_id)
     if org is None:
         raise ResourceNotFound()
 
@@ -100,7 +100,7 @@ async def get_onboarding_link(
     session: AsyncSession = Depends(get_db_session),
 ) -> dict:
     """Get a Stripe onboarding link for the connected account."""
-    org = await organization_service.get(session, organization_id)
+    org = await organization_service.get(session, auth_subject, organization_id)
     if org is None:
         raise ResourceNotFound()
 
@@ -149,7 +149,7 @@ async def create_card(
     if fa is None:
         raise ResourceNotFound()
 
-    org = await organization_service.get(session, fa.organization_id)
+    org = await organization_service.get(session, auth_subject, fa.organization_id)
     if org is None:
         raise ResourceNotFound()
 
