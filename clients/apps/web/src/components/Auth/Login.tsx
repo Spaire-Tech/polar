@@ -5,9 +5,7 @@ import { schemas } from '@polar-sh/client'
 import LabeledSeparator from '@polar-sh/ui/components/atoms/LabeledSeparator'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { useEffect, useMemo } from 'react'
-import GithubLoginButton from '../Auth/GithubLoginButton'
 import LoginCodeForm from '../Auth/LoginCodeForm'
-import AppleLoginButton from './AppleLoginButton'
 import GoogleLoginButton from './GoogleLoginButton'
 
 
@@ -86,14 +84,7 @@ const Login = ({
   return (
     <div className="flex flex-col gap-y-4">
       <div className="flex w-full flex-col gap-y-4">
-        <GithubLoginButton
-          text="Continue with GitHub"
-          size="large"
-          fullWidth
-          {...loginProps}
-        />
         <GoogleLoginButton {...loginProps} />
-        <AppleLoginButton {...loginProps} />
         <LabeledSeparator label="Or" />
         <LoginCodeForm {...loginProps} />
       </div>
