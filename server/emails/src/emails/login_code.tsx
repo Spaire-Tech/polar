@@ -16,7 +16,7 @@ export function LoginCode({
         {code_lifetime_minutes.toFixed()} minutes.
       </Preview>
       <IntroWithHi>
-        Here is your code to sign in to Spaire.{' '}
+        Use the verification code below to sign in to your Spaire account.{' '}
         <span className="font-bold">
           This code is only valid for the next {code_lifetime_minutes} minutes.
         </span>
@@ -27,7 +27,7 @@ export function LoginCode({
         </Text>
       </Section>
       <Text className="text-gray-500">
-        If you didn't request this email, you can safely ignore it.
+        If you did not request this sign-in, you may safely ignore this email.
       </Text>
       <Footer email={email} />
     </WrapperPolar>
