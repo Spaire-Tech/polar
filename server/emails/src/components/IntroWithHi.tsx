@@ -6,7 +6,7 @@ interface IntroWithHiProps {
 }
 
 export function IntroWithHi({
-  hiMsg = 'Hi,',
+  hiMsg = 'Hello,',
   children,
 }: PropsWithChildren<IntroWithHiProps>) {
   return (
