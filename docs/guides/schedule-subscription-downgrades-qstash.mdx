@@ -1,7 +1,7 @@
 ---
 title: "How to schedule subscription downgrades with Upstash QStash"
 sidebarTitle: "Schedule downgrades with QStash"
-description: "Learn how to automatically schedule subscription downgrades at the end of the current billing period using the Polar API and Upstash QStash."
+description: "Learn how to automatically schedule subscription downgrades at the end of the current billing period using the Spaire API and Upstash QStash."
 ---
 
 ## Overview
@@ -10,7 +10,7 @@ When managing subscriptions, you may want to schedule downgrades to take effect 
 
 ## Prerequisites
 
-- A [Polar API access token](/integrate/authentication)
+- A [Spaire API access token](/integrate/authentication)
 - An [Upstash QStash](https://upstash.com/qstash) account
 - A server endpoint that can receive HTTP requests
   - [Node.js](https://nodejs.org/en/blog/announcements/v20-release-announce) or your preferred backend language installed
@@ -20,9 +20,9 @@ When managing subscriptions, you may want to schedule downgrades to take effect 
 Store your API credentials securely in environment variables.
 
 ```bash Terminal
-# Polar API credentials
-POLAR_MODE="sandbox" # can be "production"
-POLAR_ACCESS_TOKEN="polar_pat_..."
+# Spaire API credentials
+SPAIRE_MODE="sandbox" # can be "production"
+SPAIRE_ACCESS_TOKEN="spaire_pat_..."
 
 # Upstash QStash credentials
 QSTASH_URL="https://qstash.upstash.io"
@@ -45,13 +45,13 @@ Use Upstash QStash to schedule an HTTP request to your downgrade endpoint at the
 Here's a complete Next.js API route that schedules a downgrade:
 
 ```tsx title="app/api/schedule-downgrade/route.ts"
-import { Polar } from "@polar-sh/sdk";
+import { Spaire } from "@spaire/sdk";
 import { Client } from "@upstash/qstash";
 import { NextRequest, NextResponse } from "next/server";
 
-const polar = new Polar({
-  server: process.env.POLAR_MODE,
-  accessToken: process.env.POLAR_ACCESS_TOKEN,
+const spaire = new Spaire({
+  server: process.env.SPAIRE_MODE,
+  accessToken: process.env.SPAIRE_ACCESS_TOKEN,
 });
 
 const qstash = new Client({
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
     const { subscriptionId, newProductId } = await req.json();
 
     // Step 1: Fetch current subscription details
-    const subscription = await polar.subscriptions.get({
+    const subscription = await spaire.subscriptions.get({
       id: subscriptionId,
     });
 
@@ -122,14 +122,14 @@ Create an endpoint that QStash will call at the scheduled time to execute the do
 Here's a completed Next.js API route for downgrade:
 
 ```tsx title="app/api/execute-downgrade/route.ts"
-import { Polar } from "@polar-sh/sdk";
+import { Spaire } from "@spaire/sdk";
 import { NextRequest, NextResponse } from "next/server";
 import { verifySignatureAppRouter } from "@upstash/qstash/nextjs";
-import { SubscriptionProrationBehavior } from "@polar-sh/sdk/models/components/subscriptionprorationbehavior.js";
+import { SubscriptionProrationBehavior } from "@spaire/sdk/models/components/subscriptionprorationbehavior.js";
 
-const polar = new Polar({
-  server: process.env.POLAR_MODE,
-  accessToken: process.env.POLAR_ACCESS_TOKEN,
+const spaire = new Spaire({
+  server: process.env.SPAIRE_MODE,
+  accessToken: process.env.SPAIRE_ACCESS_TOKEN,
 });
 
 async function handler(req: NextRequest) {
@@ -139,7 +139,7 @@ async function handler(req: NextRequest) {
     console.log(`Executing downgrade for subscription ${subscriptionId}`);
 
     // Fetch the subscription to verify it's still active
-    const subscription = await polar.subscriptions.get({
+    const subscription = await spaire.subscriptions.get({
       id: subscriptionId,
     });
 
@@ -162,7 +162,7 @@ async function handler(req: NextRequest) {
     }
 
     // Execute the downgrade
-    const updatedSubscription = await polar.subscriptions.update({
+    const updatedSubscription = await spaire.subscriptions.update({
       id: subscriptionId,
       subscriptionUpdate: {
         productId: newProductId,
@@ -210,13 +210,13 @@ Test the complete flow to ensure downgrades are scheduled and executed correctly
 
 <Steps>
   <Step title="Test in Sandbox Environment">
-    Use Polar's [sandbox environment](/integrate/sandbox) to test without affecting production data.
+    Use Spaire's [sandbox environment](/integrate/sandbox) to test without affecting production data.
     
     ```tsx
-    const polar = new Polar({
+    const spaire = new Spaire({
       // Use sandbox for testing
-      server: process.env.POLAR_MODE,
-      accessToken: process.env.POLAR_ACCESS_TOKEN,
+      server: process.env.SPAIRE_MODE,
+      accessToken: process.env.SPAIRE_ACCESS_TOKEN,
     });
     ```
   </Step>
@@ -247,7 +247,7 @@ Test the complete flow to ensure downgrades are scheduled and executed correctly
     After the scheduled time, verify the subscription was downgraded:
     
     ```tsx
-    const subscription = await polar.subscriptions.get({
+    const subscription = await spaire.subscriptions.get({
       id: "sub_test_xxxxx",
     });
     

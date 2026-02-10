@@ -4,7 +4,7 @@ sidebarTitle: "Embedded Checkout"
 description: "Embed our checkout directly on your site"
 ---
 
-<img src="https://polar.sh/docs/assets/features/checkout/embed/demo.png" />
+<img src="https://www.spairehq.com/docs/assets/features/checkout/embed/demo.png" />
 
 You can either copy and paste our code snippet to get up and running in a second or use our JavaScript library for more advanced integrations. Our embedded checkout allows you to provide a seamless purchasing experience without redirecting users away from your site.
 
@@ -19,8 +19,8 @@ The snippet looks like this:
 ```typescript
 <a
   href="__CHECKOUT_LINK__"
-  data-polar-checkout
-  data-polar-checkout-theme="light"
+  data-spaire-checkout
+  data-spaire-checkout-theme="light"
 >
   Purchase
 </a>
@@ -28,13 +28,13 @@ The snippet looks like this:
 <script
   defer
   data-auto-init
-  src="https://cdn.jsdelivr.net/npm/@polar-sh/checkout@latest/dist/embed.global.js"
+  src="https://cdn.jsdelivr.net/npm/@spaire/checkout@latest/dist/embed.global.js"
 ></script>
 ```
 
 This will display a `Purchase` link which will open an inline checkout when clicked.
 
-You can style the trigger element any way you want, as long as you keep the `data-polar-checkout` attribute.
+You can style the trigger element any way you want, as long as you keep the `data-spaire-checkout` attribute.
 
 ## Import Library
 
@@ -42,34 +42,34 @@ If you have a more advanced project in JavaScript, like a React app, adding the 
 
 <CodeGroup>
   ```bash npm
-  npm install @polar-sh/checkout
+  npm install @spaire/checkout
   ```
   ```bash pnpm
-  pnpm add @polar-sh/checkout
+  pnpm add @spaire/checkout
   ```
   ```bash yarn
-  yarn add @polar-sh/checkout
+  yarn add @spaire/checkout
   ```
 </CodeGroup>
 
-Then, you should import the `PolarEmbedCheckout` helper class and manually call `PolarEmbedCheckout.init()`. This will add the required handlers on elements having the `data-polar-checkout` attribute.
+Then, you should import the `SpaireEmbedCheckout` helper class and manually call `SpaireEmbedCheckout.init()`. This will add the required handlers on elements having the `data-spaire-checkout` attribute.
 
 Here is an example in React:
 
 ```ts
-import { PolarEmbedCheckout } from '@polar-sh/checkout/embed'
+import { SpaireEmbedCheckout } from '@spaire/checkout/embed'
 import { useEffect } from 'react'
 
 const PurchaseLink = () => {
   useEffect(() => {
-    PolarEmbedCheckout.init()
+    SpaireEmbedCheckout.init()
   }, [])
 
   return (
     <a
       href="__CHECKOUT_LINK__"
-      data-polar-checkout
-      data-polar-checkout-theme="light"
+      data-spaire-checkout
+      data-spaire-checkout-theme="light"
     >
       Purchase
     </a>
@@ -88,14 +88,14 @@ For this to work, make sure to set the [`embed_origin`](/api-reference/checkouts
 
 ## Advanced Integration
 
-For users who need more control over the embedded checkout flow, the `PolarEmbedCheckout` class provides several advanced features.
+For users who need more control over the embedded checkout flow, the `SpaireEmbedCheckout` class provides several advanced features.
 
 ### Programmatically creating an embed
 
-Instead of using declarative triggers with `data-polar-checkout` attributes, you can programmatically create and control checkout instances:
+Instead of using declarative triggers with `data-spaire-checkout` attributes, you can programmatically create and control checkout instances:
 
 ```ts
-import { PolarEmbedCheckout } from "@polar-sh/checkout/embed";
+import { SpaireEmbedCheckout } from "@spaire/checkout/embed";
 
 // Open checkout programmatically when needed
 const openCheckout = async () => {
@@ -105,7 +105,7 @@ const openCheckout = async () => {
   try {
     // This creates the checkout iframe and returns a Promise
     // that resolves when the checkout is fully loaded
-    const checkout = await PolarEmbedCheckout.create(checkoutLink, {
+    const checkout = await SpaireEmbedCheckout.create(checkoutLink, {
       theme,
     });
 
@@ -127,10 +127,10 @@ document.getElementById("buy-button").addEventListener("click", () => {
 You can listen for checkout events to respond to user interactions. For the `loaded` event, we recommend using the `onLoaded` callback in the `create` method to ensure it's always executed, even if the checkout loads very quickly.
 
 ```ts
-import { PolarEmbedCheckout } from "@polar-sh/checkout/embed";
+import { SpaireEmbedCheckout } from "@spaire/checkout/embed";
 
 const openCheckoutWithEvents = async () => {
-  const checkout = await PolarEmbedCheckout.create("__CHECKOUT_LINK__", {
+  const checkout = await SpaireEmbedCheckout.create("__CHECKOUT_LINK__", {
     onLoaded: (event) => {
       console.log("Checkout loaded");
     },
@@ -175,7 +175,7 @@ const openCheckoutWithEvents = async () => {
 Here's a more complete React example that handles checkout events:
 
 ```ts
-import { PolarEmbedCheckout } from '@polar-sh/checkout/embed'
+import { SpaireEmbedCheckout } from '@spaire/checkout/embed'
 import { useState, useEffect } from 'react'
 
 const CheckoutButton = () => {
@@ -192,7 +192,7 @@ const CheckoutButton = () => {
 
   const handleCheckout = async () => {
       try {
-        const checkout = await PolarEmbedCheckout.create(
+        const checkout = await SpaireEmbedCheckout.create(
           '__CHECKOUT_LINK__',
           {
             theme: 'light',
@@ -242,13 +242,13 @@ export default CheckoutButton
 In some cases, you might need to programmatically close the checkout - for instance, if you detect that a user needs to take an action elsewhere in your application first:
 
 ```ts
-import { PolarEmbedCheckout } from "@polar-sh/checkout/embed";
+import { SpaireEmbedCheckout } from "@spaire/checkout/embed";
 
 // Example: open checkout and store the instance
 let activeCheckout = null;
 
 async function openCheckout() {
-  const checkout = await PolarEmbedCheckout.create("__CHECKOUT_LINK__");
+  const checkout = await SpaireEmbedCheckout.create("__CHECKOUT_LINK__");
   activeCheckout = checkout;
   return checkout;
 }
@@ -300,7 +300,7 @@ Wallet payment methods such as Apple Pay and Google Pay are supported in the che
 
 By default, wallet payment methods (Apple Pay, Google Pay, etc.) are **not enabled** when you embed our checkout form into your website. For security reasons, your website domain needs to be manually validated before enabling these payment methods in embedded mode.
 
-To enable wallet payment methods on your embedded checkout, please [email us](mailto:support@polar.sh) with:
+To enable wallet payment methods on your embedded checkout, please [email us](mailto:support@spairehq.com) with:
 
 - Your organization slug
 - The domain you wish to allow for wallet payments

@@ -45,14 +45,14 @@ Ad-hoc prices are marked with `source: "ad_hoc"` in the API response, while cata
 
 <CodeGroup>
 ```ts TypeScript
-import { Polar } from "@polar-sh/sdk";
+import { Spaire } from "@spaire/sdk";
 
-const polar = new Polar({
-  accessToken: process.env["POLAR_ACCESS_TOKEN"] ?? "",
+const spaire = new Spaire({
+  accessToken: process.env["SPAIRE_ACCESS_TOKEN"] ?? "",
 });
 
 async function run() {
-  const checkout = await polar.checkouts.create({
+  const checkout = await spaire.checkouts.create({
     products: ["productId"],
     prices: {
       "productId": [
@@ -72,12 +72,12 @@ run();
 ```
 
 ```py Python
-from polar_sdk import Polar
+from spaire_sdk import Spaire
 
-with Polar(
+with Spaire(
     access_token="<YOUR_BEARER_TOKEN_HERE>",
-) as polar:
-    checkout = polar.checkouts.create(request={
+) as spaire:
+    checkout = spaire.checkouts.create(request={
         "products": ["<product_id>"],
         "prices": {
             "<product_id>": [
@@ -108,9 +108,9 @@ For the complete schema of each price type, refer to the [Checkout API reference
 
 ## External Customer ID
 
-Quite often, you'll have your own users management system in your application, where your customer already have an ID. To ease reconciliation between Polar and your system, you can inform us about your customer ID when creating a checkout session through the [`external_customer_id`](/api-reference/checkouts/create-session/) field.
+Quite often, you'll have your own users management system in your application, where your customer already have an ID. To ease reconciliation between Spaire and your system, you can inform us about your customer ID when creating a checkout session through the [`external_customer_id`](/api-reference/checkouts/create-session/) field.
 
-After a successful checkout, we'll create a Customer on Polar with the external ID you provided. It'll be provided through the `customer.external_id` property in webhooks you may have configured.
+After a successful checkout, we'll create a Customer on Spaire with the external ID you provided. It'll be provided through the `customer.external_id` property in webhooks you may have configured.
 
 ## SDK examples
 
@@ -118,14 +118,14 @@ Using our SDK, creating a checkout session is quite straightforward.
 
 <CodeGroup>
     ```ts TypeScript
-    import { Polar } from "@polar-sh/sdk";
+    import { Spaire } from "@spaire/sdk";
 
-    const polar = new Polar({
-      accessToken: process.env["POLAR_ACCESS_TOKEN"] ?? "",
+    const spaire = new Spaire({
+      accessToken: process.env["SPAIRE_ACCESS_TOKEN"] ?? "",
     });
 
     async function run() {
-      const checkout = await polar.checkouts.create({
+      const checkout = await spaire.checkouts.create({
         products: ["productId"]
       });
 
@@ -136,13 +136,13 @@ Using our SDK, creating a checkout session is quite straightforward.
     ```
 
     ```py Python
-    from polar_sdk import Polar
+    from spaire_sdk import Spaire
 
-    with Polar(
+    with Spaire(
         access_token="<YOUR_BEARER_TOKEN_HERE>",
-    ) as polar:
+    ) as spaire:
 
-        checkout = polar.checkouts.create(request={
+        checkout = spaire.checkouts.create(request={
             "allow_discount_codes": True,
             "product_id": "<value>",
         })
