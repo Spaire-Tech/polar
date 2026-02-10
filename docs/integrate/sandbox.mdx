@@ -5,7 +5,7 @@ sidebarTitle: "Sandbox Environment"
 
 A separate environment, isolated from your production data
 
-To test Polar or work on your integration without worrying about actual money processing or breaking your live organization, you can use our [sandbox environment](https://sandbox.polar.sh/start).
+To test Spaire or work on your integration without worrying about actual money processing or breaking your live organization, you can use our [sandbox environment](https://sandbox.spairehq.com/start).
 
 It's a dedicated server, completely isolated from the production instance where you can do all the experiments you want.
 
@@ -17,7 +17,7 @@ It's a dedicated server, completely isolated from the production instance where 
 
 ## Get started
 
-You can access the sandbox environment directly on [sandbox.polar.sh](https://sandbox.polar.sh/start) or by clicking on `Go to sandbox` from the organization switcher.
+You can access the sandbox environment directly on [sandbox.spairehq.com](https://sandbox.spairehq.com/start) or by clicking on `Go to sandbox` from the organization switcher.
 
 You'll then need to create a dedicated user account and organization, the same way described in our [Quick Start guide](/introduction).
 
@@ -33,34 +33,34 @@ The easiest one to test a successful payment is to use the following card number
 
 ## API and SDK
 
-To make requests to our [API](/api-reference), all you need to do is to switch the base URL from `https://api.polar.sh` to `https://sandbox-api.polar.sh`. You'll also need to create an access token in the **sandbox environment**, the access token created in the production environment can't be used in the sandbox.
+To make requests to our [API](/api-reference), all you need to do is to switch the base URL from `https://api.spairehq.com` to `https://sandbox-api.spairehq.com`. You'll also need to create an access token in the **sandbox environment**, the access token created in the production environment can't be used in the sandbox.
 
 Our official SDK supports the sandbox environment through a dedicated parameter.
 
 <CodeGroup>
   ```ts TypeScript
-  const polar = new Polar({
+  const spaire = new Spaire({
     server: 'sandbox',
-    accessToken: process.env['POLAR_ACCESS_TOKEN'] ?? '',
+    accessToken: process.env['SPAIRE_ACCESS_TOKEN'] ?? '',
   })
   ```
 
   ```py Python
-  s = Polar(
+  s = Spaire(
       server="sandbox",
       access_token="<YOUR_BEARER_TOKEN_HERE>",
   )
   ```
 
   ```go Go
- 	s := polargo.New(
-		polargo.WithServer("sandbox"),
-		polargo.WithSecurity(os.Getenv("POLAR_ACCESS_TOKEN")),
+ 	s := spairego.New(
+		spairego.WithServer("sandbox"),
+		spairego.WithSecurity(os.Getenv("SPAIRE_ACCESS_TOKEN")),
 	)
   ```
 
   ```php PHP
-  $sdk = Polar\Polar::builder()
+  $sdk = Spaire\Spaire::builder()
       ->setServer('sandbox')
       ->setSecurity(
           '<YOUR_BEARER_TOKEN_HERE>'

@@ -1,13 +1,13 @@
 ---
 rss: true
 title: Product Updates
-description: Stay up to date with the latest changes and improvements to Polar.
+description: Stay up to date with the latest changes and improvements to Spaire.
 ---
 
 <Update label="2025-10-17">
   ## Ability to update subscription to an updated price of the product
 
-  Merchants can now [update existing subscriptions](https://polar.sh/docs/api-reference/subscriptions/update#subscriptionupdateproduct) from archived pricing schemes to current ones within the same product.
+  Merchants can now [update existing subscriptions](https://www.spairehq.com/docs/api-reference/subscriptions/update#subscriptionupdateproduct) from archived pricing schemes to current ones within the same product.
   - Enables migration from grandfathered pricing to current pricing schemes
   - Prorations calculated using active subscription prices
   - In the dashboard, a small badge **Upgrade pricing** will indicate that you can update to the same product, but with the new pricing scheme.
@@ -15,24 +15,24 @@ description: Stay up to date with the latest changes and improvements to Polar.
 
   ## New IP ranges
 
-  From **October 27th, 2025**, [new IP ranges](https://polar.sh/docs/integrate/webhooks/delivery#ip-allowlist) will be added.
+  From **October 27th, 2025**, [new IP ranges](https://www.spairehq.com/docs/integrate/webhooks/delivery#ip-allowlist) will be added.
 
   ## Improved Subscription Cancellation Flow
 
-  [Benefits](https://polar.sh/docs/features/benefits/introduction) attached to the subscription [are now automatically revoked](https://github.com/polarsource/polar/pull/7271) when the subscription is canceled.
+  [Benefits](https://www.spairehq.com/docs/features/benefits/introduction) attached to the subscription [are now automatically revoked](https://github.com/spairehq/spaire/pull/7271) when the subscription is canceled.
 
   ## Ability to specify External ID
 
-  [External ID can now be specified](https://github.com/polarsource/polar/pull/7275) during creation of a customer via the dashboard.
+  [External ID can now be specified](https://github.com/spairehq/spaire/pull/7275) during creation of a customer via the dashboard.
   <img class="border rounded" src="/assets/changelog/2025-10-17/create-customer.png" />
 
   ## Ability to set Return URL for Checkouts and Customer Portal
 
-  A Return URL can now be set while generating a [checkout session](https://polar.sh/docs/api-reference/checkouts/create-session#body-return-url-one-of-0) or a [customer portal session](https://polar.sh/docs/api-reference/customer-portal/sessions/create#body-one-of-0-return-url-one-of-0). This allows you to preserve the context for the end users who visit either if they wish to go back to the application.
+  A Return URL can now be set while generating a [checkout session](https://www.spairehq.com/docs/api-reference/checkouts/create-session#body-return-url-one-of-0) or a [customer portal session](https://www.spairehq.com/docs/api-reference/customer-portal/sessions/create#body-one-of-0-return-url-one-of-0). This allows you to preserve the context for the end users who visit either if they wish to go back to the application.
 
   ## Ability to search Customers via their External ID
 
-  The [List Customers API](https://polar.sh/docs/api-reference/customers/list) now accepts Customer's External ID [in the **query** parameter](https://polar.sh/docs/api-reference/customers/list#parameter-one-of-0).
+  The [List Customers API](https://www.spairehq.com/docs/api-reference/customers/list) now accepts Customer's External ID [in the **query** parameter](https://www.spairehq.com/docs/api-reference/customers/list#parameter-one-of-0).
 
   ## Ability to disable automatic customer emails
 
@@ -47,7 +47,7 @@ description: Stay up to date with the latest changes and improvements to Polar.
 
 <img src="/assets/changelog/2025-10-10/launched-merchant-support.jpg" />
 
-We're excited to introduce a chat widget to the Polar dashboard, making it easier than ever for merchants to get help directly within the product.
+We're excited to introduce a chat widget to the Spaire dashboard, making it easier than ever for merchants to get help directly within the product.
 
   ## Improved Checkout Flow for Invalid Discount Code
 
@@ -66,7 +66,7 @@ We've made several improvements to the Customer Portal to handle authentication 
 
   ## Launched Subscription Trials
 
-You can now offer [trial periods](/docs/features/trials) for new subscriptions! This highly requested feature allows you to let customers experience your product before their first payment is due. Trials can be configured in both the dashboard and API when creating or updating subscription products.
+You can now offer [trial periods](/features/trials) for new subscriptions! This highly requested feature allows you to let customers experience your product before their first payment is due. Trials can be configured in both the dashboard and API when creating or updating subscription products.
 
   ## Always display taxes line item in the checkout
 
@@ -94,7 +94,7 @@ License key activation now correctly checks the `expires_at` date, ensuring that
 
   ## Fix customer state for trialing subscriptions
 
-The [Customer State API](/docs/api-reference/customers/state) now properly handles customers with `trialing` subscriptions, so your integrations and dashboards always show an accurate subscription status.
+The [Customer State API](/api-reference/customers/state) now properly handles customers with `trialing` subscriptions, so your integrations and dashboards always show an accurate subscription status.
 
 </Update>
 
@@ -114,7 +114,7 @@ We've added detailed cancellation metrics, giving you clearer insights into subs
 <Update label="2025-09-12">
   ## Webhooks payload now includes timestamp
 
-We've updated our webhooks server implementation to [include a timestamp in each payload](https://github.com/polarsource/polar/pull/6770), in line with the Standard Webhooks specification.
+We've updated our webhooks server implementation to [include a timestamp in each payload](https://github.com/spairehq/spaire/pull/6770), in line with the Standard Webhooks specification.
 
 This change ensures that every webhook payload contains precise event timing, making it easier to trace and debug webhook deliveries, and to meet integration requirements for external platforms.
 
@@ -137,7 +137,7 @@ Now, only successfully paid and refunded orders are included in metrics calculat
 
 We've improved the branding of emails sent to your customers by using organization-specific 'From' and 'Reply-to' addresses.
 
-Customer emails now appear to come from your organization (e.g., "YourOrg (via Polar)") with replies directed to your organization's email address, providing a more professional and branded experience for your customers.
+Customer emails now appear to come from your organization (e.g., "YourOrg (via Spaire)") with replies directed to your organization's email address, providing a more professional and branded experience for your customers.
 
 </Update>
 
@@ -198,12 +198,12 @@ Besides, we've also added new analytics around checkouts: total number of checko
 <Update label="2025-03-11">
   ## Zapier integration officially launched
 
-We're excited to announce the official launch of our [Zapier integration](https://zapier.com/apps/polar/integrations)! Get started now and connect Polar to 2,000+ other web services.
+We're excited to announce the official launch of our [Zapier integration](https://zapier.com/apps/spaire/integrations)! Get started now and connect Spaire to 2,000+ other web services.
 
 <Note>
-  We've focused on **triggers** (webhooks) for now, so you can react to events in Polar and trigger actions in other apps.
+  We've focused on **triggers** (webhooks) for now, so you can react to events in Spaire and trigger actions in other apps.
 
-Need to perform actions in Polar? Tell us about your use case [here](https://github.com/orgs/polarsource/discussions/new?category=integrations&labels=integrations%2Fzapier) and we'll consider adding more actions in the future.
+Need to perform actions in Spaire? Tell us about your use case [here](https://github.com/orgs/spairehq/discussions/new?category=integrations&labels=integrations%2Fzapier) and we'll consider adding more actions in the future.
 
 </Note>
 
@@ -229,7 +229,7 @@ Integrating authentication and billing for your users has never been easier.
 
 [Better Auth](https://www.better-auth.com/) is an open source authentication framework for
 TypeScript that is quickly becoming a favorite amongst developers. Today, we're
-thrilled to have shipped a Polar plugin for Better Auth - in collaboration with them.
+thrilled to have shipped a Spaire plugin for Better Auth - in collaboration with them.
 
 Checkout our [integration guide](/integrate/sdk/adapters/better-auth).
 
@@ -238,18 +238,18 @@ Checkout our [integration guide](/integrate/sdk/adapters/better-auth).
 <Update label="2025-02-27">
   ## Customer External ID
 
-We've added support for an `external_id` field on Customers. We believe this will greatly simplify the reconciliation process between your system and Polar.
+We've added support for an `external_id` field on Customers. We believe this will greatly simplify the reconciliation process between your system and Spaire.
 
 Previously, the recommended way to reconcile with your users was to use `metadata`. However, this was not always the most convenient method, especially if you needed to fetch a Customer from our API.
 
-With `external_id`, you can now fetch a Customer directly by their external ID through dedicated `GET`, `PATCH`, and `DELETE` endpoints. You don't even need to store Polar's internal ID in your system anymore! [Read more](/features/customer-management#external-id)
+With `external_id`, you can now fetch a Customer directly by their external ID through dedicated `GET`, `PATCH`, and `DELETE` endpoints. You don't even need to store Spaire's internal ID in your system anymore! [Read more](/features/customer-management#external-id)
 
 Of course, you can also directly preset `external_customer_id` when creating a Checkout Session, and it will automatically be set on the newly created Customer after a successful checkout. [Read more](/features/checkout/session#external-customer-id)
 
 </Update>
 
 <Update label="2025-02-19">
-  ## Polar's take on Product variants
+  ## Spaire's take on Product variants
 
 We've released big changes to how we handle products and pricing, allowing us to support a unique approach to what the industry typically calls **variants** 🔥
 

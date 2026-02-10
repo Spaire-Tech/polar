@@ -5,31 +5,31 @@ description: Payments and Checkouts made dead simple with Nuxt
 
 ## Examples
 
-- [With Nuxt](https://github.com/polarsource/examples/tree/main/with-nuxt)
+- [With Nuxt](https://github.com/spairehq/examples/tree/main/with-nuxt)
 
 ## Installation
 
-Install the required Polar packages using the following command:
+Install the required Spaire packages using the following command:
 
 <Tabs>
   <Tab title="npm">
     ```bash Terminal
-    npm install zod @polar-sh/nuxt
+    npm install zod @spaire/nuxt
     ```
   </Tab>
   <Tab title="yarn">
     ```bash Terminal
-    yarn add zod @polar-sh/nuxt
+    yarn add zod @spaire/nuxt
     ```
   </Tab>
   <Tab title="pnpm">
     ```bash Terminal
-    pnpm add zod @polar-sh/nuxt
+    pnpm add zod @spaire/nuxt
     ```
   </Tab>
   <Tab title="bun">
     ```bash Terminal
-    bun add zod @polar-sh/nuxt
+    bun add zod @spaire/nuxt
     ```
   </Tab>
 </Tabs>
@@ -40,7 +40,7 @@ Add the module to your `nuxt.config.ts`:
 
 ```typescript
 export default defineNuxtConfig({
-  modules: ["@polar-sh/nuxt"],
+  modules: ["@spaire/nuxt"],
 });
 ```
 
@@ -51,14 +51,14 @@ Create a Checkout handler which takes care of redirections.
 ```typescript icon="square-js" server/routes/api/checkout.post.ts
 export default defineEventHandler((event) => {
   const {
-    private: { polarAccessToken, polarCheckoutSuccessUrl, polarServer },
+    private: { spaireAccessToken, spaireCheckoutSuccessUrl, spaireServer },
   } = useRuntimeConfig();
 
   const checkoutHandler = Checkout({
-    accessToken: polarAccessToken,
-    successUrl: polarCheckoutSuccessUrl,
+    accessToken: spaireAccessToken,
+    successUrl: spaireCheckoutSuccessUrl,
     returnUrl: "https://myapp.com", // An optional URL which renders a back-button in the Checkout
-    server: polarServer as "sandbox" | "production",
+    server: spaireServer as "sandbox" | "production",
     theme: "dark", // Enforces the theme - System-preferred theme will be set if left omitted
   });
 
@@ -84,13 +84,13 @@ Create a customer portal where your customer can view orders and subscriptions.
 ```typescript icon="square-js" server/routes/api/portal.get.ts
 export default defineEventHandler((event) => {
   const {
-    private: { polarAccessToken, polarCheckoutSuccessUrl, polarServer },
+    private: { spaireAccessToken, spaireCheckoutSuccessUrl, spaireServer },
   } = useRuntimeConfig();
 
   const customerPortalHandler = CustomerPortal({
-    accessToken: polarAccessToken,
+    accessToken: spaireAccessToken,
     returnUrl: "https://myapp.com", // An optional URL which renders a back-button in the Customer Portal
-    server: polarServer as "sandbox" | "production",
+    server: spaireServer as "sandbox" | "production",
     getCustomerId: (event) => {
       // Use your own logic to get the customer ID - from a database, session, etc.
       return Promise.resolve("9d89909b-216d-475e-8005-053dba7cff07");
@@ -105,14 +105,14 @@ export default defineEventHandler((event) => {
 
 A simple utility which resolves incoming webhook payloads by signing the webhook secret properly.
 
-```typescript icon="square-js" server/routes/webhook/polar.post.ts
+```typescript icon="square-js" server/routes/webhook/spaire.post.ts
 export default defineEventHandler((event) => {
   const {
-    private: { polarWebhookSecret },
+    private: { spaireWebhookSecret },
   } = useRuntimeConfig();
 
   const webhooksHandler = Webhooks({
-    webhookSecret: polarWebhookSecret,
+    webhookSecret: spaireWebhookSecret,
     onPayload: async (payload) => {
       // Handle the payload
       // No need to return an acknowledge response

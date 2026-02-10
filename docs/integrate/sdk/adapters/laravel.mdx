@@ -3,10 +3,10 @@ title: "Laravel"
 description: "Payments and Checkouts made dead simple with Laravel"
 ---
 
-Seamlessly integrate Polar.sh subscriptions and payments into your Laravel application. This package provides an elegant way to handle subscriptions, manage recurring payments, and interact with Polar's API. With built-in support for webhooks, subscription management, and a fluent API, you can focus on building your application while we handle the complexities of subscription billing.
+Seamlessly integrate Spaire.sh subscriptions and payments into your Laravel application. This package provides an elegant way to handle subscriptions, manage recurring payments, and interact with Spaire's API. With built-in support for webhooks, subscription management, and a fluent API, you can focus on building your application while we handle the complexities of subscription billing.
 
 <Note>
-This provider is not maintained or officially supported by Polar. Use at your own discretion. If you have questions about the provider, please contact the project maintainer.
+This provider is not maintained or officially supported by Spaire. Use at your own discretion. If you have questions about the provider, please contact the project maintainer.
 </Note>
 
 ## Installation
@@ -14,13 +14,13 @@ This provider is not maintained or officially supported by Polar. Use at your ow
 **Step 1:** You can install the package via composer:
 
 ```bash Terminal
-composer require danestves/laravel-polar
+composer require danestves/laravel-spaire
 ```
 
 **Step 2:** Run `:install`:
 
 ```bash Terminal
-php artisan polar:install
+php artisan spaire:install
 ```
 
 This will publish the config, migrations and views, and ask to run the migrations.
@@ -28,15 +28,15 @@ This will publish the config, migrations and views, and ask to run the migration
 Or publish and run the migrations individually:
 
 ```bash Terminal
-php artisan vendor:publish --tag="polar-migrations"
+php artisan vendor:publish --tag="spaire-migrations"
 ```
 
 ```bash Terminal
-php artisan vendor:publish --tag="polar-config"
+php artisan vendor:publish --tag="spaire-config"
 ```
 
 ```bash Terminal
-php artisan vendor:publish --tag="polar-views"
+php artisan vendor:publish --tag="spaire-views"
 ```
 
 ```bash Terminal
@@ -51,23 +51,23 @@ This is the contents of the published config file:
 return [
     /*
     |--------------------------------------------------------------------------
-    | Polar Access Token
+    | Spaire Access Token
     |--------------------------------------------------------------------------
     |
-    | The Polar access token is used to authenticate with the Polar API.
-    | You can find your access token in the Polar dashboard > Settings
+    | The Spaire access token is used to authenticate with the Spaire API.
+    | You can find your access token in the Spaire dashboard > Settings
     | under the "Developers" section.
     |
     */
-    'access_token' => env('POLAR_ACCESS_TOKEN'),
+    'access_token' => env('SPAIRE_ACCESS_TOKEN'),
 
     /*
     |--------------------------------------------------------------------------
-    | Polar Webhook Secret
+    | Spaire Webhook Secret
     |--------------------------------------------------------------------------
     |
-    | The Polar webhook secret is used to verify that the webhook requests
-    | are coming from Polar. You can find your webhook secret in the Polar
+    | The Spaire webhook secret is used to verify that the webhook requests
+    | are coming from Spaire. You can find your webhook secret in the Spaire
     | dashboard > Settings > Webhooks on each registered webhook.
     |
     | We (the developers) recommend using a single webhook for all your
@@ -75,19 +75,19 @@ return [
     | integrations and you don't have to manage multiple webhooks.
     |
     */
-    'webhook_secret' => env('POLAR_WEBHOOK_SECRET'),
+    'webhook_secret' => env('SPAIRE_WEBHOOK_SECRET'),
 
     /*
     |--------------------------------------------------------------------------
-    | Polar Url Path
+    | Spaire Url Path
     |--------------------------------------------------------------------------
     |
-    | This is the base URI where routes from Polar will be served
-    | from. The URL built into Polar is used by default; however,
+    | This is the base URI where routes from Spaire will be served
+    | from. The URL built into Spaire is used by default; however,
     | you can modify this path as you see fit for your application.
     |
     */
-    'path' => env('POLAR_PATH', 'polar'),
+    'path' => env('SPAIRE_PATH', 'spaire'),
 
     /*
     |--------------------------------------------------------------------------
@@ -96,7 +96,7 @@ return [
     |
     | This is the default redirect URL that will be used when a customer
     | is redirected back to your application after completing a purchase
-    | from a checkout session in your Polar account.
+    | from a checkout session in your Spaire account.
     |
     */
     'redirect_url' => null,
@@ -111,7 +111,7 @@ return [
     | verify you have to have the "intl" PHP extension installed on the system.
     |
     */
-    'currency_locale' => env('POLAR_CURRENCY_LOCALE', 'en'),
+    'currency_locale' => env('SPAIRE_CURRENCY_LOCALE', 'en'),
 ];
 ```
 
@@ -119,21 +119,21 @@ return [
 
 ### Access Token
 
-Configure your access token. Create a new token in the Polar Dashboard > Settings > Developers and paste it in the `.env` file.
+Configure your access token. Create a new token in the Spaire Dashboard > Settings > Developers and paste it in the `.env` file.
 
-- https://sandbox.polar.sh/dashboard/ORG_SLUG/settings (Sandbox)
-- https://polar.sh/dashboard/ORG_SLUG/settings (Production)
+- https://sandbox.spairehq.com/dashboard/ORG_SLUG/settings (Sandbox)
+- https://www.spairehq.com/dashboard/ORG_SLUG/settings (Production)
 
 ```bash Terminal
-POLAR_ACCESS_TOKEN="<your_access_token>"
+SPAIRE_ACCESS_TOKEN="<your_access_token>"
 ```
 
 ### Webhook Secret
 
-Configure your webhook secret. Create a new webhook in the Polar Dashboard > Settings > Webhooks.
+Configure your webhook secret. Create a new webhook in the Spaire Dashboard > Settings > Webhooks.
 
-- https://sandbox.polar.sh/dashboard/ORG_SLUG/settings/webhooks (Sandbox)
-- https://polar.sh/dashboard/ORG_SLUG/settings/webhooks (Production)
+- https://sandbox.spairehq.com/dashboard/ORG_SLUG/settings/webhooks (Sandbox)
+- https://www.spairehq.com/dashboard/ORG_SLUG/settings/webhooks (Production)
 
 Configure the webhook for the following events that this package supports:
 
@@ -149,7 +149,7 @@ Configure the webhook for the following events that this package supports:
 - `benefit_grant.revoked`
 
 ```bash Terminal
-POLAR_WEBHOOK_SECRET="<your_webhook_secret>"
+SPAIRE_WEBHOOK_SECRET="<your_webhook_secret>"
 ```
 
 ### Billable Trait
@@ -159,7 +159,7 @@ Let’s make sure everything’s ready for your customers to checkout smoothly. 
 First, we’ll need to set up a model to handle billing—don’t worry, it’s super simple! In most cases, this will be your app’s User model. Just add the Billable trait to your model like this (you’ll import it from the package first, of course):
 
 ```php
-use Danestves\LaravelPolar\Billable;
+use Danestves\LaravelSpaire\Billable;
 
 class User extends Authenticatable
 {
@@ -169,21 +169,21 @@ class User extends Authenticatable
 
 Now the user model will have access to the methods provided by the package. You can make any model billable by adding the trait to it, not just the User model.
 
-### Polar Script
+### Spaire Script
 
-Polar includes a JavaScript script that you can use to initialize the [Polar Embedded Checkout](https://polar.sh/docs/features/checkout/embed). If you going to use this functionality, you can use the `@polarEmbedScript` directive to include the script in your views inside the `<head>` tag.
+Spaire includes a JavaScript script that you can use to initialize the [Spaire Embedded Checkout](https://www.spairehq.com/docs/features/checkout/embed). If you going to use this functionality, you can use the `@spaireEmbedScript` directive to include the script in your views inside the `<head>` tag.
 
 ```blade
 <head>
     ...
 
-    @polarEmbedScript
+    @spaireEmbedScript
 </head>
 ```
 
 ### Webhooks
 
-This package includes a webhook handler that will handle the webhooks from Polar.
+This package includes a webhook handler that will handle the webhooks from Spaire.
 
 #### Webhooks & CSRF Protection
 
@@ -191,27 +191,27 @@ Incoming webhooks should not be affected by [CSRF protection](https://laravel.co
 
 ```php
 protected $except = [
-    'polar/*',
+    'spaire/*',
 ];
 ```
 
-Or if you're using Laravel v11 and up, you should exclude `polar/*` in your application's `bootstrap/app.php` file:
+Or if you're using Laravel v11 and up, you should exclude `spaire/*` in your application's `bootstrap/app.php` file:
 
 ```php
 ->withMiddleware(function (Middleware $middleware) {
     $middleware->validateCsrfTokens(except: [
-        'polar/*',
+        'spaire/*',
     ]);
 })
 ```
 
 ### Commands
 
-This package includes a list of commands that you can use to retrieve information about your Polar account.
+This package includes a list of commands that you can use to retrieve information about your Spaire account.
 
 | Command                      | Description                                |
 | ---------------------------- | ------------------------------------------ |
-| `php artisan polar:products` | List all available products with their ids |
+| `php artisan spaire:products` | List all available products with their ids |
 
 ### Checkouts
 
@@ -271,13 +271,13 @@ Route::get('/billing', function (Request $request) {
 Now we can use the button like this:
 
 ```blade
-<x-polar-button :checkout="$checkout" />
+<x-spaire-button :checkout="$checkout" />
 ```
 
 The component accepts the normal props that a link element accepts. You can change the theme of the embedded checkout by using the following prop:
 
 ```blade
-<x-polar-button :checkout="$checkout" data-polar-checkout-theme="dark" />
+<x-spaire-button :checkout="$checkout" data-spaire-checkout-theme="dark" />
 ```
 
 It defaults to light theme, so you only need to pass the prop if you want to change it.
@@ -287,8 +287,8 @@ It defaults to light theme, so you only need to pass the prop if you want to cha
 You can override the user data using the following methods in your models provided by the `Billable` trait.
 
 ```php
-public function polarName(): ?string; // default: $model->name
-public function polarEmail(): ?string; // default: $model->email
+public function spaireName(): ?string; // default: $model->name
+public function spaireEmail(): ?string; // default: $model->email
 ```
 
 ### Redirects After Purchase
@@ -339,7 +339,7 @@ Using any of these will result in an exception being thrown.
 
 #### Customer Portal
 
-Customers can update their personal information (e.g., name, email address) by accessing their [self-service customer portal](https://polar.sh/docs/features/customer-portal). To redirect customers to this portal, call the `redirectToCustomerPortal()` method on your billable model (e.g., the User model).
+Customers can update their personal information (e.g., name, email address) by accessing their [self-service customer portal](https://www.spairehq.com/docs/features/customer-portal). To redirect customers to this portal, call the `redirectToCustomerPortal()` method on your billable model (e.g., the User model).
 
 ```php
 use Illuminate\Http\Request;
@@ -365,7 +365,7 @@ You can retrieve orders by using the `orders` relationship on the billable model
 <table>
     @foreach ($user->orders as $order)
         <td>{{ $order->ordered_at->toFormattedDateString() }}</td>
-        <td>{{ $order->polar_id }}</td>
+        <td>{{ $order->spaire_id }}</td>
         <td>{{ $order->amount }}</td>
         <td>{{ $order->tax_amount }}</td>
         <td>{{ $order->refunded_amount }}</td>
@@ -394,7 +394,7 @@ Aside from that, you can run two other checks: refunded, and partially refunded.
 
 ```blade
 @if ($order->refunded())
-    Order {{ $order->polar_id }} was refunded on {{ $order->refunded_at->toFormattedDateString() }}
+    Order {{ $order->spaire_id }} was refunded on {{ $order->refunded_at->toFormattedDateString() }}
 @endif
 ```
 
@@ -623,7 +623,7 @@ if ($user->subscription()->onGracePeriod()) {
 }
 ```
 
-Polar does not offer immediate cancellation. To resume a subscription while it is still in its grace period, use the resume method.
+Spaire does not offer immediate cancellation. To resume a subscription while it is still in its grace period, use the resume method.
 
 ```php
 $user->subscription()->resume();
@@ -633,20 +633,20 @@ When a cancelled subscription approaches the end of its grace period, it becomes
 
 ### Handling Webhooks
 
-Polar can send webhooks to your app, allowing you to react. By default, this package handles the majority of the work for you. If you have properly configured webhooks, it will listen for incoming events and update your database accordingly. We recommend activating all event kinds so you may easily upgrade in the future.
+Spaire can send webhooks to your app, allowing you to react. By default, this package handles the majority of the work for you. If you have properly configured webhooks, it will listen for incoming events and update your database accordingly. We recommend activating all event kinds so you may easily upgrade in the future.
 
 #### Webhook Events
 
-- `Danestves\LaravelPolar\Events\BenefitGrantCreated`
-- `Danestves\LaravelPolar\Events\BenefitGrantUpdated`
-- `Danestves\LaravelPolar\Events\BenefitGrantRevoked`
-- `Danestves\LaravelPolar\Events\OrderCreated`
-- `Danestves\LaravelPolar\Events\OrderRefunded`
-- `Danestves\LaravelPolar\Events\SubscriptionActive`
-- `Danestves\LaravelPolar\Events\SubscriptionCanceled`
-- `Danestves\LaravelPolar\Events\SubscriptionCreated`
-- `Danestves\LaravelPolar\Events\SubscriptionRevoked`
-- `Danestves\LaravelPolar\Events\SubscriptionUpdated`
+- `Danestves\LaravelSpaire\Events\BenefitGrantCreated`
+- `Danestves\LaravelSpaire\Events\BenefitGrantUpdated`
+- `Danestves\LaravelSpaire\Events\BenefitGrantRevoked`
+- `Danestves\LaravelSpaire\Events\OrderCreated`
+- `Danestves\LaravelSpaire\Events\OrderRefunded`
+- `Danestves\LaravelSpaire\Events\SubscriptionActive`
+- `Danestves\LaravelSpaire\Events\SubscriptionCanceled`
+- `Danestves\LaravelSpaire\Events\SubscriptionCreated`
+- `Danestves\LaravelSpaire\Events\SubscriptionRevoked`
+- `Danestves\LaravelSpaire\Events\SubscriptionUpdated`
 
 Each of these events has a billable `$model` object and an event `$payload`. The subscription events also include the `$subscription` object. These can be accessed via the public properties.
 
@@ -657,12 +657,12 @@ If you wish to respond to these events, you must establish listeners for them. F
 
 namespace App\Listeners;
 
-use Danestves\LaravelPolar\Events\WebhookHandled;
+use Danestves\LaravelSpaire\Events\WebhookHandled;
 
-class PolarEventListener
+class SpaireEventListener
 {
     /**
-     * Handle received Polar webhooks.
+     * Handle received Spaire webhooks.
      */
     public function handle(WebhookHandled $event): void
     {
@@ -673,7 +673,7 @@ class PolarEventListener
 }
 ```
 
-The [Polar documentation](https://polar.sh/docs/integrate/webhooks/events) includes an example payload.
+The [Spaire documentation](https://www.spairehq.com/docs/integrate/webhooks/events) includes an example payload.
 
 Laravel v11 and up will automatically discover the listener. If you're using Laravel v10 or lower, you should configure it in your app's `EventServiceProvider`:
 
@@ -682,15 +682,15 @@ Laravel v11 and up will automatically discover the listener. If you're using Lar
 
 namespace App\Providers;
 
-use App\Listeners\PolarEventListener;
+use App\Listeners\SpaireEventListener;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
-use Danestves\LaravelPolar\Events\WebhookHandled;
+use Danestves\LaravelSpaire\Events\WebhookHandled;
 
 class EventServiceProvider extends ServiceProvider
 {
     protected $listen = [
         WebhookHandled::class => [
-            PolarEventListener::class,
+            SpaireEventListener::class,
         ],
     ];
 }
@@ -704,8 +704,8 @@ composer test
 
 ## Changelog
 
-Please see [CHANGELOG](https://github.com/danestves/laravel-polar/blob/main/CHANGELOG.md) for more information on what has changed recently.
+Please see [CHANGELOG](https://github.com/danestves/laravel-spaire/blob/main/CHANGELOG.md) for more information on what has changed recently.
 
 ## License
 
-The MIT License (MIT). Please see [License File](https://github.com/danestves/laravel-polar/blob/main/LICENSE.md) for more information.
+The MIT License (MIT). Please see [License File](https://github.com/danestves/laravel-spaire/blob/main/LICENSE.md) for more information.

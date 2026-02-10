@@ -5,33 +5,33 @@ description: "Payments and Checkouts made dead simple with Next.js"
 
 ## Examples
 
-- [With Next.js](https://github.com/polarsource/examples/tree/main/with-nextjs)
-- [With Next.js and Upstash QStash](https://github.com/polarsource/examples/tree/main/with-nextjs-qstash-schedule-downgrades)
-- [With Next.js, Better Auth and Cloudflare Workers](https://github.com/polarsource/examples/tree/main/with-nextjs-better-auth-cloudflare-workers)
+- [With Next.js](https://github.com/spairehq/examples/tree/main/with-nextjs)
+- [With Next.js and Upstash QStash](https://github.com/spairehq/examples/tree/main/with-nextjs-qstash-schedule-downgrades)
+- [With Next.js, Better Auth and Cloudflare Workers](https://github.com/spairehq/examples/tree/main/with-nextjs-better-auth-cloudflare-workers)
 
 ## Installation
 
-Install the required Polar packages using the following command:
+Install the required Spaire packages using the following command:
 
 <Tabs>
   <Tab title="npm">
     ```bash Terminal
-    npm install zod @polar-sh/nextjs
+    npm install zod @spaire/nextjs
     ```
   </Tab>
   <Tab title="yarn">
     ```bash Terminal
-    yarn add zod @polar-sh/nextjs
+    yarn add zod @spaire/nextjs
     ```
   </Tab>
   <Tab title="pnpm">
     ```bash Terminal
-    pnpm add zod @polar-sh/nextjs
+    pnpm add zod @spaire/nextjs
     ```
   </Tab>
   <Tab title="bun">
     ```bash Terminal
-    bun add zod @polar-sh/nextjs
+    bun add zod @spaire/nextjs
     ```
   </Tab>
 </Tabs>
@@ -42,13 +42,13 @@ Install the required Polar packages using the following command:
 Create a Checkout handler which takes care of redirections.
 
 ```typescript icon="square-js" checkout/route.ts
-import { Checkout } from "@polar-sh/nextjs";
+import { Checkout } from "@spaire/nextjs";
 
 export const GET = Checkout({
-  accessToken: process.env.POLAR_ACCESS_TOKEN,
+  accessToken: process.env.SPAIRE_ACCESS_TOKEN,
   successUrl: process.env.SUCCESS_URL,
   returnUrl: "https://myapp.com", // An optional URL which renders a back-button in the Checkout
-  server: "sandbox", // Use sandbox if you're testing Polar - omit the parameter or pass 'production' otherwise
+  server: "sandbox", // Use sandbox if you're testing Spaire - omit the parameter or pass 'production' otherwise
   theme: "dark", // Enforces the theme - System-preferred theme will be set if left omitted
 });
 ```
@@ -69,13 +69,13 @@ Pass query params to this route.
 Create a customer portal where your customer can view orders and subscriptions.
 
 ```typescript icon="square-js" portal/route.ts
-import { CustomerPortal } from "@polar-sh/nextjs";
+import { CustomerPortal } from "@spaire/nextjs";
 
 export const GET = CustomerPortal({
-  accessToken: process.env.POLAR_ACCESS_TOKEN,
-  getCustomerId: (req: NextRequest) => "", // Function to resolve a Polar Customer ID
+  accessToken: process.env.SPAIRE_ACCESS_TOKEN,
+  getCustomerId: (req: NextRequest) => "", // Function to resolve a Spaire Customer ID
   returnUrl: "https://myapp.com", // An optional URL which renders a back-button in the Customer Portal
-  server: "sandbox", // Use sandbox if you're testing Polar - omit the parameter or pass 'production' otherwise
+  server: "sandbox", // Use sandbox if you're testing Spaire - omit the parameter or pass 'production' otherwise
 });
 ```
 
@@ -83,11 +83,11 @@ export const GET = CustomerPortal({
 
 A simple utility which resolves incoming webhook payloads by signing the webhook secret properly.
 
-```typescript icon="square-js" api/webhook/polar/route.ts
-import { Webhooks } from "@polar-sh/nextjs";
+```typescript icon="square-js" api/webhook/spaire/route.ts
+import { Webhooks } from "@spaire/nextjs";
 
 export const POST = Webhooks({
-  webhookSecret: process.env.POLAR_WEBHOOK_SECRET!,
+  webhookSecret: process.env.SPAIRE_WEBHOOK_SECRET!,
   onPayload: async (payload) => {
     // Handle the payload
     // No need to return an acknowledge response

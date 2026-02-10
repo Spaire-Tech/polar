@@ -7,24 +7,24 @@ description: SDK for JavaScript runtimes (Node.js and Browser)
 
 ## Examples
 
-- [With Node.js](https://github.com/polarsource/examples/tree/main/with-nodejs)
+- [With Node.js](https://github.com/spairehq/examples/tree/main/with-nodejs)
 
 ## Installation
 
 <Tabs>
   <Tab title="npm">
     ```bash Terminal
-    npm install @polar-sh/sdk
+    npm install @spaire/sdk
     ```
   </Tab>
   <Tab title="yarn">
     ```bash Terminal
-    yarn add @polar-sh/sdk
+    yarn add @spaire/sdk
     ```
   </Tab>
   <Tab title="pnpm">
     ```bash Terminal
-    pnpm add @polar-sh/sdk
+    pnpm add @spaire/sdk
     ```
   </Tab>
 </Tabs>
@@ -32,15 +32,15 @@ description: SDK for JavaScript runtimes (Node.js and Browser)
 ## Quickstart
 
 ```typescript icon="square-js" index.js
-import { Polar } from '@polar-sh/sdk'
+import { Spaire } from '@spaire/sdk'
 
-const polar = new Polar({
-  accessToken: process.env.POLAR_ACCESS_TOKEN,
-  server: process.env.POLAR_MODE || 'sandbox' // sandbox or production
+const spaire = new Spaire({
+  accessToken: process.env.SPAIRE_ACCESS_TOKEN,
+  server: process.env.SPAIRE_MODE || 'sandbox' // sandbox or production
 })
 
 async function run() {
-  const result = await polar.users.benefits.list({})
+  const result = await spaire.users.benefits.list({})
   for await (const page of result) {
     // Handle the page
     console.log(page)

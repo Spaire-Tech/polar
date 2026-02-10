@@ -4,12 +4,12 @@ sidebarTitle: "PHP"
 icon: php
 ---
 
-A fully-featured PHP SDK for the Polar API.
+A fully-featured PHP SDK for the Spaire API.
 
 ### Quickstart
 
 ```bash Terminal
-composer require polar-sh/sdk
+composer require spaire-sh/sdk
 ```
 
 ```php
@@ -17,9 +17,9 @@ declare(strict_types=1);
 
 require 'vendor/autoload.php';
 
-use Polar;
+use Spaire;
 
-$sdk = Polar\Polar::builder()
+$sdk = Spaire\Spaire::builder()
     ->setSecurity('<YOUR_BEARER_TOKEN_HERE>')
     ->build();
 
@@ -35,14 +35,14 @@ foreach ($responses as $response) {
 }
 ```
 
-[Read more](https://github.com/polarsource/polar-php)
+[Read more](https://github.com/spairehq/spaire-php)
 
 ### Sandbox Environment
 
 You can configure the SDK so it hits the [sandbox environment](/integrate/sandbox) instead of the production one. You just need to set the server when building the client:
 
 ```php
-$sdk = Polar\Polar::builder()
+$sdk = Spaire\Spaire::builder()
     ->setServer('sandbox')
     ->setSecurity('<YOUR_BEARER_TOKEN_HERE>')
     ->build();
