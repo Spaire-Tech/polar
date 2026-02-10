@@ -116,7 +116,7 @@ To assign a seat, provide:
 - **Subscription ID** (for subscriptions) or **Order ID** (for one-time purchases)
 - **Email address** (creates a new customer if needed)
 - **External customer ID** (optional, for syncing with your system)
-- **Customer ID** (if customer already exists in Polar)
+- **Customer ID** (if customer already exists in Spaire)
 - **Metadata** (optional, up to 10 keys for custom data like role, department)
 
 An invitation email is automatically sent to the recipient with a secure claim link (valid for 24 hours).
@@ -220,9 +220,9 @@ Seat-based pricing provides full API support for:
 <Note>
 **SDK Version Requirement**
 
-To use seat-based pricing features, ensure you have the latest version of the Polar SDK installed:
-- TypeScript/JavaScript: `npm install @polar-sh/sdk@latest`
-- Python: `pip install --upgrade polar-sdk`
+To use seat-based pricing features, ensure you have the latest version of the Spaire SDK installed:
+- TypeScript/JavaScript: `npm install @spaire/sdk@latest`
+- Python: `pip install --upgrade spaire-sdk`
 
 Older SDK versions may not include seat-based pricing support.
 </Note>
@@ -232,7 +232,7 @@ See the [Customer Seats API Reference](/api-reference/customer-seats/assign) for
 ### Example: Assign a seat (subscription)
 
 ```typescript
-await polar.customerSeats.assign({
+await spaire.customerSeats.assign({
   subscription_id: "sub_123",
   email: "engineer@company.com",
   metadata: {
@@ -245,7 +245,7 @@ await polar.customerSeats.assign({
 ### Example: Assign a seat (one-time purchase)
 
 ```typescript
-await polar.customerSeats.assign({
+await spaire.customerSeats.assign({
   order_id: "order_456",
   email: "engineer@company.com",
   metadata: {
@@ -258,7 +258,7 @@ await polar.customerSeats.assign({
 ### Example: List seats for subscription
 
 ```typescript
-const seats = await polar.customerSeats.list({
+const seats = await spaire.customerSeats.list({
   subscription_id: "sub_123"
 });
 
@@ -268,7 +268,7 @@ console.log(`Available: ${seats.available_seats}/${seats.total_seats}`);
 ### Example: List seats for order
 
 ```typescript
-const seats = await polar.customerSeats.list({
+const seats = await spaire.customerSeats.list({
   order_id: "order_456"
 });
 

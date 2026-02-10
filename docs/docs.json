@@ -4,8 +4,8 @@
   "appearance": {
     "default": "system"
   },
-  "name": "Polar",
-  "description": "Payments & Billing with 6 lines of code. Open Source & Global Merchant of Record.",
+  "name": "Spaire",
+  "description": "Spaire, the financial and legal backbone for SaaS startups.",
   "colors": {
     "primary": "#000",
     "light": "#fff",
@@ -598,23 +598,23 @@
   "logo": {
     "light": "./logo/light.png",
     "dark": "./logo/dark.png",
-    "href": "https://polar.sh"
+    "href": "https://www.spairehq.com"
   },
   "navbar": {
     "links": [
       {
         "label": "llms-full.txt",
-        "href": "https://polar.sh/docs/llms-full.txt"
+        "href": "https://www.spairehq.com/docs/llms-full.txt"
       },
       {
         "label": "Contact support",
-        "href": "https://polar.sh/docs/support"
+        "href": "https://www.spairehq.com/docs/support"
       }
     ],
     "primary": {
       "type": "button",
       "label": "Dashboard",
-      "href": "https://polar.sh"
+      "href": "https://www.spairehq.com"
     }
   },
   "contextual": {
@@ -622,9 +622,9 @@
   },
   "footer": {
     "socials": {
-      "x": "https://x.com/polar_sh",
-      "github": "https://github.com/polarsource/polar",
-      "discord": "https://dub.sh/polar-discord"
+      "x": "https://x.com/spaire_sh",
+      "github": "https://github.com/spairehq/spaire",
+      "discord": "https://dub.sh/spaire-discord"
     }
   },
   "redirects": [
@@ -665,15 +665,15 @@
       "destination": "/suppport"
     },
     {
-      "source": "/documentation/welcome-to-polar",
+      "source": "/documentation/welcome-to-spaire",
       "destination": "/introduction"
     },
     {
-      "source": "/documentation/tools/polar-migrate",
+      "source": "/documentation/tools/spaire-migrate",
       "destination": "/migrate"
     },
     {
-      "source": "/documentation/tools/polar-init",
+      "source": "/documentation/tools/spaire-init",
       "destination": "/introduction#quickstart-from-cli"
     },
     {
@@ -777,15 +777,15 @@
       "destination": "/features/finance/payouts"
     },
     {
-      "source": "/documentation/integrations/polar-for-raycast",
+      "source": "/documentation/integrations/spaire-for-raycast",
       "destination": "/features/integrations/raycast"
     },
     {
-      "source": "/documentation/integrations/polar-for-framer",
+      "source": "/documentation/integrations/spaire-for-framer",
       "destination": "/features/integrations/framer"
     },
     {
-      "source": "/documentation/integrations/polar-for-zapier",
+      "source": "/documentation/integrations/spaire-for-zapier",
       "destination": "/features/integrations/zapier"
     },
     {
@@ -801,7 +801,7 @@
       "destination": "/integrate/sandbox"
     },
     {
-      "source": "/documentation/integration-guides/authenticating-with-polar",
+      "source": "/documentation/integration-guides/authenticating-with-spaire",
       "destination": "/integrate/authentication"
     },
     {
@@ -829,59 +829,59 @@
       "destination": "/integrate/sdk/go"
     },
     {
-      "source": "/documentation/adapters/polar-shnextjs",
+      "source": "/documentation/adapters/spaire-shnextjs",
       "destination": "/integrate/sdk/adapters/nextjs"
     },
     {
-      "source": "/documentation/adapters/polar-shastro",
+      "source": "/documentation/adapters/spaire-shastro",
       "destination": "/integrate/sdk/adapters/astro"
     },
     {
-      "source": "/documentation/adapters/polar-shremix",
+      "source": "/documentation/adapters/spaire-shremix",
       "destination": "/integrate/sdk/adapters/remix"
     },
     {
-      "source": "/documentation/adapters/polar-shsveltekit",
+      "source": "/documentation/adapters/spaire-shsveltekit",
       "destination": "/integrate/sdk/adapters/sveltekit"
     },
     {
-      "source": "/documentation/adapters/polar-shdeno",
+      "source": "/documentation/adapters/spaire-shdeno",
       "destination": "/integrate/sdk/adapters/deno"
     },
     {
-      "source": "/documentation/adapters/polar-shelysia",
+      "source": "/documentation/adapters/spaire-shelysia",
       "destination": "/integrate/sdk/adapters/elysia"
     },
     {
-      "source": "/documentation/adapters/polar-shexpress",
+      "source": "/documentation/adapters/spaire-shexpress",
       "destination": "/integrate/sdk/adapters/express"
     },
     {
-      "source": "/documentation/adapters/polar-shfastify",
+      "source": "/documentation/adapters/spaire-shfastify",
       "destination": "/integrate/sdk/adapters/fastify"
     },
     {
-      "source": "/documentation/adapters/polar-shhono",
+      "source": "/documentation/adapters/spaire-shhono",
       "destination": "/integrate/sdk/adapters/hono"
     },
     {
-      "source": "/documentation/polar-as-merchant-of-record/tax",
+      "source": "/documentation/spaire-as-merchant-of-record/tax",
       "destination": "/merchant-of-record/introduction"
     },
     {
-      "source": "/documentation/polar-as-merchant-of-record/fees",
+      "source": "/documentation/spaire-as-merchant-of-record/fees",
       "destination": "/merchant-of-record/fees"
     },
     {
-      "source": "/documentation/polar-as-merchant-of-record/supported-countries",
+      "source": "/documentation/spaire-as-merchant-of-record/supported-countries",
       "destination": "/merchant-of-record/supported-countries"
     },
     {
-      "source": "/documentation/polar-as-merchant-of-record/acceptable-products-use",
+      "source": "/documentation/spaire-as-merchant-of-record/acceptable-products-use",
       "destination": "/merchant-of-record/acceptable-use"
     },
     {
-      "source": "/documentation/polar-as-merchant-of-record/account-reviews",
+      "source": "/documentation/spaire-as-merchant-of-record/account-reviews",
       "destination": "/merchant-of-record/account-reviews"
     },
     {

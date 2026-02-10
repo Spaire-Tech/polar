@@ -10,14 +10,14 @@ Under the hood, schemas are validated by [Pydantic](https://docs.pydantic.dev/la
 ### Quickstart
 
 ```bash Terminal
-pip install polar-sdk
+pip install spaire-sdk
 ```
 
 ```python
 # Synchronous Example
-from polar_sdk import Polar
+from spaire_sdk import Spaire
 
-s = Polar(
+s = Spaire(
     access_token="<YOUR_BEARER_TOKEN_HERE>",
 )
 
@@ -33,14 +33,14 @@ if res is not None:
             break
 ```
 
-[Read more](https://github.com/polarsource/polar-python)
+[Read more](https://github.com/spairehq/spaire-python)
 
 ### Sandbox Environment
 
 You can configure the SDK so it hits the [sandbox environment](/integrate/sandbox) instead of the production one. You just need to add the `server` argument when instantiating the client:
 
 ```python
-s = Polar(
+s = Spaire(
     server="sandbox",
     access_token="<YOUR_BEARER_TOKEN_HERE>",
 )
