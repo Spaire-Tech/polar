@@ -60,8 +60,38 @@ async def account_updated(event_id: uuid.UUID) -> None:
             stripe_account = cast(stripe_lib.Account, event.stripe_data.data.object)
             log.info(f"Processing Stripe Account {stripe_account.id}")
             await account_service.update_account_from_stripe(
-                session, stripe_account=stripe_account
+                session, stripe_account_id=stripe_account.id
             )
+
+
+@actor(
+    actor_name="stripe.webhook.v2.core.account[configuration.recipient].capability_status_updated",
+    priority=TaskPriority.HIGH,
+)
+@stripe_api_connection_error_retry
+async def v2_recipient_capability_status_updated(event_id: uuid.UUID) -> None:
+    """Handle v2 recipient capability status changes.
+
+    When a recipient capability status changes (e.g., stripe_transfers becomes active),
+    we retrieve the latest account state from the v2 API and update our internal model.
+    """
+    async with AsyncSessionMaker() as session:
+        async with external_event_service.handle_stripe(session, event_id) as event:
+            data = event.data
+            related_object = data.get("related_object", {})
+            account_id = (
+                related_object.get("id", "")
+                if isinstance(related_object, dict)
+                else ""
+            )
+            log.info(
+                "Processing v2 recipient capability status update",
+                stripe_account_id=account_id,
+            )
+            if account_id:
+                await account_service.update_account_from_stripe(
+                    session, stripe_account_id=account_id
+                )
 
 
 @actor(actor_name="stripe.webhook.payment_intent.succeeded", priority=TaskPriority.HIGH)
