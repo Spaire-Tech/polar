@@ -63,7 +63,7 @@ export const ShareChartModal = ({
 
       const link = document.createElement('a')
       link.href = URL.createObjectURL(blob)
-      link.download = 'polar-chart.png'
+      link.download = 'spaire-chart.png'
       link.click()
 
       toast({

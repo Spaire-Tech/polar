@@ -9,7 +9,7 @@ const PolarLogo = ({
 }) => {
   return (
     <img
-      src="https://spaire-production-files-public.s3.us-east-1.amazonaws.com/logotype-spaire.png"
+      src="/assets/logotype-spaire.png"
       alt="Spaire"
       className={className}
       width={width}
