@@ -7,20 +7,20 @@ import Events from "/snippets/usage/events.mdx";
 
 <Events />
 
-## Ingest events using the Polar SDK
+## Ingest events using the Spaire SDK
 
-To ingest events, you can use the Polar SDKs.
+To ingest events, you can use the Spaire SDKs.
 
 ### TypeScript Example
 
 ```typescript
-import { Polar } from "@polar-sh/sdk";
+import { Spaire } from "@spaire/sdk";
 
-const polar = new Polar({
-  accessToken: process.env["POLAR_ACCESS_TOKEN"] ?? "",
+const spaire = new Spaire({
+  accessToken: process.env["SPAIRE_ACCESS_TOKEN"] ?? "",
 });
 
-await polar.events.ingest({
+await spaire.events.ingest({
   events: [
     {
       name: "<value>",

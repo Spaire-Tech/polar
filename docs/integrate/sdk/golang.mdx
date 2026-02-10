@@ -7,12 +7,12 @@ description: SDK for Golang
 
 ## Examples
 
-- [With Go (Gin)](https://github.com/polarsource/examples/tree/main/with-golang-gin)
+- [With Go (Gin)](https://github.com/spairehq/examples/tree/main/with-golang-gin)
 
 ## Installation
 
 ```bash
-go get github.com/polarsource/polar-go
+go get github.com/spairehq/spaire-go
 ```
 
 ## Quickstart
@@ -22,7 +22,7 @@ package main
 
 import (
 	"context"
-	polargo "github.com/polarsource/polar-go"
+	spairego "github.com/spairehq/spaire-go"
 	"log"
 	"os"
 )
@@ -30,11 +30,11 @@ import (
 func main() {
 	ctx := context.Background()
 
-	s := polargo.New(
-		polargo.WithSecurity(os.Getenv("POLAR_ACCESS_TOKEN")),
+	s := spairego.New(
+		spairego.WithSecurity(os.Getenv("SPAIRE_ACCESS_TOKEN")),
 	)
 
-	res, err := s.Organizations.List(ctx, nil, polargo.Pointer[int64](1), polargo.Pointer[int64](10), nil)
+	res, err := s.Organizations.List(ctx, nil, spairego.Pointer[int64](1), spairego.Pointer[int64](10), nil)
 	if err != nil {
 		log.Fatal(err)
 	}
