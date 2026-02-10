@@ -155,6 +155,12 @@ class StripeService:
             "identity": {
                 "country": account.country,
             },
+            "defaults": {
+                "responsibilities": {
+                    "fees_collector": "stripe",
+                    "losses_collector": "stripe",
+                },
+            },
             "configuration": {
                 "recipient": {
                     "capabilities": {
