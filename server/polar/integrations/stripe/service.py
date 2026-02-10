@@ -1,4 +1,5 @@
 from collections.abc import AsyncGenerator, AsyncIterator
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal, Unpack, cast, overload
 
 import stripe as stripe_lib
@@ -10,7 +11,6 @@ from polar.logfire import instrument_httpx
 from polar.logging import Logger
 
 if TYPE_CHECKING:
-    from stripe.params._account_create_params import AccountCreateParams
     from stripe.params._balance_transaction_list_params import (
         BalanceTransactionListParams,
     )
@@ -28,6 +28,9 @@ if TYPE_CHECKING:
     from stripe.params.tax._transaction_create_reversal_params import (
         TransactionCreateReversalParams,
     )
+    from stripe.params.v2.core._account_create_params import (
+        AccountCreateParams as V2AccountCreateParams,
+    )
 
     from polar.account.schemas import AccountCreateForOrganization
     from polar.models import User
@@ -38,6 +41,13 @@ stripe_lib.api_version = "2026-01-28.clover"
 stripe_http_client = stripe_lib.HTTPXClient(allow_sync_methods=True)
 instrument_httpx(stripe_http_client._client_async)
 stripe_lib.default_http_client = stripe_http_client
+
+# StripeClient instance for v2 API calls
+stripe_client = stripe_lib.StripeClient(
+    api_key=settings.STRIPE_SECRET_KEY,
+    stripe_version="2026-01-28.clover",
+    http_client=stripe_http_client,
+)
 
 log: Logger = structlog.get_logger()
 
@@ -57,70 +67,159 @@ StripeCancellationReasons = Literal[
 class StripeError(PolarError): ...
 
 
+@dataclass
+class V2AccountInfo:
+    """Normalized account info extracted from a Stripe v2 Account response."""
+
+    id: str
+    email: str | None
+    country: str | None
+    currency: str | None
+    is_details_submitted: bool
+    is_transfers_enabled: bool
+    is_payouts_enabled: bool
+    business_type: str | None
+    data: dict[str, object]
+
+
+def extract_v2_account_info(
+    v2_account: "stripe_lib.v2.core.Account",
+) -> V2AccountInfo:
+    """Extract normalized account info from a v2 Account object."""
+    is_transfers_enabled = False
+    is_payouts_enabled = False
+
+    config = getattr(v2_account, "configuration", None)
+    if config is not None:
+        recipient = getattr(config, "recipient", None)
+        if recipient is not None:
+            caps = getattr(recipient, "capabilities", None)
+            if caps is not None:
+                stripe_balance = getattr(caps, "stripe_balance", None)
+                if stripe_balance is not None:
+                    transfers = getattr(stripe_balance, "stripe_transfers", None)
+                    if transfers is not None:
+                        is_transfers_enabled = transfers.status == "active"
+                    payouts = getattr(stripe_balance, "payouts", None)
+                    if payouts is not None:
+                        is_payouts_enabled = payouts.status == "active"
+
+    identity = getattr(v2_account, "identity", None)
+    country = getattr(identity, "country", None) if identity else None
+    entity_type = getattr(identity, "entity_type", None) if identity else None
+
+    defaults = getattr(v2_account, "defaults", None)
+    currency = getattr(defaults, "currency", None) if defaults else None
+
+    requirements = getattr(v2_account, "requirements", None)
+    has_past_due = False
+    if requirements is not None:
+        entries = getattr(requirements, "entries", None)
+        if entries:
+            for entry in entries:
+                past_due_deadline = getattr(entry, "past_due_deadline", None)
+                if past_due_deadline is not None:
+                    has_past_due = True
+                    break
+
+    applied_configs = getattr(v2_account, "applied_configurations", None) or []
+    is_details_submitted = "recipient" in applied_configs and not has_past_due
+
+    return V2AccountInfo(
+        id=v2_account.id,
+        email=getattr(v2_account, "contact_email", None),
+        country=country,
+        currency=currency,
+        is_details_submitted=is_details_submitted,
+        is_transfers_enabled=is_transfers_enabled,
+        is_payouts_enabled=is_payouts_enabled,
+        business_type=entity_type,
+        data={},
+    )
+
+
 class StripeService:
     async def retrieve_intent(self, id: str) -> stripe_lib.PaymentIntent:
         return await stripe_lib.PaymentIntent.retrieve_async(id)
 
     async def create_account(
         self, account: "AccountCreateForOrganization", name: str | None
-    ) -> stripe_lib.Account:
+    ) -> V2AccountInfo:
         log.info(
-            "stripe.account.create",
+            "stripe.v2.account.create",
             country=account.country,
             name=name,
         )
-        create_params: AccountCreateParams = {
-            "country": account.country,
-            "type": "express",
-            "capabilities": {"transfers": {"requested": True}},
-            "settings": {
-                "payouts": {"schedule": {"interval": "manual"}},
+        create_params: V2AccountCreateParams = {
+            "dashboard": "express",
+            "identity": {
+                "country": account.country,
             },
+            "configuration": {
+                "recipient": {
+                    "capabilities": {
+                        "stripe_balance": {
+                            "stripe_transfers": {"requested": True},
+                        },
+                    },
+                },
+            },
+            "include": ["configuration.recipient"],
         }
 
         if name:
-            create_params["business_profile"] = {"name": name}
+            create_params["display_name"] = name
 
-        if account.country != "US":
-            create_params["tos_acceptance"] = {"service_agreement": "recipient"}
+        v2_account = await stripe_client.v2.core.accounts.create_async(
+            params=create_params
+        )
+        return extract_v2_account_info(v2_account)
 
-        return await stripe_lib.Account.create_async(**create_params)
+    async def retrieve_v2_account(self, id: str) -> V2AccountInfo:
+        """Retrieve a Stripe account using the v2 API with recipient configuration."""
+        v2_account = await stripe_client.v2.core.accounts.retrieve_async(
+            id,
+            params={"include": ["configuration.recipient"]},
+        )
+        return extract_v2_account_info(v2_account)
 
     async def update_account(self, id: str, name: str | None) -> None:
         log.info(
-            "stripe.account.update",
+            "stripe.v2.account.update",
             account_id=id,
             name=name,
         )
-        obj = {}
         if name:
-            obj["business_profile"] = {"name": name}
-        await stripe_lib.Account.modify_async(id, **obj)
+            await stripe_client.v2.core.accounts.update_async(
+                id,
+                params={"display_name": name},
+            )
 
     async def account_exists(self, id: str) -> bool:
         try:
-            account = await stripe_lib.Account.retrieve_async(id)
-            return bool(account)
+            v2_account = await stripe_client.v2.core.accounts.retrieve_async(id)
+            return not getattr(v2_account, "closed", False)
         except stripe_lib.PermissionError:
             return False
 
-    async def delete_account(self, id: str) -> stripe_lib.Account:
-        # TODO: Check if this fails when account balance is non-zero
+    async def delete_account(self, id: str) -> None:
         log.info(
-            "stripe.account.delete",
+            "stripe.v2.account.close",
             account_id=id,
         )
-        return await stripe_lib.Account.delete_async(id)
+        await stripe_client.v2.core.accounts.close_async(id)
 
     async def retrieve_balance(self, id: str) -> tuple[str, int]:
-        # Return available balance in the account's default currency (we assume that
-        # there is no balance in other currencies for now)
-        account = await stripe_lib.Account.retrieve_async(id)
+        # Return available balance in the account's default currency.
+        # Balance API is still v1 (operates on connected accounts).
         balance = await stripe_lib.Balance.retrieve_async(stripe_account=id)
+        # Retrieve default currency from v2 account
+        v2_info = await self.retrieve_v2_account(id)
+        default_currency = v2_info.currency or "usd"
         for b in balance.available:
-            if b.currency == account.default_currency:
+            if b.currency == default_currency:
                 return (b.currency, b.amount)
-        return (cast(str, account.default_currency), 0)
+        return (default_currency, 0)
 
     async def create_account_link(
         self, stripe_id: str, return_path: str

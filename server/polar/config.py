@@ -220,6 +220,7 @@ class Settings(BaseSettings):
     # Stripe webhook secrets
     STRIPE_WEBHOOK_SECRET: str = ""
     STRIPE_CONNECT_WEBHOOK_SECRET: str = ""
+    STRIPE_V2_WEBHOOK_SECRET: str = ""
     STRIPE_STATEMENT_DESCRIPTOR: str = "SPAIRE"
 
     # Numeral

@@ -13,7 +13,7 @@ from polar.campaign.service import campaign as campaign_service
 from polar.enums import AccountType
 from polar.exceptions import PolarError
 from polar.integrations.loops.service import loops as loops_service
-from polar.integrations.stripe.service import stripe
+from polar.integrations.stripe.service import V2AccountInfo, stripe
 from polar.kit.pagination import PaginationParams
 from polar.models import Account, Organization, User
 from polar.models.user import IdentityVerificationStatus
@@ -227,7 +227,7 @@ class AccountService:
             if account and not account.stripe_id:
                 assert account_create.account_type == AccountType.stripe
                 try:
-                    stripe_account = await stripe.create_account(
+                    v2_info = await stripe.create_account(
                         account_create, name=None
                     )
                 except stripe_lib.StripeError as e:
@@ -238,18 +238,10 @@ class AccountService:
                             "An unexpected Stripe error happened"
                         ) from e
 
-                # Update account with new Stripe details
-                account.stripe_id = stripe_account.id
-                account.email = stripe_account.email
-                if stripe_account.country is not None:
-                    account.country = stripe_account.country
-                assert stripe_account.default_currency is not None
-                account.currency = stripe_account.default_currency
-                account.is_details_submitted = stripe_account.details_submitted or False
-                account.is_charges_enabled = stripe_account.charges_enabled or False
-                account.is_payouts_enabled = stripe_account.payouts_enabled or False
-                account.business_type = stripe_account.business_type
-                account.data = stripe_account.to_dict()
+                # Update account with new Stripe v2 details
+                self._apply_v2_info_to_account(
+                    account, v2_info, country_fallback=account_create.country
+                )
 
                 session.add(account)
 
@@ -293,6 +285,26 @@ class AccountService:
             associations.append(f"org/{organization.slug}")
         return "·".join(associations)
 
+    @staticmethod
+    def _apply_v2_info_to_account(
+        account: Account,
+        v2_info: V2AccountInfo,
+        country_fallback: str | None = None,
+    ) -> None:
+        """Apply v2 account info to an Account model instance."""
+        account.stripe_id = v2_info.id
+        account.email = v2_info.email
+        if v2_info.country is not None:
+            account.country = v2_info.country
+        elif country_fallback is not None:
+            account.country = country_fallback
+        account.currency = v2_info.currency or account.currency
+        account.is_details_submitted = v2_info.is_details_submitted
+        account.is_charges_enabled = v2_info.is_transfers_enabled
+        account.is_payouts_enabled = v2_info.is_payouts_enabled
+        account.business_type = v2_info.business_type
+        account.data = v2_info.data
+
     async def _create_stripe_account(
         self,
         session: AsyncSession,
@@ -300,7 +312,7 @@ class AccountService:
         account_create: AccountCreateForOrganization,
     ) -> Account:
         try:
-            stripe_account = await stripe.create_account(
+            v2_info = await stripe.create_account(
                 account_create, name=None
             )  # TODO: name
         except stripe_lib.StripeError as e:
@@ -313,15 +325,15 @@ class AccountService:
             status=Account.Status.ONBOARDING_STARTED,
             admin_id=admin.id,
             account_type=account_create.account_type,
-            stripe_id=stripe_account.id,
-            email=stripe_account.email,
-            country=stripe_account.country,
-            currency=stripe_account.default_currency,
-            is_details_submitted=stripe_account.details_submitted,
-            is_charges_enabled=stripe_account.charges_enabled,
-            is_payouts_enabled=stripe_account.payouts_enabled,
-            business_type=stripe_account.business_type,
-            data=stripe_account.to_dict(),
+            stripe_id=v2_info.id,
+            email=v2_info.email,
+            country=v2_info.country or account_create.country,
+            currency=v2_info.currency or "usd",
+            is_details_submitted=v2_info.is_details_submitted,
+            is_charges_enabled=v2_info.is_transfers_enabled,
+            is_payouts_enabled=v2_info.is_payouts_enabled,
+            business_type=v2_info.business_type,
+            data=v2_info.data,
             users=[],
             organizations=[],
         )
@@ -346,22 +358,29 @@ class AccountService:
         return account
 
     async def update_account_from_stripe(
-        self, session: AsyncSession, *, stripe_account: stripe_lib.Account
+        self, session: AsyncSession, *, stripe_account_id: str
     ) -> Account:
+        """Update internal account from Stripe v2 account data."""
         repository = AccountRepository.from_session(session)
-        account = await repository.get_by_stripe_id(stripe_account.id)
+        account = await repository.get_by_stripe_id(stripe_account_id)
         if account is None:
-            raise AccountExternalIdDoesNotExist(stripe_account.id)
+            raise AccountExternalIdDoesNotExist(stripe_account_id)
 
-        account.email = stripe_account.email
-        assert stripe_account.default_currency is not None
-        account.currency = stripe_account.default_currency
-        account.is_details_submitted = stripe_account.details_submitted or False
-        account.is_charges_enabled = stripe_account.charges_enabled or False
-        account.is_payouts_enabled = stripe_account.payouts_enabled or False
-        if stripe_account.country is not None:
-            account.country = stripe_account.country
-        account.data = stripe_account.to_dict()
+        # Retrieve latest account info from Stripe v2 API
+        v2_info = await stripe.retrieve_v2_account(stripe_account_id)
+
+        if v2_info.email is not None:
+            account.email = v2_info.email
+        if v2_info.currency is not None:
+            account.currency = v2_info.currency
+        account.is_details_submitted = v2_info.is_details_submitted
+        account.is_charges_enabled = v2_info.is_transfers_enabled
+        account.is_payouts_enabled = v2_info.is_payouts_enabled
+        if v2_info.country is not None:
+            account.country = v2_info.country
+        if v2_info.business_type is not None:
+            account.business_type = v2_info.business_type
+        account.data = v2_info.data
 
         session.add(account)
 

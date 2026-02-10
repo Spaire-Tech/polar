@@ -1,10 +1,8 @@
-from typing import Any
-
 import pytest
-import stripe as stripe_lib
 from httpx import AsyncClient
 from pytest_mock import MockerFixture
 
+from polar.integrations.stripe.service import V2AccountInfo
 from polar.models.account import Account
 from polar.models.organization import Organization
 from polar.models.user import User
@@ -37,22 +35,22 @@ async def test_create_personal_stripe(
     organization: Organization,
     user_organization: UserOrganization,
 ) -> None:
-    stripe_mock = mocker.patch.object(stripe_lib.Account, "create_async")
+    fake_v2_info = V2AccountInfo(
+        id="fake_stripe_id",
+        email="foo@example.com",
+        country="SE",
+        currency="USD",
+        is_details_submitted=False,
+        is_transfers_enabled=False,
+        is_payouts_enabled=False,
+        business_type="company",
+        data={},
+    )
 
-    class FakeStripeAccount:
-        id = "fake_stripe_id"
-        email = "foo@example.com"
-        country = "SE"
-        default_currency = "USD"
-        details_submitted = False
-        charges_enabled = False
-        payouts_enabled = False
-        business_type = "company"
-
-        def to_dict(self) -> dict[str, Any]:
-            return {"lol": "wut"}
-
-    stripe_mock.return_value = FakeStripeAccount()
+    mocker.patch(
+        "polar.integrations.stripe.service.StripeService.create_account",
+        return_value=fake_v2_info,
+    )
 
     create_response = await client.post(
         "/v1/accounts",
