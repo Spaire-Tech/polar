@@ -162,6 +162,11 @@ class StripeService:
                 },
             },
             "configuration": {
+                "merchant": {
+                    "capabilities": {
+                        "card_payments": {"requested": True},
+                    },
+                },
                 "recipient": {
                     "capabilities": {
                         "stripe_balance": {
