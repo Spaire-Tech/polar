@@ -228,7 +228,7 @@ class AccountService:
                 assert account_create.account_type == AccountType.stripe
                 try:
                     v2_info = await stripe.create_account(
-                        account_create, name=None
+                        account_create, name=None, email=admin.email
                     )
                 except stripe_lib.StripeError as e:
                     if e.user_message:
@@ -313,7 +313,7 @@ class AccountService:
     ) -> Account:
         try:
             v2_info = await stripe.create_account(
-                account_create, name=None
+                account_create, name=None, email=admin.email
             )  # TODO: name
         except stripe_lib.StripeError as e:
             if e.user_message:
