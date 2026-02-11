@@ -7,6 +7,7 @@ import { useContext, useEffect, useState } from 'react'
 import { FadeUp } from '@/components/Animated/FadeUp'
 import LogoIcon from '@/components/Brand/LogoIcon'
 import { AssistantStep } from '@/components/Onboarding/AssistantStep'
+import { OnboardingStepper } from '@/components/Onboarding/OnboardingStepper'
 import { ProductStep } from '@/components/Onboarding/ProductStep'
 import { useOnboardingTracking } from '@/hooks/onboarding'
 import { OrganizationContext } from '@/providers/maintainerOrganization'
@@ -36,75 +37,85 @@ export default function ClientPage({
   }, [isAssistantFinished])
 
   return (
-    <div className="dark:md:bg-polar-950 flex flex-col pt-16 md:items-center md:p-16">
-      <motion.div
-        initial="hidden"
-        animate="visible"
-        transition={{ duration: 1, staggerChildren: 0.3 }}
-        className="flex min-h-0 w-full shrink-0 flex-col gap-12 md:max-w-xl md:p-8"
-      >
-        <FadeUp className="flex flex-col items-center gap-y-8">
-          <LogoIcon size={50} />
-          <div className="flex flex-col gap-y-4">
-            <h1 className="text-center text-3xl">Your first product</h1>
-            <p className="dark:text-polar-400 text-center text-lg text-gray-600">
-              Setup your first digital product to get started.
-            </p>
-          </div>
-        </FadeUp>
+    <div className="dark:md:bg-polar-950 flex h-full w-full flex-row">
+      {/* Stepper Sidebar - desktop only */}
+      <OnboardingStepper currentStep={1} />
 
-        {mode === 'assistant' && (
-          <AssistantStep
-            onEjectToManual={() => setMode('manual')}
-            onFinished={() => {
-              setShouldShowSkip(false)
-              setIsAssistantFinished(true)
-            }}
-          />
-        )}
-
-        {mode === 'manual' && (
+      <div className="flex flex-1 flex-col overflow-y-auto">
+        <div className="flex w-full flex-col items-center px-6 pt-16 pb-24 md:px-20">
           <motion.div
             initial="hidden"
             animate="visible"
-            transition={{ duration: 1, staggerChildren: 0.3 }}
-            className="flex flex-col gap-12"
+            transition={{ duration: 1, staggerChildren: 0.2 }}
+            className="flex w-full max-w-2xl flex-col gap-14"
           >
-            <ProductStep />
-          </motion.div>
-        )}
+            {/* Header */}
+            <FadeUp className="flex flex-col gap-y-3">
+              <div className="md:hidden mb-8">
+                <LogoIcon size={36} />
+              </div>
+              <h1 className="text-2xl font-medium tracking-tight md:text-3xl">
+                Create your first product
+              </h1>
+              <p className="dark:text-polar-400 max-w-md text-base text-gray-500">
+                Define what you&apos;re selling — you can always add more later.
+              </p>
+            </FadeUp>
 
-        <FadeUp
-          className={twMerge(
-            'flex flex-col gap-y-2 p-8 transition-opacity duration-1000 ease-out md:p-0',
-            shouldShowSkip
-              ? 'pointer-events-auto opacity-100'
-              : 'pointer-events-none opacity-0',
-            organizations.length === 1 && !shouldShowSkip ? 'opacity-0!' : '',
-          )}
-        >
-          <div className="dark:text-polar-500 flex flex-row items-center justify-center gap-x-4 text-sm text-gray-500">
             {mode === 'assistant' && (
-              <>
-                <button
-                  className="dark:hover:text-polar-500 dark:hover:bg-polar-700 cursor-pointer rounded-full px-2.5 py-1 transition-colors duration-100 hover:bg-gray-100 hover:text-gray-500"
-                  onClick={() => setMode('manual')}
-                >
-                  Configure manually
-                </button>
-                ·
-              </>
+              <AssistantStep
+                onEjectToManual={() => setMode('manual')}
+                onFinished={() => {
+                  setShouldShowSkip(false)
+                  setIsAssistantFinished(true)
+                }}
+              />
             )}
-            <Link
-              href={`/dashboard/${organization.slug}`}
-              className="dark:hover:text-polar-500 dark:hover:bg-polar-700 rounded-full px-2.5 py-1 transition-colors duration-100 hover:bg-gray-100 hover:text-gray-500"
-              onClick={() => trackStepSkipped('product', organization.id)}
+
+            {mode === 'manual' && (
+              <motion.div
+                initial="hidden"
+                animate="visible"
+                transition={{ duration: 1, staggerChildren: 0.3 }}
+                className="flex flex-col gap-10"
+              >
+                <ProductStep />
+              </motion.div>
+            )}
+
+            <FadeUp
+              className={twMerge(
+                'flex flex-col gap-y-2 transition-opacity duration-1000 ease-out',
+                shouldShowSkip
+                  ? 'pointer-events-auto opacity-100'
+                  : 'pointer-events-none opacity-0',
+                organizations.length === 1 && !shouldShowSkip ? 'opacity-0!' : '',
+              )}
             >
-              Skip onboarding
-            </Link>
-          </div>
-        </FadeUp>
-      </motion.div>
+              <div className="dark:text-polar-500 flex flex-row items-center justify-center gap-x-4 text-sm text-gray-500">
+                {mode === 'assistant' && (
+                  <>
+                    <button
+                      className="dark:hover:text-polar-500 dark:hover:bg-polar-700 cursor-pointer rounded-full px-2.5 py-1 transition-colors duration-100 hover:bg-gray-100 hover:text-gray-500"
+                      onClick={() => setMode('manual')}
+                    >
+                      Set up manually
+                    </button>
+                    ·
+                  </>
+                )}
+                <Link
+                  href={`/dashboard/${organization.slug}`}
+                  className="dark:hover:text-polar-500 dark:hover:bg-polar-700 rounded-full px-2.5 py-1 transition-colors duration-100 hover:bg-gray-100 hover:text-gray-500"
+                  onClick={() => trackStepSkipped('product', organization.id)}
+                >
+                  I&apos;ll do this later
+                </Link>
+              </div>
+            </FadeUp>
+          </motion.div>
+        </div>
+      </div>
     </div>
   )
 }

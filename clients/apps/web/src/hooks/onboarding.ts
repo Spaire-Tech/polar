@@ -36,6 +36,9 @@ export interface OnboardingSessionState {
   steps_completed: number
   signup_method: SignupMethod
   experiment_variant?: string | null
+  business_type?: string | null
+  audience_type?: string | null
+  referral_source?: string | null
 }
 
 const getOnboardingSession = (): OnboardingSessionState | null => {
