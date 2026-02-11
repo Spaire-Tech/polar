@@ -7,7 +7,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
 
 from polar.config import settings
-from polar.enums import AccountMode, AccountType, IssuingStatus
+from polar.enums import AccountType
 from polar.kit.address import Address, AddressType
 from polar.kit.db.models import RecordModel
 from polar.kit.extensions.sqlalchemy import StringEnum
@@ -105,24 +105,6 @@ class Account(RecordModel):
 
     credit_balance: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
-    account_mode: Mapped[AccountMode] = mapped_column(
-        StringEnum(AccountMode), nullable=False, default=AccountMode.express
-    )
-    treasury_enabled: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False
-    )
-    issuing_enabled: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False
-    )
-    issuing_status: Mapped[IssuingStatus] = mapped_column(
-        StringEnum(IssuingStatus),
-        nullable=False,
-        default=IssuingStatus.onboarding_required,
-    )
-    fund_metadata: Mapped[dict[str, Any]] = mapped_column(
-        JSONB, nullable=False, default=dict
-    )
-
     @declared_attr
     def admin(cls) -> Mapped["User"]:
         return relationship("User", lazy="raise", foreign_keys="[Account.admin_id]")
@@ -163,19 +145,6 @@ class Account(RecordModel):
 
     def is_under_review(self) -> bool:
         return self.status == Account.Status.UNDER_REVIEW
-
-    def is_custom(self) -> bool:
-        return self.account_mode == AccountMode.custom
-
-    def is_issuing_active(self) -> bool:
-        return (
-            self.is_custom()
-            and self.issuing_enabled
-            and self.issuing_status == IssuingStatus.issuing_active
-        )
-
-    def is_treasury_ready(self) -> bool:
-        return self.is_active() and self.is_custom() and self.treasury_enabled
 
     def is_payout_ready(self) -> bool:
         return self.is_active() and (

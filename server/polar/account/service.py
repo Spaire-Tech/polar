@@ -10,10 +10,10 @@ from polar.account.repository import AccountRepository
 from polar.account_credit.service import account_credit_service
 from polar.auth.models import AuthSubject
 from polar.campaign.service import campaign as campaign_service
-from polar.enums import AccountMode, AccountType, IssuingStatus
+from polar.enums import AccountType
 from polar.exceptions import PolarError
 from polar.integrations.loops.service import loops as loops_service
-from polar.integrations.stripe.service import CustomAccountInfo, V2AccountInfo, stripe
+from polar.integrations.stripe.service import V2AccountInfo, stripe
 from polar.kit.pagination import PaginationParams
 from polar.models import Account, Organization, User
 from polar.models.user import IdentityVerificationStatus
@@ -191,16 +191,7 @@ class AccountService:
         account_create: AccountCreateForOrganization,
     ) -> Account:
         assert account_create.account_type == AccountType.stripe
-
-        if account_create.account_mode == AccountMode.custom:
-            account = await self._create_custom_stripe_account(
-                session, admin, account_create
-            )
-        else:
-            account = await self._create_stripe_account(
-                session, admin, account_create
-            )
-
+        account = await self._create_stripe_account(session, admin, account_create)
         await loops_service.user_created_account(
             session, admin, accountType=account.account_type
         )
@@ -366,135 +357,16 @@ class AccountService:
 
         return account
 
-    async def _create_custom_stripe_account(
-        self,
-        session: AsyncSession,
-        admin: User,
-        account_create: AccountCreateForOrganization,
-    ) -> Account:
-        """Create a Stripe Custom connected account for embedded finance."""
-        try:
-            custom_info = await stripe.create_custom_account(
-                country=account_create.country,
-                email=admin.email,
-            )
-        except stripe_lib.StripeError as e:
-            if e.user_message:
-                raise AccountServiceError(e.user_message) from e
-            else:
-                raise AccountServiceError("An unexpected Stripe error happened") from e
-
-        account = Account(
-            status=Account.Status.ONBOARDING_STARTED,
-            admin_id=admin.id,
-            account_type=account_create.account_type,
-            account_mode=AccountMode.custom,
-            stripe_id=custom_info.id,
-            email=custom_info.email,
-            country=custom_info.country or account_create.country,
-            currency=custom_info.currency or "usd",
-            is_details_submitted=custom_info.is_details_submitted,
-            is_charges_enabled=custom_info.is_transfers_enabled,
-            is_payouts_enabled=custom_info.is_payouts_enabled,
-            treasury_enabled=custom_info.is_treasury_enabled,
-            issuing_enabled=custom_info.is_issuing_enabled,
-            issuing_status=IssuingStatus.onboarding_required,
-            business_type=custom_info.business_type,
-            data=custom_info.data,
-            users=[],
-            organizations=[],
-        )
-
-        campaign = await campaign_service.get_eligible(session, admin)
-        if campaign:
-            account.campaign_id = campaign.id
-            account._platform_fee_percent = campaign.fee_percent
-            account._platform_fee_fixed = campaign.fee_fixed
-
-        session.add(account)
-        await session.flush()
-
-        if campaign and campaign.fee_credit:
-            await account_credit_service.grant_from_campaign(
-                session,
-                account=account,
-                campaign=campaign,
-            )
-
-        return account
-
-    @staticmethod
-    def _apply_custom_info_to_account(
-        account: Account,
-        custom_info: CustomAccountInfo,
-        country_fallback: str | None = None,
-    ) -> None:
-        """Apply Custom account info to an Account model."""
-        account.stripe_id = custom_info.id
-        account.email = custom_info.email
-        if custom_info.country is not None:
-            account.country = custom_info.country
-        elif country_fallback is not None:
-            account.country = country_fallback
-        account.currency = custom_info.currency or account.currency
-        account.is_details_submitted = custom_info.is_details_submitted
-        account.is_charges_enabled = custom_info.is_transfers_enabled
-        account.is_payouts_enabled = custom_info.is_payouts_enabled
-        account.treasury_enabled = custom_info.is_treasury_enabled
-        account.issuing_enabled = custom_info.is_issuing_enabled
-        account.business_type = custom_info.business_type
-        account.data = custom_info.data
-
-    async def update_custom_account_from_stripe(
-        self, session: AsyncSession, *, stripe_account_id: str
-    ) -> Account:
-        """Update internal account from Stripe v1 Custom account data."""
-        repository = AccountRepository.from_session(session)
-        account = await repository.get_by_stripe_id(stripe_account_id)
-        if account is None:
-            raise AccountExternalIdDoesNotExist(stripe_account_id)
-
-        custom_info = await stripe.retrieve_custom_account(stripe_account_id)
-
-        self._apply_custom_info_to_account(account, custom_info)
-
-        # Update issuing status based on capabilities
-        if custom_info.is_issuing_enabled and custom_info.is_treasury_enabled:
-            if account.issuing_status in (
-                IssuingStatus.onboarding_required,
-                IssuingStatus.onboarding_in_progress,
-            ):
-                account.issuing_status = IssuingStatus.issuing_active
-        elif account.issuing_status == IssuingStatus.issuing_active:
-            account.issuing_status = IssuingStatus.temporarily_restricted
-
-        session.add(account)
-
-        from polar.organization.service import organization as organization_service
-
-        await organization_service.update_status_from_stripe_account(session, account)
-
-        return account
-
     async def update_account_from_stripe(
         self, session: AsyncSession, *, stripe_account_id: str
     ) -> Account:
-        """Update internal account from Stripe account data.
-
-        Routes to v1 (Custom) or v2 (Express) API based on account_mode.
-        """
+        """Update internal account from Stripe v2 account data."""
         repository = AccountRepository.from_session(session)
         account = await repository.get_by_stripe_id(stripe_account_id)
         if account is None:
             raise AccountExternalIdDoesNotExist(stripe_account_id)
 
-        # Custom accounts use v1 API with different capability handling
-        if account.is_custom():
-            return await self.update_custom_account_from_stripe(
-                session, stripe_account_id=stripe_account_id
-            )
-
-        # Express accounts use v2 API
+        # Retrieve latest account info from Stripe v2 API
         v2_info = await stripe.retrieve_v2_account(stripe_account_id)
 
         if v2_info.email is not None:
@@ -512,6 +384,8 @@ class AccountService:
 
         session.add(account)
 
+        # Update organization status based on Stripe account capabilities
+        # Import here to avoid circular imports
         from polar.organization.service import organization as organization_service
 
         await organization_service.update_status_from_stripe_account(session, account)
@@ -521,29 +395,22 @@ class AccountService:
     async def onboarding_link(
         self, account: Account, return_path: str
     ) -> AccountLink | None:
-        if account.account_type != AccountType.stripe or account.stripe_id is None:
-            return None
-
-        if account.is_custom():
-            account_link = await stripe.create_custom_account_link(
-                account.stripe_id, return_path
-            )
-        else:
+        if account.account_type == AccountType.stripe:
+            assert account.stripe_id is not None
             account_link = await stripe.create_account_link(
                 account.stripe_id, return_path
             )
-        return AccountLink(url=account_link.url)
+            return AccountLink(url=account_link.url)
+
+        return None
 
     async def dashboard_link(self, account: Account) -> AccountLink | None:
-        if account.account_type != AccountType.stripe or account.stripe_id is None:
-            return None
+        if account.account_type == AccountType.stripe:
+            assert account.stripe_id is not None
+            account_link = await stripe.create_login_link(account.stripe_id)
+            return AccountLink(url=account_link.url)
 
-        # Custom accounts don't have a Stripe-hosted dashboard
-        if account.is_custom():
-            return None
-
-        account_link = await stripe.create_login_link(account.stripe_id)
-        return AccountLink(url=account_link.url)
+        return None
 
     async def sync_to_upstream(self, session: AsyncSession, account: Account) -> None:
         if account.account_type != AccountType.stripe:

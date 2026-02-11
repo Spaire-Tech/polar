@@ -20,8 +20,6 @@ from polar.event.endpoints import router as event_router
 from polar.event_type.endpoints import router as event_type_router
 from polar.eventstream.endpoints import router as stream_router
 from polar.file.endpoints import router as files_router
-from polar.fund_lifecycle.endpoints import router as fund_lifecycle_router
-from polar.issuing.endpoints import router as issuing_router
 from polar.integrations.apple.endpoints import router as apple_router
 from polar.integrations.chargeback_stop.endpoints import (
     router as chargeback_stop_router,
@@ -39,7 +37,6 @@ from polar.login_code.endpoints import router as login_code_router
 from polar.member.endpoints import router as member_router
 from polar.member_session.endpoints import router as member_session_router
 from polar.meter.endpoints import router as meter_router
-from polar.money_movement.endpoints import router as money_movement_router
 from polar.metrics.endpoints import router as metrics_router
 from polar.notifications.endpoints import router as notifications_router
 from polar.oauth2.endpoints.oauth2 import router as oauth2_router
@@ -56,7 +53,6 @@ from polar.refund.endpoints import router as refund_router
 from polar.storefront.endpoints import router as storefront_router
 from polar.subscription.endpoints import router as subscription_router
 from polar.transaction.endpoints import router as transaction_router
-from polar.treasury.endpoints import router as treasury_router
 from polar.user.endpoints import router as user_router
 from polar.wallet.endpoints import router as wallet_router
 from polar.webhook.endpoints import router as webhook_router
@@ -115,8 +111,6 @@ router.include_router(checkout_router)
 router.include_router(cli_router)
 # /files
 router.include_router(files_router)
-# /fund-lifecycle
-router.include_router(fund_lifecycle_router)
 # /metrics
 router.include_router(metrics_router)
 # /integrations/google
@@ -163,11 +157,5 @@ router.include_router(payment_router)
 router.include_router(payout_router)
 # /wallets
 router.include_router(wallet_router)
-# /treasury
-router.include_router(treasury_router)
-# /issuing
-router.include_router(issuing_router)
-# /money-movement
-router.include_router(money_movement_router)
 # /integrations/chargeback-stop
 router.include_router(chargeback_stop_router)
