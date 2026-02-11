@@ -1,8 +1,23 @@
-import { redirect } from 'next/navigation'
+import { getServerSideAPI } from '@/utils/client/serverside'
+import { getOrganizationBySlugOrNotFound } from '@/utils/organization'
+import { Metadata } from 'next'
+import AccountPage from './AccountPage'
+
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    title: 'Embedded Finance - Account',
+  }
+}
 
 export default async function Page(props: {
   params: Promise<{ organization: string }>
 }) {
   const params = await props.params
-  redirect(`/dashboard/${params.organization}/finance/account`)
+  const api = await getServerSideAPI()
+  const organization = await getOrganizationBySlugOrNotFound(
+    api,
+    params.organization,
+  )
+
+  return <AccountPage organization={organization} />
 }

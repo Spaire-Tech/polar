@@ -11,7 +11,7 @@ const financeTabs = [
   { title: 'Balances', suffix: '/embedded/balances' },
   { title: 'Cards', suffix: '/embedded/cards' },
   { title: 'Pay', suffix: '/embedded/pay' },
-  { title: 'Account', suffix: '/account' },
+  { title: 'Account', suffix: '/embedded/account' },
 ]
 
 export default function FinanceLayout({ children }: PropsWithChildren) {

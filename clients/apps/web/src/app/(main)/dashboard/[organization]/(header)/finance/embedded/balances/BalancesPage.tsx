@@ -5,6 +5,7 @@ import StripeConnectProvider from '@/components/Finance/Embedded/StripeConnectPr
 import { api } from '@/utils/client'
 import { schemas, unwrap } from '@polar-sh/client'
 import { ShadowBoxOnMd } from '@polar-sh/ui/components/atoms/ShadowBox'
+import { ConnectFinancialAccountTransactions } from '@stripe/react-connect-js'
 import { useQuery } from '@tanstack/react-query'
 
 function formatCents(cents: number): string {
@@ -42,7 +43,7 @@ export default function BalancesPage({
         <>
           <div className="flex flex-col gap-8 md:flex-row">
             <ShadowBoxOnMd className="flex-1">
-              <div className="flex flex-col gap-y-2 p-6">
+              <div className="flex flex-col gap-y-2">
                 <h2 className="text-lg font-medium">Cash Balance</h2>
                 <div className="text-4xl">
                   {formatCents(fa.balance?.cash ?? 0)}
@@ -50,7 +51,7 @@ export default function BalancesPage({
               </div>
             </ShadowBoxOnMd>
             <ShadowBoxOnMd className="flex-1">
-              <div className="flex flex-col gap-y-2 p-6">
+              <div className="flex flex-col gap-y-2">
                 <h2 className="text-lg font-medium">Effective Balance</h2>
                 <div className="text-4xl">
                   {formatCents(fa.balance?.effective ?? 0)}
@@ -60,7 +61,7 @@ export default function BalancesPage({
           </div>
 
           <ShadowBoxOnMd>
-            <div className="flex flex-col gap-y-4 p-6">
+            <div className="flex flex-col gap-y-4">
               <h2 className="text-lg font-medium">Pending</h2>
               <div className="flex flex-col gap-4 md:flex-row md:gap-16">
                 <div>
@@ -85,7 +86,7 @@ export default function BalancesPage({
 
           {fa.aba_routing_number && (
             <ShadowBoxOnMd>
-              <div className="flex flex-col gap-y-4 p-6">
+              <div className="flex flex-col gap-y-4">
                 <h2 className="text-lg font-medium">Banking Details</h2>
                 <div className="flex flex-col gap-4 md:flex-row md:gap-16">
                   <div>
@@ -119,7 +120,7 @@ export default function BalancesPage({
         </>
       ) : (
         <ShadowBoxOnMd>
-          <div className="flex flex-col gap-y-2 p-6">
+          <div className="flex flex-col gap-y-2">
             <h2 className="text-lg font-medium">Financial Account</h2>
             <p className="dark:text-polar-500 text-sm text-gray-500">
               No financial account provisioned yet. Complete account setup to
@@ -131,15 +132,14 @@ export default function BalancesPage({
 
       <FundStateBreakdown organizationId={organization.id} />
 
-      {fa && (
+      {fa?.id && (
         <StripeConnectProvider organizationId={organization.id}>
           <ShadowBoxOnMd>
-            <div className="flex flex-col gap-y-4 p-6">
+            <div className="flex flex-col gap-y-4">
               <h2 className="text-lg font-medium">Transaction History</h2>
-              <p className="dark:text-polar-500 text-sm text-gray-500">
-                Powered by Stripe Connect. Requires active Treasury program
-                access.
-              </p>
+              <ConnectFinancialAccountTransactions
+                financialAccount={fa.id}
+              />
             </div>
           </ShadowBoxOnMd>
         </StripeConnectProvider>
