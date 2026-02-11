@@ -6,7 +6,7 @@ import { useParams } from 'next/navigation'
 
 export default function FinanceQuickActions() {
   const params = useParams<{ organization: string }>()
-  const base = `/dashboard/${params.organization}/finance/embedded`
+  const base = `/dashboard/${params.organization}/finance`
 
   return (
     <div className="flex flex-row flex-wrap gap-2">
@@ -15,12 +15,12 @@ export default function FinanceQuickActions() {
           Issue Card
         </Button>
       </Link>
-      <Link href={`${base}/pay`}>
+      <Link href={`${base}/payments`}>
         <Button variant="secondary" size="sm">
           Pay Vendor
         </Button>
       </Link>
-      <Link href={`${base}/pay`}>
+      <Link href={`${base}/payments`}>
         <Button variant="secondary" size="sm">
           Transfer to Bank
         </Button>

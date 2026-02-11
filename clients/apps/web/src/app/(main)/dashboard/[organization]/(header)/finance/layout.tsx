@@ -6,12 +6,11 @@ import { useParams, usePathname } from 'next/navigation'
 import { PropsWithChildren } from 'react'
 
 const financeTabs = [
-  { title: 'Overview', suffix: '/income' },
-  { title: 'Payouts', suffix: '/payouts' },
-  { title: 'Balances', suffix: '/embedded/balances' },
-  { title: 'Cards', suffix: '/embedded/cards' },
-  { title: 'Pay', suffix: '/embedded/pay' },
-  { title: 'Account', suffix: '/embedded/account' },
+  { title: 'Overview', suffix: '/overview' },
+  { title: 'Balances', suffix: '/balances' },
+  { title: 'Cards', suffix: '/cards' },
+  { title: 'Payments', suffix: '/payments' },
+  { title: 'Account', suffix: '/account' },
 ]
 
 export default function FinanceLayout({ children }: PropsWithChildren) {

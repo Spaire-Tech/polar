@@ -58,21 +58,25 @@ export default function FinanceBalanceBuckets({
       label: 'Clearing',
       amount: fund?.fund_summary?.pending_amount ?? 0,
       footnote: 'Funds being processed',
+      accent: 'border-t-2 border-t-amber-400',
     },
     {
       label: 'Available',
       amount: fa?.balance?.cash ?? 0,
       footnote: 'Ready to use or transfer',
+      accent: 'border-t-2 border-t-blue-500',
     },
     {
       label: 'Funds on Hold',
       amount: fund?.fund_summary?.reserve_amount ?? 0,
       footnote: 'Reserve held for risk coverage',
+      accent: 'border-t-2 border-t-orange-500',
     },
     {
       label: 'Spendable',
       amount: fund?.fund_summary?.spendable_amount ?? 0,
       footnote: 'Available for cards & payments',
+      accent: 'border-t-2 border-t-emerald-500',
     },
   ]
 
@@ -81,7 +85,7 @@ export default function FinanceBalanceBuckets({
       {buckets.map((bucket) => (
         <Well
           key={bucket.label}
-          className="flex-1 justify-between rounded-2xl bg-gray-50 p-6"
+          className={`flex-1 justify-between rounded-2xl bg-gray-50 p-6 ${bucket.accent}`}
         >
           <WellHeader>
             <h2 className="text-sm font-medium">{bucket.label}</h2>
