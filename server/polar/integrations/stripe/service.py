@@ -731,5 +731,168 @@ class StripeService:
     async def get_tax_rate(self, id: str) -> stripe_lib.TaxRate:
         return await stripe_lib.TaxRate.retrieve_async(id)
 
+    # ── Treasury Financial Accounts ──
+
+    async def create_financial_account(
+        self,
+        *,
+        stripe_account_id: str,
+        supported_currencies: list[str] | None = None,
+        features: dict[str, dict[str, bool]] | None = None,
+    ) -> stripe_lib.treasury.FinancialAccount:
+        """Create a Stripe Treasury Financial Account on a connected account.
+
+        This must be called on a Custom connected account with the
+        `treasury` capability enabled.
+        """
+        params: dict[str, object] = {
+            "supported_currencies": supported_currencies or ["usd"],
+        }
+        if features:
+            params["features"] = features
+        else:
+            # Default features: deposit insurance, ABA financial address,
+            # inbound/outbound transfers, and intra-Stripe flows.
+            params["features"] = {
+                "deposit_insurance": {"requested": True},
+                "financial_addresses": {"aba": {"requested": True}},
+                "inbound_transfers": {"ach": {"requested": True}},
+                "outbound_payments": {
+                    "ach": {"requested": True},
+                    "us_domestic_wire": {"requested": True},
+                },
+                "outbound_transfers": {
+                    "ach": {"requested": True},
+                    "us_domestic_wire": {"requested": True},
+                },
+                "intra_stripe_flows": {"requested": True},
+            }
+
+        log.info(
+            "stripe.treasury.financial_account.create",
+            stripe_account_id=stripe_account_id,
+        )
+        return await stripe_lib.treasury.FinancialAccount.create_async(
+            stripe_account=stripe_account_id,
+            **params,
+        )
+
+    async def retrieve_financial_account(
+        self,
+        financial_account_id: str,
+        *,
+        stripe_account_id: str,
+    ) -> stripe_lib.treasury.FinancialAccount:
+        """Retrieve a Stripe Treasury Financial Account."""
+        return await stripe_lib.treasury.FinancialAccount.retrieve_async(
+            financial_account_id,
+            stripe_account=stripe_account_id,
+        )
+
+    async def list_financial_account_transactions(
+        self,
+        financial_account_id: str,
+        *,
+        stripe_account_id: str,
+        limit: int = 20,
+        starting_after: str | None = None,
+    ) -> stripe_lib.ListObject[stripe_lib.treasury.Transaction]:
+        """List transactions on a Treasury Financial Account."""
+        params: dict[str, object] = {
+            "financial_account": financial_account_id,
+            "limit": limit,
+        }
+        if starting_after:
+            params["starting_after"] = starting_after
+        return await stripe_lib.treasury.Transaction.list_async(
+            stripe_account=stripe_account_id,
+            **params,
+        )
+
+    async def create_inbound_transfer(
+        self,
+        *,
+        stripe_account_id: str,
+        financial_account_id: str,
+        amount: int,
+        currency: str = "usd",
+        origin_payment_method: str,
+        description: str | None = None,
+    ) -> stripe_lib.treasury.InboundTransfer:
+        """Create an inbound transfer to fund a Financial Account."""
+        params: dict[str, object] = {
+            "financial_account": financial_account_id,
+            "amount": amount,
+            "currency": currency,
+            "origin_payment_method": origin_payment_method,
+        }
+        if description:
+            params["description"] = description
+
+        log.info(
+            "stripe.treasury.inbound_transfer.create",
+            stripe_account_id=stripe_account_id,
+            amount=amount,
+        )
+        return await stripe_lib.treasury.InboundTransfer.create_async(
+            stripe_account=stripe_account_id,
+            **params,
+        )
+
+    async def create_outbound_transfer(
+        self,
+        *,
+        stripe_account_id: str,
+        financial_account_id: str,
+        amount: int,
+        currency: str = "usd",
+        destination_payment_method: str,
+        description: str | None = None,
+    ) -> stripe_lib.treasury.OutboundTransfer:
+        """Create an outbound transfer from a Financial Account."""
+        params: dict[str, object] = {
+            "financial_account": financial_account_id,
+            "amount": amount,
+            "currency": currency,
+            "destination_payment_method": destination_payment_method,
+        }
+        if description:
+            params["description"] = description
+
+        log.info(
+            "stripe.treasury.outbound_transfer.create",
+            stripe_account_id=stripe_account_id,
+            amount=amount,
+        )
+        return await stripe_lib.treasury.OutboundTransfer.create_async(
+            stripe_account=stripe_account_id,
+            **params,
+        )
+
+    async def create_received_credit(
+        self,
+        *,
+        stripe_account_id: str,
+        financial_account_id: str,
+        amount: int,
+        currency: str = "usd",
+        network: str = "ach",
+        description: str | None = None,
+    ) -> stripe_lib.treasury.ReceivedCredit:
+        """Simulate a received credit (test mode only)."""
+        params: dict[str, object] = {
+            "financial_account": financial_account_id,
+            "amount": amount,
+            "currency": currency,
+            "network": network,
+        }
+        if description:
+            params["description"] = description
+
+        return await stripe_lib.treasury.ReceivedCredit.create_async(
+            stripe_account=stripe_account_id,
+            **params,
+        )
+
 
 stripe = StripeService()

@@ -26,6 +26,7 @@ from .event import Event, EventClosure
 from .event_type import EventType
 from .external_event import ExternalEvent
 from .file import File
+from .financial_account import FinancialAccount
 from .fund_state import FundPolicy, FundStateEntry, FundStateSnapshot
 from .held_balance import HeldBalance
 from .issue_reward import IssueReward
@@ -113,6 +114,7 @@ __all__ = [
     "EventType",
     "ExternalEvent",
     "File",
+    "FinancialAccount",
     "FundPolicy",
     "FundStateEntry",
     "FundStateSnapshot",
