@@ -21,6 +21,7 @@ from polar.event_type.endpoints import router as event_type_router
 from polar.eventstream.endpoints import router as stream_router
 from polar.file.endpoints import router as files_router
 from polar.fund_lifecycle.endpoints import router as fund_lifecycle_router
+from polar.issuing.endpoints import router as issuing_router
 from polar.integrations.apple.endpoints import router as apple_router
 from polar.integrations.chargeback_stop.endpoints import (
     router as chargeback_stop_router,
@@ -163,5 +164,7 @@ router.include_router(payout_router)
 router.include_router(wallet_router)
 # /treasury
 router.include_router(treasury_router)
+# /issuing
+router.include_router(issuing_router)
 # /integrations/chargeback-stop
 router.include_router(chargeback_stop_router)

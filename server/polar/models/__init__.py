@@ -28,6 +28,7 @@ from .external_event import ExternalEvent
 from .file import File
 from .financial_account import FinancialAccount
 from .fund_state import FundPolicy, FundStateEntry, FundStateSnapshot
+from .issuing import Cardholder, IssuedCard
 from .held_balance import HeldBalance
 from .issue_reward import IssueReward
 from .license_key import LicenseKey
@@ -92,6 +93,7 @@ __all__ = [
     "Benefit",
     "BenefitGrant",
     "BillingEntry",
+    "Cardholder",
     "Campaign",
     "Checkout",
     "CheckoutLink",
@@ -119,6 +121,7 @@ __all__ = [
     "FundStateEntry",
     "FundStateSnapshot",
     "HeldBalance",
+    "IssuedCard",
     "IssueReward",
     "LegacyRecurringProductPriceCustom",
     "LegacyRecurringProductPriceFixed",

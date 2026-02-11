@@ -894,5 +894,182 @@ class StripeService:
             **params,
         )
 
+    # ── Issuing Cardholders ──
+
+    async def create_cardholder(
+        self,
+        *,
+        stripe_account_id: str,
+        name: str,
+        email: str | None = None,
+        phone_number: str | None = None,
+        cardholder_type: str = "individual",
+        billing_address: dict[str, str],
+    ) -> stripe_lib.issuing.Cardholder:
+        """Create a Stripe Issuing Cardholder on a connected account."""
+        params: dict[str, object] = {
+            "name": name,
+            "type": cardholder_type,
+            "billing": {"address": billing_address},
+        }
+        if email:
+            params["email"] = email
+        if phone_number:
+            params["phone_number"] = phone_number
+
+        log.info(
+            "stripe.issuing.cardholder.create",
+            stripe_account_id=stripe_account_id,
+            name=name,
+        )
+        return await stripe_lib.issuing.Cardholder.create_async(
+            stripe_account=stripe_account_id,
+            **params,
+        )
+
+    async def retrieve_cardholder(
+        self,
+        cardholder_id: str,
+        *,
+        stripe_account_id: str,
+    ) -> stripe_lib.issuing.Cardholder:
+        return await stripe_lib.issuing.Cardholder.retrieve_async(
+            cardholder_id,
+            stripe_account=stripe_account_id,
+        )
+
+    async def update_cardholder(
+        self,
+        cardholder_id: str,
+        *,
+        stripe_account_id: str,
+        params: dict[str, object],
+    ) -> stripe_lib.issuing.Cardholder:
+        return await stripe_lib.issuing.Cardholder.modify_async(
+            cardholder_id,
+            stripe_account=stripe_account_id,
+            **params,
+        )
+
+    # ── Issuing Cards ──
+
+    async def create_issuing_card(
+        self,
+        *,
+        stripe_account_id: str,
+        cardholder_id: str,
+        currency: str = "usd",
+        card_type: str = "virtual",
+        status: str = "active",
+        financial_account: str | None = None,
+        spending_controls: dict[str, object] | None = None,
+    ) -> stripe_lib.issuing.Card:
+        """Create a Stripe Issuing Card."""
+        params: dict[str, object] = {
+            "cardholder": cardholder_id,
+            "currency": currency,
+            "type": card_type,
+            "status": status,
+        }
+        if financial_account:
+            params["financial_account"] = financial_account
+        if spending_controls:
+            params["spending_controls"] = spending_controls
+
+        log.info(
+            "stripe.issuing.card.create",
+            stripe_account_id=stripe_account_id,
+            cardholder_id=cardholder_id,
+            card_type=card_type,
+        )
+        return await stripe_lib.issuing.Card.create_async(
+            stripe_account=stripe_account_id,
+            **params,
+        )
+
+    async def retrieve_issuing_card(
+        self,
+        card_id: str,
+        *,
+        stripe_account_id: str,
+    ) -> stripe_lib.issuing.Card:
+        return await stripe_lib.issuing.Card.retrieve_async(
+            card_id,
+            stripe_account=stripe_account_id,
+        )
+
+    async def update_issuing_card(
+        self,
+        card_id: str,
+        *,
+        stripe_account_id: str,
+        params: dict[str, object],
+    ) -> stripe_lib.issuing.Card:
+        return await stripe_lib.issuing.Card.modify_async(
+            card_id,
+            stripe_account=stripe_account_id,
+            **params,
+        )
+
+    async def list_issuing_cards(
+        self,
+        *,
+        stripe_account_id: str,
+        cardholder: str | None = None,
+        status: str | None = None,
+        limit: int = 20,
+    ) -> stripe_lib.ListObject[stripe_lib.issuing.Card]:
+        params: dict[str, object] = {"limit": limit}
+        if cardholder:
+            params["cardholder"] = cardholder
+        if status:
+            params["status"] = status
+        return await stripe_lib.issuing.Card.list_async(
+            stripe_account=stripe_account_id,
+            **params,
+        )
+
+    # ── Issuing Authorizations ──
+
+    async def approve_authorization(
+        self,
+        authorization_id: str,
+        *,
+        stripe_account_id: str,
+        amount: int | None = None,
+    ) -> stripe_lib.issuing.Authorization:
+        """Approve an issuing authorization request."""
+        params: dict[str, object] = {}
+        if amount is not None:
+            params["amount"] = amount
+        return await stripe_lib.issuing.Authorization.approve_async(
+            authorization_id,
+            stripe_account=stripe_account_id,
+            **params,
+        )
+
+    async def decline_authorization(
+        self,
+        authorization_id: str,
+        *,
+        stripe_account_id: str,
+    ) -> stripe_lib.issuing.Authorization:
+        """Decline an issuing authorization request."""
+        return await stripe_lib.issuing.Authorization.decline_async(
+            authorization_id,
+            stripe_account=stripe_account_id,
+        )
+
+    async def retrieve_authorization(
+        self,
+        authorization_id: str,
+        *,
+        stripe_account_id: str,
+    ) -> stripe_lib.issuing.Authorization:
+        return await stripe_lib.issuing.Authorization.retrieve_async(
+            authorization_id,
+            stripe_account=stripe_account_id,
+        )
+
 
 stripe = StripeService()
