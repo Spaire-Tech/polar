@@ -47,10 +47,16 @@ const audienceTypes = [
 
 const referralSources = [
   { id: 'search', label: 'Search Engine' },
-  { id: 'social', label: 'Social Media' },
+  { id: 'twitter', label: 'Twitter / X' },
+  { id: 'linkedin', label: 'LinkedIn' },
+  { id: 'youtube', label: 'YouTube' },
   { id: 'friend', label: 'Friend or Colleague' },
   { id: 'blog', label: 'Blog or Article' },
+  { id: 'podcast', label: 'Podcast' },
   { id: 'github', label: 'GitHub' },
+  { id: 'producthunt', label: 'Product Hunt' },
+  { id: 'hackernews', label: 'Hacker News' },
+  { id: 'community', label: 'Online Community' },
   { id: 'other', label: 'Other' },
 ] as const
 
