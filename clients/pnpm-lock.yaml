@@ -368,7 +368,7 @@ importers:
         specifier: ^1.0.0
         version: 1.0.0
       '@stripe/connect-js':
-        specifier: ^3.3.33
+        specifier: ^3.3.0
         version: 3.3.33
       '@stripe/react-stripe-js':
         specifier: ^4.0.2
