@@ -9,7 +9,7 @@ from polar.account.service import AccountExternalIdDoesNotExist
 from polar.account.service import account as account_service
 from polar.enums import AccountType
 from polar.integrations.stripe.service import V2AccountInfo, extract_v2_account_info
-from polar.models import Account, Organization, User
+from polar.models import Account, User
 from polar.postgres import AsyncSession
 from tests.fixtures.database import SaveFixture
 
@@ -44,33 +44,21 @@ def _make_mock_v2_account(
             self.status_details: list[MockStatusDetail] = []
 
     class MockStripeBalance:
-        def __init__(
-            self, transfers_status: str, payouts_status: str
-        ) -> None:
+        def __init__(self, transfers_status: str, payouts_status: str) -> None:
             self.stripe_transfers = MockStripeTransfers(transfers_status)
             self.payouts = MockPayouts(payouts_status)
 
     class MockCapabilities:
-        def __init__(
-            self, transfers_status: str, payouts_status: str
-        ) -> None:
-            self.stripe_balance = MockStripeBalance(
-                transfers_status, payouts_status
-            )
+        def __init__(self, transfers_status: str, payouts_status: str) -> None:
+            self.stripe_balance = MockStripeBalance(transfers_status, payouts_status)
 
     class MockRecipient:
-        def __init__(
-            self, transfers_status: str, payouts_status: str
-        ) -> None:
+        def __init__(self, transfers_status: str, payouts_status: str) -> None:
             self.applied = True
-            self.capabilities = MockCapabilities(
-                transfers_status, payouts_status
-            )
+            self.capabilities = MockCapabilities(transfers_status, payouts_status)
 
     class MockConfiguration:
-        def __init__(
-            self, transfers_status: str, payouts_status: str
-        ) -> None:
+        def __init__(self, transfers_status: str, payouts_status: str) -> None:
             self.recipient = MockRecipient(transfers_status, payouts_status)
 
     class MockIdentity:
@@ -124,6 +112,8 @@ class TestExtractV2AccountInfo:
         assert info.is_payouts_enabled is False
         assert info.is_details_submitted is True  # recipient applied, no past due
         assert info.business_type == "individual"
+        assert info.data["issuing_onboarding_state"] == "onboarding_in_progress"
+        assert info.data["money_state"] == "pending"
 
     def test_extract_active_account(self) -> None:
         mock_account = _make_mock_v2_account(
@@ -135,6 +125,8 @@ class TestExtractV2AccountInfo:
         assert info.is_transfers_enabled is True
         assert info.is_payouts_enabled is True
         assert info.is_details_submitted is True
+        assert info.data["issuing_onboarding_state"] == "issuing_active"
+        assert info.data["money_state"] == "available"
 
     def test_extract_restricted_account(self) -> None:
         mock_account = _make_mock_v2_account(
@@ -145,6 +137,8 @@ class TestExtractV2AccountInfo:
 
         assert info.is_transfers_enabled is False
         assert info.is_payouts_enabled is False
+        assert info.data["issuing_onboarding_state"] == "onboarding_in_progress"
+        assert info.data["money_state"] == "pending"
 
     def test_extract_with_past_due_requirements(self) -> None:
         mock_account = _make_mock_v2_account(
@@ -155,6 +149,8 @@ class TestExtractV2AccountInfo:
         info = extract_v2_account_info(mock_account)  # type: ignore[arg-type]
 
         assert info.is_details_submitted is False
+        assert info.data["issuing_onboarding_state"] == "temporarily_restricted"
+        assert info.data["money_state"] == "available"
 
     def test_extract_without_recipient_config(self) -> None:
         mock_account = _make_mock_v2_account(
@@ -163,6 +159,8 @@ class TestExtractV2AccountInfo:
         info = extract_v2_account_info(mock_account)  # type: ignore[arg-type]
 
         assert info.is_details_submitted is False
+        assert info.data["issuing_onboarding_state"] == "onboarding_required"
+        assert info.data["money_state"] == "pending"
 
     def test_extract_none_fields(self) -> None:
         mock_account = _make_mock_v2_account(
@@ -205,9 +203,7 @@ async def _create_account(
 class TestV2AccountCreation:
     """Test account creation using the v2 API."""
 
-    async def test_create_account_returns_v2_info(
-        self, mocker: MockerFixture
-    ) -> None:
+    async def test_create_account_returns_v2_info(self, mocker: MockerFixture) -> None:
         from polar.integrations.stripe.service import StripeService
 
         service = StripeService()
@@ -249,7 +245,12 @@ class TestV2AccountCreation:
         params = call_kwargs.kwargs["params"]
         assert params["dashboard"] == "express"
         assert params["identity"]["country"] == "SE"
-        assert params["configuration"]["recipient"]["capabilities"]["stripe_balance"]["stripe_transfers"]["requested"] is True
+        assert (
+            params["configuration"]["recipient"]["capabilities"]["stripe_balance"][
+                "stripe_transfers"
+            ]["requested"]
+            is True
+        )
         assert params["display_name"] == "Test Org"
 
 
@@ -282,11 +283,15 @@ class TestV2AccountUpdate:
             "polar.integrations.stripe.service.StripeService.retrieve_v2_account",
             return_value=active_v2_info,
         )
+        enqueue_job = mocker.patch("polar.account.service.enqueue_job")
 
         updated = await account_service.update_account_from_stripe(
             session, stripe_account_id="acct_v2_test123"
         )
 
+        enqueue_job.assert_called_once_with(
+            "issuing.risk_clearance_account", account_id=account.id
+        )
         assert updated.email == "updated@example.com"
         assert updated.is_details_submitted is True
         assert updated.is_charges_enabled is True  # maps from transfers
@@ -339,11 +344,15 @@ class TestV2CapabilityStatusTransitions:
             "polar.integrations.stripe.service.StripeService.retrieve_v2_account",
             return_value=active_v2_info,
         )
+        enqueue_job = mocker.patch("polar.account.service.enqueue_job")
 
         updated = await account_service.update_account_from_stripe(
             session, stripe_account_id="acct_v2_test123"
         )
 
+        enqueue_job.assert_called_once_with(
+            "issuing.risk_clearance_account", account_id=account.id
+        )
         assert updated.is_charges_enabled is True
         assert updated.is_payouts_enabled is True
         assert updated.is_details_submitted is True
@@ -382,10 +391,14 @@ class TestV2CapabilityStatusTransitions:
             "polar.integrations.stripe.service.StripeService.retrieve_v2_account",
             return_value=restricted_v2_info,
         )
+        enqueue_job = mocker.patch("polar.account.service.enqueue_job")
 
         updated = await account_service.update_account_from_stripe(
             session, stripe_account_id="acct_v2_test123"
         )
 
+        enqueue_job.assert_called_once_with(
+            "issuing.risk_clearance_account", account_id=account.id
+        )
         assert updated.is_charges_enabled is False
         assert updated.is_payouts_enabled is False

@@ -71,6 +71,20 @@ class PaymentStepID(StrEnum):
     SETUP_ACCOUNT = "setup_account"
 
 
+class IssuingOnboardingState(StrEnum):
+    ONBOARDING_REQUIRED = "onboarding_required"
+    ONBOARDING_IN_PROGRESS = "onboarding_in_progress"
+    ISSUING_ACTIVE = "issuing_active"
+    TEMPORARILY_RESTRICTED = "temporarily_restricted"
+
+
+class MoneyState(StrEnum):
+    PENDING = "pending"
+    AVAILABLE = "available"
+    RESERVE = "reserve"
+    SPENDABLE = "spendable"
+
+
 class PaymentStep(BaseModel):
     """Service-level model for payment onboarding steps."""
 
@@ -90,6 +104,10 @@ class PaymentStatusResponse(BaseModel):
     organization_status: OrganizationStatus = Field(
         description="Current organization status"
     )
+    issuing_onboarding_state: IssuingOnboardingState = Field(
+        description="Current issuing onboarding state"
+    )
+    money_state: MoneyState = Field(description="Current internal funds state")
 
 
 class OrganizationDeletionCheckResult(BaseModel):
@@ -853,7 +871,48 @@ class OrganizationService:
             ),
             steps=steps,
             organization_status=organization.status,
+            issuing_onboarding_state=self._get_issuing_onboarding_state(organization),
+            money_state=self._get_money_state(organization),
         )
+
+    def _get_issuing_onboarding_state(
+        self, organization: Organization
+    ) -> IssuingOnboardingState:
+        account = organization.account
+        if account is None:
+            return IssuingOnboardingState.ONBOARDING_REQUIRED
+
+        state = account.data.get("issuing_onboarding_state")
+        if isinstance(state, str):
+            try:
+                return IssuingOnboardingState(state)
+            except ValueError:
+                pass
+
+        if account.status in {Account.Status.UNDER_REVIEW, Account.Status.DENIED}:
+            return IssuingOnboardingState.TEMPORARILY_RESTRICTED
+
+        if account.is_active() and account.is_payouts_enabled:
+            return IssuingOnboardingState.ISSUING_ACTIVE
+
+        if account.is_details_submitted:
+            return IssuingOnboardingState.ONBOARDING_IN_PROGRESS
+
+        return IssuingOnboardingState.ONBOARDING_REQUIRED
+
+    def _get_money_state(self, organization: Organization) -> MoneyState:
+        account = organization.account
+        if account is None:
+            return MoneyState.PENDING
+
+        state = account.data.get("money_state")
+        if isinstance(state, str):
+            try:
+                return MoneyState(state)
+            except ValueError:
+                pass
+
+        return MoneyState.PENDING
 
     def _is_account_setup_complete(self, organization: Organization) -> bool:
         """Check if the organization's account setup is complete."""

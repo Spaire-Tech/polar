@@ -531,6 +531,8 @@ class TestGetPaymentStatus:
             s for s in payment_status.steps if s.id == "setup_account"
         )
         assert setup_account_step.completed is False
+        assert payment_status.issuing_onboarding_state == "onboarding_required"
+        assert payment_status.money_state == "pending"
 
     async def test_with_product_created(
         self,
@@ -640,6 +642,8 @@ class TestGetPaymentStatus:
             s for s in payment_status.steps if s.id == "setup_account"
         )
         assert setup_account_step.completed is True
+        assert payment_status.issuing_onboarding_state == "onboarding_in_progress"
+        assert payment_status.money_state == "pending"
 
     async def test_all_steps_complete_grandfathered(
         self,

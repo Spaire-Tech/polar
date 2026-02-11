@@ -393,6 +393,8 @@ class TestGetPaymentStatus:
         assert "create_product" in step_ids
         assert "integrate_checkout" in step_ids
         assert "setup_account" in step_ids
+        assert json["issuing_onboarding_state"] == "onboarding_required"
+        assert json["money_state"] == "pending"
 
     @pytest.mark.auth
     async def test_valid_with_product(

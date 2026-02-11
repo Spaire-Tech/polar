@@ -63,7 +63,7 @@ const StepProgress = ({
   )
 
   return (
-    <div className="flex items-center">
+    <div className="flex flex-col gap-4 md:flex-row md:items-center">
       {steps.map((step, index) => {
         const isCompleted = step.status === 'completed'
         const isCurrent =
@@ -83,8 +83,7 @@ const StepProgress = ({
                 onClick={() => isClickable && onStepClick(step.id)}
                 className={twMerge(
                   'flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold transition-all duration-200',
-                  isCompleted &&
-                    'bg-blue-500 text-white',
+                  isCompleted && 'bg-blue-500 text-white',
                   isCurrent &&
                     !isFailed &&
                     'border-2 border-blue-500 bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400',
@@ -92,9 +91,9 @@ const StepProgress = ({
                     'border-2 border-red-400 bg-red-50 text-red-500 dark:bg-red-500/10 dark:text-red-400',
                   !isCompleted &&
                     !isCurrent &&
-                    'border-2 border-gray-200 text-gray-400 dark:border-polar-600 dark:text-polar-500',
+                    'dark:border-polar-600 dark:text-polar-500 border-2 border-gray-200 text-gray-400',
                   isClickable &&
-                    'cursor-pointer hover:bg-blue-600 hover:text-white hover:border-blue-600',
+                    'cursor-pointer hover:border-blue-600 hover:bg-blue-600 hover:text-white',
                 )}
               >
                 {isCompleted ? (
@@ -105,15 +104,13 @@ const StepProgress = ({
               </button>
               <span
                 className={twMerge(
-                  'text-[11px] font-medium tracking-wide uppercase whitespace-nowrap',
+                  'text-[11px] font-medium tracking-wide whitespace-nowrap uppercase',
                   isCompleted && 'text-blue-500 dark:text-blue-400',
-                  isCurrent &&
-                    !isFailed &&
-                    'text-blue-600 dark:text-blue-400',
+                  isCurrent && !isFailed && 'text-blue-600 dark:text-blue-400',
                   isFailed && 'text-red-500 dark:text-red-400',
                   !isCompleted &&
                     !isCurrent &&
-                    'text-gray-400 dark:text-polar-500',
+                    'dark:text-polar-500 text-gray-400',
                 )}
               >
                 {step.label}
@@ -124,10 +121,10 @@ const StepProgress = ({
             {index < steps.length - 1 && (
               <div
                 className={twMerge(
-                  'mb-6 h-[2px] flex-1 mx-2 rounded-full transition-colors duration-300',
+                  'h-[2px] w-full rounded-full transition-colors duration-300 md:mx-2 md:mb-6 md:h-[2px] md:flex-1',
                   index < currentIndex
                     ? 'bg-blue-500'
-                    : 'bg-gray-200 dark:bg-polar-700',
+                    : 'dark:bg-polar-700 bg-gray-200',
                 )}
               />
             )}
@@ -282,7 +279,7 @@ export default function StreamlinedAccountReview({
     },
     {
       id: 'account',
-      label: 'Payout',
+      label: 'Finance',
       status: getStepStatus(
         'account',
         isAccountCompleted,
@@ -292,19 +289,22 @@ export default function StreamlinedAccountReview({
     {
       id: 'identity',
       label: 'Identity',
-      status: getStepStatus('identity', isIdentityCompleted, isAccountCompleted),
+      status: getStepStatus(
+        'identity',
+        isIdentityCompleted,
+        isAccountCompleted,
+      ),
     },
   ]
 
-  const currentStepIndex =
-    steps.findIndex((s) => s.id === currentStep) + 1
+  const currentStepIndex = steps.findIndex((s) => s.id === currentStep) + 1
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col items-stretch gap-8 self-center">
       {/* Header */}
       <div className="space-y-1 text-center">
         <h1 className="text-2xl font-semibold tracking-tight dark:text-white">
-          Get started with spaire
+          Get started with Spaire finance
         </h1>
         <p className="dark:text-polar-400 text-sm text-gray-500">
           We handle payments, taxes, and compliance so you can focus on your

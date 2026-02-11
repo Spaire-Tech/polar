@@ -298,6 +298,8 @@ async def get_payment_status(
             for step in payment_status.steps
         ],
         organization_status=payment_status.organization_status,
+        issuing_onboarding_state=payment_status.issuing_onboarding_state,
+        money_state=payment_status.money_state,
     )
 
 

@@ -19,6 +19,7 @@ from polar.models import Account, Organization, User
 from polar.models.user import IdentityVerificationStatus
 from polar.postgres import AsyncReadSession, AsyncSession
 from polar.user.repository import UserRepository
+from polar.worker import enqueue_job
 
 from .schemas import (
     AccountCreateForOrganization,
@@ -389,6 +390,7 @@ class AccountService:
         from polar.organization.service import organization as organization_service
 
         await organization_service.update_status_from_stripe_account(session, account)
+        enqueue_job("issuing.risk_clearance_account", account_id=account.id)
 
         return account
 

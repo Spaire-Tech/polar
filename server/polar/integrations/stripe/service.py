@@ -1,6 +1,6 @@
 from collections.abc import AsyncGenerator, AsyncIterator
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal, Unpack, cast, overload
+from typing import TYPE_CHECKING, Literal, Unpack, overload
 
 import stripe as stripe_lib
 import structlog
@@ -125,6 +125,17 @@ def extract_v2_account_info(
     applied_configs = getattr(v2_account, "applied_configurations", None) or []
     is_details_submitted = "recipient" in applied_configs and not has_past_due
 
+    if has_past_due:
+        issuing_onboarding_state = "temporarily_restricted"
+    elif is_transfers_enabled and is_payouts_enabled:
+        issuing_onboarding_state = "issuing_active"
+    elif is_details_submitted:
+        issuing_onboarding_state = "onboarding_in_progress"
+    else:
+        issuing_onboarding_state = "onboarding_required"
+
+    money_state = "available" if is_transfers_enabled else "pending"
+
     return V2AccountInfo(
         id=v2_account.id,
         email=getattr(v2_account, "contact_email", None),
@@ -134,7 +145,10 @@ def extract_v2_account_info(
         is_transfers_enabled=is_transfers_enabled,
         is_payouts_enabled=is_payouts_enabled,
         business_type=entity_type,
-        data={},
+        data={
+            "issuing_onboarding_state": issuing_onboarding_state,
+            "money_state": money_state,
+        },
     )
 
 
@@ -143,7 +157,10 @@ class StripeService:
         return await stripe_lib.PaymentIntent.retrieve_async(id)
 
     async def create_account(
-        self, account: "AccountCreateForOrganization", name: str | None, email: str | None = None
+        self,
+        account: "AccountCreateForOrganization",
+        name: str | None,
+        email: str | None = None,
     ) -> V2AccountInfo:
         log.info(
             "stripe.v2.account.create",

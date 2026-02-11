@@ -3,7 +3,6 @@
 import { schemas } from '@polar-sh/client'
 import Button from '@polar-sh/ui/components/atoms/Button'
 import { ArrowRight, Building2, ShieldAlert } from 'lucide-react'
-import React from 'react'
 
 interface AccountStepProps {
   organizationAccount?: schemas['Account']
@@ -32,10 +31,10 @@ export default function AccountStep({
         </div>
         <div>
           <h3 className="font-medium dark:text-white">
-            Payout account connected
+            Finance account connected
           </h3>
           <p className="dark:text-polar-400 mt-1 text-sm text-gray-500">
-            Your account is configured and ready to receive payouts.
+            Your finance account is configured and ready to hold and move funds.
           </p>
         </div>
       </div>
@@ -51,7 +50,7 @@ export default function AccountStep({
         <div>
           <h3 className="font-medium dark:text-white">Admin required</h3>
           <p className="dark:text-polar-400 mx-auto mt-1 max-w-sm text-sm text-gray-500">
-            Only the account admin can connect a payout account. You can skip
+            Only the account admin can connect a finance account. You can skip
             this step and continue with identity verification.
           </p>
         </div>
@@ -72,7 +71,7 @@ export default function AccountStep({
       </div>
       <div>
         <h3 className="font-medium dark:text-white">
-          Connect your payout account
+          Connect your finance account
         </h3>
         <p className="dark:text-polar-400 mx-auto mt-1 max-w-sm text-sm text-gray-500">
           Connect your bank account so Spaire can send you your earnings.
@@ -80,7 +79,7 @@ export default function AccountStep({
         </p>
       </div>
       <Button onClick={onStartAccountSetup} className="mt-2">
-        Connect Account
+        Connect Finance Account
         <ArrowRight className="ml-2 h-4 w-4" />
       </Button>
     </div>

@@ -7,7 +7,7 @@ import { PropsWithChildren } from 'react'
 
 const balanceTabs = [
   { title: 'Overview', suffix: '/income' },
-  { title: 'Payouts', suffix: '/payouts' },
+  { title: 'Pay', suffix: '/payouts' },
   { title: 'Account', suffix: '/account' },
 ]
 
@@ -24,22 +24,24 @@ export default function BalanceLayout({ children }: PropsWithChildren) {
     <div className="flex h-full flex-col">
       <div className="px-4 pt-6 md:px-8">
         <Tabs value={activeTab.title}>
-          <TabsList className="flex flex-row bg-transparent ring-0 dark:bg-transparent dark:ring-0">
-            {balanceTabs.map((tab) => (
-              <Link
-                key={tab.suffix}
-                href={`${base}${tab.suffix}`}
-                prefetch={true}
-              >
-                <TabsTrigger
-                  className="flex flex-row items-center gap-x-2 px-4"
-                  value={tab.title}
+          <div className="overflow-x-auto pb-1">
+            <TabsList className="flex w-max min-w-full flex-row bg-transparent ring-0 dark:bg-transparent dark:ring-0">
+              {balanceTabs.map((tab) => (
+                <Link
+                  key={tab.suffix}
+                  href={`${base}${tab.suffix}`}
+                  prefetch={true}
                 >
-                  {tab.title}
-                </TabsTrigger>
-              </Link>
-            ))}
-          </TabsList>
+                  <TabsTrigger
+                    className="flex flex-row items-center gap-x-2 px-3 md:px-4"
+                    value={tab.title}
+                  >
+                    {tab.title}
+                  </TabsTrigger>
+                </Link>
+              ))}
+            </TabsList>
+          </div>
         </Tabs>
       </div>
       {children}

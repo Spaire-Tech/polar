@@ -298,9 +298,9 @@ export default function ClientPage({
           <ShadowBoxOnMd>
             <div className="flex flex-row items-center justify-between">
               <div className="flex flex-col gap-y-2">
-                <h2 className="text-lg font-medium">All payout accounts</h2>
+                <h2 className="text-lg font-medium">All finance accounts</h2>
                 <p className="dark:text-polar-500 text-sm text-gray-500">
-                  Payout accounts you manage
+                  Finance accounts you manage
                 </p>
               </div>
             </div>
@@ -315,9 +315,9 @@ export default function ClientPage({
         ) : null}
 
         <Modal
-          title="Create Payout Account"
+          title="Create Finance Account"
           isShown={isShownSetupModal}
-          className="min-w-[400px]"
+          className="w-full max-w-md"
           hide={hideSetupModal}
           modalContent={
             <AccountCreateModal

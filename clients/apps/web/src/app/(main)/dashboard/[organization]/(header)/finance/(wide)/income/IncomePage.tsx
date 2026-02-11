@@ -1,6 +1,7 @@
 'use client'
 
 import AccessRestricted from '@/components/Finance/AccessRestricted'
+import FundStateSummary from '@/components/Finance/FundStateSummary'
 import AccountBalance from '@/components/Payouts/AccountBalance'
 import AccountBanner from '@/components/Transactions/AccountBanner'
 import TransactionsList from '@/components/Transactions/TransactionsList'
@@ -86,6 +87,7 @@ export default function ClientPage({
   return (
     <div className="flex flex-col gap-y-8">
       <AccountBanner organization={organization} />
+      <FundStateSummary organization={organization} />
       {account && (
         <AccountBalance
           account={account}

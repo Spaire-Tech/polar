@@ -393,6 +393,20 @@ class OrganizationPaymentStep(Schema):
     completed: bool = Field(description="Whether the step is completed")
 
 
+class IssuingOnboardingState(StrEnum):
+    ONBOARDING_REQUIRED = "onboarding_required"
+    ONBOARDING_IN_PROGRESS = "onboarding_in_progress"
+    ISSUING_ACTIVE = "issuing_active"
+    TEMPORARILY_RESTRICTED = "temporarily_restricted"
+
+
+class MoneyState(StrEnum):
+    PENDING = "pending"
+    AVAILABLE = "available"
+    RESERVE = "reserve"
+    SPENDABLE = "spendable"
+
+
 class OrganizationPaymentStatus(Schema):
     payment_ready: bool = Field(
         description="Whether the organization is ready to accept payments"
@@ -401,6 +415,10 @@ class OrganizationPaymentStatus(Schema):
     organization_status: OrganizationStatus = Field(
         description="Current organization status"
     )
+    issuing_onboarding_state: IssuingOnboardingState = Field(
+        description="Current issuing onboarding state"
+    )
+    money_state: MoneyState = Field(description="Current internal funds state")
 
 
 class OrganizationAppealRequest(Schema):

@@ -217,6 +217,9 @@ class Settings(BaseSettings):
     # Stripe
     STRIPE_SECRET_KEY: str = ""
     STRIPE_PUBLISHABLE_KEY: str = ""
+    ISSUING_INSTANT_SPEND_ENABLED: bool = False
+    ISSUING_PENDING_WINDOW_DAYS: int = 7
+    ISSUING_RESERVE_FLOOR_BASIS_POINTS: int = 1000
     # Stripe webhook secrets
     STRIPE_WEBHOOK_SECRET: str = ""
     STRIPE_CONNECT_WEBHOOK_SECRET: str = ""
@@ -313,7 +316,9 @@ class Settings(BaseSettings):
         state="US-CA",
         country=CountryAlpha2("US"),
     )
-    INVOICES_ADDITIONAL_INFO: str | None = "[support@spairehq.com](mailto:support@spairehq.com)"
+    INVOICES_ADDITIONAL_INFO: str | None = (
+        "[support@spairehq.com](mailto:support@spairehq.com)"
+    )
     PAYOUT_INVOICES_PREFIX: str = "SPAIRE-"
 
     # Application behaviours

@@ -133,6 +133,16 @@ If you want to work with payments and subscriptions, you'll need to set up a Str
         STRIPE_WEBHOOK_SECRET=whsec_...
         ```
 
+5. **(Connect + Issuing) Create additional webhook endpoints**:
+    - Create an endpoint for connected-account events:
+        - URL: `https://your-domain.ngrok-free.app/v1/integrations/stripe/webhook-connect`
+        - Enabled events: `account.updated`, `payout.updated`, `payout.paid`
+        - Copy signing secret to `STRIPE_CONNECT_WEBHOOK_SECRET`
+    - Create an endpoint for Stripe v2 recipient capability events:
+        - URL: `https://your-domain.ngrok-free.app/v1/integrations/stripe/webhook-v2`
+        - Enabled events: `v2.core.account[configuration.recipient].capability_status_updated`
+        - Copy signing secret to `STRIPE_V2_WEBHOOK_SECRET`
+
 ### Setup backend
 
 > [!TIP]
