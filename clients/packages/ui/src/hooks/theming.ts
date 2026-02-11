@@ -38,7 +38,7 @@ export const useThemePreset = (
         },
         '.PickerItem--selected': {
           backgroundColor: theme === 'dark' ? 'rgb(23 23 25)' : 'white',
-          borderColor: '#004664',
+          borderColor: '#286f61',
           borderWidth: '2px',
         },
         '.PickerItem--selected:hover': {
