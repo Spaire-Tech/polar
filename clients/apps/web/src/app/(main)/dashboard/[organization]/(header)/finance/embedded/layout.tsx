@@ -1,15 +1,43 @@
 'use client'
 
 import { Tabs, TabsList, TabsTrigger } from '@polar-sh/ui/components/atoms/Tabs'
+import {
+  CreditCard,
+  LayoutDashboard,
+  Landmark,
+  Banknote,
+  Settings,
+} from 'lucide-react'
 import Link from 'next/link'
 import { useParams, usePathname } from 'next/navigation'
 import { PropsWithChildren } from 'react'
 
 const embeddedTabs = [
-  { title: 'Overview', suffix: '/overview' },
-  { title: 'Accounts', suffix: '/accounts' },
-  { title: 'Cards', suffix: '/cards' },
-  { title: 'Payments', suffix: '/payments' },
+  {
+    title: 'Overview',
+    suffix: '/overview',
+    icon: <LayoutDashboard className="h-4 w-4" />,
+  },
+  {
+    title: 'Balances',
+    suffix: '/balances',
+    icon: <Landmark className="h-4 w-4" />,
+  },
+  {
+    title: 'Cards',
+    suffix: '/cards',
+    icon: <CreditCard className="h-4 w-4" />,
+  },
+  {
+    title: 'Pay',
+    suffix: '/pay',
+    icon: <Banknote className="h-4 w-4" />,
+  },
+  {
+    title: 'Account',
+    suffix: '/account',
+    icon: <Settings className="h-4 w-4" />,
+  },
 ]
 
 export default function EmbeddedFinanceLayout({
@@ -38,6 +66,7 @@ export default function EmbeddedFinanceLayout({
                   className="flex flex-row items-center gap-x-2 px-4"
                   value={tab.title}
                 >
+                  {tab.icon}
                   {tab.title}
                 </TabsTrigger>
               </Link>

@@ -261,6 +261,28 @@ const organizationRoutesList = (org?: schemas['Organization']): Route[] => [
         `/dashboard/${org?.slug}/finance/embedded`,
       )
     },
+    subs: [
+      {
+        title: 'Overview',
+        link: `/dashboard/${org?.slug}/finance/embedded/overview`,
+      },
+      {
+        title: 'Balances',
+        link: `/dashboard/${org?.slug}/finance/embedded/balances`,
+      },
+      {
+        title: 'Cards',
+        link: `/dashboard/${org?.slug}/finance/embedded/cards`,
+      },
+      {
+        title: 'Pay',
+        link: `/dashboard/${org?.slug}/finance/embedded/pay`,
+      },
+      {
+        title: 'Account',
+        link: `/dashboard/${org?.slug}/finance/embedded/account`,
+      },
+    ],
     if: true,
   },
   {
