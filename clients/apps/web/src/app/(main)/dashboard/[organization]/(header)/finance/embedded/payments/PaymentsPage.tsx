@@ -173,7 +173,7 @@ export default function PaymentsPage({
                   Renders Financial Account transaction list filtered to
                   outbound payments and transfers.
 
-                  import { ConnectFinancialAccountTransactions } from '@stripe/connect-js/react'
+                  import { ConnectFinancialAccountTransactions } from '@stripe/react-connect-js'
                   <ConnectFinancialAccountTransactions financialAccount={faId} />
                 */}
                 <div className="dark:border-polar-700 dark:bg-polar-900 flex min-h-[300px] items-center justify-center rounded-lg border border-dashed border-gray-300 bg-gray-50">

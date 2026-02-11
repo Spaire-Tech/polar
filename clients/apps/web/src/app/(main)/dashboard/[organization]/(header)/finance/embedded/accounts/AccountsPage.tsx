@@ -35,10 +35,10 @@ export default function AccountsPage({
                   Stripe Connect embedded component: <ConnectFinancialAccount />
                   Shows balance, ABA routing info, external account management.
 
-                  Note: The actual embedded component requires @stripe/connect-js
-                  react bindings. Import and render:
+                  Note: The actual embedded component requires @stripe/react-connect-js
+                  bindings. Import and render:
 
-                  import { ConnectFinancialAccount } from '@stripe/connect-js/react'
+                  import { ConnectFinancialAccount } from '@stripe/react-connect-js'
                   <ConnectFinancialAccount financialAccount={faId} />
                 */}
                 <div className="dark:border-polar-700 dark:bg-polar-900 flex min-h-[200px] items-center justify-center rounded-lg border border-dashed border-gray-300 bg-gray-50">
@@ -60,7 +60,7 @@ export default function AccountsPage({
                   Stripe Connect embedded component: <ConnectFinancialAccountTransactions />
                   Shows detailed transaction history for the Financial Account.
 
-                  import { ConnectFinancialAccountTransactions } from '@stripe/connect-js/react'
+                  import { ConnectFinancialAccountTransactions } from '@stripe/react-connect-js'
                   <ConnectFinancialAccountTransactions financialAccount={faId} />
                 */}
                 <div className="dark:border-polar-700 dark:bg-polar-900 flex min-h-[300px] items-center justify-center rounded-lg border border-dashed border-gray-300 bg-gray-50">

@@ -5,7 +5,7 @@ import { unwrap } from '@polar-sh/client'
 import {
   ConnectComponentsProvider,
   ConnectNotificationBanner,
-} from '@stripe/connect-js/react'
+} from '@stripe/react-connect-js'
 import { loadConnectAndInitialize } from '@stripe/connect-js'
 import React, { useMemo } from 'react'
 

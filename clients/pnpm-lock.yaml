@@ -370,6 +370,9 @@ importers:
       '@stripe/connect-js':
         specifier: ^3.3.0
         version: 3.3.33
+      '@stripe/react-connect-js':
+        specifier: ^3.3.33
+        version: 3.3.33(@stripe/connect-js@3.3.33)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@stripe/react-stripe-js':
         specifier: ^4.0.2
         version: 4.0.2(@stripe/stripe-js@7.9.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -4382,6 +4385,13 @@ packages:
 
   '@stripe/connect-js@3.3.33':
     resolution: {integrity: sha512-zI+efV1RFYw/wKHW5uaKzXnmK7j3AYaMRL4S7Tb48BegB/ouRArkxwONxbO8t46+D9NDF7BJ0GarJQwvMVjXCg==}
+
+  '@stripe/react-connect-js@3.3.33':
+    resolution: {integrity: sha512-va0ahsZCCBS18F6ro/l+i/BYIFeIm0iQQCYsGO47m0MWcl469a5vaDgLvS0q8woxt9V8DDBu6HfCXognyRq4uA==}
+    peerDependencies:
+      '@stripe/connect-js': '>=3.3.29'
+      react: '>=16.8.0'
+      react-dom: '>=16.8.0'
 
   '@stripe/react-stripe-js@4.0.2':
     resolution: {integrity: sha512-l2wau+8/LOlHl+Sz8wQ1oDuLJvyw51nQCsu6/ljT6smqzTszcMHifjAJoXlnMfcou3+jK/kQyVe04u/ufyTXgg==}
@@ -16056,6 +16066,12 @@ snapshots:
   '@standard-schema/utils@0.3.0': {}
 
   '@stripe/connect-js@3.3.33': {}
+
+  '@stripe/react-connect-js@3.3.33(@stripe/connect-js@3.3.33)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
+    dependencies:
+      '@stripe/connect-js': 3.3.33
+      react: 19.2.4
+      react-dom: 19.2.4(react@19.2.4)
 
   '@stripe/react-stripe-js@4.0.2(@stripe/stripe-js@7.9.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
     dependencies:

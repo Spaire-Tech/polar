@@ -33,11 +33,11 @@ export default function CardsPage({
                 Stripe Connect embedded component: <ConnectIssuingCardsList />
                 Shows list of all issued cards with management capabilities.
 
-                import { ConnectIssuingCardsList } from '@stripe/connect-js/react'
+                import { ConnectIssuingCardsList } from '@stripe/react-connect-js'
                 <ConnectIssuingCardsList />
 
                 For individual card view:
-                import { ConnectIssuingCard } from '@stripe/connect-js/react'
+                import { ConnectIssuingCard } from '@stripe/react-connect-js'
                 <ConnectIssuingCard card={cardId} />
               */}
               <div className="dark:border-polar-700 dark:bg-polar-900 flex min-h-[400px] items-center justify-center rounded-lg border border-dashed border-gray-300 bg-gray-50">
