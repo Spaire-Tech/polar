@@ -10,6 +10,7 @@ import { useContext, useEffect, useMemo, useState } from 'react'
 import slugify from 'slugify'
 import { twMerge } from 'tailwind-merge'
 import LogoIcon from '../Brand/LogoIcon'
+import { OnboardingStepper } from './OnboardingStepper'
 import BetterAuthIcon from '../Icons/frameworks/better-auth'
 import NextJsIcon from '../Icons/frameworks/nextjs'
 import NodeJsIcon from '../Icons/frameworks/nodejs'
@@ -196,20 +197,26 @@ export const IntegrateStep = ({ products }: IntegrateStepProps) => {
   const isPython = currentFramework?.slug === 'python'
 
   return (
-    <div className="flex h-full flex-col md:flex-row">
-      <div className="dark:bg-polar-900 flex h-full min-h-0 w-full flex-col gap-8 overflow-y-auto p-12 md:max-w-lg">
-        <div className="flex flex-col gap-y-12">
-          <LogoIcon size={50} />
-          <div className="flex flex-col gap-y-4">
-            <h1 className="text-3xl">Integrate Checkout</h1>
-            <p className="dark:text-polar-400 text-lg text-gray-600">
-              Integrate checkouts with your favorite framework.
-            </p>
+    <div className="flex h-full flex-row">
+      {/* Stepper Sidebar - desktop only */}
+      <OnboardingStepper currentStep={2} />
+
+      {/* Left panel: framework selection & actions */}
+      <div className="dark:bg-polar-900 flex h-full min-h-0 w-full flex-col gap-8 overflow-y-auto p-12 md:max-w-md">
+        <div className="flex flex-col gap-y-4">
+          <div className="md:hidden mb-4">
+            <LogoIcon size={40} />
           </div>
+          <h1 className="text-2xl font-medium md:text-3xl">
+            Connect your app
+          </h1>
+          <p className="dark:text-polar-400 text-gray-500">
+            Pick your stack and add a checkout in minutes.
+          </p>
         </div>
 
         <div className="hidden flex-col gap-y-8 md:flex">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             {parsedFrameworks.map((framework) => (
               <FrameworkCard
                 key={framework.slug}
@@ -219,23 +226,25 @@ export const IntegrateStep = ({ products }: IntegrateStepProps) => {
               />
             ))}
           </div>
-          <div className="flex flex-col gap-y-4">
+          <div className="flex flex-col gap-y-3">
             <Link
-              href={`https://polar.sh/docs/integrate/sdk/adapters/nextjs`}
+              href={`https://docs.spairehq.com/integrate/sdk/adapters/nextjs`}
               target="_blank"
               className="w-full"
             >
               <Button size="lg" fullWidth variant="secondary">
-                <span>Explore All Adapters</span>
+                <span>Browse All Integrations</span>
                 <ArrowOutwardOutlined className="ml-2" fontSize="small" />
               </Button>
             </Link>
             <Button size="lg" fullWidth onClick={handleGoToDashboard}>
-              Go to Dashboard
+              Launch Dashboard
             </Button>
           </div>
         </div>
       </div>
+
+      {/* Right panel: code preview */}
       <SyntaxHighlighterProvider>
         <div className="dark:bg-polar-950 hidden flex-1 grow flex-col items-center gap-12 overflow-y-auto bg-gray-100 p-16 md:flex">
           <div className="dark:bg-polar-900 flex w-full max-w-3xl flex-col gap-y-12 rounded-3xl bg-white p-12">
@@ -269,7 +278,7 @@ export const IntegrateStep = ({ products }: IntegrateStepProps) => {
             </div>
 
             <div className="flex flex-col gap-y-6">
-              <h2 className="text-lg">2. Add Environment Variables</h2>
+              <h2 className="text-lg">2. Configure Environment</h2>
               <OrganizationAccessTokensSettings
                 organization={organization}
                 singleTokenMode
@@ -286,7 +295,7 @@ SPAIRE_SUCCESS_URL=https://example.com/success?checkout_id={CHECKOUT_ID}`}
             </div>
 
             <div className="flex flex-col gap-y-6">
-              <h2 className="text-lg">3. Integrate the Checkout</h2>
+              <h2 className="text-lg">3. Add Checkout Code</h2>
               <CodeWrapper>
                 <SyntaxHighlighterClient
                   lang={
@@ -299,7 +308,7 @@ SPAIRE_SUCCESS_URL=https://example.com/success?checkout_id={CHECKOUT_ID}`}
               </CodeWrapper>
               <Link href={currentFramework?.link ?? ''} target="_blank">
                 <Button size="lg" variant="secondary" fullWidth>
-                  <span>View Documentation</span>
+                  <span>Read the Docs</span>
                   <ArrowOutwardOutlined className="ml-2" fontSize="small" />
                 </Button>
               </Link>
