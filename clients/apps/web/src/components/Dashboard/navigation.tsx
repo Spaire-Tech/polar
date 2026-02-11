@@ -1,5 +1,4 @@
 import { PolarHog, usePostHog } from '@/hooks/posthog'
-import AccountBalanceOutlined from '@mui/icons-material/AccountBalanceOutlined'
 import AttachMoneyOutlined from '@mui/icons-material/AttachMoneyOutlined'
 import CodeOutlined from '@mui/icons-material/CodeOutlined'
 import HiveOutlined from '@mui/icons-material/HiveOutlined'
@@ -240,49 +239,12 @@ const accountRoutesList = (): Route[] => [
 const organizationRoutesList = (org?: schemas['Organization']): Route[] => [
   {
     id: 'finance',
-    title: 'Balance',
+    title: 'Finance',
     link: `/dashboard/${org?.slug}/finance/income`,
     icon: <AttachMoneyOutlined fontSize="inherit" />,
     checkIsActive: (currentRoute: string): boolean => {
-      return (
-        currentRoute.startsWith(`/dashboard/${org?.slug}/finance`) &&
-        !currentRoute.startsWith(`/dashboard/${org?.slug}/finance/embedded`)
-      )
+      return currentRoute.startsWith(`/dashboard/${org?.slug}/finance`)
     },
-    if: true,
-  },
-  {
-    id: 'embedded-finance',
-    title: 'Finance',
-    link: `/dashboard/${org?.slug}/finance/embedded/overview`,
-    icon: <AccountBalanceOutlined fontSize="inherit" />,
-    checkIsActive: (currentRoute: string): boolean => {
-      return currentRoute.startsWith(
-        `/dashboard/${org?.slug}/finance/embedded`,
-      )
-    },
-    subs: [
-      {
-        title: 'Overview',
-        link: `/dashboard/${org?.slug}/finance/embedded/overview`,
-      },
-      {
-        title: 'Balances',
-        link: `/dashboard/${org?.slug}/finance/embedded/balances`,
-      },
-      {
-        title: 'Cards',
-        link: `/dashboard/${org?.slug}/finance/embedded/cards`,
-      },
-      {
-        title: 'Pay',
-        link: `/dashboard/${org?.slug}/finance/embedded/pay`,
-      },
-      {
-        title: 'Account',
-        link: `/dashboard/${org?.slug}/finance/embedded/account`,
-      },
-    ],
     if: true,
   },
   {

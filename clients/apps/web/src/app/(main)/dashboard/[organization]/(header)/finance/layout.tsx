@@ -5,27 +5,30 @@ import Link from 'next/link'
 import { useParams, usePathname } from 'next/navigation'
 import { PropsWithChildren } from 'react'
 
-const balanceTabs = [
+const financeTabs = [
   { title: 'Overview', suffix: '/income' },
   { title: 'Payouts', suffix: '/payouts' },
+  { title: 'Balances', suffix: '/embedded/balances' },
+  { title: 'Cards', suffix: '/embedded/cards' },
+  { title: 'Pay', suffix: '/embedded/pay' },
   { title: 'Account', suffix: '/account' },
 ]
 
-export default function BalanceLayout({ children }: PropsWithChildren) {
+export default function FinanceLayout({ children }: PropsWithChildren) {
   const params = useParams<{ organization: string }>()
   const pathname = usePathname()
   const base = `/dashboard/${params.organization}/finance`
 
   const activeTab =
-    balanceTabs.find((t) => pathname.startsWith(`${base}${t.suffix}`)) ??
-    balanceTabs[0]
+    financeTabs.find((t) => pathname.startsWith(`${base}${t.suffix}`)) ??
+    financeTabs[0]
 
   return (
     <div className="flex h-full flex-col">
       <div className="px-4 pt-6 md:px-8">
         <Tabs value={activeTab.title}>
           <TabsList className="flex flex-row bg-transparent ring-0 dark:bg-transparent dark:ring-0">
-            {balanceTabs.map((tab) => (
+            {financeTabs.map((tab) => (
               <Link
                 key={tab.suffix}
                 href={`${base}${tab.suffix}`}
