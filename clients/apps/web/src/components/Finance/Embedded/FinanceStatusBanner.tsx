@@ -21,7 +21,6 @@ interface FinanceStatusBannerProps {
 type OnboardingState =
   | 'onboarding_required'
   | 'onboarding_in_progress'
-  | 'issuing_active'
   | 'temporarily_restricted'
   | 'active'
 
@@ -51,13 +50,6 @@ const stateConfig: Record<
       'Your account setup is being reviewed. This usually takes 1-2 business days.',
     icon: <Loader2 className="h-5 w-5 animate-spin" />,
     variant: 'info',
-    showCta: false,
-  },
-  issuing_active: {
-    label: 'Active',
-    description: 'Your financial account is active. Cards and payments are enabled.',
-    icon: <CheckCircle2 className="h-5 w-5" />,
-    variant: 'success',
     showCta: false,
   },
   temporarily_restricted: {
@@ -157,7 +149,7 @@ export default function FinanceStatusBanner({
   const config = stateConfig[state]
 
   // Don't show banner for fully active accounts
-  if (state === 'active' || state === 'issuing_active') {
+  if (state === 'active') {
     return null
   }
 
