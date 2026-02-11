@@ -156,7 +156,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
   {
     id: 'home',
     title: 'Overview',
-    icon: <OverviewFeatureIcon className="h-5 w-5" />,
+    icon: <OverviewFeatureIcon className="h-4 w-4" />,
     link: `/dashboard/${org?.slug}`,
     checkIsActive: (currentRoute: string) =>
       currentRoute === `/dashboard/${org?.slug}`,
@@ -165,7 +165,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
   {
     id: 'catalog',
     title: 'Catalog',
-    icon: <CatalogFeatureIcon className="h-5 w-5" />,
+    icon: <CatalogFeatureIcon className="h-4 w-4" />,
     link: `/dashboard/${org?.slug}/products`,
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/products`)
@@ -175,7 +175,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
   {
     id: 'customers',
     title: 'Customers',
-    icon: <CustomersFeatureIcon className="h-5 w-5" />,
+    icon: <CustomersFeatureIcon className="h-4 w-4" />,
     link: `/dashboard/${org?.slug}/customers`,
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/customers`)
@@ -185,7 +185,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
   {
     id: 'analytics',
     title: 'Analytics',
-    icon: <AnalyticsFeatureIcon className="h-5 w-5" />,
+    icon: <AnalyticsFeatureIcon className="h-4 w-4" />,
     link: `/dashboard/${org?.slug}/analytics`,
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/analytics`)
@@ -195,7 +195,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
   {
     id: 'revenue',
     title: 'Revenue',
-    icon: <RevenueFeatureIcon className="h-5 w-5" />,
+    icon: <RevenueFeatureIcon className="h-4 w-4" />,
     link: `/dashboard/${org?.slug}/sales`,
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/sales`)
@@ -205,7 +205,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
   {
     id: 'startup-stack',
     title: 'Startup Stack',
-    icon: <StartupStackFeatureIcon className="h-5 w-5" />,
+    icon: <StartupStackFeatureIcon className="h-4 w-4" />,
     link: `/dashboard/${org?.slug}/startup-stack`,
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/startup-stack`)
