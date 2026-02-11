@@ -438,7 +438,7 @@ export const OrganizationStep = ({
                                 </li>
                                 <li>
                                   <a
-                                    href="https://polar.sh/legal/terms"
+                                    href="https://www.spairehq.com/legal/terms-of-service"
                                     className="text-blue-600 hover:underline dark:text-blue-400"
                                     target="_blank"
                                     rel="noreferrer"
@@ -448,7 +448,7 @@ export const OrganizationStep = ({
                                 </li>
                                 <li>
                                   <a
-                                    href="https://polar.sh/legal/privacy"
+                                    href="https://www.spairehq.com/legal/privacy-policy"
                                     className="text-blue-600 hover:underline dark:text-blue-400"
                                     target="_blank"
                                     rel="noreferrer"
