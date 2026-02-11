@@ -82,6 +82,44 @@ class V2AccountInfo:
     data: dict[str, object]
 
 
+@dataclass
+class CustomAccountInfo:
+    """Normalized info from a Stripe v1 Custom account for embedded finance."""
+
+    id: str
+    email: str | None
+    country: str | None
+    currency: str | None
+    is_details_submitted: bool
+    is_transfers_enabled: bool
+    is_payouts_enabled: bool
+    is_treasury_enabled: bool
+    is_issuing_enabled: bool
+    business_type: str | None
+    data: dict[str, object]
+
+
+def extract_custom_account_info(
+    account: stripe_lib.Account,
+) -> CustomAccountInfo:
+    """Extract normalized info from a v1 Custom Account."""
+    capabilities = account.capabilities or {}
+
+    return CustomAccountInfo(
+        id=account.id,
+        email=account.email,
+        country=account.country,
+        currency=account.default_currency,
+        is_details_submitted=account.details_submitted or False,
+        is_transfers_enabled=capabilities.get("transfers") == "active",
+        is_payouts_enabled=capabilities.get("card_payments") == "active",
+        is_treasury_enabled=capabilities.get("treasury") == "active",
+        is_issuing_enabled=capabilities.get("card_issuing") == "active",
+        business_type=account.business_type,
+        data={},
+    )
+
+
 def extract_v2_account_info(
     v2_account: "stripe_lib.v2.core.Account",
 ) -> V2AccountInfo:
@@ -188,6 +226,80 @@ class StripeService:
             params=create_params
         )
         return extract_v2_account_info(v2_account)
+
+    async def create_custom_account(
+        self,
+        country: str,
+        *,
+        email: str | None = None,
+        business_type: str | None = None,
+    ) -> CustomAccountInfo:
+        """Create a Stripe Custom connected account for embedded finance.
+
+        Custom accounts support Treasury and Issuing capabilities required
+        for the embedded finance layer.
+        """
+        log.info(
+            "stripe.v1.account.create_custom",
+            country=country,
+            business_type=business_type,
+        )
+        create_params: dict[str, object] = {
+            "type": "custom",
+            "country": country,
+            "capabilities": {
+                "card_payments": {"requested": True},
+                "transfers": {"requested": True},
+                "treasury": {"requested": True},
+                "card_issuing": {"requested": True},
+                "us_bank_account_ach_payments": {"requested": True},
+            },
+            "controller": {
+                "stripe_dashboard": {"type": "none"},
+                "fees": {"payer": "application"},
+                "losses": {"payments": "application"},
+                "requirement_collection": "application",
+            },
+        }
+        if email:
+            create_params["email"] = email
+        if business_type:
+            create_params["business_type"] = business_type
+
+        v1_account = await stripe_lib.Account.create_async(**create_params)
+        return extract_custom_account_info(v1_account)
+
+    async def retrieve_custom_account(self, id: str) -> CustomAccountInfo:
+        """Retrieve a Stripe Custom account using the v1 API."""
+        v1_account = await stripe_lib.Account.retrieve_async(id)
+        return extract_custom_account_info(v1_account)
+
+    async def create_custom_account_link(
+        self, stripe_id: str, return_path: str
+    ) -> stripe_lib.AccountLink:
+        """Create an account link for Custom account onboarding."""
+        refresh_url = settings.generate_external_url(
+            f"/v1/integrations/stripe/refresh?return_path={return_path}"
+        )
+        return_url = settings.generate_frontend_url(return_path)
+        return await stripe_lib.AccountLink.create_async(
+            account=stripe_id,
+            refresh_url=refresh_url,
+            return_url=return_url,
+            type="account_onboarding",
+            collection_options={"fields": "eventually_due"},
+        )
+
+    async def create_account_session(
+        self,
+        stripe_id: str,
+        components: dict[str, object],
+    ) -> stripe_lib.AccountSession:
+        """Create an AccountSession for Connect embedded components."""
+        return await stripe_lib.AccountSession.create_async(
+            account=stripe_id,
+            components=components,
+        )
 
     async def retrieve_v2_account(self, id: str) -> V2AccountInfo:
         """Retrieve a Stripe account using the v2 API with recipient configuration."""
