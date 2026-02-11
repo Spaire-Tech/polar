@@ -39,6 +39,7 @@ from polar.login_code.endpoints import router as login_code_router
 from polar.member.endpoints import router as member_router
 from polar.member_session.endpoints import router as member_session_router
 from polar.meter.endpoints import router as meter_router
+from polar.money_movement.endpoints import router as money_movement_router
 from polar.metrics.endpoints import router as metrics_router
 from polar.notifications.endpoints import router as notifications_router
 from polar.oauth2.endpoints.oauth2 import router as oauth2_router
@@ -166,5 +167,7 @@ router.include_router(wallet_router)
 router.include_router(treasury_router)
 # /issuing
 router.include_router(issuing_router)
+# /money-movement
+router.include_router(money_movement_router)
 # /integrations/chargeback-stop
 router.include_router(chargeback_stop_router)

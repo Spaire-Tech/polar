@@ -30,6 +30,7 @@ from .financial_account import FinancialAccount
 from .fund_state import FundPolicy, FundStateEntry, FundStateSnapshot
 from .issuing import Cardholder, IssuedCard
 from .held_balance import HeldBalance
+from .money_movement import OutboundPaymentRecord, OutboundTransferRecord, PaymentRecipient
 from .issue_reward import IssueReward
 from .license_key import LicenseKey
 from .license_key_activation import LicenseKeyActivation
@@ -147,8 +148,11 @@ __all__ = [
     "Organization",
     "OrganizationAccessToken",
     "OrganizationReview",
+    "OutboundPaymentRecord",
+    "OutboundTransferRecord",
     "Payment",
     "PaymentMethod",
+    "PaymentRecipient",
     "Payout",
     "PersonalAccessToken",
     "Pledge",

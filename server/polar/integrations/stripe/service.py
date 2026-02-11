@@ -894,6 +894,95 @@ class StripeService:
             **params,
         )
 
+    # ── Treasury Outbound Payments (to third parties) ──
+
+    async def create_outbound_payment(
+        self,
+        *,
+        stripe_account_id: str,
+        financial_account_id: str,
+        amount: int,
+        currency: str = "usd",
+        destination_payment_method: str,
+        description: str | None = None,
+        statement_descriptor: str | None = None,
+    ) -> stripe_lib.treasury.OutboundPayment:
+        """Create an outbound payment from a Financial Account to a third party."""
+        params: dict[str, object] = {
+            "financial_account": financial_account_id,
+            "amount": amount,
+            "currency": currency,
+            "destination_payment_method": destination_payment_method,
+        }
+        if description:
+            params["description"] = description
+        if statement_descriptor:
+            params["statement_descriptor"] = statement_descriptor
+
+        log.info(
+            "stripe.treasury.outbound_payment.create",
+            stripe_account_id=stripe_account_id,
+            amount=amount,
+        )
+        return await stripe_lib.treasury.OutboundPayment.create_async(
+            stripe_account=stripe_account_id,
+            **params,
+        )
+
+    async def retrieve_outbound_payment(
+        self,
+        outbound_payment_id: str,
+        *,
+        stripe_account_id: str,
+    ) -> stripe_lib.treasury.OutboundPayment:
+        return await stripe_lib.treasury.OutboundPayment.retrieve_async(
+            outbound_payment_id,
+            stripe_account=stripe_account_id,
+        )
+
+    async def cancel_outbound_payment(
+        self,
+        outbound_payment_id: str,
+        *,
+        stripe_account_id: str,
+    ) -> stripe_lib.treasury.OutboundPayment:
+        """Cancel a processing outbound payment."""
+        log.info(
+            "stripe.treasury.outbound_payment.cancel",
+            outbound_payment_id=outbound_payment_id,
+        )
+        return await stripe_lib.treasury.OutboundPayment.cancel_async(
+            outbound_payment_id,
+            stripe_account=stripe_account_id,
+        )
+
+    async def retrieve_outbound_transfer(
+        self,
+        outbound_transfer_id: str,
+        *,
+        stripe_account_id: str,
+    ) -> stripe_lib.treasury.OutboundTransfer:
+        return await stripe_lib.treasury.OutboundTransfer.retrieve_async(
+            outbound_transfer_id,
+            stripe_account=stripe_account_id,
+        )
+
+    async def cancel_outbound_transfer(
+        self,
+        outbound_transfer_id: str,
+        *,
+        stripe_account_id: str,
+    ) -> stripe_lib.treasury.OutboundTransfer:
+        """Cancel a processing outbound transfer."""
+        log.info(
+            "stripe.treasury.outbound_transfer.cancel",
+            outbound_transfer_id=outbound_transfer_id,
+        )
+        return await stripe_lib.treasury.OutboundTransfer.cancel_async(
+            outbound_transfer_id,
+            stripe_account=stripe_account_id,
+        )
+
     # ── Issuing Cardholders ──
 
     async def create_cardholder(
