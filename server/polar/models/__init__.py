@@ -26,6 +26,7 @@ from .event import Event, EventClosure
 from .event_type import EventType
 from .external_event import ExternalEvent
 from .file import File
+from .fund_state import FundPolicy, FundStateEntry, FundStateSnapshot
 from .held_balance import HeldBalance
 from .issue_reward import IssueReward
 from .license_key import LicenseKey
@@ -112,6 +113,9 @@ __all__ = [
     "EventType",
     "ExternalEvent",
     "File",
+    "FundPolicy",
+    "FundStateEntry",
+    "FundStateSnapshot",
     "HeldBalance",
     "IssueReward",
     "LegacyRecurringProductPriceCustom",
