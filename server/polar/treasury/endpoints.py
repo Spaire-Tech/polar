@@ -17,12 +17,21 @@ from polar.postgres import (
 )
 from polar.routing import APIRouter
 
+from polar.integrations.stripe.service import stripe as stripe_service
+from polar.kit.schemas import Schema
+
 from .schemas import (
     FinancialAccountCreate,
     FinancialAccountRead,
     TreasuryTransactionList,
 )
 from .service import treasury_service
+
+
+class AccountSessionResponse(Schema):
+    """Response containing the Stripe AccountSession client secret."""
+
+    client_secret: str
 
 router = APIRouter(
     prefix="/treasury",
@@ -134,3 +143,54 @@ async def sync_balance(
 
     updated = await treasury_service.sync_balance(session, fa, account)
     return treasury_service._to_read_schema(updated)
+
+
+@router.post(
+    "/organizations/{organization_id}/account-session",
+    response_model=AccountSessionResponse,
+)
+async def create_account_session(
+    organization_id: UUID,
+    auth_subject: WebUserWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> AccountSessionResponse:
+    """Create a Stripe AccountSession for Connect embedded components.
+
+    Returns a client_secret that the frontend uses to initialize
+    the Stripe Connect embedded component library.
+    """
+    account = await _get_account_for_org(session, auth_subject, organization_id)
+
+    if account.stripe_id is None:
+        raise ResourceNotFound("Account has no Stripe connected account")
+
+    account_session = await stripe_service.create_account_session(
+        account.stripe_id,
+        components={
+            "notification_banner": {"enabled": True},
+            "financial_account": {
+                "enabled": True,
+                "features": {"external_account_collection": True},
+            },
+            "financial_account_transactions": {"enabled": True},
+            "issuing_cards_list": {
+                "enabled": True,
+                "features": {
+                    "card_management": True,
+                    "cardholder_management": True,
+                    "card_spend_dispute_management": True,
+                    "spend_control_management": True,
+                },
+            },
+            "issuing_card": {
+                "enabled": True,
+                "features": {
+                    "card_management": True,
+                    "card_spend_dispute_management": True,
+                    "spend_control_management": True,
+                },
+            },
+        },
+    )
+
+    return AccountSessionResponse(client_secret=account_session.client_secret)

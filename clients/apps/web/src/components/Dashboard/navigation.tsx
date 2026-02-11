@@ -1,4 +1,5 @@
 import { PolarHog, usePostHog } from '@/hooks/posthog'
+import AccountBalanceOutlined from '@mui/icons-material/AccountBalanceOutlined'
 import AttachMoneyOutlined from '@mui/icons-material/AttachMoneyOutlined'
 import CodeOutlined from '@mui/icons-material/CodeOutlined'
 import HiveOutlined from '@mui/icons-material/HiveOutlined'
@@ -243,7 +244,22 @@ const organizationRoutesList = (org?: schemas['Organization']): Route[] => [
     link: `/dashboard/${org?.slug}/finance/income`,
     icon: <AttachMoneyOutlined fontSize="inherit" />,
     checkIsActive: (currentRoute: string): boolean => {
-      return currentRoute.startsWith(`/dashboard/${org?.slug}/finance`)
+      return (
+        currentRoute.startsWith(`/dashboard/${org?.slug}/finance`) &&
+        !currentRoute.startsWith(`/dashboard/${org?.slug}/finance/embedded`)
+      )
+    },
+    if: true,
+  },
+  {
+    id: 'embedded-finance',
+    title: 'Finance',
+    link: `/dashboard/${org?.slug}/finance/embedded/overview`,
+    icon: <AccountBalanceOutlined fontSize="inherit" />,
+    checkIsActive: (currentRoute: string): boolean => {
+      return currentRoute.startsWith(
+        `/dashboard/${org?.slug}/finance/embedded`,
+      )
     },
     if: true,
   },
