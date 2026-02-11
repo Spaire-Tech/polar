@@ -1,12 +1,14 @@
 import { PolarHog, usePostHog } from '@/hooks/posthog'
+import {
+  AnalyticsFeatureIcon,
+  CatalogFeatureIcon,
+  CustomersFeatureIcon,
+  OverviewFeatureIcon,
+  RevenueFeatureIcon,
+  StartupStackFeatureIcon,
+} from './icons/FeatureIcons'
 import AttachMoneyOutlined from '@mui/icons-material/AttachMoneyOutlined'
 import CodeOutlined from '@mui/icons-material/CodeOutlined'
-import HiveOutlined from '@mui/icons-material/HiveOutlined'
-import PeopleAltOutlined from '@mui/icons-material/PeopleAltOutlined'
-import RocketLaunchOutlined from '@mui/icons-material/RocketLaunchOutlined'
-import ShoppingBagOutlined from '@mui/icons-material/ShoppingBagOutlined'
-import SpaceDashboardOutlined from '@mui/icons-material/SpaceDashboardOutlined'
-import TrendingUp from '@mui/icons-material/TrendingUp'
 import TuneOutlined from '@mui/icons-material/TuneOutlined'
 import { schemas } from '@polar-sh/client'
 import { usePathname } from 'next/navigation'
@@ -154,7 +156,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
   {
     id: 'home',
     title: 'Overview',
-    icon: <SpaceDashboardOutlined fontSize="inherit" />,
+    icon: <OverviewFeatureIcon className="h-4 w-4" />,
     link: `/dashboard/${org?.slug}`,
     checkIsActive: (currentRoute: string) =>
       currentRoute === `/dashboard/${org?.slug}`,
@@ -163,7 +165,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
   {
     id: 'catalog',
     title: 'Catalog',
-    icon: <HiveOutlined fontSize="inherit" />,
+    icon: <CatalogFeatureIcon className="h-4 w-4" />,
     link: `/dashboard/${org?.slug}/products`,
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/products`)
@@ -173,7 +175,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
   {
     id: 'customers',
     title: 'Customers',
-    icon: <PeopleAltOutlined fontSize="inherit" />,
+    icon: <CustomersFeatureIcon className="h-4 w-4" />,
     link: `/dashboard/${org?.slug}/customers`,
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/customers`)
@@ -183,7 +185,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
   {
     id: 'analytics',
     title: 'Analytics',
-    icon: <TrendingUp fontSize="inherit" />,
+    icon: <AnalyticsFeatureIcon className="h-4 w-4" />,
     link: `/dashboard/${org?.slug}/analytics`,
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/analytics`)
@@ -193,7 +195,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
   {
     id: 'revenue',
     title: 'Revenue',
-    icon: <ShoppingBagOutlined fontSize="inherit" />,
+    icon: <RevenueFeatureIcon className="h-4 w-4" />,
     link: `/dashboard/${org?.slug}/sales`,
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/sales`)
@@ -203,7 +205,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
   {
     id: 'startup-stack',
     title: 'Startup Stack',
-    icon: <RocketLaunchOutlined fontSize="inherit" />,
+    icon: <StartupStackFeatureIcon className="h-4 w-4" />,
     link: `/dashboard/${org?.slug}/startup-stack`,
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/startup-stack`)
