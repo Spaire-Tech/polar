@@ -58,6 +58,11 @@ export const NavigationContainer = ({
                   </span>
                 ) : undefined}
                 <span className="text-sm font-medium">{route.title}</span>
+                {route.extra ? (
+                  <span className="text-blue-500 dark:text-polar-200 ml-auto flex items-center">
+                    {route.extra}
+                  </span>
+                ) : null}
               </Link>
             )
           })}
