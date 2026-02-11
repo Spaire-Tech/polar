@@ -1,5 +1,6 @@
 import { PolarHog, usePostHog } from '@/hooks/posthog'
 import AttachMoneyOutlined from '@mui/icons-material/AttachMoneyOutlined'
+import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined'
 import CodeOutlined from '@mui/icons-material/CodeOutlined'
 import HiveOutlined from '@mui/icons-material/HiveOutlined'
 import PeopleAltOutlined from '@mui/icons-material/PeopleAltOutlined'
@@ -24,6 +25,7 @@ export type Route = {
   readonly id: string
   readonly title: string
   readonly icon?: React.ReactElement<any>
+  readonly extra?: React.ReactNode
   readonly link: string
   readonly if: boolean | undefined
   readonly subs?: SubRoute[]
@@ -204,6 +206,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
     id: 'startup-stack',
     title: 'Startup Stack',
     icon: <RocketLaunchOutlined fontSize="inherit" />,
+    extra: <AutoAwesomeOutlined className="text-xs" fontSize="inherit" />,
     link: `/dashboard/${org?.slug}/startup-stack`,
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/startup-stack`)
