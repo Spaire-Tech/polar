@@ -38,10 +38,10 @@ export const OnboardingStepper = ({
   steps = defaultSteps,
 }: OnboardingStepperProps) => {
   return (
-    <div className="dark:bg-polar-900 hidden h-full w-80 shrink-0 flex-col justify-between bg-gray-50 p-8 md:flex">
-      <div className="flex flex-col gap-y-12">
-        <LogoIcon size={40} />
-        <div className="flex flex-col gap-y-1">
+    <div className="dark:bg-polar-900 hidden h-full w-[300px] shrink-0 flex-col justify-between border-r border-gray-100 bg-gray-50/50 p-10 dark:border-none md:flex">
+      <div className="flex flex-col gap-y-16">
+        <LogoIcon size={36} />
+        <div className="flex flex-col gap-y-2">
           {steps.map((step, index) => {
             const isCompleted = index < currentStep
             const isActive = index === currentStep
@@ -52,7 +52,7 @@ export const OnboardingStepper = ({
                 <div className="flex flex-col items-center">
                   <div
                     className={twMerge(
-                      'flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition-colors',
+                      'flex h-9 w-9 items-center justify-center rounded-full text-sm font-medium transition-colors',
                       isCompleted &&
                         'bg-blue-500 text-white',
                       isActive &&
@@ -70,7 +70,7 @@ export const OnboardingStepper = ({
                   {index < steps.length - 1 && (
                     <div
                       className={twMerge(
-                        'my-1 h-8 w-0.5',
+                        'my-1.5 h-10 w-0.5',
                         isCompleted
                           ? 'bg-blue-500'
                           : 'dark:bg-polar-700 bg-gray-200',
@@ -78,13 +78,15 @@ export const OnboardingStepper = ({
                     />
                   )}
                 </div>
-                <div className="flex flex-col pt-0.5">
+                <div className="flex flex-col gap-y-0.5 pt-1">
                   <span
                     className={twMerge(
                       'text-sm font-medium',
                       isActive
                         ? 'text-gray-900 dark:text-white'
-                        : 'dark:text-polar-400 text-gray-500',
+                        : isCompleted
+                          ? 'text-gray-700 dark:text-gray-300'
+                          : 'dark:text-polar-400 text-gray-400',
                     )}
                   >
                     {step.label}

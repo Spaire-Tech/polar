@@ -33,10 +33,16 @@ import { OnboardingStepper } from './OnboardingStepper'
 import { twMerge } from 'tailwind-merge'
 
 const businessTypes = [
-  { id: 'individual', label: 'Individual Creator', description: 'Solo developer, designer, or content creator' },
-  { id: 'startup', label: 'Startup', description: 'Early-stage company building a product' },
-  { id: 'established', label: 'Established Business', description: 'Company with existing revenue' },
-  { id: 'agency', label: 'Agency / Studio', description: 'Building products for clients' },
+  { id: 'early-stage', label: 'Early-Stage Startup', description: 'Pre-seed to seed, finding product-market fit' },
+  { id: 'venture-backed', label: 'Venture-Backed', description: 'Series A+ with an established product' },
+  { id: 'individual', label: 'Individual Creator', description: 'Solo founder, indie hacker, or creator' },
+  { id: 'bootstrapped', label: 'Bootstrapped / Profitable', description: 'Self-funded and growing organically' },
+] as const
+
+const audienceTypes = [
+  { id: 'b2b', label: 'B2B', description: 'Selling to businesses and teams' },
+  { id: 'b2c', label: 'B2C', description: 'Selling to individual consumers' },
+  { id: 'both', label: 'Both', description: 'A mix of business and consumer' },
 ] as const
 
 const referralSources = [
@@ -95,6 +101,7 @@ export const OrganizationStep = ({
   const createOrganization = useCreateOrganization()
   const [editedSlug, setEditedSlug] = useState(false)
   const [businessType, setBusinessType] = useState<string | null>(null)
+  const [audienceType, setAudienceType] = useState<string | null>(null)
   const [referralSource, setReferralSource] = useState<string | null>(null)
 
   const router = useRouter()
@@ -156,6 +163,7 @@ export const OrganizationStep = ({
     posthog.capture('dashboard:organizations:create:submit', {
       ...params,
       business_type: businessType,
+      audience_type: audienceType,
       referral_source: referralSource,
     })
 
@@ -197,45 +205,43 @@ export const OrganizationStep = ({
       {/* Stepper Sidebar - desktop only */}
       <OnboardingStepper currentStep={0} />
 
-      {/* Mobile logo header */}
+      {/* Main content */}
       <div className="flex flex-1 flex-col overflow-y-auto">
-        <div className="flex w-full flex-col items-center px-6 pt-12 pb-16 md:px-16">
+        <div className="flex w-full flex-col items-center px-6 pt-16 pb-24 md:px-20">
           <motion.div
             initial="hidden"
             animate="visible"
             transition={{ duration: 1, staggerChildren: 0.2 }}
-            className="flex w-full max-w-2xl flex-col gap-10"
+            className="flex w-full max-w-2xl flex-col gap-16"
           >
             {/* Header */}
-            <FadeUp className="flex flex-col gap-y-2">
-              <div className="md:hidden mb-6">
-                <LogoIcon size={40} />
+            <FadeUp className="flex flex-col gap-y-3">
+              <div className="md:hidden mb-8">
+                <LogoIcon size={36} />
               </div>
-              <h1 className="text-2xl font-medium md:text-3xl">
+              <h1 className="text-2xl font-medium tracking-tight md:text-3xl">
                 {hasExistingOrg
                   ? 'Add a new organization'
                   : 'Welcome to Spaire'}
               </h1>
-              <p className="dark:text-polar-400 text-gray-500">
+              <p className="dark:text-polar-400 max-w-md text-base text-gray-500">
                 {hasExistingOrg
                   ? 'Set up a new workspace for your team or project.'
-                  : "Tell us a bit about yourself so we can tailor your experience."}
+                  : "A few quick questions to personalize your setup."}
               </p>
             </FadeUp>
 
             {/* About You Section - only show for new users */}
             {!hasExistingOrg && (
-              <FadeUp className="flex flex-col gap-y-6">
-                <div className="flex flex-col gap-y-1">
-                  <h2 className="text-base font-medium">About you</h2>
-                  <p className="dark:text-polar-500 text-sm text-gray-400">
-                    Help us understand your needs better.
-                  </p>
-                </div>
-
-                {/* Business Type Cards */}
-                <div className="flex flex-col gap-y-3">
-                  <Label>What best describes your business?</Label>
+              <FadeUp className="flex flex-col gap-y-10">
+                {/* Business Stage */}
+                <div className="flex flex-col gap-y-4">
+                  <div className="flex flex-col gap-y-1">
+                    <Label className="text-sm font-medium">What best describes your business?</Label>
+                    <p className="dark:text-polar-500 text-xs text-gray-400">
+                      This helps us tailor your onboarding experience.
+                    </p>
+                  </div>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     {businessTypes.map((type) => (
                       <button
@@ -243,8 +249,38 @@ export const OrganizationStep = ({
                         type="button"
                         onClick={() => setBusinessType(type.id)}
                         className={twMerge(
-                          'dark:bg-polar-900 dark:border-polar-700 flex cursor-pointer flex-col gap-y-1 rounded-xl border border-gray-200 bg-white p-4 text-left transition-all',
+                          'dark:bg-polar-900 dark:border-polar-700 flex cursor-pointer flex-col gap-y-1.5 rounded-2xl border border-gray-200 bg-white p-5 text-left transition-all',
                           businessType === type.id
+                            ? 'border-blue-500 ring-1 ring-blue-500 dark:border-blue-500'
+                            : 'hover:border-gray-300 dark:hover:border-polar-600',
+                        )}
+                      >
+                        <span className="text-sm font-medium">{type.label}</span>
+                        <span className="dark:text-polar-500 text-xs leading-relaxed text-gray-400">
+                          {type.description}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Audience Type */}
+                <div className="flex flex-col gap-y-4">
+                  <div className="flex flex-col gap-y-1">
+                    <Label className="text-sm font-medium">Who are your customers?</Label>
+                    <p className="dark:text-polar-500 text-xs text-gray-400">
+                      We&apos;ll optimize your checkout and billing accordingly.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    {audienceTypes.map((type) => (
+                      <button
+                        key={type.id}
+                        type="button"
+                        onClick={() => setAudienceType(type.id)}
+                        className={twMerge(
+                          'dark:bg-polar-900 dark:border-polar-700 flex cursor-pointer flex-col items-center gap-y-1.5 rounded-2xl border border-gray-200 bg-white p-5 text-center transition-all',
+                          audienceType === type.id
                             ? 'border-blue-500 ring-1 ring-blue-500 dark:border-blue-500'
                             : 'hover:border-gray-300 dark:hover:border-polar-600',
                         )}
@@ -259,9 +295,9 @@ export const OrganizationStep = ({
                 </div>
 
                 {/* Referral Source */}
-                <div className="flex flex-col gap-y-3">
-                  <Label>How did you hear about Spaire?</Label>
-                  <div className="flex flex-wrap gap-2">
+                <div className="flex flex-col gap-y-4">
+                  <Label className="text-sm font-medium">How did you hear about Spaire?</Label>
+                  <div className="flex flex-wrap gap-2.5">
                     {referralSources.map((source) => (
                       <button
                         key={source.id}
@@ -293,7 +329,7 @@ export const OrganizationStep = ({
             <Form {...form}>
               <form
                 onSubmit={handleSubmit(onSubmit)}
-                className="flex w-full flex-col gap-y-8"
+                className="flex w-full flex-col gap-y-10"
               >
                 <FadeUp className="flex flex-col gap-y-6">
                   <div className="flex flex-col gap-y-1">
@@ -305,7 +341,7 @@ export const OrganizationStep = ({
                     </p>
                   </div>
 
-                  <div className="dark:bg-polar-900 flex flex-col gap-y-4 rounded-xl border border-gray-200 bg-white p-5 dark:border-none">
+                  <div className="dark:bg-polar-900 flex flex-col gap-y-5 rounded-2xl border border-gray-200 bg-white p-6 dark:border-none">
                     <FormField
                       control={control}
                       name="name"
@@ -348,7 +384,7 @@ export const OrganizationStep = ({
                   </div>
                 </FadeUp>
 
-                <FadeUp className="dark:bg-polar-900 flex flex-col gap-y-4 rounded-xl border border-gray-200 bg-white p-5 dark:border-none">
+                <FadeUp className="dark:bg-polar-900 flex flex-col gap-y-4 rounded-2xl border border-gray-200 bg-white p-6 dark:border-none">
                   <SupportedUseCases />
                 </FadeUp>
 
@@ -430,7 +466,7 @@ export const OrganizationStep = ({
                   </p>
                 )}
 
-                <FadeUp className="flex flex-col gap-y-3">
+                <FadeUp className="flex flex-col gap-y-4 pt-2">
                   <Button
                     type="submit"
                     size="lg"

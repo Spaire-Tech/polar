@@ -37,6 +37,7 @@ export interface OnboardingSessionState {
   signup_method: SignupMethod
   experiment_variant?: string | null
   business_type?: string | null
+  audience_type?: string | null
   referral_source?: string | null
 }
 

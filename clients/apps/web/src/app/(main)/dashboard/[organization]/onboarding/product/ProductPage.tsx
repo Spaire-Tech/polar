@@ -42,22 +42,22 @@ export default function ClientPage({
       <OnboardingStepper currentStep={1} />
 
       <div className="flex flex-1 flex-col overflow-y-auto">
-        <div className="flex w-full flex-col items-center px-6 pt-12 pb-16 md:px-16">
+        <div className="flex w-full flex-col items-center px-6 pt-16 pb-24 md:px-20">
           <motion.div
             initial="hidden"
             animate="visible"
             transition={{ duration: 1, staggerChildren: 0.2 }}
-            className="flex w-full max-w-2xl flex-col gap-10"
+            className="flex w-full max-w-2xl flex-col gap-14"
           >
             {/* Header */}
-            <FadeUp className="flex flex-col gap-y-2">
-              <div className="md:hidden mb-6">
-                <LogoIcon size={40} />
+            <FadeUp className="flex flex-col gap-y-3">
+              <div className="md:hidden mb-8">
+                <LogoIcon size={36} />
               </div>
-              <h1 className="text-2xl font-medium md:text-3xl">
+              <h1 className="text-2xl font-medium tracking-tight md:text-3xl">
                 Create your first product
               </h1>
-              <p className="dark:text-polar-400 text-gray-500">
+              <p className="dark:text-polar-400 max-w-md text-base text-gray-500">
                 Define what you&apos;re selling — you can always add more later.
               </p>
             </FadeUp>
