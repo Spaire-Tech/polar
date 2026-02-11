@@ -29,6 +29,47 @@ class AccountType(StrEnum):
         }[self]
 
 
+class AccountMode(StrEnum):
+    express = "express"
+    custom = "custom"
+
+    def get_display_name(self) -> str:
+        return {
+            AccountMode.express: "Express (Standard Payouts)",
+            AccountMode.custom: "Custom (Embedded Finance)",
+        }[self]
+
+
+class IssuingStatus(StrEnum):
+    onboarding_required = "onboarding_required"
+    onboarding_in_progress = "onboarding_in_progress"
+    issuing_active = "issuing_active"
+    temporarily_restricted = "temporarily_restricted"
+
+    def get_display_name(self) -> str:
+        return {
+            IssuingStatus.onboarding_required: "Onboarding Required",
+            IssuingStatus.onboarding_in_progress: "Onboarding In Progress",
+            IssuingStatus.issuing_active: "Active",
+            IssuingStatus.temporarily_restricted: "Temporarily Restricted",
+        }[self]
+
+
+class FundState(StrEnum):
+    pending = "pending"
+    available = "available"
+    reserve = "reserve"
+    spendable = "spendable"
+
+    def get_display_name(self) -> str:
+        return {
+            FundState.pending: "Pending",
+            FundState.available: "Available",
+            FundState.reserve: "Reserve",
+            FundState.spendable: "Spendable",
+        }[self]
+
+
 class SubscriptionRecurringInterval(StrEnum):
     day = "day"
     week = "week"

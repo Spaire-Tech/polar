@@ -26,7 +26,11 @@ from .event import Event, EventClosure
 from .event_type import EventType
 from .external_event import ExternalEvent
 from .file import File
+from .financial_account import FinancialAccount
+from .fund_state import FundPolicy, FundStateEntry, FundStateSnapshot
+from .issuing import Cardholder, IssuedCard
 from .held_balance import HeldBalance
+from .money_movement import OutboundPaymentRecord, OutboundTransferRecord, PaymentRecipient
 from .issue_reward import IssueReward
 from .license_key import LicenseKey
 from .license_key_activation import LicenseKeyActivation
@@ -90,6 +94,7 @@ __all__ = [
     "Benefit",
     "BenefitGrant",
     "BillingEntry",
+    "Cardholder",
     "Campaign",
     "Checkout",
     "CheckoutLink",
@@ -112,7 +117,12 @@ __all__ = [
     "EventType",
     "ExternalEvent",
     "File",
+    "FinancialAccount",
+    "FundPolicy",
+    "FundStateEntry",
+    "FundStateSnapshot",
     "HeldBalance",
+    "IssuedCard",
     "IssueReward",
     "LegacyRecurringProductPriceCustom",
     "LegacyRecurringProductPriceFixed",
@@ -138,8 +148,11 @@ __all__ = [
     "Organization",
     "OrganizationAccessToken",
     "OrganizationReview",
+    "OutboundPaymentRecord",
+    "OutboundTransferRecord",
     "Payment",
     "PaymentMethod",
+    "PaymentRecipient",
     "Payout",
     "PersonalAccessToken",
     "Pledge",
