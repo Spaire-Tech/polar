@@ -1,8 +1,9 @@
 import { ACCOUNT_TYPE_DISPLAY_NAMES } from '@/utils/account'
+import { toast } from '@/components/Toast/use-toast'
 import { api } from '@/utils/client'
 import { schemas, unwrap } from '@polar-sh/client'
 import Button from '@polar-sh/ui/components/atoms/Button'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { twMerge } from 'tailwind-merge'
 
 interface AccountsListProps {
@@ -78,18 +79,29 @@ const AccountListItem = ({ account, organization }: AccountListItemProps) => {
   )
 
   const isActive = account?.stripe_id !== null
+  const [loading, setLoading] = useState(false)
 
   const goToDashboard = async () => {
-    const link = await unwrap(
-      api.POST('/v1/accounts/{id}/dashboard_link', {
-        params: {
-          path: {
-            id: account.id,
+    setLoading(true)
+    try {
+      const link = await unwrap(
+        api.POST('/v1/accounts/{id}/dashboard_link', {
+          params: {
+            path: {
+              id: account.id,
+            },
           },
-        },
-      }),
-    )
-    window.location.href = link.url
+        }),
+      )
+      window.location.href = link.url
+    } catch {
+      toast({
+        title: 'Unable to open dashboard',
+        description:
+          'Please complete account onboarding first, or try again later.',
+      })
+      setLoading(false)
+    }
   }
 
   return (
@@ -100,7 +112,7 @@ const AccountListItem = ({ account, organization }: AccountListItemProps) => {
       <td className={childClass}>{organization.slug}</td>
       <td className={twMerge(childClass, 'rounded-r-xl uppercase')}>
         {isActive && (
-          <Button size="sm" onClick={goToDashboard}>
+          <Button size="sm" onClick={goToDashboard} loading={loading}>
             Open dashboard
           </Button>
         )}
