@@ -23,6 +23,7 @@ from polar.user.repository import UserRepository
 from .schemas import (
     AccountCreateForOrganization,
     AccountLink,
+    AccountSession,
     AccountUpdate,
 )
 
@@ -401,6 +402,16 @@ class AccountService:
                 account.stripe_id, return_path
             )
             return AccountLink(url=account_link.url)
+
+        return None
+
+    async def create_account_session(
+        self, account: Account
+    ) -> AccountSession | None:
+        if account.account_type == AccountType.stripe:
+            assert account.stripe_id is not None
+            client_secret = await stripe.create_account_session(account.stripe_id)
+            return AccountSession(client_secret=client_secret)
 
         return None
 

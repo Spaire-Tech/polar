@@ -17,10 +17,10 @@ import { useForm, useFormContext } from 'react-hook-form'
 
 const AccountCreateModal = ({
   forOrganizationId,
-  returnPath,
+  onAccountCreated,
 }: {
   forOrganizationId: string
-  returnPath: string
+  onAccountCreated?: () => void
 }) => {
   const form = useForm<schemas['AccountCreateForOrganization']>({
     defaultValues: {
@@ -36,35 +36,11 @@ const AccountCreateModal = ({
 
   const [loading, setLoading] = useState(false)
 
-  const goToOnboarding = useCallback(
-    async (account: schemas['Account']) => {
-      setLoading(true)
-      const { data, error } = await api.POST(
-        '/v1/accounts/{id}/onboarding_link',
-        {
-          params: {
-            path: { id: account.id },
-            query: { return_path: returnPath },
-          },
-        },
-      )
-      setLoading(false)
-
-      if (error) {
-        window.location.reload()
-        return
-      }
-
-      window.location.href = data.url
-    },
-    [returnPath],
-  )
-
   const onSubmit = useCallback(
     async (data: schemas['AccountCreateForOrganization']) => {
       setLoading(true)
 
-      const { data: account, error } = await api.POST('/v1/accounts', {
+      const { error } = await api.POST('/v1/accounts', {
         body: {
           account_type: 'stripe',
           country: data.country,
@@ -83,9 +59,9 @@ const AccountCreateModal = ({
       }
 
       setLoading(false)
-      await goToOnboarding(account)
+      onAccountCreated?.()
     },
-    [setLoading, forOrganizationId, goToOnboarding, setError],
+    [setLoading, forOrganizationId, onAccountCreated, setError],
   )
 
   return (

@@ -20,7 +20,12 @@ from polar.postgres import (
 from polar.routing import APIRouter
 
 from .schemas import Account as AccountSchema
-from .schemas import AccountCreateForOrganization, AccountLink, AccountUpdate
+from .schemas import (
+    AccountCreateForOrganization,
+    AccountLink,
+    AccountSession,
+    AccountUpdate,
+)
 from .service import account as account_service
 
 router = APIRouter(tags=["accounts", APITag.private])
@@ -111,6 +116,26 @@ async def onboarding_link(
         raise InternalServerError("Failed to create link")
 
     return link
+
+
+@router.post("/accounts/{id}/account_session", response_model=AccountSession)
+async def account_session(
+    id: UUID,
+    auth_subject: WebUserWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> AccountSession:
+    account = await account_service.get(session, auth_subject, id)
+    if account is None:
+        raise ResourceNotFound()
+
+    if account.account_type != AccountType.stripe:
+        raise ResourceNotFound()
+
+    account_session = await account_service.create_account_session(account)
+    if not account_session:
+        raise InternalServerError("Failed to create account session")
+
+    return account_session
 
 
 @router.post("/accounts/{id}/dashboard_link", response_model=AccountLink)

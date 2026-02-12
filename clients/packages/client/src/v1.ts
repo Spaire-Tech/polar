@@ -596,6 +596,23 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/v1/accounts/{id}/account_session': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Account Session */
+    post: operations['accounts:account_session']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/v1/accounts/{id}/dashboard_link': {
     parameters: {
       query?: never
@@ -5158,6 +5175,11 @@ export interface components {
     AccountLink: {
       /** Url */
       url: string
+    }
+    /** AccountSession */
+    AccountSession: {
+      /** Client Secret */
+      client_secret: string
     }
     /**
      * AccountType
@@ -27783,6 +27805,37 @@ export interface operations {
         }
         content: {
           'application/json': components['schemas']['AccountLink']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  'accounts:account_session': {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['AccountSession']
         }
       }
       /** @description Validation Error */

@@ -184,3 +184,7 @@ class AccountUpdate(Schema):
 
 class AccountLink(Schema):
     url: str
+
+
+class AccountSession(Schema):
+    client_secret: str

@@ -37,6 +37,7 @@ interface StreamlinedAccountReviewProps {
   onDetailsSubmitted: () => void
   onValidationCompleted: () => void
   onStartAccountSetup: () => void
+  onOnboardingComplete?: () => void
   onStartIdentityVerification: () => void
   onSkipAccountSetup?: () => void
   onAppealApproved?: () => void
@@ -180,6 +181,7 @@ export default function StreamlinedAccountReview({
   onDetailsSubmitted,
   onValidationCompleted,
   onStartAccountSetup,
+  onOnboardingComplete,
   onStartIdentityVerification,
   onSkipAccountSetup,
   onAppealApproved,
@@ -373,6 +375,7 @@ export default function StreamlinedAccountReview({
             isNotAdmin={isNotAdmin}
             onStartAccountSetup={onStartAccountSetup}
             onSkipAccountSetup={onSkipAccountSetup}
+            onOnboardingComplete={onOnboardingComplete}
           />
         </StepCard>
       )}

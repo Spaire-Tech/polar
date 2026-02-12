@@ -249,6 +249,22 @@ class StripeService:
             type="account_onboarding",
         )
 
+    async def create_account_session(self, stripe_id: str) -> str:
+        """Create an AccountSession for embedded onboarding components.
+
+        Returns the client_secret used to initialize Connect.js on the frontend.
+        """
+        account_session = await stripe_lib.AccountSession.create_async(
+            account=stripe_id,
+            components={
+                "account_onboarding": {
+                    "enabled": True,
+                    "features": {"external_account_collection": True},
+                },
+            },
+        )
+        return account_session.client_secret
+
     async def create_login_link(self, stripe_id: str) -> stripe_lib.LoginLink:
         return await stripe_lib.Account.create_login_link_async(stripe_id)
 

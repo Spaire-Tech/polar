@@ -14,12 +14,12 @@ import {
   useOrganizationAccount,
 } from '@/hooks/queries'
 import { useOrganizationReviewStatus } from '@/hooks/queries/org'
-import { api } from '@/utils/client'
-import { schemas, unwrap } from '@polar-sh/client'
+import { schemas } from '@polar-sh/client'
 import { ShadowBoxOnMd } from '@polar-sh/ui/components/atoms/ShadowBox'
 import { Separator } from '@polar-sh/ui/components/ui/separator'
 import { loadStripe } from '@stripe/stripe-js'
 import React, { useCallback, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 
 export default function ClientPage({
   organization,
@@ -28,6 +28,7 @@ export default function ClientPage({
 }) {
   const { currentUser, reloadUser } = useAuth()
   const { data: accounts } = useListAccounts()
+  const queryClient = useQueryClient()
   const {
     isShown: isShownSetupModal,
     show: showSetupModal,
@@ -186,25 +187,22 @@ export default function ClientPage({
   }, [])
 
   const handleStartAccountSetup = useCallback(async () => {
-    // Check if account exists but has no stripe_id (deleted account)
-    if (!organizationAccount || !organizationAccount.stripe_id) {
-      showSetupModal()
-    } else {
-      const link = await unwrap(
-        api.POST('/v1/accounts/{id}/onboarding_link', {
-          params: {
-            path: {
-              id: organizationAccount.id,
-            },
-            query: {
-              return_path: `/dashboard/${organization.slug}/finance/account`,
-            },
-          },
-        }),
-      )
-      window.location.href = link.url
-    }
-  }, [organization.slug, organizationAccount, showSetupModal])
+    // Show modal for country selection and account creation.
+    // After account is created, the embedded onboarding component will render
+    // automatically since the account will have a stripe_id.
+    showSetupModal()
+  }, [showSetupModal])
+
+  const handleOnboardingComplete = useCallback(async () => {
+    // Refetch account data to pick up the completed onboarding state
+    await queryClient.invalidateQueries({
+      queryKey: ['organizations', 'account', organization.id],
+    })
+    // Also refetch the accounts list
+    await queryClient.invalidateQueries({
+      queryKey: ['accounts'],
+    })
+  }, [queryClient, organization.id])
 
   const handleStartIdentityVerification = useCallback(async () => {
     await startIdentityVerification()
@@ -272,6 +270,14 @@ export default function ClientPage({
     ],
   )
 
+  const handleAccountCreated = useCallback(async () => {
+    hideSetupModal()
+    // Refetch the organization account so the embedded onboarding renders
+    await queryClient.invalidateQueries({
+      queryKey: ['organizations', 'account', organization.id],
+    })
+  }, [hideSetupModal, queryClient, organization.id])
+
   return (
     <DashboardBody>
       <div className="flex flex-col gap-y-6">
@@ -287,6 +293,7 @@ export default function ClientPage({
           onDetailsSubmitted={handleDetailsSubmitted}
           onValidationCompleted={handleValidationCompleted}
           onStartAccountSetup={handleStartAccountSetup}
+          onOnboardingComplete={handleOnboardingComplete}
           onStartIdentityVerification={handleStartIdentityVerification}
           onSkipAccountSetup={handleSkipAccountSetup}
           onAppealApproved={handleAppealApproved}
@@ -322,7 +329,7 @@ export default function ClientPage({
           modalContent={
             <AccountCreateModal
               forOrganizationId={organization.id}
-              returnPath={`/dashboard/${organization.slug}/finance/account`}
+              onAccountCreated={handleAccountCreated}
             />
           }
         />
