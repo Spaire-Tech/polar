@@ -3,7 +3,7 @@ import AttachMoneyOutlined from '@mui/icons-material/AttachMoneyOutlined'
 import CodeOutlined from '@mui/icons-material/CodeOutlined'
 import HiveOutlined from '@mui/icons-material/HiveOutlined'
 import PeopleAltOutlined from '@mui/icons-material/PeopleAltOutlined'
-import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined'
+import LayersOutlined from '@mui/icons-material/LayersOutlined'
 import ShoppingBagOutlined from '@mui/icons-material/ShoppingBagOutlined'
 import SpaceDashboardOutlined from '@mui/icons-material/SpaceDashboardOutlined'
 import TrendingUp from '@mui/icons-material/TrendingUp'
@@ -203,7 +203,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
   {
     id: 'startup-stack',
     title: 'Startup Stack',
-    icon: <AutoAwesomeOutlined fontSize="inherit" />,
+    icon: <LayersOutlined fontSize="inherit" />,
     link: `/dashboard/${org?.slug}/startup-stack`,
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/startup-stack`)
