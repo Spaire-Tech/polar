@@ -96,7 +96,7 @@ export const LovableStep = () => {
             {/* Skip link */}
             <FadeUp className="flex flex-row justify-end">
               <button
-                className="dark:text-polar-500 dark:hover:text-polar-400 dark:hover:bg-polar-700 cursor-pointer rounded-full px-3 py-1.5 text-sm text-gray-400 transition-colors duration-100 hover:bg-gray-100 hover:text-gray-600"
+                className="cursor-pointer rounded-full px-3 py-1.5 text-sm text-blue-500 transition-colors duration-100 hover:bg-blue-50 hover:text-blue-600 dark:text-blue-400 dark:hover:bg-blue-500/10 dark:hover:text-blue-300"
                 onClick={handleSkip}
               >
                 Not using Lovable? Skip this step
