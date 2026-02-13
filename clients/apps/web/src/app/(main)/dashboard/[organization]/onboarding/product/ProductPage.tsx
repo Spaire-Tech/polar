@@ -39,7 +39,7 @@ export default function ClientPage({
   return (
     <div className="dark:md:bg-polar-950 flex h-full w-full flex-row">
       {/* Stepper Sidebar - desktop only */}
-      <OnboardingStepper currentStep={1} />
+      <OnboardingStepper currentStep={2} />
 
       <div className="flex flex-1 flex-col overflow-y-auto">
         <div className="flex w-full flex-col items-center px-6 pt-16 pb-24 md:px-20">
