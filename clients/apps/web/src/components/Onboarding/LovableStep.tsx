@@ -4,72 +4,43 @@ import { useOnboardingTracking } from '@/hooks'
 import { OrganizationContext } from '@/providers/maintainerOrganization'
 import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined'
 import CheckOutlined from '@mui/icons-material/CheckOutlined'
-import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
 import Button from '@polar-sh/ui/components/atoms/Button'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { useCallback, useContext, useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { twMerge } from 'tailwind-merge'
 import { FadeUp } from '../Animated/FadeUp'
 import LogoIcon from '../Brand/LogoIcon'
 import LovableIcon from '../Icons/frameworks/lovable'
 import { OnboardingStepper } from './OnboardingStepper'
-import OrganizationAccessTokensSettings from '../Settings/OrganizationAccessTokensSettings'
-import { schemas } from '@polar-sh/client'
 
-const getLovablePrompt = (
-  products: schemas['Product'][],
-  token: string | null,
-) => {
-  const productList = products
-    .map((p) => `- "${p.name}" (ID: ${p.id})`)
-    .join('\n')
+const LOVABLE_PROMPT = `Add Spaire payment checkout to my app. Spaire is my billing provider — it handles payments through a hosted checkout overlay. No API keys or environment variables needed in the frontend.
 
-  const productSection =
-    products.length > 0
-      ? `
+Here's how it works:
+- Spaire uses checkout links (simple URLs) that open a secure payment overlay on top of your app
+- No backend code, no API keys, no .env variables — just a script tag and links
 
-3. Create a pricing page that uses Spaire's embedded checkout. Use the following product(s):
-${productList}
+Please do the following:
 
-4. For each product, add a checkout button that opens Spaire checkout. Use this pattern:
-   import { SpaireEmbedCheckout } from "@spaire/checkout";
+1. Add this script tag to index.html, right before the closing </body> tag:
 
-   // Open checkout for a product
-   const checkout = new SpaireEmbedCheckout();
-   checkout.open({ productId: "<product-id>" });
+<script defer data-auto-init src="https://cdn.spairehq.com/checkout/embed.js"></script>
 
-5. Create a /success page that shows a confirmation message after purchase.
+2. Create a /pricing page with a clean layout showing plan cards. For each plan's call-to-action button, use an anchor tag like this:
 
-6. Style everything to match the existing app design.`
-      : `
+<a href="CHECKOUT_LINK_URL" data-spaire-checkout data-spaire-checkout-theme="light">
+  Get Started
+</a>
 
-3. Create a pricing page with a checkout button that opens Spaire checkout. Use this pattern:
-   import { SpaireEmbedCheckout } from "@spaire/checkout";
+Use "CHECKOUT_LINK_URL" as a placeholder — I'll replace it with my actual checkout link from the Spaire dashboard after I create my products there.
 
-   const checkout = new SpaireEmbedCheckout();
-   checkout.open({ productId: "<your-product-id>" });
+3. When a user clicks the button, Spaire's checkout overlay will open automatically (handled by the script). No onClick handler needed.
 
-4. Create a /success page that shows a confirmation message after purchase.
+4. Create a /checkout/success page that displays a confirmation message after a successful purchase.
 
-5. Style everything to match the existing app design.`
+5. Style the pricing page and success page to match the rest of the app's design.`
 
-  return `Add Spaire billing to my app. Here's what I need:
-
-1. Install the @spaire/checkout package.
-
-2. Add these environment variables to .env:
-   SPAIRE_ACCESS_TOKEN=${token ?? '<your-token>'}
-   SPAIRE_SUCCESS_URL=/success?checkout_id={CHECKOUT_ID}${productSection}`
-}
-
-export interface LovableStepProps {
-  products?: schemas['Product'][]
-}
-
-export const LovableStep = ({ products = [] }: LovableStepProps) => {
-  const [createdToken, setCreatedToken] = useState<string | null>(null)
+export const LovableStep = () => {
   const [promptCopied, setPromptCopied] = useState(false)
 
   const { organization } = useContext(OrganizationContext)
@@ -104,16 +75,11 @@ export const LovableStep = ({ products = [] }: LovableStepProps) => {
     router.push(`/dashboard/${organization.slug}/onboarding/product`)
   }
 
-  const lovablePrompt = useMemo(
-    () => getLovablePrompt(products, createdToken),
-    [products, createdToken],
-  )
-
   const handleCopyPrompt = useCallback(() => {
-    navigator.clipboard.writeText(lovablePrompt)
+    navigator.clipboard.writeText(LOVABLE_PROMPT)
     setPromptCopied(true)
-    setTimeout(() => setPromptCopied(false), 2000)
-  }, [lovablePrompt])
+    setTimeout(() => setPromptCopied(false), 2500)
+  }, [])
 
   return (
     <div className="dark:md:bg-polar-950 flex h-full w-full flex-row">
@@ -125,128 +91,117 @@ export const LovableStep = ({ products = [] }: LovableStepProps) => {
             initial="hidden"
             animate="visible"
             transition={{ duration: 1, staggerChildren: 0.2 }}
-            className="flex w-full max-w-2xl flex-col gap-14"
+            className="flex w-full max-w-2xl flex-col gap-16"
           >
             {/* Header */}
-            <FadeUp className="flex flex-col gap-y-3">
+            <FadeUp className="flex flex-col gap-y-4">
               <div className="md:hidden mb-8">
                 <LogoIcon size={36} />
               </div>
-              <div className="flex flex-row items-center gap-x-3">
-                <LovableIcon size={32} />
-                <span className="dark:text-polar-600 text-xl font-light text-gray-300">
+              <div className="flex flex-row items-center gap-x-4">
+                <LovableIcon size={36} />
+                <span className="dark:text-polar-600 text-2xl font-extralight text-gray-300">
                   +
                 </span>
-                <LogoIcon size={32} />
+                <LogoIcon size={36} />
               </div>
-              <h1 className="mt-2 text-2xl font-medium tracking-tight md:text-3xl">
-                Connect Lovable
+              <h1 className="mt-1 text-2xl font-medium tracking-tight md:text-3xl">
+                Connect Lovable to Spaire
               </h1>
-              <p className="dark:text-polar-400 max-w-md text-base text-gray-500">
-                Set up billing in your Lovable app with a single prompt.
-                Generate a token, copy the prompt, paste it in Lovable — done.
+              <p className="dark:text-polar-400 max-w-lg text-base leading-relaxed text-gray-500">
+                Add billing to your Lovable app in under a minute. Copy the
+                prompt below, paste it into Lovable&apos;s chat, and your app
+                gets a checkout page — no API keys, no environment variables, no
+                backend code.
               </p>
             </FadeUp>
 
-            {/* Step 1: Generate Token */}
-            <FadeUp className="flex flex-col gap-y-6">
-              <div className="flex flex-row items-center gap-x-3">
-                <StepNumber number={1} completed={!!createdToken} />
-                <div className="flex flex-col">
-                  <h2 className="text-base font-medium">Generate API Token</h2>
-                  <p className="dark:text-polar-500 text-xs text-gray-400">
-                    This token connects Lovable to your Spaire account.
-                  </p>
-                </div>
-              </div>
-              <div className="dark:bg-polar-900 rounded-2xl border border-gray-200 bg-white p-6 dark:border-none">
-                <OrganizationAccessTokensSettings
-                  organization={organization}
-                  singleTokenMode
-                  minimal
-                  onTokenCreated={setCreatedToken}
+            {/* How it works */}
+            <FadeUp className="flex flex-col gap-y-5">
+              <h2 className="text-sm font-medium uppercase tracking-wider text-gray-400 dark:text-polar-500">
+                How it works
+              </h2>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <HowItWorksCard
+                  number={1}
+                  title="Copy prompt"
+                  description="Grab the ready-made prompt below"
+                />
+                <HowItWorksCard
+                  number={2}
+                  title="Paste in Lovable"
+                  description="Lovable builds your pricing page"
+                />
+                <HowItWorksCard
+                  number={3}
+                  title="Add checkout links"
+                  description="Drop in your Spaire URLs after creating products"
                 />
               </div>
-              {createdToken && (
-                <p className="dark:text-polar-400 text-xs text-gray-500">
-                  Token generated — it&apos;s included in the prompt below.
-                </p>
-              )}
             </FadeUp>
 
-            {/* Step 2: Copy Prompt */}
-            <FadeUp className="flex flex-col gap-y-6">
-              <div className="flex flex-row items-center gap-x-3">
-                <StepNumber number={2} completed={promptCopied} />
-                <div className="flex flex-col">
-                  <h2 className="text-base font-medium">
-                    Copy the Lovable Prompt
-                  </h2>
-                  <p className="dark:text-polar-500 text-xs text-gray-400">
-                    Paste this into Lovable&apos;s chat to wire up billing.
-                  </p>
+            {/* Prompt Card */}
+            <FadeUp className="flex flex-col gap-y-4">
+              <div className="flex flex-row items-center justify-between">
+                <h2 className="text-base font-medium">Lovable prompt</h2>
+                <button
+                  onClick={handleCopyPrompt}
+                  className={twMerge(
+                    'flex items-center gap-x-1.5 rounded-full px-4 py-2 text-xs font-medium transition-all',
+                    promptCopied
+                      ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400'
+                      : 'dark:bg-polar-800 dark:text-polar-200 dark:hover:bg-polar-700 bg-gray-100 text-gray-600 hover:bg-gray-200',
+                  )}
+                >
+                  {promptCopied ? (
+                    <>
+                      <CheckOutlined sx={{ fontSize: 14 }} />
+                      Copied
+                    </>
+                  ) : (
+                    <>
+                      <ContentCopyOutlined sx={{ fontSize: 14 }} />
+                      Copy Prompt
+                    </>
+                  )}
+                </button>
+              </div>
+              <div className="dark:bg-polar-900 relative overflow-hidden rounded-2xl border border-gray-200 bg-gray-950 dark:border-none">
+                <div className="dark:bg-polar-800/50 flex flex-row items-center gap-x-2 border-b border-gray-800 bg-gray-900 px-5 py-3 dark:border-polar-700">
+                  <div className="h-2.5 w-2.5 rounded-full bg-red-400/60" />
+                  <div className="h-2.5 w-2.5 rounded-full bg-yellow-400/60" />
+                  <div className="h-2.5 w-2.5 rounded-full bg-green-400/60" />
+                  <span className="ml-2 text-[11px] text-gray-500">
+                    lovable-prompt.txt
+                  </span>
+                </div>
+                <div className="max-h-[400px] overflow-y-auto p-6">
+                  <pre className="whitespace-pre-wrap font-mono text-[13px] leading-[1.8] text-gray-300">
+                    {LOVABLE_PROMPT}
+                  </pre>
                 </div>
               </div>
-              <div className="dark:bg-polar-900 relative rounded-2xl border border-gray-200 bg-white dark:border-none">
-                <pre className="max-h-72 overflow-y-auto whitespace-pre-wrap p-6 text-xs leading-relaxed">
-                  {lovablePrompt}
-                </pre>
-                <div className="absolute right-4 top-4">
-                  <button
-                    onClick={handleCopyPrompt}
-                    className={twMerge(
-                      'flex items-center gap-x-1.5 rounded-lg px-3 py-1.5 text-xs font-medium shadow-sm transition-all',
-                      promptCopied
-                        ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400'
-                        : 'dark:bg-polar-800 dark:text-polar-200 dark:hover:bg-polar-700 bg-gray-100 text-gray-700 hover:bg-gray-200',
-                    )}
-                  >
-                    {promptCopied ? (
-                      <>
-                        <CheckOutlined sx={{ fontSize: 14 }} />
-                        Copied
-                      </>
-                    ) : (
-                      <>
-                        <ContentCopyOutlined sx={{ fontSize: 14 }} />
-                        Copy Prompt
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </FadeUp>
-
-            {/* Step 3: Open Lovable */}
-            <FadeUp className="flex flex-col gap-y-6">
-              <div className="flex flex-row items-center gap-x-3">
-                <StepNumber number={3} />
-                <div className="flex flex-col">
-                  <h2 className="text-base font-medium">Paste in Lovable</h2>
-                  <p className="dark:text-polar-500 text-xs text-gray-400">
-                    Open your Lovable project and paste the prompt.
-                  </p>
-                </div>
-              </div>
-              <Link href="https://lovable.dev" target="_blank">
-                <Button size="lg" variant="secondary" fullWidth>
-                  <span>Open Lovable</span>
-                  <ArrowOutwardOutlined className="ml-2" fontSize="small" />
-                </Button>
-              </Link>
+              <p className="dark:text-polar-500 text-xs leading-relaxed text-gray-400">
+                After creating your product in the next step, you&apos;ll get a
+                checkout link URL from the Spaire dashboard to replace the{' '}
+                <code className="dark:bg-polar-800 rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-medium dark:text-polar-300">
+                  CHECKOUT_LINK_URL
+                </code>{' '}
+                placeholder above.
+              </p>
             </FadeUp>
 
             {/* Actions */}
-            <FadeUp className="flex flex-col gap-y-2 pt-4">
+            <FadeUp className="flex flex-col gap-y-3 pt-2">
               <Button size="lg" fullWidth onClick={handleContinue}>
-                Continue
+                Continue to Create Product
               </Button>
-              <div className="dark:text-polar-500 flex flex-row items-center justify-center pt-2 text-sm text-gray-500">
+              <div className="dark:text-polar-500 flex flex-row items-center justify-center pt-1 text-sm text-gray-500">
                 <button
-                  className="dark:hover:text-polar-400 dark:hover:bg-polar-700 cursor-pointer rounded-full px-2.5 py-1 transition-colors duration-100 hover:bg-gray-100 hover:text-gray-600"
+                  className="dark:hover:text-polar-400 dark:hover:bg-polar-700 cursor-pointer rounded-full px-3 py-1.5 transition-colors duration-100 hover:bg-gray-100 hover:text-gray-600"
                   onClick={handleSkip}
                 >
-                  Skip this step
+                  I&apos;ll do this later
                 </button>
               </div>
             </FadeUp>
@@ -257,21 +212,24 @@ export const LovableStep = ({ products = [] }: LovableStepProps) => {
   )
 }
 
-const StepNumber = ({
+const HowItWorksCard = ({
   number,
-  completed,
+  title,
+  description,
 }: {
   number: number
-  completed?: boolean
+  title: string
+  description: string
 }) => (
-  <div
-    className={twMerge(
-      'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-medium transition-colors',
-      completed
-        ? 'bg-emerald-500 text-white'
-        : 'dark:bg-polar-800 dark:text-polar-300 bg-gray-200 text-gray-600',
-    )}
-  >
-    {completed ? <CheckOutlined sx={{ fontSize: 14 }} /> : number}
+  <div className="dark:bg-polar-900 flex flex-col gap-y-3 rounded-2xl border border-gray-200 bg-white p-5 dark:border-none">
+    <span className="dark:bg-polar-800 dark:text-polar-300 flex h-7 w-7 items-center justify-center rounded-full bg-gray-100 text-xs font-medium text-gray-600">
+      {number}
+    </span>
+    <div className="flex flex-col gap-y-1">
+      <span className="text-sm font-medium">{title}</span>
+      <span className="dark:text-polar-500 text-xs leading-relaxed text-gray-400">
+        {description}
+      </span>
+    </div>
   </div>
 )
