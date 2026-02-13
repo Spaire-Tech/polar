@@ -49,6 +49,17 @@ export default function ClientPage({
             transition={{ duration: 1, staggerChildren: 0.2 }}
             className="flex w-full max-w-2xl flex-col gap-14"
           >
+            {/* Skip link */}
+            <FadeUp className="flex flex-row justify-end">
+              <Link
+                href={`/dashboard/${organization.slug}`}
+                className="dark:text-polar-500 dark:hover:text-polar-400 dark:hover:bg-polar-700 cursor-pointer rounded-full px-3 py-1.5 text-sm text-gray-400 transition-colors duration-100 hover:bg-gray-100 hover:text-gray-600"
+                onClick={() => trackStepSkipped('product', organization.id)}
+              >
+                I&apos;ll do this later
+              </Link>
+            </FadeUp>
+
             {/* Header */}
             <FadeUp className="flex flex-col gap-y-3">
               <div className="md:hidden mb-8">
@@ -83,36 +94,26 @@ export default function ClientPage({
               </motion.div>
             )}
 
-            <FadeUp
-              className={twMerge(
-                'flex flex-col gap-y-2 transition-opacity duration-1000 ease-out',
-                shouldShowSkip
-                  ? 'pointer-events-auto opacity-100'
-                  : 'pointer-events-none opacity-0',
-                organizations.length === 1 && !shouldShowSkip ? 'opacity-0!' : '',
-              )}
-            >
-              <div className="dark:text-polar-500 flex flex-row items-center justify-center gap-x-4 text-sm text-gray-500">
-                {mode === 'assistant' && (
-                  <>
-                    <button
-                      className="dark:hover:text-polar-500 dark:hover:bg-polar-700 cursor-pointer rounded-full px-2.5 py-1 transition-colors duration-100 hover:bg-gray-100 hover:text-gray-500"
-                      onClick={() => setMode('manual')}
-                    >
-                      Set up manually
-                    </button>
-                    ·
-                  </>
+            {mode === 'assistant' && (
+              <FadeUp
+                className={twMerge(
+                  'flex flex-col gap-y-2 transition-opacity duration-1000 ease-out',
+                  shouldShowSkip
+                    ? 'pointer-events-auto opacity-100'
+                    : 'pointer-events-none opacity-0',
+                  organizations.length === 1 && !shouldShowSkip ? 'opacity-0!' : '',
                 )}
-                <Link
-                  href={`/dashboard/${organization.slug}`}
-                  className="dark:hover:text-polar-500 dark:hover:bg-polar-700 rounded-full px-2.5 py-1 transition-colors duration-100 hover:bg-gray-100 hover:text-gray-500"
-                  onClick={() => trackStepSkipped('product', organization.id)}
-                >
-                  I&apos;ll do this later
-                </Link>
-              </div>
-            </FadeUp>
+              >
+                <div className="dark:text-polar-500 flex flex-row items-center justify-center text-sm text-gray-500">
+                  <button
+                    className="dark:hover:text-polar-500 dark:hover:bg-polar-700 cursor-pointer rounded-full px-2.5 py-1 transition-colors duration-100 hover:bg-gray-100 hover:text-gray-500"
+                    onClick={() => setMode('manual')}
+                  >
+                    Set up manually
+                  </button>
+                </div>
+              </FadeUp>
+            )}
           </motion.div>
         </div>
       </div>

@@ -93,26 +93,30 @@ export const LovableStep = () => {
             transition={{ duration: 1, staggerChildren: 0.2 }}
             className="flex w-full max-w-2xl flex-col gap-16"
           >
+            {/* Skip link */}
+            <FadeUp className="flex flex-row justify-end">
+              <button
+                className="dark:text-polar-500 dark:hover:text-polar-400 dark:hover:bg-polar-700 cursor-pointer rounded-full px-3 py-1.5 text-sm text-gray-400 transition-colors duration-100 hover:bg-gray-100 hover:text-gray-600"
+                onClick={handleSkip}
+              >
+                Not using Lovable? Skip this step
+              </button>
+            </FadeUp>
+
             {/* Header */}
             <FadeUp className="flex flex-col gap-y-4">
               <div className="md:hidden mb-8">
                 <LogoIcon size={36} />
               </div>
-              <div className="flex flex-row items-center gap-x-4">
-                <LovableIcon size={36} />
-                <span className="dark:text-polar-600 text-2xl font-extralight text-gray-300">
-                  +
-                </span>
-                <LogoIcon size={36} />
-              </div>
+              <LovableIcon size={40} />
               <h1 className="mt-1 text-2xl font-medium tracking-tight md:text-3xl">
-                Connect Lovable to Spaire
+                Build with Lovable, monetize with Spaire
               </h1>
               <p className="dark:text-polar-400 max-w-lg text-base leading-relaxed text-gray-500">
-                Add billing to your Lovable app in under a minute. Copy the
-                prompt below, paste it into Lovable&apos;s chat, and your app
-                gets a checkout page — no API keys, no environment variables, no
-                backend code.
+                Spaire partners with Lovable to bring billing directly into your
+                app. Just copy the prompt below, paste it into Lovable, and
+                you&apos;ll have a fully working checkout page — no API keys, no
+                server code, nothing to configure.
               </p>
             </FadeUp>
 
@@ -192,18 +196,10 @@ export const LovableStep = () => {
             </FadeUp>
 
             {/* Actions */}
-            <FadeUp className="flex flex-col gap-y-3 pt-2">
+            <FadeUp className="flex flex-col pt-2">
               <Button size="lg" fullWidth onClick={handleContinue}>
                 Continue to Create Product
               </Button>
-              <div className="dark:text-polar-500 flex flex-row items-center justify-center pt-1 text-sm text-gray-500">
-                <button
-                  className="dark:hover:text-polar-400 dark:hover:bg-polar-700 cursor-pointer rounded-full px-3 py-1.5 transition-colors duration-100 hover:bg-gray-100 hover:text-gray-600"
-                  onClick={handleSkip}
-                >
-                  I&apos;ll do this later
-                </button>
-              </div>
             </FadeUp>
           </motion.div>
         </div>
