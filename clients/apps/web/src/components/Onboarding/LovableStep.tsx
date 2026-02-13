@@ -110,13 +110,12 @@ export const LovableStep = () => {
               </div>
               <LovableIcon size={40} />
               <h1 className="mt-1 text-2xl font-medium tracking-tight md:text-3xl">
-                Build with Lovable, monetize with Spaire
+                Build with Lovable. Monetize with Spaire.
               </h1>
               <p className="dark:text-polar-400 max-w-lg text-base leading-relaxed text-gray-500">
                 Spaire partners with Lovable to bring billing directly into your
                 app. Just copy the prompt below, paste it into Lovable, and
-                you&apos;ll have a fully working checkout page — no API keys, no
-                server code, nothing to configure.
+                you&apos;ll have a fully working checkout page.
               </p>
             </FadeUp>
 
