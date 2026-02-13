@@ -199,9 +199,9 @@ export const OrganizationStep = ({
 
     router.push(
       getStatusRedirect(
-        `/dashboard/${organization.slug}/onboarding/product${queryParams}`,
+        `/dashboard/${organization.slug}/onboarding/lovable${queryParams}`,
         'Organization created',
-        'You can now create your first product',
+        'Connect Lovable to your app',
       ),
     )
   }

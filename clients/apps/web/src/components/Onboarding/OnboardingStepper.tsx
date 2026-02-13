@@ -17,6 +17,11 @@ const defaultSteps: OnboardingStep[] = [
     description: 'Set up your workspace',
   },
   {
+    id: 'lovable',
+    label: 'Connect Lovable',
+    description: 'Link billing to your app',
+  },
+  {
     id: 'product',
     label: 'First Product',
     description: 'Create something to sell',
