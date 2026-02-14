@@ -8,6 +8,7 @@ export interface OnboardingStep {
   id: string
   label: string
   description: string
+  optional?: boolean
 }
 
 const defaultSteps: OnboardingStep[] = [
@@ -20,11 +21,13 @@ const defaultSteps: OnboardingStep[] = [
     id: 'lovable',
     label: 'Connect Lovable',
     description: 'Link billing to your app',
+    optional: true,
   },
   {
     id: 'product',
     label: 'First Product',
     description: 'Create something to sell',
+    optional: true,
   },
   {
     id: 'integrate',
@@ -84,17 +87,24 @@ export const OnboardingStepper = ({
                   )}
                 </div>
                 <div className="flex flex-col gap-y-0.5 pt-1">
-                  <span
-                    className={twMerge(
-                      'text-sm font-medium',
-                      isActive
-                        ? 'text-gray-900 dark:text-white'
-                        : isCompleted
-                          ? 'text-gray-700 dark:text-gray-300'
-                          : 'dark:text-polar-400 text-gray-400',
+                  <span className="flex flex-row items-center gap-x-2">
+                    <span
+                      className={twMerge(
+                        'text-sm font-medium',
+                        isActive
+                          ? 'text-gray-900 dark:text-white'
+                          : isCompleted
+                            ? 'text-gray-700 dark:text-gray-300'
+                            : 'dark:text-polar-400 text-gray-400',
+                      )}
+                    >
+                      {step.label}
+                    </span>
+                    {step.optional && (
+                      <span className="dark:text-polar-500 text-[10px] font-medium text-gray-400">
+                        Optional
+                      </span>
                     )}
-                  >
-                    {step.label}
                   </span>
                   <span className="dark:text-polar-500 text-xs text-gray-400">
                     {step.description}

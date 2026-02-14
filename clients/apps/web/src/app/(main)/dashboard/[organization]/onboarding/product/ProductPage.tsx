@@ -114,6 +114,16 @@ export default function ClientPage({
                 </div>
               </FadeUp>
             )}
+
+            <FadeUp className="flex flex-row items-center justify-center">
+              <Link
+                href={`/dashboard/${organization.slug}`}
+                className="cursor-pointer rounded-full px-3 py-1.5 text-sm text-blue-500 transition-colors duration-100 hover:bg-blue-50 hover:text-blue-600 dark:text-blue-400 dark:hover:bg-blue-500/10 dark:hover:text-blue-300"
+                onClick={() => trackStepSkipped('product', organization.id)}
+              >
+                I&apos;ll do this later
+              </Link>
+            </FadeUp>
           </motion.div>
         </div>
       </div>
