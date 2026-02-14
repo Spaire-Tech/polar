@@ -22,7 +22,7 @@ def _make_mock_v2_account(
     currency: str | None = "usd",
     entity_type: str | None = "individual",
     stripe_transfers_status: str = "pending",
-    payouts_status: str = "pending",
+    payouts_status: str | None = "pending",
     applied_configurations: list[str] | None = None,
     has_past_due_requirements: bool = False,
 ) -> object:
@@ -45,14 +45,15 @@ def _make_mock_v2_account(
 
     class MockStripeBalance:
         def __init__(
-            self, transfers_status: str, payouts_status: str
+            self, transfers_status: str, payouts_status: str | None
         ) -> None:
             self.stripe_transfers = MockStripeTransfers(transfers_status)
-            self.payouts = MockPayouts(payouts_status)
+            if payouts_status is not None:
+                self.payouts = MockPayouts(payouts_status)
 
     class MockCapabilities:
         def __init__(
-            self, transfers_status: str, payouts_status: str
+            self, transfers_status: str, payouts_status: str | None
         ) -> None:
             self.stripe_balance = MockStripeBalance(
                 transfers_status, payouts_status
@@ -60,7 +61,7 @@ def _make_mock_v2_account(
 
     class MockRecipient:
         def __init__(
-            self, transfers_status: str, payouts_status: str
+            self, transfers_status: str, payouts_status: str | None
         ) -> None:
             self.applied = True
             self.capabilities = MockCapabilities(
@@ -69,7 +70,7 @@ def _make_mock_v2_account(
 
     class MockConfiguration:
         def __init__(
-            self, transfers_status: str, payouts_status: str
+            self, transfers_status: str, payouts_status: str | None
         ) -> None:
             self.recipient = MockRecipient(transfers_status, payouts_status)
 
@@ -135,6 +136,17 @@ class TestExtractV2AccountInfo:
         assert info.is_transfers_enabled is True
         assert info.is_payouts_enabled is True
         assert info.is_details_submitted is True
+
+
+    def test_extract_active_account_without_payouts_capability(self) -> None:
+        mock_account = _make_mock_v2_account(
+            stripe_transfers_status="active",
+            payouts_status=None,
+        )
+        info = extract_v2_account_info(mock_account)  # type: ignore[arg-type]
+
+        assert info.is_transfers_enabled is True
+        assert info.is_payouts_enabled is True
 
     def test_extract_restricted_account(self) -> None:
         mock_account = _make_mock_v2_account(
