@@ -613,6 +613,23 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/v1/accounts/{id}/connect_session': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Connect Session */
+    post: operations['accounts:connect_session']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/v1/accounts/{id}/credits': {
     parameters: {
       query?: never
@@ -5154,6 +5171,16 @@ export interface components {
       /** Revoked At */
       revoked_at: string | null
     }
+    /** AccountConnectSession */
+    AccountConnectSession: {
+      /** Client Secret */
+      client_secret: string
+    }
+    /** AccountConnectSessionCreate */
+    AccountConnectSessionCreate: {
+      /** Scenario */
+      scenario: components['schemas']['ConnectSessionScenario']
+    }
     /** AccountLink */
     AccountLink: {
       /** Url */
@@ -5164,6 +5191,11 @@ export interface components {
      * @enum {string}
      */
     AccountType: 'stripe' | 'manual'
+    /**
+     * ConnectSessionScenario
+     * @enum {string}
+     */
+    ConnectSessionScenario: 'onboarding' | 'payouts'
     /** AccountUpdate */
     AccountUpdate: {
       /**
@@ -27827,6 +27859,41 @@ export interface operations {
       }
     }
   }
+  'accounts:connect_session': {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AccountConnectSessionCreate']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['AccountConnectSession']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
   'accounts:get_credits': {
     parameters: {
       query?: never
@@ -42294,6 +42361,9 @@ export const checkoutSortPropertyValues: ReadonlyArray<
 export const checkoutStatusValues: ReadonlyArray<
   FlattenedDeepRequired<components>['schemas']['CheckoutStatus']
 > = ['open', 'expired', 'confirmed', 'succeeded', 'failed']
+export const connectSessionScenarioValues: ReadonlyArray<
+  FlattenedDeepRequired<components>['schemas']['ConnectSessionScenario']
+> = ['onboarding', 'payouts']
 export const countAggregationFuncValues: ReadonlyArray<
   FlattenedDeepRequired<components>['schemas']['CountAggregation']['func']
 > = ['count']

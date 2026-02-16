@@ -1,28 +1,38 @@
 'use client'
 
+import EmbeddedOnboarding from '@/components/Connect/EmbeddedOnboarding'
 import { schemas } from '@polar-sh/client'
 import Button from '@polar-sh/ui/components/atoms/Button'
 import { ArrowRight, Building2, ShieldAlert } from 'lucide-react'
 import React from 'react'
 
 interface AccountStepProps {
+  organization: schemas['Organization']
   organizationAccount?: schemas['Account']
   isNotAdmin: boolean
   onStartAccountSetup: () => void
   onSkipAccountSetup?: () => void
+  onOnboardingComplete?: () => void
 }
 
 export default function AccountStep({
+  organization,
   organizationAccount,
   isNotAdmin,
   onStartAccountSetup,
   onSkipAccountSetup,
+  onOnboardingComplete,
 }: AccountStepProps) {
   const isAccountSetupComplete =
     organizationAccount?.stripe_id !== null &&
     organizationAccount?.is_details_submitted &&
     organizationAccount?.is_charges_enabled &&
     organizationAccount?.is_payouts_enabled
+
+  const needsEmbeddedOnboarding =
+    organizationAccount?.stripe_id &&
+    (!organizationAccount?.is_details_submitted ||
+      !organizationAccount?.is_payouts_enabled)
 
   if (isAccountSetupComplete) {
     return (
@@ -65,6 +75,18 @@ export default function AccountStep({
     )
   }
 
+  // Show embedded onboarding when account has stripe_id but setup isn't complete
+  if (needsEmbeddedOnboarding && organizationAccount) {
+    return (
+      <EmbeddedOnboarding
+        account={organizationAccount}
+        organization={organization}
+        onComplete={onOnboardingComplete}
+      />
+    )
+  }
+
+  // No account yet — show button to open create modal
   return (
     <div className="flex flex-col items-center gap-4 py-8 text-center">
       <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 dark:bg-blue-500/10">
@@ -76,7 +98,6 @@ export default function AccountStep({
         </h3>
         <p className="dark:text-polar-400 mx-auto mt-1 max-w-sm text-sm text-gray-500">
           Connect your bank account so Spaire can send you your earnings.
-          You&apos;ll be redirected to Stripe to complete this step.
         </p>
       </div>
       <Button onClick={onStartAccountSetup} className="mt-2">

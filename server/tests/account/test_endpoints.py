@@ -1,4 +1,7 @@
+from unittest.mock import MagicMock
+
 import pytest
+import stripe as stripe_lib
 from httpx import AsyncClient
 from pytest_mock import MockerFixture
 
@@ -105,3 +108,92 @@ async def test_update(account: Account, client: AsyncClient) -> None:
     assert json["billing_name"] == "John Doe"
     assert json["billing_address"]["city"] == "New York"
     assert json["billing_notes"] == "This is a test billing note."
+
+
+@pytest.mark.asyncio
+@pytest.mark.auth
+class TestConnectSession:
+    async def test_not_existing_account(
+        self,
+        client: AsyncClient,
+    ) -> None:
+        response = await client.post(
+            "/v1/accounts/3794dd38-54d1-4a64-bd68-fa22e1659e7b/connect_session",
+            json={"scenario": "onboarding"},
+        )
+        assert response.status_code == 404
+
+    async def test_unsupported_scenario(
+        self,
+        account: Account,
+        client: AsyncClient,
+    ) -> None:
+        response = await client.post(
+            f"/v1/accounts/{account.id}/connect_session",
+            json={"scenario": "invalid_scenario"},
+        )
+        assert response.status_code == 422
+
+    async def test_onboarding_success(
+        self,
+        account: Account,
+        mocker: MockerFixture,
+        client: AsyncClient,
+    ) -> None:
+        mock_session = MagicMock()
+        mock_session.client_secret = "cas_test_secret_onboarding"
+
+        mocker.patch(
+            "polar.integrations.stripe.service.StripeService.create_account_session",
+            return_value=mock_session,
+        )
+
+        response = await client.post(
+            f"/v1/accounts/{account.id}/connect_session",
+            json={"scenario": "onboarding"},
+        )
+
+        assert response.status_code == 200
+        json = response.json()
+        assert json["client_secret"] == "cas_test_secret_onboarding"
+
+    async def test_payouts_success(
+        self,
+        account: Account,
+        mocker: MockerFixture,
+        client: AsyncClient,
+    ) -> None:
+        mock_session = MagicMock()
+        mock_session.client_secret = "cas_test_secret_payouts"
+
+        mocker.patch(
+            "polar.integrations.stripe.service.StripeService.create_account_session",
+            return_value=mock_session,
+        )
+
+        response = await client.post(
+            f"/v1/accounts/{account.id}/connect_session",
+            json={"scenario": "payouts"},
+        )
+
+        assert response.status_code == 200
+        json = response.json()
+        assert json["client_secret"] == "cas_test_secret_payouts"
+
+    async def test_stripe_error(
+        self,
+        account: Account,
+        mocker: MockerFixture,
+        client: AsyncClient,
+    ) -> None:
+        mocker.patch(
+            "polar.integrations.stripe.service.StripeService.create_account_session",
+            side_effect=stripe_lib.StripeError("Something went wrong"),
+        )
+
+        response = await client.post(
+            f"/v1/accounts/{account.id}/connect_session",
+            json={"scenario": "onboarding"},
+        )
+
+        assert response.status_code == 500
