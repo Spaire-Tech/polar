@@ -35,7 +35,6 @@ import { twMerge } from 'tailwind-merge'
 const businessTypes = [
   { id: 'early-stage', label: 'Early-Stage Startup', description: 'Pre-seed to seed, finding product-market fit' },
   { id: 'venture-backed', label: 'Venture-Backed', description: 'Series A+ with an established product' },
-  { id: 'individual', label: 'Individual Creator', description: 'Solo founder, indie hacker, or creator' },
   { id: 'bootstrapped', label: 'Bootstrapped / Profitable', description: 'Self-funded and growing organically' },
 ] as const
 
@@ -54,8 +53,6 @@ const referralSources = [
   { id: 'blog', label: 'Blog or Article' },
   { id: 'podcast', label: 'Podcast' },
   { id: 'github', label: 'GitHub' },
-  { id: 'producthunt', label: 'Product Hunt' },
-  { id: 'hackernews', label: 'Hacker News' },
   { id: 'community', label: 'Online Community' },
   { id: 'other', label: 'Other' },
 ] as const

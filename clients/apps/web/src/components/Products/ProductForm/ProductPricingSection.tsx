@@ -778,9 +778,6 @@ const ProductPriceItem: React.FC<ProductPriceItemProps> = ({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="fixed">Fixed price</SelectItem>
-                        <SelectItem value="custom">
-                          Pay what you want
-                        </SelectItem>
                         <SelectItem value="free">Free</SelectItem>
                         {organization.feature_settings
                           ?.seat_based_pricing_enabled && (
