@@ -304,13 +304,13 @@ class Settings(BaseSettings):
     # Invoices
     S3_CUSTOMER_INVOICES_BUCKET_NAME: str = "polar-customer-invoices"
     S3_PAYOUT_INVOICES_BUCKET_NAME: str = "polar-payout-invoices"
-    INVOICES_NAME: str = "Polar Software, Inc."
+    INVOICES_NAME: str = "Spaire, Inc."
     INVOICES_ADDRESS: Address = Address(
-        line1="548 Market St",
-        line2="PMB 61301",
-        postal_code="94104",
-        city="San Francisco",
-        state="US-CA",
+        line1="1111B S Governors Ave",
+        line2="# 47283",
+        postal_code="19904",
+        city="Dover",
+        state="US-DE",
         country=CountryAlpha2("US"),
     )
     INVOICES_ADDITIONAL_INFO: str | None = "[support@spairehq.com](mailto:support@spairehq.com)"
