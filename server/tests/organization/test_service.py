@@ -514,7 +514,7 @@ class TestGetPaymentStatus:
         )
 
         assert payment_status.payment_ready is False
-        assert len(payment_status.steps) == 3
+        assert len(payment_status.steps) == 4
 
         # Check each step
         create_product_step = next(
@@ -531,6 +531,11 @@ class TestGetPaymentStatus:
             s for s in payment_status.steps if s.id == "setup_account"
         )
         assert setup_account_step.completed is False
+
+        verify_identity_step = next(
+            s for s in payment_status.steps if s.id == "verify_identity"
+        )
+        assert verify_identity_step.completed is False
 
     async def test_with_product_created(
         self,
@@ -640,6 +645,11 @@ class TestGetPaymentStatus:
             s for s in payment_status.steps if s.id == "setup_account"
         )
         assert setup_account_step.completed is True
+
+        verify_identity_step = next(
+            s for s in payment_status.steps if s.id == "verify_identity"
+        )
+        assert verify_identity_step.completed is True
 
     async def test_all_steps_complete_grandfathered(
         self,

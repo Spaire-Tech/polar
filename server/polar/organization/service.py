@@ -69,6 +69,7 @@ class PaymentStepID(StrEnum):
     CREATE_PRODUCT = "create_product"
     INTEGRATE_CHECKOUT = "integrate_checkout"
     SETUP_ACCOUNT = "setup_account"
+    VERIFY_IDENTITY = "verify_identity"
 
 
 class PaymentStep(BaseModel):
@@ -841,9 +842,20 @@ class OrganizationService:
         steps.append(
             PaymentStep(
                 id=PaymentStepID.SETUP_ACCOUNT,
-                title="Finish account setup",
-                description="Complete your account details and verify your identity",
+                title="Connect payout account",
+                description="Connect your bank account to receive payouts",
                 completed=account_setup_complete,
+            )
+        )
+
+        # Step 4: Verify identity
+        identity_verified = self._is_identity_verified(organization)
+        steps.append(
+            PaymentStep(
+                id=PaymentStepID.VERIFY_IDENTITY,
+                title="Verify your identity",
+                description="Complete identity verification to activate payments",
+                completed=identity_verified,
             )
         )
 
@@ -864,12 +876,28 @@ class OrganizationService:
         if not account:
             return False
 
-        admin = account.admin
         return (
             organization.details_submitted_at is not None
             and account.is_details_submitted
-            and (admin.identity_verification_status in ["verified", "pending"])
         )
+
+    def _is_identity_verified(self, organization: Organization) -> bool:
+        """Check if the account admin's identity has been verified."""
+        if not organization.account_id:
+            return False
+
+        account = organization.account
+        if not account:
+            return False
+
+        admin = account.admin
+        if not admin:
+            return False
+
+        return admin.identity_verification_status in [
+            IdentityVerificationStatus.verified,
+            IdentityVerificationStatus.pending,
+        ]
 
     async def is_organization_ready_for_payment(
         self, session: AsyncReadSession, organization: Organization

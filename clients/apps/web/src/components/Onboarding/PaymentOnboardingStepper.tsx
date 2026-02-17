@@ -4,7 +4,7 @@ import { useOrganizationPaymentStatus } from '@/hooks/queries/org'
 import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
 import { schemas } from '@polar-sh/client'
 import Button from '@polar-sh/ui/components/atoms/Button'
-import { AlertCircle, Building2, Code2, Package } from 'lucide-react'
+import { AlertCircle, Building2, Code2, Fingerprint, Package } from 'lucide-react'
 import Link from 'next/link'
 import React from 'react'
 import { twMerge } from 'tailwind-merge'
@@ -18,6 +18,7 @@ const stepIcons = {
   create_product: <Package />,
   integrate_checkout: <Code2 />,
   setup_account: <Building2 />,
+  verify_identity: <Fingerprint />,
 } as const
 
 const stepActions = {
@@ -32,6 +33,10 @@ const stepActions = {
   setup_account: {
     href: '/dashboard/[organization]/finance/account',
     label: 'Complete Setup',
+  },
+  verify_identity: {
+    href: '/dashboard/[organization]/finance/account',
+    label: 'Verify Identity',
   },
 } as const
 
@@ -65,7 +70,7 @@ export const PaymentOnboardingStepper = ({
       <div className={twMerge('animate-pulse space-y-4', className)}>
         <div className="dark:bg-polar-700 h-6 rounded-sm bg-gray-200" />
         <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
+          {[1, 2, 3, 4].map((i) => (
             <div
               key={i}
               className="dark:bg-polar-700 h-16 rounded-sm bg-gray-200"
@@ -99,7 +104,7 @@ export const PaymentOnboardingStepper = ({
       )}
       <div className="space-y-4 md:space-y-6">
         {/* Steps */}
-        <div className="dark:bg-polar-800 relative grid grid-cols-1 divide-x-0 divide-y divide-gray-100 rounded-3xl border border-gray-100 bg-white lg:grid-cols-3 lg:divide-x lg:divide-y-0 dark:divide-white/5 dark:border-white/5">
+        <div className="dark:bg-polar-800 relative grid grid-cols-1 divide-x-0 divide-y divide-gray-100 rounded-3xl border border-gray-100 bg-white lg:grid-cols-4 lg:divide-x lg:divide-y-0 dark:divide-white/5 dark:border-white/5">
           {paymentStatus.steps.map((step) => {
             const action = stepActions[step.id as keyof typeof stepActions]
             const icon = stepIcons[step.id as keyof typeof stepIcons] || (
