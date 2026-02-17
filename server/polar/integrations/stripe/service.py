@@ -104,6 +104,9 @@ def extract_v2_account_info(
                     if payouts is not None:
                         is_payouts_enabled = payouts.status == "active"
 
+    if not is_payouts_enabled and is_transfers_enabled:
+        is_payouts_enabled = True
+
     identity = getattr(v2_account, "identity", None)
     country = getattr(identity, "country", None) if identity else None
     entity_type = getattr(identity, "entity_type", None) if identity else None
