@@ -265,7 +265,7 @@ async def get_payment_status(
         organization = await organization_service.get_anonymous(
             session,
             id,
-            options=(joinedload(Organization.account).joinedload(Account.admin),),
+            options=(joinedload(Organization.account),),
         )
     else:
         # For authenticated users, check proper scopes (need at least one of these)
@@ -281,7 +281,7 @@ async def get_payment_status(
             session,
             cast(auth.OrganizationsRead, auth_subject),
             id,
-            options=(joinedload(Organization.account).joinedload(Account.admin),),
+            options=(joinedload(Organization.account),),
         )
 
     if organization is None:

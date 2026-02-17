@@ -7,9 +7,8 @@ import { Check } from 'lucide-react'
 import React, { useState } from 'react'
 import { twMerge } from 'tailwind-merge'
 import AccountStep from './Steps/AccountStep'
-import IdentityStep from './Steps/IdentityStep'
 
-type Step = 'review' | 'validation' | 'account' | 'identity' | 'complete'
+type Step = 'review' | 'validation' | 'account' | 'complete'
 
 type StepStatus =
   | 'pending'
@@ -30,14 +29,11 @@ interface StreamlinedAccountReviewProps {
   currentStep: Step
   requireDetails: boolean
   organizationAccount?: schemas['Account']
-  identityVerified?: boolean
-  identityVerificationStatus?: string
   organizationReviewStatus?: schemas['OrganizationReviewStatus']
   isNotAdmin?: boolean
   onDetailsSubmitted: () => void
   onValidationCompleted: () => void
   onStartAccountSetup: () => void
-  onStartIdentityVerification: () => void
   onSkipAccountSetup?: () => void
   onAppealApproved?: () => void
   onAppealSubmitted?: () => void
@@ -173,14 +169,11 @@ export default function StreamlinedAccountReview({
   currentStep,
   requireDetails,
   organizationAccount,
-  identityVerified,
-  identityVerificationStatus,
   organizationReviewStatus,
   isNotAdmin = false,
   onDetailsSubmitted,
   onValidationCompleted,
   onStartAccountSetup,
-  onStartIdentityVerification,
   onSkipAccountSetup,
   onAppealApproved,
   onAppealSubmitted,
@@ -207,7 +200,6 @@ export default function StreamlinedAccountReview({
     (organizationAccount !== undefined &&
       organizationAccount.is_details_submitted) ||
     isNotAdmin
-  const isIdentityCompleted = !!identityVerified
 
   // --- Step status resolver ---
   const getStepStatus = (
@@ -223,10 +215,6 @@ export default function StreamlinedAccountReview({
       return 'blocked'
 
     if (currentStep === stepId) {
-      if (stepId === 'identity') {
-        if (identityVerificationStatus === 'pending') return 'in_progress'
-        if (identityVerificationStatus === 'failed') return 'failed'
-      }
       if (stepId === 'validation') {
         if (organizationReviewStatus?.verdict === 'PASS') return 'completed'
         if (
@@ -289,12 +277,12 @@ export default function StreamlinedAccountReview({
         isValidationCompleted || isAppealSubmitted,
       ),
     },
-    {
-      id: 'identity',
-      label: 'Identity',
-      status: getStepStatus('identity', isIdentityCompleted, isAccountCompleted),
-    },
   ]
+
+  // Hide the onboarding flow once all steps are complete
+  if (currentStep === 'complete') {
+    return null
+  }
 
   const currentStepIndex =
     steps.findIndex((s) => s.id === currentStep) + 1
@@ -373,18 +361,6 @@ export default function StreamlinedAccountReview({
             isNotAdmin={isNotAdmin}
             onStartAccountSetup={onStartAccountSetup}
             onSkipAccountSetup={onSkipAccountSetup}
-          />
-        </StepCard>
-      )}
-
-      {currentStep === 'identity' && (
-        <StepCard
-          title="Identity Verification"
-          subtitle="Final step — verify your identity to activate your Spaire account."
-        >
-          <IdentityStep
-            identityVerificationStatus={identityVerificationStatus}
-            onStartIdentityVerification={onStartIdentityVerification}
           />
         </StepCard>
       )}

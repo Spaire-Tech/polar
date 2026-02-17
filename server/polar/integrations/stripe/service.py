@@ -103,6 +103,11 @@ def extract_v2_account_info(
                     payouts = getattr(stripe_balance, "payouts", None)
                     if payouts is not None:
                         is_payouts_enabled = payouts.status == "active"
+                    else:
+                        # payouts capability is auto-requested with stripe_transfers
+                        # (since Stripe API 2025-04-30). If not present in response,
+                        # fall back to transfers status.
+                        is_payouts_enabled = is_transfers_enabled
 
     identity = getattr(v2_account, "identity", None)
     country = getattr(identity, "country", None) if identity else None
@@ -241,7 +246,11 @@ class StripeService:
         refresh_url = settings.generate_external_url(
             f"/v1/integrations/stripe/refresh?return_path={return_path}"
         )
-        return_url = settings.generate_frontend_url(return_path)
+        return_url = settings.generate_external_url(
+            f"/v1/integrations/stripe/return"
+            f"?return_path={return_path}"
+            f"&stripe_account_id={stripe_id}"
+        )
         return await stripe_lib.AccountLink.create_async(
             account=stripe_id,
             refresh_url=refresh_url,
