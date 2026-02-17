@@ -2,7 +2,7 @@
 
 import { useAssignSeatFromCheckout } from '@/hooks/queries'
 import { validateEmail } from '@/utils/validation'
-import { hasProductCheckout } from '@polar-sh/checkout/guards'
+import { hasProductCheckout } from '@spaire/checkout/guards'
 import type { CheckoutPublic } from '@spaire/sdk/models/components/checkoutpublic'
 import Button from '@polar-sh/ui/components/atoms/Button'
 import Input from '@polar-sh/ui/components/atoms/Input'

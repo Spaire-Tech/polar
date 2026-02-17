@@ -9,13 +9,13 @@ import {
   CheckoutForm,
   CheckoutProductSwitcher,
   CheckoutPWYWForm,
-} from '@polar-sh/checkout/components'
+} from '@spaire/checkout/components'
 import {
   hasProductCheckout,
   type ProductCheckoutPublic,
-} from '@polar-sh/checkout/guards'
-import { useCheckoutFulfillmentListener } from '@polar-sh/checkout/hooks'
-import { useCheckout, useCheckoutForm } from '@polar-sh/checkout/providers'
+} from '@spaire/checkout/guards'
+import { useCheckoutFulfillmentListener } from '@spaire/checkout/hooks'
+import { useCheckout, useCheckoutForm } from '@spaire/checkout/providers'
 import type { CheckoutConfirmStripe } from '@spaire/sdk/models/components/checkoutconfirmstripe'
 import type { CheckoutPublicConfirmed } from '@spaire/sdk/models/components/checkoutpublicconfirmed'
 import type { CheckoutUpdatePublic } from '@spaire/sdk/models/components/checkoutupdatepublic'

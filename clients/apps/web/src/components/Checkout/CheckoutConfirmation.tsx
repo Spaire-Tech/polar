@@ -3,7 +3,7 @@
 import { useCheckoutConfirmedRedirect } from '@/hooks/checkout'
 import { useCheckoutClientSSE } from '@/hooks/sse'
 import { getServerURL } from '@/utils/api'
-import { hasProductCheckout } from '@polar-sh/checkout/guards'
+import { hasProductCheckout } from '@spaire/checkout/guards'
 import { SpaireCore } from '@spaire/sdk/core'
 import { checkoutsClientGet } from '@spaire/sdk/funcs/checkoutsClientGet'
 import type { CheckoutPublic } from '@spaire/sdk/models/components/checkoutpublic'

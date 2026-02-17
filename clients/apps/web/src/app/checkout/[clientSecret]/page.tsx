@@ -2,7 +2,7 @@ import { getPublicServerURL, getServerURL } from '@/utils/api'
 import {
   CheckoutFormProvider,
   CheckoutProvider,
-} from '@polar-sh/checkout/providers'
+} from '@spaire/checkout/providers'
 import { SpaireCore } from '@spaire/sdk/core'
 import { checkoutsClientGet } from '@spaire/sdk/funcs/checkoutsClientGet'
 import { ExpiredCheckoutError } from '@spaire/sdk/models/errors/expiredcheckouterror'

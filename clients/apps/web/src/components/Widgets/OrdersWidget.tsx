@@ -81,12 +81,12 @@ export const OrdersWidget = ({ className }: OrdersWidgetProps) => {
   return (
     <div
       className={twMerge(
-        'dark:bg-polar-800 relative h-full min-h-80 rounded-4xl bg-gray-50 md:min-h-fit',
+        'dark:bg-polar-800 rounded-4xl bg-gray-50 p-2',
         className,
       )}
     >
       {(orders.data?.items.length ?? 0) > 0 ? (
-        <div className="absolute inset-2 flex flex-col">
+        <div className="flex flex-col">
           <div className="flex items-center justify-between p-4">
             <h3 className="text-lg">Recent Transactions</h3>
             <Link href={`/dashboard/${org.slug}/sales`}>
@@ -99,7 +99,7 @@ export const OrdersWidget = ({ className }: OrdersWidgetProps) => {
               </Button>
             </Link>
           </div>
-          <div className="flex h-full flex-col gap-y-2 overflow-y-auto rounded-t-2xl rounded-b-4xl pb-4">
+          <div className="flex flex-col gap-y-2 rounded-t-2xl rounded-b-4xl pb-4">
             {orders.data?.items?.map((order) => (
               <Link
                 key={order.id}

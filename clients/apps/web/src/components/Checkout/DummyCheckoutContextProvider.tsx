@@ -10,7 +10,7 @@ import { useForm } from 'react-hook-form'
 import {
   CheckoutContext,
   CheckoutFormContext,
-} from '@polar-sh/checkout/providers'
+} from '@spaire/checkout/providers'
 import { useTheme } from 'next-themes'
 
 const DummyCheckoutContextProvider = ({
