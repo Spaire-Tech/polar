@@ -252,46 +252,6 @@ class StripeService:
     async def create_login_link(self, stripe_id: str) -> stripe_lib.LoginLink:
         return await stripe_lib.Account.create_login_link_async(stripe_id)
 
-    async def create_account_session(
-        self,
-        stripe_id: str,
-        scenario: str,
-    ) -> stripe_lib.AccountSession:
-        """Create an Account Session for embedded Connect components.
-
-        The scenario determines which components are enabled:
-        - "onboarding": Enables the account_onboarding component
-        - "payouts": Enables the payouts component with standard payout features
-        """
-        log.info(
-            "stripe.account_session.create",
-            account_id=stripe_id,
-            scenario=scenario,
-        )
-
-        components: dict[str, object] = {}
-        if scenario == "onboarding":
-            components["account_onboarding"] = {
-                "enabled": True,
-            }
-        elif scenario == "payouts":
-            components["payouts"] = {
-                "enabled": True,
-                "features": {
-                    "instant_payouts": True,
-                    "standard_payouts": True,
-                    "edit_payout_schedule": True,
-                    "external_account_collection": True,
-                },
-            }
-        else:
-            raise StripeError(f"Unsupported connect session scenario: {scenario}")
-
-        return await stripe_lib.AccountSession.create_async(
-            account=stripe_id,
-            components=components,
-        )
-
     async def transfer(
         self,
         destination_stripe_id: str,

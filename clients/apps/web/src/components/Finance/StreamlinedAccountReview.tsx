@@ -42,7 +42,6 @@ interface StreamlinedAccountReviewProps {
   onAppealApproved?: () => void
   onAppealSubmitted?: () => void
   onNavigateToStep?: (step: Step) => void
-  onOnboardingComplete?: () => void
 }
 
 // ---------------------------------------------------------------------------
@@ -186,7 +185,6 @@ export default function StreamlinedAccountReview({
   onAppealApproved,
   onAppealSubmitted,
   onNavigateToStep,
-  onOnboardingComplete,
 }: StreamlinedAccountReviewProps) {
   const [validationCompleted, setValidationCompleted] = useState(false)
 
@@ -371,12 +369,10 @@ export default function StreamlinedAccountReview({
           subtitle="Connect your bank account to receive payouts from Spaire."
         >
           <AccountStep
-            organization={organization}
             organizationAccount={organizationAccount}
             isNotAdmin={isNotAdmin}
             onStartAccountSetup={onStartAccountSetup}
             onSkipAccountSetup={onSkipAccountSetup}
-            onOnboardingComplete={onOnboardingComplete}
           />
         </StepCard>
       )}

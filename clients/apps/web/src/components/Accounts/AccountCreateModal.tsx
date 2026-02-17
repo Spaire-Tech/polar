@@ -18,11 +18,9 @@ import { useForm, useFormContext } from 'react-hook-form'
 const AccountCreateModal = ({
   forOrganizationId,
   returnPath,
-  onAccountCreated,
 }: {
   forOrganizationId: string
   returnPath: string
-  onAccountCreated?: () => void
 }) => {
   const form = useForm<schemas['AccountCreateForOrganization']>({
     defaultValues: {
@@ -85,16 +83,9 @@ const AccountCreateModal = ({
       }
 
       setLoading(false)
-
-      // If embedded onboarding callback is provided, use it instead of
-      // redirecting to hosted Stripe onboarding
-      if (onAccountCreated) {
-        onAccountCreated()
-      } else {
-        await goToOnboarding(account)
-      }
+      await goToOnboarding(account)
     },
-    [setLoading, forOrganizationId, goToOnboarding, setError, onAccountCreated],
+    [setLoading, forOrganizationId, goToOnboarding, setError],
   )
 
   return (
