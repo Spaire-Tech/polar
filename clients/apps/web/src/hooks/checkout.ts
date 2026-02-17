@@ -1,4 +1,4 @@
-import { PolarEmbedCheckout } from '@polar-sh/checkout/embed'
+import { PolarEmbedCheckout } from '@spaire/checkout/embed'
 import type { CheckoutPublic } from '@spaire/sdk/models/components/checkoutpublic'
 import { useRouter } from 'next/navigation'
 import { useCallback } from 'react'

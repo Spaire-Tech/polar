@@ -5,7 +5,7 @@ import { getStorefrontOrNotFound } from '@/utils/storefront'
 import {
   CheckoutFormProvider,
   CheckoutProvider,
-} from '@polar-sh/checkout/providers'
+} from '@spaire/checkout/providers'
 import { unwrap } from '@polar-sh/client'
 import type { Metadata } from 'next'
 import { headers } from 'next/headers'

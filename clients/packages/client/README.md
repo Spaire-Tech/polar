@@ -1,3 +1,3 @@
-# `@polar-sh/checkout`
+# `@spaire/checkout`
 
-This package contains JavaScript utilities to easily integrate Polar Checkout into your website or application.
+This package contains JavaScript utilities to easily integrate Spaire Checkout into your website or application.
