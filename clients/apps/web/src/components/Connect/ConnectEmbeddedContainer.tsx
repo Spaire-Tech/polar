@@ -56,11 +56,23 @@ const ConnectEmbeddedContainer: React.FC<ConnectEmbeddedContainerProps> = ({
       const instance = loadConnectAndInitialize({
         publishableKey,
         fetchClientSecret: async () => {
-          const session = await mutateAsyncRef.current({
-            accountId,
-            scenario,
-          })
-          return session.client_secret
+          try {
+            const session = await mutateAsyncRef.current({
+              accountId,
+              scenario,
+            })
+            return session.client_secret
+          } catch (err) {
+            // Propagate fetchClientSecret failures to the parent so it can
+            // fall back to hosted flows (e.g. when the backend endpoint 404s)
+            const error =
+              err instanceof Error
+                ? err
+                : new Error('Failed to create connect session')
+            setInitError(error)
+            onErrorRef.current?.(error)
+            throw error
+          }
         },
       })
       setConnectInstance(instance)
@@ -72,15 +84,16 @@ const ConnectEmbeddedContainer: React.FC<ConnectEmbeddedContainerProps> = ({
     }
   }, [accountId, scenario])
 
-  if (initError || !connectInstance) {
-    if (initError) {
-      return (
-        <div className="flex items-center justify-center p-8 text-sm text-gray-500">
-          Failed to load embedded component. Please try again.
-        </div>
-      )
-    }
-    return null
+  if (initError) {
+    return null // Parent handles fallback UI via onError callback
+  }
+
+  if (!connectInstance) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="dark:border-polar-600 h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-blue-500" />
+      </div>
+    )
   }
 
   return (

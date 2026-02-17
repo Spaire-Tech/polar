@@ -1,8 +1,9 @@
 import EmbeddedPayouts from '@/components/Connect/EmbeddedPayouts'
 import { ACCOUNT_TYPE_DISPLAY_NAMES } from '@/utils/account'
-import { schemas } from '@polar-sh/client'
+import { api } from '@/utils/client'
+import { schemas, unwrap } from '@polar-sh/client'
 import Button from '@polar-sh/ui/components/atoms/Button'
-import { ChevronDown, ChevronRight } from 'lucide-react'
+import { ChevronDown, ChevronRight, ExternalLink } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { twMerge } from 'tailwind-merge'
 
@@ -107,7 +108,41 @@ const AccountListItem = ({
     'dark:group-hover:bg-polar-700 px-4 py-2 transition-colors group-hover:bg-blue-50 group-hover:text-gray-950 text-gray-700 dark:text-polar-200 group-hover:dark:text-white',
   )
 
-  const isActive = account?.stripe_id !== null
+  const hasStripeId = account?.stripe_id !== null
+  const isFullyActive =
+    hasStripeId &&
+    account.is_details_submitted &&
+    account.is_charges_enabled &&
+    account.is_payouts_enabled
+
+  const statusLabel = isFullyActive
+    ? 'Active'
+    : hasStripeId
+      ? 'Setup required'
+      : 'Pending'
+  const statusClass = isFullyActive
+    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400'
+    : hasStripeId
+      ? 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400'
+      : 'bg-gray-100 text-gray-600 dark:bg-polar-700 dark:text-polar-400'
+
+  const [loadingDashboard, setLoadingDashboard] = useState(false)
+
+  const goToDashboard = useCallback(async () => {
+    setLoadingDashboard(true)
+    try {
+      const link = await unwrap(
+        api.POST('/v1/accounts/{id}/dashboard_link', {
+          params: {
+            path: { id: account.id },
+          },
+        }),
+      )
+      window.location.href = link.url
+    } catch {
+      setLoadingDashboard(false)
+    }
+  }, [account.id])
 
   return (
     <tr className="group text-sm">
@@ -118,30 +153,44 @@ const AccountListItem = ({
         <span
           className={twMerge(
             'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
-            isActive
-              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400'
-              : 'bg-gray-100 text-gray-600 dark:bg-polar-700 dark:text-polar-400',
+            statusClass,
           )}
         >
-          {isActive ? 'Active' : 'Pending'}
+          {statusLabel}
         </span>
       </td>
       <td className={childClass}>{organization.slug}</td>
       <td className={twMerge(childClass, 'rounded-r-xl')}>
-        {isActive && (
-          <Button size="sm" onClick={() => onTogglePayouts(account.id)}>
-            {isExpanded ? (
-              <>
-                Hide payouts
-                <ChevronDown className="ml-1 h-3.5 w-3.5" />
-              </>
-            ) : (
-              <>
-                Manage payouts
-                <ChevronRight className="ml-1 h-3.5 w-3.5" />
-              </>
+        {hasStripeId && (
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              onClick={goToDashboard}
+              loading={loadingDashboard}
+            >
+              Open dashboard
+              <ExternalLink className="ml-1 h-3 w-3" />
+            </Button>
+            {isFullyActive && (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => onTogglePayouts(account.id)}
+              >
+                {isExpanded ? (
+                  <>
+                    Hide payouts
+                    <ChevronDown className="ml-1 h-3.5 w-3.5" />
+                  </>
+                ) : (
+                  <>
+                    Payouts
+                    <ChevronRight className="ml-1 h-3.5 w-3.5" />
+                  </>
+                )}
+              </Button>
             )}
-          </Button>
+          </div>
         )}
       </td>
     </tr>
