@@ -114,6 +114,18 @@ const AccountListItem = ({
       <td className={twMerge(childClass, 'rounded-l-xl')}>
         {ACCOUNT_TYPE_DISPLAY_NAMES[account.account_type]}
       </td>
+      <td className={childClass}>
+        <span
+          className={twMerge(
+            'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
+            isActive
+              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400'
+              : 'bg-gray-100 text-gray-600 dark:bg-polar-700 dark:text-polar-400',
+          )}
+        >
+          {isActive ? 'Active' : 'Pending'}
+        </span>
+      </td>
       <td className={childClass}>{organization.slug}</td>
       <td className={twMerge(childClass, 'rounded-r-xl')}>
         {isActive && (
