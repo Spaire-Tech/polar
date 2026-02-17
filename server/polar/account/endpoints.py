@@ -6,7 +6,7 @@ from polar.account_credit.repository import AccountCreditRepository
 from polar.account_credit.schemas import AccountCredit as AccountCreditSchema
 from polar.auth.dependencies import WebUserRead, WebUserWrite
 from polar.enums import AccountType
-from polar.exceptions import InternalServerError, ResourceNotFound
+from polar.exceptions import BadRequest, InternalServerError, ResourceNotFound
 from polar.kit.pagination import ListResource, PaginationParamsQuery
 from polar.models import Account
 from polar.openapi import APITag
@@ -20,8 +20,14 @@ from polar.postgres import (
 from polar.routing import APIRouter
 
 from .schemas import Account as AccountSchema
-from .schemas import AccountCreateForOrganization, AccountLink, AccountUpdate
-from .service import account as account_service
+from .schemas import (
+    AccountConnectSession,
+    AccountConnectSessionCreate,
+    AccountCreateForOrganization,
+    AccountLink,
+    AccountUpdate,
+)
+from .service import AccountServiceError, account as account_service
 
 router = APIRouter(tags=["accounts", APITag.private])
 
@@ -131,6 +137,31 @@ async def dashboard_link(
         raise InternalServerError("Failed to create link")
 
     return link
+
+
+@router.post("/accounts/{id}/connect_session", response_model=AccountConnectSession)
+async def connect_session(
+    id: UUID,
+    body: AccountConnectSessionCreate,
+    auth_subject: WebUserWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> AccountConnectSession:
+    account = await account_service.get(session, auth_subject, id)
+    if account is None:
+        raise ResourceNotFound()
+
+    if account.account_type != AccountType.stripe:
+        raise ResourceNotFound()
+
+    if not account.stripe_id:
+        raise BadRequest("Account does not have a Stripe connection")
+
+    try:
+        return await account_service.create_connect_session(
+            account, body.scenario
+        )
+    except AccountServiceError as e:
+        raise InternalServerError(str(e))
 
 
 @router.get("/accounts/{id}/credits", response_model=list[AccountCreditSchema])

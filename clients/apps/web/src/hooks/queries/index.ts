@@ -5,6 +5,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { defaultRetry } from './retry'
 
 export * from './accounts'
+export * from './connect'
 export * from './benefits'
 export * from './checkout_links'
 export * from './customerPortal'

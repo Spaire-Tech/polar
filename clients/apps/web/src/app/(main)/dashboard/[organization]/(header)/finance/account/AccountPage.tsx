@@ -14,8 +14,8 @@ import {
   useOrganizationAccount,
 } from '@/hooks/queries'
 import { useOrganizationReviewStatus } from '@/hooks/queries/org'
-import { api } from '@/utils/client'
-import { schemas, unwrap } from '@polar-sh/client'
+import { getQueryClient } from '@/utils/api/query'
+import { schemas } from '@polar-sh/client'
 import { ShadowBoxOnMd } from '@polar-sh/ui/components/atoms/ShadowBox'
 import { Separator } from '@polar-sh/ui/components/ui/separator'
 import { loadStripe } from '@stripe/stripe-js'
@@ -185,26 +185,34 @@ export default function ClientPage({
     setStep('account')
   }, [])
 
-  const handleStartAccountSetup = useCallback(async () => {
-    // Check if account exists but has no stripe_id (deleted account)
-    if (!organizationAccount || !organizationAccount.stripe_id) {
-      showSetupModal()
-    } else {
-      const link = await unwrap(
-        api.POST('/v1/accounts/{id}/onboarding_link', {
-          params: {
-            path: {
-              id: organizationAccount.id,
-            },
-            query: {
-              return_path: `/dashboard/${organization.slug}/finance/account`,
-            },
-          },
-        }),
-      )
-      window.location.href = link.url
-    }
-  }, [organization.slug, organizationAccount, showSetupModal])
+  const handleStartAccountSetup = useCallback(() => {
+    // Open modal to create account (select country).
+    // Once the account is created, the modal closes and the embedded
+    // onboarding component renders inline in the AccountStep.
+    showSetupModal()
+  }, [showSetupModal])
+
+  const handleOnboardingComplete = useCallback(() => {
+    // Refresh account data after embedded onboarding completes
+    getQueryClient().invalidateQueries({
+      queryKey: ['organizations', 'account', organization.id],
+    })
+    getQueryClient().invalidateQueries({
+      queryKey: ['user', 'accounts'],
+    })
+  }, [organization.id])
+
+  const handleAccountCreated = useCallback(() => {
+    // Close modal and refresh account data — the embedded onboarding
+    // will render automatically when the account has a stripe_id
+    hideSetupModal()
+    getQueryClient().invalidateQueries({
+      queryKey: ['organizations', 'account', organization.id],
+    })
+    getQueryClient().invalidateQueries({
+      queryKey: ['user', 'accounts'],
+    })
+  }, [hideSetupModal, organization.id])
 
   const handleStartIdentityVerification = useCallback(async () => {
     await startIdentityVerification()
@@ -292,6 +300,7 @@ export default function ClientPage({
           onAppealApproved={handleAppealApproved}
           onAppealSubmitted={handleAppealSubmitted}
           onNavigateToStep={handleNavigateToStep}
+          onOnboardingComplete={handleOnboardingComplete}
         />
 
         {accounts?.items && accounts.items.length > 0 ? (
@@ -323,6 +332,7 @@ export default function ClientPage({
             <AccountCreateModal
               forOrganizationId={organization.id}
               returnPath={`/dashboard/${organization.slug}/finance/account`}
+              onAccountCreated={handleAccountCreated}
             />
           }
         />

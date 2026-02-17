@@ -12,6 +12,11 @@ from polar.organization.schemas import Organization
 from polar.user.schemas import UserBase
 
 
+class ConnectSessionScenario(StrEnum):
+    onboarding = "onboarding"
+    payouts = "payouts"
+
+
 class StripeAccountCountry(StrEnum):
     AL = "AL"
     AG = "AG"
@@ -184,3 +189,11 @@ class AccountUpdate(Schema):
 
 class AccountLink(Schema):
     url: str
+
+
+class AccountConnectSessionCreate(Schema):
+    scenario: ConnectSessionScenario
+
+
+class AccountConnectSession(Schema):
+    client_secret: str
