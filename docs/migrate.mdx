@@ -27,3 +27,57 @@ This tool is not able to move **active** subscriptions from your Lemon Squeezy s
 ### Need migration support?
 
 If you need help planning or validating your migration, contact [support@spairehq.com](mailto:support@spairehq.com).
+
+## Paddle
+
+If you're moving from Paddle to Spaire, we can help you plan and run a structured migration with minimal customer impact.
+
+### Supported Migrations
+
+* Products
+* Customers
+* Transactions
+* Subscriptions
+* Coupons
+* License Keys
+
+### Migration Process
+
+The migration is typically handled in two phases.
+
+#### Phase 1: Data Migration
+
+1. Share your Paddle account details and required exports with us through a secure channel.
+2. We import historical data into your Spaire organization.
+3. You validate imported data and configure anything that cannot be imported automatically.
+
+#### Phase 2: Go Live
+
+1. You start sending new sales to Spaire.
+2. We import any delta data created after the initial import window.
+3. We coordinate a subscription cutover plan so customers are not billed twice.
+
+### Data Mapping
+
+| Paddle object | Spaire object |
+| --- | --- |
+| Products / Prices | Products |
+| Customers | Customers |
+| Transactions | Orders |
+| Subscriptions | Subscriptions |
+| Coupons | Discounts |
+| License Activations | License Keys |
+
+### Cutover Notes
+
+- Plan a single cutover date and freeze window to avoid duplicate events or billing.
+- Ensure webhook endpoints and checkout links are switched at cutover time.
+- Test customer portal access and subscription lifecycle events before production cutover.
+
+### Need migration support?
+
+Contact [support@spairehq.com](mailto:support@spairehq.com) and include:
+
+- Your Paddle account details
+- Approximate counts of products, customers, and subscriptions
+- Your desired cutover timeline
