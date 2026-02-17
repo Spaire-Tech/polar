@@ -5,7 +5,7 @@ description: "Payments and Checkouts made dead simple with BetterAuth"
 
 ## @spaire/better-auth
 
-A [Better Auth](https://github.com/better-auth/better-auth) plugin for integrating [Spaire](https://www.spairehq.com) payments and subscriptions into your authentication flow.
+A [Better Auth](https://www.better-auth.com) plugin for integrating [Spaire](https://www.spairehq.com) payments and subscriptions into your authentication flow.
 
 ### Features
 
@@ -16,10 +16,6 @@ A [Better Auth](https://github.com/better-auth/better-auth) plugin for integrati
 - [Event Ingestion & Customer Meters for flexible Usage Based Billing](#usage-plugin)
 - [Handle Spaire Webhooks securely with signature verification](#webhooks-plugin)
 - [Customer Portal](#portal-plugin)
-
-## Examples
-
-- [With Next.js, Better Auth and Cloudflare Workers](https://github.com/spairehq/examples/tree/main/with-nextjs-better-auth-cloudflare-workers)
 
 ## Installation
 
@@ -190,7 +186,6 @@ const auth = betterAuth({
 
 ## Checkout Plugin
 
-[Source code](https://github.com/spairehq/spaire-adapters/blob/main/packages/spaire-betterauth/src/plugins/checkout.ts)
 
 To support [checkouts](/features/checkout/links) in your app, you would pass the `checkout` plugin in the `use` property.
 
@@ -274,8 +269,6 @@ The checkout plugin accepts the following configuration options:
 
 ## Usage Plugin
 
-[Source code](https://github.com/spairehq/spaire-adapters/blob/main/packages/spaire-betterauth/src/plugins/usage.ts)
-
 A plugin for Usage Based Billing that allows you to [ingest events](#event-ingestion) from your application and list the [authenticated user's Usage Meter](#customer-meters).
 
 To enable [usage based billing](/integrate/sdk/adapters/better-auth) in your app, you would pass the `usage` plugin in the `use` property.
@@ -354,8 +347,6 @@ The `meters` method returns the following fields in the response object:
 
 ## Webhooks Plugin
 
-[Source code](https://github.com/spairehq/spaire-adapters/blob/main/packages/spaire-betterauth/src/plugins/webhooks.ts)
-
 The `webhooks` plugin can be used to capture incoming events from your Spaire organization.
 
 To set up the Spaire `webhooks` plugin with the BetterAuth client, follow the steps below:
@@ -432,8 +423,6 @@ The `webhooks` plugin allows you to invoke handlers for all Spaire webhook event
 - `onCustomerStateChanged` - Triggered when a customer state changes
 
 ## Portal Plugin
-
-[Source code](https://github.com/spairehq/spaire-adapters/blob/main/packages/spaire-betterauth/src/plugins/portal.ts)
 
 A plugin which enables customer management of their purchases, orders and subscriptions.
 

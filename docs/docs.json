@@ -99,12 +99,6 @@
                   "features/finance/payouts"
                 ]
               },
-              {
-                "group": "Integrations",
-                "pages": [
-                  "features/integrations/zapier"
-                ]
-              }
             ]
           },
           {
@@ -395,13 +389,6 @@
                 ]
               },
               {
-                "group": "File Downloads",
-                "pages": [
-                  "api-reference/customer-portal/downloadables/get",
-                  "api-reference/customer-portal/downloadables/list"
-                ]
-              },
-              {
                 "group": "Seats",
                 "pages": [
                   "api-reference/customer-portal/seats/list",
@@ -600,9 +587,7 @@
   },
   "footer": {
     "socials": {
-      "x": "https://x.com/spaire_sh",
-      "github": "https://github.com/spairehq/spaire",
-      "discord": "https://dub.sh/spaire-discord"
+      "x": "https://x.com/spaire_sh"
     }
   },
   "redirects": [
