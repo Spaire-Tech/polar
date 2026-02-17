@@ -6,10 +6,7 @@ import StreamlinedAccountReview from '@/components/Finance/StreamlinedAccountRev
 import { DashboardBody } from '@/components/Layout/DashboardLayout'
 import { Modal } from '@/components/Modal'
 import { useModal } from '@/components/Modal/useModal'
-import { toast } from '@/components/Toast/use-toast'
-import { useAuth } from '@/hooks'
 import {
-  useCreateIdentityVerification,
   useListAccounts,
   useOrganizationAccount,
 } from '@/hooks/queries'
@@ -18,7 +15,6 @@ import { api } from '@/utils/client'
 import { schemas, unwrap } from '@polar-sh/client'
 import { ShadowBoxOnMd } from '@polar-sh/ui/components/atoms/ShadowBox'
 import { Separator } from '@polar-sh/ui/components/ui/separator'
-import { loadStripe } from '@stripe/stripe-js'
 import React, { useCallback, useState } from 'react'
 
 export default function ClientPage({
@@ -26,7 +22,6 @@ export default function ClientPage({
 }: {
   organization: schemas['Organization']
 }) {
-  const { currentUser, reloadUser } = useAuth()
   const { data: accounts } = useListAccounts()
   const {
     isShown: isShownSetupModal,
@@ -37,8 +32,6 @@ export default function ClientPage({
   const [requireDetails, setRequireDetails] = useState(
     !organization.details_submitted_at,
   )
-  const identityVerificationStatus = currentUser?.identity_verification_status
-  const identityVerified = identityVerificationStatus === 'verified'
 
   const { data: organizationAccount, error: accountError } =
     useOrganizationAccount(organization.id)
@@ -49,7 +42,7 @@ export default function ClientPage({
   const isNotAdmin =
     accountError && (accountError as any)?.response?.status === 403
 
-  type Step = 'review' | 'validation' | 'account' | 'identity' | 'complete'
+  type Step = 'review' | 'validation' | 'account' | 'complete'
 
   const getInitialStep = (): Step => {
     if (!organization.details_submitted_at) {
@@ -78,64 +71,10 @@ export default function ClientPage({
     ) {
       return 'account'
     }
-    if (!identityVerified) {
-      return 'identity'
-    }
     return 'complete'
   }
 
   const [step, setStep] = useState<Step>(getInitialStep())
-
-  const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_KEY || '')
-  const createIdentityVerification = useCreateIdentityVerification()
-  const startIdentityVerification = useCallback(async () => {
-    const { data, error } = await createIdentityVerification.mutateAsync()
-    if (error) {
-      // Handle specific error cases
-      const errorDetail = (error as any).detail
-      if (
-        errorDetail?.error === 'IdentityVerificationProcessing' ||
-        errorDetail === 'Your identity verification is still processing.'
-      ) {
-        toast({
-          title: 'Identity verification in progress',
-          description:
-            'Your identity verification is already being processed. Please wait for it to complete.',
-        })
-      } else {
-        toast({
-          title: 'Error starting identity verification',
-          description:
-            typeof errorDetail === 'string'
-              ? errorDetail
-              : errorDetail?.detail ||
-                'Unable to start identity verification. Please try again.',
-        })
-      }
-      return
-    }
-    const stripe = await stripePromise
-    if (!stripe) {
-      toast({
-        title: 'Error loading Stripe',
-        description: 'Unable to load identity verification. Please try again.',
-      })
-      return
-    }
-    const { error: stripeError } = await stripe.verifyIdentity(
-      data.client_secret,
-    )
-    if (stripeError) {
-      toast({
-        title: 'Identity verification error',
-        description:
-          stripeError.message ||
-          'Something went wrong during verification. Please try again.',
-      })
-      return
-    }
-    await reloadUser()
-  }, [createIdentityVerification, stripePromise, reloadUser])
 
   // Auto-advance to next step when details are submitted, appeal is approved, or appeal is submitted
   React.useEffect(() => {
@@ -158,8 +97,6 @@ export default function ClientPage({
         !organizationAccount.is_payouts_enabled
       ) {
         setStep('account')
-      } else if (!identityVerified) {
-        setStep('identity')
       } else {
         setStep('complete')
       }
@@ -168,7 +105,6 @@ export default function ClientPage({
     organization.details_submitted_at,
     validationCompleted,
     organizationAccount,
-    identityVerified,
     reviewStatus?.appeal_decision,
     reviewStatus?.appeal_submitted_at,
     reviewStatus?.verdict,
@@ -206,10 +142,6 @@ export default function ClientPage({
     }
   }, [organization.slug, organizationAccount, showSetupModal])
 
-  const handleStartIdentityVerification = useCallback(async () => {
-    await startIdentityVerification()
-  }, [startIdentityVerification])
-
   const handleAppealApproved = useCallback(() => {
     if (
       !organizationAccount ||
@@ -222,23 +154,13 @@ export default function ClientPage({
       return
     }
 
-    if (!identityVerified) {
-      setValidationCompleted(true)
-      setStep('identity')
-      return
-    }
-
     setValidationCompleted(true)
     setStep('complete')
-  }, [organizationAccount, identityVerified])
+  }, [organizationAccount])
 
   const handleSkipAccountSetup = useCallback(() => {
-    if (!identityVerified) {
-      setStep('identity')
-    } else {
-      setStep('complete')
-    }
-  }, [identityVerified])
+    setStep('complete')
+  }, [])
 
   const handleAppealSubmitted = useCallback(() => {
     setStep('account')
@@ -255,9 +177,7 @@ export default function ClientPage({
           (validationCompleted ||
             reviewStatus?.verdict === 'PASS' ||
             reviewStatus?.appeal_decision === 'approved' ||
-            reviewStatus?.appeal_submitted_at)) ||
-        (targetStep === 'identity' &&
-          (organizationAccount?.is_details_submitted || isNotAdmin))
+            reviewStatus?.appeal_submitted_at))
 
       if (canNavigate) {
         setStep(targetStep)
@@ -280,14 +200,11 @@ export default function ClientPage({
           currentStep={step}
           requireDetails={requireDetails}
           organizationAccount={organizationAccount}
-          identityVerified={identityVerified}
-          identityVerificationStatus={identityVerificationStatus}
           organizationReviewStatus={reviewStatus}
           isNotAdmin={isNotAdmin}
           onDetailsSubmitted={handleDetailsSubmitted}
           onValidationCompleted={handleValidationCompleted}
           onStartAccountSetup={handleStartAccountSetup}
-          onStartIdentityVerification={handleStartIdentityVerification}
           onSkipAccountSetup={handleSkipAccountSetup}
           onAppealApproved={handleAppealApproved}
           onAppealSubmitted={handleAppealSubmitted}
