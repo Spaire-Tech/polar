@@ -1,21 +1,25 @@
 'use client'
 
-import { IntegrateStep } from '@/components/Onboarding/IntegrateStep'
-import { useSelectedProducts } from '@/hooks/queries/products'
-
-import { useSearchParams } from 'next/navigation'
+import { OrganizationContext } from '@/providers/maintainerOrganization'
+import { useOnboardingTracking } from '@/hooks'
+import { useRouter } from 'next/navigation'
+import { useContext, useEffect } from 'react'
 
 export default function ClientPage() {
-  const searchParams = useSearchParams()
+  const { organization } = useContext(OrganizationContext)
+  const router = useRouter()
+  const { trackStepStarted, trackStepCompleted, trackCompleted, getSession } =
+    useOnboardingTracking()
 
-  const productIdsParam = searchParams.get('productId')
-  const productIds = productIdsParam ? productIdsParam.split(',') : []
+  useEffect(() => {
+    const session = getSession()
+    if (session) {
+      trackStepStarted('integrate', organization.id)
+      trackStepCompleted('integrate', organization.id)
+      trackCompleted(organization.id)
+    }
+    router.replace(`/dashboard/${organization.slug}/integrations`)
+  }, [organization, router, getSession, trackStepStarted, trackStepCompleted, trackCompleted])
 
-  const { data: products, isLoading } = useSelectedProducts(productIds)
-
-  if (isLoading || !products || products.length === 0) {
-    return null
-  }
-
-  return <IntegrateStep products={products} />
+  return null
 }

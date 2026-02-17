@@ -10,6 +10,7 @@ import Link from 'next/link'
 import { useContext, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { FadeUp } from '../Animated/FadeUp'
+import OrganizationAccessTokensSettings from '../Settings/OrganizationAccessTokensSettings'
 import {
   SyntaxHighlighterClient,
   SyntaxHighlighterProvider,
@@ -46,6 +47,7 @@ export default function IntegrationSdkPage({
 }: IntegrationSdkPageProps) {
   const { organization } = useContext(OrganizationContext)
   const [packageManager, setPackageManager] = useState<PackageManager>('pnpm')
+  const [createdToken, setCreatedToken] = useState<string | null>(null)
 
   const installCommand = useMemo(() => {
     if (integration.pythonInstall) {
@@ -55,6 +57,13 @@ export default function IntegrationSdkPage({
   }, [integration, packageManager])
 
   const isPython = integration.codeLang === 'python'
+
+  const envVarsWithToken = useMemo(() => {
+    if (createdToken) {
+      return integration.envVars.replace('your_access_token', createdToken)
+    }
+    return integration.envVars
+  }, [integration.envVars, createdToken])
 
   return (
     <SyntaxHighlighterProvider>
@@ -147,10 +156,16 @@ export default function IntegrationSdkPage({
               <h2 className="text-base font-medium">
                 2. Configure Environment
               </h2>
+              <OrganizationAccessTokensSettings
+                organization={organization}
+                singleTokenMode
+                minimal
+                onTokenCreated={setCreatedToken}
+              />
               <CodeWrapper>
                 <SyntaxHighlighterClient
                   lang="bash"
-                  code={integration.envVars}
+                  code={envVarsWithToken}
                 />
               </CodeWrapper>
             </FadeUp>

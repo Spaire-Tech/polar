@@ -27,6 +27,43 @@ export interface SdkIntegration extends BaseIntegration {
 
 export type Integration = PromptIntegration | SdkIntegration
 
+export const NEXTJS_INTEGRATION: SdkIntegration = {
+  type: 'sdk',
+  slug: 'nextjs',
+  name: 'Next.js',
+  tagline: 'Build with Next.js. Monetize with Spaire.',
+  description:
+    'The official @spaire/nextjs adapter gives you checkout, customer portal, and webhooks out of the box \u2014 the full billing loop in a single package.',
+  category: 'framework',
+  categoryLabel: 'Framework',
+  howItWorks: [
+    {
+      title: 'Install adapter',
+      description: 'Add @spaire/nextjs to your project',
+    },
+    {
+      title: 'Add route handler',
+      description: 'One-line checkout API route',
+    },
+    {
+      title: 'Go live',
+      description: 'Checkout, portal, and webhooks ready',
+    },
+  ],
+  packages: '@spaire/nextjs',
+  docsLink: 'https://docs.spairehq.com/integrate/sdk/adapters/nextjs',
+  codeLang: 'typescript',
+  envVars: `SPAIRE_ACCESS_TOKEN=your_access_token
+SPAIRE_SUCCESS_URL=https://example.com/success?checkout_id={CHECKOUT_ID}`,
+  code: `import { Checkout } from "@spaire/nextjs";
+
+// app/api/checkout/route.ts
+export const GET = Checkout({
+  accessToken: process.env.SPAIRE_ACCESS_TOKEN,
+  successUrl: process.env.SPAIRE_SUCCESS_URL,
+});`,
+}
+
 export const LOVABLE_INTEGRATION: PromptIntegration = {
   type: 'prompt',
   slug: 'lovable',
@@ -350,13 +387,78 @@ const auth = betterAuth({
 });`,
 }
 
+export const EXPRESS_INTEGRATION: SdkIntegration = {
+  type: 'sdk',
+  slug: 'express',
+  name: 'Express',
+  tagline: 'Build with Express. Monetize with Spaire.',
+  description:
+    'Use the Spaire SDK in any Express or Node.js backend. Create checkouts, handle webhooks, and manage the full billing lifecycle with a few lines of code.',
+  category: 'framework',
+  categoryLabel: 'Framework',
+  howItWorks: [
+    {
+      title: 'Install SDK',
+      description: 'Add @spaire/sdk to your project',
+    },
+    {
+      title: 'Add routes',
+      description: 'Checkout + webhook endpoints in Express',
+    },
+    {
+      title: 'Go live',
+      description: 'Full billing loop ready to deploy',
+    },
+  ],
+  packages: '@spaire/sdk',
+  docsLink: 'https://docs.spairehq.com/integrate/sdk/typescript',
+  codeLang: 'typescript',
+  envVars: `SPAIRE_ACCESS_TOKEN=your_access_token
+SPAIRE_SUCCESS_URL=https://example.com/success?checkout_id={CHECKOUT_ID}
+SPAIRE_WEBHOOK_SECRET=your_webhook_secret`,
+  code: `import express from "express";
+import { Spaire } from "@spaire/sdk";
+
+const app = express();
+app.use(express.json());
+
+const spaire = new Spaire({
+  accessToken: process.env.SPAIRE_ACCESS_TOKEN,
+});
+
+// Create a checkout session
+app.post("/api/checkout", async (req, res) => {
+  const checkout = await spaire.checkouts.create({
+    products: [req.body.productId],
+    successUrl: process.env.SPAIRE_SUCCESS_URL,
+  });
+  res.json({ url: checkout.url });
+});
+
+// Handle webhooks
+app.post("/api/webhooks/spaire", async (req, res) => {
+  const event = req.body;
+
+  if (event.type === "checkout.completed") {
+    // Activate subscription or fulfill order
+    console.log("Checkout completed:", event.data);
+  }
+
+  res.json({ received: true });
+});
+
+app.listen(3000);`,
+}
+
 export const ALL_INTEGRATIONS: Integration[] = [
+  NEXTJS_INTEGRATION,
   LOVABLE_INTEGRATION,
   SUPABASE_INTEGRATION,
   V0_INTEGRATION,
   REPLIT_INTEGRATION,
   BOLT_INTEGRATION,
   BETTERAUTH_INTEGRATION,
+  EXPRESS_INTEGRATION,
 ]
 
 export const getIntegrationBySlug = (

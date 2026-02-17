@@ -7,19 +7,23 @@ import Link from 'next/link'
 import { useContext } from 'react'
 import BetterAuthIcon from '../Icons/frameworks/better-auth'
 import BoltIcon from '../Icons/frameworks/bolt'
+import ExpressIcon from '../Icons/frameworks/express'
 import LovableIcon from '../Icons/frameworks/lovable'
+import NextJsIcon from '../Icons/frameworks/nextjs'
 import ReplitIcon from '../Icons/frameworks/replit'
 import SupabaseIcon from '../Icons/frameworks/supabase'
 import V0Icon from '../Icons/frameworks/v0'
 import { ALL_INTEGRATIONS, type Integration } from './integrations'
 
 const INTEGRATION_ICONS: Record<string, React.ReactNode> = {
+  nextjs: <NextJsIcon size={36} />,
   lovable: <LovableIcon size={36} />,
   supabase: <SupabaseIcon size={36} />,
   v0: <V0Icon size={36} />,
   replit: <ReplitIcon size={36} />,
   bolt: <BoltIcon size={36} />,
   'better-auth': <BetterAuthIcon size={36} />,
+  express: <ExpressIcon size={36} />,
 }
 
 const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
