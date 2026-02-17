@@ -11,10 +11,10 @@ import { useCallback, useContext, useState } from 'react'
 import { motion } from 'framer-motion'
 import { twMerge } from 'tailwind-merge'
 import { FadeUp } from '../Animated/FadeUp'
-import type { Integration } from './integrations'
+import type { PromptIntegration } from './integrations'
 
 interface IntegrationDetailPageProps {
-  integration: Integration
+  integration: PromptIntegration
   icon: React.ReactNode
 }
 

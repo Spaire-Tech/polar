@@ -5,15 +5,25 @@ import { OrganizationContext } from '@/providers/maintainerOrganization'
 import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
 import Link from 'next/link'
 import { useContext } from 'react'
+import BetterAuthIcon from '../Icons/frameworks/better-auth'
+import BoltIcon from '../Icons/frameworks/bolt'
+import ExpressIcon from '../Icons/frameworks/express'
 import LovableIcon from '../Icons/frameworks/lovable'
+import NextJsIcon from '../Icons/frameworks/nextjs'
+import ReplitIcon from '../Icons/frameworks/replit'
 import SupabaseIcon from '../Icons/frameworks/supabase'
 import V0Icon from '../Icons/frameworks/v0'
 import { ALL_INTEGRATIONS, type Integration } from './integrations'
 
 const INTEGRATION_ICONS: Record<string, React.ReactNode> = {
+  nextjs: <NextJsIcon size={36} />,
   lovable: <LovableIcon size={36} />,
   supabase: <SupabaseIcon size={36} />,
   v0: <V0Icon size={36} />,
+  replit: <ReplitIcon size={36} />,
+  bolt: <BoltIcon size={36} />,
+  'better-auth': <BetterAuthIcon size={36} />,
+  express: <ExpressIcon size={36} />,
 }
 
 const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
@@ -28,6 +38,10 @@ const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
   framework: {
     bg: 'bg-blue-50 dark:bg-blue-500/10',
     text: 'text-blue-600 dark:text-blue-400',
+  },
+  auth: {
+    bg: 'bg-amber-50 dark:bg-amber-500/10',
+    text: 'text-amber-600 dark:text-amber-400',
   },
 }
 
@@ -51,9 +65,7 @@ function IntegrationCard({ integration }: { integration: Integration }) {
             <h3 className="text-base font-medium dark:text-white">
               {integration.name}
             </h3>
-            <span
-              className={`text-[11px] font-medium ${colors.text}`}
-            >
+            <span className={`text-[11px] font-medium ${colors.text}`}>
               {integration.categoryLabel}
             </span>
           </div>
@@ -82,7 +94,8 @@ export default function IntegrationsPage() {
       <div className="flex flex-col gap-y-2">
         <p className="dark:text-polar-500 text-sm text-gray-500">
           Connect Spaire to your favorite tools. Copy a prompt, paste it into
-          your AI builder, and start accepting payments in minutes.
+          your AI builder, or integrate with our SDK — and start accepting
+          payments in minutes.
         </p>
       </div>
       <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
