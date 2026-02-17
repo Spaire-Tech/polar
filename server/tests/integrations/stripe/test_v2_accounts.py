@@ -14,6 +14,9 @@ from polar.postgres import AsyncSession
 from tests.fixtures.database import SaveFixture
 
 
+_PAYOUTS_MISSING = object()  # sentinel for "no payouts attribute"
+
+
 def _make_mock_v2_account(
     *,
     id: str = "acct_v2_test123",
@@ -22,7 +25,7 @@ def _make_mock_v2_account(
     currency: str | None = "usd",
     entity_type: str | None = "individual",
     stripe_transfers_status: str = "pending",
-    payouts_status: str = "pending",
+    payouts_status: str | object = "pending",
     applied_configurations: list[str] | None = None,
     has_past_due_requirements: bool = False,
 ) -> object:
@@ -45,10 +48,13 @@ def _make_mock_v2_account(
 
     class MockStripeBalance:
         def __init__(
-            self, transfers_status: str, payouts_status: str
+            self, transfers_status: str, payouts_status: str | object
         ) -> None:
             self.stripe_transfers = MockStripeTransfers(transfers_status)
-            self.payouts = MockPayouts(payouts_status)
+            if payouts_status is _PAYOUTS_MISSING:
+                self.payouts = None
+            else:
+                self.payouts = MockPayouts(str(payouts_status))
 
     class MockCapabilities:
         def __init__(
@@ -163,6 +169,28 @@ class TestExtractV2AccountInfo:
         info = extract_v2_account_info(mock_account)  # type: ignore[arg-type]
 
         assert info.is_details_submitted is False
+
+    def test_extract_payouts_missing_falls_back_to_transfers(self) -> None:
+        """When payouts capability is not in the response, fall back to transfers status."""
+        mock_account = _make_mock_v2_account(
+            stripe_transfers_status="active",
+            payouts_status=_PAYOUTS_MISSING,
+        )
+        info = extract_v2_account_info(mock_account)  # type: ignore[arg-type]
+
+        assert info.is_transfers_enabled is True
+        assert info.is_payouts_enabled is True
+
+    def test_extract_payouts_missing_pending_transfers(self) -> None:
+        """When payouts is missing and transfers is pending, payouts should also be False."""
+        mock_account = _make_mock_v2_account(
+            stripe_transfers_status="pending",
+            payouts_status=_PAYOUTS_MISSING,
+        )
+        info = extract_v2_account_info(mock_account)  # type: ignore[arg-type]
+
+        assert info.is_transfers_enabled is False
+        assert info.is_payouts_enabled is False
 
     def test_extract_none_fields(self) -> None:
         mock_account = _make_mock_v2_account(

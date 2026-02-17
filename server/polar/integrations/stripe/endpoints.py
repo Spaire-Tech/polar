@@ -74,6 +74,28 @@ async def stripe_connect_refresh(
     return RedirectResponse(settings.generate_frontend_url(return_path))
 
 
+@router.get("/return", name="integrations.stripe.return")
+async def stripe_connect_return(
+    return_path: str = Query(...),
+    stripe_account_id: str = Query(""),
+    session: AsyncSession = Depends(get_db_session),
+) -> RedirectResponse:
+    """Handle return from Stripe onboarding by syncing account status first."""
+    if stripe_account_id:
+        try:
+            from polar.account.service import account as account_service
+
+            await account_service.update_account_from_stripe(
+                session, stripe_account_id=stripe_account_id
+            )
+        except Exception:
+            log.warning(
+                "Failed to sync account on return from Stripe",
+                stripe_account_id=stripe_account_id,
+            )
+    return RedirectResponse(settings.generate_frontend_url(return_path))
+
+
 class WebhookEventGetter:
     def __init__(self, secret: str) -> None:
         self.secret = secret
