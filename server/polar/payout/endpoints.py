@@ -110,7 +110,7 @@ async def get_csv(
         raise ResourceNotFound()
 
     content = payout_service.get_csv(session, sessionmaker, payout)
-    filename = f"polar-payout-{payout.created_at.isoformat()}.csv"
+    filename = f"spaire-payout-{payout.created_at.isoformat()}.csv"
 
     return StreamingResponse(
         content,

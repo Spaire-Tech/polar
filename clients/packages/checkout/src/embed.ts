@@ -208,7 +208,9 @@ class EmbedCheckout {
    * ```
    */
   public static init(): void {
-    const checkoutElements = document.querySelectorAll('[data-polar-checkout]')
+    const checkoutElements = document.querySelectorAll(
+      '[data-spaire-checkout], [data-polar-checkout]',
+    )
     checkoutElements.forEach((checkoutElement) => {
       checkoutElement.removeEventListener(
         'click',
@@ -295,9 +297,12 @@ class EmbedCheckout {
     e.preventDefault()
     let checkoutElement = e.target as HTMLElement
 
-    // Find the closest parent element with the `data-polar-checkout` attribute,
+    // Find the closest parent element with the checkout data attribute,
     // in case the checkout element has children triggering the event.
-    while (!checkoutElement.hasAttribute('data-polar-checkout')) {
+    while (
+      !checkoutElement.hasAttribute('data-spaire-checkout') &&
+      !checkoutElement.hasAttribute('data-polar-checkout')
+    ) {
       if (!checkoutElement.parentElement) {
         return
       }
@@ -306,8 +311,10 @@ class EmbedCheckout {
 
     const url =
       checkoutElement.getAttribute('href') ||
+      (checkoutElement.getAttribute('data-spaire-checkout') as string) ||
       (checkoutElement.getAttribute('data-polar-checkout') as string)
-    const theme = checkoutElement.getAttribute('data-polar-checkout-theme') as
+    const theme = (checkoutElement.getAttribute('data-spaire-checkout-theme') ||
+      checkoutElement.getAttribute('data-polar-checkout-theme')) as
       | 'light'
       | 'dark'
       | undefined
@@ -395,6 +402,9 @@ class EmbedCheckout {
 
 declare global {
   interface Window {
+    Spaire: {
+      EmbedCheckout: typeof EmbedCheckout
+    }
     Polar: {
       EmbedCheckout: typeof EmbedCheckout
     }
@@ -402,6 +412,10 @@ declare global {
 }
 
 if (typeof window !== 'undefined') {
+  window.Spaire = {
+    EmbedCheckout,
+  }
+  // Keep backward compatibility
   window.Polar = {
     EmbedCheckout,
   }
@@ -416,4 +430,4 @@ if (typeof document !== 'undefined') {
   }
 }
 
-export { EmbedCheckout as PolarEmbedCheckout }
+export { EmbedCheckout as SpaireEmbedCheckout, EmbedCheckout as PolarEmbedCheckout }
