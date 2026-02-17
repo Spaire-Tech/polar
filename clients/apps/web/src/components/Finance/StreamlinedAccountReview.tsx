@@ -279,6 +279,11 @@ export default function StreamlinedAccountReview({
     },
   ]
 
+  // Hide the onboarding flow once all steps are complete
+  if (currentStep === 'complete') {
+    return null
+  }
+
   const currentStepIndex =
     steps.findIndex((s) => s.id === currentStep) + 1
 

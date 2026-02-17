@@ -9,7 +9,6 @@ import structlog
 from pydantic import BaseModel, Field
 from sqlalchemy import update as sqlalchemy_update
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import joinedload
 
 from polar.account.repository import AccountRepository
 from polar.account.service import account as account_service
@@ -38,7 +37,6 @@ from polar.models.organization import OrganizationStatus
 from polar.models.organization_review import OrganizationReview
 from polar.models.subscription import SubscriptionStatus
 from polar.models.transaction import TransactionType
-from polar.models.user import IdentityVerificationStatus
 from polar.models.webhook_endpoint import WebhookEventType
 from polar.organization.ai_validation import validator as organization_validator
 from polar.organization_access_token.repository import OrganizationAccessTokenRepository
@@ -864,11 +862,9 @@ class OrganizationService:
         if not account:
             return False
 
-        admin = account.admin
         return (
             organization.details_submitted_at is not None
             and account.is_details_submitted
-            and (admin.identity_verification_status in ["verified", "pending"])
         )
 
     async def is_organization_ready_for_payment(
@@ -909,17 +905,9 @@ class OrganizationService:
 
         account_repository = AccountRepository.from_session(session)
         account = await account_repository.get_by_id(
-            organization.account_id, options=(joinedload(Account.admin),)
+            organization.account_id,
         )
         if not account:
-            return False
-
-        # Check admin identity verification status
-        admin = account.admin
-        if not admin or admin.identity_verification_status not in [
-            IdentityVerificationStatus.verified,
-            IdentityVerificationStatus.pending,
-        ]:
             return False
 
         return True
