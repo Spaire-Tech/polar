@@ -205,7 +205,7 @@ class Invoice(BaseModel):
 class InvoiceGenerator(FPDF):
     """Class to generate an invoice PDF using fpdf2."""
 
-    logo: ClassVar[Path] = Path(__file__).parent / "invoice-logo.svg"
+    logo: ClassVar[Path] = Path(__file__).parent / "invoice-logo.png"
     """Path to the logo image for the invoice."""
 
     regular_font_file = Path(__file__).parent / "fonts/Geist-Regular.otf"
