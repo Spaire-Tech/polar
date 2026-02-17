@@ -56,8 +56,6 @@ export const StorefrontNav = ({
         onValueChange={(value) => {
           const link = {
             products: organizationPageLink(organization),
-            issues: organizationPageLink(organization, 'issues'),
-            donate: organizationPageLink(organization, 'donate'),
             portal: organizationPageLink(organization, 'portal'),
           }[value]
           if (link) router.push(link)
