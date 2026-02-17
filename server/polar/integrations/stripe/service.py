@@ -103,6 +103,8 @@ def extract_v2_account_info(
                     payouts = getattr(stripe_balance, "payouts", None)
                     if payouts is not None:
                         is_payouts_enabled = payouts.status == "active"
+                    elif transfers is not None:
+                        is_payouts_enabled = transfers.status == "active"
 
     identity = getattr(v2_account, "identity", None)
     country = getattr(identity, "country", None) if identity else None
