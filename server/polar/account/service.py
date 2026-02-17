@@ -21,7 +21,6 @@ from polar.postgres import AsyncReadSession, AsyncSession
 from polar.user.repository import UserRepository
 
 from .schemas import (
-    AccountConnectSession,
     AccountCreateForOrganization,
     AccountLink,
     AccountUpdate,
@@ -412,29 +411,6 @@ class AccountService:
             return AccountLink(url=account_link.url)
 
         return None
-
-    async def create_connect_session(
-        self, account: Account, scenario: str
-    ) -> AccountConnectSession:
-        if account.account_type != AccountType.stripe:
-            raise AccountServiceError("Connect sessions are only available for Stripe accounts")
-
-        if not account.stripe_id:
-            raise AccountServiceError("Account does not have a Stripe ID")
-
-        try:
-            account_session = await stripe.create_account_session(
-                account.stripe_id, scenario
-            )
-        except stripe_lib.StripeError as e:
-            if e.user_message:
-                raise AccountServiceError(e.user_message) from e
-            else:
-                raise AccountServiceError(
-                    "Failed to create connect session"
-                ) from e
-
-        return AccountConnectSession(client_secret=account_session.client_secret)
 
     async def sync_to_upstream(self, session: AsyncSession, account: Account) -> None:
         if account.account_type != AccountType.stripe:
