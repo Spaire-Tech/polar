@@ -36,8 +36,8 @@ const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
     text: 'text-emerald-600 dark:text-emerald-400',
   },
   framework: {
-    bg: 'bg-blue-50 dark:bg-blue-500/10',
-    text: 'text-blue-600 dark:text-blue-400',
+    bg: 'bg-sky-50 dark:bg-sky-500/10',
+    text: 'text-sky-600 dark:text-sky-400',
   },
   auth: {
     bg: 'bg-amber-50 dark:bg-amber-500/10',

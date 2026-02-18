@@ -225,7 +225,7 @@ export default function SpanDetailPage({
                       {
                         key: 'occurrences',
                         label: 'Occurrences',
-                        color: '#004664',
+                        color: '#286f51',
                       },
                     ]}
                     xAxisKey="timestamp"
