@@ -43,9 +43,9 @@ const ProfileCompletionBanner = ({
   }
 
   return (
-    <div className="dark:bg-polar-900 dark:border-polar-700 flex flex-col gap-4 rounded-2xl border border-blue-100 bg-blue-50/50 p-6 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex flex-col gap-y-1">
-        <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+    <div className="dark:bg-polar-800 dark:border-polar-700 flex flex-col gap-4 rounded-xl border border-blue-100 bg-blue-50/60 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-y-0.5">
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
           Complete your profile to start receiving payouts
         </h3>
         <p className="dark:text-polar-400 text-sm text-gray-500">
@@ -53,7 +53,7 @@ const ProfileCompletionBanner = ({
         </p>
       </div>
       <Link href={`/dashboard/${organization.slug}/finance/account`} className="shrink-0">
-        <Button size="sm">
+        <Button size="sm" className="rounded-lg">
           <span>Set Up Payouts</span>
           <ArrowForwardOutlined className="ml-1.5" fontSize="small" />
         </Button>
@@ -62,7 +62,7 @@ const ProfileCompletionBanner = ({
   )
 }
 
-// --- Overview Metrics ---
+// --- Overview Metrics Grid ---
 
 const OverviewMetrics = ({
   organization,
@@ -99,28 +99,97 @@ const OverviewMetrics = ({
   )
 
   return (
-    <div className="flex flex-col gap-y-6">
-      <div className="dark:border-polar-700 flex flex-col overflow-hidden rounded-2xl border border-gray-200">
-        <div className="grid grid-cols-1 flex-col [clip-path:inset(1px_1px_1px_1px)] md:grid-cols-2 lg:grid-cols-3">
-          {OVERVIEW_METRICS.map((metricKey, index) => (
-            <MetricChartBox
-              key={metricKey}
-              data={data}
-              previousData={previousData}
-              interval={interval}
-              metric={metricKey}
-              loading={isLoading}
-              height={200}
-              chartType="line"
-              className={twMerge(
-                'rounded-none! bg-transparent dark:bg-transparent',
-                index === 0 && 'lg:col-span-2',
-                'dark:border-polar-700 border-t-0 border-r border-b border-l-0 border-gray-200 shadow-none',
-              )}
-            />
-          ))}
-        </div>
+    <div className="dark:border-polar-800 overflow-hidden rounded-xl border border-gray-200 bg-white dark:bg-polar-900 shadow-sm">
+      {/* Section header */}
+      <div className="dark:border-polar-800 flex items-center justify-between border-b border-gray-100 px-6 py-4">
+        <span className="text-sm font-medium text-gray-900 dark:text-white">
+          Last 30 days
+        </span>
+        <Link
+          href={`/dashboard/${organization.slug}/analytics/metrics`}
+          className="dark:text-polar-400 flex items-center gap-1 text-xs text-gray-400 transition-colors hover:text-gray-700 dark:hover:text-white"
+        >
+          View analytics
+          <ArrowForwardOutlined sx={{ fontSize: 13 }} />
+        </Link>
       </div>
+
+      {/* Metric cards grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-x sm:divide-y-0 dark:divide-polar-800 divide-gray-100">
+        {OVERVIEW_METRICS.map((metricKey, index) => (
+          <MetricChartBox
+            key={metricKey}
+            data={data}
+            previousData={previousData}
+            interval={interval}
+            metric={metricKey}
+            loading={isLoading}
+            height={120}
+            chartType="line"
+            simple={true}
+            shareable={false}
+            compact={false}
+            className={twMerge(
+              'rounded-none! bg-transparent dark:bg-transparent border-0 shadow-none',
+              index > 0 ? 'lg:border-l-0' : '',
+            )}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// --- Revenue Chart Section ---
+
+const RevenueChart = ({
+  organization,
+}: {
+  organization: schemas['Organization']
+}) => {
+  const [startDate, endDate, interval] = useMemo(
+    () => getChartRangeParams('30d', organization.created_at),
+    [organization.created_at],
+  )
+
+  const { data, isLoading } = useMetrics({
+    organization_id: organization.id,
+    startDate,
+    endDate,
+    interval,
+    metrics: ['revenue'],
+  })
+
+  const previousParams = useMemo(
+    () => getPreviousParams(startDate, '30d'),
+    [startDate],
+  )
+
+  const { data: previousData } = useMetrics(
+    {
+      organization_id: organization.id,
+      startDate: previousParams ? previousParams[0] : startDate,
+      endDate: previousParams ? previousParams[1] : endDate,
+      interval,
+      metrics: ['revenue'],
+    },
+    previousParams !== null,
+  )
+
+  return (
+    <div className="dark:border-polar-800 overflow-hidden rounded-xl border border-gray-200 bg-white dark:bg-polar-900 shadow-sm">
+      <MetricChartBox
+        data={data}
+        previousData={previousData}
+        interval={interval}
+        metric="revenue"
+        loading={isLoading}
+        height={220}
+        chartType="line"
+        shareable={true}
+        compact={false}
+        className="rounded-none! border-0 shadow-none"
+      />
     </div>
   )
 }
@@ -158,26 +227,27 @@ const CancellationInsights = ({
   }
 
   return (
-    <div className="flex flex-col gap-y-4">
+    <div className="flex flex-col gap-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-medium">Cancellation Insights</h2>
+        <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Cancellation Insights</h2>
         <Link
           href={`/dashboard/${organization.slug}/analytics/metrics/cancellations`}
-          className="dark:text-polar-400 text-sm text-gray-500 hover:underline"
+          className="dark:text-polar-400 flex items-center gap-1 text-xs text-gray-400 transition-colors hover:text-gray-700 dark:hover:text-white"
         >
           View full analytics
+          <ArrowForwardOutlined sx={{ fontSize: 13 }} />
         </Link>
       </div>
-      <div className="dark:border-polar-700 flex flex-col overflow-hidden rounded-2xl border border-gray-200">
-        <div className="grid grid-cols-1 [clip-path:inset(1px_1px_1px_1px)] lg:grid-cols-3">
-          <div className="dark:border-polar-700 col-span-2 border-t-0 border-r border-b border-l-0 border-gray-200 p-4">
+      <div className="dark:border-polar-800 overflow-hidden rounded-xl border border-gray-200 bg-white dark:bg-polar-900 shadow-sm">
+        <div className="grid grid-cols-1 lg:grid-cols-3 dark:divide-polar-800 divide-gray-100 lg:divide-x">
+          <div className="col-span-2 p-6">
             <CancellationsStackedChart
               data={data}
               interval={interval}
-              height={300}
+              height={260}
             />
           </div>
-          <div className="dark:border-polar-700 border-t-0 border-r border-b border-l-0 border-gray-200 p-4">
+          <div className="dark:border-polar-800 border-t border-gray-100 p-6 lg:border-t-0">
             <CancellationsDistributionChart
               data={data}
               interval={interval}
@@ -198,11 +268,14 @@ interface OverviewPageProps {
 
 export default function OverviewPage({ organization }: OverviewPageProps) {
   return (
-    <DashboardBody className="gap-y-8 pb-16 md:gap-y-10">
-      {/* Profile completion banner — disappears when payout is set up */}
+    <DashboardBody className="gap-y-6" title={null}>
+      {/* Profile completion banner */}
       <ProfileCompletionBanner organization={organization} />
 
-      {/* Metric charts — 30-day snapshot */}
+      {/* Hero revenue chart */}
+      <RevenueChart organization={organization} />
+
+      {/* KPI snapshot grid */}
       <OverviewMetrics organization={organization} />
 
       {/* Cancellation insights — only shows if there are cancellations */}

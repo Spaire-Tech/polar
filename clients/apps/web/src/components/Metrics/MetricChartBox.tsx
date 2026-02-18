@@ -4,6 +4,8 @@ import Spinner from '@/components/Shared/Spinner'
 import { ParsedMetricsResponse } from '@/hooks/queries'
 import { getFormattedMetricValue } from '@/utils/metrics'
 import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
+import TrendingDownOutlined from '@mui/icons-material/TrendingDownOutlined'
+import TrendingUpOutlined from '@mui/icons-material/TrendingUpOutlined'
 import { schemas } from '@polar-sh/client'
 import Button from '@polar-sh/ui/components/atoms/Button'
 import FormattedDateTime from '@polar-sh/ui/components/atoms/FormattedDateTime'
@@ -15,7 +17,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@polar-sh/ui/components/atoms/Select'
-import ShadowBox from '@polar-sh/ui/components/atoms/ShadowBox'
 import { Status } from '@polar-sh/ui/components/atoms/Status'
 import {
   Tooltip,
@@ -145,32 +146,30 @@ const MetricChartBox = ({
     return ((currentValue - previousValue) / previousValue) * 100
   }, [data, previousData, hoveredPeriod, hoveredPreviousPeriod, metric])
 
+  const hasTrend = trend !== 0 && !isNaN(trend) && trend !== Infinity
+  const isPositive = trend > 0
+
   return (
-    <ShadowBox
+    <div
       ref={ref}
       className={twMerge(
-        'dark:bg-polar-800 group flex w-full flex-col justify-between bg-gray-50 p-2 shadow-xs',
+        'group flex w-full flex-col',
         className,
       )}
     >
+      {/* Header: label + trend badge + share */}
       <div
         className={twMerge(
-          'flex flex-col gap-6 md:flex-row md:items-start md:justify-between',
-          compact ? 'p-4' : 'p-6',
+          'flex items-start justify-between',
+          compact ? 'px-4 pt-4 pb-2' : 'px-6 pt-6 pb-3',
         )}
       >
-        <div
-          className={twMerge(
-            'flex w-full',
-            compact
-              ? 'flex-row items-center justify-between gap-x-4'
-              : 'flex-col gap-y-4',
-          )}
-        >
+        <div className="flex flex-col gap-1 min-w-0">
+          {/* Metric name or selector */}
           {onMetricChange ? (
             <div className="flex flex-row items-center gap-x-2">
               <Select value={metric} onValueChange={onMetricChange}>
-                <SelectTrigger className="dark:hover:bg-polar-700 -mt-2 -ml-3 h-fit w-fit rounded-lg border-0 border-none bg-transparent px-3 py-2 shadow-none ring-0 transition-colors hover:bg-gray-200 focus-visible:ring-0 focus-visible:ring-offset-0">
+                <SelectTrigger className="dark:hover:bg-polar-700 -mt-1.5 -ml-2 h-fit w-fit rounded-md border-0 border-none bg-transparent px-2 py-1.5 text-xs font-medium uppercase tracking-widest shadow-none ring-0 transition-colors hover:bg-gray-100 focus-visible:ring-0 focus-visible:ring-offset-0 dark:text-white/50 text-gray-400">
                   <SelectValue placeholder="Select a metric" />
                 </SelectTrigger>
                 <SelectContent className="dark:bg-polar-800 dark:ring-polar-700 ring-1 ring-gray-200">
@@ -211,9 +210,13 @@ const MetricChartBox = ({
             </div>
           ) : (
             <div className="flex flex-row items-center gap-x-2">
-              <h3 className={compact ? 'text-base' : 'text-lg'}>
+              <span className={twMerge(
+                'font-medium uppercase tracking-widest',
+                compact ? 'text-xs' : 'text-xs',
+                'dark:text-white/40 text-gray-400',
+              )}>
                 {selectedMetric?.display_name}
-              </h3>
+              </span>
               {metric in EXPERIMENTAL_METRICS && (
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -231,48 +234,67 @@ const MetricChartBox = ({
               )}
             </div>
           )}
-          <h2 className={compact ? 'text-base' : 'text-5xl font-light'}>
-            {metricValue}
-          </h2>
+
+          {/* Big metric value */}
+          <div className="flex flex-row items-baseline gap-x-3">
+            <span className={twMerge(
+              'font-semibold tracking-tight dark:text-white text-gray-900',
+              compact ? 'text-2xl' : 'text-4xl',
+            )}>
+              {metricValue}
+            </span>
+            {hasTrend && (
+              <span className={twMerge(
+                'flex items-center gap-0.5 text-xs font-medium',
+                isPositive
+                  ? 'text-emerald-500'
+                  : 'text-red-500',
+              )}>
+                {isPositive
+                  ? <TrendingUpOutlined sx={{ fontSize: 14 }} />
+                  : <TrendingDownOutlined sx={{ fontSize: 14 }} />
+                }
+                {isPositive ? '+' : ''}{trend.toFixed(1)}%
+              </span>
+            )}
+          </div>
+
+          {/* Date range */}
           {!compact && (
-            <div className="flex flex-col gap-x-6 gap-y-2 md:flex-row md:items-center">
-              <div className="flex flex-row items-center gap-x-2 text-sm">
-                <span className="h-3 w-3 rounded-full border-2 border-blue-500" />
+            <div className="flex flex-col gap-x-4 gap-y-1 mt-0.5 sm:flex-row sm:items-center">
+              <div className="flex flex-row items-center gap-x-1.5 text-xs dark:text-white/30 text-gray-400">
+                <span className="h-2 w-2 rounded-full bg-blue-500 opacity-80" />
                 {hoveredPeriod ? (
                   <FormattedDateTime
                     datetime={hoveredPeriod.timestamp}
                     dateStyle="medium"
                   />
                 ) : (
-                  <span className="dark:text-polar-500 text-gray-500">
-                    {startDate && endDate && (
-                      <FormattedInterval
-                        startDatetime={startDate}
-                        endDatetime={endDate}
-                        hideCurrentYear={false}
-                      />
-                    )}
-                  </span>
+                  startDate && endDate && (
+                    <FormattedInterval
+                      startDatetime={startDate}
+                      endDatetime={endDate}
+                      hideCurrentYear={false}
+                    />
+                  )
                 )}
               </div>
               {previousData && (
-                <div className="flex flex-row items-center gap-x-2 text-sm">
-                  <span className="dark:border-polar-600 h-3 w-3 rounded-full border-2 border-gray-500" />
+                <div className="flex flex-row items-center gap-x-1.5 text-xs dark:text-white/25 text-gray-400">
+                  <span className="dark:border-polar-600 h-2 w-2 rounded-full border-2 border-gray-300" />
                   {hoveredPreviousPeriod ? (
                     <FormattedDateTime
                       datetime={hoveredPreviousPeriod.timestamp}
                       dateStyle="medium"
                     />
                   ) : (
-                    <span className="dark:text-polar-500 text-gray-500">
-                      {previousStartDate && previousEndDate && (
-                        <FormattedInterval
-                          startDatetime={previousStartDate}
-                          endDatetime={previousEndDate}
-                          hideCurrentYear={false}
-                        />
-                      )}
-                    </span>
+                    previousStartDate && previousEndDate && (
+                      <FormattedInterval
+                        startDatetime={previousStartDate}
+                        endDatetime={previousEndDate}
+                        hideCurrentYear={false}
+                      />
+                    )
                   )}
                 </div>
               )}
@@ -280,43 +302,26 @@ const MetricChartBox = ({
           )}
         </div>
 
-        <div className="flex flex-row items-center gap-x-4">
-          {trend !== 0 && !isNaN(trend) && trend !== Infinity && (
-            <Status
-              status={
-                trend > 0 ? `+${trend.toFixed(0)}%` : `${trend.toFixed(0)}%`
-              }
-              className={twMerge(
-                'text-sm',
-                trend > 0
-                  ? 'bg-emerald-100 text-emerald-500 dark:bg-emerald-950'
-                  : 'bg-red-100 text-red-500 dark:bg-red-950',
-              )}
-            />
-          )}
-          {shareable && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="hidden rounded-full opacity-0 transition-opacity group-hover:opacity-100 md:block"
-                  onClick={showModal}
-                >
-                  <ArrowOutwardOutlined fontSize="small" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Share Chart</TooltipContent>
-            </Tooltip>
-          )}
-        </div>
-      </div>
-      <div
-        className={twMerge(
-          'dark:bg-polar-900 flex w-full flex-col gap-y-2 rounded-3xl bg-white',
-          compact ? 'p-2' : 'p-4',
+        {/* Share button */}
+        {shareable && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="hidden shrink-0 rounded-full opacity-0 transition-opacity group-hover:opacity-100 md:flex dark:text-white/40 text-gray-400 hover:text-gray-600 dark:hover:text-white"
+                onClick={showModal}
+              >
+                <ArrowOutwardOutlined fontSize="small" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Share Chart</TooltipContent>
+          </Tooltip>
         )}
-      >
+      </div>
+
+      {/* Chart area — no inner container, flush with card edges */}
+      <div className={twMerge('w-full', compact ? 'pb-2' : 'pb-1')}>
         {loading ? (
           <div
             style={{ height }}
@@ -340,13 +345,14 @@ const MetricChartBox = ({
           />
         ) : (
           <div
-            className="flex w-full flex-col items-center justify-center"
+            className="flex w-full flex-col items-center justify-center dark:text-white/30 text-gray-400"
             style={{ height }}
           >
-            <span className="text-lg">No data available</span>
+            <span className="text-sm">No data</span>
           </div>
         )}
       </div>
+
       {shareable && data && (
         <Modal
           title={`Share ${selectedMetric?.display_name} Metric`}
@@ -363,7 +369,7 @@ const MetricChartBox = ({
           }
         />
       )}
-    </ShadowBox>
+    </div>
   )
 }
 

@@ -244,10 +244,10 @@ export const GenericChart = <T extends Record<string, unknown>>({
     const grid =
       showGrid || !simple ? (
         <CartesianGrid
-          horizontal={false}
-          vertical={true}
-          stroke={isDark ? '#222225' : '#ccc'}
-          strokeDasharray="6 6"
+          horizontal={true}
+          vertical={false}
+          stroke={isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)'}
+          strokeDasharray="0"
           syncWithTicks={true}
         />
       ) : undefined
@@ -257,9 +257,13 @@ export const GenericChart = <T extends Record<string, unknown>>({
         dataKey={xAxisKey as string}
         tickLine={false}
         axisLine={false}
-        tickMargin={8}
+        tickMargin={12}
         interval="equidistantPreserveStart"
         ticks={ticks}
+        tick={{
+          fontSize: 11,
+          fill: isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.4)',
+        }}
         tickFormatter={
           xAxisFormatter ? (value) => xAxisFormatter(value) : undefined
         }
@@ -271,8 +275,12 @@ export const GenericChart = <T extends Record<string, unknown>>({
         tickLine={false}
         axisLine={false}
         allowDecimals={hasDecimalValues}
-        tickMargin={4}
+        tickMargin={8}
         width="auto"
+        tick={{
+          fontSize: 11,
+          fill: isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.4)',
+        }}
       />
     ) : undefined
 
@@ -340,7 +348,7 @@ export const GenericChart = <T extends Record<string, unknown>>({
                 dataKey={s.key}
                 fill={`var(--color-${s.key})`}
                 radius={4}
-                maxBarSize={32}
+                maxBarSize={28}
                 opacity={
                   activeSeries === null || activeSeries === s.key ? 1 : 0.3
                 }
@@ -364,11 +372,11 @@ export const GenericChart = <T extends Record<string, unknown>>({
               key={s.key}
               dataKey={s.key}
               stroke={`var(--color-${s.key})`}
-              type="linear"
+              type="monotone"
               dot={false}
-              strokeWidth={1.5}
+              strokeWidth={2}
               strokeOpacity={
-                activeSeries === null || activeSeries === s.key ? 1 : 0.3
+                activeSeries === null || activeSeries === s.key ? 1 : 0.2
               }
             />
           ))}
@@ -383,29 +391,31 @@ export const GenericChart = <T extends Record<string, unknown>>({
       if (gradientInfo.type === 'positive') {
         return (
           <>
-            <stop offset="0%" stopColor={color} stopOpacity={0.5} />
-            <stop offset="100%" stopColor={color} stopOpacity={0.025} />
+            <stop offset="0%" stopColor={color} stopOpacity={0.18} />
+            <stop offset="80%" stopColor={color} stopOpacity={0.04} />
+            <stop offset="100%" stopColor={color} stopOpacity={0} />
           </>
         )
       }
       if (gradientInfo.type === 'negative') {
         return (
           <>
-            <stop offset="0%" stopColor={color} stopOpacity={0.025} />
-            <stop offset="100%" stopColor={color} stopOpacity={0.5} />
+            <stop offset="0%" stopColor={color} stopOpacity={0} />
+            <stop offset="20%" stopColor={color} stopOpacity={0.04} />
+            <stop offset="100%" stopColor={color} stopOpacity={0.18} />
           </>
         )
       }
-      // Mixed: 0.5 at edges, 0.025 at zero line
+      // Mixed: fade from edges, transparent at zero line
       return (
         <>
-          <stop offset="0%" stopColor={color} stopOpacity={0.5} />
+          <stop offset="0%" stopColor={color} stopOpacity={0.18} />
           <stop
             offset={`${gradientInfo.zeroOffset * 100}%`}
             stopColor={color}
-            stopOpacity={0.025}
+            stopOpacity={0}
           />
-          <stop offset="100%" stopColor={color} stopOpacity={0.5} />
+          <stop offset="100%" stopColor={color} stopOpacity={0.18} />
         </>
       )
     })()
@@ -426,8 +436,10 @@ export const GenericChart = <T extends Record<string, unknown>>({
           dataKey={primarySeries.key}
           stroke={`var(--color-${primarySeries.key})`}
           fill={`url(#areaGradient-${id})`}
-          type="linear"
-          strokeWidth={1.5}
+          type="monotone"
+          strokeWidth={2}
+          dot={false}
+          activeDot={{ r: 4, strokeWidth: 0 }}
         />
       </AreaChart>
     )

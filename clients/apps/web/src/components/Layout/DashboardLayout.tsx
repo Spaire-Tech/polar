@@ -43,7 +43,7 @@ const DashboardLayout = (
 
   return (
     <DashboardProvider organization={organization}>
-      <div className="relative flex h-full w-full flex-col bg-white md:flex-row md:bg-gray-100 md:p-2 dark:bg-transparent">
+      <div className="relative flex h-full w-full flex-col bg-white md:flex-row dark:bg-polar-900">
         <MobileNav
           organization={organization}
           organizations={organizations ?? []}
@@ -222,26 +222,26 @@ export const DashboardBody = ({
   return (
     <motion.div
       className={twMerge(
-        'flex h-full w-full flex-row gap-x-2',
+        'flex h-full w-full flex-row gap-x-0',
         contextViewPlacement === 'left' ? 'flex-row-reverse' : '',
       )}
       initial="initial"
       animate="animate"
       exit="exit"
     >
-      <div className="dark:md:bg-polar-900 dark:border-polar-800 relative flex min-w-0 flex-2 flex-col items-center rounded-2xl border-gray-200 px-4 md:overflow-y-auto md:border md:bg-white md:px-8 md:shadow-xs">
+      <div className="dark:md:bg-polar-900 dark:border-polar-800 relative flex min-w-0 flex-2 flex-col items-center border-gray-200 px-4 md:overflow-y-auto md:border md:bg-white md:px-0">
         <div
           className={twMerge(
-            'flex h-full w-full flex-col gap-8 pt-8',
+            'flex h-full w-full flex-col gap-0',
             wrapperClassName,
             wide ? '' : 'max-w-(--breakpoint-xl)',
           )}
         >
           {(title !== null || !!header) && (
-            <div className="flex flex-col gap-y-4 md:flex-row md:items-center md:justify-between md:gap-x-4">
+            <div className="flex flex-col gap-y-4 border-b border-gray-100 px-8 py-6 dark:border-polar-800 md:flex-row md:items-center md:justify-between md:gap-x-4">
               {title !== null &&
                 (!title || typeof parsedTitle === 'string' ? (
-                  <h4 className="text-2xl font-medium whitespace-nowrap dark:text-white">
+                  <h4 className="text-xl font-semibold tracking-tight whitespace-nowrap dark:text-white">
                     {title ?? current?.title}
                   </h4>
                 ) : (
@@ -256,14 +256,18 @@ export const DashboardBody = ({
             </div>
           )}
 
-          {tabs && tabs.length > 0 && <PageTabNav tabs={tabs} />}
+          {tabs && tabs.length > 0 && (
+            <div className="border-b border-gray-100 px-8 dark:border-polar-800">
+              <PageTabNav tabs={tabs} />
+            </div>
+          )}
 
           <motion.div
-            className={twMerge('flex w-full flex-col pb-8', className)}
+            className={twMerge('flex w-full flex-col px-8 py-8 pb-16', className)}
             variants={{
               initial: { opacity: 0 },
-              animate: { opacity: 1, transition: { duration: 0.3 } },
-              exit: { opacity: 0, transition: { duration: 0.3 } },
+              animate: { opacity: 1, transition: { duration: 0.25 } },
+              exit: { opacity: 0, transition: { duration: 0.2 } },
             }}
           >
             {children}
@@ -274,11 +278,11 @@ export const DashboardBody = ({
         <motion.div
           variants={{
             initial: { opacity: 0 },
-            animate: { opacity: 1, transition: { duration: 0.3 } },
-            exit: { opacity: 0, transition: { duration: 0.3 } },
+            animate: { opacity: 1, transition: { duration: 0.25 } },
+            exit: { opacity: 0, transition: { duration: 0.2 } },
           }}
           className={twMerge(
-            'dark:bg-polar-900 dark:border-polar-800 w-full flex-1 overflow-y-auto rounded-2xl border border-gray-200 bg-white md:max-w-[320px] md:shadow-xs xl:max-w-[440px]',
+            'dark:bg-polar-900 dark:border-polar-800 w-full flex-1 overflow-y-auto border-l border-gray-200 bg-white md:max-w-[320px] xl:max-w-[440px]',
             contextViewClassName,
           )}
         >
