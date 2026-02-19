@@ -112,21 +112,20 @@ export const DashboardSidebar = ({
             <button
               onClick={() => setSearchOpen(true)}
               className={twMerge(
-                'flex cursor-pointer items-center gap-4 rounded-lg border px-2 py-2 text-sm transition-colors',
-                'dark:bg-polar-950 dark:border-polar-800 dark:hover:bg-polar-900 border-gray-200 bg-white hover:bg-gray-50',
+                'glass-card flex cursor-pointer items-center gap-4 rounded-lg px-2 py-2 text-sm',
                 isCollapsed && 'justify-center px-2',
               )}
             >
               <Search
-                className="dark:text-polar-500 text-gray-500"
+                className="text-polar-400"
                 fontSize="inherit"
               />
               {!isCollapsed && (
                 <>
-                  <span className="dark:text-polar-500 flex-1 text-left text-gray-500">
+                  <span className="text-polar-400 flex-1 text-left">
                     Search...
                   </span>
-                  <kbd className="dark:border-polar-700 dark:bg-polar-800 dark:text-polar-400 pointer-events-none inline-flex h-5 items-center gap-1 rounded border border-gray-200 bg-gray-100 px-1.5 font-mono text-[11px] text-gray-600 select-none">
+                  <kbd className="pointer-events-none inline-flex h-5 items-center gap-1 rounded px-1.5 font-mono text-[11px] select-none" style={{ background: 'var(--glass-surface-strong)', border: '1px solid var(--glass-border-subtle)', color: 'var(--color-polar-400)' }}>
                     <span className="text-sm">⌘</span>K
                   </kbd>
                 </>
@@ -156,9 +155,9 @@ export const DashboardSidebar = ({
         <Link
           href="mailto:support@spairehq.com"
           className={twMerge(
-            'mt-2 flex cursor-pointer flex-row items-center rounded-lg border border-transparent px-2 text-sm transition-colors dark:border-transparent',
-            'dark:text-polar-500 dark:hover:text-polar-200 text-gray-500 hover:text-black',
-            isCollapsed && '!dark:text-polar-600',
+            'mt-2 flex cursor-pointer flex-row items-center rounded-lg border border-transparent px-2 text-sm transition-colors',
+            'text-polar-400 hover:text-polar-100',
+            isCollapsed && 'text-polar-500',
           )}
         >
           <SupportIcon fontSize="inherit" />
@@ -166,9 +165,9 @@ export const DashboardSidebar = ({
         </Link>
         <Link
           className={twMerge(
-            'flex flex-row items-center rounded-lg border border-transparent text-sm transition-colors dark:border-transparent',
-            'dark:text-polar-500 dark:hover:text-polar-200 text-gray-500 hover:text-black',
-            isCollapsed && '!dark:text-polar-600',
+            'flex flex-row items-center rounded-lg border border-transparent text-sm transition-colors',
+            'text-polar-400 hover:text-polar-100',
+            isCollapsed && 'text-polar-500',
           )}
           href="https://docs.spairehq.com"
           target="_blank"
@@ -178,7 +177,7 @@ export const DashboardSidebar = ({
             <span className="ml-4 font-medium">Documentation</span>
           )}
         </Link>
-        <Separator />
+        <Separator className="opacity-20" />
         {type === 'organization' && organization && (
           <SidebarMenu>
             <SidebarMenuItem>

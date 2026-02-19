@@ -43,13 +43,13 @@ const DashboardLayout = (
 
   return (
     <DashboardProvider organization={organization}>
-      <div className="relative flex h-full w-full flex-col bg-white md:flex-row md:bg-gray-100 md:p-2 dark:bg-transparent">
+      <div className="dashboard-liquid-shell relative flex h-full w-full flex-col md:flex-row md:p-2">
         <MobileNav
           organization={organization}
           organizations={organizations ?? []}
           type={props.type}
         />
-        <div className="hidden md:flex">
+        <div className="relative z-10 hidden md:flex">
           <DashboardSidebar
             organization={organization}
             organizations={organizations ?? []}
@@ -58,11 +58,10 @@ const DashboardLayout = (
         </div>
         <div
           className={twMerge(
-            'relative flex h-full w-full flex-col',
+            'relative z-10 flex h-full w-full flex-col',
             props.className,
           )}
         >
-          {/* On large devices, scroll here. On small devices the _document_ is the only element that should scroll. */}
           <main className="relative flex min-h-0 min-w-0 grow flex-col">
             {props.children}
           </main>
@@ -92,10 +91,10 @@ const MobileNav = ({
   }, [pathname])
 
   const header = (
-    <div className="dark:bg-polar-900 sticky top-0 right-0 left-0 flex w-full flex-row items-center justify-between bg-gray-50 p-4">
+    <div className="glass-panel-strong sticky top-0 right-0 left-0 flex w-full flex-row items-center justify-between p-4">
       <a
         href="/"
-        className="shrink-0 items-center font-semibold text-black dark:text-white"
+        className="shrink-0 items-center font-semibold text-white"
       >
         <LogoIcon className="h-10 w-10" />
       </a>
@@ -108,11 +107,11 @@ const MobileNav = ({
   )
 
   return (
-    <div className="dark:bg-polar-900 relative z-20 flex w-screen flex-col items-center justify-between bg-gray-50 md:hidden">
+    <div className="relative z-20 flex w-screen flex-col items-center justify-between md:hidden" style={{ background: 'rgba(0, 0, 0, 0.6)' }}>
       {mobileNavOpen ? (
         <div className="relative flex h-full w-full flex-col">
           {header}
-          <div className="dark:bg-polar-900 flex h-full flex-col bg-gray-50 px-4">
+          <div className="flex h-full flex-col px-4" style={{ background: 'rgba(0, 0, 0, 0.4)' }}>
             <DashboardSidebar
               organization={organization}
               organizations={organizations}
@@ -229,7 +228,7 @@ export const DashboardBody = ({
       animate="animate"
       exit="exit"
     >
-      <div className="dark:md:bg-polar-900 dark:border-polar-800 relative flex min-w-0 flex-2 flex-col items-center rounded-2xl border-gray-200 px-4 md:overflow-y-auto md:border md:bg-white md:px-8 md:shadow-xs">
+      <div className="glass-panel glass-noise-overlay relative flex min-w-0 flex-2 flex-col items-center rounded-2xl px-4 md:overflow-y-auto md:px-8">
         <div
           className={twMerge(
             'flex h-full w-full flex-col gap-8 pt-8',
@@ -241,7 +240,7 @@ export const DashboardBody = ({
             <div className="flex flex-col gap-y-4 md:flex-row md:items-center md:justify-between md:gap-x-4">
               {title !== null &&
                 (!title || typeof parsedTitle === 'string' ? (
-                  <h4 className="text-2xl font-medium whitespace-nowrap dark:text-white">
+                  <h4 className="text-2xl font-medium whitespace-nowrap text-white">
                     {title ?? current?.title}
                   </h4>
                 ) : (
@@ -278,7 +277,7 @@ export const DashboardBody = ({
             exit: { opacity: 0, transition: { duration: 0.3 } },
           }}
           className={twMerge(
-            'dark:bg-polar-900 dark:border-polar-800 w-full flex-1 overflow-y-auto rounded-2xl border border-gray-200 bg-white md:max-w-[320px] md:shadow-xs xl:max-w-[440px]',
+            'glass-panel w-full flex-1 overflow-y-auto rounded-2xl md:max-w-[320px] xl:max-w-[440px]',
             contextViewClassName,
           )}
         >

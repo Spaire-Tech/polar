@@ -43,12 +43,12 @@ const ProfileCompletionBanner = ({
   }
 
   return (
-    <div className="dark:bg-polar-900 dark:border-polar-700 flex flex-col gap-4 rounded-2xl border border-blue-100 bg-blue-50/50 p-6 sm:flex-row sm:items-center sm:justify-between">
+    <div className="glass-panel-strong flex flex-col gap-4 rounded-2xl p-6 sm:flex-row sm:items-center sm:justify-between" style={{ borderColor: 'rgba(96, 165, 250, 0.15)' }}>
       <div className="flex flex-col gap-y-1">
-        <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+        <h3 className="text-sm font-medium text-white">
           Complete your profile to start receiving payouts
         </h3>
-        <p className="dark:text-polar-400 text-sm text-gray-500">
+        <p className="text-polar-400 text-sm">
           Set up your payout account so you can get paid when customers purchase your products.
         </p>
       </div>
@@ -100,7 +100,7 @@ const OverviewMetrics = ({
 
   return (
     <div className="flex flex-col gap-y-6">
-      <div className="dark:border-polar-700 flex flex-col overflow-hidden rounded-2xl border border-gray-200">
+      <div className="glass-panel flex flex-col overflow-hidden rounded-2xl">
         <div className="grid grid-cols-1 flex-col [clip-path:inset(1px_1px_1px_1px)] md:grid-cols-2 lg:grid-cols-3">
           {OVERVIEW_METRICS.map((metricKey, index) => (
             <MetricChartBox
@@ -115,7 +115,7 @@ const OverviewMetrics = ({
               className={twMerge(
                 'rounded-none! bg-transparent dark:bg-transparent',
                 index === 0 && 'lg:col-span-2',
-                'dark:border-polar-700 border-t-0 border-r border-b border-l-0 border-gray-200 shadow-none',
+                'glass-stroke border-t-0 border-r border-b border-l-0 shadow-none',
               )}
             />
           ))}
@@ -160,24 +160,24 @@ const CancellationInsights = ({
   return (
     <div className="flex flex-col gap-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-medium">Cancellation Insights</h2>
+        <h2 className="text-lg font-medium text-white">Cancellation Insights</h2>
         <Link
           href={`/dashboard/${organization.slug}/analytics/metrics/cancellations`}
-          className="dark:text-polar-400 text-sm text-gray-500 hover:underline"
+          className="text-polar-400 text-sm hover:underline"
         >
           View full analytics
         </Link>
       </div>
-      <div className="dark:border-polar-700 flex flex-col overflow-hidden rounded-2xl border border-gray-200">
+      <div className="glass-panel flex flex-col overflow-hidden rounded-2xl">
         <div className="grid grid-cols-1 [clip-path:inset(1px_1px_1px_1px)] lg:grid-cols-3">
-          <div className="dark:border-polar-700 col-span-2 border-t-0 border-r border-b border-l-0 border-gray-200 p-4">
+          <div className="glass-stroke col-span-2 border-t-0 border-r border-b border-l-0 p-4">
             <CancellationsStackedChart
               data={data}
               interval={interval}
               height={300}
             />
           </div>
-          <div className="dark:border-polar-700 border-t-0 border-r border-b border-l-0 border-gray-200 p-4">
+          <div className="glass-stroke border-t-0 border-r border-b border-l-0 p-4">
             <CancellationsDistributionChart
               data={data}
               interval={interval}
