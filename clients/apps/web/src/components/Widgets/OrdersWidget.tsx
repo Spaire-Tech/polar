@@ -17,12 +17,12 @@ import { twMerge } from 'tailwind-merge'
 const orderStatusBadgeClassNames = (order: schemas['Order']) => {
   switch (order.status) {
     case 'paid':
-      return 'bg-emerald-50 text-emerald-500 dark:bg-emerald-950'
+      return 'bg-emerald-950 text-emerald-400'
     case 'pending':
-      return 'bg-yellow-50 text-yellow-500 dark:bg-yellow-950'
+      return 'bg-yellow-950 text-yellow-400'
     case 'refunded':
     case 'partially_refunded':
-      return 'bg-violet-50 text-violet-500 dark:bg-violet-950 dark:text-violet-400'
+      return 'bg-violet-950 text-violet-400'
   }
 }
 

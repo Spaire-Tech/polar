@@ -31,7 +31,7 @@ export const AccountWidget = ({ className }: AccountWidgetProps) => {
   return (
     <div
       className={twMerge(
-        'dark:bg-polar-800 flex h-80 flex-col justify-between rounded-4xl bg-gray-50',
+        'glass-card flex h-80 flex-col justify-between rounded-4xl',
         className,
       )}
     >
@@ -56,7 +56,7 @@ export const AccountWidget = ({ className }: AccountWidgetProps) => {
             )}
         </h2>
       </div>
-      <div className="dark:bg-polar-700 m-2 flex flex-col gap-y-4 rounded-3xl bg-white p-4">
+      <div className="m-2 flex flex-col gap-y-4 rounded-3xl bg-white/[0.03] p-4">
         {lastPayout ? (
           <div className="flex flex-col">
             <div className="flex flex-row items-center justify-between gap-x-2">
@@ -71,12 +71,12 @@ export const AccountWidget = ({ className }: AccountWidgetProps) => {
                 className={twMerge(
                   'px-2 py-1 text-sm capitalize',
                   lastPayout.status === 'succeeded'
-                    ? 'bg-emerald-50 text-emerald-500 dark:bg-emerald-950'
-                    : 'bg-yellow-50 text-yellow-500 dark:bg-yellow-950',
+                    ? 'bg-emerald-950 text-emerald-400'
+                    : 'bg-yellow-950 text-yellow-400',
                 )}
               />
             </div>
-            <p className="dark:text-polar-500 text-sm text-gray-500">
+            <p className="text-sm text-polar-400">
               {new Date(lastPayout.created_at).toLocaleDateString('en-US', {
                 month: 'long',
                 day: 'numeric',
@@ -87,7 +87,7 @@ export const AccountWidget = ({ className }: AccountWidgetProps) => {
         ) : (
           <div className="flex flex-col">
             <h3>No payouts yet</h3>
-            <p className="dark:text-polar-500 text-sm text-gray-500">
+            <p className="text-sm text-polar-400">
               You may only withdraw funds above $10.
             </p>
           </div>

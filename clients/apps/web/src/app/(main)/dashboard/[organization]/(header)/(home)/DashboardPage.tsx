@@ -113,7 +113,7 @@ const OverviewMetrics = ({
               height={200}
               chartType="line"
               className={twMerge(
-                'rounded-none! bg-transparent dark:bg-transparent',
+                'rounded-none! bg-transparent',
                 index === 0 && 'lg:col-span-2',
                 'glass-stroke border-t-0 border-r border-b border-l-0 shadow-none',
               )}

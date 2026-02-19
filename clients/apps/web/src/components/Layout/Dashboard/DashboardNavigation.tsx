@@ -46,11 +46,11 @@ export const OrganizationNavigation = ({
               key={route.link}
               prefetch={true}
               className={twMerge(
-                'flex flex-row items-center rounded-lg border border-transparent px-2 transition-colors dark:border-transparent',
+                'flex flex-row items-center rounded-lg border border-transparent px-2 transition-all duration-200',
                 route.isActive
-                  ? 'dark:!bg-polar-900 dark:border-polar-800 border-gray-200 bg-white! text-black shadow-xs dark:text-white'
-                  : 'dark:text-polar-500 dark:hover:text-polar-200 text-gray-500 hover:text-black',
-                isCollapsed && '!dark:text-polar-600',
+                  ? 'bg-white/[0.08] border-white/10 text-white shadow-none'
+                  : 'text-polar-400 hover:text-polar-100 hover:bg-white/[0.04]',
+                isCollapsed && 'text-polar-500',
               )}
               href={route.link}
             >
@@ -59,7 +59,7 @@ export const OrganizationNavigation = ({
                   className={twMerge(
                     'flex flex-col items-center justify-center overflow-visible rounded-full bg-transparent text-[15px]',
                     route.isActive
-                      ? 'text-blue-500 dark:text-white'
+                      ? 'text-blue-400'
                       : 'bg-transparent',
                   )}
                 >
@@ -78,8 +78,8 @@ export const OrganizationNavigation = ({
                       href={subRoute.link}
                       prefetch={true}
                       className={twMerge(
-                        'dark:text-polar-500 ml-4 inline-flex flex-row items-center gap-x-2 text-sm font-medium text-gray-500 transition-colors hover:text-black dark:hover:text-white',
-                        subRoute.isActive && 'text-blue-500 dark:text-white',
+                        'ml-4 inline-flex flex-row items-center gap-x-2 text-sm font-medium text-polar-400 transition-colors hover:text-white',
+                        subRoute.isActive && 'text-white',
                       )}
                     >
                       {subRoute.title}
@@ -109,7 +109,7 @@ export const AccountNavigation = () => {
         <SidebarMenuButton tooltip="Back to Dashboard" asChild>
           <Link
             href="/dashboard"
-            className="flex flex-row items-center gap-4 border border-transparent text-black dark:text-white"
+            className="flex flex-row items-center gap-4 border border-transparent text-white"
           >
             <span className="flex flex-col items-center justify-center overflow-visible rounded-full bg-transparent text-[15px]">
               <ArrowBack fontSize="inherit" />
@@ -129,11 +129,11 @@ export const AccountNavigation = () => {
               key={route.link}
               prefetch={true}
               className={twMerge(
-                'flex flex-row items-center rounded-lg border border-transparent px-2 transition-colors dark:border-transparent',
+                'flex flex-row items-center rounded-lg border border-transparent px-2 transition-all duration-200',
                 route.isActive
-                  ? 'dark:bg-polar-900 dark:border-polar-800 border-gray-200 bg-white text-black shadow-xs dark:text-white'
-                  : 'dark:text-polar-500 dark:hover:text-polar-200 text-gray-500 hover:text-black',
-                isCollapsed && '!dark:text-polar-600',
+                  ? 'bg-white/[0.08] border-white/10 text-white shadow-none'
+                  : 'text-polar-400 hover:text-polar-100 hover:bg-white/[0.04]',
+                isCollapsed && 'text-polar-500',
               )}
               href={route.link}
             >
@@ -142,7 +142,7 @@ export const AccountNavigation = () => {
                   className={twMerge(
                     'flex flex-col items-center justify-center overflow-visible rounded-full bg-transparent text-[15px]',
                     route.isActive
-                      ? 'text-blue-500 dark:text-white'
+                      ? 'text-blue-400'
                       : 'bg-transparent',
                   )}
                 >
@@ -161,8 +161,8 @@ export const AccountNavigation = () => {
                       href={subRoute.link}
                       prefetch={true}
                       className={twMerge(
-                        'dark:text-polar-500 ml-4 inline-flex flex-row items-center gap-x-2 text-sm font-medium text-gray-500',
-                        subRoute.isActive && 'text-blue-500 dark:text-white',
+                        'ml-4 inline-flex flex-row items-center gap-x-2 text-sm font-medium text-polar-400',
+                        subRoute.isActive && 'text-white',
                       )}
                     >
                       {subRoute.title}

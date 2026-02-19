@@ -177,11 +177,13 @@
     --card-foreground: var(--color-polar-50);
     --popover: var(--color-polar-900);
     --popover-foreground: var(--color-polar-50);
-    --sidebar-background: var(--color-polar-950);
+    --sidebar-background: transparent;
     --sidebar-foreground: var(--color-polar-50);
     --sidebar-primary: var(--color-blue);
     --sidebar-primary-foreground: var(--color-polar-50);
-    --sidebar-border: var(--color-polar-700);
+    --sidebar-accent: rgba(255, 255, 255, 0.06);
+    --sidebar-accent-foreground: var(--color-polar-50);
+    --sidebar-border: rgba(255, 255, 255, 0.06);
     --primary: var(--color-blue);
     --primary-foreground: var(--color-polar-50);
     --secondary: var(--color-polar-900);
@@ -223,9 +225,9 @@
     --glass-blur-strong: 32px;
 
     /* Ambient gradient colors for background drift */
-    --glass-glow-primary: oklch(0.35 0.08 235.243);
-    --glass-glow-secondary: oklch(0.25 0.05 280);
-    --glass-glow-accent: oklch(0.20 0.04 200);
+    --glass-glow-primary: oklch(0.25 0.06 235.243);
+    --glass-glow-secondary: oklch(0.18 0.04 280);
+    --glass-glow-accent: oklch(0.14 0.03 200);
   }
 }
 
@@ -297,7 +299,7 @@
   /* Dashboard ambient background */
   .dashboard-liquid-shell {
     position: relative;
-    background: hsl(233, 5%, 3%);
+    background: hsl(233, 8%, 2%);
     overflow: hidden;
   }
 
@@ -306,12 +308,12 @@
     position: absolute;
     inset: 0;
     background:
-      radial-gradient(ellipse 60% 50% at 20% 20%, var(--glass-glow-primary), transparent),
-      radial-gradient(ellipse 50% 40% at 80% 80%, var(--glass-glow-secondary), transparent),
+      radial-gradient(ellipse 60% 50% at 15% 15%, var(--glass-glow-primary), transparent),
+      radial-gradient(ellipse 50% 40% at 85% 80%, var(--glass-glow-secondary), transparent),
       radial-gradient(ellipse 40% 30% at 50% 50%, var(--glass-glow-accent), transparent);
     background-size: 200% 200%;
     animation: var(--animate-glass-drift);
-    opacity: 0.5;
+    opacity: 0.35;
     pointer-events: none;
     z-index: 0;
   }

@@ -131,7 +131,7 @@ const SubNav = (props: { items: SubRouteWithActive[] }) => {
 
   return (
     <Tabs value={current?.title}>
-      <TabsList className="flex flex-row bg-transparent ring-0 dark:bg-transparent dark:ring-0">
+      <TabsList className="flex flex-row bg-transparent ring-0">
         {props.items.map((item) => {
           return (
             <Link key={item.title} href={item.link} prefetch={true}>
@@ -162,7 +162,7 @@ const PageTabNav = ({ tabs }: { tabs: PageTab[] }) => {
         )?.title ?? tabs[0]?.title
       }
     >
-      <TabsList className="flex flex-row bg-transparent ring-0 dark:bg-transparent dark:ring-0">
+      <TabsList className="flex flex-row bg-transparent ring-0">
         {tabs.map((tab) => (
           <Link key={tab.href} href={tab.href} prefetch={true}>
             <TabsTrigger

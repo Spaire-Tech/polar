@@ -18,7 +18,7 @@ const TabsList = ({
   <TabsListPrimitive
     ref={ref}
     className={twMerge(
-      'relative flex h-fit w-fit flex-row items-start gap-2 rounded-2xl bg-transparent ring-0 md:flex-row dark:bg-transparent dark:ring-0',
+      'relative flex h-fit w-fit flex-row items-start gap-2 rounded-2xl bg-transparent ring-0 md:flex-row',
       vertical
         ? 'flex-col md:flex-col'
         : 'md:flex-row md:items-center md:justify-start',
@@ -40,7 +40,7 @@ const TabsTrigger = ({
   <TabsTriggerPrimitive
     ref={ref}
     className={twMerge(
-      'dark:data-[state=active]:bg-polar-700 dark:hover:text-polar-50 dark:text-polar-500 cursor-pointer px-4 text-gray-400 hover:text-black data-[state=active]:rounded-xl data-[state=active]:bg-gray-100 data-[state=active]:text-blue-500 data-[state=active]:shadow-none dark:data-[state=active]:text-blue-400',
+      'cursor-pointer px-4 text-polar-400 hover:text-polar-100 data-[state=active]:rounded-xl data-[state=active]:bg-white/[0.08] data-[state=active]:text-blue-400 data-[state=active]:shadow-none',
       size === 'default' ? 'text-sm' : 'text-xs',
       className,
     )}
