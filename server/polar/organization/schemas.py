@@ -379,6 +379,8 @@ class OrganizationUpdate(Schema):
         description="Additional, private, business details Polar needs about active organizations for compliance (KYC).",
     )
 
+    default_presentment_currency: PresentmentCurrency | None = None
+
     feature_settings: OrganizationFeatureSettings | None = None
     subscription_settings: OrganizationSubscriptionSettings | None = None
     notification_settings: OrganizationNotificationSettings | None = None

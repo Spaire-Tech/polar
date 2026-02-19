@@ -21344,6 +21344,9 @@ export interface components {
       socials?: components['schemas']['OrganizationSocialLink'][] | null
       /** @description Additional, private, business details Polar needs about active organizations for compliance (KYC). */
       details?: components['schemas']['OrganizationDetails'] | null
+      default_presentment_currency?:
+        | components['schemas']['PresentmentCurrency']
+        | null
       feature_settings?:
         | components['schemas']['OrganizationFeatureSettings']
         | null
