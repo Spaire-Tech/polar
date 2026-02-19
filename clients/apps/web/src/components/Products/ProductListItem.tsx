@@ -91,7 +91,7 @@ export const ProductListItem = ({
   return (
     <>
       <Link href={`/dashboard/${organization.slug}/products/${product.id}`}>
-        <ListItem className="flex flex-row items-center justify-between gap-x-6">
+        <ListItem className="glass-card flex flex-row items-center justify-between gap-x-6 rounded-xl border-white/10 bg-white/5 px-4 py-3">
           <div className="flex min-w-0 grow flex-row items-center gap-x-4 text-sm">
             <ProductThumbnail product={product} />
             <div className="flex min-w-0 flex-row items-center gap-x-2">
@@ -138,6 +138,7 @@ export const ProductListItem = ({
                 <Button
                   size="sm"
                   variant="secondary"
+                  className="glass-card border-white/20 bg-white/10 text-white hover:bg-white/20"
                   onClick={(e) => {
                     e.preventDefault()
                     router.push(
@@ -151,7 +152,7 @@ export const ProductListItem = ({
                   <DropdownMenuTrigger className="focus:outline-none" asChild>
                     <Button
                       className={
-                        'border-none bg-transparent text-[16px] opacity-50 transition-opacity hover:opacity-100 dark:bg-transparent'
+                        'text-polar-200 border-none bg-transparent text-[16px] opacity-70 transition-opacity hover:opacity-100 dark:bg-transparent'
                       }
                       size="icon"
                       variant="secondary"
@@ -161,7 +162,7 @@ export const ProductListItem = ({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
                     align="end"
-                    className="dark:bg-polar-800 bg-gray-50 shadow-lg"
+                    className="glass-panel text-polar-100 border-white/15 bg-black/70 shadow-lg"
                   >
                     <DropdownMenuItem
                       onClick={handleContextMenuCallback(() => {
