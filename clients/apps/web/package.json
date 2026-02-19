@@ -42,6 +42,7 @@
     "@polar-sh/client": "workspace:*",
     "@polar-sh/currency": "workspace:^",
     "@polar-sh/customer-portal": "workspace:*",
+    "@polar-sh/i18n": "workspace:*",
     "@polar-sh/mdx": "workspace:*",
     "@spaire/sdk": "^1.0.0",
     "@polar-sh/ui": "workspace:*",
