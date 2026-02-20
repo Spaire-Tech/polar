@@ -18,8 +18,7 @@ https://www.spairehq.com/oauth2/authorize?
 The parameters are the one described in the [OpenID Connect specification](https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest). The most important ones are:
 
 <ParamField path="response_type=code" type="string" required>
-  Indicates that you want to use the authorization code flow. Most common and
-  the only one supported by Spaire.
+  Indicates that you want to use the authorization code flow. Most common and the only one supported by Spaire.
 </ParamField>
 
 <ParamField path="client_id" type="string" required>
@@ -27,18 +26,14 @@ The parameters are the one described in the [OpenID Connect specification](https
 </ParamField>
 
 <ParamField path="redirect_uri" type="string" required>
-  The URL where the user will be redirected after granting access to their data.
-  Make sure you declared it when creating the OAuth2 client.
+  The URL where the user will be redirected after granting access to their data. Make sure you declared it when creating the OAuth2 client.
 </ParamField>
 
 <ParamField path="scope" type="string" required>
-  A space-separated list of scopes you want to ask for. Make sure they are part
-  of the scopes you declared when creating the OAuth2 client.
+  A space-separated list of scopes you want to ask for. Make sure they are part of the scopes you declared when creating the OAuth2 client.
 </ParamField>
 
 If you redirect the user to this URL, they'll see a page asking them to grant access to their data, corresponding to the scopes you asked for. By default, the user will also be prompted to select one of their organizations, as Spaire generates organization-level access tokens by default.
-
-<img src="/assets/integrate/oauth2/connect.png" />
 
 If they allow it and select an organization, they'll be redirected to your `redirect_uri` with a `code` parameter in the query string. This code is a one-time code that you can exchange for an access token.
 

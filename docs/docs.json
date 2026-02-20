@@ -107,6 +107,7 @@
               },
               {
                 "group": "Integrations",
+                "hidden": true,
                 "pages": [
                   "features/integrations/affonso",
                   "features/integrations/fernand",
@@ -646,9 +647,7 @@
     "socials": {
       "x": "https://x.com/spairehq",
       "instagram": "https://www.instagram.com/spairehq",
-      "linkedin": "https://www.linkedin.com/company/spaire",
-      "github": "https://github.com/spairehq/spaire",
-      "discord": "https://dub.sh/spaire-discord"
+      "linkedin": "https://www.linkedin.com/company/spaire"
     }
   },
   "redirects": [
