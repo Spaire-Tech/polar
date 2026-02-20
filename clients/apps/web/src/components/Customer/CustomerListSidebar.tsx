@@ -114,7 +114,7 @@ export const CustomerListSidebar: React.FC<CustomerListSidebarProps> = ({
 
   return (
     <>
-      <div className="dark:divide-polar-800 flex h-full flex-col divide-y divide-gray-200">
+      <div className="flex h-full flex-col divide-y divide-white/[0.06]">
         <div className="flex flex-row items-center justify-between gap-6 px-4 py-4">
           <div>Customers</div>
           <div className="flex flex-row items-center gap-4">
@@ -159,21 +159,21 @@ export const CustomerListSidebar: React.FC<CustomerListSidebarProps> = ({
         </div>
         <div className="flex flex-row items-center gap-3 px-4 py-2">
           <div className="flex flex-1 flex-row items-center gap-3">
-            <div className="dark:bg-polar-800 flex h-8 w-8 items-center justify-center rounded-full bg-gray-100">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.06]">
               <Search
                 fontSize="inherit"
-                className="dark:text-polar-500 text-gray-500"
+                className="text-polar-500"
               />
             </div>
             <Input
-              className="w-full rounded-none border-none bg-transparent p-0 shadow-none! ring-0 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent"
+              className="w-full rounded-none border-none bg-transparent p-0 shadow-none! ring-0 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
               placeholder="Search Customers"
               value={query ?? undefined}
               onChange={(e) => setQuery(e.target.value)}
             />
           </div>
         </div>
-        <div className="dark:divide-polar-800 flex h-full grow flex-col divide-y divide-gray-50 overflow-y-auto">
+        <div className="flex h-full grow flex-col divide-y divide-white/[0.04] overflow-y-auto">
           {customers.map((customer) => {
             return (
               <Link
@@ -182,9 +182,9 @@ export const CustomerListSidebar: React.FC<CustomerListSidebarProps> = ({
                   `/dashboard/${organization.slug}/customers/${customer.id}`,
                 )}
                 className={twMerge(
-                  'dark:hover:bg-polar-800 cursor-pointer hover:bg-gray-100',
+                  'cursor-pointer hover:bg-white/[0.06]',
                   selectedCustomerId === customer.id &&
-                    'dark:bg-polar-800 bg-gray-100',
+                    'bg-white/[0.06]',
                 )}
               >
                 <div className="flex flex-row items-center gap-3 px-4 py-3">
@@ -197,7 +197,7 @@ export const CustomerListSidebar: React.FC<CustomerListSidebarProps> = ({
                     <div className="w-full truncate text-sm">
                       {customer.name ?? '—'}
                     </div>
-                    <div className="dark:text-polar-500 w-full truncate text-xs text-gray-500">
+                    <div className="w-full truncate text-xs text-polar-500">
                       {customer.email}
                     </div>
                   </div>

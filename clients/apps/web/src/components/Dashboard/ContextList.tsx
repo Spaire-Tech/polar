@@ -36,7 +36,7 @@ export const ContextList = ({
   const { ref: loadingRef } = useInViewport()
 
   return (
-    <div className="dark:divide-polar-800 flex h-full flex-col divide-y divide-gray-200">
+    <div className="flex h-full flex-col divide-y divide-white/[0.06]">
       <div className="flex flex-row items-center justify-between gap-6 px-4 py-4">
         <div>{title}</div>
         <div className="flex flex-row items-center gap-4">
@@ -47,10 +47,10 @@ export const ContextList = ({
       </div>
       {search && (
         <div className="flex flex-row items-center gap-3 px-4 py-2">
-          <div className="dark:bg-polar-800 flex h-8 w-8 items-center justify-center rounded-full bg-gray-100">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.06]">
             <Search
               fontSize="inherit"
-              className="dark:text-polar-500 text-gray-500"
+              className="text-polar-500"
             />
           </div>
           <Input
@@ -60,21 +60,21 @@ export const ContextList = ({
           />
         </div>
       )}
-      <div className="dark:divide-polar-800 flex h-full grow flex-col divide-y divide-gray-50 overflow-y-auto">
+      <div className="flex h-full grow flex-col divide-y divide-white/[0.04] overflow-y-auto">
         {items.map((item) => (
           <div
             key={item.id}
             onClick={() => onSelect?.(item.id)}
             className={twMerge(
-              'dark:hover:bg-polar-800 cursor-pointer hover:bg-gray-100',
-              item.active && 'dark:bg-polar-800 bg-gray-100',
+              'cursor-pointer hover:bg-white/[0.06]',
+              item.active && 'bg-white/[0.06]',
             )}
           >
             <div className="flex flex-row items-center gap-3 px-4 py-3">
               {item.icon}
               <div className="flex min-w-0 flex-col">
                 <div className="w-full truncate text-sm">{item.title}</div>
-                <div className="dark:text-polar-500 w-full truncate text-xs text-gray-500">
+                <div className="w-full truncate text-xs text-polar-500">
                   {item.subtitle}
                 </div>
               </div>

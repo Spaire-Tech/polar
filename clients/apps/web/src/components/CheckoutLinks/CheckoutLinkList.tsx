@@ -62,7 +62,7 @@ export const CheckoutLinkList = ({
   }, [inViewport, hasNextPage, fetchNextPage])
 
   return (
-    <div className="dark:divide-polar-800 flex h-full flex-col divide-y divide-gray-200">
+    <div className="flex h-full flex-col divide-y divide-white/[0.06]">
       <div className="flex flex-row items-center justify-between gap-6 px-4 py-4">
         <div>Checkout Links</div>
         <div className="flex flex-row items-center gap-4">
@@ -98,7 +98,7 @@ export const CheckoutLinkList = ({
           onChange={(productIds) => setProductIds(productIds)}
         />
       </div>
-      <div className="dark:divide-polar-800 flex h-full grow flex-col divide-y divide-gray-50 overflow-y-auto">
+      <div className="flex h-full grow flex-col divide-y divide-white/[0.04] overflow-y-auto">
         {checkoutLinks.map((checkoutLink) => {
           const productLabel =
             checkoutLink.products.length === 1
@@ -110,9 +110,9 @@ export const CheckoutLinkList = ({
               key={checkoutLink.id}
               onClick={() => setSelectedCheckoutLinkId(checkoutLink.id)}
               className={twMerge(
-                'dark:hover:bg-polar-800 cursor-pointer hover:bg-gray-100',
+                'cursor-pointer hover:bg-white/[0.06]',
                 selectedCheckoutLinkId === checkoutLink.id &&
-                  'dark:bg-polar-800 bg-gray-100',
+                  'bg-white/[0.06]',
               )}
             >
               <div className="flex flex-row items-center gap-3 px-4 py-3">
@@ -121,7 +121,7 @@ export const CheckoutLinkList = ({
                     {checkoutLink.label ?? 'Untitled'}
                   </div>
                   <div>
-                    <div className="dark:text-polar-500 w-full truncate text-sm text-gray-500">
+                    <div className="w-full truncate text-sm text-polar-500">
                       {productLabel}
                     </div>
                   </div>

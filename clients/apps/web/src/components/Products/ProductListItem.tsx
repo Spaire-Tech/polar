@@ -108,7 +108,7 @@ export const ProductListItem = ({
               <Tooltip>
                 <TooltipTrigger>
                   <Status
-                    className="bg-red-100 text-red-500 dark:bg-red-950"
+                    className="bg-red-950 text-red-500"
                     status="Archived"
                   />
                 </TooltipTrigger>
@@ -151,7 +151,7 @@ export const ProductListItem = ({
                   <DropdownMenuTrigger className="focus:outline-none" asChild>
                     <Button
                       className={
-                        'border-none bg-transparent text-[16px] opacity-50 transition-opacity hover:opacity-100 dark:bg-transparent'
+                        'border-none bg-transparent text-[16px] opacity-50 transition-opacity hover:opacity-100'
                       }
                       size="icon"
                       variant="secondary"
@@ -161,7 +161,7 @@ export const ProductListItem = ({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
                     align="end"
-                    className="dark:bg-polar-800 bg-gray-50 shadow-lg"
+                    className="glass-panel-strong shadow-lg"
                   >
                     <DropdownMenuItem
                       onClick={handleContextMenuCallback(() => {

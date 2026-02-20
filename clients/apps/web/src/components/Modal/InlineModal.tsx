@@ -75,7 +75,7 @@ export const InlineModal: FunctionComponent<InlineModalProps> = ({
               exit={{ x: '100%', opacity: 0 }}
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
               className={twMerge(
-                'dark:bg-polar-900 relative z-10 flex h-full max-h-full w-full flex-col overflow-y-auto bg-white shadow-sm md:fixed md:top-0 md:right-0 md:bottom-0 md:h-auto md:w-[540px] dark:text-white',
+                'relative z-10 flex h-full max-h-full w-full flex-col overflow-y-auto bg-polar-950 text-white shadow-sm md:fixed md:top-0 md:right-0 md:bottom-0 md:h-auto md:w-[540px]',
                 className,
               )}
               onMouseDown={onInnerClick}
@@ -124,7 +124,7 @@ export const CloseButton = (props: {
     <button
       type="button"
       className={twMerge(
-        'dark:text-polar-100 dark:hover:text-polar-300 text-black hover:text-gray-800',
+        'text-polar-100 hover:text-polar-300',
         props.className,
       )}
       onClick={() => props.hide()}

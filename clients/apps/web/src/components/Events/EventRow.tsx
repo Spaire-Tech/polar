@@ -111,7 +111,7 @@ export const EventRow = ({
     >
       <div
         className={twMerge(
-          'dark:bg-polar-800 dark:border-polar-700 dark:hover:bg-polar-700 flex flex-col rounded-xl border border-gray-200 bg-white font-mono text-sm transition-colors duration-150 hover:bg-gray-50',
+          'flex flex-col rounded-xl border border-white/[0.06] bg-white/[0.04] font-mono text-sm transition-colors duration-150 hover:bg-white/[0.06]',
           isExpanded &&
             hasChildren &&
             renderChildren &&
@@ -125,7 +125,7 @@ export const EventRow = ({
         <div className="flex flex-row items-center justify-between p-3 select-none">
           <div className="flex flex-row items-center gap-x-4">
             {depth === 0 ? (
-              <div className="dark:bg-polar-700 dark:hover:bg-polar-600 flex flex-row items-center justify-center rounded-sm border border-gray-200 bg-gray-100 p-1 transition-colors duration-150 hover:bg-gray-200 dark:border-white/5">
+              <div className="flex flex-row items-center justify-center rounded-sm border border-white/5 bg-white/[0.06] p-1 transition-colors duration-150 hover:bg-white/[0.08]">
                 {isExpanded ? (
                   <KeyboardArrowDownOutlined fontSize="inherit" />
                 ) : (
@@ -134,20 +134,20 @@ export const EventRow = ({
               </div>
             ) : (
               <div className="flex w-6 flex-col items-center justify-center">
-                <div className="dark:bg-polar-600 size-1.5 rounded-full bg-gray-200" />
+                <div className="size-1.5 rounded-full bg-white/[0.2]" />
               </div>
             )}
             <div className="flex flex-row items-center gap-x-4">
               <span className="text-xs">{event.label}</span>
               <EventSourceBadge source={event.source} />
               {event.child_count > 0 && (
-                <span className="dark:text-polar-500 dark:bg-polar-700 text-xxs rounded-md bg-gray-100 px-2 py-1 text-gray-500 capitalize">
+                <span className="text-xxs rounded-md bg-white/[0.06] px-2 py-1 text-polar-500 capitalize">
                   {event.child_count}{' '}
                   {event.child_count === 1 ? 'child' : 'children'}
                 </span>
               )}
             </div>
-            <span className="dark:text-polar-500 text-xs text-gray-500 capitalize">
+            <span className="text-xs text-polar-500 capitalize">
               {formattedTimestamp}
             </span>
           </div>
@@ -204,7 +204,7 @@ export const EventRow = ({
                       <span className="text-xs">
                         {event.customer?.name ?? '—'}
                       </span>
-                      <span className="dark:text-polar-500 text-xxs font-mono text-gray-500">
+                      <span className="text-xxs font-mono text-polar-500">
                         {event.customer?.email}
                       </span>
                     </div>
@@ -233,7 +233,7 @@ export const EventRow = ({
                           )[0]
                         }
                       </span>
-                      <span className="dark:text-polar-500 text-xxs font-mono text-gray-500">
+                      <span className="text-xxs font-mono text-polar-500">
                         {event.external_customer_id}
                       </span>
                     </div>
@@ -264,7 +264,7 @@ export const EventRow = ({
           ))}
           {hasNextPage && (
             <Button
-              className="dark:bg-polar-800 dark:hover:bg-polar-700 dark:border-polar-700 w-full rounded-none rounded-b-xl! border border-t-0! border-gray-200 bg-gray-50 text-xs"
+              className="w-full rounded-none rounded-b-xl! border border-t-0! border-white/[0.06] bg-white/[0.04] text-xs hover:bg-white/[0.06]"
               variant="ghost"
               onClick={(e) => {
                 e.stopPropagation()

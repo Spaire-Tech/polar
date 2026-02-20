@@ -299,7 +299,7 @@
   /* Dashboard ambient background */
   .dashboard-liquid-shell {
     position: relative;
-    background: hsl(233, 8%, 2%);
+    background: hsl(233, 8%, 1%);
     overflow: hidden;
   }
 
@@ -313,7 +313,7 @@
       radial-gradient(ellipse 40% 30% at 50% 50%, var(--glass-glow-accent), transparent);
     background-size: 200% 200%;
     animation: var(--animate-glass-drift);
-    opacity: 0.35;
+    opacity: 0.28;
     pointer-events: none;
     z-index: 0;
   }
