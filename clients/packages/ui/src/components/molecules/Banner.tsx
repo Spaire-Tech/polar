@@ -17,19 +17,19 @@ const Banner = ({
       className={twMerge(
         'flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm',
         color === 'default'
-          ? 'dark:bg-polar-800 dark:ring-polar-700 bg-white ring-1 ring-gray-100'
+          ? 'bg-white/[0.04] ring-1 ring-white/[0.06]'
           : '',
         color === 'muted'
-          ? 'dark:bg-polar-800 dark:border-polar-700 border bg-gray-100 text-gray-500'
+          ? 'border border-white/[0.06] bg-white/[0.04] text-polar-500'
           : '',
         color === 'red'
-          ? 'border bg-red-100 text-red-600 dark:border-red-900 dark:bg-red-950/50 dark:text-red-600'
+          ? 'border border-red-900 bg-red-950/50 text-red-600'
           : '',
         color === 'green'
-          ? 'border bg-green-100 text-green-600 dark:border-green-800 dark:bg-green-900 dark:text-green-200'
+          ? 'border border-green-800 bg-green-900 text-green-200'
           : '',
         color === 'blue'
-          ? 'border border-blue-100 bg-blue-50 text-blue-500 dark:border-blue-700 dark:bg-blue-900 dark:text-blue-300'
+          ? 'border border-blue-700 bg-blue-900 text-blue-300'
           : '',
       )}
     >

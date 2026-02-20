@@ -15,22 +15,22 @@ const Pill = ({
         'inline-flex items-center space-x-1 rounded-full px-1.5 py-0.5 text-xs font-medium whitespace-nowrap transition-all duration-200',
 
         color === 'blue'
-          ? 'bg-blue-50 text-blue-600 dark:bg-blue-900 dark:text-blue-200'
+          ? 'bg-blue-900 text-blue-200'
           : '',
         color === 'gray'
-          ? 'dark:bg-polar-700 dark:text-polar-300 bg-gray-100 text-gray-600'
+          ? 'bg-white/[0.06] text-polar-300'
           : '',
         color === 'purple'
-          ? 'bg-purple-100 text-purple-600 dark:bg-purple-700 dark:text-purple-300'
+          ? 'bg-purple-900 text-purple-300'
           : '',
         color === 'yellow'
-          ? 'bg-yellow-100 text-yellow-500 dark:bg-yellow-950'
+          ? 'bg-yellow-950 text-yellow-500'
           : '',
         color === 'red'
-          ? 'bg-red-100 text-red-600 dark:bg-red-700 dark:text-red-300'
+          ? 'bg-red-950 text-red-400'
           : '',
         color === 'green'
-          ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900 dark:text-emerald-300'
+          ? 'bg-emerald-900 text-emerald-300'
           : '',
         className,
       )}

@@ -7,11 +7,11 @@ import { twMerge } from 'tailwind-merge'
 const getIndicatorColor = (type: 'cost' | 'revenue' | 'neutral') => {
   const colors = {
     positive:
-      'bg-emerald-50 dark:bg-emerald-950 text-emerald-500 dark:text-emerald-500 dark:group-hover:bg-emerald-950 group-hover:bg-emerald-100',
+      'bg-emerald-950 text-emerald-500 group-hover:bg-emerald-950',
     negative:
-      'bg-red-50 dark:bg-red-950 text-red-500 dark:text-red-500 dark:group-hover:bg-red-950 group-hover:bg-red-100',
+      'bg-red-950 text-red-500 group-hover:bg-red-950',
     neutral:
-      'bg-gray-100 dark:bg-polar-700 text-gray-500 dark:text-polar-500 dark:group-hover:bg-white/5 group-hover:bg-black/5',
+      'bg-white/[0.06] text-polar-500 group-hover:bg-white/5',
   }
 
   if (type === 'cost') {

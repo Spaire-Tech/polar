@@ -267,7 +267,7 @@ const MoneyInput = (props: Props) => {
   )
 
   const currencyLabel = (
-    <span className="dark:text-polar-500 text-sm font-medium text-gray-500">
+    <span className="text-sm font-medium text-polar-500">
       {currency.toUpperCase()}
     </span>
   )
@@ -287,7 +287,7 @@ const MoneyInput = (props: Props) => {
       id={id}
       name={name}
       className={twMerge(
-        'dark:placeholder:text-polar-500 block w-full px-4 pl-14 text-base font-normal placeholder:text-gray-400',
+        'block w-full px-4 pl-14 text-base font-normal placeholder:text-polar-500',
         props.className ?? '',
       )}
       value={internalValue}
