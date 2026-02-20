@@ -569,6 +569,7 @@
       {
         "tab": "Guides",
         "icon": "book-open",
+        "hidden": true,
         "groups": [
           {
             "group": "Guides",
@@ -599,6 +600,7 @@
       {
         "tab": "Changelog",
         "icon": "signal-stream",
+        "hidden": true,
         "pages": [
           "changelog/recent",
           "changelog/api"
