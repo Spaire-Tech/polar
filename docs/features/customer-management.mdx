@@ -5,10 +5,6 @@ description: "Get insights on your customers and sales"
 ---
 
 <img
-  className="block dark:hidden"
-  src="/assets/features/customer-management/details.light.png"
-/>
-<img
   className="hidden dark:block"
   src="/assets/features/customer-management/details.dark.png"
 />
@@ -25,33 +21,22 @@ Quite often, you'll have our own users management system in your application, wh
 
 We have dedicated API endpoints that work with the `external_id` field, so you don't even have to store the internal Spaire ID in your system.
 
-<Card
-  title="Get Customer by External ID"
-  icon="link"
-  href="/api-reference/customers/get-external"
-  horizontal
-></Card>
-<Card
-  title="Update Customer by External ID"
-  icon="link"
-  href="/api-reference/customers/update-external"
-  horizontal
-></Card>
-<Card
-  title="Delete Customer by External ID"
-  icon="link"
-  href="/api-reference/customers/delete-external"
-  horizontal
-></Card>
+<Card icon="link" horizontal href="/api-reference/customers/get-external" title="Get Customer by External ID">
+  
+</Card>
+
+<Card icon="link" horizontal href="/api-reference/customers/update-external" title="Update Customer by External ID">
+  
+</Card>
+
+<Card icon="link" horizontal href="/api-reference/customers/delete-external" title="Delete Customer by External ID">
+  
+</Card>
 
 ## Metadata
 
 You may set additional metadata on Customers. This can be very useful to store additional data about your customer you want to be available through our API and webhooks.
 
-<img
-  className="block dark:hidden"
-  src="/assets/features/customer-management/edit.light.png"
-/>
 <img
   className="hidden dark:block"
   src="/assets/features/customer-management/edit.dark.png"

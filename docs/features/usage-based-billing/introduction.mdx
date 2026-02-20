@@ -9,8 +9,7 @@ import MeteredPrice from "/snippets/usage/metered-price.mdx";
 import MeterCredits from "/snippets/usage/meter-credits.mdx";
 
 <Info>
-  Usage Based Billing is a new feature. We have a lot in store and welcome
-  feedback!
+  Usage Based Billing is a new feature. We have a lot in store and welcome feedback!
 </Info>
 
 ## Overview
@@ -43,33 +42,40 @@ Get up and running in 5 minutes
 
 <Steps>
   <Step title="Create a Meter">
-    Meters consist of filters and an aggregation function.
-    The filter is used to filter the events that should be included in the meter and the aggregation function is used to compute the usage.
+    Meters consist of filters and an aggregation function. The filter is used to filter the events that should be included in the meter and the aggregation function is used to compute the usage.
 
-    <img className="block dark:hidden" src="/assets/features/usage/create-meter.light.png" />
-    <img className="hidden dark:block" src="/assets/features/usage/create-meter.dark.png" />
-
+    <img
+      className="hidden dark:block"
+      src="/assets/features/usage/create-meter.dark.png"
+    />
   </Step>
   <Step title="Add metered price to a Product">
     To enable usage based billing for a Product, you need to add a metered price to the Product. Metered prices are only applicable to Subscription Products.
 
-    <img className="block dark:hidden" src="/assets/features/usage/product-meter.light.png" />
-    <img className="hidden dark:block" src="/assets/features/usage/product-meter.dark.png" />
-
+    <img
+      className="hidden dark:block"
+      src="/assets/features/usage/product-meter.dark.png"
+    />
   </Step>
   <Step title="Ingest Events">
-
     Now you're ready to ingest events from your application. Sending events which match the meter's filter will increment the meter's usage for the customer.
 
-    <img className="block dark:hidden" src="/assets/features/usage/ingest.light.png" />
-    <img className="hidden dark:block" src="/assets/features/usage/ingest.dark.png" />
+    <img
+      className="block dark:hidden"
+      src="/assets/features/usage/ingest.light.png"
+    />
 
+    <img
+      className="hidden dark:block"
+      src="/assets/features/usage/ingest.dark.png"
+    />
   </Step>
   <Step title="Customer Usage">
     Customers can view their estimated charges for each meter in the Customer Portal.
 
-    <img className="block dark:hidden" src="/assets/features/usage/portal.light.png" />
-    <img className="hidden dark:block" src="/assets/features/usage/portal.dark.png" />
-
+    <img
+      className="hidden dark:block"
+      src="/assets/features/usage/portal.dark.png"
+    />
   </Step>
 </Steps>

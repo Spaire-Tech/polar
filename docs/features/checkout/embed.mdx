@@ -4,8 +4,6 @@ sidebarTitle: "Embedded Checkout"
 description: "Embed our checkout directly on your site"
 ---
 
-<img src="https://www.spairehq.com/docs/assets/features/checkout/embed/demo.png" />
-
 You can either copy and paste our code snippet to get up and running in a second or use our JavaScript library for more advanced integrations. Our embedded checkout allows you to provide a seamless purchasing experience without redirecting users away from your site.
 
 ## Code Snippet
@@ -41,15 +39,21 @@ You can style the trigger element any way you want, as long as you keep the `dat
 If you have a more advanced project in JavaScript, like a React app, adding the `<script>` tag may not be an option. In this case, you can install our dedicated library.
 
 <CodeGroup>
-  ```bash npm
-  npm install @spaire/checkout
-  ```
-  ```bash pnpm
-  pnpm add @spaire/checkout
-  ```
-  ```bash yarn
-  yarn add @spaire/checkout
-  ```
+
+```bash npm
+npm install @spaire/checkout
+```
+
+
+```bash pnpm
+pnpm add @spaire/checkout
+```
+
+
+```bash yarn
+yarn add @spaire/checkout
+```
+
 </CodeGroup>
 
 Then, you should import the `SpaireEmbedCheckout` helper class and manually call `SpaireEmbedCheckout.init()`. This will add the required handlers on elements having the `data-spaire-checkout` attribute.
@@ -82,8 +86,7 @@ export default PurchaseLink
 <Tip>
   Instead of a Checkout Link, you can also use a [Checkout Session](/features/checkout/session) URL created dynamically from the API.
 
-For this to work, make sure to set the [`embed_origin`](/api-reference/checkouts/create-session#body-embed-origin) parameter correctly when creating the Checkout Session. For example, if your checkout page is served on the URL `https://example.com/checkout`, you should set `embed_origin` to `https://example.com`.
-
+  For this to work, make sure to set the [`embed_origin`](/api-reference/checkouts/create-session#body-embed-origin) parameter correctly when creating the Checkout Session. For example, if your checkout page is served on the URL `https://example.com/checkout`, you should set `embed_origin` to `https://example.com`.
 </Tip>
 
 ## Advanced Integration
@@ -289,7 +292,6 @@ Wallet payment methods such as Apple Pay and Google Pay are supported in the che
   - The user is on an Apple device
   - The browser is Safari
   - The device is connected to an Apple account with Apple Pay configured
-
 - **Google Pay** appears automatically in the checkout if:
   - The user is on Google Chrome
   - The browser is connected to a Google account with Google Pay configured

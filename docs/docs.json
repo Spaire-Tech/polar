@@ -5,7 +5,7 @@
     "default": "system"
   },
   "name": "Spaire",
-  "description": "Spaire, the financial and legal backbone for SaaS startups.",
+  "description": "Spaire | The financial and legal backbone for SaaS startups.",
   "colors": {
     "primary": "#000",
     "light": "#fff",
@@ -30,7 +30,10 @@
         "groups": [
           {
             "group": "Bootup",
-            "pages": ["introduction"]
+            "pages": [
+              "introduction",
+              "migrate"
+            ]
           },
           {
             "group": "Features",
@@ -71,6 +74,9 @@
                   "features/benefits/introduction",
                   "features/benefits/credits",
                   "features/benefits/custom",
+                  "features/benefits/discord-access",
+                  "features/benefits/file-downloads",
+                  "features/benefits/github-access",
                   "features/benefits/license-keys"
                 ]
               },
@@ -98,6 +104,17 @@
                   "features/finance/balance",
                   "features/finance/payouts"
                 ]
+              },
+              {
+                "group": "Integrations",
+                "pages": [
+                  "features/integrations/affonso",
+                  "features/integrations/fernand",
+                  "features/integrations/framer",
+                  "features/integrations/paritydeals",
+                  "features/integrations/raycast",
+                  "features/integrations/zapier"
+                ]
               }
             ]
           },
@@ -111,6 +128,8 @@
               {
                 "group": "SDKs",
                 "pages": [
+                  "integrate/sdk/golang",
+                  "integrate/sdk/php",
                   "integrate/sdk/python",
                   "integrate/sdk/typescript"
                 ]
@@ -118,15 +137,28 @@
               {
                 "group": "Framework Adapters",
                 "pages": [
+                  "integrate/sdk/adapters/astro",
                   "integrate/sdk/adapters/better-auth",
+                  "integrate/sdk/adapters/deno",
+                  "integrate/sdk/adapters/elysia",
                   "integrate/sdk/adapters/express",
+                  "integrate/sdk/adapters/fastify",
+                  "integrate/sdk/adapters/hono",
+                  "integrate/sdk/adapters/laravel",
                   "integrate/sdk/adapters/nextjs",
-                  "integrate/sdk/adapters/supabase"
+                  "integrate/sdk/adapters/nuxt",
+                  "integrate/sdk/adapters/remix",
+                  "integrate/sdk/adapters/supabase",
+                  "integrate/sdk/adapters/sveltekit",
+                  "integrate/sdk/adapters/tanstack-start"
                 ]
               },
               {
                 "group": "Framework Guides",
-                "pages": ["guides/nextjs"]
+                "pages": [
+                  "guides/nextjs",
+                  "guides/laravel"
+                ]
               },
               {
                 "group": "Webhooks",
@@ -164,7 +196,9 @@
         "groups": [
           {
             "group": "General",
-            "pages": ["api-reference/introduction"]
+            "pages": [
+              "api-reference/introduction"
+            ]
           },
           {
             "group": "Core API",
@@ -357,7 +391,9 @@
               "api-reference/customer-portal/get-organization",
               {
                 "group": "Sessions",
-                "pages": ["api-reference/customer-portal/sessions/create"]
+                "pages": [
+                  "api-reference/customer-portal/sessions/create"
+                ]
               },
               {
                 "group": "Subscriptions",
@@ -386,6 +422,13 @@
                   "api-reference/customer-portal/license-keys/deactivate",
                   "api-reference/customer-portal/license-keys/get",
                   "api-reference/customer-portal/license-keys/list"
+                ]
+              },
+              {
+                "group": "File Downloads",
+                "pages": [
+                  "api-reference/customer-portal/downloadables/get",
+                  "api-reference/customer-portal/downloadables/list"
                 ]
               },
               {
@@ -487,7 +530,9 @@
                   },
                   {
                     "group": "Organization",
-                    "pages": ["api-reference/webhooks/organization.updated"]
+                    "pages": [
+                      "api-reference/webhooks/organization.updated"
+                    ]
                   }
                 ]
               }
@@ -529,10 +574,12 @@
             "pages": [
               "guides/introduction",
               "guides/allow-multiple-subscriptions-per-customer",
+              "guides/automate-post-purchase-link-sharing",
               "guides/change-email-as-merchant",
               "guides/create-checkout-session",
               "guides/create-multiple-organizations",
               "guides/create-variants",
+              "guides/customize-benefits-order-in-checkouts",
               "guides/customize-products-order-in-checkouts",
               "guides/disable-subscription-changes-in-customer-portal",
               "guides/disable-email-editing-in-checkout",
@@ -551,12 +598,17 @@
       {
         "tab": "Changelog",
         "icon": "signal-stream",
-        "pages": ["changelog/recent", "changelog/api"]
+        "pages": [
+          "changelog/recent",
+          "changelog/api"
+        ]
       },
       {
         "tab": "Support",
         "icon": "square-question",
-        "pages": ["support"]
+        "pages": [
+          "support"
+        ]
       }
     ]
   },
@@ -583,11 +635,20 @@
     }
   },
   "contextual": {
-    "options": ["copy", "view", "chatgpt", "claude"]
+    "options": [
+      "copy",
+      "view",
+      "chatgpt",
+      "claude"
+    ]
   },
   "footer": {
     "socials": {
-      "x": "https://x.com/spaire_sh"
+      "x": "https://x.com/spairehq",
+      "instagram": "https://www.instagram.com/spairehq",
+      "linkedin": "https://www.linkedin.com/company/spaire",
+      "github": "https://github.com/spairehq/spaire",
+      "discord": "https://dub.sh/spaire-discord"
     }
   },
   "redirects": [

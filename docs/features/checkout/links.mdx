@@ -4,29 +4,15 @@ sidebarTitle: "Checkout Links"
 description: "Sell your digital products with ease by sharing a checkout link to select products"
 ---
 
-Checkout links can be shared or linked on your website which automatically
-creates a checkout session for customers.
+Checkout links can be shared or linked on your website which automatically creates a checkout session for customers.
 
 <Tip>
-  Looking for a way to generate Checkout session programmatically? Checkout
-  Links might not be the right tool for you. Instead, you should use the
-  [Checkout API](/features/checkout/session).
+  Looking for a way to generate Checkout session programmatically? Checkout Links might not be the right tool for you. Instead, you should use the [Checkout API](/features/checkout/session).
 </Tip>
 
 ## Create a Checkout Link
 
 Checkout Links can be managed from the **Checkout Links** tabs of the Products section. Click on **New Link** to create a new one.
-
-<Frame>
-  <img
-    className="block dark:hidden"
-    src="/assets/features/checkout/links/create.light.png"
-  />
-  <img
-    className="hidden dark:block"
-    src="/assets/features/checkout/links/create.dark.png"
-  />
-</Frame>
 
 #### Label
 
@@ -40,6 +26,7 @@ You can select one or **several** products. With several products, customers wil
   className="block dark:hidden"
   src="/assets/features/checkout/links/checkout_multiple_products.light.png"
 />
+
 <img
   className="hidden dark:block"
   src="/assets/features/checkout/links/checkout_multiple_products.dark.png"
@@ -60,10 +47,6 @@ This is an optional key-value object allowing you to store additional informatio
 You can share the Checkout Link URL on your webpage, social media, or directly to customers.
 
 <img
-  className="block dark:hidden"
-  src="/assets/features/checkout/links/checkout_link.light.png"
-/>
-<img
   className="hidden dark:block"
   src="/assets/features/checkout/links/checkout_link.dark.png"
 />
@@ -71,8 +54,7 @@ You can share the Checkout Link URL on your webpage, social media, or directly t
 <Warning>
   Checkout Links will go against our API, and redirect to short-lived Checkout session. This means that the Checkout page the user will end up on, are temporary and expires after a while if no successful purchase is made.
 
-This means that you need to make sure to always use this Checkout Link URL (as shown above). If you mistakenly copy the URL from a Checkout Session, the link will expire.
-
+  This means that you need to make sure to always use this Checkout Link URL (as shown above). If you mistakenly copy the URL from a Checkout Session, the link will expire.
 </Warning>
 
 ### Query parameters
