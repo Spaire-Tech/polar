@@ -462,7 +462,7 @@ export const PYTHON_SDK_INTEGRATION: SdkIntegration = {
   howItWorks: [
     {
       title: 'Install SDK',
-      description: 'Add spaire-python to your project',
+      description: 'Add spaire-sdk to your project',
     },
     {
       title: 'Configure credentials',
@@ -473,24 +473,28 @@ export const PYTHON_SDK_INTEGRATION: SdkIntegration = {
       description: 'Create checkouts and handle webhooks',
     },
   ],
-  packages: 'spaire-python',
-  pythonInstall: 'pip install spaire-python',
+  packages: 'spaire-sdk',
+  pythonInstall: 'pip install spaire-sdk',
   docsLink: 'https://docs.spairehq.com/integrate/sdk/python',
   codeLang: 'python',
   envVars: `SPAIRE_ACCESS_TOKEN=your_access_token
 SPAIRE_SUCCESS_URL=https://example.com/success?checkout_id={CHECKOUT_ID}`,
-  code: `from spaire import Spaire
-import os
+  code: `import os
+from spaire_sdk import Spaire
 
-spaire = Spaire(access_token=os.environ["SPAIRE_ACCESS_TOKEN"])
+with Spaire(
+    access_token=os.environ.get("SPAIRE_ACCESS_TOKEN"),
+) as spaire:
 
-# Create a checkout session
-checkout = spaire.checkouts.create(
-    products=["YOUR_PRODUCT_ID"],
-    success_url=os.environ["SPAIRE_SUCCESS_URL"],
-)
+    res = spaire.checkouts.create(request={
+        "products": [
+            "YOUR_PRODUCT_ID"
+        ],
+        "success_url": os.environ.get("SPAIRE_SUCCESS_URL")
+    })
 
-print(checkout.url)`,
+    # Handle response
+    redirect(res.url)`,
 }
 
 export const GO_SDK_INTEGRATION: SdkIntegration = {
@@ -526,24 +530,29 @@ SPAIRE_SUCCESS_URL=https://example.com/success?checkout_id={CHECKOUT_ID}`,
 
 import (
 \t"context"
-\t"fmt"
+\t"log"
 \t"os"
 
-\tspaire "github.com/spairehq/spaire-go"
+\tspairego "github.com/spairehq/spaire-go"
+\t"github.com/spairehq/spaire-go/models/components"
 )
 
 func main() {
-\tclient := spaire.NewClient(os.Getenv("SPAIRE_ACCESS_TOKEN"))
+\tctx := context.Background()
 
-\tcheckout, err := client.Checkouts.Create(context.Background(), spaire.CheckoutCreateParams{
+\ts := spairego.New(
+\t\tspairego.WithSecurity(os.Getenv("SPAIRE_ACCESS_TOKEN")),
+\t)
+
+\tres, err := s.Checkouts.Create(ctx, components.CheckoutCreate{
 \t\tProducts:   []string{"YOUR_PRODUCT_ID"},
 \t\tSuccessURL: os.Getenv("SPAIRE_SUCCESS_URL"),
 \t})
 \tif err != nil {
-\t\tpanic(err)
+\t\tlog.Fatal(err)
 \t}
 
-\tfmt.Println(checkout.URL)
+\tlog.Println(res.Checkout.URL)
 }`,
 }
 
