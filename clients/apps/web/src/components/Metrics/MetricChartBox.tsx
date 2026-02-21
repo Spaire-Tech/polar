@@ -149,7 +149,7 @@ const MetricChartBox = ({
     <ShadowBox
       ref={ref}
       className={twMerge(
-        'dark:bg-polar-800 group flex w-full flex-col justify-between bg-gray-50 p-2 shadow-xs',
+        'glass-panel group flex w-full flex-col justify-between p-2 shadow-xs',
         className,
       )}
     >
@@ -170,10 +170,10 @@ const MetricChartBox = ({
           {onMetricChange ? (
             <div className="flex flex-row items-center gap-x-2">
               <Select value={metric} onValueChange={onMetricChange}>
-                <SelectTrigger className="dark:hover:bg-polar-700 -mt-2 -ml-3 h-fit w-fit rounded-lg border-0 border-none bg-transparent px-3 py-2 shadow-none ring-0 transition-colors hover:bg-gray-200 focus-visible:ring-0 focus-visible:ring-offset-0">
+                <SelectTrigger className="-mt-2 -ml-3 h-fit w-fit rounded-lg border-0 border-none bg-transparent px-3 py-2 text-white shadow-none ring-0 transition-colors hover:bg-white/10 focus-visible:ring-0 focus-visible:ring-offset-0">
                   <SelectValue placeholder="Select a metric" />
                 </SelectTrigger>
-                <SelectContent className="dark:bg-polar-800 dark:ring-polar-700 ring-1 ring-gray-200">
+                <SelectContent className="glass-panel ring-1 ring-white/15">
                   {availableMetrics
                     ? availableMetrics.map((m) => (
                         <SelectItem key={m.slug} value={m.slug}>

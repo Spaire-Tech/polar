@@ -80,10 +80,10 @@ export const DashboardSidebar = ({
   }, [])
 
   return (
-    <Sidebar variant="inset" collapsible="icon">
+    <Sidebar variant="inset" collapsible="icon" className="bg-transparent">
       <SidebarHeader
         className={twMerge(
-          'flex md:pt-3.5',
+          'glass-panel-strong flex md:pt-3.5',
           isTopBannerVisible ? 'md:pt-10' : '',
           isCollapsed
             ? 'flex-row items-center justify-between gap-y-4 md:flex-col md:items-start md:justify-start'
@@ -112,21 +112,17 @@ export const DashboardSidebar = ({
             <button
               onClick={() => setSearchOpen(true)}
               className={twMerge(
-                'flex cursor-pointer items-center gap-4 rounded-lg border px-2 py-2 text-sm transition-colors',
-                'dark:bg-polar-950 dark:border-polar-800 dark:hover:bg-polar-900 border-gray-200 bg-white hover:bg-gray-50',
+                'glass-card text-polar-100 flex cursor-pointer items-center gap-4 rounded-lg px-2 py-2 text-sm transition-colors',
                 isCollapsed && 'justify-center px-2',
               )}
             >
-              <Search
-                className="dark:text-polar-500 text-gray-500"
-                fontSize="inherit"
-              />
+              <Search className="text-polar-300" fontSize="inherit" />
               {!isCollapsed && (
                 <>
-                  <span className="dark:text-polar-500 flex-1 text-left text-gray-500">
+                  <span className="text-polar-200 flex-1 text-left">
                     Search...
                   </span>
-                  <kbd className="dark:border-polar-700 dark:bg-polar-800 dark:text-polar-400 pointer-events-none inline-flex h-5 items-center gap-1 rounded border border-gray-200 bg-gray-100 px-1.5 font-mono text-[11px] text-gray-600 select-none">
+                  <kbd className="text-polar-200 pointer-events-none inline-flex h-5 items-center gap-1 rounded border border-white/20 bg-white/10 px-1.5 font-mono text-[11px] select-none">
                     <span className="text-sm">⌘</span>K
                   </kbd>
                 </>
@@ -156,8 +152,7 @@ export const DashboardSidebar = ({
         <Link
           href="mailto:support@spairehq.com"
           className={twMerge(
-            'mt-2 flex cursor-pointer flex-row items-center rounded-lg border border-transparent px-2 text-sm transition-colors dark:border-transparent',
-            'dark:text-polar-500 dark:hover:text-polar-200 text-gray-500 hover:text-black',
+            'text-polar-400 hover:text-polar-100 mt-2 flex cursor-pointer flex-row items-center rounded-lg border border-transparent px-2 text-sm transition-colors',
             isCollapsed && '!dark:text-polar-600',
           )}
         >
@@ -166,8 +161,7 @@ export const DashboardSidebar = ({
         </Link>
         <Link
           className={twMerge(
-            'flex flex-row items-center rounded-lg border border-transparent text-sm transition-colors dark:border-transparent',
-            'dark:text-polar-500 dark:hover:text-polar-200 text-gray-500 hover:text-black',
+            'text-polar-400 hover:text-polar-100 flex flex-row items-center rounded-lg border border-transparent text-sm transition-colors',
             isCollapsed && '!dark:text-polar-600',
           )}
           href="https://docs.spairehq.com"
@@ -178,7 +172,7 @@ export const DashboardSidebar = ({
             <span className="ml-4 font-medium">Documentation</span>
           )}
         </Link>
-        <Separator />
+        <Separator className="opacity-20" />
         {type === 'organization' && organization && (
           <SidebarMenu>
             <SidebarMenuItem>
