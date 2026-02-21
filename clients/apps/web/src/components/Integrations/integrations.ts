@@ -21,7 +21,7 @@ export interface SdkIntegration extends BaseIntegration {
   pythonInstall?: string
   docsLink: string
   code: string
-  codeLang: 'typescript' | 'python' | 'bash'
+  codeLang: 'typescript' | 'python' | 'bash' | 'go'
   envVars: string
 }
 
@@ -450,6 +450,112 @@ app.post("/api/webhooks/spaire", async (req, res) => {
 app.listen(3000);`,
 }
 
+export const PYTHON_SDK_INTEGRATION: SdkIntegration = {
+  type: 'sdk',
+  slug: 'python-sdk',
+  name: 'Python SDK',
+  tagline: 'Build with Python. Monetize with Spaire.',
+  description:
+    'The official Spaire Python SDK gives you a clean, type-safe interface to create checkouts, manage subscriptions, and handle webhooks \u2014 built for any Python web framework.',
+  category: 'backend',
+  categoryLabel: 'Backend SDK',
+  howItWorks: [
+    {
+      title: 'Install SDK',
+      description: 'Add spaire-sdk to your project',
+    },
+    {
+      title: 'Configure credentials',
+      description: 'Set your access token in the environment',
+    },
+    {
+      title: 'Go live',
+      description: 'Create checkouts and handle webhooks',
+    },
+  ],
+  packages: 'spaire-sdk',
+  pythonInstall: 'pip install spaire-sdk',
+  docsLink: 'https://docs.spairehq.com/integrate/sdk/python',
+  codeLang: 'python',
+  envVars: `SPAIRE_ACCESS_TOKEN=your_access_token
+SPAIRE_SUCCESS_URL=https://example.com/success?checkout_id={CHECKOUT_ID}`,
+  code: `import os
+from spaire_sdk import Spaire
+
+with Spaire(
+    access_token=os.environ.get("SPAIRE_ACCESS_TOKEN"),
+) as spaire:
+
+    res = spaire.checkouts.create(request={
+        "products": [
+            "YOUR_PRODUCT_ID"
+        ],
+        "success_url": os.environ.get("SPAIRE_SUCCESS_URL")
+    })
+
+    # Handle response
+    redirect(res.url)`,
+}
+
+export const GO_SDK_INTEGRATION: SdkIntegration = {
+  type: 'sdk',
+  slug: 'go-sdk',
+  name: 'Go SDK',
+  tagline: 'Build with Go. Monetize with Spaire.',
+  description:
+    'The official Spaire Go SDK gives you a clean, idiomatic interface to create checkouts, manage subscriptions, and handle webhooks \u2014 built for any Go HTTP server.',
+  category: 'backend',
+  categoryLabel: 'Backend SDK',
+  howItWorks: [
+    {
+      title: 'Install SDK',
+      description: 'Add the Spaire module to your Go project',
+    },
+    {
+      title: 'Configure credentials',
+      description: 'Set your access token in the environment',
+    },
+    {
+      title: 'Go live',
+      description: 'Create checkouts and handle webhooks',
+    },
+  ],
+  packages: 'github.com/spairehq/spaire-go',
+  pythonInstall: 'go get github.com/spairehq/spaire-go',
+  docsLink: 'https://docs.spairehq.com/integrate/sdk/go',
+  codeLang: 'go',
+  envVars: `SPAIRE_ACCESS_TOKEN=your_access_token
+SPAIRE_SUCCESS_URL=https://example.com/success?checkout_id={CHECKOUT_ID}`,
+  code: `package main
+
+import (
+\t"context"
+\t"log"
+\t"os"
+
+\tspairego "github.com/spairehq/spaire-go"
+\t"github.com/spairehq/spaire-go/models/components"
+)
+
+func main() {
+\tctx := context.Background()
+
+\ts := spairego.New(
+\t\tspairego.WithSecurity(os.Getenv("SPAIRE_ACCESS_TOKEN")),
+\t)
+
+\tres, err := s.Checkouts.Create(ctx, components.CheckoutCreate{
+\t\tProducts:   []string{"YOUR_PRODUCT_ID"},
+\t\tSuccessURL: os.Getenv("SPAIRE_SUCCESS_URL"),
+\t})
+\tif err != nil {
+\t\tlog.Fatal(err)
+\t}
+
+\tlog.Println(res.Checkout.URL)
+}`,
+}
+
 export const ALL_INTEGRATIONS: Integration[] = [
   NEXTJS_INTEGRATION,
   LOVABLE_INTEGRATION,
@@ -459,6 +565,8 @@ export const ALL_INTEGRATIONS: Integration[] = [
   BOLT_INTEGRATION,
   BETTERAUTH_INTEGRATION,
   EXPRESS_INTEGRATION,
+  PYTHON_SDK_INTEGRATION,
+  GO_SDK_INTEGRATION,
 ]
 
 export const getIntegrationBySlug = (

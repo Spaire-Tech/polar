@@ -57,6 +57,7 @@ export default function IntegrationSdkPage({
   }, [integration, packageManager])
 
   const isPython = integration.codeLang === 'python'
+  const isNonJs = isPython || integration.codeLang === 'go'
 
   const envVarsWithToken = useMemo(() => {
     if (createdToken) {
@@ -125,7 +126,7 @@ export default function IntegrationSdkPage({
                 <h2 className="text-base font-medium">
                   1. Install Dependencies
                 </h2>
-                {!isPython && (
+                {!isNonJs && (
                   <Tabs
                     value={packageManager}
                     onValueChange={(v) =>
@@ -175,7 +176,7 @@ export default function IntegrationSdkPage({
               <h2 className="text-base font-medium">3. Add Checkout Code</h2>
               <CodeWrapper>
                 <SyntaxHighlighterClient
-                  lang={integration.codeLang === 'python' ? 'python' : 'typescript'}
+                  lang={integration.codeLang === 'python' ? 'python' : integration.codeLang === 'go' ? 'go' : 'typescript'}
                   code={integration.code}
                 />
               </CodeWrapper>

@@ -8,8 +8,10 @@ import { useContext } from 'react'
 import BetterAuthIcon from '../Icons/frameworks/better-auth'
 import BoltIcon from '../Icons/frameworks/bolt'
 import ExpressIcon from '../Icons/frameworks/express'
+import GoIcon from '../Icons/frameworks/go'
 import LovableIcon from '../Icons/frameworks/lovable'
 import NextJsIcon from '../Icons/frameworks/nextjs'
+import PythonIcon from '../Icons/frameworks/python'
 import ReplitIcon from '../Icons/frameworks/replit'
 import SupabaseIcon from '../Icons/frameworks/supabase'
 import V0Icon from '../Icons/frameworks/v0'
@@ -24,6 +26,8 @@ const INTEGRATION_ICONS: Record<string, React.ReactNode> = {
   bolt: <BoltIcon size={36} />,
   'better-auth': <BetterAuthIcon size={36} />,
   express: <ExpressIcon size={36} />,
+  'python-sdk': <PythonIcon size={36} />,
+  'go-sdk': <GoIcon />,
 }
 
 const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
