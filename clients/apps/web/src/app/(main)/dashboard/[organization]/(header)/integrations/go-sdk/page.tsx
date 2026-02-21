@@ -8,7 +8,7 @@ export default function Page() {
   return (
     <IntegrationSdkPage
       integration={GO_SDK_INTEGRATION}
-      icon={<GoIcon size={40} />}
+      icon={<GoIcon />}
     />
   )
 }

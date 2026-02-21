@@ -27,7 +27,7 @@ const INTEGRATION_ICONS: Record<string, React.ReactNode> = {
   'better-auth': <BetterAuthIcon size={36} />,
   express: <ExpressIcon size={36} />,
   'python-sdk': <PythonIcon size={36} />,
-  'go-sdk': <GoIcon size={36} />,
+  'go-sdk': <GoIcon />,
 }
 
 const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
