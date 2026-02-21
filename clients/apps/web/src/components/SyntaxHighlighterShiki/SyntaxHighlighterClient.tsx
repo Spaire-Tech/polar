@@ -5,6 +5,7 @@ import { BundledLanguage } from 'shiki'
 import { createHighlighterCore, HighlighterCore } from 'shiki/core'
 import { createOnigurumaEngine } from 'shiki/engine/oniguruma'
 import langBash from 'shiki/langs/bash.mjs'
+import langGo from 'shiki/langs/go.mjs'
 import langJavascript from 'shiki/langs/javascript.mjs'
 import langPython from 'shiki/langs/python.mjs'
 import langTypescript from 'shiki/langs/typescript.mjs'
@@ -19,6 +20,7 @@ const LANGUAGE_MAP = {
   bash: langBash,
   typescript: langTypescript,
   python: langPython,
+  go: langGo,
 } as const
 
 const THEME_MAP = {

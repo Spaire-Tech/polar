@@ -9,6 +9,16 @@ export interface Perk {
 
 export const PERKS: Perk[] = [
   {
+    name: 'Deel',
+    logo: '',
+    incentive: '$1,000 in Combined Credits',
+    description:
+      'Spaire and Deel have partnered to give startups a combined $1,000 onboarding incentive. You get $500 in Deel billing credits for EOR, Contractor, or Global Payroll fees, plus $500 in Spaire revenue credits to offset platform fees on your global SaaS sales.',
+    advice:
+      'Sign up for Deel through the partner link and complete a hiring milestone within 90 days: hire and pay one full-time employee through EOR, pay one international contractor, or run your first full payroll cycle through Deel.',
+    url: 'https://deel.com',
+  },
+  {
     name: 'Mercury',
     logo: 'https://spaire-production-files-public.s3.us-east-1.amazonaws.com/mercurybank_logo.jpeg',
     incentive: '$500 Signup Bonus',
