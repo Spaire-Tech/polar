@@ -33,7 +33,7 @@
     }
   },
   "devDependencies": {
-    "@polar-sh/typescript-config": "workspace:*",
+    "@spaire/typescript-config": "workspace:*",
     "tsup": "^8.5.1",
     "typescript": "latest",
     "vitest": "^4.0.18"

@@ -25,7 +25,7 @@
     }
   },
   "devDependencies": {
-    "@polar-sh/typescript-config": "workspace:*",
+    "@spaire/typescript-config": "workspace:*",
     "openapi-typescript": "^7.10.1",
     "tsup": "^8.5.1",
     "typescript": "latest"

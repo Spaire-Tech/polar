@@ -31,7 +31,7 @@
     "lint": "pnpm format:check"
   },
   "dependencies": {
-    "@polar-sh/currency": "workspace:^",
+    "@spaire/currency": "workspace:^",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-checkbox": "^1.3.3",
@@ -64,7 +64,7 @@
     "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
-    "@polar-sh/typescript-config": "workspace:*",
+    "@spaire/typescript-config": "workspace:*",
     "@types/react": "19.2.10",
     "@types/react-dom": "19.2.3",
     "prettier": "^3.8.1",
