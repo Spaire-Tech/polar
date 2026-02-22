@@ -66,12 +66,6 @@ importers:
       '@gorhom/bottom-sheet':
         specifier: ^5.2.8
         version: 5.2.8(@types/react@19.2.3)(react-native-gesture-handler@2.28.0(react-native@0.81.5(@babel/core@7.28.5)(@react-native-community/cli@20.1.0(typescript@5.9.3))(@types/react@19.2.3)(react@19.1.0))(react@19.1.0))(react-native-reanimated@4.1.6(@babel/core@7.28.5)(react-native-worklets@0.5.1(@babel/core@7.28.5)(react-native@0.81.5(@babel/core@7.28.5)(@react-native-community/cli@20.1.0(typescript@5.9.3))(@types/react@19.2.3)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.5)(@react-native-community/cli@20.1.0(typescript@5.9.3))(@types/react@19.2.3)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.5)(@react-native-community/cli@20.1.0(typescript@5.9.3))(@types/react@19.2.3)(react@19.1.0))(react@19.1.0)
-      '@polar-sh/client':
-        specifier: workspace:*
-        version: link:../../packages/client
-      '@polar-sh/currency':
-        specifier: workspace:^
-        version: link:../../packages/currency
       '@react-native-async-storage/async-storage':
         specifier: 2.2.0
         version: 2.2.0(react-native@0.81.5(@babel/core@7.28.5)(@react-native-community/cli@20.1.0(typescript@5.9.3))(@types/react@19.2.3)(react@19.1.0))
@@ -99,6 +93,12 @@ importers:
       '@shopify/restyle':
         specifier: ^2.4.5
         version: 2.4.5(react-native@0.81.5(@babel/core@7.28.5)(@react-native-community/cli@20.1.0(typescript@5.9.3))(@types/react@19.2.3)(react@19.1.0))(react@19.1.0)
+      '@spaire/client':
+        specifier: workspace:*
+        version: link:../../packages/client
+      '@spaire/currency':
+        specifier: workspace:^
+        version: link:../../packages/currency
       '@tanstack/react-query':
         specifier: ^5.90.12
         version: 5.90.20(react@19.1.0)
@@ -325,21 +325,6 @@ importers:
       '@next/third-parties':
         specifier: ^16.1.5
         version: 16.1.5(next@16.1.5(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)
-      '@polar-sh/client':
-        specifier: workspace:*
-        version: link:../../packages/client
-      '@polar-sh/currency':
-        specifier: workspace:^
-        version: link:../../packages/currency
-      '@polar-sh/customer-portal':
-        specifier: workspace:*
-        version: link:../../packages/customer-portal
-      '@polar-sh/mdx':
-        specifier: workspace:*
-        version: link:../../packages/mdx
-      '@polar-sh/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
       '@posthog/ai':
         specifier: ^7.5.4
         version: 7.5.4(@ai-sdk/provider@2.0.0)(@modelcontextprotocol/sdk@1.25.3(@cfworker/json-schema@4.1.1)(hono@4.11.1)(zod@4.3.6))(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@2.5.0(@opentelemetry/api@1.9.0))(posthog-node@5.24.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(ws@8.18.3)(zod-to-json-schema@3.25.0(zod@4.3.6))
@@ -364,9 +349,24 @@ importers:
       '@spaire/checkout':
         specifier: workspace:^
         version: link:../../packages/checkout
+      '@spaire/client':
+        specifier: workspace:*
+        version: link:../../packages/client
+      '@spaire/currency':
+        specifier: workspace:^
+        version: link:../../packages/currency
+      '@spaire/customer-portal':
+        specifier: workspace:*
+        version: link:../../packages/customer-portal
+      '@spaire/mdx':
+        specifier: workspace:*
+        version: link:../../packages/mdx
       '@spaire/sdk':
         specifier: ^1.0.0
         version: 1.0.0
+      '@spaire/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@stripe/react-stripe-js':
         specifier: ^4.0.2
         version: 4.0.2(@stripe/stripe-js@7.9.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -521,10 +521,10 @@ importers:
       '@next/bundle-analyzer':
         specifier: ^16.1.5
         version: 16.1.5
-      '@polar-sh/eslint-config':
+      '@spaire/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
-      '@polar-sh/typescript-config':
+      '@spaire/typescript-config':
         specifier: workspace:*
         version: link:../../packages/typescript-config
       '@types/big.js':
@@ -629,15 +629,15 @@ importers:
 
   packages/checkout:
     dependencies:
-      '@polar-sh/currency':
+      '@spaire/currency':
         specifier: workspace:^
         version: link:../currency
-      '@polar-sh/ui':
-        specifier: workspace:^
-        version: link:../ui
       '@spaire/sdk':
         specifier: ^1.0.0
         version: 1.0.0
+      '@spaire/ui':
+        specifier: workspace:^
+        version: link:../ui
       event-source-plus:
         specifier: ^0.1.15
         version: 0.1.15
@@ -651,7 +651,7 @@ importers:
         specifier: ~7.71.1
         version: 7.71.1(react@19.2.4)
     devDependencies:
-      '@polar-sh/typescript-config':
+      '@spaire/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
       '@stripe/react-stripe-js':
@@ -685,7 +685,7 @@ importers:
         specifier: ^0.0.15
         version: 0.0.15
     devDependencies:
-      '@polar-sh/typescript-config':
+      '@spaire/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
       openapi-typescript:
@@ -700,7 +700,7 @@ importers:
 
   packages/currency:
     devDependencies:
-      '@polar-sh/typescript-config':
+      '@spaire/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
       tsup:
@@ -715,7 +715,7 @@ importers:
 
   packages/customer-portal:
     dependencies:
-      '@polar-sh/client':
+      '@spaire/client':
         specifier: workspace:*
         version: link:../client
       '@tanstack/react-query':
@@ -725,10 +725,10 @@ importers:
         specifier: ^18.0.0 || ^19.0.0
         version: 19.2.4
     devDependencies:
-      '@polar-sh/eslint-config':
+      '@spaire/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
-      '@polar-sh/typescript-config':
+      '@spaire/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
       '@testing-library/react':
@@ -811,9 +811,6 @@ importers:
 
   packages/ui:
     dependencies:
-      '@polar-sh/currency':
-        specifier: workspace:^
-        version: link:../currency
       '@radix-ui/react-accordion':
         specifier: ^1.2.12
         version: 1.2.12(@types/react-dom@19.2.3(@types/react@19.2.3))(@types/react@19.2.3)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -865,6 +862,9 @@ importers:
       '@radix-ui/react-tooltip':
         specifier: ^1.2.8
         version: 1.2.8(@types/react-dom@19.2.3(@types/react@19.2.3))(@types/react@19.2.3)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@spaire/currency':
+        specifier: workspace:^
+        version: link:../currency
       '@tanstack/react-table':
         specifier: ^8.21.3
         version: 8.21.3(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -905,7 +905,7 @@ importers:
         specifier: ^3.4.0
         version: 3.4.0
     devDependencies:
-      '@polar-sh/typescript-config':
+      '@spaire/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
       '@types/react':
