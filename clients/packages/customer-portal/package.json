@@ -1,5 +1,5 @@
 {
-  "name": "@polar-sh/customer-portal",
+  "name": "@spaire/customer-portal",
   "description": "Polar Customer Portal SDK",
   "version": "0.0.1",
   "type": "module",
