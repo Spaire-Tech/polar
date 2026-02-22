@@ -3,14 +3,14 @@
 import DateRangePicker, {
   DateRange,
 } from '@/components/Metrics/DateRangePicker'
-import Input from '@polar-sh/ui/components/atoms/Input'
+import Input from '@spaire/ui/components/atoms/Input'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@polar-sh/ui/components/atoms/Select'
+} from '@spaire/ui/components/atoms/Select'
 import React from 'react'
 import { WebhookEventTypeSelect } from './WebhookEventTypeSelect'
 

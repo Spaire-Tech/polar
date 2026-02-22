@@ -1,6 +1,6 @@
 'use client'
 
-import { formatCurrency } from '@polar-sh/currency'
+import { formatCurrency } from '@spaire/currency'
 import type { CheckoutPublic } from '@spaire/sdk/models/components/checkoutpublic'
 import type { CheckoutUpdatePublic } from '@spaire/sdk/models/components/checkoutupdatepublic'
 import { ProductCheckoutPublic } from '../guards'

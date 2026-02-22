@@ -1,5 +1,5 @@
 import { Section } from '@/components/Layout/Section'
-import { schemas } from '@polar-sh/client'
+import { schemas } from '@spaire/client'
 import { ProductMetadataForm } from '../ProductMetadataForm'
 import { ProductCheckoutSection } from './ProductCheckoutSection'
 import { ProductCustomerPortalSection } from './ProductCustomerPortalSection'

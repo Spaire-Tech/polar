@@ -1,8 +1,8 @@
 'use client'
 
-import { schemas } from '@polar-sh/client'
-import Input from '@polar-sh/ui/components/atoms/Input'
-import { Checkbox } from '@polar-sh/ui/components/ui/checkbox'
+import { schemas } from '@spaire/client'
+import Input from '@spaire/ui/components/atoms/Input'
+import { Checkbox } from '@spaire/ui/components/ui/checkbox'
 import {
   FormControl,
   FormDescription,
@@ -10,7 +10,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@polar-sh/ui/components/ui/form'
+} from '@spaire/ui/components/ui/form'
 import { PlusIcon } from 'lucide-react'
 import { useCallback } from 'react'
 import { useFormContext } from 'react-hook-form'
@@ -21,7 +21,7 @@ import { InlineModal } from '@/components/Modal/InlineModal'
 import { useModal } from '@/components/Modal/useModal'
 import { SpinnerNoMargin } from '@/components/Shared/Spinner'
 import { useMeters } from '@/hooks/queries/meters'
-import Button from '@polar-sh/ui/components/atoms/Button'
+import Button from '@spaire/ui/components/atoms/Button'
 
 export const MeterCreditBenefitForm = ({
   organization,

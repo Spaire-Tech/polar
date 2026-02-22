@@ -1,5 +1,5 @@
-import { getCurrencyDecimalFactor } from '@polar-sh/currency'
-import Input from '@polar-sh/ui/components/atoms/Input'
+import { getCurrencyDecimalFactor } from '@spaire/currency'
+import Input from '@spaire/ui/components/atoms/Input'
 import Big from 'big.js'
 import React, { ComponentProps, useCallback, useMemo } from 'react'
 import { twMerge } from 'tailwind-merge'

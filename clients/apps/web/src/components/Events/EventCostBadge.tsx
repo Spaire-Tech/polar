@@ -1,6 +1,6 @@
 import KeyboardArrowDown from '@mui/icons-material/KeyboardArrowDown'
 import KeyboardArrowUp from '@mui/icons-material/KeyboardArrowUp'
-import { formatCurrency } from '@polar-sh/currency'
+import { formatCurrency } from '@spaire/currency'
 import { useMemo } from 'react'
 import { twMerge } from 'tailwind-merge'
 

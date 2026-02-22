@@ -7,7 +7,7 @@ import OrganizationDeleteSettings from '@/components/Settings/OrganizationDelete
 import OrganizationNotificationSettings from '@/components/Settings/OrganizationNotificationSettings'
 import OrganizationProfileSettings from '@/components/Settings/OrganizationProfileSettings'
 import { Section, SectionDescription } from '@/components/Settings/Section'
-import { schemas } from '@polar-sh/client'
+import { schemas } from '@spaire/client'
 
 export default function ClientPage({
   organization: org,

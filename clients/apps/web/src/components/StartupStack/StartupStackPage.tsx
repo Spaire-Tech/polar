@@ -4,7 +4,7 @@ import { DashboardBody } from '@/components/Layout/DashboardLayout'
 import { PERKS, type Perk } from '@/constants/perksData'
 import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
 import InfoOutlined from '@mui/icons-material/InfoOutlined'
-import Button from '@polar-sh/ui/components/atoms/Button'
+import Button from '@spaire/ui/components/atoms/Button'
 import Link from 'next/link'
 
 const PerkCard = ({ perk }: { perk: Perk }) => {

@@ -6,7 +6,7 @@ import {
   CheckoutFormProvider,
   CheckoutProvider,
 } from '@spaire/checkout/providers'
-import { unwrap } from '@polar-sh/client'
+import { unwrap } from '@spaire/client'
 import type { Metadata } from 'next'
 import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'

@@ -7,7 +7,7 @@ import {
 } from '@spaire/checkout/components'
 import type { ProductCheckoutPublic } from '@spaire/checkout/guards'
 import type { CheckoutUpdatePublic } from '@spaire/sdk/models/components/checkoutupdatepublic'
-import ShadowBox from '@polar-sh/ui/components/atoms/ShadowBox'
+import ShadowBox from '@spaire/ui/components/atoms/ShadowBox'
 export interface CheckoutCardProps {
   checkout: ProductCheckoutPublic
   update?: (body: CheckoutUpdatePublic) => Promise<ProductCheckoutPublic>
