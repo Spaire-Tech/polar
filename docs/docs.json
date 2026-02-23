@@ -1,6 +1,6 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "maple",
+  "theme": "mint",
   "appearance": {
     "default": "system"
   },
@@ -17,11 +17,6 @@
     }
   },
   "favicon": "./logo/favicon.png",
-  "integrations": {
-    "ga4": {
-      "measurementId": "G-MBYW1QZFHE"
-    }
-  },
   "navigation": {
     "tabs": [
       {
