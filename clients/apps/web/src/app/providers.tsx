@@ -50,7 +50,6 @@ export function PolarThemeProvider({
       defaultTheme="dark"
       enableSystem={false}
       attribute="class"
-      forcedTheme="dark"
     >
       {children}
     </ThemeProvider>

@@ -8,7 +8,7 @@ import { useContext, useEffect } from 'react'
 export default function ClientPage() {
   const { organization } = useContext(OrganizationContext)
   const router = useRouter()
-  const { trackStepStarted, trackStepCompleted, trackCompleted, getSession } =
+  const { trackStepStarted, trackStepCompleted, getSession } =
     useOnboardingTracking()
 
   useEffect(() => {
@@ -16,10 +16,9 @@ export default function ClientPage() {
     if (session) {
       trackStepStarted('integrate', organization.id)
       trackStepCompleted('integrate', organization.id)
-      trackCompleted(organization.id)
     }
-    router.replace(`/dashboard/${organization.slug}/integrations`)
-  }, [organization, router, getSession, trackStepStarted, trackStepCompleted, trackCompleted])
+    router.replace(`/dashboard/${organization.slug}/onboarding/appearance`)
+  }, [organization, router, getSession, trackStepStarted, trackStepCompleted])
 
   return null
 }

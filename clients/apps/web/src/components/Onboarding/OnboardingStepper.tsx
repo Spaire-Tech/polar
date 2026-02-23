@@ -34,6 +34,11 @@ const defaultSteps: OnboardingStep[] = [
     label: 'Go Live',
     description: 'Connect to your app',
   },
+  {
+    id: 'appearance',
+    label: 'Appearance',
+    description: 'Personalize your workspace',
+  },
 ]
 
 export interface OnboardingStepperProps {
