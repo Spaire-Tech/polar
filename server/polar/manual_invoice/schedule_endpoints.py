@@ -94,7 +94,9 @@ async def create(
 ) -> ManualInvoiceScheduleRead:
     from polar.organization.service import organization as organization_service
 
-    organization = await organization_service.get(session, body.organization_id)
+    organization = await organization_service.get(
+        session, auth_subject, body.organization_id
+    )
     if organization is None:
         raise ResourceNotFound()
 
