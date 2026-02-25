@@ -8,7 +8,8 @@ import { useCallback, useMemo } from 'react'
 const ONBOARDING_COOKIE_NAME = 'polar_onboarding_session'
 const SESSION_TIMEOUT_HOURS = 24
 
-export type OnboardingStep = 'org' | 'integrate'
+/** @deprecated 'lovable' and 'product' are kept for backward compatibility with existing components */
+export type OnboardingStep = 'org' | 'integrate' | 'lovable' | 'product'
 export type SignupMethod = 'github' | 'google' | 'email'
 
 export const inferSignupMethod = (
