@@ -7,6 +7,7 @@ import { createOnigurumaEngine } from 'shiki/engine/oniguruma'
 import langBash from 'shiki/langs/bash.mjs'
 import langGo from 'shiki/langs/go.mjs'
 import langJavascript from 'shiki/langs/javascript.mjs'
+import langPhp from 'shiki/langs/php.mjs'
 import langPython from 'shiki/langs/python.mjs'
 import langTypescript from 'shiki/langs/typescript.mjs'
 import themeCatppuccinLatte from 'shiki/themes/catppuccin-latte.mjs'
@@ -21,6 +22,7 @@ const LANGUAGE_MAP = {
   typescript: langTypescript,
   python: langPython,
   go: langGo,
+  php: langPhp,
 } as const
 
 const THEME_MAP = {
