@@ -77,6 +77,7 @@ export const OrganizationStep = ({
     startOnboarding,
     trackStepStarted,
     trackStepCompleted,
+    updateSurveyAnswers,
     experimentVariant,
   } = useOnboardingTracking()
 
@@ -187,6 +188,11 @@ export const OrganizationStep = ({
 
     if (!hasExistingOrg) {
       await trackStepCompleted('org', organization.id)
+      updateSurveyAnswers({
+        business_type: businessType ?? undefined,
+        audience_type: audienceType ?? undefined,
+        referral_source: referralSource ?? undefined,
+      })
     }
 
     let queryParams = ''
@@ -196,9 +202,9 @@ export const OrganizationStep = ({
 
     router.push(
       getStatusRedirect(
-        `/dashboard/${organization.slug}/onboarding/lovable${queryParams}`,
+        `/dashboard/${organization.slug}/onboarding/integrate${queryParams}`,
         'Organization created',
-        'Connect Lovable to your app',
+        'Connect your app',
       ),
     )
   }

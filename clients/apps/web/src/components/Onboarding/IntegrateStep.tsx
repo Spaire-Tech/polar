@@ -199,7 +199,7 @@ export const IntegrateStep = ({ products }: IntegrateStepProps) => {
   return (
     <div className="flex h-full flex-row">
       {/* Stepper Sidebar - desktop only */}
-      <OnboardingStepper currentStep={3} />
+      <OnboardingStepper currentStep={1} />
 
       {/* Left panel: framework selection & actions */}
       <div className="dark:bg-polar-900 flex h-full min-h-0 w-full flex-col gap-8 overflow-y-auto p-12 md:max-w-md">
