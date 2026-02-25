@@ -70,7 +70,7 @@ export interface ManualInvoiceUpdateBody {
   items?: ManualInvoiceItemCreate[] | null
 }
 
-const fetchWithAuth = async (url: string, options?: RequestInit) => {
+const fetchWithAuth = async <T = unknown>(url: string, options?: RequestInit): Promise<T> => {
   const response = await fetch(url, {
     ...options,
     credentials: 'include',
@@ -83,8 +83,8 @@ const fetchWithAuth = async (url: string, options?: RequestInit) => {
     const error = await response.json().catch(() => ({ detail: response.statusText }))
     throw new Error(error.detail || `Request failed: ${response.status}`)
   }
-  if (response.status === 204) return null
-  return response.json()
+  if (response.status === 204) return null as T
+  return response.json() as Promise<T>
 }
 
 export const useManualInvoices = (
@@ -96,7 +96,7 @@ export const useManualInvoices = (
     status?: string
   },
 ) =>
-  useQuery<ManualInvoiceListResponse>({
+  useQuery({
     queryKey: ['manual_invoices', { organizationId, ...(params || {}) }],
     queryFn: () => {
       const searchParams = new URLSearchParams()
@@ -107,7 +107,7 @@ export const useManualInvoices = (
       if (params?.sorting) {
         params.sorting.forEach((s) => searchParams.append('sorting', s))
       }
-      return fetchWithAuth(
+      return fetchWithAuth<ManualInvoiceListResponse>(
         `${getServerURL()}/v1/manual-invoices/?${searchParams}`,
       )
     },
@@ -116,19 +116,19 @@ export const useManualInvoices = (
   })
 
 export const useManualInvoice = (id: string) =>
-  useQuery<ManualInvoice>({
+  useQuery({
     queryKey: ['manual_invoices', { id }],
     queryFn: () =>
-      fetchWithAuth(`${getServerURL()}/v1/manual-invoices/${id}`),
+      fetchWithAuth<ManualInvoice>(`${getServerURL()}/v1/manual-invoices/${id}`),
     retry: defaultRetry,
     enabled: !!id,
   })
 
 export const useCreateManualInvoice = () => {
   const queryClient = useQueryClient()
-  return useMutation<ManualInvoice, Error, ManualInvoiceCreateBody>({
-    mutationFn: (body) =>
-      fetchWithAuth(`${getServerURL()}/v1/manual-invoices/`, {
+  return useMutation({
+    mutationFn: (body: ManualInvoiceCreateBody) =>
+      fetchWithAuth<ManualInvoice>(`${getServerURL()}/v1/manual-invoices/`, {
         method: 'POST',
         body: JSON.stringify(body),
       }),
@@ -140,9 +140,9 @@ export const useCreateManualInvoice = () => {
 
 export const useUpdateManualInvoice = (id: string) => {
   const queryClient = useQueryClient()
-  return useMutation<ManualInvoice, Error, ManualInvoiceUpdateBody>({
-    mutationFn: (body) =>
-      fetchWithAuth(`${getServerURL()}/v1/manual-invoices/${id}`, {
+  return useMutation({
+    mutationFn: (body: ManualInvoiceUpdateBody) =>
+      fetchWithAuth<ManualInvoice>(`${getServerURL()}/v1/manual-invoices/${id}`, {
         method: 'PATCH',
         body: JSON.stringify(body),
       }),
@@ -154,9 +154,9 @@ export const useUpdateManualInvoice = (id: string) => {
 
 export const useIssueManualInvoice = () => {
   const queryClient = useQueryClient()
-  return useMutation<ManualInvoice, Error, string>({
-    mutationFn: (id) =>
-      fetchWithAuth(
+  return useMutation({
+    mutationFn: (id: string) =>
+      fetchWithAuth<ManualInvoice>(
         `${getServerURL()}/v1/manual-invoices/${id}/issue`,
         { method: 'POST' },
       ),
@@ -168,9 +168,9 @@ export const useIssueManualInvoice = () => {
 
 export const useMarkPaidManualInvoice = () => {
   const queryClient = useQueryClient()
-  return useMutation<ManualInvoice, Error, string>({
-    mutationFn: (id) =>
-      fetchWithAuth(
+  return useMutation({
+    mutationFn: (id: string) =>
+      fetchWithAuth<ManualInvoice>(
         `${getServerURL()}/v1/manual-invoices/${id}/mark-paid`,
         { method: 'POST' },
       ),
@@ -182,9 +182,9 @@ export const useMarkPaidManualInvoice = () => {
 
 export const useVoidManualInvoice = () => {
   const queryClient = useQueryClient()
-  return useMutation<ManualInvoice, Error, string>({
-    mutationFn: (id) =>
-      fetchWithAuth(
+  return useMutation({
+    mutationFn: (id: string) =>
+      fetchWithAuth<ManualInvoice>(
         `${getServerURL()}/v1/manual-invoices/${id}/void`,
         { method: 'POST' },
       ),
@@ -196,9 +196,9 @@ export const useVoidManualInvoice = () => {
 
 export const useGeneratePaymentLink = () => {
   const queryClient = useQueryClient()
-  return useMutation<ManualInvoice, Error, string>({
-    mutationFn: (id) =>
-      fetchWithAuth(
+  return useMutation({
+    mutationFn: (id: string) =>
+      fetchWithAuth<ManualInvoice>(
         `${getServerURL()}/v1/manual-invoices/${id}/generate-payment-link`,
         { method: 'POST' },
       ),
@@ -210,9 +210,9 @@ export const useGeneratePaymentLink = () => {
 
 export const useSendInvoiceEmail = () => {
   const queryClient = useQueryClient()
-  return useMutation<ManualInvoice, Error, string>({
-    mutationFn: (id) =>
-      fetchWithAuth(
+  return useMutation({
+    mutationFn: (id: string) =>
+      fetchWithAuth<ManualInvoice>(
         `${getServerURL()}/v1/manual-invoices/${id}/send-email`,
         { method: 'POST' },
       ),
@@ -224,9 +224,9 @@ export const useSendInvoiceEmail = () => {
 
 export const useDeleteManualInvoice = () => {
   const queryClient = useQueryClient()
-  return useMutation<null, Error, string>({
-    mutationFn: (id) =>
-      fetchWithAuth(`${getServerURL()}/v1/manual-invoices/${id}`, {
+  return useMutation({
+    mutationFn: (id: string) =>
+      fetchWithAuth<null>(`${getServerURL()}/v1/manual-invoices/${id}`, {
         method: 'DELETE',
       }),
     onSuccess: () => {
