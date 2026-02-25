@@ -42,6 +42,8 @@ def upgrade() -> None:
         sa.Column("voided_at", sa.TIMESTAMP(timezone=True), nullable=True),
         sa.Column("organization_id", sa.Uuid(), nullable=False),
         sa.Column("customer_id", sa.Uuid(), nullable=True),
+        sa.Column("checkout_url", sa.String(), nullable=True),
+        sa.Column("email_sent_at", sa.TIMESTAMP(timezone=True), nullable=True),
         sa.Column("order_id", sa.Uuid(), nullable=True),
         sa.Column("user_metadata", sa.JSON(), nullable=False, server_default="{}"),
         sa.PrimaryKeyConstraint("id"),

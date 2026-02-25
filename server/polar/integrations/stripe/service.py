@@ -417,6 +417,52 @@ class StripeService:
             metadata=metadata or {},
         )
 
+    async def create_checkout_session(
+        self,
+        *,
+        amount: int,
+        currency: str,
+        customer_email: str | None = None,
+        customer_id: str | None = None,
+        success_url: str,
+        cancel_url: str | None = None,
+        metadata: dict[str, str] | None = None,
+        description: str | None = None,
+        stripe_account: str | None = None,
+    ) -> stripe_lib.checkout.Session:
+        log.info(
+            "stripe.checkout_session.create",
+            amount=amount,
+            currency=currency,
+            customer_email=customer_email,
+        )
+        params: dict[str, object] = {
+            "mode": "payment",
+            "line_items": [
+                {
+                    "price_data": {
+                        "currency": currency,
+                        "unit_amount": amount,
+                        "product_data": {
+                            "name": description or "Invoice Payment",
+                        },
+                    },
+                    "quantity": 1,
+                }
+            ],
+            "success_url": success_url,
+            "metadata": metadata or {},
+        }
+        if cancel_url:
+            params["cancel_url"] = cancel_url
+        if customer_id:
+            params["customer"] = customer_id
+        elif customer_email:
+            params["customer_email"] = customer_email
+        if stripe_account:
+            params["stripe_account"] = stripe_account
+        return await stripe_lib.checkout.Session.create_async(**params)
+
     async def create_payment_intent(
         self, **params: Unpack[PaymentIntentCreateParams]
     ) -> stripe_lib.PaymentIntent:

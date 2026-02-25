@@ -73,6 +73,12 @@ class ManualInvoiceRead(MetadataOutputMixin, TimestampedSchema, IDSchema):
     issued_at: datetime | None
     paid_at: datetime | None
     voided_at: datetime | None
+    checkout_url: str | None = Field(
+        default=None, description="Payment link URL for the customer."
+    )
+    email_sent_at: datetime | None = Field(
+        default=None, description="When the invoice email was last sent."
+    )
     organization_id: UUID4
     customer_id: UUID4 | None
     order_id: UUID4 | None

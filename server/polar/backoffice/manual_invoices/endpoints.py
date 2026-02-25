@@ -245,6 +245,32 @@ async def get(
                             method="POST",
                             action=str(
                                 request.url_for(
+                                    "manual_invoices:generate_payment_link_action",
+                                    id=manual_invoice.id,
+                                )
+                            ),
+                        ):
+                            with button(type="submit"):
+                                if manual_invoice.checkout_url:
+                                    text("Regenerate Payment Link")
+                                else:
+                                    text("Generate Payment Link")
+                        if manual_invoice.customer_id is not None:
+                            with tag.form(
+                                method="POST",
+                                action=str(
+                                    request.url_for(
+                                        "manual_invoices:send_email_action",
+                                        id=manual_invoice.id,
+                                    )
+                                ),
+                            ):
+                                with button(type="submit"):
+                                    text("Send Email")
+                        with tag.form(
+                            method="POST",
+                            action=str(
+                                request.url_for(
                                     "manual_invoices:mark_paid_action",
                                     id=manual_invoice.id,
                                 )
@@ -354,6 +380,33 @@ async def get(
                                 ),
                             ).render(request, manual_invoice):
                                 pass
+
+                # Payment Link card
+                if manual_invoice.checkout_url:
+                    with tag.div(classes="card card-border w-full shadow-sm"):
+                        with tag.div(classes="card-body"):
+                            with tag.h2(classes="card-title"):
+                                text("Payment Link")
+                            with tag.div(classes="flex flex-col gap-2"):
+                                with tag.div(
+                                    classes="flex items-center gap-2 bg-base-200 rounded-lg p-3"
+                                ):
+                                    with tag.code(
+                                        classes="text-sm break-all flex-1"
+                                    ):
+                                        text(manual_invoice.checkout_url)
+                                with tag.a(
+                                    href=manual_invoice.checkout_url,
+                                    target="_blank",
+                                    rel="noopener noreferrer",
+                                    classes="link link-primary text-sm",
+                                ):
+                                    text("Open payment page")
+                                if manual_invoice.email_sent_at:
+                                    with tag.p(classes="text-sm text-gray-500"):
+                                        text(
+                                            f"Last email sent: {formatters.datetime(manual_invoice.email_sent_at)}"
+                                        )
 
             # Timestamps card
             with tag.div(classes="mt-4"):
@@ -705,6 +758,65 @@ async def remove_item(
             break
     else:
         await add_toast(request, "Item not found.", "error")
+
+    return HXRedirectResponse(
+        request, str(request.url_for("manual_invoices:get", id=id)), 303
+    )
+
+
+# --- Generate Payment Link ---
+
+
+@router.post(
+    "/{id}/generate-payment-link",
+    name="manual_invoices:generate_payment_link_action",
+)
+async def generate_payment_link_action(
+    request: Request,
+    id: UUID4,
+    session: AsyncSession = Depends(get_db_session),
+) -> Any:
+    repository = ManualInvoiceRepository.from_session(session)
+    manual_invoice = await repository.get_by_id(id)
+
+    if manual_invoice is None:
+        raise HTTPException(status_code=404)
+
+    try:
+        manual_invoice = await manual_invoice_service.generate_payment_link(
+            session, manual_invoice
+        )
+        await add_toast(request, "Payment link generated.", "success")
+    except ManualInvoiceError as e:
+        await add_toast(request, str(e), "error")
+
+    return HXRedirectResponse(
+        request, str(request.url_for("manual_invoices:get", id=id)), 303
+    )
+
+
+# --- Send Email ---
+
+
+@router.post("/{id}/send-email", name="manual_invoices:send_email_action")
+async def send_email_action(
+    request: Request,
+    id: UUID4,
+    session: AsyncSession = Depends(get_db_session),
+) -> Any:
+    repository = ManualInvoiceRepository.from_session(session)
+    manual_invoice = await repository.get_by_id(id)
+
+    if manual_invoice is None:
+        raise HTTPException(status_code=404)
+
+    try:
+        manual_invoice = await manual_invoice_service.send_invoice_email(
+            session, manual_invoice
+        )
+        await add_toast(request, "Invoice email sent.", "success")
+    except ManualInvoiceError as e:
+        await add_toast(request, str(e), "error")
 
     return HXRedirectResponse(
         request, str(request.url_for("manual_invoices:get", id=id)), 303

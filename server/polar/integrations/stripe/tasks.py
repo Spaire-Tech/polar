@@ -324,6 +324,67 @@ async def refund_failed(event_id: uuid.UUID) -> None:
                     raise
 
 
+@actor(
+    actor_name="stripe.webhook.checkout.session.completed",
+    priority=TaskPriority.HIGH,
+)
+@stripe_api_connection_error_retry
+async def checkout_session_completed(event_id: uuid.UUID) -> None:
+    async with AsyncSessionMaker() as session:
+        async with external_event_service.handle_stripe(session, event_id) as event:
+            checkout_session = cast(
+                stripe_lib.checkout.Session, event.stripe_data.data.object
+            )
+            metadata = checkout_session.metadata or {}
+
+            # Only handle manual invoice checkout sessions
+            if metadata.get("type") != "manual_invoice":
+                return
+
+            manual_invoice_id_str = metadata.get("manual_invoice_id")
+            if not manual_invoice_id_str:
+                return
+
+            from polar.manual_invoice.repository import ManualInvoiceRepository
+            from polar.manual_invoice.service import (
+                ManualInvoiceError,
+                manual_invoice_service,
+            )
+            from polar.models.manual_invoice import ManualInvoiceStatus
+
+            manual_invoice_id = uuid.UUID(manual_invoice_id_str)
+            repository = ManualInvoiceRepository.from_session(session)
+            manual_invoice = await repository.get_by_id(manual_invoice_id)
+
+            if manual_invoice is None:
+                log.warning(
+                    "Manual invoice not found for checkout session",
+                    manual_invoice_id=manual_invoice_id_str,
+                )
+                return
+
+            if manual_invoice.status != ManualInvoiceStatus.issued:
+                log.info(
+                    "Manual invoice not in issued status, skipping",
+                    manual_invoice_id=manual_invoice_id_str,
+                    status=manual_invoice.status,
+                )
+                return
+
+            try:
+                await manual_invoice_service.mark_paid(session, manual_invoice)
+                log.info(
+                    "Manual invoice marked as paid via Stripe checkout",
+                    manual_invoice_id=manual_invoice_id_str,
+                )
+            except ManualInvoiceError as e:
+                log.warning(
+                    "Failed to mark manual invoice as paid",
+                    manual_invoice_id=manual_invoice_id_str,
+                    error=str(e),
+                )
+
+
 @actor(actor_name="stripe.webhook.charge.dispute.created", priority=TaskPriority.HIGH)
 @stripe_api_connection_error_retry
 async def charge_dispute_created(event_id: uuid.UUID) -> None:

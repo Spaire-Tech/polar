@@ -1,6 +1,12 @@
 from uuid import UUID
 
+import structlog
+
+from polar.config import settings
+from polar.email.sender import enqueue_email
 from polar.exceptions import PolarError
+from polar.integrations.stripe.service import stripe as stripe_service
+from polar.kit.currency import format_currency
 from polar.kit.utils import utc_now
 from polar.models import Customer, ManualInvoice, Order, Organization
 from polar.models.manual_invoice import ManualInvoiceStatus
@@ -14,6 +20,8 @@ from polar.postgres import AsyncSession
 from polar.webhook.service import webhook as webhook_service
 
 from .repository import ManualInvoiceRepository
+
+log = structlog.get_logger()
 
 
 class ManualInvoiceError(PolarError): ...
@@ -273,6 +281,209 @@ class ManualInvoiceService:
 
         await self._send_webhook(
             session, manual_invoice, WebhookEventType.manual_invoice_voided
+        )
+
+        return manual_invoice
+
+    async def generate_payment_link(
+        self,
+        session: AsyncSession,
+        manual_invoice: ManualInvoice,
+    ) -> ManualInvoice:
+        """Generate a Stripe Checkout Session payment link for an issued invoice."""
+        if manual_invoice.status != ManualInvoiceStatus.issued:
+            raise ManualInvoiceError(
+                "Payment links can only be generated for issued invoices."
+            )
+
+        if manual_invoice.total_amount <= 0:
+            raise ManualInvoiceError(
+                "Invoice total must be greater than zero to generate a payment link."
+            )
+
+        await session.refresh(manual_invoice, ["customer", "organization"])
+        customer: Customer = manual_invoice.customer  # type: ignore[assignment]
+        organization: Organization = manual_invoice.organization
+
+        # Build success URL
+        success_url = settings.generate_frontend_url(
+            f"/checkout/success?manual_invoice_id={manual_invoice.id}"
+        )
+
+        description = f"{organization.name} — Invoice {manual_invoice.invoice_number}"
+
+        stripe_checkout = await stripe_service.create_checkout_session(
+            amount=manual_invoice.total_amount,
+            currency=manual_invoice.currency,
+            customer_email=customer.email,
+            customer_id=customer.stripe_customer_id,
+            success_url=success_url,
+            metadata={
+                "manual_invoice_id": str(manual_invoice.id),
+                "type": "manual_invoice",
+            },
+            description=description,
+        )
+
+        repository = ManualInvoiceRepository.from_session(session)
+        manual_invoice = await repository.update(
+            manual_invoice,
+            update_dict={"checkout_url": stripe_checkout.url},
+            flush=True,
+        )
+
+        log.info(
+            "manual_invoice.payment_link_generated",
+            manual_invoice_id=str(manual_invoice.id),
+            checkout_url=stripe_checkout.url,
+        )
+
+        return manual_invoice
+
+    async def send_invoice_email(
+        self,
+        session: AsyncSession,
+        manual_invoice: ManualInvoice,
+    ) -> ManualInvoice:
+        """Send the invoice to the customer via email."""
+        if manual_invoice.status not in (
+            ManualInvoiceStatus.issued,
+            ManualInvoiceStatus.paid,
+        ):
+            raise ManualInvoiceError(
+                "Emails can only be sent for issued or paid invoices."
+            )
+
+        await session.refresh(manual_invoice, ["customer", "organization"])
+        customer: Customer = manual_invoice.customer  # type: ignore[assignment]
+        organization: Organization = manual_invoice.organization
+
+        if not customer.email:
+            raise ManualInvoiceError("Customer does not have an email address.")
+
+        total_formatted = format_currency(
+            manual_invoice.total_amount, manual_invoice.currency
+        )
+        subject = f"Invoice {manual_invoice.invoice_number} from {organization.name}"
+
+        # Build HTML email
+        payment_section = ""
+        if (
+            manual_invoice.status == ManualInvoiceStatus.issued
+            and manual_invoice.checkout_url
+        ):
+            payment_section = f"""
+            <tr>
+              <td style="padding: 20px 0;">
+                <a href="{manual_invoice.checkout_url}"
+                   style="display: inline-block; background-color: #0062FF; color: #fff;
+                          padding: 12px 24px; text-decoration: none; border-radius: 6px;
+                          font-weight: 600;">
+                  Pay Now
+                </a>
+              </td>
+            </tr>
+            """
+        elif manual_invoice.status == ManualInvoiceStatus.paid:
+            payment_section = """
+            <tr>
+              <td style="padding: 10px 0; color: #16a34a; font-weight: 600;">
+                This invoice has been paid. Thank you!
+              </td>
+            </tr>
+            """
+
+        # Build line items table
+        items_rows = ""
+        for item in manual_invoice.items:
+            item_total = format_currency(item.amount, manual_invoice.currency)
+            unit_price = format_currency(item.unit_amount, manual_invoice.currency)
+            items_rows += f"""
+            <tr>
+              <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">{item.description}</td>
+              <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; text-align: right;">{item.quantity}</td>
+              <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; text-align: right;">{unit_price}</td>
+              <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; text-align: right;">{item_total}</td>
+            </tr>
+            """
+
+        notes_section = ""
+        if manual_invoice.notes:
+            notes_section = f"""
+            <tr>
+              <td style="padding: 20px 0 10px;">
+                <strong>Notes:</strong><br/>
+                <span style="color: #6b7280;">{manual_invoice.notes}</span>
+              </td>
+            </tr>
+            """
+
+        html_content = f"""
+        <table width="100%" cellpadding="0" cellspacing="0" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; color: #111827;">
+          <tr>
+            <td style="padding: 32px 0 16px;">
+              <h1 style="font-size: 24px; margin: 0;">{organization.name}</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0;">
+              <p style="margin: 0; font-size: 16px;">
+                Invoice <strong>{manual_invoice.invoice_number}</strong>
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 16px 0;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+                <thead>
+                  <tr style="background-color: #f9fafb;">
+                    <th style="padding: 10px 8px; text-align: left; font-weight: 600;">Item</th>
+                    <th style="padding: 10px 8px; text-align: right; font-weight: 600;">Qty</th>
+                    <th style="padding: 10px 8px; text-align: right; font-weight: 600;">Price</th>
+                    <th style="padding: 10px 8px; text-align: right; font-weight: 600;">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items_rows}
+                </tbody>
+                <tfoot>
+                  <tr style="background-color: #f9fafb;">
+                    <td colspan="3" style="padding: 10px 8px; text-align: right; font-weight: 700;">Total</td>
+                    <td style="padding: 10px 8px; text-align: right; font-weight: 700;">{total_formatted}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </td>
+          </tr>
+          {notes_section}
+          {payment_section}
+          <tr>
+            <td style="padding: 24px 0 8px; color: #9ca3af; font-size: 12px;">
+              This invoice was sent by {organization.name}.
+            </td>
+          </tr>
+        </table>
+        """
+
+        enqueue_email(
+            to_email_addr=customer.email,
+            subject=subject,
+            html_content=html_content,
+        )
+
+        # Update email_sent_at
+        now = utc_now()
+        repository = ManualInvoiceRepository.from_session(session)
+        manual_invoice = await repository.update(
+            manual_invoice,
+            update_dict={"email_sent_at": now},
+            flush=True,
+        )
+
+        log.info(
+            "manual_invoice.email_sent",
+            manual_invoice_id=str(manual_invoice.id),
+            to=customer.email,
         )
 
         return manual_invoice

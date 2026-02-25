@@ -74,6 +74,16 @@ class ManualInvoice(MetadataMixin, RecordModel):
         TIMESTAMP(timezone=True), nullable=True, default=None
     )
 
+    # Payment link — generated via checkout system
+    checkout_url: Mapped[str | None] = mapped_column(
+        String, nullable=True, default=None
+    )
+
+    # Email tracking
+    email_sent_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True, default=None
+    )
+
     # --- Foreign Keys ---
 
     organization_id: Mapped[UUID] = mapped_column(

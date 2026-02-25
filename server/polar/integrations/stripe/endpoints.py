@@ -32,6 +32,7 @@ DIRECT_IMPLEMENTED_WEBHOOKS = {
     "charge.dispute.created",
     "charge.dispute.updated",
     "charge.dispute.closed",
+    "checkout.session.completed",
     "refund.created",
     "refund.updated",
     "refund.failed",

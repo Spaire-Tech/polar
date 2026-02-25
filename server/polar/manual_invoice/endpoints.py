@@ -203,6 +203,50 @@ async def void(
     return ManualInvoiceRead.model_validate(manual_invoice)
 
 
+@router.post(
+    "/{id}/generate-payment-link",
+    summary="Generate Payment Link",
+    response_model=ManualInvoiceRead,
+    responses={404: ManualInvoiceNotFound},
+)
+async def generate_payment_link(
+    id: ManualInvoiceID,
+    auth_subject: auth.ManualInvoicesWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> ManualInvoiceRead:
+    repository = ManualInvoiceRepository.from_session(session)
+    manual_invoice = await repository.get_by_id(id)
+    if manual_invoice is None:
+        raise ResourceNotFound()
+
+    manual_invoice = await manual_invoice_service.generate_payment_link(
+        session, manual_invoice
+    )
+    return ManualInvoiceRead.model_validate(manual_invoice)
+
+
+@router.post(
+    "/{id}/send-email",
+    summary="Send Invoice Email",
+    response_model=ManualInvoiceRead,
+    responses={404: ManualInvoiceNotFound},
+)
+async def send_email(
+    id: ManualInvoiceID,
+    auth_subject: auth.ManualInvoicesWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> ManualInvoiceRead:
+    repository = ManualInvoiceRepository.from_session(session)
+    manual_invoice = await repository.get_by_id(id)
+    if manual_invoice is None:
+        raise ResourceNotFound()
+
+    manual_invoice = await manual_invoice_service.send_invoice_email(
+        session, manual_invoice
+    )
+    return ManualInvoiceRead.model_validate(manual_invoice)
+
+
 @router.delete(
     "/{id}",
     summary="Delete Manual Invoice",
