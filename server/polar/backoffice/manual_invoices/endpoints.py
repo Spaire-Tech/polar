@@ -381,6 +381,28 @@ async def get(
                             ).render(request, manual_invoice):
                                 pass
 
+                # Recurring Schedule card
+                if manual_invoice.schedule_id is not None:
+                    with tag.div(classes="card card-border w-full shadow-sm"):
+                        with tag.div(classes="card-body"):
+                            with tag.h2(classes="card-title"):
+                                text("Recurring Schedule")
+                            with description_list.DescriptionList[ManualInvoice](
+                                description_list.DescriptionListLinkItem[
+                                    ManualInvoice
+                                ](
+                                    "schedule_id",
+                                    "Schedule",
+                                    href_getter=lambda r, i: str(
+                                        r.url_for(
+                                            "invoice_schedules:get",
+                                            id=i.schedule_id,
+                                        )
+                                    ),
+                                ),
+                            ).render(request, manual_invoice):
+                                pass
+
                 # Payment Link card
                 if manual_invoice.checkout_url:
                     with tag.div(classes="card card-border w-full shadow-sm"):

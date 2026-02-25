@@ -35,6 +35,9 @@ from polar.integrations.stripe.endpoints import router as stripe_router
 from polar.license_key.endpoints import router as license_key_router
 from polar.login_code.endpoints import router as login_code_router
 from polar.manual_invoice.endpoints import router as manual_invoice_router
+from polar.manual_invoice.schedule_endpoints import (
+    router as manual_invoice_schedule_router,
+)
 from polar.member.endpoints import router as member_router
 from polar.member_session.endpoints import router as member_session_router
 from polar.meter.endpoints import router as meter_router
@@ -104,6 +107,8 @@ router.include_router(product_router)
 router.include_router(order_router)
 # /manual-invoices
 router.include_router(manual_invoice_router)
+# /manual-invoice-schedules
+router.include_router(manual_invoice_schedule_router)
 # /refunds
 router.include_router(refund_router)
 # /disputes

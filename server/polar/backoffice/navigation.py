@@ -26,6 +26,11 @@ NAVIGATION = [
         active_route_name_prefix="manual_invoices:",
     ),
     navigation.NavigationItem(
+        "Invoice Schedules",
+        "invoice_schedules:list",
+        active_route_name_prefix="invoice_schedules:",
+    ),
+    navigation.NavigationItem(
         "Payouts", "payouts:list", active_route_name_prefix="payouts:"
     ),
     navigation.NavigationItem(

@@ -21,6 +21,7 @@ from polar.tax.tax_id import TaxID, TaxIDType
 if TYPE_CHECKING:
     from polar.models import Customer, Order, Organization
     from polar.models.manual_invoice_item import ManualInvoiceItem
+    from polar.models.manual_invoice_schedule import ManualInvoiceSchedule
 
 
 class ManualInvoiceStatus(StrEnum):
@@ -110,6 +111,23 @@ class ManualInvoice(MetadataMixin, RecordModel):
     @declared_attr
     def order(cls) -> Mapped["Order | None"]:
         return relationship("Order", lazy="raise")
+
+    # Link to schedule that generated this invoice (if recurring)
+    schedule_id: Mapped[UUID | None] = mapped_column(
+        Uuid,
+        ForeignKey("manual_invoice_schedules.id"),
+        nullable=True,
+        default=None,
+        index=True,
+    )
+
+    @declared_attr
+    def schedule(cls) -> Mapped["ManualInvoiceSchedule | None"]:
+        return relationship(
+            "ManualInvoiceSchedule",
+            lazy="raise",
+            back_populates="invoices",
+        )
 
     # --- Relationships ---
 

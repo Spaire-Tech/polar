@@ -33,6 +33,8 @@ from .license_key_activation import LicenseKeyActivation
 from .login_code import LoginCode
 from .manual_invoice import ManualInvoice
 from .manual_invoice_item import ManualInvoiceItem
+from .manual_invoice_schedule import ManualInvoiceSchedule
+from .manual_invoice_schedule_item import ManualInvoiceScheduleItem
 from .member import Member, MemberRole
 from .member_session import MemberSession
 from .meter import Meter
@@ -124,6 +126,8 @@ __all__ = [
     "LoginCode",
     "ManualInvoice",
     "ManualInvoiceItem",
+    "ManualInvoiceSchedule",
+    "ManualInvoiceScheduleItem",
     "Member",
     "MemberRole",
     "MemberSession",

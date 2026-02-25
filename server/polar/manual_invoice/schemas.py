@@ -82,6 +82,9 @@ class ManualInvoiceRead(MetadataOutputMixin, TimestampedSchema, IDSchema):
     organization_id: UUID4
     customer_id: UUID4 | None
     order_id: UUID4 | None
+    schedule_id: UUID4 | None = Field(
+        default=None, description="Recurring schedule that generated this invoice."
+    )
     subtotal_amount: int = Field(description="Sum of all item amounts in cents.")
     total_amount: int = Field(description="Total amount in cents.")
     items: list[ManualInvoiceItemRead]
