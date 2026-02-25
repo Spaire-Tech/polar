@@ -40,7 +40,7 @@ class StatusColumn(
 
 
 class AmountColumn(
-    datatable.DatatableColumn[ManualInvoice, ManualInvoiceSortProperty]
+    datatable.DatatableColumn[ManualInvoice]
 ):
     def __init__(self, label: str) -> None:
         super().__init__(label)
