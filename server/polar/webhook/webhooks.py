@@ -24,6 +24,7 @@ from polar.customer.schemas.customer import Customer as CustomerSchema
 from polar.customer.schemas.state import CustomerState as CustomerStateSchema
 from polar.customer_seat.schemas import CustomerSeat as CustomerSeatSchema
 from polar.exceptions import PolarError
+from polar.manual_invoice.schemas import ManualInvoiceRead
 from polar.integrations.discord.webhook import (
     DiscordEmbedField,
     DiscordPayload,
@@ -1283,6 +1284,64 @@ class WebhookBenefitGrantRevokedPayload(BaseWebhookPayload):
     data: BenefitGrantWebhook
 
 
+# --- Manual Invoice ---
+
+
+class WebhookManualInvoiceCreatedPayload(BaseWebhookPayload):
+    """
+    Sent when a new manual invoice draft is created.
+
+    **Discord & Slack support:** Basic
+    """
+
+    type: Literal[WebhookEventType.manual_invoice_created]
+    data: "ManualInvoiceRead"
+
+
+class WebhookManualInvoiceUpdatedPayload(BaseWebhookPayload):
+    """
+    Sent when a manual invoice is updated.
+
+    **Discord & Slack support:** Basic
+    """
+
+    type: Literal[WebhookEventType.manual_invoice_updated]
+    data: "ManualInvoiceRead"
+
+
+class WebhookManualInvoiceIssuedPayload(BaseWebhookPayload):
+    """
+    Sent when a manual invoice is issued (finalized).
+
+    **Discord & Slack support:** Basic
+    """
+
+    type: Literal[WebhookEventType.manual_invoice_issued]
+    data: "ManualInvoiceRead"
+
+
+class WebhookManualInvoicePaidPayload(BaseWebhookPayload):
+    """
+    Sent when a manual invoice is marked as paid.
+
+    **Discord & Slack support:** Basic
+    """
+
+    type: Literal[WebhookEventType.manual_invoice_paid]
+    data: "ManualInvoiceRead"
+
+
+class WebhookManualInvoiceVoidedPayload(BaseWebhookPayload):
+    """
+    Sent when a manual invoice is voided.
+
+    **Discord & Slack support:** Basic
+    """
+
+    type: Literal[WebhookEventType.manual_invoice_voided]
+    data: "ManualInvoiceRead"
+
+
 WebhookPayload = Annotated[
     WebhookCheckoutCreatedPayload
     | WebhookCheckoutUpdatedPayload
@@ -1318,7 +1377,12 @@ WebhookPayload = Annotated[
     | WebhookBenefitGrantCreatedPayload
     | WebhookBenefitGrantUpdatedPayload
     | WebhookBenefitGrantCycledPayload
-    | WebhookBenefitGrantRevokedPayload,
+    | WebhookBenefitGrantRevokedPayload
+    | WebhookManualInvoiceCreatedPayload
+    | WebhookManualInvoiceUpdatedPayload
+    | WebhookManualInvoiceIssuedPayload
+    | WebhookManualInvoicePaidPayload
+    | WebhookManualInvoiceVoidedPayload,
     Discriminator(discriminator="type"),
 ]
 WebhookPayloadTypeAdapter: TypeAdapter[WebhookPayload] = TypeAdapter(WebhookPayload)

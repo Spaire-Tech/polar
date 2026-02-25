@@ -21,6 +21,11 @@ NAVIGATION = [
         "Orders", "orders:list", active_route_name_prefix="orders:"
     ),
     navigation.NavigationItem(
+        "Manual Invoices",
+        "manual_invoices:list",
+        active_route_name_prefix="manual_invoices:",
+    ),
+    navigation.NavigationItem(
         "Payouts", "payouts:list", active_route_name_prefix="payouts:"
     ),
     navigation.NavigationItem(

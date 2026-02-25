@@ -48,6 +48,11 @@ class WebhookEventType(StrEnum):
     benefit_grant_updated = "benefit_grant.updated"
     benefit_grant_revoked = "benefit_grant.revoked"
     organization_updated = "organization.updated"
+    manual_invoice_created = "manual_invoice.created"
+    manual_invoice_updated = "manual_invoice.updated"
+    manual_invoice_issued = "manual_invoice.issued"
+    manual_invoice_paid = "manual_invoice.paid"
+    manual_invoice_voided = "manual_invoice.voided"
 
 
 CustomerWebhookEventType = Literal[
