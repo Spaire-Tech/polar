@@ -67,6 +67,7 @@ class PaymentStepID(StrEnum):
     CREATE_PRODUCT = "create_product"
     INTEGRATE_CHECKOUT = "integrate_checkout"
     SETUP_ACCOUNT = "setup_account"
+    VERIFY_IDENTITY = "verify_identity"
 
 
 class PaymentStep(BaseModel):
@@ -840,8 +841,28 @@ class OrganizationService:
             PaymentStep(
                 id=PaymentStepID.SETUP_ACCOUNT,
                 title="Finish account setup",
-                description="Complete your account details and verify your identity",
+                description="Complete your account details to receive payouts",
                 completed=account_setup_complete,
+            )
+        )
+
+        # Step 4: Verify identity
+        org_repo = OrganizationRepository.from_session(session)
+        admin_user = await org_repo.get_admin_user(session, organization)
+        identity_verified = False
+        if admin_user is not None:
+            from polar.models.user import IdentityVerificationStatus
+
+            identity_verified = admin_user.identity_verification_status in (
+                IdentityVerificationStatus.verified,
+                IdentityVerificationStatus.pending,
+            )
+        steps.append(
+            PaymentStep(
+                id=PaymentStepID.VERIFY_IDENTITY,
+                title="Verify your identity",
+                description="Complete identity verification to start accepting payments",
+                completed=identity_verified,
             )
         )
 
@@ -908,6 +929,20 @@ class OrganizationService:
             organization.account_id,
         )
         if not account:
+            return False
+
+        # Admin user must have identity verified or pending
+        from polar.models.user import IdentityVerificationStatus
+
+        org_repo = OrganizationRepository.from_session(session)
+        admin_user = await org_repo.get_admin_user(session, organization)
+        if admin_user is None:
+            return False
+
+        if admin_user.identity_verification_status not in (
+            IdentityVerificationStatus.verified,
+            IdentityVerificationStatus.pending,
+        ):
             return False
 
         return True

@@ -6,15 +6,18 @@ import StreamlinedAccountReview from '@/components/Finance/StreamlinedAccountRev
 import { DashboardBody } from '@/components/Layout/DashboardLayout'
 import { Modal } from '@/components/Modal'
 import { useModal } from '@/components/Modal/useModal'
+import { useAuth } from '@/hooks/auth'
 import {
   useListAccounts,
   useOrganizationAccount,
 } from '@/hooks/queries'
 import { useOrganizationReviewStatus } from '@/hooks/queries/org'
+import { useCreateIdentityVerification } from '@/hooks/queries/user'
 import { api } from '@/utils/client'
 import { schemas, unwrap } from '@polar-sh/client'
 import { ShadowBoxOnMd } from '@polar-sh/ui/components/atoms/ShadowBox'
 import { Separator } from '@polar-sh/ui/components/ui/separator'
+import { loadStripe } from '@stripe/stripe-js'
 import React, { useCallback, useState } from 'react'
 
 export default function ClientPage({
@@ -22,6 +25,7 @@ export default function ClientPage({
 }: {
   organization: schemas['Organization']
 }) {
+  const { currentUser, reloadUser } = useAuth()
   const { data: accounts } = useListAccounts()
   const {
     isShown: isShownSetupModal,
@@ -36,13 +40,14 @@ export default function ClientPage({
   const { data: organizationAccount, error: accountError } =
     useOrganizationAccount(organization.id)
   const { data: reviewStatus } = useOrganizationReviewStatus(organization.id)
+  const createIdentityVerification = useCreateIdentityVerification()
 
   const [validationCompleted, setValidationCompleted] = useState(false)
 
   const isNotAdmin =
     accountError && (accountError as any)?.response?.status === 403
 
-  type Step = 'review' | 'validation' | 'account' | 'complete'
+  type Step = 'review' | 'validation' | 'account' | 'identity' | 'complete'
 
   const getInitialStep = (): Step => {
     if (!organization.details_submitted_at) {
@@ -71,6 +76,16 @@ export default function ClientPage({
     ) {
       return 'account'
     }
+
+    // Check identity verification
+    const identityStatus = currentUser?.identity_verification_status
+    if (
+      identityStatus !== 'verified' &&
+      identityStatus !== 'pending'
+    ) {
+      return 'identity'
+    }
+
     return 'complete'
   }
 
@@ -98,7 +113,15 @@ export default function ClientPage({
       ) {
         setStep('account')
       } else {
-        setStep('complete')
+        const identityStatus = currentUser?.identity_verification_status
+        if (
+          identityStatus !== 'verified' &&
+          identityStatus !== 'pending'
+        ) {
+          setStep('identity')
+        } else {
+          setStep('complete')
+        }
       }
     }
   }, [
@@ -109,6 +132,7 @@ export default function ClientPage({
     reviewStatus?.appeal_submitted_at,
     reviewStatus?.verdict,
     isNotAdmin,
+    currentUser?.identity_verification_status,
   ])
 
   const handleDetailsSubmitted = useCallback(() => {
@@ -142,6 +166,24 @@ export default function ClientPage({
     }
   }, [organization.slug, organizationAccount, showSetupModal])
 
+  const handleStartIdentityVerification = useCallback(async () => {
+    const result = await createIdentityVerification.mutateAsync()
+    if (result.error || !result.data) {
+      return
+    }
+
+    const stripe = await loadStripe(process.env.NEXT_PUBLIC_STRIPE_KEY || '')
+    if (!stripe) {
+      return
+    }
+
+    const { error } = await stripe.verifyIdentity(result.data.client_secret)
+    if (!error) {
+      // Reload user to get updated identity_verification_status
+      await reloadUser()
+    }
+  }, [createIdentityVerification, reloadUser])
+
   const handleAppealApproved = useCallback(() => {
     if (
       !organizationAccount ||
@@ -155,11 +197,19 @@ export default function ClientPage({
     }
 
     setValidationCompleted(true)
-    setStep('complete')
-  }, [organizationAccount])
+    const identityStatus = currentUser?.identity_verification_status
+    if (
+      identityStatus !== 'verified' &&
+      identityStatus !== 'pending'
+    ) {
+      setStep('identity')
+    } else {
+      setStep('complete')
+    }
+  }, [organizationAccount, currentUser?.identity_verification_status])
 
   const handleSkipAccountSetup = useCallback(() => {
-    setStep('complete')
+    setStep('identity')
   }, [])
 
   const handleAppealSubmitted = useCallback(() => {
@@ -177,7 +227,9 @@ export default function ClientPage({
           (validationCompleted ||
             reviewStatus?.verdict === 'PASS' ||
             reviewStatus?.appeal_decision === 'approved' ||
-            reviewStatus?.appeal_submitted_at))
+            reviewStatus?.appeal_submitted_at)) ||
+        (targetStep === 'identity' &&
+          organizationAccount?.is_details_submitted)
 
       if (canNavigate) {
         setStep(targetStep)
@@ -201,10 +253,12 @@ export default function ClientPage({
           requireDetails={requireDetails}
           organizationAccount={organizationAccount}
           organizationReviewStatus={reviewStatus}
+          identityVerificationStatus={currentUser?.identity_verification_status}
           isNotAdmin={isNotAdmin}
           onDetailsSubmitted={handleDetailsSubmitted}
           onValidationCompleted={handleValidationCompleted}
           onStartAccountSetup={handleStartAccountSetup}
+          onStartIdentityVerification={handleStartIdentityVerification}
           onSkipAccountSetup={handleSkipAccountSetup}
           onAppealApproved={handleAppealApproved}
           onAppealSubmitted={handleAppealSubmitted}

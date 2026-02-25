@@ -7,8 +7,9 @@ import { Check } from 'lucide-react'
 import React, { useState } from 'react'
 import { twMerge } from 'tailwind-merge'
 import AccountStep from './Steps/AccountStep'
+import IdentityStep from './Steps/IdentityStep'
 
-type Step = 'review' | 'validation' | 'account' | 'complete'
+type Step = 'review' | 'validation' | 'account' | 'identity' | 'complete'
 
 type StepStatus =
   | 'pending'
@@ -30,10 +31,12 @@ interface StreamlinedAccountReviewProps {
   requireDetails: boolean
   organizationAccount?: schemas['Account']
   organizationReviewStatus?: schemas['OrganizationReviewStatus']
+  identityVerificationStatus?: string
   isNotAdmin?: boolean
   onDetailsSubmitted: () => void
   onValidationCompleted: () => void
   onStartAccountSetup: () => void
+  onStartIdentityVerification: () => void
   onSkipAccountSetup?: () => void
   onAppealApproved?: () => void
   onAppealSubmitted?: () => void
@@ -170,10 +173,12 @@ export default function StreamlinedAccountReview({
   requireDetails,
   organizationAccount,
   organizationReviewStatus,
+  identityVerificationStatus,
   isNotAdmin = false,
   onDetailsSubmitted,
   onValidationCompleted,
   onStartAccountSetup,
+  onStartIdentityVerification,
   onSkipAccountSetup,
   onAppealApproved,
   onAppealSubmitted,
@@ -200,6 +205,9 @@ export default function StreamlinedAccountReview({
     (organizationAccount !== undefined &&
       organizationAccount.is_details_submitted) ||
     isNotAdmin
+  const isIdentityCompleted =
+    identityVerificationStatus === 'verified' ||
+    identityVerificationStatus === 'pending'
 
   // --- Step status resolver ---
   const getStepStatus = (
@@ -275,6 +283,15 @@ export default function StreamlinedAccountReview({
         'account',
         isAccountCompleted,
         isValidationCompleted || isAppealSubmitted,
+      ),
+    },
+    {
+      id: 'identity',
+      label: 'Identity',
+      status: getStepStatus(
+        'identity',
+        isIdentityCompleted,
+        isAccountCompleted,
       ),
     },
   ]
@@ -361,6 +378,18 @@ export default function StreamlinedAccountReview({
             isNotAdmin={isNotAdmin}
             onStartAccountSetup={onStartAccountSetup}
             onSkipAccountSetup={onSkipAccountSetup}
+          />
+        </StepCard>
+      )}
+
+      {currentStep === 'identity' && (
+        <StepCard
+          title="Identity Verification"
+          subtitle="Verify your identity to start accepting payments."
+        >
+          <IdentityStep
+            identityVerificationStatus={identityVerificationStatus}
+            onStartIdentityVerification={onStartIdentityVerification}
           />
         </StepCard>
       )}
