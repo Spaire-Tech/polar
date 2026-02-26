@@ -214,7 +214,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
   },
   {
     id: 'claude-code',
-    title: 'Claude Code',
+    title: 'Agent Install',
     icon: <AutoFixHighOutlined fontSize="inherit" />,
     link: `/dashboard/${org?.slug}/claude-code`,
     checkIsActive: (currentRoute: string): boolean => {
