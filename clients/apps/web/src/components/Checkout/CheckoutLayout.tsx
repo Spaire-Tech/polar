@@ -22,7 +22,7 @@ const CheckoutLayout: React.FC<
 
   return (
     <PolarThemeProvider>
-      <div className="md:dark:bg-polar-950 dark:bg-polar-900 relative h-full overflow-hidden bg-white md:bg-gray-50 dark:text-white">
+      <div className="dark md:dark:bg-polar-950 dark:bg-polar-900 relative h-full overflow-hidden bg-white md:bg-gray-50 dark:text-white">
         {/* Decorative gradient orbs */}
         <div className="pointer-events-none absolute -top-32 -left-32 h-[500px] w-[500px] rounded-full bg-blue-400/[0.07] blur-3xl dark:bg-blue-500/20" />
         <div className="pointer-events-none absolute -right-24 top-1/3 h-[400px] w-[400px] rounded-full bg-blue-300/[0.06] blur-3xl dark:bg-blue-400/15" />
