@@ -5,7 +5,6 @@ import ArrowBackOutlined from '@mui/icons-material/ArrowBackOutlined'
 import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
 import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined'
 import CheckOutlined from '@mui/icons-material/CheckOutlined'
-import SmartToyOutlined from '@mui/icons-material/SmartToyOutlined'
 import { OrganizationContext } from '@/providers/maintainerOrganization'
 import Button from '@polar-sh/ui/components/atoms/Button'
 import Link from 'next/link'
@@ -95,30 +94,6 @@ export default function IntegrationAgentPage({
                     description={step.description}
                   />
                 ))}
-              </div>
-            </FadeUp>
-
-            {/* What is Claude Code callout */}
-            <FadeUp className="flex flex-col gap-y-4">
-              <div className="dark:border-polar-700 dark:bg-polar-900 flex flex-col gap-y-4 rounded-2xl border border-gray-200 p-6">
-                <div className="flex items-center gap-x-3">
-                  <SmartToyOutlined className="text-orange-500" />
-                  <h3 className="text-base font-medium">
-                    What is Claude Code?
-                  </h3>
-                </div>
-                <p className="dark:text-polar-400 text-sm leading-relaxed text-gray-500">
-                  Claude Code is an AI coding agent made by Anthropic that runs
-                  in your terminal. It can read your codebase, understand your
-                  project structure, and make changes directly to your files. No
-                  Claude API key is needed — you just install it and use it.
-                  When you run the{' '}
-                  <code className="dark:bg-polar-800 rounded bg-gray-100 px-1.5 py-0.5 text-xs">
-                    /setup-usage-billing
-                  </code>{' '}
-                  command, the agent interactively walks you through the entire
-                  Spaire usage billing setup.
-                </p>
               </div>
             </FadeUp>
 
