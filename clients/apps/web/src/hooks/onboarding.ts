@@ -8,7 +8,8 @@ import { useCallback, useMemo } from 'react'
 const ONBOARDING_COOKIE_NAME = 'polar_onboarding_session'
 const SESSION_TIMEOUT_HOURS = 24
 
-export type OnboardingStep = 'org' | 'lovable' | 'product' | 'integrate'
+/** @deprecated 'lovable' and 'product' are kept for backward compatibility with existing components */
+export type OnboardingStep = 'org' | 'integrate' | 'lovable' | 'product'
 export type SignupMethod = 'github' | 'google' | 'email'
 
 export const inferSignupMethod = (
@@ -77,6 +78,7 @@ interface UseOnboardingTrackingReturn {
   trackStepCompleted: (step: OnboardingStep, organizationId?: string) => void
   trackStepSkipped: (step: OnboardingStep, organizationId?: string) => void
   trackCompleted: (organizationId: string) => void
+  updateSurveyAnswers: (answers: { business_type?: string; audience_type?: string; referral_source?: string }) => void
   getSession: () => OnboardingSessionState | null
   clearSession: () => void
   experimentVariant: string
@@ -188,6 +190,29 @@ export const useOnboardingTracking = (): UseOnboardingTrackingReturn => {
     [captureEvent],
   )
 
+  const updateSurveyAnswers = useCallback(
+    (answers: { business_type?: string; audience_type?: string; referral_source?: string }): void => {
+      const session = getOnboardingSession()
+      if (!session) return
+
+      setOnboardingSession({
+        ...session,
+        business_type: answers.business_type ?? session.business_type,
+        audience_type: answers.audience_type ?? session.audience_type,
+        referral_source: answers.referral_source ?? session.referral_source,
+      })
+
+      captureEvent('dashboard:onboarding:survey_answers', {
+        onboarding_session_id: session.session_id,
+        business_type: answers.business_type ?? null,
+        audience_type: answers.audience_type ?? null,
+        referral_source: answers.referral_source ?? null,
+        experiment_variant: session.experiment_variant,
+      })
+    },
+    [captureEvent],
+  )
+
   const trackCompleted = useCallback(
     (organizationId: string): void => {
       const session = getOnboardingSession()
@@ -219,6 +244,7 @@ export const useOnboardingTracking = (): UseOnboardingTrackingReturn => {
       trackStepCompleted,
       trackStepSkipped,
       trackCompleted,
+      updateSurveyAnswers,
       getSession,
       clearSession,
       experimentVariant,
@@ -229,6 +255,7 @@ export const useOnboardingTracking = (): UseOnboardingTrackingReturn => {
       trackStepCompleted,
       trackStepSkipped,
       trackCompleted,
+      updateSurveyAnswers,
       getSession,
       clearSession,
       experimentVariant,

@@ -1,5 +1,9 @@
-import LovablePage from './LovablePage'
+import { redirect } from 'next/navigation'
 
-export default function Page() {
-  return <LovablePage />
+export default function Page({
+  params,
+}: {
+  params: { organization: string }
+}) {
+  redirect(`/dashboard/${params.organization}/onboarding/integrate`)
 }

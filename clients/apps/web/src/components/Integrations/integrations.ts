@@ -6,6 +6,7 @@ export interface BaseIntegration {
   category: 'ai-builder' | 'backend' | 'framework' | 'auth'
   categoryLabel: string
   howItWorks: { title: string; description: string }[]
+  comingSoon?: boolean
 }
 
 export interface PromptIntegration extends BaseIntegration {
@@ -21,7 +22,7 @@ export interface SdkIntegration extends BaseIntegration {
   pythonInstall?: string
   docsLink: string
   code: string
-  codeLang: 'typescript' | 'python' | 'bash' | 'go'
+  codeLang: 'typescript' | 'python' | 'bash' | 'go' | 'php'
   envVars: string
 }
 
@@ -123,6 +124,7 @@ export const SUPABASE_INTEGRATION: SdkIntegration = {
     'Use the Spaire SDK inside Supabase Edge Functions to create checkouts, handle webhooks, and manage subscriptions \u2014 all serverless.',
   category: 'backend',
   categoryLabel: 'Backend Platform',
+  comingSoon: true,
   howItWorks: [
     {
       title: 'Install SDK',
@@ -340,6 +342,7 @@ export const BETTERAUTH_INTEGRATION: SdkIntegration = {
     'The official Spaire plugin for BetterAuth gives you checkout, customer portal, usage-based billing, and webhooks \u2014 all wired into your auth layer.',
   category: 'auth',
   categoryLabel: 'Auth Framework',
+  comingSoon: true,
   howItWorks: [
     {
       title: 'Install plugin',
@@ -497,19 +500,19 @@ with Spaire(
     redirect(res.url)`,
 }
 
-export const GO_SDK_INTEGRATION: SdkIntegration = {
+export const PHP_SDK_INTEGRATION: SdkIntegration = {
   type: 'sdk',
-  slug: 'go-sdk',
-  name: 'Go SDK',
-  tagline: 'Build with Go. Monetize with Spaire.',
+  slug: 'php-sdk',
+  name: 'PHP SDK',
+  tagline: 'Build with PHP. Monetize with Spaire.',
   description:
-    'The official Spaire Go SDK gives you a clean, idiomatic interface to create checkouts, manage subscriptions, and handle webhooks \u2014 built for any Go HTTP server.',
+    'The official Spaire PHP SDK gives you a clean, type-safe interface to create checkouts, manage subscriptions, and handle webhooks \u2014 built for any PHP application.',
   category: 'backend',
   categoryLabel: 'Backend SDK',
   howItWorks: [
     {
       title: 'Install SDK',
-      description: 'Add the Spaire module to your Go project',
+      description: 'Add spaire-sh/sdk via Composer',
     },
     {
       title: 'Configure credentials',
@@ -520,40 +523,31 @@ export const GO_SDK_INTEGRATION: SdkIntegration = {
       description: 'Create checkouts and handle webhooks',
     },
   ],
-  packages: 'github.com/spairehq/spaire-go',
-  pythonInstall: 'go get github.com/spairehq/spaire-go',
-  docsLink: 'https://docs.spairehq.com/integrate/sdk/go',
-  codeLang: 'go',
+  packages: 'spaire-sh/sdk',
+  pythonInstall: 'composer require spaire-sh/sdk',
+  docsLink: 'https://docs.spairehq.com/integrate/sdk/php',
+  codeLang: 'php',
   envVars: `SPAIRE_ACCESS_TOKEN=your_access_token
 SPAIRE_SUCCESS_URL=https://example.com/success?checkout_id={CHECKOUT_ID}`,
-  code: `package main
+  code: `<?php
 
-import (
-\t"context"
-\t"log"
-\t"os"
+declare(strict_types=1);
 
-\tspairego "github.com/spairehq/spaire-go"
-\t"github.com/spairehq/spaire-go/models/components"
-)
+require 'vendor/autoload.php';
 
-func main() {
-\tctx := context.Background()
+use Spaire\\Spaire;
 
-\ts := spairego.New(
-\t\tspairego.WithSecurity(os.Getenv("SPAIRE_ACCESS_TOKEN")),
-\t)
+$sdk = Spaire::builder()
+    ->setSecurity(getenv('SPAIRE_ACCESS_TOKEN'))
+    ->build();
 
-\tres, err := s.Checkouts.Create(ctx, components.CheckoutCreate{
-\t\tProducts:   []string{"YOUR_PRODUCT_ID"},
-\t\tSuccessURL: os.Getenv("SPAIRE_SUCCESS_URL"),
-\t})
-\tif err != nil {
-\t\tlog.Fatal(err)
-\t}
+$response = $sdk->checkouts->create([
+    'products' => ['YOUR_PRODUCT_ID'],
+    'success_url' => getenv('SPAIRE_SUCCESS_URL'),
+]);
 
-\tlog.Println(res.Checkout.URL)
-}`,
+// Redirect to checkout
+header('Location: ' . $response->url);`,
 }
 
 export const ALL_INTEGRATIONS: Integration[] = [
@@ -566,7 +560,7 @@ export const ALL_INTEGRATIONS: Integration[] = [
   BETTERAUTH_INTEGRATION,
   EXPRESS_INTEGRATION,
   PYTHON_SDK_INTEGRATION,
-  GO_SDK_INTEGRATION,
+  PHP_SDK_INTEGRATION,
 ]
 
 export const getIntegrationBySlug = (

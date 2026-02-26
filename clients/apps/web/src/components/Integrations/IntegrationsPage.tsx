@@ -8,9 +8,9 @@ import { useContext } from 'react'
 import BetterAuthIcon from '../Icons/frameworks/better-auth'
 import BoltIcon from '../Icons/frameworks/bolt'
 import ExpressIcon from '../Icons/frameworks/express'
-import GoIcon from '../Icons/frameworks/go'
 import LovableIcon from '../Icons/frameworks/lovable'
 import NextJsIcon from '../Icons/frameworks/nextjs'
+import PhpIcon from '../Icons/frameworks/php'
 import PythonIcon from '../Icons/frameworks/python'
 import ReplitIcon from '../Icons/frameworks/replit'
 import SupabaseIcon from '../Icons/frameworks/supabase'
@@ -27,7 +27,7 @@ const INTEGRATION_ICONS: Record<string, React.ReactNode> = {
   'better-auth': <BetterAuthIcon size={36} />,
   express: <ExpressIcon size={36} />,
   'python-sdk': <PythonIcon size={36} />,
-  'go-sdk': <GoIcon />,
+  'php-sdk': <PhpIcon />,
 }
 
 const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
@@ -56,25 +56,35 @@ function IntegrationCard({ integration }: { integration: Integration }) {
     bg: 'bg-gray-50 dark:bg-polar-800',
     text: 'text-gray-600 dark:text-polar-400',
   }
+  const isComingSoon = integration.comingSoon
 
-  return (
-    <Link
-      href={`/dashboard/${organization.slug}/integrations/${integration.slug}`}
-      className="group dark:border-polar-700 dark:hover:border-polar-600 flex flex-col gap-y-5 rounded-2xl border border-gray-200 p-6 transition-all hover:border-gray-300 hover:shadow-md dark:hover:shadow-none"
+  const content = (
+    <div
+      className={`group dark:border-polar-700 flex flex-col gap-y-5 rounded-2xl border border-gray-200 p-6 transition-all ${
+        isComingSoon
+          ? 'cursor-default opacity-60'
+          : 'dark:hover:border-polar-600 hover:border-gray-300 hover:shadow-md dark:hover:shadow-none'
+      }`}
     >
       <div className="flex flex-row items-start justify-between">
         <div className="flex items-center gap-x-3">
-          {icon}
+          <div className={isComingSoon ? 'grayscale' : ''}>{icon}</div>
           <div className="flex flex-col gap-y-0.5">
             <h3 className="text-base font-medium dark:text-white">
               {integration.name}
             </h3>
-            <span className={`text-[11px] font-medium ${colors.text}`}>
+            <span className={`text-[11px] font-medium ${isComingSoon ? 'dark:text-polar-500 text-gray-400' : colors.text}`}>
               {integration.categoryLabel}
             </span>
           </div>
         </div>
-        <ArrowOutwardOutlined className="h-4 w-4 text-gray-300 transition-colors group-hover:text-gray-500 dark:text-polar-600 dark:group-hover:text-polar-400" />
+        {isComingSoon ? (
+          <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-medium text-gray-500 dark:bg-polar-800 dark:text-polar-400">
+            Coming Soon
+          </span>
+        ) : (
+          <ArrowOutwardOutlined className="h-4 w-4 text-gray-300 transition-colors group-hover:text-gray-500 dark:text-polar-600 dark:group-hover:text-polar-400" />
+        )}
       </div>
 
       <p className="dark:text-polar-400 text-sm leading-relaxed text-gray-500">
@@ -83,11 +93,27 @@ function IntegrationCard({ integration }: { integration: Integration }) {
 
       <div className="flex flex-row items-center gap-x-2">
         <span
-          className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${colors.bg} ${colors.text}`}
+          className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${
+            isComingSoon
+              ? 'bg-gray-50 text-gray-400 dark:bg-polar-800 dark:text-polar-500'
+              : `${colors.bg} ${colors.text}`
+          }`}
         >
           {integration.categoryLabel}
         </span>
       </div>
+    </div>
+  )
+
+  if (isComingSoon) {
+    return content
+  }
+
+  return (
+    <Link
+      href={`/dashboard/${organization.slug}/integrations/${integration.slug}`}
+    >
+      {content}
     </Link>
   )
 }
