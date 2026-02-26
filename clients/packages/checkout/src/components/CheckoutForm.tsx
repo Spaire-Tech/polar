@@ -47,8 +47,6 @@ import {
 import AmountLabel from './AmountLabel'
 import CustomFieldInput from './CustomFieldInput'
 import MeteredPriceLabel from './MeteredPriceLabel'
-import PolarLogo from './PolarLogo'
-
 const DetailRow = ({
   title,
   emphasis,
@@ -898,17 +896,9 @@ const BaseCheckoutForm = ({
         </Form>
         <p className="dark:text-polar-500 text-center text-xs text-gray-500">
           This order is processed by our online reseller & Merchant of Record,
-          Spaire, who also handles order-related inquiries and returns.
+          who also handles order-related inquiries and returns.
         </p>
       </div>
-      <a
-        href="https://www.spairehq.com?utm_source=checkout"
-        className="dark:text-polar-600 flex w-full flex-row items-center justify-center gap-x-3 text-sm text-gray-400"
-        target="_blank"
-      >
-        <span>Powered by</span>
-        <PolarLogo className="h-5" />
-      </a>
     </div>
   )
 }
