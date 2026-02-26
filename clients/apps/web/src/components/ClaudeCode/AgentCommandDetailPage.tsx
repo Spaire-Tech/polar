@@ -12,36 +12,28 @@ import { useCallback, useContext, useState } from 'react'
 import { motion } from 'framer-motion'
 import { twMerge } from 'tailwind-merge'
 import { FadeUp } from '../Animated/FadeUp'
+import ClaudeCodeIcon from '../Icons/frameworks/claude-code'
 import {
   SyntaxHighlighterClient,
   SyntaxHighlighterProvider,
 } from '../SyntaxHighlighterShiki/SyntaxHighlighterClient'
-import type { AgentIntegration } from './integrations'
+import type { AgentCommand } from './agentCommands'
 
-interface IntegrationAgentPageProps {
-  integration: AgentIntegration
-  icon: React.ReactNode
+interface AgentCommandDetailPageProps {
+  command: AgentCommand
 }
 
-export default function IntegrationAgentPage({
-  integration,
-  icon,
-}: IntegrationAgentPageProps) {
+export default function AgentCommandDetailPage({
+  command,
+}: AgentCommandDetailPageProps) {
   const { organization } = useContext(OrganizationContext)
-  const [installCopied, setInstallCopied] = useState(false)
   const [commandCopied, setCommandCopied] = useState(false)
 
-  const handleCopyInstall = useCallback(() => {
-    navigator.clipboard.writeText(integration.installCommand)
-    setInstallCopied(true)
-    setTimeout(() => setInstallCopied(false), 2500)
-  }, [integration.installCommand])
-
   const handleCopyCommand = useCallback(() => {
-    navigator.clipboard.writeText(integration.runCommand)
+    navigator.clipboard.writeText(command.command)
     setCommandCopied(true)
     setTimeout(() => setCommandCopied(false), 2500)
-  }, [integration.runCommand])
+  }, [command.command])
 
   return (
     <SyntaxHighlighterProvider>
@@ -56,27 +48,27 @@ export default function IntegrationAgentPage({
             {/* Back link */}
             <FadeUp className="flex flex-row justify-start">
               <Link
-                href={`/dashboard/${organization.slug}/integrations`}
+                href={`/dashboard/${organization.slug}/claude-code`}
                 className="flex cursor-pointer items-center gap-x-1.5 rounded-full px-3 py-1.5 text-sm text-blue-500 transition-colors duration-100 hover:bg-blue-50 hover:text-blue-600 dark:text-blue-400 dark:hover:bg-blue-500/10 dark:hover:text-blue-300"
               >
                 <ArrowBackOutlined sx={{ fontSize: 16 }} />
-                All Integrations
+                Claude Code
               </Link>
             </FadeUp>
 
             {/* Header */}
             <FadeUp className="flex flex-col gap-y-4">
               <div className="flex items-center gap-x-3">
-                {icon}
+                <ClaudeCodeIcon size={40} />
                 <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-medium text-orange-600 dark:bg-orange-500/10 dark:text-orange-400">
-                  {integration.categoryLabel}
+                  {command.label}
                 </span>
               </div>
               <h1 className="mt-1 text-2xl font-medium tracking-tight md:text-3xl">
-                {integration.tagline}
+                {command.tagline}
               </h1>
               <p className="dark:text-polar-400 max-w-lg text-base leading-relaxed text-gray-500">
-                {integration.description}
+                {command.description}
               </p>
             </FadeUp>
 
@@ -86,7 +78,7 @@ export default function IntegrationAgentPage({
                 How it works
               </h2>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                {integration.howItWorks.map((step, i) => (
+                {command.howItWorks.map((step, i) => (
                   <HowItWorksCard
                     key={i}
                     number={i + 1}
@@ -97,35 +89,11 @@ export default function IntegrationAgentPage({
               </div>
             </FadeUp>
 
-            {/* Step 1: Install Claude Code */}
+            {/* Run the command */}
             <FadeUp className="flex flex-col gap-y-6">
               <div className="flex flex-row items-center justify-between">
                 <h2 className="text-base font-medium">
-                  1. Install Claude Code
-                </h2>
-                <CopyButton
-                  copied={installCopied}
-                  onCopy={handleCopyInstall}
-                  label="Copy"
-                />
-              </div>
-              <CodeWrapper>
-                <SyntaxHighlighterClient
-                  lang="bash"
-                  code={integration.installCommand}
-                />
-              </CodeWrapper>
-              <p className="dark:text-polar-500 text-xs leading-relaxed text-gray-400">
-                Requires Node.js 18+. This installs Claude Code globally so you
-                can use it in any project.
-              </p>
-            </FadeUp>
-
-            {/* Step 2: Run the agent */}
-            <FadeUp className="flex flex-col gap-y-6">
-              <div className="flex flex-row items-center justify-between">
-                <h2 className="text-base font-medium">
-                  2. Run the agent in your project
+                  Run the agent in your project
                 </h2>
                 <CopyButton
                   copied={commandCopied}
@@ -136,7 +104,7 @@ export default function IntegrationAgentPage({
               <CodeWrapper>
                 <SyntaxHighlighterClient
                   lang="bash"
-                  code={`cd your-project\nclaude\n\n# Then type:\n${integration.runCommand}`}
+                  code={`cd your-project\nclaude\n\n# Then type:\n${command.command}`}
                 />
               </CodeWrapper>
               <p className="dark:text-polar-500 text-xs leading-relaxed text-gray-400">
@@ -151,7 +119,7 @@ export default function IntegrationAgentPage({
                 What the agent does for you
               </h2>
               <div className="dark:border-polar-700 dark:bg-polar-900 flex flex-col divide-y divide-gray-100 rounded-2xl border border-gray-200 dark:divide-polar-700">
-                {integration.whatTheAgentDoes.map((item, i) => (
+                {command.whatTheAgentDoes.map((item, i) => (
                   <div key={i} className="flex items-start gap-x-3 px-6 py-4">
                     <CheckOutlined
                       className="mt-0.5 shrink-0 text-emerald-500"
@@ -168,21 +136,21 @@ export default function IntegrationAgentPage({
             {/* Actions */}
             <FadeUp className="flex flex-col gap-y-3 pt-2">
               <Link
-                href={integration.docsLink}
+                href={command.docsLink}
                 target="_blank"
                 className="w-full"
               >
                 <Button size="lg" fullWidth>
-                  <span>Usage Billing Docs</span>
+                  <span>View Docs</span>
                   <ArrowOutwardOutlined className="ml-2" fontSize="small" />
                 </Button>
               </Link>
               <div className="flex flex-row items-center justify-center pt-1">
                 <Link
-                  href={`/dashboard/${organization.slug}/integrations`}
+                  href={`/dashboard/${organization.slug}/claude-code`}
                   className="cursor-pointer rounded-full px-3 py-1.5 text-sm text-blue-500 transition-colors duration-100 hover:bg-blue-50 hover:text-blue-600 dark:text-blue-400 dark:hover:bg-blue-500/10 dark:hover:text-blue-300"
                 >
-                  Back to all integrations
+                  Back to Claude Code
                 </Link>
               </div>
             </FadeUp>
