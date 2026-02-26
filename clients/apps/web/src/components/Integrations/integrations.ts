@@ -3,7 +3,7 @@ export interface BaseIntegration {
   name: string
   tagline: string
   description: string
-  category: 'ai-builder' | 'backend' | 'framework' | 'auth'
+  category: 'ai-builder' | 'backend' | 'framework' | 'auth' | 'ai-agent'
   categoryLabel: string
   howItWorks: { title: string; description: string }[]
   comingSoon?: boolean
@@ -26,7 +26,15 @@ export interface SdkIntegration extends BaseIntegration {
   envVars: string
 }
 
-export type Integration = PromptIntegration | SdkIntegration
+export interface AgentIntegration extends BaseIntegration {
+  type: 'agent'
+  installCommand: string
+  runCommand: string
+  whatTheAgentDoes: string[]
+  docsLink: string
+}
+
+export type Integration = PromptIntegration | SdkIntegration | AgentIntegration
 
 export const NEXTJS_INTEGRATION: SdkIntegration = {
   type: 'sdk',
@@ -550,7 +558,47 @@ $response = $sdk->checkouts->create([
 header('Location: ' . $response->url);`,
 }
 
+export const CLAUDE_CODE_INTEGRATION: AgentIntegration = {
+  type: 'agent',
+  slug: 'claude-code',
+  name: 'Claude Code',
+  tagline: 'Let an AI agent set up usage billing for you.',
+  description:
+    'Claude Code is an AI agent that lives in your terminal. Run one command and it detects your framework, installs the Spaire SDK, creates meters, writes ingestion code, and wires up metered pricing \u2014 all interactively, right in your codebase.',
+  category: 'ai-agent',
+  categoryLabel: 'AI Agent',
+  howItWorks: [
+    {
+      title: 'Run the agent',
+      description:
+        'Open Claude Code in your project and type /setup-usage-billing',
+    },
+    {
+      title: 'Answer a few questions',
+      description:
+        'The agent asks what you want to meter (tokens, API calls, storage, etc.)',
+    },
+    {
+      title: 'Agent writes the code',
+      description:
+        'It generates SDK setup, event ingestion, and metered pricing \u2014 directly in your project',
+    },
+  ],
+  installCommand: 'npm install -g @anthropic-ai/claude-code',
+  runCommand: '/setup-usage-billing',
+  whatTheAgentDoes: [
+    'Detects your framework (Next.js, Express, Python, Go, etc.)',
+    'Installs the Spaire SDK and ingestion packages',
+    'Creates meters for your chosen metric (LLM tokens, API calls, storage, compute time)',
+    'Generates event ingestion code using Spaire Ingestion Strategies',
+    'Walks you through adding metered pricing to your product in the dashboard',
+    'Optionally sets up credits, balance checks, and webhook handlers',
+  ],
+  docsLink: 'https://docs.spairehq.com/features/usage-based-billing/introduction',
+}
+
 export const ALL_INTEGRATIONS: Integration[] = [
+  CLAUDE_CODE_INTEGRATION,
   NEXTJS_INTEGRATION,
   LOVABLE_INTEGRATION,
   SUPABASE_INTEGRATION,

@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { useContext } from 'react'
 import BetterAuthIcon from '../Icons/frameworks/better-auth'
 import BoltIcon from '../Icons/frameworks/bolt'
+import ClaudeCodeIcon from '../Icons/frameworks/claude-code'
 import ExpressIcon from '../Icons/frameworks/express'
 import LovableIcon from '../Icons/frameworks/lovable'
 import NextJsIcon from '../Icons/frameworks/nextjs'
@@ -18,6 +19,7 @@ import V0Icon from '../Icons/frameworks/v0'
 import { ALL_INTEGRATIONS, type Integration } from './integrations'
 
 const INTEGRATION_ICONS: Record<string, React.ReactNode> = {
+  'claude-code': <ClaudeCodeIcon size={36} />,
   nextjs: <NextJsIcon size={36} />,
   lovable: <LovableIcon size={36} />,
   supabase: <SupabaseIcon size={36} />,
@@ -46,6 +48,10 @@ const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
   auth: {
     bg: 'bg-amber-50 dark:bg-amber-500/10',
     text: 'text-amber-600 dark:text-amber-400',
+  },
+  'ai-agent': {
+    bg: 'bg-orange-50 dark:bg-orange-500/10',
+    text: 'text-orange-600 dark:text-orange-400',
   },
 }
 
