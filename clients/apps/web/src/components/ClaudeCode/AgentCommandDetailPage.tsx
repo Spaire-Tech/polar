@@ -64,11 +64,11 @@ export default function AgentCommandDetailPage({
             {/* Back link */}
             <FadeUp className="flex flex-row justify-start">
               <Link
-                href={`/dashboard/${organization.slug}/claude-code`}
+                href={`/dashboard/${organization.slug}/integrations`}
                 className="flex cursor-pointer items-center gap-x-1.5 rounded-full px-3 py-1.5 text-sm text-blue-500 transition-colors duration-100 hover:bg-blue-50 hover:text-blue-600 dark:text-blue-400 dark:hover:bg-blue-500/10 dark:hover:text-blue-300"
               >
                 <ArrowBackOutlined sx={{ fontSize: 16 }} />
-                Claude Code
+                Agent Install
               </Link>
             </FadeUp>
 
@@ -188,10 +188,10 @@ export default function AgentCommandDetailPage({
               </Link>
               <div className="flex flex-row items-center justify-center pt-1">
                 <Link
-                  href={`/dashboard/${organization.slug}/claude-code`}
+                  href={`/dashboard/${organization.slug}/integrations`}
                   className="cursor-pointer rounded-full px-3 py-1.5 text-sm text-blue-500 transition-colors duration-100 hover:bg-blue-50 hover:text-blue-600 dark:text-blue-400 dark:hover:bg-blue-500/10 dark:hover:text-blue-300"
                 >
-                  Back to Claude Code
+                  Back to Agent Install
                 </Link>
               </div>
             </FadeUp>

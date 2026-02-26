@@ -127,7 +127,7 @@ function AgentCommandCard({
   orgSlug: string
 }) {
   return (
-    <Link href={`/dashboard/${orgSlug}/claude-code/${command.slug}`}>
+    <Link href={`/dashboard/${orgSlug}/integrations/${command.slug}`}>
       <div className="group dark:border-polar-700 dark:hover:border-polar-600 flex flex-col gap-y-4 rounded-2xl border border-gray-200 p-6 transition-all hover:border-gray-300 hover:shadow-md dark:hover:shadow-none">
         <div className="flex flex-row items-start justify-between">
           <div className="flex flex-col gap-y-1">
