@@ -12,7 +12,7 @@ const CheckoutEmbedLayout: React.FC<
 > = ({ children, checkout, theme }) => {
   return (
     <div
-      className={theme === 'dark' ? 'dark' : 'light'}
+      className={theme === 'light' ? 'light' : 'dark'}
       id="polar-embed-layout"
     >
       <div className="flex h-full w-full items-center justify-center p-0 md:p-12 dark:text-white">

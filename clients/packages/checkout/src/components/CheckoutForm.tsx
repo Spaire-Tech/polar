@@ -820,7 +820,7 @@ const BaseCheckoutForm = ({
                           mode="standard"
                         />
                         {formattedDiscountDuration && (
-                          <span className="text-xs font-normal text-gray-500">
+                          <span className="dark:text-polar-500 text-xs font-normal text-gray-500">
                             {formattedDiscountDuration}
                           </span>
                         )}
@@ -855,7 +855,7 @@ const BaseCheckoutForm = ({
                         </DetailRow>
                       )}
                     {checkout.trialEnd && (
-                      <span className="dark:text-polar-500 text-gray-500:w text-sm">
+                      <span className="dark:text-polar-500 text-gray-500 text-sm">
                         Trial ends{' '}
                         <FormattedDateTime
                           datetime={checkout.trialEnd}

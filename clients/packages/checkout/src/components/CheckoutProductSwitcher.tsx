@@ -91,7 +91,7 @@ const CheckoutProductSwitcher = ({
               <label
                 key={price.id}
                 className={cn(
-                  `dark:divide-polar-700 dark:md:bg-polar-950 flex cursor-pointer flex-col divide-y divide-gray-200 rounded-2xl border shadow-xs transition-colors hover:border-blue-500 md:bg-white md:shadow-none dark:hover:border-blue-500`,
+                  `dark:divide-polar-700 dark:md:bg-polar-950 dark:border-polar-700 dark:shadow-none flex cursor-pointer flex-col divide-y divide-gray-200 rounded-2xl border shadow-xs transition-colors hover:border-blue-500 md:bg-white md:shadow-none dark:hover:border-blue-500`,
                   price.id === selectedProduct.id
                     ? 'border-blue-500 dark:border-blue-500'
                     : '',
@@ -120,7 +120,7 @@ const CheckoutProductSwitcher = ({
           <label
             key={product.id}
             className={cn(
-              `dark:divide-polar-700 dark:md:bg-polar-950 flex cursor-pointer flex-col divide-y divide-gray-200 rounded-2xl border shadow-xs transition-colors hover:border-blue-500 md:bg-white md:shadow-none dark:hover:border-blue-500`,
+              `dark:divide-polar-700 dark:md:bg-polar-950 dark:border-polar-700 dark:shadow-none flex cursor-pointer flex-col divide-y divide-gray-200 rounded-2xl border shadow-xs transition-colors hover:border-blue-500 md:bg-white md:shadow-none dark:hover:border-blue-500`,
               product.id === selectedProduct.id
                 ? 'border-blue-500 dark:border-blue-500'
                 : '',

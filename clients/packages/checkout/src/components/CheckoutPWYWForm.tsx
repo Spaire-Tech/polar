@@ -106,7 +106,7 @@ export const CheckoutPWYWForm = ({
               return (
                 <FormItem className="w-full">
                   <MoneyInput
-                    className="bg-white shadow-xs"
+                    className="bg-white shadow-xs dark:bg-polar-800 dark:border-polar-700 dark:shadow-none"
                     name={field.name}
                     currency={checkout.currency}
                     value={field.value || undefined}
