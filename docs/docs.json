@@ -121,6 +121,7 @@
               "integrate/sandbox",
               "integrate/customer-state",
               "integrate/mcp",
+              "integrate/agent-commands",
               {
                 "group": "SDKs",
                 "pages": [
