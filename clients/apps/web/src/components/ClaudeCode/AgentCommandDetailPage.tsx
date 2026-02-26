@@ -25,9 +25,9 @@ interface AgentCommandDetailPageProps {
 
 const COMMAND_FILE_URLS: Record<string, string> = {
   'setup-checkout':
-    'https://raw.githubusercontent.com/polarsource/polar/main/.claude/commands/setup-checkout.md',
+    'https://cdn.spairehq.com/claude/commands/setup-checkout.md',
   'setup-usage-billing':
-    'https://raw.githubusercontent.com/polarsource/polar/main/.claude/commands/setup-usage-billing.md',
+    'https://cdn.spairehq.com/claude/commands/setup-usage-billing.md',
 }
 
 export default function AgentCommandDetailPage({
@@ -37,7 +37,7 @@ export default function AgentCommandDetailPage({
   const [setupCopied, setSetupCopied] = useState(false)
   const [commandCopied, setCommandCopied] = useState(false)
 
-  const setupSnippet = `mkdir -p .claude/commands\ncurl -sL -o .claude/commands/${command.slug}.md \\\n  ${COMMAND_FILE_URLS[command.slug] ?? `https://raw.githubusercontent.com/polarsource/polar/main/.claude/commands/${command.slug}.md`}`
+  const setupSnippet = `mkdir -p .claude/commands\ncurl -sL -o .claude/commands/${command.slug}.md \\\n  ${COMMAND_FILE_URLS[command.slug] ?? `https://cdn.spairehq.com/claude/commands/${command.slug}.md`}`
 
   const handleCopySetup = useCallback(() => {
     navigator.clipboard.writeText(setupSnippet)

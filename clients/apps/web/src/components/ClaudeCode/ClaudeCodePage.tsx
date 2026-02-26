@@ -21,11 +21,11 @@ const SETUP_SNIPPET = `mkdir -p .claude/commands
 
 # Checkout command
 curl -sL -o .claude/commands/setup-checkout.md \\
-  https://raw.githubusercontent.com/polarsource/polar/main/.claude/commands/setup-checkout.md
+  https://cdn.spairehq.com/claude/commands/setup-checkout.md
 
 # Usage billing command
 curl -sL -o .claude/commands/setup-usage-billing.md \\
-  https://raw.githubusercontent.com/polarsource/polar/main/.claude/commands/setup-usage-billing.md`
+  https://cdn.spairehq.com/claude/commands/setup-usage-billing.md`
 
 export default function ClaudeCodePage() {
   const { organization } = useContext(OrganizationContext)
