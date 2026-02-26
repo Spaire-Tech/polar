@@ -23,11 +23,27 @@ interface AgentCommandDetailPageProps {
   command: AgentCommand
 }
 
+const COMMAND_FILE_URLS: Record<string, string> = {
+  'setup-checkout':
+    'https://raw.githubusercontent.com/polarsource/polar/main/.claude/commands/setup-checkout.md',
+  'setup-usage-billing':
+    'https://raw.githubusercontent.com/polarsource/polar/main/.claude/commands/setup-usage-billing.md',
+}
+
 export default function AgentCommandDetailPage({
   command,
 }: AgentCommandDetailPageProps) {
   const { organization } = useContext(OrganizationContext)
+  const [setupCopied, setSetupCopied] = useState(false)
   const [commandCopied, setCommandCopied] = useState(false)
+
+  const setupSnippet = `mkdir -p .claude/commands\ncurl -sL -o .claude/commands/${command.slug}.md \\\n  ${COMMAND_FILE_URLS[command.slug] ?? `https://raw.githubusercontent.com/polarsource/polar/main/.claude/commands/${command.slug}.md`}`
+
+  const handleCopySetup = useCallback(() => {
+    navigator.clipboard.writeText(setupSnippet)
+    setSetupCopied(true)
+    setTimeout(() => setSetupCopied(false), 2500)
+  }, [setupSnippet])
 
   const handleCopyCommand = useCallback(() => {
     navigator.clipboard.writeText(command.command)
@@ -89,11 +105,36 @@ export default function AgentCommandDetailPage({
               </div>
             </FadeUp>
 
+            {/* Add command file */}
+            <FadeUp className="flex flex-col gap-y-6">
+              <div className="flex flex-row items-center justify-between">
+                <h2 className="text-base font-medium">
+                  1. Add the command file to your project
+                </h2>
+                <CopyButton
+                  copied={setupCopied}
+                  onCopy={handleCopySetup}
+                  label="Copy"
+                />
+              </div>
+              <CodeWrapper>
+                <SyntaxHighlighterClient
+                  lang="bash"
+                  code={setupSnippet}
+                />
+              </CodeWrapper>
+              <p className="dark:text-polar-500 text-xs leading-relaxed text-gray-400">
+                This downloads the agent command into your project. Claude Code
+                loads it automatically as a custom slash command. Commit the
+                file so your whole team gets it.
+              </p>
+            </FadeUp>
+
             {/* Run the command */}
             <FadeUp className="flex flex-col gap-y-6">
               <div className="flex flex-row items-center justify-between">
                 <h2 className="text-base font-medium">
-                  Run the agent in your project
+                  2. Run the agent in your project
                 </h2>
                 <CopyButton
                   copied={commandCopied}

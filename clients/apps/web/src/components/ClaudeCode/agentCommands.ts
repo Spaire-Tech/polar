@@ -20,19 +20,19 @@ export const CHECKOUT_COMMAND: AgentCommand = {
   command: '/setup-checkout',
   howItWorks: [
     {
+      title: 'Add the command file',
+      description:
+        'Download the setup-checkout command into your project\u2019s .claude/commands/ directory',
+    },
+    {
       title: 'Run the agent',
       description:
         'Open Claude Code in your project and type /setup-checkout',
     },
     {
-      title: 'Pick your approach',
-      description:
-        'Overlay (zero backend), programmatic (EmbedCheckout.create), or server-side (SDK)',
-    },
-    {
       title: 'Agent writes the code',
       description:
-        'Adds the embed script, checkout buttons, and success page — directly in your files',
+        'Detects your framework, asks your approach, and writes checkout code directly in your files',
     },
   ],
   whatTheAgentDoes: [
@@ -48,7 +48,7 @@ export const CHECKOUT_COMMAND: AgentCommand = {
     'Optionally wires up customer portal link and idempotent webhook handler with signature verification',
     'Provides revert instructions so you can undo every change',
   ],
-  docsLink: 'https://docs.spairehq.com/checkout',
+  docsLink: 'https://docs.spairehq.com/integrate/agent-commands#setup-checkout',
 }
 
 export const USAGE_BILLING_COMMAND: AgentCommand = {
@@ -61,19 +61,19 @@ export const USAGE_BILLING_COMMAND: AgentCommand = {
   command: '/setup-usage-billing',
   howItWorks: [
     {
+      title: 'Add the command file',
+      description:
+        'Download the setup-usage-billing command into your project\u2019s .claude/commands/ directory',
+    },
+    {
       title: 'Run the agent',
       description:
         'Open Claude Code in your project and type /setup-usage-billing',
     },
     {
-      title: 'Answer a few questions',
-      description:
-        'The agent asks what you want to meter (tokens, API calls, storage, etc.)',
-    },
-    {
       title: 'Agent writes the code',
       description:
-        'It generates SDK setup, event ingestion, and metered pricing — directly in your project',
+        'Detects your stack, asks what to meter, and writes ingestion code directly in your project',
     },
   ],
   whatTheAgentDoes: [
@@ -91,7 +91,7 @@ export const USAGE_BILLING_COMMAND: AgentCommand = {
     'Provides revert instructions so you can undo every change',
   ],
   docsLink:
-    'https://docs.spairehq.com/features/usage-based-billing/introduction',
+    'https://docs.spairehq.com/integrate/agent-commands#setup-usage-billing',
 }
 
 export const ALL_AGENT_COMMANDS: AgentCommand[] = [

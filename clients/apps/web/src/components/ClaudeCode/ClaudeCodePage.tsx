@@ -17,14 +17,31 @@ import {
 } from '../SyntaxHighlighterShiki/SyntaxHighlighterClient'
 import { ALL_AGENT_COMMANDS, type AgentCommand } from './agentCommands'
 
+const SETUP_SNIPPET = `mkdir -p .claude/commands
+
+# Checkout command
+curl -sL -o .claude/commands/setup-checkout.md \\
+  https://raw.githubusercontent.com/polarsource/polar/main/.claude/commands/setup-checkout.md
+
+# Usage billing command
+curl -sL -o .claude/commands/setup-usage-billing.md \\
+  https://raw.githubusercontent.com/polarsource/polar/main/.claude/commands/setup-usage-billing.md`
+
 export default function ClaudeCodePage() {
   const { organization } = useContext(OrganizationContext)
   const [installCopied, setInstallCopied] = useState(false)
+  const [setupCopied, setSetupCopied] = useState(false)
 
   const handleCopyInstall = useCallback(() => {
     navigator.clipboard.writeText('npm install -g @anthropic-ai/claude-code')
     setInstallCopied(true)
     setTimeout(() => setInstallCopied(false), 2500)
+  }, [])
+
+  const handleCopySetup = useCallback(() => {
+    navigator.clipboard.writeText(SETUP_SNIPPET)
+    setSetupCopied(true)
+    setTimeout(() => setSetupCopied(false), 2500)
   }, [])
 
   return (
@@ -46,10 +63,10 @@ export default function ClaudeCodePage() {
                 </h2>
               </div>
               <p className="dark:text-polar-400 max-w-lg text-sm leading-relaxed text-gray-500">
-                Run agent commands inside Claude Code and let it handle the
-                integration work for you. Each command reads your codebase,
-                asks a few questions, and writes production code directly into
-                your project.
+                Add Spaire agent commands to your project, then run them inside
+                Claude Code. Each command reads your codebase, asks a few
+                questions, and writes production code directly into your
+                project.
               </p>
             </FadeUp>
 
@@ -87,6 +104,47 @@ export default function ClaudeCodePage() {
                   code="npm install -g @anthropic-ai/claude-code"
                 />
               </div>
+            </FadeUp>
+
+            {/* Setup */}
+            <FadeUp className="flex flex-col gap-y-3">
+              <div className="flex flex-row items-center justify-between">
+                <span className="dark:text-polar-500 text-xs font-medium uppercase tracking-wider text-gray-400">
+                  Add commands to your project
+                </span>
+                <button
+                  onClick={handleCopySetup}
+                  className={twMerge(
+                    'flex items-center gap-x-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all',
+                    setupCopied
+                      ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400'
+                      : 'dark:bg-polar-800 dark:text-polar-200 dark:hover:bg-polar-700 bg-gray-100 text-gray-600 hover:bg-gray-200',
+                  )}
+                >
+                  {setupCopied ? (
+                    <>
+                      <CheckOutlined sx={{ fontSize: 12 }} />
+                      Copied
+                    </>
+                  ) : (
+                    <>
+                      <ContentCopyOutlined sx={{ fontSize: 12 }} />
+                      Copy
+                    </>
+                  )}
+                </button>
+              </div>
+              <div className="dark:border-polar-700 dark:bg-polar-800 w-full max-w-lg rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm">
+                <SyntaxHighlighterClient
+                  lang="bash"
+                  code={SETUP_SNIPPET}
+                />
+              </div>
+              <p className="dark:text-polar-500 max-w-lg text-xs leading-relaxed text-gray-400">
+                Run this in your project root to add the Spaire agent command
+                files. Commit them to your repo so your whole team gets the
+                commands automatically.
+              </p>
             </FadeUp>
           </motion.div>
 
