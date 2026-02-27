@@ -141,14 +141,14 @@ export default function ClientPage({
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div className="flex flex-col gap-4 md:flex-row md:items-center">
             <Input
-              className="w-full md:max-w-64"
+              className="glass-card placeholder:text-polar-300 w-full border-white/15 bg-white/5 text-white md:max-w-64"
               preSlot={<Search fontSize="small" />}
               placeholder="Search Products"
               value={query}
               onChange={(e) => onQueryChange(e.target.value)}
             />
             <Select value={show} onValueChange={setShow}>
-              <SelectTrigger className="w-full md:max-w-fit">
+              <SelectTrigger className="glass-card text-polar-100 w-full border-white/15 bg-white/5 md:max-w-fit">
                 <SelectValue placeholder="Show archived products" />
               </SelectTrigger>
               <SelectContent>
@@ -158,7 +158,7 @@ export default function ClientPage({
               </SelectContent>
             </Select>
             <Select value={currentSortingValue} onValueChange={onSortingChange}>
-              <SelectTrigger className="w-full md:max-w-fit">
+              <SelectTrigger className="glass-card text-polar-100 w-full border-white/15 bg-white/5 md:max-w-fit">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -177,7 +177,7 @@ export default function ClientPage({
                 value={pagination.pageSize.toString()}
                 onValueChange={onLimitChange}
               >
-                <SelectTrigger className="w-full md:max-w-fit">
+                <SelectTrigger className="glass-card text-polar-100 w-full border-white/15 bg-white/5 md:max-w-fit">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -195,7 +195,7 @@ export default function ClientPage({
             <Button
               role="link"
               wrapperClassNames="gap-x-2 md:w-fit"
-              className="w-full"
+              className="glass-card w-full border-white/25 bg-white/10 text-white hover:bg-white/15"
             >
               <AddOutlined className="h-4 w-4" />
               <span>New Product</span>
@@ -210,7 +210,7 @@ export default function ClientPage({
             currentURL={serializeSearchParams(pagination, sorting)}
             onPageChange={onPageChange}
           >
-            <List size="small">
+            <List size="small" className="glass-panel overflow-hidden">
               {products.data.items
                 .sort((a, b) => {
                   if (a.is_archived === b.is_archived) return 0
@@ -226,7 +226,7 @@ export default function ClientPage({
             </List>
           </Pagination>
         ) : (
-          <ShadowBoxOnMd className="items-center justify-center gap-y-6 md:flex md:flex-col md:py-24">
+          <ShadowBoxOnMd className="glass-panel items-center justify-center gap-y-6 md:flex md:flex-col md:py-24">
             <div className="flex max-w-md flex-col items-center gap-y-6 text-center">
               <HiveOutlined
                 className="dark:text-polar-600 text-5xl text-gray-300"

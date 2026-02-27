@@ -36,7 +36,7 @@ export default function CatalogLayout({ children }: PropsWithChildren) {
     <div className="flex h-full flex-col">
       <div className="px-4 pt-6 md:px-8">
         <Tabs value={activeTab.title}>
-          <TabsList className="flex flex-row bg-transparent ring-0 dark:bg-transparent dark:ring-0">
+          <TabsList className="glass-card flex flex-row rounded-xl bg-transparent p-1 ring-0 dark:bg-transparent dark:ring-0">
             {catalogTabs.map((tab) => (
               <Link
                 key={tab.suffix}
@@ -44,7 +44,7 @@ export default function CatalogLayout({ children }: PropsWithChildren) {
                 prefetch={true}
               >
                 <TabsTrigger
-                  className="flex flex-row items-center gap-x-2 px-4"
+                  className="text-polar-200 data-[state=active]:glass-panel-strong flex flex-row items-center gap-x-2 rounded-lg px-4 data-[state=active]:text-white"
                   value={tab.title}
                 >
                   {tab.title}
