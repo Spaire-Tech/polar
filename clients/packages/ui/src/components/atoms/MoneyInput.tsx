@@ -1,4 +1,4 @@
-import { getCurrencyDecimalFactor, isDecimalCurrency } from '@polar-sh/currency'
+import { getCurrencyDecimalFactor, isDecimalCurrency } from '@spaire/currency'
 import {
   ChangeEvent,
   FocusEvent,

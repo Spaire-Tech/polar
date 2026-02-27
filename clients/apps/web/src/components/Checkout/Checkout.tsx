@@ -21,11 +21,11 @@ import type { CheckoutPublicConfirmed } from '@spaire/sdk/models/components/chec
 import type { CheckoutUpdatePublic } from '@spaire/sdk/models/components/checkoutupdatepublic'
 import { ProductPriceCustom } from '@spaire/sdk/models/components/productpricecustom.js'
 import { ExpiredCheckoutError } from '@spaire/sdk/models/errors/expiredcheckouterror'
-import Alert from '@polar-sh/ui/components/atoms/Alert'
+import Alert from '@spaire/ui/components/atoms/Alert'
 import ShadowBox, {
   ShadowBoxOnMd,
-} from '@polar-sh/ui/components/atoms/ShadowBox'
-import { getThemePreset } from '@polar-sh/ui/hooks/theming'
+} from '@spaire/ui/components/atoms/ShadowBox'
+import { getThemePreset } from '@spaire/ui/hooks/theming'
 import type { Stripe, StripeElements } from '@stripe/stripe-js'
 import { useTheme } from 'next-themes'
 import Link from 'next/link'

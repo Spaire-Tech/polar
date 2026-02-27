@@ -1,16 +1,16 @@
-import { formatCurrency } from '@polar-sh/currency'
+import { formatCurrency } from '@spaire/currency'
 import { CheckoutPublic } from '@spaire/sdk/models/components/checkoutpublic.js'
 import { CheckoutUpdatePublic } from '@spaire/sdk/models/components/checkoutupdatepublic.js'
 import { ProductPriceCustom } from '@spaire/sdk/models/components/productpricecustom.js'
-import MoneyInput from '@polar-sh/ui/components/atoms/MoneyInput'
+import MoneyInput from '@spaire/ui/components/atoms/MoneyInput'
 import {
   Form,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
-} from '@polar-sh/ui/components/ui/form'
-import { ThemingPresetProps } from '@polar-sh/ui/hooks/theming'
+} from '@spaire/ui/components/ui/form'
+import { ThemingPresetProps } from '@spaire/ui/hooks/theming'
 import { useCallback, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import useDebouncedCallback from '../hooks/debounce'

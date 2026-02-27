@@ -9,7 +9,7 @@ import {
   MaintainerNewProductSaleNotificationPayload,
 } from '@/hooks/polar/notifications'
 import MaterialIcons from '@expo/vector-icons/MaterialIcons'
-import { formatCurrency } from '@polar-sh/currency'
+import { formatCurrency } from '@spaire/currency'
 import { useMemo } from 'react'
 import { StyleProp, ViewStyle } from 'react-native'
 import { Text } from '../Shared/Text'

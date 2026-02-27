@@ -4,7 +4,7 @@ import {
   useTransactionsSummary,
 } from '@/hooks/polar/finance'
 import { OrganizationContext } from '@/providers/OrganizationProvider'
-import { formatCurrency } from '@polar-sh/currency'
+import { formatCurrency } from '@spaire/currency'
 import { useRouter } from 'expo-router'
 import { useContext } from 'react'
 import { Button } from '../Shared/Button'

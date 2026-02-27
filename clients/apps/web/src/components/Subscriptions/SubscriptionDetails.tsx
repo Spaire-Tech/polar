@@ -1,9 +1,9 @@
 'use client'
 
-import { schemas } from '@polar-sh/client'
-import { formatCurrency } from '@polar-sh/currency'
-import FormattedDateTime from '@polar-sh/ui/components/atoms/FormattedDateTime'
-import TextArea from '@polar-sh/ui/components/atoms/TextArea'
+import { schemas } from '@spaire/client'
+import { formatCurrency } from '@spaire/currency'
+import FormattedDateTime from '@spaire/ui/components/atoms/FormattedDateTime'
+import TextArea from '@spaire/ui/components/atoms/TextArea'
 import { DetailRow } from '../Shared/DetailRow'
 import { SubscriptionStatus } from './SubscriptionStatus'
 

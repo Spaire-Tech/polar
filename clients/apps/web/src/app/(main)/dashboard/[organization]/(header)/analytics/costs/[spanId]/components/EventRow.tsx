@@ -7,9 +7,9 @@ import {
   SyntaxHighlighterProvider,
 } from '@/components/SyntaxHighlighterShiki/SyntaxHighlighterClient'
 import { useEvent, useInfiniteEvents } from '@/hooks/queries/events'
-import { schemas } from '@polar-sh/client'
-import { formatCurrency } from '@polar-sh/currency'
-import FormattedDateTime from '@polar-sh/ui/components/atoms/FormattedDateTime'
+import { schemas } from '@spaire/client'
+import { formatCurrency } from '@spaire/currency'
+import FormattedDateTime from '@spaire/ui/components/atoms/FormattedDateTime'
 import {
   ArrowDownFromLineIcon,
   ArrowUpFromLineIcon,

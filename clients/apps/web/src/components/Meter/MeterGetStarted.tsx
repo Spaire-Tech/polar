@@ -1,5 +1,5 @@
 import { CONFIG } from '@/utils/config'
-import { schemas } from '@polar-sh/client'
+import { schemas } from '@spaire/client'
 
 import {
   SyntaxHighlighterClient,

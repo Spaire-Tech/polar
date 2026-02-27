@@ -1,7 +1,7 @@
 import { DetailRow, Details } from '@/components/Shared/Details'
 import { useTheme } from '@/design-system/useTheme'
 import { usePayout } from '@/hooks/polar/finance'
-import { formatCurrency } from '@polar-sh/currency'
+import { formatCurrency } from '@spaire/currency'
 import { Stack, useLocalSearchParams } from 'expo-router'
 import React from 'react'
 import { SafeAreaView } from 'react-native'
