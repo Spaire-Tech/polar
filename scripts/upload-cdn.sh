@@ -57,7 +57,8 @@ echo "[1/3] Uploading checkout/embed.js ..."
 wrangler r2 object put "$BUCKET_NAME/checkout/embed.js" \
   --file "$EMBED_JS" \
   --content-type "application/javascript" \
-  --cache-control "public, max-age=3600, s-maxage=86400"
+  --cache-control "public, max-age=3600, s-maxage=86400" \
+  --remote
 
 # 2. Setup checkout command
 echo ""
@@ -65,7 +66,8 @@ echo "[2/3] Uploading claude/commands/setup-checkout.md ..."
 wrangler r2 object put "$BUCKET_NAME/claude/commands/setup-checkout.md" \
   --file "$SETUP_CHECKOUT_MD" \
   --content-type "text/markdown" \
-  --cache-control "public, max-age=300"
+  --cache-control "public, max-age=300" \
+  --remote
 
 # 3. Setup usage billing command
 echo ""
@@ -73,7 +75,8 @@ echo "[3/3] Uploading claude/commands/setup-usage-billing.md ..."
 wrangler r2 object put "$BUCKET_NAME/claude/commands/setup-usage-billing.md" \
   --file "$SETUP_BILLING_MD" \
   --content-type "text/markdown" \
-  --cache-control "public, max-age=300"
+  --cache-control "public, max-age=300" \
+  --remote
 
 echo ""
 echo "==========================================="
