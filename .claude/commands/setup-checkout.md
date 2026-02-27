@@ -114,7 +114,7 @@ Tell the user what you found: "I can see you're using Next.js App Router with Re
 
 Then **ask if they have products created in Spaire**:
 - If yes: ask them for the checkout link URL or product ID
-- If no: walk them through creating a product at https://dashboard.spairehq.com → Products → New Product
+- If no: walk them through creating a product at https://app.spairehq.com/dashboard → Products → New Product
 
 Then **ask which checkout approach they want**:
 
@@ -283,7 +283,7 @@ SPAIRE_ACCESS_TOKEN=<your_access_token>
 SPAIRE_SUCCESS_URL=<your_success_url>
 ```
 
-Tell the user: "Get your access token from https://dashboard.spairehq.com → Settings → Access Tokens. Then set `SPAIRE_SUCCESS_URL` to your success page URL, e.g., `https://your-app.com/checkout/success?checkout_id={CHECKOUT_ID}`"
+Tell the user: "Get your access token from https://app.spairehq.com/dashboard → Settings → Access Tokens. Then set `SPAIRE_SUCCESS_URL` to your success page URL, e.g., `https://your-app.com/checkout/success?checkout_id={CHECKOUT_ID}`"
 
 **Do not write or modify the actual values in `.env`.** Only instruct the user to populate them.
 
@@ -453,7 +453,7 @@ export const POST = Webhooks({
 - Never process the same event twice (use the event/order ID as a deduplication key)
 - Log webhook receipt at debug level, never log full payload in production
 
-Tell them: "Register this URL at https://dashboard.spairehq.com → Settings → Webhooks. Copy the webhook secret and add it to your `.env` as `SPAIRE_WEBHOOK_SECRET`."
+Tell them: "Register this URL at https://app.spairehq.com/dashboard → Settings → Webhooks. Copy the webhook secret and add it to your `.env` as `SPAIRE_WEBHOOK_SECRET`."
 
 ## Phase 8: Testing Checklist
 

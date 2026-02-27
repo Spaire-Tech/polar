@@ -3,8 +3,8 @@
 import { DashboardBody } from '@/components/Layout/DashboardLayout'
 import { OrganizationContext } from '@/providers/maintainerOrganization'
 import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
-import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined'
 import CheckOutlined from '@mui/icons-material/CheckOutlined'
+import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined'
 import Link from 'next/link'
 import { useCallback, useContext, useState } from 'react'
 import { motion } from 'framer-motion'
@@ -20,7 +20,6 @@ import { ALL_AGENT_COMMANDS, type AgentCommand } from './agentCommands'
 export default function ClaudeCodePage() {
   const { organization } = useContext(OrganizationContext)
   const [installCopied, setInstallCopied] = useState(false)
-
   const handleCopyInstall = useCallback(() => {
     navigator.clipboard.writeText('npm install -g @anthropic-ai/claude-code')
     setInstallCopied(true)
@@ -46,10 +45,10 @@ export default function ClaudeCodePage() {
                 </h2>
               </div>
               <p className="dark:text-polar-400 max-w-lg text-sm leading-relaxed text-gray-500">
-                Run agent commands inside Claude Code and let it handle the
-                integration work for you. Each command reads your codebase,
-                asks a few questions, and writes production code directly into
-                your project.
+                Add Spaire agent commands to your project, then run them inside
+                Claude Code. Each command reads your codebase, asks a few
+                questions, and writes production code directly into your
+                project.
               </p>
             </FadeUp>
 
@@ -88,6 +87,7 @@ export default function ClaudeCodePage() {
                 />
               </div>
             </FadeUp>
+
           </motion.div>
 
           {/* Agent command cards */}
@@ -127,7 +127,7 @@ function AgentCommandCard({
   orgSlug: string
 }) {
   return (
-    <Link href={`/dashboard/${orgSlug}/claude-code/${command.slug}`}>
+    <Link href={`/dashboard/${orgSlug}/integrations/${command.slug}`}>
       <div className="group dark:border-polar-700 dark:hover:border-polar-600 flex flex-col gap-y-4 rounded-2xl border border-gray-200 p-6 transition-all hover:border-gray-300 hover:shadow-md dark:hover:shadow-none">
         <div className="flex flex-row items-start justify-between">
           <div className="flex flex-col gap-y-1">
