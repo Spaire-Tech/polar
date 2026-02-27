@@ -2,7 +2,6 @@
 
 import {
   useDeletePersonalAccessToken,
-  useListOrganizations,
   usePersonalAccessTokens,
 } from '@/hooks/queries'
 import { schemas } from '@spaire/client'
@@ -20,7 +19,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@spaire/ui/components/ui/alert-dialog'
-import Link from 'next/link'
 import { useCallback } from 'react'
 import { toast } from '../Toast/use-toast'
 
@@ -109,27 +107,8 @@ const AccessToken = (props: schemas['PersonalAccessToken']) => {
 
 const AccessTokensSettings = () => {
   const tokens = usePersonalAccessTokens()
-  const { data: organizations } = useListOrganizations({})
   return (
     <div className="flex w-full flex-col gap-4">
-      <div className="dark:bg-polar-800 dark:text-polar-500 flex flex-col gap-2 rounded-2xl bg-gray-100 p-6 text-sm text-gray-500">
-        <h3 className="text-lg text-black dark:text-white">
-          Access tokens have moved
-        </h3>
-        <p>
-          We no longer recommend to use Personal Access Tokens, but rather{' '}
-          <strong>Organization Access Tokens</strong>. They work the same, but
-          only have access to one organization, which allows you to omit{' '}
-          <code className="">organization_id</code> in API calls.
-        </p>
-        <Link
-          href={`/dashboard/${organizations?.items[0].slug}/settings#developers`}
-        >
-          <Button variant="link" className="p-0">
-            Create Organization Access Token
-          </Button>
-        </Link>
-      </div>
       <ShadowListGroup>
         {tokens.data?.items && tokens.data.items.length > 0 ? (
           tokens.data?.items.map((token) => (
