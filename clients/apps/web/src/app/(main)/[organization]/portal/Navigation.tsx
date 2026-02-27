@@ -8,14 +8,14 @@ import {
 import { createClientSideAPI } from '@/utils/client'
 import { hasBillingPermission } from '@/utils/customerPortal'
 import ArrowBackOutlined from '@mui/icons-material/ArrowBackOutlined'
-import { Client, schemas } from '@polar-sh/client'
+import { Client, schemas } from '@spaire/client'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@polar-sh/ui/components/atoms/Select'
+} from '@spaire/ui/components/atoms/Select'
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { twMerge } from 'tailwind-merge'

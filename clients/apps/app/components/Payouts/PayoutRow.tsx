@@ -1,7 +1,7 @@
 import { Box } from '@/components/Shared/Box'
 import { useTheme } from '@/design-system/useTheme'
 import { Payout } from '@/hooks/polar/finance'
-import { formatCurrency } from '@polar-sh/currency'
+import { formatCurrency } from '@spaire/currency'
 import { Link } from 'expo-router'
 import React from 'react'
 import { StyleProp, TextStyle } from 'react-native'

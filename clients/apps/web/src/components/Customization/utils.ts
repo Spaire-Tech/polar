@@ -1,4 +1,4 @@
-import { schemas } from '@polar-sh/client'
+import { schemas } from '@spaire/client'
 import {
   CheckoutPublic$inboundSchema,
   type CheckoutPublic,

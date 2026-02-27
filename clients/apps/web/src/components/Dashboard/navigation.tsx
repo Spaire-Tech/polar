@@ -9,7 +9,7 @@ import ShoppingBagOutlined from '@mui/icons-material/ShoppingBagOutlined'
 import SpaceDashboardOutlined from '@mui/icons-material/SpaceDashboardOutlined'
 import TrendingUp from '@mui/icons-material/TrendingUp'
 import TuneOutlined from '@mui/icons-material/TuneOutlined'
-import { schemas } from '@polar-sh/client'
+import { schemas } from '@spaire/client'
 import { usePathname } from 'next/navigation'
 import { useMemo } from 'react'
 

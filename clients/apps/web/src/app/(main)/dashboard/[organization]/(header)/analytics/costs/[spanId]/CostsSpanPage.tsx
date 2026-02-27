@@ -9,9 +9,9 @@ import {
   useInfiniteEvents,
 } from '@/hooks/queries/events'
 import { fromISODate, getTimestampFormatter } from '@/utils/metrics'
-import { schemas } from '@polar-sh/client'
-import { formatCurrency } from '@polar-sh/currency'
-import Button from '@polar-sh/ui/components/atoms/Button'
+import { schemas } from '@spaire/client'
+import { formatCurrency } from '@spaire/currency'
+import Button from '@spaire/ui/components/atoms/Button'
 import { endOfDay, format, subMonths } from 'date-fns'
 import {
   parseAsArrayOf,

@@ -37,7 +37,7 @@
     }
   },
   "devDependencies": {
-    "@polar-sh/typescript-config": "workspace:*",
+    "@spaire/typescript-config": "workspace:*",
     "@stripe/react-stripe-js": "^4.0.2",
     "@stripe/stripe-js": "^7.9.0",
     "@types/react": "19.2.10",
@@ -50,9 +50,9 @@
     "access": "public"
   },
   "dependencies": {
-    "@polar-sh/currency": "workspace:^",
+    "@spaire/currency": "workspace:^",
     "@spaire/sdk": "^1.0.0",
-    "@polar-sh/ui": "workspace:^",
+    "@spaire/ui": "workspace:^",
     "event-source-plus": "^0.1.15",
     "eventemitter3": "^5.0.4",
     "markdown-to-jsx": "^8.0.0",

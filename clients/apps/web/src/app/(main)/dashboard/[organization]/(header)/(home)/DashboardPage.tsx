@@ -13,9 +13,9 @@ import {
   getChartRangeParams,
   getPreviousParams,
 } from '@/utils/metrics'
-import { schemas } from '@polar-sh/client'
+import { schemas } from '@spaire/client'
 import ArrowForwardOutlined from '@mui/icons-material/ArrowForwardOutlined'
-import Button from '@polar-sh/ui/components/atoms/Button'
+import Button from '@spaire/ui/components/atoms/Button'
 import Link from 'next/link'
 import { useMemo } from 'react'
 import { twMerge } from 'tailwind-merge'

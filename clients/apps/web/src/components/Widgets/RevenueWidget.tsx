@@ -2,13 +2,13 @@ import { useMetrics } from '@/hooks/queries'
 import { OrganizationContext } from '@/providers/maintainerOrganization'
 import KeyboardArrowDown from '@mui/icons-material/KeyboardArrowDown'
 import KeyboardArrowUp from '@mui/icons-material/KeyboardArrowUp'
-import { formatCurrency } from '@polar-sh/currency'
-import { Card } from '@polar-sh/ui/components/atoms/Card'
+import { formatCurrency } from '@spaire/currency'
+import { Card } from '@spaire/ui/components/atoms/Card'
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from '@polar-sh/ui/components/ui/tooltip'
+} from '@spaire/ui/components/ui/tooltip'
 import { endOfMonth, format, startOfMonth, subMonths } from 'date-fns'
 import { useContext } from 'react'
 import { twMerge } from 'tailwind-merge'

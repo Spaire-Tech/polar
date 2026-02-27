@@ -4,7 +4,7 @@ import { usePortalAuthenticatedUser } from '@/hooks/queries'
 import { createClientSideAPI } from '@/utils/client'
 import { hasBillingPermission } from '@/utils/customerPortal'
 import AllInclusiveOutlined from '@mui/icons-material/AllInclusiveOutlined'
-import { schemas } from '@polar-sh/client'
+import { schemas } from '@spaire/client'
 import { CurrentPeriodOverview } from './CurrentPeriodOverview'
 import { CustomerPortalGrants } from './CustomerPortalGrants'
 import {

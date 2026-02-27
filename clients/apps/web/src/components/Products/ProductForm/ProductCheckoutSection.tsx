@@ -1,20 +1,20 @@
 'use client'
 
-import { schemas } from '@polar-sh/client'
+import { schemas } from '@spaire/client'
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from '@polar-sh/ui/components/atoms/Accordion'
-import TextArea from '@polar-sh/ui/components/atoms/TextArea'
+} from '@spaire/ui/components/atoms/Accordion'
+import TextArea from '@spaire/ui/components/atoms/TextArea'
 import {
   FormControl,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
-} from '@polar-sh/ui/components/ui/form'
+} from '@spaire/ui/components/ui/form'
 import Link from 'next/link'
 import { useFormContext } from 'react-hook-form'
 import { twMerge } from 'tailwind-merge'

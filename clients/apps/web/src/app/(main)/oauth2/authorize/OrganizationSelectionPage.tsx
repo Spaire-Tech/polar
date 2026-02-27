@@ -7,18 +7,18 @@ import { useCreateOrganization } from '@/hooks/queries'
 import { getServerURL } from '@/utils/api'
 import { setValidationErrors } from '@/utils/api/errors'
 import { FormControl } from '@mui/material'
-import { schemas } from '@polar-sh/client'
-import Avatar from '@polar-sh/ui/components/atoms/Avatar'
-import Button from '@polar-sh/ui/components/atoms/Button'
-import Input from '@polar-sh/ui/components/atoms/Input'
-import { Checkbox } from '@polar-sh/ui/components/ui/checkbox'
+import { schemas } from '@spaire/client'
+import Avatar from '@spaire/ui/components/atoms/Avatar'
+import Button from '@spaire/ui/components/atoms/Button'
+import Input from '@spaire/ui/components/atoms/Input'
+import { Checkbox } from '@spaire/ui/components/ui/checkbox'
 import {
   Form,
   FormField,
   FormItem,
   FormMessage,
-} from '@polar-sh/ui/components/ui/form'
-import { Label } from '@polar-sh/ui/components/ui/label'
+} from '@spaire/ui/components/ui/form'
+import { Label } from '@spaire/ui/components/ui/label'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'

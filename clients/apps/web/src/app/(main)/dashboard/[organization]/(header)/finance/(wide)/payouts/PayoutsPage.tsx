@@ -18,21 +18,21 @@ import {
   getAPIParams,
   serializeSearchParams,
 } from '@/utils/datatable'
-import { schemas } from '@polar-sh/client'
-import { formatCurrency } from '@polar-sh/currency'
-import Button from '@polar-sh/ui/components/atoms/Button'
+import { schemas } from '@spaire/client'
+import { formatCurrency } from '@spaire/currency'
+import Button from '@spaire/ui/components/atoms/Button'
 import {
   DataTable,
   DataTableColumnDef,
   DataTableColumnHeader,
-} from '@polar-sh/ui/components/atoms/DataTable'
-import FormattedDateTime from '@polar-sh/ui/components/atoms/FormattedDateTime'
+} from '@spaire/ui/components/atoms/DataTable'
+import FormattedDateTime from '@spaire/ui/components/atoms/FormattedDateTime'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@polar-sh/ui/components/ui/dropdown-menu'
+} from '@spaire/ui/components/ui/dropdown-menu'
 import { EllipsisVertical } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
