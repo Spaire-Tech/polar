@@ -88,7 +88,7 @@ def configure_cors(app: FastAPI) -> None:
         allow_origins=["*"],
         allow_credentials=False,  # No cookies allowed
         allow_methods=["*"],
-        allow_headers=["Authorization"],  # Allow Authorization header to pass tokens
+        allow_headers=["Authorization", "Content-Type"],  # Allow Authorization and Content-Type headers for API calls
     )
     configs.append(api_config)
 
