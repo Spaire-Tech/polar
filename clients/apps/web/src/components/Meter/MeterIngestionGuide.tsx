@@ -35,11 +35,18 @@ export const MeterIngestionGuide = () => {
                   <code>api_call</code>.
                 </p>
               </div>
-              <Link
-                href={`/dashboard/${organization.slug}/products/meters/create`}
-              >
-                <Button>Create Meter</Button>
-              </Link>
+              <div className="flex flex-row items-center gap-x-3">
+                <Link
+                  href={`/dashboard/${organization.slug}/claude-code/setup-usage-billing`}
+                >
+                  <Button>Set up with Claude</Button>
+                </Link>
+                <Link
+                  href={`/dashboard/${organization.slug}/products/meters/create`}
+                >
+                  <Button variant="secondary">Create manually</Button>
+                </Link>
+              </div>
             </WellContent>
           </div>
           <Well className="dark:bg-polar-900 flex-1 shrink overflow-auto bg-white p-6 text-sm">

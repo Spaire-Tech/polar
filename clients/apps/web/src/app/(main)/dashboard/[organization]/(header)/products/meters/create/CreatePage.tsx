@@ -10,6 +10,7 @@ import { setValidationErrors } from '@/utils/api/errors'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import { Form } from '@spaire/ui/components/ui/form'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useCallback, useState } from 'react'
 import { useForm } from 'react-hook-form'
@@ -86,7 +87,12 @@ export default function ClientPage({ organization }: ClientPageProps) {
     <DashboardBody
       title="Create Meter"
       header={
-        <div className="hidden flex-row gap-x-4 md:flex">
+        <div className="hidden flex-row items-center gap-x-4 md:flex">
+          <Link
+            href={`/dashboard/${organization.slug}/claude-code/setup-usage-billing`}
+          >
+            <Button variant="secondary">Set up with Claude</Button>
+          </Link>
           <Button onClick={handleSubmit(onSubmit)}>Create Meter</Button>
         </div>
       }

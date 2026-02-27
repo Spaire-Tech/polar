@@ -1,5 +1,6 @@
 'use client'
 
+import ClaudeMeterSetupModalContent from '@/components/Meter/ClaudeMeterSetupModalContent'
 import CreateMeterModalContent from '@/components/Meter/CreateMeterModalContent'
 import MeterSelector from '@/components/Meter/MeterSelector'
 import { InlineModal } from '@/components/Modal/InlineModal'
@@ -553,6 +554,12 @@ export const ProductPriceMeteredUnitItem: React.FC<
     hide: hideCreateMeterModal,
   } = useModal(false)
 
+  const {
+    isShown: isClaudeSetupModalShown,
+    show: showClaudeSetupModal,
+    hide: hideClaudeSetupModal,
+  } = useModal(false)
+
   const onSelectMeter = useCallback(
     (meter: schemas['Meter']) => {
       setValue(`prices.${index}.meter_id`, meter.id)
@@ -572,15 +579,27 @@ export const ProductPriceMeteredUnitItem: React.FC<
   return (
     <>
       {meters.items.length === 0 ? (
-        <Button
-          onClick={(e) => {
-            e.preventDefault()
-            showCreateMeterModal()
-          }}
-          size="sm"
-        >
-          Create a Meter
-        </Button>
+        <div className="flex flex-row items-center gap-x-3">
+          <Button
+            onClick={(e) => {
+              e.preventDefault()
+              showClaudeSetupModal()
+            }}
+            size="sm"
+          >
+            Set up with Claude
+          </Button>
+          <Button
+            onClick={(e) => {
+              e.preventDefault()
+              showCreateMeterModal()
+            }}
+            size="sm"
+            variant="secondary"
+          >
+            Create manually
+          </Button>
+        </div>
       ) : (
         <>
           <FormField
@@ -594,17 +613,29 @@ export const ProductPriceMeteredUnitItem: React.FC<
                 <FormItem>
                   <div className="flex flex-row items-center justify-between gap-x-2">
                     <FormLabel>Meter</FormLabel>
-                    <button
-                      type="button"
-                      className="flex flex-row items-center gap-x-1 text-sm font-medium text-gray-500"
-                      onClick={(e) => {
-                        e.preventDefault()
-                        showCreateMeterModal()
-                      }}
-                    >
-                      <PlusIcon className="h-4 w-4" />
-                      Add Meter
-                    </button>
+                    <div className="flex flex-row items-center gap-x-3">
+                      <button
+                        type="button"
+                        className="flex flex-row items-center gap-x-1 text-sm font-medium text-gray-500"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          showClaudeSetupModal()
+                        }}
+                      >
+                        Set up with Claude
+                      </button>
+                      <button
+                        type="button"
+                        className="flex flex-row items-center gap-x-1 text-sm font-medium text-gray-500"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          showCreateMeterModal()
+                        }}
+                      >
+                        <PlusIcon className="h-4 w-4" />
+                        Add Meter
+                      </button>
+                    </div>
                   </div>
                   <FormControl>
                     <MeterSelector
@@ -688,6 +719,15 @@ export const ProductPriceMeteredUnitItem: React.FC<
             organization={organization}
             onSelectMeter={onSelectMeter}
             hideModal={hideCreateMeterModal}
+          />
+        }
+      />
+      <InlineModal
+        isShown={isClaudeSetupModalShown}
+        hide={hideClaudeSetupModal}
+        modalContent={
+          <ClaudeMeterSetupModalContent
+            hideModal={hideClaudeSetupModal}
           />
         }
       />
