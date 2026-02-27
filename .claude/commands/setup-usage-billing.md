@@ -130,7 +130,7 @@ Before writing any code, verify:
    - Python: run `pip install spaire-sdk` or `uv add spaire-sdk`
 
 2. **Environment variable** — check if `SPAIRE_ACCESS_TOKEN` exists in their `.env` file. If not:
-   - Tell them: "You need a Spaire access token. Go to https://dashboard.spairehq.com → Settings → Access Tokens and create one."
+   - Tell them: "You need a Spaire access token. Go to https://app.spairehq.com/dashboard → Settings → Access Tokens and create one."
    - Tell them to add `SPAIRE_ACCESS_TOKEN=<your_token>` to their `.env` file
    - **Do not write the actual token value.** Only instruct the user to populate it.
    - For sandbox testing: suggest `server: 'sandbox'` in the SDK config
@@ -176,7 +176,7 @@ Filter: name equals "compute-execution"
 Aggregation: Sum over "deltaTime"
 ```
 
-Tell the user: "Go to https://dashboard.spairehq.com → Products → Meters → Create Meter and enter these values. Let me know when you're done and I'll continue with the code."
+Tell the user: "Go to https://app.spairehq.com/dashboard → Products → Meters → Create Meter and enter these values. Let me know when you're done and I'll continue with the code."
 
 **Wait for confirmation before proceeding.**
 
@@ -380,7 +380,7 @@ export async function trackApiCall(customerId: string, endpoint: string) {
 
 Walk the user through adding a metered price to their product. **Do not do this programmatically.**
 
-1. "Go to https://dashboard.spairehq.com → Products → select your product → Edit"
+1. "Go to https://app.spairehq.com/dashboard → Products → select your product → Edit"
 2. "Click 'Add Additional Price'"
 3. "Select 'Metered' as the price type"
 4. "Choose the meter you just created"
@@ -494,7 +494,7 @@ export const POST = Webhooks({
 - Never process the same event twice (use the event/order ID as a deduplication key)
 - Log webhook receipt at debug level, never log full payload in production
 
-Tell the user: "Register this webhook URL at https://dashboard.spairehq.com → Settings → Webhooks. Copy the webhook secret and add it to your `.env` as `SPAIRE_WEBHOOK_SECRET`."
+Tell the user: "Register this webhook URL at https://app.spairehq.com/dashboard → Settings → Webhooks. Copy the webhook secret and add it to your `.env` as `SPAIRE_WEBHOOK_SECRET`."
 
 ## Phase 8: Testing Checklist
 

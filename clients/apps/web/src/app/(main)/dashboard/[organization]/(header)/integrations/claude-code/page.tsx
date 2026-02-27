@@ -5,5 +5,5 @@ export default function Page({
 }: {
   params: { organization: string }
 }) {
-  redirect(`/dashboard/${params.organization}/claude-code`)
+  redirect(`/dashboard/${params.organization}/integrations`)
 }

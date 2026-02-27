@@ -1,7 +1,9 @@
-'use client'
+import { redirect } from 'next/navigation'
 
-import ClaudeCodePage from '@/components/ClaudeCode/ClaudeCodePage'
-
-export default function Page() {
-  return <ClaudeCodePage />
+export default function Page({
+  params,
+}: {
+  params: { organization: string }
+}) {
+  redirect(`/dashboard/${params.organization}/integrations`)
 }

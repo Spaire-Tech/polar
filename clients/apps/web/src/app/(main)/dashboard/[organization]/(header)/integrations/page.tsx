@@ -1,12 +1,7 @@
-import { Metadata } from 'next'
-import IntegrationsPage from '@/components/Integrations/IntegrationsPage'
+'use client'
 
-export async function generateMetadata(): Promise<Metadata> {
-  return {
-    title: 'Integrations',
-  }
-}
+import ClaudeCodePage from '@/components/ClaudeCode/ClaudeCodePage'
 
 export default function Page() {
-  return <IntegrationsPage />
+  return <ClaudeCodePage />
 }
