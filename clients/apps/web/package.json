@@ -43,7 +43,7 @@
     "@spaire/currency": "workspace:^",
     "@spaire/customer-portal": "workspace:*",
     "@spaire/mdx": "workspace:*",
-    "@spaire/sdk": "^1.0.0",
+    "@spaire/sdk": "^0.45.1",
     "@spaire/ui": "workspace:*",
     "@posthog/ai": "^7.5.4",
     "@posthog/core": "^1.14.0",
