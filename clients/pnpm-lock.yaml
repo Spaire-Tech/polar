@@ -362,8 +362,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/mdx
       '@spaire/sdk':
-        specifier: ^1.0.0
-        version: 1.0.0
+        specifier: ^0.45.1
+        version: 0.45.1
       '@spaire/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -633,8 +633,8 @@ importers:
         specifier: workspace:^
         version: link:../currency
       '@spaire/sdk':
-        specifier: ^1.0.0
-        version: 1.0.0
+        specifier: ^0.45.1
+        version: 0.45.1
       '@spaire/ui':
         specifier: workspace:^
         version: link:../ui
@@ -4362,8 +4362,8 @@ packages:
   '@sinonjs/fake-timers@10.3.0':
     resolution: {integrity: sha512-V4BG07kuYSUkTCSBHG8G8TNhM+F19jXFWnQtzj+we8DrkpSBCee9Z3Ms8yiGer/dlmhe35/Xdgyo3/0rQKg7YA==}
 
-  '@spaire/sdk@1.0.0':
-    resolution: {integrity: sha512-Y5Hk84zTX1hZA6h/Zk+r9OM6u75kLo+ZALftqbA3bQSuSDgrQU8WlH4Dww0XTJcgHbwV8rOauscERYQZR7HCpA==}
+  '@spaire/sdk@0.45.1':
+    resolution: {integrity: sha512-Xf4Wa5/sZS+W/hgoQGbk9bSjO8QbFR87used6f3kcjQlmTQ5XxDbIN7M8Uj6rO+QAynhoT1RdfWhyVpso4JcUg==}
 
   '@stablelib/base64@1.0.1':
     resolution: {integrity: sha512-1bnPQqSxSuc3Ii6MhBysoWCg58j97aUjuCSZrGSmDxNqtytIi0k8utUenAwTZN4V5mXXYGsVUI9zeBqy+jBOSQ==}
@@ -16031,7 +16031,7 @@ snapshots:
     dependencies:
       '@sinonjs/commons': 3.0.1
 
-  '@spaire/sdk@1.0.0':
+  '@spaire/sdk@0.45.1':
     dependencies:
       standardwebhooks: 1.0.0
       zod: 4.3.6

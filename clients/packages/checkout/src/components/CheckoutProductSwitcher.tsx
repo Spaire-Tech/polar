@@ -14,6 +14,7 @@ import type { ProductCheckoutPublic } from '../guards'
 import {
   formatRecurringFrequency,
   hasLegacyRecurringPrices,
+  isLegacyRecurringPrice,
 } from '../utils/product'
 import ProductPriceLabel from './ProductPriceLabel'
 
@@ -41,14 +42,7 @@ const CheckoutProductSwitcher = ({
       const [productId, priceId] = value.split(':')
       const product = products.find((product) => product.id === productId)
       if (product) {
-        if (hasLegacyRecurringPrices(prices[product.id])) {
-          update?.({
-            productId: product.id,
-            productPriceId: priceId,
-          })
-        } else {
-          update?.({ productId: product.id })
-        }
+        update?.({ productId: product.id })
       }
     },
     [update, products],
@@ -65,9 +59,11 @@ const CheckoutProductSwitcher = ({
     product: ProductCheckoutPublic['product'],
     price: ProductPrice | LegacyRecurringProductPrice,
   ) => {
-    const interval = hasLegacyRecurringPrices(prices[product.id])
-      ? price.recurringInterval
-      : product.recurringInterval
+    const interval =
+      hasLegacyRecurringPrices(prices[product.id]) &&
+      isLegacyRecurringPrice(price)
+        ? price.recurringInterval
+        : product.recurringInterval
     const intervalCount = product.recurringIntervalCount
 
     if (interval) {
