@@ -51,7 +51,7 @@
   },
   "dependencies": {
     "@spaire/currency": "workspace:^",
-    "@spaire/sdk": "^1.0.0",
+    "@spaire/sdk": "^0.45.1",
     "@spaire/ui": "workspace:^",
     "event-source-plus": "^0.1.15",
     "eventemitter3": "^5.0.4",

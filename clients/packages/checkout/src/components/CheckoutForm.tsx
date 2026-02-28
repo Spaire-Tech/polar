@@ -43,6 +43,7 @@ import {
   formatRecurringInterval,
   getMeteredPrices,
   hasLegacyRecurringPrices,
+  isLegacyRecurringPrice,
 } from '../utils/product'
 import AmountLabel from './AmountLabel'
 import CustomFieldInput from './CustomFieldInput'
@@ -109,7 +110,8 @@ const BaseCheckoutForm = ({
   themePreset: themePresetProps,
 }: React.PropsWithChildren<BaseCheckoutFormProps>) => {
   const interval = hasProductCheckout(checkout)
-    ? hasLegacyRecurringPrices(checkout.prices[checkout.product.id])
+    ? hasLegacyRecurringPrices(checkout.prices[checkout.product.id]) &&
+        isLegacyRecurringPrice(checkout.productPrice)
       ? checkout.productPrice.recurringInterval
       : checkout.product.recurringInterval
     : null
