@@ -61,7 +61,7 @@ const Avatar = ({
   return (
     <div
       className={cn(
-        'dark:bg-polar-900 dark:border-polar-700 dark:text-polar-500 relative z-2 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-50 font-sans text-[10px] text-gray-700',
+        'dark:bg-spaire-900 dark:border-spaire-700 dark:text-spaire-500 relative z-2 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-50 font-sans text-[10px] text-gray-700',
         className,
       )}
     >

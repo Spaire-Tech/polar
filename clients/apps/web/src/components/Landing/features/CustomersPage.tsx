@@ -46,7 +46,7 @@ export const CustomersPage = () => {
         </Hero>
 
         <motion.div
-          className="dark:bg-polar-900 flex w-full flex-col overflow-hidden rounded-2xl bg-white md:flex-row-reverse md:items-stretch"
+          className="dark:bg-spaire-900 flex w-full flex-col overflow-hidden rounded-2xl bg-white md:flex-row-reverse md:items-stretch"
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true }}
@@ -59,13 +59,13 @@ export const CustomersPage = () => {
                   Complete Customer Profiles
                 </h2>
               </div>
-              <p className="dark:text-polar-500 text-lg text-gray-500">
+              <p className="dark:text-spaire-500 text-lg text-gray-500">
                 Get a 360° view of your customers with comprehensive profiles
                 that track subscriptions, usage, payment history, and more.
               </p>
             </div>
             <motion.ul
-              className="dark:divide-polar-700 dark:border-polar-700 flex flex-col divide-y divide-gray-200 border-y border-gray-200"
+              className="dark:divide-spaire-700 dark:border-spaire-700 flex flex-col divide-y divide-gray-200 border-y border-gray-200"
               variants={containerVariants}
             >
               {[
@@ -88,12 +88,12 @@ export const CustomersPage = () => {
               ))}
             </motion.ul>
           </div>
-          <div className="dark:bg-polar-800 relative flex flex-1 items-center justify-center p-8 md:p-16">
+          <div className="dark:bg-spaire-800 relative flex flex-1 items-center justify-center p-8 md:p-16">
             <motion.div
               className="z-10 flex flex-col gap-y-2"
               variants={itemVariants}
             >
-              <div className="dark:bg-polar-900 dark:border-polar-700 flex items-center gap-x-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+              <div className="dark:bg-spaire-900 dark:border-spaire-700 flex items-center gap-x-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
                 <div className="h-12 w-12 overflow-hidden rounded-full">
                   <Image
                     src="/assets/landing/testamonials/emil.jpg"
@@ -107,7 +107,7 @@ export const CustomersPage = () => {
                   <span className="font-medium text-black dark:text-white">
                     John Doe
                   </span>
-                  <span className="dark:text-polar-500 flex flex-row gap-x-2 text-sm text-gray-500">
+                  <span className="dark:text-spaire-500 flex flex-row gap-x-2 text-sm text-gray-500">
                     <span>Premium Plan</span>
                     <span>•</span>
                     <span>$49/month</span>
@@ -151,12 +151,12 @@ export const CustomersPage = () => {
             ].map((feature, i) => (
               <div
                 key={i}
-                className="dark:bg-polar-900 flex flex-col items-center gap-y-8 rounded-xl bg-white px-6 py-12 text-center"
+                className="dark:bg-spaire-900 flex flex-col items-center gap-y-8 rounded-xl bg-white px-6 py-12 text-center"
               >
                 <div className="flex flex-row gap-x-2">{feature.icon}</div>
                 <div className="flex flex-col gap-y-4">
                   <h3 className="text-2xl">{feature.title}</h3>
-                  <p className="dark:text-polar-400 text-balance text-gray-600">
+                  <p className="dark:text-spaire-400 text-balance text-gray-600">
                     {feature.description}
                   </p>
                 </div>
@@ -178,7 +178,7 @@ export const CustomersPage = () => {
             Ready to get better customer insights?
           </motion.h2>
           <motion.p
-            className="dark:text-polar-500 text-lg text-gray-500 md:w-[480px]"
+            className="dark:text-spaire-500 text-lg text-gray-500 md:w-[480px]"
             variants={itemVariants}
           >
             Join companies using Polar to deliver exceptional customer

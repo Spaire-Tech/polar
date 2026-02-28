@@ -7,7 +7,7 @@
   "version": "0.2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/polarsource/polar.git",
+    "url": "https://github.com/Spaire-Tech/polar.git",
     "directory": "clients/packages/checkout"
   },
   "scripts": {

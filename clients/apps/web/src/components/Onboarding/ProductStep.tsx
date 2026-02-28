@@ -154,11 +154,11 @@ export const ProductStep = () => {
           className="flex flex-col gap-y-6 [&>div>*]:px-0 [&>div>:first-child]:pt-0"
         >
           <div className="flex flex-col md:gap-y-4">
-            <FadeUp className="dark:bg-polar-900 flex flex-col gap-y-4 rounded-3xl border-gray-200 bg-white p-6 md:border dark:border-none">
+            <FadeUp className="dark:bg-spaire-900 flex flex-col gap-y-4 rounded-3xl border-gray-200 bg-white p-6 md:border dark:border-none">
               <ProductInfoSection compact />
             </FadeUp>
 
-            <FadeUp className="dark:bg-polar-900 flex flex-col gap-y-4 rounded-3xl border-gray-200 bg-white p-6 md:border dark:border-none">
+            <FadeUp className="dark:bg-spaire-900 flex flex-col gap-y-4 rounded-3xl border-gray-200 bg-white p-6 md:border dark:border-none">
               <ProductPricingSection
                 className="py-0"
                 organization={organization}
@@ -167,7 +167,7 @@ export const ProductStep = () => {
             </FadeUp>
           </div>
         </form>
-        <FadeUp className="dark:bg-polar-900 flex flex-col gap-y-4 rounded-3xl border-gray-200 bg-white p-6 md:border dark:border-none">
+        <FadeUp className="dark:bg-spaire-900 flex flex-col gap-y-4 rounded-3xl border-gray-200 bg-white p-6 md:border dark:border-none">
           <Benefits
             className="px-0 py-0"
             organization={organization}

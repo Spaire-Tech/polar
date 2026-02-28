@@ -34,7 +34,7 @@ export const OnboardingStepper = ({
   steps = defaultSteps,
 }: OnboardingStepperProps) => {
   return (
-    <div className="dark:bg-polar-900 hidden h-full w-[300px] shrink-0 flex-col justify-between border-r border-gray-100 bg-gray-50/50 p-10 dark:border-none md:flex">
+    <div className="dark:bg-spaire-900 hidden h-full w-[300px] shrink-0 flex-col justify-between border-r border-gray-100 bg-gray-50/50 p-10 dark:border-none md:flex">
       <div className="flex flex-col gap-y-16">
         <LogoIcon size={36} />
         <div className="flex flex-col gap-y-2">
@@ -52,9 +52,9 @@ export const OnboardingStepper = ({
                       isCompleted &&
                         'bg-blue-500 text-white',
                       isActive &&
-                        'dark:border-polar-500 border-2 border-blue-500 text-blue-500 dark:text-blue-400',
+                        'dark:border-spaire-500 border-2 border-blue-500 text-blue-500 dark:text-blue-400',
                       isPending &&
-                        'dark:border-polar-700 dark:text-polar-500 border-2 border-gray-200 text-gray-400',
+                        'dark:border-spaire-700 dark:text-spaire-500 border-2 border-gray-200 text-gray-400',
                     )}
                   >
                     {isCompleted ? (
@@ -69,7 +69,7 @@ export const OnboardingStepper = ({
                         'my-1.5 h-10 w-0.5',
                         isCompleted
                           ? 'bg-blue-500'
-                          : 'dark:bg-polar-700 bg-gray-200',
+                          : 'dark:bg-spaire-700 bg-gray-200',
                       )}
                     />
                   )}
@@ -83,18 +83,18 @@ export const OnboardingStepper = ({
                           ? 'text-gray-900 dark:text-white'
                           : isCompleted
                             ? 'text-gray-700 dark:text-gray-300'
-                            : 'dark:text-polar-400 text-gray-400',
+                            : 'dark:text-spaire-400 text-gray-400',
                       )}
                     >
                       {step.label}
                     </span>
                     {step.optional && (
-                      <span className="dark:text-polar-500 text-[10px] font-medium text-gray-400">
+                      <span className="dark:text-spaire-500 text-[10px] font-medium text-gray-400">
                         Optional
                       </span>
                     )}
                   </span>
-                  <span className="dark:text-polar-500 text-xs text-gray-400">
+                  <span className="dark:text-spaire-500 text-xs text-gray-400">
                     {step.description}
                   </span>
                 </div>
@@ -103,7 +103,7 @@ export const OnboardingStepper = ({
           })}
         </div>
       </div>
-      <p className="dark:text-polar-600 text-xs text-gray-400">
+      <p className="dark:text-spaire-600 text-xs text-gray-400">
         You can always change these settings later.
       </p>
     </div>

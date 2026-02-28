@@ -83,8 +83,8 @@ const AggregationRadioItem = ({
       htmlFor={`aggregation-${option.value}`}
       className={`flex flex-col gap-3 rounded-lg border p-4 font-normal transition-colors ${
         isSelected
-          ? 'dark:bg-polar-700 dark:border-polar-600/50 border-gray-300 bg-gray-50'
-          : 'dark:border-polar-700 dark:hover:border-polar-700 dark:hover:bg-polar-700 dark:bg-polar-800 border-gray-100 hover:border-gray-300'
+          ? 'dark:bg-spaire-700 dark:border-spaire-600/50 border-gray-300 bg-gray-50'
+          : 'dark:border-spaire-700 dark:hover:border-spaire-700 dark:hover:bg-spaire-700 dark:bg-spaire-800 border-gray-100 hover:border-gray-300'
       }`}
     >
       <div className="flex items-start gap-3">
@@ -94,7 +94,7 @@ const AggregationRadioItem = ({
         />
         <div className="flex flex-1 flex-col gap-1">
           <span className="cursor-pointer font-medium">{option.label}</span>
-          <p className="dark:text-polar-400 text-sm text-gray-600">
+          <p className="dark:text-spaire-400 text-sm text-gray-600">
             {option.description}
           </p>
         </div>

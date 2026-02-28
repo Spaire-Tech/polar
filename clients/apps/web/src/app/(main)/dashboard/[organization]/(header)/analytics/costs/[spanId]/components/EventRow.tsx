@@ -46,11 +46,11 @@ const SpanEventDetailsCard = ({ event }: { event: schemas['UserEvent'] }) => {
         )}
 
         {llmMetadata && (
-          <div className="dark:border-polar-700 dark:hover:border-polar-600 flex flex-row gap-4 rounded-2xl bg-gray-50 px-4 pt-3.5 pb-4 text-sm text-xs">
+          <div className="dark:border-spaire-700 dark:hover:border-spaire-600 flex flex-row gap-4 rounded-2xl bg-gray-50 px-4 pt-3.5 pb-4 text-sm text-xs">
             <dl className="flex flex-row items-center gap-4">
               <div className="flex flex-row items-center gap-1 font-mono">
                 <dt>
-                  <BotIcon className="dark:text-polar-500 size-3 text-gray-500" />
+                  <BotIcon className="dark:text-spaire-500 size-3 text-gray-500" />
                 </dt>
                 <dd>
                   <span>{llmMetadata.vendor}</span>/
@@ -59,27 +59,27 @@ const SpanEventDetailsCard = ({ event }: { event: schemas['UserEvent'] }) => {
               </div>
               <div className="flex flex-row items-center gap-1 font-mono">
                 <dt>
-                  <ArrowUpFromLineIcon className="dark:text-polar-500 size-3 text-gray-500" />
+                  <ArrowUpFromLineIcon className="dark:text-spaire-500 size-3 text-gray-500" />
                 </dt>
                 <dd>{llmMetadata.input_tokens}</dd>
               </div>
               {llmMetadata.cached_input_tokens && (
                 <div className="flex flex-row items-center gap-1 font-mono">
                   <dt>
-                    <HardDriveDownloadIcon className="dark:text-polar-500 size-3 rotate-180 transform text-gray-500" />
+                    <HardDriveDownloadIcon className="dark:text-spaire-500 size-3 rotate-180 transform text-gray-500" />
                   </dt>
                   <dd>{llmMetadata.cached_input_tokens}</dd>
                 </div>
               )}
               <div className="flex flex-row items-center gap-1 font-mono">
                 <dt>
-                  <ArrowDownFromLineIcon className="dark:text-polar-500 size-3 text-gray-500" />
+                  <ArrowDownFromLineIcon className="dark:text-spaire-500 size-3 text-gray-500" />
                 </dt>
                 <dd>{llmMetadata.output_tokens}</dd>
               </div>
               <div className="flex flex-row items-center gap-1 font-mono">
                 <dt>
-                  <SigmaIcon className="dark:text-polar-500 size-3 text-gray-500" />
+                  <SigmaIcon className="dark:text-spaire-500 size-3 text-gray-500" />
                 </dt>
                 <dd>{llmMetadata.total_tokens}</dd>
               </div>
@@ -158,9 +158,9 @@ function TreeNode({
   return (
     <div className="group relative flex gap-x-4">
       <div className="relative flex w-3 justify-center">
-        <div className="dark:bg-polar-500 absolute top-[10px] z-10 h-3 w-3 rounded-full bg-gray-200" />
+        <div className="dark:bg-spaire-500 absolute top-[10px] z-10 h-3 w-3 rounded-full bg-gray-200" />
         {!isLast && (
-          <div className="dark:bg-polar-700 absolute top-[16px] bottom-[-16px] w-0.5 bg-gray-200" />
+          <div className="dark:bg-spaire-700 absolute top-[16px] bottom-[-16px] w-0.5 bg-gray-200" />
         )}
       </div>
 
@@ -171,18 +171,18 @@ function TreeNode({
               <span className="text-sm font-medium">{event.label}</span>
               <div className="flex flex-row items-center gap-2">
                 {showEventType && (
-                  <span className="dark:text-polar-500 text-xs text-gray-500">
+                  <span className="dark:text-spaire-500 text-xs text-gray-500">
                     {event.name}
                   </span>
                 )}
-                <span className="dark:text-polar-500 font-mono text-xs text-gray-500">
+                <span className="dark:text-spaire-500 font-mono text-xs text-gray-500">
                   +{formattedTimestamp}
                 </span>
               </div>
             </div>
 
             {costDisplay && (
-              <span className="dark:text-polar-500 dark:group-hover:text-polar-300 font-mono text-sm text-gray-500 tabular-nums transition-colors duration-150 group-hover:text-gray-700">
+              <span className="dark:text-spaire-500 dark:group-hover:text-spaire-300 font-mono text-sm text-gray-500 tabular-nums transition-colors duration-150 group-hover:text-gray-700">
                 {costDisplay}
               </span>
             )}
@@ -299,12 +299,12 @@ export function EventRow({
           <td
             className={twMerge(
               'p-2',
-              isExpanded && 'dark:bg-polar-700 bg-gray-50',
+              isExpanded && 'dark:bg-spaire-700 bg-gray-50',
             )}
           >
             <Link
               href={`/dashboard/${organization.slug}/analytics/costs/${eventType.id}`}
-              className="dark:text-polar-500 text-sm text-gray-500"
+              className="dark:text-spaire-500 text-sm text-gray-500"
             >
               {eventType.label}
             </Link>
@@ -314,7 +314,7 @@ export function EventRow({
         <td
           className={twMerge(
             'p-2',
-            isExpanded && 'dark:bg-polar-700 bg-gray-50',
+            isExpanded && 'dark:bg-spaire-700 bg-gray-50',
           )}
         >
           <button
@@ -323,7 +323,7 @@ export function EventRow({
             className="text-sm font-medium"
           >
             {event.label === eventType.label ? (
-              <span className="dark:text-polar-200 truncate font-mono font-normal text-gray-600">
+              <span className="dark:text-spaire-200 truncate font-mono font-normal text-gray-600">
                 {event.id}
               </span>
             ) : (
@@ -335,7 +335,7 @@ export function EventRow({
         <td
           className={twMerge(
             'p-2',
-            isExpanded && 'dark:bg-polar-700 bg-gray-50',
+            isExpanded && 'dark:bg-spaire-700 bg-gray-50',
           )}
         >
           <EventCustomer event={event} />
@@ -343,8 +343,8 @@ export function EventRow({
 
         <td
           className={twMerge(
-            'dark:text-polar-500 p-2 text-sm text-gray-600',
-            isExpanded && 'dark:bg-polar-700 bg-gray-50',
+            'dark:text-spaire-500 p-2 text-sm text-gray-600',
+            isExpanded && 'dark:bg-spaire-700 bg-gray-50',
           )}
         >
           <FormattedDateTime datetime={event.timestamp} resolution="time" />
@@ -353,7 +353,7 @@ export function EventRow({
         <td
           className={twMerge(
             'p-2 text-right text-sm tabular-nums',
-            isExpanded && 'dark:bg-polar-700 bg-gray-50',
+            isExpanded && 'dark:bg-spaire-700 bg-gray-50',
           )}
         >
           {costMetadata && (

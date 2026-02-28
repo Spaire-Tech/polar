@@ -37,7 +37,7 @@ const WebhookSettings = (props: { org: schemas['Organization'] }) => {
           })
         ) : (
           <ShadowListGroup.Item>
-            <p className="dark:text-polar-400 text-sm text-gray-500">
+            <p className="dark:text-spaire-400 text-sm text-gray-500">
               {props.org.name} doesn&apos;t have any webhooks yet
             </p>
           </ShadowListGroup.Item>
@@ -86,11 +86,11 @@ const Endpoint = ({
     <div className="flex items-center justify-between overflow-hidden">
       <div className="flex w-2/3 flex-col gap-y-1">
         <p className="truncate font-mono text-sm">{endpoint.url}</p>
-        <p className="dark:text-polar-400 text-sm text-gray-500">
+        <p className="dark:text-spaire-400 text-sm text-gray-500">
           <FormattedDateTime datetime={endpoint.created_at} dateStyle="long" />
         </p>
       </div>
-      <div className="dark:text-polar-400 text-gray-500">
+      <div className="dark:text-spaire-400 text-gray-500">
         <Link
           href={`/dashboard/${organization.slug}/settings/webhooks/endpoints/${endpoint.id}`}
         >

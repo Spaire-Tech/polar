@@ -37,7 +37,7 @@ const AuthenticationMethod: React.FC<AuthenticationMethodProps> = ({
       <div>{icon}</div>
       <div className="grow">
         <div className="font-medium">{title}</div>
-        <div className="dark:text-polar-500 text-sm text-gray-500">
+        <div className="dark:text-spaire-500 text-sm text-gray-500">
           {subtitle}
         </div>
       </div>
@@ -191,7 +191,7 @@ const AuthenticationSettings = () => {
       />
     ),
     request: (
-      <div className="dark:text-polar-400 text-center text-sm text-gray-500">
+      <div className="dark:text-spaire-400 text-center text-sm text-gray-500">
         A verification email was sent to this address.
       </div>
     ),

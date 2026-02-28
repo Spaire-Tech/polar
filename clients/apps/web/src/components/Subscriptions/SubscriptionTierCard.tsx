@@ -39,7 +39,7 @@ const SubscriptionTierCard: React.FC<SubscriptionTierCardProps> = ({
     <Card
       id={subscriptionTier.name}
       className={twMerge(
-        'dark:bg-polar-900 relative flex flex-col gap-y-6 overflow-hidden rounded-4xl border-none border-gray-200 bg-gray-100 transition-opacity hover:bg-gray-50 hover:opacity-50',
+        'dark:bg-spaire-900 relative flex flex-col gap-y-6 overflow-hidden rounded-4xl border-none border-gray-200 bg-gray-100 transition-opacity hover:bg-gray-50 hover:opacity-50',
         className,
       )}
     >
@@ -61,7 +61,7 @@ const SubscriptionTierCard: React.FC<SubscriptionTierCardProps> = ({
                     price.price_amount,
                     price.price_currency,
                   )}
-                  <span className="dark:text-polar-500 ml-2 text-xl font-normal text-gray-500">
+                  <span className="dark:text-spaire-500 ml-2 text-xl font-normal text-gray-500">
                     {recurringBillingLabel}
                   </span>
                 </>
@@ -78,7 +78,7 @@ const SubscriptionTierCard: React.FC<SubscriptionTierCardProps> = ({
           )}
         </div>
         {subscriptionTier.description && (
-          <div className="prose dark:prose-invert dark:text-polar-500 shrink leading-normal text-gray-500">
+          <div className="prose dark:prose-invert dark:text-spaire-500 shrink leading-normal text-gray-500">
             <Markdown options={markdownOptionsJustText}>
               {subscriptionTier.description}
             </Markdown>
@@ -87,7 +87,7 @@ const SubscriptionTierCard: React.FC<SubscriptionTierCardProps> = ({
       </CardContent>
       {(subscriptionTier.benefits?.length ?? 0) > 0 && (
         <CardFooter className="flex w-full flex-col items-start p-3 pt-0">
-          <div className="dark:bg-polar-800 flex w-full flex-col gap-y-3 rounded-3xl bg-white p-5">
+          <div className="dark:bg-spaire-800 flex w-full flex-col gap-y-3 rounded-3xl bg-white p-5">
             <h3 className="text-sm font-medium">Included</h3>
             <div className="flex flex-col gap-y-2">
               <BenefitList benefits={subscriptionTier.benefits} />

@@ -24,7 +24,7 @@ const seatStatusToDisplayName = {
   ],
   revoked: [
     'Revoked',
-    'bg-gray-100 text-gray-500 dark:bg-polar-700 dark:text-polar-500',
+    'bg-gray-100 text-gray-500 dark:bg-spaire-700 dark:text-spaire-500',
   ],
 } as const
 

@@ -20,10 +20,10 @@ const DropzoneView = ({
   return (
     <div
       className={twMerge(
-        'dark:border-polar-700 flex w-full cursor-pointer items-center justify-center rounded-2xl border border-gray-200 pt-8 pb-8 text-black dark:text-white',
+        'dark:border-spaire-700 flex w-full cursor-pointer items-center justify-center rounded-2xl border border-gray-200 pt-8 pb-8 text-black dark:text-white',
         isDragActive
           ? 'border-blue-100 bg-blue-50 dark:border-blue-900 dark:bg-blue-950'
-          : 'dark:bg-polar-800 bg-gray-100',
+          : 'dark:bg-spaire-800 bg-gray-100',
       )}
     >
       <div className="flex flex-col items-center gap-y-4 text-center">

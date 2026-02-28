@@ -37,7 +37,7 @@ export default function ClientPage({
   }, [isAssistantFinished])
 
   return (
-    <div className="dark:md:bg-polar-950 flex h-full w-full flex-row">
+    <div className="dark:md:bg-spaire-950 flex h-full w-full flex-row">
       {/* Stepper Sidebar - desktop only */}
       <OnboardingStepper currentStep={2} />
 
@@ -68,7 +68,7 @@ export default function ClientPage({
               <h1 className="text-2xl font-medium tracking-tight md:text-3xl">
                 Create your first product
               </h1>
-              <p className="dark:text-polar-400 max-w-md text-base text-gray-500">
+              <p className="dark:text-spaire-400 max-w-md text-base text-gray-500">
                 Define what you&apos;re selling — you can always add more later.
               </p>
             </FadeUp>
@@ -104,9 +104,9 @@ export default function ClientPage({
                   organizations.length === 1 && !shouldShowSkip ? 'opacity-0!' : '',
                 )}
               >
-                <div className="dark:text-polar-500 flex flex-row items-center justify-center text-sm text-gray-500">
+                <div className="dark:text-spaire-500 flex flex-row items-center justify-center text-sm text-gray-500">
                   <button
-                    className="dark:hover:text-polar-500 dark:hover:bg-polar-700 cursor-pointer rounded-full px-2.5 py-1 transition-colors duration-100 hover:bg-gray-100 hover:text-gray-500"
+                    className="dark:hover:text-spaire-500 dark:hover:bg-spaire-700 cursor-pointer rounded-full px-2.5 py-1 transition-colors duration-100 hover:bg-gray-100 hover:text-gray-500"
                     onClick={() => setMode('manual')}
                   >
                     Set up manually

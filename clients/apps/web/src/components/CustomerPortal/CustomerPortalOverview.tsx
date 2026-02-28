@@ -75,18 +75,18 @@ export const CustomerPortalOverview = ({
         <div className="flex flex-col gap-y-4">
           <div className="flex flex-col gap-y-2">
             <h3 className="text-xl">Team Seat Access</h3>
-            <p className="dark:text-polar-500 text-gray-500">
+            <p className="dark:text-spaire-500 text-gray-500">
               Access provided through team subscription
             </p>
           </div>
           {activeClaimedSubscriptions.map((s) => (
             <div
               key={s.id}
-              className="dark:bg-polar-900 flex justify-between rounded-2xl bg-gray-50 px-6 py-4"
+              className="dark:bg-spaire-900 flex justify-between rounded-2xl bg-gray-50 px-6 py-4"
             >
               <div className="flex flex-col gap-1">
                 <span>{s.product.name}</span>
-                <span className="dark:text-polar-500 text-sm text-gray-500">
+                <span className="dark:text-spaire-500 text-sm text-gray-500">
                   {s.product.organization.name}
                 </span>
               </div>

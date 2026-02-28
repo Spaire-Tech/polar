@@ -61,7 +61,7 @@ const OAuthSettings = () => {
         })
       ) : (
         <ShadowListGroup.Item>
-          <p className="dark:text-polar-400 text-sm text-gray-500">
+          <p className="dark:text-spaire-400 text-sm text-gray-500">
             You don&apos;t have any configured OAuth Applications
           </p>
         </ShadowListGroup.Item>
@@ -125,7 +125,7 @@ const OAuthClientDetails = ({ client, onClick }: OAuthClientDetailsProps) => {
             <h3 className="text-md mr-4 text-ellipsis whitespace-nowrap">
               {client.client_name}
             </h3>
-            <p className="dark:text-polar-400 text-sm text-gray-500">
+            <p className="dark:text-spaire-400 text-sm text-gray-500">
               <FormattedDateTime
                 datetime={client.created_at}
                 dateStyle="long"

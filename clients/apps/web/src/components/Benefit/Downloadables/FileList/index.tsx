@@ -93,7 +93,7 @@ export const FileList = ({
           </div>
           {showPagination && (
             <div className="flex items-center justify-between gap-4">
-              <span className="dark:text-polar-500 text-sm text-gray-500">
+              <span className="dark:text-spaire-500 text-sm text-gray-500">
                 {files.length === 1
                   ? 'Viewing the only file'
                   : `Viewing ${startIndex + 1}-${endIndex} of ${files.length}`}
@@ -109,7 +109,7 @@ export const FileList = ({
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
-                <span className="dark:text-polar-400 min-w-[80px] text-center text-sm text-gray-600">
+                <span className="dark:text-spaire-400 min-w-[80px] text-center text-sm text-gray-600">
                   {currentPage + 1} / {totalPages}
                 </span>
                 <Button

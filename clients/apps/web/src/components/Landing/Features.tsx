@@ -38,7 +38,7 @@ const FeatureCard = ({
       <Link
         href={linkHref}
         target={linkHref.startsWith('http') ? '_blank' : undefined}
-        className="dark:bg-polar-900 flex h-full flex-col justify-between gap-x-6 gap-y-6 rounded-2xl bg-white p-6! transition-transform hover:translate-y-[-4px] md:p-10 xl:gap-y-0"
+        className="dark:bg-spaire-900 flex h-full flex-col justify-between gap-x-6 gap-y-6 rounded-2xl bg-white p-6! transition-transform hover:translate-y-[-4px] md:p-10 xl:gap-y-0"
       >
         <div className="flex h-full flex-col gap-y-6">
           <div className="flex h-full flex-col gap-y-2 md:gap-y-6">
@@ -46,7 +46,7 @@ const FeatureCard = ({
               {title}
             </h3>
             {typeof description === 'string' ? (
-              <p className="dark:text-polar-500 w-full grow text-lg text-gray-500 md:max-w-96">
+              <p className="dark:text-spaire-500 w-full grow text-lg text-gray-500 md:max-w-96">
                 {description}
               </p>
             ) : (
@@ -62,7 +62,7 @@ const FeatureCard = ({
 
 const CustomerCard = () => {
   return (
-    <div className="dark:bg-polar-800 dark:border-polar-700 flex items-center gap-x-4 rounded-lg border border-gray-100 bg-gray-50 p-4">
+    <div className="dark:bg-spaire-800 dark:border-spaire-700 flex items-center gap-x-4 rounded-lg border border-gray-100 bg-gray-50 p-4">
       <div className="h-12 w-12 overflow-hidden rounded-full">
         <Image
           src="/assets/landing/testamonials/emil.jpg"
@@ -75,7 +75,7 @@ const CustomerCard = () => {
       <div className="flex flex-col">
         <span className="font-medium text-black dark:text-white">John Doe</span>
 
-        <span className="dark:text-polar-500 flex flex-row gap-x-2 text-sm text-gray-500">
+        <span className="dark:text-spaire-500 flex flex-row gap-x-2 text-sm text-gray-500">
           <span>Premium Plan</span>
           <span>•</span>
           <span>Monthly</span>
@@ -132,10 +132,10 @@ const Features = ({ className }: FeaturesProps) => {
           ].map((item, i) => (
             <div
               key={i}
-              className="dark:bg-polar-800 dark:border-polar-700 flex items-center gap-x-3 rounded-lg border border-transparent bg-gray-50 px-3 py-2"
+              className="dark:bg-spaire-800 dark:border-spaire-700 flex items-center gap-x-3 rounded-lg border border-transparent bg-gray-50 px-3 py-2"
             >
               {item.icon}
-              <span className="dark:text-polar-50 text-xs text-gray-950">
+              <span className="dark:text-spaire-50 text-xs text-gray-950">
                 {item.text}
               </span>
             </div>
@@ -169,26 +169,26 @@ const Features = ({ className }: FeaturesProps) => {
         'Focus on your passion while we handle all headaches & tax compliance.',
       linkHref: '/resources/merchant-of-record',
       children: (
-        <div className="dark:bg-polar-800 dark:border-polar-700 flex flex-col gap-y-2 rounded-lg border border-transparent bg-gray-50 p-4">
+        <div className="dark:bg-spaire-800 dark:border-spaire-700 flex flex-col gap-y-2 rounded-lg border border-transparent bg-gray-50 p-4">
           <div className="flex items-center justify-between">
             <span className="text-sm text-black dark:text-white">
               Tax Report 2025
             </span>
             <span className="text-sm text-emerald-500">Submitted</span>
           </div>
-          <div className="dark:border-polar-700 flex items-center justify-between border-t border-gray-200 pt-2">
-            <span className="dark:text-polar-500 text-sm text-gray-500">
+          <div className="dark:border-spaire-700 flex items-center justify-between border-t border-gray-200 pt-2">
+            <span className="dark:text-spaire-500 text-sm text-gray-500">
               VAT (EU)
             </span>
-            <span className="dark:text-polar-500 text-sm text-gray-500">
+            <span className="dark:text-spaire-500 text-sm text-gray-500">
               €2,450.00
             </span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="dark:text-polar-500 text-sm text-gray-500">
+            <span className="dark:text-spaire-500 text-sm text-gray-500">
               Sales Tax (US)
             </span>
-            <span className="dark:text-polar-500 text-sm text-gray-500">
+            <span className="dark:text-spaire-500 text-sm text-gray-500">
               $3,120.00
             </span>
           </div>

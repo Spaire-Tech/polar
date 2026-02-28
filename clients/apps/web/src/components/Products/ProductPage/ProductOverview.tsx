@@ -102,7 +102,7 @@ export const ProductOverview = ({
           <div className="flex flex-row items-center justify-between gap-x-6">
             <div className="flex flex-col gap-y-1">
               <h2 className="text-lg">Subscriptions</h2>
-              <p className="dark:text-polar-500 text-sm text-gray-500">
+              <p className="dark:text-spaire-500 text-sm text-gray-500">
                 Showing 10 most recent subscriptions for {product.name}
               </p>
             </div>
@@ -217,7 +217,7 @@ export const ProductOverview = ({
         <div className="flex flex-row items-center justify-between gap-x-6">
           <div className="flex flex-col gap-y-1">
             <h2 className="text-lg">Orders</h2>
-            <p className="dark:text-polar-500 text-sm text-gray-500">
+            <p className="dark:text-spaire-500 text-sm text-gray-500">
               Showing last 10 orders for {product.name}
             </p>
           </div>
@@ -312,7 +312,7 @@ export const ProductOverview = ({
           <div className="flex flex-row items-center justify-between gap-x-6">
             <div className="flex flex-col gap-y-1">
               <h2 className="text-lg">Applicable Discounts</h2>
-              <p className="dark:text-polar-500 text-sm text-gray-500">
+              <p className="dark:text-spaire-500 text-sm text-gray-500">
                 All Discounts valid for {product.name}
               </p>
             </div>

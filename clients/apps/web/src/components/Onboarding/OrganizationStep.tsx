@@ -210,7 +210,7 @@ export const OrganizationStep = ({
   }
 
   return (
-    <div className="dark:md:bg-polar-950 flex h-full w-full flex-row">
+    <div className="dark:md:bg-spaire-950 flex h-full w-full flex-row">
       {/* Stepper Sidebar - desktop only */}
       <OnboardingStepper currentStep={0} />
 
@@ -233,7 +233,7 @@ export const OrganizationStep = ({
                   ? 'Add a new organization'
                   : 'Welcome to Spaire'}
               </h1>
-              <p className="dark:text-polar-400 max-w-md text-base text-gray-500">
+              <p className="dark:text-spaire-400 max-w-md text-base text-gray-500">
                 {hasExistingOrg
                   ? 'Set up a new workspace for your team or project.'
                   : "A few quick questions to personalize your setup."}
@@ -247,7 +247,7 @@ export const OrganizationStep = ({
                 <div className="flex flex-col gap-y-4">
                   <div className="flex flex-col gap-y-1">
                     <Label className="text-sm font-medium">What best describes your business?</Label>
-                    <p className="dark:text-polar-500 text-xs text-gray-400">
+                    <p className="dark:text-spaire-500 text-xs text-gray-400">
                       This helps us tailor your onboarding experience.
                     </p>
                   </div>
@@ -258,14 +258,14 @@ export const OrganizationStep = ({
                         type="button"
                         onClick={() => setBusinessType(type.id)}
                         className={twMerge(
-                          'dark:bg-polar-900 dark:border-polar-700 flex cursor-pointer flex-col gap-y-1.5 rounded-2xl border border-gray-200 bg-white p-5 text-left transition-all',
+                          'dark:bg-spaire-900 dark:border-spaire-700 flex cursor-pointer flex-col gap-y-1.5 rounded-2xl border border-gray-200 bg-white p-5 text-left transition-all',
                           businessType === type.id
                             ? 'border-blue-500 ring-1 ring-blue-500 dark:border-blue-500'
-                            : 'hover:border-gray-300 dark:hover:border-polar-600',
+                            : 'hover:border-gray-300 dark:hover:border-spaire-600',
                         )}
                       >
                         <span className="text-sm font-medium">{type.label}</span>
-                        <span className="dark:text-polar-500 text-xs leading-relaxed text-gray-400">
+                        <span className="dark:text-spaire-500 text-xs leading-relaxed text-gray-400">
                           {type.description}
                         </span>
                       </button>
@@ -277,7 +277,7 @@ export const OrganizationStep = ({
                 <div className="flex flex-col gap-y-4">
                   <div className="flex flex-col gap-y-1">
                     <Label className="text-sm font-medium">Who are your customers?</Label>
-                    <p className="dark:text-polar-500 text-xs text-gray-400">
+                    <p className="dark:text-spaire-500 text-xs text-gray-400">
                       We&apos;ll optimize your checkout and billing accordingly.
                     </p>
                   </div>
@@ -288,14 +288,14 @@ export const OrganizationStep = ({
                         type="button"
                         onClick={() => setAudienceType(type.id)}
                         className={twMerge(
-                          'dark:bg-polar-900 dark:border-polar-700 flex cursor-pointer flex-col items-center gap-y-1.5 rounded-2xl border border-gray-200 bg-white p-5 text-center transition-all',
+                          'dark:bg-spaire-900 dark:border-spaire-700 flex cursor-pointer flex-col items-center gap-y-1.5 rounded-2xl border border-gray-200 bg-white p-5 text-center transition-all',
                           audienceType === type.id
                             ? 'border-blue-500 ring-1 ring-blue-500 dark:border-blue-500'
-                            : 'hover:border-gray-300 dark:hover:border-polar-600',
+                            : 'hover:border-gray-300 dark:hover:border-spaire-600',
                         )}
                       >
                         <span className="text-sm font-medium">{type.label}</span>
-                        <span className="dark:text-polar-500 text-xs text-gray-400">
+                        <span className="dark:text-spaire-500 text-xs text-gray-400">
                           {type.description}
                         </span>
                       </button>
@@ -313,10 +313,10 @@ export const OrganizationStep = ({
                         type="button"
                         onClick={() => setReferralSource(source.id)}
                         className={twMerge(
-                          'dark:bg-polar-900 dark:border-polar-700 cursor-pointer rounded-full border border-gray-200 px-4 py-2 text-sm transition-all',
+                          'dark:bg-spaire-900 dark:border-spaire-700 cursor-pointer rounded-full border border-gray-200 px-4 py-2 text-sm transition-all',
                           referralSource === source.id
                             ? 'border-blue-500 bg-blue-50 text-blue-600 dark:border-blue-500 dark:bg-blue-500/10 dark:text-blue-400'
-                            : 'hover:border-gray-300 dark:hover:border-polar-600',
+                            : 'hover:border-gray-300 dark:hover:border-spaire-600',
                         )}
                       >
                         {source.label}
@@ -330,7 +330,7 @@ export const OrganizationStep = ({
             {/* Divider */}
             {!hasExistingOrg && (
               <FadeUp>
-                <div className="dark:border-polar-800 border-t border-gray-100" />
+                <div className="dark:border-spaire-800 border-t border-gray-100" />
               </FadeUp>
             )}
 
@@ -345,12 +345,12 @@ export const OrganizationStep = ({
                     <h2 className="text-base font-medium">
                       {hasExistingOrg ? 'Organization details' : 'Your workspace'}
                     </h2>
-                    <p className="dark:text-polar-500 text-sm text-gray-400">
+                    <p className="dark:text-spaire-500 text-sm text-gray-400">
                       This is where you&apos;ll manage your products and payments.
                     </p>
                   </div>
 
-                  <div className="dark:bg-polar-900 flex flex-col gap-y-5 rounded-2xl border border-gray-200 bg-white p-6 dark:border-none">
+                  <div className="dark:bg-spaire-900 flex flex-col gap-y-5 rounded-2xl border border-gray-200 bg-white p-6 dark:border-none">
                     <FormField
                       control={control}
                       name="name"
@@ -393,7 +393,7 @@ export const OrganizationStep = ({
                   </div>
                 </FadeUp>
 
-                <FadeUp className="dark:bg-polar-900 flex flex-col gap-y-4 rounded-2xl border border-gray-200 bg-white p-6 dark:border-none">
+                <FadeUp className="dark:bg-spaire-900 flex flex-col gap-y-4 rounded-2xl border border-gray-200 bg-white p-6 dark:border-none">
                   <SupportedUseCases />
                 </FadeUp>
 
@@ -425,7 +425,7 @@ export const OrganizationStep = ({
                                 I acknowledge the platform guidelines and accept
                                 Spaire&apos;s terms
                               </label>
-                              <ul className="dark:text-polar-500 flex flex-col gap-y-1 text-sm text-gray-500">
+                              <ul className="dark:text-spaire-500 flex flex-col gap-y-1 text-sm text-gray-500">
                                 <li>
                                   <a
                                     href="https://docs.spairehq.com/merchant-of-record/account-reviews"

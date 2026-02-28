@@ -1,7 +1,7 @@
 import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
 import Link from 'next/link'
 import { PropsWithChildren } from 'react'
-import { PolarLogotype } from '../Layout/Public/PolarLogotype'
+import { SpaireLogotype } from '../Layout/Public/SpaireLogotype'
 
 const Footer = () => {
   return (
@@ -10,7 +10,7 @@ const Footer = () => {
         <div className="grid w-full grid-cols-1 gap-12 md:grid-cols-2 md:justify-between md:gap-16 lg:grid-cols-6">
           <div className="flex h-full flex-1 flex-col justify-between gap-y-6 md:col-span-2">
             <span className="text-black md:ml-0">
-              <PolarLogotype
+              <SpaireLogotype
                 className="ml-2 md:ml-0"
                 logoVariant="logotype"
                 size={120}
@@ -24,14 +24,14 @@ const Footer = () => {
                 <span>Join Spaire today</span>
                 <ArrowOutwardOutlined fontSize="inherit" />
               </Link>
-              <span className="dark:text-polar-500 w-full text-gray-500">
+              <span className="dark:text-spaire-500 w-full text-gray-500">
                 &copy; Spaire {new Date().getFullYear()}
               </span>
             </div>
           </div>
 
           <div className="flex flex-col gap-y-4 text-sm">
-            <h3 className="dark:text-polar-500 text-gray-500">Features</h3>
+            <h3 className="dark:text-spaire-500 text-gray-500">Features</h3>
             <div className="flex flex-col gap-y-3">
               <FooterLink href="/features/products">Products</FooterLink>
               <FooterLink href="/features/analytics">Usage Billing</FooterLink>
@@ -42,7 +42,7 @@ const Footer = () => {
             </div>
           </div>
           <div className="flex flex-col gap-y-4 text-sm">
-            <h3 className="dark:text-polar-500 text-gray-500">Resources</h3>
+            <h3 className="dark:text-spaire-500 text-gray-500">Resources</h3>
             <div className="flex flex-col gap-y-3">
               <FooterLink href="/resources/why">Why Spaire</FooterLink>
               <FooterLink href="/resources/merchant-of-record">
@@ -53,7 +53,7 @@ const Footer = () => {
             </div>
           </div>
           <div className="flex flex-col gap-y-4 text-sm">
-            <h3 className="dark:text-polar-500 text-gray-500">Company</h3>
+            <h3 className="dark:text-spaire-500 text-gray-500">Company</h3>
             <div className="flex flex-col gap-y-3">
               <FooterLink href="/company">About Spaire</FooterLink>
               <FooterLink href="https://github.com/polarsource">
@@ -75,7 +75,7 @@ const Footer = () => {
             </div>
           </div>
           <div className="flex flex-col gap-y-4 text-sm">
-            <h3 className="dark:text-polar-500 text-gray-500">Support</h3>
+            <h3 className="dark:text-spaire-500 text-gray-500">Support</h3>
             <div className="flex flex-col gap-y-3">
               <FooterLink href="https://polar.sh/docs">Docs</FooterLink>
               <FooterLink href="mailto:support@spairehq.com">Contact</FooterLink>
@@ -93,7 +93,7 @@ const Footer = () => {
 export default Footer
 
 const FooterLinkClassnames =
-  'dark:text-white dark:hover:text-polar-100 flex flex-row items-center gap-x-1 text-black transition-colors hover:text-gray-500'
+  'dark:text-white dark:hover:text-spaire-100 flex flex-row items-center gap-x-1 text-black transition-colors hover:text-gray-500'
 
 const FooterLink = (props: PropsWithChildren<{ href: string }>) => {
   const isExternal = props.href.toString().startsWith('http')

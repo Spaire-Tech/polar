@@ -127,12 +127,12 @@ export default function ClientPage({
             <Avatar avatar_url={member.avatar_url} name={member.email} />
             <div className="fw-medium">{member.email}</div>
             {member.is_admin && (
-              <span className="dark:bg-polar-700 dark:text-polar-300 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+              <span className="dark:bg-spaire-700 dark:text-spaire-300 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
                 Admin
               </span>
             )}
             {isCurrentUser && (
-              <span className="dark:bg-polar-700 dark:text-polar-300 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+              <span className="dark:bg-spaire-700 dark:text-spaire-300 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
                 You
               </span>
             )}
@@ -204,7 +204,7 @@ export default function ClientPage({
         </Button>
       }
     >
-      <p className="dark:text-polar-500 text-gray-500">
+      <p className="dark:text-spaire-500 text-gray-500">
         Manage users who have access to this organization. All members are
         entitled to view and manage organization settings, products,
         subscriptions, etc.

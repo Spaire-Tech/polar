@@ -122,7 +122,7 @@ export default function CostsSidebarFilters({
     <div
       className={twMerge(
         'flex flex-col gap-y-6 overflow-y-auto px-4 pt-2 pb-4',
-        hasScrolled && 'dark:border-polar-700 border-t border-gray-200',
+        hasScrolled && 'dark:border-spaire-700 border-t border-gray-200',
       )}
       onScroll={handleScroll}
     >
@@ -245,17 +245,17 @@ function EventStatisticsCard({
           : `/dashboard/${organization.slug}/analytics/costs/${eventStatistics.event_type_id}${searchString ? `?${searchString}` : ''}`
       }
       className={twMerge(
-        'dark:bg-polar-700 flex cursor-pointer flex-col justify-between gap-5 rounded-2xl border px-3 pt-2 pb-3 transition-colors',
+        'dark:bg-spaire-700 flex cursor-pointer flex-col justify-between gap-5 rounded-2xl border px-3 pt-2 pb-3 transition-colors',
         isSelected
           ? 'border-gray-300 bg-gray-50'
-          : 'dark:border-polar-700 dark:hover:border-polar-600 border-gray-200 hover:border-gray-300',
+          : 'dark:border-spaire-700 dark:hover:border-spaire-600 border-gray-200 hover:border-gray-300',
       )}
     >
       <div className="flex flex-col justify-between gap-1.5">
         <h2 className="text-sm font-medium">
           {eventStatistics.label ?? eventStatistics.name}
         </h2>
-        <dl className="dark:text-polar-500 flex max-w-sm items-center gap-4 font-mono text-gray-500">
+        <dl className="dark:text-spaire-500 flex max-w-sm items-center gap-4 font-mono text-gray-500">
           <div className="flex flex-1 items-center justify-start gap-1.5 text-xs">
             <dt>
               <MousePointerClickIcon className="size-4" strokeWidth={1.5} />
@@ -285,7 +285,7 @@ function EventStatisticsCard({
           </div>
         </dl>
       </div>
-      <div className="dark:bg-polar-800 -m-2 flex flex-1 flex-col rounded-xl bg-gray-50 p-1">
+      <div className="dark:bg-spaire-800 -m-2 flex flex-1 flex-col rounded-xl bg-gray-50 p-1">
         <CostsBandedSparkline
           average={averageCostValues}
           p10={p10CostValues}

@@ -79,7 +79,7 @@ export const RefundModal = ({ order, hide }: RefundModalProps) => {
   return (
     <div className="flex flex-col gap-8 overflow-y-auto px-8 py-12">
       <h2 className="text-xl">Refund Order</h2>
-      <p className="dark:text-polar-500 text-gray-500">
+      <p className="dark:text-spaire-500 text-gray-500">
         You can refund in part or full. Customer&apos;s see it on their bank
         statement in 5-10 days.
       </p>
@@ -184,7 +184,7 @@ export const RefundModal = ({ order, hide }: RefundModalProps) => {
               </h3>
             </WellHeader>
             <WellContent>
-              <p className="dark:text-polar-500 text-gray-500">
+              <p className="dark:text-spaire-500 text-gray-500">
                 Underlying payment processors still charge us for the original
                 payment - even in case of a full refund. However, no additional
                 fees are applied of course.

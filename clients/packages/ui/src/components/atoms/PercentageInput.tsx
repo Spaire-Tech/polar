@@ -69,7 +69,7 @@ const PercentageInput = (props: Props) => {
       id={id}
       name={name}
       className={twMerge(
-        'dark:placeholder:text-polar-500 block w-full px-4 text-base placeholder:text-gray-400',
+        'dark:placeholder:text-spaire-500 block w-full px-4 text-base placeholder:text-gray-400',
         props.className ?? '',
       )}
       value={internalValue}

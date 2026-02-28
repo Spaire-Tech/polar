@@ -136,7 +136,7 @@ const OrganizationSelectionPage = ({
             Welcome to Polar!
             <br />
             Create an organization and connect to{' '}
-            <span className="dark:text-polar-200 font-medium text-gray-700">
+            <span className="dark:text-spaire-200 font-medium text-gray-700">
               {clientName}
             </span>
             .
@@ -149,7 +149,7 @@ const OrganizationSelectionPage = ({
             className="flex flex-col gap-y-6 lg:-mx-16"
             id="organization-create-form"
           >
-            <div className="dark:bg-polar-800 dark:border-polar-700 flex flex-col gap-y-4 rounded-2xl border border-gray-200 bg-white p-6">
+            <div className="dark:bg-spaire-800 dark:border-spaire-700 flex flex-col gap-y-4 rounded-2xl border border-gray-200 bg-white p-6">
               <FormField
                 control={control}
                 name="name"
@@ -198,11 +198,11 @@ const OrganizationSelectionPage = ({
               />
             </div>
 
-            <div className="dark:bg-polar-800 dark:border-polar-700 flex flex-col gap-y-4 rounded-2xl border border-gray-200 bg-white p-6">
+            <div className="dark:bg-spaire-800 dark:border-spaire-700 flex flex-col gap-y-4 rounded-2xl border border-gray-200 bg-white p-6">
               <SupportedUseCases />
             </div>
 
-            <div className="dark:bg-polar-800 dark:border-polar-700 gap-y- flex flex-col rounded-2xl border border-gray-200 bg-white p-6">
+            <div className="dark:bg-spaire-800 dark:border-spaire-700 gap-y- flex flex-col rounded-2xl border border-gray-200 bg-white p-6">
               <FormField
                 control={control}
                 name="terms"
@@ -228,7 +228,7 @@ const OrganizationSelectionPage = ({
                           I understand the restrictions above and agree to
                           Polar&rsquo;s terms
                         </label>
-                        <ul className="dark:text-polar-400 flex flex-col gap-y-1 text-sm text-gray-500">
+                        <ul className="dark:text-spaire-400 flex flex-col gap-y-1 text-sm text-gray-500">
                           <li>
                             <a
                               href="https://polar.sh/docs/merchant-of-record/account-reviews"
@@ -305,7 +305,7 @@ const OrganizationSelectionPage = ({
             Before using this app, you can review {clientName}&apos;s{' '}
             {client.tos_uri && (
               <a
-                className="dark:text-polar-300 text-gray-700"
+                className="dark:text-spaire-300 text-gray-700"
                 href={client.tos_uri}
               >
                 Terms of Service
@@ -314,7 +314,7 @@ const OrganizationSelectionPage = ({
             {client.tos_uri && client.policy_uri && ' and '}
             {client.policy_uri && (
               <a
-                className="dark:text-polar-300 text-gray-700"
+                className="dark:text-spaire-300 text-gray-700"
                 href={client.policy_uri}
               >
                 Privacy Policy
@@ -333,7 +333,7 @@ const OrganizationSelectionPage = ({
       client={client}
       introduction={
         <>
-          <span className="dark:text-polar-200 font-medium text-gray-700">
+          <span className="dark:text-spaire-200 font-medium text-gray-700">
             {clientName}
           </span>{' '}
           wants to access one of your Polar organizations. Select one:
@@ -347,7 +347,7 @@ const OrganizationSelectionPage = ({
               key={organization.id}
               href={buildOrganizationSelectionURL(organization)}
             >
-              <div className="dark:bg-polar-700 dark:hover:bg-polar-600 flex w-full flex-row items-center gap-2 rounded-2xl border border-gray-200 bg-white px-2.5 py-3 text-sm transition-colors hover:border-gray-300 dark:border-white/5 dark:hover:border-white/5">
+              <div className="dark:bg-spaire-700 dark:hover:bg-spaire-600 flex w-full flex-row items-center gap-2 rounded-2xl border border-gray-200 bg-white px-2.5 py-3 text-sm transition-colors hover:border-gray-300 dark:border-white/5 dark:hover:border-white/5">
                 <Avatar
                   className="h-8 w-8"
                   avatar_url={organization.avatar_url}
@@ -374,7 +374,7 @@ const OrganizationSelectionPage = ({
             Before using this app, you can review {clientName}&apos;s{' '}
             {client.tos_uri && (
               <a
-                className="dark:text-polar-300 text-gray-700"
+                className="dark:text-spaire-300 text-gray-700"
                 href={client.tos_uri}
               >
                 Terms of Service
@@ -383,7 +383,7 @@ const OrganizationSelectionPage = ({
             {client.tos_uri && client.policy_uri && ' and '}
             {client.policy_uri && (
               <a
-                className="dark:text-polar-300 text-gray-700"
+                className="dark:text-spaire-300 text-gray-700"
                 href={client.policy_uri}
               >
                 Privacy Policy

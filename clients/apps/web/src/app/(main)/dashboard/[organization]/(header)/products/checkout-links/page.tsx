@@ -53,7 +53,7 @@ export default async function Page(props: {
         <LinkOutlined fontSize="large" />
         <div className="flex flex-col items-center justify-center gap-y-2">
           <h3 className="text-xl font-medium">Share a checkout link</h3>
-          <p className="dark:text-polar-500 text-gray-500">
+          <p className="dark:text-spaire-500 text-gray-500">
             Checkout links let you sell products anywhere — embed them in
             your site, share on social media, or send directly to customers.
             Each link tracks conversions automatically.
