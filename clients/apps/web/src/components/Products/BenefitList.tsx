@@ -3,6 +3,12 @@ import { ChevronDown, ChevronUp, Plus } from 'lucide-react'
 import React, { ReactNode, useState } from 'react'
 import { resolveBenefitIcon } from '../Benefit/utils'
 
+type BenefitListItem = {
+  id: string
+  type: string
+  description: string
+}
+
 const AMOUNT_SHOWN = 15
 
 const BenefitRow = ({
@@ -26,13 +32,7 @@ export const BenefitList = ({
   benefits,
   toggle = false,
 }: {
-  benefits:
-    | {
-        id: string
-        type: schemas['BenefitType']
-        description: string
-      }[]
-    | undefined
+  benefits: BenefitListItem[] | undefined
   toggle?: boolean
 }) => {
   const [showAll, setShowAll] = useState(false)
@@ -52,7 +52,7 @@ export const BenefitList = ({
       {shown.map((benefit) => (
         <BenefitRow
           key={benefit.id}
-          icon={resolveBenefitIcon(benefit.type, 'h-4 w-4')}
+          icon={resolveBenefitIcon(benefit.type as schemas['BenefitType'], 'h-4 w-4')}
         >
           {benefit.description}
         </BenefitRow>
@@ -63,7 +63,7 @@ export const BenefitList = ({
             toggled.map((benefit) => (
               <BenefitRow
                 key={benefit.id}
-                icon={resolveBenefitIcon(benefit.type, 'h-4 w-4')}
+                icon={resolveBenefitIcon(benefit.type as schemas['BenefitType'], 'h-4 w-4')}
               >
                 {benefit.description}
               </BenefitRow>
