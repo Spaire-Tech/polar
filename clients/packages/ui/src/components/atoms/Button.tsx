@@ -13,14 +13,14 @@ const buttonVariants = cva(
         destructive:
           'bg-red-500 dark:bg-red-600 text-white hover:bg-red-400 dark:hover:bg-red-500',
         outline:
-          'text-black dark:text-white hover:bg-gray-200 dark:bg-transparent dark:hover:bg-polar-700 border-transparent hover:border-gray-200 border dark:border-polar-700 bg-transparent border-gray-100',
+          'text-black dark:text-white hover:bg-gray-200 dark:bg-transparent dark:hover:bg-spaire-700 border-transparent hover:border-gray-200 border dark:border-spaire-700 bg-transparent border-gray-100',
         secondary:
-          'text-black dark:text-white hover:bg-gray-200 dark:bg-polar-700 dark:hover:bg-polar-600 bg-gray-100 border dark:border-white/5 border-black/4',
+          'text-black dark:text-white hover:bg-gray-200 dark:bg-spaire-700 dark:hover:bg-spaire-600 bg-gray-100 border dark:border-white/5 border-black/4',
         underline:
           'text-black dark:text-white bg-transparent border-b hover:border-black dark:hover:border-white border-transparent transition-colors duration-300 p-0! hover:bg-transparent rounded-none!',
         link: 'text-blue-400 underline-offset-4 hover:underline bg-transparent hover:bg-transparent',
         ghost:
-          'bg-transparent hover:bg-gray-200 dark:hover:bg-polar-700 dark:bg-transparent text-black dark:text-white',
+          'bg-transparent hover:bg-gray-200 dark:hover:bg-spaire-700 dark:bg-transparent text-black dark:text-white',
       },
       size: {
         default: 'h-10 px-4 py-2 rounded-xl text-sm',

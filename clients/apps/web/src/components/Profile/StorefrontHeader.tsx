@@ -43,7 +43,7 @@ export const StorefrontHeader = ({ organization }: StorefrontHeaderProps) => {
           className="absolute top-0 right-0 bottom-0 left-0 h-full w-full rounded-2xl md:rounded-4xl"
         />
         <Avatar
-          className="dark:border-polar-950 absolute -bottom-16 left-1/2 h-32 w-32 -translate-x-1/2 border-8 border-white text-lg md:text-5xl"
+          className="dark:border-spaire-950 absolute -bottom-16 left-1/2 h-32 w-32 -translate-x-1/2 border-8 border-white text-lg md:text-5xl"
           name={organization.name}
           avatar_url={organization.avatar_url}
         />
@@ -52,7 +52,7 @@ export const StorefrontHeader = ({ organization }: StorefrontHeaderProps) => {
         <div className="flex flex-col items-center md:gap-y-1">
           <h1 className="text-xl md:text-3xl">{organization.name}</h1>
           <Link
-            className="dark:text-polar-500 text-gray-500"
+            className="dark:text-spaire-500 text-gray-500"
             href={`/${organization.slug}`}
             tabIndex={-1}
           >

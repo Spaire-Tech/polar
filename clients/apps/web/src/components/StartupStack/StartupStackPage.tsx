@@ -9,7 +9,7 @@ import Link from 'next/link'
 
 const PerkCard = ({ perk }: { perk: Perk }) => {
   return (
-    <div className="dark:border-polar-700 flex flex-col gap-y-5 rounded-2xl border border-gray-200 p-6">
+    <div className="dark:border-spaire-700 flex flex-col gap-y-5 rounded-2xl border border-gray-200 p-6">
       <div className="flex flex-row items-start gap-x-4">
         <img
           src={perk.logo}
@@ -24,13 +24,13 @@ const PerkCard = ({ perk }: { perk: Perk }) => {
         </div>
       </div>
 
-      <p className="dark:text-polar-400 text-sm leading-relaxed text-gray-500">
+      <p className="dark:text-spaire-400 text-sm leading-relaxed text-gray-500">
         {perk.description}
       </p>
 
-      <div className="dark:border-polar-700 dark:bg-polar-800 flex flex-row items-start gap-x-2 rounded-lg border border-gray-100 bg-gray-50 p-3">
-        <InfoOutlined className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 dark:text-polar-500" />
-        <p className="dark:text-polar-500 text-xs leading-relaxed text-gray-400">
+      <div className="dark:border-spaire-700 dark:bg-spaire-800 flex flex-row items-start gap-x-2 rounded-lg border border-gray-100 bg-gray-50 p-3">
+        <InfoOutlined className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 dark:text-spaire-500" />
+        <p className="dark:text-spaire-500 text-xs leading-relaxed text-gray-400">
           {perk.advice}
         </p>
       </div>
@@ -49,7 +49,7 @@ export default function StartupStackPage() {
   return (
     <DashboardBody title="Startup Stack">
       <div className="flex flex-col gap-y-2">
-        <p className="dark:text-polar-500 text-sm text-gray-500">
+        <p className="dark:text-spaire-500 text-sm text-gray-500">
           Optimize your burn from day zero. Access $150k+ in verified credits and preferred terms from the companies that power the world’s fastest-growing startups.
         </p>
       </div>

@@ -42,7 +42,7 @@ const roleDisplayNames: Record<string, [string, string]> = {
   ],
   member: [
     'Member',
-    'bg-gray-100 text-gray-600 dark:bg-polar-700 dark:text-polar-400',
+    'bg-gray-100 text-gray-600 dark:bg-spaire-700 dark:text-spaire-400',
   ],
 }
 
@@ -192,7 +192,7 @@ export const CustomerPortalTeam = ({
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-2">
         <h3 className="text-lg">Team Members</h3>
-        <p className="dark:text-polar-500 text-sm text-gray-500">
+        <p className="dark:text-spaire-500 text-sm text-gray-500">
           Manage your team members and their roles
         </p>
       </div>
@@ -200,7 +200,7 @@ export const CustomerPortalTeam = ({
       <div className="flex flex-col gap-y-4">
         <div className="flex flex-col gap-y-2">
           <h4 className="text-md font-medium">Add Member</h4>
-          <p className="dark:text-polar-500 text-sm text-gray-500">
+          <p className="dark:text-spaire-500 text-sm text-gray-500">
             Invite someone to join your team
           </p>
         </div>
@@ -254,7 +254,7 @@ export const CustomerPortalTeam = ({
                   <span className="text-sm font-medium">
                     {row.original.name || '—'}
                   </span>
-                  <span className="dark:text-polar-500 text-xs text-gray-500">
+                  <span className="dark:text-spaire-500 text-xs text-gray-500">
                     {row.original.email}
                   </span>
                 </div>
@@ -276,7 +276,7 @@ export const CustomerPortalTeam = ({
                       status={label}
                     />
                     {isCurrentUser && (
-                      <span className="dark:text-polar-500 text-xs text-gray-500">
+                      <span className="dark:text-spaire-500 text-xs text-gray-500">
                         (you)
                       </span>
                     )}
@@ -288,7 +288,7 @@ export const CustomerPortalTeam = ({
               accessorKey: 'created_at',
               header: 'Joined',
               cell: ({ row }) => (
-                <span className="dark:text-polar-500 text-sm text-gray-500">
+                <span className="dark:text-spaire-500 text-sm text-gray-500">
                   {formatDate(row.original.created_at)}
                 </span>
               ),

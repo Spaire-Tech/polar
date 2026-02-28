@@ -38,12 +38,12 @@ export const PageContent = () => {
           <Link
             href="/resources/why"
             prefetch
-            className="dark:text-polar-400 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-200"
+            className="dark:text-spaire-400 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-200"
           >
             <Button
               variant="secondary"
               size="lg"
-              className="dark:bg-polar-800 rounded-full border-none bg-white"
+              className="dark:bg-spaire-800 rounded-full border-none bg-white"
             >
               Why Polar
             </Button>
@@ -52,7 +52,7 @@ export const PageContent = () => {
         <Features />
         <Logotypes />
         {isMobile ? null : (
-          <div className="dark:border-polar-700 relative aspect-video w-full overflow-hidden rounded-xl border border-gray-200 md:rounded-3xl">
+          <div className="dark:border-spaire-700 relative aspect-video w-full overflow-hidden rounded-xl border border-gray-200 md:rounded-3xl">
             <Stream
               src="8fb79c2cb066f3d9e982ad5ad3eb9fc4"
               letterboxColor="black"

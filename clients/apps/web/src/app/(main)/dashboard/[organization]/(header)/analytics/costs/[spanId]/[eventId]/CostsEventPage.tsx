@@ -97,15 +97,15 @@ export default function EventDetailPage({
       header={<div className="h-10" />}
       className="flex flex-col gap-y-8"
     >
-      <div className="dark:border-polar-700 dark:bg-polar-900 flex flex-col gap-y-6 rounded-2xl border border-gray-200 bg-gray-50 p-6">
+      <div className="dark:border-spaire-700 dark:bg-spaire-900 flex flex-col gap-y-6 rounded-2xl border border-gray-200 bg-gray-50 p-6">
         <div className="flex flex-col gap-y-4">
           <div className="flex flex-row items-start justify-between gap-x-4">
             <div className="flex flex-col gap-y-1">
-              <span className="dark:text-polar-500 text-xs text-gray-500">
+              <span className="dark:text-spaire-500 text-xs text-gray-500">
                 {event.name}
               </span>
               <h3 className="text-2xl font-medium">{event.label}</h3>
-              <span className="dark:text-polar-500 font-mono text-xs text-gray-500">
+              <span className="dark:text-spaire-500 font-mono text-xs text-gray-500">
                 {new Date(event.timestamp).toLocaleDateString('en-US', {
                   hour: '2-digit',
                   minute: 'numeric',
@@ -117,7 +117,7 @@ export default function EventDetailPage({
               </span>
             </div>
             {'_cost' in event.metadata && event.metadata._cost && (
-              <span className="dark:text-polar-400 font-mono text-3xl text-gray-600 tabular-nums">
+              <span className="dark:text-spaire-400 font-mono text-3xl text-gray-600 tabular-nums">
                 {formatCurrency('subcent')(
                   Number(event.metadata._cost?.amount ?? 0),
                   event.metadata._cost?.currency ?? 'usd',
@@ -127,7 +127,7 @@ export default function EventDetailPage({
           </div>
 
           {(event.customer || event.external_customer_id) && (
-            <div className="dark:border-polar-700 border-t border-gray-200 pt-4">
+            <div className="dark:border-spaire-700 border-t border-gray-200 pt-4">
               {event.customer ? (
                 <div className="flex flex-row items-center gap-3">
                   <Avatar
@@ -139,7 +139,7 @@ export default function EventDetailPage({
                     <span className="text-sm font-medium">
                       {event.customer.name ?? event.customer.email}
                     </span>
-                    <span className="dark:text-polar-400 font-mono text-xs text-gray-600">
+                    <span className="dark:text-spaire-400 font-mono text-xs text-gray-600">
                       {event.external_customer_id ?? ''}
                     </span>
                   </div>
@@ -151,10 +151,10 @@ export default function EventDetailPage({
                     className="size-10"
                   />
                   <div className="flex flex-col gap-0.5">
-                    <span className="dark:text-polar-400 text-sm text-gray-600">
+                    <span className="dark:text-spaire-400 text-sm text-gray-600">
                       {getAnonymousCustomerName(event.external_customer_id)[0]}
                     </span>
-                    <span className="dark:text-polar-400 font-mono text-xs text-gray-600">
+                    <span className="dark:text-spaire-400 font-mono text-xs text-gray-600">
                       {event.external_customer_id}
                     </span>
                   </div>
@@ -198,7 +198,7 @@ const DataRow = ({
   return (
     <div className="flex flex-row items-center gap-x-4">
       <dt className="flex w-32 flex-row items-center gap-x-4">{label}</dt>
-      <dd className="dark:text-polar-500 text-gray-500 tabular-nums">
+      <dd className="dark:text-spaire-500 text-gray-500 tabular-nums">
         {value}
       </dd>
     </div>
@@ -219,11 +219,11 @@ function DataCard({
   return (
     <div
       className={twMerge(
-        'dark:border-polar-700 dark:hover:border-polar-600 flex flex-col gap-4 rounded-2xl border border-gray-200 px-4 pt-3.5 pb-4 text-sm transition-colors duration-150 hover:border-gray-300',
+        'dark:border-spaire-700 dark:hover:border-spaire-600 flex flex-col gap-4 rounded-2xl border border-gray-200 px-4 pt-3.5 pb-4 text-sm transition-colors duration-150 hover:border-gray-300',
         variant === 'muted' && 'opacity-50',
       )}
     >
-      <span className="dark:text-polar-500 flex flex-row items-center font-mono text-[11px] font-medium tracking-wider text-gray-500 uppercase">
+      <span className="dark:text-spaire-500 flex flex-row items-center font-mono text-[11px] font-medium tracking-wider text-gray-500 uppercase">
         <Icon className="mr-1.5 inline-block size-4" />
         {title}
       </span>
@@ -265,7 +265,7 @@ const SpanEventDetailsCard = ({
               </SyntaxHighlighterProvider>
             </div>
           ) : (
-            <p className="dark:text-polar-500 text-center text-sm text-gray-500 italic">
+            <p className="dark:text-spaire-500 text-center text-sm text-gray-500 italic">
               Assign metadata to your events for improved analytics.
             </p>
           )}
@@ -377,9 +377,9 @@ function TreeNode({
   return (
     <div className="group relative flex gap-x-4">
       <div className="relative flex w-3 justify-center">
-        <div className="dark:bg-polar-500 absolute top-[10px] z-10 h-3 w-3 rounded-full bg-gray-400" />
+        <div className="dark:bg-spaire-500 absolute top-[10px] z-10 h-3 w-3 rounded-full bg-gray-400" />
         {!isLast && (
-          <div className="dark:bg-polar-700 absolute top-[16px] bottom-[-16px] w-0.5 bg-gray-200" />
+          <div className="dark:bg-spaire-700 absolute top-[16px] bottom-[-16px] w-0.5 bg-gray-200" />
         )}
       </div>
 
@@ -390,18 +390,18 @@ function TreeNode({
               <span className="text-base font-medium">{event.label}</span>
               <div className="flex flex-row items-center gap-2">
                 {showEventType && (
-                  <span className="dark:text-polar-500 text-xs text-gray-500">
+                  <span className="dark:text-spaire-500 text-xs text-gray-500">
                     {event.name}
                   </span>
                 )}
-                <span className="dark:text-polar-500 font-mono text-xs text-gray-500">
+                <span className="dark:text-spaire-500 font-mono text-xs text-gray-500">
                   +{formattedTimestamp}
                 </span>
               </div>
             </div>
 
             {costDisplay && (
-              <span className="dark:text-polar-500 dark:group-hover:text-polar-300 font-mono text-base text-gray-500 tabular-nums transition-colors duration-150 group-hover:text-gray-700">
+              <span className="dark:text-spaire-500 dark:group-hover:text-spaire-300 font-mono text-base text-gray-500 tabular-nums transition-colors duration-150 group-hover:text-gray-700">
                 {costDisplay}
               </span>
             )}

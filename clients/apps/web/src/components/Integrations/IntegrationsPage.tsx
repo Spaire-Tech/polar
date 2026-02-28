@@ -53,17 +53,17 @@ function IntegrationCard({ integration }: { integration: Integration }) {
   const { organization } = useContext(OrganizationContext)
   const icon = INTEGRATION_ICONS[integration.slug]
   const colors = CATEGORY_COLORS[integration.category] ?? {
-    bg: 'bg-gray-50 dark:bg-polar-800',
-    text: 'text-gray-600 dark:text-polar-400',
+    bg: 'bg-gray-50 dark:bg-spaire-800',
+    text: 'text-gray-600 dark:text-spaire-400',
   }
   const isComingSoon = integration.comingSoon
 
   const content = (
     <div
-      className={`group dark:border-polar-700 flex flex-col gap-y-5 rounded-2xl border border-gray-200 p-6 transition-all ${
+      className={`group dark:border-spaire-700 flex flex-col gap-y-5 rounded-2xl border border-gray-200 p-6 transition-all ${
         isComingSoon
           ? 'cursor-default opacity-60'
-          : 'dark:hover:border-polar-600 hover:border-gray-300 hover:shadow-md dark:hover:shadow-none'
+          : 'dark:hover:border-spaire-600 hover:border-gray-300 hover:shadow-md dark:hover:shadow-none'
       }`}
     >
       <div className="flex flex-row items-start justify-between">
@@ -73,21 +73,21 @@ function IntegrationCard({ integration }: { integration: Integration }) {
             <h3 className="text-base font-medium dark:text-white">
               {integration.name}
             </h3>
-            <span className={`text-[11px] font-medium ${isComingSoon ? 'dark:text-polar-500 text-gray-400' : colors.text}`}>
+            <span className={`text-[11px] font-medium ${isComingSoon ? 'dark:text-spaire-500 text-gray-400' : colors.text}`}>
               {integration.categoryLabel}
             </span>
           </div>
         </div>
         {isComingSoon ? (
-          <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-medium text-gray-500 dark:bg-polar-800 dark:text-polar-400">
+          <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-medium text-gray-500 dark:bg-spaire-800 dark:text-spaire-400">
             Coming Soon
           </span>
         ) : (
-          <ArrowOutwardOutlined className="h-4 w-4 text-gray-300 transition-colors group-hover:text-gray-500 dark:text-polar-600 dark:group-hover:text-polar-400" />
+          <ArrowOutwardOutlined className="h-4 w-4 text-gray-300 transition-colors group-hover:text-gray-500 dark:text-spaire-600 dark:group-hover:text-spaire-400" />
         )}
       </div>
 
-      <p className="dark:text-polar-400 text-sm leading-relaxed text-gray-500">
+      <p className="dark:text-spaire-400 text-sm leading-relaxed text-gray-500">
         {integration.description}
       </p>
 
@@ -95,7 +95,7 @@ function IntegrationCard({ integration }: { integration: Integration }) {
         <span
           className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${
             isComingSoon
-              ? 'bg-gray-50 text-gray-400 dark:bg-polar-800 dark:text-polar-500'
+              ? 'bg-gray-50 text-gray-400 dark:bg-spaire-800 dark:text-spaire-500'
               : `${colors.bg} ${colors.text}`
           }`}
         >
@@ -122,7 +122,7 @@ export default function IntegrationsPage() {
   return (
     <DashboardBody title="Integrations">
       <div className="flex flex-col gap-y-2">
-        <p className="dark:text-polar-500 text-sm text-gray-500">
+        <p className="dark:text-spaire-500 text-sm text-gray-500">
           Connect Spaire to your favorite tools. Copy a prompt, paste it into
           your AI builder, or integrate with our SDK — and start accepting
           payments in minutes.

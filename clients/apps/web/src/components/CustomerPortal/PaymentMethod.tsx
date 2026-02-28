@@ -26,11 +26,11 @@ const PaymentMethodCard = ({
       <CreditCardBrandIcon
         width="4em"
         brand={brand}
-        className="dark:border-polar-700 rounded-lg border border-gray-200 p-2"
+        className="dark:border-spaire-700 rounded-lg border border-gray-200 p-2"
       />
       <div className="flex flex-col">
         <span className="capitalize">{`${brand} •••• ${last4}`}</span>
-        <span className="dark:text-polar-500 text-sm text-gray-500">
+        <span className="dark:text-spaire-500 text-sm text-gray-500">
           Expires {exp_month}/{exp_year}
         </span>
       </div>

@@ -1,4 +1,4 @@
-const PolarLogo = ({
+const SpaireLogo = ({
   className,
   width,
   height,
@@ -18,4 +18,4 @@ const PolarLogo = ({
   )
 }
 
-export default PolarLogo
+export default SpaireLogo

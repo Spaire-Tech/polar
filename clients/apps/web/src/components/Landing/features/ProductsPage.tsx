@@ -46,7 +46,7 @@ export const ProductsPage = () => {
         </Hero>
 
         <motion.div
-          className="dark:bg-polar-900 flex w-full flex-col overflow-hidden rounded-2xl bg-white md:flex-row-reverse md:items-stretch"
+          className="dark:bg-spaire-900 flex w-full flex-col overflow-hidden rounded-2xl bg-white md:flex-row-reverse md:items-stretch"
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true }}
@@ -59,14 +59,14 @@ export const ProductsPage = () => {
                   Flexible subscription models
                 </h2>
               </div>
-              <p className="dark:text-polar-500 text-lg text-gray-500">
+              <p className="dark:text-spaire-500 text-lg text-gray-500">
                 Create subscriptions with fixed pricing, tiered plans, or
                 usage-based billing. Support monthly, yearly, or custom billing
                 cycles.
               </p>
             </div>
             <motion.ul
-              className="dark:divide-polar-700 dark:border-polar-700 flex flex-col divide-y divide-gray-200 border-y border-gray-200"
+              className="dark:divide-spaire-700 dark:border-spaire-700 flex flex-col divide-y divide-gray-200 border-y border-gray-200"
               variants={containerVariants}
             >
               {[
@@ -89,9 +89,9 @@ export const ProductsPage = () => {
               ))}
             </motion.ul>
           </div>
-          <div className="dark:bg-polar-800 relative flex flex-1 items-center justify-center p-8 md:p-16">
+          <div className="dark:bg-spaire-800 relative flex flex-1 items-center justify-center p-8 md:p-16">
             <motion.div
-              className="dark:bg-polar-900 dark:border-polar-700 z-10 flex w-full max-w-xs flex-col gap-y-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm"
+              className="dark:bg-spaire-900 dark:border-spaire-700 z-10 flex w-full max-w-xs flex-col gap-y-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm"
               variants={itemVariants}
             >
               <div className="flex flex-row items-center justify-between gap-x-2">
@@ -107,13 +107,13 @@ export const ProductsPage = () => {
                 <span className="text-2xl text-black dark:text-white">
                   Pro Plan
                 </span>
-                <span className="dark:text-polar-500 text-sm text-gray-500">
+                <span className="dark:text-spaire-500 text-sm text-gray-500">
                   $49/month
                 </span>
               </div>
-              <div className="dark:border-polar-700 flex items-center justify-between border-t border-gray-200 pt-4">
+              <div className="dark:border-spaire-700 flex items-center justify-between border-t border-gray-200 pt-4">
                 <div className="flex flex-col">
-                  <span className="dark:text-polar-500 text-xs text-gray-500">
+                  <span className="dark:text-spaire-500 text-xs text-gray-500">
                     Next Invoice
                   </span>
                   <span className="font-medium text-black dark:text-white">
@@ -121,7 +121,7 @@ export const ProductsPage = () => {
                   </span>
                 </div>
                 <div className="flex flex-col items-end">
-                  <span className="dark:text-polar-500 text-xs text-gray-500">
+                  <span className="dark:text-spaire-500 text-xs text-gray-500">
                     Status
                   </span>
                   <span className="font-medium text-emerald-500">Active</span>
@@ -165,12 +165,12 @@ export const ProductsPage = () => {
             ].map((feature, i) => (
               <div
                 key={i}
-                className="dark:bg-polar-900 flex flex-col items-center gap-y-8 rounded-xl bg-white px-6 py-12 text-center"
+                className="dark:bg-spaire-900 flex flex-col items-center gap-y-8 rounded-xl bg-white px-6 py-12 text-center"
               >
                 <div className="flex flex-row gap-x-2">{feature.icon}</div>
                 <div className="flex flex-col gap-y-4">
                   <h3 className="text-2xl">{feature.title}</h3>
-                  <p className="dark:text-polar-400 text-balance text-gray-600">
+                  <p className="dark:text-spaire-400 text-balance text-gray-600">
                     {feature.description}
                   </p>
                 </div>
@@ -192,7 +192,7 @@ export const ProductsPage = () => {
             Ready to launch subscriptions?
           </motion.h2>
           <motion.p
-            className="dark:text-polar-500 text-lg text-gray-500 md:w-[480px]"
+            className="dark:text-spaire-500 text-lg text-gray-500 md:w-[480px]"
             variants={itemVariants}
           >
             Join companies using Polar for reliable, scalable subscription

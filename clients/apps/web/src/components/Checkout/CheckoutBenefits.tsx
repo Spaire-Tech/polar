@@ -49,7 +49,7 @@ const CheckoutBenefits = ({
           {benefitGrants?.items.map((benefitGrant) => (
             <ListItem
               key={benefitGrant.id}
-              className="dark:bg-polar-800 dark:hover:bg-polar-800 bg-white p-4 hover:bg-white"
+              className="dark:bg-spaire-800 dark:hover:bg-spaire-800 bg-white p-4 hover:bg-white"
             >
               <BenefitGrant api={api} benefitGrant={benefitGrant} />
             </ListItem>
@@ -57,7 +57,7 @@ const CheckoutBenefits = ({
           {benefitGrants && benefitGrants.items.length < expectedBenefits && (
             <ListItem className="flex flex-row items-center justify-center gap-2">
               <SpinnerNoMargin className="h-4 w-4" />
-              <p className="dark:text-polar-500 text-gray-500">
+              <p className="dark:text-spaire-500 text-gray-500">
                 Granting benefits...
               </p>
             </ListItem>

@@ -12,7 +12,7 @@ const NotificationRecipientItem = ({
   return (
     <div className="flex flex-col gap-y-2">
       <span className="font-medium">{recipient.platform} Device</span>
-      <span className="dark:text-polar-500 font-mono text-xs text-gray-500">
+      <span className="dark:text-spaire-500 font-mono text-xs text-gray-500">
         {recipient.expo_push_token}
       </span>
     </div>
@@ -35,7 +35,7 @@ export const NotificationRecipientsSettings = () => {
         })
       ) : (
         <ShadowListGroup.Item>
-          <p className="dark:text-polar-500 text-sm text-gray-500">
+          <p className="dark:text-spaire-500 text-sm text-gray-500">
             You don&apos;t have any active Notification Recipients.
           </p>
         </ShadowListGroup.Item>

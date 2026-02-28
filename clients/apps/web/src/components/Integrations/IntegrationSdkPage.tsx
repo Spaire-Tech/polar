@@ -91,21 +91,21 @@ export default function IntegrationSdkPage({
             <FadeUp className="flex flex-col gap-y-4">
               <div className="flex items-center gap-x-3">
                 {icon}
-                <span className="dark:bg-polar-800 dark:text-polar-300 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">
+                <span className="dark:bg-spaire-800 dark:text-spaire-300 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">
                   {integration.categoryLabel}
                 </span>
               </div>
               <h1 className="mt-1 text-2xl font-medium tracking-tight md:text-3xl">
                 {integration.tagline}
               </h1>
-              <p className="dark:text-polar-400 max-w-lg text-base leading-relaxed text-gray-500">
+              <p className="dark:text-spaire-400 max-w-lg text-base leading-relaxed text-gray-500">
                 {integration.description}
               </p>
             </FadeUp>
 
             {/* How it works */}
             <FadeUp className="flex flex-col gap-y-5">
-              <h2 className="text-sm font-medium uppercase tracking-wider text-gray-400 dark:text-polar-500">
+              <h2 className="text-sm font-medium uppercase tracking-wider text-gray-400 dark:text-spaire-500">
                 How it works
               </h2>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -133,12 +133,12 @@ export default function IntegrationSdkPage({
                       setPackageManager(v as PackageManager)
                     }
                   >
-                    <TabsList className="dark:bg-polar-800 rounded-sm bg-gray-100 p-0.5">
+                    <TabsList className="dark:bg-spaire-800 rounded-sm bg-gray-100 p-0.5">
                       {packageManagers.map((pm) => (
                         <TabsTrigger
                           key={pm}
                           value={pm}
-                          className="dark:data-[state=active]:bg-polar-700 !rounded-sm px-2.5 py-1 text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                          className="dark:data-[state=active]:bg-spaire-700 !rounded-sm px-2.5 py-1 text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm"
                         >
                           {pm}
                         </TabsTrigger>
@@ -212,7 +212,7 @@ export default function IntegrationSdkPage({
 
 const CodeWrapper = ({ children }: { children: React.ReactNode }) => {
   return (
-    <div className="dark:border-polar-700 dark:bg-polar-800 w-full rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm">
+    <div className="dark:border-spaire-700 dark:bg-spaire-800 w-full rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm">
       {children}
     </div>
   )
@@ -227,13 +227,13 @@ const HowItWorksCard = ({
   title: string
   description: string
 }) => (
-  <div className="dark:bg-polar-900 flex flex-col gap-y-3 rounded-2xl border border-gray-200 bg-white p-5 dark:border-none">
-    <span className="dark:bg-polar-800 dark:text-polar-300 flex h-7 w-7 items-center justify-center rounded-full bg-gray-100 text-xs font-medium text-gray-600">
+  <div className="dark:bg-spaire-900 flex flex-col gap-y-3 rounded-2xl border border-gray-200 bg-white p-5 dark:border-none">
+    <span className="dark:bg-spaire-800 dark:text-spaire-300 flex h-7 w-7 items-center justify-center rounded-full bg-gray-100 text-xs font-medium text-gray-600">
       {number}
     </span>
     <div className="flex flex-col gap-y-1">
       <span className="text-sm font-medium">{title}</span>
-      <span className="dark:text-polar-500 text-xs leading-relaxed text-gray-400">
+      <span className="dark:text-spaire-500 text-xs leading-relaxed text-gray-400">
         {description}
       </span>
     </div>

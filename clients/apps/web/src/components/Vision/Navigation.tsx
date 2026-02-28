@@ -21,8 +21,8 @@ export const Navigation = ({
               key={index}
               onClick={() => setIndex(index)}
               className={twMerge(
-                'hover:bg-polar-200 cursor-default px-1 hover:text-black',
-                index === activeIndex ? 'bg-polar-200 text-black' : '',
+                'hover:bg-spaire-200 cursor-default px-1 hover:text-black',
+                index === activeIndex ? 'bg-spaire-200 text-black' : '',
               )}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}

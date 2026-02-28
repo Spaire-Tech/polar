@@ -188,7 +188,7 @@ const CancelSubscriptionModal = ({
                           className={
                             field.value
                               ? ''
-                              : 'dark:text-polar-500 text-gray-400'
+                              : 'dark:text-spaire-500 text-gray-400'
                           }
                         >
                           <SelectValue placeholder="Select customer cancellation reason" />

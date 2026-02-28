@@ -26,7 +26,7 @@ const itemVariants = {
 export const Pricing = () => {
   return (
     <motion.div
-      className={`dark:bg-polar-900 flex w-full flex-col overflow-hidden rounded-2xl bg-white md:flex-row md:rounded-4xl`}
+      className={`dark:bg-spaire-900 flex w-full flex-col overflow-hidden rounded-2xl bg-white md:flex-row md:rounded-4xl`}
       variants={containerVariants}
       initial="hidden"
       whileInView="visible"
@@ -87,7 +87,7 @@ export const Pricing = () => {
             variants={itemVariants}
           >
             <Link href="/resources/pricing" target="_blank">
-              <Button className="dark:hover:bg-polar-50 rounded-full border-none bg-black hover:bg-neutral-900 dark:bg-white dark:text-black">
+              <Button className="dark:hover:bg-spaire-50 rounded-full border-none bg-black hover:bg-neutral-900 dark:bg-white dark:text-black">
                 Pricing Guide
               </Button>
             </Link>
@@ -101,7 +101,7 @@ export const Pricing = () => {
         </div>
       </div>
 
-      <div className="dark:bg-polar-800 relative flex flex-col items-center justify-center bg-gray-100 p-8 text-sm md:w-1/2 md:p-16">
+      <div className="dark:bg-spaire-800 relative flex flex-col items-center justify-center bg-gray-100 p-8 text-sm md:w-1/2 md:p-16">
         <Image
           className="absolute inset-0 h-full w-full object-cover"
           src="/assets/landing/abstract_07.jpg"
@@ -110,25 +110,25 @@ export const Pricing = () => {
           loading="lazy"
           alt=""
         />
-        <div className="dark:border-polar-700 dark:bg-polar-900 z-10 w-96 scale-75 overflow-hidden rounded-xl border border-gray-200 bg-white xl:scale-100">
+        <div className="dark:border-spaire-700 dark:bg-spaire-900 z-10 w-96 scale-75 overflow-hidden rounded-xl border border-gray-200 bg-white xl:scale-100">
           <table className="w-full">
-            <thead className="dark:bg-polar-800 bg-gray-50">
-              <tr className="dark:border-polar-700 border-b border-gray-200">
-                <th className="dark:border-polar-700 border-r border-gray-200 p-4 text-left font-medium">
+            <thead className="dark:bg-spaire-800 bg-gray-50">
+              <tr className="dark:border-spaire-700 border-b border-gray-200">
+                <th className="dark:border-spaire-700 border-r border-gray-200 p-4 text-left font-medium">
                   Feature
                 </th>
-                <th className="dark:border-polar-700 border-r border-gray-200 p-4 text-center font-medium">
+                <th className="dark:border-spaire-700 border-r border-gray-200 p-4 text-center font-medium">
                   Polar
                 </th>
                 <th className="p-4 text-center font-medium">Stripe</th>
               </tr>
             </thead>
-            <tbody className="dark:divide-polar-700 divide-y divide-gray-200">
+            <tbody className="dark:divide-spaire-700 divide-y divide-gray-200">
               <tr>
-                <td className="dark:border-polar-700 border-r border-gray-200 p-4">
+                <td className="dark:border-spaire-700 border-r border-gray-200 p-4">
                   Payment Processing
                 </td>
-                <td className="dark:border-polar-700 border-r border-gray-200 p-4 text-center">
+                <td className="dark:border-spaire-700 border-r border-gray-200 p-4 text-center">
                   <CheckOutlined className="text-green-600" fontSize="small" />
                 </td>
                 <td className="p-4 text-center">
@@ -136,10 +136,10 @@ export const Pricing = () => {
                 </td>
               </tr>
               <tr>
-                <td className="dark:border-polar-700 border-r border-gray-200 p-4">
+                <td className="dark:border-spaire-700 border-r border-gray-200 p-4">
                   Subscription Management
                 </td>
-                <td className="dark:border-polar-700 border-r border-gray-200 p-4 text-center">
+                <td className="dark:border-spaire-700 border-r border-gray-200 p-4 text-center">
                   <CheckOutlined className="text-green-600" fontSize="small" />
                 </td>
                 <td className="p-4 text-center">
@@ -147,10 +147,10 @@ export const Pricing = () => {
                 </td>
               </tr>
               <tr>
-                <td className="dark:border-polar-700 border-r border-gray-200 p-4">
+                <td className="dark:border-spaire-700 border-r border-gray-200 p-4">
                   Merchant of Record
                 </td>
-                <td className="dark:border-polar-700 border-r border-gray-200 p-4 text-center">
+                <td className="dark:border-spaire-700 border-r border-gray-200 p-4 text-center">
                   <CheckOutlined className="text-green-600" fontSize="small" />
                 </td>
                 <td className="p-4 text-center">
@@ -158,10 +158,10 @@ export const Pricing = () => {
                 </td>
               </tr>
               <tr>
-                <td className="dark:border-polar-700 border-r border-gray-200 p-4">
+                <td className="dark:border-spaire-700 border-r border-gray-200 p-4">
                   Global Tax Compliance
                 </td>
-                <td className="dark:border-polar-700 border-r border-gray-200 p-4 text-center">
+                <td className="dark:border-spaire-700 border-r border-gray-200 p-4 text-center">
                   <CheckOutlined className="text-green-600" fontSize="small" />
                 </td>
                 <td className="p-4 text-center">
@@ -169,10 +169,10 @@ export const Pricing = () => {
                 </td>
               </tr>
               <tr>
-                <td className="dark:border-polar-700 border-r border-gray-200 p-4">
+                <td className="dark:border-spaire-700 border-r border-gray-200 p-4">
                   Framework Adapters
                 </td>
-                <td className="dark:border-polar-700 border-r border-gray-200 p-4 text-center">
+                <td className="dark:border-spaire-700 border-r border-gray-200 p-4 text-center">
                   <CheckOutlined className="text-green-600" fontSize="small" />
                 </td>
                 <td className="p-4 text-center">
@@ -180,10 +180,10 @@ export const Pricing = () => {
                 </td>
               </tr>
               <tr>
-                <td className="dark:border-polar-700 border-r border-gray-200 p-4">
+                <td className="dark:border-spaire-700 border-r border-gray-200 p-4">
                   Payments in 6 lines of code
                 </td>
-                <td className="dark:border-polar-700 border-r border-gray-200 p-4 text-center">
+                <td className="dark:border-spaire-700 border-r border-gray-200 p-4 text-center">
                   <CheckOutlined className="text-green-600" fontSize="small" />
                 </td>
                 <td className="p-4 text-center">
@@ -191,10 +191,10 @@ export const Pricing = () => {
                 </td>
               </tr>
               <tr>
-                <td className="dark:border-polar-700 border-r border-gray-200 p-4">
+                <td className="dark:border-spaire-700 border-r border-gray-200 p-4">
                   Flexible Usage Billing
                 </td>
-                <td className="dark:border-polar-700 border-r border-gray-200 p-4 text-center">
+                <td className="dark:border-spaire-700 border-r border-gray-200 p-4 text-center">
                   <CheckOutlined className="text-green-600" fontSize="small" />
                 </td>
                 <td className="p-4 text-center">

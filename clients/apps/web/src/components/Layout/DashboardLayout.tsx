@@ -92,7 +92,7 @@ const MobileNav = ({
   }, [pathname])
 
   const header = (
-    <div className="dark:bg-polar-900 sticky top-0 right-0 left-0 flex w-full flex-row items-center justify-between bg-gray-50 p-4">
+    <div className="dark:bg-spaire-900 sticky top-0 right-0 left-0 flex w-full flex-row items-center justify-between bg-gray-50 p-4">
       <a
         href="/"
         className="shrink-0 items-center font-semibold text-black dark:text-white"
@@ -108,11 +108,11 @@ const MobileNav = ({
   )
 
   return (
-    <div className="dark:bg-polar-900 relative z-20 flex w-screen flex-col items-center justify-between bg-gray-50 md:hidden">
+    <div className="dark:bg-spaire-900 relative z-20 flex w-screen flex-col items-center justify-between bg-gray-50 md:hidden">
       {mobileNavOpen ? (
         <div className="relative flex h-full w-full flex-col">
           {header}
-          <div className="dark:bg-polar-900 flex h-full flex-col bg-gray-50 px-4">
+          <div className="dark:bg-spaire-900 flex h-full flex-col bg-gray-50 px-4">
             <DashboardSidebar
               organization={organization}
               organizations={organizations}
@@ -229,7 +229,7 @@ export const DashboardBody = ({
       animate="animate"
       exit="exit"
     >
-      <div className="dark:md:bg-polar-900 dark:border-polar-800 relative flex min-w-0 flex-2 flex-col items-center rounded-2xl border-gray-200 px-4 md:overflow-y-auto md:border md:bg-white md:px-8 md:shadow-xs">
+      <div className="dark:md:bg-spaire-900 dark:border-spaire-800 relative flex min-w-0 flex-2 flex-col items-center rounded-2xl border-gray-200 px-4 md:overflow-y-auto md:border md:bg-white md:px-8 md:shadow-xs">
         <div
           className={twMerge(
             'flex h-full w-full flex-col gap-8 pt-8',
@@ -278,7 +278,7 @@ export const DashboardBody = ({
             exit: { opacity: 0, transition: { duration: 0.3 } },
           }}
           className={twMerge(
-            'dark:bg-polar-900 dark:border-polar-800 w-full flex-1 overflow-y-auto rounded-2xl border border-gray-200 bg-white md:max-w-[320px] md:shadow-xs xl:max-w-[440px]',
+            'dark:bg-spaire-900 dark:border-spaire-800 w-full flex-1 overflow-y-auto rounded-2xl border border-gray-200 bg-white md:max-w-[320px] md:shadow-xs xl:max-w-[440px]',
             contextViewClassName,
           )}
         >

@@ -40,7 +40,7 @@ export const NavPopover = ({
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger
         className={twMerge(
-          'dark:text-polar-500 -m-1 flex cursor-pointer items-center gap-x-2 p-1 text-gray-500 transition-colors hover:text-black focus:outline-none dark:hover:text-white',
+          'dark:text-spaire-500 -m-1 flex cursor-pointer items-center gap-x-2 p-1 text-gray-500 transition-colors hover:text-black focus:outline-none dark:hover:text-white',
           (isOpen || isActive) && 'text-black dark:text-white',
         )}
         onMouseEnter={() => setIsOpen(true)}
@@ -68,7 +68,7 @@ export const NavPopover = ({
             )}
           >
             {section.title && (
-              <h3 className="dark:text-polar-500 px-4 py-2 text-sm text-gray-500">
+              <h3 className="dark:text-spaire-500 px-4 py-2 text-sm text-gray-500">
                 {section.title}
               </h3>
             )}
@@ -85,11 +85,11 @@ export const NavPopover = ({
                   href={href}
                   prefetch
                   target={target}
-                  className="dark:hover:bg-polar-800 flex flex-col rounded-md px-4 py-2 text-sm transition-colors hover:bg-gray-100"
+                  className="dark:hover:bg-spaire-800 flex flex-col rounded-md px-4 py-2 text-sm transition-colors hover:bg-gray-100"
                 >
                   <span className="font-medium">{label}</span>
                   {subtitle && (
-                    <span className="dark:text-polar-500 text-gray-500">
+                    <span className="dark:text-spaire-500 text-gray-500">
                       {subtitle}
                     </span>
                   )}

@@ -25,13 +25,13 @@ const UpsellCard = ({
   link,
 }: UpsellCardProps) => {
   return (
-    <motion.div className="dark:bg-polar-900 relative flex h-full flex-col gap-y-6 rounded-xl bg-white p-8">
+    <motion.div className="dark:bg-spaire-900 relative flex h-full flex-col gap-y-6 rounded-xl bg-white p-8">
       <div className="flex flex-row items-center gap-3">
-        <Icon className="dark:text-polar-300 h-5 w-5 text-gray-600" />
+        <Icon className="dark:text-spaire-300 h-5 w-5 text-gray-600" />
         <h3 className="text-xl">{title}</h3>
       </div>
       <div className="flex flex-1 flex-col justify-start gap-2">
-        <p className="dark:text-polar-500 text-lg text-balance text-gray-500">
+        <p className="dark:text-spaire-500 text-lg text-balance text-gray-500">
           {description}
         </p>
       </div>
@@ -80,7 +80,7 @@ export const Upsell = () => {
           description="Manage and distribute your digital products with our robust platform."
           link="https://polar.sh/docs/documentation/features/products"
         >
-          <ul className="dark:text-polar-300 flex flex-col gap-y-1 text-gray-600">
+          <ul className="dark:text-spaire-300 flex flex-col gap-y-1 text-gray-600">
             <li className="flex flex-row items-center gap-x-2">
               <Check className="h-4 w-4 text-emerald-500" />
               Flexible Pricing Models
@@ -104,7 +104,7 @@ export const Upsell = () => {
           description="Streamlined checkouts for a seamless user experience."
           link="https://polar.sh/docs/documentation/features/checkouts/checkout-links"
         >
-          <ul className="dark:text-polar-300 flex flex-col gap-y-1 text-gray-600">
+          <ul className="dark:text-spaire-300 flex flex-col gap-y-1 text-gray-600">
             <li className="flex flex-row items-center gap-x-2">
               <Check className="h-4 w-4 text-emerald-500" />
               Custom Checkout Fields
@@ -128,7 +128,7 @@ export const Upsell = () => {
           description="We believe in building in public & therefore proud to be open source."
           link="https://github.com/polarsource"
         >
-          <ul className="dark:text-polar-300 flex flex-col gap-y-1 text-gray-600">
+          <ul className="dark:text-spaire-300 flex flex-col gap-y-1 text-gray-600">
             <li className="flex flex-row items-center gap-x-2">
               <Check className="h-4 w-4 text-emerald-500" />
               Raycast Extension

@@ -229,14 +229,14 @@ export default function ClientPage({
           <ShadowBoxOnMd className="items-center justify-center gap-y-6 md:flex md:flex-col md:py-24">
             <div className="flex max-w-md flex-col items-center gap-y-6 text-center">
               <HiveOutlined
-                className="dark:text-polar-600 text-5xl text-gray-300"
+                className="dark:text-spaire-600 text-5xl text-gray-300"
                 fontSize="large"
               />
               <div className="flex flex-col items-center gap-y-2">
                 <h3 className="text-xl font-medium">
                   Create your first product
                 </h3>
-                <p className="dark:text-polar-500 text-gray-500">
+                <p className="dark:text-spaire-500 text-gray-500">
                   Products are what your customers purchase — subscriptions,
                   one-time payments, or usage-based plans. Set up pricing,
                   benefits, and checkout in one place.

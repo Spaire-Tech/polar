@@ -18,7 +18,7 @@ export const EventCardBase = ({
   return (
     <div
       className={twMerge(
-        'dark:bg-polar-900 dark:group-hover:bg-polar-800 mx-1 mb-1 flex flex-row gap-4 rounded-md bg-gray-50 px-2 py-1 font-mono text-xs select-none group-hover:bg-gray-100',
+        'dark:bg-spaire-900 dark:group-hover:bg-spaire-800 mx-1 mb-1 flex flex-row gap-4 rounded-md bg-gray-50 px-2 py-1 font-mono text-xs select-none group-hover:bg-gray-100',
         'transition-colors duration-150',
         loading ? 'animate-pulse' : '',
         className,

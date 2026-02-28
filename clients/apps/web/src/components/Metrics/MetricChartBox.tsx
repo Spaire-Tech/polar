@@ -149,7 +149,7 @@ const MetricChartBox = ({
     <ShadowBox
       ref={ref}
       className={twMerge(
-        'dark:bg-polar-800 group flex w-full flex-col justify-between bg-gray-50 p-2 shadow-xs',
+        'dark:bg-spaire-800 group flex w-full flex-col justify-between bg-gray-50 p-2 shadow-xs',
         className,
       )}
     >
@@ -170,10 +170,10 @@ const MetricChartBox = ({
           {onMetricChange ? (
             <div className="flex flex-row items-center gap-x-2">
               <Select value={metric} onValueChange={onMetricChange}>
-                <SelectTrigger className="dark:hover:bg-polar-700 -mt-2 -ml-3 h-fit w-fit rounded-lg border-0 border-none bg-transparent px-3 py-2 shadow-none ring-0 transition-colors hover:bg-gray-200 focus-visible:ring-0 focus-visible:ring-offset-0">
+                <SelectTrigger className="dark:hover:bg-spaire-700 -mt-2 -ml-3 h-fit w-fit rounded-lg border-0 border-none bg-transparent px-3 py-2 shadow-none ring-0 transition-colors hover:bg-gray-200 focus-visible:ring-0 focus-visible:ring-offset-0">
                   <SelectValue placeholder="Select a metric" />
                 </SelectTrigger>
-                <SelectContent className="dark:bg-polar-800 dark:ring-polar-700 ring-1 ring-gray-200">
+                <SelectContent className="dark:bg-spaire-800 dark:ring-spaire-700 ring-1 ring-gray-200">
                   {availableMetrics
                     ? availableMetrics.map((m) => (
                         <SelectItem key={m.slug} value={m.slug}>
@@ -244,7 +244,7 @@ const MetricChartBox = ({
                     dateStyle="medium"
                   />
                 ) : (
-                  <span className="dark:text-polar-500 text-gray-500">
+                  <span className="dark:text-spaire-500 text-gray-500">
                     {startDate && endDate && (
                       <FormattedInterval
                         startDatetime={startDate}
@@ -257,14 +257,14 @@ const MetricChartBox = ({
               </div>
               {previousData && (
                 <div className="flex flex-row items-center gap-x-2 text-sm">
-                  <span className="dark:border-polar-600 h-3 w-3 rounded-full border-2 border-gray-500" />
+                  <span className="dark:border-spaire-600 h-3 w-3 rounded-full border-2 border-gray-500" />
                   {hoveredPreviousPeriod ? (
                     <FormattedDateTime
                       datetime={hoveredPreviousPeriod.timestamp}
                       dateStyle="medium"
                     />
                   ) : (
-                    <span className="dark:text-polar-500 text-gray-500">
+                    <span className="dark:text-spaire-500 text-gray-500">
                       {previousStartDate && previousEndDate && (
                         <FormattedInterval
                           startDatetime={previousStartDate}
@@ -313,7 +313,7 @@ const MetricChartBox = ({
       </div>
       <div
         className={twMerge(
-          'dark:bg-polar-900 flex w-full flex-col gap-y-2 rounded-3xl bg-white',
+          'dark:bg-spaire-900 flex w-full flex-col gap-y-2 rounded-3xl bg-white',
           compact ? 'p-2' : 'p-4',
         )}
       >

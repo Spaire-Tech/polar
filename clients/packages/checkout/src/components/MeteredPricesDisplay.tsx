@@ -52,7 +52,7 @@ const MeteredPricesDisplay = ({ checkout }: MeteredPricesDisplayProps) => {
       {meteredPrices.map((price) => (
         <div
           key={price.id}
-          className="dark:text-polar-100 flex flex-row items-center gap-x-2 text-sm text-gray-600"
+          className="dark:text-spaire-100 flex flex-row items-center gap-x-2 text-sm text-gray-600"
         >
           <GaugeIcon className="h-4 w-4" />
           <ProductPriceLabel product={product} price={price as ProductPrice} />

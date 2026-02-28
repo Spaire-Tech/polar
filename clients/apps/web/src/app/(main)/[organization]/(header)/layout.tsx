@@ -1,4 +1,4 @@
-import { PolarLogotype } from '@/components/Layout/Public/PolarLogotype'
+import { SpaireLogotype } from '@/components/Layout/Public/SpaireLogotype'
 import TopbarRight from '@/components/Layout/Public/TopbarRight'
 import PublicLayout from '@/components/Layout/PublicLayout'
 import { StorefrontNav } from '@/components/Organization/StorefrontNav'
@@ -28,7 +28,7 @@ export default async function Layout(props: {
   return (
     <PublicLayout className="gap-y-0 py-6 md:py-12" wide>
       <div className="relative flex flex-row items-center justify-end gap-x-6">
-        <PolarLogotype
+        <SpaireLogotype
           className="absolute left-1/2 -translate-x-1/2"
           size={50}
         />

@@ -148,7 +148,7 @@ const CheckoutSeatSelector = ({
         <h1 className="text-3xl font-light text-gray-900 dark:text-white">
           {formatCurrency('compact')(netAmount, currency)}
         </h1>
-        <p className="dark:text-polar-400 text-sm text-gray-500">
+        <p className="dark:text-spaire-400 text-sm text-gray-500">
           {formatCurrency('compact')(pricePerSeat, currency)} per seat
         </p>
       </div>
@@ -193,7 +193,7 @@ const CheckoutSeatSelector = ({
               type="button"
               onClick={handleSeatClick}
               disabled={isUpdating}
-              className="dark:hover:bg-polar-800 group relative min-w-[3.5rem] rounded-xl px-3 py-1.5 text-center text-2xl font-light text-gray-900 tabular-nums transition-all hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:text-white"
+              className="dark:hover:bg-spaire-800 group relative min-w-[3.5rem] rounded-xl px-3 py-1.5 text-center text-2xl font-light text-gray-900 tabular-nums transition-all hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:text-white"
               aria-label="Click to edit seat count"
               title="Click to edit"
             >
@@ -228,7 +228,7 @@ const CheckoutSeatSelector = ({
           </Button>
         </div>
         {seatLimitText && (
-          <p className="dark:text-polar-400 text-xs text-gray-500">
+          <p className="dark:text-spaire-400 text-xs text-gray-500">
             {seatLimitText}
           </p>
         )}

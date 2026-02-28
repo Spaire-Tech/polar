@@ -48,7 +48,7 @@ export default async function Page(props: {
     <div className="flex w-full flex-1 flex-col items-center justify-center gap-6 px-4 py-24">
       <div className="flex max-w-md flex-col items-center gap-y-4 text-center">
         <h1 className="text-xl font-medium">Add value with benefits</h1>
-        <p className="dark:text-polar-500 text-gray-500">
+        <p className="dark:text-spaire-500 text-gray-500">
           Benefits are extras you attach to products — license keys,
           usage credits, custom integrations, and more.
           Customers receive them automatically after purchase.

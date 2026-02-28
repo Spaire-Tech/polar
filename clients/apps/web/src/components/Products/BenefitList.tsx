@@ -13,8 +13,8 @@ const BenefitRow = ({
   children: ReactNode
 }) => {
   return (
-    <div className="dark:text-polar-100 flex flex-row items-center gap-x-2 text-gray-600">
-      <span className="dark:text-polar-200 flex h-4 w-4 items-center justify-center text-2xl text-gray-600">
+    <div className="dark:text-spaire-100 flex flex-row items-center gap-x-2 text-gray-600">
+      <span className="dark:text-spaire-200 flex h-4 w-4 items-center justify-center text-2xl text-gray-600">
         {icon}
       </span>
       <span className="text-sm">{children}</span>

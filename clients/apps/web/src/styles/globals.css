@@ -70,17 +70,17 @@
   --color-gray-900: oklch(0.21 0.034 264.665);
   --color-gray-950: oklch(0.13 0.028 261.692);
 
-  --color-polar-50: hsl(233, 5%, 85%);
-  --color-polar-100: hsl(233, 5%, 79%);
-  --color-polar-200: hsl(233, 5%, 68%);
-  --color-polar-300: hsl(233, 5%, 62%);
-  --color-polar-400: hsl(233, 5%, 52%);
-  --color-polar-500: hsl(233, 5%, 46%);
-  --color-polar-600: hsl(233, 5%, 24%);
-  --color-polar-700: hsl(233, 5%, 12%);
-  --color-polar-800: hsl(233, 5%, 9.5%);
-  --color-polar-900: hsl(233, 5%, 6.5%);
-  --color-polar-950: hsl(233, 5%, 3%);
+  --color-spaire-50: hsl(233, 5%, 85%);
+  --color-spaire-100: hsl(233, 5%, 79%);
+  --color-spaire-200: hsl(233, 5%, 68%);
+  --color-spaire-300: hsl(233, 5%, 62%);
+  --color-spaire-400: hsl(233, 5%, 52%);
+  --color-spaire-500: hsl(233, 5%, 46%);
+  --color-spaire-600: hsl(233, 5%, 24%);
+  --color-spaire-700: hsl(233, 5%, 12%);
+  --color-spaire-800: hsl(233, 5%, 9.5%);
+  --color-spaire-900: hsl(233, 5%, 6.5%);
+  --color-spaire-950: hsl(233, 5%, 3%);
 
   /* shadcn */
   --color-border: var(--border);
@@ -162,30 +162,30 @@
 /* shadcn/ui */
 @layer base {
   :root {
-    --background: var(--color-polar-800);
-    --foreground: var(--color-polar-500);
-    --card: var(--color-polar-800);
-    --card-foreground: var(--color-polar-50);
-    --popover: var(--color-polar-900);
-    --popover-foreground: var(--color-polar-50);
-    --sidebar-background: var(--color-polar-950);
-    --sidebar-foreground: var(--color-polar-50);
+    --background: var(--color-spaire-800);
+    --foreground: var(--color-spaire-500);
+    --card: var(--color-spaire-800);
+    --card-foreground: var(--color-spaire-50);
+    --popover: var(--color-spaire-900);
+    --popover-foreground: var(--color-spaire-50);
+    --sidebar-background: var(--color-spaire-950);
+    --sidebar-foreground: var(--color-spaire-50);
     --sidebar-primary: var(--color-blue);
-    --sidebar-primary-foreground: var(--color-polar-50);
-    --sidebar-border: var(--color-polar-700);
+    --sidebar-primary-foreground: var(--color-spaire-50);
+    --sidebar-border: var(--color-spaire-700);
     --primary: var(--color-blue);
-    --primary-foreground: var(--color-polar-50);
-    --secondary: var(--color-polar-900);
-    --secondary-foreground: var(--color-polar-50);
-    --muted: var(--color-polar-700);
-    --muted-foreground: var(--color-polar-500);
+    --primary-foreground: var(--color-spaire-50);
+    --secondary: var(--color-spaire-900);
+    --secondary-foreground: var(--color-spaire-50);
+    --muted: var(--color-spaire-700);
+    --muted-foreground: var(--color-spaire-500);
     --accent: var(--color-blue);
-    --accent-foreground: var(--color-polar-50);
+    --accent-foreground: var(--color-spaire-50);
     --destructive: var(--color-red-500);
     --destructive-foreground: var(--color-red-500);
-    --border: var(--color-polar-700);
-    --input: var(--color-polar-700);
-    --ring: var(--color-polar-700);
+    --border: var(--color-spaire-700);
+    --input: var(--color-spaire-700);
+    --ring: var(--color-spaire-700);
     --radius: 0.6rem;
   }
 }
@@ -198,8 +198,8 @@ pre.shiki {
     background-color: var(--color-gray-100) !important;
   }
 
-  .dark .dark\:prose-pre\:bg-polar-800 & {
-    background-color: var(--color-polar-800) !important;
+  .dark .dark\:prose-pre\:bg-spaire-800 & {
+    background-color: var(--color-spaire-800) !important;
   }
 }
 

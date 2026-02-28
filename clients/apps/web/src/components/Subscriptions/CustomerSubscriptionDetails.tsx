@@ -131,11 +131,11 @@ const CustomerSubscriptionDetails = ({
   }
 
   return (
-    <ShadowBox className="dark:bg-polar-900 flex w-full flex-col gap-y-6 bg-gray-50 dark:border-transparent">
+    <ShadowBox className="dark:bg-spaire-900 flex w-full flex-col gap-y-6 bg-gray-50 dark:border-transparent">
       <div className="flex flex-row items-start justify-between">
         <div className="flex flex-row items-baseline gap-x-6">
           <h3 className="truncate text-xl">{subscription.product.name}</h3>
-          <div className="dark:text-polar-500 text-xl text-gray-500">
+          <div className="dark:text-spaire-500 text-xl text-gray-500">
             {subscription.amount && subscription.currency ? (
               <span className="flex flex-row justify-end gap-x-1">
                 {subscriptionBaseAmount &&
@@ -162,12 +162,12 @@ const CustomerSubscriptionDetails = ({
       </div>
       <div className="flex flex-col gap-y-2 text-sm">
         <div className="flex flex-row items-center justify-between">
-          <span className="dark:text-polar-500 text-gray-500">Status</span>
+          <span className="dark:text-spaire-500 text-gray-500">Status</span>
           <SubscriptionStatusLabel subscription={subscription} />
         </div>
         {subscription.started_at && (
           <div className="flex flex-row items-center justify-between">
-            <span className="dark:text-polar-500 text-gray-500">
+            <span className="dark:text-spaire-500 text-gray-500">
               Start Date
             </span>
             <span>
@@ -180,7 +180,7 @@ const CustomerSubscriptionDetails = ({
         )}
         {subscription.trial_end && subscription.status === 'trialing' ? (
           <div className="flex flex-row items-center justify-between">
-            <span className="dark:text-polar-500 text-gray-500">
+            <span className="dark:text-spaire-500 text-gray-500">
               Trial Ends
             </span>
             <span>
@@ -194,7 +194,7 @@ const CustomerSubscriptionDetails = ({
           !subscription.ended_at &&
           subscription.current_period_end && (
             <div className="flex flex-row items-center justify-between">
-              <span className="dark:text-polar-500 text-gray-500">
+              <span className="dark:text-spaire-500 text-gray-500">
                 {subscription.cancel_at_period_end
                   ? 'Expiry Date'
                   : 'Renewal Date'}
@@ -217,7 +217,7 @@ const CustomerSubscriptionDetails = ({
                   key={subscriptionMeter.meter.id}
                   className="flex flex-row items-center justify-between"
                 >
-                  <span className="dark:text-polar-500 text-gray-500">
+                  <span className="dark:text-spaire-500 text-gray-500">
                     {subscriptionMeter.meter.name}
                   </span>
                   <span>
@@ -233,7 +233,7 @@ const CustomerSubscriptionDetails = ({
         )}
         {subscription.ended_at && (
           <div className="flex flex-row items-center justify-between">
-            <span className="dark:text-polar-500 text-gray-500">Expired</span>
+            <span className="dark:text-spaire-500 text-gray-500">Expired</span>
             <span>
               <FormattedDateTime
                 datetime={subscription.ended_at}

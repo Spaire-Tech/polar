@@ -204,12 +204,12 @@ class EmbedCheckout {
    *
    * @example
    * ```html
-   * <a href="https://buy.spairehq.com/polar_cl_123" data-spaire-checkout data-spaire-checkout-theme="dark">Checkout</a>
+   * <a href="https://buy.spairehq.com/spaire_cl_123" data-spaire-checkout data-spaire-checkout-theme="dark">Checkout</a>
    * ```
    */
   public static init(): void {
     const checkoutElements = document.querySelectorAll(
-      '[data-spaire-checkout], [data-polar-checkout]',
+      '[data-spaire-checkout]',
     )
     checkoutElements.forEach((checkoutElement) => {
       checkoutElement.removeEventListener(
@@ -299,10 +299,7 @@ class EmbedCheckout {
 
     // Find the closest parent element with the checkout data attribute,
     // in case the checkout element has children triggering the event.
-    while (
-      !checkoutElement.hasAttribute('data-spaire-checkout') &&
-      !checkoutElement.hasAttribute('data-polar-checkout')
-    ) {
+    while (!checkoutElement.hasAttribute('data-spaire-checkout')) {
       if (!checkoutElement.parentElement) {
         return
       }
@@ -311,10 +308,10 @@ class EmbedCheckout {
 
     const url =
       checkoutElement.getAttribute('href') ||
-      (checkoutElement.getAttribute('data-spaire-checkout') as string) ||
-      (checkoutElement.getAttribute('data-polar-checkout') as string)
-    const theme = (checkoutElement.getAttribute('data-spaire-checkout-theme') ||
-      checkoutElement.getAttribute('data-polar-checkout-theme')) as
+      (checkoutElement.getAttribute('data-spaire-checkout') as string)
+    const theme = checkoutElement.getAttribute(
+      'data-spaire-checkout-theme',
+    ) as
       | 'light'
       | 'dark'
       | undefined
@@ -405,18 +402,11 @@ declare global {
     Spaire: {
       EmbedCheckout: typeof EmbedCheckout
     }
-    Polar: {
-      EmbedCheckout: typeof EmbedCheckout
-    }
   }
 }
 
 if (typeof window !== 'undefined') {
   window.Spaire = {
-    EmbedCheckout,
-  }
-  // Keep backward compatibility
-  window.Polar = {
     EmbedCheckout,
   }
 }
@@ -430,8 +420,4 @@ if (typeof document !== 'undefined') {
   }
 }
 
-export {
-  EmbedCheckout as SpaireEmbedCheckout,
-  // Keep backward compatibility
-  EmbedCheckout as PolarEmbedCheckout,
-}
+export { EmbedCheckout as SpaireEmbedCheckout }

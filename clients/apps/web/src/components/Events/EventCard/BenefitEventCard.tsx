@@ -65,7 +65,7 @@ export const BenefitEventCard = ({ event }: BenefitGrantEventCardProps) => {
               {resolveBenefitIcon(benefit.type, 'h-3 w-3')}
               <span className="">{benefit.description ?? '—'}</span>
             </div>
-            <span className="dark:text-polar-500 text-gray-500">
+            <span className="dark:text-spaire-500 text-gray-500">
               {benefitsDisplayNames[benefit.type]}
             </span>
           </div>

@@ -63,7 +63,7 @@ const UpdateCustomFieldModalContent = ({
     <div className="flex flex-col gap-y-6 overflow-y-auto px-8 py-10">
       <div>
         <h2 className="text-lg">Update Custom Field</h2>
-        <p className="dark:text-polar-500 mt-2 text-sm text-gray-500">
+        <p className="dark:text-spaire-500 mt-2 text-sm text-gray-500">
           Type cannot be changed.
         </p>
       </div>

@@ -83,14 +83,14 @@ export default function AgentCommandDetailPage({
               <h1 className="mt-1 text-2xl font-medium tracking-tight md:text-3xl">
                 {command.tagline}
               </h1>
-              <p className="dark:text-polar-400 max-w-lg text-base leading-relaxed text-gray-500">
+              <p className="dark:text-spaire-400 max-w-lg text-base leading-relaxed text-gray-500">
                 {command.description}
               </p>
             </FadeUp>
 
             {/* How it works */}
             <FadeUp className="flex flex-col gap-y-5">
-              <h2 className="dark:text-polar-500 text-sm font-medium uppercase tracking-wider text-gray-400">
+              <h2 className="dark:text-spaire-500 text-sm font-medium uppercase tracking-wider text-gray-400">
                 How it works
               </h2>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -123,7 +123,7 @@ export default function AgentCommandDetailPage({
                   code={setupSnippet}
                 />
               </CodeWrapper>
-              <p className="dark:text-polar-500 text-xs leading-relaxed text-gray-400">
+              <p className="dark:text-spaire-500 text-xs leading-relaxed text-gray-400">
                 This downloads the agent command into your project. Claude Code
                 loads it automatically as a custom slash command. Commit the
                 file so your whole team gets it.
@@ -148,7 +148,7 @@ export default function AgentCommandDetailPage({
                   code={`cd your-project\nclaude\n\n# Then type:\n${command.command}`}
                 />
               </CodeWrapper>
-              <p className="dark:text-polar-500 text-xs leading-relaxed text-gray-400">
+              <p className="dark:text-spaire-500 text-xs leading-relaxed text-gray-400">
                 Open Claude Code inside your project directory, then type the
                 command. The agent takes over from there.
               </p>
@@ -156,17 +156,17 @@ export default function AgentCommandDetailPage({
 
             {/* What the agent does */}
             <FadeUp className="flex flex-col gap-y-5">
-              <h2 className="dark:text-polar-500 text-sm font-medium uppercase tracking-wider text-gray-400">
+              <h2 className="dark:text-spaire-500 text-sm font-medium uppercase tracking-wider text-gray-400">
                 What the agent does for you
               </h2>
-              <div className="dark:border-polar-700 dark:bg-polar-900 flex flex-col divide-y divide-gray-100 rounded-2xl border border-gray-200 dark:divide-polar-700">
+              <div className="dark:border-spaire-700 dark:bg-spaire-900 flex flex-col divide-y divide-gray-100 rounded-2xl border border-gray-200 dark:divide-spaire-700">
                 {command.whatTheAgentDoes.map((item, i) => (
                   <div key={i} className="flex items-start gap-x-3 px-6 py-4">
                     <CheckOutlined
                       className="mt-0.5 shrink-0 text-emerald-500"
                       sx={{ fontSize: 16 }}
                     />
-                    <span className="dark:text-polar-300 text-sm text-gray-700">
+                    <span className="dark:text-spaire-300 text-sm text-gray-700">
                       {item}
                     </span>
                   </div>
@@ -204,7 +204,7 @@ export default function AgentCommandDetailPage({
 
 const CodeWrapper = ({ children }: { children: React.ReactNode }) => {
   return (
-    <div className="dark:border-polar-700 dark:bg-polar-800 w-full rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm">
+    <div className="dark:border-spaire-700 dark:bg-spaire-800 w-full rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm">
       {children}
     </div>
   )
@@ -225,7 +225,7 @@ const CopyButton = ({
       'flex items-center gap-x-1.5 rounded-full px-4 py-2 text-xs font-medium transition-all',
       copied
         ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400'
-        : 'dark:bg-polar-800 dark:text-polar-200 dark:hover:bg-polar-700 bg-gray-100 text-gray-600 hover:bg-gray-200',
+        : 'dark:bg-spaire-800 dark:text-spaire-200 dark:hover:bg-spaire-700 bg-gray-100 text-gray-600 hover:bg-gray-200',
     )}
   >
     {copied ? (
@@ -251,13 +251,13 @@ const HowItWorksCard = ({
   title: string
   description: string
 }) => (
-  <div className="dark:bg-polar-900 flex flex-col gap-y-3 rounded-2xl border border-gray-200 bg-white p-5 dark:border-none">
-    <span className="dark:bg-polar-800 dark:text-polar-300 flex h-7 w-7 items-center justify-center rounded-full bg-gray-100 text-xs font-medium text-gray-600">
+  <div className="dark:bg-spaire-900 flex flex-col gap-y-3 rounded-2xl border border-gray-200 bg-white p-5 dark:border-none">
+    <span className="dark:bg-spaire-800 dark:text-spaire-300 flex h-7 w-7 items-center justify-center rounded-full bg-gray-100 text-xs font-medium text-gray-600">
       {number}
     </span>
     <div className="flex flex-col gap-y-1">
       <span className="text-sm font-medium">{title}</span>
-      <span className="dark:text-polar-500 text-xs leading-relaxed text-gray-400">
+      <span className="dark:text-spaire-500 text-xs leading-relaxed text-gray-400">
         {description}
       </span>
     </div>

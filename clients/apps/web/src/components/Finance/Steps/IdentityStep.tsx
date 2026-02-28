@@ -27,7 +27,7 @@ export default function IdentityStep({
         </div>
         <div>
           <h3 className="font-medium dark:text-white">Identity verified</h3>
-          <p className="dark:text-polar-400 mt-1 text-sm text-gray-500">
+          <p className="dark:text-spaire-400 mt-1 text-sm text-gray-500">
             Your identity has been successfully verified.
           </p>
         </div>
@@ -45,7 +45,7 @@ export default function IdentityStep({
           <h3 className="font-medium dark:text-white">
             Verification in progress
           </h3>
-          <p className="dark:text-polar-400 mx-auto mt-1 max-w-sm text-sm text-gray-500">
+          <p className="dark:text-spaire-400 mx-auto mt-1 max-w-sm text-sm text-gray-500">
             Your identity verification is being processed. This usually takes a
             few minutes but can take up to 24 hours.
           </p>
@@ -64,7 +64,7 @@ export default function IdentityStep({
           <h3 className="font-medium text-red-600 dark:text-red-400">
             Verification failed
           </h3>
-          <p className="dark:text-polar-400 mx-auto mt-1 max-w-sm text-sm text-gray-500">
+          <p className="dark:text-spaire-400 mx-auto mt-1 max-w-sm text-sm text-gray-500">
             We were unable to verify your identity. This could be due to
             document quality or information mismatch. Please try again.
           </p>
@@ -85,7 +85,7 @@ export default function IdentityStep({
       </div>
       <div>
         <h3 className="font-medium dark:text-white">Verify your identity</h3>
-        <p className="dark:text-polar-400 mx-auto mt-1 max-w-sm text-sm text-gray-500">
+        <p className="dark:text-spaire-400 mx-auto mt-1 max-w-sm text-sm text-gray-500">
           As your merchant of record, we&apos;re required to verify account
           holders. This takes less than 2 minutes.
         </p>

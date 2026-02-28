@@ -65,7 +65,7 @@ export const BenefitSearchSimple = ({
 
   if (benefits.length === 0) {
     return (
-      <div className="dark:border-polar-700 dark:text-polar-500 rounded-xl border border-gray-200 py-8 text-center text-sm text-gray-500">
+      <div className="dark:border-spaire-700 dark:text-spaire-500 rounded-xl border border-gray-200 py-8 text-center text-sm text-gray-500">
         No benefits available
       </div>
     )
@@ -104,7 +104,7 @@ export const BenefitSearchSimple = ({
   }
 
   return (
-    <div className="dark:border-polar-700 dark:divide-polar-700 flex flex-col divide-y divide-gray-100 rounded-xl border border-gray-200">
+    <div className="dark:border-spaire-700 dark:divide-spaire-700 flex flex-col divide-y divide-gray-100 rounded-xl border border-gray-200">
       {benefits.map((benefit) => (
         <BenefitRow
           key={benefit.id}

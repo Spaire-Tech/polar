@@ -99,7 +99,7 @@ export const ShareChartModal = ({
       <div className="flex flex-col items-start gap-8">
         <div
           ref={chartRef}
-          className="dark:bg-polar-950 flex w-full max-w-4xl flex-col items-center justify-center gap-12 rounded-4xl bg-blue-50 p-12"
+          className="dark:bg-spaire-950 flex w-full max-w-4xl flex-col items-center justify-center gap-12 rounded-4xl bg-blue-50 p-12"
           style={{
             backgroundImage:
               theme === 'mono'
@@ -110,7 +110,7 @@ export const ShareChartModal = ({
           }}
         >
           <MetricChartBox
-            className="dark:border-polar-600/50"
+            className="dark:border-spaire-600/50"
             data={data}
             previousData={previousData}
             interval={interval}
