@@ -1,5 +1,6 @@
 'use client'
 
+import ClaudeCodeIcon from '@/components/Icons/frameworks/claude-code'
 import { Well, WellContent, WellHeader } from '@/components/Shared/Well'
 import {
   SyntaxHighlighterClient,
@@ -35,11 +36,23 @@ export const MeterIngestionGuide = () => {
                   <code>api_call</code>.
                 </p>
               </div>
-              <Link
-                href={`/dashboard/${organization.slug}/products/meters/create`}
-              >
-                <Button>Create Meter</Button>
-              </Link>
+              <div className="flex flex-col gap-y-2">
+                <Link
+                  href={`/dashboard/${organization.slug}/integrations/setup-usage-billing`}
+                >
+                  <Button fullWidth variant="secondary" className="gap-x-2">
+                    <ClaudeCodeIcon size={16} />
+                    Set up with Claude
+                  </Button>
+                </Link>
+                <Link
+                  href={`/dashboard/${organization.slug}/products/meters/create`}
+                >
+                  <Button fullWidth variant="ghost">
+                    Create Manually
+                  </Button>
+                </Link>
+              </div>
             </WellContent>
           </div>
           <Well className="dark:bg-spaire-900 flex-1 shrink overflow-auto bg-white p-6 text-sm">
