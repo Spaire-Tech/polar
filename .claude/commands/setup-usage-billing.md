@@ -4,7 +4,7 @@
 
 You are an **AI agent** that sets up Spaire usage-based billing in the user's project. You don't just give instructions — you actively read their codebase, detect their stack, install packages, write code into their files, and walk them through dashboard configuration step by step. You are conversational and you ask questions before acting.
 
-**No Claude API key or extra credentials are needed.** The user just needs a Spaire access token.
+**Always required: a Spaire access token.** Some ingestion strategies also require additional credentials (e.g., S3 storage requires AWS credentials). See the credentials matrix in Phase 2 for the full breakdown before writing any code.
 
 ## Your Behavior as an Agent
 
@@ -88,6 +88,7 @@ If any detected, warn: **"You appear to be modifying a production project/branch
 Scan their project to detect the stack. Check these files:
 
 - `package.json` → look for `next`, `express`, `fastify`, `hono`, `elysia`, `@sveltejs/kit`, `nuxt`, `astro`, `remix`
+- `index.html` → vanilla HTML/JS project (no Node.js framework)
 - `requirements.txt` or `pyproject.toml` → look for `fastapi`, `flask`, `django`, `pydantic-ai`
 - `go.mod` → Go project
 - `composer.json` → look for `laravel`
@@ -136,6 +137,21 @@ Before writing any code, verify:
    - For sandbox testing: suggest `server: 'sandbox'` in the SDK config
 
 3. **Existing product** — Ask if they already have a subscription product in Spaire, or if they need to create one.
+
+### Required Credentials by Strategy
+
+Consult this table before proceeding. Tell the user which environment variables they must add to `.env` based on their chosen strategy. Do not start writing code until all required variables are confirmed present.
+
+| Strategy | `SPAIRE_ACCESS_TOKEN` | `AWS_ACCESS_KEY_ID` | `AWS_SECRET_ACCESS_KEY` | `AWS_REGION` | Other |
+|---|---|---|---|---|---|
+| LLM / AI SDK (`LLMStrategy`) | Required | — | — | — | AI provider key (e.g. `OPENAI_API_KEY`) managed by the AI SDK, not Spaire |
+| API Call Counting (generic events) | Required | — | — | — | — |
+| S3 Storage (`S3Strategy`) | Required | Required | Required | Required | — |
+| Compute Time (`DeltaTimeStrategy`) | Required | — | — | — | — |
+| PydanticAI (Python `PydanticAIStrategy`) | Required | — | — | — | — |
+| Custom Events | Required | — | — | — | — |
+
+Tell the user: "Before I write any code, please confirm that all the required environment variables for your chosen strategy are in your `.env` file. I will not write the values — only instruct you on the names."
 
 ## Phase 3: Create the Meter
 
@@ -422,7 +438,13 @@ export async function getCustomerBalance(customerId: string) {
 export async function hasCreditsRemaining(customerId: string, meterName: string): Promise<boolean> {
   const balances = await getCustomerBalance(customerId);
   const meter = balances.find((b) => b.meter === meterName);
-  return meter ? meter.balance < 0 : false; // negative balance = credits remaining
+  // Spaire balance semantics (important — reads counterintuitively):
+  //   balance < 0  → prepaid credits exceed consumption → credits ARE remaining
+  //   balance = 0  → credits exactly exhausted
+  //   balance > 0  → consumption exceeds prepaid credits → customer is in overage
+  // This is the platform's intentional ledger convention: credits are recorded as a
+  // negative offset against consumed units. Do not invert this logic.
+  return meter ? meter.balance < 0 : false;
 }
 ```
 
@@ -447,6 +469,8 @@ def get_customer_balance(customer_id: str):
     ]
 
 def has_credits_remaining(customer_id: str, meter_name: str) -> bool:
+    # Spaire balance semantics: balance < 0 means credits remain (prepaid > consumed).
+    # balance >= 0 means exhausted or in overage. See TypeScript version for full explanation.
     balances = get_customer_balance(customer_id)
     meter = next((b for b in balances if b["meter"] == meter_name), None)
     return meter["balance"] < 0 if meter else False
@@ -519,6 +543,28 @@ const spaire = new Spaire({
 ```
 
 Recommend sandbox first: "I'd suggest testing in sandbox mode first before going live. Add `server: 'sandbox'` to your SDK config."
+
+### Agent Validation Checklist
+
+Do not mark this implementation as done until every item below is confirmed.
+
+**Preconditions — verify before writing any code:**
+- [ ] Framework detected from actual project files (not assumed)
+- [ ] Meter type confirmed with user (LLM / API calls / S3 / compute / custom)
+- [ ] All required credentials identified from the credentials matrix (Phase 2) and confirmed present in `.env`
+- [ ] Meter created in Spaire dashboard (user confirmed — agent must wait for this)
+- [ ] Metered pricing attached to product in Spaire dashboard (user confirmed)
+- [ ] Event name in ingestion code matches meter filter exactly (e.g., `"llm-usage"` → `name equals "llm-usage"`)
+- [ ] Git state checked — user committed or stashed uncommitted changes
+- [ ] Change summary presented and explicitly confirmed by user
+
+**Postconditions — verify before closing:**
+- [ ] Trigger the metered action → events appear in dashboard under Products → Meters
+- [ ] `SPAIRE_ACCESS_TOKEN` is read from environment, never hardcoded
+- [ ] Strategy-specific credentials (e.g., AWS) are read from environment, never hardcoded
+- [ ] Balance check returns correct result (remember: `balance < 0` = credits remaining)
+- [ ] Webhook payload not logged at production level (if webhook added)
+- [ ] Revert instructions provided with exact file paths, package names, and dashboard objects to delete
 
 ## Phase 9: Revert Instructions
 
