@@ -16,5 +16,9 @@ export type ProductCheckoutPublic = CheckoutPublic & ProductCheckoutMixin
 export const hasProductCheckout = (
   checkout: CheckoutPublic,
 ): checkout is ProductCheckoutPublic => {
-  return checkout.product !== null && checkout.prices !== null
+  return (
+    checkout.product !== null &&
+    checkout.prices !== null &&
+    checkout.productPrice !== null
+  )
 }
