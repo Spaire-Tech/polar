@@ -124,7 +124,6 @@ export const SUPABASE_INTEGRATION: SdkIntegration = {
     'Use the Spaire SDK inside Supabase Edge Functions to create checkouts, handle webhooks, and manage subscriptions \u2014 all serverless.',
   category: 'backend',
   categoryLabel: 'Backend Platform',
-  comingSoon: true,
   howItWorks: [
     {
       title: 'Install SDK',
@@ -342,7 +341,6 @@ export const BETTERAUTH_INTEGRATION: SdkIntegration = {
     'The official Spaire plugin for BetterAuth gives you checkout, customer portal, usage-based billing, and webhooks \u2014 all wired into your auth layer.',
   category: 'auth',
   categoryLabel: 'Auth Framework',
-  comingSoon: true,
   howItWorks: [
     {
       title: 'Install plugin',
