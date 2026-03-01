@@ -16,16 +16,16 @@ export const ProductCard = ({ product }: ProductCardProps) => {
       {product.medias.length > 0 ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          className="dark:bg-polar-950 aspect-video w-full rounded-2xl bg-gray-100 object-cover"
+          className="dark:bg-spaire-950 aspect-video w-full rounded-2xl bg-gray-100 object-cover"
           alt={product.medias[0].name}
           width={600}
           height={600}
           src={product.medias[0].public_url}
         />
       ) : (
-        <div className="dark:bg-polar-800 flex aspect-video w-full flex-col items-center justify-center rounded-2xl bg-gray-100">
+        <div className="dark:bg-spaire-800 flex aspect-video w-full flex-col items-center justify-center rounded-2xl bg-gray-100">
           <div className="flex flex-col items-center justify-center text-4xl text-blue-500 dark:text-white">
-            <LogoIcon className="dark:text-polar-600 h-12 w-12 text-gray-300" />
+            <LogoIcon className="dark:text-spaire-600 h-12 w-12 text-gray-300" />
           </div>
         </div>
       )}
@@ -34,7 +34,7 @@ export const ProductCard = ({ product }: ProductCardProps) => {
           {product.name}
         </h3>
         <div className="flex flex-row items-center justify-between">
-          <span className="dark:text-polar-500 flex flex-row items-center gap-x-2 text-base text-gray-500">
+          <span className="dark:text-spaire-500 flex flex-row items-center gap-x-2 text-base text-gray-500">
             <h3 className="leading-snug">
               {hasLegacyRecurringPrices(product) ? (
                 <LegacyRecurringProductPrices product={product} />

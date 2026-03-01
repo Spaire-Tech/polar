@@ -67,7 +67,7 @@ const ClientPage: React.FC<ClientPageProps> = ({
       header={
         <>
           <div className="flex flex-row items-center gap-6">
-            <span className="dark:bg-polar-700 flex h-12 w-12 shrink-0 flex-row items-center justify-center rounded-full bg-gray-200 text-2xl text-black dark:text-white">
+            <span className="dark:bg-spaire-700 flex h-12 w-12 shrink-0 flex-row items-center justify-center rounded-full bg-gray-200 text-2xl text-black dark:text-white">
               <LinkOutlined />
             </span>
             <div className="flex flex-col">
@@ -76,7 +76,7 @@ const ClientPage: React.FC<ClientPageProps> = ({
                   ? checkoutLink.label
                   : 'Untitled'}
               </p>
-              <div className="dark:text-polar-500 flex flex-row items-center gap-2 font-mono text-sm text-gray-500">
+              <div className="dark:text-spaire-500 flex flex-row items-center gap-2 font-mono text-sm text-gray-500">
                 <span>
                   {checkoutLink.products.length === 1
                     ? checkoutLink.products[0].name
@@ -99,7 +99,7 @@ const ClientPage: React.FC<ClientPageProps> = ({
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="end"
-                className="dark:bg-polar-800 bg-gray-50 shadow-lg"
+                className="dark:bg-spaire-800 bg-gray-50 shadow-lg"
               >
                 <DropdownMenuItem destructive onClick={showDeleteModal}>
                   Delete Checkout Link

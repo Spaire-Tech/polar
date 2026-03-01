@@ -15,7 +15,7 @@ import Link from 'next/link'
 import { MouseEventHandler, useCallback, useRef, useState } from 'react'
 import { twMerge } from 'tailwind-merge'
 
-export const PolarLogotype = ({
+export const SpaireLogotype = ({
   logoVariant = 'icon',
   size,
   className,
@@ -28,26 +28,26 @@ export const PolarLogotype = ({
   logoClassName?: string
   href?: string
 }) => {
-  const PolarLogotypeRef = useRef<HTMLDivElement>(null)
+  const SpaireLogotypeRef = useRef<HTMLDivElement>(null)
 
-  useOutsideClick([PolarLogotypeRef], () => setPolarLogotypeOpen(false))
+  useOutsideClick([SpaireLogotypeRef], () => setSpaireLogotypeOpen(false))
 
-  const [PolarLogotypeOpen, setPolarLogotypeOpen] = useState(false)
+  const [SpaireLogotypeOpen, setSpaireLogotypeOpen] = useState(false)
 
   const handleTriggerClick: MouseEventHandler<HTMLElement> = useCallback(
     (e) => {
       e.preventDefault()
       e.stopPropagation()
-      setPolarLogotypeOpen(true)
+      setSpaireLogotypeOpen(true)
     },
     [],
   )
 
   const handleCopyLogoToClipboard = useCallback(() => {
     navigator.clipboard.writeText(
-      logoVariant === 'icon' ? PolarIconSVGString : PolarLogoSVGString,
+      logoVariant === 'icon' ? SpaireIconSVGString : SpaireLogoSVGString,
     )
-    setPolarLogotypeOpen(false)
+    setSpaireLogotypeOpen(false)
   }, [logoVariant])
 
   const LogoComponent =
@@ -68,7 +68,7 @@ export const PolarLogotype = ({
 
   return (
     <div className={twMerge('relative flex flex-row items-center', className)}>
-      <DropdownMenu open={PolarLogotypeOpen}>
+      <DropdownMenu open={SpaireLogotypeOpen}>
         <DropdownMenuTrigger onContextMenu={handleTriggerClick}>
           {href ? (
             <Link href={href}>{LogoComponent}</Link>
@@ -76,7 +76,7 @@ export const PolarLogotype = ({
             <div>{LogoComponent}</div>
           )}
         </DropdownMenuTrigger>
-        <DropdownMenuContent ref={PolarLogotypeRef} align="start">
+        <DropdownMenuContent ref={SpaireLogotypeRef} align="start">
           <DropdownMenuItem
             className="flex flex-row gap-x-3"
             onClick={handleCopyLogoToClipboard}
@@ -86,10 +86,10 @@ export const PolarLogotype = ({
           </DropdownMenuItem>
           <DropdownMenuItem
             className="flex flex-row gap-x-3"
-            onClick={() => setPolarLogotypeOpen(false)}
+            onClick={() => setSpaireLogotypeOpen(false)}
           >
             <ArrowDown className="h-3 w-3" />
-            <Link href="/assets/brand/polar_brand.zip">
+            <Link href="/assets/brand/spaire_brand.zip">
               Download Branding Assets
             </Link>
           </DropdownMenuItem>
@@ -99,6 +99,6 @@ export const PolarLogotype = ({
   )
 }
 
-const PolarIconSVGString = ''
+const SpaireIconSVGString = ''
 
-const PolarLogoSVGString = ''
+const SpaireLogoSVGString = ''

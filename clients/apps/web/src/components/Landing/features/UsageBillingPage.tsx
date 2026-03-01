@@ -76,7 +76,7 @@ export const UsageBillingPage = () => {
           </Hero>
 
           <motion.div
-            className="dark:bg-polar-900 flex w-full flex-col overflow-hidden rounded-2xl bg-white xl:flex-row-reverse"
+            className="dark:bg-spaire-900 flex w-full flex-col overflow-hidden rounded-2xl bg-white xl:flex-row-reverse"
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
@@ -89,13 +89,13 @@ export const UsageBillingPage = () => {
                     Track any metric with precision
                   </h2>
                 </div>
-                <p className="dark:text-polar-500 text-lg text-gray-500">
+                <p className="dark:text-spaire-500 text-lg text-gray-500">
                   Use our Ingestion Strategies to track any usage with
                   precision.
                 </p>
               </div>
               <motion.ul
-                className="dark:divide-polar-700 dark:border-polar-700 flex flex-col divide-y divide-gray-200 border-y border-gray-200"
+                className="dark:divide-spaire-700 dark:border-spaire-700 flex flex-col divide-y divide-gray-200 border-y border-gray-200"
                 variants={containerVariants}
               >
                 {[
@@ -118,7 +118,7 @@ export const UsageBillingPage = () => {
                 ))}
               </motion.ul>
             </div>
-            <div className="dark:bg-polar-800 relative flex h-full bg-gray-100 p-4 md:p-8 xl:items-center xl:justify-center xl:p-16">
+            <div className="dark:bg-spaire-800 relative flex h-full bg-gray-100 p-4 md:p-8 xl:items-center xl:justify-center xl:p-16">
               <Image
                 className="absolute inset-0 h-full w-full object-cover"
                 src="/assets/landing/abstract_02.jpg"
@@ -126,7 +126,7 @@ export const UsageBillingPage = () => {
                 width={1500}
                 height={1500}
               />
-              <div className="dark:bg-polar-900 z-10 w-full rounded-lg bg-white p-4 text-sm">
+              <div className="dark:bg-spaire-900 z-10 w-full rounded-lg bg-white p-4 text-sm">
                 <SyntaxHighlighterClient lang="typescript" code={llmCode} />
               </div>
             </div>
@@ -159,12 +159,12 @@ export const UsageBillingPage = () => {
               ].map((feature, i) => (
                 <div
                   key={i}
-                  className="dark:bg-polar-900 flex flex-col items-center gap-y-8 rounded-xl bg-white px-6 py-12 text-center"
+                  className="dark:bg-spaire-900 flex flex-col items-center gap-y-8 rounded-xl bg-white px-6 py-12 text-center"
                 >
                   <div className="flex flex-row gap-x-2">{feature.icon}</div>
                   <div className="flex flex-col gap-y-4">
                     <h3 className="text-2xl">{feature.title}</h3>
-                    <p className="dark:text-polar-400 text-balance text-gray-600">
+                    <p className="dark:text-spaire-400 text-balance text-gray-600">
                       {feature.description}
                     </p>
                   </div>
@@ -186,7 +186,7 @@ export const UsageBillingPage = () => {
               Ready to implement usage billing?
             </motion.h2>
             <motion.p
-              className="dark:text-polar-500 text-lg text-gray-500 md:w-[480px]"
+              className="dark:text-spaire-500 text-lg text-gray-500 md:w-[480px]"
               variants={itemVariants}
             >
               Join companies that trust Polar for accurate, scalable usage-based

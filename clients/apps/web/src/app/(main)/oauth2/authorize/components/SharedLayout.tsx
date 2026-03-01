@@ -12,7 +12,7 @@ export default function SharedLayout({
   children?: React.ReactNode
 }) {
   return (
-    <div className="dark:bg-polar-950 flex flex-col gap-12 bg-white pt-16 md:items-center md:p-16">
+    <div className="dark:bg-spaire-950 flex flex-col gap-12 bg-white pt-16 md:items-center md:p-16">
       <div className="flex w-96 flex-col items-center gap-6">
         <div className="flex flex-row items-center gap-2">
           <LogoType className="h-10" />
@@ -29,7 +29,7 @@ export default function SharedLayout({
           )}
         </div>
         {introduction && (
-          <div className="dark:text-polar-400 w-full text-center text-lg text-gray-600">
+          <div className="dark:text-spaire-400 w-full text-center text-lg text-gray-600">
             {introduction}
           </div>
         )}

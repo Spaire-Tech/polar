@@ -82,7 +82,7 @@ export const LovableStep = () => {
   }, [])
 
   return (
-    <div className="dark:md:bg-polar-950 flex h-full w-full flex-row">
+    <div className="dark:md:bg-spaire-950 flex h-full w-full flex-row">
       <OnboardingStepper currentStep={1} />
 
       <div className="flex flex-1 flex-col overflow-y-auto">
@@ -112,7 +112,7 @@ export const LovableStep = () => {
               <h1 className="mt-1 text-2xl font-medium tracking-tight md:text-3xl">
                 Build with Lovable. Monetize with Spaire.
               </h1>
-              <p className="dark:text-polar-400 max-w-lg text-base leading-relaxed text-gray-500">
+              <p className="dark:text-spaire-400 max-w-lg text-base leading-relaxed text-gray-500">
                 Spaire partners with Lovable to bring billing directly into your
                 app. Just copy the prompt below, paste it into Lovable, and
                 you&apos;ll have a fully working checkout page.
@@ -121,7 +121,7 @@ export const LovableStep = () => {
 
             {/* How it works */}
             <FadeUp className="flex flex-col gap-y-5">
-              <h2 className="text-sm font-medium uppercase tracking-wider text-gray-400 dark:text-polar-500">
+              <h2 className="text-sm font-medium uppercase tracking-wider text-gray-400 dark:text-spaire-500">
                 How it works
               </h2>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -153,7 +153,7 @@ export const LovableStep = () => {
                     'flex items-center gap-x-1.5 rounded-full px-4 py-2 text-xs font-medium transition-all',
                     promptCopied
                       ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400'
-                      : 'dark:bg-polar-800 dark:text-polar-200 dark:hover:bg-polar-700 bg-gray-100 text-gray-600 hover:bg-gray-200',
+                      : 'dark:bg-spaire-800 dark:text-spaire-200 dark:hover:bg-spaire-700 bg-gray-100 text-gray-600 hover:bg-gray-200',
                   )}
                 >
                   {promptCopied ? (
@@ -169,8 +169,8 @@ export const LovableStep = () => {
                   )}
                 </button>
               </div>
-              <div className="dark:bg-polar-900 relative overflow-hidden rounded-2xl border border-gray-200 bg-gray-950 dark:border-none">
-                <div className="dark:bg-polar-800/50 flex flex-row items-center gap-x-2 border-b border-gray-800 bg-gray-900 px-5 py-3 dark:border-polar-700">
+              <div className="dark:bg-spaire-900 relative overflow-hidden rounded-2xl border border-gray-200 bg-gray-950 dark:border-none">
+                <div className="dark:bg-spaire-800/50 flex flex-row items-center gap-x-2 border-b border-gray-800 bg-gray-900 px-5 py-3 dark:border-spaire-700">
                   <div className="h-2.5 w-2.5 rounded-full bg-red-400/60" />
                   <div className="h-2.5 w-2.5 rounded-full bg-yellow-400/60" />
                   <div className="h-2.5 w-2.5 rounded-full bg-green-400/60" />
@@ -184,10 +184,10 @@ export const LovableStep = () => {
                   </pre>
                 </div>
               </div>
-              <p className="dark:text-polar-500 text-xs leading-relaxed text-gray-400">
+              <p className="dark:text-spaire-500 text-xs leading-relaxed text-gray-400">
                 After creating your product in the next step, you&apos;ll get a
                 checkout link URL from the Spaire dashboard to replace the{' '}
-                <code className="dark:bg-polar-800 rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-medium dark:text-polar-300">
+                <code className="dark:bg-spaire-800 rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-medium dark:text-spaire-300">
                   CHECKOUT_LINK_URL
                 </code>{' '}
                 placeholder above.
@@ -224,13 +224,13 @@ const HowItWorksCard = ({
   title: string
   description: string
 }) => (
-  <div className="dark:bg-polar-900 flex flex-col gap-y-3 rounded-2xl border border-gray-200 bg-white p-5 dark:border-none">
-    <span className="dark:bg-polar-800 dark:text-polar-300 flex h-7 w-7 items-center justify-center rounded-full bg-gray-100 text-xs font-medium text-gray-600">
+  <div className="dark:bg-spaire-900 flex flex-col gap-y-3 rounded-2xl border border-gray-200 bg-white p-5 dark:border-none">
+    <span className="dark:bg-spaire-800 dark:text-spaire-300 flex h-7 w-7 items-center justify-center rounded-full bg-gray-100 text-xs font-medium text-gray-600">
       {number}
     </span>
     <div className="flex flex-col gap-y-1">
       <span className="text-sm font-medium">{title}</span>
-      <span className="dark:text-polar-500 text-xs leading-relaxed text-gray-400">
+      <span className="dark:text-spaire-500 text-xs leading-relaxed text-gray-400">
         {description}
       </span>
     </div>

@@ -6,7 +6,7 @@ import ShoppingBagOutlined from '@mui/icons-material/ShoppingBagOutlined'
 import { schemas } from '@spaire/client'
 import { formatCurrency } from '@spaire/currency'
 import Button from '@spaire/ui/components/atoms/Button'
-import PolarTimeAgo from '@spaire/ui/components/atoms/PolarTimeAgo'
+import SpaireTimeAgo from '@spaire/ui/components/atoms/SpaireTimeAgo'
 import {
   Popover,
   PopoverContent,
@@ -93,7 +93,7 @@ export const NotificationsPopover = () => {
             aria-hidden="true"
           />
           {showBadge && (
-            <div className="dark:border-polar-700 bg-blue absolute top-1 right-1 h-1.5 w-1.5 rounded-full" />
+            <div className="dark:border-spaire-700 bg-blue absolute top-1 right-1 h-1.5 w-1.5 rounded-full" />
           )}
         </PopoverTrigger>
       </Button>
@@ -119,7 +119,7 @@ export const List = ({
   return (
     <div className="h-full max-h-[800px] space-y-5 overflow-x-scroll">
       {notifications.length === 0 && (
-        <div className="dark:text-polar-400 flex w-full flex-row items-center justify-center p-4 text-center text-sm text-black/60">
+        <div className="dark:text-spaire-400 flex w-full flex-row items-center justify-center p-4 text-center text-sm text-black/60">
           You don&apos;t have any notifications
         </div>
       )}
@@ -150,8 +150,8 @@ const Item = ({
       <Icon classes={twMerge('mt-1 p-1', iconClasses)} icon={children.icon} />
       <div>
         <div>{children.text}</div>
-        <div className="dark:text-polar-300 text-gray-500">
-          <PolarTimeAgo date={new Date(n.created_at)} />
+        <div className="dark:text-spaire-300 text-gray-500">
+          <SpaireTimeAgo date={new Date(n.created_at)} />
         </div>
       </div>
     </div>

@@ -107,7 +107,7 @@ export const CustomerSeatQuantityManager = ({
             label="Total Seats"
             value={
               <div className="flex w-full flex-row items-center justify-between gap-2">
-                <span className="dark:text-polar-200 font-medium">{seats}</span>
+                <span className="dark:text-spaire-200 font-medium">{seats}</span>
                 <div className="flex flex-row items-center gap-2">
                   <Button
                     type="button"
@@ -136,7 +136,7 @@ export const CustomerSeatQuantityManager = ({
           <DetailRow
             label="Assigned"
             value={
-              <span className="dark:text-polar-200 font-medium">
+              <span className="dark:text-spaire-200 font-medium">
                 {assignedSeats}
               </span>
             }
@@ -144,7 +144,7 @@ export const CustomerSeatQuantityManager = ({
           <DetailRow
             label="Available"
             value={
-              <span className="dark:text-polar-200 font-medium">
+              <span className="dark:text-spaire-200 font-medium">
                 {availableSeats}
               </span>
             }

@@ -15,32 +15,32 @@ export const LicenseKeyDetails = ({
   return (
     <ShadowBox
       className={twMerge(
-        'dark:bg-polar-800 bg-gray-100 p-6 text-sm lg:rounded-2xl',
+        'dark:bg-spaire-800 bg-gray-100 p-6 text-sm lg:rounded-2xl',
         className,
       )}
     >
       <div className="flex flex-col gap-y-6">
         <div className="flex flex-col gap-y-2">
           <div className="flex flex-row items-center justify-between">
-            <span className="dark:text-polar-500 text-gray-500">Status</span>
+            <span className="dark:text-spaire-500 text-gray-500">Status</span>
             <span className="capitalize">{licenseKey.status}</span>
           </div>
           {licenseKey.limit_usage && (
             <div className="flex flex-row items-center justify-between">
-              <span className="dark:text-polar-500 text-gray-500">Usage</span>
+              <span className="dark:text-spaire-500 text-gray-500">Usage</span>
               <span>
                 {licenseKey.usage} / {licenseKey.limit_usage}
               </span>
             </div>
           )}
           <div className="flex flex-row items-center justify-between">
-            <span className="dark:text-polar-500 text-gray-500">
+            <span className="dark:text-spaire-500 text-gray-500">
               Validations
             </span>
             <span>{licenseKey.validations}</span>
           </div>
           <div className="flex flex-row items-center justify-between">
-            <span className="dark:text-polar-500 text-gray-500">
+            <span className="dark:text-spaire-500 text-gray-500">
               Validated At
             </span>
             <span>
@@ -54,7 +54,7 @@ export const LicenseKeyDetails = ({
             </span>
           </div>
           <div className="flex flex-row items-center justify-between">
-            <span className="dark:text-polar-500 text-gray-500">
+            <span className="dark:text-spaire-500 text-gray-500">
               Expiry Date
             </span>
             <span>

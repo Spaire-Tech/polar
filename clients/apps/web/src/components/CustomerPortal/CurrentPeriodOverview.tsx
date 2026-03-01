@@ -64,10 +64,10 @@ export const CurrentPeriodOverview = ({
   }
 
   return (
-    <div className="dark:border-polar-700 flex flex-col gap-4 rounded-3xl border border-gray-200 p-8">
+    <div className="dark:border-spaire-700 flex flex-col gap-4 rounded-3xl border border-gray-200 p-8">
       <div className="items-center justify-between space-y-1.5 sm:flex sm:space-y-0">
         <h4 className="text-lg font-medium">{headerTitle}</h4>
-        <span className="dark:text-polar-500 text-sm text-gray-500">
+        <span className="dark:text-spaire-500 text-sm text-gray-500">
           {dateLabel} —{' '}
           {chargeDate
             ? new Date(chargeDate).toLocaleDateString('en-US', {
@@ -79,7 +79,7 @@ export const CurrentPeriodOverview = ({
 
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <span className="dark:text-polar-400 text-gray-600">
+          <span className="dark:text-spaire-400 text-gray-600">
             {subscription.product.name}
           </span>
           <span
@@ -99,7 +99,7 @@ export const CurrentPeriodOverview = ({
 
             {subscription.meters.map((meter) => (
               <div key={meter.id} className="flex items-center justify-between">
-                <span className="dark:text-polar-400 text-gray-600">
+                <span className="dark:text-spaire-400 text-gray-600">
                   {meter.meter.name}
                 </span>
                 <span className="font-medium">
@@ -113,9 +113,9 @@ export const CurrentPeriodOverview = ({
           </>
         )}
 
-        <div className="dark:border-polar-700 mt-2 border-t border-gray-200 pt-2">
+        <div className="dark:border-spaire-700 mt-2 border-t border-gray-200 pt-2">
           {(hasTaxes || hasDiscount) && (
-            <div className="dark:text-polar-500 mb-1.5 flex items-center justify-between text-gray-500">
+            <div className="dark:text-spaire-500 mb-1.5 flex items-center justify-between text-gray-500">
               <span>Subtotal</span>
               <span>
                 {formatCurrency('compact')(
@@ -127,7 +127,7 @@ export const CurrentPeriodOverview = ({
           )}
 
           {hasDiscount && (
-            <div className="dark:text-polar-500 mb-1 flex items-center justify-between text-gray-500">
+            <div className="dark:text-spaire-500 mb-1 flex items-center justify-between text-gray-500">
               <span>Discount</span>
               <span>
                 {formatCurrency('compact')(
@@ -139,7 +139,7 @@ export const CurrentPeriodOverview = ({
           )}
 
           {hasTaxes && (
-            <div className="dark:text-polar-500 mb-1 flex items-center justify-between text-gray-500">
+            <div className="dark:text-spaire-500 mb-1 flex items-center justify-between text-gray-500">
               <span>Taxes</span>
               <span>
                 {formatCurrency('compact')(
@@ -161,7 +161,7 @@ export const CurrentPeriodOverview = ({
                   subscription.currency,
                 )
               ) : (
-                <span className="dark:text-polar-500 animate-pulse text-gray-500">
+                <span className="dark:text-spaire-500 animate-pulse text-gray-500">
                   Loading…
                 </span>
               )}

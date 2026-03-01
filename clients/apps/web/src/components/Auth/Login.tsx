@@ -88,17 +88,17 @@ const Login = ({
         <LabeledSeparator label="Or" />
         <LoginCodeForm {...loginProps} />
       </div>
-      <div className="dark:text-polar-500 mt-6 text-center text-xs text-gray-400">
+      <div className="dark:text-spaire-500 mt-6 text-center text-xs text-gray-400">
         By using Spaire you agree to our{' '}
         <a
-          className="dark:text-polar-300 text-gray-600"
+          className="dark:text-spaire-300 text-gray-600"
           href="https://spairehq.com/legal/terms"
         >
           Terms of Service
         </a>{' '}
         and{' '}
         <a
-          className="dark:text-polar-300 text-gray-600"
+          className="dark:text-spaire-300 text-gray-600"
           href="https://spairehq.com/legal/privacy"
         >
           Privacy Policy

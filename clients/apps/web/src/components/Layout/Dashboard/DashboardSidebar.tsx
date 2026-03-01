@@ -33,7 +33,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { twMerge } from 'tailwind-merge'
-import { PolarLogotype } from '../Public/PolarLogotype'
+import { SpaireLogotype } from '../Public/SpaireLogotype'
 import {
   AccountNavigation,
   OrganizationNavigation,
@@ -90,7 +90,7 @@ export const DashboardSidebar = ({
             : 'flex-row items-center justify-between',
         )}
       >
-        <PolarLogotype
+        <SpaireLogotype
           size={32}
           href={organization ? `/dashboard/${organization.slug}` : '/dashboard'}
         />
@@ -113,20 +113,20 @@ export const DashboardSidebar = ({
               onClick={() => setSearchOpen(true)}
               className={twMerge(
                 'flex cursor-pointer items-center gap-4 rounded-lg border px-2 py-2 text-sm transition-colors',
-                'dark:bg-polar-950 dark:border-polar-800 dark:hover:bg-polar-900 border-gray-200 bg-white hover:bg-gray-50',
+                'dark:bg-spaire-950 dark:border-spaire-800 dark:hover:bg-spaire-900 border-gray-200 bg-white hover:bg-gray-50',
                 isCollapsed && 'justify-center px-2',
               )}
             >
               <Search
-                className="dark:text-polar-500 text-gray-500"
+                className="dark:text-spaire-500 text-gray-500"
                 fontSize="inherit"
               />
               {!isCollapsed && (
                 <>
-                  <span className="dark:text-polar-500 flex-1 text-left text-gray-500">
+                  <span className="dark:text-spaire-500 flex-1 text-left text-gray-500">
                     Search...
                   </span>
-                  <kbd className="dark:border-polar-700 dark:bg-polar-800 dark:text-polar-400 pointer-events-none inline-flex h-5 items-center gap-1 rounded border border-gray-200 bg-gray-100 px-1.5 font-mono text-[11px] text-gray-600 select-none">
+                  <kbd className="dark:border-spaire-700 dark:bg-spaire-800 dark:text-spaire-400 pointer-events-none inline-flex h-5 items-center gap-1 rounded border border-gray-200 bg-gray-100 px-1.5 font-mono text-[11px] text-gray-600 select-none">
                     <span className="text-sm">⌘</span>K
                   </kbd>
                 </>
@@ -157,8 +157,8 @@ export const DashboardSidebar = ({
           href="mailto:support@spairehq.com"
           className={twMerge(
             'mt-2 flex cursor-pointer flex-row items-center rounded-lg border border-transparent px-2 text-sm transition-colors dark:border-transparent',
-            'dark:text-polar-500 dark:hover:text-polar-200 text-gray-500 hover:text-black',
-            isCollapsed && '!dark:text-polar-600',
+            'dark:text-spaire-500 dark:hover:text-spaire-200 text-gray-500 hover:text-black',
+            isCollapsed && '!dark:text-spaire-600',
           )}
         >
           <SupportIcon fontSize="inherit" />
@@ -167,8 +167,8 @@ export const DashboardSidebar = ({
         <Link
           className={twMerge(
             'flex flex-row items-center rounded-lg border border-transparent text-sm transition-colors dark:border-transparent',
-            'dark:text-polar-500 dark:hover:text-polar-200 text-gray-500 hover:text-black',
-            isCollapsed && '!dark:text-polar-600',
+            'dark:text-spaire-500 dark:hover:text-spaire-200 text-gray-500 hover:text-black',
+            isCollapsed && '!dark:text-spaire-600',
           )}
           href="https://docs.spairehq.com"
           target="_blank"

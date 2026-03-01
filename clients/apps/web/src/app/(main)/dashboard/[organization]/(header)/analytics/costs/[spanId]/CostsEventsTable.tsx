@@ -104,25 +104,25 @@ export default function CostsEventsTable({
 
   return events.length > 0 && eventTypes.length > 0 ? (
     <div>
-      <div className="dark:border-polar-700 w-full border-collapse overflow-hidden rounded-xl border border-gray-200">
+      <div className="dark:border-spaire-700 w-full border-collapse overflow-hidden rounded-xl border border-gray-200">
         <table className="w-full table-fixed border-collapse rounded-lg">
           <thead>
             <tr>
               {showEventTypes && (
-                <th className="dark:bg-polar-700 dark:text-polar-500 dark:border-polar-700 w-48 border-b border-gray-200 bg-gray-100 p-2 text-left text-sm font-medium whitespace-nowrap text-gray-600">
+                <th className="dark:bg-spaire-700 dark:text-spaire-500 dark:border-spaire-700 w-48 border-b border-gray-200 bg-gray-100 p-2 text-left text-sm font-medium whitespace-nowrap text-gray-600">
                   Event Type
                 </th>
               )}
-              <th className="dark:bg-polar-700 dark:text-polar-500 dark:border-polar-700 border-b border-gray-200 bg-gray-100 p-2 text-left text-sm font-medium whitespace-nowrap text-gray-600">
+              <th className="dark:bg-spaire-700 dark:text-spaire-500 dark:border-spaire-700 border-b border-gray-200 bg-gray-100 p-2 text-left text-sm font-medium whitespace-nowrap text-gray-600">
                 Event
               </th>
-              <th className="dark:bg-polar-700 dark:text-polar-500 dark:border-polar-700 w-64 border-b border-gray-200 bg-gray-100 p-2 text-left text-sm font-medium whitespace-nowrap text-gray-600">
+              <th className="dark:bg-spaire-700 dark:text-spaire-500 dark:border-spaire-700 w-64 border-b border-gray-200 bg-gray-100 p-2 text-left text-sm font-medium whitespace-nowrap text-gray-600">
                 Customer
               </th>
-              <th className="dark:bg-polar-700 dark:text-polar-500 dark:border-polar-700 w-48 border-b border-gray-200 bg-gray-100 p-2 text-left text-sm font-medium whitespace-nowrap text-gray-600">
+              <th className="dark:bg-spaire-700 dark:text-spaire-500 dark:border-spaire-700 w-48 border-b border-gray-200 bg-gray-100 p-2 text-left text-sm font-medium whitespace-nowrap text-gray-600">
                 Timestamp
               </th>
-              <th className="dark:bg-polar-700 dark:text-polar-500 dark:border-polar-700 w-48 border-b border-gray-200 bg-gray-100 p-2 text-right text-sm font-medium whitespace-nowrap text-gray-600">
+              <th className="dark:bg-spaire-700 dark:text-spaire-500 dark:border-spaire-700 w-48 border-b border-gray-200 bg-gray-100 p-2 text-right text-sm font-medium whitespace-nowrap text-gray-600">
                 Cost
               </th>
             </tr>
@@ -135,12 +135,12 @@ export default function CostsEventsTable({
                     ? `empty-${groupIndex}`
                     : `day-${group.date.toISOString()}`
                 }
-                className="dark:divide-polar-700 group divide-y divide-gray-200"
+                className="dark:divide-spaire-700 group divide-y divide-gray-200"
               >
-                <tr className="dark:bg-polar-800 bg-gray-50 not-group-first-of-type:border-t">
+                <tr className="dark:bg-spaire-800 bg-gray-50 not-group-first-of-type:border-t">
                   <th
                     colSpan={showEventTypes ? 5 : 4}
-                    className="dark:text-polar-400 p-2 text-left text-sm font-normal text-gray-400"
+                    className="dark:text-spaire-400 p-2 text-left text-sm font-normal text-gray-400"
                   >
                     {group.type === 'empty-range' ? (
                       <FormattedInterval
@@ -159,7 +159,7 @@ export default function CostsEventsTable({
                   <tr>
                     <td
                       colSpan={showEventTypes ? 5 : 4}
-                      className="dark:text-polar-600 p-2 text-center text-sm text-gray-400 italic"
+                      className="dark:text-spaire-600 p-2 text-center text-sm text-gray-400 italic"
                     >
                       No events
                     </td>
@@ -183,11 +183,11 @@ export default function CostsEventsTable({
             <tr>
               <td
                 colSpan={showEventTypes ? 5 : 4}
-                className="dark:border-polar-700 border-t border-gray-200"
+                className="dark:border-spaire-700 border-t border-gray-200"
               >
                 {hasNextPage ? (
                   <button
-                    className="group dark:text-polar-500 dark:hover:bg-polar-700 dark:hover:text-polar-300 relative flex h-10 w-full cursor-pointer items-center justify-center gap-x-2 py-3 text-sm text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700"
+                    className="group dark:text-spaire-500 dark:hover:bg-spaire-700 dark:hover:text-spaire-300 relative flex h-10 w-full cursor-pointer items-center justify-center gap-x-2 py-3 text-sm text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700"
                     onClick={() => fetchNextPage()}
                   >
                     <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-100 transition-all duration-200 group-hover:opacity-0 group-hover:blur-[2px]">
@@ -198,7 +198,7 @@ export default function CostsEventsTable({
                     </span>
                   </button>
                 ) : (
-                  <span className="group dark:text-polar-500/60 dark:bg-polar-800 relative flex h-10 w-full items-center justify-center gap-x-2 bg-gray-50 py-3 text-sm text-gray-400">
+                  <span className="group dark:text-spaire-500/60 dark:bg-spaire-800 relative flex h-10 w-full items-center justify-center gap-x-2 bg-gray-50 py-3 text-sm text-gray-400">
                     Showing all {events.length} events
                   </span>
                 )}
@@ -209,9 +209,9 @@ export default function CostsEventsTable({
       </div>
     </div>
   ) : (
-    <div className="dark:border-polar-700 flex min-h-96 w-full flex-col items-center justify-center gap-4 rounded-4xl border border-gray-200 p-24">
+    <div className="dark:border-spaire-700 flex min-h-96 w-full flex-col items-center justify-center gap-4 rounded-4xl border border-gray-200 p-24">
       <h1 className="text-2xl font-normal">No events found</h1>
-      <p className="dark:text-polar-500 text-gray-500">
+      <p className="dark:text-spaire-500 text-gray-500">
         There are no events matching these filters
       </p>
     </div>

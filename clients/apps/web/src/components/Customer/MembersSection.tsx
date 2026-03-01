@@ -19,7 +19,7 @@ const roleDisplayConfig = {
   ],
   member: [
     'Member',
-    'bg-gray-100 text-gray-600 dark:bg-polar-700 dark:text-polar-400',
+    'bg-gray-100 text-gray-600 dark:bg-spaire-700 dark:text-spaire-400',
   ],
 } as const
 
@@ -92,7 +92,7 @@ export const MembersSection = ({
             header: 'External ID',
             accessorKey: 'external_id',
             cell: ({ row: { original } }) => (
-              <span className="dark:text-polar-500 text-sm text-gray-500">
+              <span className="dark:text-spaire-500 text-sm text-gray-500">
                 {original.external_id ?? '—'}
               </span>
             ),
@@ -101,7 +101,7 @@ export const MembersSection = ({
             header: 'Created',
             accessorKey: 'created_at',
             cell: ({ row: { original } }) => (
-              <span className="dark:text-polar-500 text-sm text-gray-500">
+              <span className="dark:text-spaire-500 text-sm text-gray-500">
                 <FormattedDateTime datetime={original.created_at} />
               </span>
             ),

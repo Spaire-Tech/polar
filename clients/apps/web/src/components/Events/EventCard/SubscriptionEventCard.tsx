@@ -57,7 +57,7 @@ export const SubscriptionEventCard = ({
               <AllInclusiveOutlined fontSize="inherit" />
               <span className="">{subscription.product.name}</span>
             </div>
-            <span className="dark:text-polar-500 text-gray-500">
+            <span className="dark:text-spaire-500 text-gray-500">
               <ProductPriceLabel product={subscription.product} />
             </span>
           </div>

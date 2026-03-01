@@ -1,6 +1,6 @@
 {
   "name": "@spaire/customer-portal",
-  "description": "Polar Customer Portal SDK",
+  "description": "Spaire Customer Portal SDK",
   "version": "0.0.1",
   "type": "module",
   "exports": {

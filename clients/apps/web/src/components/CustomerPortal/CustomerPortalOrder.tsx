@@ -322,7 +322,7 @@ const CustomerPortalOrder = ({
           <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-y-2">
               <h3 className="text-lg">Seats</h3>
-              <p className="dark:text-polar-500 text-sm text-gray-500">
+              <p className="dark:text-spaire-500 text-sm text-gray-500">
                 {availableSeats} of {totalSeats} seats available
               </p>
             </div>
@@ -345,7 +345,7 @@ const CustomerPortalOrder = ({
                     }}
                   />
                   {error && (
-                    <p className="dark:text-polar-400 mt-1 text-xs text-gray-500">
+                    <p className="dark:text-spaire-400 mt-1 text-xs text-gray-500">
                       {error}
                     </p>
                   )}

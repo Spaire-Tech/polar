@@ -3,6 +3,12 @@ import { ChevronDown, ChevronUp, Plus } from 'lucide-react'
 import React, { ReactNode, useState } from 'react'
 import { resolveBenefitIcon } from '../Benefit/utils'
 
+type BenefitListItem = {
+  id: string
+  type: string
+  description: string
+}
+
 const AMOUNT_SHOWN = 15
 
 const BenefitRow = ({
@@ -13,8 +19,8 @@ const BenefitRow = ({
   children: ReactNode
 }) => {
   return (
-    <div className="dark:text-polar-100 flex flex-row items-center gap-x-2 text-gray-600">
-      <span className="dark:text-polar-200 flex h-4 w-4 items-center justify-center text-2xl text-gray-600">
+    <div className="dark:text-spaire-100 flex flex-row items-center gap-x-2 text-gray-600">
+      <span className="dark:text-spaire-200 flex h-4 w-4 items-center justify-center text-2xl text-gray-600">
         {icon}
       </span>
       <span className="text-sm">{children}</span>
@@ -26,13 +32,7 @@ export const BenefitList = ({
   benefits,
   toggle = false,
 }: {
-  benefits:
-    | {
-        id: string
-        type: schemas['BenefitType']
-        description: string
-      }[]
-    | undefined
+  benefits: BenefitListItem[] | undefined
   toggle?: boolean
 }) => {
   const [showAll, setShowAll] = useState(false)
@@ -52,7 +52,7 @@ export const BenefitList = ({
       {shown.map((benefit) => (
         <BenefitRow
           key={benefit.id}
-          icon={resolveBenefitIcon(benefit.type, 'h-4 w-4')}
+          icon={resolveBenefitIcon(benefit.type as schemas['BenefitType'], 'h-4 w-4')}
         >
           {benefit.description}
         </BenefitRow>
@@ -63,7 +63,7 @@ export const BenefitList = ({
             toggled.map((benefit) => (
               <BenefitRow
                 key={benefit.id}
-                icon={resolveBenefitIcon(benefit.type, 'h-4 w-4')}
+                icon={resolveBenefitIcon(benefit.type as schemas['BenefitType'], 'h-4 w-4')}
               >
                 {benefit.description}
               </BenefitRow>

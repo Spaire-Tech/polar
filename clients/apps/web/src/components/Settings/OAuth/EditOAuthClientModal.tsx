@@ -146,7 +146,7 @@ export const EditOAuthClientModal = ({
                   <h3 className="font-medium text-gray-950 dark:text-white">
                     Delete OAuth Application
                   </h3>
-                  <p className="dark:text-polar-500 text-sm text-gray-500">
+                  <p className="dark:text-spaire-500 text-sm text-gray-500">
                     This action will delete the OAuth Application configuration
                     permanently
                   </p>

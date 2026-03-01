@@ -91,7 +91,7 @@ const CashflowChart = ({
   return (
     <ShadowBox
       className={twMerge(
-        'dark:bg-polar-800 flex w-full flex-col bg-gray-50 p-2 shadow-xs',
+        'dark:bg-spaire-800 flex w-full flex-col bg-gray-50 p-2 shadow-xs',
         className,
       )}
     >
@@ -99,7 +99,7 @@ const CashflowChart = ({
         <div className="flex flex-col gap-y-4">
           <div className="flex flex-row gap-x-4">
             <h3 className="text-xl">Cashflow</h3>
-            <span className="dark:text-polar-500 text-xl text-gray-500">
+            <span className="dark:text-spaire-500 text-xl text-gray-500">
               Last 30 Days
             </span>
           </div>
@@ -111,7 +111,7 @@ const CashflowChart = ({
           </h3>
         </div>
       </div>
-      <div className="dark:bg-polar-900 flex max-h-[464px] w-full flex-col gap-y-2 overflow-y-auto rounded-3xl bg-white p-4 pl-8">
+      <div className="dark:bg-spaire-900 flex max-h-[464px] w-full flex-col gap-y-2 overflow-y-auto rounded-3xl bg-white p-4 pl-8">
         {metricsLoading ? (
           <div className="flex flex-col items-center justify-center">
             <Spinner />
@@ -140,7 +140,7 @@ const CashflowChart = ({
                     {timestampFormatter(period.timestamp)}
                   </dt>
                   <dd className="w-full space-y-2">
-                    <div className="dark:bg-polar-800 flex h-8 w-full items-center justify-start rounded-full bg-gray-100">
+                    <div className="dark:bg-spaire-800 flex h-8 w-full items-center justify-start rounded-full bg-gray-100">
                       <div
                         className="flex h-full min-w-fit items-center justify-start rounded-full bg-red-500 px-[7px] text-right text-sm text-white data-empty:text-black/20"
                         style={{

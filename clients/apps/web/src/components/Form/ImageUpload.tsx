@@ -135,7 +135,7 @@ const ImageUpload = ({
                 inputFileRef.current?.click()
               }}
               className={twMerge(
-                'dark:bg-polar-700 dark:border-polar-600 flex cursor-pointer flex-col items-center justify-center gap-y-2 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100',
+                'dark:bg-spaire-700 dark:border-spaire-600 flex cursor-pointer flex-col items-center justify-center gap-y-2 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100',
                 !height && !width ? 'h-32 w-32' : '',
               )}
               style={{

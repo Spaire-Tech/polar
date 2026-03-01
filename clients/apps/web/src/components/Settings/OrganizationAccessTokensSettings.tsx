@@ -350,7 +350,7 @@ const AccessTokenItem = ({
           <div className="gap-y flex flex-col">
             <h3 className="text-md">{token.comment}</h3>
             {!minimal && (
-              <p className="dark:text-polar-400 text-sm text-gray-500">
+              <p className="dark:text-spaire-400 text-sm text-gray-500">
                 {token.expires_at ? (
                   <>
                     Expires on{' '}
@@ -380,7 +380,7 @@ const AccessTokenItem = ({
             )}
           </div>
         </div>{' '}
-        <div className="dark:text-polar-400 flex flex-row items-center gap-2 text-gray-500">
+        <div className="dark:text-spaire-400 flex flex-row items-center gap-2 text-gray-500">
           <Button onClick={showUpdateModal} size="sm">
             Update
           </Button>
@@ -481,7 +481,7 @@ const OrganizationAccessTokensSettings = ({
               return (
                 <div
                   key={token.id}
-                  className="dark:ring-polar-700 dark:bg-polar-800 w-full rounded-2xl bg-transparent p-5 ring-1 ring-gray-200"
+                  className="dark:ring-spaire-700 dark:bg-spaire-800 w-full rounded-2xl bg-transparent p-5 ring-1 ring-gray-200"
                 >
                   <AccessTokenItem
                     token={token}
@@ -530,7 +530,7 @@ const OrganizationAccessTokensSettings = ({
           })
         ) : (
           <ShadowListGroup.Item>
-            <p className="dark:text-polar-400 text-sm text-gray-500">
+            <p className="dark:text-spaire-400 text-sm text-gray-500">
               You don&apos;t have any active Organization Access Tokens.
             </p>
           </ShadowListGroup.Item>

@@ -140,7 +140,7 @@ const AIValidationResult: React.FC<AIValidationResultProps> = ({
           <div className="shrink-0">{status.icon}</div>
           <div className="flex-1">
             <h3 className={`text-lg font-medium`}>{status.title}</h3>
-            <p className="dark:text-polar-400 mt-1 text-sm text-gray-600">
+            <p className="dark:text-spaire-400 mt-1 text-sm text-gray-600">
               {status.message}
             </p>
           </div>
@@ -149,10 +149,10 @@ const AIValidationResult: React.FC<AIValidationResultProps> = ({
         {/* Information Message */}
         <Card className={`rounded-lg p-4`}>
           <div className="flex items-start space-x-3">
-            <Info className={`dark:text-polar-400 h-5 w-5 text-gray-600`} />
+            <Info className={`dark:text-spaire-400 h-5 w-5 text-gray-600`} />
             <div className="flex-1">
               <h4 className={`text-sm font-medium`}>What happens next?</h4>
-              <p className={`dark:text-polar-400 mt-1 text-sm text-gray-600`}>
+              <p className={`dark:text-spaire-400 mt-1 text-sm text-gray-600`}>
                 {status.type === 'pass'
                   ? 'Your business has been verified. You can start accepting payments immediately. A final review will happen before your first payout.'
                   : status.type === 'review_required'

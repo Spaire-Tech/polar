@@ -93,7 +93,7 @@ export default function OrganizationDeleteSettings({
         title="Delete Organization"
         description={`Are you sure you want to delete "${organization.name}"? This action cannot be undone.`}
         body={
-          <div className="dark:text-polar-400 text-sm text-gray-600">
+          <div className="dark:text-spaire-400 text-sm text-gray-600">
             <p className="mb-2">When you delete an organization:</p>
             <ul className="list-inside list-disc space-y-1">
               <li>

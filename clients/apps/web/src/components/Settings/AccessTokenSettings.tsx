@@ -47,7 +47,7 @@ const AccessToken = (props: schemas['PersonalAccessToken']) => {
         <div className="flex flex-row">
           <div className="gap-y flex flex-col">
             <h3 className="text-md">{props.comment}</h3>
-            <p className="dark:text-polar-400 text-sm text-gray-500">
+            <p className="dark:text-spaire-400 text-sm text-gray-500">
               {props.expires_at ? (
                 <>
                   Expires on{' '}
@@ -76,7 +76,7 @@ const AccessToken = (props: schemas['PersonalAccessToken']) => {
             </p>
           </div>
         </div>{' '}
-        <div className="dark:text-polar-400 flex flex-row items-center gap-x-4 space-x-4 text-gray-500">
+        <div className="dark:text-spaire-400 flex flex-row items-center gap-x-4 space-x-4 text-gray-500">
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="destructive">Revoke</Button>
@@ -118,7 +118,7 @@ const AccessTokensSettings = () => {
           ))
         ) : (
           <ShadowListGroup.Item>
-            <p className="dark:text-polar-400 text-sm text-gray-500">
+            <p className="dark:text-spaire-400 text-sm text-gray-500">
               You don&apos;t have any active Personal Access Tokens.
             </p>
           </ShadowListGroup.Item>

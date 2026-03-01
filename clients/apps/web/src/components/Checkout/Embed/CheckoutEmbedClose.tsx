@@ -1,6 +1,6 @@
 'use client'
 
-import { PolarEmbedCheckout } from '@spaire/checkout/embed'
+import { SpaireEmbedCheckout } from '@spaire/checkout/embed'
 import type { CheckoutPublic } from '@spaire/sdk/models/components/checkoutpublic'
 import { X } from 'lucide-react'
 import { useCallback, useEffect } from 'react'
@@ -16,23 +16,23 @@ const CheckoutEmbedClose: React.FC<
     if (!checkout.embedOrigin) {
       return
     }
-    PolarEmbedCheckout.postMessage({ event: 'close' }, checkout.embedOrigin)
+    SpaireEmbedCheckout.postMessage({ event: 'close' }, checkout.embedOrigin)
   }, [checkout])
 
   useEffect(() => {
     const outsideClickListener = (event: MouseEvent) => {
-      const contentElement = document.getElementById('polar-embed-content')
+      const contentElement = document.getElementById('spaire-embed-content')
       if (contentElement && !contentElement.contains(event.target as Node)) {
         onClose()
       }
     }
     document
-      .getElementById('polar-embed-layout')
+      .getElementById('spaire-embed-layout')
       ?.addEventListener('click', outsideClickListener)
 
     return () => {
       document
-        .getElementById('polar-embed-layout')
+        .getElementById('spaire-embed-layout')
         ?.removeEventListener('click', outsideClickListener)
     }
   }, [onClose])
@@ -40,7 +40,7 @@ const CheckoutEmbedClose: React.FC<
   return (
     <button
       type="button"
-      className="dark:bg-polar-950 fixed top-2 right-2 rounded-full bg-transparent bg-white p-2 shadow-xl md:top-4 md:right-4 dark:text-white"
+      className="dark:bg-spaire-950 fixed top-2 right-2 rounded-full bg-transparent bg-white p-2 shadow-xl md:top-4 md:right-4 dark:text-white"
       onClick={onClose}
     >
       <X className="h-4 w-4 md:h-6 md:w-6" />

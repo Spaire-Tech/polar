@@ -396,7 +396,7 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({
                 header: 'Created At',
                 accessorKey: 'created_at',
                 cell: ({ row: { original } }) => (
-                  <span className="dark:text-polar-500 text-sm text-gray-500">
+                  <span className="dark:text-spaire-500 text-sm text-gray-500">
                     <FormattedDateTime datetime={original.created_at} />
                   </span>
                 ),
@@ -443,7 +443,7 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({
                   <div className="flex flex-col gap-0.5">
                     <span>{original.benefit.description}</span>
 
-                    <span className="dark:text-polar-500 text-xs text-gray-500">
+                    <span className="dark:text-spaire-500 text-xs text-gray-500">
                       {benefitsDisplayNames[original.benefit.type]}
                     </span>
                   </div>
@@ -461,7 +461,7 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({
                 accessorKey: 'granted_at',
                 cell: ({ row: { original } }) =>
                   original.granted_at ? (
-                    <span className="dark:text-polar-500 text-sm text-gray-500">
+                    <span className="dark:text-spaire-500 text-sm text-gray-500">
                       <FormattedDateTime datetime={original.granted_at} />
                     </span>
                   ) : (
@@ -473,11 +473,11 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({
                 accessorKey: 'revoked_at',
                 cell: ({ row: { original } }) =>
                   original.revoked_at ? (
-                    <span className="dark:text-polar-500 text-sm text-gray-500">
+                    <span className="dark:text-spaire-500 text-sm text-gray-500">
                       <FormattedDateTime datetime={original.revoked_at} />
                     </span>
                   ) : (
-                    <span className="dark:text-polar-800 text-gray-400">—</span>
+                    <span className="dark:text-spaire-800 text-gray-400">—</span>
                   ),
               },
               {
@@ -516,7 +516,7 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({
                     className={twMerge(
                       customer.type === 'team'
                         ? 'bg-purple-100 text-purple-600 dark:bg-purple-950 dark:text-purple-400'
-                        : 'dark:bg-polar-700 dark:text-polar-400 bg-gray-100 text-gray-600',
+                        : 'dark:bg-spaire-700 dark:text-spaire-400 bg-gray-100 text-gray-600',
                       'w-fit text-xs',
                     )}
                     status={customer.type === 'team' ? 'Team' : 'Individual'}

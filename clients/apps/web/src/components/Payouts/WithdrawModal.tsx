@@ -140,7 +140,7 @@ const WithdrawModal: React.FC<WithdrawModalProps> = ({
                 <div className="flex flex-col gap-8">
                   <div className="flex flex-col gap-2">
                     <h1 className="text-2xl">Withdraw your balance</h1>
-                    <p className="dark:text-polar-500 text-gray-500">
+                    <p className="dark:text-spaire-500 text-gray-500">
                       You&apos;re about to withdraw your balance to your bank
                       account.
                     </p>

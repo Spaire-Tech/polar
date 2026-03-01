@@ -202,7 +202,7 @@ export const IntegrateStep = ({ products }: IntegrateStepProps) => {
       <OnboardingStepper currentStep={1} />
 
       {/* Left panel: framework selection & actions */}
-      <div className="dark:bg-polar-900 flex h-full min-h-0 w-full flex-col gap-8 overflow-y-auto p-12 md:max-w-md">
+      <div className="dark:bg-spaire-900 flex h-full min-h-0 w-full flex-col gap-8 overflow-y-auto p-12 md:max-w-md">
         <div className="flex flex-col gap-y-4">
           <div className="md:hidden mb-4">
             <LogoIcon size={40} />
@@ -210,7 +210,7 @@ export const IntegrateStep = ({ products }: IntegrateStepProps) => {
           <h1 className="text-2xl font-medium md:text-3xl">
             Connect your app
           </h1>
-          <p className="dark:text-polar-400 text-gray-500">
+          <p className="dark:text-spaire-400 text-gray-500">
             Pick your stack and add a checkout in minutes.
           </p>
         </div>
@@ -246,8 +246,8 @@ export const IntegrateStep = ({ products }: IntegrateStepProps) => {
 
       {/* Right panel: code preview */}
       <SyntaxHighlighterProvider>
-        <div className="dark:bg-polar-950 hidden flex-1 grow flex-col items-center gap-12 overflow-y-auto bg-gray-100 p-16 md:flex">
-          <div className="dark:bg-polar-900 flex w-full max-w-3xl flex-col gap-y-12 rounded-3xl bg-white p-12">
+        <div className="dark:bg-spaire-950 hidden flex-1 grow flex-col items-center gap-12 overflow-y-auto bg-gray-100 p-16 md:flex">
+          <div className="dark:bg-spaire-900 flex w-full max-w-3xl flex-col gap-y-12 rounded-3xl bg-white p-12">
             <div className="flex flex-col gap-y-6">
               <div className="flex flex-row items-center justify-between">
                 <h2 className="text-lg">1. Install Dependencies</h2>
@@ -258,12 +258,12 @@ export const IntegrateStep = ({ products }: IntegrateStepProps) => {
                       setPackageManager(v as PackageManager)
                     }
                   >
-                    <TabsList className="dark:bg-polar-800 rounded-sm bg-gray-100 p-0.5">
+                    <TabsList className="dark:bg-spaire-800 rounded-sm bg-gray-100 p-0.5">
                       {packageManagers.map((pm) => (
                         <TabsTrigger
                           key={pm}
                           value={pm}
-                          className="dark:data-[state=active]:bg-polar-700 !rounded-sm px-2.5 py-1 text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                          className="dark:data-[state=active]:bg-spaire-700 !rounded-sm px-2.5 py-1 text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm"
                         >
                           {pm}
                         </TabsTrigger>
@@ -322,7 +322,7 @@ SPAIRE_SUCCESS_URL=https://example.com/success?checkout_id={CHECKOUT_ID}`}
 
 const CodeWrapper = ({ children }: { children: React.ReactNode }) => {
   return (
-    <div className="dark:border-polar-700 dark:bg-polar-800 w-full rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm">
+    <div className="dark:border-spaire-700 dark:bg-spaire-800 w-full rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm">
       {children}
     </div>
   )
@@ -346,7 +346,7 @@ const FrameworkCard = ({
   return (
     <div
       className={twMerge(
-        'dark:bg-polar-800 dark:border-polar-700 flex cursor-pointer flex-col gap-y-4 rounded-xl border border-transparent bg-gray-100 p-4',
+        'dark:bg-spaire-800 dark:border-spaire-700 flex cursor-pointer flex-col gap-y-4 rounded-xl border border-transparent bg-gray-100 p-4',
         active
           ? 'shadow-3xl border-gray-100 bg-black text-white dark:bg-white dark:text-black'
           : 'transition-opacity hover:opacity-70',
@@ -355,7 +355,7 @@ const FrameworkCard = ({
       onClick={() => onClick(slug)}
     >
       {icon ?? (
-        <div className="dark:bg-polar-900 h-8 w-8 rounded-full bg-gray-200" />
+        <div className="dark:bg-spaire-900 h-8 w-8 rounded-full bg-gray-200" />
       )}
       <h2 className="text-lg">{name}</h2>
     </div>

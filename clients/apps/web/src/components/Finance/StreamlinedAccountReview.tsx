@@ -91,7 +91,7 @@ const StepProgress = ({
                     'border-2 border-red-400 bg-red-50 text-red-500 dark:bg-red-500/10 dark:text-red-400',
                   !isCompleted &&
                     !isCurrent &&
-                    'border-2 border-gray-200 text-gray-400 dark:border-polar-600 dark:text-polar-500',
+                    'border-2 border-gray-200 text-gray-400 dark:border-spaire-600 dark:text-spaire-500',
                   isClickable &&
                     'cursor-pointer hover:bg-blue-600 hover:text-white hover:border-blue-600',
                 )}
@@ -112,7 +112,7 @@ const StepProgress = ({
                   isFailed && 'text-red-500 dark:text-red-400',
                   !isCompleted &&
                     !isCurrent &&
-                    'text-gray-400 dark:text-polar-500',
+                    'text-gray-400 dark:text-spaire-500',
                 )}
               >
                 {step.label}
@@ -126,7 +126,7 @@ const StepProgress = ({
                   'mb-6 h-[2px] flex-1 mx-2 rounded-full transition-colors duration-300',
                   index < currentIndex
                     ? 'bg-blue-500'
-                    : 'bg-gray-200 dark:bg-polar-700',
+                    : 'bg-gray-200 dark:bg-spaire-700',
                 )}
               />
             )}
@@ -150,11 +150,11 @@ const StepCard = ({
   subtitle: string
   children: React.ReactNode
 }) => (
-  <div className="dark:border-polar-700 dark:bg-polar-900 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+  <div className="dark:border-spaire-700 dark:bg-spaire-900 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
     {/* Card header */}
-    <div className="dark:border-polar-700 border-b border-gray-100 px-8 py-6 text-center">
+    <div className="dark:border-spaire-700 border-b border-gray-100 px-8 py-6 text-center">
       <h2 className="text-lg font-semibold dark:text-white">{title}</h2>
-      <p className="dark:text-polar-400 mt-1 text-sm text-gray-500">
+      <p className="dark:text-spaire-400 mt-1 text-sm text-gray-500">
         {subtitle}
       </p>
     </div>
@@ -311,7 +311,7 @@ export default function StreamlinedAccountReview({
         <h1 className="text-2xl font-semibold tracking-tight dark:text-white">
           Get started with spaire
         </h1>
-        <p className="dark:text-polar-400 text-sm text-gray-500">
+        <p className="dark:text-spaire-400 text-sm text-gray-500">
           We handle payments, taxes, and compliance so you can focus on your
           product
         </p>
@@ -395,7 +395,7 @@ export default function StreamlinedAccountReview({
       )}
 
       {/* Step counter */}
-      <p className="dark:text-polar-500 text-center text-xs text-gray-400">
+      <p className="dark:text-spaire-500 text-center text-xs text-gray-400">
         Step {currentStepIndex} of {steps.length}
       </p>
     </div>

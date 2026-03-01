@@ -38,7 +38,7 @@ export const ProductCheckoutSection = ({
           <AccordionTrigger className="cursor-pointer hover:no-underline">
             <div className="flex flex-col items-start gap-y-2 text-left">
               <h2 className="text-lg font-medium">Checkout Page</h2>
-              <p className="dark:text-polar-500 text-sm leading-snug font-normal text-gray-500">
+              <p className="dark:text-spaire-500 text-sm leading-snug font-normal text-gray-500">
                 Customize how this product is presented during checkout
               </p>
             </div>
@@ -52,7 +52,7 @@ export const ProductCheckoutSection = ({
                   <FormItem className="flex flex-col gap-2">
                     <div className="flex flex-row items-center justify-between">
                       <FormLabel>Description</FormLabel>
-                      <p className="dark:text-polar-500 text-sm text-gray-500">
+                      <p className="dark:text-spaire-500 text-sm text-gray-500">
                         Markdown format
                       </p>
                     </div>
@@ -92,7 +92,7 @@ export const ProductCheckoutSection = ({
               <div className="flex flex-col gap-2">
                 <div className="flex flex-row items-center justify-between">
                   <FormLabel>Checkout Fields</FormLabel>
-                  <p className="dark:text-polar-500 text-sm text-gray-500">
+                  <p className="dark:text-spaire-500 text-sm text-gray-500">
                     <Link
                       className="text-blue-500 hover:underline"
                       href={`/dashboard/${organization.slug}/settings/custom-fields`}

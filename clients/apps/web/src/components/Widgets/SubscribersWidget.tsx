@@ -61,7 +61,7 @@ export const SubscribersWidget = ({ className }: SubscribersWidgetProps) => {
         </h2>
       </CardHeader>
       <TooltipProvider>
-        <CardFooter className="dark:bg-polar-900 m-2 flex h-full flex-row items-end justify-between gap-x-1 rounded-3xl bg-white p-4">
+        <CardFooter className="dark:bg-spaire-900 m-2 flex h-full flex-row items-end justify-between gap-x-1 rounded-3xl bg-white p-4">
           {subscriberMetrics.data?.periods.map((period, i) => {
             const activeClass =
               i === subscriberMetrics.data.periods.length - 1
@@ -87,7 +87,7 @@ export const SubscribersWidget = ({ className }: SubscribersWidgetProps) => {
                     )}%`,
                   }}
                   className={twMerge(
-                    'dark:bg-polar-700 w-3 shrink rounded-full bg-gray-300',
+                    'dark:bg-spaire-700 w-3 shrink rounded-full bg-gray-300',
                     activeClass,
                   )}
                 />

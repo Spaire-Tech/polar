@@ -135,15 +135,15 @@ const DiscountForm: React.FC<DiscountFormProps> = ({
             setValue('type', value as schemas['DiscountType'])
           }
         >
-          <TabsList className="dark:bg-polar-950 w-full flex-row items-center rounded-full bg-gray-100">
+          <TabsList className="dark:bg-spaire-950 w-full flex-row items-center rounded-full bg-gray-100">
             <TabsTrigger
-              className="dark:data-[state=active]:bg-polar-800 grow rounded-full! data-[state=active]:bg-white"
+              className="dark:data-[state=active]:bg-spaire-800 grow rounded-full! data-[state=active]:bg-white"
               value="percentage"
             >
               Percentage discount
             </TabsTrigger>
             <TabsTrigger
-              className="dark:data-[state=active]:bg-polar-800 grow rounded-full! data-[state=active]:bg-white"
+              className="dark:data-[state=active]:bg-spaire-800 grow rounded-full! data-[state=active]:bg-white"
               value="fixed"
             >
               Fixed amount discount
@@ -228,7 +228,7 @@ const DiscountForm: React.FC<DiscountFormProps> = ({
       <Accordion type="single" collapsible className="flex flex-col gap-y-6">
         <AccordionItem
           value="form-input-options"
-          className="dark:border-polar-700 rounded-xl border border-gray-200 px-4"
+          className="dark:border-spaire-700 rounded-xl border border-gray-200 px-4"
         >
           <AccordionTrigger className="hover:no-underline">
             Recurring options
@@ -319,7 +319,7 @@ const DiscountForm: React.FC<DiscountFormProps> = ({
       <Accordion type="single" collapsible className="flex flex-col gap-y-6">
         <AccordionItem
           value="form-input-options"
-          className="dark:border-polar-700 rounded-xl border border-gray-200 px-4"
+          className="dark:border-spaire-700 rounded-xl border border-gray-200 px-4"
         >
           <AccordionTrigger className="hover:no-underline">
             Restrictions

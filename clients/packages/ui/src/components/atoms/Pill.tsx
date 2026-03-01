@@ -18,7 +18,7 @@ const Pill = ({
           ? 'bg-blue-50 text-blue-600 dark:bg-blue-900 dark:text-blue-200'
           : '',
         color === 'gray'
-          ? 'dark:bg-polar-700 dark:text-polar-300 bg-gray-100 text-gray-600'
+          ? 'dark:bg-spaire-700 dark:text-spaire-300 bg-gray-100 text-gray-600'
           : '',
         color === 'purple'
           ? 'bg-purple-100 text-purple-600 dark:bg-purple-700 dark:text-purple-300'

@@ -27,7 +27,7 @@ export const useCheckoutFulfillmentListener = (
       let orderCreated = false
       let subscriptionCreated =
         !hasProductCheckout(checkout) ||
-        checkout.productPrice.type !== 'recurring'
+        !('type' in checkout.productPrice && checkout.productPrice.type === 'recurring')
       let webhookEventDelivered = false
 
       const checkResolution = () => {

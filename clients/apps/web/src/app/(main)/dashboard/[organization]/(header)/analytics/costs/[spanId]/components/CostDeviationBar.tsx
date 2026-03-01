@@ -78,7 +78,7 @@ export function CostDeviationBar({
     <Tooltip>
       <TooltipTrigger asChild>
         <div className="box-content flex h-1.5 w-12 cursor-help items-center py-2">
-          <div className="dark:bg-polar-700 flex h-full w-1/2 justify-end overflow-hidden rounded-l-full bg-gray-200">
+          <div className="dark:bg-spaire-700 flex h-full w-1/2 justify-end overflow-hidden rounded-l-full bg-gray-200">
             {!deviation.isAboveAverage && (
               <div
                 className="h-full rounded-l-full transition-all"
@@ -90,8 +90,8 @@ export function CostDeviationBar({
             )}
           </div>
 
-          <div className="dark:bg-polar-500 h-2.5 w-0.5 rounded-full bg-gray-400" />
-          <div className="dark:bg-polar-700 h-full w-1/2 overflow-hidden rounded-r-full bg-gray-200">
+          <div className="dark:bg-spaire-500 h-2.5 w-0.5 rounded-full bg-gray-400" />
+          <div className="dark:bg-spaire-700 h-full w-1/2 overflow-hidden rounded-r-full bg-gray-200">
             {deviation.isAboveAverage && (
               <div
                 className="h-full rounded-r-full transition-all"
@@ -110,34 +110,34 @@ export function CostDeviationBar({
             <p className="text-left text-sm font-medium">
               {deviation.deviationFormatted}
             </p>
-            <p className="dark:text-polar-400 text-xs text-gray-400">
+            <p className="dark:text-spaire-400 text-xs text-gray-400">
               compared to average cost for this event type
             </p>
           </div>
-          <div className="dark:border-polar-600 border-t border-gray-200 pt-2">
+          <div className="dark:border-spaire-600 border-t border-gray-200 pt-2">
             <div className="flex items-center gap-2 text-xs">
               <div className="flex h-1.5 w-8 items-center">
                 <div
                   className="h-full w-1/2 rounded-l-full"
                   style={{ backgroundColor: COLORS.emerald }}
                 />
-                <div className="dark:bg-polar-500 h-2 w-0.5 bg-gray-400" />
-                <div className="dark:bg-polar-600 h-full w-1/2 rounded-r-full bg-gray-300" />
+                <div className="dark:bg-spaire-500 h-2 w-0.5 bg-gray-400" />
+                <div className="dark:bg-spaire-600 h-full w-1/2 rounded-r-full bg-gray-300" />
               </div>
-              <span className="dark:text-polar-400 text-gray-500">
+              <span className="dark:text-spaire-400 text-gray-500">
                 Below average
               </span>
             </div>
             <div className="mt-1 flex items-center gap-2 text-xs">
               <div className="flex h-1.5 w-8 items-center">
-                <div className="dark:bg-polar-600 h-full w-1/2 rounded-l-full bg-gray-300" />
-                <div className="dark:bg-polar-500 h-2 w-0.5 bg-gray-400" />
+                <div className="dark:bg-spaire-600 h-full w-1/2 rounded-l-full bg-gray-300" />
+                <div className="dark:bg-spaire-500 h-2 w-0.5 bg-gray-400" />
                 <div
                   className="h-full w-1/2 rounded-r-full"
                   style={{ backgroundColor: COLORS.red }}
                 />
               </div>
-              <span className="dark:text-polar-400 text-gray-500">
+              <span className="dark:text-spaire-400 text-gray-500">
                 Above average
               </span>
             </div>
