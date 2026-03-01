@@ -19,6 +19,6 @@ export const hasProductCheckout = (
   return (
     checkout.product !== null &&
     checkout.prices !== null &&
-    checkout.productPrice !== null
+    (checkout as Partial<ProductCheckoutPublic>).productPrice != null
   )
 }
