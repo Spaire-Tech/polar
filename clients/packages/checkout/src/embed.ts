@@ -208,9 +208,7 @@ class EmbedCheckout {
    * ```
    */
   public static init(): void {
-    const checkoutElements = document.querySelectorAll(
-      '[data-spaire-checkout]',
-    )
+    const checkoutElements = document.querySelectorAll('[data-spaire-checkout]')
     checkoutElements.forEach((checkoutElement) => {
       checkoutElement.removeEventListener(
         'click',
@@ -309,9 +307,7 @@ class EmbedCheckout {
     const url =
       checkoutElement.getAttribute('href') ||
       (checkoutElement.getAttribute('data-spaire-checkout') as string)
-    const theme = checkoutElement.getAttribute(
-      'data-spaire-checkout-theme',
-    ) as
+    const theme = checkoutElement.getAttribute('data-spaire-checkout-theme') as
       | 'light'
       | 'dark'
       | undefined
