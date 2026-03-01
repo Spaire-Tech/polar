@@ -108,6 +108,23 @@ Scan their project to detect the stack. Check these files:
 - Vue/Nuxt
 - Svelte/SvelteKit
 
+**Decision Table: Framework × Approach × Canonical Route Pattern**
+
+Use this table to determine the correct route method, request shape, response shape, and frontend call pattern before writing any code. Never deviate from the canonical pattern for the detected framework.
+
+| Framework | Overlay | Programmatic | Server-side Route Method | Server-side Request | Server-side Response | Frontend Pattern |
+|---|---|---|---|---|---|---|
+| Next.js App Router | ✓ script in `app/layout.tsx` | ✓ `EmbedCheckout.create()` | **GET** `app/api/checkout/route.ts` | query param `?productId=xxx` | HTTP 302 → checkout URL | link `href` or `router.push()` |
+| Next.js Pages Router | ✓ script in `_app.tsx` | ✓ `EmbedCheckout.create()` | **POST** `pages/api/checkout.ts` | JSON body `{ productId }` | `{ url: string }` | `fetch` POST → `window.location.href = url` |
+| Express | ✓ script in HTML template | ✓ `EmbedCheckout.create()` | **POST** `/api/checkout` | JSON body `{ productId }` | `{ url: string }` | `fetch` POST → redirect |
+| FastAPI | ✓ script in Jinja template | ✓ `EmbedCheckout.create()` | **POST** `/api/checkout` | query param `product_id` | `{ url: string }` | `fetch` POST → redirect |
+| Ruby on Rails | ✓ script in `application.html.erb` | ✓ `EmbedCheckout.create()` | **POST** `/checkouts` | `params[:product_id]` | `{ url: string }` | `fetch` POST → redirect |
+| Node Serverless | ✓ script in HTML | ✓ `EmbedCheckout.create()` | **POST** `api/checkout.ts` | JSON body `{ productId }` | `{ url: string }` | `fetch` POST → redirect |
+| Vanilla HTML/JS | ✓ script + `data-spaire-checkout` | ✓ `EmbedCheckout.create()` | N/A | — | — | direct checkout link |
+| React (Vite/CRA) | ✓ script in `public/index.html` | ✓ `EmbedCheckout.create()` | N/A (no backend) | — | — | direct checkout link |
+| Vue/Nuxt | ✓ script in layout | ✓ `EmbedCheckout.create()` | framework-specific | ask user | ask user | ask user |
+| Svelte/SvelteKit | ✓ script in layout | ✓ `EmbedCheckout.create()` | framework-specific | ask user | ask user | ask user |
+
 If the framework is not in this list or detection confidence is low, tell the user: "I'm not 100% sure about your setup. Can you confirm your framework and routing approach?"
 
 Tell the user what you found: "I can see you're using Next.js App Router with React. I'll tailor the checkout setup for that."
@@ -292,6 +309,9 @@ Tell the user: "Get your access token from https://app.spairehq.com/dashboard �
 **Next.js App Router (using @spaire/nextjs):**
 ```typescript
 // app/api/checkout/route.ts
+// Route method: GET — the client navigates directly to this URL with a query param.
+// The handler creates a checkout session and returns HTTP 302 → Spaire checkout URL.
+// Do NOT call this with fetch() + POST; use a link or router.push() instead.
 import { Checkout } from "@spaire/nextjs";
 
 export const GET = Checkout({
@@ -303,6 +323,7 @@ export const GET = Checkout({
 **Next.js Pages Router:**
 ```typescript
 // pages/api/checkout.ts
+// Route method: POST — client sends JSON body { productId }, receives { url } JSON, then redirects.
 import type { NextApiRequest, NextApiResponse } from "next";
 import { Spaire } from "@spaire/sdk";
 
@@ -388,6 +409,20 @@ export default async function handler(req: Request) {
 
 ### Step 4: Create the frontend button that calls the API
 
+**The frontend pattern depends on the route method used in Step 3.**
+
+**Next.js App Router (GET route — navigate directly, no fetch):**
+```typescript
+// Option A: link element (simplest)
+<a href={`/api/checkout?productId=${productId}`}>Buy Now</a>
+
+// Option B: programmatic navigation
+import { useRouter } from "next/navigation";
+const router = useRouter();
+router.push(`/api/checkout?productId=${productId}`);
+```
+
+**Next.js Pages Router / Express / FastAPI / Rails / Node Serverless (POST route — fetch, then redirect):**
 ```typescript
 async function handleCheckout(productId: string) {
   const res = await fetch("/api/checkout", {
@@ -399,6 +434,8 @@ async function handleCheckout(productId: string) {
   window.location.href = url;
 }
 ```
+
+> **Never mix these patterns.** Using `fetch` + POST against an App Router GET route will fail. Using link navigation against a POST route will not send a body. Match the frontend to the route method exactly.
 
 ## Phase 6: (Optional) Customer Portal
 
@@ -475,6 +512,26 @@ Present expected results at each step:
 If something doesn't work, help debug:
 - "If the overlay doesn't appear, check the browser console for script loading errors"
 - "If the checkout link returns 404, verify the product is published in your Spaire dashboard"
+
+### Agent Validation Checklist
+
+Do not mark this implementation as done until every item below is confirmed.
+
+**Preconditions — verify before writing any code:**
+- [ ] Framework detected from actual project files (not assumed)
+- [ ] Approach chosen by user (overlay / programmatic / server-side)
+- [ ] Route method confirmed from decision table (GET for App Router, POST for all others)
+- [ ] Frontend call pattern matches route method (link/navigate for GET; fetch POST for POST)
+- [ ] Product exists and is published in Spaire dashboard
+- [ ] Git state checked — user committed or stashed uncommitted changes
+- [ ] Change summary presented and explicitly confirmed by user
+
+**Postconditions — verify before closing:**
+- [ ] Checkout button/link triggers the correct behavior (overlay opens, or redirect fires)
+- [ ] Test purchase completes and lands on the success page
+- [ ] No secrets, tokens, or hardcoded values appear in any code file
+- [ ] Webhook payload not logged at production level (if webhook added)
+- [ ] Revert instructions provided with exact file paths and package names
 
 ## Phase 9: Revert Instructions
 
