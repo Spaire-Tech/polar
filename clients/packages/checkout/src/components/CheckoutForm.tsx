@@ -111,6 +111,7 @@ const BaseCheckoutForm = ({
 }: React.PropsWithChildren<BaseCheckoutFormProps>) => {
   const interval = hasProductCheckout(checkout)
     ? hasLegacyRecurringPrices(checkout.prices[checkout.product.id]) &&
+      checkout.productPrice !== null &&
       isLegacyRecurringPrice(checkout.productPrice)
       ? checkout.productPrice.recurringInterval
       : checkout.product.recurringInterval

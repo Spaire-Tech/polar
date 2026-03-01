@@ -37,7 +37,7 @@ const MeteredPricesDisplay = ({ checkout }: MeteredPricesDisplayProps) => {
   const meteredPrices = useMemo(
     () =>
       getMeteredPrices(prices[product.id]).filter(
-        (p) => p.id !== productPrice.id,
+        (p) => p.id !== productPrice?.id,
       ),
     [product, productPrice],
   )

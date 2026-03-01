@@ -28,6 +28,7 @@ export const useCheckoutFulfillmentListener = (
       let subscriptionCreated =
         !hasProductCheckout(checkout) ||
         !(
+          checkout.productPrice !== null &&
           'type' in checkout.productPrice &&
           checkout.productPrice.type === 'recurring'
         )

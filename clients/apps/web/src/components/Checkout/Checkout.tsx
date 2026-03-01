@@ -203,7 +203,7 @@ const Checkout = ({ embed: _embed, theme: _theme }: CheckoutProps) => {
               }
               themePreset={themePreset}
             />
-            {checkout.productPrice.amountType === 'custom' && (
+            {checkout.productPrice?.amountType === 'custom' && (
               <CheckoutPWYWForm
                 checkout={checkout}
                 update={update}
@@ -257,7 +257,7 @@ const Checkout = ({ embed: _embed, theme: _theme }: CheckoutProps) => {
                 }
                 themePreset={themePreset}
               />
-              {checkout.productPrice.amountType === 'custom' && (
+              {checkout.productPrice?.amountType === 'custom' && (
                 <CheckoutPWYWForm
                   checkout={checkout}
                   update={update}

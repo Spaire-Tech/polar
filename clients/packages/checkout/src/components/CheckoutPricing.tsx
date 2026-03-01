@@ -18,6 +18,7 @@ const CheckoutProductAmountLabel = ({
   layout?: 'default' | 'stacked'
 }) => {
   const { product, productPrice, discount } = checkout
+  if (!productPrice) return null
   if (!discount || productPrice.amountType !== 'fixed') {
     return <ProductPriceLabel product={product} price={productPrice} />
   }
@@ -71,6 +72,8 @@ const CheckoutPricing = ({
   layout = 'default',
 }: CheckoutPricingProps) => {
   const { product, productPrice, amount } = checkout
+
+  if (!productPrice) return null
 
   return (
     <div className="flex flex-col gap-6">

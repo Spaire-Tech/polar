@@ -33,7 +33,7 @@ const CheckoutSeatSelector = ({
 
   // Check if the product has seat-based pricing
   const productPrice = checkout.productPrice
-  const isSeatBased = productPrice.amountType === 'seat_based'
+  const isSeatBased = productPrice?.amountType === 'seat_based'
 
   if (!isSeatBased) {
     return null
