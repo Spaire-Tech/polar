@@ -69,7 +69,6 @@ export const CheckoutLinkPage = ({ checkoutLink }: CheckoutLinkPageProps) => {
             <CopyToClipboardInput
               value={checkoutLink.url}
               buttonLabel="Copy"
-              className="bg-white"
               onCopy={() => {
                 toast({
                   title: 'Copied To Clipboard',
@@ -88,7 +87,6 @@ export const CheckoutLinkPage = ({ checkoutLink }: CheckoutLinkPageProps) => {
           <CopyToClipboardInput
             value={checkoutEmbed}
             buttonLabel="Copy"
-            className="bg-white"
             onCopy={() => {
               toast({
                 title: 'Copied To Clipboard',
