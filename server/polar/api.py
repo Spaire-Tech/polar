@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from polar.account.endpoints import router as accounts_router
+from polar.intelligence.endpoints import router as intelligence_router
 from polar.auth.endpoints import router as auth_router
 from polar.benefit.endpoints import router as benefits_router
 from polar.benefit.grant.endpoints import router as benefit_grants_router
@@ -113,6 +114,8 @@ router.include_router(cli_router)
 router.include_router(files_router)
 # /metrics
 router.include_router(metrics_router)
+# /intelligence
+router.include_router(intelligence_router)
 # /integrations/google
 router.include_router(google_router)
 # /license-keys

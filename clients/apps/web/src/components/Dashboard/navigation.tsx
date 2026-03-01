@@ -1,5 +1,6 @@
 import { PolarHog, usePostHog } from '@/hooks/posthog'
 import AttachMoneyOutlined from '@mui/icons-material/AttachMoneyOutlined'
+import AutoGraphOutlined from '@mui/icons-material/AutoGraphOutlined'
 import CodeOutlined from '@mui/icons-material/CodeOutlined'
 import ExtensionOutlined from '@mui/icons-material/ExtensionOutlined'
 import HiveOutlined from '@mui/icons-material/HiveOutlined'
@@ -198,6 +199,16 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
     link: `/dashboard/${org?.slug}/sales`,
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/sales`)
+    },
+    if: true,
+  },
+  {
+    id: 'intelligence',
+    title: 'Intelligence',
+    icon: <AutoGraphOutlined fontSize="inherit" />,
+    link: `/dashboard/${org?.slug}/intelligence`,
+    checkIsActive: (currentRoute: string): boolean => {
+      return currentRoute.startsWith(`/dashboard/${org?.slug}/intelligence`)
     },
     if: true,
   },
