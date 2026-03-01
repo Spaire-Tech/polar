@@ -9,120 +9,175 @@ import {
 } from '@/hooks/queries/intelligence'
 import { schemas } from '@spaire/client'
 import ArrowUpwardOutlined from '@mui/icons-material/ArrowUpwardOutlined'
-import ExpandMoreOutlined from '@mui/icons-material/ExpandMoreOutlined'
 import AutoGraphOutlined from '@mui/icons-material/AutoGraphOutlined'
+import ExpandMoreOutlined from '@mui/icons-material/ExpandMoreOutlined'
+import TrendingDownOutlined from '@mui/icons-material/TrendingDownOutlined'
+import TrendingFlatOutlined from '@mui/icons-material/TrendingFlatOutlined'
+import TrendingUpOutlined from '@mui/icons-material/TrendingUpOutlined'
 import { useEffect, useRef, useState } from 'react'
 import { twMerge } from 'tailwind-merge'
 
 // ---------------------------------------------------------------------------
-// Starter prompts shown on the empty state
+// Starter prompts
 // ---------------------------------------------------------------------------
 
 const STARTER_PROMPTS = [
-  { label: 'Revenue drop', question: 'Why did revenue drop last week?' },
-  { label: 'Churn drivers', question: 'Where is churn coming from?' },
-  { label: 'Top products', question: 'What are my top-performing products this month?' },
-  { label: 'MRR breakdown', question: 'Break down MRR by product.' },
+  {
+    label: 'Revenue drop',
+    question: 'Why did revenue drop last week?',
+    icon: '📉',
+  },
+  {
+    label: 'Churn drivers',
+    question: 'Where is churn coming from?',
+    icon: '🔄',
+  },
+  {
+    label: 'Top products',
+    question: 'What are my top-performing products this month?',
+    icon: '🏆',
+  },
+  {
+    label: 'MRR breakdown',
+    question: 'Break down MRR by product.',
+    icon: '📊',
+  },
 ]
 
 // ---------------------------------------------------------------------------
-// Formatting helpers
+// Helpers
 // ---------------------------------------------------------------------------
 
-const formatCents = (cents: number): string => {
+const fmt = (cents: number): string => {
   const abs = Math.abs(cents) / 100
-  const str = abs >= 1000 ? `$${(abs / 1000).toFixed(1)}k` : `$${abs.toFixed(0)}`
-  return cents < 0 ? `–${str}` : str
+  const s = abs >= 1000 ? `$${(abs / 1000).toFixed(1)}k` : `$${abs.toFixed(0)}`
+  return cents < 0 ? `–${s}` : s
 }
 
 // ---------------------------------------------------------------------------
 // Message types
 // ---------------------------------------------------------------------------
 
-type UserMessage = { role: 'user'; text: string }
-type AssistantMessage = { role: 'assistant'; insight: InsightResponse }
-type ErrorMessage = { role: 'error'; text: string }
-type Message = UserMessage | AssistantMessage | ErrorMessage
+type Msg =
+  | { role: 'user'; text: string }
+  | { role: 'assistant'; insight: InsightResponse }
+  | { role: 'error'; text: string }
 
 // ---------------------------------------------------------------------------
-// Sub-components for the structured insight inside the chat bubble
+// Confidence badge — uses existing app semantic colors
 // ---------------------------------------------------------------------------
 
-const ConfidencePill = ({ level }: { level: InsightResponse['confidence'] }) => {
-  const map = {
-    high: 'bg-green-500/10 text-green-400',
-    medium: 'bg-yellow-500/10 text-yellow-400',
-    low: 'bg-red-500/10 text-red-400',
+const ConfidenceBadge = ({ level }: { level: InsightResponse['confidence'] }) => {
+  const styles = {
+    high: 'bg-emerald-50 text-emerald-500 dark:bg-emerald-950 dark:text-emerald-400',
+    medium: 'bg-yellow-50 text-yellow-600 dark:bg-yellow-950 dark:text-yellow-400',
+    low: 'bg-red-50 text-red-500 dark:bg-red-950 dark:text-red-400',
   }
   return (
-    <span className={twMerge('rounded-full px-2 py-0.5 text-[11px] font-medium', map[level])}>
+    <span
+      className={twMerge(
+        'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
+        styles[level],
+      )}
+    >
       {level} confidence
     </span>
   )
 }
 
+// ---------------------------------------------------------------------------
+// Driver table row
+// ---------------------------------------------------------------------------
+
 const DriverRow = ({ driver, rank }: { driver: InsightDriver; rank: number }) => {
   const isDown = driver.delta < 0
+  const isFlat = driver.delta === 0
   const share = Math.round(Math.abs(driver.share_of_total_change) * 100)
 
   return (
-    <div className="flex items-center gap-3 py-2">
+    <div className="dark:border-spaire-800 flex items-center gap-3 border-b border-gray-100 py-2.5 last:border-0">
       <span className="dark:text-spaire-600 w-4 shrink-0 text-right text-xs tabular-nums text-gray-400">
         {rank}
       </span>
-      <span className="dark:text-spaire-200 min-w-0 flex-1 truncate text-sm text-gray-800">
+      {isFlat ? (
+        <TrendingFlatOutlined className="dark:text-spaire-500 shrink-0 text-gray-400" sx={{ fontSize: 14 }} />
+      ) : isDown ? (
+        <TrendingDownOutlined className="shrink-0 text-red-500" sx={{ fontSize: 14 }} />
+      ) : (
+        <TrendingUpOutlined className="shrink-0 text-emerald-500" sx={{ fontSize: 14 }} />
+      )}
+      <span className="dark:text-spaire-100 min-w-0 flex-1 truncate text-sm text-gray-900">
         {driver.key}
       </span>
       <span
         className={twMerge(
           'shrink-0 text-sm font-medium tabular-nums',
-          isDown ? 'text-red-400' : 'text-green-400',
+          isDown ? 'text-red-500 dark:text-red-400' : isFlat ? 'dark:text-spaire-400 text-gray-500' : 'text-emerald-600 dark:text-emerald-400',
         )}
       >
-        {formatCents(driver.delta)}
+        {fmt(driver.delta)}
       </span>
-      <div className="dark:bg-spaire-800 h-1 w-16 shrink-0 overflow-hidden rounded-full bg-gray-200">
+      <div className="dark:bg-spaire-800 h-1 w-14 shrink-0 overflow-hidden rounded-full bg-gray-200">
         <div
-          className={twMerge('h-full rounded-full', isDown ? 'bg-red-400' : 'bg-green-400')}
+          className={twMerge(
+            'h-full rounded-full',
+            isDown ? 'bg-red-400' : 'bg-emerald-400',
+          )}
           style={{ width: `${Math.min(share, 100)}%` }}
         />
       </div>
-      <span className="dark:text-spaire-600 w-8 shrink-0 text-right text-[11px] tabular-nums text-gray-400">
+      <span className="dark:text-spaire-600 w-7 shrink-0 text-right text-[11px] tabular-nums text-gray-400">
         {share}%
       </span>
     </div>
   )
 }
 
+// ---------------------------------------------------------------------------
+// Action row
+// ---------------------------------------------------------------------------
+
 const ActionRow = ({ action }: { action: InsightAction }) => {
-  const effortDot: Record<InsightAction['effort'], string> = {
-    low: 'bg-green-400',
-    medium: 'bg-yellow-400',
-    high: 'bg-red-400',
-  }
+  const dotColor = {
+    low: 'bg-emerald-500',
+    medium: 'bg-yellow-500',
+    high: 'bg-red-500',
+  }[action.effort]
+
   return (
-    <div className="dark:border-spaire-700 flex items-start gap-3 border-b border-gray-100 py-2.5 last:border-0">
-      <span className={twMerge('mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full', effortDot[action.effort])} />
-      <div className="min-w-0">
+    <div className="dark:border-spaire-800 flex items-start gap-3 border-b border-gray-100 py-3 last:border-0">
+      <span className={twMerge('mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full', dotColor)} />
+      <div className="min-w-0 flex-1">
         <p className="dark:text-spaire-100 text-sm text-gray-900">{action.action}</p>
         <p className="dark:text-spaire-500 mt-0.5 text-xs text-gray-500">{action.why}</p>
         {action.estimated_impact && (
-          <p className="mt-0.5 text-xs text-blue-400">{action.estimated_impact}</p>
+          <p className="mt-0.5 text-xs text-blue-500 dark:text-blue-400">
+            {action.estimated_impact}
+          </p>
         )}
       </div>
+      {action.requires_human_approval && (
+        <span className="dark:bg-spaire-800 dark:text-spaire-400 mt-0.5 shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-500">
+          needs approval
+        </span>
+      )}
     </div>
   )
 }
 
-const ProvenanceAccordion = ({ insight }: { insight: InsightResponse }) => {
+// ---------------------------------------------------------------------------
+// Data provenance accordion
+// ---------------------------------------------------------------------------
+
+const Provenance = ({ insight }: { insight: InsightResponse }) => {
   const [open, setOpen] = useState(false)
   const { debug } = insight
 
   return (
-    <div className="dark:border-spaire-700 mt-3 overflow-hidden rounded-lg border border-gray-100">
+    <div className="dark:border-spaire-800 overflow-hidden rounded-xl border border-gray-100">
       <button
         onClick={() => setOpen(!open)}
-        className="dark:hover:bg-spaire-800 flex w-full items-center justify-between px-3 py-2 text-left transition-colors hover:bg-gray-50"
+        className="dark:hover:bg-spaire-800 flex w-full items-center justify-between px-4 py-2.5 text-left transition-colors hover:bg-gray-50"
       >
         <span className="dark:text-spaire-500 text-xs text-gray-400">
           Data provenance · {debug.time_range}
@@ -131,32 +186,33 @@ const ProvenanceAccordion = ({ insight }: { insight: InsightResponse }) => {
         <ExpandMoreOutlined
           className={twMerge(
             'dark:text-spaire-500 text-gray-400 transition-transform',
-            open && 'rotate-180',
+            open ? 'rotate-180' : '',
           )}
           sx={{ fontSize: 14 }}
         />
       </button>
+
       {open && (
-        <div className="dark:bg-spaire-900 dark:border-spaire-700 border-t border-gray-100 bg-gray-50 px-3 py-2.5">
+        <div className="dark:border-spaire-800 border-t border-gray-100 px-4 py-3">
           <dl className="space-y-1.5 text-xs">
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               <dt className="dark:text-spaire-500 w-24 shrink-0 text-gray-400">Interpreted as</dt>
               <dd className="dark:text-spaire-300 text-gray-700">{debug.interpretation_note}</dd>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               <dt className="dark:text-spaire-500 w-24 shrink-0 text-gray-400">Intent</dt>
               <dd className="dark:text-spaire-300 font-mono text-gray-700">{debug.plan_intent}</dd>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               <dt className="dark:text-spaire-500 w-24 shrink-0 text-gray-400">Queries</dt>
               <dd className="dark:text-spaire-300 font-mono text-gray-700">
                 {debug.queries_executed.join(', ')}
               </dd>
             </div>
             {debug.warnings.length > 0 && (
-              <div className="flex gap-2">
+              <div className="flex gap-3">
                 <dt className="w-24 shrink-0 text-yellow-500">Warnings</dt>
-                <dd className="text-yellow-400">{debug.warnings.join('; ')}</dd>
+                <dd className="text-yellow-500">{debug.warnings.join('; ')}</dd>
               </div>
             )}
           </dl>
@@ -167,29 +223,36 @@ const ProvenanceAccordion = ({ insight }: { insight: InsightResponse }) => {
 }
 
 // ---------------------------------------------------------------------------
-// Insight bubble — structured insight inside the assistant message
+// Structured insight inside the assistant bubble
 // ---------------------------------------------------------------------------
 
-const InsightBubble = ({
+const InsightContent = ({
   insight,
   onFollowup,
 }: {
   insight: InsightResponse
   onFollowup: (q: string) => void
 }) => (
-  <div className="flex flex-col gap-4">
+  <div className="flex flex-col gap-5">
     {/* Answer + confidence */}
-    <div className="flex flex-wrap items-start justify-between gap-2">
-      <p className="dark:text-spaire-50 text-base font-medium text-gray-900">{insight.answer}</p>
-      <ConfidencePill level={insight.confidence} />
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <p className="dark:text-spaire-50 text-base font-medium leading-snug text-gray-900">
+        {insight.answer}
+      </p>
+      <ConfidenceBadge level={insight.confidence} />
     </div>
 
-    {/* Bullets */}
+    {/* Summary bullets */}
     {insight.summary_bullets.length > 0 && (
-      <ul className="space-y-1">
+      <ul className="flex flex-col gap-1.5">
         {insight.summary_bullets.map((b, i) => (
-          <li key={i} className="dark:text-spaire-400 flex items-start gap-1.5 text-sm text-gray-600">
-            <span className="dark:text-spaire-600 mt-0.5 text-[10px] text-gray-400">•</span>
+          <li
+            key={i}
+            className="dark:text-spaire-400 flex items-start gap-2 text-sm text-gray-600"
+          >
+            <span className="dark:text-spaire-600 mt-px shrink-0 text-[10px] text-gray-400">
+              ▸
+            </span>
             {b}
           </li>
         ))}
@@ -199,12 +262,12 @@ const InsightBubble = ({
     {/* Drivers */}
     {insight.drivers.length > 0 && (
       <div>
-        <p className="dark:text-spaire-400 mb-1 text-xs font-medium uppercase tracking-wide text-gray-400">
+        <p className="dark:text-spaire-500 mb-2 text-xs font-semibold uppercase tracking-widest text-gray-400">
           Top Drivers
         </p>
-        <div className="dark:border-spaire-700 dark:divide-spaire-700 divide-y divide-gray-100 overflow-hidden rounded-lg border border-gray-100">
+        <div className="dark:border-spaire-800 overflow-hidden rounded-xl border border-gray-100">
           {insight.drivers.map((d, i) => (
-            <div key={d.key} className="dark:bg-spaire-900 bg-white px-3">
+            <div key={d.key} className="dark:bg-spaire-900 bg-white px-4">
               <DriverRow driver={d} rank={i + 1} />
             </div>
           ))}
@@ -215,25 +278,27 @@ const InsightBubble = ({
     {/* Actions */}
     {insight.recommended_actions.length > 0 && (
       <div>
-        <p className="dark:text-spaire-400 mb-1 text-xs font-medium uppercase tracking-wide text-gray-400">
+        <p className="dark:text-spaire-500 mb-2 text-xs font-semibold uppercase tracking-widest text-gray-400">
           Recommended Actions
         </p>
-        <div className="dark:bg-spaire-900 dark:border-spaire-700 rounded-lg border border-gray-100 bg-white px-3">
+        <div className="dark:border-spaire-800 overflow-hidden rounded-xl border border-gray-100">
           {insight.recommended_actions.map((a, i) => (
-            <ActionRow key={i} action={a} />
+            <div key={i} className="dark:bg-spaire-900 bg-white px-4">
+              <ActionRow action={a} />
+            </div>
           ))}
         </div>
       </div>
     )}
 
-    {/* Follow-ups */}
+    {/* Follow-up questions */}
     {insight.followup_questions.length > 0 && (
       <div className="flex flex-wrap gap-1.5">
         {insight.followup_questions.map((q) => (
           <button
             key={q}
             onClick={() => onFollowup(q)}
-            className="dark:bg-spaire-800 dark:border-spaire-700 dark:text-spaire-300 dark:hover:bg-spaire-700 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-600 transition-colors hover:bg-gray-50"
+            className="dark:bg-spaire-900 dark:border-spaire-700 dark:text-spaire-300 dark:hover:border-spaire-500 dark:hover:text-spaire-100 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-600 transition-colors hover:border-gray-400 hover:text-gray-900"
           >
             {q}
           </button>
@@ -242,65 +307,73 @@ const InsightBubble = ({
     )}
 
     {/* Provenance */}
-    <ProvenanceAccordion insight={insight} />
+    <Provenance insight={insight} />
   </div>
 )
 
 // ---------------------------------------------------------------------------
-// Single message row
+// Single message
 // ---------------------------------------------------------------------------
 
 const MessageRow = ({
-  message,
+  msg,
   onFollowup,
 }: {
-  message: Message
+  msg: Msg
   onFollowup: (q: string) => void
 }) => {
-  if (message.role === 'user') {
+  if (msg.role === 'user') {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[75%] rounded-2xl rounded-tr-sm bg-blue-600 px-4 py-2.5">
-          <p className="text-sm text-white">{message.text}</p>
+        <div className="max-w-[72%] rounded-2xl rounded-tr-sm bg-blue-600 px-4 py-2.5 shadow-xs">
+          <p className="text-sm leading-relaxed text-white">{msg.text}</p>
         </div>
       </div>
     )
   }
 
-  if (message.role === 'error') {
+  if (msg.role === 'error') {
     return (
       <div className="flex justify-start">
-        <div className="dark:bg-spaire-900 dark:border-spaire-700 max-w-[85%] rounded-2xl rounded-tl-sm border border-red-100 bg-red-50 px-4 py-3">
-          <p className="text-sm text-red-500">{message.text}</p>
+        <div className="dark:border-spaire-800 max-w-[85%] rounded-2xl rounded-tl-sm border border-red-100 bg-red-50/60 px-4 py-3 dark:bg-red-950/30">
+          <p className="text-sm text-red-500">{msg.text}</p>
         </div>
       </div>
     )
   }
 
-  // assistant
   return (
     <div className="flex items-start gap-3">
-      <div className="dark:bg-spaire-800 mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-100">
-        <AutoGraphOutlined className="dark:text-spaire-300 text-gray-500" sx={{ fontSize: 14 }} />
+      {/* Avatar */}
+      <div className="dark:bg-spaire-800 dark:border-spaire-700 mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white shadow-xs">
+        <AutoGraphOutlined
+          className="dark:text-spaire-300 text-gray-500"
+          sx={{ fontSize: 15 }}
+        />
       </div>
-      <div className="dark:bg-spaire-900 dark:border-spaire-700 min-w-0 flex-1 rounded-2xl rounded-tl-sm border border-gray-200 bg-white px-4 py-4">
-        <InsightBubble insight={message.insight} onFollowup={onFollowup} />
+
+      {/* Content card */}
+      <div className="dark:bg-spaire-900 dark:border-spaire-700 min-w-0 flex-1 rounded-2xl rounded-tl-sm border border-gray-200 bg-white px-5 py-4 shadow-xs">
+        <InsightContent insight={msg.insight} onFollowup={onFollowup} />
       </div>
     </div>
   )
 }
 
 // ---------------------------------------------------------------------------
-// Thinking indicator
+// Thinking dots
 // ---------------------------------------------------------------------------
 
-const ThinkingRow = () => (
+const Thinking = () => (
   <div className="flex items-start gap-3">
-    <div className="dark:bg-spaire-800 mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-100">
-      <AutoGraphOutlined className="dark:text-spaire-300 text-gray-500" sx={{ fontSize: 14 }} />
+    <div className="dark:bg-spaire-800 dark:border-spaire-700 mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white shadow-xs">
+      <AutoGraphOutlined
+        className="dark:text-spaire-300 text-gray-500"
+        sx={{ fontSize: 15 }}
+      />
     </div>
-    <div className="dark:bg-spaire-900 dark:border-spaire-700 rounded-2xl rounded-tl-sm border border-gray-200 bg-white px-4 py-4">
-      <div className="flex items-center gap-1.5">
+    <div className="dark:bg-spaire-900 dark:border-spaire-700 rounded-2xl rounded-tl-sm border border-gray-200 bg-white px-5 py-4 shadow-xs">
+      <div className="flex items-center gap-1">
         {[0, 1, 2].map((i) => (
           <span
             key={i}
@@ -314,35 +387,34 @@ const ThinkingRow = () => (
 )
 
 // ---------------------------------------------------------------------------
-// Empty state
+// Empty / welcome state
 // ---------------------------------------------------------------------------
 
-const EmptyState = ({ onSelect }: { onSelect: (q: string) => void }) => (
-  <div className="flex h-full flex-col items-center justify-center gap-8 py-16">
-    <div className="flex flex-col items-center gap-3 text-center">
-      <div className="dark:bg-spaire-800 flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100">
+const WelcomeState = ({ onSelect }: { onSelect: (q: string) => void }) => (
+  <div className="flex h-full flex-col items-center justify-center gap-10 py-12 text-center">
+    <div className="flex flex-col items-center gap-3">
+      <div className="dark:bg-spaire-900 dark:border-spaire-700 flex h-14 w-14 items-center justify-center rounded-2xl border border-gray-200 bg-white shadow-xs">
         <AutoGraphOutlined className="dark:text-spaire-300 text-gray-500" />
       </div>
-      <p className="dark:text-spaire-100 text-lg font-medium text-gray-900">
-        Revenue Intelligence
-      </p>
+      <h2 className="text-xl font-medium dark:text-white">Revenue Intelligence</h2>
       <p className="dark:text-spaire-500 max-w-sm text-sm text-gray-500">
-        Ask anything about your revenue. Get structured insights with numbers,
-        drivers, and recommended actions.
+        Ask anything about your revenue in plain English. Get structured
+        answers with drivers, recommended actions, and full data provenance.
       </p>
     </div>
 
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-      {STARTER_PROMPTS.map(({ label, question }) => (
+    <div className="grid w-full max-w-lg grid-cols-2 gap-3">
+      {STARTER_PROMPTS.map(({ icon, label, question }) => (
         <button
           key={label}
           onClick={() => onSelect(question)}
-          className="dark:bg-spaire-900 dark:border-spaire-700 dark:text-spaire-300 dark:hover:bg-spaire-800 flex flex-col items-start gap-1 rounded-xl border border-gray-200 bg-white p-3 text-left transition-colors hover:bg-gray-50"
+          className="dark:bg-spaire-900 dark:border-spaire-700 dark:text-spaire-200 dark:hover:border-spaire-500 flex flex-col gap-2 rounded-2xl border border-gray-200 bg-white p-4 text-left shadow-xs transition-all hover:border-gray-300 hover:shadow-md"
         >
-          <span className="dark:text-spaire-500 text-[10px] font-medium uppercase tracking-wide text-gray-400">
-            {label}
-          </span>
-          <span className="text-xs text-gray-600 dark:text-gray-400">{question}</span>
+          <span className="text-lg">{icon}</span>
+          <div>
+            <p className="text-sm font-medium text-gray-900 dark:text-white">{label}</p>
+            <p className="dark:text-spaire-500 mt-0.5 text-xs text-gray-500">{question}</p>
+          </div>
         </button>
       ))}
     </div>
@@ -350,32 +422,45 @@ const EmptyState = ({ onSelect }: { onSelect: (q: string) => void }) => (
 )
 
 // ---------------------------------------------------------------------------
-// Composer (input bar)
+// Composer — pinned to bottom, transparent background to match page
 // ---------------------------------------------------------------------------
 
 const Composer = ({
   onSubmit,
-  isLoading,
+  disabled,
 }: {
   onSubmit: (q: string) => void
-  isLoading: boolean
+  disabled: boolean
 }) => {
   const [value, setValue] = useState('')
+  const ref = useRef<HTMLTextAreaElement>(null)
 
   const submit = () => {
     const q = value.trim()
-    if (!q || isLoading) return
+    if (!q || disabled) return
     setValue('')
     onSubmit(q)
+    // Reset height after clear
+    if (ref.current) ref.current.style.height = 'auto'
+  }
+
+  const autoGrow = (el: HTMLTextAreaElement) => {
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`
   }
 
   return (
-    <div className="dark:border-spaire-700 dark:bg-spaire-950 border-t border-gray-200 bg-white px-4 py-3">
-      <div className="dark:bg-spaire-900 dark:border-spaire-700 flex items-end gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2">
+    /* Transparent outer — inherits the DashboardBody dark:bg-spaire-900 */
+    <div className="dark:border-spaire-800 border-t border-gray-100 px-4 py-3 md:px-8">
+      <div className="dark:bg-spaire-800 dark:border-spaire-700 flex items-end gap-2 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 transition-shadow focus-within:shadow-sm">
         <textarea
+          ref={ref}
           rows={1}
           value={value}
-          onChange={(e) => setValue(e.target.value)}
+          onChange={(e) => {
+            setValue(e.target.value)
+            autoGrow(e.target)
+          }}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault()
@@ -383,27 +468,26 @@ const Composer = ({
             }
           }}
           placeholder="Ask about your revenue…"
-          disabled={isLoading}
-          className="dark:text-spaire-50 flex-1 resize-none bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400 dark:placeholder:text-gray-600 disabled:opacity-50"
-          style={{ maxHeight: 120 }}
+          disabled={disabled}
+          className="dark:text-spaire-50 flex-1 resize-none bg-transparent text-sm leading-relaxed text-gray-900 outline-none placeholder:text-gray-400 dark:placeholder:text-gray-600 disabled:opacity-50"
         />
         <button
           onClick={submit}
-          disabled={!value.trim() || isLoading}
-          className="dark:bg-spaire-700 dark:hover:bg-spaire-600 mb-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gray-900 text-white transition-colors hover:bg-gray-700 disabled:opacity-30"
+          disabled={!value.trim() || disabled}
+          className="mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-xs transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-30"
         >
           <ArrowUpwardOutlined sx={{ fontSize: 16 }} />
         </button>
       </div>
-      <p className="dark:text-spaire-600 mt-1.5 text-center text-[11px] text-gray-400">
-        Press Enter to send · Shift+Enter for new line
+      <p className="dark:text-spaire-600 mt-2 text-center text-[11px] text-gray-400">
+        Enter to send · Shift+Enter for new line
       </p>
     </div>
   )
 }
 
 // ---------------------------------------------------------------------------
-// Main page
+// Page
 // ---------------------------------------------------------------------------
 
 export default function IntelligencePage({
@@ -411,20 +495,16 @@ export default function IntelligencePage({
 }: {
   organization: schemas['Organization']
 }) {
-  const [messages, setMessages] = useState<Message[]>([])
+  const [messages, setMessages] = useState<Msg[]>([])
   const bottomRef = useRef<HTMLDivElement>(null)
   const { mutate, isPending } = useIntelligenceQuery()
 
-  const scrollToBottom = () =>
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-
   useEffect(() => {
-    scrollToBottom()
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, isPending])
 
-  const handleQuestion = (question: string) => {
+  const ask = (question: string) => {
     setMessages((prev) => [...prev, { role: 'user', text: question }])
-
     mutate(
       {
         question,
@@ -432,15 +512,16 @@ export default function IntelligencePage({
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       },
       {
-        onSuccess: (insight) => {
-          setMessages((prev) => [...prev, { role: 'assistant', insight }])
-        },
-        onError: () => {
+        onSuccess: (insight) =>
+          setMessages((prev) => [...prev, { role: 'assistant', insight }]),
+        onError: () =>
           setMessages((prev) => [
             ...prev,
-            { role: 'error', text: 'Something went wrong. Please try again.' },
-          ])
-        },
+            {
+              role: 'error',
+              text: 'Something went wrong. Please try again.',
+            },
+          ]),
       },
     )
   }
@@ -449,29 +530,30 @@ export default function IntelligencePage({
 
   return (
     <DashboardBody
+      title={null}
       className="!p-0"
-      wrapperClassName="flex flex-col overflow-hidden"
+      wrapperClassName="!gap-0 !pt-0 flex flex-col overflow-hidden"
     >
-      {/* Message list */}
+      {/* Messages area */}
       <div className="flex-1 overflow-y-auto px-4 py-6 md:px-8">
         <div className="mx-auto max-w-2xl">
           {isEmpty ? (
-            <EmptyState onSelect={handleQuestion} />
+            <WelcomeState onSelect={ask} />
           ) : (
-            <div className="flex flex-col gap-5">
+            <div className="flex flex-col gap-6">
               {messages.map((msg, i) => (
-                <MessageRow key={i} message={msg} onFollowup={handleQuestion} />
+                <MessageRow key={i} msg={msg} onFollowup={ask} />
               ))}
-              {isPending && <ThinkingRow />}
+              {isPending && <Thinking />}
               <div ref={bottomRef} />
             </div>
           )}
         </div>
       </div>
 
-      {/* Composer pinned to bottom */}
+      {/* Composer — pinned */}
       <div className="mx-auto w-full max-w-2xl">
-        <Composer onSubmit={handleQuestion} isLoading={isPending} />
+        <Composer onSubmit={ask} disabled={isPending} />
       </div>
     </DashboardBody>
   )
