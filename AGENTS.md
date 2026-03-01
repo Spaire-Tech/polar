@@ -234,3 +234,41 @@ From the `docs/` directory, it can be built and served locally with:
 ```bash
 pnpm dev
 ```
+
+## Spaire Integration Playbooks
+
+Agent workflow playbooks for Spaire checkout and billing integration live in `docs/agent-playbooks/`. These are platform-neutral and designed to work in any AI coding environment.
+
+| Task | Playbook |
+|------|---------|
+| Add Spaire checkout to a user's project | `docs/agent-playbooks/setup-checkout.md` |
+| Implement metered usage-based billing | `docs/agent-playbooks/setup-usage-billing.md` |
+| Agent output contract (mandatory) | `docs/agent-playbooks/agent-output-contract.md` |
+
+### Agent Output Contract
+
+Before running any playbook, read `docs/agent-playbooks/agent-output-contract.md`. All agents must:
+
+1. **Show planned changes** before writing any file — list files to create/modify with one-line descriptions, then ask "Proceed?"
+2. **Report every command run** with its output
+3. **Run and report checks** — linter, type check, tests, build
+4. **Track dashboard steps** — manual steps completed vs pending
+5. **Provide rollback steps** — exact file-by-file undo instructions
+
+### Package Manager Detection
+
+Use the project's existing package manager. Never switch without explicit instruction.
+
+- `pnpm-lock.yaml` → `pnpm`
+- `yarn.lock` → `yarn`
+- `package-lock.json` → `npm`
+- `uv.lock` → `uv`
+- `poetry.lock` → `poetry`
+
+### Safety Rules for Integration Work
+
+- **No secrets in code** — reference env var names only, never hardcode values
+- **No silent account mutations** — walk the user through dashboard steps manually
+- **No destructive refactors** — surgical edits only
+- **Confirm before every file write** — present a dry-run summary first
+- **Suggest sandbox mode first** — test in Spaire sandbox before going live
