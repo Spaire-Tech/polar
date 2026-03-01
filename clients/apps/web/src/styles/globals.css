@@ -8,7 +8,7 @@
 @plugin 'tailwindcss-radix';
 @plugin '@tailwindcss/typography';
 
-@custom-variant dark (&:where(.dark, .dark *));
+@custom-variant dark (.dark &);
 
 @theme {
   --shadow-md: 0 0px 15px rgba(0 0 0 / 0.04), 0 0px 2px rgba(0 0 0 / 0.06);
