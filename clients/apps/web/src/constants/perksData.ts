@@ -103,7 +103,7 @@ export const PERKS: Perk[] = [
     logo: 'https://spaire-production-files-public.s3.us-east-1.amazonaws.com/notionhq_logo.jpeg',
     incentive: '6 Months Free + Notion AI',
     description:
-      'Notion consolidates your docs, wikis, project management, and knowledge base into one tool. With Notion AI included, your team can draft docs, summarize meetings, and move faster without switching tools.',
+      'Spaire has partnered with Notion to give early-stage startups 6 months of Notion Business — with Notion AI included. One workspace for your docs, specs, roadmaps, and team knowledge, with AI built in from day one.',
     url: 'https://ntn.so/spaire',
     featured: true,
     details: {
