@@ -62,15 +62,20 @@ export const useIntelligenceQuery = () => {
     mutationFn: async (
       body: IntelligenceQueryRequest,
     ): Promise<InsightResponse> => {
-      const response = await api.POST('/v1/intelligence/query' as any, {
-        body: body as any,
+      // The intelligence endpoint is private and not yet in the generated OpenAPI
+      // client, so we call it directly via fetch using the configured base URL.
+      const { CONFIG } = await import('@/utils/config')
+      const res = await fetch(`${CONFIG.BASE_URL}/v1/intelligence/query`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
       })
-      if ((response as any).error) {
-        throw new Error(
-          (response as any).error?.detail ?? 'Intelligence query failed',
-        )
+      if (!res.ok) {
+        const err = await res.json().catch(() => null)
+        throw new Error(err?.detail ?? `Intelligence query failed (${res.status})`)
       }
-      return (response as any).data as InsightResponse
+      return res.json() as Promise<InsightResponse>
     },
   })
 }

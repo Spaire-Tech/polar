@@ -1,5 +1,3 @@
-import uuid
-
 from fastapi import Depends
 
 from polar.openapi import APITag
@@ -12,7 +10,7 @@ from .schemas import IntelligenceQueryRequest, InsightResponse
 
 router = APIRouter(
     prefix="/intelligence",
-    tags=["intelligence", APITag.documented],
+    tags=["intelligence", APITag.private],
 )
 
 
@@ -37,7 +35,7 @@ async def query(
     return await run_intelligence_query(
         session,
         auth_subject,
-        organization_id=uuid.UUID(body.organization_id),
+        organization_id=body.organization_id,
         question=body.question,
         explicit_start=body.start_date,
         explicit_end=body.end_date,

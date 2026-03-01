@@ -1,10 +1,13 @@
-from datetime import date
+import uuid
+from datetime import date, timedelta
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_extra_types.timezone_name import TimeZoneName
 
 from polar.kit.schemas import Schema
+
+MAX_DATE_RANGE_DAYS = 365
 
 
 # ---------------------------------------------------------------------------
@@ -19,7 +22,7 @@ class IntelligenceQueryRequest(Schema):
         max_length=1000,
         description="Natural language question about revenue or business performance.",
     )
-    organization_id: str = Field(
+    organization_id: uuid.UUID = Field(
         ..., description="The organization to scope the query to."
     )
     start_date: date | None = Field(
@@ -34,6 +37,17 @@ class IntelligenceQueryRequest(Schema):
         default="UTC",
         description="Timezone for timestamp interpretation.",
     )
+
+    @model_validator(mode="after")
+    def validate_date_range(self) -> "IntelligenceQueryRequest":
+        if self.start_date and self.end_date:
+            if self.end_date < self.start_date:
+                raise ValueError("end_date must be after start_date")
+            if (self.end_date - self.start_date).days > MAX_DATE_RANGE_DAYS:
+                raise ValueError(
+                    f"Date range cannot exceed {MAX_DATE_RANGE_DAYS} days"
+                )
+        return self
 
 
 # ---------------------------------------------------------------------------

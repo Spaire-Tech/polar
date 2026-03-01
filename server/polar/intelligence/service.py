@@ -124,7 +124,7 @@ class IntelligenceService:
         baseline_end: date | None,
     ) -> DimensionBreakdown:
         """Break down revenue by product vs baseline period."""
-        repo = IntelligenceRepository.from_session(session)
+        repo = IntelligenceRepository(session)
 
         current_rows = await repo.get_product_revenue(auth_subject, start_date, end_date)
         baseline_rows: list[dict] = []
@@ -178,7 +178,7 @@ class IntelligenceService:
         end_date: date,
     ) -> ChurnSummary:
         """Summarise subscription cancellations in the period."""
-        repo = IntelligenceRepository.from_session(session)
+        repo = IntelligenceRepository(session)
         rows = await repo.get_cancellation_breakdown(auth_subject, start_date, end_date)
 
         return ChurnSummary(

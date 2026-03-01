@@ -8,306 +8,155 @@ import {
   useIntelligenceQuery,
 } from '@/hooks/queries/intelligence'
 import { schemas } from '@spaire/client'
-import ArrowForwardOutlined from '@mui/icons-material/ArrowForwardOutlined'
+import ArrowUpwardOutlined from '@mui/icons-material/ArrowUpwardOutlined'
 import ExpandMoreOutlined from '@mui/icons-material/ExpandMoreOutlined'
-import SearchOutlined from '@mui/icons-material/SearchOutlined'
-import TrendingDownOutlined from '@mui/icons-material/TrendingDownOutlined'
-import TrendingUpOutlined from '@mui/icons-material/TrendingUpOutlined'
-import Button from '@spaire/ui/components/atoms/Button'
-import { useState } from 'react'
+import AutoGraphOutlined from '@mui/icons-material/AutoGraphOutlined'
+import { useEffect, useRef, useState } from 'react'
 import { twMerge } from 'tailwind-merge'
 
 // ---------------------------------------------------------------------------
-// Suggested starter questions
+// Starter prompts shown on the empty state
 // ---------------------------------------------------------------------------
 
-const STARTER_QUESTIONS = [
-  'Why did revenue drop last week?',
-  'Where is churn coming from?',
-  'Break down MRR by product.',
-  'What are my top-performing products this month?',
-  'Why did orders spike last Tuesday?',
+const STARTER_PROMPTS = [
+  { label: 'Revenue drop', question: 'Why did revenue drop last week?' },
+  { label: 'Churn drivers', question: 'Where is churn coming from?' },
+  { label: 'Top products', question: 'What are my top-performing products this month?' },
+  { label: 'MRR breakdown', question: 'Break down MRR by product.' },
 ]
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Formatting helpers
 // ---------------------------------------------------------------------------
 
 const formatCents = (cents: number): string => {
-  const dollars = Math.abs(cents) / 100
-  const formatted =
-    dollars >= 1000
-      ? `$${(dollars / 1000).toFixed(1)}k`
-      : `$${dollars.toFixed(0)}`
-  return cents < 0 ? `-${formatted}` : formatted
-}
-
-const effortColor: Record<InsightAction['effort'], string> = {
-  low: 'text-green-400',
-  medium: 'text-yellow-400',
-  high: 'text-red-400',
+  const abs = Math.abs(cents) / 100
+  const str = abs >= 1000 ? `$${(abs / 1000).toFixed(1)}k` : `$${abs.toFixed(0)}`
+  return cents < 0 ? `–${str}` : str
 }
 
 // ---------------------------------------------------------------------------
-// Ask bar
+// Message types
 // ---------------------------------------------------------------------------
 
-interface AskBarProps {
-  onSubmit: (question: string) => void
-  isLoading: boolean
-}
-
-const AskBar = ({ onSubmit, isLoading }: AskBarProps) => {
-  const [value, setValue] = useState('')
-
-  const handleSubmit = (q: string) => {
-    if (!q.trim() || isLoading) return
-    setValue(q)
-    onSubmit(q)
-  }
-
-  return (
-    <div className="flex flex-col items-center gap-6">
-      <div className="w-full max-w-3xl">
-        <div className="dark:bg-polar-900 dark:border-polar-700 relative flex items-center gap-3 rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-sm transition-shadow focus-within:shadow-md">
-          <SearchOutlined className="dark:text-polar-400 shrink-0 text-gray-400" />
-          <input
-            type="text"
-            className="dark:text-polar-50 flex-1 bg-transparent text-base text-gray-900 outline-none placeholder:text-gray-400 dark:placeholder:text-gray-600"
-            placeholder="Ask about your revenue…"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleSubmit(value)
-            }}
-            disabled={isLoading}
-          />
-          <Button
-            size="sm"
-            onClick={() => handleSubmit(value)}
-            loading={isLoading}
-            disabled={!value.trim() || isLoading}
-          >
-            Analyze
-            <ArrowForwardOutlined className="ml-1.5" fontSize="small" />
-          </Button>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap justify-center gap-2">
-        {STARTER_QUESTIONS.map((q) => (
-          <button
-            key={q}
-            onClick={() => handleSubmit(q)}
-            disabled={isLoading}
-            className="dark:bg-polar-900 dark:border-polar-700 dark:text-polar-300 dark:hover:border-polar-500 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-600 transition-colors hover:border-gray-400 disabled:opacity-50"
-          >
-            {q}
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}
+type UserMessage = { role: 'user'; text: string }
+type AssistantMessage = { role: 'assistant'; insight: InsightResponse }
+type ErrorMessage = { role: 'error'; text: string }
+type Message = UserMessage | AssistantMessage | ErrorMessage
 
 // ---------------------------------------------------------------------------
-// Confidence badge
+// Sub-components for the structured insight inside the chat bubble
 // ---------------------------------------------------------------------------
 
-const ConfidenceBadge = ({
-  level,
-}: {
-  level: InsightResponse['confidence']
-}) => {
-  const styles = {
-    high: 'bg-green-500/10 text-green-400 border-green-500/20',
-    medium: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
-    low: 'bg-red-500/10 text-red-400 border-red-500/20',
+const ConfidencePill = ({ level }: { level: InsightResponse['confidence'] }) => {
+  const map = {
+    high: 'bg-green-500/10 text-green-400',
+    medium: 'bg-yellow-500/10 text-yellow-400',
+    low: 'bg-red-500/10 text-red-400',
   }
   return (
-    <span
-      className={twMerge(
-        'rounded-full border px-2.5 py-0.5 text-xs font-medium',
-        styles[level],
-      )}
-    >
-      {level.charAt(0).toUpperCase() + level.slice(1)} confidence
+    <span className={twMerge('rounded-full px-2 py-0.5 text-[11px] font-medium', map[level])}>
+      {level} confidence
     </span>
   )
 }
 
-// ---------------------------------------------------------------------------
-// Driver card
-// ---------------------------------------------------------------------------
-
-const DriverCard = ({
-  driver,
-  rank,
-}: {
-  driver: InsightDriver
-  rank: number
-}) => {
+const DriverRow = ({ driver, rank }: { driver: InsightDriver; rank: number }) => {
   const isDown = driver.delta < 0
-  const pctAbs = Math.abs(driver.pct_change)
-  const sharePercent = Math.round(driver.share_of_total_change * 100)
+  const share = Math.round(Math.abs(driver.share_of_total_change) * 100)
 
   return (
-    <div className="dark:bg-polar-900 dark:border-polar-700 flex items-start gap-4 rounded-xl border border-gray-100 bg-white p-4 shadow-xs">
-      <div className="dark:bg-polar-800 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-xs font-bold text-gray-500 dark:text-gray-400">
+    <div className="flex items-center gap-3 py-2">
+      <span className="dark:text-spaire-600 w-4 shrink-0 text-right text-xs tabular-nums text-gray-400">
         {rank}
+      </span>
+      <span className="dark:text-spaire-200 min-w-0 flex-1 truncate text-sm text-gray-800">
+        {driver.key}
+      </span>
+      <span
+        className={twMerge(
+          'shrink-0 text-sm font-medium tabular-nums',
+          isDown ? 'text-red-400' : 'text-green-400',
+        )}
+      >
+        {formatCents(driver.delta)}
+      </span>
+      <div className="dark:bg-spaire-800 h-1 w-16 shrink-0 overflow-hidden rounded-full bg-gray-200">
+        <div
+          className={twMerge('h-full rounded-full', isDown ? 'bg-red-400' : 'bg-green-400')}
+          style={{ width: `${Math.min(share, 100)}%` }}
+        />
       </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <span className="dark:text-polar-200 text-sm font-medium text-gray-900">
-              {driver.key}
-            </span>
-            <span className="dark:text-polar-500 ml-2 text-xs text-gray-400">
-              {driver.dimension}
-            </span>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <span
-              className={twMerge(
-                'text-sm font-semibold tabular-nums',
-                isDown ? 'text-red-400' : 'text-green-400',
-              )}
-            >
-              {isDown ? '–' : '+'}
-              {formatCents(Math.abs(driver.delta))}
-            </span>
-            <span
-              className={twMerge(
-                'text-xs tabular-nums',
-                isDown ? 'text-red-400/70' : 'text-green-400/70',
-              )}
-            >
-              ({isDown ? '–' : '+'}
-              {pctAbs.toFixed(1)}%)
-            </span>
-          </div>
-        </div>
-        <div className="mt-2 flex items-center gap-3">
-          <div className="dark:bg-polar-800 h-1.5 flex-1 overflow-hidden rounded-full bg-gray-100">
-            <div
-              className={twMerge(
-                'h-full rounded-full',
-                isDown ? 'bg-red-400' : 'bg-green-400',
-              )}
-              style={{ width: `${Math.min(Math.abs(sharePercent), 100)}%` }}
-            />
-          </div>
-          <span className="dark:text-polar-400 shrink-0 text-xs text-gray-400">
-            {sharePercent}% of change
-          </span>
-        </div>
+      <span className="dark:text-spaire-600 w-8 shrink-0 text-right text-[11px] tabular-nums text-gray-400">
+        {share}%
+      </span>
+    </div>
+  )
+}
+
+const ActionRow = ({ action }: { action: InsightAction }) => {
+  const effortDot: Record<InsightAction['effort'], string> = {
+    low: 'bg-green-400',
+    medium: 'bg-yellow-400',
+    high: 'bg-red-400',
+  }
+  return (
+    <div className="dark:border-spaire-700 flex items-start gap-3 border-b border-gray-100 py-2.5 last:border-0">
+      <span className={twMerge('mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full', effortDot[action.effort])} />
+      <div className="min-w-0">
+        <p className="dark:text-spaire-100 text-sm text-gray-900">{action.action}</p>
+        <p className="dark:text-spaire-500 mt-0.5 text-xs text-gray-500">{action.why}</p>
+        {action.estimated_impact && (
+          <p className="mt-0.5 text-xs text-blue-400">{action.estimated_impact}</p>
+        )}
       </div>
     </div>
   )
 }
 
-// ---------------------------------------------------------------------------
-// Action card
-// ---------------------------------------------------------------------------
-
-const ActionCard = ({ action }: { action: InsightAction }) => (
-  <div className="dark:bg-polar-900 dark:border-polar-700 rounded-xl border border-gray-100 bg-white p-4 shadow-xs">
-    <div className="flex items-start justify-between gap-3">
-      <p className="dark:text-polar-100 text-sm font-medium text-gray-900">
-        {action.action}
-      </p>
-      <div className="flex shrink-0 items-center gap-2">
-        <span
-          className={twMerge(
-            'text-xs font-medium',
-            effortColor[action.effort],
-          )}
-        >
-          {action.effort} effort
-        </span>
-        {action.requires_human_approval && (
-          <span className="dark:bg-polar-800 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500 dark:text-gray-400">
-            approval needed
-          </span>
-        )}
-      </div>
-    </div>
-    <p className="dark:text-polar-400 mt-1.5 text-xs text-gray-500">
-      {action.why}
-    </p>
-    {action.estimated_impact && (
-      <p className="mt-2 text-xs text-blue-400">
-        Est. impact: {action.estimated_impact}
-      </p>
-    )}
-  </div>
-)
-
-// ---------------------------------------------------------------------------
-// Debug accordion
-// ---------------------------------------------------------------------------
-
-const DebugAccordion = ({ insight }: { insight: InsightResponse }) => {
+const ProvenanceAccordion = ({ insight }: { insight: InsightResponse }) => {
   const [open, setOpen] = useState(false)
   const { debug } = insight
 
   return (
-    <div className="dark:border-polar-700 overflow-hidden rounded-xl border border-gray-100">
+    <div className="dark:border-spaire-700 mt-3 overflow-hidden rounded-lg border border-gray-100">
       <button
         onClick={() => setOpen(!open)}
-        className="dark:bg-polar-900 dark:hover:bg-polar-800 flex w-full items-center justify-between bg-white px-4 py-3 transition-colors hover:bg-gray-50"
+        className="dark:hover:bg-spaire-800 flex w-full items-center justify-between px-3 py-2 text-left transition-colors hover:bg-gray-50"
       >
-        <span className="dark:text-polar-400 text-xs font-medium text-gray-500">
-          Data Provenance
+        <span className="dark:text-spaire-500 text-xs text-gray-400">
+          Data provenance · {debug.time_range}
+          {debug.baseline_range ? ` vs ${debug.baseline_range}` : ''}
         </span>
         <ExpandMoreOutlined
           className={twMerge(
-            'dark:text-polar-400 text-gray-400 transition-transform',
+            'dark:text-spaire-500 text-gray-400 transition-transform',
             open && 'rotate-180',
           )}
-          fontSize="small"
+          sx={{ fontSize: 14 }}
         />
       </button>
       {open && (
-        <div className="dark:bg-polar-950 dark:border-polar-700 border-t border-gray-100 bg-gray-50 px-4 py-3">
-          <dl className="space-y-2 text-xs">
-            <div>
-              <dt className="dark:text-polar-500 text-gray-400">
-                Interpretation
-              </dt>
-              <dd className="dark:text-polar-200 mt-0.5 text-gray-700">
-                {debug.interpretation_note}
-              </dd>
+        <div className="dark:bg-spaire-900 dark:border-spaire-700 border-t border-gray-100 bg-gray-50 px-3 py-2.5">
+          <dl className="space-y-1.5 text-xs">
+            <div className="flex gap-2">
+              <dt className="dark:text-spaire-500 w-24 shrink-0 text-gray-400">Interpreted as</dt>
+              <dd className="dark:text-spaire-300 text-gray-700">{debug.interpretation_note}</dd>
             </div>
-            <div>
-              <dt className="dark:text-polar-500 text-gray-400">
-                Time range
-              </dt>
-              <dd className="dark:text-polar-200 mt-0.5 text-gray-700">
-                {debug.time_range}
-                {debug.baseline_range && ` vs ${debug.baseline_range}`}
-              </dd>
+            <div className="flex gap-2">
+              <dt className="dark:text-spaire-500 w-24 shrink-0 text-gray-400">Intent</dt>
+              <dd className="dark:text-spaire-300 font-mono text-gray-700">{debug.plan_intent}</dd>
             </div>
-            <div>
-              <dt className="dark:text-polar-500 text-gray-400">
-                Queries run
-              </dt>
-              <dd className="dark:text-polar-200 mt-0.5 font-mono text-gray-700">
+            <div className="flex gap-2">
+              <dt className="dark:text-spaire-500 w-24 shrink-0 text-gray-400">Queries</dt>
+              <dd className="dark:text-spaire-300 font-mono text-gray-700">
                 {debug.queries_executed.join(', ')}
               </dd>
             </div>
-            <div>
-              <dt className="dark:text-polar-500 text-gray-400">Model</dt>
-              <dd className="dark:text-polar-200 mt-0.5 text-gray-700">
-                {debug.model_used}
-              </dd>
-            </div>
             {debug.warnings.length > 0 && (
-              <div>
-                <dt className="text-yellow-500">Warnings</dt>
-                <dd className="mt-0.5 text-yellow-400">
-                  {debug.warnings.join('; ')}
-                </dd>
+              <div className="flex gap-2">
+                <dt className="w-24 shrink-0 text-yellow-500">Warnings</dt>
+                <dd className="text-yellow-400">{debug.warnings.join('; ')}</dd>
               </div>
             )}
           </dl>
@@ -318,151 +167,264 @@ const DebugAccordion = ({ insight }: { insight: InsightResponse }) => {
 }
 
 // ---------------------------------------------------------------------------
-// Insight view
+// Insight bubble — structured insight inside the assistant message
 // ---------------------------------------------------------------------------
 
-const InsightView = ({
+const InsightBubble = ({
   insight,
   onFollowup,
 }: {
   insight: InsightResponse
   onFollowup: (q: string) => void
-}) => {
-  const isPositive =
-    insight.answer.toLowerCase().includes('increas') ||
-    insight.answer.toLowerCase().includes('grew') ||
-    insight.answer.toLowerCase().includes('up ')
+}) => (
+  <div className="flex flex-col gap-4">
+    {/* Answer + confidence */}
+    <div className="flex flex-wrap items-start justify-between gap-2">
+      <p className="dark:text-spaire-50 text-base font-medium text-gray-900">{insight.answer}</p>
+      <ConfidencePill level={insight.confidence} />
+    </div>
 
-  return (
-    <div className="flex flex-col gap-6">
-      {/* Header */}
-      <div className="dark:bg-polar-900 dark:border-polar-700 rounded-2xl border border-gray-100 bg-white p-6 shadow-xs">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            {isPositive ? (
-              <TrendingUpOutlined className="shrink-0 text-green-400" />
-            ) : (
-              <TrendingDownOutlined className="shrink-0 text-red-400" />
-            )}
-            <h2 className="dark:text-polar-50 text-xl font-semibold text-gray-900">
-              {insight.answer}
-            </h2>
-          </div>
-          <ConfidenceBadge level={insight.confidence} />
+    {/* Bullets */}
+    {insight.summary_bullets.length > 0 && (
+      <ul className="space-y-1">
+        {insight.summary_bullets.map((b, i) => (
+          <li key={i} className="dark:text-spaire-400 flex items-start gap-1.5 text-sm text-gray-600">
+            <span className="dark:text-spaire-600 mt-0.5 text-[10px] text-gray-400">•</span>
+            {b}
+          </li>
+        ))}
+      </ul>
+    )}
+
+    {/* Drivers */}
+    {insight.drivers.length > 0 && (
+      <div>
+        <p className="dark:text-spaire-400 mb-1 text-xs font-medium uppercase tracking-wide text-gray-400">
+          Top Drivers
+        </p>
+        <div className="dark:border-spaire-700 dark:divide-spaire-700 divide-y divide-gray-100 overflow-hidden rounded-lg border border-gray-100">
+          {insight.drivers.map((d, i) => (
+            <div key={d.key} className="dark:bg-spaire-900 bg-white px-3">
+              <DriverRow driver={d} rank={i + 1} />
+            </div>
+          ))}
         </div>
-
-        {insight.summary_bullets.length > 0 && (
-          <ul className="dark:border-polar-700 mt-4 space-y-1.5 border-t border-gray-100 pt-4">
-            {insight.summary_bullets.map((bullet, i) => (
-              <li
-                key={i}
-                className="dark:text-polar-300 flex items-start gap-2 text-sm text-gray-600"
-              >
-                <span className="dark:text-polar-500 mt-1 shrink-0 text-xs text-gray-400">
-                  •
-                </span>
-                {bullet}
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {insight.confidence_reasons.length > 0 && (
-          <div className="dark:border-polar-700 mt-3 border-t border-gray-100 pt-3">
-            <p className="dark:text-polar-500 text-xs text-gray-400">
-              {insight.confidence_reasons.join(' · ')}
-            </p>
-          </div>
-        )}
       </div>
+    )}
 
-      {/* Drivers */}
-      {insight.drivers.length > 0 && (
-        <section>
-          <h3 className="dark:text-polar-200 mb-3 text-sm font-medium text-gray-700">
-            Top Drivers
-          </h3>
-          <div className="flex flex-col gap-2">
-            {insight.drivers.map((driver, i) => (
-              <DriverCard key={driver.key} driver={driver} rank={i + 1} />
-            ))}
-          </div>
-        </section>
-      )}
+    {/* Actions */}
+    {insight.recommended_actions.length > 0 && (
+      <div>
+        <p className="dark:text-spaire-400 mb-1 text-xs font-medium uppercase tracking-wide text-gray-400">
+          Recommended Actions
+        </p>
+        <div className="dark:bg-spaire-900 dark:border-spaire-700 rounded-lg border border-gray-100 bg-white px-3">
+          {insight.recommended_actions.map((a, i) => (
+            <ActionRow key={i} action={a} />
+          ))}
+        </div>
+      </div>
+    )}
 
-      {/* Actions */}
-      {insight.recommended_actions.length > 0 && (
-        <section>
-          <h3 className="dark:text-polar-200 mb-3 text-sm font-medium text-gray-700">
-            Recommended Actions
-          </h3>
-          <div className="flex flex-col gap-2">
-            {insight.recommended_actions.map((action, i) => (
-              <ActionCard key={i} action={action} />
-            ))}
-          </div>
-        </section>
-      )}
+    {/* Follow-ups */}
+    {insight.followup_questions.length > 0 && (
+      <div className="flex flex-wrap gap-1.5">
+        {insight.followup_questions.map((q) => (
+          <button
+            key={q}
+            onClick={() => onFollowup(q)}
+            className="dark:bg-spaire-800 dark:border-spaire-700 dark:text-spaire-300 dark:hover:bg-spaire-700 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-600 transition-colors hover:bg-gray-50"
+          >
+            {q}
+          </button>
+        ))}
+      </div>
+    )}
 
-      {/* Follow-ups */}
-      {insight.followup_questions.length > 0 && (
-        <section>
-          <h3 className="dark:text-polar-200 mb-3 text-sm font-medium text-gray-700">
-            Follow-up Questions
-          </h3>
-          <div className="flex flex-wrap gap-2">
-            {insight.followup_questions.map((q) => (
-              <button
-                key={q}
-                onClick={() => onFollowup(q)}
-                className="dark:bg-polar-900 dark:border-polar-700 dark:text-polar-300 dark:hover:border-polar-500 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-600 transition-colors hover:border-gray-400"
-              >
-                {q}
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
+    {/* Provenance */}
+    <ProvenanceAccordion insight={insight} />
+  </div>
+)
 
-      {/* Debug */}
-      <DebugAccordion insight={insight} />
+// ---------------------------------------------------------------------------
+// Single message row
+// ---------------------------------------------------------------------------
+
+const MessageRow = ({
+  message,
+  onFollowup,
+}: {
+  message: Message
+  onFollowup: (q: string) => void
+}) => {
+  if (message.role === 'user') {
+    return (
+      <div className="flex justify-end">
+        <div className="max-w-[75%] rounded-2xl rounded-tr-sm bg-blue-600 px-4 py-2.5">
+          <p className="text-sm text-white">{message.text}</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (message.role === 'error') {
+    return (
+      <div className="flex justify-start">
+        <div className="dark:bg-spaire-900 dark:border-spaire-700 max-w-[85%] rounded-2xl rounded-tl-sm border border-red-100 bg-red-50 px-4 py-3">
+          <p className="text-sm text-red-500">{message.text}</p>
+        </div>
+      </div>
+    )
+  }
+
+  // assistant
+  return (
+    <div className="flex items-start gap-3">
+      <div className="dark:bg-spaire-800 mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-100">
+        <AutoGraphOutlined className="dark:text-spaire-300 text-gray-500" sx={{ fontSize: 14 }} />
+      </div>
+      <div className="dark:bg-spaire-900 dark:border-spaire-700 min-w-0 flex-1 rounded-2xl rounded-tl-sm border border-gray-200 bg-white px-4 py-4">
+        <InsightBubble insight={message.insight} onFollowup={onFollowup} />
+      </div>
     </div>
   )
 }
 
 // ---------------------------------------------------------------------------
-// Empty / loading state
+// Thinking indicator
 // ---------------------------------------------------------------------------
 
-const EmptyState = () => (
-  <div className="flex flex-col items-center gap-3 py-16 text-center">
-    <p className="dark:text-polar-300 text-lg font-medium text-gray-700">
-      Revenue Intelligence
-    </p>
-    <p className="dark:text-polar-500 max-w-sm text-sm text-gray-400">
-      Ask anything about your revenue. Get structured insights with numbers,
-      drivers, and recommended actions — all auditable.
-    </p>
+const ThinkingRow = () => (
+  <div className="flex items-start gap-3">
+    <div className="dark:bg-spaire-800 mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-100">
+      <AutoGraphOutlined className="dark:text-spaire-300 text-gray-500" sx={{ fontSize: 14 }} />
+    </div>
+    <div className="dark:bg-spaire-900 dark:border-spaire-700 rounded-2xl rounded-tl-sm border border-gray-200 bg-white px-4 py-4">
+      <div className="flex items-center gap-1.5">
+        {[0, 1, 2].map((i) => (
+          <span
+            key={i}
+            className="dark:bg-spaire-500 h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400"
+            style={{ animationDelay: `${i * 150}ms` }}
+          />
+        ))}
+      </div>
+    </div>
   </div>
 )
+
+// ---------------------------------------------------------------------------
+// Empty state
+// ---------------------------------------------------------------------------
+
+const EmptyState = ({ onSelect }: { onSelect: (q: string) => void }) => (
+  <div className="flex h-full flex-col items-center justify-center gap-8 py-16">
+    <div className="flex flex-col items-center gap-3 text-center">
+      <div className="dark:bg-spaire-800 flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100">
+        <AutoGraphOutlined className="dark:text-spaire-300 text-gray-500" />
+      </div>
+      <p className="dark:text-spaire-100 text-lg font-medium text-gray-900">
+        Revenue Intelligence
+      </p>
+      <p className="dark:text-spaire-500 max-w-sm text-sm text-gray-500">
+        Ask anything about your revenue. Get structured insights with numbers,
+        drivers, and recommended actions.
+      </p>
+    </div>
+
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      {STARTER_PROMPTS.map(({ label, question }) => (
+        <button
+          key={label}
+          onClick={() => onSelect(question)}
+          className="dark:bg-spaire-900 dark:border-spaire-700 dark:text-spaire-300 dark:hover:bg-spaire-800 flex flex-col items-start gap-1 rounded-xl border border-gray-200 bg-white p-3 text-left transition-colors hover:bg-gray-50"
+        >
+          <span className="dark:text-spaire-500 text-[10px] font-medium uppercase tracking-wide text-gray-400">
+            {label}
+          </span>
+          <span className="text-xs text-gray-600 dark:text-gray-400">{question}</span>
+        </button>
+      ))}
+    </div>
+  </div>
+)
+
+// ---------------------------------------------------------------------------
+// Composer (input bar)
+// ---------------------------------------------------------------------------
+
+const Composer = ({
+  onSubmit,
+  isLoading,
+}: {
+  onSubmit: (q: string) => void
+  isLoading: boolean
+}) => {
+  const [value, setValue] = useState('')
+
+  const submit = () => {
+    const q = value.trim()
+    if (!q || isLoading) return
+    setValue('')
+    onSubmit(q)
+  }
+
+  return (
+    <div className="dark:border-spaire-700 dark:bg-spaire-950 border-t border-gray-200 bg-white px-4 py-3">
+      <div className="dark:bg-spaire-900 dark:border-spaire-700 flex items-end gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2">
+        <textarea
+          rows={1}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault()
+              submit()
+            }
+          }}
+          placeholder="Ask about your revenue…"
+          disabled={isLoading}
+          className="dark:text-spaire-50 flex-1 resize-none bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400 dark:placeholder:text-gray-600 disabled:opacity-50"
+          style={{ maxHeight: 120 }}
+        />
+        <button
+          onClick={submit}
+          disabled={!value.trim() || isLoading}
+          className="dark:bg-spaire-700 dark:hover:bg-spaire-600 mb-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gray-900 text-white transition-colors hover:bg-gray-700 disabled:opacity-30"
+        >
+          <ArrowUpwardOutlined sx={{ fontSize: 16 }} />
+        </button>
+      </div>
+      <p className="dark:text-spaire-600 mt-1.5 text-center text-[11px] text-gray-400">
+        Press Enter to send · Shift+Enter for new line
+      </p>
+    </div>
+  )
+}
 
 // ---------------------------------------------------------------------------
 // Main page
 // ---------------------------------------------------------------------------
 
-interface IntelligencePageProps {
-  organization: schemas['Organization']
-}
-
 export default function IntelligencePage({
   organization,
-}: IntelligencePageProps) {
-  const [insight, setInsight] = useState<InsightResponse | null>(null)
-  const [currentQuestion, setCurrentQuestion] = useState<string>('')
+}: {
+  organization: schemas['Organization']
+}) {
+  const [messages, setMessages] = useState<Message[]>([])
+  const bottomRef = useRef<HTMLDivElement>(null)
   const { mutate, isPending } = useIntelligenceQuery()
 
+  const scrollToBottom = () =>
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages, isPending])
+
   const handleQuestion = (question: string) => {
-    setCurrentQuestion(question)
+    setMessages((prev) => [...prev, { role: 'user', text: question }])
+
     mutate(
       {
         question,
@@ -470,59 +432,46 @@ export default function IntelligencePage({
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       },
       {
-        onSuccess: (data) => setInsight(data),
+        onSuccess: (insight) => {
+          setMessages((prev) => [...prev, { role: 'assistant', insight }])
+        },
         onError: () => {
-          setInsight({
-            answer: 'Something went wrong. Please try again.',
-            confidence: 'low',
-            confidence_reasons: ['Request failed'],
-            summary_bullets: [],
-            drivers: [],
-            recommended_actions: [],
-            followup_questions: [],
-            debug: {
-              queries_executed: [],
-              time_range: 'unknown',
-              baseline_range: null,
-              warnings: ['Request error'],
-              model_used: '',
-              plan_intent: 'unknown',
-              interpretation_note: question,
-            },
-          })
+          setMessages((prev) => [
+            ...prev,
+            { role: 'error', text: 'Something went wrong. Please try again.' },
+          ])
         },
       },
     )
   }
 
+  const isEmpty = messages.length === 0 && !isPending
+
   return (
-    <DashboardBody className="gap-y-8 pb-16">
-      <div className="flex flex-col gap-8">
-        {/* Ask bar */}
-        <AskBar onSubmit={handleQuestion} isLoading={isPending} />
+    <DashboardBody
+      className="!p-0"
+      wrapperClassName="flex flex-col overflow-hidden"
+    >
+      {/* Message list */}
+      <div className="flex-1 overflow-y-auto px-4 py-6 md:px-8">
+        <div className="mx-auto max-w-2xl">
+          {isEmpty ? (
+            <EmptyState onSelect={handleQuestion} />
+          ) : (
+            <div className="flex flex-col gap-5">
+              {messages.map((msg, i) => (
+                <MessageRow key={i} message={msg} onFollowup={handleQuestion} />
+              ))}
+              {isPending && <ThinkingRow />}
+              <div ref={bottomRef} />
+            </div>
+          )}
+        </div>
+      </div>
 
-        {/* Loading skeleton */}
-        {isPending && (
-          <div className="flex flex-col gap-4">
-            {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="dark:bg-polar-900 h-24 animate-pulse rounded-2xl bg-gray-100"
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Result */}
-        {!isPending && insight && (
-          <InsightView
-            insight={insight}
-            onFollowup={handleQuestion}
-          />
-        )}
-
-        {/* Empty */}
-        {!isPending && !insight && <EmptyState />}
+      {/* Composer pinned to bottom */}
+      <div className="mx-auto w-full max-w-2xl">
+        <Composer onSubmit={handleQuestion} isLoading={isPending} />
       </div>
     </DashboardBody>
   )

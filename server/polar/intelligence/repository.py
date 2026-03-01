@@ -3,7 +3,6 @@ All database queries for the intelligence module live here.
 Services call into this repository; no SQLAlchemy in service.py.
 """
 
-import uuid
 from datetime import date
 
 from sqlalchemy import func, select
@@ -43,7 +42,7 @@ class IntelligenceRepository:
                 Order.deleted_at.is_(None),
             )
         )
-        stmt = self._apply_org_filter_order(stmt, auth_subject)
+        stmt = self._apply_org_filter(stmt, auth_subject)
         stmt = stmt.group_by(Product.id, Product.name)
 
         rows = (await self.session.execute(stmt)).all()
@@ -78,7 +77,7 @@ class IntelligenceRepository:
                 Subscription.deleted_at.is_(None),
             )
         )
-        stmt = self._apply_org_filter_subscription(stmt, auth_subject)
+        stmt = self._apply_org_filter(stmt, auth_subject)
         stmt = stmt.group_by(Product.name).order_by(
             func.sum(Subscription.amount).desc()
         )
@@ -94,33 +93,18 @@ class IntelligenceRepository:
         ]
 
     # ------------------------------------------------------------------
-    # Auth-aware filters
+    # Auth-aware filter (shared by all queries that join through Product)
     # ------------------------------------------------------------------
 
-    def _apply_org_filter_order(self, stmt, auth_subject: AuthSubject[User | Organization]):
+    def _apply_org_filter(
+        self, stmt, auth_subject: AuthSubject[User | Organization]
+    ):
+        """Scope any statement to the authenticated organization via Product.organization_id."""
         if is_user(auth_subject):
-            stmt = stmt.join(
+            return stmt.join(
                 UserOrganization,
                 UserOrganization.organization_id == Product.organization_id,
             ).where(UserOrganization.user_id == auth_subject.subject.id)
         elif is_organization(auth_subject):
-            stmt = stmt.where(
-                Product.organization_id == auth_subject.subject.id
-            )
+            return stmt.where(Product.organization_id == auth_subject.subject.id)
         return stmt
-
-    def _apply_org_filter_subscription(self, stmt, auth_subject: AuthSubject[User | Organization]):
-        if is_user(auth_subject):
-            stmt = stmt.join(
-                UserOrganization,
-                UserOrganization.organization_id == Product.organization_id,
-            ).where(UserOrganization.user_id == auth_subject.subject.id)
-        elif is_organization(auth_subject):
-            stmt = stmt.where(
-                Product.organization_id == auth_subject.subject.id
-            )
-        return stmt
-
-    @classmethod
-    def from_session(cls, session: AsyncReadSession) -> "IntelligenceRepository":
-        return cls(session)
