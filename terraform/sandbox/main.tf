@@ -15,7 +15,7 @@ provider "render" {
 module "s3_buckets" {
   source                   = "../modules/s3_buckets"
   environment              = "sandbox"
-  allowed_origins          = ["https://sandbox.polar.sh"]
+  allowed_origins          = ["https://sandbox.polar.sh", "https://sandbox.spairehq.com"]
   public_files_bucket_name = "polar-public-sandbox-files"
 }
 

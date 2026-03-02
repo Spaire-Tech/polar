@@ -76,9 +76,9 @@ module "sandbox" {
   }
 
   api_service_config = {
-    allowed_hosts          = "[\"sandbox.polar.sh\"]"
-    cors_origins           = "[\"https://sandbox.polar.sh\", \"https://github.com\", \"https://docs.polar.sh\"]"
-    custom_domains         = [{ name = "sandbox-api.polar.sh" }]
+    allowed_hosts          = "[\"sandbox.polar.sh\", \"sandbox.spairehq.com\"]"
+    cors_origins           = "[\"https://sandbox.polar.sh\", \"https://sandbox.spairehq.com\", \"https://github.com\", \"https://docs.spairehq.com\", \"https://docs.polar.sh\"]"
+    custom_domains         = [{ name = "sandbox-api.polar.sh" }, { name = "sandbox-api.spairehq.com" }]
     web_concurrency        = "2"
     forwarded_allow_ips    = "*"
     database_pool_size     = "20"
@@ -106,20 +106,20 @@ module "sandbox" {
   }
 
   backend_config = {
-    base_url                   = "https://sandbox-api.polar.sh"
-    user_session_cookie_domain = "polar.sh"
-    user_session_cookie_key    = "polar_sandbox_session"
+    base_url                   = "https://sandbox-api.spairehq.com"
+    user_session_cookie_domain = "spairehq.com"
+    user_session_cookie_key    = "spaire_sandbox_session"
     debug                      = "0"
     email_sender               = "resend"
-    email_from_name            = "[SANDBOX] Polar"
-    email_from_domain          = "notifications.sandbox.polar.sh"
-    frontend_base_url          = "https://sandbox.polar.sh"
-    checkout_base_url          = "https://sandbox-api.polar.sh/v1/checkout-links/{client_secret}/redirect"
+    email_from_name            = "[SANDBOX] Spaire"
+    email_from_domain          = "notifications.sandbox.spairehq.com"
+    frontend_base_url          = "https://sandbox.spairehq.com"
+    checkout_base_url          = "https://sandbox-api.spairehq.com/v1/checkout-links/{client_secret}/redirect"
     jwks_path                  = "/etc/secrets/jwks.json"
     log_level                  = "INFO"
     testing                    = "0"
-    auth_cookie_domain         = "polar.sh"
-    auth_cookie_key            = "polar_sandbox_session"
+    auth_cookie_domain         = "spairehq.com"
+    auth_cookie_key            = "spaire_sandbox_session"
     invoices_additional_info   = ""
     default_tax_processor      = "numeral"
   }
@@ -169,6 +169,7 @@ module "sandbox" {
     connect_webhook_secret = var.stripe_connect_webhook_secret_sandbox
     secret_key             = var.stripe_secret_key_sandbox
     webhook_secret         = var.stripe_webhook_secret_sandbox
+    v2_webhook_secret      = var.stripe_v2_webhook_secret_sandbox
   }
 
   apple_secrets = {
@@ -217,6 +218,17 @@ import {
 resource "cloudflare_dns_record" "api" {
   zone_id = "22bcd1b07ec25452aab472486bc8df94"
   name    = "sandbox-api.polar.sh"
+  type    = "CNAME"
+  content = replace(module.sandbox.api_service_url, "https://", "")
+  proxied = true
+  ttl     = 1
+}
+
+# DNS for sandbox-api.spairehq.com — requires spairehq.com Cloudflare zone
+# Zone ID must be confirmed from Cloudflare dashboard and set as a TFE variable
+resource "cloudflare_dns_record" "api_spaire" {
+  zone_id = var.spairehq_cloudflare_zone_id
+  name    = "sandbox-api.spairehq.com"
   type    = "CNAME"
   content = replace(module.sandbox.api_service_url, "https://", "")
   proxied = true

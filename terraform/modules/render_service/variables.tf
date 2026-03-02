@@ -198,6 +198,7 @@ variable "stripe_secrets" {
     connect_webhook_secret = string
     secret_key             = string
     webhook_secret         = string
+    v2_webhook_secret      = optional(string, "")
   })
   sensitive = true
 }

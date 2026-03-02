@@ -12,6 +12,14 @@ resource "tfe_variable_set" "sandbox" {
   parent_project_id = data.tfe_project.sandbox.id
 }
 
+resource "tfe_variable" "spairehq_cloudflare_zone_id" {
+  key             = "spairehq_cloudflare_zone_id"
+  category        = "terraform"
+  description     = "Cloudflare Zone ID for spairehq.com"
+  sensitive       = false
+  variable_set_id = tfe_variable_set.sandbox.id
+}
+
 resource "tfe_variable" "google_client_id_sandbox" {
   key             = "google_client_id_sandbox"
   category        = "terraform"
@@ -232,6 +240,14 @@ resource "tfe_variable" "stripe_webhook_secret_sandbox" {
   key             = "stripe_webhook_secret_sandbox"
   category        = "terraform"
   description     = "Stripe Webhook Secret for sandbox"
+  sensitive       = true
+  variable_set_id = tfe_variable_set.sandbox.id
+}
+
+resource "tfe_variable" "stripe_v2_webhook_secret_sandbox" {
+  key             = "stripe_v2_webhook_secret_sandbox"
+  category        = "terraform"
+  description     = "Stripe V2 Webhook Secret for sandbox"
   sensitive       = true
   variable_set_id = tfe_variable_set.sandbox.id
 }

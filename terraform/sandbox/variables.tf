@@ -2,6 +2,12 @@
 # Variables
 # =============================================================================
 
+variable "spairehq_cloudflare_zone_id" {
+  description = "Cloudflare Zone ID for spairehq.com (obtain from Cloudflare dashboard)"
+  type        = string
+  sensitive   = false
+}
+
 variable "ghcr_auth_token" {
   description = "GitHub Container Registry auth token (Personal Access Token with read:packages scope)"
   type        = string
@@ -182,6 +188,12 @@ variable "stripe_publishable_key_sandbox" {
 
 variable "stripe_webhook_secret_sandbox" {
   description = "Stripe Webhook Secret for sandbox"
+  type        = string
+  sensitive   = true
+}
+
+variable "stripe_v2_webhook_secret_sandbox" {
+  description = "Stripe V2 Webhook Secret for sandbox"
   type        = string
   sensitive   = true
 }

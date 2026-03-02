@@ -125,11 +125,16 @@ resource "render_env_group" "github" {
 resource "render_env_group" "stripe" {
   environment_id = var.render_environment_id
   name           = "stripe-${var.environment}"
-  env_vars = {
-    POLAR_STRIPE_CONNECT_WEBHOOK_SECRET = { value = var.stripe_secrets.connect_webhook_secret }
-    POLAR_STRIPE_SECRET_KEY             = { value = var.stripe_secrets.secret_key }
-    POLAR_STRIPE_WEBHOOK_SECRET         = { value = var.stripe_secrets.webhook_secret }
-  }
+  env_vars = merge(
+    {
+      POLAR_STRIPE_CONNECT_WEBHOOK_SECRET = { value = var.stripe_secrets.connect_webhook_secret }
+      POLAR_STRIPE_SECRET_KEY             = { value = var.stripe_secrets.secret_key }
+      POLAR_STRIPE_WEBHOOK_SECRET         = { value = var.stripe_secrets.webhook_secret }
+    },
+    var.stripe_secrets.v2_webhook_secret != "" ? {
+      POLAR_STRIPE_V2_WEBHOOK_SECRET = { value = var.stripe_secrets.v2_webhook_secret }
+    } : {}
+  )
 }
 
 resource "render_env_group" "logfire_server" {
