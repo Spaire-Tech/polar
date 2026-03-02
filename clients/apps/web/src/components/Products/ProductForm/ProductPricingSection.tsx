@@ -3,7 +3,6 @@
 import CreateMeterModalContent from '@/components/Meter/CreateMeterModalContent'
 import MeterSelector from '@/components/Meter/MeterSelector'
 import SetupWithClaudeModalContent from '@/components/Meter/SetupWithClaudeModalContent'
-import ClaudeCodeIcon from '@/components/Icons/frameworks/claude-code'
 import { InlineModal } from '@/components/Modal/InlineModal'
 import { useModal } from '@/components/Modal/useModal'
 import { SpinnerNoMargin } from '@/components/Shared/Spinner'
@@ -587,10 +586,7 @@ export const ProductPriceMeteredUnitItem: React.FC<
               showClaudeModal()
             }}
             size="sm"
-            variant="secondary"
-            className="gap-x-2"
           >
-            <ClaudeCodeIcon size={14} />
             Set up with Claude
           </Button>
           <Button
@@ -620,13 +616,12 @@ export const ProductPriceMeteredUnitItem: React.FC<
                     <div className="flex items-center gap-x-2">
                       <button
                         type="button"
-                        className="flex flex-row items-center gap-x-1 text-sm font-medium text-orange-500 hover:text-orange-600 dark:text-orange-400 dark:hover:text-orange-300"
+                        className="flex flex-row items-center gap-x-1 text-sm font-medium text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300"
                         onClick={(e) => {
                           e.preventDefault()
                           showClaudeModal()
                         }}
                       >
-                        <ClaudeCodeIcon size={14} />
                         Set up with Claude
                       </button>
                       <span className="text-gray-300 dark:text-spaire-600">|</span>

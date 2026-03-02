@@ -3,157 +3,73 @@
 import { DashboardBody } from '@/components/Layout/DashboardLayout'
 import { OrganizationContext } from '@/providers/maintainerOrganization'
 import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
-import CheckOutlined from '@mui/icons-material/CheckOutlined'
-import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined'
 import Link from 'next/link'
-import { useCallback, useContext, useState } from 'react'
-import { motion } from 'framer-motion'
-import { twMerge } from 'tailwind-merge'
-import { FadeUp } from '../Animated/FadeUp'
+import { useContext } from 'react'
 import ClaudeCodeIcon from '../Icons/frameworks/claude-code'
-import {
-  SyntaxHighlighterClient,
-  SyntaxHighlighterProvider,
-} from '../SyntaxHighlighterShiki/SyntaxHighlighterClient'
-import { ALL_AGENT_COMMANDS, type AgentCommand } from './agentCommands'
+import CursorIcon from '../Icons/frameworks/cursor'
+import CodexIcon from '../Icons/frameworks/codex'
+import GitHubCopilotIcon from '../Icons/frameworks/github-copilot'
+import { ALL_AGENT_PLATFORMS, type AgentPlatform } from './agentPlatforms'
 
-export default function ClaudeCodePage() {
-  const { organization } = useContext(OrganizationContext)
-  const [installCopied, setInstallCopied] = useState(false)
-  const handleCopyInstall = useCallback(() => {
-    navigator.clipboard.writeText('npm install -g @anthropic-ai/claude-code')
-    setInstallCopied(true)
-    setTimeout(() => setInstallCopied(false), 2500)
-  }, [])
-
-  return (
-    <SyntaxHighlighterProvider>
-      <DashboardBody title="Claude Code">
-        <div className="flex flex-col gap-12">
-          {/* Hero */}
-          <motion.div
-            initial="hidden"
-            animate="visible"
-            transition={{ duration: 1, staggerChildren: 0.15 }}
-            className="flex flex-col gap-8"
-          >
-            <FadeUp className="flex flex-col gap-y-4">
-              <div className="flex items-center gap-x-3">
-                <ClaudeCodeIcon size={40} />
-                <h2 className="text-xl font-medium tracking-tight">
-                  Claude Code
-                </h2>
-              </div>
-              <p className="dark:text-spaire-400 max-w-lg text-sm leading-relaxed text-gray-500">
-                Add Spaire agent commands to your project, then run them inside
-                Claude Code. Each command reads your codebase, asks a few
-                questions, and writes production code directly into your
-                project.
-              </p>
-            </FadeUp>
-
-            {/* Install */}
-            <FadeUp className="flex flex-col gap-y-3">
-              <div className="flex flex-row items-center justify-between">
-                <span className="dark:text-spaire-500 text-xs font-medium uppercase tracking-wider text-gray-400">
-                  Install
-                </span>
-                <button
-                  onClick={handleCopyInstall}
-                  className={twMerge(
-                    'flex items-center gap-x-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all',
-                    installCopied
-                      ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400'
-                      : 'dark:bg-spaire-800 dark:text-spaire-200 dark:hover:bg-spaire-700 bg-gray-100 text-gray-600 hover:bg-gray-200',
-                  )}
-                >
-                  {installCopied ? (
-                    <>
-                      <CheckOutlined sx={{ fontSize: 12 }} />
-                      Copied
-                    </>
-                  ) : (
-                    <>
-                      <ContentCopyOutlined sx={{ fontSize: 12 }} />
-                      Copy
-                    </>
-                  )}
-                </button>
-              </div>
-              <div className="dark:border-spaire-700 dark:bg-spaire-800 w-full max-w-lg rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm">
-                <SyntaxHighlighterClient
-                  lang="bash"
-                  code="npm install -g @anthropic-ai/claude-code"
-                />
-              </div>
-            </FadeUp>
-
-          </motion.div>
-
-          {/* Agent command cards */}
-          <motion.div
-            initial="hidden"
-            animate="visible"
-            transition={{ duration: 1, staggerChildren: 0.1, delayChildren: 0.3 }}
-            className="flex flex-col gap-6"
-          >
-            <FadeUp>
-              <span className="dark:text-spaire-500 text-xs font-medium uppercase tracking-wider text-gray-400">
-                Agent Commands
-              </span>
-            </FadeUp>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              {ALL_AGENT_COMMANDS.map((cmd) => (
-                <FadeUp key={cmd.slug}>
-                  <AgentCommandCard
-                    command={cmd}
-                    orgSlug={organization.slug}
-                  />
-                </FadeUp>
-              ))}
-            </div>
-          </motion.div>
-        </div>
-      </DashboardBody>
-    </SyntaxHighlighterProvider>
-  )
+const PLATFORM_ICONS: Record<string, React.ReactNode> = {
+  'claude-code': <ClaudeCodeIcon size={36} />,
+  cursor: <CursorIcon size={36} />,
+  codex: <CodexIcon size={36} />,
+  'github-copilot': <GitHubCopilotIcon size={36} />,
 }
 
-function AgentCommandCard({
-  command,
-  orgSlug,
-}: {
-  command: AgentCommand
-  orgSlug: string
-}) {
+function AgentPlatformCard({ platform }: { platform: AgentPlatform }) {
+  const { organization } = useContext(OrganizationContext)
+  const icon = PLATFORM_ICONS[platform.slug]
+
   return (
-    <Link href={`/dashboard/${orgSlug}/integrations/${command.slug}`}>
-      <div className="group dark:border-spaire-700 dark:hover:border-spaire-600 flex flex-col gap-y-4 rounded-2xl border border-gray-200 p-6 transition-all hover:border-gray-300 hover:shadow-md dark:hover:shadow-none">
+    <Link href={`/dashboard/${organization.slug}/integrations/${platform.slug}`}>
+      <div className="group dark:border-spaire-700 dark:hover:border-spaire-600 flex flex-col gap-y-5 rounded-2xl border border-gray-200 p-6 transition-all hover:border-gray-300 hover:shadow-md dark:hover:shadow-none">
         <div className="flex flex-row items-start justify-between">
-          <div className="flex flex-col gap-y-1">
-            <h3 className="text-base font-medium dark:text-white">
-              {command.name}
-            </h3>
-            <code className="dark:text-spaire-400 text-xs text-gray-500">
-              {command.command}
-            </code>
+          <div className="flex items-center gap-x-3">
+            <div>{icon}</div>
+            <div className="flex flex-col gap-y-0.5">
+              <h3 className="text-base font-medium dark:text-white">
+                {platform.name}
+              </h3>
+              <span className={`text-[11px] font-medium ${platform.categoryColor}`}>
+                {platform.categoryLabel}
+              </span>
+            </div>
           </div>
           <ArrowOutwardOutlined className="dark:text-spaire-600 dark:group-hover:text-spaire-400 h-4 w-4 text-gray-300 transition-colors group-hover:text-gray-500" />
         </div>
+
         <p className="dark:text-spaire-400 text-sm leading-relaxed text-gray-500">
-          {command.description}
+          {platform.description}
         </p>
-        <div className="flex flex-row flex-wrap gap-2">
-          {command.howItWorks.map((step, i) => (
-            <span
-              key={i}
-              className="dark:bg-spaire-800 dark:text-spaire-400 rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-medium text-gray-500"
-            >
-              {step.title}
-            </span>
-          ))}
+
+        <div className="flex flex-row items-center gap-x-2">
+          <span
+            className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${platform.categoryBg} ${platform.categoryColor}`}
+          >
+            {platform.categoryLabel}
+          </span>
         </div>
       </div>
     </Link>
+  )
+}
+
+export default function ClaudeCodePage() {
+  return (
+    <DashboardBody title="Agent Install">
+      <div className="flex flex-col gap-y-2">
+        <p className="dark:text-spaire-500 text-sm text-gray-500">
+          Choose your AI coding agent. Each one can read your codebase and wire
+          up Spaire checkout or usage billing directly in your project.
+        </p>
+      </div>
+      <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+        {ALL_AGENT_PLATFORMS.map((platform) => (
+          <AgentPlatformCard key={platform.slug} platform={platform} />
+        ))}
+      </div>
+    </DashboardBody>
   )
 }
