@@ -1,9 +1,8 @@
-import { redirect } from 'next/navigation'
+'use client'
 
-export default function Page({
-  params,
-}: {
-  params: { organization: string }
-}) {
-  redirect(`/dashboard/${params.organization}/integrations`)
+import AgentPlatformDetailPage from '@/components/ClaudeCode/AgentPlatformDetailPage'
+import { CLAUDE_CODE_PLATFORM } from '@/components/ClaudeCode/agentPlatforms'
+
+export default function Page() {
+  return <AgentPlatformDetailPage platform={CLAUDE_CODE_PLATFORM} />
 }
