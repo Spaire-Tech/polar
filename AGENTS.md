@@ -1,6 +1,6 @@
 # Development Instructions for LLM agents
 
-This document provides essential guidance for AI agents contributing to the Polar codebase. Imagine this file as a new joiner to the team who needs to understand the coding standards, practices, and conventions used in this repository.
+This document provides essential guidance for AI agents contributing to the Spaire codebase. Imagine this file as a new joiner to the team who needs to understand the coding standards, practices, and conventions used in this repository.
 
 ## General Guidelines
 
@@ -12,7 +12,7 @@ This document provides essential guidance for AI agents contributing to the Pola
 
 ## Architecture Overview
 
-Polar is a payment infrastructure platform with a monorepo structure.
+Spaire is a payment infrastructure platform with a monorepo structure.
 
 - **`server/`**: The backend is a Python application built with the **FastAPI** framework.
     - **Database**: It uses **PostgreSQL** as its database, with **SQLAlchemy** as the ORM. Database models are located in `server/polar/models`.
@@ -81,7 +81,7 @@ uv run pytest tests/path/to/test_file.py::TestClassName::test_method_name
 
 ### Use `uv run` for Python Commands
 
-**CRITICAL:** Always prefix Python commands with `uv run` when working in the Polar environment. This ensures:
+**CRITICAL:** Always prefix Python commands with `uv run` when working in the Spaire environment. This ensures:
 
 - The correct Python version (3.14) is used
 - All project dependencies are available

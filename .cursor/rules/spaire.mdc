@@ -1,11 +1,11 @@
 ---
-description: Polar project conventions and agent playbook pointers for Cursor
+description: Spaire project conventions and integration pointers for Cursor
 alwaysApply: true
 ---
 
-# Polar — Cursor Rules
+# Spaire — Cursor Rules
 
-This is an open-source payment infrastructure platform (Polar) with a Python/FastAPI backend and Next.js frontend. Follow all conventions below when reading or editing code.
+This is **Spaire**, a payment infrastructure platform. Monorepo with a Python/FastAPI backend and Next.js frontend. Follow all conventions below when reading or editing code.
 
 ---
 

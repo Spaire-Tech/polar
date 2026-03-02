@@ -1,6 +1,6 @@
-# GitHub Copilot — Workspace Instructions for Polar
+# GitHub Copilot — Workspace Instructions for Spaire
 
-This is **Polar**, an open-source payment infrastructure platform. Monorepo with a Python/FastAPI backend and Next.js frontend.
+This is **Spaire**, a payment infrastructure platform. Monorepo with a Python/FastAPI backend and Next.js frontend.
 
 ---
 
