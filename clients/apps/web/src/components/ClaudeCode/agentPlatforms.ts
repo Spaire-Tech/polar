@@ -40,7 +40,7 @@ export const CLAUDE_CODE_PLATFORM: AgentPlatform = {
   name: 'Claude Code',
   tagline: 'Run Spaire commands directly inside Claude Code.',
   description:
-    'Add two slash commands to your project, open Claude Code, and type the command. The agent reads your codebase, asks a few questions, and writes production-ready billing code directly into your files.',
+    'Add two slash commands to your project, open Claude Code, and type the command. Claude Code reads your project files, asks a few clarifying questions, and writes the billing code directly into your codebase.',
   categoryLabel: 'Terminal AI Agent',
   categoryColor: 'text-orange-600 dark:text-orange-400',
   categoryBg: 'bg-orange-50 dark:bg-orange-500/10',
@@ -48,26 +48,28 @@ export const CLAUDE_CODE_PLATFORM: AgentPlatform = {
   howItWorks: [
     {
       title: 'Install Claude Code',
-      description: 'One command to get the CLI on your machine',
+      description: 'One npm command gets the CLI on your machine.',
     },
     {
-      title: 'Download command files',
-      description: 'Add the Spaire slash commands to your project',
+      title: 'Download the command files',
+      description:
+        'Add the Spaire slash commands to your project with one curl command.',
     },
     {
-      title: 'Type the command',
-      description: 'Claude Code reads your codebase and writes the code',
+      title: 'Run the command',
+      description:
+        'Open Claude Code in your project and type the slash command.',
     },
   ],
   setupSnippet: `mkdir -p .claude/commands\ncurl -sL -o .claude/commands/setup-checkout.md \\\n  ${CDN_BASE}/claude/commands/setup-checkout.md\ncurl -sL -o .claude/commands/setup-usage-billing.md \\\n  ${CDN_BASE}/claude/commands/setup-usage-billing.md`,
   setupNote:
-    'This downloads both agent commands into your project. Claude Code loads them automatically as custom slash commands. Commit the files so your whole team gets them.',
+    'This downloads both commands into your project. Claude Code loads them automatically as slash commands. Commit the files so your whole team gets them.',
   commands: [
     {
       slug: 'setup-checkout',
       name: 'Setup Checkout',
       description:
-        'Detects your framework, finds your pricing pages, and wires up Spaire checkout — overlay, programmatic, or server-side.',
+        'Reads your project, asks about your setup, and wires up Spaire checkout — overlay, programmatic, or server-side.',
       snippet: `cd your-project\nclaude\n\n# Then type:\n/setup-checkout`,
       snippetLang: 'bash',
       snippetLabel: 'Run in terminal',
@@ -77,7 +79,7 @@ export const CLAUDE_CODE_PLATFORM: AgentPlatform = {
       slug: 'setup-usage-billing',
       name: 'Setup Usage Billing',
       description:
-        'Installs the SDK, creates meters, and writes ingestion code for LLM tokens, API calls, storage, or custom metrics.',
+        'Installs the SDK, asks what you want to meter, creates meters, and writes the ingestion code.',
       snippet: `cd your-project\nclaude\n\n# Then type:\n/setup-usage-billing`,
       snippetLang: 'bash',
       snippetLabel: 'Run in terminal',
@@ -90,39 +92,39 @@ export const CLAUDE_CODE_PLATFORM: AgentPlatform = {
 export const CURSOR_PLATFORM: AgentPlatform = {
   slug: 'cursor',
   name: 'Cursor',
-  tagline: 'Ask Cursor to wire up Spaire — it already knows your codebase.',
+  tagline: 'Add a rules file, then ask Cursor to integrate Spaire.',
   description:
-    'Commit one rules file to your project and Cursor immediately gains context about Spaire. Open Agent mode, describe what you want, and Cursor finds the right files and writes the integration across your whole project.',
+    'Drop `.cursor/rules/spaire.mdc` into your project. When you open Cursor Agent mode and describe what you want, Cursor has full Spaire API and SDK context — so you don\'t have to explain it yourself.',
   categoryLabel: 'AI Code Editor',
   categoryColor: 'text-sky-600 dark:text-sky-400',
   categoryBg: 'bg-sky-50 dark:bg-sky-500/10',
   howItWorks: [
     {
-      title: 'Commit the rules file',
+      title: 'Download the rules file',
       description:
-        'Drop `.cursor/rules/spaire.mdc` into your project — every developer gets Spaire context automatically when they open Cursor.',
+        'Run one command to add `.cursor/rules/spaire.mdc`. Commit it so every developer gets Spaire context in their Cursor.',
     },
     {
-      title: 'Open Cursor Chat',
+      title: 'Open Cursor Chat (Agent mode)',
       description:
-        'Press Cmd+L (Mac) or Ctrl+L (Windows). Switch to Agent mode for multi-file changes.',
+        'Press Cmd+L (Mac) or Ctrl+L (Windows). Switch to Agent for edits across multiple files.',
     },
     {
-      title: 'Describe what you want',
+      title: 'Describe what you need',
       description:
-        'Say "Add Spaire checkout to this app" — Cursor finds your pricing page and writes the code.',
+        'Type your request. Cursor uses the rules file for Spaire API context and reads your code to write the integration.',
     },
   ],
   setupSnippet: `mkdir -p .cursor/rules\ncurl -sL -o .cursor/rules/spaire.mdc \\\n  ${CDN_BASE}/cursor/rules/spaire.mdc`,
   setupNote:
-    'Cursor reads `.cursor/rules/*.mdc` files automatically as project context. Commit this file so every developer on your team gets Spaire context in their editor.',
+    'Cursor reads `.cursor/rules/*.mdc` files automatically in every chat session. Commit this file so your whole team gets Spaire context.',
   commands: [
     {
       slug: 'setup-checkout',
       name: 'Add Checkout',
       description:
-        'Cursor detects your framework, finds your pricing pages, and wires up Spaire checkout — overlay, programmatic, or server-side.',
-      snippet: `Add Spaire checkout to this app`,
+        'Cursor reads the rules file for Spaire API context, then writes checkout into your project.',
+      snippet: `Add Spaire checkout to this project`,
       snippetLang: 'text',
       snippetLabel: 'Paste in Cursor Chat (Agent mode)',
     },
@@ -130,8 +132,8 @@ export const CURSOR_PLATFORM: AgentPlatform = {
       slug: 'setup-usage-billing',
       name: 'Set Up Usage Billing',
       description:
-        'Cursor installs the SDK, asks what you want to meter, and writes ingestion code directly in your project.',
-      snippet: `Set up Spaire usage billing in this project — ask me what to meter`,
+        'Cursor reads the rules file for Spaire API context, then writes usage billing ingestion code.',
+      snippet: `Set up Spaire usage billing in this project`,
       snippetLang: 'text',
       snippetLabel: 'Paste in Cursor Chat (Agent mode)',
     },
@@ -142,9 +144,9 @@ export const CURSOR_PLATFORM: AgentPlatform = {
 export const CODEX_PLATFORM: AgentPlatform = {
   slug: 'codex',
   name: 'Codex',
-  tagline: 'Hand Spaire integrations off to the Codex agent in your terminal.',
+  tagline: 'Run one command to integrate Spaire from your terminal.',
   description:
-    'Install the Codex CLI, navigate to your project, and give it a task. Codex picks up AGENTS.md automatically for project context, then works autonomously — writing code, running tests, and iterating until the job is done.',
+    'Install the Codex CLI, add a context file to your project, then give it a task. Codex reads AGENTS.md at startup, so it has Spaire API context before it touches your code.',
   categoryLabel: 'CLI AI Agent',
   categoryColor: 'text-neutral-500 dark:text-neutral-400',
   categoryBg: 'bg-neutral-100 dark:bg-neutral-500/10',
@@ -152,27 +154,28 @@ export const CODEX_PLATFORM: AgentPlatform = {
   howItWorks: [
     {
       title: 'Install Codex CLI',
-      description: 'One command gets the OpenAI Codex agent on your machine.',
+      description: 'One npm command gets the OpenAI Codex agent on your machine.',
     },
     {
-      title: 'AGENTS.md is set up',
+      title: 'Add the context file',
       description:
-        "Your project's AGENTS.md already has Spaire context baked in — Codex reads it automatically.",
+        'Run one curl command to add AGENTS.md to your project. Codex reads it automatically at startup.',
     },
     {
-      title: 'Give it a task',
+      title: 'Run a command',
       description:
-        'Run a single command from your terminal and Codex works autonomously from there.',
+        'One terminal command from your project directory kicks off the integration.',
     },
   ],
+  setupSnippet: `curl -sL -o AGENTS.md \\\n  ${CDN_BASE}/codex/AGENTS.md`,
   setupNote:
-    "Your project's AGENTS.md already includes Spaire context — no extra files needed. Codex reads AGENTS.md automatically at startup when you run it inside your project.",
+    'Codex reads AGENTS.md at startup when you run it from your project directory. Commit this file so your whole team can use the same commands.',
   commands: [
     {
       slug: 'setup-checkout',
       name: 'Add Checkout',
       description:
-        'Codex detects your framework, finds pricing pages, and wires up Spaire checkout — it runs tests and iterates until it works.',
+        'Codex reads AGENTS.md for Spaire context, then writes checkout into your project.',
       snippet: `codex "Add Spaire checkout to this project"`,
       snippetLang: 'bash',
       snippetLabel: 'Run in your project directory',
@@ -181,8 +184,8 @@ export const CODEX_PLATFORM: AgentPlatform = {
       slug: 'setup-usage-billing',
       name: 'Set Up Usage Billing',
       description:
-        'Codex installs the SDK, asks what to meter, writes ingestion code, and iterates until the integration is clean.',
-      snippet: `codex "Set up Spaire usage billing — ask me what to meter"`,
+        'Codex reads AGENTS.md for Spaire context, then writes usage billing ingestion code.',
+      snippet: `codex "Set up Spaire usage billing in this project"`,
       snippetLang: 'bash',
       snippetLabel: 'Run in your project directory',
     },
@@ -193,38 +196,38 @@ export const CODEX_PLATFORM: AgentPlatform = {
 export const GITHUB_COPILOT_PLATFORM: AgentPlatform = {
   slug: 'github-copilot',
   name: 'GitHub Copilot',
-  tagline: 'Use Copilot Agent to wire up Spaire across your entire codebase.',
+  tagline: 'Give Copilot Spaire context. Then ask it to add billing.',
   description:
-    'Commit workspace instructions once and every Copilot session in your repo gains full Spaire context. Switch to Agent mode in VS Code — Copilot edits files, checks for errors, and runs terminal commands autonomously until the integration is working.',
+    'Commit `.github/copilot-instructions.md` to your repo. GitHub Copilot loads it automatically in every chat session — so when you describe what you want, it already has Spaire API context.',
   categoryLabel: 'AI Pair Programmer',
   categoryColor: 'text-violet-600 dark:text-violet-400',
   categoryBg: 'bg-violet-50 dark:bg-violet-500/10',
   howItWorks: [
     {
-      title: 'Commit workspace instructions',
+      title: 'Add the context file',
       description:
-        '`.github/copilot-instructions.md` gives Copilot context about Spaire — auto-loaded in every chat session.',
+        'Run one command to add `.github/copilot-instructions.md`. Commit it so your whole team gets Spaire context in Copilot.',
     },
     {
-      title: 'Switch to Agent mode',
+      title: 'Open Copilot Chat (Agent mode)',
       description:
-        'Open Copilot Chat in VS Code, click the model picker, and select Agent for autonomous multi-file changes.',
+        'In VS Code, open Copilot Chat and switch to Agent mode for edits across multiple files.',
     },
     {
-      title: 'Give it a task',
+      title: 'Describe what you need',
       description:
-        'Describe the integration in plain English — Copilot reads your codebase and handles all the edits.',
+        'Type your request. Copilot uses the instructions file for Spaire context and reads your code to write the integration.',
     },
   ],
   setupSnippet: `mkdir -p .github\ncurl -sL -o .github/copilot-instructions.md \\\n  ${CDN_BASE}/copilot/copilot-instructions.md`,
   setupNote:
-    'GitHub Copilot reads `.github/copilot-instructions.md` automatically in every chat session in this repo. Commit this file so your whole team gets Spaire context in their Copilot.',
+    'GitHub Copilot reads `.github/copilot-instructions.md` automatically in every chat session in this repo. Commit this file so your whole team gets Spaire context.',
   commands: [
     {
       slug: 'setup-checkout',
       name: 'Add Checkout',
       description:
-        'Copilot Agent detects your framework, finds pricing pages, and wires up Spaire checkout — it checks for errors and iterates.',
+        'Copilot reads the instructions file for Spaire context, then writes checkout into your project.',
       snippet: `Add Spaire checkout to this project`,
       snippetLang: 'text',
       snippetLabel: 'Paste in Copilot Chat (Agent mode)',
@@ -233,7 +236,7 @@ export const GITHUB_COPILOT_PLATFORM: AgentPlatform = {
       slug: 'setup-usage-billing',
       name: 'Set Up Usage Billing',
       description:
-        'Copilot Agent installs the SDK, asks what to meter, writes ingestion code, and wires up the full billing loop.',
+        'Copilot reads the instructions file for Spaire context, then writes usage billing ingestion code.',
       snippet: `Set up Spaire usage billing in this project`,
       snippetLang: 'text',
       snippetLabel: 'Paste in Copilot Chat (Agent mode)',

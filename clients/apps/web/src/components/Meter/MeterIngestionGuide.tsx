@@ -1,6 +1,5 @@
 'use client'
 
-import ClaudeCodeIcon from '@/components/Icons/frameworks/claude-code'
 import { Well, WellContent, WellHeader } from '@/components/Shared/Well'
 import {
   SyntaxHighlighterClient,
@@ -40,8 +39,7 @@ export const MeterIngestionGuide = () => {
                 <Link
                   href={`/dashboard/${organization.slug}/integrations/setup-usage-billing`}
                 >
-                  <Button fullWidth variant="secondary" className="gap-x-2">
-                    <ClaudeCodeIcon size={16} />
+                  <Button fullWidth>
                     Set up with Claude
                   </Button>
                 </Link>

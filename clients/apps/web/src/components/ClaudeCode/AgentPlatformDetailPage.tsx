@@ -151,7 +151,7 @@ export default function AgentPlatformDetailPage({
               <FadeUp className="flex flex-col gap-y-6">
                 <div className="flex flex-row items-center justify-between">
                   <h2 className="text-base font-medium">
-                    {stepIndex++}. Load the Spaire playbooks
+                    {stepIndex++}. Add Spaire context to your project
                   </h2>
                   <CopyButton
                     copied={setupCopied}
@@ -177,7 +177,7 @@ export default function AgentPlatformDetailPage({
             {!platform.setupSnippet && platform.setupNote && (
               <FadeUp className="flex flex-col gap-y-4">
                 <h2 className="text-base font-medium">
-                  {stepIndex++}. Playbooks are already configured
+                  {stepIndex++}. Context file already configured
                 </h2>
                 <div className="dark:border-spaire-700 dark:bg-spaire-900/50 flex items-start gap-x-3 rounded-xl border border-gray-200 p-4">
                   <CheckOutlined
