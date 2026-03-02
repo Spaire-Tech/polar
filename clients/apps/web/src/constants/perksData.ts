@@ -30,7 +30,7 @@ export const PERKS: Perk[] = [
     logo: 'https://spaire-production-files-public.s3.us-east-1.amazonaws.com/deel+logo.png',
     incentive: '$1,000 in Combined Credits',
     description:
-      'Spaire and Deel have partnered to give startups a combined $1,000 onboarding incentive. You get $500 in Deel billing credits for EOR, Contractor, or Global Payroll fees, plus $500 in Spaire revenue credits to offset platform fees on your global SaaS sales.',
+      'Through our partnership with Deel, startups receive $1,000 in onboarding value: $500 in Deel credits for global hiring and payroll, and $500 in Spaire credits to offset revenue fees as you scale internationally.',
     url: 'https://get.deel.com/t2prquaa8c6t',
     featured: true,
     details: {
