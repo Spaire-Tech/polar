@@ -207,7 +207,7 @@ export const CheckoutConfirmation = ({
           <>
             <CheckoutSeatInvitations checkout={checkout} />
             {hasProductCheckout(checkout) &&
-              checkout.productPrice.amountType !== 'seat_based' && (
+              checkout.productPrice?.amountType !== 'seat_based' && (
                 <CheckoutBenefits
                   checkout={checkout}
                   customerSessionToken={customerSessionToken}

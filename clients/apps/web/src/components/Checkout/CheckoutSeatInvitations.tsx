@@ -29,7 +29,7 @@ const CheckoutSeatInvitations = ({
   // Check if this is a seat-based product
   const isSeatBased =
     hasProductCheckout(checkout) &&
-    checkout.productPrice.amountType === 'seat_based'
+    checkout.productPrice?.amountType === 'seat_based'
 
   const [emailInputs, setEmailInputs] = useState<EmailInput[]>([
     { id: '1', value: '' },

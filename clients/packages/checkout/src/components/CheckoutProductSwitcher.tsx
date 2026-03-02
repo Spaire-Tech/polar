@@ -76,7 +76,7 @@ const CheckoutProductSwitcher = ({
 
   return (
     <RadioGroup
-      value={`${selectedProduct.id}:${selectedPrice.id}`}
+      value={`${selectedProduct.id}:${selectedPrice?.id ?? ''}`}
       onValueChange={selectProduct}
       className="flex flex-col gap-2"
     >

@@ -51,7 +51,7 @@ const Checkout = ({ embed: _embed, theme: _theme }: CheckoutProps) => {
   } = useCheckoutForm()
   const embed = _embed === true
   const { resolvedTheme } = useTheme()
-  const theme = _theme || (resolvedTheme as 'light' | 'dark')
+  const theme = _theme || (resolvedTheme as 'light' | 'dark') || 'dark'
   const posthog = usePostHog()
 
   const openedTrackedRef = useRef(false)
@@ -203,7 +203,7 @@ const Checkout = ({ embed: _embed, theme: _theme }: CheckoutProps) => {
               }
               themePreset={themePreset}
             />
-            {checkout.productPrice.amountType === 'custom' && (
+            {checkout.productPrice?.amountType === 'custom' && (
               <CheckoutPWYWForm
                 checkout={checkout}
                 update={update}
@@ -257,7 +257,7 @@ const Checkout = ({ embed: _embed, theme: _theme }: CheckoutProps) => {
                 }
                 themePreset={themePreset}
               />
-              {checkout.productPrice.amountType === 'custom' && (
+              {checkout.productPrice?.amountType === 'custom' && (
                 <CheckoutPWYWForm
                   checkout={checkout}
                   update={update}

@@ -7,7 +7,7 @@ interface ProductCheckoutMixin {
   product_id: string
   product: CheckoutProduct
   productPriceId: string
-  productPrice: ProductPrice | LegacyRecurringProductPrice
+  productPrice: ProductPrice | LegacyRecurringProductPrice | null
   prices: { [k: string]: Array<ProductPrice | LegacyRecurringProductPrice> }
 }
 
@@ -16,9 +16,5 @@ export type ProductCheckoutPublic = CheckoutPublic & ProductCheckoutMixin
 export const hasProductCheckout = (
   checkout: CheckoutPublic,
 ): checkout is ProductCheckoutPublic => {
-  return (
-    checkout.product !== null &&
-    checkout.prices !== null &&
-    (checkout as Partial<ProductCheckoutPublic>).productPrice != null
-  )
+  return checkout.product !== null && checkout.prices !== null
 }

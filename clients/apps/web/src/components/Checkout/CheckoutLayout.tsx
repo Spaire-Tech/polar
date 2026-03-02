@@ -22,7 +22,7 @@ const CheckoutLayout: React.FC<
 
   return (
     <PolarThemeProvider>
-      <div className="md:dark:bg-spaire-950 dark:bg-spaire-900 h-full bg-white md:bg-gray-100 dark:text-white">
+      <div className="dark md:bg-spaire-950 bg-spaire-900 h-full text-white">
         <PublicLayout className="gap-y-0 py-6 md:py-12" wide footer={false}>
           {children}
         </PublicLayout>
