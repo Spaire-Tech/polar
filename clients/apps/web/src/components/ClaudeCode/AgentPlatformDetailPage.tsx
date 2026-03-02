@@ -194,7 +194,7 @@ export default function AgentPlatformDetailPage({
             {/* Run the commands */}
             <FadeUp className="flex flex-col gap-y-6">
               <h2 className="text-base font-medium">
-                {stepIndex}. Run a playbook
+                {stepIndex}. Run a command
               </h2>
               <div className="flex flex-col gap-y-6">
                 {platform.commands.map((cmd) => (
@@ -222,7 +222,7 @@ export default function AgentPlatformDetailPage({
                     <div className="flex flex-col gap-y-2">
                       <div className="flex flex-row items-center justify-between">
                         <span className="dark:text-spaire-500 text-[11px] font-medium uppercase tracking-wider text-gray-400">
-                          {cmd.snippetLang === 'text' ? 'Paste in chat' : 'Run in terminal'}
+                          {cmd.snippetLabel}
                         </span>
                         <CopyButton
                           copied={copiedCommand === cmd.slug}

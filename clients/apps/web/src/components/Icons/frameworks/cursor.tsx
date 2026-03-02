@@ -7,10 +7,10 @@ const CursorIcon = ({ size = 40 }: { size?: number }) => {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <rect width="32" height="32" rx="6" fill="#1C1C1C" />
-      {/* Cursor arrow pointer shape */}
+      <rect width="32" height="32" rx="6" fill="#0D0D0D" />
+      {/* Classic cursor pointer arrow — Cursor's signature mark */}
       <path
-        d="M9 6L9 22.5L13.2 18.3L16.5 25.5L19.2 24.3L15.9 17.1L22.5 17.1L9 6Z"
+        d="M 10 5 L 10 22 L 13.5 19 L 17 26.5 L 19.5 25 L 16 18.5 L 22 18.5 Z"
         fill="white"
       />
     </svg>
