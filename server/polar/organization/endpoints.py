@@ -11,6 +11,7 @@ from polar.config import settings
 from polar.email.react import render_email_template
 from polar.email.schemas import OrganizationInviteEmail, OrganizationInviteProps
 from polar.email.sender import enqueue_email
+from polar.enums import AccountType
 from polar.exceptions import (
     NotPermitted,
     PolarRequestValidationError,
@@ -216,7 +217,7 @@ async def delete(
 async def get_account(
     id: OrganizationID,
     auth_subject: auth.OrganizationsRead,
-    session: AsyncReadSession = Depends(get_db_read_session),
+    session: AsyncSession = Depends(get_db_session),
 ) -> Account:
     """Get the account for an organization."""
     organization = await organization_service.get(session, auth_subject, id)
@@ -237,6 +238,19 @@ async def get_account(
     account = await account_service.get(session, auth_subject, organization.account_id)
     if account is None:
         raise ResourceNotFound()
+
+    if (
+        account.account_type == AccountType.stripe
+        and account.stripe_id
+        and (
+            not account.is_details_submitted
+            or not account.is_charges_enabled
+            or not account.is_payouts_enabled
+        )
+    ):
+        account = await account_service.update_account_from_stripe(
+            session, stripe_account_id=account.stripe_id
+        )
 
     return account
 
