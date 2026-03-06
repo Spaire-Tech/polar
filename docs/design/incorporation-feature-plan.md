@@ -227,7 +227,11 @@ Spaire Dashboard          Spaire API                FileForms
      │                        │────────────────────────►│
      │                        │  GET /documents/{id}    │
      │                        │◄────────────────────────│
-     │                        │  {binary content}       │
+     │                        │  {fileUrl: presigned}   │
+     │                        │                         │
+     │                        │  8b. Fetch from fileUrl │
+     │                        │────────────► S3 (AWS)   │
+     │                        │◄──────────── {bytes}    │
      │                        │                         │
      │                        │  9. Store in S3         │
      │                        │──────► S3               │
@@ -239,6 +243,39 @@ Spaire Dashboard          Spaire API                FileForms
      │◄───────────────────────│                         │
      │  [{document list}]     │                         │
 ```
+
+### FileForms API Reference Summary
+
+> **Base URL:** `https://api.fileforms.com/v1`
+> **Auth:** `x-api-key` header with partner API key
+> **ID format:** Prefixed strings (e.g., `user_a1b2c3d4e5f6g7h8`, `comp_...`, `order_...`, `doc_...`)
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/auth/magic-link` | POST | Generate auth link for user (7-day expiry) |
+| `/users` | POST | Create user (`fullName`, `email`, `phoneNumber`) |
+| `/users/{userIdOrEmail}` | GET | Retrieve user by ID or email |
+| `/companies` | POST | Create company (full legal details, officers, addresses) |
+| `/companies/{companyIdOrSlug}` | GET | Retrieve company |
+| `/companies/{companyIdOrSlug}` | PATCH | Update company |
+| `/orders` | POST | Create order (formation, annual report, registered agent) |
+| `/documents/{documentId}` | GET | Get document metadata + presigned `fileUrl` (1h expiry) |
+
+**Key distinctions from initial assumptions:**
+1. **Entity types are `LLC` and `CORP`** — S-Corp vs C-Corp is a `taxElection` field on the company, not a separate entity type.
+2. **`structureType`** (`MEMBER`/`MANAGER`) replaces `management_type` for LLCs.
+3. **Officers** (not "founders") are an array on the company, each with `type` (PERSON/COMPANY), `title`, address, and `isPrimary` flag.
+4. **Addresses** use `addressStreet/City/State/Zip` format (not `line1/postal_code`).
+5. **`formationDate`** is required on company creation (date of initial filing).
+6. **Documents** return JSON with a presigned S3 URL (`fileUrl`), not binary content.
+7. **Orders** are composable: a single order can include `formation`, `annualReport`, and/or `registeredAgent` services.
+
+### Webhook Events
+
+| Event | Trigger | Key Data Fields |
+|-------|---------|-----------------|
+| `filing.status_changed` | Filing status updates | `orderType`, `orderId`, `filingStatus` (submitted/pending/filed/exception/cancelled), `subscriptionStatus` |
+| `document.uploaded` | Document ready for download | `orderId`, `documentId`, `documentType`, `fileName`, `fileType`, `fileUrl` |
 
 ### Service Lifecycle Methods
 
@@ -266,7 +303,7 @@ class IncorporationService:
         """Step 7: Handle document.uploaded webhook. Enqueues download."""
 
     async def download_and_store_document(self, session, incorporation_id, document_id):
-        """Steps 8-9 (background task): Download from FileForms, upload to S3."""
+        """Steps 8-9 (background task): Download from FileForms fileUrl, upload to S3."""
 ```
 
 ---
@@ -285,37 +322,38 @@ Create a new draft incorporation.
 ```json
 {
   "organization_id": "uuid",
-  "entity_type": "llc",
-  "state": "DE",
-  "company_name": "Acme Inc.",
-  "company_name_alt_1": "Acme LLC",
-  "company_name_alt_2": "Acme Holdings LLC",
-  "registered_agent": "standard",
-  "management_type": "member_managed",
-  "business_purpose": "Software development and consulting",
-  "founders": [
+  "entity_type": "LLC",
+  "formation_state": "DE",
+  "legal_name": "Acme LLC",
+  "trade_name": "Acme",
+  "ein": null,
+  "structure_type": "MEMBER",
+  "tax_election": null,
+  "fiscal_end_month": "December",
+  "formation_date": "2026-03-06",
+  "include_registered_agent": true,
+  "officers": [
     {
+      "type": "PERSON",
+      "title": "Managing Member",
       "first_name": "Jane",
       "last_name": "Doe",
       "email": "jane@example.com",
-      "title": "CEO",
-      "ownership_percentage": 60,
-      "address": {
-        "line1": "123 Main St",
-        "city": "San Francisco",
-        "state": "CA",
-        "postal_code": "94105",
-        "country": "US"
-      }
+      "address_street": "123 Main St",
+      "address_city": "San Francisco",
+      "address_state": "CA",
+      "address_zip": "94105",
+      "is_primary": true
     }
   ],
-  "principal_address": {
-    "line1": "123 Main St",
-    "city": "San Francisco",
-    "state": "CA",
-    "postal_code": "94105",
-    "country": "US"
-  }
+  "address_street": "123 Main St",
+  "address_city": "San Francisco",
+  "address_state": "CA",
+  "address_zip": "94105",
+  "mailing_address_street": "123 Main St",
+  "mailing_address_city": "San Francisco",
+  "mailing_address_state": "CA",
+  "mailing_address_zip": "94105"
 }
 ```
 
@@ -324,9 +362,9 @@ Create a new draft incorporation.
 {
   "id": "uuid",
   "organization_id": "uuid",
-  "entity_type": "llc",
-  "state": "DE",
-  "company_name": "Acme Inc.",
+  "entity_type": "LLC",
+  "formation_state": "DE",
+  "legal_name": "Acme LLC",
   "status": "draft",
   "created_at": "2026-03-06T00:00:00Z",
   "modified_at": null
@@ -350,20 +388,42 @@ Get a single incorporation with full details.
 {
   "id": "uuid",
   "organization_id": "uuid",
-  "entity_type": "llc",
-  "state": "DE",
-  "company_name": "Acme Inc.",
-  "company_name_alt_1": "Acme LLC",
-  "company_name_alt_2": null,
-  "management_type": "member_managed",
-  "business_purpose": "Software development and consulting",
-  "registered_agent": "standard",
+  "entity_type": "LLC",
+  "formation_state": "DE",
+  "legal_name": "Acme LLC",
+  "trade_name": "Acme",
+  "ein": null,
+  "structure_type": "MEMBER",
+  "tax_election": null,
+  "fiscal_end_month": "December",
+  "formation_date": "2026-03-06",
+  "include_registered_agent": true,
+  "officers": [
+    {
+      "type": "PERSON",
+      "title": "Managing Member",
+      "first_name": "Jane",
+      "last_name": "Doe",
+      "is_primary": true,
+      "address_street": "123 Main St",
+      "address_city": "San Francisco",
+      "address_state": "CA",
+      "address_zip": "94105"
+    }
+  ],
+  "address_street": "123 Main St",
+  "address_city": "San Francisco",
+  "address_state": "CA",
+  "address_zip": "94105",
+  "mailing_address_street": "123 Main St",
+  "mailing_address_city": "San Francisco",
+  "mailing_address_state": "CA",
+  "mailing_address_zip": "94105",
   "status": "processing",
   "status_detail": "Filing submitted to Delaware Division of Corporations",
-  "founders": [...],
-  "principal_address": {...},
   "checkout_id": "uuid",
-  "fileforms_order_id": "ff_ord_abc123",
+  "fileforms_company_id": "comp_a1b2c3d4e5f6g7h8",
+  "fileforms_order_id": "order_a1b2c3d4e5f6g7h8",
   "filed_at": null,
   "created_at": "2026-03-06T00:00:00Z",
   "modified_at": "2026-03-06T01:00:00Z"
@@ -429,6 +489,9 @@ Initiate checkout for a draft incorporation.
 
 ### `incorporations` Table
 
+> Field names align with the FileForms API (`entityType` → `entity_type`, etc.)
+> to simplify the mapping layer in `provider_client.py`.
+
 ```sql
 CREATE TABLE incorporations (
     -- Identity
@@ -440,31 +503,47 @@ CREATE TABLE incorporations (
     -- Ownership
     organization_id         UUID NOT NULL REFERENCES organizations(id),
 
-    -- Company details
-    entity_type             VARCHAR(20) NOT NULL,      -- 'llc', 'c_corp', 's_corp'
-    state                   VARCHAR(2) NOT NULL,        -- US state code: 'DE', 'WY', etc.
-    company_name            VARCHAR(255) NOT NULL,
-    company_name_alt_1      VARCHAR(255),
-    company_name_alt_2      VARCHAR(255),
-    management_type         VARCHAR(30),                -- 'member_managed', 'manager_managed'
-    business_purpose        TEXT,
-    registered_agent        VARCHAR(20) DEFAULT 'standard',
+    -- Company details (mirrors FileForms CreateCompanyRequest)
+    entity_type             VARCHAR(10) NOT NULL,       -- 'LLC' or 'CORP'
+    legal_name              VARCHAR(255) NOT NULL,
+    trade_name              VARCHAR(255),               -- DBA name
+    ein                     VARCHAR(10),                -- XX-XXXXXXX format
+    structure_type          VARCHAR(10),                -- 'MEMBER' or 'MANAGER' (LLC only)
+    tax_election            VARCHAR(20),                -- 'C Corporation' or 'S Corporation' (CORP only)
+    fiscal_end_month        VARCHAR(10) DEFAULT 'December',
+    formation_date          DATE NOT NULL,
+    formation_state         VARCHAR(2) NOT NULL,        -- US state code: 'DE', 'WY', etc.
 
-    -- Founder/ownership data (stored as JSONB)
-    founders                JSONB NOT NULL DEFAULT '[]',
-    principal_address       JSONB,
+    -- Addresses
+    address_street          VARCHAR(255) NOT NULL,
+    address_city            VARCHAR(255) NOT NULL,
+    address_state           VARCHAR(2) NOT NULL,
+    address_zip             VARCHAR(5) NOT NULL,
+    mailing_address_street  VARCHAR(255) NOT NULL,
+    mailing_address_city    VARCHAR(255) NOT NULL,
+    mailing_address_state   VARCHAR(2) NOT NULL,
+    mailing_address_zip     VARCHAR(5) NOT NULL,
+
+    -- Officers (stored as JSONB array)
+    -- Each: {type, title, firstName, lastName, companyName, addressStreet, ..., isPrimary}
+    officers                JSONB NOT NULL DEFAULT '[]',
+
+    -- Service options
+    include_registered_agent BOOLEAN DEFAULT true,
 
     -- Payment
     checkout_id             UUID REFERENCES checkouts(id),
 
-    -- FileForms provider IDs
-    fileforms_user_id       VARCHAR(255),
-    fileforms_company_id    VARCHAR(255),
-    fileforms_order_id      VARCHAR(255),
+    -- FileForms provider IDs (prefixed strings from FileForms)
+    fileforms_user_id       VARCHAR(255),               -- e.g. 'user_a1b2c3d4e5f6g7h8'
+    fileforms_company_id    VARCHAR(255),               -- e.g. 'comp_a1b2c3d4e5f6g7h8'
+    fileforms_order_id      VARCHAR(255),               -- e.g. 'order_a1b2c3d4e5f6g7h8'
 
     -- Status tracking
     status                  VARCHAR(20) NOT NULL DEFAULT 'draft',
     status_detail           TEXT,
+    filing_status           VARCHAR(20),                -- FileForms filingStatus: submitted/pending/filed/exception/cancelled
+    subscription_status     VARCHAR(20),                -- FileForms subscriptionStatus (for registered agent)
     filed_at                TIMESTAMPTZ,
     completed_at            TIMESTAMPTZ,
     rejected_reason         TEXT
@@ -511,26 +590,57 @@ CREATE INDEX ix_incorporation_documents_created_at ON incorporation_documents(cr
 CREATE INDEX ix_incorporation_documents_deleted_at ON incorporation_documents(deleted_at);
 ```
 
-### Status Enum
+### Status Enum (Spaire internal)
 
 ```python
 class IncorporationStatus(StrEnum):
+    """Spaire-side lifecycle status."""
     draft = "draft"                     # Initial state, form being filled
     pending_payment = "pending_payment" # Checkout created, awaiting payment
     submitted = "submitted"             # Paid, submitted to FileForms
-    processing = "processing"           # FileForms has accepted, filing in progress
+    processing = "processing"           # FileForms is processing the filing
     completed = "completed"             # Formation complete, documents available
-    failed = "failed"                   # Filing rejected or error
-    cancelled = "cancelled"             # User cancelled before submission
+    failed = "failed"                   # Filing rejected or error (FileForms: "exception")
+    cancelled = "cancelled"             # User cancelled or FileForms: "cancelled"
+```
+
+### FileForms Filing Status (from webhook `filing.status_changed`)
+
+```python
+class FileFormsFilingStatus(StrEnum):
+    """Direct mapping to FileForms `filingStatus` values."""
+    submitted = "submitted"
+    pending = "pending"
+    filed = "filed"
+    exception = "exception"
+    cancelled = "cancelled"
 ```
 
 ### Entity Type Enum
 
 ```python
 class EntityType(StrEnum):
-    llc = "llc"
-    c_corp = "c_corp"
-    s_corp = "s_corp"
+    """Maps directly to FileForms `entityType`."""
+    LLC = "LLC"
+    CORP = "CORP"
+```
+
+### Structure Type Enum (LLC only)
+
+```python
+class StructureType(StrEnum):
+    """Maps directly to FileForms `structureType`. Required when entity_type is LLC."""
+    MEMBER = "MEMBER"
+    MANAGER = "MANAGER"
+```
+
+### Tax Election Enum (CORP only)
+
+```python
+class TaxElection(StrEnum):
+    """Maps directly to FileForms `taxElection`. Required when entity_type is CORP."""
+    C_CORPORATION = "C Corporation"
+    S_CORPORATION = "S Corporation"
 ```
 
 ### SQLAlchemy Model
@@ -544,22 +654,47 @@ class Incorporation(RecordModel):
     organization_id: Mapped[UUID] = mapped_column(
         Uuid, ForeignKey("organizations.id"), nullable=False, index=True
     )
-    entity_type: Mapped[str] = mapped_column(String(20), nullable=False)
-    state: Mapped[str] = mapped_column(String(2), nullable=False)
-    company_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    company_name_alt_1: Mapped[str | None] = mapped_column(String(255))
-    company_name_alt_2: Mapped[str | None] = mapped_column(String(255))
-    management_type: Mapped[str | None] = mapped_column(String(30))
-    business_purpose: Mapped[str | None] = mapped_column(Text)
-    registered_agent: Mapped[str] = mapped_column(String(20), default="standard")
-    founders: Mapped[dict] = mapped_column(JSONB, nullable=False, default=list)
-    principal_address: Mapped[dict | None] = mapped_column(JSONB)
+
+    # Company details (align with FileForms CreateCompanyRequest)
+    entity_type: Mapped[str] = mapped_column(String(10), nullable=False)  # LLC, CORP
+    legal_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    trade_name: Mapped[str | None] = mapped_column(String(255))
+    ein: Mapped[str | None] = mapped_column(String(10))  # XX-XXXXXXX
+    structure_type: Mapped[str | None] = mapped_column(String(10))  # MEMBER, MANAGER
+    tax_election: Mapped[str | None] = mapped_column(String(20))  # C Corporation, S Corporation
+    fiscal_end_month: Mapped[str] = mapped_column(String(10), default="December")
+    formation_date: Mapped[date] = mapped_column(Date, nullable=False)
+    formation_state: Mapped[str] = mapped_column(String(2), nullable=False)
+
+    # Addresses
+    address_street: Mapped[str] = mapped_column(String(255), nullable=False)
+    address_city: Mapped[str] = mapped_column(String(255), nullable=False)
+    address_state: Mapped[str] = mapped_column(String(2), nullable=False)
+    address_zip: Mapped[str] = mapped_column(String(5), nullable=False)
+    mailing_address_street: Mapped[str] = mapped_column(String(255), nullable=False)
+    mailing_address_city: Mapped[str] = mapped_column(String(255), nullable=False)
+    mailing_address_state: Mapped[str] = mapped_column(String(2), nullable=False)
+    mailing_address_zip: Mapped[str] = mapped_column(String(5), nullable=False)
+
+    # Officers (JSONB array — each has type, title, name fields, address, isPrimary)
+    officers: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+
+    # Service options
+    include_registered_agent: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    # Payment
     checkout_id: Mapped[UUID | None] = mapped_column(Uuid, ForeignKey("checkouts.id"))
+
+    # FileForms provider IDs
     fileforms_user_id: Mapped[str | None] = mapped_column(String(255))
     fileforms_company_id: Mapped[str | None] = mapped_column(String(255))
     fileforms_order_id: Mapped[str | None] = mapped_column(String(255), index=True)
+
+    # Status tracking
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft", index=True)
     status_detail: Mapped[str | None] = mapped_column(Text)
+    filing_status: Mapped[str | None] = mapped_column(String(20))  # FileForms filingStatus
+    subscription_status: Mapped[str | None] = mapped_column(String(20))  # for registered agent
     filed_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))
     rejected_reason: Mapped[str | None] = mapped_column(Text)
@@ -696,7 +831,13 @@ This is a ~3-line addition to the existing order flow — surgical, not disrupti
 
 ### `polar/incorporation/provider_client.py`
 
-The provider client is an async HTTP client that wraps the FileForms REST API. It handles authentication, serialization, error handling, and retries.
+The provider client is an async HTTP client wrapping the FileForms REST API v1. It handles authentication via `x-api-key` header, serialization, error handling, and retries.
+
+> **Key API details from FileForms docs:**
+> - Base URL: `https://api.fileforms.com/v1`
+> - Auth: `x-api-key` header (not Bearer token)
+> - Error responses: `{ "message": str, "errors": [...] }` for 400, `{ "message": str }` for 401/404
+> - Conflict responses (409): `{ "message": str }` for duplicate users/companies
 
 ```python
 import httpx
@@ -707,21 +848,32 @@ log = structlog.get_logger()
 
 
 class FileFormsError(Exception):
-    def __init__(self, status_code: int, detail: str):
+    def __init__(self, status_code: int, message: str, errors: list[dict] | None = None):
         self.status_code = status_code
-        self.detail = detail
+        self.message = message
+        self.errors = errors or []
+
+
+class FileFormsConflictError(FileFormsError):
+    """Raised on 409 — duplicate user or company."""
+    pass
 
 
 class FileFormsClient:
-    """Async client for the FileForms company formation API."""
+    """Async client for the FileForms company formation API v1.
+
+    API Reference: https://docs.dev.fileforms.dev/
+    Base URL: https://api.fileforms.com/v1
+    Auth: x-api-key header
+    """
 
     def __init__(self) -> None:
-        self.base_url = settings.FILEFORMS_API_URL
+        self.base_url = settings.FILEFORMS_API_URL  # https://api.fileforms.com/v1
         self.api_key = settings.FILEFORMS_API_KEY
 
     def _get_headers(self) -> dict[str, str]:
         return {
-            "Authorization": f"Bearer {self.api_key}",
+            "x-api-key": self.api_key,
             "Content-Type": "application/json",
             "Accept": "application/json",
         }
@@ -736,91 +888,203 @@ class FileFormsClient:
         ) as client:
             response = await client.request(method, path, **kwargs)
             if response.status_code >= 400:
-                raise FileFormsError(
+                body = response.json()
+                error_cls = FileFormsConflictError if response.status_code == 409 else FileFormsError
+                raise error_cls(
                     status_code=response.status_code,
-                    detail=response.text,
+                    message=body.get("message", response.text),
+                    errors=body.get("errors"),
                 )
             return response.json()
+
+    # ── Users ──────────────────────────────────────────────
 
     async def create_user(
         self,
         *,
+        full_name: str,
         email: str,
-        first_name: str,
-        last_name: str,
+        phone_number: str | None = None,
     ) -> dict:
-        """Create a FileForms user account."""
-        return await self._request("POST", "/users", json={
+        """Create a FileForms user account.
+
+        Returns: { id, fullName, email, phoneNumber, createdAt, updatedAt }
+        Raises FileFormsConflictError (409) if user with email already exists.
+        """
+        payload: dict = {
+            "fullName": full_name,
             "email": email,
-            "firstName": first_name,
-            "lastName": last_name,
-        })
+        }
+        if phone_number:
+            payload["phoneNumber"] = phone_number
+        return await self._request("POST", "/users", json=payload)
+
+    async def get_user(self, user_id_or_email: str) -> dict:
+        """Retrieve a user by ID or email.
+
+        Returns: { id, fullName, email, phoneNumber, createdAt, updatedAt }
+        """
+        return await self._request("GET", f"/users/{user_id_or_email}")
+
+    # ── Authentication ─────────────────────────────────────
+
+    async def create_magic_link(
+        self,
+        *,
+        user_id: str,
+        company_id: str | None = None,
+    ) -> str:
+        """Generate a magic link for user authentication.
+
+        Returns the magic link URL (expires after 7 days).
+        """
+        payload: dict = {"userId": user_id}
+        if company_id:
+            payload["companyId"] = company_id
+        result = await self._request("POST", "/auth/magic-link", json=payload)
+        return result["magicLink"]
+
+    # ── Companies ──────────────────────────────────────────
 
     async def create_company(
         self,
         *,
         user_id: str,
-        company_name: str,
-        entity_type: str,
-        state: str,
-        management_type: str | None = None,
-        business_purpose: str | None = None,
-        registered_agent: str = "standard",
-        founders: list[dict] | None = None,
-        principal_address: dict | None = None,
+        legal_name: str,
+        entity_type: str,           # 'LLC' or 'CORP'
+        formation_date: str,        # ISO date: '2026-03-06'
+        formation_state: str,       # 2-letter state code
+        address_street: str,
+        address_city: str,
+        address_state: str,
+        address_zip: str,
+        mailing_address_street: str,
+        mailing_address_city: str,
+        mailing_address_state: str,
+        mailing_address_zip: str,
+        officers: list[dict],       # At least 1 officer required
+        trade_name: str | None = None,
+        ein: str | None = None,
+        structure_type: str | None = None,   # 'MEMBER' or 'MANAGER' (LLC only)
+        tax_election: str | None = None,     # 'C Corporation' or 'S Corporation' (CORP only)
+        fiscal_end_month: str = "December",
     ) -> dict:
-        """Create a company record in FileForms."""
-        payload = {
+        """Create a company in FileForms.
+
+        Returns: { id, legalName, entityType, ..., createdAt, updatedAt }
+        Raises FileFormsConflictError (409) if company already exists.
+
+        Officers format:
+        [
+            {
+                "type": "PERSON",           # or "COMPANY"
+                "title": "Managing Member",
+                "firstName": "John",        # PERSON only
+                "lastName": "Smith",        # PERSON only
+                "companyName": "...",       # COMPANY only
+                "addressStreet": "123 Main Street",
+                "addressCity": "Houston",
+                "addressState": "TX",
+                "addressZip": "77002",
+                "isPrimary": true
+            }
+        ]
+        """
+        payload: dict = {
             "userId": user_id,
-            "companyName": company_name,
+            "legalName": legal_name,
             "entityType": entity_type,
-            "state": state,
+            "formationDate": formation_date,
+            "formationState": formation_state,
+            "addressStreet": address_street,
+            "addressCity": address_city,
+            "addressState": address_state,
+            "addressZip": address_zip,
+            "mailingAddressStreet": mailing_address_street,
+            "mailingAddressCity": mailing_address_city,
+            "mailingAddressState": mailing_address_state,
+            "mailingAddressZip": mailing_address_zip,
+            "officers": officers,
+            "fiscalEndMonth": fiscal_end_month,
         }
-        if management_type:
-            payload["managementType"] = management_type
-        if business_purpose:
-            payload["businessPurpose"] = business_purpose
-        if registered_agent:
-            payload["registeredAgent"] = registered_agent
-        if founders:
-            payload["founders"] = founders
-        if principal_address:
-            payload["principalAddress"] = principal_address
+        if trade_name:
+            payload["tradeName"] = trade_name
+        if ein:
+            payload["ein"] = ein
+        if structure_type:
+            payload["structureType"] = structure_type
+        if tax_election:
+            payload["taxElection"] = tax_election
         return await self._request("POST", "/companies", json=payload)
+
+    async def get_company(self, company_id_or_slug: str) -> dict:
+        """Retrieve company details from FileForms."""
+        return await self._request("GET", f"/companies/{company_id_or_slug}")
+
+    async def update_company(self, company_id_or_slug: str, **fields) -> dict:
+        """Update a company in FileForms (PATCH — partial update)."""
+        return await self._request("PATCH", f"/companies/{company_id_or_slug}", json=fields)
+
+    # ── Orders ─────────────────────────────────────────────
 
     async def create_order(
         self,
         *,
-        company_id: str,
-        services: list[str] | None = None,
+        user_id: str,
+        filing_state: str,
+        company_id: str | None = None,
+        formation: dict | None = None,
+        annual_report: dict | None = None,
+        registered_agent: dict | None = None,
     ) -> dict:
-        """Submit a formation order to FileForms."""
-        payload = {"companyId": company_id}
-        if services:
-            payload["services"] = services
+        """Create an order in FileForms.
+
+        At least one service (formation, annualReport, registeredAgent) must be included.
+        companyId is required when formation is NOT included.
+
+        Returns: { companyId, items: [{ orderType, orderId, filingStatus, ... }] }
+
+        Formation example:    {"formation": {}}  (no additional fields needed)
+        Annual report example: {"annualReport": {"filingYear": "2026"}}
+        Registered agent:      {"registeredAgent": {"isChangeOfAgent": false}}
+        """
+        payload: dict = {
+            "userId": user_id,
+            "filingState": filing_state,
+        }
+        if company_id:
+            payload["companyId"] = company_id
+        if formation is not None:
+            payload["formation"] = formation
+        if annual_report is not None:
+            payload["annualReport"] = annual_report
+        if registered_agent is not None:
+            payload["registeredAgent"] = registered_agent
         return await self._request("POST", "/orders", json=payload)
 
-    async def get_company(self, company_id: str) -> dict:
-        """Retrieve company details from FileForms."""
-        return await self._request("GET", f"/companies/{company_id}")
+    # ── Documents ──────────────────────────────────────────
 
-    async def get_order(self, order_id: str) -> dict:
-        """Retrieve order status from FileForms."""
-        return await self._request("GET", f"/orders/{order_id}")
+    async def get_document(self, document_id: str) -> dict:
+        """Retrieve document metadata and presigned download URL.
 
-    async def get_document(self, document_id: str) -> bytes:
-        """Download a document binary from FileForms."""
-        async with httpx.AsyncClient(
-            base_url=self.base_url,
-            headers=self._get_headers(),
-            timeout=60.0,
-        ) as client:
-            response = await client.get(f"/documents/{document_id}")
-            if response.status_code >= 400:
-                raise FileFormsError(
-                    status_code=response.status_code,
-                    detail=response.text,
-                )
+        Returns: {
+            documentId, documentType, fileName, fileType (MIME),
+            fileUrl (presigned S3 URL, expires 1 hour), createdAt
+        }
+
+        NOTE: This returns metadata with a presigned URL, not binary content.
+        Use the fileUrl to download the actual file.
+        """
+        return await self._request("GET", f"/documents/{document_id}")
+
+    async def download_document_content(self, file_url: str) -> bytes:
+        """Download actual document bytes from the presigned fileUrl.
+
+        The fileUrl comes from get_document() and expires after 1 hour.
+        """
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.get(file_url)
+            response.raise_for_status()
             return response.content
 
 
@@ -830,23 +1094,26 @@ fileforms_client = FileFormsClient()
 
 ### Configuration Additions
 
-Add to `polar/config.py` (do **not** modify — these will be environment-sourced):
+Add to `polar/config.py` Settings class:
 
 ```python
-# FileForms
-FILEFORMS_API_URL: str = "https://api.fileforms.dev"
+# FileForms (Company Formation)
+FILEFORMS_API_URL: str = "https://api.fileforms.com/v1"
 FILEFORMS_API_KEY: str = ""
 FILEFORMS_WEBHOOK_SECRET: str = ""
 ```
 
-These are added to the `Settings` class and loaded from environment variables with `POLAR_` prefix.
+These are loaded from environment variables with `POLAR_` prefix.
 
 ### Key Design Decisions
 
 1. **Frontend never calls FileForms** — all requests go through the Spaire API.
-2. **Async httpx** — consistent with the existing async patterns in the codebase.
-3. **Singleton** — matches the service pattern used throughout the codebase.
-4. **Error mapping** — `FileFormsError` is caught in the service layer and mapped to appropriate Spaire errors.
+2. **`x-api-key` header** — matches FileForms auth pattern (not Bearer token as initially assumed).
+3. **Async httpx** — consistent with the existing async patterns in the codebase.
+4. **Singleton** — matches the service pattern used throughout the codebase.
+5. **Error mapping** — `FileFormsError` and `FileFormsConflictError` are caught in the service layer and mapped to appropriate Spaire errors.
+6. **Two-step document download** — `get_document()` returns metadata + presigned URL, then `download_document_content()` fetches the actual file bytes from S3.
+7. **409 handling** — `FileFormsConflictError` allows the service to handle idempotent user/company creation (look up existing on conflict).
 
 ---
 
@@ -856,10 +1123,55 @@ These are added to the `Settings` class and loaded from environment variables wi
 
 FileForms sends webhook events to a dedicated Spaire endpoint. This follows the pattern used by `integrations/chargeback_stop/` for inbound webhooks.
 
+> **FileForms webhook payload structure (from API docs):**
+>
+> `filing.status_changed`:
+> ```json
+> {
+>   "id": "evt_a1b2c3d4e5f6g7h8",
+>   "type": "filing.status_changed",
+>   "createdAt": "2025-01-01T00:00:00Z",
+>   "data": {
+>     "orderType": "formation",           // or "annual_report", "registered_agent"
+>     "orderId": "order_a1b2c3d4e5f6g7h8",
+>     "createdAt": "2025-01-01T00:00:00Z",
+>     "filingDate": "2025-01-01T00:00:00Z",  // null until filed
+>     "filingStatus": "submitted",         // submitted | pending | filed | exception | cancelled
+>     "subscriptionStatus": null           // or "active" for registered agent
+>   }
+> }
+> ```
+>
+> `document.uploaded`:
+> ```json
+> {
+>   "id": "evt_a1b2c3d4e5f6g7h8",
+>   "type": "document.uploaded",
+>   "createdAt": "2025-01-01T00:00:00Z",
+>   "data": {
+>     "orderId": "order_a1b2c3d4e5f6g7h8",
+>     "documentId": "doc_a1b2c3d4e5f6g7h8",
+>     "documentType": "registered_agent",
+>     "fileName": "document.pdf",
+>     "fileType": "application/pdf",
+>     "fileUrl": "https://bucket.s3.us-east-1.amazonaws.com/document.pdf",
+>     "createdAt": "2025-01-01T00:00:00Z"
+>   }
+> }
+> ```
+>
+> **Expected response:** `{ "received": true }` with status 200.
+
 ```python
 # polar/incorporation/webhook_endpoints.py
 
 router = APIRouter(prefix="/webhooks/fileforms", tags=["webhooks"])
+
+# Webhook event types we handle
+HANDLED_WEBHOOK_EVENTS = {
+    "filing.status_changed",
+    "document.uploaded",
+}
 
 
 @router.post("/", status_code=200)
@@ -867,35 +1179,93 @@ async def handle_fileforms_webhook(
     request: Request,
     session: AsyncSession,
 ) -> dict:
-    """Receive and process FileForms webhook events."""
+    """Receive and process FileForms webhook events.
+
+    FileForms webhook payloads include:
+    - id: Event ID (evt_...)
+    - type: Event type string
+    - createdAt: ISO timestamp
+    - data: Event-specific payload
+    """
     body = await request.body()
 
-    # Verify webhook signature
-    signature = request.headers.get("X-FileFormsApi-Signature", "")
+    # Verify webhook signature (exact mechanism TBD — confirm with FileForms partner docs)
+    signature = request.headers.get("X-Webhook-Signature", "")
     if not verify_webhook_signature(body, signature, settings.FILEFORMS_WEBHOOK_SECRET):
         raise HTTPException(status_code=401, detail="Invalid signature")
 
     payload = await request.json()
-    event_type = payload.get("event")
+    event_type = payload.get("type")  # NOTE: field is "type", not "event"
+    event_id = payload.get("id")      # e.g. "evt_a1b2c3d4e5f6g7h8"
 
-    if event_type == "filing.status_changed":
-        await incorporation_service.handle_status_change(
-            session,
-            fileforms_order_id=payload["data"]["orderId"],
-            new_status=payload["data"]["status"],
-            detail=payload["data"].get("detail"),
-        )
+    if event_type not in HANDLED_WEBHOOK_EVENTS:
+        log.info("Ignoring unhandled FileForms webhook", event_type=event_type)
+        return {"received": True}
 
-    elif event_type == "document.uploaded":
-        await incorporation_service.handle_document_uploaded(
-            session,
-            fileforms_order_id=payload["data"]["orderId"],
-            document_id=payload["data"]["documentId"],
-            document_type=payload["data"].get("documentType", "unknown"),
-            file_name=payload["data"].get("fileName", "document.pdf"),
-        )
+    # Enqueue via ExternalEvent for deduplication and async processing
+    await external_event_service.enqueue(
+        session,
+        ExternalEventSource.fileforms,
+        f"fileforms.webhook.{event_type}",
+        event_id,
+        payload,
+    )
 
     return {"received": True}
+```
+
+**Note:** The exact webhook signature verification mechanism is not documented in the FileForms API reference. This needs to be confirmed with the FileForms partner team during Phase 2. The implementation above assumes a header-based HMAC signature similar to Stripe/Chargeback Stop patterns.
+
+### ExternalEvent Integration
+
+Add `fileforms` to `ExternalEventSource` enum:
+
+```python
+# polar/models/external_event.py
+class ExternalEventSource(StrEnum):
+    stripe = "stripe"
+    chargeback_stop = "chargeback_stop"
+    fileforms = "fileforms"  # NEW
+```
+
+### Webhook Event Handling in Service (via Background Tasks)
+
+```python
+# polar/incorporation/tasks.py
+
+@actor(actor_name="fileforms.webhook.filing.status_changed")
+async def filing_status_changed(event_id: UUID) -> None:
+    async with AsyncSessionMaker() as session:
+        async with external_event_service.handle(
+            session, ExternalEventSource.fileforms, event_id
+        ) as event:
+            data = event.data["data"]
+            await incorporation_service.handle_status_change(
+                session,
+                fileforms_order_id=data["orderId"],
+                order_type=data["orderType"],
+                filing_status=data["filingStatus"],
+                filing_date=data.get("filingDate"),
+                subscription_status=data.get("subscriptionStatus"),
+            )
+
+
+@actor(actor_name="fileforms.webhook.document.uploaded")
+async def document_uploaded(event_id: UUID) -> None:
+    async with AsyncSessionMaker() as session:
+        async with external_event_service.handle(
+            session, ExternalEventSource.fileforms, event_id
+        ) as event:
+            data = event.data["data"]
+            await incorporation_service.handle_document_uploaded(
+                session,
+                fileforms_order_id=data["orderId"],
+                document_id=data["documentId"],
+                document_type=data["documentType"],
+                file_name=data["fileName"],
+                file_type=data["fileType"],
+                file_url=data["fileUrl"],
+            )
 ```
 
 ### Webhook Event Handling in Service
@@ -908,8 +1278,10 @@ async def handle_status_change(
     session: AsyncSession,
     *,
     fileforms_order_id: str,
-    new_status: str,
-    detail: str | None = None,
+    order_type: str,              # "formation", "annual_report", "registered_agent"
+    filing_status: str,           # "submitted", "pending", "filed", "exception", "cancelled"
+    filing_date: str | None = None,
+    subscription_status: str | None = None,
 ) -> None:
     repository = IncorporationRepository.from_session(session)
     incorporation = await repository.get_by_fileforms_order_id(fileforms_order_id)
@@ -918,23 +1290,31 @@ async def handle_status_change(
         log.warning("Webhook for unknown order", fileforms_order_id=fileforms_order_id)
         return
 
-    # Map FileForms status to Spaire status
+    # Store raw FileForms status
+    incorporation.filing_status = filing_status
+    if subscription_status is not None:
+        incorporation.subscription_status = subscription_status
+
+    # Map FileForms filingStatus to Spaire internal status
     status_map = {
-        "processing": IncorporationStatus.processing,
-        "completed": IncorporationStatus.completed,
-        "rejected": IncorporationStatus.failed,
-        "filed": IncorporationStatus.processing,
+        "submitted": IncorporationStatus.submitted,
+        "pending": IncorporationStatus.processing,
+        "filed": IncorporationStatus.completed,
+        "exception": IncorporationStatus.failed,
+        "cancelled": IncorporationStatus.cancelled,
     }
 
-    new_spaire_status = status_map.get(new_status)
+    new_spaire_status = status_map.get(filing_status)
     if new_spaire_status:
         incorporation.status = new_spaire_status
-        incorporation.status_detail = detail
 
-        if new_spaire_status == IncorporationStatus.completed:
+        if filing_status == "filed":
             incorporation.completed_at = utc_now()
-        if new_status == "filed":
-            incorporation.filed_at = utc_now()
+            if filing_date:
+                incorporation.filed_at = datetime.fromisoformat(filing_date)
+
+        if filing_status == "exception":
+            incorporation.rejected_reason = f"Filing exception on {order_type} order"
 
         await repository.update(incorporation)
 
@@ -947,6 +1327,8 @@ async def handle_document_uploaded(
     document_id: str,
     document_type: str,
     file_name: str,
+    file_type: str,
+    file_url: str,
 ) -> None:
     repository = IncorporationRepository.from_session(session)
     incorporation = await repository.get_by_fileforms_order_id(fileforms_order_id)
@@ -955,13 +1337,15 @@ async def handle_document_uploaded(
         log.warning("Document webhook for unknown order", fileforms_order_id=fileforms_order_id)
         return
 
-    # Enqueue background download
+    # Enqueue background download — pass the presigned fileUrl directly
     enqueue_job(
         "incorporation.download_document",
         incorporation_id=incorporation.id,
         provider_document_id=document_id,
         document_type=document_type,
         file_name=file_name,
+        file_type=file_type,
+        file_url=file_url,
     )
 ```
 
@@ -984,6 +1368,14 @@ The webhook URL is configured in the FileForms partner dashboard to point to:
 
 ### Download and Store Flow
 
+> **Important:** FileForms `GET /documents/{id}` returns JSON metadata with a presigned
+> `fileUrl` (expires 1 hour), not binary content. The download is a two-step process:
+> 1. Call FileForms API to get document metadata + presigned URL
+> 2. Download the actual file bytes from the presigned S3 URL
+>
+> Alternatively, the `document.uploaded` webhook already includes `fileUrl` in its payload,
+> so we can skip step 1 and download directly from the webhook-provided URL.
+
 ```python
 # polar/incorporation/tasks.py
 
@@ -993,6 +1385,8 @@ async def download_document(
     provider_document_id: str,
     document_type: str,
     file_name: str,
+    file_type: str,
+    file_url: str,
 ) -> None:
     async with AsyncSessionMaker() as session:
         service = IncorporationService()
@@ -1002,6 +1396,8 @@ async def download_document(
             provider_document_id=provider_document_id,
             document_type=document_type,
             file_name=file_name,
+            file_type=file_type,
+            file_url=file_url,
         )
 ```
 
@@ -1016,9 +1412,23 @@ async def download_and_store_document(
     provider_document_id: str,
     document_type: str,
     file_name: str,
+    file_type: str,
+    file_url: str,
 ) -> IncorporationDocument:
-    # 1. Download from FileForms
-    content = await fileforms_client.get_document(provider_document_id)
+    # Check for duplicate (idempotency)
+    doc_repository = IncorporationDocumentRepository.from_session(session)
+    existing = await doc_repository.get_by_provider_document_id(provider_document_id)
+    if existing:
+        return existing
+
+    # 1. Download from the presigned fileUrl (provided by webhook or get_document())
+    # If the webhook-provided URL has expired, fall back to fetching a fresh one
+    try:
+        content = await fileforms_client.download_document_content(file_url)
+    except httpx.HTTPStatusError:
+        # URL may have expired — get a fresh presigned URL from FileForms
+        doc_meta = await fileforms_client.get_document(provider_document_id)
+        content = await fileforms_client.download_document_content(doc_meta["fileUrl"])
 
     # 2. Upload to S3
     bucket = settings.S3_FILES_BUCKET_NAME
@@ -1028,11 +1438,10 @@ async def download_and_store_document(
     await s3_service.put_object(
         key=s3_key,
         body=content,
-        content_type="application/pdf",
+        content_type=file_type,
     )
 
     # 3. Create document record
-    doc_repository = IncorporationDocumentRepository.from_session(session)
     document = await doc_repository.create(
         IncorporationDocument(
             incorporation_id=incorporation_id,
@@ -1041,7 +1450,7 @@ async def download_and_store_document(
             s3_bucket=bucket,
             s3_key=s3_key,
             file_size_bytes=len(content),
-            mime_type="application/pdf",
+            mime_type=file_type,
             provider_document_id=provider_document_id,
         )
     )
@@ -1122,7 +1531,7 @@ clients/apps/web/src/app/(main)/dashboard/[organization]/(header)/incorporate/
 │                                                   │
 │  ┌────────┐ ┌────────┐ ┌────────┐ ┌───────────┐  │
 │  │ Step 1 │ │ Step 2 │ │ Step 3 │ │  Step 4   │  │
-│  │ Entity │►│Details │►│Founders│►│ Ownership │  │
+│  │ Entity │►│Details │►│Officers│►│ Address   │  │
 │  │ Type   │ │        │ │        │ │           │  │
 │  └────────┘ └────────┘ └────────┘ └───────────┘  │
 │                                                   │
@@ -1136,28 +1545,40 @@ clients/apps/web/src/app/(main)/dashboard/[organization]/(header)/incorporate/
 
 #### Step 1 — Entity Type
 
-- Select LLC, C-Corp, or S-Corp
+- Select LLC or Corporation
+  - LLC → shows `structureType` sub-choice (Member-Managed / Manager-Managed)
+  - CORP → shows `taxElection` sub-choice (C Corporation / S Corporation)
 - Brief description of each type
 - Reuse: `RadioGroup` from `@spaire/ui`, `Card` component
 
 #### Step 2 — Company Details
 
-- Company name (primary + 2 alternatives)
-- Formation state (dropdown of US states, default Delaware)
-- Business purpose
-- Management type (for LLCs)
-- Reuse: `Input`, `Select`, `Textarea` from `@spaire/ui`
+- Legal name (required)
+- Trade name / DBA (optional)
+- Formation state (dropdown of all 50 US states, default Delaware)
+- Formation date (date picker, defaults to today)
+- Fiscal year end month (dropdown, defaults to December)
+- EIN (optional, format XX-XXXXXXX)
+- Reuse: `Input`, `Select` from `@spaire/ui`
 
-#### Step 3 — Founders
+#### Step 3 — Officers
 
-- Dynamic list of founders (add/remove)
-- Each founder: name, email, title, address
-- Reuse: `Form` (React Hook Form + Zod), `Input`, `Button`
+- Dynamic list of officers (add/remove, minimum 1)
+- Each officer has:
+  - Type: PERSON or COMPANY
+  - Title (e.g., "Managing Member", "CEO", "Director")
+  - For PERSON: First Name, Last Name
+  - For COMPANY: Company Name
+  - Address: Street, City, State, Zip
+  - Is Primary (radio — exactly one must be primary)
+- Reuse: `Form` (React Hook Form + Zod), `Input`, `Button`, `RadioGroup`
 
-#### Step 4 — Ownership
+#### Step 4 — Address
 
-- Ownership percentage per founder (must sum to 100%)
-- Reuse: `Input` with numeric validation, `Progress` bar
+- Company address: Street, City, State, Zip
+- Mailing address: Street, City, State, Zip (with "Same as company address" checkbox)
+- Include Registered Agent toggle (default: on)
+- Reuse: `Input`, `Select`, `Checkbox` from `@spaire/ui`
 
 #### Step 5 — Review
 
@@ -1273,22 +1694,40 @@ def upgrade() -> None:
         sa.Column("modified_at", sa.TIMESTAMP(timezone=True)),
         sa.Column("deleted_at", sa.TIMESTAMP(timezone=True)),
         sa.Column("organization_id", sa.Uuid(), sa.ForeignKey("organizations.id"), nullable=False),
-        sa.Column("entity_type", sa.String(20), nullable=False),
-        sa.Column("state", sa.String(2), nullable=False),
-        sa.Column("company_name", sa.String(255), nullable=False),
-        sa.Column("company_name_alt_1", sa.String(255)),
-        sa.Column("company_name_alt_2", sa.String(255)),
-        sa.Column("management_type", sa.String(30)),
-        sa.Column("business_purpose", sa.Text()),
-        sa.Column("registered_agent", sa.String(20), server_default="standard"),
-        sa.Column("founders", sa.JSON(), nullable=False, server_default="[]"),
-        sa.Column("principal_address", sa.JSON()),
+        # Company details (aligned with FileForms CreateCompanyRequest)
+        sa.Column("entity_type", sa.String(10), nullable=False),  # LLC, CORP
+        sa.Column("legal_name", sa.String(255), nullable=False),
+        sa.Column("trade_name", sa.String(255)),
+        sa.Column("ein", sa.String(10)),  # XX-XXXXXXX
+        sa.Column("structure_type", sa.String(10)),  # MEMBER, MANAGER (LLC only)
+        sa.Column("tax_election", sa.String(20)),  # C Corporation, S Corporation (CORP only)
+        sa.Column("fiscal_end_month", sa.String(10), server_default="December"),
+        sa.Column("formation_date", sa.Date(), nullable=False),
+        sa.Column("formation_state", sa.String(2), nullable=False),
+        # Addresses
+        sa.Column("address_street", sa.String(255), nullable=False),
+        sa.Column("address_city", sa.String(255), nullable=False),
+        sa.Column("address_state", sa.String(2), nullable=False),
+        sa.Column("address_zip", sa.String(5), nullable=False),
+        sa.Column("mailing_address_street", sa.String(255), nullable=False),
+        sa.Column("mailing_address_city", sa.String(255), nullable=False),
+        sa.Column("mailing_address_state", sa.String(2), nullable=False),
+        sa.Column("mailing_address_zip", sa.String(5), nullable=False),
+        # Officers (JSONB array)
+        sa.Column("officers", sa.JSON(), nullable=False, server_default="[]"),
+        # Service options
+        sa.Column("include_registered_agent", sa.Boolean(), server_default="true"),
+        # Payment
         sa.Column("checkout_id", sa.Uuid(), sa.ForeignKey("checkouts.id")),
+        # FileForms provider IDs
         sa.Column("fileforms_user_id", sa.String(255)),
         sa.Column("fileforms_company_id", sa.String(255)),
         sa.Column("fileforms_order_id", sa.String(255)),
+        # Status tracking
         sa.Column("status", sa.String(20), nullable=False, server_default="draft"),
         sa.Column("status_detail", sa.Text()),
+        sa.Column("filing_status", sa.String(20)),  # FileForms filingStatus
+        sa.Column("subscription_status", sa.String(20)),  # FileForms subscriptionStatus
         sa.Column("filed_at", sa.TIMESTAMP(timezone=True)),
         sa.Column("completed_at", sa.TIMESTAMP(timezone=True)),
         sa.Column("rejected_reason", sa.Text()),
@@ -1508,14 +1947,14 @@ def downgrade() -> None:
 # Added to polar/config.py Settings class:
 
 # FileForms (Company Formation)
-FILEFORMS_API_URL: str = "https://api.dev.fileforms.dev"
+FILEFORMS_API_URL: str = "https://api.fileforms.com/v1"
 FILEFORMS_API_KEY: str = ""
 FILEFORMS_WEBHOOK_SECRET: str = ""
 ```
 
 Environment variables (added to `.env`):
 ```bash
-POLAR_FILEFORMS_API_URL=https://api.dev.fileforms.dev
+POLAR_FILEFORMS_API_URL=https://api.fileforms.com/v1
 POLAR_FILEFORMS_API_KEY=ff_key_xxx
 POLAR_FILEFORMS_WEBHOOK_SECRET=whsec_xxx
 ```
