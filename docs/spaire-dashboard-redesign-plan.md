@@ -65,6 +65,9 @@ SPAIRE
     ├── Payouts                   /dashboard/[org]/finance/payouts
     └── Transactions              /dashboard/[org]/finance/transactions
 
+  ── FOUNDER TOOLS ──
+  Startup Stack                   /dashboard/[org]/startup-stack
+
   ── PLATFORM ──
   Developers                      /dashboard/[org]/developers
     ├── API Keys                  /dashboard/[org]/developers/api-keys
@@ -90,15 +93,15 @@ SPAIRE
 | Revenue (sales page) | Merged into Billing + Customers domains |
 | Finance (income + payouts) | Finance with Balance / Payouts / Transactions subtabs |
 | Integrations (tutorial-style) | Developers section (API Keys, Webhooks, Integrations) |
-| Startup Stack | Removed from primary nav, moved to Settings or a dedicated page |
-| No section grouping labels | Grouped sections: MONETIZATION / CUSTOMERS / REPORTING / PLATFORM |
+| Startup Stack | Elevated to first-class **FOUNDER TOOLS** section (not removed) |
+| No section grouping labels | Grouped sections: MONETIZATION / CUSTOMERS / REPORTING / FOUNDER TOOLS / PLATFORM |
 
 ### Navigation Route Changes (in `navigation.tsx`)
 
 The current `generalRoutesList` + `organizationRoutesList` split should be collapsed into a single route definition function with **section group metadata**. Each route gets a `group` property:
 
 ```typescript
-type RouteGroup = 'core' | 'monetization' | 'customers' | 'reporting' | 'platform'
+type RouteGroup = 'core' | 'monetization' | 'customers' | 'reporting' | 'founder-tools' | 'platform'
 
 type Route = {
   readonly id: string
@@ -777,6 +780,53 @@ interface EmptyStateProps {
 - Supported countries
 - MOR (Merchant of Record) settings
 
+### 5.10 Startup Stack
+
+**Purpose:** Curated toolkit of infrastructure and services for early-stage startups
+**URL:** `/dashboard/[org]/startup-stack`
+**Section group:** FOUNDER TOOLS
+**Subnav:** (none — single curated page)
+
+**Why this is a first-class section, not a marketing page:**
+
+Startup Stack is Spaire's product moat. Every other section (Billing, Checkout, Finance) signals "payments tool." Startup Stack is the only section that signals "we understand what it takes to build a company." That distinction shapes the product's entire identity in the founder's mind.
+
+A founder who sees `Startup Stack` in the sidebar on day one receives a different message than one who doesn't:
+- Without it: "This is a billing admin."
+- With it: "This platform is built for startups specifically."
+
+**Page design:**
+
+```
+[Page Header] Startup Stack
+  Subtitle: "Tools and services to help you build and scale faster"
+
+[Category filter tabs]
+  All | Infrastructure | Developer Tools | Banking | Legal | Marketing
+
+[Tool card grid — 3 columns]
+  ┌──────────────────────┐  ┌──────────────────────┐
+  │  [Logo]              │  │  [Logo]              │
+  │  Tool Name           │  │  Tool Name           │
+  │  Short description   │  │  Short description   │
+  │  Category tag        │  │  Category tag        │
+  │  [Activate / Visit]  │  │  [Activate / Visit]  │
+  └──────────────────────┘  └──────────────────────┘
+```
+
+**Card states:**
+- Default: `bg-spaire-900 border border-spaire-800 hover:border-spaire-600`
+- Activated/Connected: `border-blue-500/40 bg-blue-500/5` with a checkmark badge
+- Featured/Partner: subtle `ring-1 ring-blue-500/20` treatment
+
+**No tutorial-style layout.** The current Polar Startup Stack is a list of integrations with how-to steps. The Spaire version is a **marketplace card grid** — tools you discover and activate, not tutorials you read.
+
+**What goes here vs Developers > Integrations:**
+- `Startup Stack`: Third-party products for builders (Vercel, Resend, Lemon Squeezy alternatives, Clerk, etc.)
+- `Developers > Integrations`: First-party SDK and API integration guides for Spaire itself
+
+They serve different jobs. Startup Stack is "what else should I be using?" — Integrations is "how do I connect Spaire to my app?"
+
 ---
 
 ## 6. Migration Plan
@@ -899,9 +949,10 @@ Migrate pages in priority order. For each page:
 | 5 | Products/Catalog | Medium |
 | 6 | Analytics | Medium |
 | 7 | Finance/Balance | Low |
-| 8 | Developers | Low |
-| 9 | Settings | Medium |
-| 10 | Checkout | Low |
+| 8 | **Startup Stack** (redesign to card grid) | **Medium** |
+| 9 | Developers | Low |
+| 10 | Settings | Medium |
+| 11 | Checkout | Low |
 
 ### Phase 4: New UI Components (Parallel with Phase 3)
 
