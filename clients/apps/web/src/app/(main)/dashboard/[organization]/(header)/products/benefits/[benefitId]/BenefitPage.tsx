@@ -14,7 +14,7 @@ import { useModal } from '@/components/Modal/useModal'
 import { useToast } from '@/components/Toast/use-toast'
 import { useDeleteBenefit } from '@/hooks/queries'
 import { usePushRouteWithoutCache } from '@/utils/router'
-import MoreVertOutlined from '@mui/icons-material/MoreVertOutlined'
+import { MoreVertical } from 'lucide-react'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import {

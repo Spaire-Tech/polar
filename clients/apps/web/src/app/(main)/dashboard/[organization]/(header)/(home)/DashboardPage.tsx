@@ -14,7 +14,7 @@ import {
   getPreviousParams,
 } from '@/utils/metrics'
 import { schemas } from '@spaire/client'
-import ArrowForwardOutlined from '@mui/icons-material/ArrowForwardOutlined'
+import { ArrowRight } from 'lucide-react'
 import Button from '@spaire/ui/components/atoms/Button'
 import Link from 'next/link'
 import { useMemo } from 'react'

@@ -11,9 +11,9 @@ import {
   serializeSearchParams,
   sortingStateToQueryParam,
 } from '@/utils/datatable'
-import AddOutlined from '@mui/icons-material/AddOutlined'
-import HiveOutlined from '@mui/icons-material/HiveOutlined'
-import Search from '@mui/icons-material/Search'
+import { Plus } from 'lucide-react'
+import { Hexagon } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import Input from '@spaire/ui/components/atoms/Input'

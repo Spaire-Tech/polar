@@ -17,9 +17,9 @@ import {
   serializeSearchParams,
 } from '@/utils/datatable'
 import { getDiscountDisplay } from '@/utils/discount'
-import AddOutlined from '@mui/icons-material/AddOutlined'
-import MoreVertOutlined from '@mui/icons-material/MoreVertOutlined'
-import Search from '@mui/icons-material/Search'
+import { Plus } from 'lucide-react'
+import { MoreVertical } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import {

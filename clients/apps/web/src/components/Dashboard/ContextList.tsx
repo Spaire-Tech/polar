@@ -1,6 +1,5 @@
 import { useInViewport } from '@/hooks/utils'
-import AddOutlined from '@mui/icons-material/AddOutlined'
-import Search from '@mui/icons-material/Search'
+import { Plus, Search } from 'lucide-react'
 import Button, { ButtonProps } from '@spaire/ui/components/atoms/Button'
 import Input, { InputProps } from '@spaire/ui/components/atoms/Input'
 import { twMerge } from 'tailwind-merge'
@@ -41,17 +40,14 @@ export const ContextList = ({
         <div>{title}</div>
         <div className="flex flex-row items-center gap-4">
           <Button size="icon" className="h-6 w-6" {...cta}>
-            <AddOutlined fontSize="small" />
+            <Plus className="h-3.5 w-3.5" />
           </Button>
         </div>
       </div>
       {search && (
         <div className="flex flex-row items-center gap-3 px-4 py-2">
           <div className="dark:bg-spaire-800 flex h-8 w-8 items-center justify-center rounded-full bg-gray-100">
-            <Search
-              fontSize="inherit"
-              className="dark:text-spaire-500 text-gray-500"
-            />
+            <Search className="dark:text-spaire-500 h-3.5 w-3.5 text-gray-500" />
           </div>
           <Input
             placeholder="Search"

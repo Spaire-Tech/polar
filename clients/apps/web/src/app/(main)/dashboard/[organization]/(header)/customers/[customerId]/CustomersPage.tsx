@@ -18,7 +18,7 @@ import { CONFIG } from '@/utils/config'
 import { useDateRange } from '@/utils/date'
 import { usePushRouteWithoutCache } from '@/utils/router'
 
-import MoreVert from '@mui/icons-material/MoreVert'
+import { MoreVertical } from 'lucide-react'
 import { schemas } from '@spaire/client'
 import Avatar from '@spaire/ui/components/atoms/Avatar'
 import Button from '@spaire/ui/components/atoms/Button'

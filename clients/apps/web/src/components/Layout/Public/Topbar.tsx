@@ -2,8 +2,8 @@
 
 import GithubLoginButton from '@/components/Auth/GithubLoginButton'
 import { useAuth } from '@/hooks'
-import ArrowForwardOutlined from '@mui/icons-material/ArrowForwardOutlined'
 import { schemas } from '@spaire/client'
+import { ArrowRight } from 'lucide-react'
 import Button from '@spaire/ui/components/atoms/Button'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -50,7 +50,7 @@ const Topbar = ({
             <Button type="button" className="space-x-2 p-2 px-4 text-sm">
               <div className="flex flex-row items-center gap-x-2">
                 <span className="whitespace-nowrap">Sell with Polar</span>
-                <ArrowForwardOutlined fontSize="inherit" />
+                <ArrowRight className="h-3.5 w-3.5" />
               </div>
             </Button>
           </Link>

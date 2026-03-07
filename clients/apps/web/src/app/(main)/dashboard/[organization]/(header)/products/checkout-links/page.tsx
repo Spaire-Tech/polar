@@ -1,6 +1,6 @@
 import { getServerSideAPI } from '@/utils/client/serverside'
 import { getOrganizationBySlugOrNotFound } from '@/utils/organization'
-import LinkOutlined from '@mui/icons-material/LinkOutlined'
+import { Link2 } from 'lucide-react'
 import Button from '@spaire/ui/components/atoms/Button'
 import { Metadata } from 'next'
 import Link from 'next/link'

@@ -12,7 +12,7 @@ import {
   useListOrganizationMembers,
   useRemoveOrganizationMember,
 } from '@/hooks/queries/org'
-import Add from '@mui/icons-material/Add'
+import { Plus } from 'lucide-react'
 import { schemas } from '@spaire/client'
 import Avatar from '@spaire/ui/components/atoms/Avatar'
 import Button from '@spaire/ui/components/atoms/Button'

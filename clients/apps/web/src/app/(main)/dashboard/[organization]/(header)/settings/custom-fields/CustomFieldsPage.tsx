@@ -13,8 +13,8 @@ import {
   getAPIParams,
   serializeSearchParams,
 } from '@/utils/datatable'
-import AddOutlined from '@mui/icons-material/AddOutlined'
-import MoreVertOutlined from '@mui/icons-material/MoreVertOutlined'
+import { Plus } from 'lucide-react'
+import { MoreVertical } from 'lucide-react'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import {

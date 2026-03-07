@@ -14,7 +14,7 @@ import {
   serializeSearchParams,
 } from '@/utils/datatable'
 import { getChartRangeParams } from '@/utils/metrics'
-import FileDownloadOutlined from '@mui/icons-material/FileDownloadOutlined'
+import { Download } from 'lucide-react'
 import { schemas } from '@spaire/client'
 import { formatCurrency } from '@spaire/currency'
 import Avatar from '@spaire/ui/components/atoms/Avatar'
