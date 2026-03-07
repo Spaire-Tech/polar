@@ -95,6 +95,7 @@ interface BaseCheckoutFormProps {
   disabled?: boolean
   isUpdatePending?: boolean
   themePreset: ThemingPresetProps
+  hidePricingBreakdown?: boolean
 }
 
 const BaseCheckoutForm = ({
@@ -108,6 +109,7 @@ const BaseCheckoutForm = ({
   isUpdatePending,
   children,
   themePreset: themePresetProps,
+  hidePricingBreakdown,
 }: React.PropsWithChildren<BaseCheckoutFormProps>) => {
   const interval = hasProductCheckout(checkout)
     ? hasLegacyRecurringPrices(checkout.prices[checkout.product.id]) &&
@@ -771,7 +773,7 @@ const BaseCheckoutForm = ({
                   ),
                 )}
             </div>
-            {!checkout.isFreeProductPrice && (
+            {!hidePricingBreakdown && !checkout.isFreeProductPrice && (
               <div className="flex flex-col gap-y-2">
                 {checkout.currency ? (
                   <>
@@ -931,6 +933,7 @@ interface CheckoutFormProps {
   isUpdatePending?: boolean
   theme?: 'light' | 'dark'
   themePreset: ThemingPresetProps
+  hidePricingBreakdown?: boolean
 }
 
 const StripeCheckoutForm = (props: CheckoutFormProps) => {
