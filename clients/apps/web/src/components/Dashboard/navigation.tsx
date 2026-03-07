@@ -21,9 +21,18 @@ export type SubRoute = {
   readonly extra?: React.ReactNode
 }
 
+export type RouteGroup =
+  | 'core'
+  | 'monetization'
+  | 'customers'
+  | 'reporting'
+  | 'founder-tools'
+  | 'platform'
+
 export type Route = {
   readonly id: string
   readonly title: string
+  readonly group?: RouteGroup
   readonly icon?: React.ReactElement<any>
   readonly link: string
   readonly if: boolean | undefined
