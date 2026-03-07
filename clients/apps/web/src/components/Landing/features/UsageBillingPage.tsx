@@ -1,11 +1,12 @@
 'use client'
 
+import { ArrowUpRight } from 'lucide-react'
+
 import GetStartedButton from '@/components/Auth/GetStartedButton'
 import {
   SyntaxHighlighterClient,
   SyntaxHighlighterProvider,
 } from '@/components/SyntaxHighlighterShiki/SyntaxHighlighterClient'
-import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
 import CheckOutlined from '@mui/icons-material/CheckOutlined'
 import ElectricMeterOutlined from '@mui/icons-material/ElectricMeterOutlined'
 import KeyboardDoubleArrowRightOutlined from '@mui/icons-material/KeyboardDoubleArrowRightOutlined'
@@ -70,7 +71,7 @@ export const UsageBillingPage = () => {
             <Link href="/docs/features/usage-based-billing/introduction">
               <Button variant="secondary" className="rounded-full" size="lg">
                 View Documentation
-                <ArrowOutwardOutlined className="ml-2" />
+                <ArrowUpRight className="ml-2"  />
               </Button>
             </Link>
           </Hero>

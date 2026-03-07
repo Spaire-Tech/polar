@@ -1,5 +1,5 @@
+import { ArrowUpRight } from 'lucide-react'
 import { api } from '@/utils/client'
-import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
 import { isValidationError, schemas } from '@spaire/client'
 import { formatCurrency } from '@spaire/currency'
 import Button from '@spaire/ui/components/atoms/Button'
@@ -115,10 +115,9 @@ const WithdrawModal: React.FC<WithdrawModalProps> = ({
                       className="flex flex-row items-center"
                     >
                       <span>Learn more</span>
-                      <ArrowOutwardOutlined
+                      <ArrowUpRight
                         className="ml-2"
-                        fontSize="inherit"
-                      />
+                       />
                     </Button>
                   </Link>
                 </p>

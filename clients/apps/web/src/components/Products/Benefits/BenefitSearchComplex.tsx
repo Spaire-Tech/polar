@@ -164,7 +164,7 @@ export const BenefitSearchComplex = ({
     <div className="flex flex-col gap-4">
       <div ref={searchContainerRef} className="relative">
         <Input
-          preSlot={<Search className="h-4 w-4" />}
+          preSlot={<Search className="h-4 w-4"  />}
           placeholder="Search benefits..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}

@@ -1,5 +1,5 @@
+import { ArrowUpRight } from 'lucide-react'
 import { CHECKOUT_PREVIEW } from '@/components/Customization/utils'
-import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
 import Button from '@spaire/ui/components/atoms/Button'
 import Link from 'next/link'
 import { Suspense, lazy, useEffect, useRef, useState } from 'react'
@@ -59,7 +59,7 @@ export const Checkout = () => {
             className="rounded-full"
           >
             <span>Integrate Checkouts</span>
-            <ArrowOutwardOutlined fontSize="inherit" />
+            <ArrowUpRight className="h-4 w-4" />
           </Button>
         </Link>
       </div>

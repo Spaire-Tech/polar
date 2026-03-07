@@ -1,5 +1,5 @@
+import { Plus } from 'lucide-react'
 import LogoType from '@/components/Brand/LogoType'
-import AddOutlined from '@mui/icons-material/AddOutlined'
 import { schemas } from '@spaire/client'
 
 export default function SharedLayout({
@@ -18,7 +18,7 @@ export default function SharedLayout({
           <LogoType className="h-10" />
           {client?.logo_uri && (
             <>
-              <AddOutlined className="h-5" />
+              <Plus className="h-5"  />
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={client.logo_uri}

@@ -1,6 +1,7 @@
 'use client'
 
-import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
+import { ArrowUpRight } from 'lucide-react'
+
 import Check from '@mui/icons-material/Check'
 import Button from '@spaire/ui/components/atoms/Button'
 import {
@@ -157,7 +158,7 @@ export const Usage = () => {
               >
                 <Button className="rounded-full" variant="ghost">
                   <span>All Ingestion Strategies</span>
-                  <ArrowOutwardOutlined className="ml-2" />
+                  <ArrowUpRight className="ml-2"  />
                 </Button>
               </Link>
             </TabsList>
@@ -209,10 +210,9 @@ export const Usage = () => {
                       <Link href={strategy.link} target="_blank">
                         <Button variant="secondary" className="rounded-full">
                           Learn More
-                          <ArrowOutwardOutlined
-                            fontSize="inherit"
+                          <ArrowUpRight
                             className="ml-2"
-                          />
+                           />
                         </Button>
                       </Link>
                     </motion.span>

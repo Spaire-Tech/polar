@@ -1,12 +1,12 @@
+import { Link2 } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import ProductSelect from '@/components/Products/ProductSelect'
 import Spinner from '@/components/Shared/Spinner'
 import { useCheckoutLinks } from '@/hooks/queries'
 import { useInViewport } from '@/hooks/utils'
 import { OrganizationContext } from '@/providers/maintainerOrganization'
-import AddOutlined from '@mui/icons-material/AddOutlined'
 import ArrowDownward from '@mui/icons-material/ArrowDownward'
 import ArrowUpward from '@mui/icons-material/ArrowUpward'
-import LinkOutlined from '@mui/icons-material/LinkOutlined'
 import Button from '@spaire/ui/components/atoms/Button'
 import { parseAsStringLiteral, useQueryState } from 'nuqs'
 import { useContext, useEffect, useMemo } from 'react'
@@ -87,7 +87,7 @@ export const CheckoutLinkList = ({
             className="h-6 w-6"
             onClick={showCreateCheckoutLinkModal}
           >
-            <AddOutlined fontSize="small" />
+            <Plus className="h-4 w-4" />
           </Button>
         </div>
       </div>
@@ -142,7 +142,7 @@ export const CheckoutLinkList = ({
                     }
                   }}
                 >
-                  <LinkOutlined fontSize="small" />
+                  <Link2 className="h-4 w-4" />
                 </Button>
               </div>
             </div>

@@ -1,6 +1,6 @@
+import { Plus } from 'lucide-react'
 import { FormField } from '@spaire/ui/components/ui/form'
 
-import AddOutlined from '@mui/icons-material/AddOutlined'
 import ClearOutlined from '@mui/icons-material/ClearOutlined'
 import Button from '@spaire/ui/components/atoms/Button'
 import Input from '@spaire/ui/components/atoms/Input'
@@ -37,7 +37,7 @@ export const CustomerMetadataForm = () => {
             append({ key: '', value: '' })
           }}
         >
-          <AddOutlined />
+          <Plus className="h-4 w-4" />
         </Button>
       </div>
       <div className="flex flex-col gap-2">

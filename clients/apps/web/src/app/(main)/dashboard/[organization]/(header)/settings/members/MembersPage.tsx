@@ -199,7 +199,7 @@ export default function ClientPage({
       className="flex flex-col gap-y-8"
       header={
         <Button onClick={openInviteMemberModal} variant="default">
-          <Add className="mr-2" fontSize="small" />
+          <Plus className="mr-2"  />
           <span>Invite</span>
         </Button>
       }

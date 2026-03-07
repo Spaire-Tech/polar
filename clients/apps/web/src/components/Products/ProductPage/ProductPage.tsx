@@ -1,10 +1,10 @@
+import { MoreVertical } from 'lucide-react'
 import { ConfirmModal } from '@/components/Modal/ConfirmModal'
 import { useModal } from '@/components/Modal/useModal'
 import { toast } from '@/components/Toast/use-toast'
 import { useMetrics, useUpdateProduct } from '@/hooks/queries'
 import { apiErrorToast } from '@/utils/api/errors'
 import { getChartRangeParams } from '@/utils/metrics'
-import MoreVert from '@mui/icons-material/MoreVert'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import { Status } from '@spaire/ui/components/atoms/Status'
@@ -188,7 +188,7 @@ export const ProductPage = ({ organization, product }: ProductPageProps) => {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button size="icon" variant="secondary">
-                    <MoreVert fontSize="small" />
+                    <MoreVertical className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">

@@ -1,9 +1,10 @@
 'use client'
 
+import { ArrowUpRight } from 'lucide-react'
+
 import Spinner from '@/components/Shared/Spinner'
 import { ParsedMetricsResponse } from '@/hooks/queries'
 import { getFormattedMetricValue } from '@/utils/metrics'
-import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import FormattedDateTime from '@spaire/ui/components/atoms/FormattedDateTime'
@@ -303,7 +304,7 @@ const MetricChartBox = ({
                   className="hidden rounded-full opacity-0 transition-opacity group-hover:opacity-100 md:block"
                   onClick={showModal}
                 >
-                  <ArrowOutwardOutlined fontSize="small" />
+                  <ArrowUpRight className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Share Chart</TooltipContent>

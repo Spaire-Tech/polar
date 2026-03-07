@@ -1,4 +1,4 @@
-import ArrowForwardOutlined from '@mui/icons-material/ArrowForwardOutlined'
+import { ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 
 export interface JobLinkProps {
@@ -41,7 +41,7 @@ export const JobLink = ({
       <div className="col-span-1 flex items-end justify-end gap-2">
         <div className="flex flex-row items-center gap-2 opacity-0 lg:group-hover/link:opacity-100">
           <span>Enroll</span>
-          <ArrowForwardOutlined fontSize="inherit" />
+          <ArrowRight className="h-4 w-4" />
         </div>
       </div>
     </Link>

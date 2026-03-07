@@ -1,6 +1,7 @@
 'use client'
 
-import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
+import { ArrowUpRight } from 'lucide-react'
+
 import Link from 'next/link'
 import { ResourceLayout, ResourceSection } from './ResourceLayout'
 
@@ -207,7 +208,7 @@ export const PricingPage = () => {
             className="w-fit border-b border-black pb-0.5 dark:border-white"
           >
             Reach out to us
-            <ArrowOutwardOutlined className="ml-2" fontSize="inherit" />
+            <ArrowUpRight className="ml-2"  />
           </Link>
         </div>
       </ResourceSection>

@@ -1,6 +1,7 @@
 'use client'
 
-import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
+import { ArrowUpRight } from 'lucide-react'
+
 import Button from '@spaire/ui/components/atoms/Button'
 import { SquareTerminalIcon } from 'lucide-react'
 import Link from 'next/link'
@@ -18,7 +19,7 @@ export const Tools = () => {
         <Link href="https://polar.sh/docs/documentation/tools/polar-init">
           <Button className="rounded-full" variant="secondary">
             <span>Explore our tools</span>
-            <ArrowOutwardOutlined className="ml-2" />
+            <ArrowUpRight className="ml-2"  />
           </Button>
         </Link>
       </div>

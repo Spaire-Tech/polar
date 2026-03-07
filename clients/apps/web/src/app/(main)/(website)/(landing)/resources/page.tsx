@@ -1,4 +1,4 @@
-import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
+import { ArrowUpRight } from 'lucide-react'
 import { Metadata } from 'next'
 import Link from 'next/link'
 
@@ -93,7 +93,7 @@ export default function Resources() {
               href={link.href}
               target={link.target}
             >
-              <ArrowOutwardOutlined fontSize="inherit" />
+              <ArrowUpRight className="h-4 w-4" />
               <div className="flex flex-col gap-2">
                 <h3 className="font-mono text-xl">{link.title}</h3>
                 <p className="dark:text-spaire-500 font-sm text-gray-500">
@@ -114,7 +114,7 @@ export default function Resources() {
               href={link.href}
               target={link.target}
             >
-              <ArrowOutwardOutlined fontSize="inherit" />
+              <ArrowUpRight className="h-4 w-4" />
               <div className="flex flex-col gap-2">
                 <h3 className="font-mono text-xl">{link.title}</h3>
                 <p className="dark:text-spaire-500 font-sm text-gray-500">

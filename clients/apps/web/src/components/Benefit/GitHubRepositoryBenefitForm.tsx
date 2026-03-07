@@ -1,9 +1,9 @@
+import { RefreshCw } from 'lucide-react'
 import { useAuth } from '@/hooks'
 import { useListIntegrationsGithubRepositoryBenefitUserRepositories } from '@/hooks/queries'
 import { useUserSSE } from '@/hooks/sse'
 import { getGitHubRepositoryBenefitAuthorizeURL } from '@/utils/auth'
 import { defaultApiUrl } from '@/utils/domain'
-import RefreshOutlined from '@mui/icons-material/RefreshOutlined'
 import { enums, schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import {
@@ -286,7 +286,7 @@ export const GitHubRepositoryBenefitForm = ({
                   onClick={() => refetchRepositories()}
                   disabled={isFetchingRepositories}
                 >
-                  <RefreshOutlined />
+                  <RefreshCw className="h-4 w-4" />
                 </Button>
               </div>
 

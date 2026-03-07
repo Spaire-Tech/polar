@@ -1,6 +1,6 @@
+import { MoreVertical } from 'lucide-react'
 import { useCustomerDownloadables } from '@/hooks/queries'
 import ArrowDownward from '@mui/icons-material/ArrowDownward'
-import MoreVertOutlined from '@mui/icons-material/MoreVertOutlined'
 import { Client, schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import Pill from '@spaire/ui/components/atoms/Pill'
@@ -67,7 +67,7 @@ export const DownloadableItem = ({
                 size="icon"
                 variant="secondary"
               >
-                <MoreVertOutlined fontSize="inherit" />
+                <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent

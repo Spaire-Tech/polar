@@ -1,5 +1,11 @@
 'use client'
 
+import { Search } from 'lucide-react'
+
+import { MoreVertical } from 'lucide-react'
+
+import { Plus } from 'lucide-react'
+
 import { CreateCustomerModal } from '@/components/Customer/CreateCustomerModal'
 import { InlineModal } from '@/components/Modal/InlineModal'
 import { useModal } from '@/components/Modal/useModal'
@@ -8,11 +14,8 @@ import { useCustomers } from '@/hooks/queries'
 import { useInViewport } from '@/hooks/utils'
 import { getServerURL } from '@/utils/api'
 
-import AddOutlined from '@mui/icons-material/AddOutlined'
 import ArrowDownward from '@mui/icons-material/ArrowDownward'
 import ArrowUpward from '@mui/icons-material/ArrowUpward'
-import MoreVert from '@mui/icons-material/MoreVert'
-import Search from '@mui/icons-material/Search'
 import { schemas } from '@spaire/client'
 import Avatar from '@spaire/ui/components/atoms/Avatar'
 import Button from '@spaire/ui/components/atoms/Button'
@@ -138,7 +141,7 @@ export const CustomerListSidebar: React.FC<CustomerListSidebarProps> = ({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button size="icon" variant="ghost" className="h-6 w-6">
-                  <MoreVert fontSize="small" />
+                  <MoreVertical className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -153,7 +156,7 @@ export const CustomerListSidebar: React.FC<CustomerListSidebarProps> = ({
               className="h-6 w-6"
               onClick={showCreateCustomerModal}
             >
-              <AddOutlined fontSize="small" />
+              <Plus className="h-4 w-4" />
             </Button>
           </div>
         </div>
@@ -161,9 +164,8 @@ export const CustomerListSidebar: React.FC<CustomerListSidebarProps> = ({
           <div className="flex flex-1 flex-row items-center gap-3">
             <div className="dark:bg-spaire-800 flex h-8 w-8 items-center justify-center rounded-full bg-gray-100">
               <Search
-                fontSize="inherit"
                 className="dark:text-spaire-500 text-gray-500"
-              />
+               />
             </div>
             <Input
               className="w-full rounded-none border-none bg-transparent p-0 shadow-none! ring-0 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent"

@@ -1,8 +1,9 @@
 'use client'
 
+import { ArrowUpRight } from 'lucide-react'
+
 import { DashboardBody } from '@/components/Layout/DashboardLayout'
 import { OrganizationContext } from '@/providers/maintainerOrganization'
-import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
 import Link from 'next/link'
 import { useContext } from 'react'
 import BetterAuthIcon from '../Icons/frameworks/better-auth'
@@ -83,7 +84,7 @@ function IntegrationCard({ integration }: { integration: Integration }) {
             Coming Soon
           </span>
         ) : (
-          <ArrowOutwardOutlined className="h-4 w-4 text-gray-300 transition-colors group-hover:text-gray-500 dark:text-spaire-600 dark:group-hover:text-spaire-400" />
+          <ArrowUpRight className="h-4 w-4 text-gray-300 transition-colors group-hover:text-gray-500 dark:text-spaire-600 dark:group-hover:text-spaire-400"  />
         )}
       </div>
 

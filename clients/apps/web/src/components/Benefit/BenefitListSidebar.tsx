@@ -1,5 +1,9 @@
 'use client'
 
+import { Search } from 'lucide-react'
+
+import { Plus } from 'lucide-react'
+
 import CreateBenefitModalContent from '@/components/Benefit/CreateBenefitModalContent'
 import {
   benefitsDisplayNames,
@@ -10,10 +14,8 @@ import { useModal } from '@/components/Modal/useModal'
 import Spinner from '@/components/Shared/Spinner'
 import { useInfiniteBenefits } from '@/hooks/queries'
 import { useInViewport } from '@/hooks/utils'
-import AddOutlined from '@mui/icons-material/AddOutlined'
 import ArrowDownward from '@mui/icons-material/ArrowDownward'
 import ArrowUpward from '@mui/icons-material/ArrowUpward'
-import Search from '@mui/icons-material/Search'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import Input from '@spaire/ui/components/atoms/Input'
@@ -125,16 +127,15 @@ export const BenefitListSidebar = ({
               className="h-6 w-6"
               onClick={toggleCreateBenefitModal}
             >
-              <AddOutlined fontSize="small" />
+              <Plus className="h-4 w-4" />
             </Button>
           </div>
         </div>
         <div className="flex flex-row items-center gap-3 px-4 py-2">
           <div className="dark:bg-spaire-800 flex h-8 w-8 items-center justify-center rounded-full bg-gray-100">
             <Search
-              fontSize="inherit"
               className="dark:text-spaire-500 text-gray-500"
-            />
+             />
           </div>
           <Input
             className="w-full rounded-none border-none bg-transparent p-0 shadow-none! ring-0 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent"

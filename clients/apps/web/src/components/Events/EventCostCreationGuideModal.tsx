@@ -1,4 +1,4 @@
-import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
+import { ArrowUpRight } from 'lucide-react'
 import Button from '@spaire/ui/components/atoms/Button'
 import Link from 'next/link'
 import { Well } from '../Shared/Well'
@@ -53,7 +53,7 @@ const result = await spaire.events.ingest({
           >
             <Button variant="secondary">
               <span>Learn more</span>
-              <ArrowOutwardOutlined fontSize="inherit" className="ml-2" />
+              <ArrowUpRight className="ml-2"  />
             </Button>
           </Link>
         </div>

@@ -1,7 +1,8 @@
 'use client'
 
+import { ArrowUpRight } from 'lucide-react'
+
 import AccountBalance from '@mui/icons-material/AccountBalance'
-import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
 import GitHub from '@mui/icons-material/GitHub'
 import ShoppingBagOutlined from '@mui/icons-material/ShoppingBagOutlined'
 import Button from '@spaire/ui/components/atoms/Button'
@@ -41,7 +42,7 @@ const UpsellCard = ({
           <Button variant="ghost" className="rounded-full">
             Learn more
             <span className="ml-2">
-              <ArrowOutwardOutlined fontSize="inherit" />
+              <ArrowUpRight className="h-4 w-4" />
             </span>
           </Button>
         </Link>

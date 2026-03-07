@@ -50,7 +50,7 @@ export default async function Page(props: {
   return (
     <div className="flex h-full flex-col items-center justify-center px-4 pt-24">
       <div className="flex max-w-md flex-col items-center justify-center gap-y-6 text-center">
-        <LinkOutlined fontSize="large" />
+        <Link2 className="h-4 w-4" />
         <div className="flex flex-col items-center justify-center gap-y-2">
           <h3 className="text-xl font-medium">Share a checkout link</h3>
           <p className="dark:text-spaire-500 text-gray-500">

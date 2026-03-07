@@ -119,7 +119,7 @@ const ClientPage: React.FC<ClientPageProps> = ({ organization, meter }) => {
             <DropdownMenu>
               <DropdownMenuTrigger className="focus:outline-none" asChild>
                 <Button className="h-10 w-10" variant="secondary">
-                  <MoreVertOutlined fontSize="inherit" />
+                  <MoreVertical className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent

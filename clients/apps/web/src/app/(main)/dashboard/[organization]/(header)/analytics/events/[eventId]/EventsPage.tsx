@@ -59,7 +59,7 @@ export default function EventDetailPage({
                 size="sm"
                 className="aspect-square size-6 rounded-md"
               >
-                <KeyboardArrowUpOutlined className="h-2 w-2" />
+                <ChevronUp className="h-2 w-2"  />
               </Button>
               <span>Parent Event</span>
             </Link>

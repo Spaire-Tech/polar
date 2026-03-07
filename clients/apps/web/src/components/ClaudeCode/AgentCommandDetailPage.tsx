@@ -1,8 +1,9 @@
 'use client'
 
+import { ArrowUpRight } from 'lucide-react'
+
 import { DashboardBody } from '@/components/Layout/DashboardLayout'
 import ArrowBackOutlined from '@mui/icons-material/ArrowBackOutlined'
-import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
 import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined'
 import CheckOutlined from '@mui/icons-material/CheckOutlined'
 import { OrganizationContext } from '@/providers/maintainerOrganization'
@@ -183,7 +184,7 @@ export default function AgentCommandDetailPage({
               >
                 <Button size="lg" fullWidth>
                   <span>View Docs</span>
-                  <ArrowOutwardOutlined className="ml-2" fontSize="small" />
+                  <ArrowUpRight className="ml-2"  />
                 </Button>
               </Link>
               <div className="flex flex-row items-center justify-center pt-1">

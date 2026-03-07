@@ -1,5 +1,7 @@
 'use client'
 
+import { MoreVertical } from 'lucide-react'
+
 import {
   useAddCustomerPortalMember,
   useCustomerPortalMembers,
@@ -10,7 +12,6 @@ import {
 import { createClientSideAPI } from '@/utils/client'
 import { validateEmail } from '@/utils/validation'
 import GroupOutlined from '@mui/icons-material/GroupOutlined'
-import MoreVertOutlined from '@mui/icons-material/MoreVertOutlined'
 import Button from '@spaire/ui/components/atoms/Button'
 import { DataTable } from '@spaire/ui/components/atoms/DataTable'
 import {
@@ -311,7 +312,7 @@ export const CustomerPortalTeam = ({
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild disabled={isLoading}>
                         <Button className="h-8 w-8" variant="secondary">
-                          <MoreVertOutlined fontSize="inherit" />
+                          <MoreVertical className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">

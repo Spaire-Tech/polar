@@ -1,8 +1,9 @@
 'use client'
 
+import { ArrowUpRight } from 'lucide-react'
+
 import { DashboardBody } from '@/components/Layout/DashboardLayout'
 import ArrowBackOutlined from '@mui/icons-material/ArrowBackOutlined'
-import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
 import { OrganizationContext } from '@/providers/maintainerOrganization'
 import Button from '@spaire/ui/components/atoms/Button'
 import { Tabs, TabsList, TabsTrigger } from '@spaire/ui/components/atoms/Tabs'
@@ -191,7 +192,7 @@ export default function IntegrationSdkPage({
               >
                 <Button size="lg" fullWidth>
                   <span>Read the Docs</span>
-                  <ArrowOutwardOutlined className="ml-2" fontSize="small" />
+                  <ArrowUpRight className="ml-2"  />
                 </Button>
               </Link>
               <div className="flex flex-row items-center justify-center pt-1">

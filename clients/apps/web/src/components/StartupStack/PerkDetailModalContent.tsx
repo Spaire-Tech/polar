@@ -1,8 +1,9 @@
 'use client'
 
+import { ArrowUpRight } from 'lucide-react'
+
 import { InlineModalHeader } from '@/components/Modal/InlineModal'
 import { type ContentBlock, type Perk, type PerkSection } from '@/constants/perksData'
-import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
 import Button from '@spaire/ui/components/atoms/Button'
 import Link from 'next/link'
 
@@ -137,7 +138,7 @@ const PerkDetailModalContent = ({
         >
           <Button size="lg" fullWidth>
             <span>Claim Now</span>
-            <ArrowOutwardOutlined className="ml-2" fontSize="small" />
+            <ArrowUpRight className="ml-2"  />
           </Button>
         </Link>
       </div>

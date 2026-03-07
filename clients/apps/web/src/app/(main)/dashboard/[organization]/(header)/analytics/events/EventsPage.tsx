@@ -204,7 +204,7 @@ const ClientPage: React.FC<ClientPageProps> = ({ organization }) => {
                       )
                     }}
                   >
-                    <RefreshOutlined fontSize="inherit" />
+                    <RefreshCw className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -216,7 +216,7 @@ const ClientPage: React.FC<ClientPageProps> = ({ organization }) => {
                 className="h-6 w-6"
                 onClick={showEventCreationGuide}
               >
-                <AddOutlined fontSize="small" />
+                <Plus className="h-4 w-4" />
               </Button>
             </div>
           </div>
@@ -232,7 +232,7 @@ const ClientPage: React.FC<ClientPageProps> = ({ organization }) => {
                 placeholder="Search Events"
                 value={query ?? undefined}
                 onChange={(e) => setQuery(e.target.value)}
-                preSlot={<Search fontSize="small" />}
+                preSlot={<Search className="h-4 w-4" />}
               />
             </div>
             <div className="flex h-full grow flex-col gap-y-6">

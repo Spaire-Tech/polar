@@ -1,8 +1,9 @@
 'use client'
 
+import { ArrowUpRight } from 'lucide-react'
+
 import { DashboardBody } from '@/components/Layout/DashboardLayout'
 import ArrowBackOutlined from '@mui/icons-material/ArrowBackOutlined'
-import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
 import CheckOutlined from '@mui/icons-material/CheckOutlined'
 import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined'
 import { OrganizationContext } from '@/providers/maintainerOrganization'
@@ -215,7 +216,7 @@ export default function AgentPlatformDetailPage({
                           className="flex shrink-0 items-center gap-x-1 rounded-full px-3 py-1.5 text-xs text-blue-500 transition-colors hover:bg-blue-50 hover:text-blue-600 dark:text-blue-400 dark:hover:bg-blue-500/10"
                         >
                           Full guide
-                          <ArrowOutwardOutlined sx={{ fontSize: 12 }} />
+                          <ArrowUpRight className="h-4 w-4" />
                         </Link>
                       )}
                     </div>
@@ -247,7 +248,7 @@ export default function AgentPlatformDetailPage({
               <Link href={platform.docsLink} target="_blank" className="w-full">
                 <Button size="lg" fullWidth>
                   <span>View Docs</span>
-                  <ArrowOutwardOutlined className="ml-2" fontSize="small" />
+                  <ArrowUpRight className="ml-2"  />
                 </Button>
               </Link>
               <div className="flex flex-row items-center justify-center pt-1">

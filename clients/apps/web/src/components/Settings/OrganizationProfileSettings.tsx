@@ -1,9 +1,9 @@
+import { Plus } from 'lucide-react'
 import { useAuth } from '@/hooks'
 import { useUpdateOrganization } from '@/hooks/queries'
 import { useAutoSave } from '@/hooks/useAutoSave'
 import { useURLValidation } from '@/hooks/useURLValidation'
 import { setValidationErrors } from '@/utils/api/errors'
-import AddOutlined from '@mui/icons-material/AddOutlined'
 import AddPhotoAlternateOutlined from '@mui/icons-material/AddPhotoAlternateOutlined'
 import CloseOutlined from '@mui/icons-material/CloseOutlined'
 import Facebook from '@mui/icons-material/Facebook'
@@ -187,7 +187,7 @@ const OrganizationSocialLinks = ({
         variant="secondary"
         onClick={handleAddSocial}
       >
-        <AddOutlined fontSize="small" className="mr-1" />
+        <Plus className="mr-1"  />
         Add Social
       </Button>
       {showError && (

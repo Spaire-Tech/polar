@@ -116,7 +116,7 @@ export const DashboardSidebar = ({
                 isCollapsed && 'justify-center',
               )}
             >
-              <Search className="h-3.5 w-3.5 shrink-0" />
+              <Search className="h-3.5 w-3.5 shrink-0"  />
               {!isCollapsed && (
                 <>
                   <span className="flex-1 text-left text-xs">Search...</span>

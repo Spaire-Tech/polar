@@ -1,4 +1,4 @@
-import AddOutlined from '@mui/icons-material/AddOutlined'
+import { Plus } from 'lucide-react'
 import ClearOutlined from '@mui/icons-material/ClearOutlined'
 import Button from '@spaire/ui/components/atoms/Button'
 import Input from '@spaire/ui/components/atoms/Input'
@@ -50,7 +50,7 @@ export const EventMetadataFilter = ({
             onChange(metadata.concat({ key: '', value: '' }))
           }}
         >
-          <AddOutlined />
+          <Plus className="h-4 w-4" />
         </Button>
       </div>
       <div className="flex flex-col gap-2">

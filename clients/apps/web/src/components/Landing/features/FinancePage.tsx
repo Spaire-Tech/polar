@@ -1,8 +1,9 @@
 'use client'
 
+import { ArrowUpRight } from 'lucide-react'
+
 import GetStartedButton from '@/components/Auth/GetStartedButton'
 import AccountBalanceOutlined from '@mui/icons-material/AccountBalanceOutlined'
-import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
 import CheckOutlined from '@mui/icons-material/CheckOutlined'
 import PaymentsOutlined from '@mui/icons-material/PaymentsOutlined'
 import ReceiptLongOutlined from '@mui/icons-material/ReceiptLongOutlined'
@@ -40,7 +41,7 @@ export const FinancePage = () => {
           <Link href="/docs/features/finance/payouts">
             <Button variant="secondary" className="rounded-full" size="lg">
               View Documentation
-              <ArrowOutwardOutlined className="ml-2" />
+              <ArrowUpRight className="ml-2"  />
             </Button>
           </Link>
         </Hero>

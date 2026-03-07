@@ -47,7 +47,7 @@ export const ContextList = ({
       {search && (
         <div className="flex flex-row items-center gap-3 px-4 py-2">
           <div className="dark:bg-spaire-800 flex h-8 w-8 items-center justify-center rounded-full bg-gray-100">
-            <Search className="dark:text-spaire-500 h-3.5 w-3.5 text-gray-500" />
+            <Search className="dark:text-spaire-500 h-3.5 w-3.5 text-gray-500"  />
           </div>
           <Input
             placeholder="Search"

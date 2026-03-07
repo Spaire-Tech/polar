@@ -1,7 +1,8 @@
 'use client'
 
+import { ArrowUpRight } from 'lucide-react'
+
 import { useOrganizationPaymentStatus } from '@/hooks/queries/org'
-import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import { AlertCircle, Building2, Code2, Fingerprint, Package } from 'lucide-react'
@@ -170,10 +171,9 @@ export const PaymentOnboardingStepper = ({
                                     {option.title}
                                   </h4>
 
-                                  <ArrowOutwardOutlined
+                                  <ArrowUpRight
                                     className="ml-2"
-                                    fontSize="inherit"
-                                  />
+                                   />
                                 </div>
                                 <p className="dark:text-spaire-400 text-sm text-gray-600">
                                   {option.description}

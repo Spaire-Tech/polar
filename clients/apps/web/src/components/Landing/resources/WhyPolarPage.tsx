@@ -1,8 +1,10 @@
 'use client'
 
+import { Plus } from 'lucide-react'
+
+import { ArrowUpRight } from 'lucide-react'
+
 import GetStartedButton from '@/components/Auth/GetStartedButton'
-import AddOutlined from '@mui/icons-material/AddOutlined'
-import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
 import CheckOutlined from '@mui/icons-material/CheckOutlined'
 import RemoveOutlined from '@mui/icons-material/RemoveOutlined'
 import Link from 'next/link'
@@ -37,7 +39,7 @@ const FAQItem = ({
           {isOpen ? (
             <RemoveOutlined className="dark:text-white" />
           ) : (
-            <AddOutlined className="dark:text-white" />
+            <Plus className="dark:text-white"  />
           )}
         </div>
       </button>
@@ -112,7 +114,7 @@ export const WhyPolarPage = () => {
             className="w-fit border-b border-black pb-0.5 dark:border-white"
           >
             Compare Polar vs. Stripe
-            <ArrowOutwardOutlined className="ml-2" fontSize="inherit" />
+            <ArrowUpRight className="ml-2"  />
           </Link>
           <Link
             href="/resources/comparison/paddle"
@@ -120,7 +122,7 @@ export const WhyPolarPage = () => {
             className="w-fit border-b border-black pb-0.5 dark:border-white"
           >
             Compare Polar vs. Paddle
-            <ArrowOutwardOutlined className="ml-2" fontSize="inherit" />
+            <ArrowUpRight className="ml-2"  />
           </Link>
           <Link
             href="/resources/comparison/lemon-squeezy"
@@ -128,7 +130,7 @@ export const WhyPolarPage = () => {
             className="w-fit border-b border-black pb-0.5 dark:border-white"
           >
             Compare Polar vs. Lemon Squeezy
-            <ArrowOutwardOutlined className="ml-2" fontSize="inherit" />
+            <ArrowUpRight className="ml-2"  />
           </Link>
         </div>
       </ResourceSection>
@@ -193,7 +195,7 @@ export const WhyPolarPage = () => {
             className="w-fit border-b border-black pb-0.5 dark:border-white"
           >
             Follow the development on GitHub
-            <ArrowOutwardOutlined className="ml-2" fontSize="inherit" />
+            <ArrowUpRight className="ml-2"  />
           </Link>
         </div>
       </ResourceSection>

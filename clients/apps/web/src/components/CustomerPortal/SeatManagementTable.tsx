@@ -1,6 +1,7 @@
 'use client'
 
-import MoreVertOutlined from '@mui/icons-material/MoreVertOutlined'
+import { MoreVertical } from 'lucide-react'
+
 import Button from '@spaire/ui/components/atoms/Button'
 import { DataTable } from '@spaire/ui/components/atoms/DataTable'
 import {
@@ -127,7 +128,7 @@ export const SeatManagementTable = ({
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild disabled={isLoading}>
                     <Button className="h-8 w-8" variant="secondary">
-                      <MoreVertOutlined fontSize="inherit" />
+                      <MoreVertical className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">

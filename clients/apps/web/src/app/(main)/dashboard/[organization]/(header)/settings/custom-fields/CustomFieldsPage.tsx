@@ -192,7 +192,7 @@ const ClientPage: React.FC<ClientPageProps> = ({
                 size="icon"
                 variant="secondary"
               >
-                <MoreVertOutlined fontSize="inherit" />
+                <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
@@ -222,7 +222,7 @@ const ClientPage: React.FC<ClientPageProps> = ({
           type="button"
           onClick={() => setShowNewModal(true)}
         >
-          <AddOutlined className="h-4 w-4" />
+          <Plus className="h-4 w-4"  />
           <span>New Custom Field</span>
         </Button>
       }

@@ -68,7 +68,7 @@ const ClientPage: React.FC<ClientPageProps> = ({
         <>
           <div className="flex flex-row items-center gap-6">
             <span className="dark:bg-spaire-700 flex h-12 w-12 shrink-0 flex-row items-center justify-center rounded-full bg-gray-200 text-2xl text-black dark:text-white">
-              <LinkOutlined />
+              <Link2 className="h-4 w-4" />
             </span>
             <div className="flex flex-col">
               <p className="text-lg">
@@ -94,7 +94,7 @@ const ClientPage: React.FC<ClientPageProps> = ({
                   variant="secondary"
                   loading={isDeletePending}
                 >
-                  <MoreVertOutlined fontSize="inherit" />
+                  <MoreVertical className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent

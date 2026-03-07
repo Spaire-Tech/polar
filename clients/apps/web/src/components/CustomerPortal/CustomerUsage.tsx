@@ -1,7 +1,8 @@
 'use client'
 
+import { Search } from 'lucide-react'
+
 import { useCustomerCustomerMeters } from '@/hooks/queries'
-import Search from '@mui/icons-material/Search'
 import { Client } from '@spaire/client'
 import { DataTable } from '@spaire/ui/components/atoms/DataTable'
 import Input from '@spaire/ui/components/atoms/Input'
@@ -29,7 +30,7 @@ export const CustomerUsage = ({ api }: CustomerUsageProps) => {
               <div className="w-full lg:w-1/3">
                 <Input
                   className="w-full bg-white shadow-xs"
-                  preSlot={<Search fontSize="inherit" />}
+                  preSlot={<Search className="h-4 w-4" />}
                   placeholder="Search Usage Meter"
                   value={query || ''}
                   onChange={(e) => setQuery(e.target.value)}

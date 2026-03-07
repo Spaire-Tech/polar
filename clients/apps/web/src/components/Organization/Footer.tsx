@@ -1,4 +1,4 @@
-import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
+import { ArrowUpRight } from 'lucide-react'
 import Link from 'next/link'
 import { PropsWithChildren } from 'react'
 import { SpaireLogotype } from '../Layout/Public/SpaireLogotype'
@@ -22,7 +22,7 @@ const Footer = () => {
                 className="flex w-fit flex-row items-center gap-x-2 border-b border-black pb-0.5 dark:border-white"
               >
                 <span>Join Spaire today</span>
-                <ArrowOutwardOutlined fontSize="inherit" />
+                <ArrowUpRight className="h-4 w-4" />
               </Link>
               <span className="dark:text-spaire-500 w-full text-gray-500">
                 &copy; Spaire {new Date().getFullYear()}

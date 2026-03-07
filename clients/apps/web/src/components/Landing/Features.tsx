@@ -1,10 +1,12 @@
 'use client'
 
+import { Link2 } from 'lucide-react'
+
+import { Hexagon } from 'lucide-react'
+
 import AllInclusiveOutlined from '@mui/icons-material/AllInclusiveOutlined'
 import DiamondOutlined from '@mui/icons-material/DiamondOutlined'
 import DonutLargeOutlined from '@mui/icons-material/DonutLargeOutlined'
-import HiveOutlined from '@mui/icons-material/HiveOutlined'
-import LinkOutlined from '@mui/icons-material/LinkOutlined'
 import TrendingUpOutlined from '@mui/icons-material/TrendingUpOutlined'
 import { motion } from 'framer-motion'
 import Image from 'next/image'
@@ -100,7 +102,7 @@ const Features = ({ className }: FeaturesProps) => {
         <div className="grid grid-cols-2 gap-2">
           {[
             {
-              icon: <HiveOutlined className="h-4 w-4" fontSize="inherit" />,
+              icon: <Hexagon className="h-4 w-4"  />,
               text: 'Subscriptions',
             },
             {
@@ -120,7 +122,7 @@ const Features = ({ className }: FeaturesProps) => {
               text: 'Customer Portal',
             },
             {
-              icon: <LinkOutlined className="h-4 w-4" fontSize="inherit" />,
+              icon: <Link2 className="h-4 w-4"  />,
               text: 'Checkout Links',
             },
             {

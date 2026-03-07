@@ -146,7 +146,7 @@ const CustomerHeader = ({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button size="default" className="size-10" variant="secondary">
-            <MoreVert fontSize="small" />
+            <MoreVertical className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">

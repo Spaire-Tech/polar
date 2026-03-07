@@ -1,10 +1,11 @@
 'use client'
 
+import { Search } from 'lucide-react'
+
 import Spinner from '@/components/Shared/Spinner'
 import { useCustomers } from '@/hooks/queries'
 import { useInViewport } from '@/hooks/utils'
 import Close from '@mui/icons-material/Close'
-import Search from '@mui/icons-material/Search'
 import Avatar from '@spaire/ui/components/atoms/Avatar'
 import Button from '@spaire/ui/components/atoms/Button'
 import Input from '@spaire/ui/components/atoms/Input'
@@ -91,7 +92,7 @@ export const CustomerSelector = ({
                 setQuery(e.target.value)
               }}
               onFocus={() => setOpen(true)}
-              preSlot={<Search fontSize="small" />}
+              preSlot={<Search className="h-4 w-4" />}
             />
           </div>
         </PopoverTrigger>

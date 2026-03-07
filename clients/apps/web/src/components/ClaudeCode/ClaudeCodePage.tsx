@@ -1,8 +1,9 @@
 'use client'
 
+import { ArrowUpRight } from 'lucide-react'
+
 import { DashboardBody } from '@/components/Layout/DashboardLayout'
 import { OrganizationContext } from '@/providers/maintainerOrganization'
-import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
 import Link from 'next/link'
 import { useContext } from 'react'
 import ClaudeCodeIcon from '../Icons/frameworks/claude-code'
@@ -37,7 +38,7 @@ function AgentPlatformCard({ platform }: { platform: AgentPlatform }) {
               </span>
             </div>
           </div>
-          <ArrowOutwardOutlined className="dark:text-spaire-600 dark:group-hover:text-spaire-400 h-4 w-4 text-gray-300 transition-colors group-hover:text-gray-500" />
+          <ArrowUpRight className="dark:text-spaire-600 dark:group-hover:text-spaire-400 h-4 w-4 text-gray-300 transition-colors group-hover:text-gray-500"  />
         </div>
 
         <p className="dark:text-spaire-400 text-sm leading-relaxed text-gray-500">

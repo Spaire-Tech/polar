@@ -1,11 +1,12 @@
 'use client'
 
+import { Hexagon } from 'lucide-react'
+
 import { ProductCard } from '@/components/Products/ProductCard'
 import SubscriptionTierCard from '@/components/Subscriptions/SubscriptionTierCard'
 import { useRecurringInterval } from '@/hooks/products'
 import { organizationPageLink } from '@/utils/nav'
 import { isLegacyRecurringPrice } from '@/utils/product'
-import HiveOutlined from '@mui/icons-material/HiveOutlined'
 import { schemas } from '@spaire/client'
 import { ShadowBoxOnMd } from '@spaire/ui/components/atoms/ShadowBox'
 import Link from 'next/link'
@@ -48,10 +49,9 @@ export const Storefront = ({
         <div className="flex w-full min-w-0 shrink flex-col gap-y-24">
           {subscriptionProducts.length < 1 && oneTimeProducts.length < 1 ? (
             <ShadowBoxOnMd className="items-center justify-center gap-y-6 md:flex md:flex-col md:py-48">
-              <HiveOutlined
+              <Hexagon
                 className="dark:text-spaire-600 text-5xl text-gray-300"
-                fontSize="large"
-              />
+               />
               <div className="flex flex-col items-center gap-y-6">
                 <div className="flex flex-col items-center gap-y-2">
                   <h3 className="text-lg font-medium">No products found</h3>

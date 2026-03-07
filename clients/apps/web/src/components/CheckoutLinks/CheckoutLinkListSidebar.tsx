@@ -1,5 +1,9 @@
 'use client'
 
+import { Link2 } from 'lucide-react'
+
+import { Plus } from 'lucide-react'
+
 import { CheckoutLinkManagementModal } from '@/components/CheckoutLinks/CheckoutLinkManagementModal'
 import { InlineModal } from '@/components/Modal/InlineModal'
 import { useModal } from '@/components/Modal/useModal'
@@ -8,10 +12,8 @@ import Spinner from '@/components/Shared/Spinner'
 import { toast } from '@/components/Toast/use-toast'
 import { useCheckoutLinks } from '@/hooks/queries'
 import { useInViewport } from '@/hooks/utils'
-import AddOutlined from '@mui/icons-material/AddOutlined'
 import ArrowDownward from '@mui/icons-material/ArrowDownward'
 import ArrowUpward from '@mui/icons-material/ArrowUpward'
-import LinkOutlined from '@mui/icons-material/LinkOutlined'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import Link from 'next/link'
@@ -124,7 +126,7 @@ export const CheckoutLinkListSidebar = ({
               className="h-6 w-6"
               onClick={showCreateCheckoutLinkModal}
             >
-              <AddOutlined fontSize="small" />
+              <Plus className="h-4 w-4" />
             </Button>
           </div>
         </div>
@@ -183,7 +185,7 @@ export const CheckoutLinkListSidebar = ({
                       }
                     }}
                   >
-                    <LinkOutlined fontSize="small" />
+                    <Link2 className="h-4 w-4" />
                   </Button>
                 </div>
               </Link>

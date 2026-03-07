@@ -59,7 +59,7 @@ export const CustomerPortalGrantsComplex = ({
 
       {/* Search box */}
       <Input
-        preSlot={<Search className="h-4 w-4" />}
+        preSlot={<Search className="h-4 w-4"  />}
         placeholder="Search benefit grants..."
         value={searchQuery}
         onChange={onSearchChange}

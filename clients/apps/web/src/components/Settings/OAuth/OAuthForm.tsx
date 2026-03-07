@@ -1,3 +1,4 @@
+import { Plus } from 'lucide-react'
 import Button from '@spaire/ui/components/atoms/Button'
 import Input from '@spaire/ui/components/atoms/Input'
 import {
@@ -18,7 +19,6 @@ import {
 import { type MouseEvent } from 'react'
 
 import ImageUpload from '@/components/Form/ImageUpload'
-import AddOutlined from '@mui/icons-material/AddOutlined'
 import ClearOutlined from '@mui/icons-material/ClearOutlined'
 import { enums } from '@spaire/client'
 import { Checkbox } from '@spaire/ui/components/ui/checkbox'
@@ -202,7 +202,7 @@ export const FieldRedirectURIs = () => {
             append({ uri: 'https://' })
           }}
         >
-          <AddOutlined fontSize="inherit" />
+          <Plus className="h-4 w-4" />
         </Button>
       </div>
       <div className="flex flex-col gap-y-2">

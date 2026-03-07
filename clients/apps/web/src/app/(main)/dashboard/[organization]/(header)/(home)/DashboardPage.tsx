@@ -55,7 +55,7 @@ const ProfileCompletionBanner = ({
       <Link href={`/dashboard/${organization.slug}/finance/account`} className="shrink-0">
         <Button size="sm">
           <span>Set Up Payouts</span>
-          <ArrowForwardOutlined className="ml-1.5" fontSize="small" />
+          <ArrowRight className="ml-1.5"  />
         </Button>
       </Link>
     </div>

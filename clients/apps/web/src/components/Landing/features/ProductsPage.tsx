@@ -1,7 +1,8 @@
 'use client'
 
+import { ArrowUpRight } from 'lucide-react'
+
 import GetStartedButton from '@/components/Auth/GetStartedButton'
-import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
 import AutorenewOutlined from '@mui/icons-material/AutorenewOutlined'
 import CheckOutlined from '@mui/icons-material/CheckOutlined'
 import CreditCardOutlined from '@mui/icons-material/CreditCardOutlined'
@@ -40,7 +41,7 @@ export const ProductsPage = () => {
           <Link href="/docs/features/products">
             <Button variant="secondary" className="rounded-full" size="lg">
               View Documentation
-              <ArrowOutwardOutlined className="ml-2" />
+              <ArrowUpRight className="ml-2"  />
             </Button>
           </Link>
         </Hero>

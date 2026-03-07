@@ -1,11 +1,12 @@
 'use client'
 
+import { MoreVertical } from 'lucide-react'
+
 import { InlineModal } from '@/components/Modal/InlineModal'
 import { useModal } from '@/components/Modal/useModal'
 import { useCustomerSSE, useOrganizationSSE } from '@/hooks/sse'
 import { setValidationErrors } from '@/utils/api/errors'
 import { api, createClientSideAPI } from '@/utils/client'
-import MoreVertOutlined from '@mui/icons-material/MoreVertOutlined'
 import {
   enums,
   isValidationError,
@@ -166,7 +167,7 @@ const DownloadInvoice = ({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="secondary" size="icon">
-              <MoreVertOutlined fontSize="inherit" />
+              <MoreVertical className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">

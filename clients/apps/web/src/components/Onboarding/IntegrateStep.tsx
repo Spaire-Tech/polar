@@ -1,6 +1,6 @@
+import { ArrowUpRight } from 'lucide-react'
 import { useOnboardingTracking } from '@/hooks'
 import { OrganizationContext } from '@/providers/maintainerOrganization'
-import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import { Tabs, TabsList, TabsTrigger } from '@spaire/ui/components/atoms/Tabs'
@@ -234,7 +234,7 @@ export const IntegrateStep = ({ products }: IntegrateStepProps) => {
             >
               <Button size="lg" fullWidth variant="secondary">
                 <span>Browse All Integrations</span>
-                <ArrowOutwardOutlined className="ml-2" fontSize="small" />
+                <ArrowUpRight className="ml-2"  />
               </Button>
             </Link>
             <Button size="lg" fullWidth onClick={handleGoToDashboard}>
@@ -309,7 +309,7 @@ SPAIRE_SUCCESS_URL=https://example.com/success?checkout_id={CHECKOUT_ID}`}
               <Link href={currentFramework?.link ?? ''} target="_blank">
                 <Button size="lg" variant="secondary" fullWidth>
                   <span>Read the Docs</span>
-                  <ArrowOutwardOutlined className="ml-2" fontSize="small" />
+                  <ArrowUpRight className="ml-2"  />
                 </Button>
               </Link>
             </div>

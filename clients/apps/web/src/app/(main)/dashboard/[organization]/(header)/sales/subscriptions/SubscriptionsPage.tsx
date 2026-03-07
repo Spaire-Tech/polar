@@ -350,7 +350,7 @@ const ClientPage: React.FC<ClientPageProps> = ({
             variant={'secondary'}
             wrapperClassNames="gap-x-2"
           >
-            <FileDownloadOutlined fontSize="inherit" />
+            <Download className="h-4 w-4" />
             <span>Export</span>
           </Button>
         </div>

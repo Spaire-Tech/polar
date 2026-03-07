@@ -1,5 +1,7 @@
 'use client'
 
+import { ArrowUpRight } from 'lucide-react'
+
 import { USAGE_BILLING_COMMAND } from '@/components/ClaudeCode/agentCommands'
 import ClaudeCodeIcon from '@/components/Icons/frameworks/claude-code'
 import { InlineModalHeader } from '@/components/Modal/InlineModal'
@@ -8,7 +10,6 @@ import {
   SyntaxHighlighterProvider,
 } from '@/components/SyntaxHighlighterShiki/SyntaxHighlighterClient'
 import { OrganizationContext } from '@/providers/maintainerOrganization'
-import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
 import CheckOutlined from '@mui/icons-material/CheckOutlined'
 import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined'
 import Button from '@spaire/ui/components/atoms/Button'
@@ -163,7 +164,7 @@ const SetupWithClaudeModalContent = ({
             <Link href={command.docsLink} target="_blank" className="w-full">
               <Button size="lg" fullWidth>
                 <span>View Docs</span>
-                <ArrowOutwardOutlined className="ml-2" fontSize="small" />
+                <ArrowUpRight className="ml-2"  />
               </Button>
             </Link>
             <div className="flex justify-center">

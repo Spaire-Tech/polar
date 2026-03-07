@@ -1,3 +1,4 @@
+import { MoreVertical } from 'lucide-react'
 import { useDeleteFile } from '@/hooks/queries'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -6,7 +7,6 @@ import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined'
 import FolderZipOutlined from '@mui/icons-material/FolderZipOutlined'
 import ImageOutlined from '@mui/icons-material/ImageOutlined'
 import InsertDriveFileOutlined from '@mui/icons-material/InsertDriveFileOutlined'
-import MoreVertOutlined from '@mui/icons-material/MoreVertOutlined'
 import VideoFileOutlined from '@mui/icons-material/VideoFileOutlined'
 import Switch from '@spaire/ui/components/atoms/Switch'
 import {
@@ -319,7 +319,7 @@ export const FileListItem = ({
                 size="icon"
                 variant="secondary"
               >
-                <MoreVertOutlined fontSize="inherit" />
+                <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent

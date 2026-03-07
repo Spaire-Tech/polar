@@ -1,4 +1,4 @@
-import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
+import { ArrowUpRight } from 'lucide-react'
 import { formatCurrency } from '@spaire/currency'
 import AvatarWrapper from '@spaire/ui/components/atoms/Avatar'
 import Button from '@spaire/ui/components/atoms/Button'
@@ -80,7 +80,7 @@ export const Events = () => {
               wrapperClassNames="flex flex-row items-center gap-x-2"
             >
               <span>Read the docs</span>
-              <ArrowOutwardOutlined fontSize="inherit" />
+              <ArrowUpRight className="h-4 w-4" />
             </Button>
           </Link>
         </div>

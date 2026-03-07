@@ -1,7 +1,8 @@
 'use client'
 
+import { ArrowRight } from 'lucide-react'
+
 import { useChat } from '@ai-sdk/react'
-import ArrowForwardOutlined from '@mui/icons-material/ArrowForwardOutlined'
 import { DefaultChatTransport, DynamicToolUIPart } from 'ai'
 import { nanoid } from 'nanoid'
 import Link from 'next/link'
@@ -328,7 +329,7 @@ export const AssistantStep = ({
                 className="dark:hover:bg-spaire-50 rounded-full bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black"
               >
                 {messages.length === 0 ? 'Setup' : 'Send'}
-                <ArrowForwardOutlined className="ml-2" fontSize="inherit" />
+                <ArrowRight className="ml-2"  />
               </Button>
             </div>
           </form>

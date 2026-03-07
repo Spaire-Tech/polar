@@ -282,7 +282,7 @@ const ClientPage: React.FC<ClientPageProps> = ({
                 size="icon"
                 variant="secondary"
               >
-                <MoreVertOutlined fontSize="inherit" />
+                <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
@@ -328,7 +328,7 @@ const ClientPage: React.FC<ClientPageProps> = ({
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <Input
             className="w-full md:max-w-64"
-            preSlot={<Search fontSize="small" />}
+            preSlot={<Search className="h-4 w-4" />}
             placeholder="Search Discounts"
             value={query}
             onChange={(e) => onQueryChange(e.target.value)}
@@ -338,7 +338,7 @@ const ClientPage: React.FC<ClientPageProps> = ({
             wrapperClassNames="flex flex-row items-center gap-x-2"
             onClick={() => setShowNewModal(true)}
           >
-            <AddOutlined fontSize="small" />
+            <Plus className="h-4 w-4" />
             <span>New Discount</span>
           </Button>
         </div>

@@ -1,3 +1,4 @@
+import { MoreVertical } from 'lucide-react'
 import { ConfirmModal } from '@/components/Modal/ConfirmModal'
 import { useModal } from '@/components/Modal/useModal'
 import LegacyRecurringProductPrices from '@/components/Products/LegacyRecurringProductPrices'
@@ -10,7 +11,6 @@ import {
   isMeteredPrice,
   isSeatBasedPrice,
 } from '@/utils/product'
-import MoreVertOutlined from '@mui/icons-material/MoreVertOutlined'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import { ListItem } from '@spaire/ui/components/atoms/List'
@@ -156,7 +156,7 @@ export const ProductListItem = ({
                       size="icon"
                       variant="secondary"
                     >
-                      <MoreVertOutlined fontSize="inherit" />
+                      <MoreVertical className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent

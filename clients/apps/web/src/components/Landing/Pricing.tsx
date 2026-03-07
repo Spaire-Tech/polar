@@ -1,4 +1,4 @@
-import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
+import { ArrowUpRight } from 'lucide-react'
 import Check from '@mui/icons-material/Check'
 import CheckOutlined from '@mui/icons-material/CheckOutlined'
 import CloseOutlined from '@mui/icons-material/CloseOutlined'
@@ -94,7 +94,7 @@ export const Pricing = () => {
             <Link href="/resources/comparison/stripe" target="_blank">
               <Button variant="secondary" className="rounded-full">
                 Polar vs. Stripe
-                <ArrowOutwardOutlined fontSize="inherit" className="ml-2" />
+                <ArrowUpRight className="ml-2"  />
               </Button>
             </Link>
           </motion.span>

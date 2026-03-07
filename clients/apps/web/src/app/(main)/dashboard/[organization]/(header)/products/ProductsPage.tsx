@@ -142,7 +142,7 @@ export default function ClientPage({
           <div className="flex flex-col gap-4 md:flex-row md:items-center">
             <Input
               className="w-full md:max-w-64"
-              preSlot={<Search fontSize="small" />}
+              preSlot={<Search className="h-4 w-4" />}
               placeholder="Search Products"
               value={query}
               onChange={(e) => onQueryChange(e.target.value)}
@@ -197,7 +197,7 @@ export default function ClientPage({
               wrapperClassNames="gap-x-2 md:w-fit"
               className="w-full"
             >
-              <AddOutlined className="h-4 w-4" />
+              <Plus className="h-4 w-4"  />
               <span>New Product</span>
             </Button>
           </Link>
@@ -228,10 +228,9 @@ export default function ClientPage({
         ) : (
           <ShadowBoxOnMd className="items-center justify-center gap-y-6 md:flex md:flex-col md:py-24">
             <div className="flex max-w-md flex-col items-center gap-y-6 text-center">
-              <HiveOutlined
+              <Hexagon
                 className="dark:text-spaire-600 text-5xl text-gray-300"
-                fontSize="large"
-              />
+               />
               <div className="flex flex-col items-center gap-y-2">
                 <h3 className="text-xl font-medium">
                   Create your first product
@@ -244,7 +243,7 @@ export default function ClientPage({
               </div>
               <Link href={`/dashboard/${org.slug}/products/new`}>
                 <Button role="link">
-                  <AddOutlined className="h-4 w-4" />
+                  <Plus className="h-4 w-4"  />
                   <span>New Product</span>
                 </Button>
               </Link>

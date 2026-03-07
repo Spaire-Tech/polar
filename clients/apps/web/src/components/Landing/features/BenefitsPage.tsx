@@ -1,13 +1,15 @@
 'use client'
 
+import { Download } from 'lucide-react'
+
+import { ArrowUpRight } from 'lucide-react'
+
 import GetStartedButton from '@/components/Auth/GetStartedButton'
 import { DiscordIcon } from '@/components/Benefit/utils'
 import GitHubIcon from '@/components/Icons/GitHubIcon'
-import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
 import CheckOutlined from '@mui/icons-material/CheckOutlined'
 import CreditCardOutlined from '@mui/icons-material/CreditCardOutlined'
 import DiamondOutlined from '@mui/icons-material/DiamondOutlined'
-import FileDownloadOutlined from '@mui/icons-material/FileDownloadOutlined'
 import KeyOutlined from '@mui/icons-material/KeyOutlined'
 import Button from '@spaire/ui/components/atoms/Button'
 import { motion } from 'framer-motion'
@@ -43,7 +45,7 @@ export const BenefitsPage = () => {
           <Link href="/docs/features/benefits/introduction">
             <Button variant="secondary" className="rounded-full" size="lg">
               View Documentation
-              <ArrowOutwardOutlined className="ml-2" />
+              <ArrowUpRight className="ml-2"  />
             </Button>
           </Link>
         </Hero>
@@ -163,7 +165,7 @@ export const BenefitsPage = () => {
                   'Generate and validate license keys for software access control.',
               },
               {
-                icon: <FileDownloadOutlined fontSize="large" />,
+                icon: <Download className="h-4 w-4" />,
                 title: 'File Downloads',
                 description:
                   'Provide secure file downloads for digital products and assets.',
