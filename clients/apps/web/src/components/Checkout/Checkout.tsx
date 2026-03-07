@@ -412,7 +412,7 @@ const Checkout = ({ embed: _embed, theme: _theme }: CheckoutProps) => {
                             data: CheckoutUpdatePublic,
                           ) => Promise<ProductCheckoutPublic>
                         }
-                        compact
+
                       />
                     )}
                     <CheckoutPricingBreakdown checkout={checkout} />
