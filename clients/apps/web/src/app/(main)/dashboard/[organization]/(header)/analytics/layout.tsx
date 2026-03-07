@@ -1,7 +1,6 @@
 'use client'
 
-import { Tabs, TabsList, TabsTrigger } from '@spaire/ui/components/atoms/Tabs'
-import Link from 'next/link'
+import { SectionTabNav } from '@/components/Layout/SectionTabNav'
 import { useParams, usePathname } from 'next/navigation'
 import { PropsWithChildren } from 'react'
 
@@ -20,28 +19,14 @@ export default function AnalyticsLayout({ children }: PropsWithChildren) {
     analyticsTabs.find((t) => pathname.startsWith(`${base}${t.suffix}`)) ??
     analyticsTabs[0]
 
+  const tabs = analyticsTabs.map((t) => ({
+    title: t.title,
+    href: `${base}${t.suffix}`,
+  }))
+
   return (
     <div className="flex h-full flex-col">
-      <div className="px-4 pt-6 md:px-8">
-        <Tabs value={activeTab.title}>
-          <TabsList className="flex flex-row bg-transparent ring-0 dark:bg-transparent dark:ring-0">
-            {analyticsTabs.map((tab) => (
-              <Link
-                key={tab.suffix}
-                href={`${base}${tab.suffix}`}
-                prefetch={true}
-              >
-                <TabsTrigger
-                  className="flex flex-row items-center gap-x-2 px-4"
-                  value={tab.title}
-                >
-                  {tab.title}
-                </TabsTrigger>
-              </Link>
-            ))}
-          </TabsList>
-        </Tabs>
-      </div>
+      <SectionTabNav tabs={tabs} activeTitle={activeTab.title} />
       {children}
     </div>
   )

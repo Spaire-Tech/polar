@@ -1,12 +1,10 @@
+'use client'
+
 import { NotificationsPopover } from '@/components/Notifications/NotificationsPopover'
 import { OmniSearch } from '@/components/Search/OmniSearch'
 import { useAuth } from '@/hooks'
 import { CONFIG } from '@/utils/config'
 import { isImpersonating } from '@/utils/impersonation'
-import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
-import KeyboardArrowDown from '@mui/icons-material/KeyboardArrowDown'
-import Search from '@mui/icons-material/Search'
-import SupportIcon from '@mui/icons-material/Support'
 import { schemas } from '@spaire/client'
 import Avatar from '@spaire/ui/components/atoms/Avatar'
 import {
@@ -28,7 +26,12 @@ import {
   DropdownMenuTrigger,
 } from '@spaire/ui/components/ui/dropdown-menu'
 import { Separator } from '@spaire/ui/components/ui/separator'
-import { motion } from 'framer-motion'
+import {
+  ArrowUpRight,
+  ChevronDown,
+  HelpCircle,
+  Search,
+} from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -50,7 +53,6 @@ export const DashboardSidebar = ({
 }) => {
   const router = useRouter()
   const { state } = useSidebar()
-
   const { currentUser } = useAuth()
 
   const isCollapsed = state === 'collapsed'
@@ -60,7 +62,6 @@ export const DashboardSidebar = ({
     router.push(`/dashboard/${org.slug}`)
   }
 
-  // Annoying useEffect hack to allow access to client-side cookies from Server-Side component
   const [_isImpersonating, setIsImpersonating] = useState(false)
   useEffect(() => {
     setIsImpersonating(isImpersonating())
@@ -74,60 +75,53 @@ export const DashboardSidebar = ({
         setSearchOpen(true)
       }
     }
-
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [])
 
   return (
-    <Sidebar variant="inset" collapsible="icon">
+    /*
+     * variant="sidebar" keeps the sidebar flush with the viewport edge —
+     * no rounded corners, no floating shadow. This is the core visual
+     * difference from the old "inset" variant which created the Polar look.
+     */
+    <Sidebar variant="sidebar" collapsible="icon">
       <SidebarHeader
         className={twMerge(
-          'flex md:pt-3.5',
-          isTopBannerVisible ? 'md:pt-10' : '',
+          'flex border-b dark:border-spaire-800 border-gray-200',
+          isTopBannerVisible ? 'md:pt-10' : 'md:pt-3.5',
           isCollapsed
-            ? 'flex-row items-center justify-between gap-y-4 md:flex-col md:items-start md:justify-start'
-            : 'flex-row items-center justify-between',
+            ? 'flex-col items-center gap-y-3 pb-3'
+            : 'flex-row items-center justify-between pb-3',
         )}
       >
         <SpaireLogotype
-          size={32}
+          size={28}
           href={organization ? `/dashboard/${organization.slug}` : '/dashboard'}
         />
-        <motion.div
-          key={isCollapsed ? 'header-collapsed' : 'header-expanded'}
-          className={`flex ${isCollapsed ? 'flex-row md:flex-col-reverse' : 'flex-row'} items-center gap-2`}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 1 }}
-        >
+        <div className="flex items-center gap-1">
           <NotificationsPopover />
-          <SidebarTrigger />
-        </motion.div>
+          <SidebarTrigger className="dark:text-spaire-500 dark:hover:text-spaire-100 text-gray-400 hover:text-gray-700" />
+        </div>
       </SidebarHeader>
 
-      <SidebarContent className="gap-4 px-2 py-4">
+      <SidebarContent className="gap-2 px-2 py-3">
+        {/* Search bar */}
         {type === 'organization' && organization && (
           <>
             <button
               onClick={() => setSearchOpen(true)}
               className={twMerge(
-                'flex cursor-pointer items-center gap-4 rounded-lg border px-2 py-2 text-sm transition-colors',
-                'dark:bg-spaire-950 dark:border-spaire-800 dark:hover:bg-spaire-900 border-gray-200 bg-white hover:bg-gray-50',
-                isCollapsed && 'justify-center px-2',
+                'dark:bg-spaire-950 dark:border-spaire-800 dark:hover:bg-spaire-900 dark:text-spaire-500 flex cursor-pointer items-center gap-2 rounded-md border border-gray-200 bg-gray-50 px-2 py-1.5 text-sm text-gray-500 transition-colors hover:bg-gray-100',
+                isCollapsed && 'justify-center',
               )}
             >
-              <Search
-                className="dark:text-spaire-500 text-gray-500"
-                fontSize="inherit"
-              />
+              <Search className="h-3.5 w-3.5 shrink-0" />
               {!isCollapsed && (
                 <>
-                  <span className="dark:text-spaire-500 flex-1 text-left text-gray-500">
-                    Search...
-                  </span>
-                  <kbd className="dark:border-spaire-700 dark:bg-spaire-800 dark:text-spaire-400 pointer-events-none inline-flex h-5 items-center gap-1 rounded border border-gray-200 bg-gray-100 px-1.5 font-mono text-[11px] text-gray-600 select-none">
-                    <span className="text-sm">⌘</span>K
+                  <span className="flex-1 text-left text-xs">Search...</span>
+                  <kbd className="dark:border-spaire-700 dark:bg-spaire-800 dark:text-spaire-400 pointer-events-none inline-flex h-4 items-center gap-0.5 rounded border border-gray-200 bg-gray-100 px-1 font-mono text-[10px] text-gray-500 select-none">
+                    <span className="text-xs">⌘</span>K
                   </kbd>
                 </>
               )}
@@ -139,66 +133,61 @@ export const DashboardSidebar = ({
             />
           </>
         )}
-        <motion.div
-          key={isCollapsed ? 'nav-collapsed' : 'nav-expanded'}
-          className="flex flex-col items-center gap-2"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 1 }}
-        >
-          {type === 'account' && <AccountNavigation />}
-          {type === 'organization' && organization && (
-            <OrganizationNavigation organization={organization} />
-          )}
-        </motion.div>
+
+        {/* Navigation */}
+        {type === 'account' && <AccountNavigation />}
+        {type === 'organization' && organization && (
+          <OrganizationNavigation organization={organization} />
+        )}
       </SidebarContent>
-      <SidebarFooter>
-        <Link
-          href="mailto:support@spairehq.com"
-          className={twMerge(
-            'mt-2 flex cursor-pointer flex-row items-center rounded-lg border border-transparent px-2 text-sm transition-colors dark:border-transparent',
-            'dark:text-spaire-500 dark:hover:text-spaire-200 text-gray-500 hover:text-black',
-            isCollapsed && '!dark:text-spaire-600',
-          )}
-        >
-          <SupportIcon fontSize="inherit" />
-          {!isCollapsed && <span className="ml-4 font-medium">Support</span>}
-        </Link>
-        <Link
-          className={twMerge(
-            'flex flex-row items-center rounded-lg border border-transparent text-sm transition-colors dark:border-transparent',
-            'dark:text-spaire-500 dark:hover:text-spaire-200 text-gray-500 hover:text-black',
-            isCollapsed && '!dark:text-spaire-600',
-          )}
-          href="https://docs.spairehq.com"
-          target="_blank"
-        >
-          <ArrowOutwardOutlined className="ml-2" fontSize="inherit" />
-          {!isCollapsed && (
-            <span className="ml-4 font-medium">Documentation</span>
-          )}
-        </Link>
-        <Separator />
+
+      <SidebarFooter className="dark:border-spaire-800 border-t border-gray-200 py-3">
+        {/* Support + Docs links */}
+        <div className={twMerge('flex flex-col gap-0.5', isCollapsed && 'items-center')}>
+          <Link
+            href="mailto:support@spairehq.com"
+            className={twMerge(
+              'dark:text-spaire-500 dark:hover:text-spaire-200 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-gray-500 transition-colors hover:text-gray-900',
+            )}
+          >
+            <HelpCircle className="h-3.5 w-3.5 shrink-0" />
+            {!isCollapsed && <span className="font-medium">Support</span>}
+          </Link>
+          <Link
+            href="https://docs.spairehq.com"
+            target="_blank"
+            className={twMerge(
+              'dark:text-spaire-500 dark:hover:text-spaire-200 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-gray-500 transition-colors hover:text-gray-900',
+            )}
+          >
+            <ArrowUpRight className="h-3.5 w-3.5 shrink-0" />
+            {!isCollapsed && <span className="font-medium">Documentation</span>}
+          </Link>
+        </div>
+
+        <Separator className="dark:bg-spaire-800 my-1" />
+
+        {/* Org switcher */}
         {type === 'organization' && organization && (
           <SidebarMenu>
             <SidebarMenuItem>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <SidebarMenuButton>
+                  <SidebarMenuButton
+                    className="dark:hover:bg-spaire-800 hover:bg-gray-100"
+                    tooltip={organization.name}
+                  >
                     <Avatar
                       name={organization.name}
                       avatar_url={organization.avatar_url}
-                      className="h-6 w-6"
+                      className="h-5 w-5 shrink-0"
                     />
                     {!isCollapsed && (
                       <>
-                        <span className="min-w-0 truncate">
+                        <span className="min-w-0 truncate text-sm font-medium text-gray-900 dark:text-white">
                           {organization.name}
                         </span>
-                        <KeyboardArrowDown
-                          className="ml-auto"
-                          fontSize="small"
-                        />
+                        <ChevronDown className="ml-auto h-3.5 w-3.5 shrink-0 text-gray-400 dark:text-spaire-500" />
                       </>
                     )}
                   </SidebarMenuButton>
@@ -211,13 +200,13 @@ export const DashboardSidebar = ({
                   {organizations.map((org) => (
                     <DropdownMenuItem
                       key={org.id}
-                      className="flex flex-row items-center gap-x-2"
+                      className="flex items-center gap-2"
                       onClick={() => navigateToOrganization(org)}
                     >
                       <Avatar
                         name={org.name}
                         avatar_url={org.avatar_url}
-                        className="h-6 w-6"
+                        className="h-5 w-5"
                       />
                       <span className="min-w-0 truncate">{org.name}</span>
                     </DropdownMenuItem>
