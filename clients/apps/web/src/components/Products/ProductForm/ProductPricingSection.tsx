@@ -1417,16 +1417,14 @@ export const ProductPricingSection = ({
         </div>
 
         {/* Currency Tabs */}
-        {false && (
-          <CurrencyTabs
-            activeCurrencies={activeCurrencies}
-            selectedCurrency={validatedSelectedCurrency}
-            onSelectCurrency={setSelectedCurrency}
-            onAddCurrency={handleAddCurrency}
-            onRemoveCurrency={handleRemoveCurrency}
-            defaultCurrency={defaultCurrency}
-          />
-        )}
+        <CurrencyTabs
+          activeCurrencies={activeCurrencies}
+          selectedCurrency={validatedSelectedCurrency}
+          onSelectCurrency={setSelectedCurrency}
+          onAddCurrency={handleAddCurrency}
+          onRemoveCurrency={handleRemoveCurrency}
+          defaultCurrency={defaultCurrency}
+        />
 
         {/* Prices for selected currency */}
         {pricesForSelectedCurrency.map(({ price, index }) => (

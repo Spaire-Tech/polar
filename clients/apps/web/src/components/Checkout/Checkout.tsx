@@ -453,6 +453,7 @@ const Checkout = ({ embed: _embed, theme: _theme }: CheckoutProps) => {
             themePreset={themePreset}
             disabled={shouldBlockCheckout}
             isUpdatePending={isUpdatePending}
+            hidePricingBreakdown
           />
         </div>
       </div>
