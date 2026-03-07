@@ -117,6 +117,18 @@ export const CreateProductPage = ({
           mediaIds = reuploadedMedias.map((media) => media.id)
         }
 
+        // Validate all prices (including unmounted currency tabs not checked by react-hook-form)
+        const invalidFixedPrice = productCreateRest.prices.some(
+          (price: any) => price.amount_type === 'fixed' && (price.price_amount ?? 0) < 50,
+        )
+        if (invalidFixedPrice) {
+          toast({
+            title: 'Invalid price',
+            description: 'All prices must be at least $0.50. Check all currency tabs.',
+          })
+          return
+        }
+
         const { data: product, error } = await createProduct.mutateAsync({
           ...productCreateRest,
           medias: mediaIds,

@@ -1142,12 +1142,14 @@ export const ProductPricingSection = ({
         }
 
         if (price.amount_type === 'fixed') {
-          newPrice = { ...baseCurrency, amount_type: 'fixed', price_amount: 0 }
+          const sourceAmount = 'price_amount' in price ? (price.price_amount ?? 0) : 0
+          newPrice = { ...baseCurrency, amount_type: 'fixed', price_amount: sourceAmount }
         } else if (price.amount_type === 'custom') {
+          const sourceMin = 'minimum_amount' in price ? (price.minimum_amount ?? 0) : 0
           newPrice = {
             ...baseCurrency,
             amount_type: 'custom',
-            minimum_amount: 0,
+            minimum_amount: sourceMin,
           }
         } else if (price.amount_type === 'free') {
           newPrice = { ...baseCurrency, amount_type: 'free' }
