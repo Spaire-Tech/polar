@@ -1,6 +1,5 @@
 import { PolarThemeProvider } from '@/app/providers'
 import type { CheckoutPublic } from '@spaire/sdk/models/components/checkoutpublic'
-import PublicLayout from '../Layout/PublicLayout'
 import CheckoutEmbedLayout from './Embed/CheckoutEmbedLayout'
 
 interface CheckoutLayoutProps {
@@ -22,10 +21,8 @@ const CheckoutLayout: React.FC<
 
   return (
     <PolarThemeProvider>
-      <div className="dark md:bg-spaire-950 bg-spaire-900 h-full text-white">
-        <PublicLayout className="gap-y-0 py-6 md:py-12" wide footer={false}>
-          {children}
-        </PublicLayout>
+      <div className="dark:bg-spaire-950 h-full min-h-screen bg-white dark:text-white md:bg-gray-50">
+        {children}
       </div>
     </PolarThemeProvider>
   )
