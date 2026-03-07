@@ -13,6 +13,7 @@ import { useRouter } from 'next/navigation'
 import { useCallback, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { DashboardBody } from '../Layout/DashboardLayout'
+import { toast } from '../Toast/use-toast'
 import { getStatusRedirect } from '../Toast/utils'
 import { Benefits } from './Benefits/Benefits'
 import ProductForm from './ProductForm/ProductForm'
@@ -129,6 +130,10 @@ export const CreateProductPage = ({
           if (error.detail) {
             setProductValidationErrors(error.detail, setError)
           }
+          const msg = Array.isArray(error.detail) && error.detail.length > 0
+            ? error.detail[0].msg
+            : 'Failed to create product. Please check the form for errors.'
+          toast({ title: 'Error', description: msg })
           return
         }
 
