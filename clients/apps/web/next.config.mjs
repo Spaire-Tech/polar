@@ -148,6 +148,21 @@ const nextConfig = {
 
   async redirects() {
     return [
+      // ── Spaire dashboard IA redirects ─────────────────────────────────────
+      // Map old Polar-era URLs to the new Spaire navigation structure so
+      // existing bookmarks and external links continue to work.
+      {
+        source: '/dashboard/:org/integrations/:path*',
+        destination: '/dashboard/:org/developers/:path*',
+        permanent: false,
+      },
+      {
+        source: '/dashboard/:org/finance/income',
+        destination: '/dashboard/:org/finance/income',
+        permanent: false,
+      },
+      // ─────────────────────────────────────────────────────────────────────
+
       // dashboard.polar.sh redirections
       {
         source: '/',

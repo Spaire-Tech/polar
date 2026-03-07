@@ -1,25 +1,22 @@
 import { PolarHog, usePostHog } from '@/hooks/posthog'
-import AttachMoneyOutlined from '@mui/icons-material/AttachMoneyOutlined'
-import CodeOutlined from '@mui/icons-material/CodeOutlined'
-import ExtensionOutlined from '@mui/icons-material/ExtensionOutlined'
-import HiveOutlined from '@mui/icons-material/HiveOutlined'
-import PeopleAltOutlined from '@mui/icons-material/PeopleAltOutlined'
-import LayersOutlined from '@mui/icons-material/LayersOutlined'
-import ShoppingBagOutlined from '@mui/icons-material/ShoppingBagOutlined'
-import SpaceDashboardOutlined from '@mui/icons-material/SpaceDashboardOutlined'
-import TrendingUp from '@mui/icons-material/TrendingUp'
-import TuneOutlined from '@mui/icons-material/TuneOutlined'
 import { schemas } from '@spaire/client'
+import {
+  Code2,
+  CreditCard,
+  Layers,
+  LayoutDashboard,
+  Package,
+  Settings,
+  ShoppingCart,
+  SlidersHorizontal,
+  TrendingUp,
+  Users,
+  Wallet,
+} from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import { useMemo } from 'react'
 
-export type SubRoute = {
-  readonly title: string
-  readonly link: string
-  readonly icon?: React.ReactNode
-  readonly if?: boolean | (() => boolean)
-  readonly extra?: React.ReactNode
-}
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 export type RouteGroup =
   | 'core'
@@ -28,6 +25,14 @@ export type RouteGroup =
   | 'reporting'
   | 'founder-tools'
   | 'platform'
+
+export type SubRoute = {
+  readonly title: string
+  readonly link: string
+  readonly icon?: React.ReactNode
+  readonly if?: boolean | (() => boolean)
+  readonly extra?: React.ReactNode
+}
 
 export type Route = {
   readonly id: string
@@ -49,6 +54,8 @@ export type RouteWithActive = Route & {
   readonly subs?: SubRouteWithActive[]
 }
 
+// ── Active-state helpers ──────────────────────────────────────────────────────
+
 const applySubRouteIsActive = (
   path: string,
   parentRoute?: Route,
@@ -68,10 +75,7 @@ const applySubRouteIsActive = (
       }
     }
 
-    return {
-      ...r,
-      isActive,
-    }
+    return { ...r, isActive }
   }
 }
 
@@ -82,19 +86,16 @@ const applyIsActive = (path: string): ((r: Route) => RouteWithActive) => {
     if (r.checkIsActive !== undefined) {
       isActive = r.checkIsActive(path)
     } else {
-      // Fallback
       isActive = Boolean(path && path.startsWith(r.link))
     }
 
     const subs = r.subs ? r.subs.map(applySubRouteIsActive(path, r)) : undefined
 
-    return {
-      ...r,
-      isActive,
-      subs,
-    }
+    return { ...r, isActive, subs }
   }
 }
+
+// ── Route resolvers ───────────────────────────────────────────────────────────
 
 const useResolveRoutes = (
   routesResolver: (
@@ -111,7 +112,6 @@ const useResolveRoutes = (
     return (
       routesResolver(org, posthog)
         .filter((o) => allowAll || o.if)
-        // Filter out child routes if they have an if-function and it evaluates to false
         .map((route) => {
           if (route.subs && Array.isArray(route.subs)) {
             return {
@@ -130,6 +130,9 @@ const useResolveRoutes = (
   }, [org, path, allowAll, routesResolver, posthog])
 }
 
+// ── Public hooks ──────────────────────────────────────────────────────────────
+
+/** All dashboard routes (org + account) — used by OmniSearch etc. */
 export const useDashboardRoutes = (
   org?: schemas['Organization'],
   allowAll?: boolean,
@@ -137,6 +140,7 @@ export const useDashboardRoutes = (
   return useResolveRoutes((org) => dashboardRoutesList(org), org, allowAll)
 }
 
+/** General (non-org-specific) routes */
 export const useGeneralRoutes = (
   org?: schemas['Organization'],
   allowAll?: boolean,
@@ -144,6 +148,7 @@ export const useGeneralRoutes = (
   return useResolveRoutes((org) => generalRoutesList(org), org, allowAll)
 }
 
+/** Org-specific routes (Finance, Settings) */
 export const useOrganizationRoutes = (
   org?: schemas['Organization'],
   allowAll?: boolean,
@@ -151,6 +156,7 @@ export const useOrganizationRoutes = (
   return useResolveRoutes(organizationRoutesList, org, allowAll)
 }
 
+/** Account settings routes */
 export const useAccountRoutes = (): RouteWithActive[] => {
   const path = usePathname()
   return accountRoutesList()
@@ -158,92 +164,143 @@ export const useAccountRoutes = (): RouteWithActive[] => {
     .map(applyIsActive(path))
 }
 
-// internals below
+// ── Route definitions ─────────────────────────────────────────────────────────
 
+/**
+ * General routes — shown for any logged-in org.
+ * Grouped into the new Spaire IA:
+ *   core → Overview
+ *   monetization → Billing, Checkout (Sales), Products
+ *   customers → Customers
+ *   reporting → Analytics
+ *   founder-tools → Startup Stack
+ */
 const generalRoutesList = (org?: schemas['Organization']): Route[] => [
+  // ── CORE ──────────────────────────────────────────────────────────────────
   {
     id: 'home',
     title: 'Overview',
-    icon: <SpaceDashboardOutlined fontSize="inherit" />,
+    group: 'core',
+    icon: <LayoutDashboard size={14} />,
     link: `/dashboard/${org?.slug}`,
     checkIsActive: (currentRoute: string) =>
       currentRoute === `/dashboard/${org?.slug}`,
     if: true,
   },
+
+  // ── MONETIZATION ──────────────────────────────────────────────────────────
   {
-    id: 'catalog',
-    title: 'Catalog',
-    icon: <HiveOutlined fontSize="inherit" />,
-    link: `/dashboard/${org?.slug}/products`,
-    checkIsActive: (currentRoute: string): boolean => {
-      return currentRoute.startsWith(`/dashboard/${org?.slug}/products`)
-    },
+    id: 'revenue',
+    title: 'Billing',
+    group: 'monetization',
+    icon: <CreditCard size={14} />,
+    link: `/dashboard/${org?.slug}/sales`,
+    checkIsActive: (currentRoute: string) =>
+      currentRoute.startsWith(`/dashboard/${org?.slug}/sales`),
     if: true,
   },
+  {
+    id: 'catalog',
+    title: 'Products',
+    group: 'monetization',
+    icon: <Package size={14} />,
+    link: `/dashboard/${org?.slug}/products`,
+    checkIsActive: (currentRoute: string) =>
+      currentRoute.startsWith(`/dashboard/${org?.slug}/products`),
+    if: true,
+  },
+
+  // ── CUSTOMERS ─────────────────────────────────────────────────────────────
   {
     id: 'customers',
     title: 'Customers',
-    icon: <PeopleAltOutlined fontSize="inherit" />,
+    group: 'customers',
+    icon: <Users size={14} />,
     link: `/dashboard/${org?.slug}/customers`,
-    checkIsActive: (currentRoute: string): boolean => {
-      return currentRoute.startsWith(`/dashboard/${org?.slug}/customers`)
-    },
+    checkIsActive: (currentRoute: string) =>
+      currentRoute.startsWith(`/dashboard/${org?.slug}/customers`),
     if: true,
   },
+
+  // ── REPORTING ─────────────────────────────────────────────────────────────
   {
     id: 'analytics',
     title: 'Analytics',
-    icon: <TrendingUp fontSize="inherit" />,
+    group: 'reporting',
+    icon: <TrendingUp size={14} />,
     link: `/dashboard/${org?.slug}/analytics`,
-    checkIsActive: (currentRoute: string): boolean => {
-      return currentRoute.startsWith(`/dashboard/${org?.slug}/analytics`)
-    },
+    checkIsActive: (currentRoute: string) =>
+      currentRoute.startsWith(`/dashboard/${org?.slug}/analytics`),
     if: true,
   },
-  {
-    id: 'revenue',
-    title: 'Revenue',
-    icon: <ShoppingBagOutlined fontSize="inherit" />,
-    link: `/dashboard/${org?.slug}/sales`,
-    checkIsActive: (currentRoute: string): boolean => {
-      return currentRoute.startsWith(`/dashboard/${org?.slug}/sales`)
-    },
-    if: true,
-  },
-  {
-    id: 'integrations',
-    title: 'Integrations',
-    icon: <ExtensionOutlined fontSize="inherit" />,
-    link: `/dashboard/${org?.slug}/integrations`,
-    checkIsActive: (currentRoute: string): boolean => {
-      return currentRoute.startsWith(`/dashboard/${org?.slug}/integrations`)
-    },
-    if: true,
-  },
+
+  // ── FOUNDER TOOLS ─────────────────────────────────────────────────────────
   {
     id: 'startup-stack',
     title: 'Startup Stack',
-    icon: <LayersOutlined fontSize="inherit" />,
+    group: 'founder-tools',
+    icon: <Layers size={14} />,
     link: `/dashboard/${org?.slug}/startup-stack`,
-    checkIsActive: (currentRoute: string): boolean => {
-      return currentRoute.startsWith(`/dashboard/${org?.slug}/startup-stack`)
-    },
+    checkIsActive: (currentRoute: string) =>
+      currentRoute.startsWith(`/dashboard/${org?.slug}/startup-stack`),
     if: true,
   },
 ]
 
+/**
+ * Org-specific routes — Finance + Settings.
+ * These live in the REPORTING and PLATFORM groups respectively.
+ */
+const organizationRoutesList = (org?: schemas['Organization']): Route[] => [
+  // ── REPORTING ─────────────────────────────────────────────────────────────
+  {
+    id: 'finance',
+    title: 'Finance',
+    group: 'reporting',
+    link: `/dashboard/${org?.slug}/finance/income`,
+    icon: <Wallet size={14} />,
+    checkIsActive: (currentRoute: string) =>
+      currentRoute.startsWith(`/dashboard/${org?.slug}/finance`),
+    if: true,
+  },
+
+  // ── PLATFORM ──────────────────────────────────────────────────────────────
+  {
+    id: 'integrations',
+    title: 'Developers',
+    group: 'platform',
+    icon: <Code2 size={14} />,
+    link: `/dashboard/${org?.slug}/integrations`,
+    checkIsActive: (currentRoute: string) =>
+      currentRoute.startsWith(`/dashboard/${org?.slug}/integrations`),
+    if: true,
+  },
+  {
+    id: 'settings',
+    title: 'Settings',
+    group: 'platform',
+    link: `/dashboard/${org?.slug}/settings`,
+    icon: <Settings size={14} />,
+    checkIsActive: (currentRoute: string) =>
+      currentRoute.startsWith(`/dashboard/${org?.slug}/settings`),
+    if: true,
+  },
+]
+
+/** Combined list for OmniSearch / global lookup */
 const dashboardRoutesList = (org?: schemas['Organization']): Route[] => [
   ...accountRoutesList(),
   ...generalRoutesList(org),
   ...organizationRoutesList(org),
 ]
 
+/** Account settings routes */
 const accountRoutesList = (): Route[] => [
   {
     id: 'preferences',
     title: 'Preferences',
     link: `/dashboard/account/preferences`,
-    icon: <TuneOutlined className="h-5 w-5" fontSize="inherit" />,
+    icon: <SlidersHorizontal size={14} />,
     if: true,
     subs: undefined,
   },
@@ -251,30 +308,7 @@ const accountRoutesList = (): Route[] => [
     id: 'developer',
     title: 'Developer',
     link: `/dashboard/account/developer`,
-    icon: <CodeOutlined fontSize="inherit" />,
-    if: true,
-  },
-]
-
-const organizationRoutesList = (org?: schemas['Organization']): Route[] => [
-  {
-    id: 'finance',
-    title: 'Balance',
-    link: `/dashboard/${org?.slug}/finance/income`,
-    icon: <AttachMoneyOutlined fontSize="inherit" />,
-    checkIsActive: (currentRoute: string): boolean => {
-      return currentRoute.startsWith(`/dashboard/${org?.slug}/finance`)
-    },
-    if: true,
-  },
-  {
-    id: 'settings',
-    title: 'Settings',
-    link: `/dashboard/${org?.slug}/settings`,
-    icon: <TuneOutlined fontSize="inherit" />,
-    checkIsActive: (currentRoute: string): boolean => {
-      return currentRoute.startsWith(`/dashboard/${org?.slug}/settings`)
-    },
+    icon: <Code2 size={14} />,
     if: true,
   },
 ]
