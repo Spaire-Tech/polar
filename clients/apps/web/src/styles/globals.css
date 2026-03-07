@@ -213,3 +213,37 @@ pre.shiki {
   }
 }
 
+/* ── Spaire dashboard scrollbar polish ──────────────────────────────────────
+   Thin, dark-themed scrollbar for the dashboard content column.
+   Avoids the default OS scrollbar which looks out of place in dark UIs.
+*/
+.dark ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background-color: var(--color-spaire-700);
+  border-radius: 3px;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-spaire-600);
+}
+
+/* Sidebar variant="sidebar" flush fix: ensure no gap between sidebar and viewport */
+[data-sidebar="sidebar"][data-variant="sidebar"] {
+  border-radius: 0 !important;
+}
+
+/* Ensure sticky page header sits above sidebar on mobile */
+@media (max-width: 767px) {
+  [data-sidebar="sidebar"] {
+    z-index: 40;
+  }
+}
+

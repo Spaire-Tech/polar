@@ -7,6 +7,54 @@
 
 ---
 
+## Implementation Status
+
+**All 6 phases shipped on branch `claude/plan-dashboard-redesign-enW9o`.**
+
+| Phase | Status | Commits |
+|---|---|---|
+| Phase 0: Preparation (RouteGroup type) | ✅ Done | `d935b26` |
+| Phase 1: New Layout Shell | ✅ Done | `ccd92c4` |
+| Phase 2: Navigation IA Restructure | ✅ Done | `05ccb1d` |
+| Phase 3+4: New UI Components + Page Updates | ✅ Done | `3faac18` |
+| Phase 5: Remove Polar Residue (MUI → Lucide) | ✅ Done | `57f02cf` |
+| Phase 6: Polish Pass | ✅ Done | (this commit) |
+
+### Key files changed
+
+**Modified:**
+- `src/components/Layout/DashboardLayout.tsx` — new full-bleed layout, sticky header, underline tabs
+- `src/components/Layout/Dashboard/DashboardSidebar.tsx` — flush sidebar, Lucide icons, section groups
+- `src/components/Layout/Dashboard/DashboardNavigation.tsx` — GroupLabel + left-border active state
+- `src/components/Dashboard/navigation.tsx` — RouteGroup type, all routes restructured, Lucide icons
+- `src/app/(main)/dashboard/.../analytics/layout.tsx` — SectionTabNav
+- `src/app/(main)/dashboard/.../finance/layout.tsx` — SectionTabNav
+- `src/app/(main)/dashboard/.../products/layout.tsx` — SectionTabNav
+- `src/app/(main)/dashboard/.../sales/layout.tsx` — SectionTabNav
+- `src/app/(main)/dashboard/.../settings/layout.tsx` — SectionTabNav
+- `src/app/(main)/dashboard/.../integrations/layout.tsx` — SectionTabNav
+- `src/styles/globals.css` — dark scrollbar, sidebar flush fix
+
+**Created:**
+- `src/components/Layout/SectionTabNav.tsx` — shared underline tab nav
+- `src/components/UI/StatusBadge.tsx` — dot + text status indicator
+- `src/components/UI/MetricCard.tsx` — KPI metric card with skeleton
+- `src/components/UI/EmptyState.tsx` — consistent empty state
+- `src/components/UI/SidePanel.tsx` — sticky detail page right panel
+- `src/components/UI/EventTimeline.tsx` — activity feed with metadata
+- `src/components/UI/FilterBar.tsx` — filter row with removable chips
+- `src/components/UI/InlineEditField.tsx` — click-to-edit settings field
+- `src/components/UI/index.ts` — barrel export
+
+### Remaining work (follow-up PRs)
+
+- Replace MUI icons in deep feature components (forms, auth, portal, landing) — ~90 files, low visual risk, can be done incrementally
+- Implement the full Products card grid (currently still table from Polar)
+- Implement Startup Stack category filter tabs
+- Customer detail page full two-column layout with EventTimeline
+
+---
+
 ## Table of Contents
 
 1. [Dashboard Information Architecture](#1-dashboard-information-architecture)
