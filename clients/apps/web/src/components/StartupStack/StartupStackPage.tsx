@@ -4,7 +4,7 @@ import { DashboardBody } from '@/components/Layout/DashboardLayout'
 import { InlineModal } from '@/components/Modal/InlineModal'
 import { useModal } from '@/components/Modal/useModal'
 import { FEATURED_PERKS, OTHER_PERKS, type Perk } from '@/constants/perksData'
-import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
+import { ArrowUpRight } from 'lucide-react'
 import Button from '@spaire/ui/components/atoms/Button'
 import { useState } from 'react'
 import PerkDetailModalContent from './PerkDetailModalContent'
@@ -41,7 +41,7 @@ const FeaturedPerkCard = ({
         onClick={() => onLearnMore(perk)}
       >
         <span>Learn More</span>
-        <ArrowOutwardOutlined className="ml-1 h-4 w-4" fontSize="inherit" />
+        <ArrowUpRight className="ml-1 h-4 w-4" />
       </Button>
     </div>
   )
