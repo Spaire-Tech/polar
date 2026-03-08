@@ -1,5 +1,7 @@
 from urllib.parse import urlencode
 
+import structlog
+
 from fastapi import FastAPI, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
@@ -12,6 +14,8 @@ from polar.exceptions import (
     PolarRequestValidationError,
     ResourceNotModified,
 )
+
+log = structlog.get_logger()
 
 
 async def polar_exception_handler(request: Request, exc: PolarError) -> JSONResponse:
@@ -50,6 +54,16 @@ async def polar_not_modified_handler(
     return Response(status_code=exc.status_code)
 
 
+async def internal_server_error_handler(
+    request: Request, exc: Exception
+) -> JSONResponse:
+    log.error("Unhandled exception", exc_info=exc)
+    return JSONResponse(
+        status_code=500,
+        content={"error": "InternalServerError", "detail": "An unexpected error occurred."},
+    )
+
+
 def add_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(
         PolarRedirectionError,
@@ -69,3 +83,4 @@ def add_exception_handlers(app: FastAPI) -> None:
         request_validation_exception_handler,  # type: ignore
     )
     app.add_exception_handler(PolarError, polar_exception_handler)  # type: ignore
+    app.add_exception_handler(Exception, internal_server_error_handler)  # type: ignore
