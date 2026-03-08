@@ -27,11 +27,17 @@ class StripeTaxCalculationError(TaxCalculationError):
     def __init__(
         self,
         stripe_error: stripe_lib.StripeError,
-        message: str = "An error occurred while calculating tax.",
+        message: str | None = None,
     ) -> None:
         self.stripe_error = stripe_error
-        self.message = message
-        super().__init__(message)
+        # Use Stripe's user-facing message if no override provided
+        stripe_message = (
+            stripe_error.user_message
+            or (stripe_error.error.message if stripe_error.error else None)
+            or str(stripe_error)
+        )
+        self.message = message or f"Tax calculation error: {stripe_message}"
+        super().__init__(self.message)
 
 
 class IncompleteTaxLocation(StripeTaxCalculationError):
