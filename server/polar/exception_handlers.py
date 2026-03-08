@@ -58,9 +58,17 @@ async def internal_server_error_handler(
     request: Request, exc: Exception
 ) -> JSONResponse:
     log.error("Unhandled exception", exc_info=exc)
+    # Exception handlers registered for Exception/500 are called by ServerErrorMiddleware,
+    # which is outside CORSMatcherMiddleware. The CORS-wrapped send callable is never used
+    # for these responses, so we must embed CORS headers directly in the response.
+    headers: dict[str, str] = {}
+    origin = request.headers.get("origin")
+    if origin:
+        headers["Access-Control-Allow-Origin"] = "*"
     return JSONResponse(
         status_code=500,
         content={"error": "InternalServerError", "detail": "An unexpected error occurred."},
+        headers=headers,
     )
 
 

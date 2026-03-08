@@ -145,7 +145,7 @@ class StripeTaxService(TaxServiceProtocol):
                 },
                 idempotency_key=idempotency_key,
             )
-        except stripe_lib.RateLimitError:
+        except stripe_lib.RateLimitError as e:
             if settings.is_sandbox():
                 log.warning(
                     "Stripe Tax API rate limit exceeded in sandbox mode, returning zero tax",
@@ -159,7 +159,7 @@ class StripeTaxService(TaxServiceProtocol):
                     "taxability_reason": None,
                     "tax_rate": None,
                 }
-            raise
+            raise StripeTaxCalculationError(e, "Stripe Tax API rate limit exceeded.") from e
         except stripe_lib.InvalidRequestError as e:
             if (
                 e.error is not None
@@ -167,11 +167,11 @@ class StripeTaxService(TaxServiceProtocol):
                 and e.error.param.startswith("customer_details[address]")
             ):
                 raise IncompleteTaxLocation(e) from e
-            raise
+            raise StripeTaxCalculationError(e) from e
         except stripe_lib.StripeError as e:
-            if e.error is None or e.error.code != "customer_tax_location_invalid":
-                raise
-            raise InvalidTaxLocation(e) from e
+            if e.error is not None and e.error.code == "customer_tax_location_invalid":
+                raise InvalidTaxLocation(e) from e
+            raise StripeTaxCalculationError(e) from e
         else:
             assert calculation.id is not None
             amount = calculation.tax_amount_exclusive
