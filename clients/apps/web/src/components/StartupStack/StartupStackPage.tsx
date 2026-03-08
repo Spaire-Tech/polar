@@ -84,7 +84,7 @@ export default function StartupStackPage() {
   }
 
   return (
-    <DashboardBody title="Startup Stack">
+    <DashboardBody title="Perks">
       <div className="flex flex-col gap-y-2">
         <p className="dark:text-spaire-500 text-sm text-gray-500">
           Optimize your burn from day zero. Access $150k+ in verified credits
