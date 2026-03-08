@@ -11,24 +11,50 @@ import {
   SelectValue,
 } from '@spaire/ui/components/atoms/Select'
 import {
-  RadioGroup,
-  RadioGroupItem,
-} from '@spaire/ui/components/ui/radio-group'
-import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from '@spaire/ui/components/ui/form'
+import { twMerge } from 'tailwind-merge'
 import { founderIntentSchema, type FounderIntentData } from '../types'
 import { US_STATES } from '../recommendation'
 
 interface FounderIntentStepProps {
   data: Partial<FounderIntentData>
   onNext: (data: FounderIntentData) => void
+}
+
+function SegmentedControl({
+  options,
+  value,
+  onChange,
+}: {
+  options: { value: string; label: string }[]
+  value?: string
+  onChange: (value: string) => void
+}) {
+  return (
+    <div className="dark:bg-spaire-900 dark:border-spaire-700 inline-flex rounded-lg border border-gray-200 bg-gray-50 p-1">
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          onClick={() => onChange(option.value)}
+          className={twMerge(
+            'rounded-md px-4 py-2 text-sm font-medium transition-all',
+            value === option.value
+              ? 'bg-white text-gray-900 shadow-sm dark:bg-spaire-700 dark:text-white'
+              : 'text-gray-500 hover:text-gray-700 dark:text-spaire-400 dark:hover:text-spaire-300',
+          )}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  )
 }
 
 export default function FounderIntentStep({
@@ -164,29 +190,17 @@ export default function FounderIntentStep({
               name="planning_to_raise_vc"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>
-                    Are you planning to raise venture capital?
-                  </FormLabel>
+                  <FormLabel>Planning to raise venture capital?</FormLabel>
                   <FormControl>
-                    <RadioGroup
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                      className="flex flex-row gap-4"
-                    >
-                      {[
+                    <SegmentedControl
+                      options={[
                         { value: 'yes', label: 'Yes' },
                         { value: 'maybe', label: 'Maybe' },
                         { value: 'no', label: 'No' },
-                      ].map((option) => (
-                        <label
-                          key={option.value}
-                          className="flex cursor-pointer items-center gap-2"
-                        >
-                          <RadioGroupItem value={option.value} />
-                          <span className="text-sm">{option.label}</span>
-                        </label>
-                      ))}
-                    </RadioGroup>
+                      ]}
+                      value={field.value}
+                      onChange={field.onChange}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -200,25 +214,15 @@ export default function FounderIntentStep({
                 <FormItem>
                   <FormLabel>How many founders?</FormLabel>
                   <FormControl>
-                    <RadioGroup
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                      className="flex flex-row gap-4"
-                    >
-                      {[
+                    <SegmentedControl
+                      options={[
                         { value: 'solo', label: 'Solo' },
-                        { value: '2_5', label: '2-5' },
+                        { value: '2_5', label: '2–5' },
                         { value: '6_plus', label: '6+' },
-                      ].map((option) => (
-                        <label
-                          key={option.value}
-                          className="flex cursor-pointer items-center gap-2"
-                        >
-                          <RadioGroupItem value={option.value} />
-                          <span className="text-sm">{option.label}</span>
-                        </label>
-                      ))}
-                    </RadioGroup>
+                      ]}
+                      value={field.value}
+                      onChange={field.onChange}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -230,33 +234,18 @@ export default function FounderIntentStep({
               name="equity_plans"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>
-                    Do you plan to issue equity (stock options, SAFEs)?
-                  </FormLabel>
+                  <FormLabel>Plan to issue equity (stock options, SAFEs)?</FormLabel>
                   <FormControl>
-                    <RadioGroup
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                      className="flex flex-row gap-4"
-                    >
-                      {[
+                    <SegmentedControl
+                      options={[
                         { value: 'yes', label: 'Yes' },
                         { value: 'maybe', label: 'Maybe' },
                         { value: 'no', label: 'No' },
-                      ].map((option) => (
-                        <label
-                          key={option.value}
-                          className="flex cursor-pointer items-center gap-2"
-                        >
-                          <RadioGroupItem value={option.value} />
-                          <span className="text-sm">{option.label}</span>
-                        </label>
-                      ))}
-                    </RadioGroup>
+                      ]}
+                      value={field.value}
+                      onChange={field.onChange}
+                    />
                   </FormControl>
-                  <FormDescription>
-                    Common for startups hiring engineers or raising capital.
-                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
