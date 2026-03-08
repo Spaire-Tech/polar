@@ -84,32 +84,37 @@ export default function FounderIntentStep({
 
   const founderLocation = form.watch('founder_location')
 
-  const onSubmit = useCallback(
-    (values: FounderIntentData) => {
-      const merged = {
-        ...values,
-        product_type: productType || values.product_type,
-        planning_to_raise_vc: vcPlan || values.planning_to_raise_vc,
-        number_of_founders: founderCount || values.number_of_founders,
-        equity_plans: equityPlan || values.equity_plans,
+  const onSubmit = useCallback(() => {
+    const founderLocation = form.getValues('founder_location')
+    const founderState = form.getValues('founder_state')
+
+    const merged = {
+      product_type: productType || form.getValues('product_type'),
+      founder_location: founderLocation,
+      founder_state: founderState,
+      planning_to_raise_vc: vcPlan || form.getValues('planning_to_raise_vc'),
+      number_of_founders: founderCount || form.getValues('number_of_founders'),
+      equity_plans: equityPlan || form.getValues('equity_plans'),
+    }
+
+    const result = founderIntentSchema.safeParse(merged)
+    if (!result.success) {
+      for (const issue of result.error.issues) {
+        const field = issue.path[0] as keyof FounderIntentData
+        form.setError(field, { message: issue.message })
       }
-      const result = founderIntentSchema.safeParse(merged)
-      if (!result.success) {
-        for (const issue of result.error.issues) {
-          const field = issue.path[0] as keyof FounderIntentData
-          form.setError(field, { message: issue.message })
-        }
-        return
-      }
-      onNext(result.data as FounderIntentData)
-    },
-    [onNext, form, productType, vcPlan, founderCount, equityPlan],
-  )
+      return
+    }
+    onNext(result.data as FounderIntentData)
+  }, [onNext, form, productType, vcPlan, founderCount, equityPlan])
 
   return (
     <Form {...form}>
       <form
-        onSubmit={form.handleSubmit(onSubmit)}
+        onSubmit={(e) => {
+          e.preventDefault()
+          onSubmit()
+        }}
         className="flex w-full flex-col gap-y-10"
       >
         {/* Product type */}
