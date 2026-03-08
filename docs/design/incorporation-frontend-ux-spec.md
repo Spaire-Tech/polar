@@ -23,6 +23,7 @@
 9. [Responsive & Dark Mode](#9-responsive--dark-mode)
 10. [Animations & Transitions](#10-animations--transitions)
 11. [ASCII Wireframes](#11-ascii-wireframes)
+12. [Post-Formation Return Hook](#12-post-formation-return-hook)
 
 ---
 
@@ -188,10 +189,10 @@ Upcoming step: empty circle + muted label + dashed underline
 |---|---|---|---|
 | `product_type` | Select | SaaS, AI, Marketplace, Agency, Consulting, Other | Yes |
 | `founder_location` | Select | United States, Outside US | Yes |
+| `founder_state` | Select (US states) | All 50 states + DC | If US |
 | `planning_to_raise_vc` | Radio group | Yes, Maybe, No | Yes |
 | `number_of_founders` | Radio group | Solo, 2–5, 6+ | Yes |
 | `equity_plans` | Radio group | Yes, Maybe, No | Yes |
-| `revenue_expectation` | Select | Pre-revenue, Under $10k/mo, $10k–$100k/mo, $100k+/mo | Yes |
 
 **Layout:**
 
@@ -212,6 +213,11 @@ Upcoming step: empty circle + muted label + dashed underline
 │  │ United States                    ▾   │                │
 │  └─────────────────────────────────────┘                │
 │                                                         │
+│  Which state? (shown if US)                             │
+│  ┌─────────────────────────────────────┐                │
+│  │ California                       ▾   │                │
+│  └─────────────────────────────────────┘                │
+│                                                         │
 │  Are you planning to raise venture capital?              │
 │  ( ) Yes    ( ) Maybe    ( ) No                         │
 │                                                         │
@@ -221,11 +227,6 @@ Upcoming step: empty circle + muted label + dashed underline
 │  Do you plan to issue equity (stock options, SAFEs)?     │
 │  ( ) Yes    ( ) Maybe    ( ) No                         │
 │  ℹ️ Common for startups hiring engineers or raising.     │
-│                                                         │
-│  Expected monthly revenue?                              │
-│  ┌─────────────────────────────────────┐                │
-│  │ Pre-revenue                      ▾   │                │
-│  └─────────────────────────────────────┘                │
 │                                                         │
 │                              ┌─────────────┐            │
 │                              │  Continue →  │            │
@@ -239,11 +240,14 @@ Upcoming step: empty circle + muted label + dashed underline
 const founderIntentSchema = z.object({
   product_type: z.enum(['saas', 'ai', 'marketplace', 'agency', 'consulting', 'other']),
   founder_location: z.enum(['us', 'non_us']),
+  founder_state: z.string().length(2).optional(),  // US state abbreviation, required if founder_location == 'us'
   planning_to_raise_vc: z.enum(['yes', 'maybe', 'no']),
   number_of_founders: z.enum(['solo', '2_5', '6_plus']),
   equity_plans: z.enum(['yes', 'maybe', 'no']),
-  revenue_expectation: z.enum(['pre_revenue', 'under_10k', '10k_100k', '100k_plus']),
-})
+}).refine(
+  (data) => data.founder_location !== 'us' || data.founder_state,
+  { message: 'State is required for US founders', path: ['founder_state'] }
+)
 ```
 
 ---
@@ -261,6 +265,7 @@ const founderIntentSchema = z.object({
 | `legal_name` | Text input | — | Yes |
 | `entity_type` | Radio group | From recommendation | Yes |
 | `formation_state` | Select | From recommendation | Yes |
+| `founder_state` | Select (US states) | — | If US + LLC |
 | `founders` | Repeatable group (name + email) | Pre-filled with current user | Yes (min 1) |
 
 **Layout:**
@@ -314,7 +319,7 @@ const founderIntentSchema = z.object({
 const companyDetailsSchema = z.object({
   legal_name: z.string().min(1, 'Company name is required').max(200),
   entity_type: z.enum(['LLC', 'C_CORP']),
-  formation_state: z.enum(['DE', 'WY']),
+  formation_state: z.string().min(2, 'Formation state is required'),  // 'DE', 'WY', or US state abbreviation
   founders: z.array(z.object({
     name: z.string().min(1, 'Name is required'),
     email: z.string().email('Valid email required'),
@@ -324,7 +329,7 @@ const companyDetailsSchema = z.object({
 
 ---
 
-### Step 3 — Review & Continue to doola
+### Step 3 — Review & Start Formation with doola
 
 **Purpose:** Summarize the wizard answers, communicate the partner handoff, and redirect to doola.
 
@@ -361,11 +366,11 @@ const companyDetailsSchema = z.object({
 │  │  ✓ Access to startup perks & banking             │    │
 │  │                                                  │    │
 │  │  ┌──────────────────────────────────────────┐    │    │
-│  │  │      Continue to doola  →                │    │    │
+│  │  │      Start Formation with doola  →                │    │    │
 │  │  └──────────────────────────────────────────┘    │    │
 │  │                                                  │    │
-│  │  By continuing, you'll be redirected to           │    │
-│  │  doola.com to complete formation and payment.    │    │
+│  │  You'll be taken to doola.com to complete          │    │
+│  │  formation and payment.                          │    │
 │  └─────────────────────────────────────────────────┘    │
 │                                                         │
 │                    ┌──────────┐                          │
@@ -394,7 +399,8 @@ function handleContinueToDoola(formData: WizardFormData) {
   // url.searchParams.set('entity', formData.entity_type)
   // url.searchParams.set('state', formData.formation_state)
 
-  window.open(url.toString(), '_blank', 'noopener,noreferrer')
+  // Same-tab redirect: better for affiliate attribution and avoids popup blockers
+  window.location.href = url.toString()
 }
 ```
 
@@ -402,8 +408,8 @@ function handleContinueToDoola(formData: WizardFormData) {
 
 ```tsx
 <Button size="lg" className="w-full" onClick={() => handleContinueToDoola(formData)}>
-  Continue to doola
-  <ArrowTopRightOnSquareIcon className="ml-2 h-4 w-4" />
+  Start Formation with doola
+  <ArrowRightIcon className="ml-2 h-4 w-4" />
 </Button>
 ```
 
@@ -423,10 +429,10 @@ All inputs come from Step 1 of the wizard:
 interface RecommendationInput {
   product_type: 'saas' | 'ai' | 'marketplace' | 'agency' | 'consulting' | 'other'
   founder_location: 'us' | 'non_us'
+  founder_state?: string  // US state abbreviation, collected conditionally when founder_location == 'us'
   planning_to_raise_vc: 'yes' | 'maybe' | 'no'
   number_of_founders: 'solo' | '2_5' | '6_plus'
   equity_plans: 'yes' | 'maybe' | 'no'
-  revenue_expectation: 'pre_revenue' | 'under_10k' | '10k_100k' | '100k_plus'
 }
 ```
 
@@ -435,7 +441,7 @@ interface RecommendationInput {
 ```typescript
 interface RecommendationOutput {
   entity_type: 'LLC' | 'C_CORP'
-  formation_state: 'DE' | 'WY'
+  formation_state: string  // 'DE', 'WY', or US state abbreviation (e.g., 'CA', 'TX')
   confidence: 'high' | 'medium'
   reasons: string[]
 }
@@ -524,12 +530,16 @@ function getRecommendation(input: RecommendationInput): RecommendationOutput {
   const entity_type = score_c_corp > score_llc ? 'C_CORP' : 'LLC'
 
   // State selection
-  let formation_state: 'DE' | 'WY'
+  let formation_state: string
   if (entity_type === 'C_CORP') {
     formation_state = 'DE' // C-Corps → always Delaware
+  } else if (input.founder_location === 'non_us') {
+    formation_state = 'WY' // Non-US founders → Wyoming LLC
+  } else if (input.founder_state) {
+    formation_state = input.founder_state // US founders → home state LLC
+    reasons.push('Forming in your home state often simplifies tax compliance')
   } else {
-    // LLCs: non-US → Wyoming, US → Wyoming as default (no founder state collected in V1)
-    formation_state = 'WY'
+    formation_state = 'WY' // Fallback if no state provided
   }
 
   // Confidence: high if score difference is >= 3, otherwise medium
@@ -560,7 +570,8 @@ function getRecommendation(input: RecommendationInput): RecommendationOutput {
 |---|---|---|
 | C-Corp | Any | Delaware |
 | LLC | Non-US | Wyoming |
-| LLC | US | Wyoming (default in V1) |
+| LLC | US (state provided) | Founder's home state |
+| LLC | US (no state) | Wyoming (fallback) |
 
 ### Recommendation Card Component
 
@@ -577,9 +588,8 @@ function FormationRecommendationCard({
   const entityLabel = recommendation.entity_type === 'C_CORP'
     ? 'C-Corporation'
     : 'LLC'
-  const stateLabel = recommendation.formation_state === 'DE'
-    ? 'Delaware'
-    : 'Wyoming'
+  const stateLabel = US_STATE_NAMES[recommendation.formation_state]
+    ?? recommendation.formation_state  // e.g., 'Delaware', 'Wyoming', 'California'
 
   return (
     <Card className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30">
@@ -637,7 +647,8 @@ clients/apps/web/src/components/CompanyFormation/
 │   ├── CompanyDetailsStep.tsx       # Step 2: name, entity, state, founders
 │   └── ReviewRedirectStep.tsx       # Step 3: summary + doola redirect
 ├── StepIndicator.tsx                # 3-step horizontal progress bar
-└── FormationRecommendationCard.tsx  # Recommendation display with accept/override
+├── FormationRecommendationCard.tsx  # Recommendation display with accept/override
+└── FormationReturnCard.tsx          # Post-redirect dashboard re-engagement card
 ```
 
 ### Removed Components (from V1 spec)
@@ -662,10 +673,10 @@ FormationWizard
 ├── FounderIntentStep
 │   ├── Select (product_type)
 │   ├── Select (founder_location)
+│   ├── Select (founder_state — conditional, shown if US)
 │   ├── RadioGroup (planning_to_raise_vc)
 │   ├── RadioGroup (number_of_founders)
-│   ├── RadioGroup (equity_plans)
-│   └── Select (revenue_expectation)
+│   └── RadioGroup (equity_plans)
 ├── CompanyDetailsStep
 │   ├── FormationRecommendationCard
 │   ├── Input (legal_name)
@@ -676,6 +687,11 @@ FormationWizard
     ├── CompanySummaryCard
     ├── PartnerBenefitsCard
     └── Button (redirect to doola)
+
+FormationReturnCard (standalone — rendered on dashboard)
+├── Card (company name, next steps checklist)
+├── Button (Continue Setup → /products/new)
+└── Button (Dismiss → clears localStorage)
 ```
 
 ### File Inventory
@@ -689,11 +705,12 @@ FormationWizard
 | `components/CompanyFormation/steps/ReviewRedirectStep.tsx` | Create | Step 3: review + doola redirect |
 | `components/CompanyFormation/StepIndicator.tsx` | Create | 3-step progress bar |
 | `components/CompanyFormation/FormationRecommendationCard.tsx` | Create | Recommendation card with reasons |
+| `components/CompanyFormation/FormationReturnCard.tsx` | Create | Post-redirect re-engagement card |
 | `app/[organization]/(sidebar)/formation/page.tsx` | Create | Landing page route |
 | `app/[organization]/(sidebar)/formation/new/page.tsx` | Create | Wizard route |
 | `components/Layout/Dashboard/navigation.tsx` | Modify | Add "Start a Company" nav item |
 
-**Total: 9 new files, 1 modified file**
+**Total: 10 new files, 1 modified file**
 
 ---
 
@@ -708,14 +725,14 @@ interface WizardFormData {
   // Step 1
   product_type: string
   founder_location: string
+  founder_state?: string  // US state abbreviation
   planning_to_raise_vc: string
   number_of_founders: string
   equity_plans: string
-  revenue_expectation: string
   // Step 2
   legal_name: string
   entity_type: 'LLC' | 'C_CORP'
-  formation_state: 'DE' | 'WY'
+  formation_state: string  // 'DE', 'WY', or US state abbreviation
   founders: Array<{ name: string; email: string }>
   // Derived
   recommendation: RecommendationOutput | null
@@ -763,6 +780,9 @@ function trackFormationEvent(event: string, data: Record<string, unknown>) {
 // 'formation_recommendation_accepted' + { entity_type, formation_state }
 // 'formation_recommendation_overridden' + { from, to }
 // 'formation_redirect_to_doola' + { entity_type, formation_state, product_type }
+// 'formation_return_card_shown'
+// 'formation_return_card_clicked'
+// 'formation_return_card_dismissed'
 ```
 
 ---
@@ -836,14 +856,14 @@ Slide-in animation when recommendation appears on Step 2:
 
 ### Redirect CTA
 
-Subtle pulse on the "Continue to doola" button to draw attention:
+Subtle pulse on the "Start Formation with doola" button to draw attention:
 
 ```tsx
 <motion.div
   animate={{ scale: [1, 1.02, 1] }}
   transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
 >
-  <Button size="lg">Continue to doola →</Button>
+  <Button size="lg">Start Formation with doola →</Button>
 </motion.div>
 ```
 
@@ -984,10 +1004,10 @@ Subtle pulse on the "Continue to doola" button to draw attention:
 │   │  │  ✓ Startup perks & banking                           │    │   │
 │   │  │                                                      │    │   │
 │   │  │  ┌──────────────────────────────────────────────┐    │    │   │
-│   │  │  │         Continue to doola  →                 │    │    │   │
+│   │  │  │         Start Formation with doola  →                 │    │    │   │
 │   │  │  └──────────────────────────────────────────────┘    │    │   │
 │   │  │                                                      │    │   │
-│   │  │  You'll be redirected to doola.com to complete       │    │   │
+│   │  │  You'll be taken to doola.com to complete             │    │   │
 │   │  │  formation and payment.                              │    │   │
 │   │  │                                                      │    │   │
 │   │  └──────────────────────────────────────────────────────┘    │   │
@@ -1027,6 +1047,11 @@ Subtle pulse on the "Continue to doola" button to draw attention:
 │  │ United States   ▾  │  │
 │  └───────────────────┘  │
 │                         │
+│  Which state?           │
+│  ┌───────────────────┐  │
+│  │ California      ▾  │  │
+│  └───────────────────┘  │
+│                         │
 │  Planning to raise VC?  │
 │  ( ) Yes                │
 │  ( ) Maybe              │
@@ -1041,11 +1066,6 @@ Subtle pulse on the "Continue to doola" button to draw attention:
 │  ( ) Yes                │
 │  ( ) Maybe              │
 │  ( ) No                 │
-│                         │
-│  Expected revenue?      │
-│  ┌───────────────────┐  │
-│  │ Pre-revenue     ▾  │  │
-│  └───────────────────┘  │
 │                         │
 │  ┌───────────────────┐  │
 │  │   Continue →      │  │
@@ -1100,6 +1120,131 @@ Subtle pulse on the "Continue to doola" button to draw attention:
 │                         │
 └─────────────────────────┘
 ```
+
+---
+
+## 12. Post-Formation Return Hook
+
+### Problem
+
+After redirecting to doola, the founder may not return to Spaire. Without a re-engagement mechanism, we lose the user at the moment they become most valuable — right after forming their company.
+
+### Solution
+
+Store a `formation_started` flag in localStorage when the user clicks "Start Formation with doola". When the founder returns to the Spaire dashboard, display a **Company Setup Card** that guides them back into the product.
+
+### Implementation
+
+```typescript
+// Set on redirect
+const FORMATION_STARTED_KEY = 'spaire:formation-started'
+
+function handleContinueToDoola(formData: WizardFormData) {
+  localStorage.setItem(FORMATION_STARTED_KEY, JSON.stringify({
+    startedAt: new Date().toISOString(),
+    companyName: formData.legal_name,
+    entityType: formData.entity_type,
+    formationState: formData.formation_state,
+  }))
+
+  trackFormationEvent('formation_redirect_to_doola', { ... })
+  window.location.href = DOOLA_AFFILIATE_URL
+}
+```
+
+### Return Card — Dashboard Widget
+
+When the founder returns and `formation_started` exists in localStorage, show a persistent card on the dashboard:
+
+```
+┌──────────────────────────────────────────────────────────┐
+│                                                          │
+│  🏢 Finish Setting Up Acme Inc.                          │
+│                                                          │
+│  You're forming your company with doola.                 │
+│  Once completed, come back here to:                      │
+│                                                          │
+│  ✓ Set up billing with Stripe                            │
+│  ✓ Create your first product                             │
+│  ✓ Launch subscriptions                                  │
+│  ✓ Access startup perks                                  │
+│                                                          │
+│  ┌─────────────────────────┐  ┌───────────────────────┐  │
+│  │ Continue Setup →        │  │ Dismiss               │  │
+│  └─────────────────────────┘  └───────────────────────┘  │
+│                                                          │
+└──────────────────────────────────────────────────────────┘
+```
+
+### Component
+
+```tsx
+function FormationReturnCard() {
+  const [formation, setFormation] = useState<FormationStartedData | null>(null)
+
+  useEffect(() => {
+    const stored = localStorage.getItem(FORMATION_STARTED_KEY)
+    if (stored) setFormation(JSON.parse(stored))
+  }, [])
+
+  if (!formation) return null
+
+  const handleDismiss = () => {
+    localStorage.removeItem(FORMATION_STARTED_KEY)
+    setFormation(null)
+  }
+
+  return (
+    <Card className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30">
+      <CardHeader>
+        <h3 className="text-lg font-semibold">
+          Finish Setting Up {formation.companyName}
+        </h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400">
+          You&apos;re forming your company with doola. Once completed, come back here to:
+        </p>
+      </CardHeader>
+      <CardContent>
+        <ul className="space-y-1.5">
+          {['Set up billing with Stripe', 'Create your first product',
+            'Launch subscriptions', 'Access startup perks'].map((item) => (
+            <li key={item} className="flex items-center gap-2 text-sm">
+              <CheckCircleIcon className="h-4 w-4 text-green-500" />
+              {item}
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+      <CardFooter className="gap-2">
+        <Button asChild><Link href="/products/new">Continue Setup</Link></Button>
+        <Button variant="ghost" onClick={handleDismiss}>Dismiss</Button>
+      </CardFooter>
+    </Card>
+  )
+}
+```
+
+### Placement
+
+- Render `<FormationReturnCard />` at the top of the organization dashboard page
+- Card auto-expires after 30 days (check `startedAt` timestamp)
+- Dismissing removes the localStorage entry permanently
+
+### Analytics Events
+
+```typescript
+// 'formation_return_card_shown'    — card rendered on dashboard
+// 'formation_return_card_clicked'  — "Continue Setup" clicked
+// 'formation_return_card_dismissed' — "Dismiss" clicked
+```
+
+### File Addition
+
+| File | Action | Purpose |
+|---|---|---|
+| `components/CompanyFormation/FormationReturnCard.tsx` | Create | Post-redirect re-engagement card |
+
+This brings the total to **10 new files, 1 modified file**.
 
 ---
 
