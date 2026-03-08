@@ -55,21 +55,16 @@ export default function ReviewRedirectStep({
   }, [data])
 
   return (
-    <div className="w-full">
-      <div className="mb-8">
-        <h2 className="text-2xl font-medium tracking-tight dark:text-white">
-          Review and continue
-        </h2>
-        <p className="dark:text-spaire-400 mt-2 text-base leading-relaxed text-gray-500">
+    <div className="flex flex-col gap-12 p-8 md:p-12">
+      <div className="flex flex-col gap-y-2">
+        <h2 className="text-lg font-medium">Review and continue</h2>
+        <p className="dark:text-spaire-500 leading-snug text-gray-500">
           Confirm your details below, then complete formation with doola.
         </p>
       </div>
 
-      {/* Company summary */}
-      <div className="dark:bg-spaire-900 dark:border-spaire-800 mb-8 rounded-2xl border border-gray-200 bg-white p-6">
-        <h3 className="dark:text-spaire-500 mb-4 text-sm font-medium uppercase tracking-wider text-gray-400">
-          Company summary
-        </h3>
+      <div className="flex w-full flex-col gap-y-6">
+        {/* Company summary */}
         <dl className="space-y-3 text-sm">
           <div className="flex justify-between">
             <dt className="dark:text-spaire-400 text-gray-500">
@@ -77,12 +72,12 @@ export default function ReviewRedirectStep({
             </dt>
             <dd className="font-medium dark:text-white">{data.legal_name}</dd>
           </div>
-          <div className="dark:border-spaire-800 border-t border-gray-100" />
+          <div className="dark:border-spaire-700 border-t border-gray-200" />
           <div className="flex justify-between">
             <dt className="dark:text-spaire-400 text-gray-500">Entity type</dt>
             <dd className="font-medium dark:text-white">{entityLabel}</dd>
           </div>
-          <div className="dark:border-spaire-800 border-t border-gray-100" />
+          <div className="dark:border-spaire-700 border-t border-gray-200" />
           <div className="flex justify-between">
             <dt className="dark:text-spaire-400 text-gray-500">
               Formation state
@@ -91,7 +86,7 @@ export default function ReviewRedirectStep({
           </div>
           {data.founders.length > 0 && (
             <>
-              <div className="dark:border-spaire-800 border-t border-gray-100" />
+              <div className="dark:border-spaire-700 border-t border-gray-200" />
               <div className="flex justify-between">
                 <dt className="dark:text-spaire-400 text-gray-500">
                   Founders
@@ -103,54 +98,54 @@ export default function ReviewRedirectStep({
             </>
           )}
         </dl>
-      </div>
 
-      {/* Discount code */}
-      <div className="dark:bg-spaire-900 dark:border-spaire-800 mb-8 flex items-center justify-between rounded-xl border border-gray-200 bg-white px-5 py-4">
-        <div className="flex flex-col gap-y-1">
-          <span className="dark:text-spaire-400 text-xs text-gray-500">
-            Apply this code at checkout for 10% off
-          </span>
-          <span className="font-mono text-lg font-semibold tracking-wider dark:text-white">
-            {DISCOUNT_CODE}
-          </span>
+        {/* Discount code */}
+        <div className="dark:border-spaire-700 flex items-center justify-between rounded-xl border border-gray-200 px-5 py-4">
+          <div className="flex flex-col gap-y-1">
+            <span className="dark:text-spaire-400 text-xs text-gray-500">
+              Apply this code at checkout for 10% off
+            </span>
+            <span className="font-mono text-lg font-semibold tracking-wider dark:text-white">
+              {DISCOUNT_CODE}
+            </span>
+          </div>
+          <button
+            onClick={handleCopy}
+            className="dark:bg-spaire-800 dark:hover:bg-spaire-700 dark:text-spaire-300 flex items-center gap-1.5 rounded-lg bg-gray-100 px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-200"
+          >
+            {copied ? (
+              <>
+                <CheckOutlined style={{ fontSize: 16 }} />
+                Copied
+              </>
+            ) : (
+              <>
+                <ContentCopyOutlined style={{ fontSize: 16 }} />
+                Copy
+              </>
+            )}
+          </button>
         </div>
-        <button
-          onClick={handleCopy}
-          className="dark:bg-spaire-800 dark:hover:bg-spaire-700 dark:text-spaire-300 flex items-center gap-1.5 rounded-lg bg-gray-100 px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-200"
-        >
-          {copied ? (
-            <>
-              <CheckOutlined style={{ fontSize: 16 }} />
-              Copied
-            </>
-          ) : (
-            <>
-              <ContentCopyOutlined style={{ fontSize: 16 }} />
-              Copy
-            </>
-          )}
-        </button>
       </div>
 
-      {/* CTA */}
-      <Button
-        fullWidth
-        size="lg"
-        onClick={handleRedirect}
-      >
-        Continue to doola
-        <ArrowForwardOutlined
-          className="ml-2"
-          style={{ fontSize: 18 }}
-        />
-      </Button>
+      <div className="flex flex-col gap-y-3">
+        <Button
+          fullWidth
+          size="lg"
+          onClick={handleRedirect}
+        >
+          Continue to doola
+          <ArrowForwardOutlined
+            className="ml-2"
+            style={{ fontSize: 18 }}
+          />
+        </Button>
+        <p className="dark:text-spaire-500 text-center text-xs text-gray-400">
+          You will be redirected to doola.com to complete formation and payment.
+        </p>
+      </div>
 
-      <p className="dark:text-spaire-500 mt-3 text-center text-xs text-gray-400">
-        You will be redirected to doola.com to complete formation and payment.
-      </p>
-
-      <div className="mt-6 flex justify-start">
+      <div className="flex flex-row items-center gap-2">
         <Button variant="ghost" onClick={onBack}>
           Back
         </Button>

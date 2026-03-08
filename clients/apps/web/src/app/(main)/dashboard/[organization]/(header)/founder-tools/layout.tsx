@@ -6,8 +6,8 @@ import { useParams, usePathname } from 'next/navigation'
 import { PropsWithChildren } from 'react'
 
 const founderToolsTabs = [
-  { title: 'Perks', suffix: '' },
-  { title: 'Incorporate', suffix: '/incorporate' },
+  { title: 'Incorporate', suffix: '' },
+  { title: 'Perks', suffix: '/perks' },
 ]
 
 export default function FounderToolsLayout({ children }: PropsWithChildren) {
@@ -19,8 +19,8 @@ export default function FounderToolsLayout({ children }: PropsWithChildren) {
   const isTabPage =
     pathname === base ||
     pathname === `${base}/` ||
-    pathname === `${base}/incorporate` ||
-    pathname === `${base}/incorporate/`
+    pathname === `${base}/perks` ||
+    pathname === `${base}/perks/`
 
   if (!isTabPage) {
     return children

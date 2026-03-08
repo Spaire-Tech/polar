@@ -10,7 +10,11 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function Page() {
   return (
-    <DashboardBody title={null}>
+    <DashboardBody
+      title="Incorporate your startup"
+      wrapperClassName="max-w-(--breakpoint-md)!"
+      className="gap-y-16"
+    >
       <FormationWizard />
     </DashboardBody>
   )

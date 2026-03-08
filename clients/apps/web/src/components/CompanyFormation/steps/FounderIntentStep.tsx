@@ -64,206 +64,206 @@ export default function FounderIntentStep({
   )
 
   return (
-    <div className="w-full">
-      <div className="mb-8">
-        <h2 className="text-2xl font-medium tracking-tight dark:text-white">
-          Tell us about your startup
-        </h2>
-        <p className="dark:text-spaire-400 mt-2 text-base leading-relaxed text-gray-500">
+    <div className="flex flex-col gap-12 p-8 md:p-12">
+      <div className="flex flex-col gap-y-2">
+        <h2 className="text-lg font-medium">Tell us about your startup</h2>
+        <p className="dark:text-spaire-500 leading-snug text-gray-500">
           We will use this to recommend the best company structure for you.
         </p>
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-y-6">
-          <FormField
-            control={form.control}
-            name="product_type"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>What are you building?</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select product type..." />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="saas">SaaS</SelectItem>
-                    <SelectItem value="ai">AI</SelectItem>
-                    <SelectItem value="marketplace">Marketplace</SelectItem>
-                    <SelectItem value="agency">Agency</SelectItem>
-                    <SelectItem value="consulting">Consulting</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="founder_location"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Where are you located?</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select location..." />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="us">United States</SelectItem>
-                    <SelectItem value="non_us">Outside US</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {founderLocation === 'us' && (
+        <form onSubmit={form.handleSubmit(onSubmit)}>
+          <div className="flex w-full flex-col gap-y-6">
             <FormField
               control={form.control}
-              name="founder_state"
+              name="product_type"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Which state?</FormLabel>
+                  <FormLabel>What are you building?</FormLabel>
                   <Select
                     onValueChange={field.onChange}
                     defaultValue={field.value}
                   >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select state..." />
+                        <SelectValue placeholder="Select product type..." />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {US_STATES.map((state) => (
-                        <SelectItem key={state.code} value={state.code}>
-                          {state.name}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="saas">SaaS</SelectItem>
+                      <SelectItem value="ai">AI</SelectItem>
+                      <SelectItem value="marketplace">Marketplace</SelectItem>
+                      <SelectItem value="agency">Agency</SelectItem>
+                      <SelectItem value="consulting">Consulting</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
                 </FormItem>
               )}
             />
-          )}
 
-          <FormField
-            control={form.control}
-            name="planning_to_raise_vc"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  Are you planning to raise venture capital?
-                </FormLabel>
-                <FormControl>
-                  <RadioGroup
+            <FormField
+              control={form.control}
+              name="founder_location"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Where are you located?</FormLabel>
+                  <Select
                     onValueChange={field.onChange}
                     defaultValue={field.value}
-                    className="flex flex-row gap-4"
                   >
-                    {[
-                      { value: 'yes', label: 'Yes' },
-                      { value: 'maybe', label: 'Maybe' },
-                      { value: 'no', label: 'No' },
-                    ].map((option) => (
-                      <label
-                        key={option.value}
-                        className="flex cursor-pointer items-center gap-2"
-                      >
-                        <RadioGroupItem value={option.value} />
-                        <span className="text-sm">{option.label}</span>
-                      </label>
-                    ))}
-                  </RadioGroup>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select location..." />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="us">United States</SelectItem>
+                      <SelectItem value="non_us">Outside US</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name="number_of_founders"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>How many founders?</FormLabel>
-                <FormControl>
-                  <RadioGroup
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                    className="flex flex-row gap-4"
-                  >
-                    {[
-                      { value: 'solo', label: 'Solo' },
-                      { value: '2_5', label: '2-5' },
-                      { value: '6_plus', label: '6+' },
-                    ].map((option) => (
-                      <label
-                        key={option.value}
-                        className="flex cursor-pointer items-center gap-2"
-                      >
-                        <RadioGroupItem value={option.value} />
-                        <span className="text-sm">{option.label}</span>
-                      </label>
-                    ))}
-                  </RadioGroup>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
+            {founderLocation === 'us' && (
+              <FormField
+                control={form.control}
+                name="founder_state"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Which state?</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select state..." />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {US_STATES.map((state) => (
+                          <SelectItem key={state.code} value={state.code}>
+                            {state.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             )}
-          />
 
-          <FormField
-            control={form.control}
-            name="equity_plans"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  Do you plan to issue equity (stock options, SAFEs)?
-                </FormLabel>
-                <FormControl>
-                  <RadioGroup
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                    className="flex flex-row gap-4"
-                  >
-                    {[
-                      { value: 'yes', label: 'Yes' },
-                      { value: 'maybe', label: 'Maybe' },
-                      { value: 'no', label: 'No' },
-                    ].map((option) => (
-                      <label
-                        key={option.value}
-                        className="flex cursor-pointer items-center gap-2"
-                      >
-                        <RadioGroupItem value={option.value} />
-                        <span className="text-sm">{option.label}</span>
-                      </label>
-                    ))}
-                  </RadioGroup>
-                </FormControl>
-                <FormDescription>
-                  Common for startups hiring engineers or raising capital.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+            <FormField
+              control={form.control}
+              name="planning_to_raise_vc"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    Are you planning to raise venture capital?
+                  </FormLabel>
+                  <FormControl>
+                    <RadioGroup
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      className="flex flex-row gap-4"
+                    >
+                      {[
+                        { value: 'yes', label: 'Yes' },
+                        { value: 'maybe', label: 'Maybe' },
+                        { value: 'no', label: 'No' },
+                      ].map((option) => (
+                        <label
+                          key={option.value}
+                          className="flex cursor-pointer items-center gap-2"
+                        >
+                          <RadioGroupItem value={option.value} />
+                          <span className="text-sm">{option.label}</span>
+                        </label>
+                      ))}
+                    </RadioGroup>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          <div className="flex justify-end pt-4">
+            <FormField
+              control={form.control}
+              name="number_of_founders"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>How many founders?</FormLabel>
+                  <FormControl>
+                    <RadioGroup
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      className="flex flex-row gap-4"
+                    >
+                      {[
+                        { value: 'solo', label: 'Solo' },
+                        { value: '2_5', label: '2-5' },
+                        { value: '6_plus', label: '6+' },
+                      ].map((option) => (
+                        <label
+                          key={option.value}
+                          className="flex cursor-pointer items-center gap-2"
+                        >
+                          <RadioGroupItem value={option.value} />
+                          <span className="text-sm">{option.label}</span>
+                        </label>
+                      ))}
+                    </RadioGroup>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="equity_plans"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    Do you plan to issue equity (stock options, SAFEs)?
+                  </FormLabel>
+                  <FormControl>
+                    <RadioGroup
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      className="flex flex-row gap-4"
+                    >
+                      {[
+                        { value: 'yes', label: 'Yes' },
+                        { value: 'maybe', label: 'Maybe' },
+                        { value: 'no', label: 'No' },
+                      ].map((option) => (
+                        <label
+                          key={option.value}
+                          className="flex cursor-pointer items-center gap-2"
+                        >
+                          <RadioGroupItem value={option.value} />
+                          <span className="text-sm">{option.label}</span>
+                        </label>
+                      ))}
+                    </RadioGroup>
+                  </FormControl>
+                  <FormDescription>
+                    Common for startups hiring engineers or raising capital.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <div className="flex flex-row items-center gap-2 pt-8">
             <Button type="submit">Continue</Button>
           </div>
         </form>

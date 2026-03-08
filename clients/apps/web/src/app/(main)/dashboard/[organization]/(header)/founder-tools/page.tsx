@@ -1,12 +1,12 @@
 import { Metadata } from 'next'
-import StartupStackPage from '@/components/StartupStack/StartupStackPage'
+import FormationLandingPage from '@/components/CompanyFormation/FormationLandingPage'
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
-    title: 'Perks',
+    title: 'Incorporate',
   }
 }
 
 export default function Page() {
-  return <StartupStackPage />
+  return <FormationLandingPage />
 }

@@ -31,7 +31,6 @@ export default function FormationWizard() {
     return INITIAL_WIZARD_DATA
   })
 
-  // Persist draft on change
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(formData))
   }, [formData])
@@ -73,10 +72,10 @@ export default function FormationWizard() {
   }
 
   return (
-    <div className="flex w-full flex-col items-center pb-16">
-      <div className="flex w-full max-w-2xl flex-col gap-16">
-        <StepIndicator currentStep={currentStep} />
+    <>
+      <StepIndicator currentStep={currentStep} />
 
+      <div className="dark:border-spaire-700 dark:divide-spaire-700 flex flex-col divide-y divide-gray-200 rounded-4xl border border-gray-200">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentStep}
@@ -123,6 +122,6 @@ export default function FormationWizard() {
           </motion.div>
         </AnimatePresence>
       </div>
-    </div>
+    </>
   )
 }
