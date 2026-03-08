@@ -5,6 +5,7 @@ import ArrowForwardOutlined from '@mui/icons-material/ArrowForwardOutlined'
 import PublicOutlined from '@mui/icons-material/PublicOutlined'
 import AccountBalanceOutlined from '@mui/icons-material/AccountBalanceOutlined'
 import BadgeOutlined from '@mui/icons-material/BadgeOutlined'
+import PercentOutlined from '@mui/icons-material/PercentOutlined'
 import Button from '@spaire/ui/components/atoms/Button'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
@@ -28,6 +29,12 @@ const FEATURES = [
     description:
       'Whether you are raising venture capital or bootstrapping, get the right entity structure for your startup.',
   },
+  {
+    icon: PercentOutlined,
+    title: 'Exclusive partner discount',
+    description:
+      'Spaire founders get 10% off formation through our partnership with doola.',
+  },
 ] as const
 
 export default function FormationLandingPage() {
@@ -44,54 +51,66 @@ export default function FormationLandingPage() {
         </p>
       </div>
 
-      {/* Powered by doola */}
-      <div className="mt-6 flex items-center gap-x-3">
-        <img
-          src="https://cdn.doola.com/favicons/favicon-96x96.png"
-          alt="doola"
-          className="h-8 w-8 rounded-lg"
-        />
-        <span className="dark:text-spaire-400 text-sm text-gray-500">
-          Powered by{' '}
-          <span className="font-medium text-gray-900 dark:text-white">
-            doola
-          </span>
-        </span>
-      </div>
-
-      {/* Features */}
-      <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {FEATURES.map((feature) => (
-          <div
-            key={feature.title}
-            className="dark:border-spaire-700 flex flex-col gap-y-3 rounded-2xl border border-gray-200 p-6"
+      <div className="mt-10 flex flex-col items-center">
+        {/* doola partnership */}
+        <div className="flex items-center gap-x-3">
+          <svg
+            viewBox="0 0 120 32"
+            className="h-7"
+            aria-label="doola"
           >
-            <feature.icon
-              className="dark:text-spaire-400 text-gray-400"
-              style={{ fontSize: 22 }}
-            />
-            <div className="flex flex-col gap-y-1">
-              <span className="text-sm font-medium dark:text-white">
-                {feature.title}
-              </span>
-              <span className="dark:text-spaire-400 text-xs leading-relaxed text-gray-500">
-                {feature.description}
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
+            <text
+              x="0"
+              y="26"
+              fontFamily="system-ui, -apple-system, sans-serif"
+              fontSize="28"
+              fontWeight="700"
+              fill="currentColor"
+              className="dark:fill-white fill-gray-900"
+            >
+              doola
+            </text>
+          </svg>
+        </div>
+        <p className="dark:text-spaire-400 mt-2 text-center text-sm text-gray-500">
+          Spaire partners with doola to help you incorporate your US company
+          with exclusive benefits and a streamlined process.
+        </p>
 
-      <div className="mt-8">
-        <Link href={`/dashboard/${orgSlug}/formation/new`}>
-          <Button size="lg">
-            Get started
-            <ArrowForwardOutlined
-              className="ml-2"
-              style={{ fontSize: 18 }}
-            />
-          </Button>
-        </Link>
+        {/* Features 2x2 grid */}
+        <div className="mt-8 grid w-full max-w-2xl grid-cols-1 gap-4 sm:grid-cols-2">
+          {FEATURES.map((feature) => (
+            <div
+              key={feature.title}
+              className="dark:border-spaire-700 flex flex-col gap-y-3 rounded-2xl border border-gray-200 p-6"
+            >
+              <feature.icon
+                className="dark:text-spaire-400 text-gray-400"
+                style={{ fontSize: 22 }}
+              />
+              <div className="flex flex-col gap-y-1">
+                <span className="text-sm font-medium dark:text-white">
+                  {feature.title}
+                </span>
+                <span className="dark:text-spaire-400 text-xs leading-relaxed text-gray-500">
+                  {feature.description}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-8">
+          <Link href={`/dashboard/${orgSlug}/formation/new`}>
+            <Button size="lg">
+              Get started
+              <ArrowForwardOutlined
+                className="ml-2"
+                style={{ fontSize: 18 }}
+              />
+            </Button>
+          </Link>
+        </div>
       </div>
     </DashboardBody>
   )
