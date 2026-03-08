@@ -21,7 +21,7 @@ const CheckoutLayout: React.FC<
 
   return (
     <PolarThemeProvider>
-      <div className="dark:bg-spaire-950 h-full min-h-screen bg-white dark:text-white md:bg-gray-50">
+      <div className="dark:bg-spaire-950 flex h-full min-h-screen items-center justify-center bg-white dark:text-white md:bg-gray-50">
         {children}
       </div>
     </PolarThemeProvider>
