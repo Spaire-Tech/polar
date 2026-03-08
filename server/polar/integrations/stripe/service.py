@@ -36,7 +36,7 @@ if TYPE_CHECKING:
     from polar.models import User
 
 stripe_lib.api_key = settings.STRIPE_SECRET_KEY
-stripe_lib.api_version = "2026-02-25"
+stripe_lib.api_version = "2026-01-28.clover"
 
 stripe_http_client = stripe_lib.HTTPXClient(allow_sync_methods=True)
 instrument_httpx(stripe_http_client._client_async)
@@ -45,7 +45,7 @@ stripe_lib.default_http_client = stripe_http_client
 # StripeClient instance for v2 API calls
 stripe_client = stripe_lib.StripeClient(
     api_key=settings.STRIPE_SECRET_KEY,
-    stripe_version="2026-02-25",
+    stripe_version="2026-01-28.clover",
     http_client=stripe_http_client,
 )
 
