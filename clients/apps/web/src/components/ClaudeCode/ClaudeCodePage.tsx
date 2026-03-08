@@ -58,11 +58,10 @@ function AgentPlatformCard({ platform }: { platform: AgentPlatform }) {
 
 export default function ClaudeCodePage() {
   return (
-    <DashboardBody title="Agent Install">
+    <DashboardBody title="Choose your AI coding agent">
       <div className="flex flex-col gap-y-2">
         <p className="dark:text-spaire-500 text-sm text-gray-500">
-          Choose your AI coding agent. Each one can read your codebase and wire
-          up Spaire checkout or usage billing directly in your project.
+      Each agent can integrate Spaire checkout or usage-based billing directly into your codebase.
         </p>
       </div>
       <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
