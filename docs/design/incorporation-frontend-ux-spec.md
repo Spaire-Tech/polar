@@ -1,22 +1,23 @@
-# Incorporation Frontend UX Specification
+# Company Formation Frontend UX Specification
 
-## Stripe Atlas-Inspired Company Formation Wizard
+## Partner Referral Flow — doola Integration (V1)
 
 **Author:** Staff Engineering
-**Date:** 2026-03-06
-**Status:** Design Proposal
+**Date:** 2026-03-08
+**Status:** Design Proposal (V2 — replaces Incorporation UX Spec V1)
 **Related:** [incorporation-feature-plan.md](./incorporation-feature-plan.md)
+**Partner:** [doola](https://partnersps.doola.com/spaire)
 
 ---
 
 ## Table of Contents
 
 1. [Design Philosophy](#1-design-philosophy)
-2. [Information Architecture](#2-information-architecture)
+2. [Architecture Overview](#2-architecture-overview)
 3. [Navigation Integration](#3-navigation-integration)
 4. [Route Structure](#4-route-structure)
 5. [Wizard Flow — Screen-by-Screen](#5-wizard-flow--screen-by-screen)
-6. [Post-Submission Dashboard](#6-post-submission-dashboard)
+6. [Recommendation Engine](#6-recommendation-engine)
 7. [Component Architecture](#7-component-architecture)
 8. [State Management](#8-state-management)
 9. [Responsive & Dark Mode](#9-responsive--dark-mode)
@@ -27,76 +28,70 @@
 
 ## 1. Design Philosophy
 
-### Lessons from Stripe Atlas
+### Stripe Atlas-Inspired, Partner-Powered
 
 Stripe Atlas succeeds because it:
 
-1. **Feels like filling out one form, not six** — the stepper makes progress visible but doesn't overwhelm. Each screen has 2-4 fields max.
-2. **Provides education inline** — hover tooltips and expandable "Why does this matter?" sections reduce anxiety about legal decisions.
-3. **Defaults are smart** — Delaware is pre-selected, fiscal year defaults to December, today's date is pre-filled.
-4. **Review is comprehensive** — before payment, you see everything in one scrollable summary.
-5. **Post-submission is calm** — a timeline view shows exactly where you are, no guessing.
+1. **Feels like filling out one form, not six** — the stepper makes progress visible but doesn't overwhelm.
+2. **Provides education inline** — tooltips and "Why does this matter?" sections reduce anxiety about legal decisions.
+3. **Defaults are smart** — Delaware is pre-selected, recommendations are explained.
+
+We preserve this UX philosophy but redirect the actual formation to our partner doola. Spaire acts as a **guided intake and recommendation layer** — we help founders understand what they need, then hand them off to doola to execute.
 
 ### Spaire Design Principles
 
 We inherit Spaire's existing design system:
 
-- **`DashboardBody`** as the page wrapper (consistent title, max-width, animation)
-- **`rounded-2xl` cards** with `border-gray-200` / `dark:border-spaire-700`
-- **`blue-500` primary actions** with `blue-600` hover
-- **`@spaire/ui` atoms** — Button, Input, Select, Card, Tabs, Badge
-- **React Hook Form + Zod** for validation
-- **TanStack Query** for data fetching
-- **Framer Motion** page transitions (already in DashboardBody)
+- **`DashboardBody`** for page chrome (title, context view, tabs)
+- **`@spaire/ui`** components (`Button`, `Input`, `Select`, `Card`, `Banner`)
+- **Framer Motion** for step transitions
+- **Dark mode first** with `dark:` Tailwind variants
+- **12-column grid** collapsing to single column on mobile
 
-### Key Difference from Atlas
+### What Spaire Handles vs. doola
 
-Atlas is a standalone product. Ours lives **inside the dashboard** — so we get the sidebar, header, and org context for free. The wizard should feel like a natural extension of the dashboard, not a separate app.
+| Concern | Spaire (V1) | doola |
+|---|---|---|
+| Founder intent collection | Yes | — |
+| Entity type recommendation | Yes (rule-based) | — |
+| Company name collection | Yes | — |
+| Founder details (name + email) | Yes | — |
+| Payment processing | — | Yes |
+| State filings | — | Yes |
+| Registered agent | — | Yes |
+| EIN assistance | — | Yes |
+| Document delivery | — | Yes |
+| Address collection | — | Yes |
+| Officer details | — | Yes |
 
 ---
 
-## 2. Information Architecture
+## 2. Architecture Overview
 
-### User Journey Map
+### V1: Partner Referral Flow
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        ENTRY POINTS                              │
-│                                                                  │
-│  Sidebar "Incorporate" → Landing Page                            │
-│  Startup Stack CTA    → Landing Page                             │
-│  Onboarding prompt    → Landing Page                             │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                     LANDING PAGE                                 │
-│                                                                  │
-│  No incorporations? → Hero CTA: "Start Your Company"            │
-│  Has draft?         → Resume banner + list                       │
-│  Has active?        → Status cards + list                        │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │ Click "Start" or "Resume"
-                           ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    WIZARD (5 steps)                               │
-│                                                                  │
-│  1. Entity Type    (LLC vs Corporation)                          │
-│  2. Company Info   (name, state, details)                        │
-│  3. People         (officers/founders)                           │
-│  4. Addresses      (company + mailing)                           │
-│  5. Review & Pay   (summary → checkout)                          │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │ Payment complete
-                           ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                  STATUS DASHBOARD                                │
-│                                                                  │
-│  Timeline view (submitted → processing → filed → complete)      │
-│  Document downloads when available                               │
-│  Company details reference card                                  │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────┐
+│                 Spaire Dashboard                 │
+│                                                  │
+│  ┌───────────┐  ┌───────────┐  ┌─────────────┐  │
+│  │  Step 1   │→ │  Step 2   │→ │   Step 3    │──┼──→ doola
+│  │ Founder   │  │ Company   │  │  Review &   │  │    (affiliate
+│  │  Intent   │  │ Details   │  │  Continue   │  │     redirect)
+│  └───────────┘  └───────────┘  └─────────────┘  │
+│        │              │              │           │
+│        └──────────────┴──────────────┘           │
+│              localStorage + analytics            │
+└─────────────────────────────────────────────────┘
 ```
+
+### Key Architectural Decisions
+
+1. **No backend formation API** — V1 does not create incorporations in the database.
+2. **Client-side state only** — wizard answers stored in `localStorage` for draft persistence and optionally sent to analytics.
+3. **Rule-based recommendation engine** — deterministic, explainable entity type + state recommendations. No AI/LLM.
+4. **Affiliate redirect** — final CTA opens `https://partnersps.doola.com/spaire` with optional query parameters.
+5. **Future-proof** — component structure allows restoring deep FileForms integration in V2.
 
 ---
 
@@ -104,41 +99,43 @@ Atlas is a standalone product. Ours lives **inside the dashboard** — so we get
 
 ### Sidebar Addition
 
-Add "Incorporate" to the `generalRoutesList` in `navigation.tsx`, positioned after "Startup Stack" and before "Balance":
+Add "Start a Company" to `organizationRoutesList` in `DashboardNavigation.tsx`:
 
-```tsx
-// clients/apps/web/src/components/Dashboard/navigation.tsx
-
-import BusinessOutlined from '@mui/icons-material/BusinessOutlined'
-
-// In generalRoutesList, after startup-stack entry:
+```typescript
+// In navigation.tsx — organizationRoutesList
 {
-  id: 'incorporate',
-  title: 'Incorporate',
-  icon: <BusinessOutlined fontSize="inherit" />,
-  link: `/dashboard/${org?.slug}/incorporate`,
-  checkIsActive: (currentRoute: string): boolean => {
-    return currentRoute.startsWith(`/dashboard/${org?.slug}/incorporate`)
-  },
+  id: 'company-formation',
+  title: 'Start a Company',
+  icon: <RocketLaunchOutlined className="h-5 w-5" />,
+  link: `/${org.slug}/formation`,
   if: true,
-},
+}
 ```
 
-**Why `BusinessOutlined`?** It's from `@mui/icons-material` (already used throughout the sidebar) and visually represents a company/building — clear meaning for "incorporation." We use the outlined variant to match the other sidebar icons.
+**Placement:** After "Startup Stack" (perks), before account settings.
 
-### Sidebar Order (after change)
+### Landing Page Header
 
 ```
-Overview
-Catalog
-Customers
-Analytics
-Revenue
-Integrations
-Startup Stack
-Incorporate          ← NEW
-Balance
-Settings
+┌──────────────────────────────────────────────────┐
+│  Start a Company                                 │
+│                                                  │
+│  Form your US company in minutes through our     │
+│  partner doola.                                  │
+│                                                  │
+│  ┌──────────────────────┐                        │
+│  │  Start Formation →   │                        │
+│  └──────────────────────┘                        │
+│                                                  │
+│  ┌────────────────────────────────────────────┐   │
+│  │  Partner Benefits                          │   │
+│  │  ✓ 10% founder discount via doola          │   │
+│  │  ✓ Delaware C-Corp or LLC formation        │   │
+│  │  ✓ Registered agent included               │   │
+│  │  ✓ EIN assistance                          │   │
+│  │  ✓ Startup perks & banking access          │   │
+│  └────────────────────────────────────────────┘   │
+└──────────────────────────────────────────────────┘
 ```
 
 ---
@@ -146,815 +143,660 @@ Settings
 ## 4. Route Structure
 
 ```
-clients/apps/web/src/app/(main)/dashboard/[organization]/(header)/incorporate/
-├── page.tsx                           # Landing page (list + CTA)
-├── layout.tsx                         # Optional: tab layout if needed later
-├── new/
-│   └── page.tsx                       # Wizard entry point
-├── [incorporationId]/
-│   └── page.tsx                       # Status/detail page
+/[org]/formation                → FormationLandingPage
+/[org]/formation/new            → FormationWizard (3-step)
+/[org]/formation/new?step=1     → FounderIntentStep
+/[org]/formation/new?step=2     → CompanyDetailsStep
+/[org]/formation/new?step=3     → ReviewRedirectStep
 ```
 
-**Component files** (in `clients/apps/web/src/components/Incorporation/`):
+### Next.js Page Files
 
 ```
-components/Incorporation/
-├── IncorporateLandingPage.tsx         # Landing page with hero/list
-├── IncorporationWizard.tsx            # Main wizard orchestrator
-├── steps/
-│   ├── EntityTypeStep.tsx             # Step 1
-│   ├── CompanyInfoStep.tsx            # Step 2
-│   ├── PeopleStep.tsx                 # Step 3
-│   ├── AddressStep.tsx                # Step 4
-│   └── ReviewStep.tsx                 # Step 5
-├── IncorporationStatusPage.tsx        # Post-submission detail
-├── IncorporationTimeline.tsx          # Timeline component
-├── IncorporationDocuments.tsx         # Document list
-├── EntityTypeCard.tsx                 # Reusable entity selection card
-├── OfficerFieldGroup.tsx             # Reusable officer form fields
-└── StepIndicator.tsx                  # Progress stepper
+clients/apps/web/src/app/(main)/[organization]/(sidebar)/formation/
+├── page.tsx                    → Landing page
+└── new/
+    └── page.tsx                → Wizard shell
 ```
 
 ---
 
 ## 5. Wizard Flow — Screen-by-Screen
 
-### Overall Wizard Layout
+### Step Indicator
 
-The wizard uses `DashboardBody` with `wrapperClassName="max-w-(--breakpoint-md)!"` (same as product creation) and a custom step indicator at the top.
+A 3-step horizontal progress bar:
 
 ```
-┌──────────────────────────────────────────────────────┐
-│ DashboardBody title="Start a Company"                │
-│                                                      │
-│ ┌──────────────────────────────────────────────────┐ │
-│ │         Step Indicator (1 of 5)                  │ │
-│ │  ● Entity Type  ○ Company  ○ People  ○ Address   │ │
-│ │                                    ○ Review      │ │
-│ └──────────────────────────────────────────────────┘ │
-│                                                      │
-│ ┌──────────────────────────────────────────────────┐ │
-│ │                                                  │ │
-│ │              Step Content Area                   │ │
-│ │         (changes per step, animated)             │ │
-│ │                                                  │ │
-│ └──────────────────────────────────────────────────┘ │
-│                                                      │
-│         [← Back]                    [Continue →]     │
-└──────────────────────────────────────────────────────┘
+  ● Founder Setup ──── ○ Company Details ──── ○ Review & Continue
+  ━━━━━━━━━━━━━━━━━━   ─────────────────────   ─────────────────
 ```
 
-### Step Indicator Design
-
-A horizontal step indicator inspired by Stripe's minimal approach. Each step is a small circle connected by a line. Completed steps get a checkmark, current step is filled blue, future steps are gray outline.
-
-```tsx
-// StepIndicator.tsx
-const steps = [
-  { label: 'Entity Type', key: 'entity' },
-  { label: 'Company', key: 'company' },
-  { label: 'People', key: 'people' },
-  { label: 'Address', key: 'address' },
-  { label: 'Review', key: 'review' },
-]
-```
-
-Visual states:
-- **Completed:** Blue filled circle with white checkmark, blue connecting line
-- **Current:** Blue filled circle with white dot, gray connecting line ahead
-- **Future:** Gray outlined circle, gray connecting line
-- Labels appear below circles on desktop, hidden on mobile (just circles)
+Active step: filled circle + bold label + solid underline
+Completed step: check icon + muted label + solid underline
+Upcoming step: empty circle + muted label + dashed underline
 
 ---
 
-### Step 1 — Entity Type
+### Step 1 — Founder Intent
 
-**Goal:** Choose LLC or Corporation. This is the most important decision, so it gets a full screen with educational content.
-
-**Layout:** Two large selectable cards, side by side on desktop, stacked on mobile.
-
-```
-┌──────────────────────────────────────────────────────┐
-│  What type of company do you want to form?           │
-│                                                      │
-│  ┌─────────────────────┐ ┌─────────────────────────┐ │
-│  │ ○ LLC               │ │ ○ Corporation            │ │
-│  │                     │ │                          │ │
-│  │ Limited Liability   │ │ Best for startups        │ │
-│  │ Company             │ │ seeking venture capital  │ │
-│  │                     │ │                          │ │
-│  │ Simpler structure,  │ │ Easier to issue stock,   │ │
-│  │ pass-through taxes, │ │ preferred by investors,  │ │
-│  │ flexible management │ │ clear governance         │ │
-│  │                     │ │                          │ │
-│  │ Best for:           │ │ Best for:                │ │
-│  │ • Solo founders     │ │ • VC-backed startups     │ │
-│  │ • Small teams       │ │ • Companies planning     │ │
-│  │ • Consulting firms  │ │   to raise funding       │ │
-│  │ • Freelancers       │ │ • Companies planning     │ │
-│  │                     │ │   stock options           │ │
-│  └─────────────────────┘ └─────────────────────────┘ │
-│                                                      │
-│  ┌──────────────────────────────────────────────────┐ │
-│  │ ▸ Not sure? Here's a quick comparison            │ │
-│  └──────────────────────────────────────────────────┘ │
-│                                                      │
-│  [Sub-choice appears after selection:]               │
-│                                                      │
-│  If LLC selected:                                    │
-│  ┌──────────────────────────────────────────────────┐ │
-│  │ Management structure                              │ │
-│  │ ○ Member-Managed (recommended for most)           │ │
-│  │ ○ Manager-Managed                                 │ │
-│  └──────────────────────────────────────────────────┘ │
-│                                                      │
-│  If Corporation selected:                            │
-│  ┌──────────────────────────────────────────────────┐ │
-│  │ Tax election                                      │ │
-│  │ ○ C Corporation (recommended for VC)              │ │
-│  │ ○ S Corporation                                   │ │
-│  └──────────────────────────────────────────────────┘ │
-│                                                      │
-│                                   [Continue →]       │
-└──────────────────────────────────────────────────────┘
-```
-
-**Implementation notes:**
-- Entity cards use `rounded-2xl border-2` with a blue ring (`ring-2 ring-blue-500`) when selected
-- Sub-choice uses radio buttons from `@spaire/ui`
-- "Not sure?" is a collapsible section using `<details>` or a custom accordion
-- No "Back" button on step 1 (it's the first step)
+**Purpose:** Collect high-level founder context to power the recommendation engine.
 
 **Fields:**
-| Field | Type | Required | Default |
-|-------|------|----------|---------|
-| `entity_type` | `"LLC" \| "CORP"` | Yes | None |
-| `structure_type` | `"MEMBER" \| "MANAGER"` | If LLC | "MEMBER" |
-| `tax_election` | `"C Corporation" \| "S Corporation"` | If CORP | "C Corporation" |
+
+| Field | Type | Options | Required |
+|---|---|---|---|
+| `product_type` | Select | SaaS, AI, Marketplace, Agency, Consulting, Other | Yes |
+| `founder_location` | Select | United States, Outside US | Yes |
+| `planning_to_raise_vc` | Radio group | Yes, Maybe, No | Yes |
+| `number_of_founders` | Radio group | Solo, 2–5, 6+ | Yes |
+| `equity_plans` | Radio group | Yes, Maybe, No | Yes |
+| `revenue_expectation` | Select | Pre-revenue, Under $10k/mo, $10k–$100k/mo, $100k+/mo | Yes |
+
+**Layout:**
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Step 1 of 3 — Founder Setup                            │
+│                                                         │
+│  Tell us about your startup so we can recommend         │
+│  the best company structure for you.                    │
+│                                                         │
+│  What are you building?                                 │
+│  ┌─────────────────────────────────────┐                │
+│  │ SaaS                            ▾   │                │
+│  └─────────────────────────────────────┘                │
+│                                                         │
+│  Where are you located?                                 │
+│  ┌─────────────────────────────────────┐                │
+│  │ United States                    ▾   │                │
+│  └─────────────────────────────────────┘                │
+│                                                         │
+│  Are you planning to raise venture capital?              │
+│  ( ) Yes    ( ) Maybe    ( ) No                         │
+│                                                         │
+│  How many founders?                                     │
+│  ( ) Solo   ( ) 2–5     ( ) 6+                          │
+│                                                         │
+│  Do you plan to issue equity (stock options, SAFEs)?     │
+│  ( ) Yes    ( ) Maybe    ( ) No                         │
+│  ℹ️ Common for startups hiring engineers or raising.     │
+│                                                         │
+│  Expected monthly revenue?                              │
+│  ┌─────────────────────────────────────┐                │
+│  │ Pre-revenue                      ▾   │                │
+│  └─────────────────────────────────────┘                │
+│                                                         │
+│                              ┌─────────────┐            │
+│                              │  Continue →  │            │
+│                              └─────────────┘            │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Validation (Zod):**
+
+```typescript
+const founderIntentSchema = z.object({
+  product_type: z.enum(['saas', 'ai', 'marketplace', 'agency', 'consulting', 'other']),
+  founder_location: z.enum(['us', 'non_us']),
+  planning_to_raise_vc: z.enum(['yes', 'maybe', 'no']),
+  number_of_founders: z.enum(['solo', '2_5', '6_plus']),
+  equity_plans: z.enum(['yes', 'maybe', 'no']),
+  revenue_expectation: z.enum(['pre_revenue', 'under_10k', '10k_100k', '100k_plus']),
+})
+```
 
 ---
 
-### Step 2 — Company Info
+### Step 2 — Company Details
 
-**Goal:** Collect the company name, formation state, and basic details. Keep it to ~5 fields max.
+**Purpose:** Collect minimal company information before redirect. Display the recommendation engine output.
 
-```
-┌──────────────────────────────────────────────────────┐
-│  Tell us about your company                          │
-│                                                      │
-│  Company legal name *                                │
-│  ┌──────────────────────────────────────────────────┐ │
-│  │ Acme Technologies LLC                            │ │
-│  └──────────────────────────────────────────────────┘ │
-│  This will be the official name filed with the state │
-│                                                      │
-│  Trade name / DBA (optional)                         │
-│  ┌──────────────────────────────────────────────────┐ │
-│  │                                                  │ │
-│  └──────────────────────────────────────────────────┘ │
-│  A different name your company will do business as   │
-│                                                      │
-│  Formation state *                                   │
-│  ┌──────────────────────────────────────────────────┐ │
-│  │ Delaware                                    ▾    │ │
-│  └──────────────────────────────────────────────────┘ │
-│  ⓘ Delaware is the most popular state for startups.  │
-│    It has well-established corporate law and is       │
-│    preferred by investors.                            │
-│                                                      │
-│  ┌─────────────────────┐ ┌─────────────────────────┐ │
-│  │ Formation date *    │ │ Fiscal year end *        │ │
-│  │ ┌─────────────────┐ │ │ ┌─────────────────────┐ │ │
-│  │ │ March 6, 2026   │ │ │ │ December         ▾  │ │ │
-│  │ └─────────────────┘ │ │ └─────────────────────┘ │ │
-│  └─────────────────────┘ └─────────────────────────┘ │
-│                                                      │
-│  EIN (optional)                                      │
-│  ┌──────────────────────────────────────────────────┐ │
-│  │ XX-XXXXXXX                                       │ │
-│  └──────────────────────────────────────────────────┘ │
-│  If you already have an EIN. Most new companies      │
-│  don't — we'll skip this.                            │
-│                                                      │
-│  [← Back]                          [Continue →]      │
-└──────────────────────────────────────────────────────┘
-```
-
-**Implementation notes:**
-- Formation date uses a date input, defaulting to today
-- State selector is a searchable select with all 50 US states + DC
-- EIN field uses an input mask (XX-XXXXXXX pattern)
-- Helper text appears below each field in `text-sm text-gray-500 dark:text-spaire-400`
-- Delaware info box uses a subtle blue-tinted background (`bg-blue-50 dark:bg-blue-900/10 rounded-xl p-3`)
+**On entry:** The recommendation engine runs against Step 1 inputs and produces a recommendation card.
 
 **Fields:**
-| Field | Type | Required | Default |
-|-------|------|----------|---------|
-| `legal_name` | string | Yes | "" |
-| `trade_name` | string | No | "" |
-| `formation_state` | US state code | Yes | "DE" |
-| `formation_date` | date | Yes | today |
-| `fiscal_end_month` | month name | Yes | "December" |
-| `ein` | string (XX-XXXXXXX) | No | "" |
+
+| Field | Type | Default | Required |
+|---|---|---|---|
+| `legal_name` | Text input | — | Yes |
+| `entity_type` | Radio group | From recommendation | Yes |
+| `formation_state` | Select | From recommendation | Yes |
+| `founders` | Repeatable group (name + email) | Pre-filled with current user | Yes (min 1) |
+
+**Layout:**
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Step 2 of 3 — Company Details                          │
+│                                                         │
+│  ┌─────────────────────────────────────────────────┐    │
+│  │  🏛  Recommended Structure                       │    │
+│  │                                                  │    │
+│  │  Delaware C-Corporation                          │    │
+│  │                                                  │    │
+│  │  Why this recommendation?                        │    │
+│  │  • You indicated plans to raise venture capital   │    │
+│  │  • You're building a SaaS product                │    │
+│  │  • You may issue equity to employees             │    │
+│  │                                                  │    │
+│  │  [Accept recommendation]  [Choose differently]   │    │
+│  └─────────────────────────────────────────────────┘    │
+│                                                         │
+│  Company name                                           │
+│  ┌─────────────────────────────────────┐                │
+│  │                                      │                │
+│  └─────────────────────────────────────┘                │
+│  ℹ️ Your legal company name (e.g., "Acme Inc.")         │
+│                                                         │
+│  Entity type                                            │
+│  (●) C-Corporation    ( ) LLC                           │
+│                                                         │
+│  Formation state                                        │
+│  ┌─────────────────────────────────────┐                │
+│  │ Delaware                         ▾   │                │
+│  └─────────────────────────────────────┘                │
+│                                                         │
+│  Founders                                               │
+│  ┌─────────────────────────────────────────────────┐    │
+│  │  Jane Doe              jane@example.com    [×]  │    │
+│  └─────────────────────────────────────────────────┘    │
+│  [+ Add founder]                                        │
+│                                                         │
+│                    ┌──────────┐  ┌─────────────┐        │
+│                    │  ← Back  │  │  Continue →  │        │
+│                    └──────────┘  └─────────────┘        │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Validation (Zod):**
+
+```typescript
+const companyDetailsSchema = z.object({
+  legal_name: z.string().min(1, 'Company name is required').max(200),
+  entity_type: z.enum(['LLC', 'C_CORP']),
+  formation_state: z.enum(['DE', 'WY']),
+  founders: z.array(z.object({
+    name: z.string().min(1, 'Name is required'),
+    email: z.string().email('Valid email required'),
+  })).min(1, 'At least one founder is required'),
+})
+```
 
 ---
 
-### Step 3 — People (Officers)
+### Step 3 — Review & Continue to doola
 
-**Goal:** Add the company's officers/founders. Dynamic list with add/remove. This is the most complex step.
+**Purpose:** Summarize the wizard answers, communicate the partner handoff, and redirect to doola.
 
-```
-┌──────────────────────────────────────────────────────┐
-│  Who's involved in the company?                      │
-│                                                      │
-│  Add the officers, directors, or members of your     │
-│  company. At least one person is required.           │
-│                                                      │
-│  ┌──────────────────────────────────────────────────┐ │
-│  │ Person 1                              ★ Primary  │ │
-│  │                                                  │ │
-│  │ Type: ○ Individual  ○ Company                    │ │
-│  │                                                  │
-│  │ ┌──────────────┐ ┌────────────────────┐          │ │
-│  │ │ First name * │ │ Last name *        │          │ │
-│  │ │ ┌──────────┐ │ │ ┌────────────────┐ │          │ │
-│  │ │ │ Jane     │ │ │ │ Smith          │ │          │ │
-│  │ │ └──────────┘ │ │ └────────────────┘ │          │ │
-│  │ └──────────────┘ └────────────────────┘          │ │
-│  │                                                  │ │
-│  │ Title *                                          │ │
-│  │ ┌──────────────────────────────────────────────┐ │ │
-│  │ │ CEO                                     ▾    │ │ │
-│  │ └──────────────────────────────────────────────┘ │ │
-│  │                                                  │ │
-│  │ Address                                          │ │
-│  │ ┌──────────────────────────────────────────────┐ │ │
-│  │ │ Street address *                             │ │ │
-│  │ └──────────────────────────────────────────────┘ │ │
-│  │ ┌─────────────┐ ┌──────────┐ ┌───────────────┐ │ │
-│  │ │ City *      │ │ State *  │ │ ZIP *         │ │ │
-│  │ └─────────────┘ └──────────┘ └───────────────┘ │ │
-│  │                                                  │ │
-│  │                               [Remove Person]    │ │
-│  └──────────────────────────────────────────────────┘ │
-│                                                      │
-│  [+ Add another person]                              │
-│                                                      │
-│  [← Back]                          [Continue →]      │
-└──────────────────────────────────────────────────────┘
-```
-
-**Implementation notes:**
-- Each officer is a collapsible card (expanded by default when just added)
-- The first officer is auto-marked as "Primary" (shown with a star badge)
-- "Primary" can be reassigned by clicking on any officer's header
-- Title field is a select with common options: CEO, CTO, Managing Member, Director, Secretary, Treasurer, Member
-- When "Company" type is selected, first/last name fields change to a single "Company name" field
-- "Remove" button is disabled when only 1 officer remains
-- Uses React Hook Form's `useFieldArray` for dynamic officer list
-- Each officer card uses `rounded-2xl border border-gray-200 dark:border-spaire-700 p-6`
-
-**Fields per officer:**
-| Field | Type | Required | Default |
-|-------|------|----------|---------|
-| `type` | `"PERSON" \| "COMPANY"` | Yes | "PERSON" |
-| `first_name` | string | If PERSON | "" |
-| `last_name` | string | If PERSON | "" |
-| `company_name` | string | If COMPANY | "" |
-| `title` | string | Yes | "" |
-| `address_street` | string | Yes | "" |
-| `address_city` | string | Yes | "" |
-| `address_state` | US state code | Yes | "" |
-| `address_zip` | string (5 digits) | Yes | "" |
-| `is_primary` | boolean | — | first=true |
-
----
-
-### Step 4 — Addresses
-
-**Goal:** Company address and mailing address. Simple, clean, with a "same as above" shortcut.
+**Layout:**
 
 ```
-┌──────────────────────────────────────────────────────┐
-│  Company addresses                                   │
-│                                                      │
-│  Principal Office Address                            │
-│  ┌──────────────────────────────────────────────────┐ │
-│  │ Street address *                                 │ │
-│  │ ┌──────────────────────────────────────────────┐ │ │
-│  │ │ 123 Startup Lane                             │ │ │
-│  │ └──────────────────────────────────────────────┘ │ │
-│  │                                                  │ │
-│  │ ┌────────────────┐ ┌──────────┐ ┌─────────────┐ │ │
-│  │ │ City *         │ │ State *  │ │ ZIP *       │ │ │
-│  │ │ ┌────────────┐ │ │ ┌──────┐ │ │ ┌─────────┐ │ │ │
-│  │ │ │ Wilmington │ │ │ │ DE   │ │ │ │ 19801   │ │ │ │
-│  │ │ └────────────┘ │ │ └──────┘ │ │ └─────────┘ │ │ │
-│  │ └────────────────┘ └──────────┘ └─────────────┘ │ │
-│  └──────────────────────────────────────────────────┘ │
-│                                                      │
-│  Mailing Address                                     │
-│  ☑ Same as principal office address                  │
-│  ┌──────────────────────────────────────────────────┐ │
-│  │ (fields hidden when checkbox is checked)         │ │
-│  │ Street, City, State, ZIP — same layout as above  │ │
-│  └──────────────────────────────────────────────────┘ │
-│                                                      │
-│  ┌──────────────────────────────────────────────────┐ │
-│  │ Additional Services                               │ │
-│  │                                                  │ │
-│  │ ☑ Include Registered Agent ($149/year)            │ │
-│  │   A registered agent receives legal documents     │ │
-│  │   on behalf of your company. Required in most     │ │
-│  │   states.                                         │ │
-│  └──────────────────────────────────────────────────┘ │
-│                                                      │
-│  [← Back]                          [Continue →]      │
-└──────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│  Step 3 of 3 — Review & Continue                        │
+│                                                         │
+│  ┌─────────────────────────────────────────────────┐    │
+│  │  Company Summary                                 │    │
+│  │                                                  │    │
+│  │  Company name     Acme Inc.                      │    │
+│  │  Entity type      Delaware C-Corporation         │    │
+│  │  Formation state  Delaware                       │    │
+│  │                                                  │    │
+│  │  Founders                                        │    │
+│  │  • Jane Doe (jane@example.com)                   │    │
+│  │  • John Smith (john@example.com)                 │    │
+│  └─────────────────────────────────────────────────┘    │
+│                                                         │
+│  ┌─────────────────────────────────────────────────┐    │
+│  │  Complete Formation with doola                   │    │
+│  │                                                  │    │
+│  │  You will complete company formation with our    │    │
+│  │  partner doola. This usually takes about         │    │
+│  │  10 minutes.                                     │    │
+│  │                                                  │    │
+│  │  What's included:                                │    │
+│  │  ✓ 10% founder discount via Spaire               │    │
+│  │  ✓ Company formation & state filings             │    │
+│  │  ✓ Registered agent (1 year included)            │    │
+│  │  ✓ EIN (tax ID) assistance                       │    │
+│  │  ✓ Access to startup perks & banking             │    │
+│  │                                                  │    │
+│  │  ┌──────────────────────────────────────────┐    │    │
+│  │  │      Continue to doola  →                │    │    │
+│  │  └──────────────────────────────────────────┘    │    │
+│  │                                                  │    │
+│  │  By continuing, you'll be redirected to           │    │
+│  │  doola.com to complete formation and payment.    │    │
+│  └─────────────────────────────────────────────────┘    │
+│                                                         │
+│                    ┌──────────┐                          │
+│                    │  ← Back  │                          │
+│                    └──────────┘                          │
+└─────────────────────────────────────────────────────────┘
 ```
 
-**Implementation notes:**
-- "Same as principal" checkbox copies values and disables mailing fields
-- Registered Agent toggle is a standalone card with price callout
-- State selector reuses the same searchable select from Step 2
-- ZIP validates for 5-digit US ZIP codes
+**Redirect behavior:**
 
-**Fields:**
-| Field | Type | Required | Default |
-|-------|------|----------|---------|
-| `address_street` | string | Yes | "" |
-| `address_city` | string | Yes | "" |
-| `address_state` | US state code | Yes | "" |
-| `address_zip` | string | Yes | "" |
-| `mailing_same_as_principal` | boolean | — | true |
-| `mailing_address_street` | string | If different | "" |
-| `mailing_address_city` | string | If different | "" |
-| `mailing_address_state` | string | If different | "" |
-| `mailing_address_zip` | string | If different | "" |
-| `include_registered_agent` | boolean | — | true |
+```typescript
+const DOOLA_AFFILIATE_URL = 'https://partnersps.doola.com/spaire'
 
----
+function handleContinueToDoola(formData: WizardFormData) {
+  // Optional: send analytics event
+  trackEvent('formation_redirect_to_doola', {
+    entity_type: formData.entity_type,
+    formation_state: formData.formation_state,
+    product_type: formData.product_type,
+    founder_count: formData.founders.length,
+  })
 
-### Step 5 — Review & Pay
+  // Redirect to doola affiliate link
+  const url = new URL(DOOLA_AFFILIATE_URL)
+  // Append query params if doola supports them
+  // url.searchParams.set('entity', formData.entity_type)
+  // url.searchParams.set('state', formData.formation_state)
 
-**Goal:** Show everything before payment. Each section has an "Edit" link that goes back to the relevant step. A cost breakdown at the bottom leads to checkout.
-
-```
-┌──────────────────────────────────────────────────────┐
-│  Review your application                             │
-│                                                      │
-│  Please review everything below before proceeding    │
-│  to payment.                                         │
-│                                                      │
-│  ┌──────────────────────────────────────────────────┐ │
-│  │ Entity Type                           [Edit]     │ │
-│  │ ─────────────────────────────────────────────    │ │
-│  │ LLC — Member-Managed                             │ │
-│  └──────────────────────────────────────────────────┘ │
-│                                                      │
-│  ┌──────────────────────────────────────────────────┐ │
-│  │ Company Details                       [Edit]     │ │
-│  │ ─────────────────────────────────────────────    │ │
-│  │ Legal name:      Acme Technologies LLC           │ │
-│  │ State:           Delaware                        │ │
-│  │ Formation date:  March 6, 2026                   │ │
-│  │ Fiscal year end: December                        │ │
-│  └──────────────────────────────────────────────────┘ │
-│                                                      │
-│  ┌──────────────────────────────────────────────────┐ │
-│  │ Officers                              [Edit]     │ │
-│  │ ─────────────────────────────────────────────    │ │
-│  │ ★ Jane Smith — CEO                              │ │
-│  │   123 Startup Lane, Wilmington, DE 19801        │ │
-│  │                                                  │ │
-│  │   John Doe — CTO                                │ │
-│  │   456 Tech Ave, San Francisco, CA 94105         │ │
-│  └──────────────────────────────────────────────────┘ │
-│                                                      │
-│  ┌──────────────────────────────────────────────────┐ │
-│  │ Addresses                             [Edit]     │ │
-│  │ ─────────────────────────────────────────────    │ │
-│  │ Principal: 123 Startup Lane,                     │ │
-│  │            Wilmington, DE 19801                  │ │
-│  │ Mailing:   Same as principal                     │ │
-│  │ Reg Agent: Included                              │ │
-│  └──────────────────────────────────────────────────┘ │
-│                                                      │
-│  ┌──────────────────────────────────────────────────┐ │
-│  │ Cost Summary                                      │ │
-│  │ ─────────────────────────────────────────────    │ │
-│  │ LLC Formation (Delaware)           $399          │ │
-│  │ Registered Agent (1 year)          $149          │ │
-│  │ State filing fee                   $90           │ │
-│  │ ─────────────────────────────────────────────    │ │
-│  │ Total                              $638          │ │
-│  └──────────────────────────────────────────────────┘ │
-│                                                      │
-│  [← Back]                  [Proceed to Payment →]    │
-│                                                      │
-│  By proceeding, you agree to the                     │
-│  Terms of Service and Incorporation Agreement.       │
-└──────────────────────────────────────────────────────┘
-```
-
-**Implementation notes:**
-- Each review section is a `rounded-2xl border` card with an "Edit" link (blue text, no underline)
-- "Edit" navigates back to the specific step, preserving all form data
-- Cost summary uses a subtle background (`bg-gray-50 dark:bg-spaire-800`)
-- "Proceed to Payment" is a full-width blue button (`size="lg" fullWidth`)
-- Legal links open in new tab
-- The "Proceed to Payment" button:
-  1. Creates the incorporation draft via `POST /v1/incorporations`
-  2. Creates a checkout session via `POST /v1/incorporations/{id}/checkout`
-  3. Redirects to the Spaire Checkout page
-  4. On checkout success, redirects to `/dashboard/{org}/incorporate/{id}` (status page)
-
----
-
-## 6. Post-Submission Dashboard
-
-### Status Page
-
-After payment, users see a calm, informative status page with a timeline and document section.
-
-```
-┌──────────────────────────────────────────────────────┐
-│ DashboardBody title="Acme Technologies LLC"          │
-│                                                      │
-│ header=[Badge: "Processing" (yellow)]                │
-│                                                      │
-│  ┌──────────────────────────────────────────────────┐ │
-│  │ Formation Progress                                │ │
-│  │                                                  │ │
-│  │  ✓ Application submitted        Mar 6, 2026     │ │
-│  │  │                                               │ │
-│  │  ✓ Payment confirmed            Mar 6, 2026     │ │
-│  │  │                                               │ │
-│  │  ✓ Filed with Delaware           Mar 6, 2026     │ │
-│  │  │                                               │ │
-│  │  ◉ Awaiting state approval       In progress     │ │
-│  │  │                                               │ │
-│  │  ○ Formation complete                            │ │
-│  │  │                                               │ │
-│  │  ○ Documents available                           │ │
-│  └──────────────────────────────────────────────────┘ │
-│                                                      │
-│  ┌──────────────────────────────────────────────────┐ │
-│  │ Company Details                                   │ │
-│  │                                                  │ │
-│  │ Entity Type     LLC — Member-Managed             │ │
-│  │ State           Delaware                         │ │
-│  │ Legal Name      Acme Technologies LLC            │ │
-│  │ Formation Date  March 6, 2026                    │ │
-│  │ Primary Officer Jane Smith (CEO)                 │ │
-│  └──────────────────────────────────────────────────┘ │
-│                                                      │
-│  ┌──────────────────────────────────────────────────┐ │
-│  │ Documents                                         │ │
-│  │                                                  │ │
-│  │ No documents yet. Documents will appear here     │ │
-│  │ once your formation is complete.                 │ │
-│  │                                                  │ │
-│  │ [When available:]                                │ │
-│  │ 📄 Articles of Organization    PDF    [Download] │ │
-│  │ 📄 Certificate of Formation    PDF    [Download] │ │
-│  │ 📄 Operating Agreement         PDF    [Download] │ │
-│  └──────────────────────────────────────────────────┘ │
-└──────────────────────────────────────────────────────┘
-```
-
-### Status Badge Colors
-
-| Status | Badge Variant | Color |
-|--------|---------------|-------|
-| `draft` | `secondary` | Gray |
-| `submitted` | `blue` | Blue |
-| `processing` | `warning` | Yellow/Amber |
-| `filed` | `info` | Blue |
-| `completed` | `success` | Green |
-| `failed` | `destructive` | Red |
-| `cancelled` | `secondary` | Gray |
-
-### Timeline Component
-
-The timeline is a vertical list with connecting lines:
-
-```tsx
-// IncorporationTimeline.tsx
-interface TimelineEvent {
-  label: string
-  date?: string
-  status: 'completed' | 'current' | 'upcoming'
+  window.open(url.toString(), '_blank', 'noopener,noreferrer')
 }
-
-// Visual: left-aligned dots connected by vertical lines
-// Completed: blue dot with checkmark, blue line below
-// Current: blue pulsing dot, dashed gray line below
-// Upcoming: gray empty dot, gray line below
 ```
 
-### Landing Page
+**CTA button styling:**
 
+```tsx
+<Button size="lg" className="w-full" onClick={() => handleContinueToDoola(formData)}>
+  Continue to doola
+  <ArrowTopRightOnSquareIcon className="ml-2 h-4 w-4" />
+</Button>
 ```
-┌──────────────────────────────────────────────────────┐
-│ DashboardBody title="Incorporate"                    │
-│                                                      │
-│  [If no incorporations:]                             │
-│  ┌──────────────────────────────────────────────────┐ │
-│  │                                                  │ │
-│  │        🏢                                       │ │
-│  │                                                  │ │
-│  │  Form your US company in minutes                 │ │
-│  │                                                  │ │
-│  │  Incorporate an LLC or Corporation directly      │ │
-│  │  from your dashboard. We handle the paperwork,   │ │
-│  │  you focus on building.                          │ │
-│  │                                                  │ │
-│  │  ✓ Delaware, Wyoming, and all 50 states         │ │
-│  │  ✓ LLC or Corporation                           │ │
-│  │  ✓ Registered agent included                    │ │
-│  │  ✓ Formation documents delivered digitally      │ │
-│  │                                                  │ │
-│  │           [Start Your Company →]                 │ │
-│  │                                                  │ │
-│  └──────────────────────────────────────────────────┘ │
-│                                                      │
-│  [If has incorporations:]                            │
-│  ┌──────────────────────────────────────────────────┐ │
-│  │ header=[Button: "New Incorporation"]              │ │
-│  │                                                  │ │
-│  │ Acme LLC          Delaware   ● Processing        │ │
-│  │ Beta Corp         Wyoming    ● Completed         │ │
-│  └──────────────────────────────────────────────────┘ │
-└──────────────────────────────────────────────────────┘
+
+---
+
+## 6. Recommendation Engine
+
+### Overview
+
+A **deterministic, rule-based scoring system** that recommends entity type and formation state. No AI or LLMs. Every recommendation includes human-readable reasons.
+
+### Inputs
+
+All inputs come from Step 1 of the wizard:
+
+```typescript
+interface RecommendationInput {
+  product_type: 'saas' | 'ai' | 'marketplace' | 'agency' | 'consulting' | 'other'
+  founder_location: 'us' | 'non_us'
+  planning_to_raise_vc: 'yes' | 'maybe' | 'no'
+  number_of_founders: 'solo' | '2_5' | '6_plus'
+  equity_plans: 'yes' | 'maybe' | 'no'
+  revenue_expectation: 'pre_revenue' | 'under_10k' | '10k_100k' | '100k_plus'
+}
+```
+
+### Output
+
+```typescript
+interface RecommendationOutput {
+  entity_type: 'LLC' | 'C_CORP'
+  formation_state: 'DE' | 'WY'
+  confidence: 'high' | 'medium'
+  reasons: string[]
+}
+```
+
+### Example Output
+
+```json
+{
+  "entity_type": "C_CORP",
+  "formation_state": "DE",
+  "confidence": "high",
+  "reasons": [
+    "You indicated plans to raise venture capital",
+    "You are building a SaaS or technology product",
+    "You may issue equity to employees"
+  ]
+}
+```
+
+### Scoring Algorithm
+
+```typescript
+function getRecommendation(input: RecommendationInput): RecommendationOutput {
+  let score_llc = 0
+  let score_c_corp = 0
+  const reasons: string[] = []
+
+  // Rule 1 — Venture capital intent (strongest signal)
+  if (input.planning_to_raise_vc === 'yes') {
+    score_c_corp += 5
+    reasons.push('You indicated plans to raise venture capital')
+  } else if (input.planning_to_raise_vc === 'maybe') {
+    score_c_corp += 2
+    reasons.push('You may raise venture capital in the future')
+  }
+
+  // Rule 2 — Technology startup signals
+  const techProducts = ['saas', 'ai', 'marketplace']
+  if (techProducts.includes(input.product_type)) {
+    score_c_corp += 2
+    reasons.push(
+      `You are building a ${
+        input.product_type === 'saas' ? 'SaaS' :
+        input.product_type === 'ai' ? 'AI' : 'marketplace'
+      } product`
+    )
+  }
+
+  // Rule 3 — Equity plans
+  if (input.equity_plans === 'yes') {
+    score_c_corp += 3
+    reasons.push('You plan to issue equity (stock options, SAFEs)')
+  } else if (input.equity_plans === 'maybe') {
+    score_c_corp += 1
+    reasons.push('You may issue equity to employees or investors')
+  }
+
+  // Rule 4 — Non-US founders (favors LLC + Wyoming if not raising VC)
+  if (input.founder_location === 'non_us') {
+    if (input.planning_to_raise_vc !== 'yes') {
+      score_llc += 2
+      reasons.push('Wyoming LLCs are commonly used by international founders')
+    }
+  }
+
+  // Rule 5 — Bootstrapped founders
+  if (input.planning_to_raise_vc === 'no' && input.equity_plans === 'no') {
+    score_llc += 2
+    reasons.push('LLCs offer simpler tax treatment for bootstrapped businesses')
+  }
+
+  // Rule 6 — Solo founder bootstrapping
+  if (input.number_of_founders === 'solo' && input.planning_to_raise_vc === 'no') {
+    score_llc += 1
+    reasons.push('Solo founders often prefer the simplicity of an LLC')
+  }
+
+  // Rule 7 — High-growth tech startup
+  if (techProducts.includes(input.product_type) && input.equity_plans !== 'no') {
+    score_c_corp += 2
+    // Reason already covered by Rules 2+3
+  }
+
+  // --- Final decision ---
+  const entity_type = score_c_corp > score_llc ? 'C_CORP' : 'LLC'
+
+  // State selection
+  let formation_state: 'DE' | 'WY'
+  if (entity_type === 'C_CORP') {
+    formation_state = 'DE' // C-Corps → always Delaware
+  } else {
+    // LLCs: non-US → Wyoming, US → Wyoming as default (no founder state collected in V1)
+    formation_state = 'WY'
+  }
+
+  // Confidence: high if score difference is >= 3, otherwise medium
+  const scoreDiff = Math.abs(score_c_corp - score_llc)
+  const confidence = scoreDiff >= 3 ? 'high' : 'medium'
+
+  return { entity_type, formation_state, confidence, reasons }
+}
+```
+
+### Scoring Reference Table
+
+| Signal | LLC Score | C-Corp Score |
+|---|---|---|
+| `planning_to_raise_vc == "yes"` | — | +5 |
+| `planning_to_raise_vc == "maybe"` | — | +2 |
+| `product_type in [saas, ai, marketplace]` | — | +2 |
+| `equity_plans == "yes"` | — | +3 |
+| `equity_plans == "maybe"` | — | +1 |
+| `founder_location == "non_us"` (not raising VC) | +2 | — |
+| `planning_to_raise_vc == "no" && equity_plans == "no"` | +2 | — |
+| `number_of_founders == "solo" && !raising VC` | +1 | — |
+| Tech product + equity plans not "no" | — | +2 |
+
+### State Selection Rules
+
+| Entity Type | Founder Location | Formation State |
+|---|---|---|
+| C-Corp | Any | Delaware |
+| LLC | Non-US | Wyoming |
+| LLC | US | Wyoming (default in V1) |
+
+### Recommendation Card Component
+
+```tsx
+function FormationRecommendationCard({
+  recommendation,
+  onAccept,
+  onOverride,
+}: {
+  recommendation: RecommendationOutput
+  onAccept: () => void
+  onOverride: () => void
+}) {
+  const entityLabel = recommendation.entity_type === 'C_CORP'
+    ? 'C-Corporation'
+    : 'LLC'
+  const stateLabel = recommendation.formation_state === 'DE'
+    ? 'Delaware'
+    : 'Wyoming'
+
+  return (
+    <Card className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30">
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <AccountBalanceOutlined className="h-5 w-5 text-blue-600" />
+          <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
+            Recommended Structure
+          </span>
+          {recommendation.confidence === 'high' && (
+            <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700
+                             dark:bg-green-900/30 dark:text-green-400">
+              High confidence
+            </span>
+          )}
+        </div>
+        <h3 className="text-xl font-semibold">
+          {stateLabel} {entityLabel}
+        </h3>
+      </CardHeader>
+      <CardContent>
+        <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+          Why this recommendation?
+        </p>
+        <ul className="space-y-1">
+          {recommendation.reasons.map((reason, i) => (
+            <li key={i} className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400">
+              <CheckCircleIcon className="mt-0.5 h-4 w-4 shrink-0 text-green-500" />
+              {reason}
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+      <CardFooter className="gap-2">
+        <Button onClick={onAccept}>Accept recommendation</Button>
+        <Button variant="ghost" onClick={onOverride}>Choose a different structure</Button>
+      </CardFooter>
+    </Card>
+  )
+}
 ```
 
 ---
 
 ## 7. Component Architecture
 
-### Wizard State Machine
+### Directory Structure
 
-The wizard uses a single React Hook Form instance across all steps. State persists in memory (and optionally in localStorage for draft recovery).
-
-```tsx
-// IncorporationWizard.tsx
-
-const STEPS = ['entity', 'company', 'people', 'address', 'review'] as const
-type Step = typeof STEPS[number]
-
-const IncorporationWizard = ({ organization }: Props) => {
-  const [currentStep, setCurrentStep] = useState<Step>('entity')
-
-  const form = useForm<IncorporationFormData>({
-    resolver: zodResolver(incorporationSchema),
-    defaultValues: {
-      entity_type: undefined,
-      structure_type: 'MEMBER',
-      tax_election: 'C Corporation',
-      legal_name: '',
-      trade_name: '',
-      formation_state: 'DE',
-      formation_date: new Date().toISOString().split('T')[0],
-      fiscal_end_month: 'December',
-      ein: '',
-      officers: [{
-        type: 'PERSON',
-        first_name: '',
-        last_name: '',
-        title: '',
-        address_street: '',
-        address_city: '',
-        address_state: '',
-        address_zip: '',
-        is_primary: true,
-      }],
-      address_street: '',
-      address_city: '',
-      address_state: '',
-      address_zip: '',
-      mailing_same_as_principal: true,
-      mailing_address_street: '',
-      mailing_address_city: '',
-      mailing_address_state: '',
-      mailing_address_zip: '',
-      include_registered_agent: true,
-    },
-  })
-
-  const goNext = () => {
-    const idx = STEPS.indexOf(currentStep)
-    if (idx < STEPS.length - 1) setCurrentStep(STEPS[idx + 1])
-  }
-
-  const goBack = () => {
-    const idx = STEPS.indexOf(currentStep)
-    if (idx > 0) setCurrentStep(STEPS[idx - 1])
-  }
-
-  const goToStep = (step: Step) => setCurrentStep(step)
-
-  return (
-    <DashboardBody
-      title="Start a Company"
-      wrapperClassName="max-w-(--breakpoint-md)!"
-    >
-      <Form {...form}>
-        <StepIndicator steps={STEPS} current={currentStep} />
-
-        <AnimatePresence mode="wait">
-          {currentStep === 'entity' && <EntityTypeStep key="entity" />}
-          {currentStep === 'company' && <CompanyInfoStep key="company" />}
-          {currentStep === 'people' && <PeopleStep key="people" />}
-          {currentStep === 'address' && <AddressStep key="address" />}
-          {currentStep === 'review' && (
-            <ReviewStep key="review" onEdit={goToStep} organization={organization} />
-          )}
-        </AnimatePresence>
-
-        <WizardNavigation
-          step={currentStep}
-          onBack={goBack}
-          onNext={goNext}
-          isLastStep={currentStep === 'review'}
-        />
-      </Form>
-    </DashboardBody>
-  )
-}
+```
+clients/apps/web/src/components/CompanyFormation/
+├── FormationLandingPage.tsx         # Landing page with hero CTA + partner benefits
+├── FormationWizard.tsx              # Wizard shell (step routing, progress bar)
+├── steps/
+│   ├── FounderIntentStep.tsx        # Step 1: product type, location, VC intent, etc.
+│   ├── CompanyDetailsStep.tsx       # Step 2: name, entity, state, founders
+│   └── ReviewRedirectStep.tsx       # Step 3: summary + doola redirect
+├── StepIndicator.tsx                # 3-step horizontal progress bar
+└── FormationRecommendationCard.tsx  # Recommendation display with accept/override
 ```
 
-### Per-Step Validation
+### Removed Components (from V1 spec)
 
-Each step validates only its own fields before allowing "Continue":
+The following components from the original spec are **not needed** in V1:
 
-```tsx
-// Step validation schemas
-const entityStepSchema = z.object({
-  entity_type: z.enum(['LLC', 'CORP']),
-  structure_type: z.enum(['MEMBER', 'MANAGER']).optional(),
-  tax_election: z.enum(['C Corporation', 'S Corporation']).optional(),
-}).refine(
-  (data) => {
-    if (data.entity_type === 'LLC') return !!data.structure_type
-    if (data.entity_type === 'CORP') return !!data.tax_election
-    return true
-  },
-  { message: 'Please select a sub-type' }
-)
+- ~~IncorporationTimeline.tsx~~ — doola handles status tracking
+- ~~IncorporationDocuments.tsx~~ — doola delivers documents
+- ~~IncorporationStatusPage.tsx~~ — no post-submission dashboard in Spaire
+- ~~AddressStep.tsx~~ — doola collects addresses
+- ~~OfficerStep.tsx~~ — doola collects officer details
+- ~~PaymentStep.tsx~~ — doola processes payment
 
-const companyStepSchema = z.object({
-  legal_name: z.string().min(1, 'Company name is required'),
-  trade_name: z.string().optional(),
-  formation_state: z.string().length(2, 'Select a state'),
-  formation_date: z.string().min(1, 'Select a date'),
-  fiscal_end_month: z.string().min(1, 'Select a month'),
-  ein: z.string().regex(/^$|^\d{2}-\d{7}$/, 'EIN must be XX-XXXXXXX format').optional(),
-})
+### Component Dependency Graph
 
-const officerSchema = z.object({
-  type: z.enum(['PERSON', 'COMPANY']),
-  first_name: z.string().optional(),
-  last_name: z.string().optional(),
-  company_name: z.string().optional(),
-  title: z.string().min(1, 'Title is required'),
-  address_street: z.string().min(1, 'Street is required'),
-  address_city: z.string().min(1, 'City is required'),
-  address_state: z.string().length(2, 'Select a state'),
-  address_zip: z.string().regex(/^\d{5}$/, 'ZIP must be 5 digits'),
-  is_primary: z.boolean(),
-}).refine(
-  (data) => {
-    if (data.type === 'PERSON') return !!data.first_name && !!data.last_name
-    return !!data.company_name
-  },
-  { message: 'Name is required' }
-)
-
-const peopleStepSchema = z.object({
-  officers: z.array(officerSchema).min(1, 'At least one officer is required'),
-})
-
-const addressStepSchema = z.object({
-  address_street: z.string().min(1, 'Street is required'),
-  address_city: z.string().min(1, 'City is required'),
-  address_state: z.string().length(2, 'Select a state'),
-  address_zip: z.string().regex(/^\d{5}$/, 'ZIP must be 5 digits'),
-  mailing_same_as_principal: z.boolean(),
-  mailing_address_street: z.string().optional(),
-  mailing_address_city: z.string().optional(),
-  mailing_address_state: z.string().optional(),
-  mailing_address_zip: z.string().optional(),
-})
 ```
+FormationLandingPage
+└── Button (CTA → /formation/new)
+
+FormationWizard
+├── StepIndicator
+├── FounderIntentStep
+│   ├── Select (product_type)
+│   ├── Select (founder_location)
+│   ├── RadioGroup (planning_to_raise_vc)
+│   ├── RadioGroup (number_of_founders)
+│   ├── RadioGroup (equity_plans)
+│   └── Select (revenue_expectation)
+├── CompanyDetailsStep
+│   ├── FormationRecommendationCard
+│   ├── Input (legal_name)
+│   ├── RadioGroup (entity_type)
+│   ├── Select (formation_state)
+│   └── FounderList (repeatable name+email)
+└── ReviewRedirectStep
+    ├── CompanySummaryCard
+    ├── PartnerBenefitsCard
+    └── Button (redirect to doola)
+```
+
+### File Inventory
+
+| File | Action | Purpose |
+|---|---|---|
+| `components/CompanyFormation/FormationLandingPage.tsx` | Create | Landing page with hero + benefits |
+| `components/CompanyFormation/FormationWizard.tsx` | Create | Wizard shell with step routing |
+| `components/CompanyFormation/steps/FounderIntentStep.tsx` | Create | Step 1: founder intent fields |
+| `components/CompanyFormation/steps/CompanyDetailsStep.tsx` | Create | Step 2: company info + recommendation |
+| `components/CompanyFormation/steps/ReviewRedirectStep.tsx` | Create | Step 3: review + doola redirect |
+| `components/CompanyFormation/StepIndicator.tsx` | Create | 3-step progress bar |
+| `components/CompanyFormation/FormationRecommendationCard.tsx` | Create | Recommendation card with reasons |
+| `app/[organization]/(sidebar)/formation/page.tsx` | Create | Landing page route |
+| `app/[organization]/(sidebar)/formation/new/page.tsx` | Create | Wizard route |
+| `components/Layout/Dashboard/navigation.tsx` | Modify | Add "Start a Company" nav item |
+
+**Total: 9 new files, 1 modified file**
 
 ---
 
 ## 8. State Management
 
-### Draft Persistence
+### Wizard State (React + localStorage)
 
-Form state is saved to `localStorage` on every change (debounced 500ms). If the user navigates away and comes back, they see a "Resume your application" banner.
+No TanStack Query needed for V1 — all state is client-side.
 
-```tsx
-const STORAGE_KEY = `incorporation-draft-${organization.id}`
-
-// Save on change
-useEffect(() => {
-  const subscription = form.watch((data) => {
-    debouncedSave(data)
-  })
-  return () => subscription.unsubscribe()
-}, [form.watch])
-
-// Load on mount
-useEffect(() => {
-  const saved = localStorage.getItem(STORAGE_KEY)
-  if (saved) {
-    form.reset(JSON.parse(saved))
-  }
-}, [])
+```typescript
+interface WizardFormData {
+  // Step 1
+  product_type: string
+  founder_location: string
+  planning_to_raise_vc: string
+  number_of_founders: string
+  equity_plans: string
+  revenue_expectation: string
+  // Step 2
+  legal_name: string
+  entity_type: 'LLC' | 'C_CORP'
+  formation_state: 'DE' | 'WY'
+  founders: Array<{ name: string; email: string }>
+  // Derived
+  recommendation: RecommendationOutput | null
+}
 ```
 
-### Server-Side Draft
+### Draft Persistence
 
-After Step 2 (company info), we optionally save a server-side draft via `POST /v1/incorporations` with `status: "draft"`. This allows the landing page to show "Resume" for in-progress applications.
+```typescript
+const STORAGE_KEY = 'spaire:formation-wizard-draft'
 
-### TanStack Query Hooks
+function useDraftPersistence(formData: WizardFormData) {
+  // Save on change
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(formData))
+  }, [formData])
 
-```tsx
-// hooks/queries/incorporations.ts
+  // Restore on mount
+  const restoreDraft = (): Partial<WizardFormData> | null => {
+    const saved = localStorage.getItem(STORAGE_KEY)
+    return saved ? JSON.parse(saved) : null
+  }
 
-export const useIncorporations = (orgId: string) =>
-  useQuery({
-    queryKey: ['incorporations', 'list', orgId],
-    queryFn: () => api.incorporations.list({ organization_id: orgId }),
-    enabled: !!orgId,
-  })
+  // Clear after redirect
+  const clearDraft = () => localStorage.removeItem(STORAGE_KEY)
 
-export const useIncorporation = (id?: string) =>
-  useQuery({
-    queryKey: ['incorporations', id],
-    queryFn: () => api.incorporations.get({ id: id! }),
-    enabled: !!id,
-    refetchInterval: (data) => {
-      // Auto-refresh while in progress
-      const status = data?.status
-      if (status === 'submitted' || status === 'processing' || status === 'filed') {
-        return 15_000 // 15 seconds
-      }
-      return false
-    },
-  })
+  return { restoreDraft, clearDraft }
+}
+```
 
-export const useCreateIncorporation = (orgId: string) => {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (data: IncorporationCreate) =>
-      api.incorporations.create(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['incorporations'] })
-    },
-  })
+### Analytics (Optional)
+
+```typescript
+// Fire-and-forget analytics — no backend dependency
+function trackFormationEvent(event: string, data: Record<string, unknown>) {
+  // PostHog, Segment, or custom analytics
+  if (typeof window !== 'undefined' && window.posthog) {
+    window.posthog.capture(event, data)
+  }
 }
 
-export const useIncorporationDocuments = (incorporationId?: string) =>
-  useQuery({
-    queryKey: ['incorporations', incorporationId, 'documents'],
-    queryFn: () => api.incorporations.listDocuments({ id: incorporationId! }),
-    enabled: !!incorporationId,
-  })
+// Events to track:
+// 'formation_wizard_started'
+// 'formation_step_completed' + { step: 1|2|3 }
+// 'formation_recommendation_accepted' + { entity_type, formation_state }
+// 'formation_recommendation_overridden' + { from, to }
+// 'formation_redirect_to_doola' + { entity_type, formation_state, product_type }
 ```
 
 ---
 
 ## 9. Responsive & Dark Mode
 
-### Mobile Adaptations
+### Breakpoints
 
-| Element | Desktop | Mobile |
-|---------|---------|--------|
-| Entity cards | Side by side | Stacked vertically |
-| Step indicator labels | Visible | Hidden (circles only) |
-| Form field pairs | 2 columns | Stacked |
-| Officer cards | Full width | Full width (same) |
-| Review sections | Cards | Cards (same) |
-| Navigation buttons | Right-aligned | Full width, stacked |
+| Breakpoint | Layout |
+|---|---|
+| `>= 1024px` (lg) | Centered card (max-w-2xl), step indicator horizontal |
+| `768–1023px` (md) | Full-width card with padding, step indicator horizontal |
+| `< 768px` (sm) | Full-width, step indicator compact (numbers only) |
 
-### Dark Mode Colors
+### Dark Mode
 
-All components follow the Spaire dark mode pattern:
+All components use Tailwind `dark:` variants. Key color mappings:
 
 | Element | Light | Dark |
-|---------|-------|------|
-| Page background | white | `spaire-900` |
-| Card background | white | `spaire-800` |
-| Card border | `gray-200` | `spaire-700` |
-| Primary text | `gray-900` | white |
-| Secondary text | `gray-500` | `spaire-400` |
-| Helper text | `gray-500` | `spaire-400` |
-| Selected card ring | `blue-500` | `blue-500` |
-| Info box background | `blue-50` | `blue-900/10` |
+|---|---|---|
+| Card background | `bg-white` | `dark:bg-polar-800` |
+| Recommendation card | `bg-blue-50` | `dark:bg-blue-950/30` |
+| Partner benefits card | `bg-green-50` | `dark:bg-green-950/30` |
+| CTA button | `bg-blue-600` | `dark:bg-blue-500` |
+| Step indicator active | `text-blue-600` | `dark:text-blue-400` |
+
+### Mobile Step Indicator
+
+On mobile (`< 768px`), collapse step labels to numbers:
+
+```
+Desktop:  ● Founder Setup ── ○ Company Details ── ○ Review
+Mobile:   ● 1 ────── ○ 2 ────── ○ 3
+```
 
 ---
 
@@ -962,198 +804,334 @@ All components follow the Spaire dark mode pattern:
 
 ### Step Transitions
 
-Use Framer Motion's `AnimatePresence` for smooth step transitions:
+Use Framer Motion `AnimatePresence` for step changes:
 
 ```tsx
-const stepVariants = {
-  enter: (direction: number) => ({
-    x: direction > 0 ? 100 : -100,
-    opacity: 0,
-  }),
-  center: {
-    x: 0,
-    opacity: 1,
-  },
-  exit: (direction: number) => ({
-    x: direction > 0 ? -100 : 100,
-    opacity: 0,
-  }),
-}
+<AnimatePresence mode="wait">
+  <motion.div
+    key={currentStep}
+    initial={{ opacity: 0, x: direction === 'forward' ? 20 : -20 }}
+    animate={{ opacity: 1, x: 0 }}
+    exit={{ opacity: 0, x: direction === 'forward' ? -20 : 20 }}
+    transition={{ duration: 0.2, ease: 'easeInOut' }}
+  >
+    {stepContent}
+  </motion.div>
+</AnimatePresence>
+```
 
-// Wrap each step:
+### Recommendation Card
+
+Slide-in animation when recommendation appears on Step 2:
+
+```tsx
 <motion.div
-  custom={direction}
-  variants={stepVariants}
-  initial="enter"
-  animate="center"
-  exit="exit"
-  transition={{ duration: 0.2, ease: 'easeInOut' }}
+  initial={{ opacity: 0, y: -10 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ duration: 0.3, ease: 'easeOut' }}
 >
-  {stepContent}
+  <FormationRecommendationCard ... />
 </motion.div>
 ```
 
-### Micro-animations
+### Redirect CTA
 
-- Entity card selection: scale(1.02) + border color transition (150ms)
-- "Add person" button: new officer card slides down with `layout` animation
-- Step indicator: completed step circle fills with a brief scale bounce
-- Review sections: stagger children with 50ms delay
+Subtle pulse on the "Continue to doola" button to draw attention:
+
+```tsx
+<motion.div
+  animate={{ scale: [1, 1.02, 1] }}
+  transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+>
+  <Button size="lg">Continue to doola →</Button>
+</motion.div>
+```
 
 ---
 
 ## 11. ASCII Wireframes
 
-### Full Wizard — Desktop (1280px+)
+### Desktop — Landing Page
 
 ```
-┌──────────────────────────────────────────────────────────────────────────────────┐
-│ ┌──────────┐                                                                    │
-│ │          │  ┌──────────────────────────────────────────────────────────────┐   │
-│ │ Overview │  │                                                              │   │
-│ │ Catalog  │  │  Start a Company                                            │   │
-│ │ Customer │  │                                                              │   │
-│ │ Analytic │  │  ●───●───○───○───○                                          │   │
-│ │ Revenue  │  │  Entity Company People Address Review                       │   │
-│ │ Integrat │  │                                                              │   │
-│ │ Startup  │  │  ┌─────────────────────┐  ┌─────────────────────────────┐   │   │
-│ │ ■ Incorp │  │  │                     │  │                             │   │   │
-│ │ Balance  │  │  │  ○ LLC              │  │  ○ Corporation              │   │   │
-│ │ Settings │  │  │                     │  │                             │   │   │
-│ │          │  │  │  Limited Liability   │  │  Best for startups seeking │   │   │
-│ │          │  │  │  Company. Simpler    │  │  venture capital. Easier   │   │   │
-│ │          │  │  │  structure, pass-    │  │  to issue stock, preferred │   │   │
-│ │          │  │  │  through taxes.      │  │  by investors.             │   │   │
-│ │          │  │  │                     │  │                             │   │   │
-│ │          │  │  └─────────────────────┘  └─────────────────────────────┘   │   │
-│ │          │  │                                                              │   │
-│ │          │  │                                          [Continue →]        │   │
-│ │          │  │                                                              │   │
-│ │          │  └──────────────────────────────────────────────────────────────┘   │
-│ └──────────┘                                                                    │
-└──────────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│ ┌──────┐                                                            │
+│ │ Logo │  Dashboard  Products  Perks  Start a Company  Settings     │
+│ └──────┘                                      ^^^^^^^^^^^           │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│   Start a Company                                                    │
+│                                                                      │
+│   Form your US company in minutes through our partner doola.         │
+│                                                                      │
+│   ┌──────────────────────┐                                           │
+│   │  Start Formation →   │                                           │
+│   └──────────────────────┘                                           │
+│                                                                      │
+│   ┌──────────────────────────────────────────────────────────────┐   │
+│   │                                                              │   │
+│   │  🤝 Partner Benefits                                         │   │
+│   │                                                              │   │
+│   │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐       │   │
+│   │  │ 10% discount │  │ Company      │  │ Registered   │       │   │
+│   │  │ for Spaire   │  │ formation &  │  │ agent        │       │   │
+│   │  │ founders     │  │ state filing │  │ included     │       │   │
+│   │  └──────────────┘  └──────────────┘  └──────────────┘       │   │
+│   │                                                              │   │
+│   │  ┌──────────────┐  ┌──────────────┐                          │   │
+│   │  │ EIN / tax ID │  │ Startup      │                          │   │
+│   │  │ assistance   │  │ perks &      │                          │   │
+│   │  │              │  │ banking      │                          │   │
+│   │  └──────────────┘  └──────────────┘                          │   │
+│   │                                                              │   │
+│   └──────────────────────────────────────────────────────────────┘   │
+│                                                                      │
+│   Powered by doola  •  Formation typically takes ~10 minutes         │
+│                                                                      │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
-### Full Status Page — Desktop
+### Desktop — Step 2 with Recommendation
 
 ```
-┌──────────────────────────────────────────────────────────────────────────────────┐
-│ ┌──────────┐                                                                    │
-│ │          │  ┌──────────────────────────────────────────────────────────────┐   │
-│ │ Overview │  │                                                              │   │
-│ │ Catalog  │  │  Acme Technologies LLC            [Processing]              │   │
-│ │ Customer │  │                                                              │   │
-│ │ Analytic │  │  ┌────────────────────────────────────────────────────────┐  │   │
-│ │ Revenue  │  │  │ Formation Progress                                     │  │   │
-│ │ Integrat │  │  │                                                        │  │   │
-│ │ Startup  │  │  │  ✓ Application submitted        Mar 6, 2026           │  │   │
-│ │ ■ Incorp │  │  │  │                                                     │  │   │
-│ │ Balance  │  │  │  ✓ Payment confirmed            Mar 6, 2026           │  │   │
-│ │ Settings │  │  │  │                                                     │  │   │
-│ │          │  │  │  ✓ Filed with Delaware           Mar 6, 2026           │  │   │
-│ │          │  │  │  │                                                     │  │   │
-│ │          │  │  │  ◉ Awaiting state approval       In progress           │  │   │
-│ │          │  │  │  │                                                     │  │   │
-│ │          │  │  │  ○ Formation complete                                  │  │   │
-│ │          │  │  │  │                                                     │  │   │
-│ │          │  │  │  ○ Documents available                                 │  │   │
-│ │          │  │  └────────────────────────────────────────────────────────┘  │   │
-│ │          │  │                                                              │   │
-│ │          │  │  ┌────────────────────────────────────────────────────────┐  │   │
-│ │          │  │  │ Company Details                                        │  │   │
-│ │          │  │  │                                                        │  │   │
-│ │          │  │  │ Entity    LLC — Member-Managed                         │  │   │
-│ │          │  │  │ State     Delaware                                     │  │   │
-│ │          │  │  │ Name      Acme Technologies LLC                        │  │   │
-│ │          │  │  │ Officer   Jane Smith (CEO)                             │  │   │
-│ │          │  │  └────────────────────────────────────────────────────────┘  │   │
-│ │          │  │                                                              │   │
-│ │          │  │  ┌────────────────────────────────────────────────────────┐  │   │
-│ │          │  │  │ Documents                                              │  │   │
-│ │          │  │  │                                                        │  │   │
-│ │          │  │  │ No documents yet.                                      │  │   │
-│ │          │  │  └────────────────────────────────────────────────────────┘  │   │
-│ │          │  │                                                              │   │
-│ │          │  └──────────────────────────────────────────────────────────────┘   │
-│ └──────────┘                                                                    │
-└──────────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│ ┌──────┐                                                            │
+│ │ Logo │  Dashboard  Products  Perks  Start a Company  Settings     │
+│ └──────┘                                                            │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│       ✓ Founder Setup ━━━━━ ● Company Details ───── ○ Review        │
+│                                                                      │
+│   ┌──────────────────────────────────────────────────────────────┐   │
+│   │                                                              │   │
+│   │  ┌──────────────────────────────────────────────────────┐    │   │
+│   │  │  🏛  Recommended: Delaware C-Corporation              │    │   │
+│   │  │                                              [High]   │    │   │
+│   │  │                                                       │    │   │
+│   │  │  ✓ You indicated plans to raise venture capital       │    │   │
+│   │  │  ✓ You're building a SaaS product                    │    │   │
+│   │  │  ✓ You plan to issue equity                          │    │   │
+│   │  │                                                       │    │   │
+│   │  │  [Accept recommendation]  [Choose differently]        │    │   │
+│   │  └──────────────────────────────────────────────────────┘    │   │
+│   │                                                              │   │
+│   │  Company name                                                │   │
+│   │  ┌──────────────────────────────────────────────────────┐    │   │
+│   │  │ Acme Inc.                                             │    │   │
+│   │  └──────────────────────────────────────────────────────┘    │   │
+│   │                                                              │   │
+│   │  Entity type                                                 │   │
+│   │  (●) C-Corporation    ( ) LLC                                │   │
+│   │                                                              │   │
+│   │  Formation state                                             │   │
+│   │  ┌──────────────────────────────────────────────────────┐    │   │
+│   │  │ Delaware                                          ▾   │    │   │
+│   │  └──────────────────────────────────────────────────────┘    │   │
+│   │                                                              │   │
+│   │  Founders                                                    │   │
+│   │  ┌──────────────────────────────────────────────────────┐    │   │
+│   │  │ Jane Doe              jane@example.com          [×]  │    │   │
+│   │  ├──────────────────────────────────────────────────────┤    │   │
+│   │  │ John Smith            john@example.com          [×]  │    │   │
+│   │  └──────────────────────────────────────────────────────┘    │   │
+│   │  [+ Add founder]                                             │   │
+│   │                                                              │   │
+│   │                         ┌──────────┐  ┌─────────────┐        │   │
+│   │                         │  ← Back  │  │  Continue →  │        │   │
+│   │                         └──────────┘  └─────────────┘        │   │
+│   │                                                              │   │
+│   └──────────────────────────────────────────────────────────────┘   │
+│                                                                      │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
-### Mobile Wizard — Step 1 (375px)
+### Desktop — Step 3 Review & Redirect
 
 ```
-┌───────────────────────────┐
-│ ☰  Spaire       👤       │
-├───────────────────────────┤
-│                           │
-│ Start a Company           │
-│                           │
-│ ●──●──○──○──○             │
-│                           │
-│ What type of company?     │
-│                           │
-│ ┌───────────────────────┐ │
-│ │ ○ LLC                 │ │
-│ │                       │ │
-│ │ Limited Liability     │ │
-│ │ Company. Simpler      │ │
-│ │ structure, pass-      │ │
-│ │ through taxes.        │ │
-│ └───────────────────────┘ │
-│                           │
-│ ┌───────────────────────┐ │
-│ │ ○ Corporation         │ │
-│ │                       │ │
-│ │ Best for startups     │ │
-│ │ seeking venture       │ │
-│ │ capital.              │ │
-│ └───────────────────────┘ │
-│                           │
-│ ┌───────────────────────┐ │
-│ │     Continue →        │ │
-│ └───────────────────────┘ │
-│                           │
-└───────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│ ┌──────┐                                                            │
+│ │ Logo │  Dashboard  Products  Perks  Start a Company  Settings     │
+│ └──────┘                                                            │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│       ✓ Founder Setup ━━━━━ ✓ Company Details ━━━━━ ● Review        │
+│                                                                      │
+│   ┌──────────────────────────────────────────────────────────────┐   │
+│   │                                                              │   │
+│   │  Company Summary                                             │   │
+│   │  ─────────────────                                           │   │
+│   │  Company name      Acme Inc.                                 │   │
+│   │  Entity type       Delaware C-Corporation                    │   │
+│   │  Formation state   Delaware                                  │   │
+│   │                                                              │   │
+│   │  Founders                                                    │   │
+│   │  • Jane Doe (jane@example.com)                               │   │
+│   │  • John Smith (john@example.com)                             │   │
+│   │                                                              │   │
+│   │  ─────────────────────────────────────────────────────────   │   │
+│   │                                                              │   │
+│   │  ┌──────────────────────────────────────────────────────┐    │   │
+│   │  │                                                      │    │   │
+│   │  │  Complete Formation with doola                       │    │   │
+│   │  │                                                      │    │   │
+│   │  │  You will complete company formation with our        │    │   │
+│   │  │  partner doola. This usually takes about 10 minutes. │    │   │
+│   │  │                                                      │    │   │
+│   │  │  ✓ 10% founder discount via Spaire                   │    │   │
+│   │  │  ✓ Company formation & state filings                 │    │   │
+│   │  │  ✓ Registered agent (1 year)                         │    │   │
+│   │  │  ✓ EIN assistance                                    │    │   │
+│   │  │  ✓ Startup perks & banking                           │    │   │
+│   │  │                                                      │    │   │
+│   │  │  ┌──────────────────────────────────────────────┐    │    │   │
+│   │  │  │         Continue to doola  →                 │    │    │   │
+│   │  │  └──────────────────────────────────────────────┘    │    │   │
+│   │  │                                                      │    │   │
+│   │  │  You'll be redirected to doola.com to complete       │    │   │
+│   │  │  formation and payment.                              │    │   │
+│   │  │                                                      │    │   │
+│   │  └──────────────────────────────────────────────────────┘    │   │
+│   │                                                              │   │
+│   │                         ┌──────────┐                         │   │
+│   │                         │  ← Back  │                         │   │
+│   │                         └──────────┘                         │   │
+│   │                                                              │   │
+│   └──────────────────────────────────────────────────────────────┘   │
+│                                                                      │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+### Mobile — Step 1
+
+```
+┌─────────────────────────┐
+│  ≡  Spaire              │
+├─────────────────────────┤
+│                         │
+│  ● 1 ─── ○ 2 ─── ○ 3   │
+│                         │
+│  Founder Setup          │
+│                         │
+│  Tell us about your     │
+│  startup so we can      │
+│  recommend the best     │
+│  company structure.     │
+│                         │
+│  What are you building? │
+│  ┌───────────────────┐  │
+│  │ SaaS           ▾  │  │
+│  └───────────────────┘  │
+│                         │
+│  Where are you located? │
+│  ┌───────────────────┐  │
+│  │ United States   ▾  │  │
+│  └───────────────────┘  │
+│                         │
+│  Planning to raise VC?  │
+│  ( ) Yes                │
+│  ( ) Maybe              │
+│  ( ) No                 │
+│                         │
+│  How many founders?     │
+│  ( ) Solo               │
+│  ( ) 2–5                │
+│  ( ) 6+                 │
+│                         │
+│  Equity plans?          │
+│  ( ) Yes                │
+│  ( ) Maybe              │
+│  ( ) No                 │
+│                         │
+│  Expected revenue?      │
+│  ┌───────────────────┐  │
+│  │ Pre-revenue     ▾  │  │
+│  └───────────────────┘  │
+│                         │
+│  ┌───────────────────┐  │
+│  │   Continue →      │  │
+│  └───────────────────┘  │
+│                         │
+└─────────────────────────┘
+```
+
+### Mobile — Step 3
+
+```
+┌─────────────────────────┐
+│  ≡  Spaire              │
+├─────────────────────────┤
+│                         │
+│  ✓ 1 ─── ✓ 2 ─── ● 3   │
+│                         │
+│  Review & Continue      │
+│                         │
+│  ┌───────────────────┐  │
+│  │ Acme Inc.         │  │
+│  │ Delaware C-Corp   │  │
+│  │                   │  │
+│  │ Jane Doe          │  │
+│  │ John Smith        │  │
+│  └───────────────────┘  │
+│                         │
+│  ┌───────────────────┐  │
+│  │ Complete with     │  │
+│  │ doola             │  │
+│  │                   │  │
+│  │ ~10 minutes       │  │
+│  │                   │  │
+│  │ ✓ 10% discount    │  │
+│  │ ✓ Formation       │  │
+│  │ ✓ Registered agt  │  │
+│  │ ✓ EIN assistance  │  │
+│  │ ✓ Startup perks   │  │
+│  │                   │  │
+│  │ ┌───────────────┐ │  │
+│  │ │ Continue to   │ │  │
+│  │ │  doola →      │ │  │
+│  │ └───────────────┘ │  │
+│  │                   │  │
+│  │ Redirects to      │  │
+│  │ doola.com         │  │
+│  └───────────────────┘  │
+│                         │
+│  ┌───────────────────┐  │
+│  │    ← Back         │  │
+│  └───────────────────┘  │
+│                         │
+└─────────────────────────┘
 ```
 
 ---
 
-## Appendix: File Inventory
+## Appendix A: Migration from V1 Spec
 
-### New Files to Create
+| V1 Concept | V2 Status | Notes |
+|---|---|---|
+| 5-step wizard | Replaced by 3-step | Simpler flow |
+| Entity Type step | Merged into Step 1 (intent) + Step 2 (recommendation) | Recommendation engine replaces manual selection |
+| Company Info step | Simplified into Step 2 | Fewer fields |
+| People & Officers step | Removed | doola collects |
+| Address step | Removed | doola collects |
+| Review & Pay step | Replaced by Review & Redirect | No payment in Spaire |
+| Post-submission dashboard | Removed | doola handles status |
+| IncorporationTimeline | Removed | Not applicable |
+| IncorporationDocuments | Removed | doola delivers |
+| IncorporationStatusPage | Removed | Not applicable |
+| Backend incorporation API | Not needed | Client-side only |
+| Stripe payment integration | Not needed | doola handles payment |
+| `components/Incorporation/` | Renamed to `components/CompanyFormation/` | Clean break |
+| "Incorporate" nav item | Renamed to "Start a Company" | Clearer messaging |
 
-```
-clients/apps/web/src/
-├── app/(main)/dashboard/[organization]/(header)/incorporate/
-│   ├── page.tsx
-│   ├── new/
-│   │   └── page.tsx
-│   └── [incorporationId]/
-│       └── page.tsx
-├── components/Incorporation/
-│   ├── IncorporateLandingPage.tsx
-│   ├── IncorporationWizard.tsx
-│   ├── steps/
-│   │   ├── EntityTypeStep.tsx
-│   │   ├── CompanyInfoStep.tsx
-│   │   ├── PeopleStep.tsx
-│   │   ├── AddressStep.tsx
-│   │   └── ReviewStep.tsx
-│   ├── IncorporationStatusPage.tsx
-│   ├── IncorporationTimeline.tsx
-│   ├── IncorporationDocuments.tsx
-│   ├── EntityTypeCard.tsx
-│   ├── OfficerFieldGroup.tsx
-│   ├── StepIndicator.tsx
-│   └── constants.ts                  # US states, months, titles, etc.
-└── hooks/queries/
-    └── incorporations.ts             # TanStack Query hooks
-```
+## Appendix B: Future V2 Considerations
 
-### Existing Files to Modify
+When deep FileForms integration is restored:
 
-| File | Change |
-|------|--------|
-| `components/Dashboard/navigation.tsx` | Add "Incorporate" route to `generalRoutesList` |
+1. Re-add address and officer collection steps
+2. Add Spaire-managed checkout with Stripe
+3. Build formation status polling and timeline dashboard
+4. Add document download functionality
+5. Expand formation state options beyond DE/WY
+6. Backend API for persisting incorporation records
+7. Webhook integration with filing service for status updates
 
-**Total: ~17 new files, 1 modified file.**
+The component directory structure (`CompanyFormation/`) and wizard shell (`FormationWizard.tsx`) are designed to accommodate these additions without restructuring.
