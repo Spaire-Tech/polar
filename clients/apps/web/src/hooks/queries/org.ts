@@ -129,7 +129,10 @@ export const useOrganization = (id: string, enabled: boolean = true) =>
     enabled,
   })
 
-export const useOrganizationAccount = (id?: string) =>
+export const useOrganizationAccount = (
+  id?: string,
+  options?: { refetchInterval?: number | false | ((data: any) => number | false) },
+) =>
   useQuery({
     queryKey: ['organizations', 'account', id],
     queryFn: () =>
@@ -145,6 +148,7 @@ export const useOrganizationAccount = (id?: string) =>
       return defaultRetry(failureCount, error)
     },
     enabled: !!id,
+    refetchInterval: options?.refetchInterval,
   })
 
 export const useOrganizationAccessTokens = (
