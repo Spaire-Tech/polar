@@ -56,17 +56,17 @@ export default function ReviewRedirectStep({
 
   return (
     <div className="w-full">
-      <div className="mb-10">
+      <div className="mb-8">
         <h2 className="text-2xl font-medium tracking-tight dark:text-white">
           Review and continue
         </h2>
-        <p className="dark:text-spaire-400 mt-3 text-base leading-relaxed text-gray-500">
+        <p className="dark:text-spaire-400 mt-2 text-base leading-relaxed text-gray-500">
           Confirm your details below, then complete formation with doola.
         </p>
       </div>
 
       {/* Company summary */}
-      <div className="dark:bg-spaire-900 dark:border-spaire-800 mb-10 rounded-2xl border border-gray-200 bg-white p-6">
+      <div className="dark:bg-spaire-900 dark:border-spaire-800 mb-8 rounded-2xl border border-gray-200 bg-white p-6">
         <h3 className="dark:text-spaire-500 mb-4 text-sm font-medium uppercase tracking-wider text-gray-400">
           Company summary
         </h3>
@@ -106,7 +106,7 @@ export default function ReviewRedirectStep({
       </div>
 
       {/* Discount code */}
-      <div className="dark:bg-spaire-900 dark:border-spaire-800 mb-10 flex items-center justify-between rounded-xl border border-gray-200 bg-white px-5 py-4">
+      <div className="dark:bg-spaire-900 dark:border-spaire-800 mb-8 flex items-center justify-between rounded-xl border border-gray-200 bg-white px-5 py-4">
         <div className="flex flex-col gap-y-1">
           <span className="dark:text-spaire-400 text-xs text-gray-500">
             Apply this code at checkout for 10% off

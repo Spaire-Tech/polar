@@ -88,11 +88,11 @@ export default function CompanyDetailsStep({
 
   return (
     <div className="w-full">
-      <div className="mb-10">
+      <div className="mb-8">
         <h2 className="text-2xl font-medium tracking-tight dark:text-white">
           Company details
         </h2>
-        <p className="dark:text-spaire-400 mt-3 text-base leading-relaxed text-gray-500">
+        <p className="dark:text-spaire-400 mt-2 text-base leading-relaxed text-gray-500">
           Based on your answers, we recommend a{' '}
           <span className="font-medium dark:text-white text-gray-900">{entityLabel}</span>.
           You can change this below.
@@ -100,7 +100,7 @@ export default function CompanyDetailsStep({
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-y-6">
           <FormField
             control={form.control}
             name="legal_name"

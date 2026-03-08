@@ -73,55 +73,56 @@ export default function FormationWizard() {
   }
 
   return (
-    <div className="flex w-full flex-col gap-8 pb-16">
-      <StepIndicator currentStep={currentStep} />
+    <div className="flex w-full flex-col items-center pb-16">
+      <div className="flex w-full max-w-2xl flex-col gap-16">
+        <StepIndicator currentStep={currentStep} />
 
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={currentStep}
-          initial={{
-            opacity: 0,
-            x: direction === 'forward' ? 20 : -20,
-          }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{
-            opacity: 0,
-            x: direction === 'forward' ? -20 : 20,
-          }}
-          transition={{ duration: 0.2, ease: 'easeInOut' }}
-          className="w-full max-w-2xl"
-        >
-          {currentStep === 1 && (
-            <FounderIntentStep
-              data={{
-                product_type: formData.product_type as FounderIntentData['product_type'],
-                founder_location: formData.founder_location as FounderIntentData['founder_location'],
-                founder_state: formData.founder_state,
-                planning_to_raise_vc: formData.planning_to_raise_vc as FounderIntentData['planning_to_raise_vc'],
-                number_of_founders: formData.number_of_founders as FounderIntentData['number_of_founders'],
-                equity_plans: formData.equity_plans as FounderIntentData['equity_plans'],
-              }}
-              onNext={handleStep1Next}
-            />
-          )}
-          {currentStep === 2 && (
-            <CompanyDetailsStep
-              intentData={intentData}
-              data={{
-                legal_name: formData.legal_name,
-                entity_type: formData.entity_type,
-                formation_state: formData.formation_state,
-                founders: formData.founders,
-              }}
-              onNext={handleStep2Next}
-              onBack={handleBack}
-            />
-          )}
-          {currentStep === 3 && (
-            <ReviewRedirectStep data={formData} onBack={handleBack} />
-          )}
-        </motion.div>
-      </AnimatePresence>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentStep}
+            initial={{
+              opacity: 0,
+              x: direction === 'forward' ? 20 : -20,
+            }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{
+              opacity: 0,
+              x: direction === 'forward' ? -20 : 20,
+            }}
+            transition={{ duration: 0.2, ease: 'easeInOut' }}
+          >
+            {currentStep === 1 && (
+              <FounderIntentStep
+                data={{
+                  product_type: formData.product_type as FounderIntentData['product_type'],
+                  founder_location: formData.founder_location as FounderIntentData['founder_location'],
+                  founder_state: formData.founder_state,
+                  planning_to_raise_vc: formData.planning_to_raise_vc as FounderIntentData['planning_to_raise_vc'],
+                  number_of_founders: formData.number_of_founders as FounderIntentData['number_of_founders'],
+                  equity_plans: formData.equity_plans as FounderIntentData['equity_plans'],
+                }}
+                onNext={handleStep1Next}
+              />
+            )}
+            {currentStep === 2 && (
+              <CompanyDetailsStep
+                intentData={intentData}
+                data={{
+                  legal_name: formData.legal_name,
+                  entity_type: formData.entity_type,
+                  formation_state: formData.formation_state,
+                  founders: formData.founders,
+                }}
+                onNext={handleStep2Next}
+                onBack={handleBack}
+              />
+            )}
+            {currentStep === 3 && (
+              <ReviewRedirectStep data={formData} onBack={handleBack} />
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </div>
     </div>
   )
 }
