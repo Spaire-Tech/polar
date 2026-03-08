@@ -2,7 +2,6 @@
 
 import { DashboardBody } from '@/components/Layout/DashboardLayout'
 import ShadowBoxOnMd from '@spaire/ui/components/atoms/ShadowBoxOnMd'
-import LayersOutlined from '@mui/icons-material/LayersOutlined'
 import ArrowForwardOutlined from '@mui/icons-material/ArrowForwardOutlined'
 import Button from '@spaire/ui/components/atoms/Button'
 import Link from 'next/link'
@@ -16,10 +15,24 @@ export default function FormationLandingPage() {
     <DashboardBody title="Incorporate your startup">
       <ShadowBoxOnMd className="items-center justify-center gap-y-6 md:flex md:flex-col md:py-24">
         <div className="flex max-w-md flex-col items-center gap-y-6 text-center">
-          <LayersOutlined
-            className="dark:text-spaire-600 text-5xl text-gray-300"
-            fontSize="large"
-          />
+          <div className="flex items-center gap-x-4">
+            <img
+              src="/doola-logo.png"
+              alt="doola"
+              className="h-12 w-12 rounded-xl object-contain"
+            />
+            <span className="dark:text-spaire-500 text-2xl text-gray-300">×</span>
+            <img
+              src="/spaire-logo-light.png"
+              alt="Spaire"
+              className="h-12 w-12 rounded-xl object-contain dark:hidden"
+            />
+            <img
+              src="/spaire-logo-dark.png"
+              alt="Spaire"
+              className="hidden h-12 w-12 rounded-xl object-contain dark:block"
+            />
+          </div>
           <div className="flex flex-col items-center gap-y-2">
             <h3 className="text-xl font-medium">
               Incorporate your startup
