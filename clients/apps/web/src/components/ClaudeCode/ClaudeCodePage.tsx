@@ -43,14 +43,6 @@ function AgentPlatformCard({ platform }: { platform: AgentPlatform }) {
         <p className="dark:text-spaire-400 text-sm leading-relaxed text-gray-500">
           {platform.description}
         </p>
-
-        <div className="flex flex-row items-center gap-x-2">
-          <span
-            className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${platform.categoryBg} ${platform.categoryColor}`}
-          >
-            {platform.categoryLabel}
-          </span>
-        </div>
       </div>
     </Link>
   )

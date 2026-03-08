@@ -3,7 +3,7 @@
 import { DashboardBody } from '@/components/Layout/DashboardLayout'
 import { InlineModal } from '@/components/Modal/InlineModal'
 import { useModal } from '@/components/Modal/useModal'
-import { FEATURED_PERKS, OTHER_PERKS, type Perk } from '@/constants/perksData'
+import { FEATURED_PERKS, type Perk } from '@/constants/perksData'
 import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
 import Button from '@spaire/ui/components/atoms/Button'
 import { useState } from 'react'
@@ -47,29 +47,6 @@ const FeaturedPerkCard = ({
   )
 }
 
-const OtherPerkCard = ({ perk }: { perk: Perk }) => {
-  return (
-    <div className="dark:border-spaire-700 flex flex-col gap-y-4 rounded-2xl border border-gray-200 p-6 opacity-50 grayscale">
-      <div className="flex flex-row items-start gap-x-4">
-        <img
-          src={perk.logo}
-          alt={perk.name}
-          className="h-12 w-12 shrink-0 rounded-xl object-cover"
-        />
-        <div className="flex flex-col gap-y-1">
-          <h3 className="text-base font-medium dark:text-white">{perk.name}</h3>
-          <span className="text-sm font-medium text-emerald-500">
-            {perk.incentive}
-          </span>
-        </div>
-      </div>
-      <p className="dark:text-spaire-400 line-clamp-2 text-sm leading-relaxed text-gray-500">
-        {perk.description}
-      </p>
-    </div>
-  )
-}
-
 export default function StartupStackPage() {
   const { isShown, show, hide } = useModal(false)
   const [selectedPerk, setSelectedPerk] = useState<Perk | null>(null)
@@ -103,15 +80,6 @@ export default function StartupStackPage() {
           />
         ))}
       </div>
-
-      {/* Other partners */}
-      {OTHER_PERKS.length > 0 && (
-        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {OTHER_PERKS.map((perk) => (
-            <OtherPerkCard key={perk.name} perk={perk} />
-          ))}
-        </div>
-      )}
 
       <InlineModal
         isShown={isShown}
