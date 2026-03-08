@@ -1,0 +1,265 @@
+'use client'
+
+import { useCallback, useMemo, useState } from 'react'
+import { useFieldArray, useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import AddOutlined from '@mui/icons-material/AddOutlined'
+import CloseOutlined from '@mui/icons-material/CloseOutlined'
+import Button from '@spaire/ui/components/atoms/Button'
+import Input from '@spaire/ui/components/atoms/Input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@spaire/ui/components/atoms/Select'
+import {
+  RadioGroup,
+  RadioGroupItem,
+} from '@spaire/ui/components/ui/radio-group'
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@spaire/ui/components/ui/form'
+import { motion } from 'framer-motion'
+import FormationRecommendationCard from '../FormationRecommendationCard'
+import {
+  getRecommendation,
+  US_STATES,
+  type RecommendationInput,
+  type RecommendationOutput,
+} from '../recommendation'
+import { companyDetailsSchema, type CompanyDetailsData } from '../types'
+
+interface CompanyDetailsStepProps {
+  intentData: RecommendationInput
+  data: Partial<CompanyDetailsData>
+  onNext: (data: CompanyDetailsData, recommendation: RecommendationOutput) => void
+  onBack: () => void
+}
+
+export default function CompanyDetailsStep({
+  intentData,
+  data,
+  onNext,
+  onBack,
+}: CompanyDetailsStepProps) {
+  const recommendation = useMemo(
+    () => getRecommendation(intentData),
+    [intentData],
+  )
+
+  const [accepted, setAccepted] = useState(!!data.entity_type)
+
+  const form = useForm<CompanyDetailsData>({
+    resolver: zodResolver(companyDetailsSchema),
+    defaultValues: {
+      legal_name: data.legal_name || '',
+      entity_type: data.entity_type || recommendation.entity_type,
+      formation_state: data.formation_state || recommendation.formation_state,
+      founders: data.founders?.length
+        ? data.founders
+        : [{ name: '', email: '' }],
+    },
+  })
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: 'founders',
+  })
+
+  const handleAccept = useCallback(() => {
+    form.setValue('entity_type', recommendation.entity_type)
+    form.setValue('formation_state', recommendation.formation_state)
+    setAccepted(true)
+  }, [form, recommendation])
+
+  const handleOverride = useCallback(() => {
+    setAccepted(true)
+  }, [])
+
+  const onSubmit = useCallback(
+    (values: CompanyDetailsData) => {
+      onNext(values, recommendation)
+    },
+    [onNext, recommendation],
+  )
+
+  return (
+    <div className="mx-auto w-full max-w-lg">
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold dark:text-white">
+          Company Details
+        </h2>
+        <p className="dark:text-polar-400 mt-1 text-sm text-gray-500">
+          We&apos;ve analyzed your answers to recommend a company structure.
+        </p>
+      </div>
+
+      {/* Recommendation card */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, ease: 'easeOut' }}
+        className="mb-6"
+      >
+        <FormationRecommendationCard
+          recommendation={recommendation}
+          onAccept={handleAccept}
+          onOverride={handleOverride}
+        />
+      </motion.div>
+
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+          {/* Company name */}
+          <FormField
+            control={form.control}
+            name="legal_name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Company name</FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    placeholder='e.g., "Acme Inc."'
+                  />
+                </FormControl>
+                <FormDescription>
+                  Your legal company name.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Entity type */}
+          <FormField
+            control={form.control}
+            name="entity_type"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Entity type</FormLabel>
+                <FormControl>
+                  <RadioGroup
+                    onValueChange={field.onChange}
+                    value={field.value}
+                    className="flex flex-row gap-6"
+                  >
+                    {[
+                      { value: 'C_CORP', label: 'C-Corporation' },
+                      { value: 'LLC', label: 'LLC' },
+                    ].map((option) => (
+                      <label
+                        key={option.value}
+                        className="flex cursor-pointer items-center gap-2"
+                      >
+                        <RadioGroupItem value={option.value} />
+                        <span className="text-sm">{option.label}</span>
+                      </label>
+                    ))}
+                  </RadioGroup>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Formation state */}
+          <FormField
+            control={form.control}
+            name="formation_state"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Formation state</FormLabel>
+                <Select
+                  onValueChange={field.onChange}
+                  value={field.value}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select state..." />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {US_STATES.map((state) => (
+                      <SelectItem key={state.code} value={state.code}>
+                        {state.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Founders */}
+          <div className="space-y-3">
+            <FormLabel>Founders</FormLabel>
+            {fields.map((field, index) => (
+              <div key={field.id} className="flex items-start gap-2">
+                <FormField
+                  control={form.control}
+                  name={`founders.${index}.name`}
+                  render={({ field }) => (
+                    <FormItem className="flex-1">
+                      <FormControl>
+                        <Input {...field} placeholder="Full name" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name={`founders.${index}.email`}
+                  render={({ field }) => (
+                    <FormItem className="flex-1">
+                      <FormControl>
+                        <Input {...field} placeholder="Email" type="email" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                {fields.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => remove(index)}
+                    className="dark:text-polar-500 dark:hover:text-polar-300 mt-2 text-gray-400 hover:text-gray-600"
+                  >
+                    <CloseOutlined style={{ fontSize: 18 }} />
+                  </button>
+                )}
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => append({ name: '', email: '' })}
+              className="flex items-center gap-1 text-sm font-medium text-blue-500 hover:text-blue-600"
+            >
+              <AddOutlined style={{ fontSize: 16 }} />
+              Add founder
+            </button>
+          </div>
+
+          <div className="flex justify-between pt-2">
+            <Button type="button" variant="ghost" onClick={onBack}>
+              Back
+            </Button>
+            <Button type="submit">
+              Continue
+            </Button>
+          </div>
+        </form>
+      </Form>
+    </div>
+  )
+}

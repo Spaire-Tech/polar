@@ -5,6 +5,7 @@ import ExtensionOutlined from '@mui/icons-material/ExtensionOutlined'
 import HiveOutlined from '@mui/icons-material/HiveOutlined'
 import PeopleAltOutlined from '@mui/icons-material/PeopleAltOutlined'
 import LayersOutlined from '@mui/icons-material/LayersOutlined'
+import RocketLaunchOutlined from '@mui/icons-material/RocketLaunchOutlined'
 import ShoppingBagOutlined from '@mui/icons-material/ShoppingBagOutlined'
 import SpaceDashboardOutlined from '@mui/icons-material/SpaceDashboardOutlined'
 import TrendingUp from '@mui/icons-material/TrendingUp'
@@ -218,6 +219,16 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
     link: `/dashboard/${org?.slug}/startup-stack`,
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/startup-stack`)
+    },
+    if: true,
+  },
+  {
+    id: 'company-formation',
+    title: 'Start a Company',
+    icon: <RocketLaunchOutlined fontSize="inherit" />,
+    link: `/dashboard/${org?.slug}/formation`,
+    checkIsActive: (currentRoute: string): boolean => {
+      return currentRoute.startsWith(`/dashboard/${org?.slug}/formation`)
     },
     if: true,
   },
