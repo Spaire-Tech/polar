@@ -12,7 +12,7 @@ export default function FormationLandingPage() {
   const orgSlug = params?.organization
 
   return (
-    <DashboardBody title="Incorporate your startup">
+    <DashboardBody title="Start a U.S. Company From Anywhere">
       <ShadowBoxOnMd className="items-center justify-center gap-y-6 md:flex md:flex-col md:py-24">
         <div className="flex max-w-md flex-col items-center gap-y-6 text-center">
           <div className="flex items-center gap-x-4">
@@ -35,7 +35,7 @@ export default function FormationLandingPage() {
           </div>
           <div className="flex flex-col items-center gap-y-2">
             <h3 className="text-xl font-medium">
-              Incorporate your startup
+              Incorporate your Startup
             </h3>
             <p className="dark:text-spaire-500 text-gray-500">
               Spaire partners with doola to help you form a US company in
