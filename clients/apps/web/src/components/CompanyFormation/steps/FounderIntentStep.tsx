@@ -65,17 +65,17 @@ export default function FounderIntentStep({
 
   return (
     <div className="w-full">
-      <div className="mb-8">
+      <div className="mb-10">
         <h2 className="text-2xl font-medium tracking-tight dark:text-white">
           Tell us about your startup
         </h2>
-        <p className="dark:text-spaire-400 mt-2 text-base leading-relaxed text-gray-500">
+        <p className="dark:text-spaire-400 mt-3 text-base leading-relaxed text-gray-500">
           We will use this to recommend the best company structure for you.
         </p>
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
           <FormField
             control={form.control}
             name="product_type"
