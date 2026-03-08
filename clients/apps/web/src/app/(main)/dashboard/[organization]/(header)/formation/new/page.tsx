@@ -4,13 +4,13 @@ import FormationWizard from '@/components/CompanyFormation/FormationWizard'
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
-    title: 'Start a Company',
+    title: 'Incorporate',
   }
 }
 
 export default function Page() {
   return (
-    <DashboardBody title="Start a Company">
+    <DashboardBody title={null}>
       <FormationWizard />
     </DashboardBody>
   )

@@ -224,7 +224,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
   },
   {
     id: 'company-formation',
-    title: 'Start a Company',
+    title: 'Incorporate',
     icon: <AccountBalanceOutlined fontSize="inherit" />,
     link: `/dashboard/${org?.slug}/formation`,
     checkIsActive: (currentRoute: string): boolean => {

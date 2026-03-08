@@ -3,7 +3,7 @@ import FormationLandingPage from '@/components/CompanyFormation/FormationLanding
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
-    title: 'Start a Company',
+    title: 'Incorporate',
   }
 }
 

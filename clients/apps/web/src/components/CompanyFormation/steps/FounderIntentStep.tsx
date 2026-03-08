@@ -64,20 +64,18 @@ export default function FounderIntentStep({
   )
 
   return (
-    <div className="mx-auto w-full max-w-lg">
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold dark:text-white">
-          Founder Setup
+    <div className="w-full">
+      <div className="mb-8">
+        <h2 className="text-2xl font-medium tracking-tight dark:text-white">
+          Tell us about your startup
         </h2>
-        <p className="dark:text-polar-400 mt-1 text-sm text-gray-500">
-          Tell us about your startup so we can recommend the best company
-          structure for you.
+        <p className="dark:text-spaire-400 mt-2 text-base leading-relaxed text-gray-500">
+          We will use this to recommend the best company structure for you.
         </p>
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-          {/* Product type */}
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <FormField
             control={form.control}
             name="product_type"
@@ -107,7 +105,6 @@ export default function FounderIntentStep({
             )}
           />
 
-          {/* Founder location */}
           <FormField
             control={form.control}
             name="founder_location"
@@ -133,7 +130,6 @@ export default function FounderIntentStep({
             )}
           />
 
-          {/* Founder state (conditional) */}
           {founderLocation === 'us' && (
             <FormField
               control={form.control}
@@ -164,7 +160,6 @@ export default function FounderIntentStep({
             />
           )}
 
-          {/* Planning to raise VC */}
           <FormField
             control={form.control}
             name="planning_to_raise_vc"
@@ -199,7 +194,6 @@ export default function FounderIntentStep({
             )}
           />
 
-          {/* Number of founders */}
           <FormField
             control={form.control}
             name="number_of_founders"
@@ -214,7 +208,7 @@ export default function FounderIntentStep({
                   >
                     {[
                       { value: 'solo', label: 'Solo' },
-                      { value: '2_5', label: '2–5' },
+                      { value: '2_5', label: '2-5' },
                       { value: '6_plus', label: '6+' },
                     ].map((option) => (
                       <label
@@ -232,7 +226,6 @@ export default function FounderIntentStep({
             )}
           />
 
-          {/* Equity plans */}
           <FormField
             control={form.control}
             name="equity_plans"
@@ -270,10 +263,8 @@ export default function FounderIntentStep({
             )}
           />
 
-          <div className="flex justify-end pt-2">
-            <Button type="submit">
-              Continue
-            </Button>
+          <div className="flex justify-end pt-4">
+            <Button type="submit">Continue</Button>
           </div>
         </form>
       </Form>

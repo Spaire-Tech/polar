@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useFieldArray, useForm } from 'react-hook-form'
 import AddOutlined from '@mui/icons-material/AddOutlined'
 import CloseOutlined from '@mui/icons-material/CloseOutlined'
@@ -26,8 +26,6 @@ import {
   FormLabel,
   FormMessage,
 } from '@spaire/ui/components/ui/form'
-import { motion } from 'framer-motion'
-import FormationRecommendationCard from '../FormationRecommendationCard'
 import {
   getRecommendation,
   US_STATES,
@@ -54,8 +52,6 @@ export default function CompanyDetailsStep({
     [intentData],
   )
 
-  const [accepted, setAccepted] = useState(!!data.entity_type)
-
   const form = useForm<CompanyDetailsData>({
     defaultValues: {
       legal_name: data.legal_name || '',
@@ -72,16 +68,6 @@ export default function CompanyDetailsStep({
     name: 'founders',
   })
 
-  const handleAccept = useCallback(() => {
-    form.setValue('entity_type', recommendation.entity_type)
-    form.setValue('formation_state', recommendation.formation_state)
-    setAccepted(true)
-  }, [form, recommendation])
-
-  const handleOverride = useCallback(() => {
-    setAccepted(true)
-  }, [])
-
   const onSubmit = useCallback(
     (values: CompanyDetailsData) => {
       const result = companyDetailsSchema.safeParse(values)
@@ -97,34 +83,24 @@ export default function CompanyDetailsStep({
     [onNext, recommendation, form],
   )
 
+  const entityLabel =
+    recommendation.entity_type === 'C_CORP' ? 'C-Corporation' : 'LLC'
+
   return (
-    <div className="mx-auto w-full max-w-lg">
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold dark:text-white">
-          Company Details
+    <div className="w-full">
+      <div className="mb-8">
+        <h2 className="text-2xl font-medium tracking-tight dark:text-white">
+          Company details
         </h2>
-        <p className="dark:text-polar-400 mt-1 text-sm text-gray-500">
-          We&apos;ve analyzed your answers to recommend a company structure.
+        <p className="dark:text-spaire-400 mt-2 text-base leading-relaxed text-gray-500">
+          Based on your answers, we recommend a{' '}
+          <span className="font-medium dark:text-white text-gray-900">{entityLabel}</span>.
+          You can change this below.
         </p>
       </div>
 
-      {/* Recommendation card */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, ease: 'easeOut' }}
-        className="mb-6"
-      >
-        <FormationRecommendationCard
-          recommendation={recommendation}
-          onAccept={handleAccept}
-          onOverride={handleOverride}
-        />
-      </motion.div>
-
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-          {/* Company name */}
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <FormField
             control={form.control}
             name="legal_name"
@@ -138,14 +114,13 @@ export default function CompanyDetailsStep({
                   />
                 </FormControl>
                 <FormDescription>
-                  Your legal company name.
+                  The legal name for your company.
                 </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
           />
 
-          {/* Entity type */}
           <FormField
             control={form.control}
             name="entity_type"
@@ -177,7 +152,6 @@ export default function CompanyDetailsStep({
             )}
           />
 
-          {/* Formation state */}
           <FormField
             control={form.control}
             name="formation_state"
@@ -206,7 +180,6 @@ export default function CompanyDetailsStep({
             )}
           />
 
-          {/* Founders */}
           <div className="space-y-3">
             <FormLabel>Founders</FormLabel>
             {fields.map((field, index) => (
@@ -239,7 +212,7 @@ export default function CompanyDetailsStep({
                   <button
                     type="button"
                     onClick={() => remove(index)}
-                    className="dark:text-polar-500 dark:hover:text-polar-300 mt-2 text-gray-400 hover:text-gray-600"
+                    className="dark:text-spaire-500 dark:hover:text-spaire-300 mt-2 text-gray-400 hover:text-gray-600"
                   >
                     <CloseOutlined style={{ fontSize: 18 }} />
                   </button>
@@ -256,13 +229,11 @@ export default function CompanyDetailsStep({
             </button>
           </div>
 
-          <div className="flex justify-between pt-2">
+          <div className="flex justify-between pt-4">
             <Button type="button" variant="ghost" onClick={onBack}>
               Back
             </Button>
-            <Button type="submit">
-              Continue
-            </Button>
+            <Button type="submit">Continue</Button>
           </div>
         </form>
       </Form>
