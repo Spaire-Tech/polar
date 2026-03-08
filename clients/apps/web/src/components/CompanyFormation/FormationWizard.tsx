@@ -92,14 +92,26 @@ export default function FormationWizard() {
         >
           {currentStep === 1 && (
             <FounderIntentStep
-              data={formData}
+              data={{
+                product_type: formData.product_type as FounderIntentData['product_type'],
+                founder_location: formData.founder_location as FounderIntentData['founder_location'],
+                founder_state: formData.founder_state,
+                planning_to_raise_vc: formData.planning_to_raise_vc as FounderIntentData['planning_to_raise_vc'],
+                number_of_founders: formData.number_of_founders as FounderIntentData['number_of_founders'],
+                equity_plans: formData.equity_plans as FounderIntentData['equity_plans'],
+              }}
               onNext={handleStep1Next}
             />
           )}
           {currentStep === 2 && (
             <CompanyDetailsStep
               intentData={intentData}
-              data={formData}
+              data={{
+                legal_name: formData.legal_name,
+                entity_type: formData.entity_type,
+                formation_state: formData.formation_state,
+                founders: formData.founders,
+              }}
               onNext={handleStep2Next}
               onBack={handleBack}
             />

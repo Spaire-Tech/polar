@@ -2,7 +2,6 @@
 
 import { useCallback, useMemo, useState } from 'react'
 import { useFieldArray, useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
 import AddOutlined from '@mui/icons-material/AddOutlined'
 import CloseOutlined from '@mui/icons-material/CloseOutlined'
 import Button from '@spaire/ui/components/atoms/Button'
@@ -58,7 +57,6 @@ export default function CompanyDetailsStep({
   const [accepted, setAccepted] = useState(!!data.entity_type)
 
   const form = useForm<CompanyDetailsData>({
-    resolver: zodResolver(companyDetailsSchema),
     defaultValues: {
       legal_name: data.legal_name || '',
       entity_type: data.entity_type || recommendation.entity_type,
@@ -86,9 +84,17 @@ export default function CompanyDetailsStep({
 
   const onSubmit = useCallback(
     (values: CompanyDetailsData) => {
-      onNext(values, recommendation)
+      const result = companyDetailsSchema.safeParse(values)
+      if (!result.success) {
+        for (const issue of result.error.issues) {
+          const field = issue.path.join('.') as keyof CompanyDetailsData
+          form.setError(field, { message: issue.message })
+        }
+        return
+      }
+      onNext(result.data as CompanyDetailsData, recommendation)
     },
-    [onNext, recommendation],
+    [onNext, recommendation, form],
   )
 
   return (

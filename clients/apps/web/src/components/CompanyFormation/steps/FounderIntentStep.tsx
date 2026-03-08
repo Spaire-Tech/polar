@@ -2,7 +2,6 @@
 
 import { useCallback } from 'react'
 import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
 import Button from '@spaire/ui/components/atoms/Button'
 import {
   Select,
@@ -37,7 +36,6 @@ export default function FounderIntentStep({
   onNext,
 }: FounderIntentStepProps) {
   const form = useForm<FounderIntentData>({
-    resolver: zodResolver(founderIntentSchema),
     defaultValues: {
       product_type: data.product_type || undefined,
       founder_location: data.founder_location || undefined,
@@ -52,9 +50,17 @@ export default function FounderIntentStep({
 
   const onSubmit = useCallback(
     (values: FounderIntentData) => {
-      onNext(values)
+      const result = founderIntentSchema.safeParse(values)
+      if (!result.success) {
+        for (const issue of result.error.issues) {
+          const field = issue.path[0] as keyof FounderIntentData
+          form.setError(field, { message: issue.message })
+        }
+        return
+      }
+      onNext(result.data as FounderIntentData)
     },
-    [onNext],
+    [onNext, form],
   )
 
   return (
