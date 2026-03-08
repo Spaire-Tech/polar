@@ -159,6 +159,7 @@ class StripeTaxService(TaxServiceProtocol):
                     "taxability_reason": None,
                     "tax_rate": None,
                 }
+            log.error("Stripe Tax API rate limit exceeded", identifier=str(identifier), error=str(e))
             raise StripeTaxCalculationError(e, "Stripe Tax API rate limit exceeded.") from e
         except stripe_lib.InvalidRequestError as e:
             if (
@@ -167,10 +168,12 @@ class StripeTaxService(TaxServiceProtocol):
                 and e.error.param.startswith("customer_details[address]")
             ):
                 raise IncompleteTaxLocation(e) from e
+            log.error("Stripe Tax invalid request", identifier=str(identifier), error=str(e), param=e.error.param if e.error else None)
             raise StripeTaxCalculationError(e) from e
         except stripe_lib.StripeError as e:
             if e.error is not None and e.error.code == "customer_tax_location_invalid":
                 raise InvalidTaxLocation(e) from e
+            log.error("Stripe Tax API error", identifier=str(identifier), error=str(e), code=e.error.code if e.error else None)
             raise StripeTaxCalculationError(e) from e
         else:
             assert calculation.id is not None
