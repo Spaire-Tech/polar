@@ -14,18 +14,15 @@ import {
   SelectValue,
 } from '@spaire/ui/components/atoms/Select'
 import {
-  RadioGroup,
-  RadioGroupItem,
-} from '@spaire/ui/components/ui/radio-group'
-import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
-  FormLabel,
   FormMessage,
 } from '@spaire/ui/components/ui/form'
+import { Label } from '@spaire/ui/components/ui/label'
+import { twMerge } from 'tailwind-merge'
+import { FadeUp } from '@/components/Animated/FadeUp'
 import {
   getRecommendation,
   US_STATES,
@@ -33,6 +30,11 @@ import {
   type RecommendationOutput,
 } from '../recommendation'
 import { companyDetailsSchema, type CompanyDetailsData } from '../types'
+
+const entityTypes = [
+  { id: 'C_CORP', label: 'C-Corporation', description: 'Best for raising VC, issuing stock options' },
+  { id: 'LLC', label: 'LLC', description: 'Flexible structure, pass-through taxation' },
+] as const
 
 interface CompanyDetailsStepProps {
   intentData: RecommendationInput
@@ -63,6 +65,8 @@ export default function CompanyDetailsStep({
     },
   })
 
+  const entityType = form.watch('entity_type')
+
   const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: 'founders',
@@ -83,68 +87,69 @@ export default function CompanyDetailsStep({
     [onNext, recommendation, form],
   )
 
-  const entityLabel =
-    recommendation.entity_type === 'C_CORP' ? 'C-Corporation' : 'LLC'
-
   return (
-    <div className="flex flex-col gap-12 p-8 md:p-12">
-      <div className="flex flex-col gap-y-2">
-        <h2 className="text-lg font-medium">Company details</h2>
-        <p className="dark:text-spaire-500 leading-snug text-gray-500">
-          Based on your answers, we recommend a{' '}
-          <span className="font-medium text-gray-900 dark:text-white">{entityLabel}</span>.
-          You can change this below.
-        </p>
-      </div>
+    <Form {...form}>
+      <form
+        onSubmit={form.handleSubmit(onSubmit)}
+        className="flex w-full flex-col gap-y-10"
+      >
+        {/* Entity type */}
+        <FadeUp className="flex flex-col gap-y-4">
+          <div className="flex flex-col gap-y-1">
+            <Label className="text-sm font-medium">Entity type</Label>
+            <p className="dark:text-spaire-500 text-xs text-gray-400">
+              We recommend{' '}
+              <span className="font-medium text-gray-900 dark:text-white">
+                {recommendation.entity_type === 'C_CORP' ? 'C-Corporation' : 'LLC'}
+              </span>{' '}
+              based on your answers. You can change this.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {entityTypes.map((type) => (
+              <button
+                key={type.id}
+                type="button"
+                onClick={() => form.setValue('entity_type', type.id as 'LLC' | 'C_CORP')}
+                className={twMerge(
+                  'dark:bg-spaire-900 dark:border-spaire-700 flex cursor-pointer flex-col gap-y-1.5 rounded-2xl border border-gray-200 bg-white p-5 text-left transition-all',
+                  entityType === type.id
+                    ? 'border-blue-500 ring-1 ring-blue-500 dark:border-blue-500'
+                    : 'hover:border-gray-300 dark:hover:border-spaire-600',
+                )}
+              >
+                <span className="text-sm font-medium">{type.label}</span>
+                <span className="dark:text-spaire-500 text-xs leading-relaxed text-gray-400">
+                  {type.description}
+                </span>
+              </button>
+            ))}
+          </div>
+        </FadeUp>
 
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)}>
-          <div className="flex w-full flex-col gap-y-6">
+        {/* Company name + state in a card */}
+        <FadeUp className="flex flex-col gap-y-6">
+          <div className="flex flex-col gap-y-1">
+            <h2 className="text-base font-medium">Company info</h2>
+            <p className="dark:text-spaire-500 text-sm text-gray-400">
+              The legal details for your new company.
+            </p>
+          </div>
+
+          <div className="dark:bg-spaire-900 flex flex-col gap-y-5 rounded-2xl border border-gray-200 bg-white p-6 dark:border-none">
             <FormField
               control={form.control}
               name="legal_name"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Company name</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      placeholder='e.g., "Acme Inc."'
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    The legal name for your company.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="entity_type"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Entity type</FormLabel>
-                  <FormControl>
-                    <RadioGroup
-                      onValueChange={field.onChange}
-                      value={field.value}
-                      className="flex flex-row gap-6"
-                    >
-                      {[
-                        { value: 'C_CORP', label: 'C-Corporation' },
-                        { value: 'LLC', label: 'LLC' },
-                      ].map((option) => (
-                        <label
-                          key={option.value}
-                          className="flex cursor-pointer items-center gap-2"
-                        >
-                          <RadioGroupItem value={option.value} />
-                          <span className="text-sm">{option.label}</span>
-                        </label>
-                      ))}
-                    </RadioGroup>
+                <FormItem className="w-full">
+                  <FormControl className="flex w-full flex-col gap-y-2">
+                    <div>
+                      <Label htmlFor="legal_name">Company name</Label>
+                      <Input
+                        {...field}
+                        placeholder='e.g., "Acme Inc."'
+                      />
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -155,88 +160,105 @@ export default function CompanyDetailsStep({
               control={form.control}
               name="formation_state"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Formation state</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    value={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select state..." />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {US_STATES.map((state) => (
-                        <SelectItem key={state.code} value={state.code}>
-                          {state.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <FormItem className="w-full">
+                  <FormControl className="flex w-full flex-col gap-y-2">
+                    <div>
+                      <Label htmlFor="formation_state">Formation state</Label>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select state..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {US_STATES.map((state) => (
+                            <SelectItem key={state.code} value={state.code}>
+                              {state.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+          </div>
+        </FadeUp>
 
-            <div className="space-y-3">
-              <FormLabel>Founders</FormLabel>
-              {fields.map((field, index) => (
-                <div key={field.id} className="flex items-start gap-2">
-                  <FormField
-                    control={form.control}
-                    name={`founders.${index}.name`}
-                    render={({ field }) => (
-                      <FormItem className="flex-1">
-                        <FormControl>
-                          <Input {...field} placeholder="Full name" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name={`founders.${index}.email`}
-                    render={({ field }) => (
-                      <FormItem className="flex-1">
-                        <FormControl>
-                          <Input {...field} placeholder="Email" type="email" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  {fields.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => remove(index)}
-                      className="dark:text-spaire-500 dark:hover:text-spaire-300 mt-2 text-gray-400 hover:text-gray-600"
-                    >
-                      <CloseOutlined style={{ fontSize: 18 }} />
-                    </button>
-                  )}
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={() => append({ name: '', email: '' })}
-                className="flex items-center gap-1 text-sm font-medium text-blue-500 hover:text-blue-600"
+        {/* Founders */}
+        <FadeUp className="flex flex-col gap-y-6">
+          <div className="flex flex-col gap-y-1">
+            <h2 className="text-base font-medium">Founders</h2>
+            <p className="dark:text-spaire-500 text-sm text-gray-400">
+              Add each founder&apos;s name and email.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-y-3">
+            {fields.map((field, index) => (
+              <div
+                key={field.id}
+                className="dark:bg-spaire-900 flex items-start gap-3 rounded-2xl border border-gray-200 bg-white p-4 dark:border-none"
               >
-                <AddOutlined style={{ fontSize: 16 }} />
-                Add founder
-              </button>
-            </div>
+                <FormField
+                  control={form.control}
+                  name={`founders.${index}.name`}
+                  render={({ field }) => (
+                    <FormItem className="flex-1">
+                      <FormControl>
+                        <Input {...field} placeholder="Full name" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name={`founders.${index}.email`}
+                  render={({ field }) => (
+                    <FormItem className="flex-1">
+                      <FormControl>
+                        <Input {...field} placeholder="Email" type="email" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                {fields.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => remove(index)}
+                    className="dark:text-spaire-500 dark:hover:text-spaire-300 mt-2 text-gray-400 hover:text-gray-600"
+                  >
+                    <CloseOutlined style={{ fontSize: 18 }} />
+                  </button>
+                )}
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => append({ name: '', email: '' })}
+              className="flex items-center gap-1 text-sm font-medium text-blue-500 hover:text-blue-600"
+            >
+              <AddOutlined style={{ fontSize: 16 }} />
+              Add founder
+            </button>
           </div>
+        </FadeUp>
 
-          <div className="flex flex-row items-center gap-2 pt-8">
-            <Button type="button" variant="ghost" onClick={onBack}>
-              Back
-            </Button>
-            <Button type="submit">Continue</Button>
-          </div>
-        </form>
-      </Form>
-    </div>
+        {/* Actions */}
+        <FadeUp className="flex flex-col gap-y-4 pt-2">
+          <Button type="submit" size="lg">
+            Continue
+          </Button>
+          <Button type="button" variant="secondary" size="lg" onClick={onBack}>
+            Back
+          </Button>
+        </FadeUp>
+      </form>
+    </Form>
   )
 }

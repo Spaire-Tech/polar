@@ -5,6 +5,7 @@ import ArrowForwardOutlined from '@mui/icons-material/ArrowForwardOutlined'
 import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined'
 import CheckOutlined from '@mui/icons-material/CheckOutlined'
 import Button from '@spaire/ui/components/atoms/Button'
+import { FadeUp } from '@/components/Animated/FadeUp'
 import { US_STATE_NAMES } from '../recommendation'
 import {
   DOOLA_AFFILIATE_URL,
@@ -48,67 +49,59 @@ export default function ReviewRedirectStep({
       FORMATION_STARTED_KEY,
       JSON.stringify(formationData),
     )
-
     localStorage.removeItem(STORAGE_KEY)
-
     window.location.href = DOOLA_AFFILIATE_URL
   }, [data])
 
+  const summaryRows = [
+    { label: 'Company name', value: data.legal_name },
+    { label: 'Entity type', value: entityLabel },
+    { label: 'Formation state', value: stateLabel },
+    ...(data.founders.length > 0
+      ? [{ label: 'Founders', value: data.founders.map((f) => f.name).join(', ') }]
+      : []),
+  ]
+
   return (
-    <div className="flex flex-col gap-12 p-8 md:p-12">
-      <div className="flex flex-col gap-y-2">
-        <h2 className="text-lg font-medium">Review and continue</h2>
-        <p className="dark:text-spaire-500 leading-snug text-gray-500">
-          Confirm your details below, then complete formation with doola.
-        </p>
-      </div>
+    <div className="flex w-full flex-col gap-y-10">
+      {/* Company summary card */}
+      <FadeUp className="flex flex-col gap-y-6">
+        <div className="flex flex-col gap-y-1">
+          <h2 className="text-base font-medium">Company summary</h2>
+        </div>
+        <div className="dark:bg-spaire-900 flex flex-col rounded-2xl border border-gray-200 bg-white dark:border-none">
+          {summaryRows.map((row, i) => (
+            <div
+              key={row.label}
+              className={`flex items-center justify-between px-6 py-4 ${
+                i < summaryRows.length - 1
+                  ? 'dark:border-spaire-800 border-b border-gray-100'
+                  : ''
+              }`}
+            >
+              <span className="dark:text-spaire-400 text-sm text-gray-500">
+                {row.label}
+              </span>
+              <span className="text-sm font-medium dark:text-white">
+                {row.value}
+              </span>
+            </div>
+          ))}
+        </div>
+      </FadeUp>
 
-      <div className="flex w-full flex-col gap-y-6">
-        {/* Company summary */}
-        <dl className="space-y-3 text-sm">
-          <div className="flex justify-between">
-            <dt className="dark:text-spaire-400 text-gray-500">
-              Company name
-            </dt>
-            <dd className="font-medium dark:text-white">{data.legal_name}</dd>
-          </div>
-          <div className="dark:border-spaire-700 border-t border-gray-200" />
-          <div className="flex justify-between">
-            <dt className="dark:text-spaire-400 text-gray-500">Entity type</dt>
-            <dd className="font-medium dark:text-white">{entityLabel}</dd>
-          </div>
-          <div className="dark:border-spaire-700 border-t border-gray-200" />
-          <div className="flex justify-between">
-            <dt className="dark:text-spaire-400 text-gray-500">
-              Formation state
-            </dt>
-            <dd className="font-medium dark:text-white">{stateLabel}</dd>
-          </div>
-          {data.founders.length > 0 && (
-            <>
-              <div className="dark:border-spaire-700 border-t border-gray-200" />
-              <div className="flex justify-between">
-                <dt className="dark:text-spaire-400 text-gray-500">
-                  Founders
-                </dt>
-                <dd className="text-right font-medium dark:text-white">
-                  {data.founders.map((f) => f.name).join(', ')}
-                </dd>
-              </div>
-            </>
-          )}
-        </dl>
-
-        {/* Discount code */}
-        <div className="dark:border-spaire-700 flex items-center justify-between rounded-xl border border-gray-200 px-5 py-4">
-          <div className="flex flex-col gap-y-1">
-            <span className="dark:text-spaire-400 text-xs text-gray-500">
-              Apply this code at checkout for 10% off
-            </span>
-            <span className="font-mono text-lg font-semibold tracking-wider dark:text-white">
-              {DISCOUNT_CODE}
-            </span>
-          </div>
+      {/* Discount code */}
+      <FadeUp className="flex flex-col gap-y-4">
+        <div className="flex flex-col gap-y-1">
+          <h2 className="text-base font-medium">Your discount</h2>
+          <p className="dark:text-spaire-500 text-sm text-gray-400">
+            Apply this code at checkout for 10% off.
+          </p>
+        </div>
+        <div className="dark:bg-spaire-900 flex items-center justify-between rounded-2xl border border-gray-200 bg-white px-6 py-4 dark:border-none">
+          <span className="font-mono text-lg font-semibold tracking-wider dark:text-white">
+            {DISCOUNT_CODE}
+          </span>
           <button
             onClick={handleCopy}
             className="dark:bg-spaire-800 dark:hover:bg-spaire-700 dark:text-spaire-300 flex items-center gap-1.5 rounded-lg bg-gray-100 px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-200"
@@ -126,30 +119,21 @@ export default function ReviewRedirectStep({
             )}
           </button>
         </div>
-      </div>
+      </FadeUp>
 
-      <div className="flex flex-col gap-y-3">
-        <Button
-          fullWidth
-          size="lg"
-          onClick={handleRedirect}
-        >
+      {/* Actions */}
+      <FadeUp className="flex flex-col gap-y-4 pt-2">
+        <Button size="lg" onClick={handleRedirect}>
           Continue to doola
-          <ArrowForwardOutlined
-            className="ml-2"
-            style={{ fontSize: 18 }}
-          />
+          <ArrowForwardOutlined className="ml-2" style={{ fontSize: 18 }} />
         </Button>
         <p className="dark:text-spaire-500 text-center text-xs text-gray-400">
           You will be redirected to doola.com to complete formation and payment.
         </p>
-      </div>
-
-      <div className="flex flex-row items-center gap-2">
-        <Button variant="ghost" onClick={onBack}>
+        <Button variant="secondary" size="lg" onClick={onBack}>
           Back
         </Button>
-      </div>
+      </FadeUp>
     </div>
   )
 }

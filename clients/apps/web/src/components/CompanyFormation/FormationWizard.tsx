@@ -1,7 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { motion } from 'framer-motion'
+import { DashboardBody } from '@/components/Layout/DashboardLayout'
+import { FadeUp } from '@/components/Animated/FadeUp'
 import StepIndicator from './StepIndicator'
 import FounderIntentStep from './steps/FounderIntentStep'
 import CompanyDetailsStep from './steps/CompanyDetailsStep'
@@ -17,7 +19,6 @@ import {
 
 export default function FormationWizard() {
   const [currentStep, setCurrentStep] = useState(1)
-  const [direction, setDirection] = useState<'forward' | 'back'>('forward')
   const [formData, setFormData] = useState<WizardFormData>(() => {
     if (typeof window === 'undefined') return INITIAL_WIZARD_DATA
     const saved = localStorage.getItem(STORAGE_KEY)
@@ -36,29 +37,19 @@ export default function FormationWizard() {
   }, [formData])
 
   const handleStep1Next = useCallback((data: FounderIntentData) => {
-    setFormData((prev) => ({
-      ...prev,
-      ...data,
-    }))
-    setDirection('forward')
+    setFormData((prev) => ({ ...prev, ...data }))
     setCurrentStep(2)
   }, [])
 
   const handleStep2Next = useCallback(
     (data: CompanyDetailsData, recommendation: RecommendationOutput) => {
-      setFormData((prev) => ({
-        ...prev,
-        ...data,
-        recommendation,
-      }))
-      setDirection('forward')
+      setFormData((prev) => ({ ...prev, ...data, recommendation }))
       setCurrentStep(3)
     },
     [],
   )
 
   const handleBack = useCallback(() => {
-    setDirection('back')
     setCurrentStep((prev) => Math.max(1, prev - 1))
   }, [])
 
@@ -71,26 +62,48 @@ export default function FormationWizard() {
     equity_plans: formData.equity_plans as RecommendationInput['equity_plans'],
   }
 
-  return (
-    <>
-      <StepIndicator currentStep={currentStep} />
+  const stepTitles: Record<number, { title: string; description: string }> = {
+    1: {
+      title: 'Tell us about your startup',
+      description: 'A few quick questions to recommend the best company structure for you.',
+    },
+    2: {
+      title: 'Company details',
+      description: 'Confirm your company name, entity, and founders.',
+    },
+    3: {
+      title: 'Review & continue',
+      description: 'Confirm your details, then complete formation with doola.',
+    },
+  }
 
-      <div className="dark:border-spaire-700 dark:divide-spaire-700 flex flex-col divide-y divide-gray-200 rounded-4xl border border-gray-200">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentStep}
-            initial={{
-              opacity: 0,
-              x: direction === 'forward' ? 20 : -20,
-            }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{
-              opacity: 0,
-              x: direction === 'forward' ? -20 : 20,
-            }}
-            transition={{ duration: 0.2, ease: 'easeInOut' }}
-          >
-            {currentStep === 1 && (
+  const { title, description } = stepTitles[currentStep]
+
+  return (
+    <DashboardBody title={null}>
+      <div className="flex w-full flex-col items-center pb-24">
+        <motion.div
+          initial="hidden"
+          animate="visible"
+          transition={{ duration: 1, staggerChildren: 0.2 }}
+          className="flex w-full max-w-2xl flex-col gap-16 pt-8"
+        >
+          {/* Step indicator */}
+          <StepIndicator currentStep={currentStep} />
+
+          {/* Header */}
+          <div className="flex flex-col gap-y-3">
+            <h1 className="text-2xl font-medium tracking-tight md:text-3xl">
+              {title}
+            </h1>
+            <p className="dark:text-spaire-400 max-w-md text-base text-gray-500">
+              {description}
+            </p>
+          </div>
+
+          {/* Step content */}
+          {currentStep === 1 && (
+            <FadeUp>
               <FounderIntentStep
                 data={{
                   product_type: formData.product_type as FounderIntentData['product_type'],
@@ -102,8 +115,10 @@ export default function FormationWizard() {
                 }}
                 onNext={handleStep1Next}
               />
-            )}
-            {currentStep === 2 && (
+            </FadeUp>
+          )}
+          {currentStep === 2 && (
+            <FadeUp>
               <CompanyDetailsStep
                 intentData={intentData}
                 data={{
@@ -115,13 +130,15 @@ export default function FormationWizard() {
                 onNext={handleStep2Next}
                 onBack={handleBack}
               />
-            )}
-            {currentStep === 3 && (
+            </FadeUp>
+          )}
+          {currentStep === 3 && (
+            <FadeUp>
               <ReviewRedirectStep data={formData} onBack={handleBack} />
-            )}
-          </motion.div>
-        </AnimatePresence>
+            </FadeUp>
+          )}
+        </motion.div>
       </div>
-    </>
+    </DashboardBody>
   )
 }
