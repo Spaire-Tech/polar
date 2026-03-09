@@ -39,18 +39,21 @@ export default function FormationWizard() {
   const handleStep1Next = useCallback((data: FounderIntentData) => {
     setFormData((prev) => ({ ...prev, ...data }))
     setCurrentStep(2)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [])
 
   const handleStep2Next = useCallback(
     (data: CompanyDetailsData, recommendation: RecommendationOutput) => {
       setFormData((prev) => ({ ...prev, ...data, recommendation }))
       setCurrentStep(3)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     },
     [],
   )
 
   const handleBack = useCallback(() => {
     setCurrentStep((prev) => Math.max(1, prev - 1))
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [])
 
   const intentData: RecommendationInput = {
