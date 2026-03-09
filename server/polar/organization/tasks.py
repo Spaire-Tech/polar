@@ -7,13 +7,10 @@ from polar.email.react import render_email_template
 from polar.email.schemas import (
     OrganizationReviewedEmail,
     OrganizationReviewedProps,
-    OrganizationUnderReviewEmail,
-    OrganizationUnderReviewProps,
 )
 from polar.email.sender import enqueue_email
 from polar.exceptions import PolarTaskError
 from polar.held_balance.service import held_balance as held_balance_service
-from polar.integrations.plain.service import plain as plain_service
 from polar.models import Organization
 from polar.models.organization import OrganizationStatus
 from polar.user.repository import UserRepository
@@ -86,6 +83,8 @@ async def organization_account_set(organization_id: uuid.UUID) -> None:
 @actor(actor_name="organization.under_review", priority=TaskPriority.LOW)
 async def organization_under_review(organization_id: uuid.UUID) -> None:
     async with AsyncSessionMaker() as session:
+        from polar.organization.service import organization as organization_service
+
         repository = OrganizationRepository.from_session(session)
         organization = await repository.get_by_id(
             organization_id, options=(joinedload(Organization.account),)
@@ -93,22 +92,14 @@ async def organization_under_review(organization_id: uuid.UUID) -> None:
         if organization is None:
             raise OrganizationDoesNotExist(organization_id)
 
-        await plain_service.create_organization_review_thread(session, organization)
-
-        # Send an email for the initial review
-        if organization.status == OrganizationStatus.INITIAL_REVIEW:
-            admin_user = await repository.get_admin_user(session, organization)
-            if admin_user:
-                email = OrganizationUnderReviewEmail(
-                    props=OrganizationUnderReviewProps.model_validate(
-                        {"email": admin_user.email, "organization": organization}
-                    )
-                )
-                enqueue_email(
-                    to_email_addr=admin_user.email,
-                    subject="Your organization is under review",
-                    html_content=render_email_template(email),
-                )
+        # Auto-approve: skip manual review entirely.
+        if organization.status in (
+            OrganizationStatus.INITIAL_REVIEW,
+            OrganizationStatus.ONGOING_REVIEW,
+        ):
+            await organization_service.confirm_organization_reviewed(
+                session, organization, 2147483647
+            )
 
 
 @actor(actor_name="organization.reviewed", priority=TaskPriority.LOW)

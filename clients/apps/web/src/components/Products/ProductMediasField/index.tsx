@@ -4,6 +4,7 @@ import { ReactNode, useCallback, useState } from 'react'
 import { FileRejection } from 'react-dropzone'
 import { twMerge } from 'tailwind-merge'
 import { FileObject, useFileUpload } from '../../FileUpload'
+import { toast } from '../../Toast/use-toast'
 import { FileList } from './FileList'
 
 const DropzoneView = ({
@@ -80,6 +81,12 @@ const ProductMediasField = ({
     maxSize: 10 * 1024 * 1024,
     onFilesUpdated,
     onFilesRejected: setFilesRejected,
+    onFileError: (_, error) => {
+      toast({
+        title: 'Upload failed',
+        description: error.message || 'Failed to upload file. Please try again.',
+      })
+    },
     initialFiles: value || [],
   })
   return (
