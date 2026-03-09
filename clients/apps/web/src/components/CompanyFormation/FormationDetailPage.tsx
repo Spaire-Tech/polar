@@ -4,11 +4,15 @@ import { DashboardBody } from '@/components/Layout/DashboardLayout'
 import ArrowBackOutlined from '@mui/icons-material/ArrowBackOutlined'
 import ArrowForwardOutlined from '@mui/icons-material/ArrowForwardOutlined'
 import CheckOutlined from '@mui/icons-material/CheckOutlined'
+import { SpaireEmbedCheckout } from '@spaire/checkout/embed'
 import Button from '@spaire/ui/components/atoms/Button'
 import Link from 'next/link'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { FadeUp } from '../Animated/FadeUp'
+
+const FORMATION_CHECKOUT_URL =
+  'https://api.spairehq.com/v1/checkout-links/spaire_cl_4TVMhUtEWI9S6CN4XK7QZF8XtYsdglX3ZTra439iDfV/redirect'
 
 const formationFeatures = [
   {
@@ -46,6 +50,20 @@ const formationFeatures = [
 export default function FormationDetailPage() {
   const params = useParams<{ organization: string }>()
   const orgSlug = params?.organization
+  const router = useRouter()
+
+  const handleStartIncorporation = async () => {
+    const checkout = await SpaireEmbedCheckout.create(FORMATION_CHECKOUT_URL, {
+      theme: 'dark',
+    })
+    checkout.addEventListener(
+      'success',
+      () => {
+        router.push(`/dashboard/${orgSlug}/founder-tools/new`)
+      },
+      { once: true },
+    )
+  }
 
   return (
     <DashboardBody title={null}>
@@ -138,15 +156,15 @@ export default function FormationDetailPage() {
 
           {/* CTA */}
           <FadeUp className="flex flex-col gap-y-3 pt-2">
-            <Link
-              href={`/dashboard/${orgSlug}/founder-tools/new`}
-              className="w-full"
+            <Button
+              size="lg"
+              fullWidth
+              type="button"
+              onClick={handleStartIncorporation}
             >
-              <Button size="lg" fullWidth type="button">
-                <span>Start incorporation</span>
-                <ArrowForwardOutlined className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
+              <span>Start incorporation</span>
+              <ArrowForwardOutlined className="ml-2 h-4 w-4" />
+            </Button>
             <div className="flex flex-row items-center justify-center pt-1">
               <Link
                 href={`/dashboard/${orgSlug}/founder-tools`}
