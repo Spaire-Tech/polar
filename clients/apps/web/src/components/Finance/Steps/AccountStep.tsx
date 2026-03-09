@@ -2,7 +2,7 @@
 
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
-import { ArrowRight, Building2, Loader2, ShieldAlert } from 'lucide-react'
+import { ArrowRight, Building2, ShieldAlert } from 'lucide-react'
 import React from 'react'
 
 interface AccountStepProps {
@@ -24,11 +24,6 @@ export default function AccountStep({
     organizationAccount?.is_charges_enabled &&
     organizationAccount?.is_payouts_enabled
 
-  const isStripeReviewing =
-    !!organizationAccount?.stripe_id &&
-    !!organizationAccount?.is_details_submitted &&
-    !organizationAccount?.is_payouts_enabled
-
   if (isAccountSetupComplete) {
     return (
       <div className="flex flex-col items-center gap-4 py-8 text-center">
@@ -41,26 +36,6 @@ export default function AccountStep({
           </h3>
           <p className="dark:text-spaire-400 mt-1 text-sm text-gray-500">
             Your account is configured and ready to receive payouts.
-          </p>
-        </div>
-      </div>
-    )
-  }
-
-  if (isStripeReviewing) {
-    return (
-      <div className="flex flex-col items-center gap-4 py-8 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 dark:bg-blue-500/10">
-          <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
-        </div>
-        <div>
-          <h3 className="font-medium dark:text-white">
-            Reviewing your information
-          </h3>
-          <p className="dark:text-spaire-400 mx-auto mt-1 max-w-sm text-sm text-gray-500">
-            Stripe is verifying your account details. This can take a few
-            minutes to a few hours. You&apos;ll be automatically moved to the
-            next step once complete.
           </p>
         </div>
       </div>

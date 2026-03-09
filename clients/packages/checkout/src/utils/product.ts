@@ -92,8 +92,8 @@ export const formatRecurringFrequency = (
 }
 
 export const isLegacyRecurringPrice = (
-  price: ProductPrice | LegacyRecurringProductPrice | null | undefined,
-): price is LegacyRecurringProductPrice => price != null && 'legacy' in price
+  price: ProductPrice | LegacyRecurringProductPrice,
+): price is LegacyRecurringProductPrice => 'legacy' in price
 
 export const hasLegacyRecurringPrices = (
   prices: ProductPrice[],

@@ -2156,8 +2156,8 @@ class CheckoutService:
             return checkout
 
         if checkout.customer_billing_address is not None:
-            tax_processor = checkout.tax_processor or settings.DEFAULT_TAX_PROCESSOR
-            tax_service = get_tax_service(tax_processor)
+            assert checkout.tax_processor is not None
+            tax_service = get_tax_service(checkout.tax_processor)
             try:
                 tax_calculation = await tax_service.calculate(
                     checkout.id,

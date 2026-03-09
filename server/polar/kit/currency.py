@@ -1,22 +1,29 @@
 from decimal import Decimal
 from enum import StrEnum
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from babel.numbers import format_currency as _format_currency
 from countryinfo import CountryInfo
 
+from polar.config import settings
 
-class PresentmentCurrency(StrEnum):
-    aud = "aud"
-    brl = "brl"
-    cad = "cad"
-    chf = "chf"
-    eur = "eur"
-    inr = "inr"
-    gbp = "gbp"
-    jpy = "jpy"
-    sek = "sek"
-    usd = "usd"
+if TYPE_CHECKING or settings.is_development() or settings.is_testing():
+
+    class PresentmentCurrency(StrEnum):
+        aud = "aud"
+        brl = "brl"
+        cad = "cad"
+        chf = "chf"
+        eur = "eur"
+        inr = "inr"
+        gbp = "gbp"
+        jpy = "jpy"
+        sek = "sek"
+        usd = "usd"
+else:
+    # For now, only USD is supported in production
+    class PresentmentCurrency(StrEnum):
+        usd = "usd"
 
 
 def get_presentment_currency(country: str) -> PresentmentCurrency | None:
@@ -44,7 +51,6 @@ def get_presentment_currency(country: str) -> PresentmentCurrency | None:
 
 _CURRENCY_DECIMAL_FACTORS: dict[str, int] = {
     "aud": 100,
-    "brl": 100,
     "cad": 100,
     "chf": 100,
     "eur": 100,

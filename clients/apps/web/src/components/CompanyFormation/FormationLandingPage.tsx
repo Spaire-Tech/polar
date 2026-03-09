@@ -12,7 +12,7 @@ export default function FormationLandingPage() {
   const orgSlug = params?.organization
 
   return (
-    <DashboardBody title="Start a U.S. Company From Anywhere">
+    <DashboardBody title="Incorporate your startup">
       <ShadowBoxOnMd className="items-center justify-center gap-y-6 md:flex md:flex-col md:py-24">
         <div className="flex max-w-md flex-col items-center gap-y-6 text-center">
           <div className="flex items-center gap-x-4">
@@ -23,22 +23,22 @@ export default function FormationLandingPage() {
             />
             <span className="dark:text-spaire-500 text-2xl text-gray-300">×</span>
             <img
-              src="/spaire-logo.png"
+              src="/spaire-logo-light.png"
               alt="Spaire"
               className="h-12 w-12 rounded-xl object-contain dark:hidden"
             />
             <img
-              src="/spaire-logo.png"
+              src="/spaire-logo-dark.png"
               alt="Spaire"
               className="hidden h-12 w-12 rounded-xl object-contain dark:block"
             />
           </div>
           <div className="flex flex-col items-center gap-y-2">
             <h3 className="text-xl font-medium">
-              Incorporate your Startup
+              Incorporate your startup
             </h3>
             <p className="dark:text-spaire-500 text-gray-500">
-              Spaire partners with Doola to help you form a US company in
+              Spaire partners with doola to help you form a US company in
               minutes — no matter where you are in the world. Get the legal
               foundation your startup needs to open a bank account, raise
               funding, and start selling.

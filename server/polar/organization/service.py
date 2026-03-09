@@ -651,9 +651,16 @@ class OrganizationService:
             organization.next_review_threshold >= 0
             and transfers_sum >= organization.next_review_threshold
         ):
-            # Auto-approve: skip manual review entirely.
-            # Set a very high next threshold so this never triggers again.
-            await self.confirm_organization_reviewed(session, organization, 2147483647)
+            organization.status = (
+                OrganizationStatus.ONGOING_REVIEW
+                if organization.initially_reviewed_at is not None
+                else OrganizationStatus.INITIAL_REVIEW
+            )
+            organization.status_updated_at = datetime.now(UTC)
+            await self._sync_account_status(session, organization)
+            session.add(organization)
+
+            enqueue_job("organization.under_review", organization_id=organization.id)
 
         return organization
 
