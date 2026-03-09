@@ -3,7 +3,7 @@
 import CheckOutlined from '@mui/icons-material/CheckOutlined'
 import { twMerge } from 'tailwind-merge'
 
-const STEPS = ['About you', 'Company details', 'Review'] as const
+const STEPS = ['About you', 'Company details', 'Review & continue'] as const
 
 interface StepIndicatorProps {
   currentStep: number

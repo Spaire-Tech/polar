@@ -114,12 +114,24 @@ Scan their project to detect the stack. Check these files:
 - Next.js (Pages Router)
 - Express
 - FastAPI
+- Flask
+- Django
 - Ruby on Rails
 - Node serverless (Vercel/AWS Lambda)
 - Vanilla HTML/JS
 - React (Vite, CRA)
 - Vue/Nuxt
 - Svelte/SvelteKit
+- Astro
+- Remix
+- Hono
+- Laravel (PHP)
+
+**Auth library detection:** When scanning the project, also check for auth libraries that affect how customer context is passed:
+- `better-auth` / `@better-auth/*` in `package.json` → BetterAuth (see BetterAuth note in Phase 4)
+- `next-auth` / `@auth/*` → NextAuth/Auth.js
+- `@clerk/nextjs` / `@clerk/clerk-react` → Clerk
+- `@supabase/supabase-js` → Supabase Auth
 
 If the framework is not in this list or detection confidence is low, tell the user: "I'm not 100% sure about your setup. Can you confirm your framework and routing approach?"
 
@@ -242,27 +254,41 @@ If the user chose programmatic:
 // lib/spaire-checkout.ts
 declare global {
   interface Window {
-    EmbedCheckout: {
-      create: (options: {
-        url: string
-        theme?: 'light' | 'dark'
-        onSuccess?: () => void
-      }) => void
+    Spaire: {
+      EmbedCheckout: {
+        create: (url: string, options?: {
+          theme?: 'light' | 'dark'
+        }) => Promise<void>
+        init: () => void
+      }
     }
   }
 }
 
-export function openCheckout(checkoutUrl: string, options?: {
+export async function openCheckout(checkoutUrl: string, options?: {
   theme?: 'light' | 'dark'
-  onSuccess?: () => void
 }) {
-  window.EmbedCheckout.create({
-    url: checkoutUrl,
-    theme: options?.theme ?? 'light',
-    onSuccess: options?.onSuccess,
-  })
+  try {
+    await window.Spaire.EmbedCheckout.create(checkoutUrl, {
+      theme: options?.theme ?? 'light',
+    })
+  } catch (err) {
+    console.error('[Spaire Checkout] Failed to open checkout:', err)
+  }
 }
 ```
+
+> **Note:** The global is `window.Spaire.EmbedCheckout`, not `window.EmbedCheckout`.
+
+> **BetterAuth note:** If the project uses BetterAuth (`better-auth` in `package.json`), read the BetterAuth session to get the user's email and pass it as a query param on the checkout URL:
+> ```typescript
+> import { authClient } from '@/lib/auth-client' // BetterAuth client
+>
+> const session = await authClient.getSession()
+> const url = new URL('CHECKOUT_LINK_URL')
+> if (session?.user?.email) url.searchParams.set('customer_email', session.user.email)
+> await window.Spaire.EmbedCheckout.create(url.toString())
+> ```
 
 ### Step 3: Wire it into their button
 
