@@ -83,12 +83,12 @@ export function BuyButton({ checkoutUrl }: { checkoutUrl: string }) {
 
 ### Events
 
-| Event | When it fires | Default behavior |
-|---|---|---|
-| `loaded` | iframe is ready | Removes loading spinner |
-| `confirmed` | customer submits payment | Prevents accidental close |
-| `success` | payment confirmed | Closes overlay (+ redirects if `redirect: true`) |
-| `close` | customer clicks X | Closes overlay (only if not confirming) |
+| Event       | When it fires            | Default behavior                                 |
+| ----------- | ------------------------ | ------------------------------------------------ |
+| `loaded`    | iframe is ready          | Removes loading spinner                          |
+| `confirmed` | customer submits payment | Prevents accidental close                        |
+| `success`   | payment confirmed        | Closes overlay (+ redirects if `redirect: true`) |
+| `close`     | customer clicks X        | Closes overlay (only if not confirming)          |
 
 Call `event.preventDefault()` on any event to suppress the default behavior and handle it yourself.
 
@@ -163,20 +163,27 @@ import Spaire from '@spaire/sdk'
 const app = express()
 const spaire = new Spaire({ accessToken: process.env.SPAIRE_ACCESS_TOKEN })
 
-app.post('/webhooks/spaire', express.raw({ type: 'application/json' }), async (req, res) => {
-  const event = await spaire.webhooks.constructEvent(
-    req.body,
-    req.headers['spaire-signature'] as string,
-    process.env.SPAIRE_WEBHOOK_SECRET!,
-  )
+app.post(
+  '/webhooks/spaire',
+  express.raw({ type: 'application/json' }),
+  async (req, res) => {
+    const event = await spaire.webhooks.constructEvent(
+      req.body,
+      req.headers['spaire-signature'] as string,
+      process.env.SPAIRE_WEBHOOK_SECRET!,
+    )
 
-  if (event.type === 'checkout.updated' && event.data.status === 'succeeded') {
-    const { customerId, productId } = event.data
-    // Provision access, send confirmation email, etc.
-  }
+    if (
+      event.type === 'checkout.updated' &&
+      event.data.status === 'succeeded'
+    ) {
+      const { customerId, productId } = event.data
+      // Provision access, send confirmation email, etc.
+    }
 
-  res.sendStatus(200)
-})
+    res.sendStatus(200)
+  },
+)
 ```
 
 ---
