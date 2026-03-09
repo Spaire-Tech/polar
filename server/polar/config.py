@@ -42,7 +42,7 @@ def _validate_email_renderer_binary_path(value: Path) -> Path:
     return value
 
 
-env = Environment(os.getenv("POLAR_ENV", Environment.development))
+env = Environment(os.getenv("SPAIRE_ENV", Environment.development))
 if env == Environment.testing:
     env_file = ".env.testing"
 elif env == Environment.test:
@@ -82,7 +82,7 @@ class Settings(BaseSettings):
 
     SECRET: str = "super secret jwt secret"
     JWKS: JWKSFile = Field(default="./.jwks.json")
-    CURRENT_JWK_KID: str = "polar_dev"
+    CURRENT_JWK_KID: str = "spaire_dev"
     WWW_AUTHENTICATE_REALM: str = "spaire"
 
     # JSON list of accepted CORS origins
@@ -140,11 +140,11 @@ class Settings(BaseSettings):
     IP_GEOLOCATION_DATABASE_NAME: str = "ip-geolocation.mmdb"
 
     # Database
-    POSTGRES_USER: str = "polar"
-    POSTGRES_PWD: str = "polar"
+    POSTGRES_USER: str = "spaire"
+    POSTGRES_PWD: str = "spaire"
     POSTGRES_HOST: str = "127.0.0.1"
     POSTGRES_PORT: int = 5432
-    POSTGRES_DATABASE: str = "polar"
+    POSTGRES_DATABASE: str = "spaire"
     DATABASE_POOL_SIZE: int = 5
     DATABASE_SYNC_POOL_SIZE: int = 1  # Specific pool size for sync connection: since we only use it in OAuth2 router, don't waste resources.
     DATABASE_POOL_RECYCLE_SECONDS: int = 600  # 10 minutes
@@ -281,29 +281,29 @@ class Settings(BaseSettings):
     PLAIN_CHAT_SECRET: str | None = None
 
     # AWS (File Downloads)
-    AWS_ACCESS_KEY_ID: str = "polar-development"
-    AWS_SECRET_ACCESS_KEY: str = "polar123456789"
+    AWS_ACCESS_KEY_ID: str = "spaire-development"
+    AWS_SECRET_ACCESS_KEY: str = "spaire123456789"
     AWS_REGION: str = "us-east-2"
     AWS_SIGNATURE_VERSION: str = "v4"
 
     # Downloadable files
-    S3_FILES_BUCKET_NAME: str = "polar-s3"
-    S3_FILES_PUBLIC_BUCKET_NAME: str = "polar-s3-public"
+    S3_FILES_BUCKET_NAME: str = "spaire-s3"
+    S3_FILES_PUBLIC_BUCKET_NAME: str = "spaire-s3-public"
     S3_FILES_PRESIGN_TTL: int = 3600  # 60 minutes
     S3_FILES_DOWNLOAD_SECRET: str = "supersecret"
     S3_FILES_DOWNLOAD_SALT: str = "saltysalty"
     # Override to http://127.0.0.1:9000 in .env during development
     S3_ENDPOINT_URL: str | None = None
 
-    MINIO_USER: str = "polar"
-    MINIO_PWD: str = "polarpolar"
+    MINIO_USER: str = "spaire"
+    MINIO_PWD: str = "spairespaire"
 
     # Chargeback Stop
     CHARGEBACK_STOP_WEBHOOK_SECRET: str = ""
 
     # Invoices
-    S3_CUSTOMER_INVOICES_BUCKET_NAME: str = "polar-customer-invoices"
-    S3_PAYOUT_INVOICES_BUCKET_NAME: str = "polar-payout-invoices"
+    S3_CUSTOMER_INVOICES_BUCKET_NAME: str = "spaire-customer-invoices"
+    S3_PAYOUT_INVOICES_BUCKET_NAME: str = "spaire-payout-invoices"
     INVOICES_NAME: str = "Spaire, Inc."
     INVOICES_ADDRESS: Address = Address(
         line1="1111B S Governors Ave",
@@ -404,7 +404,7 @@ class Settings(BaseSettings):
     DEFAULT_TAX_PROCESSOR: TaxProcessor = TaxProcessor.stripe
 
     model_config = SettingsConfigDict(
-        env_prefix="polar_",
+        env_prefix="spaire_",
         env_file_encoding="utf-8",
         case_sensitive=False,
         env_file=env_file,
