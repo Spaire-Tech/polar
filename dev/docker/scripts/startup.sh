@@ -69,7 +69,7 @@ fi
 echo "Waiting for database..."
 max_attempts=30
 attempt=0
-while ! pg_isready -h "$POLAR_POSTGRES_HOST" -p "$POLAR_POSTGRES_PORT" -U "$POLAR_POSTGRES_USER" -q; do
+while ! pg_isready -h "$SPAIRE_POSTGRES_HOST" -p "$SPAIRE_POSTGRES_PORT" -U "$SPAIRE_POSTGRES_USER" -q; do
     attempt=$((attempt + 1))
     if [[ $attempt -ge $max_attempts ]]; then
         echo "ERROR: Database not ready after $max_attempts attempts"
