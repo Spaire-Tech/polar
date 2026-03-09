@@ -313,7 +313,9 @@ class Settings(BaseSettings):
         state="US-DE",
         country=CountryAlpha2("US"),
     )
-    INVOICES_ADDITIONAL_INFO: str | None = "[support@spairehq.com](mailto:support@spairehq.com)"
+    INVOICES_ADDITIONAL_INFO: str | None = (
+        "[support@spairehq.com](mailto:support@spairehq.com)"
+    )
     PAYOUT_INVOICES_PREFIX: str = "SPAIRE-"
 
     # Application behaviours

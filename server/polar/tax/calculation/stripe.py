@@ -27,17 +27,11 @@ class StripeTaxCalculationError(TaxCalculationError):
     def __init__(
         self,
         stripe_error: stripe_lib.StripeError,
-        message: str | None = None,
+        message: str = "An error occurred while calculating tax.",
     ) -> None:
         self.stripe_error = stripe_error
-        # Use Stripe's user-facing message if no override provided
-        stripe_message = (
-            stripe_error.user_message
-            or (stripe_error.error.message if stripe_error.error else None)
-            or str(stripe_error)
-        )
-        self.message = message or f"Tax calculation error: {stripe_message}"
-        super().__init__(self.message)
+        self.message = message
+        super().__init__(message)
 
 
 class IncompleteTaxLocation(StripeTaxCalculationError):
@@ -151,7 +145,7 @@ class StripeTaxService(TaxServiceProtocol):
                 },
                 idempotency_key=idempotency_key,
             )
-        except stripe_lib.RateLimitError as e:
+        except stripe_lib.RateLimitError:
             if settings.is_sandbox():
                 log.warning(
                     "Stripe Tax API rate limit exceeded in sandbox mode, returning zero tax",
@@ -165,8 +159,7 @@ class StripeTaxService(TaxServiceProtocol):
                     "taxability_reason": None,
                     "tax_rate": None,
                 }
-            log.error("Stripe Tax API rate limit exceeded", identifier=str(identifier), error=str(e))
-            raise StripeTaxCalculationError(e, "Stripe Tax API rate limit exceeded.") from e
+            raise
         except stripe_lib.InvalidRequestError as e:
             if (
                 e.error is not None
@@ -174,13 +167,11 @@ class StripeTaxService(TaxServiceProtocol):
                 and e.error.param.startswith("customer_details[address]")
             ):
                 raise IncompleteTaxLocation(e) from e
-            log.error("Stripe Tax invalid request", identifier=str(identifier), error=str(e), param=e.error.param if e.error else None)
-            raise StripeTaxCalculationError(e) from e
+            raise
         except stripe_lib.StripeError as e:
-            if e.error is not None and e.error.code == "customer_tax_location_invalid":
-                raise InvalidTaxLocation(e) from e
-            log.error("Stripe Tax API error", identifier=str(identifier), error=str(e), code=e.error.code if e.error else None)
-            raise StripeTaxCalculationError(e) from e
+            if e.error is None or e.error.code != "customer_tax_location_invalid":
+                raise
+            raise InvalidTaxLocation(e) from e
         else:
             assert calculation.id is not None
             amount = calculation.tax_amount_exclusive

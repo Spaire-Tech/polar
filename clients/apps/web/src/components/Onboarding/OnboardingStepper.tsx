@@ -19,8 +19,8 @@ const defaultSteps: OnboardingStep[] = [
   },
   {
     id: 'integrate',
-    label: 'Get Started',
-    description: 'Access your dashboard',
+    label: 'Go Live',
+    description: 'Connect to your app',
   },
 ]
 

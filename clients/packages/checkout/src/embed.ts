@@ -187,10 +187,24 @@ class EmbedCheckout {
       embedCheckout.addEventListener('loaded', options.onLoaded, { once: true })
     }
 
-    return new Promise((resolve) => {
-      embedCheckout.addEventListener('loaded', () => resolve(embedCheckout), {
-        once: true,
-      })
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        embedCheckout.close()
+        reject(
+          new Error(
+            'Spaire Checkout failed to load. Verify the checkout URL and your network connection.',
+          ),
+        )
+      }, 30_000)
+
+      embedCheckout.addEventListener(
+        'loaded',
+        () => {
+          clearTimeout(timeout)
+          resolve(embedCheckout)
+        },
+        { once: true },
+      )
     })
   }
 
@@ -311,7 +325,9 @@ class EmbedCheckout {
       | 'light'
       | 'dark'
       | undefined
-    EmbedCheckout.create(url, theme ? { theme } : undefined)
+    EmbedCheckout.create(url, theme ? { theme } : undefined).catch(
+      console.error,
+    )
   }
 
   /**
@@ -358,7 +374,8 @@ class EmbedCheckout {
   /**
    * Default listener for the `success` event.
    *
-   * This listener will redirect the parent window to the `successURL` if `redirect` is set to `true`.
+   * This listener will close the embedded checkout and, if `redirect` is set
+   * to `true`, redirect the parent window to the `successURL`.
    */
   private successListener(
     event: CustomEvent<EmbedCheckoutMessageSuccess>,
@@ -367,6 +384,7 @@ class EmbedCheckout {
       return
     }
     this.closable = true
+    this.close()
     if (event.detail.redirect) {
       window.location.href = event.detail.successURL
     }

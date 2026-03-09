@@ -44,7 +44,7 @@ This plan details how to evolve Spaire from "MoR + payouts" into a full business
 | **Payout flow** | Two-step: (1) `stripe.Transfer` from Polar to merchant Connect account, (2) `stripe.Payout` from merchant account to bank |
 | **Account model** | `Account` table with `stripe_id`, status lifecycle (`CREATED → ONBOARDING_STARTED → UNDER_REVIEW → ACTIVE`), fee configuration |
 | **Risk controls** | `HeldBalance` system, account review thresholds, identity verification |
-| **API version** | `2026-02-25`, using `stripe_client` (StripeClient) for v2 and `stripe_lib` for v1 |
+| **API version** | `2026-01-28.clover`, using `stripe_client` (StripeClient) for v2 and `stripe_lib` for v1 |
 
 ### Key files
 

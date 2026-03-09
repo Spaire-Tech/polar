@@ -27,10 +27,6 @@ export const markdownOptions: MarkdownToJSX.Options = {
   },
 }
 
-export const hasMarkdown = (text: string): boolean => {
-  return /[*_#`\[\]!]/.test(text) || text.includes('\n')
-}
-
 export const markdownOptionsJustText: MarkdownToJSX.Options = {
   ...markdownOptions,
   wrapper: ({ children }) => <>{children}</>,

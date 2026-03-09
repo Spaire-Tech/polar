@@ -202,9 +202,9 @@ export const OrganizationStep = ({
 
     router.push(
       getStatusRedirect(
-        `/dashboard/${organization.slug}`,
+        `/dashboard/${organization.slug}/onboarding/integrate${queryParams}`,
         'Organization created',
-        'Welcome to your dashboard',
+        'Connect your app',
       ),
     )
   }

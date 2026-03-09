@@ -258,12 +258,6 @@ export const OrganizationDetailsForm: React.FC<
     maxSize: 1 * 1024 * 1024,
     onFilesUpdated,
     onFilesRejected,
-    onFileError: (_, error) => {
-      toast({
-        title: 'Upload failed',
-        description: error.message || 'Failed to upload image. Please try again.',
-      })
-    },
     initialFiles: [],
   })
 
