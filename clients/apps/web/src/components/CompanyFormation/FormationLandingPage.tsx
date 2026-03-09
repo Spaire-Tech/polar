@@ -44,7 +44,7 @@ export default function FormationLandingPage() {
               funding, and start selling.
             </p>
           </div>
-          <Link href={`/dashboard/${orgSlug}/founder-tools/new`}>
+          <Link href={`/dashboard/${orgSlug}/founder-tools/details`}>
             <Button role="link">
               <ArrowForwardOutlined className="h-4 w-4" />
               <span>Get Started</span>
