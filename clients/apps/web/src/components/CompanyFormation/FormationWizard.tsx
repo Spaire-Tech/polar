@@ -1,13 +1,13 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { DashboardBody } from '@/components/Layout/DashboardLayout'
 import { FadeUp } from '@/components/Animated/FadeUp'
 import StepIndicator from './StepIndicator'
 import FounderIntentStep from './steps/FounderIntentStep'
 import CompanyDetailsStep from './steps/CompanyDetailsStep'
-import ReviewRedirectStep from './steps/ReviewRedirectStep'
 import type { RecommendationInput, RecommendationOutput } from './recommendation'
 import {
   INITIAL_WIZARD_DATA,
@@ -18,6 +18,7 @@ import {
 } from './types'
 
 export default function FormationWizard() {
+  const router = useRouter()
   const [currentStep, setCurrentStep] = useState(1)
   const [formData, setFormData] = useState<WizardFormData>(() => {
     if (typeof window === 'undefined') return INITIAL_WIZARD_DATA
@@ -45,10 +46,10 @@ export default function FormationWizard() {
   const handleStep2Next = useCallback(
     (data: CompanyDetailsData, recommendation: RecommendationOutput) => {
       setFormData((prev) => ({ ...prev, ...data, recommendation }))
-      setCurrentStep(3)
-      window.scrollTo({ top: 0, behavior: 'smooth' })
+      localStorage.removeItem(STORAGE_KEY)
+      router.push('formation')
     },
-    [],
+    [router],
   )
 
   const handleBack = useCallback(() => {
@@ -73,10 +74,6 @@ export default function FormationWizard() {
     2: {
       title: 'Company details',
       description: 'Confirm your company name, entity, and founders.',
-    },
-    3: {
-      title: 'Review & continue',
-      description: 'Confirm your details, then complete formation with doola.',
     },
   }
 
@@ -133,11 +130,6 @@ export default function FormationWizard() {
                 onNext={handleStep2Next}
                 onBack={handleBack}
               />
-            </FadeUp>
-          )}
-          {currentStep === 3 && (
-            <FadeUp>
-              <ReviewRedirectStep data={formData} onBack={handleBack} />
             </FadeUp>
           )}
         </motion.div>
