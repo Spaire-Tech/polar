@@ -109,6 +109,13 @@ services:
       - "7181:7181"
       - "7182:7182"
 
+  adminer:
+    image: adminer
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+
 volumes:
   postgres_data:
   minio_data:

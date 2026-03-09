@@ -13,6 +13,7 @@ import { useRouter } from 'next/navigation'
 import { useCallback, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { DashboardBody } from '../Layout/DashboardLayout'
+import { toast } from '../Toast/use-toast'
 import { getStatusRedirect } from '../Toast/utils'
 import { Benefits } from './Benefits/Benefits'
 import ProductForm from './ProductForm/ProductForm'
@@ -116,6 +117,18 @@ export const CreateProductPage = ({
           mediaIds = reuploadedMedias.map((media) => media.id)
         }
 
+        // Validate all prices (including unmounted currency tabs not checked by react-hook-form)
+        const invalidFixedPrice = productCreateRest.prices.some(
+          (price: any) => price.amount_type === 'fixed' && (price.price_amount ?? 0) < 50,
+        )
+        if (invalidFixedPrice) {
+          toast({
+            title: 'Invalid price',
+            description: 'All prices must be at least $0.50. Check all currency tabs.',
+          })
+          return
+        }
+
         const { data: product, error } = await createProduct.mutateAsync({
           ...productCreateRest,
           medias: mediaIds,
@@ -129,6 +142,10 @@ export const CreateProductPage = ({
           if (error.detail) {
             setProductValidationErrors(error.detail, setError)
           }
+          const msg = Array.isArray(error.detail) && error.detail.length > 0
+            ? error.detail[0].msg
+            : 'Failed to create product. Please check the form for errors.'
+          toast({ title: 'Error', description: msg })
           return
         }
 

@@ -101,7 +101,7 @@ If any detected, warn: **"You appear to be modifying a production project/branch
 
 Scan their project to detect the stack. Check these files:
 
-- `package.json` → look for `next`, `react`, `vue`, `svelte`, `express`, `fastify`, `hono`, `astro`, `remix`, `better-auth`, `@elysiajs/core`, `@tanstack/start`
+- `package.json` → look for `next`, `react`, `vue`, `svelte`, `express`, `fastify`, `hono`, `astro`, `remix`
 - `index.html` → vanilla HTML project
 - `requirements.txt` or `pyproject.toml` → Python project (FastAPI, Flask, Django)
 - `go.mod` → Go project
@@ -113,33 +113,15 @@ Scan their project to detect the stack. Check these files:
 - Next.js (App Router)
 - Next.js (Pages Router)
 - Express
-- Fastify
-- Hono
-- Astro
-- Remix
-- SvelteKit
-- Nuxt
-- TanStack Start
-- Elysia
-- Deno
 - FastAPI
 - Ruby on Rails
 - Node serverless (Vercel/AWS Lambda)
 - Vanilla HTML/JS
 - React (Vite, CRA)
-
-**Auth framework adapters (detect separately):**
-- BetterAuth (`better-auth` in package.json) → use `@spaire/better-auth` path (see below)
+- Vue/Nuxt
+- Svelte/SvelteKit
 
 If the framework is not in this list or detection confidence is low, tell the user: "I'm not 100% sure about your setup. Can you confirm your framework and routing approach?"
-
-**Check for BetterAuth before anything else.** If `better-auth` appears in `package.json` dependencies, tell the user:
-
-> "I can see you're using BetterAuth. Spaire has a first-class `@spaire/better-auth` plugin that handles checkout, customer portal, webhooks, and usage billing — all wired through your existing auth client. This is the recommended path for BetterAuth projects."
-
-Then skip directly to **Phase 3b: BetterAuth Integration**. Do not use the overlay/programmatic/server-side paths for BetterAuth projects.
-
----
 
 Tell the user what you found: "I can see you're using Next.js App Router with React. I'll tailor the checkout setup for that."
 
@@ -248,109 +230,6 @@ If the user has their checkout link URL, replace `CHECKOUT_LINK_URL` with it. Ot
 
 Create `/checkout/success` (or equivalent for their framework) with a confirmation message and a "Return to Dashboard" button.
 
-## Phase 3b: Implement — BetterAuth Integration
-
-If the user has BetterAuth, use this path instead of overlay/programmatic/server-side.
-
-### Step 1: Install packages
-
-Use the project's existing package manager (detected per the [output contract](./agent-output-contract.md)):
-```bash
-pnpm add better-auth @spaire/better-auth @spaire/sdk
-```
-
-### Step 2: Set environment variables
-
-Tell the user to add to their `.env`:
-```
-SPAIRE_ACCESS_TOKEN=<your_access_token>
-SPAIRE_WEBHOOK_SECRET=<your_webhook_secret>
-```
-
-### Step 3: Configure the BetterAuth server
-
-Patch their existing `auth.ts` (or wherever `betterAuth(...)` is configured):
-
-```typescript
-import { betterAuth } from "better-auth";
-import { spaire, checkout, portal, webhooks } from "@spaire/better-auth";
-import { Spaire } from "@spaire/sdk";
-
-const spaireClient = new Spaire({
-  accessToken: process.env.SPAIRE_ACCESS_TOKEN,
-  // use 'sandbox' for testing, 'production' for live
-  server: process.env.NODE_ENV === "production" ? "production" : "sandbox",
-});
-
-const auth = betterAuth({
-  // ... their existing config
-  plugins: [
-    spaire({
-      client: spaireClient,
-      createCustomerOnSignUp: true,
-      use: [
-        checkout({
-          products: [
-            { productId: "REPLACE_WITH_PRODUCT_ID", slug: "pro" },
-          ],
-          successUrl: "/success?checkout_id={CHECKOUT_ID}",
-          authenticatedUsersOnly: true,
-        }),
-        portal(),
-        webhooks({
-          secret: process.env.SPAIRE_WEBHOOK_SECRET!,
-          onOrderPaid: async (payload) => {
-            // Provision access here — check for idempotency first
-          },
-          onSubscriptionActive: async (payload) => {
-            // Provision subscription access here
-          },
-        }),
-      ],
-    }),
-  ],
-});
-```
-
-Tell the user: "Replace `REPLACE_WITH_PRODUCT_ID` with your product's ID from the Spaire dashboard."
-
-### Step 4: Configure the BetterAuth client
-
-Patch their existing auth client file:
-
-```typescript
-import { createAuthClient } from "better-auth/react";
-import { spaireClient } from "@spaire/better-auth/client";
-
-export const authClient = createAuthClient({
-  plugins: [spaireClient()],
-});
-```
-
-### Step 5: Add a checkout button
-
-```typescript
-import { authClient } from "@/lib/auth-client";
-
-<button onClick={() => authClient.checkout({ slug: "pro" })}>
-  Upgrade to Pro
-</button>
-```
-
-### Step 6: (Optional) Add a customer portal link
-
-```typescript
-<button onClick={() => authClient.customer.portal()}>
-  Manage Subscription
-</button>
-```
-
-### Step 7: Register the webhook endpoint in Spaire
-
-Tell the user: "Register `https://your-app.com/api/auth/spaire/webhooks` as a webhook endpoint in your Spaire dashboard under Settings → Webhooks."
-
----
-
 ## Phase 4: Implement — Programmatic Approach
 
 If the user chose programmatic:
@@ -361,28 +240,27 @@ If the user chose programmatic:
 
 ```typescript
 // lib/spaire-checkout.ts
-export async function openCheckout(
-  checkoutUrl: string,
-  options?: {
-    theme?: 'light' | 'dark'
-    onSuccess?: () => void
-  },
-): Promise<void> {
-  // window.Spaire is set by the embed script
-  let checkout
-  try {
-    checkout = await window.Spaire.EmbedCheckout.create(checkoutUrl, {
-      theme: options?.theme ?? 'light',
-    })
-  } catch (err) {
-    // create() rejects after 30s if the checkout never loads
-    console.error('Checkout failed to open:', err)
-    return
+declare global {
+  interface Window {
+    EmbedCheckout: {
+      create: (options: {
+        url: string
+        theme?: 'light' | 'dark'
+        onSuccess?: () => void
+      }) => void
+    }
   }
+}
 
-  if (options?.onSuccess) {
-    checkout.addEventListener('success', options.onSuccess, { once: true })
-  }
+export function openCheckout(checkoutUrl: string, options?: {
+  theme?: 'light' | 'dark'
+  onSuccess?: () => void
+}) {
+  window.EmbedCheckout.create({
+    url: checkoutUrl,
+    theme: options?.theme ?? 'light',
+    onSuccess: options?.onSuccess,
+  })
 }
 ```
 
@@ -391,19 +269,9 @@ export async function openCheckout(
 ```typescript
 import { openCheckout } from '@/lib/spaire-checkout'
 
-<button onClick={() => openCheckout("CHECKOUT_LINK_URL", { onSuccess: () => router.push('/thank-you') })}>
+<button onClick={() => openCheckout("CHECKOUT_LINK_URL")}>
   Get Started
 </button>
-```
-
-### Note on Next.js CSP
-
-If the project uses a Content Security Policy, add the checkout domain to `frame-src` in `next.config.mjs`:
-
-```js
-const cspHeader = `
-  frame-src 'self' https://api.spairehq.com;
-`
 ```
 
 ## Phase 5: Implement — Server-side Approach

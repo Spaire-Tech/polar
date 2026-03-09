@@ -1142,12 +1142,14 @@ export const ProductPricingSection = ({
         }
 
         if (price.amount_type === 'fixed') {
-          newPrice = { ...baseCurrency, amount_type: 'fixed', price_amount: 0 }
+          const sourceAmount = 'price_amount' in price ? (price.price_amount ?? 0) : 0
+          newPrice = { ...baseCurrency, amount_type: 'fixed', price_amount: sourceAmount }
         } else if (price.amount_type === 'custom') {
+          const sourceMin = 'minimum_amount' in price ? (price.minimum_amount ?? 0) : 0
           newPrice = {
             ...baseCurrency,
             amount_type: 'custom',
-            minimum_amount: 0,
+            minimum_amount: sourceMin,
           }
         } else if (price.amount_type === 'free') {
           newPrice = { ...baseCurrency, amount_type: 'free' }
@@ -1417,16 +1419,14 @@ export const ProductPricingSection = ({
         </div>
 
         {/* Currency Tabs */}
-        {false && (
-          <CurrencyTabs
-            activeCurrencies={activeCurrencies}
-            selectedCurrency={validatedSelectedCurrency}
-            onSelectCurrency={setSelectedCurrency}
-            onAddCurrency={handleAddCurrency}
-            onRemoveCurrency={handleRemoveCurrency}
-            defaultCurrency={defaultCurrency}
-          />
-        )}
+        <CurrencyTabs
+          activeCurrencies={activeCurrencies}
+          selectedCurrency={validatedSelectedCurrency}
+          onSelectCurrency={setSelectedCurrency}
+          onAddCurrency={handleAddCurrency}
+          onRemoveCurrency={handleRemoveCurrency}
+          defaultCurrency={defaultCurrency}
+        />
 
         {/* Prices for selected currency */}
         {pricesForSelectedCurrency.map(({ price, index }) => (

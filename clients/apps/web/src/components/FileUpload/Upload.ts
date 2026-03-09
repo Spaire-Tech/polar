@@ -17,6 +17,7 @@ interface UploadProperties {
   onFileCreate: (tempId: string, response: schemas['FileUpload']) => void
   onFileUploadProgress: (file: schemas['FileUpload'], uploaded: number) => void
   onFileUploaded: (response: FileRead) => void
+  onFileError?: (tempId: string, error: Error) => void
 }
 
 export class Upload {
@@ -28,6 +29,7 @@ export class Upload {
   onFileCreate: (tempId: string, response: schemas['FileUpload']) => void
   onFileUploadProgress: (file: schemas['FileUpload'], uploaded: number) => void
   onFileUploaded: (response: FileRead) => void
+  onFileError?: (tempId: string, error: Error) => void
 
   constructor({
     organization,
@@ -37,6 +39,7 @@ export class Upload {
     onFileCreate,
     onFileUploadProgress,
     onFileUploaded,
+    onFileError,
   }: UploadProperties) {
     this.organization = organization
     this.service = service
@@ -46,6 +49,7 @@ export class Upload {
     this.onFileCreate = onFileCreate
     this.onFileUploadProgress = onFileUploadProgress
     this.onFileUploaded = onFileUploaded
+    this.onFileError = onFileError
   }
 
   async getSha256Base64(buffer: ArrayBuffer) {
@@ -206,6 +210,12 @@ export class Upload {
     })
 
     if (error) {
+      if (this.onFileError) {
+        this.onFileError(
+          createFileResponse.id,
+          new Error('Failed to complete file upload'),
+        )
+      }
       return
     }
 
@@ -217,6 +227,9 @@ export class Upload {
 
     const { data: createFileResponse, error } = await this.create()
     if (error) {
+      if (this.onFileError) {
+        this.onFileError(this.tempId, new Error('Failed to create file upload'))
+      }
       return
     }
     const upload = createFileResponse.upload
