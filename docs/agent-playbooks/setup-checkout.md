@@ -240,27 +240,28 @@ If the user chose programmatic:
 
 ```typescript
 // lib/spaire-checkout.ts
-declare global {
-  interface Window {
-    EmbedCheckout: {
-      create: (options: {
-        url: string
-        theme?: 'light' | 'dark'
-        onSuccess?: () => void
-      }) => void
-    }
+export async function openCheckout(
+  checkoutUrl: string,
+  options?: {
+    theme?: 'light' | 'dark'
+    onSuccess?: () => void
+  },
+): Promise<void> {
+  // window.Spaire is set by the embed script
+  let checkout
+  try {
+    checkout = await window.Spaire.EmbedCheckout.create(checkoutUrl, {
+      theme: options?.theme ?? 'light',
+    })
+  } catch (err) {
+    // create() rejects after 30s if the checkout never loads
+    console.error('Checkout failed to open:', err)
+    return
   }
-}
 
-export function openCheckout(checkoutUrl: string, options?: {
-  theme?: 'light' | 'dark'
-  onSuccess?: () => void
-}) {
-  window.EmbedCheckout.create({
-    url: checkoutUrl,
-    theme: options?.theme ?? 'light',
-    onSuccess: options?.onSuccess,
-  })
+  if (options?.onSuccess) {
+    checkout.addEventListener('success', options.onSuccess, { once: true })
+  }
 }
 ```
 
@@ -269,9 +270,19 @@ export function openCheckout(checkoutUrl: string, options?: {
 ```typescript
 import { openCheckout } from '@/lib/spaire-checkout'
 
-<button onClick={() => openCheckout("CHECKOUT_LINK_URL")}>
+<button onClick={() => openCheckout("CHECKOUT_LINK_URL", { onSuccess: () => router.push('/thank-you') })}>
   Get Started
 </button>
+```
+
+### Note on Next.js CSP
+
+If the project uses a Content Security Policy, add the checkout domain to `frame-src` in `next.config.mjs`:
+
+```js
+const cspHeader = `
+  frame-src 'self' https://api.spairehq.com;
+`
 ```
 
 ## Phase 5: Implement — Server-side Approach
