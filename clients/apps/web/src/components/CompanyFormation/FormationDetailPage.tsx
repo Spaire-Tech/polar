@@ -58,7 +58,9 @@ export default function FormationDetailPage() {
     })
     checkout.addEventListener(
       'success',
-      () => {
+      (event) => {
+        event.preventDefault()
+        checkout.close()
         router.push(`/dashboard/${orgSlug}/founder-tools/new`)
       },
       { once: true },
