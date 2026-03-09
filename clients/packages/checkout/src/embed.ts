@@ -358,7 +358,8 @@ class EmbedCheckout {
   /**
    * Default listener for the `success` event.
    *
-   * This listener will redirect the parent window to the `successURL` if `redirect` is set to `true`.
+   * This listener will close the embedded checkout and, if `redirect` is set
+   * to `true`, redirect the parent window to the `successURL`.
    */
   private successListener(
     event: CustomEvent<EmbedCheckoutMessageSuccess>,
@@ -367,6 +368,7 @@ class EmbedCheckout {
       return
     }
     this.closable = true
+    this.close()
     if (event.detail.redirect) {
       window.location.href = event.detail.successURL
     }
