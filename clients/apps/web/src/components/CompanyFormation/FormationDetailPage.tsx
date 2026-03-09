@@ -12,7 +12,7 @@ import { motion } from 'framer-motion'
 import { FadeUp } from '../Animated/FadeUp'
 
 const FORMATION_CHECKOUT_URL =
-  'https://api.spairehq.com/v1/checkout-links/spaire_cl_4TVMhUtEWI9S6CN4XK7QZF8XtYsdglX3ZTra439iDfV/redirect'
+  'https://api.spairehq.com/v1/checkout-links/spaire_cl_jl4bS0PBKw48Ny3E2VhBleGe8ifoATz1j8XXZ03NEHw/redirect'
 
 const formationFeatures = [
   {
