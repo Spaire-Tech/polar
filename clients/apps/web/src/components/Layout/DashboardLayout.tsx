@@ -43,7 +43,7 @@ const DashboardLayout = (
 
   return (
     <DashboardProvider organization={organization}>
-      <div className="relative flex h-full w-full flex-col bg-white md:flex-row md:bg-gray-100 md:p-2 dark:bg-transparent">
+      <div className="relative flex h-full w-full flex-col bg-white md:flex-row md:bg-gray-100 md:p-2 dark:bg-[#050510]">
         <MobileNav
           organization={organization}
           organizations={organizations ?? []}
@@ -61,6 +61,16 @@ const DashboardLayout = (
             'relative flex h-full w-full flex-col',
             props.className,
           )}
+          style={{
+            backgroundColor: '#050510',
+            backgroundImage: [
+              'linear-gradient(rgba(50, 50, 120, 0.3) 1px, transparent 1px)',
+              'linear-gradient(90deg, rgba(50, 50, 120, 0.3) 1px, transparent 1px)',
+              'linear-gradient(rgba(50, 50, 120, 0.15) 1px, transparent 1px)',
+              'linear-gradient(90deg, rgba(50, 50, 120, 0.15) 1px, transparent 1px)',
+            ].join(', '),
+            backgroundSize: '150px 150px, 150px 150px, 30px 30px, 30px 30px',
+          }}
         >
           {/* On large devices, scroll here. On small devices the _document_ is the only element that should scroll. */}
           <main className="relative flex min-h-0 min-w-0 grow flex-col">
