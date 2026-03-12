@@ -50,6 +50,8 @@ interface MetricChartBoxProps {
   chartType?: 'line' | 'bar'
   /** Override the list of metrics shown in the dropdown. If not provided, uses metrics from data. */
   availableMetrics?: MetricOption[]
+  /** Hex color for the chart line and indicator dot */
+  color?: string
 }
 
 const EXPERIMENTAL_METRICS: Record<string, { tooltip: string }> = {
@@ -79,6 +81,7 @@ const MetricChartBox = ({
   simple = false,
   chartType = 'line',
   availableMetrics,
+  color = '#004664',
 }: MetricChartBoxProps & {
   ref?: React.RefObject<HTMLDivElement>
 }) => {
@@ -237,7 +240,7 @@ const MetricChartBox = ({
           {!compact && (
             <div className="flex flex-col gap-x-6 gap-y-2 md:flex-row md:items-center">
               <div className="flex flex-row items-center gap-x-2 text-sm">
-                <span className="h-3 w-3 rounded-full border-2 border-blue-500" />
+                <span className="h-3 w-3 rounded-full border-2" style={{ borderColor: color }} />
                 {hoveredPeriod ? (
                   <FormattedDateTime
                     datetime={hoveredPeriod.timestamp}
@@ -337,6 +340,7 @@ const MetricChartBox = ({
             }}
             simple={simple}
             chartType={chartType}
+            color={color}
           />
         ) : (
           <div

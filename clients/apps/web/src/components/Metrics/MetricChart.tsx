@@ -19,6 +19,7 @@ interface MetricChartProps {
   simple?: boolean
   showYAxis?: boolean
   chartType?: 'line' | 'bar'
+  color?: string
 }
 
 const MetricChart = ({
@@ -34,6 +35,7 @@ const MetricChart = ({
   simple = false,
   showYAxis = false,
   chartType = 'line',
+  color = '#004664',
 }: MetricChartProps) => {
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme === 'dark'
@@ -70,10 +72,10 @@ const MetricChart = ({
       {
         key: 'current',
         label: 'Current Period',
-        color: '#004664',
+        color,
       },
     ],
-    [previousData, isDark],
+    [previousData, isDark, color],
   )
 
   const timestampFormatter = useMemo(

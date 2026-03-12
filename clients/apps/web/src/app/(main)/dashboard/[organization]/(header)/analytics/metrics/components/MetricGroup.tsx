@@ -11,6 +11,9 @@ interface MetricGroupProps {
   interval: schemas['TimeInterval']
 }
 
+/** Rotating palette: blue → purple → green */
+const METRIC_COLORS = ['#004664', '#7c3aed', '#16a34a']
+
 export function MetricGroup({ metricKeys, data, interval }: MetricGroupProps) {
   return (
     <div className="flex flex-col gap-y-6">
@@ -24,6 +27,7 @@ export function MetricGroup({ metricKeys, data, interval }: MetricGroupProps) {
               metric={metricKey}
               height={200}
               chartType="line"
+              color={METRIC_COLORS[index % METRIC_COLORS.length]}
               className={twMerge(
                 'rounded-none! bg-transparent dark:bg-transparent',
                 index === 0 && 'lg:col-span-2',
