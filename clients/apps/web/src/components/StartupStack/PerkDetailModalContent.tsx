@@ -5,6 +5,7 @@ import { type ContentBlock, type Perk, type PerkSection } from '@/constants/perk
 import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
 import Button from '@spaire/ui/components/atoms/Button'
 import Link from 'next/link'
+import { useEffect, useRef } from 'react'
 
 const BlockRenderer = ({ block }: { block: ContentBlock }) => {
   if (block.type === 'paragraph') {
@@ -87,6 +88,17 @@ const PerkDetailModalContent = ({
   perk,
   hideModal,
 }: PerkDetailModalContentProps) => {
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => {
+      if (scrollRef.current) {
+        scrollRef.current.scrollTop = 0
+      }
+    })
+    return () => cancelAnimationFrame(raf)
+  }, [])
+
   if (!perk.details) return null
 
   return (
@@ -102,7 +114,7 @@ const PerkDetailModalContent = ({
         </div>
       </InlineModalHeader>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-y-8 overflow-y-auto px-8 pb-10">
+      <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col gap-y-8 overflow-y-auto px-8 pb-10">
         {/* Hero */}
         <div className="flex flex-col items-center gap-y-4 rounded-2xl bg-gray-50 px-6 py-8 text-center dark:bg-spaire-800">
           <img
