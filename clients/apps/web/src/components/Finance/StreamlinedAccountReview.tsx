@@ -83,17 +83,17 @@ const StepProgress = ({
                 className={twMerge(
                   'flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold transition-all duration-200',
                   isCompleted &&
-                    'bg-blue-500 text-white',
+                    'bg-purple-600 text-white',
                   isCurrent &&
                     !isFailed &&
-                    'border-2 border-blue-500 bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400',
+                    'border-2 border-purple-500 bg-purple-50 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400',
                   isFailed &&
                     'border-2 border-red-400 bg-red-50 text-red-500 dark:bg-red-500/10 dark:text-red-400',
                   !isCompleted &&
                     !isCurrent &&
                     'border-2 border-gray-200 text-gray-400 dark:border-spaire-600 dark:text-spaire-500',
                   isClickable &&
-                    'cursor-pointer hover:bg-blue-600 hover:text-white hover:border-blue-600',
+                    'cursor-pointer hover:bg-purple-700 hover:text-white hover:border-purple-700',
                 )}
               >
                 {isCompleted ? (
@@ -105,10 +105,10 @@ const StepProgress = ({
               <span
                 className={twMerge(
                   'text-[11px] font-medium tracking-wide uppercase whitespace-nowrap',
-                  isCompleted && 'text-blue-500 dark:text-blue-400',
+                  isCompleted && 'text-purple-600 dark:text-purple-400',
                   isCurrent &&
                     !isFailed &&
-                    'text-blue-600 dark:text-blue-400',
+                    'text-purple-700 dark:text-purple-400',
                   isFailed && 'text-red-500 dark:text-red-400',
                   !isCompleted &&
                     !isCurrent &&
@@ -125,7 +125,7 @@ const StepProgress = ({
                 className={twMerge(
                   'mb-6 h-[2px] flex-1 mx-2 rounded-full transition-colors duration-300',
                   index < currentIndex
-                    ? 'bg-blue-500'
+                    ? 'bg-purple-500'
                     : 'bg-gray-200 dark:bg-spaire-700',
                 )}
               />

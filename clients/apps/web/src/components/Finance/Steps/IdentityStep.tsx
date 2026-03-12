@@ -80,8 +80,8 @@ export default function IdentityStep({
   // Default: not started
   return (
     <div className="flex flex-col items-center gap-4 py-8 text-center">
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 dark:bg-blue-500/10">
-        <Fingerprint className="h-6 w-6 text-blue-500" />
+      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-50 dark:bg-purple-500/10">
+        <Fingerprint className="h-6 w-6 text-purple-600" />
       </div>
       <div>
         <h3 className="font-medium dark:text-white">Verify your identity</h3>
