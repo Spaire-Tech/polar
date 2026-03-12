@@ -32,7 +32,7 @@ const FeaturedPerkCard = ({
         </div>
       </div>
 
-      <p className="dark:text-spaire-400 text-sm leading-relaxed text-gray-500">
+      <p className="dark:text-spaire-400 flex-1 text-sm leading-relaxed text-gray-500">
         {perk.description}
       </p>
 
@@ -71,7 +71,7 @@ export default function StartupStackPage() {
       </div>
 
       {/* Featured partners */}
-      <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {FEATURED_PERKS.map((perk) => (
           <FeaturedPerkCard
             key={perk.name}

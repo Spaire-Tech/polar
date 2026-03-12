@@ -265,18 +265,156 @@ export const PERKS: Perk[] = [
   {
     name: 'Linear',
     logo: 'https://spaire-production-files-public.s3.us-east-1.amazonaws.com/linear.jpeg',
-    incentive: '12 Months Free',
+    incentive: '6 Months Free',
     description:
-      'Linear is the issue tracker that engineering teams actually want to use. Fast, opinionated, and designed for sprints, cycles, and triage — without the bloat of legacy project management tools.',
+      'Build and ship products faster with Linear. Plan features, track bugs, and keep your engineering team aligned with a project management tool designed for modern software teams.',
     url: 'https://linear.app/startups',
+    featured: true,
+    details: {
+      claimUrl: 'https://linear.app/startups',
+      sections: [
+        {
+          heading: 'What is Linear?',
+          blocks: [
+            {
+              type: 'paragraph',
+              text: 'Linear is a project management and issue tracking tool built for modern product teams. It helps startups plan features, track bugs, manage product roadmaps, and coordinate development work in one streamlined platform.',
+            },
+            {
+              type: 'paragraph',
+              text: 'Many fast-growing startups use Linear to organize engineering tasks, prioritize product improvements, and keep their teams aligned while shipping new features quickly.',
+            },
+          ],
+        },
+        {
+          heading: 'What You Get Through the Spaire Startup Stack',
+          blocks: [
+            {
+              type: 'unordered-list',
+              label: 'Eligible startups receive:',
+              items: ['6 months of Linear free'],
+            },
+            {
+              type: 'paragraph',
+              text: "This gives founders access to Linear's project management and issue tracking tools while they build and launch their product.",
+            },
+          ],
+        },
+        {
+          heading: 'How to Redeem',
+          blocks: [
+            {
+              type: 'ordered-list',
+              items: [
+                'Redeem the offer through the Linear partner site',
+                'Sign up for a new Linear account',
+                'Use the redemption code hydrargyrum during signup to activate the offer',
+              ],
+            },
+            {
+              type: 'note',
+              text: 'The redemption code hydrargyrum must be entered during signup. Applications submitted without the code cannot be attributed.',
+            },
+          ],
+        },
+        {
+          heading: 'Eligibility Requirements',
+          blocks: [
+            {
+              type: 'ordered-list',
+              label: 'To qualify, you must:',
+              items: ['Be a new Linear customer'],
+            },
+          ],
+        },
+        {
+          heading: 'Important Notes',
+          blocks: [
+            {
+              type: 'unordered-list',
+              items: [
+                'The 6-month free offer applies to new Linear accounts only.',
+                'The redemption code must be used during signup to activate the benefit.',
+                'Terms and availability are determined by Linear.',
+              ],
+            },
+          ],
+        },
+      ],
+    },
   },
   {
     name: 'Intercom',
     logo: 'https://spaire-production-files-public.s3.us-east-1.amazonaws.com/intercom_logo.jpeg',
-    incentive: '95% Off for Year One',
+    incentive: 'Free for First Year',
     description:
-      'Intercom is the customer messaging platform that handles live chat, help center, bots, and product tours from one interface — letting a small team deliver enterprise-level support.',
+      'Communicate with your users from day one using Intercom. Manage support conversations, onboard new customers, and automate responses with powerful messaging and AI tools.',
     url: 'https://www.intercom.com/early-stage',
+    featured: true,
+    details: {
+      claimUrl: 'https://www.intercom.com/early-stage',
+      sections: [
+        {
+          heading: 'What is Intercom?',
+          blocks: [
+            {
+              type: 'paragraph',
+              text: 'Intercom is a customer communication and support platform that helps startups interact with users through live chat, in-app messaging, email, and automated support.',
+            },
+            {
+              type: 'paragraph',
+              text: 'It allows companies to manage customer conversations, onboard new users, and resolve support requests from one place. Intercom also includes AI tools that can automatically answer common questions and help support teams respond faster.',
+            },
+            {
+              type: 'paragraph',
+              text: 'Many startups use Intercom to manage customer support, onboarding messages, and product communication as their user base grows.',
+            },
+          ],
+        },
+        {
+          heading: 'What You Get Through the Spaire Startup Stack',
+          blocks: [
+            {
+              type: 'unordered-list',
+              label: 'Eligible startups receive:',
+              items: ['Intercom free for the first year'],
+            },
+            {
+              type: 'paragraph',
+              text: "The offer gives founders access to Intercom's customer messaging and support platform so they can build strong relationships with their first users while keeping costs low.",
+            },
+          ],
+        },
+        {
+          heading: 'Eligibility Requirements',
+          blocks: [
+            {
+              type: 'ordered-list',
+              label: 'To qualify, you must:',
+              items: [
+                'Be a new Intercom customer',
+                'Be an early-stage startup',
+                "Meet Intercom's program requirements for startup eligibility",
+              ],
+            },
+          ],
+        },
+        {
+          heading: 'Important Notes',
+          blocks: [
+            {
+              type: 'unordered-list',
+              items: [
+                'The free access applies for the first year only.',
+                'After the first year, standard pricing may apply.',
+                'Additional usage features may be billed separately.',
+                'Final eligibility and approval are determined by Intercom.',
+              ],
+            },
+          ],
+        },
+      ],
+    },
   },
   {
     name: 'Vercel',
@@ -525,6 +663,346 @@ export const PERKS: Perk[] = [
                 'Credits can be used for eligible Azure cloud services.',
                 'The offer is subject to Microsoft eligibility requirements.',
                 "Availability and terms may change based on Microsoft's program rules.",
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    name: 'Carta',
+    logo: 'https://spaire-production-files-public.s3.us-east-1.amazonaws.com/carta_logo.png',
+    incentive: '20% Off First Year',
+    description:
+      "Manage your company's ownership from the start with Carta. Track your cap table, issue equity to founders and employees, and stay organized as you raise funding and grow your team.",
+    url: 'https://carta.com',
+    featured: true,
+    details: {
+      claimUrl: 'https://carta.com',
+      sections: [
+        {
+          heading: 'What is Carta?',
+          blocks: [
+            {
+              type: 'paragraph',
+              text: 'Carta is a platform that helps companies and investors manage ownership, equity, and fund operations.',
+            },
+            {
+              type: 'paragraph',
+              text: 'Many startups use Carta to manage their cap table, issue equity to founders and employees, and track investors as they raise funding. The platform is also widely used by venture capital firms and fund managers to administer their funds and streamline operational processes.',
+            },
+            {
+              type: 'paragraph',
+              text: 'Carta is trusted by leading investment firms and startup ecosystems to manage equity and fund administration at scale.',
+            },
+          ],
+        },
+        {
+          heading: 'What You Get Through the Spaire Startup Stack',
+          blocks: [
+            {
+              type: 'unordered-list',
+              label: 'Eligible startups receive:',
+              items: ["20% off the first year of Carta's Fund Administration services"],
+            },
+            {
+              type: 'paragraph',
+              text: 'This discount helps early-stage funds and investment groups reduce operational costs while managing their fund structure and investor relationships.',
+            },
+          ],
+        },
+        {
+          heading: 'How to Redeem',
+          blocks: [
+            {
+              type: 'ordered-list',
+              items: [
+                'Redeem the offer through the Carta partner site',
+                "Sign up for Carta's Fund Administration services",
+                'The 20% discount will be applied to your first year',
+              ],
+            },
+          ],
+        },
+        {
+          heading: 'Eligibility Requirements',
+          blocks: [
+            {
+              type: 'ordered-list',
+              label: 'To qualify, you must:',
+              items: ['Be a new Carta customer'],
+            },
+          ],
+        },
+        {
+          heading: 'Important Notes',
+          blocks: [
+            {
+              type: 'unordered-list',
+              items: [
+                'The discount applies to the first year of Carta Fund Administration services.',
+                'The offer is valid for new customers only.',
+                'Final eligibility and terms are determined by Carta.',
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    name: 'Upwork',
+    logo: 'https://spaire-production-files-public.s3.us-east-1.amazonaws.com/upwork_logo.png',
+    incentive: '50% Off for 90 Days',
+    description:
+      'Find specialized talent quickly with Upwork. Startups use Upwork to hire designers, engineers, marketers, and other experts from around the world without the overhead of traditional hiring.',
+    url: 'https://www.upwork.com',
+    featured: true,
+    details: {
+      claimUrl: 'https://www.upwork.com/nx/plans/business-plus/',
+      sections: [
+        {
+          heading: 'What is Upwork?',
+          blocks: [
+            {
+              type: 'paragraph',
+              text: 'Upwork is a global marketplace that connects businesses with independent professionals and agencies across a wide range of fields.',
+            },
+            {
+              type: 'paragraph',
+              text: 'Startups use Upwork to find specialized talent for projects such as product development, design, marketing, engineering, and AI. The platform allows companies to hire quickly, manage contracts, and collaborate with freelancers from around the world without the overhead of traditional hiring.',
+            },
+            {
+              type: 'paragraph',
+              text: 'Many startups rely on Upwork to access expert talent and scale their teams as their company grows.',
+            },
+          ],
+        },
+        {
+          heading: 'What You Get Through the Spaire Startup Stack',
+          blocks: [
+            {
+              type: 'unordered-list',
+              label: 'Eligible startups can receive:',
+              items: [
+                '50% off client fees for 90 days on the Upwork Business Plus plan',
+                '$100 in Upwork credits when you spend $500 hiring talent on the marketplace',
+              ],
+            },
+            {
+              type: 'paragraph',
+              text: 'These offers help founders access global talent while reducing hiring costs during the early stages of building their company.',
+            },
+          ],
+        },
+        {
+          heading: 'How to Redeem',
+          blocks: [
+            {
+              type: 'ordered-list',
+              items: [
+                'Sign up for the Upwork Business Plus plan through the partner link to receive 50% off client fees for 90 days',
+                'Or sign up through the partner link and receive $100 in Upwork credits after spending $500 on hiring talent',
+              ],
+            },
+          ],
+        },
+        {
+          heading: 'Eligibility Requirements',
+          blocks: [
+            {
+              type: 'ordered-list',
+              label: 'To qualify, you must:',
+              items: [
+                'Create a new Upwork account',
+                'Sign up through the partner redemption link',
+                "Meet Upwork's eligibility requirements for the selected offer",
+              ],
+            },
+          ],
+        },
+        {
+          heading: 'Important Notes',
+          blocks: [
+            {
+              type: 'unordered-list',
+              items: [
+                'The 50% discount applies for the first 90 days on the Business Plus plan.',
+                'The $100 credit is unlocked after spending $500 on hiring talent.',
+                'Offers may vary based on eligibility and region.',
+                'Full program rules and terms are determined by Upwork.',
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    name: 'Slack',
+    logo: 'https://spaire-production-files-public.s3.us-east-1.amazonaws.com/slack_logo.png',
+    incentive: '25% Off for 12 Months',
+    description:
+      'Keep your team connected with Slack. Organize conversations in channels, collaborate in real time, and integrate the tools your startup uses to build and run its product.',
+    url: 'https://slack.com',
+    featured: true,
+    details: {
+      claimUrl: 'https://slack.com/promo/partner',
+      sections: [
+        {
+          heading: 'What is Slack?',
+          blocks: [
+            {
+              type: 'paragraph',
+              text: 'Slack is a collaboration platform that helps teams communicate and work together in one place.',
+            },
+            {
+              type: 'paragraph',
+              text: 'It organizes conversations into channels and integrates with hundreds of tools used by startups, including project management platforms, developer tools, and customer support systems. This allows teams to centralize discussions, share files, and automate workflows across their organization.',
+            },
+            {
+              type: 'paragraph',
+              text: 'Many startups use Slack as their digital headquarters, connecting their team, tools, customers, and partners in one platform.',
+            },
+          ],
+        },
+        {
+          heading: 'What You Get Through the Spaire Startup Stack',
+          blocks: [
+            {
+              type: 'unordered-list',
+              label: 'Eligible startups receive:',
+              items: ['25% off Slack plan upgrades for the first 12 months'],
+            },
+            {
+              type: 'paragraph',
+              text: 'The discount applies to eligible upgrades to Slack Pro or Business+ plans, available on either monthly or annual billing.',
+            },
+          ],
+        },
+        {
+          heading: 'How to Redeem',
+          blocks: [
+            {
+              type: 'ordered-list',
+              items: [
+                'Redeem the offer through the Slack partner site',
+                'Choose an eligible Slack Pro or Business+ plan',
+                'The 25% discount will be applied to your plan upgrade for the first 12 months',
+              ],
+            },
+          ],
+        },
+        {
+          heading: 'Eligibility Requirements',
+          blocks: [
+            {
+              type: 'ordered-list',
+              label: 'To qualify, your company must:',
+              items: [
+                'Have 200 or fewer employees',
+                'Upgrade to an eligible Slack Pro or Business+ plan',
+              ],
+            },
+          ],
+        },
+        {
+          heading: 'Important Notes',
+          blocks: [
+            {
+              type: 'unordered-list',
+              items: [
+                'The 25% discount applies for the first 12 months only.',
+                'The offer applies to eligible plan upgrades, not free plans.',
+                'Final eligibility and availability are determined by Slack.',
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    name: 'Google Cloud',
+    logo: 'https://spaire-production-files-public.s3.us-east-1.amazonaws.com/google_cloud_logo.png',
+    incentive: 'Up to $200K in Credits',
+    description:
+      'Run and scale your product on Google Cloud. Build your backend infrastructure, host applications, and leverage powerful cloud services including databases, AI tools, and analytics.',
+    url: 'https://cloud.google.com/startup',
+    featured: true,
+    details: {
+      claimUrl: 'https://cloud.google.com/startup',
+      sections: [
+        {
+          heading: 'What is Google Cloud?',
+          blocks: [
+            {
+              type: 'paragraph',
+              text: 'Google Cloud is a cloud computing platform that allows startups to build, host, and scale applications without managing their own infrastructure.',
+            },
+            {
+              type: 'paragraph',
+              text: 'It provides services for computing, databases, storage, analytics, and artificial intelligence, along with developer tools like Firebase for building and running modern applications.',
+            },
+            {
+              type: 'paragraph',
+              text: 'Many startups rely on Google Cloud to power their backend infrastructure, run machine learning workloads, and scale their products as their user base grows.',
+            },
+          ],
+        },
+        {
+          heading: 'What You Get Through the Spaire Startup Stack',
+          blocks: [
+            {
+              type: 'unordered-list',
+              label: 'Eligible startups can receive:',
+              items: ['Up to $200,000 in Google Cloud and Firebase credits over 2 years'],
+            },
+            {
+              type: 'paragraph',
+              text: 'Startups may also gain access to technical training, startup experts, curated resources, and additional benefits for AI and Web3 projects.',
+            },
+          ],
+        },
+        {
+          heading: 'How to Redeem',
+          blocks: [
+            {
+              type: 'ordered-list',
+              items: [
+                'Redeem the offer through the Google Cloud Startup Program partner page',
+                'If you do not yet have a Google Cloud account, start a free trial and receive $350 in free trial credits for 90 days',
+                'Apply to the Google Cloud for Startups program using your company details and billing account',
+              ],
+            },
+          ],
+        },
+        {
+          heading: 'Eligibility Requirements',
+          blocks: [
+            {
+              type: 'ordered-list',
+              label: 'To qualify for the program, you must:',
+              items: [
+                'Have a Google Cloud account with an active Billing ID',
+                'Have a publicly available company website',
+                'Use a company email domain that matches your website',
+                'Have a company founded within the last 5 years',
+              ],
+            },
+          ],
+        },
+        {
+          heading: 'Important Notes',
+          blocks: [
+            {
+              type: 'unordered-list',
+              items: [
+                'Credits may cover Google Cloud and Firebase services.',
+                'Final approval is determined by the Google Cloud for Startups program.',
+                'Applicants must review and accept the Google Cloud Startup Program terms.',
+                'Benefits and credit amounts may vary based on eligibility.',
               ],
             },
           ],
