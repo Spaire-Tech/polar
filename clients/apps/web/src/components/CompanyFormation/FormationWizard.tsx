@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { DashboardBody } from '@/components/Layout/DashboardLayout'
 import { FadeUp } from '@/components/Animated/FadeUp'
@@ -18,6 +18,7 @@ import {
 } from './types'
 
 export default function FormationWizard() {
+  const topRef = useRef<HTMLDivElement>(null)
   const [currentStep, setCurrentStep] = useState(1)
   const [formData, setFormData] = useState<WizardFormData>(() => {
     if (typeof window === 'undefined') return INITIAL_WIZARD_DATA
@@ -36,25 +37,29 @@ export default function FormationWizard() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(formData))
   }, [formData])
 
+  const scrollToTop = useCallback(() => {
+    topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [])
+
   const handleStep1Next = useCallback((data: FounderIntentData) => {
     setFormData((prev) => ({ ...prev, ...data }))
     setCurrentStep(2)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }, [])
+    scrollToTop()
+  }, [scrollToTop])
 
   const handleStep2Next = useCallback(
     (data: CompanyDetailsData, recommendation: RecommendationOutput) => {
       setFormData((prev) => ({ ...prev, ...data, recommendation }))
       setCurrentStep(3)
-      window.scrollTo({ top: 0, behavior: 'smooth' })
+      scrollToTop()
     },
-    [],
+    [scrollToTop],
   )
 
   const handleBack = useCallback(() => {
     setCurrentStep((prev) => Math.max(1, prev - 1))
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }, [])
+    scrollToTop()
+  }, [scrollToTop])
 
   const intentData: RecommendationInput = {
     product_type: formData.product_type as RecommendationInput['product_type'],
@@ -84,7 +89,7 @@ export default function FormationWizard() {
 
   return (
     <DashboardBody title={null}>
-      <div className="flex w-full flex-col items-center pb-24">
+      <div ref={topRef} className="flex w-full flex-col items-center pb-24">
         <motion.div
           initial="hidden"
           animate="visible"
