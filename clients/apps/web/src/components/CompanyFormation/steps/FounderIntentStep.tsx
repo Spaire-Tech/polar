@@ -137,7 +137,7 @@ export default function FounderIntentStep({
                 className={twMerge(
                   'dark:bg-spaire-900 dark:border-spaire-700 flex cursor-pointer flex-col gap-y-1.5 rounded-2xl border border-gray-200 bg-white p-5 text-left transition-all',
                   productType === type.id
-                    ? 'border-blue-500 ring-1 ring-blue-500 dark:border-blue-500'
+                    ? 'border-amber-400 ring-1 ring-amber-400 dark:border-amber-400'
                     : 'hover:border-gray-300 dark:hover:border-spaire-600',
                 )}
               >
@@ -234,7 +234,7 @@ export default function FounderIntentStep({
                 className={twMerge(
                   'dark:bg-spaire-900 dark:border-spaire-700 flex cursor-pointer flex-col items-center gap-y-1.5 rounded-2xl border border-gray-200 bg-white p-5 text-center transition-all',
                   vcPlan === option.id
-                    ? 'border-blue-500 ring-1 ring-blue-500 dark:border-blue-500'
+                    ? 'border-amber-400 ring-1 ring-amber-400 dark:border-amber-400'
                     : 'hover:border-gray-300 dark:hover:border-spaire-600',
                 )}
               >
@@ -271,7 +271,7 @@ export default function FounderIntentStep({
                 className={twMerge(
                   'dark:bg-spaire-900 dark:border-spaire-700 cursor-pointer rounded-full border border-gray-200 px-4 py-2 text-sm transition-all',
                   founderCount === option.id
-                    ? 'border-blue-500 bg-blue-50 text-blue-600 dark:border-blue-500 dark:bg-blue-500/10 dark:text-blue-400'
+                    ? 'border-amber-400 bg-amber-50 text-amber-700 dark:border-amber-400 dark:bg-amber-500/10 dark:text-amber-400'
                     : 'hover:border-gray-300 dark:hover:border-spaire-600',
                 )}
               >
@@ -310,7 +310,7 @@ export default function FounderIntentStep({
                 className={twMerge(
                   'dark:bg-spaire-900 dark:border-spaire-700 cursor-pointer rounded-full border border-gray-200 px-4 py-2 text-sm transition-all',
                   equityPlan === option.id
-                    ? 'border-blue-500 bg-blue-50 text-blue-600 dark:border-blue-500 dark:bg-blue-500/10 dark:text-blue-400'
+                    ? 'border-amber-400 bg-amber-50 text-amber-700 dark:border-amber-400 dark:bg-amber-500/10 dark:text-amber-400'
                     : 'hover:border-gray-300 dark:hover:border-spaire-600',
                 )}
               >
@@ -331,7 +331,7 @@ export default function FounderIntentStep({
 
         {/* Submit */}
         <FadeUp className="flex flex-col gap-y-4 pt-2">
-          <Button type="submit" size="lg">
+          <Button type="submit" size="lg" className="bg-amber-500 hover:bg-amber-600 text-white border-amber-500 hover:border-amber-600">
             Continue
           </Button>
         </FadeUp>

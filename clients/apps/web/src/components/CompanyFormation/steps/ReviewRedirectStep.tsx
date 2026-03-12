@@ -123,7 +123,7 @@ export default function ReviewRedirectStep({
 
       {/* Actions */}
       <FadeUp className="flex flex-col gap-y-4 pt-2">
-        <Button size="lg" onClick={handleRedirect}>
+        <Button size="lg" onClick={handleRedirect} className="bg-amber-500 hover:bg-amber-600 text-white border-amber-500 hover:border-amber-600">
           Continue to doola
           <ArrowForwardOutlined className="ml-2" style={{ fontSize: 18 }} />
         </Button>

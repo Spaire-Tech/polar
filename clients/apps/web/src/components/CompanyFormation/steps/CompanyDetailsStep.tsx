@@ -114,7 +114,7 @@ export default function CompanyDetailsStep({
                 className={twMerge(
                   'dark:bg-spaire-900 dark:border-spaire-700 flex cursor-pointer flex-col gap-y-1.5 rounded-2xl border border-gray-200 bg-white p-5 text-left transition-all',
                   entityType === type.id
-                    ? 'border-blue-500 ring-1 ring-blue-500 dark:border-blue-500'
+                    ? 'border-amber-400 ring-1 ring-amber-400 dark:border-amber-400'
                     : 'hover:border-gray-300 dark:hover:border-spaire-600',
                 )}
               >
@@ -241,7 +241,7 @@ export default function CompanyDetailsStep({
             <button
               type="button"
               onClick={() => append({ name: '', email: '' })}
-              className="flex items-center gap-1 text-sm font-medium text-blue-500 hover:text-blue-600"
+              className="flex items-center gap-1 text-sm font-medium text-amber-600 hover:text-amber-700"
             >
               <AddOutlined style={{ fontSize: 16 }} />
               Add founder
@@ -251,7 +251,7 @@ export default function CompanyDetailsStep({
 
         {/* Actions */}
         <FadeUp className="flex flex-col gap-y-4 pt-2">
-          <Button type="submit" size="lg">
+          <Button type="submit" size="lg" className="bg-amber-500 hover:bg-amber-600 text-white border-amber-500 hover:border-amber-600">
             Continue
           </Button>
           <Button type="button" variant="secondary" size="lg" onClick={onBack}>
