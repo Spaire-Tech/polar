@@ -170,10 +170,10 @@ export const PERKS: Perk[] = [
     incentive: '$250 Mercury Credit + $250 Spaire Credit',
     description:
       'Open a Mercury startup bank account through Spaire and receive $250 in Mercury credits plus $250 in Spaire platform credits. Mercury provides modern banking built for startups, with powerful financial tools and integrations.',
-    url: 'https://mercury.com',
+    url: 'https://mercury.com/r/spaire',
     featured: true,
     details: {
-      claimUrl: 'https://mercury.com',
+      claimUrl: 'https://mercury.com/r/spaire',
       sections: [
         {
           heading: 'What is Mercury?',
@@ -268,10 +268,10 @@ export const PERKS: Perk[] = [
     incentive: '6 Months Free',
     description:
       'Build and ship products faster with Linear. Plan features, track bugs, and keep your engineering team aligned with a project management tool designed for modern software teams.',
-    url: 'https://linear.app/startups',
+    url: 'https://linear.app/coupon/hydrargyrum',
     featured: true,
     details: {
-      claimUrl: 'https://linear.app/startups',
+      claimUrl: 'https://linear.app/coupon/hydrargyrum',
       sections: [
         {
           heading: 'What is Linear?',
@@ -349,10 +349,10 @@ export const PERKS: Perk[] = [
     incentive: 'Free for First Year',
     description:
       'Communicate with your users from day one using Intercom. Manage support conversations, onboard new customers, and automate responses with powerful messaging and AI tools.',
-    url: 'https://www.intercom.com/early-stage',
+    url: 'https://www.intercom.com/startups-program',
     featured: true,
     details: {
-      claimUrl: 'https://www.intercom.com/early-stage',
+      claimUrl: 'https://www.intercom.com/startups-program',
       sections: [
         {
           heading: 'What is Intercom?',
@@ -450,14 +450,14 @@ export const PERKS: Perk[] = [
   },
   {
     name: 'Apollo',
-    logo: 'https://spaire-production-files-public.s3.us-east-1.amazonaws.com/apollo_logo.png',
+    logo: 'https://spaire-production-files-public.s3.us-east-1.amazonaws.com/Apolo+logo.jpg',
     incentive: '50% Off Annual Plan',
     description:
       'Spaire startups receive 50% off Apollo\'s sales intelligence platform for one year. Access a database of over 270M contacts and powerful outreach tools to find customers, start conversations, and grow your first revenue.',
-    url: 'https://www.apollo.io',
+    url: 'https://www.apollo.io/partners/partnership-startup-promo?utm_medium=partner&utm_source=communities_startup&utm_campaign=communities_spaire',
     featured: true,
     details: {
-      claimUrl: 'https://www.apollo.io',
+      claimUrl: 'https://www.apollo.io/partners/partnership-startup-promo?utm_medium=partner&utm_source=communities_startup&utm_campaign=communities_spaire',
       sections: [
         {
           heading: 'What is Apollo?',
@@ -528,14 +528,14 @@ export const PERKS: Perk[] = [
   },
   {
     name: 'DocSend',
-    logo: 'https://spaire-production-files-public.s3.us-east-1.amazonaws.com/docsend_logo.png',
+    logo: 'https://spaire-production-files-public.s3.us-east-1.amazonaws.com/doc+send+logo.png',
     incentive: '90% Off for the First Year',
     description:
       'Share investor decks, fundraising materials, and key documents securely with DocSend. Spaire startups receive 90% off for the first year, with analytics that show who opened your documents and how they engaged with them.',
-    url: 'https://www.docsend.com',
+    url: 'https://experience.docsend.com/dfyk3wcsklzs',
     featured: true,
     details: {
-      claimUrl: 'https://www.docsend.com',
+      claimUrl: 'https://experience.docsend.com/dfyk3wcsklzs',
       sections: [
         {
           heading: 'What is DocSend?',
@@ -600,14 +600,14 @@ export const PERKS: Perk[] = [
   },
   {
     name: 'Microsoft Azure',
-    logo: 'https://spaire-production-files-public.s3.us-east-1.amazonaws.com/microsoft_azure_logo.png',
+    logo: 'https://spaire-production-files-public.s3.us-east-1.amazonaws.com/Microsoft+Logo.png',
     incentive: 'Up to $5,000 in Cloud Credits',
     description:
       "Spaire startups can access up to $5,000 in Microsoft Azure credits to build and scale their products in the cloud. Use Azure's infrastructure to host applications, run databases, and power your startup's backend services.",
-    url: 'https://azure.microsoft.com/en-us/free/startups/',
+    url: 'https://www.microsoft.com/en-us/startups?utm_source=mercury',
     featured: true,
     details: {
-      claimUrl: 'https://azure.microsoft.com/en-us/free/startups/',
+      claimUrl: 'https://www.microsoft.com/en-us/startups?utm_source=mercury',
       sections: [
         {
           heading: 'What is Microsoft Azure?',
@@ -672,14 +672,14 @@ export const PERKS: Perk[] = [
   },
   {
     name: 'Carta',
-    logo: 'https://spaire-production-files-public.s3.us-east-1.amazonaws.com/carta_logo.png',
+    logo: 'https://spaire-production-files-public.s3.us-east-1.amazonaws.com/carta___logo.jpg',
     incentive: '20% Off First Year',
     description:
       "Manage your company's ownership from the start with Carta. Track your cap table, issue equity to founders and employees, and stay organized as you raise funding and grow your team.",
-    url: 'https://carta.com',
+    url: 'https://carta.com/partners/referral/requestdemo-is/?mercury&PID=mercury/?utm_medium=bdreferral&utm_source=mercury/',
     featured: true,
     details: {
-      claimUrl: 'https://carta.com',
+      claimUrl: 'https://carta.com/partners/referral/requestdemo-is/?mercury&PID=mercury/?utm_medium=bdreferral&utm_source=mercury/',
       sections: [
         {
           heading: 'What is Carta?',
@@ -753,14 +753,14 @@ export const PERKS: Perk[] = [
   },
   {
     name: 'Upwork',
-    logo: 'https://spaire-production-files-public.s3.us-east-1.amazonaws.com/upwork_logo.png',
+    logo: 'https://spaire-production-files-public.s3.us-east-1.amazonaws.com/upwork_logo.jpg',
     incentive: '50% Off for 90 Days',
     description:
       'Find specialized talent quickly with Upwork. Startups use Upwork to hire designers, engineers, marketers, and other experts from around the world without the overhead of traditional hiring.',
-    url: 'https://www.upwork.com',
+    url: 'https://www.upwork.com/offers/investment-backed?utm_source=mercury%20&utm_medium=partner_offers&utm_campaign=channel_partnerships&utm_content=mercury_offers_page&campaign_message=promo',
     featured: true,
     details: {
-      claimUrl: 'https://www.upwork.com/nx/plans/business-plus/',
+      claimUrl: 'https://www.upwork.com/offers/investment-backed?utm_source=mercury%20&utm_medium=partner_offers&utm_campaign=channel_partnerships&utm_content=mercury_offers_page&campaign_message=promo',
       sections: [
         {
           heading: 'What is Upwork?',
@@ -841,14 +841,14 @@ export const PERKS: Perk[] = [
   },
   {
     name: 'Slack',
-    logo: 'https://spaire-production-files-public.s3.us-east-1.amazonaws.com/slack_logo.png',
+    logo: 'https://spaire-production-files-public.s3.us-east-1.amazonaws.com/slack_logo.jpg',
     incentive: '25% Off for 12 Months',
     description:
       'Keep your team connected with Slack. Organize conversations in channels, collaborate in real time, and integrate the tools your startup uses to build and run its product.',
-    url: 'https://slack.com',
+    url: 'https://slack.com/promo/partner?remote_promo=0b08613b',
     featured: true,
     details: {
-      claimUrl: 'https://slack.com/promo/partner',
+      claimUrl: 'https://slack.com/promo/partner?remote_promo=0b08613b',
       sections: [
         {
           heading: 'What is Slack?',
@@ -925,14 +925,14 @@ export const PERKS: Perk[] = [
   },
   {
     name: 'Google Cloud',
-    logo: 'https://spaire-production-files-public.s3.us-east-1.amazonaws.com/google_cloud_logo.png',
+    logo: 'https://spaire-production-files-public.s3.us-east-1.amazonaws.com/google_cloud_logo.jpg',
     incentive: 'Up to $200K in Credits',
     description:
       'Run and scale your product on Google Cloud. Build your backend infrastructure, host applications, and leverage powerful cloud services including databases, AI tools, and analytics.',
-    url: 'https://cloud.google.com/startup',
+    url: 'https://cloud.google.com/startup/apply?utm_campaign=FY21-Q1-global-demandgen-website-cs-startup_program_mc&utm_content=Mercury&utm_source=CJ&utm_medium=affiliate&refparam=CJ-16985197-100861638',
     featured: true,
     details: {
-      claimUrl: 'https://cloud.google.com/startup',
+      claimUrl: 'https://cloud.google.com/startup/apply?utm_campaign=FY21-Q1-global-demandgen-website-cs-startup_program_mc&utm_content=Mercury&utm_source=CJ&utm_medium=affiliate&refparam=CJ-16985197-100861638',
       sections: [
         {
           heading: 'What is Google Cloud?',
