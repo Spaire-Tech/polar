@@ -1,6 +1,5 @@
 'use client'
 
-import { DashboardBody } from '@/components/Layout/DashboardLayout'
 import { Modal } from '@/components/Modal'
 import { ConfirmModal } from '@/components/Modal/ConfirmModal'
 import { useModal } from '@/components/Modal/useModal'
@@ -194,21 +193,18 @@ export default function ClientPage({
   ]
 
   return (
-    <DashboardBody
-      wrapperClassName="max-w-(--breakpoint-sm)!"
-      className="flex flex-col gap-y-8"
-      header={
+    <div className="flex flex-col gap-y-8">
+      <div className="flex items-center justify-between">
+        <p className="dark:text-spaire-500 text-gray-500">
+          Manage users who have access to this organization. All members are
+          entitled to view and manage organization settings, products,
+          subscriptions, etc.
+        </p>
         <Button onClick={openInviteMemberModal} variant="default">
           <Add className="mr-2" fontSize="small" />
           <span>Invite</span>
         </Button>
-      }
-    >
-      <p className="dark:text-spaire-500 text-gray-500">
-        Manage users who have access to this organization. All members are
-        entitled to view and manage organization settings, products,
-        subscriptions, etc.
-      </p>
+      </div>
 
       {members && (
         <DataTable
@@ -250,7 +246,7 @@ export default function ClientPage({
         destructive
         destructiveText="Leave"
       />
-    </DashboardBody>
+    </div>
   )
 }
 

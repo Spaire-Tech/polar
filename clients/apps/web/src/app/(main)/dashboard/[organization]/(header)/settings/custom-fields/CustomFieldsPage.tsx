@@ -3,7 +3,6 @@
 import CreateCustomFieldModalContent from '@/components/CustomFields/CreateCustomFieldModalContent'
 import CustomFieldTypeLabel from '@/components/CustomFields/CustomFieldTypeLabel'
 import UpdateCustomFieldModalContent from '@/components/CustomFields/UpdateCustomFieldModalContent'
-import { DashboardBody } from '@/components/Layout/DashboardLayout'
 import { InlineModal } from '@/components/Modal/InlineModal'
 import { toast } from '@/components/Toast/use-toast'
 import { useCustomFields, useDeleteCustomField } from '@/hooks/queries'
@@ -215,8 +214,8 @@ const ClientPage: React.FC<ClientPageProps> = ({
   ]
 
   return (
-    <DashboardBody
-      header={
+    <div className="flex flex-col gap-8">
+      <div className="flex justify-end">
         <Button
           wrapperClassNames="flex flex-row gap-x-2"
           type="button"
@@ -225,24 +224,20 @@ const ClientPage: React.FC<ClientPageProps> = ({
           <AddOutlined className="h-4 w-4" />
           <span>New Custom Field</span>
         </Button>
-      }
-      wide
-    >
-      <div className="flex flex-col gap-8">
-        {customFields && pageCount !== undefined && (
-          <DataTable
-            columns={columns}
-            data={customFields}
-            rowCount={rowCount}
-            pageCount={pageCount}
-            pagination={pagination}
-            onPaginationChange={setPagination}
-            sorting={sorting}
-            onSortingChange={setSorting}
-            isLoading={customFieldsHook.isLoading}
-          />
-        )}
       </div>
+      {customFields && pageCount !== undefined && (
+        <DataTable
+          columns={columns}
+          data={customFields}
+          rowCount={rowCount}
+          pageCount={pageCount}
+          pagination={pagination}
+          onPaginationChange={setPagination}
+          sorting={sorting}
+          onSortingChange={setSorting}
+          isLoading={customFieldsHook.isLoading}
+        />
+      )}
       <InlineModal
         isShown={showNewModal}
         hide={() => setShowNewModal(false)}
@@ -269,7 +264,7 @@ const ClientPage: React.FC<ClientPageProps> = ({
           )
         }
       />
-    </DashboardBody>
+    </div>
   )
 }
 

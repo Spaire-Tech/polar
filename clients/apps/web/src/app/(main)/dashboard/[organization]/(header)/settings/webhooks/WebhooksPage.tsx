@@ -1,6 +1,5 @@
 'use client'
 
-import { DashboardBody } from '@/components/Layout/DashboardLayout'
 import WebhookSettings from '@/components/Settings/Webhook/WebhookSettings'
 import { schemas } from '@spaire/client'
 
@@ -9,9 +8,5 @@ export default function ClientPage({
 }: {
   organization: schemas['Organization']
 }) {
-  return (
-    <DashboardBody title="Webhooks">
-      <WebhookSettings org={org} />
-    </DashboardBody>
-  )
+  return <WebhookSettings org={org} />
 }
