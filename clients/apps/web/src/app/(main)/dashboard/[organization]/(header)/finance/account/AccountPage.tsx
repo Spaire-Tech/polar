@@ -252,9 +252,10 @@ export default function ClientPage({
     ],
   )
 
-  return (
-    <DashboardBody>
-      <div className="flex flex-col gap-y-6">
+  // Active setup flow: render in full-page onboarding style
+  if (step !== 'complete') {
+    return (
+      <div className="flex h-full w-full flex-col items-center overflow-y-auto py-12 px-4">
         <StreamlinedAccountReview
           organization={organization}
           currentStep={step}
@@ -272,7 +273,26 @@ export default function ClientPage({
           onAppealSubmitted={handleAppealSubmitted}
           onNavigateToStep={handleNavigateToStep}
         />
+        <Modal
+          title="Create Payout Account"
+          isShown={isShownSetupModal}
+          className="min-w-[400px]"
+          hide={hideSetupModal}
+          modalContent={
+            <AccountCreateModal
+              forOrganizationId={organization.id}
+              returnPath={`/dashboard/${organization.slug}/finance/account`}
+            />
+          }
+        />
+      </div>
+    )
+  }
 
+  // Setup complete: show payout accounts in normal dashboard view
+  return (
+    <DashboardBody>
+      <div className="flex flex-col gap-y-6">
         {accounts?.items && accounts.items.length > 0 ? (
           <ShadowBoxOnMd>
             <div className="flex flex-row items-center justify-between">
