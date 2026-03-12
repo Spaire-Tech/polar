@@ -171,6 +171,7 @@ export const PERKS: Perk[] = [
     description:
       'Open a Mercury startup bank account through Spaire and receive $250 in Mercury credits plus $250 in Spaire platform credits. Mercury provides modern banking built for startups, with powerful financial tools and integrations.',
     url: 'https://mercury.com',
+    featured: true,
     details: {
       claimUrl: 'https://mercury.com',
       sections: [
@@ -316,6 +317,7 @@ export const PERKS: Perk[] = [
     description:
       'Spaire startups receive 50% off Apollo\'s sales intelligence platform for one year. Access a database of over 270M contacts and powerful outreach tools to find customers, start conversations, and grow your first revenue.',
     url: 'https://www.apollo.io',
+    featured: true,
     details: {
       claimUrl: 'https://www.apollo.io',
       sections: [
@@ -393,6 +395,7 @@ export const PERKS: Perk[] = [
     description:
       'Share investor decks, fundraising materials, and key documents securely with DocSend. Spaire startups receive 90% off for the first year, with analytics that show who opened your documents and how they engaged with them.',
     url: 'https://www.docsend.com',
+    featured: true,
     details: {
       claimUrl: 'https://www.docsend.com',
       sections: [
@@ -464,6 +467,7 @@ export const PERKS: Perk[] = [
     description:
       "Spaire startups can access up to $5,000 in Microsoft Azure credits to build and scale their products in the cloud. Use Azure's infrastructure to host applications, run databases, and power your startup's backend services.",
     url: 'https://azure.microsoft.com/en-us/free/startups/',
+    featured: true,
     details: {
       claimUrl: 'https://azure.microsoft.com/en-us/free/startups/',
       sections: [
