@@ -5,7 +5,6 @@ import { InlineModal } from '@/components/Modal/InlineModal'
 import { useModal } from '@/components/Modal/useModal'
 import { FEATURED_PERKS, type Perk } from '@/constants/perksData'
 import { OrganizationContext } from '@/providers/maintainerOrganization'
-import LockOutlined from '@mui/icons-material/LockOutlined'
 import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
 import Button from '@spaire/ui/components/atoms/Button'
 import { useContext, useState } from 'react'
@@ -79,13 +78,12 @@ export default function StartupStackPage() {
 
       {/* Locked banner — only shown before the first sale */}
       {!perksUnlocked && (
-        <div className="dark:border-spaire-700 dark:bg-spaire-800 mt-4 flex items-start gap-x-3 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
-          <LockOutlined className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" fontSize="small" />
+        <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 px-5 py-4 dark:border-blue-800/40 dark:bg-blue-950/30">
           <div className="flex flex-col gap-y-1">
-            <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+            <p className="text-sm font-semibold text-blue-800 dark:text-blue-300">
               Perks unlock after your first successful sale through Spaire.
             </p>
-            <p className="text-sm text-amber-700 dark:text-amber-400">
+            <p className="text-sm text-blue-700 dark:text-blue-400">
               This helps ensure the program supports founders who are actively
               building and launching their products.
             </p>
