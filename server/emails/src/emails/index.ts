@@ -5,6 +5,7 @@ import { NotificationCreateAccount } from './notification_create_account'
 import { NotificationCreditsGranted } from './notification_credits_granted'
 import { NotificationNewSale } from './notification_new_sale'
 import { NotificationNewSubscription } from './notification_new_subscription'
+import { NotificationPerksUnlocked } from './notification_perks_unlocked'
 import { OAuth2LeakedClient } from './oauth2_leaked_client'
 import { OAuth2LeakedToken } from './oauth2_leaked_token'
 import { OrderConfirmation } from './order_confirmation'
@@ -50,6 +51,7 @@ const TEMPLATES: Record<string, React.FC<any>> = {
   notification_new_subscription: NotificationNewSubscription,
   notification_create_account: NotificationCreateAccount,
   notification_credits_granted: NotificationCreditsGranted,
+  notification_perks_unlocked: NotificationPerksUnlocked,
 }
 
 export default TEMPLATES

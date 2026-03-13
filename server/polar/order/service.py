@@ -68,6 +68,7 @@ from polar.models.transaction import TransactionType
 from polar.models.webhook_endpoint import WebhookEventType
 from polar.notifications.notification import (
     MaintainerNewProductSaleNotificationPayload,
+    MaintainerPerksUnlockedNotificationPayload,
     NotificationType,
 )
 from polar.notifications.service import PartialNotification
@@ -1742,6 +1743,38 @@ class OrderService:
                     order_id=order.id,
                     product_id=order.product_id,
                 )
+
+        # Unlock startup perks on first successful sale
+        organization = order.organization
+        if organization is not None and not organization.feature_settings.get(
+            "perks_unlocked", False
+        ):
+            org_repository = OrganizationRepository.from_session(session)
+            await org_repository.update(
+                organization,
+                update_dict={
+                    "feature_settings": {
+                        **organization.feature_settings,
+                        "perks_unlocked": True,
+                    }
+                },
+                flush=True,
+            )
+            log.info(
+                "Startup perks unlocked after first successful sale",
+                organization_id=organization.id,
+                order_id=order.id,
+            )
+            await notifications_service.send_to_org_members(
+                session,
+                org_id=organization.id,
+                notif=PartialNotification(
+                    type=NotificationType.maintainer_perks_unlocked,
+                    payload=MaintainerPerksUnlockedNotificationPayload(
+                        organization_name=organization.name,
+                    ),
+                ),
+            )
 
     async def _emit_balance_credit_order_event(
         self,
