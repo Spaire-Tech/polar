@@ -168,7 +168,7 @@
     --card-foreground: var(--color-spaire-50);
     --popover: var(--color-spaire-900);
     --popover-foreground: var(--color-spaire-50);
-    --sidebar-background: var(--color-spaire-950);
+    --sidebar-background: #000;
     --sidebar-foreground: var(--color-spaire-50);
     --sidebar-primary: var(--color-blue);
     --sidebar-primary-foreground: var(--color-spaire-50);
