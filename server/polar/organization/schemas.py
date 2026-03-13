@@ -93,6 +93,10 @@ class OrganizationFeatureSettings(Schema):
         False,
         description="If this organization compares Tinybird results with database",
     )
+    perks_unlocked: bool = Field(
+        False,
+        description="If this organization has unlocked the Startup Stack perks by completing their first sale",
+    )
 
 
 class OrganizationSubscribePromoteSettings(Schema):

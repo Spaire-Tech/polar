@@ -4,9 +4,11 @@ import { DashboardBody } from '@/components/Layout/DashboardLayout'
 import { InlineModal } from '@/components/Modal/InlineModal'
 import { useModal } from '@/components/Modal/useModal'
 import { FEATURED_PERKS, type Perk } from '@/constants/perksData'
+import { OrganizationContext } from '@/providers/maintainerOrganization'
+import LockOutlined from '@mui/icons-material/LockOutlined'
 import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
 import Button from '@spaire/ui/components/atoms/Button'
-import { useState } from 'react'
+import { useContext, useState } from 'react'
 import PerkDetailModalContent from './PerkDetailModalContent'
 
 const FeaturedPerkCard = ({
@@ -48,6 +50,11 @@ const FeaturedPerkCard = ({
 }
 
 export default function StartupStackPage() {
+  const { organization } = useContext(OrganizationContext)
+  const perksUnlocked =
+    (organization.feature_settings as Record<string, boolean>)
+      ?.perks_unlocked ?? false
+
   const { isShown, show, hide } = useModal(false)
   const [selectedPerk, setSelectedPerk] = useState<Perk | null>(null)
 
@@ -64,11 +71,27 @@ export default function StartupStackPage() {
     <DashboardBody title="Perks">
       <div className="flex flex-col gap-y-2">
         <p className="dark:text-spaire-500 text-sm text-gray-500">
-          Optimize your burn from day zero. Access $150k+ in verified credits
-          and preferred terms from the companies that power the world&apos;s
-          fastest-growing startups.
+          Everything you need to start and scale your company. Access startup
+          perks, credits, and discounts from the tools trusted by founders
+          around the world.
         </p>
       </div>
+
+      {/* Locked banner — only shown before the first sale */}
+      {!perksUnlocked && (
+        <div className="dark:border-spaire-700 dark:bg-spaire-800 mt-4 flex items-start gap-x-3 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
+          <LockOutlined className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" fontSize="small" />
+          <div className="flex flex-col gap-y-1">
+            <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+              Perks unlock after your first successful sale through Spaire.
+            </p>
+            <p className="text-sm text-amber-700 dark:text-amber-400">
+              This helps ensure the program supports founders who are actively
+              building and launching their products.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Featured partners */}
       <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -86,7 +109,11 @@ export default function StartupStackPage() {
         hide={handleHide}
         modalContent={
           selectedPerk ? (
-            <PerkDetailModalContent perk={selectedPerk} hideModal={handleHide} />
+            <PerkDetailModalContent
+              perk={selectedPerk}
+              hideModal={handleHide}
+              perksUnlocked={perksUnlocked}
+            />
           ) : (
             <></>
           )

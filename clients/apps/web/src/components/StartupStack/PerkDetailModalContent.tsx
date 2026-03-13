@@ -3,6 +3,7 @@
 import { InlineModalHeader } from '@/components/Modal/InlineModal'
 import { type ContentBlock, type Perk, type PerkSection } from '@/constants/perksData'
 import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
+import LockOutlined from '@mui/icons-material/LockOutlined'
 import Button from '@spaire/ui/components/atoms/Button'
 import Link from 'next/link'
 import { useEffect, useRef } from 'react'
@@ -82,11 +83,13 @@ const SectionRenderer = ({ section }: { section: PerkSection }) => (
 interface PerkDetailModalContentProps {
   perk: Perk
   hideModal: () => void
+  perksUnlocked?: boolean
 }
 
 const PerkDetailModalContent = ({
   perk,
   hideModal,
+  perksUnlocked = false,
 }: PerkDetailModalContentProps) => {
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -142,16 +145,28 @@ const PerkDetailModalContent = ({
         </div>
 
         {/* CTA */}
-        <Link
-          href={perk.details.claimUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Button size="lg" fullWidth>
-            <span>Claim Now</span>
-            <ArrowOutwardOutlined className="ml-2" fontSize="small" />
-          </Button>
-        </Link>
+        {perksUnlocked ? (
+          <Link
+            href={perk.details.claimUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Button size="lg" fullWidth>
+              <span>Claim Now</span>
+              <ArrowOutwardOutlined className="ml-2" fontSize="small" />
+            </Button>
+          </Link>
+        ) : (
+          <div className="flex flex-col gap-y-3">
+            <Button size="lg" fullWidth disabled>
+              <LockOutlined className="mr-2" fontSize="small" />
+              <span>Claim Now</span>
+            </Button>
+            <p className="text-center text-xs text-gray-500 dark:text-gray-400">
+              Complete your first sale through Spaire to unlock this perk.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   )

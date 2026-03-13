@@ -18,6 +18,7 @@ class NotificationType(StrEnum):
     maintainer_new_product_sale = "MaintainerNewProductSaleNotification"
     maintainer_create_account = "MaintainerCreateAccountNotification"
     maintainer_account_credits_granted = "MaintainerAccountCreditsGrantedNotification"
+    maintainer_perks_unlocked = "MaintainerPerksUnlockedNotification"
 
 
 class NotificationPayloadBase(BaseModel):
@@ -196,17 +197,39 @@ class MaintainerAccountCreditsGrantedNotification(NotificationBase):
     payload: MaintainerAccountCreditsGrantedNotificationPayload
 
 
+class MaintainerPerksUnlockedNotificationPayload(NotificationPayloadBase):
+    organization_name: str
+
+    @computed_field
+    def perks_url(self) -> str:
+        return f"{settings.FRONTEND_BASE_URL}/dashboard"
+
+    def subject(self) -> str:
+        return f"🎉 Congrats on your first sale! You've unlocked the Spaire Startup Perks."
+
+    @classmethod
+    def template_name(cls) -> str:
+        return "notification_perks_unlocked"
+
+
+class MaintainerPerksUnlockedNotification(NotificationBase):
+    type: Literal[NotificationType.maintainer_perks_unlocked]
+    payload: MaintainerPerksUnlockedNotificationPayload
+
+
 NotificationPayload = (
     MaintainerNewPaidSubscriptionNotificationPayload
     | MaintainerNewProductSaleNotificationPayload
     | MaintainerCreateAccountNotificationPayload
     | MaintainerAccountCreditsGrantedNotificationPayload
+    | MaintainerPerksUnlockedNotificationPayload
 )
 
 Notification = Annotated[
     MaintainerNewPaidSubscriptionNotification
     | MaintainerNewProductSaleNotification
     | MaintainerCreateAccountNotification
-    | MaintainerAccountCreditsGrantedNotification,
+    | MaintainerAccountCreditsGrantedNotification
+    | MaintainerPerksUnlockedNotification,
     Discriminator(discriminator="type"),
 ]
