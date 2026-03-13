@@ -216,7 +216,7 @@ async def delete(
 async def get_account(
     id: OrganizationID,
     auth_subject: auth.OrganizationsRead,
-    session: AsyncReadSession = Depends(get_db_read_session),
+    session: AsyncSession = Depends(get_db_session),
 ) -> Account:
     """Get the account for an organization."""
     organization = await organization_service.get(session, auth_subject, id)
@@ -237,6 +237,18 @@ async def get_account(
     account = await account_service.get(session, auth_subject, organization.account_id)
     if account is None:
         raise ResourceNotFound()
+
+    # If the account is in "reviewing" state (details submitted but payouts
+    # not yet enabled), proactively sync from Stripe so the frontend doesn't
+    # stay stuck waiting for a webhook that may have been missed.
+    if (
+        account.stripe_id
+        and account.is_details_submitted
+        and not account.is_payouts_enabled
+    ):
+        account = await account_service.update_account_from_stripe(
+            session, stripe_account_id=account.stripe_id
+        )
 
     return account
 
