@@ -74,22 +74,14 @@ export default function StartupStackPage() {
           perks, credits, and discounts from the tools trusted by founders
           around the world.
         </p>
+        {!perksUnlocked && (
+          <p className="text-sm text-violet-500 dark:text-violet-400">
+            Perks unlock after your first successful sale through Spaire. This
+            helps ensure the program supports founders who are actively building
+            and launching their products.
+          </p>
+        )}
       </div>
-
-      {/* Locked banner — only shown before the first sale */}
-      {!perksUnlocked && (
-        <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 px-5 py-4 dark:border-blue-800/40 dark:bg-blue-950/30">
-          <div className="flex flex-col gap-y-1">
-            <p className="text-sm font-semibold text-blue-800 dark:text-blue-300">
-              Perks unlock after your first successful sale through Spaire.
-            </p>
-            <p className="text-sm text-blue-700 dark:text-blue-400">
-              This helps ensure the program supports founders who are actively
-              building and launching their products.
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* Featured partners */}
       <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
