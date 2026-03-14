@@ -34,23 +34,24 @@ import { OnboardingStepper } from './OnboardingStepper'
 
 type PresentmentCurrency = schemas['PresentmentCurrency']
 
-const CURRENCIES: { code: PresentmentCurrency; name: string; symbol: string; flag: string }[] = [
-  { code: 'usd', name: 'US Dollar', symbol: '$', flag: '🇺🇸' },
-  { code: 'eur', name: 'Euro', symbol: '€', flag: '🇪🇺' },
-  { code: 'gbp', name: 'British Pound', symbol: '£', flag: '🇬🇧' },
-  { code: 'cad', name: 'Canadian Dollar', symbol: 'CA$', flag: '🇨🇦' },
-  { code: 'aud', name: 'Australian Dollar', symbol: 'A$', flag: '🇦🇺' },
-  { code: 'chf', name: 'Swiss Franc', symbol: 'Fr', flag: '🇨🇭' },
-  { code: 'jpy', name: 'Japanese Yen', symbol: '¥', flag: '🇯🇵' },
-  { code: 'sek', name: 'Swedish Krona', symbol: 'kr', flag: '🇸🇪' },
-  { code: 'inr', name: 'Indian Rupee', symbol: '₹', flag: '🇮🇳' },
-  { code: 'brl', name: 'Brazilian Real', symbol: 'R$', flag: '🇧🇷' },
+const CURRENCIES: { code: PresentmentCurrency; flag: string }[] = [
+  { code: 'usd', flag: '🇺🇸' },
+  { code: 'eur', flag: '🇪🇺' },
+  { code: 'gbp', flag: '🇬🇧' },
+  { code: 'cad', flag: '🇨🇦' },
+  { code: 'aud', flag: '🇦🇺' },
+  { code: 'chf', flag: '🇨🇭' },
+  { code: 'jpy', flag: '🇯🇵' },
+  { code: 'sek', flag: '🇸🇪' },
+  { code: 'inr', flag: '🇮🇳' },
+  { code: 'brl', flag: '🇧🇷' },
 ]
 
 const businessTypes = [
   { id: 'early-stage', label: 'Early-Stage Startup', description: 'Pre-seed to seed, finding product-market fit' },
   { id: 'venture-backed', label: 'Venture-Backed', description: 'Series A+ with an established product' },
   { id: 'bootstrapped', label: 'Bootstrapped / Profitable', description: 'Self-funded and growing organically' },
+  { id: 'indie', label: 'Indie Hacker / Solo Creator', description: 'Building and shipping independently' },
 ] as const
 
 const audienceTypes = [
@@ -427,24 +428,21 @@ export const OrganizationStep = ({
                         Used for your products by default. You can change this later in settings.
                       </p>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    <div className="grid grid-cols-5 gap-2">
                       {CURRENCIES.map((c) => (
                         <button
                           key={c.code}
                           type="button"
                           onClick={() => setCurrency(c.code)}
                           className={twMerge(
-                            'dark:bg-spaire-800 dark:border-spaire-700 flex cursor-pointer flex-row items-center gap-x-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-left transition-all',
+                            'dark:bg-spaire-800 dark:border-spaire-700 flex cursor-pointer flex-col items-center gap-y-1.5 rounded-xl border border-gray-200 bg-gray-50 py-3 text-center transition-all',
                             currency === c.code
                               ? 'border-blue-500 ring-1 ring-blue-500 dark:border-blue-500'
                               : 'hover:border-gray-300 dark:hover:border-spaire-600',
                           )}
                         >
                           <span className="text-lg">{c.flag}</span>
-                          <div className="flex flex-col">
-                            <span className="text-xs font-medium">{c.code.toUpperCase()}</span>
-                            <span className="dark:text-spaire-500 text-[10px] text-gray-400">{c.symbol}</span>
-                          </div>
+                          <span className="text-xs font-medium">{c.code.toUpperCase()}</span>
                         </button>
                       ))}
                     </div>
