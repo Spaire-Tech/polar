@@ -22,13 +22,14 @@ REDIS_RETRY = Retry(default_backoff(), retries=50)
 type ProcessName = Literal["app", "rate-limit", "worker", "script"]
 
 
-def create_redis(process_name: ProcessName) -> Redis:
+def create_redis(process_name: ProcessName, max_connections: int = 20) -> Redis:
     return _async_redis.Redis.from_url(
         settings.redis_url,
         decode_responses=True,
         retry_on_error=REDIS_RETRY_ON_ERRROR,
         retry=REDIS_RETRY,
         client_name=f"{settings.ENV.value}.{process_name}",
+        max_connections=max_connections,
     )
 
 

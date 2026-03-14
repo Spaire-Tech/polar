@@ -64,7 +64,16 @@ async def internal_server_error_handler(
     headers: dict[str, str] = {}
     origin = request.headers.get("origin")
     if origin:
-        headers["Access-Control-Allow-Origin"] = "*"
+        from polar.config import settings
+
+        frontend_origins = set(settings.CORS_ORIGINS) | {settings.FRONTEND_BASE_URL}
+        if origin in frontend_origins:
+            # Must echo the specific origin (not "*") when credentials are included.
+            headers["Access-Control-Allow-Origin"] = origin
+            headers["Access-Control-Allow-Credentials"] = "true"
+            headers["Vary"] = "Origin"
+        else:
+            headers["Access-Control-Allow-Origin"] = "*"
     return JSONResponse(
         status_code=500,
         content={"error": "InternalServerError", "detail": "An unexpected error occurred."},
