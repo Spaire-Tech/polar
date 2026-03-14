@@ -39,7 +39,7 @@ export default function ClientPage({
   return (
     <div className="dark:md:bg-spaire-950 flex h-full w-full flex-row">
       {/* Stepper Sidebar - desktop only */}
-      <OnboardingStepper currentStep={2} />
+      <OnboardingStepper currentStep={1} />
 
       <div className="flex flex-1 flex-col overflow-y-auto">
         <div className="flex w-full flex-col items-center px-6 pt-16 pb-24 md:px-20">
@@ -69,7 +69,7 @@ export default function ClientPage({
                 Launch your first offering
               </h1>
               <p className="dark:text-spaire-400 max-w-md text-base text-gray-500">
-                Describe what you&apos;re building and our AI will configure your product, pricing, and billing — or set it up manually.
+                Tell us what you&apos;re selling and we&apos;ll take care of the setup. You can always add more products later.
               </p>
             </FadeUp>
 

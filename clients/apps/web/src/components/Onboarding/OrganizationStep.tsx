@@ -4,7 +4,7 @@ import revalidate from '@/app/actions'
 import { useAuth, useOAuthAccounts, useOnboardingTracking } from '@/hooks'
 import { inferSignupMethod } from '@/hooks/onboarding'
 import { usePostHog } from '@/hooks/posthog'
-import { useCreateOrganization } from '@/hooks/queries'
+import { useCreateOrganization, useUpdateOrganization } from '@/hooks/queries'
 import { setValidationErrors } from '@/utils/api/errors'
 import { CONFIG } from '@/utils/config'
 import { FormControl } from '@mui/material'
@@ -25,12 +25,27 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import slugify from 'slugify'
+import { twMerge } from 'tailwind-merge'
 import { FadeUp } from '../Animated/FadeUp'
 import LogoIcon from '../Brand/LogoIcon'
 import { getStatusRedirect } from '../Toast/utils'
 import SupportedUseCases from './components/SupportedUseCases'
 import { OnboardingStepper } from './OnboardingStepper'
-import { twMerge } from 'tailwind-merge'
+
+type PresentmentCurrency = schemas['PresentmentCurrency']
+
+const CURRENCIES: { code: PresentmentCurrency; name: string; symbol: string; flag: string }[] = [
+  { code: 'usd', name: 'US Dollar', symbol: '$', flag: '🇺🇸' },
+  { code: 'eur', name: 'Euro', symbol: '€', flag: '🇪🇺' },
+  { code: 'gbp', name: 'British Pound', symbol: '£', flag: '🇬🇧' },
+  { code: 'cad', name: 'Canadian Dollar', symbol: 'CA$', flag: '🇨🇦' },
+  { code: 'aud', name: 'Australian Dollar', symbol: 'A$', flag: '🇦🇺' },
+  { code: 'chf', name: 'Swiss Franc', symbol: 'Fr', flag: '🇨🇭' },
+  { code: 'jpy', name: 'Japanese Yen', symbol: '¥', flag: '🇯🇵' },
+  { code: 'sek', name: 'Swedish Krona', symbol: 'kr', flag: '🇸🇪' },
+  { code: 'inr', name: 'Indian Rupee', symbol: '₹', flag: '🇮🇳' },
+  { code: 'brl', name: 'Brazilian Real', symbol: 'R$', flag: '🇧🇷' },
+]
 
 const businessTypes = [
   { id: 'early-stage', label: 'Early-Stage Startup', description: 'Pre-seed to seed, finding product-market fit' },
@@ -103,10 +118,12 @@ export const OrganizationStep = ({
     formState: { errors },
   } = form
   const createOrganization = useCreateOrganization()
+  const updateOrganization = useUpdateOrganization()
   const [editedSlug, setEditedSlug] = useState(false)
   const [businessType, setBusinessType] = useState<string | null>(null)
   const [audienceType, setAudienceType] = useState<string | null>(null)
   const [referralSource, setReferralSource] = useState<string | null>(null)
+  const [currency, setCurrency] = useState<PresentmentCurrency>('usd')
 
   const router = useRouter()
 
@@ -186,6 +203,15 @@ export const OrganizationStep = ({
     })
     setUserOrganizations((orgs) => [...orgs, organization])
 
+    // Persist the selected currency (default is usd, only patch if different)
+    if (!hasExistingOrg && currency !== 'usd') {
+      await updateOrganization.mutateAsync({
+        id: organization.id,
+        body: { default_presentment_currency: currency },
+        userId: currentUser?.id,
+      })
+    }
+
     if (!hasExistingOrg) {
       await trackStepCompleted('org', organization.id)
       updateSurveyAnswers({
@@ -204,7 +230,7 @@ export const OrganizationStep = ({
         ),
       )
     } else {
-      router.push(`/dashboard/${organization.slug}/onboarding/currency`)
+      router.push(`/dashboard/${organization.slug}/onboarding/product`)
     }
   }
 
@@ -391,6 +417,39 @@ export const OrganizationStep = ({
                     />
                   </div>
                 </FadeUp>
+
+                {/* Currency selector — only for new orgs */}
+                {!hasExistingOrg && (
+                  <FadeUp className="dark:bg-spaire-900 flex flex-col gap-y-5 rounded-2xl border border-gray-200 bg-white p-6 dark:border-none">
+                    <div className="flex flex-col gap-y-1">
+                      <Label className="text-sm font-medium">Default payment currency</Label>
+                      <p className="dark:text-spaire-500 text-xs text-gray-400">
+                        Used for your products by default. You can change this later in settings.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      {CURRENCIES.map((c) => (
+                        <button
+                          key={c.code}
+                          type="button"
+                          onClick={() => setCurrency(c.code)}
+                          className={twMerge(
+                            'dark:bg-spaire-800 dark:border-spaire-700 flex cursor-pointer flex-row items-center gap-x-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-left transition-all',
+                            currency === c.code
+                              ? 'border-blue-500 ring-1 ring-blue-500 dark:border-blue-500'
+                              : 'hover:border-gray-300 dark:hover:border-spaire-600',
+                          )}
+                        >
+                          <span className="text-lg">{c.flag}</span>
+                          <div className="flex flex-col">
+                            <span className="text-xs font-medium">{c.code.toUpperCase()}</span>
+                            <span className="dark:text-spaire-500 text-[10px] text-gray-400">{c.symbol}</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </FadeUp>
+                )}
 
                 <FadeUp className="dark:bg-spaire-900 flex flex-col gap-y-4 rounded-2xl border border-gray-200 bg-white p-6 dark:border-none">
                   <SupportedUseCases />

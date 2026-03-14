@@ -18,11 +18,6 @@ const defaultSteps: OnboardingStep[] = [
     description: 'Set up your workspace',
   },
   {
-    id: 'currency',
-    label: 'Default Currency',
-    description: 'Choose your payment currency',
-  },
-  {
     id: 'product',
     label: 'Your First Product',
     description: 'Launch something to sell',
