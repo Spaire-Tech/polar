@@ -39,9 +39,10 @@ export default function ClientPage({
 
   const { data: organizationAccount, error: accountError } =
     useOrganizationAccount(organization.id, {
-      refetchInterval: (data) => {
+      refetchInterval: (query) => {
+        const account = query.state.data
         // Poll every 5s while Stripe is reviewing (details submitted but payouts not yet enabled)
-        if (data?.stripe_id && data?.is_details_submitted && !data?.is_payouts_enabled) {
+        if (account?.stripe_id && account?.is_details_submitted && !account?.is_payouts_enabled) {
           return 5000
         }
         return false
