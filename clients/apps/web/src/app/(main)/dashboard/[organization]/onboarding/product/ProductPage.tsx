@@ -66,10 +66,10 @@ export default function ClientPage({
                 <LogoIcon size={36} />
               </div>
               <h1 className="text-2xl font-medium tracking-tight md:text-3xl">
-                Create your first product
+                Launch your first offering
               </h1>
               <p className="dark:text-spaire-400 max-w-md text-base text-gray-500">
-                Define what you&apos;re selling — you can always add more later.
+                Describe what you&apos;re building and our AI will configure your product, pricing, and billing — or set it up manually.
               </p>
             </FadeUp>
 

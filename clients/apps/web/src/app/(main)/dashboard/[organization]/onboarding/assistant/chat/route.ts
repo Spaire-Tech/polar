@@ -3,8 +3,7 @@
 import { getServerSideAPI } from '@/utils/client/serverside'
 import { CONFIG } from '@/utils/config'
 import { getAuthenticatedUser } from '@/utils/user'
-import { anthropic } from '@ai-sdk/anthropic'
-import { google } from '@ai-sdk/google'
+import { openai } from '@ai-sdk/openai'
 import { experimental_createMCPClient } from '@ai-sdk/mcp'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import { withTracing } from '@posthog/ai'
@@ -155,9 +154,7 @@ So, in general, you should follow this order:
 # Rules
 - Never render ID's in your text response.
 - Prefer no formatting in your response, but if you do, use valid Markdown (limited to bold, italic, and lists. No headings.)
-- Prices will always be in USD. If you are prompted about a different currency, mention that this is not supported yet,
-  and ask them to specify their prices in USD. If no currency is mentioned, assume USD. Never ask to confirm the currency,
-  nor mention this limitation proactively. Use only a dollar sign ($), no need to repeat USD.
+- Prices can be in any currency supported by Spaire (USD, EUR, GBP, CAD, AUD, CHF, JPY, SEK, INR, BRL). If no currency is mentioned, assume USD. Use the appropriate currency symbol for the currency in use.
 - The product name is not that important, and can be renamed, so if a user says "A premium plan" just use "Premium" as the name.
 - Do not include the word "plan" in the product name except if it's explictly phrased as such.
 - You are capable of creating multiple products at the same time, so you should hold all of them in context, and don't
@@ -172,7 +169,7 @@ So, in general, you should follow this order:
 - If a user mentions "$x per month" for a yearly plan, or vice versa, do the math for them.
 - If a recurring price is mentioned without product specifics, assume it's a software subscription.
 - If a price is mentioned without a recurring interval, it's a one-time purchase and you should try to determine whether it's a specific benefit or a generic access through a custom benefit
-- If the request is not relevant to the configuration of a product, gently decline the request and mention that you're only able to configure the user's Polar account.
+- If the request is not relevant to the configuration of a product, gently decline the request and mention that you're only able to configure the user's Spaire account.
 - Do not ask for extra benefits, you're just converting a user's description into a configuration.
 - Do not ask explicitly if they also want to include a trial. You support trials when asked, but do not propose it yourself.
 - Be eager to resolve the request as quickly as possible.
@@ -311,32 +308,24 @@ export async function POST(req: Request) {
     )
     .join('\n---\n')
 
-  const geminiLite = phClient
-    ? withTracing(google('gemini-2.5-flash-lite'), phClient, {
+  const gpt4oMini = phClient
+    ? withTracing(openai('gpt-4o-mini'), phClient, {
         posthogDistinctId: user.id,
         posthogTraceId: conversationId,
         posthogGroups: { organization: organizationId },
       })
-    : google('gemini-2.5-flash-lite')
+    : openai('gpt-4o-mini')
 
-  const gemini = phClient
-    ? withTracing(google('gemini-2.5-flash'), phClient, {
+  const gpt4o = phClient
+    ? withTracing(openai('gpt-4o'), phClient, {
         posthogDistinctId: user.id,
         posthogTraceId: conversationId,
         posthogGroups: { organization: organizationId },
       })
-    : google('gemini-2.5-flash')
-
-  const sonnet = phClient
-    ? withTracing(anthropic('claude-sonnet-4-5'), phClient, {
-        posthogDistinctId: user.id,
-        posthogTraceId: conversationId,
-        posthogGroups: { organization: organizationId },
-      })
-    : anthropic('claude-sonnet-4-5')
+    : openai('gpt-4o')
 
   const router = await generateObject({
-    model: geminiLite,
+    model: gpt4oMini,
     output: 'object',
     schema: z.object({
       isRelevant: z
@@ -426,8 +415,8 @@ based on the conversation history whether you're done.
   let streamStarted = false
 
   const result = streamText({
-    // Gemini 2.5 Flash for quick & cheap responses, Sonnet 4.5 for better tool usage
-    model: shouldSetupTools ? sonnet : gemini,
+    // GPT-4o-mini for quick conversational responses, GPT-4o for tool usage
+    model: shouldSetupTools ? gpt4o : gpt4oMini,
     tools: {
       redirectToManualSetup,
       ...(!requiresManualSetup ? { markAsDone } : {}), // only allow done if we can actually create products
@@ -440,13 +429,7 @@ based on the conversation history whether you're done.
       {
         role: 'system',
         content: conversationalSystemPrompt,
-        providerOptions: shouldSetupTools
-          ? {
-              anthropic: {
-                cacheControl: { type: 'ephemeral' },
-              },
-            }
-          : {},
+        providerOptions: {},
       },
       ...convertToModelMessages(messages),
     ],

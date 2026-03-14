@@ -195,18 +195,17 @@ export const OrganizationStep = ({
       })
     }
 
-    let queryParams = ''
     if (hasExistingOrg) {
-      queryParams = '?existing_org=true'
+      router.push(
+        getStatusRedirect(
+          `/dashboard/${organization.slug}`,
+          'Organization created',
+          'Welcome to your new workspace',
+        ),
+      )
+    } else {
+      router.push(`/dashboard/${organization.slug}/onboarding/currency`)
     }
-
-    router.push(
-      getStatusRedirect(
-        `/dashboard/${organization.slug}`,
-        'Organization created',
-        'Welcome to your dashboard',
-      ),
-    )
   }
 
   return (
