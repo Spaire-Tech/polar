@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import logging
 import uuid
 from collections.abc import Sequence
+
+logger = logging.getLogger(__name__)
 
 import stripe as stripe_lib
 from sqlalchemy.orm.strategy_options import joinedload
@@ -368,6 +371,15 @@ class AccountService:
 
         # Retrieve latest account info from Stripe v2 API
         v2_info = await stripe.retrieve_v2_account(stripe_account_id)
+
+        logger.info(
+            "Stripe v2 account sync for %s: "
+            "is_details_submitted=%s, is_transfers_enabled=%s, is_payouts_enabled=%s",
+            stripe_account_id,
+            v2_info.is_details_submitted,
+            v2_info.is_transfers_enabled,
+            v2_info.is_payouts_enabled,
+        )
 
         if v2_info.email is not None:
             account.email = v2_info.email

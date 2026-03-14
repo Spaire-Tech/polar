@@ -253,7 +253,7 @@ async def get_account(
                 session, stripe_account_id=account.stripe_id
             )
         except Exception:
-            logger.warning(
+            logger.exception(
                 "Failed to sync account %s from Stripe, returning cached data",
                 account.stripe_id,
             )

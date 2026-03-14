@@ -90,17 +90,43 @@ def extract_v2_account_info(
     is_payouts_enabled = False
 
     config = getattr(v2_account, "configuration", None)
+    applied_configs = getattr(v2_account, "applied_configurations", None) or []
+    log.info(
+        "stripe.v2.extract_account_info",
+        account_id=v2_account.id,
+        has_configuration=config is not None,
+        applied_configurations=applied_configs,
+    )
     if config is not None:
         recipient = getattr(config, "recipient", None)
+        log.info(
+            "stripe.v2.extract_account_info.config",
+            has_recipient=recipient is not None,
+        )
         if recipient is not None:
             caps = getattr(recipient, "capabilities", None)
+            log.info(
+                "stripe.v2.extract_account_info.recipient",
+                has_capabilities=caps is not None,
+            )
             if caps is not None:
                 stripe_balance = getattr(caps, "stripe_balance", None)
+                log.info(
+                    "stripe.v2.extract_account_info.capabilities",
+                    has_stripe_balance=stripe_balance is not None,
+                )
                 if stripe_balance is not None:
                     transfers = getattr(stripe_balance, "stripe_transfers", None)
+                    payouts = getattr(stripe_balance, "payouts", None)
+                    log.info(
+                        "stripe.v2.extract_account_info.stripe_balance",
+                        transfers_status=getattr(transfers, "status", None) if transfers else None,
+                        payouts_status=getattr(payouts, "status", None) if payouts else None,
+                        has_transfers=transfers is not None,
+                        has_payouts=payouts is not None,
+                    )
                     if transfers is not None:
                         is_transfers_enabled = transfers.status == "active"
-                    payouts = getattr(stripe_balance, "payouts", None)
                     if payouts is not None:
                         is_payouts_enabled = payouts.status == "active"
                     else:
