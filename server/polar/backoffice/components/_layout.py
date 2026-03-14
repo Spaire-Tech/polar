@@ -19,7 +19,7 @@ def content(
                 [
                     *breadcrumbs,
                     (
-                        "Polar Backoffice",
+                        "Spaire Backoffice",
                         str(request.url_for("index")),
                     ),
                 ]

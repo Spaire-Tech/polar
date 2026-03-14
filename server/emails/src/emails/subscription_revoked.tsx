@@ -55,7 +55,7 @@ SubscriptionRevoked.PreviewProps = {
     id: '12345',
     status: 'canceled',
   },
-  url: 'https://polar.sh/acme-inc/portal/subscriptions/12345',
+  url: 'https://app.spairehq.com/acme-inc/portal/subscriptions/12345',
 }
 
 export default SubscriptionRevoked

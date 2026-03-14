@@ -115,7 +115,7 @@ class OrganizationDetails(Schema):
         ..., description="Description of digital products being sold."
     )
     intended_use: str = Field(
-        ..., description="How the organization will integrate and use Polar."
+        ..., description="How the organization will integrate and use Spaire."
     )
     customer_acquisition: list[str] = Field(
         ..., description="Main customer acquisition channels."
@@ -358,7 +358,7 @@ class OrganizationCreate(Schema):
     )
     details: OrganizationDetails | None = Field(
         None,
-        description="Additional, private, business details Polar needs about active organizations for compliance (KYC).",
+        description="Additional, private, business details Spaire needs about active organizations for compliance (KYC).",
     )
     feature_settings: OrganizationFeatureSettings | None = None
     subscription_settings: OrganizationSubscriptionSettings | None = None
@@ -380,7 +380,7 @@ class OrganizationUpdate(Schema):
     )
     details: OrganizationDetails | None = Field(
         None,
-        description="Additional, private, business details Polar needs about active organizations for compliance (KYC).",
+        description="Additional, private, business details Spaire needs about active organizations for compliance (KYC).",
     )
 
     feature_settings: OrganizationFeatureSettings | None = None

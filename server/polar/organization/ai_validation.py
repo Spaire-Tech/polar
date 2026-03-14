@@ -177,7 +177,7 @@ async def _fetch_policy_content() -> str:
         # Fetch the actual policy from the documentation URL
         async with httpx.AsyncClient() as client:
             response = await client.get(
-                "https://polar.sh/docs/merchant-of-record/acceptable-use.md",
+                "https://docs.spairehq.com/merchant-of-record/acceptable-use.md",
                 timeout=10.0,
                 follow_redirects=True,
             )

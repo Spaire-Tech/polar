@@ -193,7 +193,7 @@ class OrganizationAccessTokenService:
             )
             enqueue_email(
                 to_email_addr=email,
-                subject="Security Notice - Your Polar Organization Access Token has been leaked",
+                subject="Security Notice - Your Spaire Organization Access Token has been leaked",
                 html_content=body,
             )
 
