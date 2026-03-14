@@ -316,14 +316,6 @@ export async function POST(req: Request) {
       })
     : openai('gpt-4o-mini')
 
-  const gpt4o = phClient
-    ? withTracing(openai('gpt-4o'), phClient, {
-        posthogDistinctId: user.id,
-        posthogTraceId: conversationId,
-        posthogGroups: { organization: organizationId },
-      })
-    : openai('gpt-4o')
-
   const router = await generateObject({
     model: gpt4oMini,
     output: 'object',
@@ -415,8 +407,7 @@ based on the conversation history whether you're done.
   let streamStarted = false
 
   const result = streamText({
-    // GPT-4o-mini for quick conversational responses, GPT-4o for tool usage
-    model: shouldSetupTools ? gpt4o : gpt4oMini,
+    model: gpt4oMini,
     tools: {
       redirectToManualSetup,
       ...(!requiresManualSetup ? { markAsDone } : {}), // only allow done if we can actually create products
