@@ -1745,11 +1745,11 @@ class OrderService:
                 )
 
         # Unlock startup perks on first successful sale
-        organization = order.organization
+        org_repository = OrganizationRepository.from_session(session)
+        organization = await org_repository.get_by_customer(order.customer_id)
         if organization is not None and not organization.feature_settings.get(
             "perks_unlocked", False
         ):
-            org_repository = OrganizationRepository.from_session(session)
             await org_repository.update(
                 organization,
                 update_dict={
