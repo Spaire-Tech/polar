@@ -2443,37 +2443,43 @@ class CheckoutService:
                 created = True
 
         stripe_customer_id = customer.stripe_customer_id
-        if stripe_customer_id is None:
-            create_params: CustomerCreateParams = {"email": customer.email}
-            if checkout.customer_billing_name is not None:
-                create_params["name"] = checkout.customer_billing_name
-            elif checkout.customer_name is not None:
-                create_params["name"] = checkout.customer_name
-            if checkout.customer_billing_address is not None:
-                create_params["address"] = checkout.customer_billing_address.to_dict()  # type: ignore
-            if checkout.customer_tax_id is not None:
-                create_params["tax_id_data"] = [
-                    to_stripe_tax_id(checkout.customer_tax_id)
-                ]
-            stripe_customer = await stripe_service.create_customer(**create_params)
-            stripe_customer_id = stripe_customer.id
-        else:
-            update_params: CustomerModifyParams = {"email": customer.email}
-            if checkout.customer_billing_name is not None:
-                update_params["name"] = checkout.customer_billing_name
-            elif checkout.customer_name is not None:
-                update_params["name"] = checkout.customer_name
-            if checkout.customer_billing_address is not None:
-                update_params["address"] = checkout.customer_billing_address.to_dict()  # type: ignore
-            await stripe_service.update_customer(
-                stripe_customer_id,
-                tax_id=(
-                    to_stripe_tax_id(checkout.customer_tax_id)
-                    if checkout.customer_tax_id is not None
-                    else None
-                ),
-                **update_params,
-            )
+        try:
+            if stripe_customer_id is None:
+                create_params: CustomerCreateParams = {"email": customer.email}
+                if checkout.customer_billing_name is not None:
+                    create_params["name"] = checkout.customer_billing_name
+                elif checkout.customer_name is not None:
+                    create_params["name"] = checkout.customer_name
+                if checkout.customer_billing_address is not None:
+                    create_params["address"] = checkout.customer_billing_address.to_dict()  # type: ignore
+                if checkout.customer_tax_id is not None:
+                    create_params["tax_id_data"] = [
+                        to_stripe_tax_id(checkout.customer_tax_id)
+                    ]
+                stripe_customer = await stripe_service.create_customer(**create_params)
+                stripe_customer_id = stripe_customer.id
+            else:
+                update_params: CustomerModifyParams = {"email": customer.email}
+                if checkout.customer_billing_name is not None:
+                    update_params["name"] = checkout.customer_billing_name
+                elif checkout.customer_name is not None:
+                    update_params["name"] = checkout.customer_name
+                if checkout.customer_billing_address is not None:
+                    update_params["address"] = checkout.customer_billing_address.to_dict()  # type: ignore
+                await stripe_service.update_customer(
+                    stripe_customer_id,
+                    tax_id=(
+                        to_stripe_tax_id(checkout.customer_tax_id)
+                        if checkout.customer_tax_id is not None
+                        else None
+                    ),
+                    **update_params,
+                )
+        except stripe_lib.StripeError as e:
+            error = e.error
+            error_type = error.type if error is not None else None
+            error_message = error.message if error is not None else None
+            raise PaymentError(checkout, error_type, error_message) from e
 
         if checkout.customer_name is not None:
             customer.name = checkout.customer_name
