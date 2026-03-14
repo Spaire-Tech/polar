@@ -2,14 +2,15 @@
 
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
-import { ArrowRight, Building2, Loader2, ShieldAlert } from 'lucide-react'
-import React from 'react'
+import { ArrowRight, Building2, Loader2, RefreshCw, ShieldAlert } from 'lucide-react'
+import React, { useCallback, useState } from 'react'
 
 interface AccountStepProps {
   organizationAccount?: schemas['Account']
   isNotAdmin: boolean
   onStartAccountSetup: () => void
   onSkipAccountSetup?: () => void
+  onCheckStatus?: () => Promise<void>
 }
 
 export default function AccountStep({
@@ -17,7 +18,20 @@ export default function AccountStep({
   isNotAdmin,
   onStartAccountSetup,
   onSkipAccountSetup,
+  onCheckStatus,
 }: AccountStepProps) {
+  const [isChecking, setIsChecking] = useState(false)
+
+  const handleCheckStatus = useCallback(async () => {
+    if (!onCheckStatus || isChecking) return
+    setIsChecking(true)
+    try {
+      await onCheckStatus()
+    } finally {
+      setIsChecking(false)
+    }
+  }, [onCheckStatus, isChecking])
+
   const isAccountSetupComplete =
     organizationAccount?.stripe_id !== null &&
     organizationAccount?.is_details_submitted &&
@@ -63,6 +77,17 @@ export default function AccountStep({
             next step once complete.
           </p>
         </div>
+        {onCheckStatus && (
+          <button
+            type="button"
+            onClick={handleCheckStatus}
+            disabled={isChecking}
+            className="dark:text-spaire-400 mt-2 inline-flex items-center gap-2 text-sm text-gray-500 underline underline-offset-2 hover:text-gray-700 dark:hover:text-gray-300 disabled:opacity-50"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${isChecking ? 'animate-spin' : ''}`} />
+            {isChecking ? 'Checking...' : 'Check status now'}
+          </button>
+        )}
       </div>
     )
   }

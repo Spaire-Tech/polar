@@ -131,7 +131,7 @@ export const useOrganization = (id: string, enabled: boolean = true) =>
 
 export const useOrganizationAccount = (
   id?: string,
-  options?: { refetchInterval?: number | false | ((query: any) => number | false) },
+  options?: { refetchInterval?: number | false },
 ) =>
   useQuery({
     queryKey: ['organizations', 'account', id],

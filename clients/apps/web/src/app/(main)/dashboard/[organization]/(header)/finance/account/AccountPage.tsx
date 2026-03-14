@@ -37,19 +37,25 @@ export default function ClientPage({
     !organization.details_submitted_at,
   )
 
-  const { data: organizationAccount, error: accountError } =
+  // Track whether we should poll Stripe for account status updates
+  const [isPollingStripe, setIsPollingStripe] = useState(false)
+
+  const { data: organizationAccount, error: accountError, refetch: refetchAccount } =
     useOrganizationAccount(organization.id, {
-      refetchInterval: (query) => {
-        const account = query.state.data
-        // Poll every 5s while Stripe is reviewing (details submitted but payouts not yet enabled)
-        if (account?.stripe_id && account?.is_details_submitted && !account?.is_payouts_enabled) {
-          return 5000
-        }
-        return false
-      },
+      // Poll every 5s while Stripe is reviewing
+      refetchInterval: isPollingStripe ? 5000 : false,
     })
   const { data: reviewStatus } = useOrganizationReviewStatus(organization.id)
   const createIdentityVerification = useCreateIdentityVerification()
+
+  // Start/stop polling based on Stripe review state
+  React.useEffect(() => {
+    const shouldPoll =
+      !!organizationAccount?.stripe_id &&
+      !!organizationAccount?.is_details_submitted &&
+      !organizationAccount?.is_payouts_enabled
+    setIsPollingStripe(shouldPoll)
+  }, [organizationAccount?.stripe_id, organizationAccount?.is_details_submitted, organizationAccount?.is_payouts_enabled])
 
   const [validationCompleted, setValidationCompleted] = useState(false)
 
@@ -217,6 +223,10 @@ export default function ClientPage({
     }
   }, [organizationAccount, currentUser?.identity_verification_status])
 
+  const handleCheckAccountStatus = useCallback(async () => {
+    await refetchAccount()
+  }, [refetchAccount])
+
   const handleSkipAccountSetup = useCallback(() => {
     setStep('identity')
   }, [])
@@ -269,6 +279,7 @@ export default function ClientPage({
           onStartAccountSetup={handleStartAccountSetup}
           onStartIdentityVerification={handleStartIdentityVerification}
           onSkipAccountSetup={handleSkipAccountSetup}
+          onCheckAccountStatus={handleCheckAccountStatus}
           onAppealApproved={handleAppealApproved}
           onAppealSubmitted={handleAppealSubmitted}
           onNavigateToStep={handleNavigateToStep}
