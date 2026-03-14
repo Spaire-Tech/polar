@@ -490,47 +490,41 @@ export async function POST(req: Request) {
     }) => {
       const api = await getServerSideAPI()
 
-      const currency = (price_currency ?? 'usd') as Parameters<
-        typeof api.POST<'/v1/products/'>
-      >[1]['body'] extends { prices: Array<{ price_currency?: infer C }> }
-        ? C
-        : string
+      const currency = price_currency ?? 'usd'
 
-      const basePrice =
-        price_type === 'free'
-          ? { amount_type: 'free' as const, price_currency: currency }
-          : {
-              amount_type: 'fixed' as const,
-              price_currency: currency,
-              price_amount: price_amount!,
-            }
+      const prices: never[] = []
 
-      const prices: Parameters<
-        typeof api.POST<'/v1/products/'>
-      >[1]['body']['prices'] = [basePrice as never]
+      prices.push(
+        (price_type === 'free'
+          ? { amount_type: 'free', price_currency: currency }
+          : { amount_type: 'fixed', price_currency: currency, price_amount: price_amount! }) as never,
+      )
 
       if (metered_price_meter_id && metered_price_unit_amount !== undefined) {
         prices.push({
           amount_type: 'metered_unit',
-          price_currency: currency as never,
+          price_currency: currency,
           meter_id: metered_price_meter_id,
           unit_amount: metered_price_unit_amount,
         } as never)
       }
 
-      const commonFields = {
-        name,
-        description: description ?? null,
-        visibility: 'public' as const,
-        organization_id: organizationId,
-        prices,
-      }
-
       const body =
         recurring_interval === null
-          ? { ...commonFields, recurring_interval: null }
+          ? {
+              name,
+              description: description ?? null,
+              visibility: 'public',
+              organization_id: organizationId,
+              prices,
+              recurring_interval: null,
+            }
           : {
-              ...commonFields,
+              name,
+              description: description ?? null,
+              visibility: 'public',
+              organization_id: organizationId,
+              prices,
               recurring_interval,
               recurring_interval_count: recurring_interval_count ?? 1,
               trial_interval: trial_interval ?? null,
