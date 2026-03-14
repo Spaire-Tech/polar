@@ -382,41 +382,40 @@ export async function POST(req: Request) {
     }) => {
       const api = await getServerSideAPI()
 
-      let body: Parameters<typeof api.POST<'/v1/benefits/'>>[1]['body']
+      const body =
+        type === 'custom'
+          ? {
+              type: 'custom' as const,
+              description,
+              organization_id: organizationId,
+              properties: { note: null },
+            }
+          : type === 'license_keys'
+            ? {
+                type: 'license_keys' as const,
+                description,
+                organization_id: organizationId,
+                properties: {
+                  prefix: license_key_prefix ?? null,
+                  expires: null,
+                  activations: null,
+                  limit_usage: null,
+                },
+              }
+            : {
+                type: 'meter_credit' as const,
+                description,
+                organization_id: organizationId,
+                properties: {
+                  meter_id: meter_id!,
+                  units: units ?? 0,
+                  rollover: rollover ?? false,
+                },
+              }
 
-      if (type === 'custom') {
-        body = {
-          type: 'custom',
-          description,
-          organization_id: organizationId,
-          properties: {},
-        }
-      } else if (type === 'license_keys') {
-        body = {
-          type: 'license_keys',
-          description,
-          organization_id: organizationId,
-          properties: {
-            prefix: license_key_prefix ?? null,
-            expires: null,
-            activations: null,
-            limit_usage: null,
-          },
-        }
-      } else {
-        body = {
-          type: 'meter_credit',
-          description,
-          organization_id: organizationId,
-          properties: {
-            meter_id: meter_id!,
-            units: units ?? 0,
-            rollover: rollover ?? false,
-          },
-        }
-      }
-
-      const { data, error } = await api.POST('/v1/benefits/', { body })
+      const { data, error } = await api.POST('/v1/benefits/', {
+        body: body as never,
+      })
 
       if (error) {
         return { success: false, error: JSON.stringify(error) }
