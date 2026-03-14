@@ -49,17 +49,6 @@ export default function ClientPage({
             transition={{ duration: 1, staggerChildren: 0.2 }}
             className="flex w-full max-w-2xl flex-col gap-14"
           >
-            {/* Skip link */}
-            <FadeUp className="flex flex-row justify-end">
-              <Link
-                href={`/dashboard/${organization.slug}`}
-                className="cursor-pointer rounded-full px-3 py-1.5 text-sm text-blue-500 transition-colors duration-100 hover:bg-blue-50 hover:text-blue-600 dark:text-blue-400 dark:hover:bg-blue-500/10 dark:hover:text-blue-300"
-                onClick={() => trackStepSkipped('product', organization.id)}
-              >
-                I&apos;ll do this later
-              </Link>
-            </FadeUp>
-
             {/* Header */}
             <FadeUp className="flex flex-col gap-y-3">
               <div className="md:hidden mb-8">

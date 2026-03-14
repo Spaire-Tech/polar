@@ -1,7 +1,6 @@
 'use client'
 
 import { useChat } from '@ai-sdk/react'
-import ArrowForwardOutlined from '@mui/icons-material/ArrowForwardOutlined'
 import { DefaultChatTransport, DynamicToolUIPart } from 'ai'
 import { nanoid } from 'nanoid'
 import Link from 'next/link'
@@ -13,10 +12,8 @@ import { useOnboardingTracking } from '@/hooks/onboarding'
 import { OrganizationContext } from '@/providers/maintainerOrganization'
 
 import Button from '@spaire/ui/components/atoms/Button'
-import TextArea from '@spaire/ui/components/atoms/TextArea'
-
-import { FadeUp } from '../Animated/FadeUp'
 import { ToolCallGroup } from './ToolCallGroup'
+import LogoIcon from '../Brand/LogoIcon'
 
 type MessagePart = {
   type: string
@@ -27,7 +24,6 @@ type RenderableItem =
   | { type: 'single'; part: MessagePart; index: number }
   | { type: 'group'; parts: MessagePart[]; startIndex: number }
 
-// Group consecutive dynamic-tool parts together
 const groupMessageParts = (parts: MessagePart[]): RenderableItem[] => {
   const result: RenderableItem[] = []
   let currentGroup: MessagePart[] = []
@@ -37,35 +33,31 @@ const groupMessageParts = (parts: MessagePart[]): RenderableItem[] => {
     .filter(({ type }) => type !== 'step-start')
     .forEach((part, index) => {
       if (part.type === 'dynamic-tool') {
-        if (currentGroup.length === 0) {
-          groupStartIndex = index
-        }
+        if (currentGroup.length === 0) groupStartIndex = index
         currentGroup.push(part)
       } else {
-        // Non-dynamic-tool part breaks the group
         if (currentGroup.length > 0) {
-          result.push({
-            type: 'group',
-            parts: currentGroup,
-            startIndex: groupStartIndex,
-          })
+          result.push({ type: 'group', parts: currentGroup, startIndex: groupStartIndex })
           currentGroup = []
         }
         result.push({ type: 'single', part, index })
       }
     })
 
-  // Don't forget the last group if we ended with dynamic-tool parts
   if (currentGroup.length > 0) {
-    result.push({
-      type: 'group',
-      parts: currentGroup,
-      startIndex: groupStartIndex,
-    })
+    result.push({ type: 'group', parts: currentGroup, startIndex: groupStartIndex })
   }
 
   return result
 }
+
+const ThinkingDots = () => (
+  <div className="flex items-center gap-1 px-1 py-0.5">
+    <span className="dark:bg-spaire-400 h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400 [animation-delay:-0.3s]" />
+    <span className="dark:bg-spaire-400 h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400 [animation-delay:-0.15s]" />
+    <span className="dark:bg-spaire-400 h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400" />
+  </div>
+)
 
 export const AssistantStep = ({
   onEjectToManual,
@@ -79,41 +71,33 @@ export const AssistantStep = ({
   const [input, setInput] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-
   const conversationId = useMemo(() => nanoid(), [])
 
   const { messages, sendMessage, status } = useChat({
     transport: new DefaultChatTransport({
       api: `/dashboard/${organization.slug}/onboarding/assistant/chat`,
       credentials: 'include',
-      body: {
-        organizationId: organization.id,
-        conversationId,
-      },
+      body: { organizationId: organization.id, conversationId },
     }),
   })
 
-  const hasRedirectedToManualSetup = useMemo(() => {
-    return messages.some((message) =>
-      message.parts.some(
-        (part) =>
-          part.type === 'tool-redirectToManualSetup' &&
-          (part.state === 'input-available' ||
-            part.state === 'output-available'),
+  const hasRedirectedToManualSetup = useMemo(() =>
+    messages.some((m) =>
+      m.parts.some(
+        (p) =>
+          p.type === 'tool-redirectToManualSetup' &&
+          (p.state === 'input-available' || p.state === 'output-available'),
       ),
-    )
-  }, [messages])
+    ), [messages])
 
-  const isFinished = useMemo(() => {
-    return messages.some((message) =>
-      message.parts.some(
-        (part) =>
-          part.type === 'tool-markAsDone' &&
-          (part.state === 'input-available' ||
-            part.state === 'output-available'),
+  const isFinished = useMemo(() =>
+    messages.some((m) =>
+      m.parts.some(
+        (p) =>
+          p.type === 'tool-markAsDone' &&
+          (p.state === 'input-available' || p.state === 'output-available'),
       ),
-    )
-  }, [messages])
+    ), [messages])
 
   useEffect(() => {
     if (isFinished) {
@@ -135,7 +119,7 @@ export const AssistantStep = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (input.trim()) {
+    if (input.trim() && status === 'ready') {
       sendMessage({ text: input })
       setInput('')
       textareaRef.current?.focus()
@@ -145,39 +129,56 @@ export const AssistantStep = ({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      if (input.trim() && status === 'ready') {
-        sendMessage({ text: input })
-        setInput('')
-        textareaRef.current?.focus()
-      }
+      handleSubmit(e)
     }
   }
 
+  const isStreaming = status === 'submitted' || status === 'streaming'
+
   return (
-    <FadeUp className="flex flex-col gap-y-4">
-      <div className="dark:bg-spaire-900 flex flex-col overflow-hidden rounded-3xl">
+    <div className="flex flex-col gap-y-3">
+      {/* Chat window */}
+      <div className="dark:bg-spaire-900 dark:border-spaire-700 flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white">
+
+        {/* Empty state */}
+        {messages.length === 0 && (
+          <div className="flex flex-col items-center gap-y-4 px-6 py-12 text-center">
+            <div className="dark:bg-spaire-800 flex h-10 w-10 items-center justify-center rounded-full bg-gray-100">
+              <LogoIcon size={22} />
+            </div>
+            <div className="flex flex-col gap-y-1.5">
+              <p className="text-sm font-medium">Tell me what you&apos;re selling</p>
+              <p className="dark:text-spaire-500 max-w-xs text-sm text-gray-400">
+                Describe your product and pricing and I&apos;ll configure everything for you.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Messages */}
         {messages.length > 0 && (
-          <div
-            className={twMerge(
-              'dark:border-spaire-700 flex h-full max-h-[640px] flex-1 flex-col gap-y-6 overflow-y-auto rounded-t-3xl border border-gray-200 p-6',
-              hasRedirectedToManualSetup || isFinished
-                ? 'rounded-b-3xl border-b'
-                : 'border-b-0',
-            )}
-          >
+          <div className="flex max-h-[500px] flex-col gap-y-6 overflow-y-auto p-5">
             {messages.map((message) => (
               <div
                 key={message.id}
-                className={`flex flex-col gap-y-1 ${
-                  message.role === 'user' ? 'items-end' : 'items-start'
-                }`}
+                className={twMerge(
+                  'flex gap-x-3',
+                  message.role === 'user' ? 'flex-row-reverse' : 'flex-row',
+                )}
               >
+                {/* Avatar */}
+                {message.role === 'assistant' && (
+                  <div className="dark:bg-spaire-800 mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-100">
+                    <LogoIcon size={16} />
+                  </div>
+                )}
+
+                {/* Content */}
                 <div
-                  className={`prose dark:prose-invert text-sm ${
-                    message.role === 'user'
-                      ? 'dark:bg-spaire-800 rounded-2xl bg-gray-100 px-4 py-2 dark:text-white'
-                      : 'w-full space-y-4 dark:text-white'
-                  }`}
+                  className={twMerge(
+                    'flex max-w-[85%] flex-col gap-y-2',
+                    message.role === 'user' ? 'items-end' : 'items-start',
+                  )}
                 >
                   {groupMessageParts(message.parts).map((item) => {
                     if (item.type === 'group') {
@@ -194,102 +195,84 @@ export const AssistantStep = ({
                     const index = item.index
 
                     if (part.type === 'text') {
+                      if (message.role === 'user') {
+                        return (
+                          <div
+                            key={`${message.id}-${index}`}
+                            className="dark:bg-spaire-700 rounded-2xl rounded-tr-sm bg-gray-100 px-4 py-2.5 text-sm leading-relaxed"
+                          >
+                            {part.text as string}
+                          </div>
+                        )
+                      }
                       return (
-                        <MemoizedMarkdown
+                        <div
                           key={`${message.id}-${index}`}
-                          content={part.text as string}
-                        />
+                          className="prose dark:prose-invert prose-sm max-w-none"
+                        >
+                          <MemoizedMarkdown content={part.text as string} />
+                        </div>
                       )
                     }
 
-                    if (part.type === 'reasoning') {
-                      if (part.state === 'streaming') {
-                        return (
-                          <p
-                            key={`${message.id}-${index}`}
-                            className="dark:text-spaire-500 animate-pulse text-sm text-gray-500 italic"
-                          >
-                            Thinking…
-                          </p>
-                        )
-                      }
-                      return null
+                    if (part.type === 'reasoning' && part.state === 'streaming') {
+                      return (
+                        <p
+                          key={`${message.id}-${index}`}
+                          className="dark:text-spaire-500 animate-pulse text-xs text-gray-400 italic"
+                        >
+                          Thinking…
+                        </p>
+                      )
                     }
 
                     if (part.type === 'tool-redirectToManualSetup') {
-                      switch (part.state) {
-                        case 'input-available':
-                        case 'output-available': {
-                          const reason = (
-                            part.input as {
-                              reason:
-                                | 'unsupported_benefit_type'
-                                | 'tool_call_error'
-                            }
-                          ).reason
-
-                          return (
-                            <div
-                              key={`${message.id}-${index}`}
-                              className="dark:bg-spaire-800 dark:text-spaire-500 flex flex-col items-center gap-y-4 rounded-2xl bg-gray-100 p-4 text-center text-gray-500"
-                            >
-                              {reason === 'unsupported_benefit_type' ? (
-                                'Sorry, but this configuration needs manual input.'
-                              ) : reason === 'tool_call_error' ? (
-                                'Sorry, something went wrong.'
-                              ) : (
-                                <>
-                                  We&rsquo;re sorry this isn&rsquo;t working for
-                                  you.
-                                  <br />
-                                  Let&rsquo;s continue manually.
-                                </>
-                              )}
-                              <Button
-                                variant="secondary"
-                                className="dark:bg-spaire-700 dark:hover:bg-spaire-600 rounded-full border-transparent bg-white hover:bg-white dark:border-transparent"
-                                onClick={() => onEjectToManual()}
-                              >
-                                Configure Manually
-                              </Button>
-                            </div>
-                          )
-                        }
-                        default:
-                          return null
-                      }
+                      if (part.state !== 'input-available' && part.state !== 'output-available') return null
+                      const reason = (part.input as { reason: string }).reason
+                      return (
+                        <div
+                          key={`${message.id}-${index}`}
+                          className="dark:bg-spaire-800 dark:border-spaire-700 flex flex-col gap-y-3 rounded-2xl border border-gray-200 bg-gray-50 p-4"
+                        >
+                          <p className="dark:text-spaire-400 text-sm text-gray-500">
+                            {reason === 'unsupported_benefit_type'
+                              ? 'This configuration needs manual input.'
+                              : reason === 'tool_call_error'
+                                ? 'Something went wrong on my end.'
+                                : 'Let\'s continue with manual setup instead.'}
+                          </p>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="w-fit rounded-full"
+                            onClick={onEjectToManual}
+                          >
+                            Set up manually
+                          </Button>
+                        </div>
+                      )
                     }
 
                     if (part.type === 'tool-markAsDone') {
-                      switch (part.state) {
-                        case 'input-available':
-                        case 'output-available': {
-                          const productIds = (
-                            (part.input as { productIds: string[] })
-                              .productIds || []
-                          ).join(',')
-
-                          const nextStep = `/dashboard/${organization.slug}/onboarding/integrate?productId=${productIds}`
-
-                          return (
-                            <div
-                              key={`${message.id}-${index}`}
-                              className="dark:bg-spaire-800 dark:text-spaire-500 flex flex-col items-center gap-y-4 rounded-2xl bg-gray-100 p-4 text-center text-gray-500"
-                            >
-                              You&rsquo;re all set!
-                              <br />
-                              Now, let&rsquo;s integrate your checkout flow.
-                              <Link href={nextStep}>
-                                <Button className="dark:hover:bg-spaire-50 rounded-full bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black">
-                                  Integrate Checkout
-                                </Button>
-                              </Link>
-                            </div>
-                          )
-                        }
-                        default:
-                          return null
-                      }
+                      if (part.state !== 'input-available' && part.state !== 'output-available') return null
+                      const productIds = ((part.input as { productIds: string[] }).productIds || []).join(',')
+                      const nextStep = `/dashboard/${organization.slug}/onboarding/integrate?productId=${productIds}`
+                      return (
+                        <div
+                          key={`${message.id}-${index}`}
+                          className="dark:bg-spaire-800 dark:border-spaire-700 flex flex-col gap-y-3 rounded-2xl border border-gray-200 bg-gray-50 p-4"
+                        >
+                          <p className="text-sm font-medium">Your product is ready.</p>
+                          <p className="dark:text-spaire-400 text-sm text-gray-500">
+                            Now connect it to your checkout flow.
+                          </p>
+                          <Link href={nextStep}>
+                            <Button size="sm" className="w-fit rounded-full">
+                              Continue to checkout setup
+                            </Button>
+                          </Link>
+                        </div>
+                      )
                     }
 
                     return null
@@ -297,43 +280,70 @@ export const AssistantStep = ({
                 </div>
               </div>
             ))}
-            <div ref={messagesEndRef} className="-mt-6" />
+
+            {/* Streaming indicator */}
+            {isStreaming && (
+              <div className="flex gap-x-3">
+                <div className="dark:bg-spaire-800 mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-100">
+                  <LogoIcon size={16} />
+                </div>
+                <ThinkingDots />
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
           </div>
         )}
 
+        {/* Input */}
         {!hasRedirectedToManualSetup && !isFinished && (
           <form
             onSubmit={handleSubmit}
-            className="dark:border-spaire-700 flex shrink-0 flex-col gap-3 overflow-hidden rounded-b-3xl border first:rounded-t-3xl"
+            className={twMerge(
+              'dark:border-spaire-700 flex items-end gap-x-2 border-t border-gray-200 px-4 py-3',
+              messages.length === 0 && 'border-t',
+            )}
           >
-            <TextArea
+            <textarea
               ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              disabled={status !== 'ready'}
-              placeholder={
-                messages.length === 0
-                  ? 'Describe your product and how you want to sell it…'
-                  : 'Reply…'
-              }
+              disabled={isStreaming}
+              placeholder={messages.length === 0 ? 'e.g. A $29/month developer tool subscription…' : 'Reply…'}
               rows={1}
-              className="max-h-[240px] min-h-[72px] resize-none overflow-y-auto border-none px-6 pt-5 pb-0 text-sm/5 shadow-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none disabled:opacity-50 dark:bg-transparent"
+              className="dark:text-spaire-100 dark:placeholder-spaire-600 w-full resize-none bg-transparent py-1.5 text-sm leading-relaxed text-gray-900 placeholder-gray-400 focus:outline-none disabled:opacity-40"
+              style={{ maxHeight: '160px', overflowY: 'auto' }}
             />
-            <div className="flex items-center justify-end gap-2 px-4 pb-4">
-              <Button
-                type="submit"
-                disabled={status !== 'ready' || !input.trim()}
-                loading={status === 'submitted' || status === 'streaming'}
-                className="dark:hover:bg-spaire-50 rounded-full bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black"
-              >
-                {messages.length === 0 ? 'Setup' : 'Send'}
-                <ArrowForwardOutlined className="ml-2" fontSize="inherit" />
-              </Button>
-            </div>
+            <button
+              type="submit"
+              disabled={isStreaming || !input.trim()}
+              className={twMerge(
+                'mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all',
+                input.trim() && !isStreaming
+                  ? 'bg-gray-900 text-white hover:bg-gray-700 dark:bg-white dark:text-black dark:hover:bg-gray-100'
+                  : 'dark:bg-spaire-700 bg-gray-200 text-gray-400 dark:text-gray-500',
+              )}
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M7 12V2M7 2L2.5 6.5M7 2L11.5 6.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
           </form>
         )}
       </div>
-    </FadeUp>
+
+      {/* Manual fallback — subtle, below the chat */}
+      {!hasRedirectedToManualSetup && !isFinished && (
+        <div className="flex items-center justify-center">
+          <button
+            onClick={onEjectToManual}
+            className="dark:text-spaire-500 dark:hover:text-spaire-300 cursor-pointer text-xs text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            Prefer to set up manually?
+          </button>
+        </div>
+      )}
+    </div>
   )
 }

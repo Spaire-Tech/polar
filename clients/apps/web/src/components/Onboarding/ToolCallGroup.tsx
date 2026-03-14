@@ -36,90 +36,41 @@ function ensureJSONArgument<T>(callback: (a: T | undefined) => string) {
 }
 
 const TOOL_LABELS = {
-  polar_products_list: {
-    input: () => 'Listing products…',
-    output: () => 'Products found.',
-    error: () => 'Error listing products.',
-  },
-  polar_products_create: {
-    input: ensureJSONArgument((input?: { body: { name?: string } }) =>
-      input?.body?.name
-        ? `Creating product "${input.body.name}"`
-        : 'Creating product…',
+  createProduct: {
+    input: ensureJSONArgument((input?: { name?: string }) =>
+      input?.name ? `Creating product "${input.name}"` : 'Creating product…',
     ),
-    output: ensureJSONArgument((input?: { body: { name?: string } }) =>
-      input?.body?.name
-        ? `Created product "${input.body.name}"`
-        : 'Created product.',
+    output: ensureJSONArgument((input?: { name?: string }) =>
+      input?.name ? `Created product "${input.name}"` : 'Created product.',
     ),
     error: () => 'Error creating product.',
   },
-  polar_products_update_benefits: {
+  updateProductBenefits: {
     input: () => 'Assigning benefits to product…',
     output: () => 'Assigned benefits to product.',
     error: () => 'Error assigning benefits.',
   },
-  polar_benefits_list: {
-    input: () => 'Listing benefits…',
-    output: () => 'Benefits found.',
-    error: () => 'Error listing benefits.',
-  },
-  polar_benefits_create: {
-    input: ensureJSONArgument((input?: { body: { description?: string } }) =>
-      input?.body?.description
-        ? `Creating benefit "${input.body.description}"`
+  createBenefit: {
+    input: ensureJSONArgument((input?: { description?: string }) =>
+      input?.description
+        ? `Creating benefit "${input.description}"`
         : 'Creating benefit…',
     ),
-    output: ensureJSONArgument((input?: { body: { description?: string } }) =>
-      input?.body?.description
-        ? `Created benefit "${input.body.description}"`
+    output: ensureJSONArgument((input?: { description?: string }) =>
+      input?.description
+        ? `Created benefit "${input.description}"`
         : 'Created benefit.',
     ),
     error: () => 'Error creating benefit.',
   },
-  polar_benefits_update: {
-    input: ensureJSONArgument((input?: { body: { description?: string } }) =>
-      input?.body?.description
-        ? `Updating benefit "${input.body.description}"`
-        : 'Updating benefit…',
+  createMeter: {
+    input: ensureJSONArgument((input?: { name?: string }) =>
+      input?.name ? `Creating meter "${input.name}"` : 'Creating meter…',
     ),
-    output: ensureJSONArgument((input?: { body: { description?: string } }) =>
-      input?.body?.description
-        ? `Updated benefit "${input.body.description}"`
-        : 'Benefit updated.',
-    ),
-    error: () => 'Error updating benefit.',
-  },
-  polar_meters_list: {
-    input: () => 'Listing meters…',
-    output: () => 'Meters found.',
-    error: () => 'Error listing meters.',
-  },
-  polar_meters_create: {
-    input: ensureJSONArgument((input?: { body: { name?: string } }) =>
-      input?.body?.name
-        ? `Creating meter "${input.body.name}"`
-        : 'Creating meter…',
-    ),
-    output: ensureJSONArgument((input?: { body: { name?: string } }) =>
-      input?.body?.name
-        ? `Created meter "${input.body.name}"`
-        : 'Created meter.',
+    output: ensureJSONArgument((input?: { name?: string }) =>
+      input?.name ? `Created meter "${input.name}"` : 'Created meter.',
     ),
     error: () => 'Error creating meter.',
-  },
-  polar_meters_update: {
-    input: ensureJSONArgument((input?: { body: { name?: string } }) =>
-      input?.body?.name
-        ? `Updating meter "${input.body.name}"`
-        : 'Updating meter…',
-    ),
-    output: ensureJSONArgument((input?: { body: { name?: string } }) =>
-      input?.body?.name
-        ? `Meter updated "${input.body.name}"`
-        : 'Meter updated.',
-    ),
-    error: () => 'Error updating meter.',
   },
 }
 
