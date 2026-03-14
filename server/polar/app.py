@@ -68,19 +68,23 @@ def configure_cors(app: FastAPI) -> None:
     configs: list[CORSConfig] = []
 
     # Polar frontend CORS configuration
-    if settings.CORS_ORIGINS:
+    # Always include FRONTEND_BASE_URL so the configured frontend origin is
+    # allowed with credentials even when CORS_ORIGINS is not explicitly set
+    # (e.g. sandbox environments where the origin would otherwise fall through
+    # to the wildcard api_config which disallows credentials).
+    frontend_origins = set(settings.CORS_ORIGINS) | {settings.FRONTEND_BASE_URL}
 
-        def polar_frontend_matcher(origin: str, scope: Scope) -> bool:
-            return origin in settings.CORS_ORIGINS
+    def polar_frontend_matcher(origin: str, scope: Scope) -> bool:
+        return origin in frontend_origins
 
-        polar_frontend_config = CORSConfig(
-            polar_frontend_matcher,
-            allow_origins=[str(origin) for origin in settings.CORS_ORIGINS],
-            allow_credentials=True,  # Cookies are allowed, but only there!
-            allow_methods=["*"],
-            allow_headers=["*"],
-        )
-        configs.append(polar_frontend_config)
+    polar_frontend_config = CORSConfig(
+        polar_frontend_matcher,
+        allow_origins=list(frontend_origins),
+        allow_credentials=True,  # Cookies are allowed, but only there!
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    configs.append(polar_frontend_config)
 
     # External API calls CORS configuration
     api_config = CORSConfig(
