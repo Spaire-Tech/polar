@@ -1,3 +1,4 @@
+import logging
 from typing import cast
 
 from fastapi import Depends, Query, Response, status
@@ -48,6 +49,8 @@ from .schemas import (
     OrganizationUpdate,
 )
 from .service import organization as organization_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/organizations", tags=["organizations"])
 
@@ -216,7 +219,7 @@ async def delete(
 async def get_account(
     id: OrganizationID,
     auth_subject: auth.OrganizationsRead,
-    session: AsyncReadSession = Depends(get_db_read_session),
+    session: AsyncSession = Depends(get_db_session),
 ) -> Account:
     """Get the account for an organization."""
     organization = await organization_service.get(session, auth_subject, id)
@@ -237,6 +240,23 @@ async def get_account(
     account = await account_service.get(session, auth_subject, organization.account_id)
     if account is None:
         raise ResourceNotFound()
+
+    # Sync with Stripe when account is under review (details submitted but
+    # payouts not yet enabled) so the frontend polling gets fresh data
+    if (
+        account.stripe_id
+        and account.is_details_submitted
+        and not account.is_payouts_enabled
+    ):
+        try:
+            account = await account_service.update_account_from_stripe(
+                session, stripe_account_id=account.stripe_id
+            )
+        except Exception:
+            logger.warning(
+                "Failed to sync account %s from Stripe, returning cached data",
+                account.stripe_id,
+            )
 
     return account
 
