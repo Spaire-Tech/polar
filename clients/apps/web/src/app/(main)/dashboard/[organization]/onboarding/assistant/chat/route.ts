@@ -3,7 +3,6 @@
 import { getServerSideAPI } from '@/utils/client/serverside'
 import { getAuthenticatedUser } from '@/utils/user'
 import { createAnthropic } from '@ai-sdk/anthropic'
-import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { withTracing } from '@posthog/ai'
 import {
   convertToModelMessages,
@@ -218,31 +217,17 @@ export async function POST(req: Request) {
     )
     .join('\n---\n')
 
-  console.log('[chat] anthropic key:', process.env.SPAIRE_ANTHROPIC_API_KEY ? 'set' : 'MISSING')
-  console.log('[chat] google key:', process.env.SPAIRE_GOOGLE_GENERATIVE_AI_API_KEY ? 'set' : 'MISSING')
-
   const anthropicClient = createAnthropic({
     apiKey: process.env.SPAIRE_ANTHROPIC_API_KEY,
   })
-  const googleClient = createGoogleGenerativeAI({
-    apiKey: process.env.SPAIRE_GOOGLE_GENERATIVE_AI_API_KEY,
-  })
 
-  const geminiLite = phClient
-    ? withTracing(googleClient('gemini-2.0-flash-lite'), phClient, {
+  const haiku = phClient
+    ? withTracing(anthropicClient('claude-haiku-4-5-20251001'), phClient, {
         posthogDistinctId: user.id,
         posthogTraceId: conversationId,
         posthogGroups: { organization: organizationId },
       })
-    : googleClient('gemini-2.0-flash-lite')
-
-  const gemini = phClient
-    ? withTracing(googleClient('gemini-2.0-flash'), phClient, {
-        posthogDistinctId: user.id,
-        posthogTraceId: conversationId,
-        posthogGroups: { organization: organizationId },
-      })
-    : googleClient('gemini-2.0-flash')
+    : anthropicClient('claude-haiku-4-5-20251001')
 
   const sonnet = phClient
     ? withTracing(anthropicClient('claude-sonnet-4-5'), phClient, {
@@ -254,7 +239,7 @@ export async function POST(req: Request) {
 
   try {
     const router = await generateObject({
-      model: geminiLite,
+      model: haiku,
       output: 'object',
       schema: z.object({
         isRelevant: z
@@ -619,7 +604,7 @@ based on the conversation history whether you're done.
 
   try {
     const result = streamText({
-      model: shouldSetupTools ? sonnet : gemini,
+      model: shouldSetupTools ? sonnet : haiku,
       tools: {
         redirectToManualSetup,
         ...(!requiresManualSetup
