@@ -226,20 +226,20 @@ export async function POST(req: Request) {
   })
 
   const geminiLite = phClient
-    ? withTracing(googleClient('gemini-2.5-flash-lite'), phClient, {
+    ? withTracing(googleClient('gemini-2.0-flash-lite'), phClient, {
         posthogDistinctId: user.id,
         posthogTraceId: conversationId,
         posthogGroups: { organization: organizationId },
       })
-    : googleClient('gemini-2.5-flash-lite')
+    : googleClient('gemini-2.0-flash-lite')
 
   const gemini = phClient
-    ? withTracing(googleClient('gemini-2.5-flash'), phClient, {
+    ? withTracing(googleClient('gemini-2.0-flash'), phClient, {
         posthogDistinctId: user.id,
         posthogTraceId: conversationId,
         posthogGroups: { organization: organizationId },
       })
-    : googleClient('gemini-2.5-flash')
+    : googleClient('gemini-2.0-flash')
 
   const sonnet = phClient
     ? withTracing(anthropicClient('claude-sonnet-4-5'), phClient, {
@@ -249,41 +249,48 @@ export async function POST(req: Request) {
       })
     : anthropicClient('claude-sonnet-4-5')
 
-  const router = await generateObject({
-    model: geminiLite,
-    output: 'object',
-    schema: z.object({
-      isRelevant: z
-        .boolean()
-        .describe(
-          'Whether the user request is relevant to configuring their Spaire account',
-        ),
-      requiresManualSetup: z
-        .boolean()
-        .describe(
-          'Whether the user request requires manual setup due to unsupported benefit types (file download, GitHub, Discord) or too complex configuration',
-        ),
-      requiresToolAccess: z
-        .boolean()
-        .describe(
-          'Whether tool access is required to act on the user request (get, create, update, delete products, meters or benefits)',
-        ),
-      requiresClarification: z
-        .boolean()
-        .describe(
-          'Whether there is enough information to act on the user request or if we need further clarification',
-        ),
-    }),
-    system: routerSystemPrompt,
-    prompt: userMessage,
-  })
+  try {
+    const router = await generateObject({
+      model: geminiLite,
+      output: 'object',
+      schema: z.object({
+        isRelevant: z
+          .boolean()
+          .describe(
+            'Whether the user request is relevant to configuring their Spaire account',
+          ),
+        requiresManualSetup: z
+          .boolean()
+          .describe(
+            'Whether the user request requires manual setup due to unsupported benefit types (file download, GitHub, Discord) or too complex configuration',
+          ),
+        requiresToolAccess: z
+          .boolean()
+          .describe(
+            'Whether tool access is required to act on the user request (get, create, update, delete products, meters or benefits)',
+          ),
+        requiresClarification: z
+          .boolean()
+          .describe(
+            'Whether there is enough information to act on the user request or if we need further clarification',
+          ),
+      }),
+      system: routerSystemPrompt,
+      prompt: userMessage,
+    })
 
-  if (!router.object.isRelevant) {
-    isRelevant = false
-  } else {
-    requiresManualSetup = router.object.requiresManualSetup
-    requiresToolAccess = router.object.requiresToolAccess
-    requiresClarification = router.object.requiresClarification
+    if (!router.object.isRelevant) {
+      isRelevant = false
+    } else {
+      requiresManualSetup = router.object.requiresManualSetup
+      requiresToolAccess = router.object.requiresToolAccess
+      requiresClarification = router.object.requiresClarification
+    }
+  } catch (err) {
+    console.error('[onboarding/chat] router error:', err)
+    // Graceful fallback: treat as conversational, no tools yet
+    requiresClarification = true
+    requiresToolAccess = false
   }
 
   const shouldSetupTools =
@@ -607,35 +614,43 @@ based on the conversation history whether you're done.
     },
   })
 
-  const result = streamText({
-    model: shouldSetupTools ? sonnet : gemini,
-    tools: {
-      redirectToManualSetup,
-      ...(!requiresManualSetup
-        ? { createMeter, createBenefit, createProduct, updateProductBenefits, markAsDone }
-        : {}),
-    },
-    toolChoice: requiresManualSetup
-      ? { type: 'tool', toolName: 'redirectToManualSetup' }
-      : 'auto',
-    messages: [
-      {
-        role: 'system',
-        content: conversationalSystemPrompt,
-        providerOptions: shouldSetupTools
-          ? { anthropic: { cacheControl: { type: 'ephemeral' } } }
-          : {},
+  try {
+    const result = streamText({
+      model: shouldSetupTools ? sonnet : gemini,
+      tools: {
+        redirectToManualSetup,
+        ...(!requiresManualSetup
+          ? { createMeter, createBenefit, createProduct, updateProductBenefits, markAsDone }
+          : {}),
       },
-      ...convertToModelMessages(messages),
-    ],
-    stopWhen: stepCountIs(15),
-    experimental_transform: smoothStream(),
-    onFinish: () => {
-      if (phClient) {
-        phClient.flush()
-      }
-    },
-  })
+      toolChoice: requiresManualSetup
+        ? { type: 'tool', toolName: 'redirectToManualSetup' }
+        : 'auto',
+      messages: [
+        {
+          role: 'system',
+          content: conversationalSystemPrompt,
+          providerOptions: shouldSetupTools
+            ? { anthropic: { cacheControl: { type: 'ephemeral' } } }
+            : {},
+        },
+        ...convertToModelMessages(messages),
+      ],
+      stopWhen: stepCountIs(15),
+      experimental_transform: smoothStream(),
+      onFinish: () => {
+        if (phClient) {
+          phClient.flush()
+        }
+      },
+    })
 
-  return result.toUIMessageStreamResponse()
+    return result.toUIMessageStreamResponse()
+  } catch (err) {
+    console.error('[onboarding/chat] streamText error:', err)
+    return new Response(
+      JSON.stringify({ error: String(err) }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
 }
