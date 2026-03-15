@@ -72,9 +72,27 @@ Meter credits are a special type of benefit that allows you to credit a customer
 
 ## Seat-based pricing
 
-This is not supported yet. When prompted about it, decline the request and mention that it is coming soon.
+Seat-based pricing allows you to sell products where a billing manager purchases a specific number of seats and can assign them to team members. Each seat holder gets their own access to the product benefits.
 
-Do not suggest seat-based pricing when talking software subscriptions.
+This is ideal for:
+- Team subscriptions where one billing manager pays for multiple users
+- Perpetual team licenses with a one-time payment
+- Products with volume-based tiering (e.g., $10/seat for 1–4 seats, $9/seat for 5+)
+
+**Important**: Benefits are only granted to team members who claim their assigned seats, not to the billing manager who made the purchase.
+
+Pricing is defined as tiers. Each tier requires:
+- min_seats: the starting quantity for this tier (must start at 1 for the first tier)
+- price_per_seat: price in cents per seat in this tier
+- max_seats: upper limit for the tier (use null on the last tier to indicate unlimited)
+
+Tiers must be contiguous — the max_seats of one tier must equal min_seats - 1 of the next.
+
+Example tiered pricing for a monthly team subscription:
+- Tier 1: min_seats=1, max_seats=4, price_per_seat=1000 ($10/seat/month)
+- Tier 2: min_seats=5, max_seats=null, price_per_seat=900 ($9/seat/month)
+
+Do not suggest seat-based pricing for simple software subscriptions where only one user per purchase is expected. Only use it when the user explicitly wants multi-user or team access with seat management.
 
 ## Benefits
 
@@ -445,8 +463,10 @@ export async function POST(req: Request) {
         .default(1)
         .describe('Number of interval units between charges. Default 1.'),
       price_type: z
-        .enum(['fixed', 'free'])
-        .describe('Whether the product has a fixed price or is free'),
+        .enum(['fixed', 'free', 'seat_based'])
+        .describe(
+          'Pricing type: fixed (single price), free, or seat_based (per-seat tiered pricing for teams)',
+        ),
       price_amount: z
         .number()
         .optional()
@@ -455,6 +475,29 @@ export async function POST(req: Request) {
         .string()
         .default('usd')
         .describe('3-letter currency code (e.g. usd, eur, gbp)'),
+      seat_tiers: z
+        .array(
+          z.object({
+            min_seats: z
+              .number()
+              .describe(
+                'Minimum number of seats for this tier (inclusive, first tier must start at 1)',
+              ),
+            max_seats: z
+              .number()
+              .nullable()
+              .describe(
+                'Maximum number of seats for this tier (inclusive). Use null on the last tier for unlimited.',
+              ),
+            price_per_seat: z
+              .number()
+              .describe('Price per seat in cents for this tier'),
+          }),
+        )
+        .optional()
+        .describe(
+          'Required for seat_based: list of pricing tiers. Tiers must be contiguous.',
+        ),
       metered_price_meter_id: z
         .string()
         .optional()
@@ -482,6 +525,7 @@ export async function POST(req: Request) {
       price_type,
       price_amount,
       price_currency,
+      seat_tiers,
       metered_price_meter_id,
       metered_price_unit_amount,
       trial_interval,
@@ -496,7 +540,13 @@ export async function POST(req: Request) {
       prices.push(
         (price_type === 'free'
           ? { amount_type: 'free', price_currency: currency }
-          : { amount_type: 'fixed', price_currency: currency, price_amount: price_amount! }) as never,
+          : price_type === 'seat_based'
+            ? {
+                amount_type: 'seat_based',
+                price_currency: currency,
+                seat_tiers: { tiers: seat_tiers! },
+              }
+            : { amount_type: 'fixed', price_currency: currency, price_amount: price_amount! }) as never,
       )
 
       if (metered_price_meter_id && metered_price_unit_amount !== undefined) {

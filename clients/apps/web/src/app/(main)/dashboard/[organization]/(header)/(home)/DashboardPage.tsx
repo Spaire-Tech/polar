@@ -9,10 +9,7 @@ import {
   useMetrics,
   useOrganizationPaymentStatus,
 } from '@/hooks/queries'
-import {
-  getChartRangeParams,
-  getPreviousParams,
-} from '@/utils/metrics'
+import { getChartRangeParams } from '@/utils/metrics'
 import { schemas } from '@spaire/client'
 import ArrowForwardOutlined from '@mui/icons-material/ArrowForwardOutlined'
 import Button from '@spaire/ui/components/atoms/Button'
@@ -82,22 +79,6 @@ const OverviewMetrics = ({
     metrics: OVERVIEW_METRICS,
   })
 
-  const previousParams = useMemo(
-    () => getPreviousParams(startDate, '30d'),
-    [startDate],
-  )
-
-  const { data: previousData } = useMetrics(
-    {
-      organization_id: organization.id,
-      startDate: previousParams ? previousParams[0] : startDate,
-      endDate: previousParams ? previousParams[1] : endDate,
-      interval,
-      metrics: OVERVIEW_METRICS,
-    },
-    previousParams !== null,
-  )
-
   return (
     <div className="flex flex-col gap-y-6">
       <div className="dark:border-spaire-700 flex flex-col overflow-hidden rounded-2xl border border-gray-200">
@@ -106,7 +87,6 @@ const OverviewMetrics = ({
             <MetricChartBox
               key={metricKey}
               data={data}
-              previousData={previousData}
               interval={interval}
               metric={metricKey}
               loading={isLoading}
