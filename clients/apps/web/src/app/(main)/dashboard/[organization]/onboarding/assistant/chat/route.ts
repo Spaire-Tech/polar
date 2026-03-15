@@ -270,199 +270,221 @@ async function getMCPClient(userId: string, organizationId: string) {
 }
 
 export async function POST(req: Request) {
-  const user = await getAuthenticatedUser()
-  if (!user) {
-    return new Response('Unauthorized', { status: 401 })
-  }
-
-  const {
-    messages,
-    organizationId,
-    conversationId,
-  }: { messages: UIMessage[]; organizationId: string; conversationId: string } =
-    await req.json()
-
-  const hasToolAccess = (await cookies()).has(CONFIG.AUTH_MCP_COOKIE_KEY)
-  let requiresToolAccess = false
-  let requiresManualSetup = false
-  let isRelevant = true // assume good faith
-  let requiresClarification = true
-
-  if (!organizationId) {
-    return new Response('Organization ID is required', { status: 400 })
-  }
-
-  let tools = {}
-
-  const lastUserMessages = messages.filter((m) => m.role === 'user').reverse()
-
-  if (lastUserMessages.length === 0) {
-    return new Response('No user message found', { status: 400 })
-  }
-
-  const userMessage = lastUserMessages
-    .slice(0, 5)
-    .reverse()
-    .map((m) =>
-      m.parts
-        .filter((part) => part.type === 'text')
-        .map((part) => part.text)
-        .join(' '),
-    )
-    .join('\n---\n')
-
-  const geminiLite = phClient
-    ? withTracing(google('gemini-2.5-flash-lite'), phClient, {
-        posthogDistinctId: user.id,
-        posthogTraceId: conversationId,
-        posthogGroups: { organization: organizationId },
-      })
-    : google('gemini-2.5-flash-lite')
-
-  const gemini = phClient
-    ? withTracing(google('gemini-2.5-flash'), phClient, {
-        posthogDistinctId: user.id,
-        posthogTraceId: conversationId,
-        posthogGroups: { organization: organizationId },
-      })
-    : google('gemini-2.5-flash')
-
-  const sonnet = phClient
-    ? withTracing(anthropic('claude-sonnet-4-5'), phClient, {
-        posthogDistinctId: user.id,
-        posthogTraceId: conversationId,
-        posthogGroups: { organization: organizationId },
-      })
-    : anthropic('claude-sonnet-4-5')
-
-  const router = await generateObject({
-    model: geminiLite,
-    output: 'object',
-    schema: z.object({
-      isRelevant: z
-        .boolean()
-        .describe(
-          'Whether the user request is relevant to configuring their Polar account',
-        ),
-      requiresManualSetup: z
-        .boolean()
-        .describe(
-          'Whether the user request requires manual setup due to unsupported benefit types (file download, GitHub, Discord) or too complex configuration',
-        ),
-      requiresToolAccess: z
-        .boolean()
-        .describe(
-          'Whether MCP access is required to act on the user request (get, create, update, delete products, meters or benefits)',
-        ),
-      requiresClarification: z
-        .boolean()
-        .describe(
-          'Whether there is enough information to act on the user request or if we need further clarification',
-        ),
-    }),
-    system: routerSystemPrompt,
-    prompt: userMessage,
-  })
-
-  if (!router.object.isRelevant) {
-    isRelevant = false
-  } else {
-    requiresManualSetup = router.object.requiresManualSetup
-    requiresToolAccess = router.object.requiresToolAccess
-    requiresClarification = router.object.requiresClarification
-  }
-
-  let shouldSetupTools = false
-
-  // If we'll be handling the request agentically
-  if (isRelevant && !requiresManualSetup && requiresToolAccess) {
-    if (!requiresClarification) {
-      // We have enough info to act right away, set up tools
-      shouldSetupTools = true
-    } else if (lastUserMessages.length >= 5 && hasToolAccess) {
-      // Conversation has been going on for a while and we had tool access before
-      shouldSetupTools = true
+  try {
+    const user = await getAuthenticatedUser()
+    if (!user) {
+      return new Response('Unauthorized', { status: 401 })
     }
-  }
 
-  if (shouldSetupTools) {
-    const mcpClient = await getMCPClient(user.id, organizationId)
-    tools = await mcpClient.tools()
-  }
+    const {
+      messages,
+      organizationId,
+      conversationId,
+    }: {
+      messages: UIMessage[]
+      organizationId: string
+      conversationId: string
+    } = await req.json()
 
-  const redirectToManualSetup = tool({
-    description: 'Request the user to manually configure the product instead',
-    inputSchema: z.object({
-      reason: z
-        .enum(['unsupported_benefit_type', 'tool_call_error', 'user_requested'])
-        .describe(
-          'The reason why the user should manually configure the product',
-        ),
-    }),
-  })
+    const hasToolAccess = (await cookies()).has(CONFIG.AUTH_MCP_COOKIE_KEY)
+    let requiresToolAccess = false
+    let requiresManualSetup = false
+    let isRelevant = true // assume good faith
+    let requiresClarification = true
 
-  const markAsDone = tool({
-    description: `Mark the onboarding as done call, this tool once products (and their related benefits) have been fully created.
+    if (!organizationId) {
+      return new Response('Organization ID is required', { status: 400 })
+    }
+
+    let tools = {}
+
+    const lastUserMessages = messages.filter((m) => m.role === 'user').reverse()
+
+    if (lastUserMessages.length === 0) {
+      return new Response('No user message found', { status: 400 })
+    }
+
+    const userMessage = lastUserMessages
+      .slice(0, 5)
+      .reverse()
+      .map((m) =>
+        m.parts
+          .filter((part) => part.type === 'text')
+          .map((part) => part.text)
+          .join(' '),
+      )
+      .join('\n---\n')
+
+    const geminiLite = phClient
+      ? withTracing(google('gemini-2.5-flash-lite'), phClient, {
+          posthogDistinctId: user.id,
+          posthogTraceId: conversationId,
+          posthogGroups: { organization: organizationId },
+        })
+      : google('gemini-2.5-flash-lite')
+
+    const gemini = phClient
+      ? withTracing(google('gemini-2.5-flash'), phClient, {
+          posthogDistinctId: user.id,
+          posthogTraceId: conversationId,
+          posthogGroups: { organization: organizationId },
+        })
+      : google('gemini-2.5-flash')
+
+    const sonnet = phClient
+      ? withTracing(anthropic('claude-sonnet-4-5'), phClient, {
+          posthogDistinctId: user.id,
+          posthogTraceId: conversationId,
+          posthogGroups: { organization: organizationId },
+        })
+      : anthropic('claude-sonnet-4-5')
+
+    try {
+      const router = await generateObject({
+        model: geminiLite,
+        output: 'object',
+        schema: z.object({
+          isRelevant: z
+            .boolean()
+            .describe(
+              'Whether the user request is relevant to configuring their Polar account',
+            ),
+          requiresManualSetup: z
+            .boolean()
+            .describe(
+              'Whether the user request requires manual setup due to unsupported benefit types (file download, GitHub, Discord) or too complex configuration',
+            ),
+          requiresToolAccess: z
+            .boolean()
+            .describe(
+              'Whether MCP access is required to act on the user request (get, create, update, delete products, meters or benefits)',
+            ),
+          requiresClarification: z
+            .boolean()
+            .describe(
+              'Whether there is enough information to act on the user request or if we need further clarification',
+            ),
+        }),
+        system: routerSystemPrompt,
+        prompt: userMessage,
+      })
+
+      if (!router.object.isRelevant) {
+        isRelevant = false
+      } else {
+        requiresManualSetup = router.object.requiresManualSetup
+        requiresToolAccess = router.object.requiresToolAccess
+        requiresClarification = router.object.requiresClarification
+      }
+    } catch (routerError) {
+      console.error('Router model failed, proceeding with defaults:', routerError)
+      // Fall through with default values — isRelevant=true, requiresClarification=true
+    }
+
+    let shouldSetupTools = false
+
+    // If we'll be handling the request agentically
+    if (isRelevant && !requiresManualSetup && requiresToolAccess) {
+      if (!requiresClarification) {
+        // We have enough info to act right away, set up tools
+        shouldSetupTools = true
+      } else if (lastUserMessages.length >= 5 && hasToolAccess) {
+        // Conversation has been going on for a while and we had tool access before
+        shouldSetupTools = true
+      }
+    }
+
+    if (shouldSetupTools) {
+      try {
+        const mcpClient = await getMCPClient(user.id, organizationId)
+        tools = await mcpClient.tools()
+      } catch (mcpError) {
+        console.error('MCP client setup failed, proceeding without tools:', mcpError)
+        shouldSetupTools = false
+      }
+    }
+
+    const redirectToManualSetup = tool({
+      description: 'Request the user to manually configure the product instead',
+      inputSchema: z.object({
+        reason: z
+          .enum([
+            'unsupported_benefit_type',
+            'tool_call_error',
+            'user_requested',
+          ])
+          .describe(
+            'The reason why the user should manually configure the product',
+          ),
+      }),
+    })
+
+    const markAsDone = tool({
+      description: `Mark the onboarding as done call, this tool once products (and their related benefits) have been fully created.
 
 You can call this tool only once as it will end the onboarding flow, so make sure your work is done.
 However, don't specifically ask if the user wants anything else before calling this tool. Use your own judgement
 based on the conversation history whether you're done.
 
 `,
-    inputSchema: z.object({
-      productIds: z
-        .array(z.string())
-        .describe('The UUIDs of the created products'),
-    }),
-    execute: async ({ productIds }) => {
-      const api = await getServerSideAPI()
-      await api.POST('/v1/organizations/{id}/ai-onboarding-complete', {
-        params: { path: { id: organizationId } },
-      })
-      return { success: true, productIds }
-    },
-  })
-
-  let streamStarted = false
-
-  const result = streamText({
-    // Gemini 2.5 Flash for quick & cheap responses, Sonnet 4.5 for better tool usage
-    model: shouldSetupTools ? sonnet : gemini,
-    tools: {
-      redirectToManualSetup,
-      ...(!requiresManualSetup ? { markAsDone } : {}), // only allow done if we can actually create products
-      ...tools,
-    },
-    toolChoice: requiresManualSetup
-      ? { type: 'tool', toolName: 'redirectToManualSetup' }
-      : 'auto',
-    messages: [
-      {
-        role: 'system',
-        content: conversationalSystemPrompt,
-        providerOptions: shouldSetupTools
-          ? {
-              anthropic: {
-                cacheControl: { type: 'ephemeral' },
-              },
-            }
-          : {},
+      inputSchema: z.object({
+        productIds: z
+          .array(z.string())
+          .describe('The UUIDs of the created products'),
+      }),
+      execute: async ({ productIds }) => {
+        const api = await getServerSideAPI()
+        await api.POST('/v1/organizations/{id}/ai-onboarding-complete', {
+          params: { path: { id: organizationId } },
+        })
+        return { success: true, productIds }
       },
-      ...convertToModelMessages(messages),
-    ],
-    stopWhen: stepCountIs(15),
-    experimental_transform: smoothStream(),
-    onChunk: () => {
-      if (!streamStarted) {
-        streamStarted = true
-      }
-    },
-    onFinish: () => {
-      if (phClient) {
-        phClient.flush()
-      }
-    },
-  })
+    })
 
-  return result.toUIMessageStreamResponse()
+    let streamStarted = false
+
+    const result = streamText({
+      // Gemini 2.5 Flash for quick & cheap responses, Sonnet 4.5 for better tool usage
+      model: shouldSetupTools ? sonnet : gemini,
+      tools: {
+        redirectToManualSetup,
+        ...(!requiresManualSetup ? { markAsDone } : {}), // only allow done if we can actually create products
+        ...tools,
+      },
+      toolChoice: requiresManualSetup
+        ? { type: 'tool', toolName: 'redirectToManualSetup' }
+        : 'auto',
+      messages: [
+        {
+          role: 'system',
+          content: conversationalSystemPrompt,
+          providerOptions: shouldSetupTools
+            ? {
+                anthropic: {
+                  cacheControl: { type: 'ephemeral' },
+                },
+              }
+            : {},
+        },
+        ...convertToModelMessages(messages),
+      ],
+      stopWhen: stepCountIs(15),
+      experimental_transform: smoothStream(),
+      onChunk: () => {
+        if (!streamStarted) {
+          streamStarted = true
+        }
+      },
+      onFinish: () => {
+        if (phClient) {
+          phClient.flush()
+        }
+      },
+    })
+
+    return result.toUIMessageStreamResponse()
+  } catch (error) {
+    console.error('Onboarding assistant chat error:', error)
+    return new Response('Internal server error', { status: 500 })
+  }
 }
