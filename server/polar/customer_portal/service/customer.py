@@ -6,7 +6,7 @@ import stripe as stripe_lib
 
 from polar.auth.models import AuthSubject, Customer, Member
 from polar.customer.repository import CustomerRepository
-from polar.exceptions import PolarError, PolarRequestValidationError
+from polar.exceptions import PolarError, SpaireRequestValidationError
 from polar.integrations.stripe.service import stripe as stripe_service
 from polar.integrations.stripe.utils import get_expandable_id
 from polar.kit.pagination import PaginationParams
@@ -59,7 +59,7 @@ class CustomerService:
         )
         if tax_id is not None:
             if customer.billing_address is None:
-                raise PolarRequestValidationError(
+                raise SpaireRequestValidationError(
                     [
                         {
                             "type": "missing",
@@ -74,7 +74,7 @@ class CustomerService:
                     tax_id, customer.billing_address.country
                 )
             except InvalidTaxID as e:
-                raise PolarRequestValidationError(
+                raise SpaireRequestValidationError(
                     [
                         {
                             "type": "invalid",
@@ -197,7 +197,7 @@ class CustomerService:
                 expand=["payment_method"],
             )
         except stripe_lib.InvalidRequestError as e:
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "type": "invalid",
@@ -212,7 +212,7 @@ class CustomerService:
             setup_intent.customer is None
             or get_expandable_id(setup_intent.customer) != customer.stripe_customer_id
         ):
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "type": "invalid",

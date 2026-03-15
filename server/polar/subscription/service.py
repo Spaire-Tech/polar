@@ -40,7 +40,7 @@ from polar.event.system import (
 from polar.exceptions import (
     BadRequest,
     PolarError,
-    PolarRequestValidationError,
+    SpaireRequestValidationError,
     ResourceUnavailable,
     ValidationError,
 )
@@ -450,7 +450,7 @@ class SubscriptionService:
             )
 
         if len(errors) > 0:
-            raise PolarRequestValidationError(errors)
+            raise SpaireRequestValidationError(errors)
 
         assert product is not None
         assert customer is not None
@@ -938,7 +938,7 @@ class SubscriptionService:
         )
 
         if product is None:
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "type": "value_error",
@@ -950,7 +950,7 @@ class SubscriptionService:
             )
 
         if product.is_archived:
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "type": "value_error",
@@ -962,7 +962,7 @@ class SubscriptionService:
             )
 
         if product.visibility != ProductVisibility.public:
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "type": "value_error",
@@ -974,7 +974,7 @@ class SubscriptionService:
             )
 
         if not product.is_recurring:
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "type": "value_error",
@@ -986,7 +986,7 @@ class SubscriptionService:
             )
 
         if product.is_legacy_recurring_price:
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "type": "value_error",
@@ -1002,7 +1002,7 @@ class SubscriptionService:
         try:
             currency_prices = PriceSet.from_product(product, subscription.currency)
         except NoPricesForCurrencies as e:
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "type": "value_error",
@@ -1015,7 +1015,7 @@ class SubscriptionService:
 
         for price in currency_prices:
             if is_custom_price(price):
-                raise PolarRequestValidationError(
+                raise SpaireRequestValidationError(
                     [
                         {
                             "type": "value_error",
@@ -1029,7 +1029,7 @@ class SubscriptionService:
         old_has_seat_prices = any(is_seat_price(p) for p in previous_prices)
         new_has_seat_prices = any(is_seat_price(p) for p in currency_prices)
         if old_has_seat_prices != new_has_seat_prices:
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "type": "value_error",
@@ -1237,7 +1237,7 @@ class SubscriptionService:
                 products=[subscription.product],
             )
             if discount is None:
-                raise PolarRequestValidationError(
+                raise SpaireRequestValidationError(
                     [
                         {
                             "type": "value_error",
@@ -1252,7 +1252,7 @@ class SubscriptionService:
                     ]
                 )
             if discount == subscription.discount:
-                raise PolarRequestValidationError(
+                raise SpaireRequestValidationError(
                     [
                         {
                             "type": "value_error",
@@ -1311,7 +1311,7 @@ class SubscriptionService:
         else:
             # Can't end trial if not trialing
             if trial_end == "now":
-                raise PolarRequestValidationError(
+                raise SpaireRequestValidationError(
                     [
                         {
                             "type": "value_error",
@@ -1329,7 +1329,7 @@ class SubscriptionService:
                     subscription.current_period_end is not None
                     and trial_end_datetime <= subscription.current_period_end
                 ):
-                    raise PolarRequestValidationError(
+                    raise SpaireRequestValidationError(
                         [
                             {
                                 "type": "value_error",
@@ -1485,7 +1485,7 @@ class SubscriptionService:
             raise AlreadyCanceledSubscription(subscription)
 
         if subscription.current_period_end is None:
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "type": "value_error",
@@ -1497,7 +1497,7 @@ class SubscriptionService:
             )
 
         if new_period_end < subscription.current_period_end:
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "type": "value_error",

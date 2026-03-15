@@ -11,7 +11,7 @@ from sqlalchemy import select
 from polar.auth.models import AuthSubject
 from polar.config import Environment, settings
 from polar.enums import AccountType, InvoiceNumbering
-from polar.exceptions import PolarRequestValidationError
+from polar.exceptions import SpaireRequestValidationError
 from polar.models import Customer, Organization, Product, User
 from polar.models.account import Account
 from polar.models.organization import (
@@ -69,7 +69,7 @@ class TestCreate:
         session: AsyncSession,
         organization: Organization,
     ) -> None:
-        with pytest.raises(PolarRequestValidationError):
+        with pytest.raises(SpaireRequestValidationError):
             await organization_service.create(
                 session,
                 OrganizationCreate(name=organization.name, slug=organization.slug),

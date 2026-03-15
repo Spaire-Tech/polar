@@ -9,7 +9,7 @@ from polar.config import settings
 from polar.email.react import render_email_template
 from polar.email.schemas import EmailUpdateEmail, EmailUpdateProps
 from polar.email.sender import enqueue_email
-from polar.exceptions import PolarError, PolarRequestValidationError
+from polar.exceptions import PolarError, SpaireRequestValidationError
 from polar.kit.crypto import generate_token_hash_pair, get_token_hash
 from polar.kit.extensions.sqlalchemy import sql
 from polar.kit.services import ResourceServiceReader
@@ -44,7 +44,7 @@ class EmailUpdateService(ResourceServiceReader[EmailVerification]):
         user_repository = UserRepository.from_session(session)
         existing_user = await user_repository.get_by_email(email)
         if existing_user is not None and existing_user.id != user.id:
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "type": "value_error",

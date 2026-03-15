@@ -11,7 +11,7 @@ from polar.config import settings
 from polar.exceptions import (
     PolarError,
     PolarRedirectionError,
-    PolarRequestValidationError,
+    SpaireRequestValidationError,
     ResourceNotModified,
 )
 
@@ -27,7 +27,7 @@ async def polar_exception_handler(request: Request, exc: PolarError) -> JSONResp
 
 
 async def request_validation_exception_handler(
-    request: Request, exc: RequestValidationError | PolarRequestValidationError
+    request: Request, exc: RequestValidationError | SpaireRequestValidationError
 ) -> JSONResponse:
     return JSONResponse(
         status_code=422,
@@ -96,7 +96,7 @@ def add_exception_handlers(app: FastAPI) -> None:
         request_validation_exception_handler,  # type: ignore
     )
     app.add_exception_handler(
-        PolarRequestValidationError,
+        SpaireRequestValidationError,
         request_validation_exception_handler,  # type: ignore
     )
     app.add_exception_handler(PolarError, polar_exception_handler)  # type: ignore

@@ -34,7 +34,7 @@ from polar.event.system import (
     build_system_event,
 )
 from polar.eventstream.service import publish as eventstream_publish
-from polar.exceptions import PolarError, PolarRequestValidationError, ValidationError
+from polar.exceptions import PolarError, SpaireRequestValidationError, ValidationError
 from polar.file.s3 import S3_SERVICES
 from polar.held_balance.service import held_balance as held_balance_service
 from polar.integrations.stripe.service import stripe as stripe_service
@@ -376,7 +376,7 @@ class OrderService:
                 )
 
         if errors:
-            raise PolarRequestValidationError(errors)
+            raise SpaireRequestValidationError(errors)
 
         order = await repository.update(
             order, update_dict=order_update.model_dump(exclude_unset=True)

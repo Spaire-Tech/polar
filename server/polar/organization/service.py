@@ -17,7 +17,7 @@ from polar.checkout_link.repository import CheckoutLinkRepository
 from polar.config import Environment, settings
 from polar.customer.repository import CustomerRepository
 from polar.enums import InvoiceNumbering
-from polar.exceptions import NotPermitted, PolarError, PolarRequestValidationError
+from polar.exceptions import NotPermitted, PolarError, SpaireRequestValidationError
 from polar.integrations.loops.service import loops as loops_service
 from polar.integrations.plain.service import plain as plain_service
 from polar.kit.anonymization import anonymize_email_for_deletion, anonymize_for_deletion
@@ -188,7 +188,7 @@ class OrganizationService:
     ) -> Organization:
         repository = OrganizationRepository.from_session(session)
         if await repository.slug_exists(create_schema.slug):
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "loc": ("body", "slug"),
