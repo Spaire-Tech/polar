@@ -818,10 +818,7 @@ const ProductPriceItem: React.FC<ProductPriceItemProps> = ({
                       <SelectContent>
                         <SelectItem value="fixed">Fixed price</SelectItem>
                         <SelectItem value="free">Free</SelectItem>
-                        {organization.feature_settings
-                          ?.seat_based_pricing_enabled && (
-                          <SelectItem value="seat_based">Seats</SelectItem>
-                        )}
+                        <SelectItem value="seat_based">Seats</SelectItem>
                         {recurringInterval !== null && (
                           <SelectItem value="metered_unit">
                             Metered price
