@@ -50,15 +50,15 @@ export default function ClientPage({
             className="flex w-full max-w-2xl flex-col gap-14"
           >
             {/* Header */}
-            <FadeUp className="flex flex-col gap-y-3">
-              <div className="md:hidden mb-8">
+            <FadeUp className="flex flex-col items-center gap-y-3 text-center">
+              <div className="mb-4">
                 <LogoIcon size={36} />
               </div>
               <h1 className="text-2xl font-medium tracking-tight md:text-3xl">
-                Launch your first offering
+                Your first product
               </h1>
               <p className="dark:text-spaire-400 max-w-md text-base text-gray-500">
-                Tell us what you&apos;re selling and we&apos;ll take care of the setup. You can always add more products later.
+                Setup your first digital product to get started.
               </p>
             </FadeUp>
 
