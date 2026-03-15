@@ -56,7 +56,6 @@ const CheckoutSeatSelector = ({
     checkout.seats !== undefined &&
     checkout.seats < minimumSeats
 
-  const netAmount = checkout.netAmount || 0
   const currency = productPrice.priceCurrency
   const pricePerSeat = checkout.pricePerSeat || 0
 
@@ -142,31 +141,29 @@ const CheckoutSeatSelector = ({
   const seatLimitText = getSeatLimitText()
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* Total Amount Display */}
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-light text-gray-900 dark:text-white">
-          {formatCurrency('compact')(netAmount, currency)}
-        </h1>
-        <p className="dark:text-spaire-400 text-sm text-gray-500">
-          {formatCurrency('compact')(pricePerSeat, currency)} per seat
-        </p>
-      </div>
+    <div className="flex flex-col gap-2">
+      {/* Seat row */}
+      <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-0.5">
+          <span className="text-sm font-medium text-gray-900 dark:text-white">
+            Seats
+          </span>
+          <span className="dark:text-spaire-400 text-xs text-gray-500">
+            {formatCurrency('compact')(pricePerSeat, currency)} per seat
+          </span>
+        </div>
 
-      {/* Seat Selector */}
-      <div className="flex flex-col gap-2">
-        <label className="text-lg">Number of seats</label>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => handleUpdateSeats(displaySeats - 1)}
             disabled={displaySeats <= minimumSeats || isUpdating || isEditing}
-            className="h-10 w-10 rounded-full disabled:opacity-40"
+            className="h-7 w-7 rounded-full disabled:opacity-40"
             aria-label="Decrease seats"
           >
             <svg
-              className="h-5 w-5"
+              className="h-4 w-4"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -186,18 +183,18 @@ const CheckoutSeatSelector = ({
               autoFocus
               min={minimumSeats}
               max={hasMaximumLimit ? maximumSeats : undefined}
-              className="h-auto max-w-[4.5rem] min-w-[3.5rem] py-1.5 text-center text-2xl font-light tabular-nums"
+              className="h-auto w-10 py-0.5 text-center text-sm tabular-nums"
             />
           ) : (
             <button
               type="button"
               onClick={handleSeatClick}
               disabled={isUpdating}
-              className="dark:hover:bg-spaire-800 group relative min-w-[3.5rem] rounded-xl px-3 py-1.5 text-center text-2xl font-light text-gray-900 tabular-nums transition-all hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:text-white"
+              className="dark:hover:bg-spaire-800 w-10 rounded-lg py-0.5 text-center text-sm tabular-nums text-gray-900 transition-all hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:text-white"
               aria-label="Click to edit seat count"
               title="Click to edit"
             >
-              <span>{displaySeats}</span>
+              {displaySeats}
             </button>
           )}
           <Button
@@ -209,11 +206,11 @@ const CheckoutSeatSelector = ({
               isUpdating ||
               isEditing
             }
-            className="h-10 w-10 rounded-full disabled:opacity-40"
+            className="h-7 w-7 rounded-full disabled:opacity-40"
             aria-label="Increase seats"
           >
             <svg
-              className="h-5 w-5"
+              className="h-4 w-4"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -227,15 +224,16 @@ const CheckoutSeatSelector = ({
             </svg>
           </Button>
         </div>
-        {seatLimitText && (
-          <p className="dark:text-spaire-400 text-xs text-gray-500">
-            {seatLimitText}
-          </p>
-        )}
-        {error && (
-          <p className="text-destructive-foreground text-sm">{error}</p>
-        )}
       </div>
+
+      {seatLimitText && (
+        <p className="dark:text-spaire-400 text-xs text-gray-500">
+          {seatLimitText}
+        </p>
+      )}
+      {error && (
+        <p className="text-destructive-foreground text-sm">{error}</p>
+      )}
 
       <MeteredPricesDisplay checkout={checkout} />
     </div>
