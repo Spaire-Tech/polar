@@ -2,7 +2,8 @@
 
 import { getServerSideAPI } from '@/utils/client/serverside'
 import { getAuthenticatedUser } from '@/utils/user'
-import { createAnthropic } from '@ai-sdk/anthropic'
+import { anthropic } from '@ai-sdk/anthropic'
+import { google } from '@ai-sdk/google'
 import { withTracing } from '@posthog/ai'
 import {
   convertToModelMessages,
@@ -217,29 +218,33 @@ export async function POST(req: Request) {
     )
     .join('\n---\n')
 
-  const anthropicClient = createAnthropic({
-    apiKey: process.env.SPAIRE_ANTHROPIC_API_KEY,
-  })
-
-  const haiku = phClient
-    ? withTracing(anthropicClient('claude-haiku-4-5-20251001'), phClient, {
+  const geminiLite = phClient
+    ? withTracing(google('gemini-2.0-flash-lite'), phClient, {
         posthogDistinctId: user.id,
         posthogTraceId: conversationId,
         posthogGroups: { organization: organizationId },
       })
-    : anthropicClient('claude-haiku-4-5-20251001')
+    : google('gemini-2.0-flash-lite')
+
+  const gemini = phClient
+    ? withTracing(google('gemini-2.0-flash'), phClient, {
+        posthogDistinctId: user.id,
+        posthogTraceId: conversationId,
+        posthogGroups: { organization: organizationId },
+      })
+    : google('gemini-2.0-flash')
 
   const sonnet = phClient
-    ? withTracing(anthropicClient('claude-sonnet-4-5'), phClient, {
+    ? withTracing(anthropic('claude-sonnet-4-5'), phClient, {
         posthogDistinctId: user.id,
         posthogTraceId: conversationId,
         posthogGroups: { organization: organizationId },
       })
-    : anthropicClient('claude-sonnet-4-5')
+    : anthropic('claude-sonnet-4-5')
 
   try {
     const router = await generateObject({
-      model: haiku,
+      model: geminiLite,
       output: 'object',
       schema: z.object({
         isRelevant: z
@@ -604,7 +609,7 @@ based on the conversation history whether you're done.
 
   try {
     const result = streamText({
-      model: shouldSetupTools ? sonnet : haiku,
+      model: shouldSetupTools ? sonnet : gemini,
       tools: {
         redirectToManualSetup,
         ...(!requiresManualSetup
