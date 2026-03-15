@@ -133,6 +133,8 @@ class Checkout(
         Boolean, nullable=False, default=False
     )
 
+    locale: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
+
     amount: Mapped[int] = mapped_column(Integer, nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False)
     seats: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)

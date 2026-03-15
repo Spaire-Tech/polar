@@ -29,6 +29,7 @@ from polar.discount.schemas import (
 from polar.enums import PaymentProcessor
 from polar.kit.address import Address, AddressInput
 from polar.kit.currency import PresentmentCurrency
+from polar.kit.locale import Locale
 from polar.kit.email import EmailStrDNS
 from polar.kit.http import SuccessUrl
 from polar.kit.metadata import (
@@ -213,6 +214,13 @@ class CheckoutCreateBase(
         le=1000,
         description="Number of seats for seat-based pricing. Required for seat-based products.",
     )
+    locale: Locale | None = Field(
+        default=None,
+        description=(
+            "Locale of the customer, given as an IETF BCP 47 language tag. "
+            "Used to localize the checkout page."
+        ),
+    )
     allow_trial: bool = Field(default=True, description=_allow_trial_description)
     customer_id: UUID4 | None = Field(
         default=None,
@@ -364,6 +372,13 @@ class CheckoutUpdateBase(CustomFieldDataInputMixin, Schema):
         le=1000,
         description="Number of seats for seat-based pricing.",
     )
+    locale: Locale | None = Field(
+        default=None,
+        description=(
+            "Locale of the customer, given as an IETF BCP 47 language tag. "
+            "Used to localize the checkout page."
+        ),
+    )
     is_business_customer: bool | None = None
     customer_name: CustomerNameInput | None = None
     customer_email: CustomerEmail | None = None
@@ -482,6 +497,13 @@ class CheckoutBase(CustomFieldDataOutputMixin, TimestampedSchema, IDSchema):
             "represents the Origin of the page embedding the checkout. "
             "Used as a security measure to send messages only to the embedding page."
         )
+    )
+    locale: str | None = Field(
+        default=None,
+        description=(
+            "Locale of the customer, given as an IETF BCP 47 language tag. "
+            "Used to localize the checkout page."
+        ),
     )
     amount: int = Field(description="Amount in cents, before discounts and taxes.")
     seats: int | None = Field(

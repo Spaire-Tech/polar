@@ -49,6 +49,9 @@ import AmountLabel from './AmountLabel'
 import CustomFieldInput from './CustomFieldInput'
 import MeteredPriceLabel from './MeteredPriceLabel'
 import SpaireLogo from './SpaireLogo'
+import type { AcceptedLocale } from '@polar-sh/i18n'
+import { DEFAULT_LOCALE } from '@polar-sh/i18n'
+import { convertLocaleToStripeElementLocale } from '../utils/locale'
 
 const DetailRow = ({
   title,
@@ -934,6 +937,7 @@ interface CheckoutFormProps {
   theme?: 'light' | 'dark'
   themePreset: ThemingPresetProps
   hidePricingBreakdown?: boolean
+  locale?: AcceptedLocale | string
 }
 
 const StripeCheckoutForm = (props: CheckoutFormProps) => {
@@ -946,6 +950,7 @@ const StripeCheckoutForm = (props: CheckoutFormProps) => {
     disabled,
     isUpdatePending,
     themePreset: themePresetProps,
+    locale = DEFAULT_LOCALE as string,
   } = props
   const {
     paymentProcessorMetadata: { publishable_key },
@@ -990,7 +995,7 @@ const StripeCheckoutForm = (props: CheckoutFormProps) => {
       stripe={stripePromise}
       options={{
         ...elementsOptions,
-        locale: 'en',
+        locale: convertLocaleToStripeElementLocale(locale as AcceptedLocale),
         customerSessionClientSecret: (
           checkout.paymentProcessorMetadata as {
             customer_session_client_secret?: string

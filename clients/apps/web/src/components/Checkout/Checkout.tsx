@@ -291,6 +291,7 @@ const Checkout = ({ embed: _embed, theme: _theme }: CheckoutProps) => {
           themePreset={themePreset}
           disabled={shouldBlockCheckout}
           isUpdatePending={isUpdatePending}
+          locale={checkout.locale ?? undefined}
         />
       </ShadowBox>
     )
@@ -453,6 +454,7 @@ const Checkout = ({ embed: _embed, theme: _theme }: CheckoutProps) => {
             themePreset={themePreset}
             disabled={shouldBlockCheckout}
             isUpdatePending={isUpdatePending}
+            locale={checkout.locale ?? undefined}
             hidePricingBreakdown
           />
         </div>

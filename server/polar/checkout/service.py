@@ -536,6 +536,10 @@ class CheckoutService:
                         getattr(checkout.customer, attribute),
                     )
 
+            # Copy locale from customer if not set on checkout
+            if checkout.locale is None and checkout.customer.locale is not None:
+                checkout.locale = checkout.customer.locale
+
             # Auto-select business customer if they have both a billing name (without the fallback to customer.name)
             # and a billing address since that means they've previously checked the is_business_customer checkbox
             # Only auto-select if is_business_customer wasn't explicitly set in the request
@@ -888,6 +892,10 @@ class CheckoutService:
             customer_name = query_prefill.get("customer_name")
             if customer_name is not None and isinstance(customer_name, str):
                 checkout.customer_name = customer_name
+
+            locale = query_prefill.get("locale")
+            if locale is not None and isinstance(locale, str):
+                checkout.locale = locale
 
             discount_code = query_prefill.get("discount_code")
             if discount_code is not None and isinstance(discount_code, str):
@@ -2483,6 +2491,8 @@ class CheckoutService:
             customer.billing_address = checkout.customer_billing_address
         if checkout.customer_tax_id is not None:
             customer.tax_id = checkout.customer_tax_id
+        if checkout.locale is not None:
+            customer.locale = checkout.locale
 
         customer.stripe_customer_id = stripe_customer_id
         customer.user_metadata = {
