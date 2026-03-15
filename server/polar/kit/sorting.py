@@ -5,7 +5,7 @@ from typing import Any
 from fastapi import Query
 from makefun import with_signature
 
-from polar.exceptions import PolarRequestValidationError
+from polar.exceptions import SpaireRequestValidationError
 
 type Sorting[PE] = tuple[PE, bool]
 
@@ -30,7 +30,7 @@ class _SortingGetter[PE: StrEnum]:
             try:
                 parsed_sorting.append((self.sort_property_enum(criteria), desc))
             except ValueError:
-                raise PolarRequestValidationError(
+                raise SpaireRequestValidationError(
                     [
                         {
                             "loc": ("query", "sorting"),

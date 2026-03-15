@@ -211,14 +211,8 @@ class SeatService:
     async def check_seat_feature_enabled(
         self, session: AsyncReadSession, organization_id: uuid.UUID
     ) -> None:
-        from polar.organization.repository import OrganizationRepository
-
-        organization_repository = OrganizationRepository.from_session(session)
-        organization = await organization_repository.get_by_id(organization_id)
-        if not organization:
-            raise FeatureNotEnabled()
-        if not organization.feature_settings.get("seat_based_pricing_enabled", False):
-            raise FeatureNotEnabled()
+        # Seat-based pricing is always enabled on this platform
+        pass
 
     async def list_seats(
         self,

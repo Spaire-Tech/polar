@@ -1,12 +1,9 @@
 'use server'
 
 import { getServerSideAPI } from '@/utils/client/serverside'
-import { CONFIG } from '@/utils/config'
 import { getAuthenticatedUser } from '@/utils/user'
 import { anthropic } from '@ai-sdk/anthropic'
 import { google } from '@ai-sdk/google'
-import { experimental_createMCPClient } from '@ai-sdk/mcp'
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import { withTracing } from '@posthog/ai'
 import {
   convertToModelMessages,
@@ -17,7 +14,6 @@ import {
   tool,
   UIMessage,
 } from 'ai'
-import { cookies } from 'next/headers'
 import { PostHog } from 'posthog-node'
 import { z } from 'zod'
 
@@ -54,7 +50,7 @@ Spaire can be configured in a multitude of ways, depending on what you want to s
 
 In general, Spaire has the concept of "Products" and "Benefits". Customers buy products, and from this purchase,
 they are granted benefits. Most often, people will conflate the two, and you should not require them to be explicit
-in their distinction. Instead, you will do translate their requirements into products with benefits.
+in their distinction. Instead, you will translate their requirements into products with benefits.
 
 ## Usage-based billing
 If desired, Spaire has a powerful approach to usage-based billing that allows you to charge your customers based on the usage of your application.
@@ -65,7 +61,7 @@ If the pricing has any usage-based component to it, it is first of all important
 
 ### Meters
 
-A meter is configured by definining a set of filters and an aggregation function.
+A meter is configured by defining a set of filters and an aggregation function.
 The filters are used to filter the events that should be included in the meter and the aggregation function is used to compute the usage.
 
 For example, to bill based on the usage of the OpenAI API, you would create a meter that matches events that have the name "openai-usage" and aggregate sum all units over the metadata property "completionTokens".
@@ -126,7 +122,7 @@ ${sharedSystemPrompt}
 
 # Your task
 Your task is to determine whether the user request requires manual setup, follow-up questions, and if the subsequent LLM call
-will require MCP tool access to act on the users request.
+will require tool access to act on the users request.
 
 At the very least, we need both a specific price and a name for the product to be able to create it.
 As long as these two data points are not mentioned, follow-up questions will be needed.
@@ -151,123 +147,37 @@ So, in general, you should follow this order:
  - Define meters first if there are any usage-based pricing components
  - Define benefits that should be granted
  - Define products
+ - Attach benefits to products
 
 # Rules
 - Never render ID's in your text response.
 - Prefer no formatting in your response, but if you do, use valid Markdown (limited to bold, italic, and lists. No headings.)
-- Prices will always be in USD. If you are prompted about a different currency, mention that this is not supported yet,
-  and ask them to specify their prices in USD. If no currency is mentioned, assume USD. Never ask to confirm the currency,
-  nor mention this limitation proactively. Use only a dollar sign ($), no need to repeat USD.
+- Prices can be in any currency supported by Spaire (USD, EUR, GBP, CAD, AUD, CHF, JPY, SEK, INR, BRL). If no currency is mentioned, assume USD. Use the appropriate currency symbol for the currency in use.
 - The product name is not that important, and can be renamed, so if a user says "A premium plan" just use "Premium" as the name.
-- Do not include the word "plan" in the product name except if it's explictly phrased as such.
+- Do not include the word "plan" in the product name except if it's explicitly phrased as such.
 - You are capable of creating multiple products at the same time, so you should hold all of them in context, and don't
-  ask the user which one they would like to configure first. If a follow-up instruction is ambigue, ask what product
+  ask the user which one they would like to configure first. If a follow-up instruction is ambiguous, ask what product
   to apply it to, but keep all products in mind until your final tool call or when asked for the configuration.
-- Derive the configuration from what the user has told you, don't propose other setups like bundles or others…
+- Derive the configuration from what the user has told you, don't propose other setups like bundles or others.
 - Do not ask for media uploads as your interface does not support these.
-- Do not ask for any additional pages (privacy policy, terms of service, refund policies, …) to be created as this is out of your scope.
+- Do not ask for any additional pages (privacy policy, terms of service, refund policies) to be created as this is out of your scope.
 - The goal is to get the user to a minimal configuration fast, so once there is reasonable confidence that you have all the information you need,
   do not ask for more information. Users will always be able to add more products, descriptions, and details later.
 - If a user mentions a price for a software product but they don't specify a billing interval, assume it's a recurring monthly subscription.
 - If a user mentions "$x per month" for a yearly plan, or vice versa, do the math for them.
 - If a recurring price is mentioned without product specifics, assume it's a software subscription.
 - If a price is mentioned without a recurring interval, it's a one-time purchase and you should try to determine whether it's a specific benefit or a generic access through a custom benefit
-- If the request is not relevant to the configuration of a product, gently decline the request and mention that you're only able to configure the user's Polar account.
+- If the request is not relevant to the configuration of a product, gently decline the request and mention that you're only able to configure the user's Spaire account.
 - Do not ask for extra benefits, you're just converting a user's description into a configuration.
 - Do not ask explicitly if they also want to include a trial. You support trials when asked, but do not propose it yourself.
 - Be eager to resolve the request as quickly as possible.
-- If you use the "renderProductsPreview" tool, do not repeat the preview in the text response after that.
 - If a benefit type is unsupported, immediately use the "redirectToManualSetup" tool to redirect the user to the manual setup page. There is no use in collecting more information in that case since they'll have to manually re-enter everything anyway.
-- Remember that you are helping the user with their initial setup, you're the first thing they see after signing up, so don't ask for pre-existing information (ID's, meters, …). Assume you'll have to create from scratch.
-- Be friendly and helpful if people ask questions like "What is Polar?" or "What can I sell?".
+- Remember that you are helping the user with their initial setup, you're the first thing they see after signing up, so don't ask for pre-existing information (ID's, meters). Assume you'll have to create from scratch.
+- Be friendly and helpful if people ask questions like "What is Spaire?" or "What can I sell?".
+- When you use createProduct, always attach benefits immediately after using updateProductBenefits. Never leave a product without its benefits.
 
 The user will now describe their product and you will start the configuration assistant.
 `
-
-async function generateOAT(
-  userId: string,
-  organizationId: string,
-): Promise<string> {
-  const requestCookies = await cookies()
-
-  if (requestCookies.has(CONFIG.AUTH_MCP_COOKIE_KEY)) {
-    return requestCookies.get(CONFIG.AUTH_MCP_COOKIE_KEY)!.value
-  }
-
-  const userSessionToken = requestCookies.get(CONFIG.AUTH_COOKIE_KEY)
-  if (!userSessionToken) {
-    throw new Error('No user session cookie found')
-  }
-
-  const client = await getServerSideAPI()
-  const { data, error } = await client.POST('/v1/oauth2/token', {
-    body: {
-      grant_type: 'web',
-      client_id: process.env.MCP_OAUTH2_CLIENT_ID!,
-      client_secret: process.env.MCP_OAUTH2_CLIENT_SECRET!,
-      session_token: userSessionToken.value,
-      sub_type: 'organization',
-      sub: organizationId,
-      scope: null,
-    },
-    bodySerializer(body) {
-      const fd = new FormData()
-      for (const [key, value] of Object.entries(body)) {
-        if (value) {
-          fd.append(key, value)
-        }
-      }
-      return fd
-    },
-  })
-
-  if (error) {
-    throw new Error('Failed to generate OAT')
-  }
-
-  const accessToken = data.access_token
-
-  if (!accessToken) {
-    throw new Error('Failed to generate OAT')
-  }
-
-  requestCookies.set(CONFIG.AUTH_MCP_COOKIE_KEY, accessToken, {
-    httpOnly: true,
-    secure: true,
-    expires: new Date(Date.now() + data.expires_in * 1000),
-  })
-
-  return accessToken
-}
-
-async function getMCPClient(userId: string, organizationId: string) {
-  try {
-    const oat = await generateOAT(userId, organizationId)
-
-    const httpTransport = new StreamableHTTPClientTransport(
-      new URL('https://app.getgram.ai/mcp/polar-onboarding-assistant'),
-      {
-        requestInit: {
-          headers: {
-            Authorization: `Bearer ${process.env.GRAM_API_KEY}`,
-            'MCP-POLAR-SERVER-URL':
-              process.env.GRAM_API_URL ?? process.env.NEXT_PUBLIC_API_URL!,
-            'MCP-POLAR-ACCESS-TOKEN': oat,
-          },
-        },
-      },
-    )
-
-    const mcpClient = await experimental_createMCPClient({
-      transport: httpTransport,
-    })
-
-    return mcpClient
-  } catch (error) {
-    console.error('Failed to create MCP client:', error)
-    throw error
-  }
-}
 
 export async function POST(req: Request) {
   const user = await getAuthenticatedUser()
@@ -282,17 +192,14 @@ export async function POST(req: Request) {
   }: { messages: UIMessage[]; organizationId: string; conversationId: string } =
     await req.json()
 
-  const hasToolAccess = (await cookies()).has(CONFIG.AUTH_MCP_COOKIE_KEY)
-  let requiresToolAccess = false
-  let requiresManualSetup = false
-  let isRelevant = true // assume good faith
-  let requiresClarification = true
-
   if (!organizationId) {
     return new Response('Organization ID is required', { status: 400 })
   }
 
-  let tools = {}
+  let requiresToolAccess = false
+  let requiresManualSetup = false
+  let isRelevant = true
+  let requiresClarification = true
 
   const lastUserMessages = messages.filter((m) => m.role === 'user').reverse()
 
@@ -312,20 +219,12 @@ export async function POST(req: Request) {
     .join('\n---\n')
 
   const geminiLite = phClient
-    ? withTracing(google('gemini-2.5-flash-lite'), phClient, {
+    ? withTracing(google('gemini-2.0-flash-lite'), phClient, {
         posthogDistinctId: user.id,
         posthogTraceId: conversationId,
         posthogGroups: { organization: organizationId },
       })
-    : google('gemini-2.5-flash-lite')
-
-  const gemini = phClient
-    ? withTracing(google('gemini-2.5-flash'), phClient, {
-        posthogDistinctId: user.id,
-        posthogTraceId: conversationId,
-        posthogGroups: { organization: organizationId },
-      })
-    : google('gemini-2.5-flash')
+    : google('gemini-2.0-flash-lite')
 
   const sonnet = phClient
     ? withTracing(anthropic('claude-sonnet-4-5'), phClient, {
@@ -335,60 +234,338 @@ export async function POST(req: Request) {
       })
     : anthropic('claude-sonnet-4-5')
 
-  const router = await generateObject({
-    model: geminiLite,
-    output: 'object',
-    schema: z.object({
-      isRelevant: z
-        .boolean()
+  try {
+    const router = await generateObject({
+      model: geminiLite,
+      output: 'object',
+      schema: z.object({
+        isRelevant: z
+          .boolean()
+          .describe(
+            'Whether the user request is relevant to configuring their Spaire account',
+          ),
+        requiresManualSetup: z
+          .boolean()
+          .describe(
+            'Whether the user request requires manual setup due to unsupported benefit types (file download, GitHub, Discord) or too complex configuration',
+          ),
+        requiresToolAccess: z
+          .boolean()
+          .describe(
+            'Whether tool access is required to act on the user request (get, create, update, delete products, meters or benefits)',
+          ),
+        requiresClarification: z
+          .boolean()
+          .describe(
+            'Whether there is enough information to act on the user request or if we need further clarification',
+          ),
+      }),
+      system: routerSystemPrompt,
+      prompt: userMessage,
+    })
+
+    if (!router.object.isRelevant) {
+      isRelevant = false
+    } else {
+      requiresManualSetup = router.object.requiresManualSetup
+      requiresToolAccess = router.object.requiresToolAccess
+      requiresClarification = router.object.requiresClarification
+    }
+  } catch (err) {
+    console.error('[onboarding/chat] router error:', err)
+    // Graceful fallback: treat as conversational, no tools yet
+    requiresClarification = true
+    requiresToolAccess = false
+  }
+
+  const shouldSetupTools =
+    isRelevant &&
+    !requiresManualSetup &&
+    requiresToolAccess &&
+    (!requiresClarification || lastUserMessages.length >= 5)
+
+  // --- Native Spaire API tools ---
+
+  const createMeter = tool({
+    description:
+      'Create a usage meter that tracks events from the application. Use this before creating products with metered pricing.',
+    inputSchema: z.object({
+      name: z.string().describe('The name of the meter shown on invoices'),
+      event_name: z
+        .string()
+        .describe('The event name to filter on (e.g. "api-request")'),
+      aggregation_type: z
+        .enum(['count', 'sum', 'unique'])
         .describe(
-          'Whether the user request is relevant to configuring their Polar account',
+          'How to aggregate events: count (number of events), sum (sum a numeric property), unique (count distinct values of a property)',
         ),
-      requiresManualSetup: z
-        .boolean()
+      aggregation_property: z
+        .string()
+        .optional()
         .describe(
-          'Whether the user request requires manual setup due to unsupported benefit types (file download, GitHub, Discord) or too complex configuration',
-        ),
-      requiresToolAccess: z
-        .boolean()
-        .describe(
-          'Whether MCP access is required to act on the user request (get, create, update, delete products, meters or benefits)',
-        ),
-      requiresClarification: z
-        .boolean()
-        .describe(
-          'Whether there is enough information to act on the user request or if we need further clarification',
+          'The event metadata property to aggregate on (required for sum and unique)',
         ),
     }),
-    system: routerSystemPrompt,
-    prompt: userMessage,
+    execute: async ({ name, event_name, aggregation_type, aggregation_property }) => {
+      const api = await getServerSideAPI()
+
+      const aggregation =
+        aggregation_type === 'count'
+          ? { func: 'count' as const }
+          : aggregation_type === 'sum'
+            ? { func: 'sum' as const, property: aggregation_property! }
+            : { func: 'unique' as const, property: aggregation_property! }
+
+      const { data, error } = await api.POST('/v1/meters/', {
+        body: {
+          name,
+          organization_id: organizationId,
+          filter: {
+            conjunction: 'and',
+            clauses: [
+              { property: 'name', operator: 'eq', value: event_name },
+            ],
+          },
+          aggregation,
+        },
+      })
+
+      if (error) {
+        return { success: false, error: JSON.stringify(error) }
+      }
+
+      return { success: true, meter_id: data.id, name: data.name }
+    },
   })
 
-  if (!router.object.isRelevant) {
-    isRelevant = false
-  } else {
-    requiresManualSetup = router.object.requiresManualSetup
-    requiresToolAccess = router.object.requiresToolAccess
-    requiresClarification = router.object.requiresClarification
-  }
+  const createBenefit = tool({
+    description:
+      'Create a benefit that will be granted to customers when they purchase a product.',
+    inputSchema: z.object({
+      type: z
+        .enum(['custom', 'license_keys', 'meter_credit'])
+        .describe('The type of benefit to create'),
+      description: z
+        .string()
+        .describe(
+          'The description shown to customers (e.g. "Pro Access", "License Key")',
+        ),
+      // meter_credit fields
+      meter_id: z
+        .string()
+        .optional()
+        .describe('Required for meter_credit: the meter ID to credit'),
+      units: z
+        .number()
+        .optional()
+        .describe('Required for meter_credit: number of credits to grant'),
+      rollover: z
+        .boolean()
+        .optional()
+        .describe(
+          'For meter_credit: whether unused credits roll over to the next period',
+        ),
+      // license_keys fields
+      license_key_prefix: z
+        .string()
+        .optional()
+        .describe('Optional prefix for generated license keys'),
+    }),
+    execute: async ({
+      type,
+      description,
+      meter_id,
+      units,
+      rollover,
+      license_key_prefix,
+    }) => {
+      const api = await getServerSideAPI()
 
-  let shouldSetupTools = false
+      const body =
+        type === 'custom'
+          ? {
+              type: 'custom' as const,
+              description,
+              organization_id: organizationId,
+              properties: { note: null },
+            }
+          : type === 'license_keys'
+            ? {
+                type: 'license_keys' as const,
+                description,
+                organization_id: organizationId,
+                properties: {
+                  prefix: license_key_prefix ?? null,
+                  expires: null,
+                  activations: null,
+                  limit_usage: null,
+                },
+              }
+            : {
+                type: 'meter_credit' as const,
+                description,
+                organization_id: organizationId,
+                properties: {
+                  meter_id: meter_id!,
+                  units: units ?? 0,
+                  rollover: rollover ?? false,
+                },
+              }
 
-  // If we'll be handling the request agentically
-  if (isRelevant && !requiresManualSetup && requiresToolAccess) {
-    if (!requiresClarification) {
-      // We have enough info to act right away, set up tools
-      shouldSetupTools = true
-    } else if (lastUserMessages.length >= 5 && hasToolAccess) {
-      // Conversation has been going on for a while and we had tool access before
-      shouldSetupTools = true
-    }
-  }
+      const { data, error } = await api.POST('/v1/benefits/', {
+        body: body as never,
+      })
 
-  if (shouldSetupTools) {
-    const mcpClient = await getMCPClient(user.id, organizationId)
-    tools = await mcpClient.tools()
-  }
+      if (error) {
+        return { success: false, error: JSON.stringify(error) }
+      }
+
+      return { success: true, benefit_id: data.id, description: data.description }
+    },
+  })
+
+  const createProduct = tool({
+    description:
+      'Create a product. After creating, use updateProductBenefits to attach benefits.',
+    inputSchema: z.object({
+      name: z.string().describe('The product name'),
+      description: z
+        .string()
+        .optional()
+        .describe('Optional product description'),
+      recurring_interval: z
+        .enum(['month', 'year'])
+        .nullable()
+        .describe(
+          'Billing interval for subscriptions. null means one-time purchase.',
+        ),
+      recurring_interval_count: z
+        .number()
+        .optional()
+        .default(1)
+        .describe('Number of interval units between charges. Default 1.'),
+      price_type: z
+        .enum(['fixed', 'free'])
+        .describe('Whether the product has a fixed price or is free'),
+      price_amount: z
+        .number()
+        .optional()
+        .describe('Price in cents (e.g. 999 = $9.99). Required for fixed.'),
+      price_currency: z
+        .string()
+        .default('usd')
+        .describe('3-letter currency code (e.g. usd, eur, gbp)'),
+      metered_price_meter_id: z
+        .string()
+        .optional()
+        .describe('Meter ID for an additional metered price component'),
+      metered_price_unit_amount: z
+        .number()
+        .optional()
+        .describe('Price per unit in cents for metered pricing'),
+      trial_interval: z
+        .enum(['day', 'week', 'month', 'year'])
+        .optional()
+        .nullable()
+        .describe('Trial period interval unit'),
+      trial_interval_count: z
+        .number()
+        .optional()
+        .nullable()
+        .describe('Number of trial interval units'),
+    }),
+    execute: async ({
+      name,
+      description,
+      recurring_interval,
+      recurring_interval_count,
+      price_type,
+      price_amount,
+      price_currency,
+      metered_price_meter_id,
+      metered_price_unit_amount,
+      trial_interval,
+      trial_interval_count,
+    }) => {
+      const api = await getServerSideAPI()
+
+      const currency = price_currency ?? 'usd'
+
+      const prices: never[] = []
+
+      prices.push(
+        (price_type === 'free'
+          ? { amount_type: 'free', price_currency: currency }
+          : { amount_type: 'fixed', price_currency: currency, price_amount: price_amount! }) as never,
+      )
+
+      if (metered_price_meter_id && metered_price_unit_amount !== undefined) {
+        prices.push({
+          amount_type: 'metered_unit',
+          price_currency: currency,
+          meter_id: metered_price_meter_id,
+          unit_amount: metered_price_unit_amount,
+        } as never)
+      }
+
+      const body =
+        recurring_interval === null
+          ? {
+              name,
+              description: description ?? null,
+              visibility: 'public',
+              organization_id: organizationId,
+              prices,
+              recurring_interval: null,
+            }
+          : {
+              name,
+              description: description ?? null,
+              visibility: 'public',
+              organization_id: organizationId,
+              prices,
+              recurring_interval,
+              recurring_interval_count: recurring_interval_count ?? 1,
+              trial_interval: trial_interval ?? null,
+              trial_interval_count: trial_interval_count ?? null,
+            }
+
+      const { data, error } = await api.POST('/v1/products/', {
+        body: body as never,
+      })
+
+      if (error) {
+        return { success: false, error: JSON.stringify(error) }
+      }
+
+      return { success: true, product_id: data.id, name: data.name }
+    },
+  })
+
+  const updateProductBenefits = tool({
+    description:
+      'Attach benefits to a product. Always call this after createProduct to link the benefits.',
+    inputSchema: z.object({
+      product_id: z.string().describe('The product ID to update'),
+      benefit_ids: z
+        .array(z.string())
+        .describe('List of benefit IDs to attach'),
+    }),
+    execute: async ({ product_id, benefit_ids }) => {
+      const api = await getServerSideAPI()
+
+      const { data, error } = await api.POST('/v1/products/{id}/benefits', {
+        params: { path: { id: product_id } },
+        body: { benefits: benefit_ids },
+      })
+
+      if (error) {
+        return { success: false, error: JSON.stringify(error) }
+      }
+
+      return { success: true, product_id: data.id }
+    },
+  })
 
   const redirectToManualSetup = tool({
     description: 'Request the user to manually configure the product instead',
@@ -402,17 +579,16 @@ export async function POST(req: Request) {
   })
 
   const markAsDone = tool({
-    description: `Mark the onboarding as done call, this tool once products (and their related benefits) have been fully created.
+    description: `Mark the onboarding as done. Call this once products and their benefits have been fully created and attached.
 
 You can call this tool only once as it will end the onboarding flow, so make sure your work is done.
 However, don't specifically ask if the user wants anything else before calling this tool. Use your own judgement
 based on the conversation history whether you're done.
-
 `,
     inputSchema: z.object({
       productIds: z
         .array(z.string())
-        .describe('The UUIDs of the created products'),
+        .describe('The IDs of the created products'),
     }),
     execute: async ({ productIds }) => {
       const api = await getServerSideAPI()
@@ -423,46 +599,46 @@ based on the conversation history whether you're done.
     },
   })
 
-  let streamStarted = false
-
-  const result = streamText({
-    // Gemini 2.5 Flash for quick & cheap responses, Sonnet 4.5 for better tool usage
-    model: shouldSetupTools ? sonnet : gemini,
-    tools: {
-      redirectToManualSetup,
-      ...(!requiresManualSetup ? { markAsDone } : {}), // only allow done if we can actually create products
-      ...tools,
-    },
-    toolChoice: requiresManualSetup
-      ? { type: 'tool', toolName: 'redirectToManualSetup' }
-      : 'auto',
-    messages: [
-      {
-        role: 'system',
-        content: conversationalSystemPrompt,
-        providerOptions: shouldSetupTools
-          ? {
-              anthropic: {
-                cacheControl: { type: 'ephemeral' },
-              },
-            }
-          : {},
+  try {
+    const result = streamText({
+      model: shouldSetupTools ? sonnet : anthropic('claude-haiku-4-5-20251001'),
+      tools: {
+        redirectToManualSetup,
+        ...(!requiresManualSetup
+          ? { createMeter, createBenefit, createProduct, updateProductBenefits, markAsDone }
+          : {}),
       },
-      ...convertToModelMessages(messages),
-    ],
-    stopWhen: stepCountIs(15),
-    experimental_transform: smoothStream(),
-    onChunk: () => {
-      if (!streamStarted) {
-        streamStarted = true
-      }
-    },
-    onFinish: () => {
-      if (phClient) {
-        phClient.flush()
-      }
-    },
-  })
+      toolChoice: requiresManualSetup
+        ? { type: 'tool', toolName: 'redirectToManualSetup' }
+        : 'auto',
+      messages: [
+        {
+          role: 'system',
+          content: conversationalSystemPrompt,
+          providerOptions: shouldSetupTools
+            ? { anthropic: { cacheControl: { type: 'ephemeral' } } }
+            : {},
+        },
+        ...convertToModelMessages(messages),
+      ],
+      stopWhen: stepCountIs(15),
+      experimental_transform: smoothStream(),
+      onError: (err) => {
+        console.error('[chat] stream model error:', err)
+      },
+      onFinish: () => {
+        if (phClient) {
+          phClient.flush()
+        }
+      },
+    })
 
-  return result.toUIMessageStreamResponse()
+    return result.toUIMessageStreamResponse()
+  } catch (err) {
+    console.error('[onboarding/chat] streamText error:', err)
+    return new Response(
+      JSON.stringify({ error: String(err) }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
 }

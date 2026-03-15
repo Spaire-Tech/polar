@@ -42,7 +42,6 @@ const groupMessageParts = (parts: MessagePart[]): RenderableItem[] => {
         }
         currentGroup.push(part)
       } else {
-        // Non-dynamic-tool part breaks the group
         if (currentGroup.length > 0) {
           result.push({
             type: 'group',
@@ -55,7 +54,6 @@ const groupMessageParts = (parts: MessagePart[]): RenderableItem[] => {
       }
     })
 
-  // Don't forget the last group if we ended with dynamic-tool parts
   if (currentGroup.length > 0) {
     result.push({
       type: 'group',
@@ -82,7 +80,7 @@ export const AssistantStep = ({
 
   const conversationId = useMemo(() => nanoid(), [])
 
-  const { messages, sendMessage, status } = useChat({
+  const { messages, sendMessage, status, error } = useChat({
     transport: new DefaultChatTransport({
       api: `/dashboard/${organization.slug}/onboarding/assistant/chat`,
       credentials: 'include',
@@ -298,6 +296,12 @@ export const AssistantStep = ({
               </div>
             ))}
             <div ref={messagesEndRef} className="-mt-6" />
+          </div>
+        )}
+
+        {error && (
+          <div className="dark:border-spaire-700 border-t border-gray-200 px-6 py-3 text-xs text-red-500">
+            {error.message}
           </div>
         )}
 

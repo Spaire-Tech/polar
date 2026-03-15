@@ -19,7 +19,7 @@ from polar.enums import (
     SubscriptionRecurringInterval,
     TaxProcessor,
 )
-from polar.exceptions import PolarRequestValidationError
+from polar.exceptions import SpaireRequestValidationError
 from polar.held_balance.service import held_balance as held_balance_service
 from polar.integrations.stripe.service import StripeService
 from polar.kit.address import (
@@ -461,7 +461,7 @@ class TestUpdate:
             billing_address=Address.model_validate(set_address),
         )
 
-        with pytest.raises(PolarRequestValidationError):
+        with pytest.raises(SpaireRequestValidationError):
             await order_service.update(
                 session,
                 order,

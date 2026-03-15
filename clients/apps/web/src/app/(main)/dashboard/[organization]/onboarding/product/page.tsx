@@ -1,9 +1,5 @@
-import { redirect } from 'next/navigation'
+import ProductPage from './ProductPage'
 
-export default function Page({
-  params,
-}: {
-  params: { organization: string }
-}) {
-  redirect(`/dashboard/${params.organization}/onboarding/integrate`)
+export default function Page() {
+  return <ProductPage isAssistantEnabled={true} />
 }

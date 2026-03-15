@@ -10,7 +10,7 @@ from polar.auth.models import AuthSubject, Organization, User
 from polar.config import settings
 from polar.customer.repository import CustomerRepository
 from polar.enums import TokenType
-from polar.exceptions import PolarRequestValidationError
+from polar.exceptions import SpaireRequestValidationError
 from polar.kit.crypto import generate_token_hash_pair, get_token_hash
 from polar.kit.services import ResourceServiceReader
 from polar.kit.utils import utc_now
@@ -55,7 +55,7 @@ class CustomerSessionService(ResourceServiceReader[CustomerSession]):
         customer = await repository.get_one_or_none(statement)
 
         if customer is None:
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "loc": ("body", id_field),
@@ -74,7 +74,7 @@ class CustomerSessionService(ResourceServiceReader[CustomerSession]):
                 session, customer.id
             )
             if owner_member is None:
-                raise PolarRequestValidationError(
+                raise SpaireRequestValidationError(
                     [
                         {
                             "loc": ("body", id_field),

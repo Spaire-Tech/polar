@@ -4,7 +4,7 @@ import structlog
 from fastapi import Depends
 
 from polar.auth.models import is_member
-from polar.exceptions import NotPermitted, PolarRequestValidationError, ResourceNotFound
+from polar.exceptions import NotPermitted, SpaireRequestValidationError, ResourceNotFound
 from polar.member.service import member_service
 from polar.models.customer import CustomerType
 from polar.models.member import Member, MemberRole
@@ -99,7 +99,7 @@ async def add_member(
 
     # Prevent adding a new owner - there must be exactly one
     if member_create.role == MemberRole.owner:
-        raise PolarRequestValidationError(
+        raise SpaireRequestValidationError(
             [
                 {
                     "type": "value_error",
@@ -161,7 +161,7 @@ async def update_member(
 
     # Prevent self-modification
     if member.id == actor_member.id:
-        raise PolarRequestValidationError(
+        raise SpaireRequestValidationError(
             [
                 {
                     "type": "value_error",
@@ -214,7 +214,7 @@ async def remove_member(
 
     # Prevent self-removal
     if member.id == actor_member.id:
-        raise PolarRequestValidationError(
+        raise SpaireRequestValidationError(
             [
                 {
                     "type": "value_error",

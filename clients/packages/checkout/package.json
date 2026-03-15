@@ -50,6 +50,7 @@
     "access": "public"
   },
   "dependencies": {
+    "@polar-sh/i18n": "workspace:^",
     "@spaire/currency": "workspace:^",
     "@spaire/sdk": "^0.45.1",
     "@spaire/ui": "workspace:^",

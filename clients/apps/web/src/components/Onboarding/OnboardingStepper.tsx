@@ -18,9 +18,10 @@ const defaultSteps: OnboardingStep[] = [
     description: 'Set up your workspace',
   },
   {
-    id: 'integrate',
-    label: 'Get Started',
-    description: 'Access your dashboard',
+    id: 'product',
+    label: 'Your First Product',
+    description: 'Launch something to sell',
+    optional: true,
   },
 ]
 

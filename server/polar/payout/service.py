@@ -10,7 +10,7 @@ from polar.auth.models import AuthSubject, User
 from polar.config import settings
 from polar.enums import AccountType
 from polar.eventstream.service import publish as eventstream_publish
-from polar.exceptions import PolarError, PolarRequestValidationError
+from polar.exceptions import PolarError, SpaireRequestValidationError
 from polar.integrations.stripe.service import stripe as stripe_service
 from polar.integrations.stripe.utils import get_expandable_id
 from polar.invoice.service import invoice as invoice_service
@@ -419,7 +419,7 @@ class PayoutService:
                 account.id, payout_generate_invoice.invoice_number
             )
             if existing_payout is not None and existing_payout.id != payout.id:
-                raise PolarRequestValidationError(
+                raise SpaireRequestValidationError(
                     [
                         {
                             "type": "value_error",

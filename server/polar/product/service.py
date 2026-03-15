@@ -13,7 +13,7 @@ from polar.checkout_link.repository import CheckoutLinkRepository
 from polar.custom_field.service import custom_field as custom_field_service
 from polar.enums import SubscriptionRecurringInterval
 from polar.exceptions import (
-    PolarRequestValidationError,
+    SpaireRequestValidationError,
     ValidationError,
 )
 from polar.file.service import file as file_service
@@ -235,7 +235,7 @@ class ProductService:
             )
 
         if errors:
-            raise PolarRequestValidationError(errors)
+            raise SpaireRequestValidationError(errors)
 
         await session.flush()
 
@@ -375,7 +375,7 @@ class ProductService:
                 errors.extend(attached_custom_fields_errors)
 
         if errors:
-            raise PolarRequestValidationError(errors)
+            raise SpaireRequestValidationError(errors)
 
         if product.is_archived and update_schema.is_archived is False:
             product = await self._unarchive(product)
@@ -428,7 +428,7 @@ class ProductService:
         for order, benefit_id in enumerate(benefits):
             benefit = await benefit_service.get(session, auth_subject, benefit_id)
             if benefit is None:
-                raise PolarRequestValidationError(
+                raise SpaireRequestValidationError(
                     [
                         {
                             "type": "value_error",
@@ -439,7 +439,7 @@ class ProductService:
                     ]
                 )
             if not benefit.selectable and benefit not in previous_benefits:
-                raise PolarRequestValidationError(
+                raise SpaireRequestValidationError(
                     [
                         {
                             "type": "value_error",
@@ -465,7 +465,7 @@ class ProductService:
 
         for deleted_benefit in deleted_benefits:
             if not deleted_benefit.selectable:
-                raise PolarRequestValidationError(
+                raise SpaireRequestValidationError(
                     [
                         {
                             "type": "value_error",

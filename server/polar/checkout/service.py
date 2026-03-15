@@ -42,7 +42,7 @@ from polar.exceptions import (
     NotPermitted,
     PaymentNotReady,
     PolarError,
-    PolarRequestValidationError,
+    SpaireRequestValidationError,
     ResourceNotFound,
     ValidationError,
 )
@@ -340,7 +340,7 @@ class CheckoutService:
                 price = price_set.get_default_price()
                 currency = price_set.currency
             except NoPricesForCurrencies as e:
-                raise PolarRequestValidationError(
+                raise SpaireRequestValidationError(
                     [
                         {
                             "type": "value_error",
@@ -371,7 +371,7 @@ class CheckoutService:
         customer_tax_id: TaxID | None = None
         if checkout_create.customer_tax_id is not None:
             if checkout_create.customer_billing_address is None:
-                raise PolarRequestValidationError(
+                raise SpaireRequestValidationError(
                     [
                         {
                             "type": "missing",
@@ -387,7 +387,7 @@ class CheckoutService:
                     checkout_create.customer_billing_address.country,
                 )
             except InvalidTaxID as e:
-                raise PolarRequestValidationError(
+                raise SpaireRequestValidationError(
                     [
                         {
                             "type": "value_error",
@@ -406,7 +406,7 @@ class CheckoutService:
                 checkout_create.seats = minimum_seats
             self._validate_seat_limits(price, checkout_create.seats)
         elif checkout_create.seats is not None:
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "type": "value_error",
@@ -431,7 +431,7 @@ class CheckoutService:
                 checkout_create.customer_id, product.organization_id
             )
             if customer is None:
-                raise PolarRequestValidationError(
+                raise SpaireRequestValidationError(
                     [
                         {
                             "type": "value_error",
@@ -536,6 +536,10 @@ class CheckoutService:
                         getattr(checkout.customer, attribute),
                     )
 
+            # Copy locale from customer if not set on checkout
+            if checkout.locale is None and checkout.customer.locale is not None:
+                checkout.locale = checkout.customer.locale
+
             # Auto-select business customer if they have both a billing name (without the fallback to customer.name)
             # and a billing address since that means they've previously checked the is_business_customer checkbox
             # Only auto-select if is_business_customer wasn't explicitly set in the request
@@ -600,7 +604,7 @@ class CheckoutService:
         )
 
         if product is None:
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "type": "value_error",
@@ -612,7 +616,7 @@ class CheckoutService:
             )
 
         if product.is_archived:
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "type": "value_error",
@@ -624,7 +628,7 @@ class CheckoutService:
             )
 
         if product.visibility == ProductVisibility.draft:
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "type": "value_error",
@@ -636,7 +640,7 @@ class CheckoutService:
             )
 
         if product.organization.blocked_at is not None:
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "type": "value_error",
@@ -655,7 +659,7 @@ class CheckoutService:
         try:
             currency_prices = PriceSet.from_product(product, *currencies)
         except NoPricesForCurrencies as e:
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "type": "value_error",
@@ -677,7 +681,7 @@ class CheckoutService:
                 checkout_create.seats = minimum_seats
             self._validate_seat_limits(price, checkout_create.seats)
         elif checkout_create.seats is not None:
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "type": "value_error",
@@ -769,7 +773,7 @@ class CheckoutService:
                 products.append(product)
 
         if len(products) == 0:
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "type": "value_error",
@@ -801,7 +805,7 @@ class CheckoutService:
         try:
             currency_prices = PriceSet.from_product(product, *currencies)
         except NoPricesForCurrencies as e:
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "type": "value_error",
@@ -829,7 +833,7 @@ class CheckoutService:
                     query_amount_int = int(float(query_amount_str))
                     self._validate_custom_price_amount(price, query_amount_int)
                     valid_query_amount = query_amount_int
-                except (ValueError, TypeError, PolarRequestValidationError):
+                except (ValueError, TypeError, SpaireRequestValidationError):
                     pass
 
             amount = valid_query_amount or price.preset_amount or price.minimum_amount
@@ -850,7 +854,7 @@ class CheckoutService:
                     discount_id=checkout_link.discount_id,
                 )
             # If the discount is not valid, just ignore it
-            except PolarRequestValidationError:
+            except SpaireRequestValidationError:
                 pass
 
         checkout = Checkout(
@@ -889,6 +893,10 @@ class CheckoutService:
             if customer_name is not None and isinstance(customer_name, str):
                 checkout.customer_name = customer_name
 
+            locale = query_prefill.get("locale")
+            if locale is not None and isinstance(locale, str):
+                checkout.locale = locale
+
             discount_code = query_prefill.get("discount_code")
             if discount_code is not None and isinstance(discount_code, str):
                 try:
@@ -901,7 +909,7 @@ class CheckoutService:
                         discount_code=discount_code,
                     )
                     checkout.discount = discount
-                except PolarRequestValidationError:
+                except SpaireRequestValidationError:
                     pass
 
             custom_field_data_value = query_prefill.get("custom_field_data")
@@ -929,7 +937,7 @@ class CheckoutService:
                             **(checkout.custom_field_data or {}),
                             **validated_data,
                         }
-                    except PolarRequestValidationError:
+                    except SpaireRequestValidationError:
                         # If validation fails, just ignore the custom field data
                         pass
 
@@ -1002,7 +1010,7 @@ class CheckoutService:
                             session, auth_subject, checkout, checkout_confirm
                         )
                 except DiscountNotRedeemableError as e:
-                    raise PolarRequestValidationError(
+                    raise SpaireRequestValidationError(
                         [
                             {
                                 "type": "value_error",
@@ -1100,7 +1108,7 @@ class CheckoutService:
             )
 
         if len(errors) > 0:
-            raise PolarRequestValidationError(errors)
+            raise SpaireRequestValidationError(errors)
 
         if checkout.payment_processor == PaymentProcessor.stripe:
             async with self._create_or_update_customer(
@@ -1427,7 +1435,7 @@ class CheckoutService:
         )
 
         if price is None:
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "type": "value_error",
@@ -1439,7 +1447,7 @@ class CheckoutService:
             )
 
         if price.is_archived:
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "type": "value_error",
@@ -1452,7 +1460,7 @@ class CheckoutService:
 
         product = price.product
         if product.is_archived:
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "type": "value_error",
@@ -1478,7 +1486,7 @@ class CheckoutService:
         product = await product_service.get(session, auth_subject, product_id)
 
         if product is None:
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "type": "value_error",
@@ -1490,7 +1498,7 @@ class CheckoutService:
             )
 
         if product.is_archived:
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "type": "value_error",
@@ -1502,7 +1510,7 @@ class CheckoutService:
             )
 
         if product.visibility == ProductVisibility.draft:
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "type": "value_error",
@@ -1519,7 +1527,7 @@ class CheckoutService:
         try:
             currency_prices = PriceSet.from_product(product, *currencies)
         except NoPricesForCurrencies as e:
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "type": "value_error",
@@ -1594,7 +1602,7 @@ class CheckoutService:
             )
 
         if len(errors) > 0:
-            raise PolarRequestValidationError(errors)
+            raise SpaireRequestValidationError(errors)
 
         return products
 
@@ -1645,7 +1653,7 @@ class CheckoutService:
             validated_prices[product] = validated_product_prices
 
         if len(errors) > 0:
-            raise PolarRequestValidationError(errors)
+            raise SpaireRequestValidationError(errors)
 
         return validated_prices
 
@@ -1687,7 +1695,7 @@ class CheckoutService:
         loc_field = "discount_id" if discount_id is not None else "discount_code"
 
         if not any(is_discount_applicable(price) for price in product.prices):
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "type": "value_error",
@@ -1713,7 +1721,7 @@ class CheckoutService:
             )
 
         if discount is None:
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "type": "value_error",
@@ -1732,7 +1740,7 @@ class CheckoutService:
             )
             and discount.duration == DiscountDuration.repeating
         ):
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "type": "value_error",
@@ -1759,7 +1767,7 @@ class CheckoutService:
         )
 
         if subscription is None:
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "type": "value_error",
@@ -1772,7 +1780,7 @@ class CheckoutService:
 
         for price in subscription.prices:
             if price.amount_type != ProductPriceAmountType.free:
-                raise PolarRequestValidationError(
+                raise SpaireRequestValidationError(
                     [
                         {
                             "type": "value_error",
@@ -1845,7 +1853,7 @@ class CheckoutService:
                     checkout.product, updated_currency
                 )
             except NoPricesForCurrencies as e:
-                raise PolarRequestValidationError(
+                raise SpaireRequestValidationError(
                     [
                         {
                             "type": "value_error",
@@ -1867,7 +1875,7 @@ class CheckoutService:
             )
 
             if product is None:
-                raise PolarRequestValidationError(
+                raise SpaireRequestValidationError(
                     [
                         {
                             "type": "value_error",
@@ -1879,7 +1887,7 @@ class CheckoutService:
                 )
 
             if product.is_archived:
-                raise PolarRequestValidationError(
+                raise SpaireRequestValidationError(
                     [
                         {
                             "type": "value_error",
@@ -1900,7 +1908,7 @@ class CheckoutService:
                         if p.id == checkout_update.product_price_id
                     )
                 except StopIteration as e:
-                    raise PolarRequestValidationError(
+                    raise SpaireRequestValidationError(
                         [
                             {
                                 "type": "value_error",
@@ -1919,7 +1927,7 @@ class CheckoutService:
                         )
                         checkout.currency = updated_currency
                     except NoPricesForCurrencies:
-                        raise PolarRequestValidationError(
+                        raise SpaireRequestValidationError(
                             [
                                 {
                                     "type": "value_error",
@@ -1974,7 +1982,7 @@ class CheckoutService:
             )
         elif checkout_update.seats is not None:
             # Seats provided for non-seat-based pricing
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "type": "value_error",
@@ -2040,7 +2048,7 @@ class CheckoutService:
                     or checkout.customer_billing_address
                 )
                 if customer_billing_address is None:
-                    raise PolarRequestValidationError(
+                    raise SpaireRequestValidationError(
                         [
                             {
                                 "type": "missing",
@@ -2055,7 +2063,7 @@ class CheckoutService:
                         customer_tax_id_number, customer_billing_address.country
                     )
                 except InvalidTaxID as e:
-                    raise PolarRequestValidationError(
+                    raise SpaireRequestValidationError(
                         [
                             {
                                 "type": "value_error",
@@ -2323,7 +2331,7 @@ class CheckoutService:
                 return
 
             if 0 < amount < MINIMUM_PRICE_AMOUNT:
-                raise PolarRequestValidationError(
+                raise SpaireRequestValidationError(
                     [
                         {
                             "type": "invalid_amount",
@@ -2336,7 +2344,7 @@ class CheckoutService:
                 )
         else:
             if amount < price.minimum_amount:
-                raise PolarRequestValidationError(
+                raise SpaireRequestValidationError(
                     [
                         {
                             "type": "greater_than_equal",
@@ -2349,7 +2357,7 @@ class CheckoutService:
                 )
 
         if price.maximum_amount is not None and amount > price.maximum_amount:
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "type": "less_than_equal",
@@ -2375,7 +2383,7 @@ class CheckoutService:
         maximum_seats = price.get_maximum_seats()
 
         if seats < minimum_seats:
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "type": "greater_than_equal",
@@ -2388,7 +2396,7 @@ class CheckoutService:
             )
 
         if maximum_seats is not None and seats > maximum_seats:
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "type": "less_than_equal",
@@ -2483,6 +2491,8 @@ class CheckoutService:
             customer.billing_address = checkout.customer_billing_address
         if checkout.customer_tax_id is not None:
             customer.tax_id = checkout.customer_tax_id
+        if checkout.locale is not None:
+            customer.locale = checkout.locale
 
         customer.stripe_customer_id = stripe_customer_id
         customer.user_metadata = {

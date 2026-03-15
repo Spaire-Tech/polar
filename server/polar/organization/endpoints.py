@@ -13,7 +13,7 @@ from polar.email.schemas import OrganizationInviteEmail, OrganizationInviteProps
 from polar.email.sender import enqueue_email
 from polar.exceptions import (
     NotPermitted,
-    PolarRequestValidationError,
+    SpaireRequestValidationError,
     ResourceNotFound,
     Unauthorized,
 )
@@ -579,7 +579,7 @@ async def submit_appeal(
             appeal_submitted_at=result.appeal_submitted_at,  # type: ignore[arg-type]
         )
     except ValueError as e:
-        raise PolarRequestValidationError(
+        raise SpaireRequestValidationError(
             [
                 {
                     "type": "value_error",

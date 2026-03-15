@@ -382,6 +382,10 @@ class OrganizationUpdate(Schema):
         None,
         description="Additional, private, business details Spaire needs about active organizations for compliance (KYC).",
     )
+    default_presentment_currency: PresentmentCurrency | None = Field(
+        None,
+        description="Default presentment currency for products and checkout.",
+    )
 
     feature_settings: OrganizationFeatureSettings | None = None
     subscription_settings: OrganizationSubscriptionSettings | None = None

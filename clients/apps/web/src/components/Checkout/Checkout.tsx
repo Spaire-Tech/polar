@@ -104,9 +104,10 @@ const TruncatedDescription = ({
 export interface CheckoutProps {
   embed?: boolean
   theme?: 'light' | 'dark'
+  locale?: string
 }
 
-const Checkout = ({ embed: _embed, theme: _theme }: CheckoutProps) => {
+const Checkout = ({ embed: _embed, theme: _theme, locale: localeProp }: CheckoutProps) => {
   const { client } = useCheckout()
   const {
     checkout,
@@ -291,6 +292,7 @@ const Checkout = ({ embed: _embed, theme: _theme }: CheckoutProps) => {
           themePreset={themePreset}
           disabled={shouldBlockCheckout}
           isUpdatePending={isUpdatePending}
+          locale={localeProp ?? checkout.locale ?? undefined}
         />
       </ShadowBox>
     )
@@ -453,6 +455,7 @@ const Checkout = ({ embed: _embed, theme: _theme }: CheckoutProps) => {
             themePreset={themePreset}
             disabled={shouldBlockCheckout}
             isUpdatePending={isUpdatePending}
+            locale={localeProp ?? checkout.locale ?? undefined}
             hidePricingBreakdown
           />
         </div>

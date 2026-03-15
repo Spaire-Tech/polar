@@ -9,7 +9,7 @@ from sqlalchemy.orm import joinedload
 
 from polar.auth.models import AuthSubject, Organization, User
 from polar.customer.repository import CustomerRepository
-from polar.exceptions import NotPermitted, PolarRequestValidationError, ResourceNotFound
+from polar.exceptions import NotPermitted, SpaireRequestValidationError, ResourceNotFound
 from polar.kit.pagination import PaginationParams
 from polar.kit.sorting import Sorting
 from polar.models.customer import Customer, CustomerType
@@ -95,7 +95,7 @@ class MemberService:
             Deleted Member
 
         Raises:
-            PolarRequestValidationError: If trying to delete the only owner
+            SpaireRequestValidationError: If trying to delete the only owner
         """
         repository = MemberRepository.from_session(session)
 
@@ -104,7 +104,7 @@ class MemberService:
             members = await repository.list_by_customer(session, member.customer_id)
             owner_count = sum(1 for m in members if m.role == MemberRole.owner)
             if owner_count <= 1:
-                raise PolarRequestValidationError(
+                raise SpaireRequestValidationError(
                     [
                         {
                             "type": "value_error",
@@ -527,7 +527,7 @@ class MemberService:
                     caller_member is not None and caller_member.role == MemberRole.owner
                 )
                 if not caller_is_owner and not allow_ownership_transfer:
-                    raise PolarRequestValidationError(
+                    raise SpaireRequestValidationError(
                         [
                             {
                                 "type": "value_error",
@@ -570,7 +570,7 @@ class MemberService:
 
             # Prevent removing the last owner
             if is_losing_owner_role and owner_count <= 1:
-                raise PolarRequestValidationError(
+                raise SpaireRequestValidationError(
                     [
                         {
                             "type": "value_error",

@@ -4,13 +4,20 @@ import revalidate from '@/app/actions'
 import { useAuth, useOAuthAccounts, useOnboardingTracking } from '@/hooks'
 import { inferSignupMethod } from '@/hooks/onboarding'
 import { usePostHog } from '@/hooks/posthog'
-import { useCreateOrganization } from '@/hooks/queries'
+import { useCreateOrganization, useUpdateOrganization } from '@/hooks/queries'
 import { setValidationErrors } from '@/utils/api/errors'
 import { CONFIG } from '@/utils/config'
 import { FormControl } from '@mui/material'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import Input from '@spaire/ui/components/atoms/Input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@spaire/ui/components/atoms/Select'
 import { Checkbox } from '@spaire/ui/components/ui/checkbox'
 import {
   Form,
@@ -25,17 +32,59 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import slugify from 'slugify'
+import { twMerge } from 'tailwind-merge'
 import { FadeUp } from '../Animated/FadeUp'
 import LogoIcon from '../Brand/LogoIcon'
 import { getStatusRedirect } from '../Toast/utils'
 import SupportedUseCases from './components/SupportedUseCases'
 import { OnboardingStepper } from './OnboardingStepper'
-import { twMerge } from 'tailwind-merge'
+
+type PresentmentCurrency = schemas['PresentmentCurrency']
+
+const CURRENCIES: { code: PresentmentCurrency; flag: string }[] = [
+  { code: 'usd', flag: '🇺🇸' },
+  { code: 'eur', flag: '🇪🇺' },
+  { code: 'gbp', flag: '🇬🇧' },
+  { code: 'cad', flag: '🇨🇦' },
+  { code: 'aud', flag: '🇦🇺' },
+  { code: 'chf', flag: '🇨🇭' },
+  { code: 'jpy', flag: '🇯🇵' },
+  { code: 'sek', flag: '🇸🇪' },
+  { code: 'inr', flag: '🇮🇳' },
+  { code: 'brl', flag: '🇧🇷' },
+  { code: 'aed', flag: '🇦🇪' },
+  { code: 'ars', flag: '🇦🇷' },
+  { code: 'clp', flag: '🇨🇱' },
+  { code: 'cny', flag: '🇨🇳' },
+  { code: 'cop', flag: '🇨🇴' },
+  { code: 'czk', flag: '🇨🇿' },
+  { code: 'dkk', flag: '🇩🇰' },
+  { code: 'hkd', flag: '🇭🇰' },
+  { code: 'huf', flag: '🇭🇺' },
+  { code: 'idr', flag: '🇮🇩' },
+  { code: 'ils', flag: '🇮🇱' },
+  { code: 'krw', flag: '🇰🇷' },
+  { code: 'mxn', flag: '🇲🇽' },
+  { code: 'myr', flag: '🇲🇾' },
+  { code: 'nok', flag: '🇳🇴' },
+  { code: 'nzd', flag: '🇳🇿' },
+  { code: 'pen', flag: '🇵🇪' },
+  { code: 'php', flag: '🇵🇭' },
+  { code: 'pln', flag: '🇵🇱' },
+  { code: 'ron', flag: '🇷🇴' },
+  { code: 'sar', flag: '🇸🇦' },
+  { code: 'sgd', flag: '🇸🇬' },
+  { code: 'thb', flag: '🇹🇭' },
+  { code: 'try', flag: '🇹🇷' },
+  { code: 'twd', flag: '🇹🇼' },
+  { code: 'zar', flag: '🇿🇦' },
+]
 
 const businessTypes = [
   { id: 'early-stage', label: 'Early-Stage Startup', description: 'Pre-seed to seed, finding product-market fit' },
   { id: 'venture-backed', label: 'Venture-Backed', description: 'Series A+ with an established product' },
   { id: 'bootstrapped', label: 'Bootstrapped / Profitable', description: 'Self-funded and growing organically' },
+  { id: 'indie', label: 'Indie Hacker / Solo Creator', description: 'Building and shipping independently' },
 ] as const
 
 const audienceTypes = [
@@ -103,10 +152,12 @@ export const OrganizationStep = ({
     formState: { errors },
   } = form
   const createOrganization = useCreateOrganization()
+  const updateOrganization = useUpdateOrganization()
   const [editedSlug, setEditedSlug] = useState(false)
   const [businessType, setBusinessType] = useState<string | null>(null)
   const [audienceType, setAudienceType] = useState<string | null>(null)
   const [referralSource, setReferralSource] = useState<string | null>(null)
+  const [currency, setCurrency] = useState<PresentmentCurrency>('usd')
 
   const router = useRouter()
 
@@ -186,6 +237,19 @@ export const OrganizationStep = ({
     })
     setUserOrganizations((orgs) => [...orgs, organization])
 
+    // Always persist the selected currency so product defaults are correct
+    if (!hasExistingOrg) {
+      await updateOrganization.mutateAsync({
+        id: organization.id,
+        body: { default_presentment_currency: currency },
+        userId: currentUser?.id,
+      })
+      // Explicitly revalidate so the layout re-fetches the org with the new currency
+      // before the router push renders the next page
+      await revalidate(`organizations:${organization.id}`)
+      await revalidate(`organizations:${organization.slug}`)
+    }
+
     if (!hasExistingOrg) {
       await trackStepCompleted('org', organization.id)
       updateSurveyAnswers({
@@ -195,18 +259,17 @@ export const OrganizationStep = ({
       })
     }
 
-    let queryParams = ''
     if (hasExistingOrg) {
-      queryParams = '?existing_org=true'
+      router.push(
+        getStatusRedirect(
+          `/dashboard/${organization.slug}`,
+          'Organization created',
+          'Welcome to your new workspace',
+        ),
+      )
+    } else {
+      router.push(`/dashboard/${organization.slug}/onboarding/product`)
     }
-
-    router.push(
-      getStatusRedirect(
-        `/dashboard/${organization.slug}`,
-        'Organization created',
-        'Welcome to your dashboard',
-      ),
-    )
   }
 
   return (
@@ -392,6 +455,35 @@ export const OrganizationStep = ({
                     />
                   </div>
                 </FadeUp>
+
+                {/* Currency selector — only for new orgs */}
+                {!hasExistingOrg && (
+                  <FadeUp className="dark:bg-spaire-900 flex flex-col gap-y-5 rounded-2xl border border-gray-200 bg-white p-6 dark:border-none">
+                    <div className="flex flex-col gap-y-1">
+                      <Label className="text-sm font-medium">Default payment currency</Label>
+                      <p className="dark:text-spaire-500 text-xs text-gray-400">
+                        Used for your products by default. You can change this later in settings.
+                      </p>
+                    </div>
+                    <Select value={currency} onValueChange={(v) => setCurrency(v as PresentmentCurrency)}>
+                      <SelectTrigger>
+                        <SelectValue>
+                          {(() => {
+                            const c = CURRENCIES.find((c) => c.code === currency)
+                            return c ? `${c.flag} ${c.code.toUpperCase()}` : currency.toUpperCase()
+                          })()}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CURRENCIES.map((c) => (
+                          <SelectItem key={c.code} value={c.code}>
+                            {c.flag} {c.code.toUpperCase()}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FadeUp>
+                )}
 
                 <FadeUp className="dark:bg-spaire-900 flex flex-col gap-y-4 rounded-2xl border border-gray-200 bg-white p-6 dark:border-none">
                   <SupportedUseCases />
