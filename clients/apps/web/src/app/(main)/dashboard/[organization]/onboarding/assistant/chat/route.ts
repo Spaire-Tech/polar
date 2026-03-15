@@ -218,6 +218,9 @@ export async function POST(req: Request) {
     )
     .join('\n---\n')
 
+  console.log('[chat] anthropic key:', process.env.SPAIRE_ANTHROPIC_API_KEY ? 'set' : 'MISSING')
+  console.log('[chat] google key:', process.env.SPAIRE_GOOGLE_GENERATIVE_AI_API_KEY ? 'set' : 'MISSING')
+
   const anthropicClient = createAnthropic({
     apiKey: process.env.SPAIRE_ANTHROPIC_API_KEY,
   })
@@ -638,6 +641,9 @@ based on the conversation history whether you're done.
       ],
       stopWhen: stepCountIs(15),
       experimental_transform: smoothStream(),
+      onError: (err) => {
+        console.error('[chat] stream model error:', err)
+      },
       onFinish: () => {
         if (phClient) {
           phClient.flush()
