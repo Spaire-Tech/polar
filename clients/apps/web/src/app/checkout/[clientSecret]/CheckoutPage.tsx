@@ -7,15 +7,17 @@ import { useCheckout } from '@spaire/checkout/providers'
 const ClientPage = ({
   embed,
   theme,
+  locale,
 }: {
   embed: boolean
   theme?: 'light' | 'dark'
+  locale?: string
 }) => {
   const { checkout } = useCheckout()
 
   return (
     <CheckoutLayout checkout={checkout} embed={embed} theme={theme}>
-      <Checkout embed={embed} theme={theme} />
+      <Checkout embed={embed} theme={theme} locale={locale} />
     </CheckoutLayout>
   )
 }
