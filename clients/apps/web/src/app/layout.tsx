@@ -114,7 +114,7 @@ export default async function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`antialiased ${GeistSans.variable} ${GeistMono.variable}`}
+      className={`dark antialiased ${GeistSans.variable} ${GeistMono.variable}`}
     >
       <head>
         {CONFIG.ENVIRONMENT === 'development' ? (
