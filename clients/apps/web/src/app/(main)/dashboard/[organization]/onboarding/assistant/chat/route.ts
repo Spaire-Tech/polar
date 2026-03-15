@@ -609,7 +609,7 @@ based on the conversation history whether you're done.
 
   try {
     const result = streamText({
-      model: shouldSetupTools ? sonnet : gemini,
+      model: shouldSetupTools ? sonnet : anthropic('claude-haiku-4-5-20251001'),
       tools: {
         redirectToManualSetup,
         ...(!requiresManualSetup
