@@ -2,7 +2,8 @@
 
 import { getServerSideAPI } from '@/utils/client/serverside'
 import { getAuthenticatedUser } from '@/utils/user'
-import { anthropic } from '@ai-sdk/anthropic'
+import { createAnthropic } from '@ai-sdk/anthropic'
+import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { withTracing } from '@posthog/ai'
 import {
   convertToModelMessages,
@@ -217,24 +218,39 @@ export async function POST(req: Request) {
     )
     .join('\n---\n')
 
-  const haiku = phClient
-    ? withTracing(anthropic('claude-haiku-4-5-20251001'), phClient, {
+  const anthropicClient = createAnthropic({
+    apiKey: process.env.SPAIRE_ANTHROPIC_API_KEY,
+  })
+  const googleClient = createGoogleGenerativeAI({
+    apiKey: process.env.SPAIRE_GOOGLE_GENERATIVE_AI_API_KEY,
+  })
+
+  const geminiLite = phClient
+    ? withTracing(googleClient('gemini-2.5-flash-lite'), phClient, {
         posthogDistinctId: user.id,
         posthogTraceId: conversationId,
         posthogGroups: { organization: organizationId },
       })
-    : anthropic('claude-haiku-4-5-20251001')
+    : googleClient('gemini-2.5-flash-lite')
+
+  const gemini = phClient
+    ? withTracing(googleClient('gemini-2.5-flash'), phClient, {
+        posthogDistinctId: user.id,
+        posthogTraceId: conversationId,
+        posthogGroups: { organization: organizationId },
+      })
+    : googleClient('gemini-2.5-flash')
 
   const sonnet = phClient
-    ? withTracing(anthropic('claude-sonnet-4-5'), phClient, {
+    ? withTracing(anthropicClient('claude-sonnet-4-5'), phClient, {
         posthogDistinctId: user.id,
         posthogTraceId: conversationId,
         posthogGroups: { organization: organizationId },
       })
-    : anthropic('claude-sonnet-4-5')
+    : anthropicClient('claude-sonnet-4-5')
 
   const router = await generateObject({
-    model: haiku,
+    model: geminiLite,
     output: 'object',
     schema: z.object({
       isRelevant: z
@@ -592,7 +608,7 @@ based on the conversation history whether you're done.
   })
 
   const result = streamText({
-    model: shouldSetupTools ? sonnet : haiku,
+    model: shouldSetupTools ? sonnet : gemini,
     tools: {
       redirectToManualSetup,
       ...(!requiresManualSetup
