@@ -17,6 +17,7 @@ import type {
   StripeElements,
   StripeError,
 } from '@stripe/stripe-js'
+import { DEFAULT_LOCALE, useTranslations, type AcceptedLocale } from '@polar-sh/i18n'
 import { createContext, useCallback, useContext, useState } from 'react'
 import type { UseFormReturn } from 'react-hook-form'
 import { useForm } from 'react-hook-form'
@@ -46,8 +47,12 @@ export interface CheckoutFormContextProps {
 // @ts-ignore
 export const CheckoutFormContext = createContext<CheckoutFormContextProps>(stub)
 
-export const CheckoutFormProvider = ({ children }: React.PropsWithChildren) => {
+export const CheckoutFormProvider = ({
+  children,
+}: React.PropsWithChildren) => {
   const { checkout, update: updateOuter, confirm: confirmOuter } = useCheckout()
+  const locale = (checkout.locale || DEFAULT_LOCALE) as AcceptedLocale
+  const t = useTranslations(locale)
   const [loading, setLoading] = useState(false)
   const [loadingLabel, setLoadingLabel] = useState<string | undefined>()
   const [isUpdatePending, setIsUpdatePending] = useState(false)
@@ -129,7 +134,7 @@ export const CheckoutFormProvider = ({ children }: React.PropsWithChildren) => {
       setLoading(true)
 
       if (!checkout.isPaymentFormRequired) {
-        setLoadingLabel('Processing order...')
+        setLoadingLabel(t('checkout.loading.processingOrder'))
         try {
           const checkoutConfirmed = await _confirm(data)
           return checkoutConfirmed
@@ -145,7 +150,7 @@ export const CheckoutFormProvider = ({ children }: React.PropsWithChildren) => {
         throw new Error('Stripe elements not provided')
       }
 
-      setLoadingLabel('Processing payment')
+      setLoadingLabel(t('checkout.loading.processingPayment'))
 
       const { error: submitError } = await elements.submit()
       if (submitError) {
@@ -211,7 +216,7 @@ export const CheckoutFormProvider = ({ children }: React.PropsWithChildren) => {
         throw e
       }
 
-      setLoadingLabel('Payment successful! Getting your products ready...')
+      setLoadingLabel(t('checkout.loading.paymentSuccessful'))
 
       const { intent_status, intent_client_secret } =
         updatedCheckout.paymentProcessorMetadata as Record<string, string>
