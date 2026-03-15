@@ -21746,16 +21746,42 @@ export interface components {
      * @enum {string}
      */
     PresentmentCurrency:
+      | 'aed'
+      | 'ars'
       | 'aud'
       | 'brl'
       | 'cad'
       | 'chf'
+      | 'clp'
+      | 'cny'
+      | 'cop'
+      | 'czk'
+      | 'dkk'
       | 'eur'
-      | 'inr'
       | 'gbp'
+      | 'hkd'
+      | 'huf'
+      | 'idr'
+      | 'ils'
+      | 'inr'
       | 'jpy'
+      | 'krw'
+      | 'mxn'
+      | 'myr'
+      | 'nok'
+      | 'nzd'
+      | 'pen'
+      | 'php'
+      | 'pln'
+      | 'ron'
+      | 'sar'
       | 'sek'
+      | 'sgd'
+      | 'thb'
+      | 'try'
+      | 'twd'
       | 'usd'
+      | 'zar'
     /**
      * Processor
      * @description Supported payment or payout processors, i.e rails for transactions.
@@ -43344,7 +43370,7 @@ export const pledgeStateValues: ReadonlyArray<
 ]
 export const presentmentCurrencyValues: ReadonlyArray<
   FlattenedDeepRequired<components>['schemas']['PresentmentCurrency']
-> = ['aud', 'brl', 'cad', 'chf', 'eur', 'inr', 'gbp', 'jpy', 'sek', 'usd']
+> = ['aed', 'ars', 'aud', 'brl', 'cad', 'chf', 'clp', 'cny', 'cop', 'czk', 'dkk', 'eur', 'gbp', 'hkd', 'huf', 'idr', 'ils', 'inr', 'jpy', 'krw', 'mxn', 'myr', 'nok', 'nzd', 'pen', 'php', 'pln', 'ron', 'sar', 'sek', 'sgd', 'thb', 'try', 'twd', 'usd', 'zar']
 export const processorValues: ReadonlyArray<
   FlattenedDeepRequired<components>['schemas']['Processor']
 > = ['stripe', 'manual']

@@ -7,16 +7,42 @@ from countryinfo import CountryInfo
 
 
 class PresentmentCurrency(StrEnum):
+    aed = "aed"
+    ars = "ars"
     aud = "aud"
     brl = "brl"
     cad = "cad"
     chf = "chf"
+    clp = "clp"
+    cny = "cny"
+    cop = "cop"
+    czk = "czk"
+    dkk = "dkk"
     eur = "eur"
-    inr = "inr"
     gbp = "gbp"
+    hkd = "hkd"
+    huf = "huf"
+    idr = "idr"
+    ils = "ils"
+    inr = "inr"
     jpy = "jpy"
+    krw = "krw"
+    mxn = "mxn"
+    myr = "myr"
+    nok = "nok"
+    nzd = "nzd"
+    pen = "pen"
+    php = "php"
+    pln = "pln"
+    ron = "ron"
+    sar = "sar"
     sek = "sek"
+    sgd = "sgd"
+    thb = "thb"
+    try_ = "try"
+    twd = "twd"
     usd = "usd"
+    zar = "zar"
 
 
 def get_presentment_currency(country: str) -> PresentmentCurrency | None:
@@ -42,18 +68,30 @@ def get_presentment_currency(country: str) -> PresentmentCurrency | None:
         return None
 
 
-_CURRENCY_DECIMAL_FACTORS: dict[str, int] = {
-    "aud": 100,
-    "brl": 100,
-    "cad": 100,
-    "chf": 100,
-    "eur": 100,
-    "inr": 100,
-    "gbp": 100,
-    "jpy": 1,
-    "sek": 100,
-    "usd": 100,
+_ZERO_DECIMAL_CURRENCIES: set[str] = {
+    "bif",
+    "clp",
+    "djf",
+    "gnf",
+    "jpy",
+    "kmf",
+    "krw",
+    "mga",
+    "pyg",
+    "rwf",
+    "ugx",
+    "vnd",
+    "vuv",
+    "xaf",
+    "xof",
+    "xpf",
 }
+
+
+def _get_currency_decimal_factor(currency: PresentmentCurrency | str) -> int:
+    if currency.lower() in _ZERO_DECIMAL_CURRENCIES:
+        return 1
+    return 100
 
 
 def format_currency(
@@ -74,7 +112,7 @@ def format_currency(
         The formatted currency string.
     """
     return _format_currency(
-        amount / _CURRENCY_DECIMAL_FACTORS[currency],
+        amount / _get_currency_decimal_factor(currency),
         currency.upper(),
         locale="en_US",
         decimal_quantization=decimal_quantization,
