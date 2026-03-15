@@ -11,6 +11,13 @@ import { FormControl } from '@mui/material'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import Input from '@spaire/ui/components/atoms/Input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@spaire/ui/components/atoms/Select'
 import { Checkbox } from '@spaire/ui/components/ui/checkbox'
 import {
   Form,
@@ -230,13 +237,17 @@ export const OrganizationStep = ({
     })
     setUserOrganizations((orgs) => [...orgs, organization])
 
-    // Persist the selected currency (default is usd, only patch if different)
-    if (!hasExistingOrg && currency !== 'usd') {
+    // Always persist the selected currency so product defaults are correct
+    if (!hasExistingOrg) {
       await updateOrganization.mutateAsync({
         id: organization.id,
         body: { default_presentment_currency: currency },
         userId: currentUser?.id,
       })
+      // Explicitly revalidate so the layout re-fetches the org with the new currency
+      // before the router push renders the next page
+      await revalidate(`organizations:${organization.id}`)
+      await revalidate(`organizations:${organization.slug}`)
     }
 
     if (!hasExistingOrg) {
@@ -454,24 +465,23 @@ export const OrganizationStep = ({
                         Used for your products by default. You can change this later in settings.
                       </p>
                     </div>
-                    <div className="grid grid-cols-5 gap-2">
-                      {CURRENCIES.map((c) => (
-                        <button
-                          key={c.code}
-                          type="button"
-                          onClick={() => setCurrency(c.code)}
-                          className={twMerge(
-                            'dark:bg-spaire-800 dark:border-spaire-700 flex cursor-pointer flex-col items-center gap-y-1.5 rounded-xl border border-gray-200 bg-gray-50 py-3 text-center transition-all',
-                            currency === c.code
-                              ? 'border-blue-500 ring-1 ring-blue-500 dark:border-blue-500'
-                              : 'hover:border-gray-300 dark:hover:border-spaire-600',
-                          )}
-                        >
-                          <span className="text-lg">{c.flag}</span>
-                          <span className="text-xs font-medium">{c.code.toUpperCase()}</span>
-                        </button>
-                      ))}
-                    </div>
+                    <Select value={currency} onValueChange={(v) => setCurrency(v as PresentmentCurrency)}>
+                      <SelectTrigger>
+                        <SelectValue>
+                          {(() => {
+                            const c = CURRENCIES.find((c) => c.code === currency)
+                            return c ? `${c.flag} ${c.code.toUpperCase()}` : currency.toUpperCase()
+                          })()}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CURRENCIES.map((c) => (
+                          <SelectItem key={c.code} value={c.code}>
+                            {c.flag} {c.code.toUpperCase()}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </FadeUp>
                 )}
 
