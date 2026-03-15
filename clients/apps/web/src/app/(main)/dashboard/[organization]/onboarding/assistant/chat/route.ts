@@ -3,7 +3,6 @@
 import { getServerSideAPI } from '@/utils/client/serverside'
 import { getAuthenticatedUser } from '@/utils/user'
 import { anthropic } from '@ai-sdk/anthropic'
-import { google } from '@ai-sdk/google'
 import { withTracing } from '@posthog/ai'
 import {
   convertToModelMessages,
@@ -218,21 +217,13 @@ export async function POST(req: Request) {
     )
     .join('\n---\n')
 
-  const geminiLite = phClient
-    ? withTracing(google('gemini-2.5-flash-lite'), phClient, {
+  const haiku = phClient
+    ? withTracing(anthropic('claude-haiku-4-5-20251001'), phClient, {
         posthogDistinctId: user.id,
         posthogTraceId: conversationId,
         posthogGroups: { organization: organizationId },
       })
-    : google('gemini-2.5-flash-lite')
-
-  const gemini = phClient
-    ? withTracing(google('gemini-2.5-flash'), phClient, {
-        posthogDistinctId: user.id,
-        posthogTraceId: conversationId,
-        posthogGroups: { organization: organizationId },
-      })
-    : google('gemini-2.5-flash')
+    : anthropic('claude-haiku-4-5-20251001')
 
   const sonnet = phClient
     ? withTracing(anthropic('claude-sonnet-4-5'), phClient, {
@@ -243,7 +234,7 @@ export async function POST(req: Request) {
     : anthropic('claude-sonnet-4-5')
 
   const router = await generateObject({
-    model: geminiLite,
+    model: haiku,
     output: 'object',
     schema: z.object({
       isRelevant: z
@@ -601,7 +592,7 @@ based on the conversation history whether you're done.
   })
 
   const result = streamText({
-    model: shouldSetupTools ? sonnet : gemini,
+    model: shouldSetupTools ? sonnet : haiku,
     tools: {
       redirectToManualSetup,
       ...(!requiresManualSetup
