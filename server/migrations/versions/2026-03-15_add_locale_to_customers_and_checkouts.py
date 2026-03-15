@@ -1,7 +1,7 @@
 """Add locale field to customers and checkouts
 
 Revision ID: 9f907f6f9813
-Revises: c5e9f3b2d4a6
+Revises: d7f3a8b1c2e4
 Create Date: 2026-03-15 06:00:00.000000
 
 """
@@ -11,7 +11,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "9f907f6f9813"
-down_revision = "c5e9f3b2d4a6"
+down_revision = "d7f3a8b1c2e4"
 branch_labels = None
 depends_on = None
 

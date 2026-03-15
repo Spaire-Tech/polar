@@ -15,6 +15,7 @@ import {
   CheckoutSeatSelector,
 } from '@spaire/checkout/components'
 import {
+  enrichCheckout,
   hasProductCheckout,
   type ProductCheckoutPublic,
 } from '@spaire/checkout/guards'
@@ -147,6 +148,7 @@ const Checkout = ({ embed: _embed, theme: _theme, locale: localeProp }: Checkout
   }, [checkout.clientSecret])
 
   const themePreset = getThemePreset(checkout.organization.slug, theme)
+  const enrichedCheckout = enrichCheckout(checkout)
 
   // Check organization payment readiness (account verification only for checkout)
   const { data: paymentStatus } = useOrganizationPaymentStatus(
@@ -260,10 +262,10 @@ const Checkout = ({ embed: _embed, theme: _theme, locale: localeProp }: Checkout
     return (
       <ShadowBox className="dark:md:bg-spaire-900 flex flex-col gap-y-12 divide-gray-200 overflow-hidden rounded-3xl md:bg-white dark:divide-transparent">
         <PaymentNotReadyBanner />
-        {hasProductCheckout(checkout) && (
+        {enrichedCheckout && (
           <>
             <CheckoutProductSwitcher
-              checkout={checkout}
+              checkout={enrichedCheckout}
               update={
                 update as (
                   data: CheckoutUpdatePublic,
@@ -271,11 +273,11 @@ const Checkout = ({ embed: _embed, theme: _theme, locale: localeProp }: Checkout
               }
               themePreset={themePreset}
             />
-            {checkout.productPrice?.amountType === 'custom' && (
+            {enrichedCheckout.productPrice?.amountType === 'custom' && (
               <CheckoutPWYWForm
-                checkout={checkout}
+                checkout={enrichedCheckout}
                 update={update}
-                productPrice={checkout.productPrice as ProductPriceCustom}
+                productPrice={enrichedCheckout.productPrice as ProductPriceCustom}
                 themePreset={themePreset}
               />
             )}
@@ -299,7 +301,7 @@ const Checkout = ({ embed: _embed, theme: _theme, locale: localeProp }: Checkout
   }
 
   const hasMedia =
-    hasProductCheckout(checkout) && checkout.product.medias.length > 0
+    !!enrichedCheckout && enrichedCheckout.product.medias.length > 0
 
   const orgHeader = (
     <div className="flex flex-row items-center gap-x-4">
@@ -330,40 +332,40 @@ const Checkout = ({ embed: _embed, theme: _theme, locale: localeProp }: Checkout
         <div className="mx-auto flex w-full max-w-[480px] flex-col gap-y-8 px-4 py-6 md:mx-0 md:py-12 md:pr-12 md:pl-4">
           {orgHeader}
           <div className="flex flex-col gap-y-8 md:sticky md:top-8">
-            {hasProductCheckout(checkout) && (
+            {enrichedCheckout && (
               <>
                 <div className="flex flex-col gap-y-2">
                   <div className="flex flex-row items-start gap-x-3">
-                    {hasMedia && checkout.product.medias[0]?.publicUrl && (
+                    {hasMedia && enrichedCheckout.product.medias[0]?.publicUrl && (
                       <Dialog>
                         <DialogTrigger
                           asChild
-                          disabled={checkout.product.medias.length <= 1}
+                          disabled={enrichedCheckout.product.medias.length <= 1}
                         >
                           <button
-                            className={`relative h-10 w-10 shrink-0 ${checkout.product.medias.length > 1 ? 'cursor-pointer' : 'cursor-default'}`}
+                            className={`relative h-10 w-10 shrink-0 ${enrichedCheckout.product.medias.length > 1 ? 'cursor-pointer' : 'cursor-default'}`}
                           >
                             <img
-                              src={checkout.product.medias[0].publicUrl}
-                              alt={checkout.product.name}
+                              src={enrichedCheckout.product.medias[0].publicUrl}
+                              alt={enrichedCheckout.product.name}
                               className="h-10 w-10 rounded-lg object-cover"
                             />
-                            {checkout.product.medias.length > 1 && (
+                            {enrichedCheckout.product.medias.length > 1 && (
                               <span className="absolute right-0 bottom-0 rounded bg-black/60 px-1 py-0.5 text-[10px] leading-none font-medium text-white">
-                                +{checkout.product.medias.length - 1}
+                                +{enrichedCheckout.product.medias.length - 1}
                               </span>
                             )}
                           </button>
                         </DialogTrigger>
                         <DialogContent className="dark:bg-spaire-900 max-w-2xl">
                           <DialogHeader>
-                            <DialogTitle>{checkout.product.name}</DialogTitle>
+                            <DialogTitle>{enrichedCheckout.product.name}</DialogTitle>
                             <DialogDescription className="sr-only">
                               Product images
                             </DialogDescription>
                           </DialogHeader>
                           <Slideshow
-                            images={checkout.product.medias.map(
+                            images={enrichedCheckout.product.medias.map(
                               (m) => m.publicUrl,
                             )}
                           />
@@ -372,23 +374,23 @@ const Checkout = ({ embed: _embed, theme: _theme, locale: localeProp }: Checkout
                     )}
                     <div className="flex min-w-0 flex-col gap-y-1">
                       <span className="text-sm font-medium text-gray-900 dark:text-white">
-                        {checkout.product.name}
+                        {enrichedCheckout.product.name}
                       </span>
-                      {checkout.product.description &&
-                        !hasMarkdown(checkout.product.description) && (
+                      {enrichedCheckout.product.description &&
+                        !hasMarkdown(enrichedCheckout.product.description) && (
                           <TruncatedDescription
-                            description={checkout.product.description}
-                            productName={checkout.product.name}
+                            description={enrichedCheckout.product.description}
+                            productName={enrichedCheckout.product.name}
                           />
                         )}
                     </div>
                   </div>
                   <span className="text-3xl font-medium">
-                    <CheckoutHeroPrice checkout={checkout} />
+                    <CheckoutHeroPrice checkout={enrichedCheckout} />
                   </span>
                 </div>
                 <CheckoutProductSwitcher
-                  checkout={checkout}
+                  checkout={enrichedCheckout}
                   update={
                     update as (
                       data: CheckoutUpdatePublic,
@@ -396,43 +398,42 @@ const Checkout = ({ embed: _embed, theme: _theme, locale: localeProp }: Checkout
                   }
                   themePreset={themePreset}
                 />
-                {checkout.productPrice?.amountType === 'custom' && (
+                {enrichedCheckout.productPrice?.amountType === 'custom' && (
                   <CheckoutPWYWForm
-                    checkout={checkout}
+                    checkout={enrichedCheckout}
                     update={update}
-                    productPrice={checkout.productPrice as ProductPriceCustom}
+                    productPrice={enrichedCheckout.productPrice as ProductPriceCustom}
                     themePreset={themePreset}
                   />
                 )}
-                {!checkout.isFreeProductPrice && (
+                {!enrichedCheckout.isFreeProductPrice && (
                   <div className="flex flex-col gap-4 text-sm">
-                    {checkout.productPrice?.amountType === 'seat_based' && (
+                    {enrichedCheckout.productPrice?.amountType === 'seat_based' && (
                       <CheckoutSeatSelector
-                        checkout={checkout}
+                        checkout={enrichedCheckout}
                         update={
                           update as (
                             data: CheckoutUpdatePublic,
                           ) => Promise<ProductCheckoutPublic>
                         }
-
                       />
                     )}
-                    <CheckoutPricingBreakdown checkout={checkout} />
+                    <CheckoutPricingBreakdown checkout={enrichedCheckout} />
                     <CheckoutDiscountInput
-                      checkout={checkout}
+                      checkout={enrichedCheckout}
                       update={update}
                       collapsible
                     />
                   </div>
                 )}
-                {checkout.product.description &&
-                  hasMarkdown(checkout.product.description) && (
+                {enrichedCheckout.product.description &&
+                  hasMarkdown(enrichedCheckout.product.description) && (
                     <div
                       id="description"
                       className="prose dark:prose-invert prose-headings:mt-4 prose-headings:font-medium prose-headings:text-black prose-h1:text-xl prose-h2:text-lg prose-h3:text-md dark:prose-headings:text-white dark:text-spaire-300 leading-normal text-gray-800"
                     >
                       <Markdown options={markdownOptions}>
-                        {checkout.product.description}
+                        {enrichedCheckout.product.description}
                       </Markdown>
                     </div>
                   )}
