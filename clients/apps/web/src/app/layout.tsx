@@ -30,7 +30,7 @@ export async function generateMetadata(): Promise<Metadata> {
     description:
       'Create digital products and SaaS billing with flexible pricing models and seamless payment processing.',
     openGraph: {
-      images: 'https://app.spairehq.com/assets/brand/polar_og.jpg',
+      images: 'https://app.spairehq.com/assets/brand/spaire_og.jpg',
       type: 'website',
       siteName: 'Spaire',
       title: 'Spaire | Monetize your software with ease',
@@ -39,7 +39,7 @@ export async function generateMetadata(): Promise<Metadata> {
       locale: 'en_US',
     },
     twitter: {
-      images: 'https://app.spairehq.com/assets/brand/polar_og.jpg',
+      images: 'https://app.spairehq.com/assets/brand/spaire_og.jpg',
       card: 'summary_large_image',
       title: 'Spaire | Monetize your software with ease',
       description:

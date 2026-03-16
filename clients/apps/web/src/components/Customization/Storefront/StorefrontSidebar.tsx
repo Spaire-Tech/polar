@@ -264,7 +264,7 @@ export const StorefrontSidebar = ({
                 }}
               />
               <p className="text-center text-xs text-gray-500">
-                Add an official link from GitHub to Polar.{' '}
+                Add an official link from GitHub to Spaire.{' '}
                 <a
                   href="/docs/github/funding-yaml"
                   target="_blank"

@@ -306,7 +306,7 @@ export const GitHubRepositoryBenefitForm = ({
         >
           Click here
         </Button>{' '}
-        to install it on Polar.
+        to install it on Spaire.
       </FormDescription>
 
       {/* For error messages */}
