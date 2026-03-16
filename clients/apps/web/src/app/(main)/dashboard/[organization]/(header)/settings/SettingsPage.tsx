@@ -19,7 +19,7 @@ export default function ClientPage({
       wrapperClassName="max-w-(--breakpoint-sm)!"
       title="Settings"
     >
-      <div className="flex flex-col gap-y-12">
+      <div className="flex flex-col gap-y-16">
         <Section id="organization">
           <SectionDescription title="Profile" />
           <OrganizationProfileSettings organization={org} />

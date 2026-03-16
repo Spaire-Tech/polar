@@ -6,7 +6,7 @@ export const Section = ({
   children: React.ReactNode
 }) => {
   return (
-    <div className="relative flex flex-col gap-4" id={id}>
+    <div className="relative flex flex-col gap-y-5" id={id}>
       {children}
     </div>
   )
@@ -20,10 +20,12 @@ export const SectionDescription = ({
   description?: string
 }) => {
   return (
-    <div className="flex w-full flex-col gap-1">
-      <h2 className="text-lg font-medium">{title}</h2>
+    <div className="flex flex-col gap-1">
+      <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+        {title}
+      </h2>
       {description && (
-        <p className="dark:text-spaire-500 text-balance text-gray-500">
+        <p className="dark:text-spaire-500 text-sm text-gray-500">
           {description}
         </p>
       )}

@@ -1,9 +1,9 @@
 'use client'
 
-import { Tabs, TabsList, TabsTrigger } from '@spaire/ui/components/atoms/Tabs'
 import Link from 'next/link'
 import { useParams, usePathname } from 'next/navigation'
 import { PropsWithChildren } from 'react'
+import { twMerge } from 'tailwind-merge'
 
 const settingsTabs = [
   { title: 'Organization', suffix: '' },
@@ -27,25 +27,22 @@ export default function SettingsLayout({ children }: PropsWithChildren) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="px-4 pt-6 md:px-8">
-        <Tabs value={activeTab.title}>
-          <TabsList className="flex flex-row bg-transparent ring-0 dark:bg-transparent dark:ring-0">
-            {settingsTabs.map((tab) => (
-              <Link
-                key={tab.suffix}
-                href={`${base}${tab.suffix}`}
-                prefetch={true}
-              >
-                <TabsTrigger
-                  className="flex flex-row items-center gap-x-2 px-4"
-                  value={tab.title}
-                >
-                  {tab.title}
-                </TabsTrigger>
-              </Link>
-            ))}
-          </TabsList>
-        </Tabs>
+      <div className="flex border-b border-gray-100 px-4 pt-4 dark:border-spaire-800 md:px-8">
+        {settingsTabs.map((tab) => (
+          <Link
+            key={tab.suffix}
+            href={`${base}${tab.suffix}`}
+            prefetch={true}
+            className={twMerge(
+              '-mb-px border-b-2 px-3 pb-3 text-sm font-medium transition-colors',
+              activeTab.suffix === tab.suffix
+                ? 'border-blue-500 text-gray-900 dark:text-white'
+                : 'border-transparent text-gray-500 hover:text-gray-800 dark:text-spaire-500 dark:hover:text-spaire-200',
+            )}
+          >
+            {tab.title}
+          </Link>
+        ))}
       </div>
       {children}
     </div>
