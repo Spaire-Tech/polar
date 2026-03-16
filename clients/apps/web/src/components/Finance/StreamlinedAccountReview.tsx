@@ -309,11 +309,11 @@ export default function StreamlinedAccountReview({
       {/* Header */}
       <div className="space-y-1 text-center">
         <h1 className="text-2xl font-semibold tracking-tight dark:text-white">
-          Get started with spaire
+          Set up payouts
         </h1>
         <p className="dark:text-spaire-400 text-sm text-gray-500">
-          We handle payments, taxes, and compliance so you can focus on your
-          product
+          Add your payout details so Spaire can send your earnings from
+          customer payments.
         </p>
       </div>
 

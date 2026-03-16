@@ -39,8 +39,7 @@ import {
   parseAsStringLiteral,
   useQueryState,
 } from 'nuqs'
-import React, { useCallback, useMemo, useState } from 'react'
-import { twMerge } from 'tailwind-merge'
+import React, { useCallback, useMemo } from 'react'
 import z from 'zod'
 
 const PAGE_SIZE = 100
@@ -154,19 +153,6 @@ const ClientPage: React.FC<ClientPageProps> = ({ organization }) => {
     [setStartDate, setEndDate],
   )
 
-  const [hasScrolled, setHasScrolled] = useState(false)
-
-  const handleScroll = useCallback(
-    (event: React.UIEvent<HTMLDivElement>) => {
-      if (event.currentTarget.scrollTop > 0 && !hasScrolled) {
-        setHasScrolled(true)
-      } else if (event.currentTarget.scrollTop === 0 && hasScrolled) {
-        setHasScrolled(false)
-      }
-    },
-    [hasScrolled],
-  )
-
   const dateRange = {
     from: startDate,
     to: endDate,
@@ -176,215 +162,190 @@ const ClientPage: React.FC<ClientPageProps> = ({ organization }) => {
     <DashboardBody
       title="Events"
       header={
-        <h3 className="dark:text-spaire-500 text-xl text-gray-500">
+        <div className="flex items-center gap-2">
           {events.length > 0 && (
-            <>
+            <h3 className="dark:text-spaire-500 text-xl text-gray-500">
               {events.length}
               {hasNextPage && '+'} Events
-            </>
+            </h3>
           )}
-        </h3>
-      }
-      contextViewPlacement="left"
-      contextViewClassName="w-full lg:max-w-[320px] xl:max-w-[320px] h-full overflow-y-hidden"
-      contextView={
-        <div className="flex h-full flex-col gap-y-4">
-          <div className="flex flex-row items-center justify-between gap-6 px-4 pt-4">
-            <div>Events</div>
-            <div className="flex flex-row items-center gap-4">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="icon"
-                    className="h-6 w-6 rounded-full"
-                    variant="ghost"
-                    onClick={() => {
-                      router.replace(
-                        `/dashboard/${organization.slug}/analytics/events`,
-                      )
-                    }}
-                  >
-                    <RefreshOutlined fontSize="inherit" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <span>Reset Filters</span>
-                </TooltipContent>
-              </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
               <Button
                 size="icon"
-                className="h-6 w-6"
-                onClick={showEventCreationGuide}
-              >
-                <AddOutlined fontSize="small" />
-              </Button>
-            </div>
-          </div>
-          <div
-            className={twMerge(
-              'flex flex-col gap-y-6 overflow-y-auto px-4 pt-2 pb-4',
-              hasScrolled && 'dark:border-spaire-700 border-t border-gray-200',
-            )}
-            onScroll={handleScroll}
-          >
-            <div className="flex flex-row items-center gap-3">
-              <Input
-                placeholder="Search Events"
-                value={query ?? undefined}
-                onChange={(e) => setQuery(e.target.value)}
-                preSlot={<Search fontSize="small" />}
-              />
-            </div>
-            <div className="flex h-full grow flex-col gap-y-6">
-              <div className="flex flex-col gap-y-2">
-                <h3 className="text-sm">Timeline</h3>
-                <DateRangePicker
-                  date={dateRange}
-                  onDateChange={onDateRangeChange}
-                  className="w-full"
-                />
-              </div>
-              <div className="flex flex-col gap-y-2">
-                <h3 className="text-sm">Sorting</h3>
-                <Select
-                  value={sorting}
-                  onValueChange={(value) =>
-                    setSorting(value as '-timestamp' | 'timestamp')
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sort by" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="-timestamp">Newest</SelectItem>
-                    <SelectItem value="timestamp">Oldest</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {Object.entries(eventTypes ?? {})
-                .sort((a) => (a[0] === 'system' ? 1 : -1))
-                .map(([source, eventTypes]) => {
-                  if (eventTypes.length === 0) return null
-
-                  return (
-                    <div className="flex flex-col gap-y-2" key={source}>
-                      <h3 className="text-sm capitalize">{source} Events</h3>
-                      <List size="small" className="rounded-xl">
-                        {eventTypes.map((eventType) => (
-                          <ListItem
-                            key={eventType.name}
-                            size="small"
-                            className="justify-between px-3 font-mono text-xs"
-                            inactiveClassName="text-gray-500 dark:text-spaire-500"
-                            selected={selectedEventTypes?.includes(
-                              eventType.name,
-                            )}
-                            onSelect={() =>
-                              setSelectedEventTypes((prev) =>
-                                prev && prev.includes(eventType.name)
-                                  ? prev.filter(
-                                      (name) => name !== eventType.name,
-                                    )
-                                  : ([
-                                      ...(prev ?? []),
-                                      eventType.name,
-                                    ] as string[]),
-                              )
-                            }
-                          >
-                            <span className="w-full truncate">
-                              {eventType.label}
-                            </span>
-                            <span className="text-xxs dark:text-spaire-500 font-mono text-gray-500">
-                              {Number(eventType.occurrences).toLocaleString(
-                                'en-US',
-                                {
-                                  style: 'decimal',
-                                  compactDisplay: 'short',
-                                  notation: 'compact',
-                                },
-                              )}
-                            </span>
-                          </ListItem>
-                        ))}
-                      </List>
-                    </div>
-                  )
-                })}
-
-              <CustomerSelector
-                organizationId={organization.id}
-                selectedCustomerIds={selectedCustomerIds}
-                onSelectCustomerIds={setSelectedCustomerIds}
-              />
-
-              <EventMetadataFilter
-                metadata={Object.entries(metadata ?? {}).map(
-                  ([key, value]) => ({
-                    key,
-                    value,
-                  }),
-                )}
-                onChange={(metadata) => {
-                  setMetadata(
-                    metadata.reduce(
-                      (acc, curr) => {
-                        acc[curr.key] = curr.value
-                        return acc
-                      },
-                      {} as Record<string, string | number | boolean>,
-                    ),
+                className="h-6 w-6 rounded-full"
+                variant="ghost"
+                onClick={() => {
+                  router.replace(
+                    `/dashboard/${organization.slug}/analytics/events`,
                   )
                 }}
-              />
-            </div>
-          </div>
-          <Modal
-            title="Create Event"
-            isShown={isEventCreationGuideShown}
-            hide={hideEventCreationGuide}
-            modalContent={
-              <EventCreationGuideModal hide={hideEventCreationGuide} />
-            }
-          />
+              >
+                <RefreshOutlined fontSize="inherit" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <span>Reset Filters</span>
+            </TooltipContent>
+          </Tooltip>
+          <Button
+            size="icon"
+            className="h-6 w-6"
+            onClick={showEventCreationGuide}
+          >
+            <AddOutlined fontSize="small" />
+          </Button>
         </div>
       }
       wide
     >
-      <div className="flex h-full flex-col gap-y-4">
-        {events.length === 0 ? (
-          <div className="dark:border-spaire-700 flex min-h-96 w-full flex-col items-center justify-center gap-4 rounded-4xl border border-gray-200 p-24">
-            <h1 className="text-2xl font-normal">No Events Found</h1>
-            <p className="dark:text-spaire-500 text-gray-500">
-              There are no events matching your current filters
-            </p>
-          </div>
-        ) : (
-          <>
-            <Events events={events} organization={organization} />
-            <div className="dark:border-spaire-700 flex justify-center rounded-xl border border-gray-200">
-              {hasNextPage ? (
-                <button
-                  className="group dark:text-spaire-500 dark:hover:bg-spaire-700 dark:hover:text-spaire-300 relative flex h-10 w-full cursor-pointer items-center justify-center gap-x-2 rounded-xl py-3 text-sm text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700"
-                  onClick={() => fetchNextPage()}
-                >
-                  <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-100 transition-all duration-200 group-hover:opacity-0 group-hover:blur-[2px]">
-                    Showing {events.length} events
-                  </span>
-                  <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 blur-[2px] transition-all duration-200 group-hover:opacity-100 group-hover:blur-none">
-                    Show more
-                  </span>
-                </button>
-              ) : (
-                <span className="dark:text-spaire-500/60 dark:bg-spaire-800 flex h-10 w-full items-center justify-center rounded-xl bg-gray-50 text-sm text-gray-400">
-                  Showing all {events.length} events
-                </span>
-              )}
+      <div className="flex flex-col gap-y-6">
+        {/* Filter toolbar */}
+        <div className="flex flex-wrap items-center gap-3">
+          <Input
+            placeholder="Search Events"
+            value={query ?? undefined}
+            onChange={(e) => setQuery(e.target.value)}
+            preSlot={<Search fontSize="small" />}
+            className="w-64"
+          />
+          <DateRangePicker
+            date={dateRange}
+            onDateChange={onDateRangeChange}
+          />
+          <Select
+            value={sorting}
+            onValueChange={(value) =>
+              setSorting(value as '-timestamp' | 'timestamp')
+            }
+          >
+            <SelectTrigger className="w-32">
+              <SelectValue placeholder="Sort by" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="-timestamp">Newest</SelectItem>
+              <SelectItem value="timestamp">Oldest</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Event type + customer + metadata filters */}
+        <div className="flex flex-wrap gap-6">
+          {Object.entries(eventTypes ?? {})
+            .sort((a) => (a[0] === 'system' ? 1 : -1))
+            .map(([source, sourceEventTypes]) => {
+              if (sourceEventTypes.length === 0) return null
+              return (
+                <div className="flex flex-col gap-y-2" key={source}>
+                  <h3 className="text-sm capitalize">{source} Events</h3>
+                  <List size="small" className="rounded-xl">
+                    {sourceEventTypes.map((eventType) => (
+                      <ListItem
+                        key={eventType.name}
+                        size="small"
+                        className="justify-between px-3 font-mono text-xs"
+                        inactiveClassName="text-gray-500 dark:text-spaire-500"
+                        selected={selectedEventTypes?.includes(eventType.name)}
+                        onSelect={() =>
+                          setSelectedEventTypes((prev) =>
+                            prev && prev.includes(eventType.name)
+                              ? prev.filter((name) => name !== eventType.name)
+                              : ([
+                                  ...(prev ?? []),
+                                  eventType.name,
+                                ] as string[]),
+                          )
+                        }
+                      >
+                        <span className="w-full truncate">
+                          {eventType.label}
+                        </span>
+                        <span className="text-xxs dark:text-spaire-500 font-mono text-gray-500">
+                          {Number(eventType.occurrences).toLocaleString(
+                            'en-US',
+                            {
+                              style: 'decimal',
+                              compactDisplay: 'short',
+                              notation: 'compact',
+                            },
+                          )}
+                        </span>
+                      </ListItem>
+                    ))}
+                  </List>
+                </div>
+              )
+            })}
+
+          <CustomerSelector
+            organizationId={organization.id}
+            selectedCustomerIds={selectedCustomerIds}
+            onSelectCustomerIds={setSelectedCustomerIds}
+          />
+
+          <EventMetadataFilter
+            metadata={Object.entries(metadata ?? {}).map(([key, value]) => ({
+              key,
+              value,
+            }))}
+            onChange={(metadata) => {
+              setMetadata(
+                metadata.reduce(
+                  (acc, curr) => {
+                    acc[curr.key] = curr.value
+                    return acc
+                  },
+                  {} as Record<string, string | number | boolean>,
+                ),
+              )
+            }}
+          />
+        </div>
+
+        {/* Events list */}
+        <div className="flex flex-col gap-y-4">
+          {events.length === 0 ? (
+            <div className="dark:border-spaire-700 flex min-h-96 w-full flex-col items-center justify-center gap-4 rounded-4xl border border-gray-200 p-24">
+              <h1 className="text-2xl font-normal">No Events Found</h1>
+              <p className="dark:text-spaire-500 text-gray-500">
+                There are no events matching your current filters
+              </p>
             </div>
-          </>
-        )}
+          ) : (
+            <>
+              <Events events={events} organization={organization} />
+              <div className="dark:border-spaire-700 flex justify-center rounded-xl border border-gray-200">
+                {hasNextPage ? (
+                  <button
+                    className="group dark:text-spaire-500 dark:hover:bg-spaire-700 dark:hover:text-spaire-300 relative flex h-10 w-full cursor-pointer items-center justify-center gap-x-2 rounded-xl py-3 text-sm text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700"
+                    onClick={() => fetchNextPage()}
+                  >
+                    <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-100 transition-all duration-200 group-hover:opacity-0 group-hover:blur-[2px]">
+                      Showing {events.length} events
+                    </span>
+                    <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 blur-[2px] transition-all duration-200 group-hover:opacity-100 group-hover:blur-none">
+                      Show more
+                    </span>
+                  </button>
+                ) : (
+                  <span className="dark:text-spaire-500/60 dark:bg-spaire-800 flex h-10 w-full items-center justify-center rounded-xl bg-gray-50 text-sm text-gray-400">
+                    Showing all {events.length} events
+                  </span>
+                )}
+              </div>
+            </>
+          )}
+        </div>
       </div>
+
+      <Modal
+        title="Create Event"
+        isShown={isEventCreationGuideShown}
+        hide={hideEventCreationGuide}
+        modalContent={
+          <EventCreationGuideModal hide={hideEventCreationGuide} />
+        }
+      />
     </DashboardBody>
   )
 }
