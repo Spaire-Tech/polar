@@ -66,10 +66,10 @@ const Footer = () => {
               <FooterLink href="https://spairehq.com/assets/brand/spaire_brand.zip">
                 Brand Assets
               </FooterLink>
-              <FooterLink href="https://spairehq.com/legal/terms">
+              <FooterLink href="https://www.spairehq.com/legal/terms-of-service">
                 Terms of Service
               </FooterLink>
-              <FooterLink href="https://spairehq.com/legal/privacy">
+              <FooterLink href="https://www.spairehq.com/legal/privacy-policy">
                 Privacy Policy
               </FooterLink>
             </div>

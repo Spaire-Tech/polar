@@ -92,14 +92,14 @@ const Login = ({
         By using Spaire you agree to our{' '}
         <a
           className="dark:text-spaire-300 text-gray-600"
-          href="https://spairehq.com/legal/terms"
+          href="https://www.spairehq.com/legal/terms-of-service"
         >
           Terms of Service
         </a>{' '}
         and{' '}
         <a
           className="dark:text-spaire-300 text-gray-600"
-          href="https://spairehq.com/legal/privacy"
+          href="https://www.spairehq.com/legal/privacy-policy"
         >
           Privacy Policy
         </a>
