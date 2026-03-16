@@ -39,7 +39,7 @@ export const ProductCheckoutSection = ({
             <div className="flex flex-col items-start gap-y-2 text-left">
               <h2 className="text-lg font-medium">Checkout Page</h2>
               <p className="dark:text-spaire-500 text-sm leading-snug font-normal text-gray-500">
-                Customize how this product is presented during checkout
+                Control how this product appears during checkout
               </p>
             </div>
           </AccordionTrigger>
@@ -91,7 +91,7 @@ export const ProductCheckoutSection = ({
 
               <div className="flex flex-col gap-2">
                 <div className="flex flex-row items-center justify-between">
-                  <FormLabel>Checkout Fields</FormLabel>
+                  <FormLabel>Custom fields</FormLabel>
                   <p className="dark:text-spaire-500 text-sm text-gray-500">
                     <Link
                       className="text-blue-500 hover:underline"

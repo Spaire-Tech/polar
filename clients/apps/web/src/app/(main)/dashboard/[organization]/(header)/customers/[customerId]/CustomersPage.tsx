@@ -2,7 +2,7 @@
 
 import { CustomerPage } from '@/components/Customer/CustomerPage'
 import { EditCustomerModal } from '@/components/Customer/EditCustomerModal'
-import { MasterDetailLayoutContent } from '@/components/Layout/MasterDetailLayout'
+import { DashboardBody } from '@/components/Layout/DashboardLayout'
 import DateRangePicker from '@/components/Metrics/DateRangePicker'
 import IntervalPicker, {
   getNextValidInterval,
@@ -239,9 +239,9 @@ const ClientPage: React.FC<ClientPageProps> = ({ organization, customer }) => {
   }, [customer, setStartDate, setEndDate, setInterval])
 
   return (
-    <MasterDetailLayoutContent
-      header={
-        <>
+    <DashboardBody>
+      <div className="flex flex-col gap-y-8">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex flex-row items-center gap-6">
             <Avatar
               avatar_url={customer.avatar_url}
@@ -257,7 +257,6 @@ const ClientPage: React.FC<ClientPageProps> = ({ organization, customer }) => {
               </div>
             </div>
           </div>
-
           <CustomerHeader
             organization={organization}
             customer={customer}
@@ -270,17 +269,16 @@ const ClientPage: React.FC<ClientPageProps> = ({ organization, customer }) => {
               setInterval,
             }}
           />
-        </>
-      }
-    >
-      <CustomerPage
-        key={customer.id}
-        customer={customer}
-        organization={organization}
-        dateRange={{ startDate, endDate }}
-        interval={interval}
-      />
-    </MasterDetailLayoutContent>
+        </div>
+        <CustomerPage
+          key={customer.id}
+          customer={customer}
+          organization={organization}
+          dateRange={{ startDate, endDate }}
+          interval={interval}
+        />
+      </div>
+    </DashboardBody>
   )
 }
 

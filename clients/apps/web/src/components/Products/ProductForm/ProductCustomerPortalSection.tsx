@@ -26,7 +26,7 @@ export const ProductCustomerPortalSection = ({
   return (
     <Section
       title="Customer Portal"
-      description="Customize how this product is presented in the customer portal"
+      description="Control where customers can see and manage this product"
       className={className}
     >
       <div className="flex w-full flex-col gap-y-6">
@@ -41,11 +41,11 @@ export const ProductCustomerPortalSection = ({
                   <RadioGroup
                     value={field.value ?? 'public'}
                     onValueChange={field.onChange}
-                    className="grid-cols-1 gap-3 @md:grid-cols-2"
+                    className="grid grid-cols-2 gap-4"
                   >
                     <Label
                       htmlFor="visibility-public"
-                      className={`flex cursor-pointer flex-col gap-2 rounded-2xl border p-4 font-normal transition-colors ${
+                      className={`flex cursor-pointer flex-col gap-3 rounded-2xl border p-5 font-normal transition-colors ${
                         field.value === 'public' || !field.value
                           ? 'dark:bg-spaire-800 bg-gray-50'
                           : 'dark:border-spaire-700 dark:hover:border-spaire-700 dark:text-spaire-500 dark:hover:bg-spaire-700 dark:bg-spaire-900 border-gray-100 text-gray-500 hover:border-gray-200'
@@ -56,12 +56,12 @@ export const ProductCustomerPortalSection = ({
                         Public
                       </div>
                       <p className="dark:text-spaire-500 text-sm text-gray-500">
-                        Shown in the Customer Portal
+                        Visible in the customer portal.
                       </p>
                     </Label>
                     <Label
                       htmlFor="visibility-private"
-                      className={`flex cursor-pointer flex-col gap-2 rounded-2xl border p-4 font-normal transition-colors ${
+                      className={`flex cursor-pointer flex-col gap-3 rounded-2xl border p-5 font-normal transition-colors ${
                         field.value === 'private'
                           ? 'dark:bg-spaire-800 bg-gray-50'
                           : 'dark:border-spaire-700 dark:hover:border-spaire-700 dark:text-spaire-500 dark:hover:bg-spaire-700 dark:bg-spaire-900 border-gray-100 text-gray-500 hover:border-gray-200'
@@ -75,7 +75,7 @@ export const ProductCustomerPortalSection = ({
                         Private
                       </div>
                       <p className="dark:text-spaire-500 text-sm text-gray-500">
-                        Only purchasable via a direct checkout link
+                        Only accessible via a direct checkout link.
                       </p>
                     </Label>
                   </RadioGroup>

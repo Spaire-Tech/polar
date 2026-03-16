@@ -25,8 +25,8 @@ export const ProductInfoSection = ({
 
   return (
     <Section
-      title="Product"
-      description="Basic product information"
+      title="Details"
+      description="Name and describe your product"
       className={className}
       compact={compact}
     >

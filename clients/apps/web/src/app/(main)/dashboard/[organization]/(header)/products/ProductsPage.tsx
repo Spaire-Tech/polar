@@ -1,7 +1,10 @@
 'use client'
 
 import { DashboardBody } from '@/components/Layout/DashboardLayout'
+import { InlineModal } from '@/components/Modal/InlineModal'
+import { useModal } from '@/components/Modal/useModal'
 import Pagination from '@/components/Pagination/Pagination'
+import { CreateProductPage } from '@/components/Products/CreateProductPage'
 import { ProductListItem } from '@/components/Products/ProductListItem'
 import { useProducts } from '@/hooks/queries/products'
 import { useDebouncedCallback } from '@/hooks/utils'
@@ -26,7 +29,6 @@ import {
   SelectValue,
 } from '@spaire/ui/components/atoms/Select'
 import { ShadowBoxOnMd } from '@spaire/ui/components/atoms/ShadowBox'
-import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useQueryState } from 'nuqs'
 import { useCallback, useState } from 'react'
@@ -47,6 +49,12 @@ export default function ClientPage({
   const [show, setShow] = useQueryState('show', {
     defaultValue: 'active',
   })
+
+  const {
+    isShown: isCreateModalShown,
+    show: showCreateModal,
+    hide: hideCreateModal,
+  } = useModal()
 
   const router = useRouter()
   const pathname = usePathname()
@@ -188,19 +196,14 @@ export default function ClientPage({
               </Select>
             )}
           </div>
-          <Link
-            href={`/dashboard/${org.slug}/products/new`}
+          <Button
+            wrapperClassNames="gap-x-2 md:w-fit"
             className="w-full md:w-fit"
+            onClick={showCreateModal}
           >
-            <Button
-              role="link"
-              wrapperClassNames="gap-x-2 md:w-fit"
-              className="w-full"
-            >
-              <AddOutlined className="h-4 w-4" />
-              <span>New Product</span>
-            </Button>
-          </Link>
+            <AddOutlined className="h-4 w-4" />
+            <span>Create product</span>
+          </Button>
         </div>
         {products.data && products.data.items.length > 0 ? (
           <Pagination
@@ -242,16 +245,26 @@ export default function ClientPage({
                   benefits, and checkout in one place.
                 </p>
               </div>
-              <Link href={`/dashboard/${org.slug}/products/new`}>
-                <Button role="link">
+              <Button onClick={showCreateModal}>
                   <AddOutlined className="h-4 w-4" />
-                  <span>New Product</span>
+                  <span>Create product</span>
                 </Button>
-              </Link>
             </div>
           </ShadowBoxOnMd>
         )}
       </div>
+      <InlineModal
+        isShown={isCreateModalShown}
+        hide={hideCreateModal}
+        className="md:w-[720px]"
+        modalContent={
+          <CreateProductPage
+            organization={org}
+            panelMode={true}
+            onClose={hideCreateModal}
+          />
+        }
+      />
     </DashboardBody>
   )
 }

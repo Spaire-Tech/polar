@@ -771,15 +771,40 @@ const ProductPriceItem: React.FC<ProductPriceItemProps> = ({
     currentPrice && isStaticPrice(currentPrice as ProductPrice)
   const hasOtherStaticPrice = staticPriceForCurrency && !isCurrentPriceStatic
 
+  const priceTypeOptions = [
+    {
+      value: 'fixed',
+      title: 'Fixed price',
+      description: 'Charge a set amount',
+    },
+    {
+      value: 'free',
+      title: 'Free',
+      description: 'No charge. Give it away.',
+    },
+    {
+      value: 'custom',
+      title: 'Pay what you want',
+      description: 'Let buyers choose their price',
+    },
+    {
+      value: 'seat_based',
+      title: 'Per seat',
+      description: 'Price scales with seats or licenses',
+    },
+    ...(recurringInterval !== null
+      ? [
+          {
+            value: 'metered_unit',
+            title: 'Usage-based',
+            description: 'Charge based on consumption',
+          },
+        ]
+      : []),
+  ]
+
   return (
-    <div
-      className={twMerge(
-        'flex flex-col divide-y rounded-2xl border',
-        amountType
-          ? 'dark:border-spaire-700 dark:divide-spaire-700 divide-gray-200 border-gray-200'
-          : 'dark:border-spaire-700 dark:divide-spaire-700 divide-gray-100 border-gray-100',
-      )}
-    >
+    <div className="flex flex-col gap-6">
       <input type="hidden" {...register(`prices.${index}.id`)} />
       <FormField
         control={control}
@@ -790,64 +815,56 @@ const ProductPriceItem: React.FC<ProductPriceItemProps> = ({
         render={({ field }) => {
           return (
             <FormItem>
-              <div className="p-3">
-                <div className="flex flex-row items-center gap-2">
-                  <FormControl>
-                    <Select
-                      value={field.value}
-                      onValueChange={(v) => {
-                        field.onChange(v)
-                        onAmountTypeChange(
-                          index,
-                          v as ProductPriceCreate['amount_type'],
-                        )
-                      }}
-                      disabled={hasOtherStaticPrice}
+              <div className="@container">
+                <RadioGroup
+                  value={field.value ?? ''}
+                  onValueChange={(v) => {
+                    if (hasOtherStaticPrice) return
+                    field.onChange(v)
+                    onAmountTypeChange(
+                      index,
+                      v as ProductPriceCreate['amount_type'],
+                    )
+                  }}
+                  className="grid grid-cols-2 gap-4"
+                >
+                  {priceTypeOptions.map((option) => (
+                    <Label
+                      key={option.value}
+                      htmlFor={`price-type-${index}-${option.value}`}
+                      className={twMerge(
+                        'flex flex-col gap-3 rounded-2xl border p-5 font-normal transition-colors',
+                        hasOtherStaticPrice
+                          ? 'cursor-not-allowed opacity-50'
+                          : 'cursor-pointer',
+                        field.value === option.value
+                          ? 'dark:bg-spaire-800 bg-gray-50'
+                          : 'dark:border-spaire-700 dark:hover:border-spaire-700 dark:text-spaire-500 dark:hover:bg-spaire-700 dark:bg-spaire-900 border-gray-100 text-gray-500 hover:border-gray-200',
+                      )}
                     >
-                      <SelectTrigger
-                        ref={field.ref}
-                        className={twMerge(
-                          field.value
-                            ? ''
-                            : 'dark:text-spaire-500 text-gray-400',
-                          'border-none bg-transparent shadow-none focus:border-none focus:ring-0 focus:ring-offset-0',
-                        )}
-                      >
-                        <SelectValue placeholder="Select a price type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="fixed">Fixed price</SelectItem>
-                        <SelectItem value="free">Free</SelectItem>
-                        <SelectItem value="seat_based">Seats</SelectItem>
-                        {recurringInterval !== null && (
-                          <SelectItem value="metered_unit">
-                            Metered price
-                          </SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </FormControl>
-                  {canRemove && (
-                    <Button
-                      size="icon"
-                      className="aspect-square h-10 w-10"
-                      variant="secondary"
-                      onClick={() => {
-                        onRemove(index)
-                      }}
-                    >
-                      <CloseOutlined className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-                <FormMessage className="px-3 py-2" />
+                      <div className="flex items-center gap-2.5 font-medium">
+                        <RadioGroupItem
+                          value={option.value}
+                          id={`price-type-${index}-${option.value}`}
+                          disabled={!!hasOtherStaticPrice}
+                          ref={field.ref}
+                        />
+                        {option.title}
+                      </div>
+                      <p className="dark:text-spaire-500 text-sm text-gray-500">
+                        {option.description}
+                      </p>
+                    </Label>
+                  ))}
+                </RadioGroup>
               </div>
+              <FormMessage />
             </FormItem>
           )
         }}
       />
       {amountType && amountType !== 'free' && (
-        <div className="flex flex-col gap-3 p-3">
+        <div className="dark:border-spaire-700 flex flex-col gap-3 rounded-2xl border border-gray-200 p-4">
           {amountType === 'fixed' && (
             <ProductPriceFixedItem index={index} currency={currency} />
           )}
@@ -865,6 +882,17 @@ const ProductPriceItem: React.FC<ProductPriceItemProps> = ({
             />
           )}
         </div>
+      )}
+      {canRemove && (
+        <Button
+          size="sm"
+          variant="secondary"
+          className="self-start"
+          type="button"
+          onClick={() => onRemove(index)}
+        >
+          Remove price
+        </Button>
       )}
     </div>
   )
@@ -1288,18 +1316,18 @@ export const ProductPricingSection = ({
       className={className}
       compact={compact}
     >
-      <div className="flex w-full flex-col gap-6">
+      <div className="flex w-full flex-col gap-10">
         <div className="@container">
           <RadioGroup
             value={productType}
             onValueChange={(v) => setProductType(v as 'one_time' | 'recurring')}
-            className="grid-cols-1 gap-3 @md:grid-cols-2"
+            className="grid grid-cols-2 gap-4"
           >
             {['one_time', 'recurring'].map((option) => (
               <Label
                 key={option}
                 htmlFor={`price-type-${option}`}
-                className={`flex flex-col gap-3 rounded-2xl border p-4 font-normal transition-colors not-aria-disabled:cursor-pointer ${
+                className={`flex flex-col gap-3 rounded-2xl border p-5 font-normal transition-colors not-aria-disabled:cursor-pointer ${
                   productType === option
                     ? 'dark:bg-spaire-800 bg-gray-50'
                     : 'dark:border-spaire-700 dark:not-aria-disabled:hover:border-spaire-700 dark:text-spaire-500 dark:not-aria-disabled:hover:bg-spaire-700 dark:bg-spaire-900 border-gray-100 text-gray-500 not-aria-disabled:hover:border-gray-200'
