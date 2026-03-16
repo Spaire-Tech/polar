@@ -26,7 +26,7 @@ export const ProductCustomerPortalSection = ({
   return (
     <Section
       title="Customer Portal"
-      description="Customize how this product is presented in the customer portal"
+      description="Control where customers can see and manage this product"
       className={className}
     >
       <div className="flex w-full flex-col gap-y-6">
@@ -56,7 +56,7 @@ export const ProductCustomerPortalSection = ({
                         Public
                       </div>
                       <p className="dark:text-spaire-500 text-sm text-gray-500">
-                        Shown in the Customer Portal
+                        Visible in the customer portal
                       </p>
                     </Label>
                     <Label
@@ -75,7 +75,7 @@ export const ProductCustomerPortalSection = ({
                         Private
                       </div>
                       <p className="dark:text-spaire-500 text-sm text-gray-500">
-                        Only purchasable via a direct checkout link
+                        Only accessible via a direct checkout link
                       </p>
                     </Label>
                   </RadioGroup>

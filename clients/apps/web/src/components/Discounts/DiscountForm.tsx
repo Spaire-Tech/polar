@@ -9,15 +9,6 @@ import Button from '@spaire/ui/components/atoms/Button'
 import Input from '@spaire/ui/components/atoms/Input'
 import MoneyInput from '@spaire/ui/components/atoms/MoneyInput'
 import PercentageInput from '@spaire/ui/components/atoms/PercentageInput'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@spaire/ui/components/atoms/Select'
-import { Tabs, TabsList, TabsTrigger } from '@spaire/ui/components/atoms/Tabs'
-
 import { schemas } from '@spaire/client'
 import DateTimePicker from '@spaire/ui/components/atoms/DateTimePicker'
 import {
@@ -28,6 +19,11 @@ import {
   FormLabel,
   FormMessage,
 } from '@spaire/ui/components/ui/form'
+import { Label } from '@spaire/ui/components/ui/label'
+import {
+  RadioGroup,
+  RadioGroupItem,
+} from '@spaire/ui/components/ui/radio-group'
 import React, { useCallback, useMemo } from 'react'
 import { useFormContext } from 'react-hook-form'
 import ProductSelect from '../Products/ProductSelect'
@@ -129,27 +125,50 @@ const DiscountForm: React.FC<DiscountFormProps> = ({
         }}
       />
       {!update && (
-        <Tabs
-          value={type}
-          onValueChange={(value: string) =>
-            setValue('type', value as schemas['DiscountType'])
-          }
-        >
-          <TabsList className="dark:bg-spaire-950 w-full flex-row items-center rounded-full bg-gray-100">
-            <TabsTrigger
-              className="dark:data-[state=active]:bg-spaire-800 grow rounded-full! data-[state=active]:bg-white"
-              value="percentage"
-            >
-              Percentage discount
-            </TabsTrigger>
-            <TabsTrigger
-              className="dark:data-[state=active]:bg-spaire-800 grow rounded-full! data-[state=active]:bg-white"
-              value="fixed"
-            >
-              Fixed amount discount
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <FormItem>
+          <FormLabel>Discount type</FormLabel>
+          <RadioGroup
+            value={type}
+            onValueChange={(value: string) =>
+              setValue('type', value as schemas['DiscountType'])
+            }
+            className="grid grid-cols-2 gap-3"
+          >
+            {[
+              {
+                value: 'percentage',
+                title: 'Percentage off',
+                description: 'Reduce the price by a percentage',
+              },
+              {
+                value: 'fixed',
+                title: 'Fixed amount',
+                description: 'Reduce the price by a set amount',
+              },
+            ].map((option) => (
+              <Label
+                key={option.value}
+                htmlFor={`discount-type-${option.value}`}
+                className={`flex cursor-pointer flex-col gap-2 rounded-2xl border p-4 font-normal transition-colors ${
+                  type === option.value
+                    ? 'dark:bg-spaire-800 bg-gray-50'
+                    : 'dark:border-spaire-700 dark:hover:border-spaire-700 dark:text-spaire-500 dark:hover:bg-spaire-700 dark:bg-spaire-900 border-gray-100 text-gray-500 hover:border-gray-200'
+                }`}
+              >
+                <div className="flex items-center gap-2.5 font-medium">
+                  <RadioGroupItem
+                    value={option.value}
+                    id={`discount-type-${option.value}`}
+                  />
+                  {option.title}
+                </div>
+                <p className="dark:text-spaire-500 text-sm text-gray-500">
+                  {option.description}
+                </p>
+              </Label>
+            ))}
+          </RadioGroup>
+        </FormItem>
       )}
 
       {type === 'percentage' && (
@@ -243,32 +262,59 @@ const DiscountForm: React.FC<DiscountFormProps> = ({
               render={({ field }) => {
                 return (
                   <FormItem>
+                    <FormLabel>Duration</FormLabel>
                     <FormControl>
-                      <Select
+                      <RadioGroup
+                        value={field.value ?? ''}
                         onValueChange={field.onChange}
-                        defaultValue={field.value || undefined}
                         disabled={update}
+                        className="grid grid-cols-1 gap-3 sm:grid-cols-3"
                       >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select duration" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="once">Once</SelectItem>
-                          <SelectItem value="forever">Forever</SelectItem>
-                          <SelectItem value="repeating">
-                            For several months
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
+                        {[
+                          {
+                            value: 'once',
+                            title: 'Once',
+                            description: 'Applies to the first payment only',
+                          },
+                          {
+                            value: 'repeating',
+                            title: 'Repeating',
+                            description: 'Applies for a set number of months',
+                          },
+                          {
+                            value: 'forever',
+                            title: 'Forever',
+                            description: 'Applies to all future payments',
+                          },
+                        ].map((option) => (
+                          <Label
+                            key={option.value}
+                            htmlFor={`duration-${option.value}`}
+                            className={`flex flex-col gap-2 rounded-2xl border p-4 font-normal transition-colors ${
+                              update
+                                ? 'cursor-not-allowed opacity-50'
+                                : 'cursor-pointer'
+                            } ${
+                              field.value === option.value
+                                ? 'dark:bg-spaire-800 bg-gray-50'
+                                : 'dark:border-spaire-700 dark:hover:border-spaire-700 dark:text-spaire-500 dark:hover:bg-spaire-700 dark:bg-spaire-900 border-gray-100 text-gray-500 hover:border-gray-200'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 font-medium">
+                              <RadioGroupItem
+                                value={option.value}
+                                id={`duration-${option.value}`}
+                                disabled={update}
+                              />
+                              {option.title}
+                            </div>
+                            <p className="dark:text-spaire-500 text-sm text-gray-500">
+                              {option.description}
+                            </p>
+                          </Label>
+                        ))}
+                      </RadioGroup>
                     </FormControl>
-                    <FormDescription>
-                      {duration === 'once' &&
-                        'The discount is applied once on the first invoice.'}
-                      {duration === 'forever' &&
-                        'The discount is applied on every invoice.'}
-                      {duration === 'repeating' &&
-                        'The discount is applied for a set number of months.'}
-                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )

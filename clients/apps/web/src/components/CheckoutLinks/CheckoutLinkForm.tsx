@@ -244,12 +244,12 @@ export const CheckoutLinkForm = ({
             name="label"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Label</FormLabel>
+                <FormLabel>Link name</FormLabel>
                 <FormControl>
                   <Input placeholder="" {...field} value={field.value || ''} />
                 </FormControl>
                 <FormDescription className="text-xs">
-                  Helpful if you have multiple links - internal &amp; optional.
+                  Internal label, not visible to buyers.
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -276,8 +276,7 @@ export const CheckoutLinkForm = ({
                   </FormControl>
                   <FormMessage />
                   <FormDescription>
-                    The customer will be able to switch between these products
-                    at checkout.
+                    Buyers can choose between these products at checkout.
                   </FormDescription>
                 </FormItem>
               )
@@ -288,7 +287,7 @@ export const CheckoutLinkForm = ({
             name="success_url"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Success URL</FormLabel>
+                <FormLabel>Redirect URL</FormLabel>
                 <FormControl>
                   <Input
                     placeholder="https://example.com/success?checkout_id={CHECKOUT_ID}"
@@ -297,11 +296,11 @@ export const CheckoutLinkForm = ({
                   />
                 </FormControl>
                 <FormDescription className="text-xs">
-                  Include{' '}
+                  Where to send buyers after purchase. Include{' '}
                   <code>
                     {'{'}CHECKOUT_ID{'}'}
                   </code>{' '}
-                  to receive the Checkout ID on success.
+                  for the confirmation page.
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -319,7 +318,7 @@ export const CheckoutLinkForm = ({
 
               return (
                 <FormItem>
-                  <FormLabel>Preset discount</FormLabel>
+                  <FormLabel>Apply a discount</FormLabel>
                   <div className="flex flex-row items-center gap-2">
                     <Combobox
                       items={discounts?.items || []}
@@ -364,7 +363,7 @@ export const CheckoutLinkForm = ({
               return (
                 <FormItem>
                   <div className="flex flex-row items-center justify-between space-y-0 space-x-2">
-                    <FormLabel>Allow discount codes</FormLabel>
+                    <FormLabel>Accept discount codes</FormLabel>
                     <FormControl>
                       <Switch
                         checked={field.value}
@@ -375,8 +374,8 @@ export const CheckoutLinkForm = ({
                   <FormMessage />
                   <FormDescription>
                     {field.value
-                      ? 'Customers will be able to apply discount codes at checkout.'
-                      : "Customers won't be able to apply discount codes at checkout."}
+                      ? 'Buyers can enter a discount code at checkout.'
+                      : "Buyers won't be able to enter a discount code at checkout."}
                   </FormDescription>
                 </FormItem>
               )
@@ -389,7 +388,7 @@ export const CheckoutLinkForm = ({
               return (
                 <FormItem>
                   <div className="flex flex-row items-center justify-between space-y-0 space-x-2">
-                    <FormLabel>Require billing address</FormLabel>
+                    <FormLabel>Collect billing address</FormLabel>
                     <FormControl>
                       <Switch
                         checked={field.value}
@@ -400,8 +399,8 @@ export const CheckoutLinkForm = ({
                   <FormMessage />
                   <FormDescription>
                     {field.value
-                      ? 'Customers will need to provide their full billing address at checkout.'
-                      : 'Customers will just need to provide their country at checkout.'}
+                      ? 'Buyers must enter their full billing address.'
+                      : 'Only the buyer\'s country is required.'}
                   </FormDescription>
                 </FormItem>
               )
@@ -414,7 +413,7 @@ export const CheckoutLinkForm = ({
 
           <FormItem>
             <div className="flex flex-row items-center justify-between gap-2 py-2">
-              <FormLabel>Metadata</FormLabel>
+              <FormLabel>Custom data</FormLabel>
               <Button
                 size="sm"
                 variant="secondary"
@@ -424,7 +423,7 @@ export const CheckoutLinkForm = ({
                   append({ key: '', value: '' })
                 }}
               >
-                Add Metadata
+                Add field
               </Button>
             </div>
             <div className="flex flex-col gap-2">

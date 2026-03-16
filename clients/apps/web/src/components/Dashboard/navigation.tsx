@@ -250,7 +250,7 @@ const accountRoutesList = (): Route[] => [
 const organizationRoutesList = (org?: schemas['Organization']): Route[] => [
   {
     id: 'finance',
-    title: 'Balance',
+    title: 'Payouts',
     link: `/dashboard/${org?.slug}/finance/income`,
     icon: <AttachMoneyOutlined fontSize="inherit" />,
     checkIsActive: (currentRoute: string): boolean => {

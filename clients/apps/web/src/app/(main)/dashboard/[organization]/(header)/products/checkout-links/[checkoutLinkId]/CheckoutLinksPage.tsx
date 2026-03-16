@@ -1,22 +1,13 @@
 'use client'
 
 import { CheckoutLinkPage } from '@/components/CheckoutLinks/CheckoutLinkPage'
-import { MasterDetailLayoutContent } from '@/components/Layout/MasterDetailLayout'
+import { DashboardBody } from '@/components/Layout/DashboardLayout'
 import { ConfirmModal } from '@/components/Modal/ConfirmModal'
 import { useModal } from '@/components/Modal/useModal'
 import { toast } from '@/components/Toast/use-toast'
 import { useDeleteCheckoutLink } from '@/hooks/queries'
 import { usePushRouteWithoutCache } from '@/utils/router'
-import LinkOutlined from '@mui/icons-material/LinkOutlined'
-import MoreVertOutlined from '@mui/icons-material/MoreVertOutlined'
 import { schemas } from '@spaire/client'
-import Button from '@spaire/ui/components/atoms/Button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@spaire/ui/components/ui/dropdown-menu'
 import React from 'react'
 
 interface ClientPageProps {
@@ -63,57 +54,9 @@ const ClientPage: React.FC<ClientPageProps> = ({
   }
 
   return (
-    <MasterDetailLayoutContent
-      header={
-        <>
-          <div className="flex flex-row items-center gap-6">
-            <span className="dark:bg-spaire-700 flex h-12 w-12 shrink-0 flex-row items-center justify-center rounded-full bg-gray-200 text-2xl text-black dark:text-white">
-              <LinkOutlined />
-            </span>
-            <div className="flex flex-col">
-              <p className="text-lg">
-                {(checkoutLink.label?.length ?? 0) > 0
-                  ? checkoutLink.label
-                  : 'Untitled'}
-              </p>
-              <div className="dark:text-spaire-500 flex flex-row items-center gap-2 font-mono text-sm text-gray-500">
-                <span>
-                  {checkoutLink.products.length === 1
-                    ? checkoutLink.products[0].name
-                    : `${checkoutLink.products.length} Products`}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-row items-center gap-x-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger className="focus:outline-none" asChild>
-                <Button
-                  size="icon"
-                  variant="secondary"
-                  loading={isDeletePending}
-                >
-                  <MoreVertOutlined fontSize="inherit" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="end"
-                className="dark:bg-spaire-800 bg-gray-50 shadow-lg"
-              >
-                <DropdownMenuItem destructive onClick={showDeleteModal}>
-                  Delete Checkout Link
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </>
-      }
-    >
-      <div className="flex h-full w-full flex-col">
-        <div className="flex w-full flex-col gap-8 pb-8">
-          <CheckoutLinkPage checkoutLink={checkoutLink} />
-        </div>
+    <DashboardBody>
+      <div className="flex flex-col gap-8">
+        <CheckoutLinkPage checkoutLink={checkoutLink} />
       </div>
       <ConfirmModal
         title="Confirm Deletion of Checkout Link"
@@ -125,7 +68,7 @@ const ClientPage: React.FC<ClientPageProps> = ({
         destructiveText="Delete"
         destructive
       />
-    </MasterDetailLayoutContent>
+    </DashboardBody>
   )
 }
 

@@ -13,6 +13,7 @@ import { useRouter } from 'next/navigation'
 import { useCallback, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { DashboardBody } from '../Layout/DashboardLayout'
+import { InlineModalHeader } from '../Modal/InlineModal'
 import { toast } from '../Toast/use-toast'
 import { getStatusRedirect } from '../Toast/utils'
 import { Benefits } from './Benefits/Benefits'
@@ -44,11 +45,15 @@ const reuploadMedia = async (
 export interface CreateProductPageProps {
   organization: schemas['Organization']
   sourceProduct?: schemas['Product']
+  panelMode?: boolean
+  onClose?: () => void
 }
 
 export const CreateProductPage = ({
   organization,
   sourceProduct,
+  panelMode,
+  onClose,
 }: CreateProductPageProps) => {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -156,13 +161,21 @@ export const CreateProductPage = ({
           },
         })
 
-        router.push(
-          getStatusRedirect(
-            `/dashboard/${organization.slug}/products`,
-            'Product Created',
-            `Product ${product.name} was created successfully`,
-          ),
-        )
+        if (onClose) {
+          toast({
+            title: 'Product Created',
+            description: `${product.name} was created successfully`,
+          })
+          onClose()
+        } else {
+          router.push(
+            getStatusRedirect(
+              `/dashboard/${organization.slug}/products`,
+              'Product Created',
+              `Product ${product.name} was created successfully`,
+            ),
+          )
+        }
       } finally {
         setIsSubmitting(false)
       }
@@ -192,12 +205,8 @@ export const CreateProductPage = ({
     setEnabledBenefits(benefits)
   }, [])
 
-  return (
-    <DashboardBody
-      title={sourceProduct ? 'Duplicate Product' : 'Create Product'}
-      wrapperClassName="max-w-(--breakpoint-md)!"
-      className="gap-y-16"
-    >
+  const formContent = (
+    <>
       <div className="dark:border-spaire-700 dark:divide-spaire-700 flex flex-col divide-y divide-gray-200 rounded-4xl border border-gray-200">
         <Form {...form}>
           <form
@@ -228,9 +237,32 @@ export const CreateProductPage = ({
           loading={isSubmitting}
           disabled={isSubmitting}
         >
-          Create Product
+          Publish product
         </Button>
       </div>
+    </>
+  )
+
+  if (panelMode) {
+    return (
+      <div className="flex h-full flex-col">
+        <InlineModalHeader hide={onClose ?? (() => {})}>
+          <span>{sourceProduct ? 'Duplicate Product' : 'New Product'}</span>
+        </InlineModalHeader>
+        <div className="flex flex-col gap-8 overflow-y-auto px-8 pb-8">
+          {formContent}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <DashboardBody
+      title={sourceProduct ? 'Duplicate Product' : 'New Product'}
+      wrapperClassName="max-w-(--breakpoint-md)!"
+      className="gap-y-16"
+    >
+      {formContent}
     </DashboardBody>
   )
 }

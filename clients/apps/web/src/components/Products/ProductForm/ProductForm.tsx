@@ -37,7 +37,7 @@ const ProductForm = ({
 
       <Section
         title="Metadata"
-        description="Optional metadata to associate with the product"
+        description="Attach custom key-value data to this product"
       >
         <ProductMetadataForm />
       </Section>

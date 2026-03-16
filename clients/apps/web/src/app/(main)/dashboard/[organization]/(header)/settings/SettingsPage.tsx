@@ -17,7 +17,7 @@ export default function ClientPage({
   return (
     <DashboardBody
       wrapperClassName="max-w-(--breakpoint-sm)!"
-      title="Organization Settings"
+      title="Settings"
     >
       <div className="flex flex-col gap-y-12">
         <Section id="organization">
@@ -41,7 +41,7 @@ export default function ClientPage({
         <Section id="developers">
           <SectionDescription
             title="Developers"
-            description="Manage access tokens to authenticate with the Polar API"
+            description="Manage API keys and access tokens"
           />
           <OrganizationAccessTokensSettings organization={org} />
         </Section>
