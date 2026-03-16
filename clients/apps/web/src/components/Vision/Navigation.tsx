@@ -13,7 +13,7 @@ export const Navigation = ({
 }) => {
   return (
     <div className="flex flex-col gap-y-8 text-xs md:flex-row md:gap-x-16">
-      <Link href="/">Polar Software Inc.</Link>
+      <Link href="/">Spaire</Link>
       <ul className="flex flex-col gap-y-2 md:flex-row md:gap-x-8">
         <AnimatePresence key={activeIndex}>
           {sections.map((section, index) => (

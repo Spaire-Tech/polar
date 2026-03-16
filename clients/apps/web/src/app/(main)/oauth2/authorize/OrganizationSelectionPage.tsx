@@ -226,12 +226,12 @@ const OrganizationSelectionPage = ({
                           className="cursor-pointer leading-relaxed font-medium"
                         >
                           I understand the restrictions above and agree to
-                          Polar&rsquo;s terms
+                          Spaire&rsquo;s terms
                         </label>
                         <ul className="dark:text-spaire-400 flex flex-col gap-y-1 text-sm text-gray-500">
                           <li>
                             <a
-                              href="https://polar.sh/docs/merchant-of-record/account-reviews"
+                              href="https://docs.spairehq.com/merchant-of-record/account-reviews"
                               className="text-blue-600 hover:underline dark:text-blue-400"
                               target="_blank"
                               rel="noreferrer"
@@ -243,7 +243,7 @@ const OrganizationSelectionPage = ({
                           </li>
                           <li>
                             <a
-                              href="https://polar.sh/legal/terms"
+                              href="https://spairehq.com/legal/terms"
                               className="text-blue-600 hover:underline dark:text-blue-400"
                               target="_blank"
                               rel="noreferrer"
@@ -253,7 +253,7 @@ const OrganizationSelectionPage = ({
                           </li>
                           <li>
                             <a
-                              href="https://polar.sh/legal/privacy"
+                              href="https://spairehq.com/legal/privacy"
                               className="text-blue-600 hover:underline dark:text-blue-400"
                               target="_blank"
                               rel="noreferrer"

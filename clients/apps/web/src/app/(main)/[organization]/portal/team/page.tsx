@@ -18,11 +18,11 @@ export async function generateMetadata(props: {
     openGraph: {
       title: `Team | ${organization.name} on Spaire`,
       description: `Manage team members | ${organization.name} on Spaire`,
-      siteName: 'Polar',
+      siteName: 'Spaire',
       type: 'website',
       images: [
         {
-          url: `https://polar.sh/og?org=${organization.slug}`,
+          url: `https://spairehq.com/og?org=${organization.slug}`,
           width: 1200,
           height: 630,
         },
@@ -31,7 +31,7 @@ export async function generateMetadata(props: {
     twitter: {
       images: [
         {
-          url: `https://polar.sh/og?org=${organization.slug}`,
+          url: `https://spairehq.com/og?org=${organization.slug}`,
           width: 1200,
           height: 630,
           alt: `${organization.name} on Spaire`,

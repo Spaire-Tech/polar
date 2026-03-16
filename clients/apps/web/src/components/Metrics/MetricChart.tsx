@@ -87,12 +87,11 @@ const MetricChart = ({
   )
 
   const ticks = useMemo((): AxisTick[] | undefined => {
-    if (!simple) return undefined
     return [
       genericData[0]?.timestamp as AxisTick,
       genericData[genericData.length - 1]?.timestamp as AxisTick,
     ].filter((t): t is AxisTick => t !== undefined)
-  }, [simple, genericData])
+  }, [genericData])
 
   return (
     <GenericChart
