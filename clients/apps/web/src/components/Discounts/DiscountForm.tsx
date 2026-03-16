@@ -132,24 +132,24 @@ const DiscountForm: React.FC<DiscountFormProps> = ({
             onValueChange={(value: string) =>
               setValue('type', value as schemas['DiscountType'])
             }
-            className="grid grid-cols-2 gap-3"
+            className="grid grid-cols-2 gap-4"
           >
             {[
               {
                 value: 'percentage',
                 title: 'Percentage off',
-                description: 'Reduce the price by a percentage',
+                description: 'Reduce the price by a percentage.',
               },
               {
                 value: 'fixed',
                 title: 'Fixed amount',
-                description: 'Reduce the price by a set amount',
+                description: 'Reduce the price by a set amount.',
               },
             ].map((option) => (
               <Label
                 key={option.value}
                 htmlFor={`discount-type-${option.value}`}
-                className={`flex cursor-pointer flex-col gap-2 rounded-2xl border p-4 font-normal transition-colors ${
+                className={`flex cursor-pointer flex-col gap-3 rounded-2xl border p-5 font-normal transition-colors ${
                   type === option.value
                     ? 'dark:bg-spaire-800 bg-gray-50'
                     : 'dark:border-spaire-700 dark:hover:border-spaire-700 dark:text-spaire-500 dark:hover:bg-spaire-700 dark:bg-spaire-900 border-gray-100 text-gray-500 hover:border-gray-200'
@@ -268,29 +268,29 @@ const DiscountForm: React.FC<DiscountFormProps> = ({
                         value={field.value ?? ''}
                         onValueChange={field.onChange}
                         disabled={update}
-                        className="grid grid-cols-1 gap-3 sm:grid-cols-3"
+                        className="grid grid-cols-3 gap-4"
                       >
                         {[
                           {
                             value: 'once',
                             title: 'Once',
-                            description: 'Applies to the first payment only',
+                            description: 'Applies to the first payment only.',
                           },
                           {
                             value: 'repeating',
                             title: 'Repeating',
-                            description: 'Applies for a set number of months',
+                            description: 'Applies for a set number of months.',
                           },
                           {
                             value: 'forever',
                             title: 'Forever',
-                            description: 'Applies to all future payments',
+                            description: 'Applies to all future payments.',
                           },
                         ].map((option) => (
                           <Label
                             key={option.value}
                             htmlFor={`duration-${option.value}`}
-                            className={`flex flex-col gap-2 rounded-2xl border p-4 font-normal transition-colors ${
+                            className={`flex flex-col gap-3 rounded-2xl border p-5 font-normal transition-colors ${
                               update
                                 ? 'cursor-not-allowed opacity-50'
                                 : 'cursor-pointer'

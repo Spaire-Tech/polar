@@ -780,7 +780,7 @@ const ProductPriceItem: React.FC<ProductPriceItemProps> = ({
     {
       value: 'free',
       title: 'Free',
-      description: 'No charge — give it away',
+      description: 'No charge. Give it away.',
     },
     {
       value: 'custom',
@@ -826,14 +826,14 @@ const ProductPriceItem: React.FC<ProductPriceItemProps> = ({
                       v as ProductPriceCreate['amount_type'],
                     )
                   }}
-                  className="grid grid-cols-2 gap-3 @lg:grid-cols-3"
+                  className="grid grid-cols-2 gap-4"
                 >
                   {priceTypeOptions.map((option) => (
                     <Label
                       key={option.value}
                       htmlFor={`price-type-${index}-${option.value}`}
                       className={twMerge(
-                        'flex flex-col gap-2 rounded-2xl border p-4 font-normal transition-colors',
+                        'flex flex-col gap-3 rounded-2xl border p-5 font-normal transition-colors',
                         hasOtherStaticPrice
                           ? 'cursor-not-allowed opacity-50'
                           : 'cursor-pointer',
@@ -1321,13 +1321,13 @@ export const ProductPricingSection = ({
           <RadioGroup
             value={productType}
             onValueChange={(v) => setProductType(v as 'one_time' | 'recurring')}
-            className="grid-cols-1 gap-3 @md:grid-cols-2"
+            className="grid grid-cols-2 gap-4"
           >
             {['one_time', 'recurring'].map((option) => (
               <Label
                 key={option}
                 htmlFor={`price-type-${option}`}
-                className={`flex flex-col gap-3 rounded-2xl border p-4 font-normal transition-colors not-aria-disabled:cursor-pointer ${
+                className={`flex flex-col gap-3 rounded-2xl border p-5 font-normal transition-colors not-aria-disabled:cursor-pointer ${
                   productType === option
                     ? 'dark:bg-spaire-800 bg-gray-50'
                     : 'dark:border-spaire-700 dark:not-aria-disabled:hover:border-spaire-700 dark:text-spaire-500 dark:not-aria-disabled:hover:bg-spaire-700 dark:bg-spaire-900 border-gray-100 text-gray-500 not-aria-disabled:hover:border-gray-200'

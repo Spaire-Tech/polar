@@ -3,15 +3,10 @@
 import {
   useAuth,
   useDisconnectOAuthAccount,
-  useGitHubAccount,
   useGoogleAccount,
 } from '@/hooks'
-import {
-  getGitHubAuthorizeLinkURL,
-  getGoogleAuthorizeLinkURL,
-} from '@/utils/auth'
+import { getGoogleAuthorizeLinkURL } from '@/utils/auth'
 import AlternateEmailOutlined from '@mui/icons-material/AlternateEmailOutlined'
-import GitHub from '@mui/icons-material/GitHub'
 import Google from '@mui/icons-material/Google'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
@@ -43,65 +38,6 @@ const AuthenticationMethod: React.FC<AuthenticationMethodProps> = ({
       </div>
       <div>{action}</div>
     </div>
-  )
-}
-
-interface GitHubAuthenticationMethodProps {
-  oauthAccount: schemas['OAuthAccountRead'] | undefined
-  returnTo: string
-  onDisconnect: () => void
-  isDisconnecting: boolean
-}
-
-const GitHubAuthenticationMethod: React.FC<GitHubAuthenticationMethodProps> = ({
-  oauthAccount,
-  returnTo,
-  onDisconnect,
-  isDisconnecting,
-}) => {
-  const authorizeURL = getGitHubAuthorizeLinkURL({ return_to: returnTo })
-
-  return (
-    <AuthenticationMethod
-      icon={<GitHub />}
-      title={
-        oauthAccount ? (
-          <>
-            {oauthAccount.account_username ? (
-              <>
-                {oauthAccount.account_username} ({oauthAccount.account_email})
-              </>
-            ) : (
-              oauthAccount.account_email
-            )}
-          </>
-        ) : (
-          'Connect GitHub'
-        )
-      }
-      subtitle={
-        oauthAccount
-          ? 'You can sign in with your GitHub account.'
-          : 'Sync your profile and get a better experience.'
-      }
-      action={
-        <>
-          {oauthAccount ? (
-            <Button
-              variant="secondary"
-              onClick={onDisconnect}
-              loading={isDisconnecting}
-            >
-              Disconnect
-            </Button>
-          ) : (
-            <Button asChild>
-              <a href={authorizeURL}>Connect</a>
-            </Button>
-          )}
-        </>
-      }
-    />
   )
 }
 
@@ -153,7 +89,6 @@ const GoogleAuthenticationMethod: React.FC<GoogleAuthenticationMethodProps> = ({
 const AuthenticationSettings = () => {
   const { currentUser, reloadUser } = useAuth()
   const pathname = usePathname()
-  const githubAccount = useGitHubAccount()
   const googleAccount = useGoogleAccount()
   const disconnectOAuth = useDisconnectOAuthAccount()
 
@@ -204,15 +139,6 @@ const AuthenticationSettings = () => {
 
   return (
     <ShadowListGroup>
-      <ShadowListGroup.Item>
-        <GitHubAuthenticationMethod
-          oauthAccount={githubAccount}
-          returnTo={pathname || '/start'}
-          onDisconnect={() => disconnectOAuth.mutate('github')}
-          isDisconnecting={disconnectOAuth.isPending}
-        />
-      </ShadowListGroup.Item>
-
       <ShadowListGroup.Item>
         <GoogleAuthenticationMethod
           oauthAccount={googleAccount}
