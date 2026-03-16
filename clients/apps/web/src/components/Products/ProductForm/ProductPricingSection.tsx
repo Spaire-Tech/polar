@@ -804,7 +804,7 @@ const ProductPriceItem: React.FC<ProductPriceItemProps> = ({
   ]
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-6">
       <input type="hidden" {...register(`prices.${index}.id`)} />
       <FormField
         control={control}
@@ -1316,7 +1316,7 @@ export const ProductPricingSection = ({
       className={className}
       compact={compact}
     >
-      <div className="flex w-full flex-col gap-6">
+      <div className="flex w-full flex-col gap-10">
         <div className="@container">
           <RadioGroup
             value={productType}
