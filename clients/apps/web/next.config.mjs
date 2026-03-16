@@ -162,7 +162,7 @@ const nextConfig = {
       },
       {
         source: '/:path*',
-        destination: 'https://polar.sh/:path*',
+        destination: 'https://spairehq.com/:path*',
         has: [
           {
             type: 'host',
@@ -173,7 +173,7 @@ const nextConfig = {
       },
       {
         source: '/careers',
-        destination: 'https://polar.sh/company',
+        destination: 'https://spairehq.com/company',
         permanent: false,
       },
       {

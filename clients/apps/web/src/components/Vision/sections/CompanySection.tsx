@@ -74,19 +74,19 @@ export const CompanySection = ({ active }: { active: boolean }) => {
       <p>
         We believe the next unicorns will be created by individual developers.
         As lines blur between indie hackers, startups, and enterprises,
-        we&apos;re building Polar to empower solo builders and early-stage
+        we&apos;re building Spaire to empower solo builders and early-stage
         startups – the future enterprises, without the headcount.
       </p>
       <p>
-        Polar is a small team with big ambitions, empowered by a culture of
+        Spaire is a small team with big ambitions, empowered by a culture of
         ownership and autonomy. We&apos;re proud to be open source & built for
         transparency to shape the future with our community.
       </p>
       <div className="flex flex-col gap-y-2">
-        <Link href="https://github.com/polarsource" target="_blank" prefetch>
-          Polar on GitHub →
+        <Link href="https://github.com/spaire-tech" target="_blank" prefetch>
+          Spaire on GitHub →
         </Link>
-        <Link href="https://x.com/polar_sh" target="_blank" prefetch>
+        <Link href="https://x.com/spaire_hq" target="_blank" prefetch>
           Join the conversation →
         </Link>
       </div>

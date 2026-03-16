@@ -56,14 +56,14 @@ const Footer = () => {
             <h3 className="dark:text-spaire-500 text-gray-500">Company</h3>
             <div className="flex flex-col gap-y-3">
               <FooterLink href="/company">About Spaire</FooterLink>
-              <FooterLink href="https://github.com/polarsource">
+              <FooterLink href="https://github.com/spaire-tech">
                 GitHub
               </FooterLink>
-              <FooterLink href="https://x.com/polar_sh">X / Twitter</FooterLink>
+              <FooterLink href="https://x.com/spaire_hq">X / Twitter</FooterLink>
               <FooterLink href="https://discord.gg/Pnhfz3UThd">
                 Discord
               </FooterLink>
-              <FooterLink href="https://polar.sh/assets/brand/polar_brand.zip">
+              <FooterLink href="https://spairehq.com/assets/brand/spaire_brand.zip">
                 Brand Assets
               </FooterLink>
               <FooterLink href="https://www.spairehq.com/legal/terms-of-service">
@@ -77,9 +77,9 @@ const Footer = () => {
           <div className="flex flex-col gap-y-4 text-sm">
             <h3 className="dark:text-spaire-500 text-gray-500">Support</h3>
             <div className="flex flex-col gap-y-3">
-              <FooterLink href="https://polar.sh/docs">Docs</FooterLink>
+              <FooterLink href="https://docs.spairehq.com">Docs</FooterLink>
               <FooterLink href="mailto:support@spairehq.com">Contact</FooterLink>
-              <FooterLink href="https://status.polar.sh">
+              <FooterLink href="https://status.spairehq.com">
                 Service Status
               </FooterLink>
             </div>

@@ -194,7 +194,7 @@ export const LicenseKeysBenefitForm = () => {
               htmlFor="license-key-activations-user-admin"
               className="-mt-2 text-sm"
             >
-              Enable user to deactivate instances via Polar
+              Enable user to deactivate instances via Spaire
             </label>
           </div>
         </>
