@@ -125,8 +125,6 @@
               {
                 "group": "SDKs",
                 "pages": [
-                  "integrate/sdk/golang",
-                  "integrate/sdk/php",
                   "integrate/sdk/python",
                   "integrate/sdk/typescript"
                 ]
@@ -632,6 +630,9 @@
       "label": "Dashboard",
       "href": "https://www.spairehq.com"
     }
+  },
+  "api": {
+    "languages": ["curl", "typescript", "python"]
   },
   "contextual": {
     "options": [
