@@ -126,7 +126,15 @@
                 "group": "SDKs",
                 "pages": [
                   "integrate/sdk/python",
-                  "integrate/sdk/typescript"
+                  "integrate/sdk/typescript",
+                  {
+                    "group": "More SDKs",
+                    "hidden": true,
+                    "pages": [
+                      "integrate/sdk/golang",
+                      "integrate/sdk/php"
+                    ]
+                  }
                 ]
               },
               {
