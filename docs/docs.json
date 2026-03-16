@@ -56,7 +56,6 @@
               },
               {
                 "group": "Cost Insights",
-                "tag": "Beta",
                 "pages": [
                   "features/cost-insights/introduction",
                   "features/cost-insights/cost-events",
