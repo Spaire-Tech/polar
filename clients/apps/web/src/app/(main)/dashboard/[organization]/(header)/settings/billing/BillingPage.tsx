@@ -15,7 +15,7 @@ export default function BillingPage({
 }) {
   return (
     <DashboardBody wrapperClassName="max-w-(--breakpoint-sm)!" title="Billing">
-      <div className="flex flex-col gap-y-16">
+      <div className="flex flex-col gap-y-12">
         <Section id="currency">
           <SectionDescription title="Currency" />
           <OrganizationCurrencySettings organization={org} />

@@ -1,16 +1,9 @@
 import { twMerge } from 'tailwind-merge'
 
-export const SettingsGroup: React.FC<
-  React.PropsWithChildren<{ danger?: boolean }>
-> = ({ children, danger = false }) => (
-  <div
-    className={twMerge(
-      'w-full flex-col overflow-hidden rounded-2xl border',
-      danger
-        ? 'divide-y divide-red-100 border-red-200 bg-white dark:divide-red-950 dark:border-red-900/40 dark:bg-spaire-900'
-        : 'divide-y divide-gray-100 border-gray-200 bg-white dark:divide-spaire-800 dark:border-spaire-800 dark:bg-spaire-900',
-    )}
-  >
+export const SettingsGroup: React.FC<React.PropsWithChildren> = ({
+  children,
+}) => (
+  <div className="dark:ring-spaire-700 dark:bg-spaire-900 dark:divide-spaire-700 w-full flex-col divide-y divide-gray-200 overflow-hidden rounded-2xl bg-transparent ring-1 ring-gray-200 dark:ring-1">
     {children}
   </div>
 )
@@ -26,18 +19,16 @@ export const SettingsGroupItem: React.FC<
 > = ({ children, title, description, vertical }) => (
   <div
     className={twMerge(
-      'flex gap-x-12 gap-y-4 p-5',
+      'flex gap-x-12 gap-y-4 p-4',
       vertical
         ? 'flex-col'
         : 'flex-col md:flex-row md:items-start md:justify-between',
     )}
   >
-    <div className="flex w-full flex-col gap-y-0.5 md:max-w-1/2">
-      <h3 className="text-sm font-medium text-gray-900 dark:text-white">
-        {title}
-      </h3>
+    <div className="flex w-full flex-col md:max-w-1/2">
+      <h3 className="text-sm font-medium">{title}</h3>
       {description && (
-        <p className="dark:text-spaire-500 text-sm text-gray-500">
+        <p className="dark:text-spaire-500 text-xs text-gray-500">
           {description}
         </p>
       )}
@@ -58,7 +49,7 @@ export const SettingsGroupItem: React.FC<
 export const SettingsGroupActions: React.FC<React.PropsWithChildren> = ({
   children,
 }) => (
-  <div className="flex flex-col gap-4 p-5 md:flex-row md:items-center">
+  <div className="flex flex-col gap-4 p-4 md:flex-row md:items-center">
     {children}
   </div>
 )
