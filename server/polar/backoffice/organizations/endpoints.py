@@ -1225,7 +1225,7 @@ async def create_plain_thread(
             f"Created Plain thread {thread_id} for organization {organization.id}"
         )
 
-        thread_url = f"https://app.plain.com/workspace/w_01JE9TRRX9KT61D8P2CH77XDQM/thread/{thread_id}"
+        thread_url = f"https://app.plain.com/workspace/w_01KKWCMKWG6ANRN6EC2ABCRE5N/thread/{thread_id}"
 
         with document() as doc:
             with tag.div(id="modal"):
@@ -1869,7 +1869,7 @@ async def get_plain_search_url(
     if not admin_user:
         raise HTTPException(status_code=404, detail="No admin user found")
 
-    search_url = f"https://app.plain.com/workspace/w_01JE9TRRX9KT61D8P2CH77XDQM/search/?q={admin_user.email}"
+    search_url = f"https://app.plain.com/workspace/w_01KKWCMKWG6ANRN6EC2ABCRE5N/search/?q={admin_user.email}"
 
     return RedirectResponse(url=search_url, status_code=302)
 
