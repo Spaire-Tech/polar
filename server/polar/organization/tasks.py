@@ -84,8 +84,6 @@ async def organization_account_set(organization_id: uuid.UUID) -> None:
 @actor(actor_name="organization.under_review", priority=TaskPriority.LOW)
 async def organization_under_review(organization_id: uuid.UUID) -> None:
     async with AsyncSessionMaker() as session:
-        from polar.organization.service import organization as organization_service
-
         repository = OrganizationRepository.from_session(session)
         organization = await repository.get_by_id(
             organization_id, options=(joinedload(Organization.account),)
@@ -93,14 +91,9 @@ async def organization_under_review(organization_id: uuid.UUID) -> None:
         if organization is None:
             raise OrganizationDoesNotExist(organization_id)
 
-        # Auto-approve: skip manual review entirely.
-        if organization.status in (
-            OrganizationStatus.INITIAL_REVIEW,
-            OrganizationStatus.ONGOING_REVIEW,
-        ):
-            await organization_service.confirm_organization_reviewed(
-                session, organization, 2147483647
-            )
+        await plain_service.create_organization_review_thread(
+            session, organization
+        )
 
 
 @actor(actor_name="organization.reviewed", priority=TaskPriority.LOW)
