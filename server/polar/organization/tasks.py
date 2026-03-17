@@ -13,6 +13,7 @@ from polar.exceptions import PolarTaskError
 from polar.held_balance.service import held_balance as held_balance_service
 from polar.models import Organization
 from polar.models.organization import OrganizationStatus
+from polar.integrations.plain.service import plain as plain_service
 from polar.user.repository import UserRepository
 from polar.worker import AsyncSessionMaker, TaskPriority, actor
 
