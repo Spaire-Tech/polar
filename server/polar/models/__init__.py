@@ -7,6 +7,7 @@ from .benefit_grant import BenefitGrant
 from .billing_entry import BillingEntry
 from .campaign import Campaign
 from .checkout import Checkout
+from .client_invoice import ClientInvoice, ClientInvoiceLineItem, ClientInvoiceStatus
 from .checkout_link import CheckoutLink
 from .checkout_link_product import CheckoutLinkProduct
 from .checkout_product import CheckoutProduct
@@ -93,6 +94,9 @@ __all__ = [
     "Campaign",
     "Checkout",
     "CheckoutLink",
+    "ClientInvoice",
+    "ClientInvoiceLineItem",
+    "ClientInvoiceStatus",
     "CheckoutLinkProduct",
     "CheckoutProduct",
     "CustomField",

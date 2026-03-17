@@ -427,3 +427,42 @@ async def identity_verification_session_canceled(event_id: uuid.UUID) -> None:
             await user_service.identity_verification_failed(
                 session, verification_session
             )
+
+
+@actor(actor_name="stripe.webhook.invoice.paid", priority=TaskPriority.HIGH)
+@stripe_api_connection_error_retry
+async def invoice_paid(event_id: uuid.UUID) -> None:
+    from polar.client_invoice.service import client_invoice as client_invoice_service
+
+    async with AsyncSessionMaker() as session:
+        async with external_event_service.handle_stripe(session, event_id) as event:
+            stripe_invoice = cast(stripe_lib.Invoice, event.stripe_data.data.object)
+            await client_invoice_service.handle_stripe_invoice_paid(
+                session, stripe_invoice.id
+            )
+
+
+@actor(actor_name="stripe.webhook.invoice.payment_failed", priority=TaskPriority.HIGH)
+@stripe_api_connection_error_retry
+async def invoice_payment_failed(event_id: uuid.UUID) -> None:
+    async with AsyncSessionMaker() as session:
+        async with external_event_service.handle_stripe(session, event_id) as event:
+            stripe_invoice = cast(stripe_lib.Invoice, event.stripe_data.data.object)
+            log.info(
+                "stripe.invoice.payment_failed",
+                stripe_invoice_id=stripe_invoice.id,
+            )
+            # Invoice stays open; Stripe will retry. Notify merchant here if needed.
+
+
+@actor(actor_name="stripe.webhook.invoice.voided", priority=TaskPriority.HIGH)
+@stripe_api_connection_error_retry
+async def invoice_voided(event_id: uuid.UUID) -> None:
+    from polar.client_invoice.service import client_invoice as client_invoice_service
+
+    async with AsyncSessionMaker() as session:
+        async with external_event_service.handle_stripe(session, event_id) as event:
+            stripe_invoice = cast(stripe_lib.Invoice, event.stripe_data.data.object)
+            await client_invoice_service.handle_stripe_invoice_voided(
+                session, stripe_invoice.id
+            )
