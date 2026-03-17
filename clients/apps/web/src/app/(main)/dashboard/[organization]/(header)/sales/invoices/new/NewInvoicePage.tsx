@@ -493,11 +493,15 @@ const InvoicePaymentLinkSection = ({
   const [linkQuery, setLinkQuery] = useState('')
   const { data: linksData, isLoading: isLoadingLinks } = useCheckoutLinks(
     organization.id,
-    { query: linkQuery || undefined },
   )
   const links = useMemo(
-    () => linksData?.pages.flatMap((p) => p.items) ?? [],
-    [linksData],
+    () =>
+      (linksData?.pages.flatMap((p) => p.items) ?? []).filter(
+        (l) =>
+          !linkQuery ||
+          (l.label ?? '').toLowerCase().includes(linkQuery.toLowerCase()),
+      ),
+    [linksData, linkQuery],
   )
 
   return (
