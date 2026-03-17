@@ -161,11 +161,14 @@ class ClientInvoiceService:
         total_amount = taxable_amount + tax_amount
         on_behalf_of_label = create_schema.on_behalf_of_label or organization.name
 
-        # Compute days_until_due from explicit due_date
-        days_until_due: int | None = None
+        # Compute days_until_due from explicit due_date.
+        # Stripe requires days_until_due for collection_method="send_invoice" —
+        # default to 30 days (Net 30) when no due date is specified.
         if create_schema.due_date is not None:
             delta = create_schema.due_date - date.today()
-            days_until_due = max(1, delta.days)
+            days_until_due: int = max(1, delta.days)
+        else:
+            days_until_due = 30
 
         custom_fields: list[dict[str, str]] = [
             {"name": "On behalf of", "value": on_behalf_of_label}
