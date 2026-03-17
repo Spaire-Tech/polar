@@ -1,6 +1,8 @@
 'use client'
 
-import { DashboardBody } from '@/components/Layout/DashboardLayout'
+import { InlineModal } from '@/components/Modal/InlineModal'
+import { useModal } from '@/components/Modal/useModal'
+import { CreateProductPage } from '@/components/Products/CreateProductPage'
 import {
   ClientInvoice,
   useClientInvoices,
@@ -11,6 +13,8 @@ import {
   getAPIParams,
   serializeSearchParams,
 } from '@/utils/datatable'
+import AddOutlined from '@mui/icons-material/AddOutlined'
+import RequestQuoteOutlined from '@mui/icons-material/RequestQuoteOutlined'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import {
@@ -19,6 +23,7 @@ import {
   DataTableColumnHeader,
 } from '@spaire/ui/components/atoms/DataTable'
 import FormattedDateTime from '@spaire/ui/components/atoms/FormattedDateTime'
+import ShadowBoxOnMd from '@spaire/ui/components/atoms/ShadowBoxOnMd'
 import { formatCurrency } from '@spaire/currency'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -54,11 +59,20 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
   sorting,
 }) => {
   const router = useRouter()
+  const {
+    isShown: isCreateProductShown,
+    show: showCreateProduct,
+    hide: hideCreateProduct,
+  } = useModal()
 
-  const getSearchParams = (
-    pagination: DataTablePaginationState,
-    sorting: DataTableSortingState,
-  ) => serializeSearchParams(pagination, sorting)
+  const invoicesHook = useClientInvoices(
+    organization.id,
+    getAPIParams(pagination, sorting),
+  )
+
+  const invoices = invoicesHook.data?.items ?? []
+  const rowCount = invoicesHook.data?.pagination.total_count ?? 0
+  const pageCount = invoicesHook.data?.pagination.max_page ?? 1
 
   const setPagination = (
     updaterOrValue:
@@ -70,7 +84,7 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
         ? updaterOrValue(pagination)
         : updaterOrValue
     router.push(
-      `/dashboard/${organization.slug}/sales/invoices?${getSearchParams(updated, sorting)}`,
+      `/dashboard/${organization.slug}/sales/invoices?${serializeSearchParams(updated, sorting)}`,
     )
   }
 
@@ -84,18 +98,9 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
         ? updaterOrValue(sorting)
         : updaterOrValue
     router.push(
-      `/dashboard/${organization.slug}/sales/invoices?${getSearchParams(pagination, updated)}`,
+      `/dashboard/${organization.slug}/sales/invoices?${serializeSearchParams(pagination, updated)}`,
     )
   }
-
-  const invoicesHook = useClientInvoices(
-    organization.id,
-    getAPIParams(pagination, sorting),
-  )
-
-  const invoices = invoicesHook.data?.items ?? []
-  const rowCount = invoicesHook.data?.pagination.total_count ?? 0
-  const pageCount = invoicesHook.data?.pagination.max_page ?? 1
 
   const columns: DataTableColumnDef<ClientInvoice>[] = [
     {
@@ -158,33 +163,44 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
   ]
 
   return (
-    <DashboardBody
-      title="Invoices"
-      header={
-        <Link
-          href={`/dashboard/${organization.slug}/sales/invoices/new`}
-        >
-          <Button>New Invoice</Button>
-        </Link>
-      }
-    >
-      <div className="flex flex-col gap-6">
-        {invoices.length === 0 && !invoicesHook.isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-              Create and send invoices in minutes
-            </h3>
-            <p className="mt-2 max-w-sm text-sm text-gray-500 dark:text-gray-400">
-              Send an invoice with a link to pay online. Accept cards, bank
-              transfers, and more.
-            </p>
-            <Link
-              href={`/dashboard/${organization.slug}/sales/invoices/new`}
-              className="mt-6"
-            >
-              <Button>Create Invoice</Button>
-            </Link>
-          </div>
+    <>
+      <div className="flex flex-col gap-8 p-4 pb-16 md:p-8">
+        <div className="flex flex-row items-center justify-between">
+          <h1 className="text-xl font-medium dark:text-white">Invoices</h1>
+          <Link href={`/dashboard/${organization.slug}/sales/invoices/new`}>
+            <Button>
+              <AddOutlined fontSize="small" />
+              New Invoice
+            </Button>
+          </Link>
+        </div>
+
+        {!invoicesHook.isLoading && invoices.length === 0 ? (
+          <ShadowBoxOnMd className="items-center justify-center gap-y-6 md:flex md:flex-col md:py-24">
+            <div className="flex max-w-md flex-col items-center gap-y-6 text-center">
+              <RequestQuoteOutlined
+                className="dark:text-spaire-600 text-5xl text-gray-300"
+                fontSize="large"
+              />
+              <div className="flex flex-col items-center gap-y-2">
+                <h3 className="text-xl font-medium">
+                  Create and send invoices in minutes
+                </h3>
+                <p className="dark:text-spaire-500 text-gray-500">
+                  Send an invoice with a link to pay online. Accept cards, bank
+                  transfers, and more.
+                </p>
+              </div>
+              <Link
+                href={`/dashboard/${organization.slug}/sales/invoices/new`}
+              >
+                <Button>
+                  <AddOutlined className="h-4 w-4" />
+                  <span>Create Invoice</span>
+                </Button>
+              </Link>
+            </div>
+          </ShadowBoxOnMd>
         ) : (
           <DataTable
             columns={columns}
@@ -204,7 +220,20 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
           />
         )}
       </div>
-    </DashboardBody>
+
+      <InlineModal
+        isShown={isCreateProductShown}
+        hide={hideCreateProduct}
+        className="md:w-[720px]"
+        modalContent={
+          <CreateProductPage
+            organization={organization}
+            panelMode={true}
+            onClose={hideCreateProduct}
+          />
+        }
+      />
+    </>
   )
 }
 
