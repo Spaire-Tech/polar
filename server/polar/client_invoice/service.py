@@ -92,6 +92,7 @@ class ClientInvoiceService:
         create_schema: ClientInvoiceCreate,
     ) -> ClientInvoice:
         from polar.customer.repository import CustomerRepository
+        from polar.organization.repository import OrganizationRepository
 
         customer_repository = CustomerRepository.from_session(session)
         customer = await customer_repository.get_by_id(create_schema.customer_id)
@@ -100,11 +101,18 @@ class ClientInvoiceService:
                 f"Customer {create_schema.customer_id} not found."
             )
 
-        # Resolve organization from auth subject or customer
+        # Resolve organization from auth subject or customer.
+        # Access customer.organization_id (a plain column) rather than the
+        # lazy='raise' relationship to avoid an InvalidRequestError.
         if isinstance(auth_subject.subject, Organization):
             organization = auth_subject.subject
         else:
-            organization = customer.organization
+            org_repository = OrganizationRepository.from_session(session)
+            organization = await org_repository.get_by_id(customer.organization_id)
+            if organization is None:
+                raise ClientInvoiceError(
+                    f"Organization {customer.organization_id} not found."
+                )
 
         # Ensure the Stripe customer exists on the platform account
         if customer.stripe_customer_id is None:
