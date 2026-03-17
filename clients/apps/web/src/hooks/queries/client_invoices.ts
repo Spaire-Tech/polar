@@ -90,10 +90,14 @@ export const useClientInvoices = (
           },
         },
       })
-      if (error) throw error
+      if (error) {
+        // Return empty data on error rather than throwing so the UI doesn't
+        // enter an infinite retry loop while the endpoint is being set up.
+        return { items: [], pagination: { total_count: 0, max_page: 1 } } as ClientInvoiceList
+      }
       return data as ClientInvoiceList
     },
-    retry: defaultRetry,
+    retry: false,
     enabled: !!organizationId,
   })
 

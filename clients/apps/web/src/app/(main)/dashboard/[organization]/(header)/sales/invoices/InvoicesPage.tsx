@@ -1,8 +1,5 @@
 'use client'
 
-import { InlineModal } from '@/components/Modal/InlineModal'
-import { useModal } from '@/components/Modal/useModal'
-import { CreateProductPage } from '@/components/Products/CreateProductPage'
 import {
   ClientInvoice,
   useClientInvoices,
@@ -14,7 +11,7 @@ import {
   serializeSearchParams,
 } from '@/utils/datatable'
 import AddOutlined from '@mui/icons-material/AddOutlined'
-import RequestQuoteOutlined from '@mui/icons-material/RequestQuoteOutlined'
+import HiveOutlined from '@mui/icons-material/HiveOutlined'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import {
@@ -59,11 +56,6 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
   sorting,
 }) => {
   const router = useRouter()
-  const {
-    isShown: isCreateProductShown,
-    show: showCreateProduct,
-    hide: hideCreateProduct,
-  } = useModal()
 
   const invoicesHook = useClientInvoices(
     organization.id,
@@ -178,7 +170,7 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
         {!invoicesHook.isLoading && invoices.length === 0 ? (
           <ShadowBoxOnMd className="items-center justify-center gap-y-6 md:flex md:flex-col md:py-24">
             <div className="flex max-w-md flex-col items-center gap-y-6 text-center">
-              <RequestQuoteOutlined
+              <HiveOutlined
                 className="dark:text-spaire-600 text-5xl text-gray-300"
                 fontSize="large"
               />
@@ -221,18 +213,6 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
         )}
       </div>
 
-      <InlineModal
-        isShown={isCreateProductShown}
-        hide={hideCreateProduct}
-        className="md:w-[720px]"
-        modalContent={
-          <CreateProductPage
-            organization={organization}
-            panelMode={true}
-            onClose={hideCreateProduct}
-          />
-        }
-      />
     </>
   )
 }

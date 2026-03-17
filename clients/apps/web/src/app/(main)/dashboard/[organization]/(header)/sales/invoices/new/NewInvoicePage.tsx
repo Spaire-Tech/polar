@@ -1,14 +1,16 @@
 'use client'
 
-import { DashboardBody } from '@/components/Layout/DashboardLayout'
 import { Section } from '@/components/Layout/Section'
-import { InlineModal } from '@/components/Modal/InlineModal'
+import { DashboardBody } from '@/components/Layout/DashboardLayout'
+import { InlineModal, InlineModalHeader } from '@/components/Modal/InlineModal'
 import { useModal } from '@/components/Modal/useModal'
 import { CreateCustomerModal } from '@/components/Customer/CreateCustomerModal'
 import CreateDiscountModalContent from '@/components/Discounts/CreateDiscountModalContent'
 import { CreateProductPage } from '@/components/Products/CreateProductPage'
+import { CheckoutLinkForm } from '@/components/CheckoutLinks/CheckoutLinkForm'
 import { toast } from '@/components/Toast/use-toast'
 import {
+  useCheckoutLinks,
   useCustomers,
   useDiscounts,
   useProducts,
@@ -18,13 +20,12 @@ import {
   useCreateClientInvoice,
 } from '@/hooks/queries/client_invoices'
 import AddOutlined from '@mui/icons-material/AddOutlined'
-import DeleteOutline from '@mui/icons-material/DeleteOutline'
-import Search from '@mui/icons-material/Search'
+import RemoveCircleOutlineOutlined from '@mui/icons-material/RemoveCircleOutlineOutlined'
 import { schemas } from '@spaire/client'
-import Avatar from '@spaire/ui/components/atoms/Avatar'
 import Button from '@spaire/ui/components/atoms/Button'
+import { Combobox } from '@spaire/ui/components/atoms/Combobox'
 import Input from '@spaire/ui/components/atoms/Input'
-import ShadowBox from '@spaire/ui/components/atoms/ShadowBox'
+import TextArea from '@spaire/ui/components/atoms/TextArea'
 import {
   Form,
   FormControl,
@@ -33,724 +34,805 @@ import {
   FormLabel,
   FormMessage,
 } from '@spaire/ui/components/ui/form'
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@spaire/ui/components/ui/popover'
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from '@spaire/ui/components/ui/command'
-import { formatCurrency } from '@spaire/currency'
 import { addDays, format } from 'date-fns'
 import { useRouter } from 'next/navigation'
-import React, { useMemo, useRef, useState } from 'react'
-import { useFieldArray, useForm } from 'react-hook-form'
+import { useCallback, useMemo, useState } from 'react'
+import { useFieldArray, useForm, useFormContext } from 'react-hook-form'
+import { twMerge } from 'tailwind-merge'
 
-// All 35 supported currencies
-const SUPPORTED_CURRENCIES = [
-  { value: 'usd', label: 'USD — US Dollar' },
-  { value: 'eur', label: 'EUR — Euro' },
-  { value: 'gbp', label: 'GBP — British Pound' },
-  { value: 'aed', label: 'AED — UAE Dirham' },
-  { value: 'ars', label: 'ARS — Argentine Peso' },
-  { value: 'aud', label: 'AUD — Australian Dollar' },
-  { value: 'brl', label: 'BRL — Brazilian Real' },
-  { value: 'cad', label: 'CAD — Canadian Dollar' },
-  { value: 'chf', label: 'CHF — Swiss Franc' },
-  { value: 'clp', label: 'CLP — Chilean Peso' },
-  { value: 'cny', label: 'CNY — Chinese Yuan' },
-  { value: 'cop', label: 'COP — Colombian Peso' },
-  { value: 'czk', label: 'CZK — Czech Koruna' },
-  { value: 'dkk', label: 'DKK — Danish Krone' },
-  { value: 'hkd', label: 'HKD — Hong Kong Dollar' },
-  { value: 'huf', label: 'HUF — Hungarian Forint' },
-  { value: 'idr', label: 'IDR — Indonesian Rupiah' },
-  { value: 'ils', label: 'ILS — Israeli Shekel' },
-  { value: 'inr', label: 'INR — Indian Rupee' },
-  { value: 'jpy', label: 'JPY — Japanese Yen' },
-  { value: 'krw', label: 'KRW — South Korean Won' },
-  { value: 'mxn', label: 'MXN — Mexican Peso' },
-  { value: 'myr', label: 'MYR — Malaysian Ringgit' },
-  { value: 'nok', label: 'NOK — Norwegian Krone' },
-  { value: 'nzd', label: 'NZD — New Zealand Dollar' },
-  { value: 'pen', label: 'PEN — Peruvian Sol' },
-  { value: 'php', label: 'PHP — Philippine Peso' },
-  { value: 'pln', label: 'PLN — Polish Zloty' },
-  { value: 'ron', label: 'RON — Romanian Leu' },
-  { value: 'sar', label: 'SAR — Saudi Riyal' },
-  { value: 'sek', label: 'SEK — Swedish Krona' },
-  { value: 'sgd', label: 'SGD — Singapore Dollar' },
-  { value: 'thb', label: 'THB — Thai Baht' },
-  { value: 'try', label: 'TRY — Turkish Lira' },
-  { value: 'twd', label: 'TWD — Taiwan Dollar' },
-  { value: 'zar', label: 'ZAR — South African Rand' },
+// ─── Supported currencies ────────────────────────────────────────────────────
+
+const CURRENCIES = [
+  { value: 'usd', label: 'USD' },
+  { value: 'eur', label: 'EUR' },
+  { value: 'gbp', label: 'GBP' },
+  { value: 'aed', label: 'AED' },
+  { value: 'ars', label: 'ARS' },
+  { value: 'aud', label: 'AUD' },
+  { value: 'brl', label: 'BRL' },
+  { value: 'cad', label: 'CAD' },
+  { value: 'chf', label: 'CHF' },
+  { value: 'clp', label: 'CLP' },
+  { value: 'cny', label: 'CNY' },
+  { value: 'cop', label: 'COP' },
+  { value: 'czk', label: 'CZK' },
+  { value: 'dkk', label: 'DKK' },
+  { value: 'hkd', label: 'HKD' },
+  { value: 'huf', label: 'HUF' },
+  { value: 'idr', label: 'IDR' },
+  { value: 'ils', label: 'ILS' },
+  { value: 'inr', label: 'INR' },
+  { value: 'jpy', label: 'JPY' },
+  { value: 'krw', label: 'KRW' },
+  { value: 'mxn', label: 'MXN' },
+  { value: 'myr', label: 'MYR' },
+  { value: 'nok', label: 'NOK' },
+  { value: 'nzd', label: 'NZD' },
+  { value: 'pen', label: 'PEN' },
+  { value: 'php', label: 'PHP' },
+  { value: 'pln', label: 'PLN' },
+  { value: 'ron', label: 'RON' },
+  { value: 'sar', label: 'SAR' },
+  { value: 'sek', label: 'SEK' },
+  { value: 'sgd', label: 'SGD' },
+  { value: 'thb', label: 'THB' },
+  { value: 'try', label: 'TRY' },
+  { value: 'twd', label: 'TWD' },
+  { value: 'zar', label: 'ZAR' },
 ]
 
-const NET_OPTIONS = [
-  { label: 'Net 7', days: 7 },
-  { label: 'Net 15', days: 15 },
-  { label: 'Net 30', days: 30 },
-  { label: 'Net 60', days: 60 },
-]
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-function getPriceForCurrency(
-  product: schemas['Product'],
-  currency: string,
-): number {
-  const prices = product.prices ?? []
-  // Find a matching fixed price for the selected currency
-  const match = prices.find(
-    (p) =>
-      'price_currency' in p &&
-      (p as any).price_currency === currency.toLowerCase() &&
-      'price_amount' in p &&
-      typeof (p as any).price_amount === 'number',
-  )
-  if (match) return (match as any).price_amount as number
-  // Fallback: any price with price_amount
-  const fallback = prices.find(
-    (p) => 'price_amount' in p && typeof (p as any).price_amount === 'number',
-  )
-  if (fallback) return (fallback as any).price_amount as number
-  return 0
-}
-
-function computeDiscountCents(
-  discount: schemas['Discount'],
-  subtotalCents: number,
-): number {
-  if (discount.type === 'fixed') {
-    return (discount as any).amount ?? 0
-  }
-  // percentage: basis_points e.g. 1000 = 10%
-  return Math.round((subtotalCents * ((discount as any).basis_points ?? 0)) / 10000)
-}
-
-interface LineItemFormValue {
-  product_id: string | null
+interface LineItemValue {
   description: string
   quantity: number
-  unit_amount: string // display value in major currency units (e.g. dollars)
+  unit_amount: string // major currency units for display
 }
 
-interface InvoiceFormValues {
+export interface InvoiceFormValues {
   customer_id: string
   currency: string
-  line_items: LineItemFormValue[]
+  line_items: LineItemValue[]
   due_date: string
   memo: string
   po_number: string
   on_behalf_of_label: string
-  include_payment_link: boolean
 }
 
-interface NewInvoicePageProps {
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function getPriceForCurrency(product: schemas['Product'], currency: string): number {
+  const prices = product.prices ?? []
+  const match = prices.find(
+    (p) =>
+      'price_currency' in p &&
+      (p as any).price_currency === currency.toLowerCase() &&
+      'price_amount' in p,
+  )
+  if (match) return ((match as any).price_amount as number) ?? 0
+  const fallback = prices.find((p) => 'price_amount' in p)
+  return fallback ? ((fallback as any).price_amount as number) ?? 0 : 0
+}
+
+function computeDiscountCents(discount: schemas['Discount'], subtotalCents: number): number {
+  if (discount.type === 'fixed') return (discount as any).amount ?? 0
+  return Math.round((subtotalCents * ((discount as any).basis_points ?? 0)) / 10000)
+}
+
+// ─── Section: Customer ────────────────────────────────────────────────────────
+
+const InvoiceCustomerSection = ({
+  organization,
+  onNewCustomer,
+}: {
   organization: schemas['Organization']
-}
-
-const NewInvoicePage: React.FC<NewInvoicePageProps> = ({ organization }) => {
-  const router = useRouter()
-  const createInvoice = useCreateClientInvoice(organization.id)
-
-  const {
-    isShown: isCustomerModalShown,
-    show: showCustomerModal,
-    hide: hideCustomerModal,
-  } = useModal()
-  const {
-    isShown: isProductModalShown,
-    show: showProductModal,
-    hide: hideProductModal,
-  } = useModal()
-  const {
-    isShown: isDiscountModalShown,
-    show: showDiscountModal,
-    hide: hideDiscountModal,
-  } = useModal()
-
-  // Selected discount (stores the full discount object for amount computation)
-  const [selectedDiscount, setSelectedDiscount] =
-    useState<schemas['Discount'] | null>(null)
-
-  // Customer search state
+  onNewCustomer: () => void
+}) => {
+  const { control, watch, setValue } = useFormContext<InvoiceFormValues>()
   const [customerQuery, setCustomerQuery] = useState('')
-  const [customerPopoverOpen, setCustomerPopoverOpen] = useState(false)
-  const [selectedCustomerLabel, setSelectedCustomerLabel] = useState('')
-  const customerInputRef = useRef<HTMLInputElement>(null)
 
-  const { data: customersData } = useCustomers(organization.id, {
-    query: customerQuery || undefined,
-    sorting: ['-created_at'],
-  })
-  const allCustomers = useMemo(
+  const { data: customersData, isLoading: isLoadingCustomers } = useCustomers(
+    organization.id,
+    { query: customerQuery || undefined },
+  )
+  const customers = useMemo(
     () => customersData?.pages.flatMap((p) => p.items) ?? [],
     [customersData],
   )
 
-  // Products
-  const { data: productsData } = useProducts(organization.id)
-  const allProducts = useMemo(
+  const customerId = watch('customer_id')
+  const selectedCustomer = customers.find((c) => c.id === customerId) ?? null
+
+  return (
+    <Section
+      compact
+      title="Customer"
+      description="The customer you are invoicing"
+    >
+      <div className="flex w-full flex-col gap-y-4">
+        <FormField
+          control={control}
+          name="customer_id"
+          rules={{ required: 'Please select a customer' }}
+          render={({ field }) => (
+            <FormItem>
+              <FormControl>
+                <Combobox
+                  items={customers}
+                  value={field.value || null}
+                  selectedItem={selectedCustomer}
+                  onChange={(v) => field.onChange(v ?? '')}
+                  onQueryChange={setCustomerQuery}
+                  getItemValue={(c) => c.id}
+                  getItemLabel={(c) => c.name ?? c.email}
+                  renderItem={(c) => (
+                    <div className="flex flex-col">
+                      <span className="font-medium">{c.name ?? c.email}</span>
+                      {c.name && (
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          {c.email}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  isLoading={isLoadingCustomers}
+                  placeholder="Select a customer"
+                  searchPlaceholder="Search customers…"
+                  emptyLabel="No customers found"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <button
+          type="button"
+          onClick={onNewCustomer}
+          className="flex w-fit items-center gap-x-1 text-sm text-blue-500 hover:text-blue-600"
+        >
+          <AddOutlined fontSize="small" />
+          New customer
+        </button>
+      </div>
+    </Section>
+  )
+}
+
+// ─── Section: Currency ────────────────────────────────────────────────────────
+
+const InvoiceCurrencySection = () => {
+  const { control } = useFormContext<InvoiceFormValues>()
+
+  return (
+    <Section
+      compact
+      title="Currency"
+      description="All line items will be billed in this currency"
+    >
+      <FormField
+        control={control}
+        name="currency"
+        render={({ field }) => (
+          <FormItem>
+            <FormControl>
+              <select
+                {...field}
+                className="dark:bg-spaire-900 dark:border-spaire-700 w-full max-w-xs rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm focus:outline-none"
+              >
+                {CURRENCIES.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.value.toUpperCase()} — {c.label}
+                  </option>
+                ))}
+              </select>
+            </FormControl>
+          </FormItem>
+        )}
+      />
+    </Section>
+  )
+}
+
+// ─── Section: Line Items ──────────────────────────────────────────────────────
+
+const InvoiceItemsSection = ({
+  organization,
+  onNewProduct,
+}: {
+  organization: schemas['Organization']
+  onNewProduct: () => void
+}) => {
+  const { control, watch, setValue } = useFormContext<InvoiceFormValues>()
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: 'line_items',
+  })
+  const currency = watch('currency')
+
+  const [productQuery, setProductQuery] = useState('')
+  const { data: productsData, isLoading: isLoadingProducts } = useProducts(
+    organization.id,
+    { query: productQuery || undefined },
+  )
+  const products = useMemo(
     () => productsData?.items ?? [],
     [productsData],
   )
 
-  // Discounts
-  const { data: discountsData } = useDiscounts(organization.id)
-  const allDiscounts = useMemo(
+  return (
+    <Section
+      compact
+      title="Items"
+      description="Add products from your catalog or type a custom description"
+    >
+      <div className="flex w-full flex-col gap-y-6">
+        {fields.map((field, index) => (
+          <div key={field.id} className="flex flex-col gap-y-3">
+            {/* Product picker — selecting auto-fills description + unit amount */}
+            <Combobox
+              items={products}
+              value={null}
+              selectedItem={null}
+              onChange={(productId) => {
+                if (!productId) return
+                const product = products.find((p) => p.id === productId)
+                if (!product) return
+                const priceCents = getPriceForCurrency(product, currency)
+                setValue(`line_items.${index}.description`, product.name)
+                setValue(
+                  `line_items.${index}.unit_amount`,
+                  priceCents > 0 ? (priceCents / 100).toString() : '',
+                )
+              }}
+              onQueryChange={setProductQuery}
+              getItemValue={(p) => p.id}
+              getItemLabel={(p) => p.name}
+              renderItem={(p) => (
+                <div className="flex flex-col">
+                  <span className="font-medium">{p.name}</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    {(() => {
+                      const cents = getPriceForCurrency(p, currency)
+                      return cents > 0
+                        ? `${(cents / 100).toFixed(2)} ${currency.toUpperCase()}`
+                        : 'Custom price'
+                    })()}
+                  </span>
+                </div>
+              )}
+              isLoading={isLoadingProducts}
+              placeholder="Select a product…"
+              searchPlaceholder="Search products…"
+              emptyLabel="No products found"
+            />
+
+            <div className="grid grid-cols-[1fr_80px_120px_32px] items-start gap-x-3">
+              {/* Description */}
+              <FormField
+                control={control}
+                name={`line_items.${index}.description`}
+                rules={{ required: 'Description is required' }}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <Input {...field} placeholder="Description" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Quantity */}
+              <FormField
+                control={control}
+                name={`line_items.${index}.quantity`}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        type="number"
+                        min={1}
+                        className="text-center"
+                        placeholder="1"
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              {/* Unit amount */}
+              <FormField
+                control={control}
+                name={`line_items.${index}.unit_amount`}
+                rules={{ required: 'Amount is required' }}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        type="number"
+                        min={0}
+                        step={0.01}
+                        className="text-right"
+                        placeholder="0.00"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Remove row */}
+              <button
+                type="button"
+                onClick={() => remove(index)}
+                disabled={fields.length <= 1}
+                className={twMerge(
+                  'mt-2 text-gray-400 transition-colors hover:text-red-500',
+                  fields.length <= 1 && 'pointer-events-none opacity-30',
+                )}
+              >
+                <RemoveCircleOutlineOutlined fontSize="small" />
+              </button>
+            </div>
+          </div>
+        ))}
+
+        <div className="flex flex-row items-center gap-x-4">
+          <button
+            type="button"
+            onClick={() =>
+              append({ description: '', quantity: 1, unit_amount: '' })
+            }
+            className="flex items-center gap-x-1 text-sm text-blue-500 hover:text-blue-600"
+          >
+            <AddOutlined fontSize="small" />
+            Add item
+          </button>
+          <button
+            type="button"
+            onClick={onNewProduct}
+            className="flex items-center gap-x-1 text-sm text-blue-500 hover:text-blue-600"
+          >
+            <AddOutlined fontSize="small" />
+            New product
+          </button>
+        </div>
+      </div>
+    </Section>
+  )
+}
+
+// ─── Section: Discount ────────────────────────────────────────────────────────
+
+const InvoiceDiscountSection = ({
+  organization,
+  selectedDiscount,
+  onSelectDiscount,
+  onNewDiscount,
+}: {
+  organization: schemas['Organization']
+  selectedDiscount: schemas['Discount'] | null
+  onSelectDiscount: (discount: schemas['Discount'] | null) => void
+  onNewDiscount: () => void
+}) => {
+  const [discountQuery, setDiscountQuery] = useState('')
+  const { data: discountsData, isLoading: isLoadingDiscounts } = useDiscounts(
+    organization.id,
+    { query: discountQuery || undefined },
+  )
+  const discounts = useMemo(
     () => discountsData?.items ?? [],
     [discountsData],
   )
+
+  return (
+    <Section
+      compact
+      title="Discount"
+      description="Optionally apply a discount from your catalog"
+    >
+      <div className="flex w-full flex-col gap-y-4">
+        <Combobox
+          items={discounts}
+          value={selectedDiscount?.id ?? null}
+          selectedItem={selectedDiscount}
+          onChange={(id) => {
+            if (!id) {
+              onSelectDiscount(null)
+              return
+            }
+            const d = discounts.find((d) => d.id === id)
+            onSelectDiscount(d ?? null)
+          }}
+          onQueryChange={setDiscountQuery}
+          getItemValue={(d) => d.id}
+          getItemLabel={(d) => d.name}
+          renderItem={(d) => (
+            <div className="flex flex-col">
+              <span className="font-medium">{d.name}</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                {d.type === 'percentage'
+                  ? `${((d as any).basis_points ?? 0) / 100}% off`
+                  : `${((d as any).amount ?? 0) / 100} ${(d as any).currency?.toUpperCase() ?? ''} off`}
+              </span>
+            </div>
+          )}
+          isLoading={isLoadingDiscounts}
+          placeholder="Select a discount"
+          searchPlaceholder="Search discounts…"
+          emptyLabel="No discounts found"
+        />
+        <button
+          type="button"
+          onClick={onNewDiscount}
+          className="flex w-fit items-center gap-x-1 text-sm text-blue-500 hover:text-blue-600"
+        >
+          <AddOutlined fontSize="small" />
+          New discount
+        </button>
+      </div>
+    </Section>
+  )
+}
+
+// ─── Section: Payment Link ────────────────────────────────────────────────────
+
+const InvoicePaymentLinkSection = ({
+  organization,
+  selectedCheckoutLink,
+  onSelectCheckoutLink,
+  onNewCheckoutLink,
+}: {
+  organization: schemas['Organization']
+  selectedCheckoutLink: schemas['CheckoutLink'] | null
+  onSelectCheckoutLink: (link: schemas['CheckoutLink'] | null) => void
+  onNewCheckoutLink: () => void
+}) => {
+  const [linkQuery, setLinkQuery] = useState('')
+  const { data: linksData, isLoading: isLoadingLinks } = useCheckoutLinks(
+    organization.id,
+    { query: linkQuery || undefined },
+  )
+  const links = useMemo(
+    () => linksData?.pages.flatMap((p) => p.items) ?? [],
+    [linksData],
+  )
+
+  return (
+    <Section
+      compact
+      title="Payment Link"
+      description="Attach a checkout link so customers can pay directly from the invoice. We will automatically include the link."
+    >
+      <div className="flex w-full flex-col gap-y-4">
+        <Combobox
+          items={links}
+          value={selectedCheckoutLink?.id ?? null}
+          selectedItem={selectedCheckoutLink}
+          onChange={(id) => {
+            if (!id) {
+              onSelectCheckoutLink(null)
+              return
+            }
+            const link = links.find((l) => l.id === id)
+            onSelectCheckoutLink(link ?? null)
+          }}
+          onQueryChange={setLinkQuery}
+          getItemValue={(l) => l.id}
+          getItemLabel={(l) => l.label ?? l.url}
+          renderItem={(l) => (
+            <div className="flex flex-col">
+              <span className="font-medium">{l.label ?? 'Unlabeled'}</span>
+              <span className="truncate text-xs text-gray-500 dark:text-gray-400">
+                {l.url}
+              </span>
+            </div>
+          )}
+          isLoading={isLoadingLinks}
+          placeholder="Select a checkout link (optional)"
+          searchPlaceholder="Search checkout links…"
+          emptyLabel="No checkout links found"
+        />
+
+        {selectedCheckoutLink && (
+          <div className="dark:border-spaire-700 flex items-center gap-x-2 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-2.5 dark:bg-transparent">
+            <span className="flex-1 truncate font-mono text-xs text-gray-500 dark:text-gray-400">
+              {selectedCheckoutLink.url}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(selectedCheckoutLink.url)
+                toast({ title: 'Copied to clipboard' })
+              }}
+              className="shrink-0 text-xs text-blue-500 hover:text-blue-600"
+            >
+              Copy
+            </button>
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={onNewCheckoutLink}
+          className="flex w-fit items-center gap-x-1 text-sm text-blue-500 hover:text-blue-600"
+        >
+          <AddOutlined fontSize="small" />
+          New checkout link
+        </button>
+      </div>
+    </Section>
+  )
+}
+
+// ─── Section: Details ─────────────────────────────────────────────────────────
+
+const InvoiceDetailsSection = () => {
+  const { control, setValue } = useFormContext<InvoiceFormValues>()
+
+  const NET_OPTIONS = [
+    { label: 'Net 7', days: 7 },
+    { label: 'Net 15', days: 15 },
+    { label: 'Net 30', days: 30 },
+    { label: 'Net 60', days: 60 },
+  ]
+
+  return (
+    <Section
+      compact
+      title="Details"
+      description="Due date, notes, and references"
+    >
+      <div className="flex w-full flex-col gap-y-6">
+        {/* Due date */}
+        <FormField
+          control={control}
+          name="due_date"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Payment due</FormLabel>
+              <div className="flex flex-wrap items-center gap-2">
+                {NET_OPTIONS.map((opt) => (
+                  <Button
+                    key={opt.label}
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() =>
+                      setValue(
+                        'due_date',
+                        format(addDays(new Date(), opt.days), 'yyyy-MM-dd'),
+                      )
+                    }
+                  >
+                    {opt.label}
+                  </Button>
+                ))}
+              </div>
+              <FormControl>
+                <Input {...field} type="date" className="max-w-xs" />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+
+        {/* Memo */}
+        <FormField
+          control={control}
+          name="memo"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Memo</FormLabel>
+              <FormControl>
+                <TextArea
+                  {...field}
+                  rows={3}
+                  placeholder="Add a note visible on the invoice…"
+                  className="resize-none rounded-2xl"
+                />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+
+        {/* PO Number */}
+        <FormField
+          control={control}
+          name="po_number"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>PO Number</FormLabel>
+              <FormControl>
+                <Input
+                  {...field}
+                  placeholder="Purchase order number"
+                  className="max-w-xs"
+                />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+
+        {/* On behalf of */}
+        <FormField
+          control={control}
+          name="on_behalf_of_label"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>On behalf of</FormLabel>
+              <FormControl>
+                <Input
+                  {...field}
+                  placeholder="Optional — leave blank to use your organization name"
+                  className="max-w-sm"
+                />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+      </div>
+    </Section>
+  )
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+export interface NewInvoicePageProps {
+  organization: schemas['Organization']
+  panelMode?: boolean
+  onClose?: () => void
+}
+
+const NewInvoicePage = ({
+  organization,
+  panelMode,
+  onClose,
+}: NewInvoicePageProps) => {
+  const router = useRouter()
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Associated objects (outside form — computed on submit)
+  const [selectedDiscount, setSelectedDiscount] =
+    useState<schemas['Discount'] | null>(null)
+  const [selectedCheckoutLink, setSelectedCheckoutLink] =
+    useState<schemas['CheckoutLink'] | null>(null)
+
+  // Modals
+  const { isShown: isCustomerModalShown, show: showCustomerModal, hide: hideCustomerModal } = useModal()
+  const { isShown: isProductModalShown, show: showProductModal, hide: hideProductModal } = useModal()
+  const { isShown: isDiscountModalShown, show: showDiscountModal, hide: hideDiscountModal } = useModal()
+  const { isShown: isCheckoutLinkModalShown, show: showCheckoutLinkModal, hide: hideCheckoutLinkModal } = useModal()
+
+  const createInvoice = useCreateClientInvoice(organization.id)
 
   const form = useForm<InvoiceFormValues>({
     defaultValues: {
       customer_id: '',
       currency: organization.default_presentment_currency ?? 'usd',
-      line_items: [
-        { product_id: null, description: '', quantity: 1, unit_amount: '' },
-      ],
+      line_items: [{ description: '', quantity: 1, unit_amount: '' }],
       due_date: '',
       memo: '',
       po_number: '',
       on_behalf_of_label: '',
-      include_payment_link: true,
     },
   })
 
-  const { fields, append, remove } = useFieldArray({
-    control: form.control,
-    name: 'line_items',
-  })
+  const { handleSubmit } = form
 
-  const currency = form.watch('currency')
-  const lineItems = form.watch('line_items')
-
-  const subtotalCents = lineItems.reduce((sum, item) => {
-    const unitCents = Math.round((parseFloat(item.unit_amount) || 0) * 100)
-    return sum + unitCents * (Number(item.quantity) || 1)
-  }, 0)
-
-  const discountCents = selectedDiscount
-    ? computeDiscountCents(selectedDiscount, subtotalCents)
-    : 0
-
-  const totalCents = Math.max(0, subtotalCents - discountCents)
-
-  const handleSubmit = async (values: InvoiceFormValues) => {
-    if (!values.customer_id) {
-      form.setError('customer_id', { message: 'Please select a customer' })
-      return
-    }
-    if (values.line_items.some((item) => !item.description)) {
-      toast({ title: 'Each item needs a description' })
-      return
-    }
-
-    const body: ClientInvoiceCreate = {
-      customer_id: values.customer_id,
-      currency: values.currency,
-      line_items: values.line_items.map((item) => ({
-        description: item.description,
-        quantity: Number(item.quantity),
-        unit_amount: Math.round((parseFloat(item.unit_amount) || 0) * 100),
-      })),
-      due_date: values.due_date || null,
-      memo: values.memo || null,
-      po_number: values.po_number || null,
-      on_behalf_of_label: values.on_behalf_of_label || null,
-      discount_amount: discountCents,
-      discount_label: selectedDiscount?.name ?? null,
-      include_payment_link: values.include_payment_link,
-    }
-
-    try {
-      const invoice = await createInvoice.mutateAsync(body)
-      toast({ title: 'Invoice created' })
-      router.push(
-        `/dashboard/${organization.slug}/sales/invoices/${invoice.id}`,
-      )
-    } catch (err: any) {
-      toast({
-        title: 'Failed to create invoice',
-        description: err?.detail ?? String(err),
-      })
-    }
-  }
-
-  return (
-    <DashboardBody
-      wrapperClassName="max-w-(--breakpoint-xl)!"
-      title={
-        <div className="flex flex-col gap-1">
-          <span className="text-xl font-medium dark:text-white">
-            Create and send invoices in minutes
-          </span>
-          <p className="text-sm font-normal text-gray-500 dark:text-gray-400">
-            Send an invoice with a link to pay online. Accept cards, bank
-            transfers, and more.
-          </p>
-        </div>
+  const onSubmit = useCallback(
+    async (values: InvoiceFormValues) => {
+      if (!values.customer_id) {
+        form.setError('customer_id', { message: 'Please select a customer' })
+        return
       }
-    >
-      <Form {...form}>
-        <form
-          onSubmit={form.handleSubmit(handleSubmit)}
-          className="flex flex-col gap-8 lg:flex-row lg:items-start"
-        >
-          {/* ── Left: form sections ── */}
-          <div className="dark:border-spaire-700 dark:divide-spaire-700 flex flex-1 flex-col divide-y divide-gray-200 rounded-4xl border border-gray-200">
 
-            {/* Customer */}
-            <Section
-              compact
-              title="Customer"
-              description="Select the customer to invoice."
-            >
-              <div className="flex flex-col gap-3">
-                <FormField
-                  control={form.control}
-                  name="customer_id"
-                  rules={{ required: 'Please select a customer' }}
-                  render={({ field }) => (
-                    <FormItem>
-                      <Popover
-                        open={customerPopoverOpen}
-                        onOpenChange={setCustomerPopoverOpen}
-                      >
-                        <PopoverTrigger asChild>
-                          <div>
-                            <Input
-                              ref={customerInputRef}
-                              placeholder="Search customers..."
-                              value={
-                                field.value
-                                  ? selectedCustomerLabel
-                                  : customerQuery
-                              }
-                              onChange={(e) => {
-                                if (field.value) {
-                                  field.onChange('')
-                                  setSelectedCustomerLabel('')
-                                }
-                                setCustomerQuery(e.target.value)
-                                setCustomerPopoverOpen(true)
-                              }}
-                              onFocus={() => setCustomerPopoverOpen(true)}
-                              preSlot={<Search fontSize="small" />}
-                            />
-                          </div>
-                        </PopoverTrigger>
-                        <PopoverContent
-                          className="w-80 overflow-hidden p-0"
-                          align="start"
-                          onOpenAutoFocus={(e) => e.preventDefault()}
-                          onInteractOutside={() =>
-                            setCustomerPopoverOpen(false)
-                          }
-                        >
-                          <div className="max-h-60 overflow-y-auto">
-                            {allCustomers.length > 0 ? (
-                              allCustomers.map((customer) => (
-                                <button
-                                  key={customer.id}
-                                  type="button"
-                                  className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-800"
-                                  onMouseDown={(e) => {
-                                    e.preventDefault()
-                                    field.onChange(customer.id)
-                                    setSelectedCustomerLabel(
-                                      customer.name ?? customer.email,
-                                    )
-                                    setCustomerPopoverOpen(false)
-                                  }}
-                                >
-                                  <Avatar
-                                    className="size-7 shrink-0"
-                                    avatar_url={customer.avatar_url}
-                                    name={customer.name || customer.email}
-                                  />
-                                  <div className="flex min-w-0 flex-col">
-                                    <span className="truncate font-medium">
-                                      {customer.name ?? customer.email}
-                                    </span>
-                                    {customer.name && (
-                                      <span className="truncate text-xs text-gray-500">
-                                        {customer.email}
-                                      </span>
-                                    )}
-                                  </div>
-                                </button>
-                              ))
-                            ) : (
-                              <div className="py-6 text-center text-sm text-gray-500">
-                                No customers found
-                              </div>
-                            )}
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="self-start gap-1 text-blue-500"
-                  onClick={showCustomerModal}
-                >
-                  <AddOutlined fontSize="small" />
-                  New customer
-                </Button>
-              </div>
-            </Section>
+      setIsSubmitting(true)
+      try {
+        const lineItemsCents = values.line_items.map((item) => ({
+          description: item.description,
+          quantity: Number(item.quantity) || 1,
+          unit_amount: Math.round((parseFloat(item.unit_amount) || 0) * 100),
+        }))
 
-            {/* Currency */}
-            <Section
-              compact
-              title="Currency"
-              description="All line items will be billed in this currency."
-            >
-              <FormField
-                control={form.control}
-                name="currency"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <select
-                        {...field}
-                        className="dark:bg-spaire-900 dark:border-spaire-700 w-full max-w-xs rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none"
-                      >
-                        {SUPPORTED_CURRENCIES.map((c) => (
-                          <option key={c.value} value={c.value}>
-                            {c.label}
-                          </option>
-                        ))}
-                      </select>
-                    </FormControl>
-                  </FormItem>
-                )}
+        const subtotalCents = lineItemsCents.reduce(
+          (sum, item) => sum + item.unit_amount * item.quantity,
+          0,
+        )
+
+        const discountCents = selectedDiscount
+          ? computeDiscountCents(selectedDiscount, subtotalCents)
+          : 0
+
+        const body: ClientInvoiceCreate = {
+          customer_id: values.customer_id,
+          currency: values.currency,
+          line_items: lineItemsCents,
+          due_date: values.due_date || null,
+          memo: values.memo || null,
+          po_number: values.po_number || null,
+          on_behalf_of_label: values.on_behalf_of_label || null,
+          discount_amount: discountCents,
+          discount_label: selectedDiscount?.name ?? null,
+          include_payment_link: !!selectedCheckoutLink,
+          user_metadata: selectedCheckoutLink
+            ? { checkout_link_url: selectedCheckoutLink.url, checkout_link_id: selectedCheckoutLink.id }
+            : null,
+        }
+
+        const invoice = await createInvoice.mutateAsync(body)
+        toast({ title: 'Invoice created' })
+
+        if (onClose) {
+          onClose()
+        } else {
+          router.push(`/dashboard/${organization.slug}/sales/invoices/${invoice.id}`)
+        }
+      } catch (err: any) {
+        toast({
+          title: 'Failed to create invoice',
+          description: err?.message ?? String(err),
+        })
+      } finally {
+        setIsSubmitting(false)
+      }
+    },
+    [organization, selectedDiscount, selectedCheckoutLink, createInvoice, form, router, onClose],
+  )
+
+  const formContent = (
+    <>
+      <div className="dark:border-spaire-700 dark:divide-spaire-700 flex flex-col divide-y divide-gray-200 rounded-4xl border border-gray-200">
+        <Form {...form}>
+          <form
+            onSubmit={handleSubmit(onSubmit)}
+            className="flex flex-col gap-y-6"
+          >
+            <div className="dark:divide-spaire-700 flex flex-col divide-y divide-gray-200">
+              <InvoiceCustomerSection
+                organization={organization}
+                onNewCustomer={showCustomerModal}
               />
-            </Section>
 
-            {/* Line Items */}
-            <Section
-              compact
-              title="Items"
-              description="Add products or custom line items."
-              cta={
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="gap-1 text-blue-500"
-                  onClick={showProductModal}
-                >
-                  <AddOutlined fontSize="small" />
-                  New product
-                </Button>
-              }
-            >
-              <div className="flex flex-col gap-4">
-                {/* Header row */}
-                <div className="hidden grid-cols-[2fr_80px_110px_32px] gap-3 text-xs text-gray-400 dark:text-gray-500 sm:grid">
-                  <span>Product / Description</span>
-                  <span className="text-center">Qty</span>
-                  <span className="text-right">
-                    Unit price ({currency.toUpperCase()})
-                  </span>
-                  <span />
-                </div>
+              <InvoiceCurrencySection />
 
-                {fields.map((field, index) => (
-                  <LineItemRow
-                    key={field.id}
-                    index={index}
-                    form={form}
-                    products={allProducts}
-                    currency={currency}
-                    onRemove={() => remove(index)}
-                    canRemove={fields.length > 1}
-                  />
-                ))}
+              <InvoiceItemsSection
+                organization={organization}
+                onNewProduct={showProductModal}
+              />
 
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="self-start gap-1 text-blue-500"
-                  onClick={() =>
-                    append({
-                      product_id: null,
-                      description: '',
-                      quantity: 1,
-                      unit_amount: '',
-                    })
-                  }
-                >
-                  <AddOutlined fontSize="small" />
-                  Add item
-                </Button>
-              </div>
-            </Section>
+              <InvoiceDiscountSection
+                organization={organization}
+                selectedDiscount={selectedDiscount}
+                onSelectDiscount={setSelectedDiscount}
+                onNewDiscount={showDiscountModal}
+              />
 
-            {/* Discount */}
-            <Section
-              compact
-              title="Discount"
-              description="Apply an existing discount or create a new one."
-              cta={
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="gap-1 text-blue-500"
-                  onClick={showDiscountModal}
-                >
-                  <AddOutlined fontSize="small" />
-                  New discount
-                </Button>
-              }
-            >
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    className="dark:border-spaire-700 w-full max-w-xs justify-start border border-gray-200"
-                  >
-                    {selectedDiscount ? (
-                      <span>{selectedDiscount.name}</span>
-                    ) : (
-                      <span className="text-gray-400">Select discount…</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-72 p-0" align="start">
-                  <Command>
-                    <CommandInput placeholder="Search discounts…" />
-                    <CommandList>
-                      <CommandEmpty>No discounts found.</CommandEmpty>
-                      <CommandGroup>
-                        {selectedDiscount && (
-                          <CommandItem
-                            onSelect={() => setSelectedDiscount(null)}
-                            className="text-red-500"
-                          >
-                            Remove discount
-                          </CommandItem>
-                        )}
-                        {allDiscounts.map((d) => (
-                          <CommandItem
-                            key={d.id}
-                            onSelect={() => setSelectedDiscount(d)}
-                          >
-                            <div className="flex flex-col">
-                              <span className="font-medium">{d.name}</span>
-                              <span className="text-xs text-gray-500">
-                                {d.type === 'percentage'
-                                  ? `${(((d as any).basis_points ?? 0) / 100).toFixed(0)}% off`
-                                  : formatCurrency('compact')(
-                                      (d as any).amount ?? 0,
-                                      (d as any).currency ?? currency,
-                                    ) + ' off'}
-                              </span>
-                            </div>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+              <InvoicePaymentLinkSection
+                organization={organization}
+                selectedCheckoutLink={selectedCheckoutLink}
+                onSelectCheckoutLink={setSelectedCheckoutLink}
+                onNewCheckoutLink={showCheckoutLinkModal}
+              />
 
-              {selectedDiscount && (
-                <p className="text-sm text-green-600 dark:text-green-400">
-                  {selectedDiscount.name} applied —{' '}
-                  {discountCents > 0 &&
-                    `−${formatCurrency('compact')(discountCents, currency)}`}
-                </p>
-              )}
-            </Section>
-
-            {/* Invoice Details */}
-            <Section
-              compact
-              title="Invoice Details"
-              description="Due date, notes, and other invoice settings."
-            >
-              <div className="flex flex-col gap-6">
-                {/* Due date */}
-                <FormField
-                  control={form.control}
-                  name="due_date"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Payment due</FormLabel>
-                      <div className="flex flex-wrap gap-2">
-                        {NET_OPTIONS.map((opt) => (
-                          <Button
-                            key={opt.label}
-                            type="button"
-                            variant="secondary"
-                            size="sm"
-                            onClick={() =>
-                              field.onChange(
-                                format(addDays(new Date(), opt.days), 'yyyy-MM-dd'),
-                              )
-                            }
-                          >
-                            {opt.label}
-                          </Button>
-                        ))}
-                      </div>
-                      <FormControl>
-                        <Input {...field} type="date" className="max-w-xs" />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                {/* Memo */}
-                <FormField
-                  control={form.control}
-                  name="memo"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Notes / Memo</FormLabel>
-                      <FormControl>
-                        <textarea
-                          {...field}
-                          rows={3}
-                          placeholder="Add a note visible on the invoice…"
-                          className="dark:bg-spaire-900 dark:border-spaire-700 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none"
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                {/* PO Number */}
-                <FormField
-                  control={form.control}
-                  name="po_number"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>PO Number</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          placeholder="Purchase order number"
-                          className="max-w-xs"
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                {/* On behalf of */}
-                <FormField
-                  control={form.control}
-                  name="on_behalf_of_label"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>On behalf of (optional)</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          placeholder={organization.name}
-                          className="max-w-xs"
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                {/* Include payment link */}
-                <FormField
-                  control={form.control}
-                  name="include_payment_link"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center gap-3">
-                      <FormControl>
-                        <input
-                          type="checkbox"
-                          checked={field.value}
-                          onChange={field.onChange}
-                          className="h-4 w-4 rounded border-gray-300"
-                        />
-                      </FormControl>
-                      <FormLabel className="m-0 cursor-pointer text-sm font-normal">
-                        Include payment link in invoice email
-                      </FormLabel>
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </Section>
-          </div>
-
-          {/* ── Right: summary + submit ── */}
-          <div className="w-full lg:w-72">
-            <div className="sticky top-8 flex flex-col gap-4">
-              <ShadowBox className="flex flex-col gap-3 text-sm">
-                <h3 className="font-medium dark:text-white">Summary</h3>
-                <div className="flex justify-between text-gray-600 dark:text-gray-300">
-                  <span>Subtotal</span>
-                  <span>{formatCurrency('compact')(subtotalCents, currency)}</span>
-                </div>
-                {discountCents > 0 && (
-                  <div className="flex justify-between text-green-600 dark:text-green-400">
-                    <span>{selectedDiscount?.name ?? 'Discount'}</span>
-                    <span>
-                      −{formatCurrency('compact')(discountCents, currency)}
-                    </span>
-                  </div>
-                )}
-                <div className="flex justify-between text-gray-400 dark:text-gray-500">
-                  <span>Tax</span>
-                  <span>Calculated on send</span>
-                </div>
-                <div className="border-t border-gray-200 pt-3 dark:border-gray-700">
-                  <div className="flex justify-between font-semibold dark:text-white">
-                    <span>Total (excl. tax)</span>
-                    <span>{formatCurrency('compact')(totalCents, currency)}</span>
-                  </div>
-                </div>
-              </ShadowBox>
-
-              <Button
-                type="submit"
-                className="w-full"
-                loading={createInvoice.isPending}
-              >
-                Create Draft Invoice
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                className="w-full"
-                onClick={() =>
-                  router.push(
-                    `/dashboard/${organization.slug}/sales/invoices`,
-                  )
-                }
-              >
-                Cancel
-              </Button>
+              <InvoiceDetailsSection />
             </div>
-          </div>
-        </form>
-      </Form>
+          </form>
+        </Form>
+      </div>
 
-      {/* ── Side panel modals ── */}
+      <div className="flex flex-row items-center gap-2 pb-12">
+        <Button
+          onClick={handleSubmit(onSubmit)}
+          loading={isSubmitting}
+          disabled={isSubmitting}
+        >
+          Create Invoice
+        </Button>
+      </div>
+
+      {/* Side panel modals */}
       <InlineModal
         isShown={isCustomerModalShown}
         hide={hideCustomerModal}
@@ -791,173 +873,52 @@ const NewInvoicePage: React.FC<NewInvoicePageProps> = ({ organization }) => {
           />
         }
       />
-    </DashboardBody>
-  )
-}
 
-// ── LineItemRow ──────────────────────────────────────────────────────────────
-
-interface LineItemRowProps {
-  index: number
-  form: ReturnType<typeof useForm<InvoiceFormValues>>
-  products: schemas['Product'][]
-  currency: string
-  onRemove: () => void
-  canRemove: boolean
-}
-
-const LineItemRow: React.FC<LineItemRowProps> = ({
-  index,
-  form,
-  products,
-  currency,
-  onRemove,
-  canRemove,
-}) => {
-  const [productOpen, setProductOpen] = useState(false)
-  const [productQuery, setProductQuery] = useState('')
-
-  const filteredProducts = products.filter((p) =>
-    p.name.toLowerCase().includes(productQuery.toLowerCase()),
+      <InlineModal
+        isShown={isCheckoutLinkModalShown}
+        hide={hideCheckoutLinkModal}
+        className="md:w-[680px]"
+        modalContent={
+          <div className="flex h-full flex-col">
+            <InlineModalHeader hide={hideCheckoutLinkModal}>
+              <span>New Checkout Link</span>
+            </InlineModalHeader>
+            <div className="flex flex-col gap-8 overflow-y-auto px-8 pb-8">
+              <CheckoutLinkForm
+                organization={organization}
+                onClose={(link) => {
+                  setSelectedCheckoutLink(link)
+                  hideCheckoutLinkModal()
+                }}
+              />
+            </div>
+          </div>
+        }
+      />
+    </>
   )
 
-  const handleSelectProduct = (product: schemas['Product']) => {
-    const price = getPriceForCurrency(product, currency)
-    form.setValue(`line_items.${index}.product_id`, product.id)
-    form.setValue(`line_items.${index}.description`, product.name)
-    form.setValue(
-      `line_items.${index}.unit_amount`,
-      price > 0 ? (price / 100).toString() : '',
+  if (panelMode) {
+    return (
+      <div className="flex h-full flex-col">
+        <InlineModalHeader hide={onClose ?? (() => {})}>
+          <span>New Invoice</span>
+        </InlineModalHeader>
+        <div className="flex flex-col gap-8 overflow-y-auto px-8 pb-8">
+          {formContent}
+        </div>
+      </div>
     )
-    setProductOpen(false)
   }
 
   return (
-    <div className="grid grid-cols-[2fr_80px_110px_32px] items-start gap-3">
-      {/* Product / description */}
-      <div className="flex flex-col gap-1">
-        <Popover open={productOpen} onOpenChange={setProductOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              className="dark:border-spaire-700 w-full justify-start border border-gray-200 font-normal"
-            >
-              <span className="truncate">
-                {form.watch(`line_items.${index}.description`) ||
-                  'Select product…'}
-              </span>
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-72 p-0" align="start">
-            <Command>
-              <CommandInput
-                placeholder="Search products…"
-                value={productQuery}
-                onValueChange={setProductQuery}
-              />
-              <CommandList>
-                <CommandEmpty>
-                  No products found.
-                </CommandEmpty>
-                <CommandGroup>
-                  {filteredProducts.map((product) => (
-                    <CommandItem
-                      key={product.id}
-                      onSelect={() => handleSelectProduct(product)}
-                    >
-                      <div className="flex flex-col">
-                        <span className="font-medium">{product.name}</span>
-                        <span className="text-xs text-gray-500">
-                          {(() => {
-                            const price = getPriceForCurrency(product, currency)
-                            return price > 0
-                              ? formatCurrency('compact')(price, currency)
-                              : 'Custom price'
-                          })()}
-                        </span>
-                      </div>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
-
-        {/* Editable description (shown after product selected or as free text) */}
-        <FormField
-          control={form.control}
-          name={`line_items.${index}.description`}
-          rules={{ required: 'Description required' }}
-          render={({ field }) => (
-            <FormItem className="m-0">
-              <FormControl>
-                <Input
-                  {...field}
-                  placeholder="Or type description…"
-                  className="text-sm"
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      </div>
-
-      {/* Quantity */}
-      <FormField
-        control={form.control}
-        name={`line_items.${index}.quantity`}
-        render={({ field }) => (
-          <FormItem className="m-0">
-            <FormControl>
-              <Input
-                {...field}
-                type="number"
-                min={1}
-                className="text-center"
-              />
-            </FormControl>
-          </FormItem>
-        )}
-      />
-
-      {/* Unit amount */}
-      <FormField
-        control={form.control}
-        name={`line_items.${index}.unit_amount`}
-        rules={{ required: 'Required', min: 0 }}
-        render={({ field }) => (
-          <FormItem className="m-0">
-            <FormControl>
-              <Input
-                {...field}
-                type="number"
-                min={0}
-                step={0.01}
-                placeholder="0.00"
-                className="text-right"
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      {/* Remove */}
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="mt-1 text-gray-400 hover:text-red-500"
-        disabled={!canRemove}
-        onClick={onRemove}
-      >
-        <DeleteOutline fontSize="small" />
-      </Button>
-    </div>
+    <DashboardBody
+      title="New Invoice"
+      wrapperClassName="max-w-(--breakpoint-md)!"
+      className="gap-y-16"
+    >
+      {formContent}
+    </DashboardBody>
   )
 }
 
