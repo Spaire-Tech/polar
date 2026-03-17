@@ -9,6 +9,7 @@ const revenueTabs = [
   { title: 'Transactions', suffix: '' },
   { title: 'Subscriptions', suffix: '/subscriptions' },
   { title: 'Checkouts', suffix: '/checkouts' },
+  { title: 'Invoices', suffix: '/invoices' },
 ]
 
 export default function RevenueLayout({ children }: PropsWithChildren) {
@@ -16,8 +17,11 @@ export default function RevenueLayout({ children }: PropsWithChildren) {
   const pathname = usePathname()
   const base = `/dashboard/${params.organization}/sales`
 
-  // Hide tabs on detail pages (order detail)
-  const isDetailPage = /\/sales\/[0-9a-f-]{36}/.test(pathname)
+  // Hide tabs on detail pages (order/invoice detail or new invoice)
+  const isDetailPage =
+    /\/sales\/[0-9a-f-]{36}/.test(pathname) ||
+    /\/sales\/invoices\/[0-9a-f-]{36}/.test(pathname) ||
+    /\/sales\/invoices\/new/.test(pathname)
 
   if (isDetailPage) {
     return children

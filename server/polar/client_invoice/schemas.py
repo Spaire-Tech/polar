@@ -1,4 +1,5 @@
 from datetime import date
+from typing import Any
 
 from pydantic import UUID4, Field, field_validator
 
@@ -24,7 +25,7 @@ class ClientInvoiceCreate(Schema):
     )
     due_date: date | None = Field(
         default=None,
-        description="Payment due date. Determines days_until_due on the Stripe invoice.",  # noqa: E501
+        description="Payment due date. Determines days_until_due on the Stripe invoice.",
     )
     memo: str | None = Field(
         default=None, description="Internal memo / invoice description."
@@ -38,6 +39,23 @@ class ClientInvoiceCreate(Schema):
             "Name shown in 'on behalf of' display on the invoice. "
             "Defaults to the organization name."
         ),
+    )
+    discount_amount: int = Field(
+        default=0,
+        ge=0,
+        description="Flat discount amount in the smallest currency unit (e.g. cents). Applied before tax.",
+    )
+    discount_label: str | None = Field(
+        default=None,
+        description="Label shown for the discount line on the invoice (e.g. 'Promo code').",
+    )
+    include_payment_link: bool = Field(
+        default=True,
+        description="Whether to include a hosted payment link in the invoice email.",
+    )
+    user_metadata: dict[str, Any] | None = Field(
+        default=None,
+        description="Arbitrary key-value metadata to attach to the invoice.",
     )
 
     @field_validator("currency")
@@ -64,11 +82,16 @@ class ClientInvoiceSchema(TimestampedSchema, IDSchema):
     status: ClientInvoiceStatus
     currency: str
     subtotal_amount: int
+    discount_amount: int
     tax_amount: int
     total_amount: int
     memo: str | None
     po_number: str | None
     due_date: date | None
     on_behalf_of_label: str | None
+    discount_label: str | None
+    include_payment_link: bool
+    stripe_hosted_invoice_url: str | None
+    user_metadata: dict[str, Any] | None
     order_id: UUID4 | None
     line_items: list[ClientInvoiceLineItemSchema] = Field(default_factory=list)

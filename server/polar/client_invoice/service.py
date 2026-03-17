@@ -129,19 +129,21 @@ class ClientInvoiceService:
         subtotal_amount = sum(
             item.unit_amount * item.quantity for item in create_schema.line_items
         )
+        discount_amount = min(create_schema.discount_amount, subtotal_amount)
+        taxable_amount = subtotal_amount - discount_amount
 
         # Calculate tax before creating the Stripe invoice draft
         tax_processor = settings.DEFAULT_TAX_PROCESSOR
         tax_calculation_id: str | None = None
         tax_amount = 0
 
-        if subtotal_amount > 0 and customer.billing_address is not None:
+        if taxable_amount > 0 and customer.billing_address is not None:
             tax_service = get_tax_service(tax_processor)
             try:
                 tax_calculation = await tax_service.calculate(
                     uuid.uuid4(),
                     currency,
-                    subtotal_amount,
+                    taxable_amount,
                     TaxCode.general_electronically_supplied_services,
                     customer.billing_address,
                     [customer.tax_id] if customer.tax_id is not None else [],
@@ -156,7 +158,7 @@ class ClientInvoiceService:
                     organization_id=str(organization.id),
                 )
 
-        total_amount = subtotal_amount + tax_amount
+        total_amount = taxable_amount + tax_amount
         on_behalf_of_label = create_schema.on_behalf_of_label or organization.name
 
         # Compute days_until_due from explicit due_date
@@ -172,6 +174,10 @@ class ClientInvoiceService:
             custom_fields.append(
                 {"name": "PO Number", "value": create_schema.po_number}
             )
+        if discount_amount > 0 and create_schema.discount_label:
+            custom_fields.append(
+                {"name": create_schema.discount_label, "value": "Applied"}
+            )
 
         footer = (
             f"Issued by Spaire Technology as Merchant of Record "
@@ -181,6 +187,15 @@ class ClientInvoiceService:
         new_id = uuid.uuid4()
 
         # Create Stripe draft invoice
+        stripe_metadata: dict[str, str] = {
+            "client_invoice_id": str(new_id),
+            "organization_id": str(organization.id),
+            "spaire_mor": "true",
+        }
+        if create_schema.user_metadata:
+            for k, v in create_schema.user_metadata.items():
+                stripe_metadata[str(k)] = str(v)
+
         stripe_invoice = await stripe_service.create_invoice(
             customer=customer.stripe_customer_id,
             currency=currency,
@@ -189,12 +204,19 @@ class ClientInvoiceService:
             description=create_schema.memo,
             footer=footer,
             custom_fields=custom_fields,
-            metadata={
-                "client_invoice_id": str(new_id),
-                "organization_id": str(organization.id),
-                "spaire_mor": "true",
-            },
+            metadata=stripe_metadata,
         )
+
+        # Create discount invoice item first (negative amount)
+        if discount_amount > 0:
+            await stripe_service.create_invoice_item(
+                customer=customer.stripe_customer_id,
+                invoice=stripe_invoice.id,
+                amount=-discount_amount,
+                currency=currency,
+                description=create_schema.discount_label or "Discount",
+                tax_amounts=None,
+            )
 
         # Distribute tax proportionally across line items
         remaining_tax = tax_amount
@@ -204,8 +226,8 @@ class ClientInvoiceService:
             item_amount = item.unit_amount * item.quantity
             if i == num_items - 1:
                 item_tax = remaining_tax
-            elif subtotal_amount > 0:
-                item_tax = round(tax_amount * item_amount / subtotal_amount)
+            elif taxable_amount > 0:
+                item_tax = round(tax_amount * item_amount / taxable_amount)
                 remaining_tax -= item_tax
             else:
                 item_tax = 0
@@ -251,6 +273,7 @@ class ClientInvoiceService:
                 status=ClientInvoiceStatus.draft,
                 currency=currency,
                 subtotal_amount=subtotal_amount,
+                discount_amount=discount_amount,
                 tax_amount=tax_amount,
                 total_amount=total_amount,
                 tax_calculation_id=tax_calculation_id,
@@ -258,6 +281,10 @@ class ClientInvoiceService:
                 po_number=create_schema.po_number,
                 due_date=create_schema.due_date,
                 on_behalf_of_label=on_behalf_of_label,
+                discount_label=create_schema.discount_label,
+                include_payment_link=create_schema.include_payment_link,
+                stripe_hosted_invoice_url=stripe_invoice.hosted_invoice_url,
+                user_metadata=create_schema.user_metadata,
             ),
             flush=True,
         )
@@ -371,7 +398,7 @@ class ClientInvoiceService:
             Order(
                 status=OrderStatus.paid,
                 subtotal_amount=invoice.subtotal_amount,
-                discount_amount=0,
+                discount_amount=invoice.discount_amount,
                 tax_amount=invoice.tax_amount,
                 currency=invoice.currency,
                 billing_reason=OrderBillingReasonInternal.client_invoice,

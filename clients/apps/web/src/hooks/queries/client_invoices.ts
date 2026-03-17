@@ -1,0 +1,167 @@
+import { getQueryClient } from '@/utils/api/query'
+import { api } from '@/utils/client'
+import { unwrap } from '@spaire/client'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { defaultRetry } from './retry'
+
+// Local types until API client is regenerated
+export interface ClientInvoiceLineItemCreate {
+  description: string
+  quantity: number
+  unit_amount: number
+}
+
+export interface ClientInvoiceCreate {
+  customer_id: string
+  currency: string
+  line_items: ClientInvoiceLineItemCreate[]
+  due_date?: string | null
+  memo?: string | null
+  po_number?: string | null
+  on_behalf_of_label?: string | null
+  discount_amount?: number
+  discount_label?: string | null
+  include_payment_link?: boolean
+  user_metadata?: Record<string, string> | null
+}
+
+export interface ClientInvoiceLineItem {
+  id: string
+  created_at: string
+  modified_at: string | null
+  client_invoice_id: string
+  stripe_invoice_item_id: string | null
+  description: string
+  quantity: number
+  unit_amount: number
+  currency: string
+  amount: number
+  tax_amount: number
+}
+
+export interface ClientInvoice {
+  id: string
+  created_at: string
+  modified_at: string | null
+  organization_id: string
+  customer_id: string
+  stripe_invoice_id: string | null
+  status: 'draft' | 'open' | 'paid' | 'void' | 'uncollectible'
+  currency: string
+  subtotal_amount: number
+  discount_amount: number
+  tax_amount: number
+  total_amount: number
+  memo: string | null
+  po_number: string | null
+  due_date: string | null
+  on_behalf_of_label: string | null
+  discount_label: string | null
+  include_payment_link: boolean
+  stripe_hosted_invoice_url: string | null
+  user_metadata: Record<string, string> | null
+  order_id: string | null
+  line_items: ClientInvoiceLineItem[]
+}
+
+export interface ClientInvoiceList {
+  items: ClientInvoice[]
+  pagination: { total_count: number; max_page: number }
+}
+
+export interface ClientInvoiceListParams {
+  page?: number
+  limit?: number
+  sorting?: string[]
+}
+
+export const useClientInvoices = (
+  organizationId?: string,
+  parameters?: ClientInvoiceListParams,
+) =>
+  useQuery({
+    queryKey: ['client_invoices', { organizationId, ...(parameters || {}) }],
+    queryFn: async () => {
+      const { data, error } = await (api as any).GET('/v1/client-invoices/', {
+        params: {
+          query: {
+            organization_id: organizationId,
+            ...parameters,
+          },
+        },
+      })
+      if (error) throw error
+      return data as ClientInvoiceList
+    },
+    retry: defaultRetry,
+    enabled: !!organizationId,
+  })
+
+export const useClientInvoice = (id: string, initialData?: ClientInvoice) =>
+  useQuery({
+    queryKey: ['client_invoices', { id }],
+    queryFn: async () => {
+      const { data, error } = await (api as any).GET('/v1/client-invoices/{id}', {
+        params: { path: { id } },
+      })
+      if (error) throw error
+      return data as ClientInvoice
+    },
+    retry: defaultRetry,
+    initialData,
+  })
+
+export const useCreateClientInvoice = (organizationId: string) =>
+  useMutation({
+    mutationFn: async (body: ClientInvoiceCreate) => {
+      const { data, error } = await (api as any).POST('/v1/client-invoices/', {
+        body,
+      })
+      if (error) throw error
+      return data as ClientInvoice
+    },
+    onSuccess: () => {
+      const queryClient = getQueryClient()
+      queryClient.invalidateQueries({
+        queryKey: ['client_invoices', { organizationId }],
+      })
+    },
+  })
+
+export const useSendClientInvoice = (id: string) =>
+  useMutation({
+    mutationFn: async () => {
+      const { data, error } = await (api as any).POST(
+        '/v1/client-invoices/{id}/send',
+        { params: { path: { id } } },
+      )
+      if (error) throw error
+      return data as ClientInvoice
+    },
+    onSuccess: (updated) => {
+      const queryClient = getQueryClient()
+      queryClient.setQueriesData<ClientInvoice>(
+        { queryKey: ['client_invoices', { id }] },
+        updated,
+      )
+    },
+  })
+
+export const useVoidClientInvoice = (id: string) =>
+  useMutation({
+    mutationFn: async () => {
+      const { data, error } = await (api as any).POST(
+        '/v1/client-invoices/{id}/void',
+        { params: { path: { id } } },
+      )
+      if (error) throw error
+      return data as ClientInvoice
+    },
+    onSuccess: (updated) => {
+      const queryClient = getQueryClient()
+      queryClient.setQueriesData<ClientInvoice>(
+        { queryKey: ['client_invoices', { id }] },
+        updated,
+      )
+    },
+  })

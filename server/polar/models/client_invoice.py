@@ -3,7 +3,8 @@ from enum import StrEnum
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import Date, ForeignKey, Integer, String, Uuid
+from sqlalchemy import Boolean, Date, ForeignKey, Integer, String, Uuid
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
 
 from polar.kit.db.models import RecordModel
@@ -65,6 +66,21 @@ class ClientInvoice(RecordModel):
     on_behalf_of_label: Mapped[str | None] = mapped_column(
         String, nullable=True, default=None
     )
+
+    # Discount (flat amount, pre-tax)
+    discount_amount: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    discount_label: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
+
+    # Payment link
+    include_payment_link: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True
+    )
+    stripe_hosted_invoice_url: Mapped[str | None] = mapped_column(
+        String, nullable=True, default=None
+    )
+
+    # Pass-through metadata
+    user_metadata: Mapped[dict | None] = mapped_column(JSONB, nullable=True, default=None)
 
     # Linked order (set after payment)
     order_id: Mapped[UUID | None] = mapped_column(
