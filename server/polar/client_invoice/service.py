@@ -345,7 +345,12 @@ class ClientInvoiceService:
                 )
             )
 
-        return client_invoice
+        # Flush line items then reload the invoice so the selectin relationship
+        # is populated before Pydantic serializes the response.
+        await session.flush()
+        refreshed = await repository.get_by_id(client_invoice.id)
+        assert refreshed is not None
+        return refreshed
 
     async def send(
         self,
