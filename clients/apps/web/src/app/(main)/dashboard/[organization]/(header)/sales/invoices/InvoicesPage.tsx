@@ -76,7 +76,7 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
         ? updaterOrValue(pagination)
         : updaterOrValue
     router.push(
-      `/dashboard/${organization.slug}/sales/invoices?${serializeSearchParams(updated, sorting)}`,
+      `/dashboard/${organization.slug}/invoices?${serializeSearchParams(updated, sorting)}`,
     )
   }
 
@@ -90,7 +90,7 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
         ? updaterOrValue(sorting)
         : updaterOrValue
     router.push(
-      `/dashboard/${organization.slug}/sales/invoices?${serializeSearchParams(pagination, updated)}`,
+      `/dashboard/${organization.slug}/invoices?${serializeSearchParams(pagination, updated)}`,
     )
   }
 
@@ -159,7 +159,7 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
       <div className="flex flex-col gap-8 p-4 pb-16 md:p-8">
         <div className="flex flex-row items-center justify-between">
           <h1 className="text-xl font-medium dark:text-white">Invoices</h1>
-          <Link href={`/dashboard/${organization.slug}/sales/invoices/new`}>
+          <Link href={`/dashboard/${organization.slug}/invoices/new`}>
             <Button>
               <AddOutlined fontSize="small" />
               New Invoice
@@ -184,7 +184,7 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
                 </p>
               </div>
               <Link
-                href={`/dashboard/${organization.slug}/sales/invoices/new`}
+                href={`/dashboard/${organization.slug}/invoices/new`}
               >
                 <Button>
                   <AddOutlined className="h-4 w-4" />
@@ -206,7 +206,7 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
             isLoading={invoicesHook.isLoading}
             onRowClick={(row) =>
               router.push(
-                `/dashboard/${organization.slug}/sales/invoices/${row.original.id}`,
+                `/dashboard/${organization.slug}/invoices/${row.original.id}`,
               )
             }
           />
