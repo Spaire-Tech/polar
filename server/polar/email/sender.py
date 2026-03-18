@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
-from typing import Any, TypedDict
+from typing import Any, NotRequired, TypedDict
 
 import httpx
 import structlog
@@ -37,8 +37,9 @@ class SendEmailError(EmailSenderError):
 
 
 class Attachment(TypedDict):
-    remote_url: str
     filename: str
+    remote_url: NotRequired[str]
+    content: NotRequired[str]  # base64-encoded string for inline attachments
 
 
 class EmailSender(ABC):
@@ -111,8 +112,12 @@ class ResendEmailSender(EmailSender):
             "headers": email_headers or {},
             "attachments": [
                 {
-                    "path": attachment["remote_url"],
                     "filename": attachment["filename"],
+                    **(
+                        {"content": attachment["content"]}
+                        if "content" in attachment
+                        else {"path": attachment["remote_url"]}
+                    ),
                 }
                 for attachment in attachments
             ]
