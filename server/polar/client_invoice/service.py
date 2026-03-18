@@ -430,7 +430,7 @@ class ClientInvoiceService:
         )
         generator = InvoiceGenerator(inv, heading_title="Invoice")
         generator.generate()
-        return generator.output()
+        return bytes(generator.output())
 
     async def get_pdf_bytes(
         self,
@@ -492,11 +492,10 @@ class ClientInvoiceService:
         try:
             # Generate PDF attachment
             pdf_bytes = self._build_invoice_pdf_bytes(invoice, organization, customer)
-            pdf_b64 = base64.b64encode(pdf_bytes).decode()
             invoice_number = str(invoice.id)[:8].upper()
             attachment: Attachment = {
-                "remote_url": f"data:application/pdf;base64,{pdf_b64}",
                 "filename": f"invoice-{invoice_number}.pdf",
+                "content": base64.b64encode(pdf_bytes).decode(),
             }
 
             email_props = ClientInvoiceEmailProps(
