@@ -78,6 +78,9 @@ class ClientInvoice(RecordModel):
     stripe_hosted_invoice_url: Mapped[str | None] = mapped_column(
         String, nullable=True, default=None
     )
+    invoice_pdf_url: Mapped[str | None] = mapped_column(
+        String, nullable=True, default=None
+    )
     # Our checkout link (distinct from Stripe's hosted invoice page)
     checkout_link: Mapped[str | None] = mapped_column(
         String, nullable=True, default=None

@@ -18,8 +18,6 @@ from .service import (
     ClientInvoiceAlreadyVoided,
     ClientInvoiceError,
     ClientInvoiceNotDraft,
-)
-from .service import (
     client_invoice as client_invoice_service,
 )
 
@@ -90,6 +88,30 @@ async def get_client_invoice(
     invoice = await client_invoice_service.get_by_id(session, auth_subject, id)
     if invoice is None:
         raise ResourceNotFound()
+    return ClientInvoiceSchema.model_validate(invoice)
+
+
+@router.post(
+    "/{id}/finalize",
+    summary="Finalize Client Invoice",
+    response_model=ClientInvoiceSchema,
+)
+async def finalize_client_invoice(
+    id: UUID4,
+    auth_subject: auth.ClientInvoicesWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> ClientInvoiceSchema:
+    """Finalize a draft invoice (generates PDF) without sending the email.
+    Status moves from draft → open. Use this to preview the invoice before sending."""
+    invoice = await client_invoice_service.get_by_id(session, auth_subject, id)
+    if invoice is None:
+        raise ResourceNotFound()
+
+    try:
+        invoice = await client_invoice_service.finalize_draft(session, invoice)
+    except ClientInvoiceNotDraft as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+
     return ClientInvoiceSchema.model_validate(invoice)
 
 

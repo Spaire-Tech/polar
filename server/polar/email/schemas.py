@@ -18,6 +18,7 @@ from polar.subscription.schemas import SubscriptionBase
 
 
 class EmailTemplate(StrEnum):
+    client_invoice = "client_invoice"
     login_code = "login_code"
     customer_session_code = "customer_session_code"
     email_update = "email_update"
@@ -59,6 +60,33 @@ class OrderEmail(OrderBase):
 
 class EmailProps(BaseModel):
     email: str
+
+
+class ClientInvoiceEmailLineItem(BaseModel):
+    description: str
+    quantity: int
+    amount: int
+
+
+class ClientInvoiceEmailProps(EmailProps):
+    organization_name: str
+    customer_name: str
+    invoice_id: str
+    due_date: str | None
+    currency: str
+    line_items: list[ClientInvoiceEmailLineItem]
+    subtotal_amount: int
+    discount_amount: int
+    discount_label: str | None
+    tax_amount: int
+    total_amount: int
+    checkout_link: str | None
+    memo: str | None
+
+
+class ClientInvoiceEmail(BaseModel):
+    template: Literal[EmailTemplate.client_invoice] = EmailTemplate.client_invoice
+    props: ClientInvoiceEmailProps
 
 
 class LoginCodeProps(EmailProps):
@@ -344,7 +372,8 @@ class OrganizationAccountUnlinkEmail(BaseModel):
 
 
 Email = Annotated[
-    LoginCodeEmail
+    ClientInvoiceEmail
+    | LoginCodeEmail
     | CustomerSessionCodeEmail
     | EmailUpdateEmail
     | OAuth2LeakedClientEmail

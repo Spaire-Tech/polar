@@ -59,6 +59,7 @@ export interface ClientInvoice {
   discount_label: string | null
   include_payment_link: boolean
   stripe_hosted_invoice_url: string | null
+  invoice_pdf_url: string | null
   checkout_link: string | null
   user_metadata: Record<string, string> | null
   order_id: string | null
@@ -157,6 +158,25 @@ export const useVoidClientInvoice = (id: string) =>
     mutationFn: async () => {
       const { data, error } = await (api as any).POST(
         '/v1/client-invoices/{id}/void',
+        { params: { path: { id } } },
+      )
+      if (error) throw error
+      return data as ClientInvoice
+    },
+    onSuccess: (updated) => {
+      const queryClient = getQueryClient()
+      queryClient.setQueriesData<ClientInvoice>(
+        { queryKey: ['client_invoices', { id }] },
+        updated,
+      )
+    },
+  })
+
+export const useFinalizeClientInvoice = (id: string) =>
+  useMutation({
+    mutationFn: async () => {
+      const { data, error } = await (api as any).POST(
+        '/v1/client-invoices/{id}/finalize',
         { params: { path: { id } } },
       )
       if (error) throw error

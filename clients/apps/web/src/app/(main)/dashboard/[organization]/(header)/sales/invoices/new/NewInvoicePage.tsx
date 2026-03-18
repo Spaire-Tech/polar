@@ -11,6 +11,7 @@ import { CheckoutLinkForm } from '@/components/CheckoutLinks/CheckoutLinkForm'
 import { toast } from '@/components/Toast/use-toast'
 import {
   useCheckoutLinks,
+  useCustomer,
   useCustomers,
   useDiscounts,
   useProducts,
@@ -19,6 +20,7 @@ import {
   ClientInvoiceCreate,
   useCreateClientInvoice,
 } from '@/hooks/queries/client_invoices'
+import { api } from '@/utils/client'
 import AddOutlined from '@mui/icons-material/AddOutlined'
 import RemoveCircleOutlineOutlined from '@mui/icons-material/RemoveCircleOutlineOutlined'
 import { schemas } from '@spaire/client'
@@ -36,49 +38,49 @@ import {
 } from '@spaire/ui/components/ui/form'
 import { addDays, format } from 'date-fns'
 import { useRouter } from 'next/navigation'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useFieldArray, useForm, useFormContext, useWatch } from 'react-hook-form'
 import { twMerge } from 'tailwind-merge'
 
 // ─── Supported currencies ─────────────────────────────────────────────────────
 
 const CURRENCIES = [
-  { value: 'usd', label: 'USD' },
-  { value: 'eur', label: 'EUR' },
-  { value: 'gbp', label: 'GBP' },
-  { value: 'aed', label: 'AED' },
-  { value: 'ars', label: 'ARS' },
-  { value: 'aud', label: 'AUD' },
-  { value: 'brl', label: 'BRL' },
-  { value: 'cad', label: 'CAD' },
-  { value: 'chf', label: 'CHF' },
-  { value: 'clp', label: 'CLP' },
-  { value: 'cny', label: 'CNY' },
-  { value: 'cop', label: 'COP' },
-  { value: 'czk', label: 'CZK' },
-  { value: 'dkk', label: 'DKK' },
-  { value: 'hkd', label: 'HKD' },
-  { value: 'huf', label: 'HUF' },
-  { value: 'idr', label: 'IDR' },
-  { value: 'ils', label: 'ILS' },
-  { value: 'inr', label: 'INR' },
-  { value: 'jpy', label: 'JPY' },
-  { value: 'krw', label: 'KRW' },
-  { value: 'mxn', label: 'MXN' },
-  { value: 'myr', label: 'MYR' },
-  { value: 'nok', label: 'NOK' },
-  { value: 'nzd', label: 'NZD' },
-  { value: 'pen', label: 'PEN' },
-  { value: 'php', label: 'PHP' },
-  { value: 'pln', label: 'PLN' },
-  { value: 'ron', label: 'RON' },
-  { value: 'sar', label: 'SAR' },
-  { value: 'sek', label: 'SEK' },
-  { value: 'sgd', label: 'SGD' },
-  { value: 'thb', label: 'THB' },
-  { value: 'try', label: 'TRY' },
-  { value: 'twd', label: 'TWD' },
-  { value: 'zar', label: 'ZAR' },
+  { value: 'usd', label: 'US Dollar' },
+  { value: 'eur', label: 'Euro' },
+  { value: 'gbp', label: 'British Pound' },
+  { value: 'aed', label: 'UAE Dirham' },
+  { value: 'ars', label: 'Argentine Peso' },
+  { value: 'aud', label: 'Australian Dollar' },
+  { value: 'brl', label: 'Brazilian Real' },
+  { value: 'cad', label: 'Canadian Dollar' },
+  { value: 'chf', label: 'Swiss Franc' },
+  { value: 'clp', label: 'Chilean Peso' },
+  { value: 'cny', label: 'Chinese Yuan' },
+  { value: 'cop', label: 'Colombian Peso' },
+  { value: 'czk', label: 'Czech Koruna' },
+  { value: 'dkk', label: 'Danish Krone' },
+  { value: 'hkd', label: 'Hong Kong Dollar' },
+  { value: 'huf', label: 'Hungarian Forint' },
+  { value: 'idr', label: 'Indonesian Rupiah' },
+  { value: 'ils', label: 'Israeli Shekel' },
+  { value: 'inr', label: 'Indian Rupee' },
+  { value: 'jpy', label: 'Japanese Yen' },
+  { value: 'krw', label: 'South Korean Won' },
+  { value: 'mxn', label: 'Mexican Peso' },
+  { value: 'myr', label: 'Malaysian Ringgit' },
+  { value: 'nok', label: 'Norwegian Krone' },
+  { value: 'nzd', label: 'New Zealand Dollar' },
+  { value: 'pen', label: 'Peruvian Sol' },
+  { value: 'php', label: 'Philippine Peso' },
+  { value: 'pln', label: 'Polish Zloty' },
+  { value: 'ron', label: 'Romanian Leu' },
+  { value: 'sar', label: 'Saudi Riyal' },
+  { value: 'sek', label: 'Swedish Krona' },
+  { value: 'sgd', label: 'Singapore Dollar' },
+  { value: 'thb', label: 'Thai Baht' },
+  { value: 'try', label: 'Turkish Lira' },
+  { value: 'twd', label: 'Taiwan Dollar' },
+  { value: 'zar', label: 'South African Rand' },
 ]
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -97,6 +99,12 @@ export interface InvoiceFormValues {
   memo: string
   po_number: string
   on_behalf_of_label: string
+  billing_line1: string
+  billing_line2: string
+  billing_city: string
+  billing_state: string
+  billing_postal_code: string
+  billing_country: string
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -189,6 +197,126 @@ const InvoiceCustomerSection = ({
           <AddOutlined fontSize="small" />
           New customer
         </button>
+      </div>
+    </Section>
+  )
+}
+
+// ─── Section: Billing Address ─────────────────────────────────────────────────
+
+const InvoiceBillingAddressSection = () => {
+  const { control, setValue } = useFormContext<InvoiceFormValues>()
+  const customerId = useWatch<InvoiceFormValues, 'customer_id'>({ name: 'customer_id' })
+  const { data: selectedCustomer } = useCustomer(customerId || null)
+
+  // Auto-populate from customer's billing address when customer loads
+  useEffect(() => {
+    if (
+      customerId &&
+      selectedCustomer &&
+      (selectedCustomer as any).id === customerId
+    ) {
+      const addr = (selectedCustomer as any).billing_address
+      setValue('billing_line1', addr?.line1 ?? '')
+      setValue('billing_line2', addr?.line2 ?? '')
+      setValue('billing_city', addr?.city ?? '')
+      setValue('billing_state', addr?.state ?? '')
+      setValue('billing_postal_code', addr?.postal_code ?? '')
+      setValue('billing_country', addr?.country ?? '')
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customerId, selectedCustomer])
+
+  if (!customerId) return null
+
+  return (
+    <Section
+      compact
+      title="Billing Address"
+      description="Used for tax calculation and shown on the invoice. Auto-filled if the customer already has one."
+    >
+      <div className="flex w-full flex-col gap-y-4">
+        <FormField
+          control={control}
+          name="billing_line1"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Address line 1</FormLabel>
+              <FormControl>
+                <Input {...field} placeholder="123 Main Street" />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={control}
+          name="billing_line2"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>
+                Address line 2{' '}
+                <span className="dark:text-spaire-500 text-gray-400 font-normal">
+                  (optional)
+                </span>
+              </FormLabel>
+              <FormControl>
+                <Input {...field} placeholder="Suite 100" />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={control}
+            name="billing_city"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>City</FormLabel>
+                <FormControl>
+                  <Input {...field} placeholder="New York" />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={control}
+            name="billing_state"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>State / Province</FormLabel>
+                <FormControl>
+                  <Input {...field} placeholder="NY" />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={control}
+            name="billing_postal_code"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Postal code</FormLabel>
+                <FormControl>
+                  <Input {...field} placeholder="10001" />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={control}
+            name="billing_country"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Country</FormLabel>
+                <FormControl>
+                  <Input {...field} placeholder="US" />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+        </div>
       </div>
     </Section>
   )
@@ -532,7 +660,7 @@ const InvoiceDetailsSection = () => {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Payment due</FormLabel>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 pb-1">
                 {NET_OPTIONS.map((opt) => (
                   <Button
                     key={opt.label}
@@ -548,7 +676,7 @@ const InvoiceDetailsSection = () => {
                 ))}
               </div>
               <FormControl>
-                <Input {...field} type="date" className="max-w-xs" />
+                <Input {...field} type="date" />
               </FormControl>
             </FormItem>
           )}
@@ -572,35 +700,36 @@ const InvoiceDetailsSection = () => {
           )}
         />
 
-        <FormField
-          control={control}
-          name="po_number"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>PO Number</FormLabel>
-              <FormControl>
-                <Input {...field} placeholder="Purchase order number" className="max-w-xs" />
-              </FormControl>
-            </FormItem>
-          )}
-        />
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={control}
+            name="po_number"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>PO Number</FormLabel>
+                <FormControl>
+                  <Input {...field} placeholder="Purchase order number" />
+                </FormControl>
+              </FormItem>
+            )}
+          />
 
-        <FormField
-          control={control}
-          name="on_behalf_of_label"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>On behalf of</FormLabel>
-              <FormControl>
-                <Input
-                  {...field}
-                  placeholder="Optional — leave blank to use your organization name"
-                  className="max-w-sm"
-                />
-              </FormControl>
-            </FormItem>
-          )}
-        />
+          <FormField
+            control={control}
+            name="on_behalf_of_label"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>On behalf of</FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    placeholder="Leave blank to use your organization name"
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+        </div>
       </div>
     </Section>
   )
@@ -659,6 +788,12 @@ const NewInvoicePage = ({
       memo: '',
       po_number: '',
       on_behalf_of_label: '',
+      billing_line1: '',
+      billing_line2: '',
+      billing_city: '',
+      billing_state: '',
+      billing_postal_code: '',
+      billing_country: '',
     },
   })
 
@@ -673,6 +808,25 @@ const NewInvoicePage = ({
 
       setIsSubmitting(true)
       try {
+        // Update customer billing address if provided
+        const hasAddress =
+          values.billing_line1 || values.billing_city || values.billing_country
+        if (hasAddress && values.customer_id) {
+          await (api as any).PATCH('/v1/customers/{id}', {
+            params: { path: { id: values.customer_id } },
+            body: {
+              billing_address: {
+                line1: values.billing_line1 || null,
+                line2: values.billing_line2 || null,
+                city: values.billing_city || null,
+                state: values.billing_state || null,
+                postal_code: values.billing_postal_code || null,
+                country: values.billing_country || null,
+              },
+            },
+          })
+        }
+
         const lineItemsCents = values.line_items.map((item) => ({
           description: item.description,
           quantity: Number(item.quantity) || 1,
@@ -811,6 +965,7 @@ const NewInvoicePage = ({
                     organization={organization}
                     onNewCustomer={showCustomerModal}
                   />
+                  <InvoiceBillingAddressSection />
                   <InvoiceCurrencySection />
                   <InvoiceItemsSection
                     organization={organization}
@@ -852,7 +1007,7 @@ const NewInvoicePage = ({
   return (
     <DashboardBody
       title="New Invoice"
-      wrapperClassName="max-w-(--breakpoint-lg)!"
+      wrapperClassName="max-w-3xl!"
       className="gap-y-0"
     >
       <Form {...form}>
@@ -866,6 +1021,7 @@ const NewInvoicePage = ({
                 organization={organization}
                 onNewCustomer={showCustomerModal}
               />
+              <InvoiceBillingAddressSection />
               <InvoiceCurrencySection />
               <InvoiceItemsSection
                 organization={organization}
