@@ -8,6 +8,9 @@ import structlog
 
 from polar.auth.models import AuthSubject, Organization, User
 from polar.config import settings
+from polar.email.react import render_email_template
+from polar.email.schemas import ClientInvoiceEmail, ClientInvoiceEmailProps, EmailAdapter
+from polar.email.sender import enqueue_email
 from polar.exceptions import PolarError
 from polar.integrations.stripe.service import stripe as stripe_service
 from polar.kit.pagination import PaginationParams
@@ -21,6 +24,7 @@ from polar.models.client_invoice import (
 from polar.models.order import Order, OrderBillingReasonInternal, OrderStatus
 from polar.models.order_item import OrderItem
 from polar.order.repository import OrderRepository
+from polar.organization.repository import OrganizationRepository
 from polar.organization.service import organization as organization_service
 from polar.postgres import AsyncReadSession, AsyncSession
 from polar.tax.calculation import TaxCalculationError, TaxCode, get_tax_service
@@ -323,7 +327,11 @@ class ClientInvoiceService:
                 discount_label=create_schema.discount_label,
                 include_payment_link=create_schema.include_payment_link,
                 stripe_hosted_invoice_url=stripe_invoice.hosted_invoice_url,
-                checkout_link=stripe_invoice.hosted_invoice_url,
+                invoice_pdf_url=stripe_invoice.invoice_pdf,
+                checkout_link=(
+                    (create_schema.user_metadata or {}).get("checkout_link_url")
+                    or stripe_invoice.hosted_invoice_url
+                ),
                 user_metadata=create_schema.user_metadata,
             ),
             flush=True,
@@ -363,14 +371,71 @@ class ClientInvoiceService:
 
         assert invoice.stripe_invoice_id is not None
 
-        # finalize locks tax amounts (tax is calculated before send ✓)
-        await stripe_service.finalize_invoice(invoice.stripe_invoice_id)
-        await stripe_service.send_invoice(invoice.stripe_invoice_id)
+        # Finalize locks amounts — do NOT call stripe send_invoice (we email ourselves)
+        finalized = await stripe_service.finalize_invoice(invoice.stripe_invoice_id)
+
+        # Refresh URLs from the finalized invoice
+        update_dict: dict[str, Any] = {
+            "status": ClientInvoiceStatus.open,
+            "stripe_hosted_invoice_url": finalized.hosted_invoice_url,
+            "invoice_pdf_url": finalized.invoice_pdf,
+        }
+        # Only overwrite checkout_link with the Stripe URL if we don't have our own
+        if not invoice.checkout_link:
+            update_dict["checkout_link"] = finalized.hosted_invoice_url
+
+        # Load customer + organization for email
+        from polar.customer.repository import CustomerRepository
+
+        customer_repo = CustomerRepository.from_session(session)
+        customer = await customer_repo.get_by_id(invoice.customer_id)
+        assert customer is not None
+
+        org_repo = OrganizationRepository.from_session(session)
+        organization = await org_repo.get_by_id(invoice.organization_id)
+        assert organization is not None
+
+        # Send our own invoice email (not Stripe's)
+        try:
+            email_props = ClientInvoiceEmailProps(
+                email=customer.email,
+                organization_name=organization.name,
+                customer_name=customer.name or customer.email,
+                invoice_id=str(invoice.id)[:8].upper(),
+                due_date=invoice.due_date.isoformat() if invoice.due_date else None,
+                currency=invoice.currency.upper(),
+                line_items=[
+                    {
+                        "description": item.description,
+                        "quantity": item.quantity,
+                        "amount": item.amount,
+                    }
+                    for item in invoice.line_items
+                ],
+                subtotal_amount=invoice.subtotal_amount,
+                discount_amount=invoice.discount_amount,
+                discount_label=invoice.discount_label,
+                tax_amount=invoice.tax_amount,
+                total_amount=invoice.total_amount,
+                checkout_link=invoice.checkout_link or finalized.hosted_invoice_url,
+                memo=invoice.memo,
+            )
+            email_obj = ClientInvoiceEmail(props=email_props)
+            html = render_email_template(EmailAdapter.validate_python(email_obj.model_dump()))
+            enqueue_email(
+                **organization.email_from_reply,
+                to_email_addr=customer.email,
+                subject=f"Invoice from {organization.name}",
+                html_content=html,
+            )
+        except Exception:
+            log.warning(
+                "client_invoice.send.email_failed",
+                invoice_id=str(invoice.id),
+            )
 
         repository = ClientInvoiceRepository.from_session(session)
-        return await repository.update(
-            invoice, update_dict={"status": ClientInvoiceStatus.open}
-        )
+        return await repository.update(invoice, update_dict=update_dict)
 
     async def void_client_invoice(
         self,

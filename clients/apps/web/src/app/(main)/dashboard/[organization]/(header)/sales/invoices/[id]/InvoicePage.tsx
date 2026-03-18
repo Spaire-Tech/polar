@@ -12,6 +12,7 @@ import {
 } from '@/hooks/queries/client_invoices'
 import { useCustomer } from '@/hooks/queries/customers'
 import { api } from '@/utils/client'
+import Download from '@mui/icons-material/Download'
 import Send from '@mui/icons-material/Send'
 import { schemas, unwrap } from '@spaire/client'
 import { formatCurrency } from '@spaire/currency'
@@ -124,6 +125,17 @@ const InvoicePage: React.FC<InvoicePageProps> = ({
             <Button loading={sendInvoice.isPending} onClick={handleSend}>
               <Send fontSize="small" />
               Send Invoice
+            </Button>
+          )}
+          {invoice.invoice_pdf_url && !isPaid && (
+            <Button
+              variant="secondary"
+              onClick={() =>
+                window.open(invoice.invoice_pdf_url!, '_blank', 'noopener')
+              }
+            >
+              <Download fontSize="small" />
+              Download Invoice
             </Button>
           )}
           {isPaid && linkedOrder && (
