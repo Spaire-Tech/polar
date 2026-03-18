@@ -145,88 +145,90 @@ export default function ClientPage({
   return (
     <DashboardBody>
       <div className="flex flex-col gap-y-8">
-        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center">
-            <Input
-              className="w-full md:max-w-64"
-              preSlot={<Search fontSize="small" />}
-              placeholder="Search Products"
-              value={query}
-              onChange={(e) => onQueryChange(e.target.value)}
-            />
-            <Select value={show} onValueChange={setShow}>
-              <SelectTrigger className="w-full md:max-w-fit">
-                <SelectValue placeholder="Show archived products" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="archived">Archived</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={currentSortingValue} onValueChange={onSortingChange}>
-              <SelectTrigger className="w-full md:max-w-fit">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="name">Name A-Z</SelectItem>
-                <SelectItem value="-name">Name Z-A</SelectItem>
-                <SelectItem value="-created_at">Newest</SelectItem>
-                <SelectItem value="created_at">Oldest</SelectItem>
-                <SelectItem value="price_amount">Price: Low to High</SelectItem>
-                <SelectItem value="-price_amount">
-                  Price: High to Low
-                </SelectItem>
-              </SelectContent>
-            </Select>
-            {(products.data?.pagination.total_count ?? 0) > 20 && (
-              <Select
-                value={pagination.pageSize.toString()}
-                onValueChange={onLimitChange}
-              >
-                <SelectTrigger className="w-full md:max-w-fit">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="20">Show 20</SelectItem>
-                  <SelectItem value="50">Show 50</SelectItem>
-                  <SelectItem value="100">Show 100</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
-          </div>
-          <Button
-            wrapperClassNames="gap-x-2 md:w-fit"
-            className="w-full md:w-fit"
-            onClick={showCreateModal}
-          >
-            <AddOutlined className="h-4 w-4" />
-            <span>Create product</span>
-          </Button>
-        </div>
         {products.data && products.data.items.length > 0 ? (
-          <Pagination
-            currentPage={pagination.pageIndex + 1}
-            pageSize={pagination.pageSize}
-            totalCount={products.data?.pagination.total_count || 0}
-            currentURL={serializeSearchParams(pagination, sorting)}
-            onPageChange={onPageChange}
-          >
-            <List size="small">
-              {products.data.items
-                .sort((a, b) => {
-                  if (a.is_archived === b.is_archived) return 0
-                  return a.is_archived ? 1 : -1
-                })
-                .map((product) => (
-                  <ProductListItem
-                    key={product.id}
-                    organization={org}
-                    product={product}
-                  />
-                ))}
-            </List>
-          </Pagination>
+          <>
+            <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center">
+                <Input
+                  className="w-full md:max-w-64"
+                  preSlot={<Search fontSize="small" />}
+                  placeholder="Search Products"
+                  value={query}
+                  onChange={(e) => onQueryChange(e.target.value)}
+                />
+                <Select value={show} onValueChange={setShow}>
+                  <SelectTrigger className="w-full md:max-w-fit">
+                    <SelectValue placeholder="Show archived products" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="archived">Archived</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={currentSortingValue} onValueChange={onSortingChange}>
+                  <SelectTrigger className="w-full md:max-w-fit">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="name">Name A-Z</SelectItem>
+                    <SelectItem value="-name">Name Z-A</SelectItem>
+                    <SelectItem value="-created_at">Newest</SelectItem>
+                    <SelectItem value="created_at">Oldest</SelectItem>
+                    <SelectItem value="price_amount">Price: Low to High</SelectItem>
+                    <SelectItem value="-price_amount">
+                      Price: High to Low
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                {(products.data?.pagination.total_count ?? 0) > 20 && (
+                  <Select
+                    value={pagination.pageSize.toString()}
+                    onValueChange={onLimitChange}
+                  >
+                    <SelectTrigger className="w-full md:max-w-fit">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="20">Show 20</SelectItem>
+                      <SelectItem value="50">Show 50</SelectItem>
+                      <SelectItem value="100">Show 100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+              <Button
+                wrapperClassNames="gap-x-2 md:w-fit"
+                className="w-full md:w-fit"
+                onClick={showCreateModal}
+              >
+                <AddOutlined className="h-4 w-4" />
+                <span>Create product</span>
+              </Button>
+            </div>
+            <Pagination
+              currentPage={pagination.pageIndex + 1}
+              pageSize={pagination.pageSize}
+              totalCount={products.data?.pagination.total_count || 0}
+              currentURL={serializeSearchParams(pagination, sorting)}
+              onPageChange={onPageChange}
+            >
+              <List size="small">
+                {products.data.items
+                  .sort((a, b) => {
+                    if (a.is_archived === b.is_archived) return 0
+                    return a.is_archived ? 1 : -1
+                  })
+                  .map((product) => (
+                    <ProductListItem
+                      key={product.id}
+                      organization={org}
+                      product={product}
+                    />
+                  ))}
+              </List>
+            </Pagination>
+          </>
         ) : (
           <ShadowBoxOnMd className="relative overflow-hidden p-0 md:p-0">
             <img
