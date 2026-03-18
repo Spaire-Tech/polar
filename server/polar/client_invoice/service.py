@@ -117,6 +117,7 @@ class ClientInvoiceService:
 
         # Ensure the Stripe customer exists on the platform account
         async def _ensure_stripe_customer() -> str:
+            nonlocal customer
             create_params: dict[str, Any] = {"email": customer.email}
             if customer.billing_name is not None:
                 create_params["name"] = customer.billing_name
@@ -125,7 +126,6 @@ class ClientInvoiceService:
             if customer.billing_address is not None:
                 create_params["address"] = customer.billing_address.to_dict()
             stripe_customer = await stripe_service.create_customer(**create_params)
-            nonlocal customer
             customer = await customer_repository.update(
                 customer,
                 update_dict={"stripe_customer_id": stripe_customer.id},
