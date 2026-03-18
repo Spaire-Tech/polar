@@ -76,6 +76,9 @@ class Scope(StrEnum):
     orders_read = "orders:read"
     orders_write = "orders:write"
 
+    client_invoices_read = "client_invoices:read"
+    client_invoices_write = "client_invoices:write"
+
     refunds_read = "refunds:read"
     refunds_write = "refunds:write"
     payments_read = "payments:read"
@@ -162,6 +165,8 @@ SCOPES_SUPPORTED_DISPLAY_NAMES: dict[Scope, str] = {
     Scope.customer_seats_write: "Create or modify customer seats",
     Scope.orders_read: "Read orders made on your organizations",
     Scope.orders_write: "Modify orders made on your organizations",
+    Scope.client_invoices_read: "Read client invoices",
+    Scope.client_invoices_write: "Create or modify client invoices",
     Scope.refunds_read: "Read refunds made on your organizations",
     Scope.refunds_write: "Create or modify refunds",
     Scope.payments_read: "Read payments made on your organizations",

@@ -39,6 +39,10 @@ DIRECT_IMPLEMENTED_WEBHOOKS = {
     "identity.verification_session.processing",
     "identity.verification_session.requires_input",
     "identity.verification_session.canceled",
+    # Client invoice events
+    "invoice.paid",
+    "invoice.payment_failed",
+    "invoice.voided",
 }
 CONNECT_IMPLEMENTED_WEBHOOKS = {"account.updated", "payout.updated", "payout.paid"}
 

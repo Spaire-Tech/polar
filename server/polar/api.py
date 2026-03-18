@@ -40,6 +40,7 @@ from polar.meter.endpoints import router as meter_router
 from polar.metrics.endpoints import router as metrics_router
 from polar.notifications.endpoints import router as notifications_router
 from polar.oauth2.endpoints.oauth2 import router as oauth2_router
+from polar.client_invoice.endpoints import router as client_invoice_router
 from polar.order.endpoints import router as order_router
 from polar.organization.endpoints import router as organization_router
 from polar.organization_access_token.endpoints import (
@@ -101,6 +102,8 @@ router.include_router(webhook_router)
 router.include_router(product_router)
 # /orders
 router.include_router(order_router)
+# /client-invoices
+router.include_router(client_invoice_router)
 # /refunds
 router.include_router(refund_router)
 # /disputes

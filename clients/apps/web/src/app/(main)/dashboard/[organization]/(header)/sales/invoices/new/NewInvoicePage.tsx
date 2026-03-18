@@ -1,0 +1,929 @@
+'use client'
+
+import { Section } from '@/components/Layout/Section'
+import { DashboardBody } from '@/components/Layout/DashboardLayout'
+import { InlineModal, InlineModalHeader } from '@/components/Modal/InlineModal'
+import { useModal } from '@/components/Modal/useModal'
+import { CreateCustomerModal } from '@/components/Customer/CreateCustomerModal'
+import CreateDiscountModalContent from '@/components/Discounts/CreateDiscountModalContent'
+import { CreateProductPage } from '@/components/Products/CreateProductPage'
+import { CheckoutLinkForm } from '@/components/CheckoutLinks/CheckoutLinkForm'
+import { toast } from '@/components/Toast/use-toast'
+import {
+  useCheckoutLinks,
+  useCustomers,
+  useDiscounts,
+  useProducts,
+} from '@/hooks/queries'
+import {
+  ClientInvoiceCreate,
+  useCreateClientInvoice,
+} from '@/hooks/queries/client_invoices'
+import AddOutlined from '@mui/icons-material/AddOutlined'
+import RemoveCircleOutlineOutlined from '@mui/icons-material/RemoveCircleOutlineOutlined'
+import { schemas } from '@spaire/client'
+import Button from '@spaire/ui/components/atoms/Button'
+import { Combobox } from '@spaire/ui/components/atoms/Combobox'
+import Input from '@spaire/ui/components/atoms/Input'
+import TextArea from '@spaire/ui/components/atoms/TextArea'
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@spaire/ui/components/ui/form'
+import { addDays, format } from 'date-fns'
+import { useRouter } from 'next/navigation'
+import { useCallback, useMemo, useState } from 'react'
+import { useFieldArray, useForm, useFormContext } from 'react-hook-form'
+import { twMerge } from 'tailwind-merge'
+
+// ─── Supported currencies ────────────────────────────────────────────────────
+
+const CURRENCIES = [
+  { value: 'usd', label: 'USD' },
+  { value: 'eur', label: 'EUR' },
+  { value: 'gbp', label: 'GBP' },
+  { value: 'aed', label: 'AED' },
+  { value: 'ars', label: 'ARS' },
+  { value: 'aud', label: 'AUD' },
+  { value: 'brl', label: 'BRL' },
+  { value: 'cad', label: 'CAD' },
+  { value: 'chf', label: 'CHF' },
+  { value: 'clp', label: 'CLP' },
+  { value: 'cny', label: 'CNY' },
+  { value: 'cop', label: 'COP' },
+  { value: 'czk', label: 'CZK' },
+  { value: 'dkk', label: 'DKK' },
+  { value: 'hkd', label: 'HKD' },
+  { value: 'huf', label: 'HUF' },
+  { value: 'idr', label: 'IDR' },
+  { value: 'ils', label: 'ILS' },
+  { value: 'inr', label: 'INR' },
+  { value: 'jpy', label: 'JPY' },
+  { value: 'krw', label: 'KRW' },
+  { value: 'mxn', label: 'MXN' },
+  { value: 'myr', label: 'MYR' },
+  { value: 'nok', label: 'NOK' },
+  { value: 'nzd', label: 'NZD' },
+  { value: 'pen', label: 'PEN' },
+  { value: 'php', label: 'PHP' },
+  { value: 'pln', label: 'PLN' },
+  { value: 'ron', label: 'RON' },
+  { value: 'sar', label: 'SAR' },
+  { value: 'sek', label: 'SEK' },
+  { value: 'sgd', label: 'SGD' },
+  { value: 'thb', label: 'THB' },
+  { value: 'try', label: 'TRY' },
+  { value: 'twd', label: 'TWD' },
+  { value: 'zar', label: 'ZAR' },
+]
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface LineItemValue {
+  description: string
+  quantity: number
+  unit_amount: string // major currency units for display
+}
+
+export interface InvoiceFormValues {
+  customer_id: string
+  currency: string
+  line_items: LineItemValue[]
+  due_date: string
+  memo: string
+  po_number: string
+  on_behalf_of_label: string
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function getPriceForCurrency(product: schemas['Product'], currency: string): number {
+  const prices = product.prices ?? []
+  const match = prices.find(
+    (p) =>
+      'price_currency' in p &&
+      (p as any).price_currency === currency.toLowerCase() &&
+      'price_amount' in p,
+  )
+  if (match) return ((match as any).price_amount as number) ?? 0
+  const fallback = prices.find((p) => 'price_amount' in p)
+  return fallback ? ((fallback as any).price_amount as number) ?? 0 : 0
+}
+
+function computeDiscountCents(discount: schemas['Discount'], subtotalCents: number): number {
+  if (discount.type === 'fixed') return (discount as any).amount ?? 0
+  return Math.round((subtotalCents * ((discount as any).basis_points ?? 0)) / 10000)
+}
+
+// ─── Section: Customer ────────────────────────────────────────────────────────
+
+const InvoiceCustomerSection = ({
+  organization,
+  onNewCustomer,
+}: {
+  organization: schemas['Organization']
+  onNewCustomer: () => void
+}) => {
+  const { control, watch, setValue } = useFormContext<InvoiceFormValues>()
+  const [customerQuery, setCustomerQuery] = useState('')
+
+  const { data: customersData, isLoading: isLoadingCustomers } = useCustomers(
+    organization.id,
+    { query: customerQuery || undefined },
+  )
+  const customers = useMemo(
+    () => customersData?.pages.flatMap((p) => p.items) ?? [],
+    [customersData],
+  )
+
+  const customerId = watch('customer_id')
+  const selectedCustomer = customers.find((c) => c.id === customerId) ?? null
+
+  return (
+    <Section
+      compact
+      title="Customer"
+      description="The customer you are invoicing"
+    >
+      <div className="flex w-full flex-col gap-y-4">
+        <FormField
+          control={control}
+          name="customer_id"
+          rules={{ required: 'Please select a customer' }}
+          render={({ field }) => (
+            <FormItem>
+              <FormControl>
+                <Combobox
+                  items={customers}
+                  value={field.value || null}
+                  selectedItem={selectedCustomer}
+                  onChange={(v) => field.onChange(v ?? '')}
+                  onQueryChange={setCustomerQuery}
+                  getItemValue={(c) => c.id}
+                  getItemLabel={(c) => c.name ?? c.email}
+                  renderItem={(c) => (
+                    <div className="flex flex-col">
+                      <span className="font-medium">{c.name ?? c.email}</span>
+                      {c.name && (
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          {c.email}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  isLoading={isLoadingCustomers}
+                  placeholder="Select a customer"
+                  searchPlaceholder="Search customers…"
+                  emptyLabel="No customers found"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <button
+          type="button"
+          onClick={onNewCustomer}
+          className="flex w-fit items-center gap-x-1 text-sm text-blue-500 hover:text-blue-600"
+        >
+          <AddOutlined fontSize="small" />
+          New customer
+        </button>
+      </div>
+    </Section>
+  )
+}
+
+// ─── Section: Currency ────────────────────────────────────────────────────────
+
+const InvoiceCurrencySection = () => {
+  const { control } = useFormContext<InvoiceFormValues>()
+
+  return (
+    <Section
+      compact
+      title="Currency"
+      description="All line items will be billed in this currency"
+    >
+      <FormField
+        control={control}
+        name="currency"
+        render={({ field }) => (
+          <FormItem>
+            <FormControl>
+              <select
+                {...field}
+                className="dark:bg-spaire-900 dark:border-spaire-700 w-full max-w-xs rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm focus:outline-none"
+              >
+                {CURRENCIES.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.value.toUpperCase()} — {c.label}
+                  </option>
+                ))}
+              </select>
+            </FormControl>
+          </FormItem>
+        )}
+      />
+    </Section>
+  )
+}
+
+// ─── Section: Line Items ──────────────────────────────────────────────────────
+
+const InvoiceItemsSection = ({
+  organization,
+  onNewProduct,
+}: {
+  organization: schemas['Organization']
+  onNewProduct: () => void
+}) => {
+  const { control, watch, setValue } = useFormContext<InvoiceFormValues>()
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: 'line_items',
+  })
+  const currency = watch('currency')
+
+  const [productQuery, setProductQuery] = useState('')
+  const { data: productsData, isLoading: isLoadingProducts } = useProducts(
+    organization.id,
+    { query: productQuery || undefined },
+  )
+  const products = useMemo(
+    () => productsData?.items ?? [],
+    [productsData],
+  )
+
+  return (
+    <Section
+      compact
+      title="Items"
+      description="Add products from your catalog or type a custom description"
+    >
+      <div className="flex w-full flex-col gap-y-6">
+        {fields.map((field, index) => (
+          <div key={field.id} className="flex flex-col gap-y-3">
+            {/* Product picker — selecting auto-fills description + unit amount */}
+            <Combobox
+              items={products}
+              value={null}
+              selectedItem={null}
+              onChange={(productId) => {
+                if (!productId) return
+                const product = products.find((p) => p.id === productId)
+                if (!product) return
+                const priceCents = getPriceForCurrency(product, currency)
+                setValue(`line_items.${index}.description`, product.name)
+                setValue(
+                  `line_items.${index}.unit_amount`,
+                  priceCents > 0 ? (priceCents / 100).toString() : '',
+                )
+              }}
+              onQueryChange={setProductQuery}
+              getItemValue={(p) => p.id}
+              getItemLabel={(p) => p.name}
+              renderItem={(p) => (
+                <div className="flex flex-col">
+                  <span className="font-medium">{p.name}</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    {(() => {
+                      const cents = getPriceForCurrency(p, currency)
+                      return cents > 0
+                        ? `${(cents / 100).toFixed(2)} ${currency.toUpperCase()}`
+                        : 'Custom price'
+                    })()}
+                  </span>
+                </div>
+              )}
+              isLoading={isLoadingProducts}
+              placeholder="Select a product…"
+              searchPlaceholder="Search products…"
+              emptyLabel="No products found"
+            />
+
+            <div className="grid grid-cols-[1fr_80px_120px_32px] items-start gap-x-3">
+              {/* Description */}
+              <FormField
+                control={control}
+                name={`line_items.${index}.description`}
+                rules={{ required: 'Description is required' }}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <Input {...field} placeholder="Description" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Quantity */}
+              <FormField
+                control={control}
+                name={`line_items.${index}.quantity`}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        type="number"
+                        min={1}
+                        className="text-center"
+                        placeholder="1"
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              {/* Unit amount */}
+              <FormField
+                control={control}
+                name={`line_items.${index}.unit_amount`}
+                rules={{ required: 'Amount is required' }}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        type="number"
+                        min={0}
+                        step={0.01}
+                        className="text-right"
+                        placeholder="0.00"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Remove row */}
+              <button
+                type="button"
+                onClick={() => remove(index)}
+                disabled={fields.length <= 1}
+                className={twMerge(
+                  'mt-2 text-gray-400 transition-colors hover:text-red-500',
+                  fields.length <= 1 && 'pointer-events-none opacity-30',
+                )}
+              >
+                <RemoveCircleOutlineOutlined fontSize="small" />
+              </button>
+            </div>
+          </div>
+        ))}
+
+        <div className="flex flex-row items-center gap-x-4">
+          <button
+            type="button"
+            onClick={() =>
+              append({ description: '', quantity: 1, unit_amount: '' })
+            }
+            className="flex items-center gap-x-1 text-sm text-blue-500 hover:text-blue-600"
+          >
+            <AddOutlined fontSize="small" />
+            Add item
+          </button>
+          <button
+            type="button"
+            onClick={onNewProduct}
+            className="flex items-center gap-x-1 text-sm text-blue-500 hover:text-blue-600"
+          >
+            <AddOutlined fontSize="small" />
+            New product
+          </button>
+        </div>
+      </div>
+    </Section>
+  )
+}
+
+// ─── Section: Discount ────────────────────────────────────────────────────────
+
+const InvoiceDiscountSection = ({
+  organization,
+  selectedDiscount,
+  onSelectDiscount,
+  onNewDiscount,
+}: {
+  organization: schemas['Organization']
+  selectedDiscount: schemas['Discount'] | null
+  onSelectDiscount: (discount: schemas['Discount'] | null) => void
+  onNewDiscount: () => void
+}) => {
+  const [discountQuery, setDiscountQuery] = useState('')
+  const { data: discountsData, isLoading: isLoadingDiscounts } = useDiscounts(
+    organization.id,
+    { query: discountQuery || undefined },
+  )
+  const discounts = useMemo(
+    () => discountsData?.items ?? [],
+    [discountsData],
+  )
+
+  return (
+    <Section
+      compact
+      title="Discount"
+      description="Optionally apply a discount from your catalog"
+    >
+      <div className="flex w-full flex-col gap-y-4">
+        <Combobox
+          items={discounts}
+          value={selectedDiscount?.id ?? null}
+          selectedItem={selectedDiscount}
+          onChange={(id) => {
+            if (!id) {
+              onSelectDiscount(null)
+              return
+            }
+            const d = discounts.find((d) => d.id === id)
+            onSelectDiscount(d ?? null)
+          }}
+          onQueryChange={setDiscountQuery}
+          getItemValue={(d) => d.id}
+          getItemLabel={(d) => d.name}
+          renderItem={(d) => (
+            <div className="flex flex-col">
+              <span className="font-medium">{d.name}</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                {d.type === 'percentage'
+                  ? `${((d as any).basis_points ?? 0) / 100}% off`
+                  : `${((d as any).amount ?? 0) / 100} ${(d as any).currency?.toUpperCase() ?? ''} off`}
+              </span>
+            </div>
+          )}
+          isLoading={isLoadingDiscounts}
+          placeholder="Select a discount"
+          searchPlaceholder="Search discounts…"
+          emptyLabel="No discounts found"
+        />
+        <button
+          type="button"
+          onClick={onNewDiscount}
+          className="flex w-fit items-center gap-x-1 text-sm text-blue-500 hover:text-blue-600"
+        >
+          <AddOutlined fontSize="small" />
+          New discount
+        </button>
+      </div>
+    </Section>
+  )
+}
+
+// ─── Section: Payment Link ────────────────────────────────────────────────────
+
+const InvoicePaymentLinkSection = ({
+  organization,
+  selectedCheckoutLink,
+  onSelectCheckoutLink,
+  onNewCheckoutLink,
+}: {
+  organization: schemas['Organization']
+  selectedCheckoutLink: schemas['CheckoutLink'] | null
+  onSelectCheckoutLink: (link: schemas['CheckoutLink'] | null) => void
+  onNewCheckoutLink: () => void
+}) => {
+  const [linkQuery, setLinkQuery] = useState('')
+  const { data: linksData, isLoading: isLoadingLinks } = useCheckoutLinks(
+    organization.id,
+  )
+  const links = useMemo(
+    () =>
+      (linksData?.pages.flatMap((p) => p.items) ?? []).filter(
+        (l) =>
+          !linkQuery ||
+          (l.label ?? '').toLowerCase().includes(linkQuery.toLowerCase()),
+      ),
+    [linksData, linkQuery],
+  )
+
+  return (
+    <Section
+      compact
+      title="Payment Link"
+      description="Attach a checkout link so customers can pay directly from the invoice. We will automatically include the link."
+    >
+      <div className="flex w-full flex-col gap-y-4">
+        <Combobox
+          items={links}
+          value={selectedCheckoutLink?.id ?? null}
+          selectedItem={selectedCheckoutLink}
+          onChange={(id) => {
+            if (!id) {
+              onSelectCheckoutLink(null)
+              return
+            }
+            const link = links.find((l) => l.id === id)
+            onSelectCheckoutLink(link ?? null)
+          }}
+          onQueryChange={setLinkQuery}
+          getItemValue={(l) => l.id}
+          getItemLabel={(l) => l.label ?? l.url}
+          renderItem={(l) => (
+            <div className="flex flex-col">
+              <span className="font-medium">{l.label ?? 'Unlabeled'}</span>
+              <span className="truncate text-xs text-gray-500 dark:text-gray-400">
+                {l.url}
+              </span>
+            </div>
+          )}
+          isLoading={isLoadingLinks}
+          placeholder="Select a checkout link (optional)"
+          searchPlaceholder="Search checkout links…"
+          emptyLabel="No checkout links found"
+        />
+
+        {selectedCheckoutLink && (
+          <div className="dark:border-spaire-700 flex items-center gap-x-2 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-2.5 dark:bg-transparent">
+            <span className="flex-1 truncate font-mono text-xs text-gray-500 dark:text-gray-400">
+              {selectedCheckoutLink.url}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(selectedCheckoutLink.url)
+                toast({ title: 'Copied to clipboard' })
+              }}
+              className="shrink-0 text-xs text-blue-500 hover:text-blue-600"
+            >
+              Copy
+            </button>
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={onNewCheckoutLink}
+          className="flex w-fit items-center gap-x-1 text-sm text-blue-500 hover:text-blue-600"
+        >
+          <AddOutlined fontSize="small" />
+          New checkout link
+        </button>
+      </div>
+    </Section>
+  )
+}
+
+// ─── Section: Details ─────────────────────────────────────────────────────────
+
+const InvoiceDetailsSection = () => {
+  const { control, setValue } = useFormContext<InvoiceFormValues>()
+
+  const NET_OPTIONS = [
+    { label: 'Net 7', days: 7 },
+    { label: 'Net 15', days: 15 },
+    { label: 'Net 30', days: 30 },
+    { label: 'Net 60', days: 60 },
+  ]
+
+  return (
+    <Section
+      compact
+      title="Details"
+      description="Due date, notes, and references"
+    >
+      <div className="flex w-full flex-col gap-y-6">
+        {/* Due date */}
+        <FormField
+          control={control}
+          name="due_date"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Payment due</FormLabel>
+              <div className="flex flex-wrap items-center gap-2">
+                {NET_OPTIONS.map((opt) => (
+                  <Button
+                    key={opt.label}
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() =>
+                      setValue(
+                        'due_date',
+                        format(addDays(new Date(), opt.days), 'yyyy-MM-dd'),
+                      )
+                    }
+                  >
+                    {opt.label}
+                  </Button>
+                ))}
+              </div>
+              <FormControl>
+                <Input {...field} type="date" className="max-w-xs" />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+
+        {/* Memo */}
+        <FormField
+          control={control}
+          name="memo"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Memo</FormLabel>
+              <FormControl>
+                <TextArea
+                  {...field}
+                  rows={3}
+                  placeholder="Add a note visible on the invoice…"
+                  className="resize-none rounded-2xl"
+                />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+
+        {/* PO Number */}
+        <FormField
+          control={control}
+          name="po_number"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>PO Number</FormLabel>
+              <FormControl>
+                <Input
+                  {...field}
+                  placeholder="Purchase order number"
+                  className="max-w-xs"
+                />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+
+        {/* On behalf of */}
+        <FormField
+          control={control}
+          name="on_behalf_of_label"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>On behalf of</FormLabel>
+              <FormControl>
+                <Input
+                  {...field}
+                  placeholder="Optional — leave blank to use your organization name"
+                  className="max-w-sm"
+                />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+      </div>
+    </Section>
+  )
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+export interface NewInvoicePageProps {
+  organization: schemas['Organization']
+  panelMode?: boolean
+  onClose?: () => void
+}
+
+const NewInvoicePage = ({
+  organization,
+  panelMode,
+  onClose,
+}: NewInvoicePageProps) => {
+  const router = useRouter()
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Associated objects (outside form — computed on submit)
+  const [selectedDiscount, setSelectedDiscount] =
+    useState<schemas['Discount'] | null>(null)
+  const [selectedCheckoutLink, setSelectedCheckoutLink] =
+    useState<schemas['CheckoutLink'] | null>(null)
+
+  // Modals
+  const { isShown: isCustomerModalShown, show: showCustomerModal, hide: hideCustomerModal } = useModal()
+  const { isShown: isProductModalShown, show: showProductModal, hide: hideProductModal } = useModal()
+  const { isShown: isDiscountModalShown, show: showDiscountModal, hide: hideDiscountModal } = useModal()
+  const { isShown: isCheckoutLinkModalShown, show: showCheckoutLinkModal, hide: hideCheckoutLinkModal } = useModal()
+
+  const createInvoice = useCreateClientInvoice(organization.id)
+
+  const form = useForm<InvoiceFormValues>({
+    defaultValues: {
+      customer_id: '',
+      currency: organization.default_presentment_currency ?? 'usd',
+      line_items: [{ description: '', quantity: 1, unit_amount: '' }],
+      due_date: '',
+      memo: '',
+      po_number: '',
+      on_behalf_of_label: '',
+    },
+  })
+
+  const { handleSubmit } = form
+
+  const onSubmit = useCallback(
+    async (values: InvoiceFormValues) => {
+      if (!values.customer_id) {
+        form.setError('customer_id', { message: 'Please select a customer' })
+        return
+      }
+
+      setIsSubmitting(true)
+      try {
+        const lineItemsCents = values.line_items.map((item) => ({
+          description: item.description,
+          quantity: Number(item.quantity) || 1,
+          unit_amount: Math.round((parseFloat(item.unit_amount) || 0) * 100),
+        }))
+
+        const subtotalCents = lineItemsCents.reduce(
+          (sum, item) => sum + item.unit_amount * item.quantity,
+          0,
+        )
+
+        const discountCents = selectedDiscount
+          ? computeDiscountCents(selectedDiscount, subtotalCents)
+          : 0
+
+        const body: ClientInvoiceCreate = {
+          customer_id: values.customer_id,
+          currency: values.currency,
+          line_items: lineItemsCents,
+          due_date: values.due_date || null,
+          memo: values.memo || null,
+          po_number: values.po_number || null,
+          on_behalf_of_label: values.on_behalf_of_label || null,
+          discount_amount: discountCents,
+          discount_label: selectedDiscount?.name ?? null,
+          include_payment_link: !!selectedCheckoutLink,
+          user_metadata: selectedCheckoutLink
+            ? { checkout_link_url: selectedCheckoutLink.url, checkout_link_id: selectedCheckoutLink.id }
+            : null,
+        }
+
+        const invoice = await createInvoice.mutateAsync(body)
+        toast({ title: 'Invoice created' })
+
+        if (onClose) {
+          onClose()
+        } else {
+          router.push(`/dashboard/${organization.slug}/sales/invoices/${invoice.id}`)
+        }
+      } catch (err: any) {
+        toast({
+          title: 'Failed to create invoice',
+          description: err?.message ?? String(err),
+        })
+      } finally {
+        setIsSubmitting(false)
+      }
+    },
+    [organization, selectedDiscount, selectedCheckoutLink, createInvoice, form, router, onClose],
+  )
+
+  const formContent = (
+    <>
+      <div className="dark:border-spaire-700 dark:divide-spaire-700 flex flex-col divide-y divide-gray-200 rounded-4xl border border-gray-200">
+        <Form {...form}>
+          <form
+            onSubmit={handleSubmit(onSubmit)}
+            className="flex flex-col gap-y-6"
+          >
+            <div className="dark:divide-spaire-700 flex flex-col divide-y divide-gray-200">
+              <InvoiceCustomerSection
+                organization={organization}
+                onNewCustomer={showCustomerModal}
+              />
+
+              <InvoiceCurrencySection />
+
+              <InvoiceItemsSection
+                organization={organization}
+                onNewProduct={showProductModal}
+              />
+
+              <InvoiceDiscountSection
+                organization={organization}
+                selectedDiscount={selectedDiscount}
+                onSelectDiscount={setSelectedDiscount}
+                onNewDiscount={showDiscountModal}
+              />
+
+              <InvoicePaymentLinkSection
+                organization={organization}
+                selectedCheckoutLink={selectedCheckoutLink}
+                onSelectCheckoutLink={setSelectedCheckoutLink}
+                onNewCheckoutLink={showCheckoutLinkModal}
+              />
+
+              <InvoiceDetailsSection />
+            </div>
+          </form>
+        </Form>
+      </div>
+
+      <div className="flex flex-row items-center gap-2 pb-12">
+        <Button
+          onClick={handleSubmit(onSubmit)}
+          loading={isSubmitting}
+          disabled={isSubmitting}
+        >
+          Create Invoice
+        </Button>
+      </div>
+
+      {/* Side panel modals */}
+      <InlineModal
+        isShown={isCustomerModalShown}
+        hide={hideCustomerModal}
+        className="md:w-[540px]"
+        modalContent={
+          <CreateCustomerModal
+            organization={organization}
+            onClose={hideCustomerModal}
+          />
+        }
+      />
+
+      <InlineModal
+        isShown={isProductModalShown}
+        hide={hideProductModal}
+        className="md:w-[720px]"
+        modalContent={
+          <CreateProductPage
+            organization={organization}
+            panelMode={true}
+            onClose={hideProductModal}
+          />
+        }
+      />
+
+      <InlineModal
+        isShown={isDiscountModalShown}
+        hide={hideDiscountModal}
+        className="md:w-[540px]"
+        modalContent={
+          <CreateDiscountModalContent
+            organization={organization}
+            onDiscountCreated={(discount) => {
+              setSelectedDiscount(discount)
+              hideDiscountModal()
+            }}
+            hideModal={hideDiscountModal}
+          />
+        }
+      />
+
+      <InlineModal
+        isShown={isCheckoutLinkModalShown}
+        hide={hideCheckoutLinkModal}
+        className="md:w-[680px]"
+        modalContent={
+          <div className="flex h-full flex-col">
+            <InlineModalHeader hide={hideCheckoutLinkModal}>
+              <span>New Checkout Link</span>
+            </InlineModalHeader>
+            <div className="flex flex-col gap-8 overflow-y-auto px-8 pb-8">
+              <CheckoutLinkForm
+                organization={organization}
+                onClose={(link) => {
+                  setSelectedCheckoutLink(link)
+                  hideCheckoutLinkModal()
+                }}
+              />
+            </div>
+          </div>
+        }
+      />
+    </>
+  )
+
+  if (panelMode) {
+    return (
+      <div className="flex h-full flex-col">
+        <InlineModalHeader hide={onClose ?? (() => {})}>
+          <span>New Invoice</span>
+        </InlineModalHeader>
+        <div className="flex flex-col gap-8 overflow-y-auto px-8 pb-8">
+          {formContent}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <DashboardBody
+      title="New Invoice"
+      wrapperClassName="max-w-(--breakpoint-md)!"
+      className="gap-y-16"
+    >
+      {formContent}
+    </DashboardBody>
+  )
+}
+
+export default NewInvoicePage

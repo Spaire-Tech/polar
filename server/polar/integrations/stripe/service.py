@@ -628,5 +628,71 @@ class StripeService:
     async def get_tax_rate(self, id: str) -> stripe_lib.TaxRate:
         return await stripe_lib.TaxRate.retrieve_async(id)
 
+    # ---- Client Invoice methods ----
+
+    async def create_invoice(
+        self,
+        *,
+        customer: str,
+        currency: str,
+        collection_method: str = "send_invoice",
+        days_until_due: int | None = None,
+        description: str | None = None,
+        footer: str | None = None,
+        custom_fields: list[dict[str, str]] | None = None,
+        metadata: dict[str, str] | None = None,
+    ) -> stripe_lib.Invoice:
+        log.info("stripe.invoice.create", customer=customer, currency=currency)
+        params: dict[str, object] = {
+            "customer": customer,
+            "currency": currency,
+            "collection_method": collection_method,
+            "auto_advance": False,
+        }
+        if days_until_due is not None:
+            params["days_until_due"] = days_until_due
+        if description is not None:
+            params["description"] = description
+        if footer is not None:
+            params["footer"] = footer
+        if custom_fields is not None:
+            params["custom_fields"] = custom_fields
+        if metadata is not None:
+            params["metadata"] = metadata
+        return await stripe_lib.Invoice.create_async(**params)  # type: ignore[arg-type]
+
+    async def create_invoice_item(
+        self,
+        *,
+        customer: str,
+        invoice: str,
+        amount: int,
+        currency: str,
+        description: str,
+        tax_amounts: list[dict[str, object]] | None = None,
+    ) -> stripe_lib.InvoiceItem:
+        params: dict[str, object] = {
+            "customer": customer,
+            "invoice": invoice,
+            "amount": amount,
+            "currency": currency,
+            "description": description,
+        }
+        if tax_amounts is not None:
+            params["tax_amounts"] = tax_amounts
+        return await stripe_lib.InvoiceItem.create_async(**params)  # type: ignore[arg-type]
+
+    async def finalize_invoice(self, invoice_id: str) -> stripe_lib.Invoice:
+        log.info("stripe.invoice.finalize", invoice_id=invoice_id)
+        return await stripe_lib.Invoice.finalize_invoice_async(invoice_id)
+
+    async def send_invoice(self, invoice_id: str) -> stripe_lib.Invoice:
+        log.info("stripe.invoice.send", invoice_id=invoice_id)
+        return await stripe_lib.Invoice.send_invoice_async(invoice_id)
+
+    async def void_invoice(self, invoice_id: str) -> stripe_lib.Invoice:
+        log.info("stripe.invoice.void", invoice_id=invoice_id)
+        return await stripe_lib.Invoice.void_invoice_async(invoice_id)
+
 
 stripe = StripeService()
