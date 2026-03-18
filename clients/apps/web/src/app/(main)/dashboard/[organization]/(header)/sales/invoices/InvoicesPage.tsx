@@ -167,22 +167,17 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
         </div>
 
         {!invoicesHook.isLoading && invoices.length === 0 ? (
-          <ShadowBoxOnMd className="relative overflow-hidden p-0">
-            {/* Image fills the box, anchored to top */}
+          <ShadowBoxOnMd className="overflow-hidden p-0">
             <img
               src="https://spaire-production-files-public.s3.us-east-1.amazonaws.com/_+(12).jpeg"
               alt=""
               aria-hidden="true"
-              className="h-full w-full object-cover object-top"
-              style={{ minHeight: 320 }}
+              className="h-48 w-full object-cover object-top"
             />
-            {/* Gradient overlay so bottom text is readable */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
-            {/* Text + button pinned to the bottom */}
-            <div className="absolute inset-x-0 bottom-0 flex items-end justify-between p-8">
-              <h2 className="max-w-xs text-2xl font-bold leading-snug text-white">
+            <div className="flex items-center justify-between p-6">
+              <h3 className="text-xl font-medium">
                 Create and send invoices in minutes
-              </h2>
+              </h3>
               <Link href={`/dashboard/${organization.slug}/invoices/new`}>
                 <Button>
                   <AddOutlined className="h-4 w-4" />
