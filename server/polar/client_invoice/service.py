@@ -136,19 +136,28 @@ class ClientInvoiceService:
         if customer.stripe_customer_id is None:
             await _ensure_stripe_customer()
         else:
-            # Verify the customer still exists in Stripe; re-create if stale
+            # Verify the customer still exists and is not deleted in Stripe;
+            # re-create if stale (deleted customers return deleted=True, not an error)
+            needs_recreate = False
             try:
-                await stripe_lib.Customer.retrieve_async(customer.stripe_customer_id)
+                existing = await stripe_service.get_customer(
+                    customer.stripe_customer_id
+                )
+                if getattr(existing, "deleted", False):
+                    needs_recreate = True
             except stripe_lib.InvalidRequestError as e:
                 if e.code == "resource_missing":
-                    log.warning(
-                        "client_invoice.create_draft.stripe_customer_missing",
-                        stripe_customer_id=customer.stripe_customer_id,
-                        customer_id=str(customer.id),
-                    )
-                    await _ensure_stripe_customer()
+                    needs_recreate = True
                 else:
                     raise
+
+            if needs_recreate:
+                log.warning(
+                    "client_invoice.create_draft.stripe_customer_stale",
+                    stripe_customer_id=customer.stripe_customer_id,
+                    customer_id=str(customer.id),
+                )
+                await _ensure_stripe_customer()
 
         assert customer.stripe_customer_id is not None
 
