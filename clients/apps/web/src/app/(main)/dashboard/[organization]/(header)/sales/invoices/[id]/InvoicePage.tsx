@@ -138,17 +138,16 @@ const InvoicePage: React.FC<InvoicePageProps> = ({
   }
 
   const handleDownload = async () => {
-    if (invoice.invoice_pdf_url) {
-      window.open(invoice.invoice_pdf_url, '_blank', 'noopener')
+    const pdfUrl = `${process.env.NEXT_PUBLIC_API_URL}/v1/client-invoices/${invoice.id}/pdf`
+    if (invoice.status !== 'draft') {
+      window.open(pdfUrl, '_blank', 'noopener')
       return
     }
-    // Draft with no PDF yet — finalize first (moves status to open, generates PDF)
+    // Draft — finalize first so amounts are locked, then open our PDF
     setIsDownloading(true)
     try {
-      const updated = await finalizeInvoice.mutateAsync()
-      if (updated.invoice_pdf_url) {
-        window.open(updated.invoice_pdf_url, '_blank', 'noopener')
-      }
+      await finalizeInvoice.mutateAsync()
+      window.open(pdfUrl, '_blank', 'noopener')
     } catch (err: any) {
       toast({
         title: 'Failed to generate invoice',

@@ -11,7 +11,6 @@ import {
   serializeSearchParams,
 } from '@/utils/datatable'
 import AddOutlined from '@mui/icons-material/AddOutlined'
-import HiveOutlined from '@mui/icons-material/HiveOutlined'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import {
@@ -168,31 +167,30 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
         </div>
 
         {!invoicesHook.isLoading && invoices.length === 0 ? (
-          <ShadowBoxOnMd className="items-center justify-center gap-y-6 md:flex md:flex-col md:py-24">
-            <div className="flex max-w-md flex-col items-center gap-y-6 text-center">
-              <HiveOutlined
-                className="dark:text-spaire-600 text-5xl text-gray-300"
-                fontSize="large"
-              />
-              <div className="flex flex-col items-center gap-y-2">
-                <h3 className="text-xl font-medium">
-                  Create and send invoices in minutes
-                </h3>
-                <p className="dark:text-spaire-500 text-gray-500">
-                  Send an invoice with a link to pay online. Accept cards, bank
-                  transfers, and more.
-                </p>
-              </div>
-              <Link
-                href={`/dashboard/${organization.slug}/invoices/new`}
-              >
+          <div
+            className="relative overflow-hidden rounded-2xl"
+            style={{
+              backgroundImage:
+                'url(https://spaire-production-files-public.s3.us-east-1.amazonaws.com/_+(12).jpeg)',
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              minHeight: 280,
+            }}
+          >
+            {/* Dark overlay for readability */}
+            <div className="absolute inset-0 bg-black/50" />
+            <div className="relative flex h-full min-h-[280px] items-center justify-between px-10 py-12">
+              <h2 className="max-w-xs text-3xl font-bold leading-tight text-white">
+                Create and send invoices in minutes
+              </h2>
+              <Link href={`/dashboard/${organization.slug}/invoices/new`}>
                 <Button>
                   <AddOutlined className="h-4 w-4" />
                   <span>Create Invoice</span>
                 </Button>
               </Link>
             </div>
-          </ShadowBoxOnMd>
+          </div>
         ) : (
           <DataTable
             columns={columns}

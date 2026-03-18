@@ -2,7 +2,7 @@ import { Column, Hr, Preview, Row, Section, Text } from '@react-email/components
 import Button from '../components/Button'
 import FooterCustomer from '../components/FooterCustomer'
 import WrapperOrganization from '../components/WrapperOrganization'
-import { organization } from '../preview'
+import { organization as previewOrganization } from '../preview'
 import type { schemas } from '../types'
 
 function fmt(cents: number, currency: string): string {
@@ -15,6 +15,7 @@ function fmt(cents: number, currency: string): string {
 export function ClientInvoice({
   email,
   organization_name,
+  organization_avatar_url,
   customer_name,
   invoice_id,
   due_date,
@@ -28,8 +29,13 @@ export function ClientInvoice({
   checkout_link,
   memo,
 }: schemas['ClientInvoiceEmailProps']) {
+  const org = {
+    ...previewOrganization,
+    name: organization_name,
+    avatar_url: organization_avatar_url ?? undefined,
+  } as any
   return (
-    <WrapperOrganization organization={{ ...organization, name: organization_name } as any}>
+    <WrapperOrganization organization={org}>
       <Preview>
         Invoice {invoice_id} from {organization_name} — {fmt(total_amount, currency)} due{due_date ? ` ${due_date}` : ''}
       </Preview>
@@ -168,7 +174,7 @@ export function ClientInvoice({
 
       <Hr className="mt-8" />
       <FooterCustomer
-        organization={{ ...organization, name: organization_name } as any}
+        organization={org}
         email={email}
       />
     </WrapperOrganization>

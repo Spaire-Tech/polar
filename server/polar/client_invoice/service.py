@@ -1,3 +1,4 @@
+import base64
 import uuid
 from collections.abc import Sequence
 from datetime import date
@@ -10,9 +11,10 @@ from polar.auth.models import AuthSubject, Organization, User
 from polar.config import settings
 from polar.email.react import render_email_template
 from polar.email.schemas import ClientInvoiceEmail, ClientInvoiceEmailProps, EmailAdapter
-from polar.email.sender import enqueue_email
+from polar.email.sender import Attachment, enqueue_email
 from polar.exceptions import PolarError
 from polar.integrations.stripe.service import stripe as stripe_service
+from polar.invoice.generator import Invoice, InvoiceGenerator, InvoiceItem
 from polar.kit.pagination import PaginationParams
 from polar.kit.sorting import Sorting
 from polar.logging import Logger
@@ -21,8 +23,10 @@ from polar.models.client_invoice import (
     ClientInvoiceLineItem,
     ClientInvoiceStatus,
 )
+from polar.models.customer import Customer
 from polar.models.order import Order, OrderBillingReasonInternal, OrderStatus
 from polar.models.order_item import OrderItem
+from polar.models.organization import Organization as OrganizationModel
 from polar.order.repository import OrderRepository
 from polar.organization.repository import OrganizationRepository
 from polar.organization.service import organization as organization_service
@@ -387,6 +391,65 @@ class ClientInvoiceService:
         repository = ClientInvoiceRepository.from_session(session)
         return await repository.update(invoice, update_dict=update_dict)
 
+    def _build_invoice_pdf_bytes(
+        self,
+        invoice: ClientInvoice,
+        organization: OrganizationModel,
+        customer: Customer,
+    ) -> bytes:
+        """Generate a PDF for the given client invoice and return as bytes."""
+        notes_parts: list[str] = []
+        if invoice.include_payment_link and invoice.checkout_link:
+            notes_parts.append(f"Pay online: {invoice.checkout_link}")
+        if invoice.memo:
+            notes_parts.append(invoice.memo)
+
+        inv = Invoice(
+            number=str(invoice.id)[:8].upper(),
+            date=invoice.created_at,
+            seller_name=organization.name,
+            seller_address=settings.INVOICES_ADDRESS,
+            customer_name=customer.name or customer.email,
+            customer_address=customer.billing_address,
+            items=[
+                InvoiceItem(
+                    description=item.description,
+                    quantity=item.quantity,
+                    unit_amount=item.unit_amount,
+                    amount=item.amount,
+                )
+                for item in invoice.line_items
+            ],
+            subtotal_amount=invoice.subtotal_amount,
+            discount_amount=invoice.discount_amount,
+            taxability_reason=None,
+            tax_amount=invoice.tax_amount,
+            tax_rate=None,
+            currency=invoice.currency,
+            notes="\n".join(notes_parts) if notes_parts else None,
+        )
+        generator = InvoiceGenerator(inv, heading_title="Invoice")
+        generator.generate()
+        return generator.output()
+
+    async def get_pdf_bytes(
+        self,
+        session: AsyncReadSession,
+        invoice: ClientInvoice,
+    ) -> bytes:
+        """Load dependencies and generate the invoice PDF."""
+        from polar.customer.repository import CustomerRepository
+
+        customer_repo = CustomerRepository.from_session(session)
+        customer = await customer_repo.get_by_id(invoice.customer_id)
+        assert customer is not None
+
+        org_repo = OrganizationRepository.from_session(session)
+        organization = await org_repo.get_by_id(invoice.organization_id)
+        assert organization is not None
+
+        return self._build_invoice_pdf_bytes(invoice, organization, customer)
+
     async def send(
         self,
         session: AsyncSession,
@@ -427,11 +490,21 @@ class ClientInvoiceService:
 
         # Send our own invoice email (not Stripe's)
         try:
+            # Generate PDF attachment
+            pdf_bytes = self._build_invoice_pdf_bytes(invoice, organization, customer)
+            pdf_b64 = base64.b64encode(pdf_bytes).decode()
+            invoice_number = str(invoice.id)[:8].upper()
+            attachment: Attachment = {
+                "remote_url": f"data:application/pdf;base64,{pdf_b64}",
+                "filename": f"invoice-{invoice_number}.pdf",
+            }
+
             email_props = ClientInvoiceEmailProps(
                 email=customer.email,
                 organization_name=organization.name,
+                organization_avatar_url=organization.avatar_url,
                 customer_name=customer.name or customer.email,
-                invoice_id=str(invoice.id)[:8].upper(),
+                invoice_id=invoice_number,
                 due_date=invoice.due_date.isoformat() if invoice.due_date else None,
                 currency=invoice.currency.upper(),
                 line_items=[
@@ -457,6 +530,7 @@ class ClientInvoiceService:
                 to_email_addr=customer.email,
                 subject=f"Invoice from {organization.name}",
                 html_content=html,
+                attachments=[attachment],
             )
         except Exception:
             log.warning(

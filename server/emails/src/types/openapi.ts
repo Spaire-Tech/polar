@@ -747,6 +747,73 @@ export interface components {
       | 'too_expensive'
       | 'unused'
       | 'other'
+    /** ClientInvoiceEmail */
+    ClientInvoiceEmail: {
+      /**
+       * Template
+       * @default client_invoice
+       * @constant
+       */
+      template: 'client_invoice'
+      props: components['schemas']['ClientInvoiceEmailProps']
+    }
+    /** ClientInvoiceEmailLineItem */
+    ClientInvoiceEmailLineItem: {
+      /** Description */
+      description: string
+      /** Quantity */
+      quantity: number
+      /** Amount */
+      amount: number
+    }
+    /** ClientInvoiceEmailProps */
+    ClientInvoiceEmailProps: {
+      /** Email */
+      email: string
+      /** Organization Name */
+      organization_name: string
+      /**
+       * Organization Avatar Url
+       * @default null
+       */
+      organization_avatar_url: string | null
+      /** Customer Name */
+      customer_name: string
+      /** Invoice Id */
+      invoice_id: string
+      /**
+       * Due Date
+       * @default null
+       */
+      due_date: string | null
+      /** Currency */
+      currency: string
+      /** Line Items */
+      line_items: components['schemas']['ClientInvoiceEmailLineItem'][]
+      /** Subtotal Amount */
+      subtotal_amount: number
+      /** Discount Amount */
+      discount_amount: number
+      /**
+       * Discount Label
+       * @default null
+       */
+      discount_label: string | null
+      /** Tax Amount */
+      tax_amount: number
+      /** Total Amount */
+      total_amount: number
+      /**
+       * Checkout Link
+       * @default null
+       */
+      checkout_link: string | null
+      /**
+       * Memo
+       * @default null
+       */
+      memo: string | null
+    }
     /** CustomerSessionCodeEmail */
     CustomerSessionCodeEmail: {
       /**
