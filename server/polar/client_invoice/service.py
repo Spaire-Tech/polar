@@ -3,6 +3,7 @@ from collections.abc import Sequence
 from datetime import date
 from typing import Any
 
+import stripe as stripe_lib
 import structlog
 
 from polar.auth.models import AuthSubject, Organization, User
@@ -115,7 +116,7 @@ class ClientInvoiceService:
                 )
 
         # Ensure the Stripe customer exists on the platform account
-        if customer.stripe_customer_id is None:
+        async def _ensure_stripe_customer() -> str:
             create_params: dict[str, Any] = {"email": customer.email}
             if customer.billing_name is not None:
                 create_params["name"] = customer.billing_name
@@ -123,13 +124,31 @@ class ClientInvoiceService:
                 create_params["name"] = customer.name
             if customer.billing_address is not None:
                 create_params["address"] = customer.billing_address.to_dict()
-
             stripe_customer = await stripe_service.create_customer(**create_params)
+            nonlocal customer
             customer = await customer_repository.update(
                 customer,
                 update_dict={"stripe_customer_id": stripe_customer.id},
                 flush=True,
             )
+            return stripe_customer.id
+
+        if customer.stripe_customer_id is None:
+            await _ensure_stripe_customer()
+        else:
+            # Verify the customer still exists in Stripe; re-create if stale
+            try:
+                await stripe_lib.Customer.retrieve_async(customer.stripe_customer_id)
+            except stripe_lib.InvalidRequestError as e:
+                if e.code == "resource_missing":
+                    log.warning(
+                        "client_invoice.create_draft.stripe_customer_missing",
+                        stripe_customer_id=customer.stripe_customer_id,
+                        customer_id=str(customer.id),
+                    )
+                    await _ensure_stripe_customer()
+                else:
+                    raise
 
         assert customer.stripe_customer_id is not None
 
