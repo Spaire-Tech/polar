@@ -78,6 +78,10 @@ class ClientInvoice(RecordModel):
     stripe_hosted_invoice_url: Mapped[str | None] = mapped_column(
         String, nullable=True, default=None
     )
+    # Our checkout link (distinct from Stripe's hosted invoice page)
+    checkout_link: Mapped[str | None] = mapped_column(
+        String, nullable=True, default=None
+    )
 
     # Pass-through metadata
     user_metadata: Mapped[dict | None] = mapped_column(JSONB, nullable=True, default=None)

@@ -59,6 +59,7 @@ export interface ClientInvoice {
   discount_label: string | null
   include_payment_link: boolean
   stripe_hosted_invoice_url: string | null
+  checkout_link: string | null
   user_metadata: Record<string, string> | null
   order_id: string | null
   line_items: ClientInvoiceLineItem[]

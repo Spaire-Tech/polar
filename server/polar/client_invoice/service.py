@@ -323,6 +323,7 @@ class ClientInvoiceService:
                 discount_label=create_schema.discount_label,
                 include_payment_link=create_schema.include_payment_link,
                 stripe_hosted_invoice_url=stripe_invoice.hosted_invoice_url,
+                checkout_link=stripe_invoice.hosted_invoice_url,
                 user_metadata=create_schema.user_metadata,
             ),
             flush=True,
