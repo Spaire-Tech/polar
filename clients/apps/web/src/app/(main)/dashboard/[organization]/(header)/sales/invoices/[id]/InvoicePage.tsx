@@ -1,12 +1,12 @@
 'use client'
 
-import { CustomerContextView } from '@/components/Customer/CustomerContextView'
 import { DashboardBody } from '@/components/Layout/DashboardLayout'
 import { DownloadInvoiceDashboard } from '@/components/Orders/DownloadInvoice'
 import { DetailRow } from '@/components/Shared/DetailRow'
 import { toast } from '@/components/Toast/use-toast'
 import {
   useClientInvoice,
+  useFinalizeClientInvoice,
   useSendClientInvoice,
   useVoidClientInvoice,
 } from '@/hooks/queries/client_invoices'
@@ -16,12 +16,14 @@ import Download from '@mui/icons-material/Download'
 import Send from '@mui/icons-material/Send'
 import { schemas, unwrap } from '@spaire/client'
 import { formatCurrency } from '@spaire/currency'
+import Avatar from '@spaire/ui/components/atoms/Avatar'
 import Button from '@spaire/ui/components/atoms/Button'
 import FormattedDateTime from '@spaire/ui/components/atoms/FormattedDateTime'
 import ShadowBox from '@spaire/ui/components/atoms/ShadowBox'
 import { Status } from '@spaire/ui/components/atoms/Status'
 import { Separator } from '@radix-ui/react-dropdown-menu'
 import { useQuery } from '@tanstack/react-query'
+import Link from 'next/link'
 import React, { useState } from 'react'
 import { twMerge } from 'tailwind-merge'
 
@@ -38,11 +40,65 @@ const STATUS_COLOR: Record<string, string> = {
   uncollectible: 'bg-red-100 text-red-500 dark:bg-red-950',
 }
 
+// Simple customer sidebar — just the essentials for invoice context
+const InvoiceCustomerSidebar = ({
+  customer,
+  organization,
+}: {
+  customer: schemas['Customer']
+  organization: schemas['Organization']
+}) => {
+  const addr = customer.billing_address
+  return (
+    <div className="flex flex-col gap-3">
+      <ShadowBox className="dark:border-spaire-800 flex flex-col gap-4 border-gray-200 bg-white p-6 md:shadow-xs lg:rounded-2xl">
+        <Link
+          href={`/dashboard/${organization.slug}/customers/${customer.id}`}
+          className="flex items-center gap-3"
+        >
+          <Avatar
+            avatar_url={customer.avatar_url}
+            name={customer.name || customer.email}
+            className="size-10 text-sm"
+          />
+          <div className="min-w-0">
+            <p className="truncate font-medium">
+              {customer.name || '—'}
+            </p>
+            <p className="dark:text-spaire-400 truncate text-sm text-gray-500">
+              {customer.email}
+            </p>
+          </div>
+        </Link>
+      </ShadowBox>
+
+      {addr && (
+        <ShadowBox className="dark:border-spaire-800 flex flex-col gap-3 border-gray-200 bg-white p-6 md:shadow-xs lg:rounded-2xl">
+          <p className="dark:text-spaire-400 text-xs font-semibold uppercase tracking-wide text-gray-400">
+            Billing Address
+          </p>
+          <div className="flex flex-col gap-0.5 text-sm">
+            {addr.line1 && <span>{addr.line1}</span>}
+            {addr.line2 && <span>{addr.line2}</span>}
+            <span>
+              {[addr.city, addr.state, addr.postal_code]
+                .filter(Boolean)
+                .join(', ')}
+            </span>
+            {addr.country && <span>{addr.country}</span>}
+          </div>
+        </ShadowBox>
+      )}
+    </div>
+  )
+}
+
 const InvoicePage: React.FC<InvoicePageProps> = ({
   organization,
   invoiceId,
 }) => {
   const [confirmVoid, setConfirmVoid] = useState(false)
+  const [isDownloading, setIsDownloading] = useState(false)
 
   const { data: invoice, isLoading, refetch } = useClientInvoice(invoiceId)
   const { data: customer } = useCustomer(
@@ -61,6 +117,7 @@ const InvoicePage: React.FC<InvoicePageProps> = ({
 
   const sendInvoice = useSendClientInvoice(invoiceId)
   const voidInvoice = useVoidClientInvoice(invoiceId)
+  const finalizeInvoice = useFinalizeClientInvoice(invoiceId)
 
   if (isLoading || !invoice) {
     return (
@@ -79,6 +136,28 @@ const InvoicePage: React.FC<InvoicePageProps> = ({
         title: 'Failed to send invoice',
         description: err?.detail ?? String(err),
       })
+    }
+  }
+
+  const handleDownload = async () => {
+    if (invoice.invoice_pdf_url) {
+      window.open(invoice.invoice_pdf_url, '_blank', 'noopener')
+      return
+    }
+    // Draft with no PDF yet — finalize first (moves status to open, generates PDF)
+    setIsDownloading(true)
+    try {
+      const updated = await finalizeInvoice.mutateAsync()
+      if (updated.invoice_pdf_url) {
+        window.open(updated.invoice_pdf_url, '_blank', 'noopener')
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Failed to generate invoice',
+        description: err?.detail ?? String(err),
+      })
+    } finally {
+      setIsDownloading(false)
     }
   }
 
@@ -103,7 +182,9 @@ const InvoicePage: React.FC<InvoicePageProps> = ({
   const isDraft = invoice.status === 'draft'
   const isOpen = invoice.status === 'open'
   const isPaid = invoice.status === 'paid'
+  const isVoid = invoice.status === 'void'
   const isVoidable = isDraft || isOpen
+  const canSend = isDraft || isOpen
 
   const fmt = (cents: number) =>
     formatCurrency('accounting')(cents, invoice.currency)
@@ -120,51 +201,59 @@ const InvoicePage: React.FC<InvoicePageProps> = ({
         </div>
       }
       header={
-        <>
-          {isDraft && (
-            <Button loading={sendInvoice.isPending} onClick={handleSend}>
-              <Send fontSize="small" />
-              Send Invoice
-            </Button>
-          )}
-          {invoice.invoice_pdf_url && !isPaid && (
-            <Button
-              variant="secondary"
-              onClick={() =>
-                window.open(invoice.invoice_pdf_url!, '_blank', 'noopener')
-              }
-            >
-              <Download fontSize="small" />
-              Download Invoice
-            </Button>
-          )}
-          {isPaid && linkedOrder && (
-            <DownloadInvoiceDashboard
-              order={linkedOrder}
-              organization={organization}
-              onInvoiceGenerated={refetch}
-            />
-          )}
+        <div className="flex items-center gap-3">
+          {/* Primary actions: Send + Download side by side */}
+          <div className="flex items-center gap-2">
+            {canSend && (
+              <Button loading={sendInvoice.isPending} onClick={handleSend}>
+                <Send fontSize="small" />
+                Send Invoice
+              </Button>
+            )}
+            {!isVoid && (
+              isPaid && linkedOrder ? (
+                <DownloadInvoiceDashboard
+                  order={linkedOrder}
+                  organization={organization}
+                  onInvoiceGenerated={refetch}
+                />
+              ) : (
+                <Button
+                  variant="secondary"
+                  loading={isDownloading || finalizeInvoice.isPending}
+                  onClick={handleDownload}
+                >
+                  <Download fontSize="small" />
+                  Download Invoice
+                </Button>
+              )
+            )}
+          </div>
+
+          {/* Destructive: Void Invoice — separated */}
           {isVoidable && (
-            <Button
-              variant="secondary"
-              loading={voidInvoice.isPending}
-              onClick={handleVoid}
-              className={
-                confirmVoid
-                  ? 'border-red-300 text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950/30'
-                  : ''
-              }
-            >
-              {confirmVoid ? 'Confirm void?' : 'Void invoice'}
-            </Button>
+            <>
+              <div className="h-5 w-px bg-gray-200 dark:bg-gray-700" />
+              <Button
+                variant="secondary"
+                loading={voidInvoice.isPending}
+                onClick={handleVoid}
+                className={
+                  confirmVoid
+                    ? 'border-red-300 text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950/30'
+                    : 'dark:text-spaire-400 text-gray-500'
+                }
+              >
+                {confirmVoid ? 'Confirm void?' : 'Void'}
+              </Button>
+            </>
           )}
-        </>
+        </div>
       }
       className="gap-y-12"
       contextView={
         customer ? (
-          <CustomerContextView
+          <InvoiceCustomerSidebar
             organization={organization}
             customer={customer as schemas['Customer']}
           />

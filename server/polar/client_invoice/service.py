@@ -361,28 +361,57 @@ class ClientInvoiceService:
         assert refreshed is not None
         return refreshed
 
-    async def send(
+    async def finalize_draft(
         self,
         session: AsyncSession,
         invoice: ClientInvoice,
     ) -> ClientInvoice:
+        """Finalize a draft invoice on Stripe (generates PDF) without sending any email.
+        Moves status from draft → open."""
         if invoice.status != ClientInvoiceStatus.draft:
             raise ClientInvoiceNotDraft(invoice)
 
         assert invoice.stripe_invoice_id is not None
 
-        # Finalize locks amounts — do NOT call stripe send_invoice (we email ourselves)
         finalized = await stripe_service.finalize_invoice(invoice.stripe_invoice_id)
 
-        # Refresh URLs from the finalized invoice
         update_dict: dict[str, Any] = {
             "status": ClientInvoiceStatus.open,
             "stripe_hosted_invoice_url": finalized.hosted_invoice_url,
             "invoice_pdf_url": finalized.invoice_pdf,
         }
-        # Only overwrite checkout_link with the Stripe URL if we don't have our own
         if not invoice.checkout_link:
             update_dict["checkout_link"] = finalized.hosted_invoice_url
+
+        repository = ClientInvoiceRepository.from_session(session)
+        return await repository.update(invoice, update_dict=update_dict)
+
+    async def send(
+        self,
+        session: AsyncSession,
+        invoice: ClientInvoice,
+    ) -> ClientInvoice:
+        """Finalize (if draft) and send the invoice email to the customer.
+        Works for both draft and open status — open invoices skip finalization
+        (e.g. user already downloaded/previewed the invoice first)."""
+        if invoice.status not in {ClientInvoiceStatus.draft, ClientInvoiceStatus.open}:
+            raise ClientInvoiceNotDraft(invoice)
+
+        assert invoice.stripe_invoice_id is not None
+
+        repository = ClientInvoiceRepository.from_session(session)
+
+        if invoice.status == ClientInvoiceStatus.draft:
+            # Finalize on Stripe to lock amounts and generate PDF
+            finalized = await stripe_service.finalize_invoice(invoice.stripe_invoice_id)
+            update_dict: dict[str, Any] = {
+                "status": ClientInvoiceStatus.open,
+                "stripe_hosted_invoice_url": finalized.hosted_invoice_url,
+                "invoice_pdf_url": finalized.invoice_pdf,
+            }
+            if not invoice.checkout_link:
+                update_dict["checkout_link"] = finalized.hosted_invoice_url
+            invoice = await repository.update(invoice, update_dict=update_dict)
 
         # Load customer + organization for email
         from polar.customer.repository import CustomerRepository
@@ -417,7 +446,7 @@ class ClientInvoiceService:
                 discount_label=invoice.discount_label,
                 tax_amount=invoice.tax_amount,
                 total_amount=invoice.total_amount,
-                checkout_link=invoice.checkout_link or finalized.hosted_invoice_url,
+                checkout_link=invoice.checkout_link,
                 memo=invoice.memo,
             )
             email_obj = ClientInvoiceEmail(props=email_props)
@@ -434,8 +463,7 @@ class ClientInvoiceService:
                 invoice_id=str(invoice.id),
             )
 
-        repository = ClientInvoiceRepository.from_session(session)
-        return await repository.update(invoice, update_dict=update_dict)
+        return invoice
 
     async def void_client_invoice(
         self,

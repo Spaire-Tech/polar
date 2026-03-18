@@ -1,4 +1,4 @@
-import { Hr, Preview, Section, Text } from '@react-email/components'
+import { Column, Hr, Preview, Row, Section, Text } from '@react-email/components'
 import Button from '../components/Button'
 import FooterCustomer from '../components/FooterCustomer'
 import WrapperOrganization from '../components/WrapperOrganization'
@@ -35,83 +35,130 @@ export function ClientInvoice({
       </Preview>
 
       <Section>
-        <Text className="text-2xl font-semibold text-gray-900">
+        <Text className="text-2xl font-semibold text-gray-900 m-0">
           You have a new invoice
         </Text>
-        <Text className="text-gray-600">
+        <Text className="text-gray-600 mt-2">
           Hi {customer_name}, {organization_name} has sent you an invoice.
         </Text>
       </Section>
 
-      {/* Invoice details */}
-      <Section className="rounded-lg border border-gray-200 bg-gray-50 p-6">
-        <Text className="m-0 text-xs font-semibold uppercase tracking-wider text-gray-400">
-          Invoice #{invoice_id}
-        </Text>
-        {due_date && (
-          <Text className="mt-1 text-sm text-gray-500">Due {due_date}</Text>
-        )}
+      {/* CTA */}
+      {checkout_link && (
+        <Section className="my-6 text-center">
+          <Button href={checkout_link}>Pay invoice</Button>
+        </Section>
+      )}
+
+      {/* Invoice details box */}
+      <Section>
+        {/* Header row */}
+        <Row>
+          <Column>
+            <Text className="m-0 text-xs font-semibold uppercase tracking-wider text-gray-400">
+              Invoice #{invoice_id}
+            </Text>
+          </Column>
+          {due_date && (
+            <Column className="text-right">
+              <Text className="m-0 text-sm text-gray-500">Due {due_date}</Text>
+            </Column>
+          )}
+        </Row>
 
         <Hr className="my-4 border-gray-200" />
 
+        {/* Line items header */}
+        <Row className="mb-2">
+          <Column className="w-3/4">
+            <Text className="m-0 text-xs font-medium uppercase tracking-wide text-gray-500">
+              Description
+            </Text>
+          </Column>
+          <Column className="w-1/4 text-right">
+            <Text className="m-0 text-xs font-medium uppercase tracking-wide text-gray-500">
+              Amount
+            </Text>
+          </Column>
+        </Row>
+
         {/* Line items */}
         {line_items.map((item, i) => (
-          <Section key={i} className="flex justify-between">
-            <Text className="m-0 flex-1 text-sm text-gray-700">
-              {item.description}
-              {item.quantity > 1 ? ` × ${item.quantity}` : ''}
-            </Text>
-            <Text className="m-0 text-sm text-gray-700">
-              {fmt(item.amount, currency)}
-            </Text>
-          </Section>
+          <Row key={i} className="mb-1">
+            <Column className="w-3/4">
+              <Text className="m-0 text-sm text-gray-800">
+                {item.description}
+                {item.quantity > 1 ? ` × ${item.quantity}` : ''}
+              </Text>
+            </Column>
+            <Column className="w-1/4 text-right">
+              <Text className="m-0 text-sm text-gray-800">
+                {fmt(item.amount, currency)}
+              </Text>
+            </Column>
+          </Row>
         ))}
 
         <Hr className="my-4 border-gray-200" />
 
         {/* Totals */}
-        <Section className="flex justify-between">
-          <Text className="m-0 text-sm text-gray-500">Subtotal</Text>
-          <Text className="m-0 text-sm text-gray-500">
-            {fmt(subtotal_amount, currency)}
-          </Text>
-        </Section>
-        {discount_amount > 0 && (
-          <Section className="flex justify-between">
+        <Row className="mb-1">
+          <Column className="w-3/4">
+            <Text className="m-0 text-sm text-gray-500">Subtotal</Text>
+          </Column>
+          <Column className="w-1/4 text-right">
             <Text className="m-0 text-sm text-gray-500">
-              {discount_label ?? 'Discount'}
+              {fmt(subtotal_amount, currency)}
             </Text>
-            <Text className="m-0 text-sm text-gray-500">
-              -{fmt(discount_amount, currency)}
-            </Text>
-          </Section>
-        )}
-        {tax_amount > 0 && (
-          <Section className="flex justify-between">
-            <Text className="m-0 text-sm text-gray-500">Tax</Text>
-            <Text className="m-0 text-sm text-gray-500">
-              {fmt(tax_amount, currency)}
-            </Text>
-          </Section>
-        )}
-        <Section className="flex justify-between border-t border-gray-200 pt-3">
-          <Text className="m-0 font-semibold text-gray-900">Total due</Text>
-          <Text className="m-0 font-semibold text-gray-900">
-            {fmt(total_amount, currency)}
-          </Text>
-        </Section>
-      </Section>
+          </Column>
+        </Row>
 
-      {/* CTA */}
-      {checkout_link && (
-        <Section className="mt-6 text-center">
-          <Button href={checkout_link}>Pay invoice</Button>
-        </Section>
-      )}
+        {discount_amount > 0 && (
+          <Row className="mb-1">
+            <Column className="w-3/4">
+              <Text className="m-0 text-sm text-gray-500">
+                {discount_label ?? 'Discount'}
+              </Text>
+            </Column>
+            <Column className="w-1/4 text-right">
+              <Text className="m-0 text-sm text-gray-500">
+                -{fmt(discount_amount, currency)}
+              </Text>
+            </Column>
+          </Row>
+        )}
+
+        {tax_amount > 0 && (
+          <Row className="mb-1">
+            <Column className="w-3/4">
+              <Text className="m-0 text-sm text-gray-500">Tax</Text>
+            </Column>
+            <Column className="w-1/4 text-right">
+              <Text className="m-0 text-sm text-gray-500">
+                {fmt(tax_amount, currency)}
+              </Text>
+            </Column>
+          </Row>
+        )}
+
+        <Hr className="my-2 border-gray-300" />
+
+        <Row>
+          <Column className="w-3/4">
+            <Text className="m-0 font-semibold text-gray-900">Total due</Text>
+          </Column>
+          <Column className="w-1/4 text-right">
+            <Text className="m-0 font-semibold text-gray-900">
+              {fmt(total_amount, currency)}
+            </Text>
+          </Column>
+        </Row>
+      </Section>
 
       {/* Memo */}
       {memo && (
-        <Section className="mt-6 rounded-lg bg-gray-50 p-4">
+        <Section className="mt-6">
+          <Hr className="mb-4 border-gray-200" />
           <Text className="m-0 text-xs font-semibold uppercase tracking-wider text-gray-400">
             Note
           </Text>

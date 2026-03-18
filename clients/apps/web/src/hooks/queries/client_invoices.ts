@@ -171,3 +171,22 @@ export const useVoidClientInvoice = (id: string) =>
       )
     },
   })
+
+export const useFinalizeClientInvoice = (id: string) =>
+  useMutation({
+    mutationFn: async () => {
+      const { data, error } = await (api as any).POST(
+        '/v1/client-invoices/{id}/finalize',
+        { params: { path: { id } } },
+      )
+      if (error) throw error
+      return data as ClientInvoice
+    },
+    onSuccess: (updated) => {
+      const queryClient = getQueryClient()
+      queryClient.setQueriesData<ClientInvoice>(
+        { queryKey: ['client_invoices', { id }] },
+        updated,
+      )
+    },
+  })
