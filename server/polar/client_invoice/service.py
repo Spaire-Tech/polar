@@ -219,7 +219,7 @@ class ClientInvoiceService:
             )
 
         footer = (
-            f"Issued by Spaire Technology as Merchant of Record "
+            f"Issued by Spaire, Inc. as Merchant of Record "
             f"on behalf of {on_behalf_of_label}."
         )
 

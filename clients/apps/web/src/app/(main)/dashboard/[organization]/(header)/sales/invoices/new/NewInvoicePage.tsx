@@ -15,6 +15,7 @@ import {
   useDiscounts,
   useProducts,
 } from '@/hooks/queries'
+import { useCustomer } from '@/hooks/queries/customers'
 import {
   ClientInvoiceCreate,
   useCreateClientInvoice,
@@ -37,10 +38,13 @@ import {
 import { addDays, format } from 'date-fns'
 import { useRouter } from 'next/navigation'
 import { useCallback, useMemo, useState } from 'react'
-import { useFieldArray, useForm, useFormContext } from 'react-hook-form'
+import { useFieldArray, useForm, useFormContext, useWatch } from 'react-hook-form'
 import { twMerge } from 'tailwind-merge'
+import InvoiceDocument, {
+  InvoiceDocumentData,
+} from '../InvoiceDocument'
 
-// ─── Supported currencies ────────────────────────────────────────────────────
+// ─── Supported currencies ─────────────────────────────────────────────────────
 
 const CURRENCIES = [
   { value: 'usd', label: 'USD' },
@@ -128,7 +132,8 @@ const InvoiceCustomerSection = ({
   organization: schemas['Organization']
   onNewCustomer: () => void
 }) => {
-  const { control, watch, setValue } = useFormContext<InvoiceFormValues>()
+  const { control } = useFormContext<InvoiceFormValues>()
+  const customerId = useWatch<InvoiceFormValues, 'customer_id'>({ name: 'customer_id' })
   const [customerQuery, setCustomerQuery] = useState('')
 
   const { data: customersData, isLoading: isLoadingCustomers } = useCustomers(
@@ -140,15 +145,10 @@ const InvoiceCustomerSection = ({
     [customersData],
   )
 
-  const customerId = watch('customer_id')
   const selectedCustomer = customers.find((c) => c.id === customerId) ?? null
 
   return (
-    <Section
-      compact
-      title="Customer"
-      description="The customer you are invoicing"
-    >
+    <Section compact title="Customer" description="The customer you are invoicing">
       <div className="flex w-full flex-col gap-y-4">
         <FormField
           control={control}
@@ -204,11 +204,7 @@ const InvoiceCurrencySection = () => {
   const { control } = useFormContext<InvoiceFormValues>()
 
   return (
-    <Section
-      compact
-      title="Currency"
-      description="All line items will be billed in this currency"
-    >
+    <Section compact title="Currency" description="All line items will be billed in this currency">
       <FormField
         control={control}
         name="currency"
@@ -242,33 +238,22 @@ const InvoiceItemsSection = ({
   organization: schemas['Organization']
   onNewProduct: () => void
 }) => {
-  const { control, watch, setValue } = useFormContext<InvoiceFormValues>()
-  const { fields, append, remove } = useFieldArray({
-    control,
-    name: 'line_items',
-  })
-  const currency = watch('currency')
+  const { control, setValue } = useFormContext<InvoiceFormValues>()
+  const { fields, append, remove } = useFieldArray({ control, name: 'line_items' })
+  const currency = useWatch<InvoiceFormValues, 'currency'>({ name: 'currency' })
 
   const [productQuery, setProductQuery] = useState('')
   const { data: productsData, isLoading: isLoadingProducts } = useProducts(
     organization.id,
     { query: productQuery || undefined },
   )
-  const products = useMemo(
-    () => productsData?.items ?? [],
-    [productsData],
-  )
+  const products = useMemo(() => productsData?.items ?? [], [productsData])
 
   return (
-    <Section
-      compact
-      title="Items"
-      description="Add products from your catalog or type a custom description"
-    >
+    <Section compact title="Items" description="Add products from your catalog or type a custom description">
       <div className="flex w-full flex-col gap-y-6">
         {fields.map((field, index) => (
           <div key={field.id} className="flex flex-col gap-y-3">
-            {/* Product picker — selecting auto-fills description + unit amount */}
             <Combobox
               items={products}
               value={null}
@@ -307,7 +292,6 @@ const InvoiceItemsSection = ({
             />
 
             <div className="grid grid-cols-[1fr_80px_120px_32px] items-start gap-x-3">
-              {/* Description */}
               <FormField
                 control={control}
                 name={`line_items.${index}.description`}
@@ -321,27 +305,17 @@ const InvoiceItemsSection = ({
                   </FormItem>
                 )}
               />
-
-              {/* Quantity */}
               <FormField
                 control={control}
                 name={`line_items.${index}.quantity`}
                 render={({ field }) => (
                   <FormItem>
                     <FormControl>
-                      <Input
-                        {...field}
-                        type="number"
-                        min={1}
-                        className="text-center"
-                        placeholder="1"
-                      />
+                      <Input {...field} type="number" min={1} className="text-center" placeholder="1" />
                     </FormControl>
                   </FormItem>
                 )}
               />
-
-              {/* Unit amount */}
               <FormField
                 control={control}
                 name={`line_items.${index}.unit_amount`}
@@ -349,21 +323,12 @@ const InvoiceItemsSection = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormControl>
-                      <Input
-                        {...field}
-                        type="number"
-                        min={0}
-                        step={0.01}
-                        className="text-right"
-                        placeholder="0.00"
-                      />
+                      <Input {...field} type="number" min={0} step={0.01} className="text-right" placeholder="0.00" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-
-              {/* Remove row */}
               <button
                 type="button"
                 onClick={() => remove(index)}
@@ -382,9 +347,7 @@ const InvoiceItemsSection = ({
         <div className="flex flex-row items-center gap-x-4">
           <button
             type="button"
-            onClick={() =>
-              append({ description: '', quantity: 1, unit_amount: '' })
-            }
+            onClick={() => append({ description: '', quantity: 1, unit_amount: '' })}
             className="flex items-center gap-x-1 text-sm text-blue-500 hover:text-blue-600"
           >
             <AddOutlined fontSize="small" />
@@ -422,29 +385,18 @@ const InvoiceDiscountSection = ({
     organization.id,
     { query: discountQuery || undefined },
   )
-  const discounts = useMemo(
-    () => discountsData?.items ?? [],
-    [discountsData],
-  )
+  const discounts = useMemo(() => discountsData?.items ?? [], [discountsData])
 
   return (
-    <Section
-      compact
-      title="Discount"
-      description="Optionally apply a discount from your catalog"
-    >
+    <Section compact title="Discount" description="Optionally apply a discount from your catalog">
       <div className="flex w-full flex-col gap-y-4">
         <Combobox
           items={discounts}
           value={selectedDiscount?.id ?? null}
           selectedItem={selectedDiscount}
           onChange={(id) => {
-            if (!id) {
-              onSelectDiscount(null)
-              return
-            }
-            const d = discounts.find((d) => d.id === id)
-            onSelectDiscount(d ?? null)
+            if (!id) { onSelectDiscount(null); return }
+            onSelectDiscount(discounts.find((d) => d.id === id) ?? null)
           }}
           onQueryChange={setDiscountQuery}
           getItemValue={(d) => d.id}
@@ -491,9 +443,7 @@ const InvoicePaymentLinkSection = ({
   onNewCheckoutLink: () => void
 }) => {
   const [linkQuery, setLinkQuery] = useState('')
-  const { data: linksData, isLoading: isLoadingLinks } = useCheckoutLinks(
-    organization.id,
-  )
+  const { data: linksData, isLoading: isLoadingLinks } = useCheckoutLinks(organization.id)
   const links = useMemo(
     () =>
       (linksData?.pages.flatMap((p) => p.items) ?? []).filter(
@@ -508,7 +458,7 @@ const InvoicePaymentLinkSection = ({
     <Section
       compact
       title="Payment Link"
-      description="Attach a checkout link so customers can pay directly from the invoice. We will automatically include the link."
+      description="Attach a checkout link so customers can pay directly from the invoice."
     >
       <div className="flex w-full flex-col gap-y-4">
         <Combobox
@@ -516,12 +466,8 @@ const InvoicePaymentLinkSection = ({
           value={selectedCheckoutLink?.id ?? null}
           selectedItem={selectedCheckoutLink}
           onChange={(id) => {
-            if (!id) {
-              onSelectCheckoutLink(null)
-              return
-            }
-            const link = links.find((l) => l.id === id)
-            onSelectCheckoutLink(link ?? null)
+            if (!id) { onSelectCheckoutLink(null); return }
+            onSelectCheckoutLink(links.find((l) => l.id === id) ?? null)
           }}
           onQueryChange={setLinkQuery}
           getItemValue={(l) => l.id}
@@ -529,9 +475,7 @@ const InvoicePaymentLinkSection = ({
           renderItem={(l) => (
             <div className="flex flex-col">
               <span className="font-medium">{l.label ?? 'Unlabeled'}</span>
-              <span className="truncate text-xs text-gray-500 dark:text-gray-400">
-                {l.url}
-              </span>
+              <span className="truncate text-xs text-gray-500 dark:text-gray-400">{l.url}</span>
             </div>
           )}
           isLoading={isLoadingLinks}
@@ -584,13 +528,8 @@ const InvoiceDetailsSection = () => {
   ]
 
   return (
-    <Section
-      compact
-      title="Details"
-      description="Due date, notes, and references"
-    >
+    <Section compact title="Details" description="Due date, notes, and references">
       <div className="flex w-full flex-col gap-y-6">
-        {/* Due date */}
         <FormField
           control={control}
           name="due_date"
@@ -605,10 +544,7 @@ const InvoiceDetailsSection = () => {
                     variant="secondary"
                     size="sm"
                     onClick={() =>
-                      setValue(
-                        'due_date',
-                        format(addDays(new Date(), opt.days), 'yyyy-MM-dd'),
-                      )
+                      setValue('due_date', format(addDays(new Date(), opt.days), 'yyyy-MM-dd'))
                     }
                   >
                     {opt.label}
@@ -622,7 +558,6 @@ const InvoiceDetailsSection = () => {
           )}
         />
 
-        {/* Memo */}
         <FormField
           control={control}
           name="memo"
@@ -641,7 +576,6 @@ const InvoiceDetailsSection = () => {
           )}
         />
 
-        {/* PO Number */}
         <FormField
           control={control}
           name="po_number"
@@ -649,17 +583,12 @@ const InvoiceDetailsSection = () => {
             <FormItem>
               <FormLabel>PO Number</FormLabel>
               <FormControl>
-                <Input
-                  {...field}
-                  placeholder="Purchase order number"
-                  className="max-w-xs"
-                />
+                <Input {...field} placeholder="Purchase order number" className="max-w-xs" />
               </FormControl>
             </FormItem>
           )}
         />
 
-        {/* On behalf of */}
         <FormField
           control={control}
           name="on_behalf_of_label"
@@ -681,6 +610,58 @@ const InvoiceDetailsSection = () => {
   )
 }
 
+// ─── Live Preview Panel ───────────────────────────────────────────────────────
+
+const InvoicePreviewPanel = ({
+  organization,
+  selectedDiscount,
+}: {
+  organization: schemas['Organization']
+  selectedDiscount: schemas['Discount'] | null
+}) => {
+  const values = useWatch<InvoiceFormValues>()
+  const { data: customer } = useCustomer(values.customer_id || null)
+
+  const lineItemsCents = useMemo(
+    () =>
+      (values.line_items ?? []).map((item) => ({
+        description: item?.description ?? '',
+        quantity: Number(item?.quantity) || 1,
+        unitAmount: Math.round((parseFloat(item?.unit_amount ?? '') || 0) * 100),
+      })),
+    [values.line_items],
+  )
+
+  const subtotalCents = lineItemsCents.reduce(
+    (sum, item) => sum + item.unitAmount * item.quantity,
+    0,
+  )
+  const discountCents = selectedDiscount
+    ? computeDiscountCents(selectedDiscount, subtotalCents)
+    : 0
+  const totalCents = subtotalCents - discountCents
+
+  const docData: InvoiceDocumentData = {
+    currency: values.currency ?? 'usd',
+    customerName: customer?.name ?? customer?.email,
+    customerEmail: customer?.name ? customer?.email : undefined,
+    onBehalfOfLabel:
+      values.on_behalf_of_label || organization.name || undefined,
+    lineItems: lineItemsCents,
+    subtotalAmount: subtotalCents,
+    discountAmount: discountCents,
+    discountLabel: selectedDiscount?.name,
+    taxAmount: 0,
+    totalAmount: totalCents,
+    memo: values.memo || undefined,
+    poNumber: values.po_number || undefined,
+    dueDate: values.due_date ? new Date(values.due_date) : null,
+    issueDate: new Date(),
+  }
+
+  return <InvoiceDocument data={docData} isPreview />
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export interface NewInvoicePageProps {
@@ -697,17 +678,31 @@ const NewInvoicePage = ({
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Associated objects (outside form — computed on submit)
   const [selectedDiscount, setSelectedDiscount] =
     useState<schemas['Discount'] | null>(null)
   const [selectedCheckoutLink, setSelectedCheckoutLink] =
     useState<schemas['CheckoutLink'] | null>(null)
 
-  // Modals
-  const { isShown: isCustomerModalShown, show: showCustomerModal, hide: hideCustomerModal } = useModal()
-  const { isShown: isProductModalShown, show: showProductModal, hide: hideProductModal } = useModal()
-  const { isShown: isDiscountModalShown, show: showDiscountModal, hide: hideDiscountModal } = useModal()
-  const { isShown: isCheckoutLinkModalShown, show: showCheckoutLinkModal, hide: hideCheckoutLinkModal } = useModal()
+  const {
+    isShown: isCustomerModalShown,
+    show: showCustomerModal,
+    hide: hideCustomerModal,
+  } = useModal()
+  const {
+    isShown: isProductModalShown,
+    show: showProductModal,
+    hide: hideProductModal,
+  } = useModal()
+  const {
+    isShown: isDiscountModalShown,
+    show: showDiscountModal,
+    hide: hideDiscountModal,
+  } = useModal()
+  const {
+    isShown: isCheckoutLinkModalShown,
+    show: showCheckoutLinkModal,
+    hide: hideCheckoutLinkModal,
+  } = useModal()
 
   const createInvoice = useCreateClientInvoice(organization.id)
 
@@ -744,7 +739,6 @@ const NewInvoicePage = ({
           (sum, item) => sum + item.unit_amount * item.quantity,
           0,
         )
-
         const discountCents = selectedDiscount
           ? computeDiscountCents(selectedDiscount, subtotalCents)
           : 0
@@ -761,7 +755,10 @@ const NewInvoicePage = ({
           discount_label: selectedDiscount?.name ?? null,
           include_payment_link: !!selectedCheckoutLink,
           user_metadata: selectedCheckoutLink
-            ? { checkout_link_url: selectedCheckoutLink.url, checkout_link_id: selectedCheckoutLink.id }
+            ? {
+                checkout_link_url: selectedCheckoutLink.url,
+                checkout_link_id: selectedCheckoutLink.id,
+              }
             : null,
         }
 
@@ -771,7 +768,9 @@ const NewInvoicePage = ({
         if (onClose) {
           onClose()
         } else {
-          router.push(`/dashboard/${organization.slug}/sales/invoices/${invoice.id}`)
+          router.push(
+            `/dashboard/${organization.slug}/sales/invoices/${invoice.id}`,
+          )
         }
       } catch (err: any) {
         toast({
@@ -785,58 +784,8 @@ const NewInvoicePage = ({
     [organization, selectedDiscount, selectedCheckoutLink, createInvoice, form, router, onClose],
   )
 
-  const formContent = (
+  const modals = (
     <>
-      <div className="dark:border-spaire-700 dark:divide-spaire-700 flex flex-col divide-y divide-gray-200 rounded-4xl border border-gray-200">
-        <Form {...form}>
-          <form
-            onSubmit={handleSubmit(onSubmit)}
-            className="flex flex-col gap-y-6"
-          >
-            <div className="dark:divide-spaire-700 flex flex-col divide-y divide-gray-200">
-              <InvoiceCustomerSection
-                organization={organization}
-                onNewCustomer={showCustomerModal}
-              />
-
-              <InvoiceCurrencySection />
-
-              <InvoiceItemsSection
-                organization={organization}
-                onNewProduct={showProductModal}
-              />
-
-              <InvoiceDiscountSection
-                organization={organization}
-                selectedDiscount={selectedDiscount}
-                onSelectDiscount={setSelectedDiscount}
-                onNewDiscount={showDiscountModal}
-              />
-
-              <InvoicePaymentLinkSection
-                organization={organization}
-                selectedCheckoutLink={selectedCheckoutLink}
-                onSelectCheckoutLink={setSelectedCheckoutLink}
-                onNewCheckoutLink={showCheckoutLinkModal}
-              />
-
-              <InvoiceDetailsSection />
-            </div>
-          </form>
-        </Form>
-      </div>
-
-      <div className="flex flex-row items-center gap-2 pb-12">
-        <Button
-          onClick={handleSubmit(onSubmit)}
-          loading={isSubmitting}
-          disabled={isSubmitting}
-        >
-          Create Invoice
-        </Button>
-      </div>
-
-      {/* Side panel modals */}
       <InlineModal
         isShown={isCustomerModalShown}
         hide={hideCustomerModal}
@@ -848,7 +797,6 @@ const NewInvoicePage = ({
           />
         }
       />
-
       <InlineModal
         isShown={isProductModalShown}
         hide={hideProductModal}
@@ -861,7 +809,6 @@ const NewInvoicePage = ({
           />
         }
       />
-
       <InlineModal
         isShown={isDiscountModalShown}
         hide={hideDiscountModal}
@@ -877,7 +824,6 @@ const NewInvoicePage = ({
           />
         }
       />
-
       <InlineModal
         isShown={isCheckoutLinkModalShown}
         hide={hideCheckoutLinkModal}
@@ -902,6 +848,7 @@ const NewInvoicePage = ({
     </>
   )
 
+  // Panel mode: compact form without preview
   if (panelMode) {
     return (
       <div className="flex h-full flex-col">
@@ -909,19 +856,122 @@ const NewInvoicePage = ({
           <span>New Invoice</span>
         </InlineModalHeader>
         <div className="flex flex-col gap-8 overflow-y-auto px-8 pb-8">
-          {formContent}
+          <div className="dark:border-spaire-700 dark:divide-spaire-700 flex flex-col divide-y divide-gray-200 rounded-4xl border border-gray-200">
+            <Form {...form}>
+              <form
+                onSubmit={handleSubmit(onSubmit)}
+                className="flex flex-col gap-y-6"
+              >
+                <div className="dark:divide-spaire-700 flex flex-col divide-y divide-gray-200">
+                  <InvoiceCustomerSection
+                    organization={organization}
+                    onNewCustomer={showCustomerModal}
+                  />
+                  <InvoiceCurrencySection />
+                  <InvoiceItemsSection
+                    organization={organization}
+                    onNewProduct={showProductModal}
+                  />
+                  <InvoiceDiscountSection
+                    organization={organization}
+                    selectedDiscount={selectedDiscount}
+                    onSelectDiscount={setSelectedDiscount}
+                    onNewDiscount={showDiscountModal}
+                  />
+                  <InvoicePaymentLinkSection
+                    organization={organization}
+                    selectedCheckoutLink={selectedCheckoutLink}
+                    onSelectCheckoutLink={setSelectedCheckoutLink}
+                    onNewCheckoutLink={showCheckoutLinkModal}
+                  />
+                  <InvoiceDetailsSection />
+                </div>
+              </form>
+            </Form>
+          </div>
+
+          <div className="flex flex-row items-center gap-2 pb-4">
+            <Button
+              onClick={handleSubmit(onSubmit)}
+              loading={isSubmitting}
+              disabled={isSubmitting}
+            >
+              Create Invoice
+            </Button>
+          </div>
         </div>
+        {modals}
       </div>
     )
   }
 
+  // Full-page mode: form left + live preview right
   return (
     <DashboardBody
       title="New Invoice"
-      wrapperClassName="max-w-(--breakpoint-md)!"
-      className="gap-y-16"
+      wrapperClassName="max-w-(--breakpoint-xl)!"
+      className="gap-y-0"
     >
-      {formContent}
+      <Form {...form}>
+        <div className="flex flex-col gap-12 lg:flex-row lg:items-start">
+          {/* ── Left: form ──────────────────────────────────────── */}
+          <div className="w-full flex-shrink-0 lg:w-[500px]">
+            <div className="dark:border-spaire-700 dark:divide-spaire-700 flex flex-col divide-y divide-gray-200 rounded-4xl border border-gray-200">
+              <form
+                onSubmit={handleSubmit(onSubmit)}
+                className="flex flex-col gap-y-6"
+              >
+                <div className="dark:divide-spaire-700 flex flex-col divide-y divide-gray-200">
+                  <InvoiceCustomerSection
+                    organization={organization}
+                    onNewCustomer={showCustomerModal}
+                  />
+                  <InvoiceCurrencySection />
+                  <InvoiceItemsSection
+                    organization={organization}
+                    onNewProduct={showProductModal}
+                  />
+                  <InvoiceDiscountSection
+                    organization={organization}
+                    selectedDiscount={selectedDiscount}
+                    onSelectDiscount={setSelectedDiscount}
+                    onNewDiscount={showDiscountModal}
+                  />
+                  <InvoicePaymentLinkSection
+                    organization={organization}
+                    selectedCheckoutLink={selectedCheckoutLink}
+                    onSelectCheckoutLink={setSelectedCheckoutLink}
+                    onNewCheckoutLink={showCheckoutLinkModal}
+                  />
+                  <InvoiceDetailsSection />
+                </div>
+              </form>
+            </div>
+
+            <div className="mt-8 flex flex-row items-center gap-2 pb-12">
+              <Button
+                onClick={handleSubmit(onSubmit)}
+                loading={isSubmitting}
+                disabled={isSubmitting}
+              >
+                Create Invoice
+              </Button>
+            </div>
+          </div>
+
+          {/* ── Right: live preview ──────────────────────────────── */}
+          <div className="hidden flex-1 lg:block">
+            <div className="sticky top-6">
+              <InvoicePreviewPanel
+                organization={organization}
+                selectedDiscount={selectedDiscount}
+              />
+            </div>
+          </div>
+        </div>
+
+        {modals}
+      </Form>
     </DashboardBody>
   )
 }
