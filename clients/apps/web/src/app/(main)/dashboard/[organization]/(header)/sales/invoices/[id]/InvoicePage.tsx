@@ -188,17 +188,10 @@ const InvoicePage: React.FC<InvoicePageProps> = ({
               />
             )}
             <DetailRow
-              label={
-                <span className="font-semibold text-gray-900 dark:text-white">
-                  Total
-                </span>
-              }
-              value={
-                <span className="font-semibold text-gray-900 dark:text-white">
-                  {fmt(invoice.total_amount)}
-                </span>
-              }
-              valueClassName="justify-end"
+              label="Total"
+              value={fmt(invoice.total_amount)}
+              valueClassName="justify-end font-semibold text-gray-900 dark:text-white"
+              labelClassName="font-semibold text-gray-900 dark:text-white"
             />
           </div>
 
