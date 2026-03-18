@@ -172,7 +172,7 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
               src="https://spaire-production-files-public.s3.us-east-1.amazonaws.com/_+(12).jpeg"
               alt=""
               aria-hidden="true"
-              className="h-72 w-full object-cover object-top"
+              className="h-[480px] w-full object-cover object-top"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
             <div className="absolute inset-x-0 bottom-0 flex items-end justify-between p-6">
