@@ -1,7 +1,7 @@
 """Add checkout_link to client_invoices
 
-Revision ID: 5d8e0c3f1a2b
-Revises: 4c7f9b2d5e8a
+Revision ID: e3011abd6476
+Revises: cdaa3d0a2471
 Create Date: 2026-03-18 00:00:00.000000
 
 """
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = "5d8e0c3f1a2b"
-down_revision = "4c7f9b2d5e8a"
+revision = "e3011abd6476"
+down_revision = "cdaa3d0a2471"
 branch_labels = None
 depends_on = None
 

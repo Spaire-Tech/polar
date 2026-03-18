@@ -1,6 +1,6 @@
 """Add client invoice tables
 
-Revision ID: 2e4f6a8b0c1d
+Revision ID: a35f45bcfadd
 Revises: 9f907f6f9813
 Create Date: 2026-03-17 00:00:00.000000
 
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = "2e4f6a8b0c1d"
+revision = "a35f45bcfadd"
 down_revision = "9f907f6f9813"
 branch_labels = None
 depends_on = None
