@@ -1,7 +1,7 @@
 """Add checkout_link to client_invoices
 
 Revision ID: e3011abd6476
-Revises: cdaa3d0a2471
+Revises: 4c7f9b2d5e8a
 Create Date: 2026-03-18 00:00:00.000000
 
 """
@@ -11,7 +11,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "e3011abd6476"
-down_revision = "cdaa3d0a2471"
+down_revision = "4c7f9b2d5e8a"
 branch_labels = None
 depends_on = None
 
