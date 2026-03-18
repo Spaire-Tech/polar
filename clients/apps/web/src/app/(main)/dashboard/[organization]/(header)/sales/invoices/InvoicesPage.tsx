@@ -11,7 +11,6 @@ import {
   serializeSearchParams,
 } from '@/utils/datatable'
 import AddOutlined from '@mui/icons-material/AddOutlined'
-import HiveOutlined from '@mui/icons-material/HiveOutlined'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import {
@@ -159,36 +158,37 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
       <div className="flex flex-col gap-8 p-4 pb-16 md:p-8">
         <div className="flex flex-row items-center justify-between">
           <h1 className="text-xl font-medium dark:text-white">Invoices</h1>
-          <Link href={`/dashboard/${organization.slug}/invoices/new`}>
-            <Button>
-              <AddOutlined fontSize="small" />
-              New Invoice
-            </Button>
-          </Link>
+          {invoices.length > 0 && (
+            <Link href={`/dashboard/${organization.slug}/invoices/new`}>
+              <Button>
+                <AddOutlined fontSize="small" />
+                New Invoice
+              </Button>
+            </Link>
+          )}
         </div>
 
         {!invoicesHook.isLoading && invoices.length === 0 ? (
-          <ShadowBoxOnMd className="items-center justify-center gap-y-6 md:flex md:flex-col md:py-24">
-            <div className="flex max-w-md flex-col items-center gap-y-6 text-center">
-              <HiveOutlined
-                className="dark:text-spaire-600 text-5xl text-gray-300"
-                fontSize="large"
-              />
-              <div className="flex flex-col items-center gap-y-2">
-                <h3 className="text-xl font-medium">
+          <ShadowBoxOnMd className="relative overflow-hidden p-0 md:py-0">
+            <img
+              src="https://spaire-production-files-public.s3.us-east-1.amazonaws.com/Untitled+design+-+2026-03-18T034247.543.png"
+              alt=""
+              aria-hidden="true"
+              className="h-[560px] w-full object-cover object-top"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+            <div className="absolute inset-x-0 bottom-0 flex items-end justify-between p-8">
+              <div className="flex flex-col gap-2">
+                <h3 className="text-3xl font-bold text-white">
                   Create and send invoices in minutes
                 </h3>
-                <p className="dark:text-spaire-500 text-gray-500">
-                  Send an invoice with a link to pay online. Accept cards, bank
-                  transfers, and more.
+                <p className="text-base text-gray-300">
+                  Send invoices with a link to pay online. Accept cards, bank transfers, and more.
                 </p>
               </div>
-              <Link
-                href={`/dashboard/${organization.slug}/invoices/new`}
-              >
+              <Link href={`/dashboard/${organization.slug}/invoices/new`} className="ml-8 shrink-0">
                 <Button>
-                  <AddOutlined className="h-4 w-4" />
-                  <span>Create Invoice</span>
+                  Create Invoice
                 </Button>
               </Link>
             </div>

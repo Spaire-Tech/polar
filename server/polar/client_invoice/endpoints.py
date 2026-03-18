@@ -1,4 +1,5 @@
 from fastapi import Depends, HTTPException
+from fastapi.responses import Response
 from pydantic import UUID4
 
 from polar.exceptions import ResourceNotFound
@@ -89,6 +90,32 @@ async def get_client_invoice(
     if invoice is None:
         raise ResourceNotFound()
     return ClientInvoiceSchema.model_validate(invoice)
+
+
+@router.get(
+    "/{id}/pdf",
+    summary="Download Client Invoice PDF",
+    response_class=Response,
+)
+async def download_client_invoice_pdf(
+    id: UUID4,
+    auth_subject: auth.ClientInvoicesRead,
+    session: AsyncReadSession = Depends(get_db_read_session),
+) -> Response:
+    """Generate and download a PDF for the given client invoice."""
+    invoice = await client_invoice_service.get_by_id(session, auth_subject, id)
+    if invoice is None:
+        raise ResourceNotFound()
+
+    pdf_bytes = await client_invoice_service.get_pdf_bytes(session, invoice)
+    invoice_number = str(invoice.id)[:8].upper()
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="invoice-{invoice_number}.pdf"'
+        },
+    )
 
 
 @router.post(

@@ -60,10 +60,10 @@ class Invoice(BaseModel):
     number: str
     date: datetime
     seller_name: str
-    seller_address: Address
+    seller_address: Address | None = None
     seller_additional_info: str | None = None
     customer_name: str
-    customer_address: Address
+    customer_address: Address | None = None
     customer_additional_info: str | None = None
     subtotal_amount: int
     applied_balance_amount: int | None = None
@@ -331,13 +331,14 @@ class InvoiceGenerator(FPDF):
             new_y=YPos.NEXT,
         )
         self.set_font(style="")
-        self.multi_cell(
-            80,
-            self.cell_height(),
-            text=self.data.seller_address.to_text(),
-            new_x=XPos.LEFT,
-            new_y=YPos.NEXT,
-        )
+        if self.data.seller_address is not None:
+            self.multi_cell(
+                80,
+                self.cell_height(),
+                text=self.data.seller_address.to_text(),
+                new_x=XPos.LEFT,
+                new_y=YPos.NEXT,
+            )
         if self.data.seller_additional_info:
             self.multi_cell(
                 80,
@@ -362,13 +363,14 @@ class InvoiceGenerator(FPDF):
             new_y=YPos.NEXT,
         )
         self.set_font(style="")
-        self.multi_cell(
-            80,
-            self.cell_height(),
-            self.data.customer_address.to_text(),
-            new_x=XPos.LEFT,
-            new_y=YPos.NEXT,
-        )
+        if self.data.customer_address is not None:
+            self.multi_cell(
+                80,
+                self.cell_height(),
+                self.data.customer_address.to_text(),
+                new_x=XPos.LEFT,
+                new_y=YPos.NEXT,
+            )
         if self.data.customer_additional_info:
             self.multi_cell(
                 80,

@@ -70,6 +70,7 @@ class ClientInvoiceEmailLineItem(BaseModel):
 
 class ClientInvoiceEmailProps(EmailProps):
     organization_name: str
+    organization_avatar_url: str | None = None
     customer_name: str
     invoice_id: str
     due_date: str | None
