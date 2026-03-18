@@ -11,6 +11,7 @@ import { CheckoutLinkForm } from '@/components/CheckoutLinks/CheckoutLinkForm'
 import { toast } from '@/components/Toast/use-toast'
 import {
   useCheckoutLinks,
+  useCustomer,
   useCustomers,
   useDiscounts,
   useProducts,
@@ -19,6 +20,7 @@ import {
   ClientInvoiceCreate,
   useCreateClientInvoice,
 } from '@/hooks/queries/client_invoices'
+import { api } from '@/utils/client'
 import AddOutlined from '@mui/icons-material/AddOutlined'
 import RemoveCircleOutlineOutlined from '@mui/icons-material/RemoveCircleOutlineOutlined'
 import { schemas } from '@spaire/client'
@@ -36,7 +38,7 @@ import {
 } from '@spaire/ui/components/ui/form'
 import { addDays, format } from 'date-fns'
 import { useRouter } from 'next/navigation'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useFieldArray, useForm, useFormContext, useWatch } from 'react-hook-form'
 import { twMerge } from 'tailwind-merge'
 
@@ -97,6 +99,12 @@ export interface InvoiceFormValues {
   memo: string
   po_number: string
   on_behalf_of_label: string
+  billing_line1: string
+  billing_line2: string
+  billing_city: string
+  billing_state: string
+  billing_postal_code: string
+  billing_country: string
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -189,6 +197,126 @@ const InvoiceCustomerSection = ({
           <AddOutlined fontSize="small" />
           New customer
         </button>
+      </div>
+    </Section>
+  )
+}
+
+// ─── Section: Billing Address ─────────────────────────────────────────────────
+
+const InvoiceBillingAddressSection = () => {
+  const { control, setValue } = useFormContext<InvoiceFormValues>()
+  const customerId = useWatch<InvoiceFormValues, 'customer_id'>({ name: 'customer_id' })
+  const { data: selectedCustomer } = useCustomer(customerId || null)
+
+  // Auto-populate from customer's billing address when customer loads
+  useEffect(() => {
+    if (
+      customerId &&
+      selectedCustomer &&
+      (selectedCustomer as any).id === customerId
+    ) {
+      const addr = (selectedCustomer as any).billing_address
+      setValue('billing_line1', addr?.line1 ?? '')
+      setValue('billing_line2', addr?.line2 ?? '')
+      setValue('billing_city', addr?.city ?? '')
+      setValue('billing_state', addr?.state ?? '')
+      setValue('billing_postal_code', addr?.postal_code ?? '')
+      setValue('billing_country', addr?.country ?? '')
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customerId, selectedCustomer])
+
+  if (!customerId) return null
+
+  return (
+    <Section
+      compact
+      title="Billing Address"
+      description="Used for tax calculation and shown on the invoice. Auto-filled if the customer already has one."
+    >
+      <div className="flex w-full flex-col gap-y-4">
+        <FormField
+          control={control}
+          name="billing_line1"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Address line 1</FormLabel>
+              <FormControl>
+                <Input {...field} placeholder="123 Main Street" />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={control}
+          name="billing_line2"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>
+                Address line 2{' '}
+                <span className="dark:text-spaire-500 text-gray-400 font-normal">
+                  (optional)
+                </span>
+              </FormLabel>
+              <FormControl>
+                <Input {...field} placeholder="Suite 100" />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={control}
+            name="billing_city"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>City</FormLabel>
+                <FormControl>
+                  <Input {...field} placeholder="New York" />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={control}
+            name="billing_state"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>State / Province</FormLabel>
+                <FormControl>
+                  <Input {...field} placeholder="NY" />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={control}
+            name="billing_postal_code"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Postal code</FormLabel>
+                <FormControl>
+                  <Input {...field} placeholder="10001" />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={control}
+            name="billing_country"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Country</FormLabel>
+                <FormControl>
+                  <Input {...field} placeholder="US" />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+        </div>
       </div>
     </Section>
   )
@@ -532,7 +660,7 @@ const InvoiceDetailsSection = () => {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Payment due</FormLabel>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 pb-1">
                 {NET_OPTIONS.map((opt) => (
                   <Button
                     key={opt.label}
@@ -548,7 +676,7 @@ const InvoiceDetailsSection = () => {
                 ))}
               </div>
               <FormControl>
-                <Input {...field} type="date" className="max-w-xs" />
+                <Input {...field} type="date" />
               </FormControl>
             </FormItem>
           )}
@@ -572,35 +700,36 @@ const InvoiceDetailsSection = () => {
           )}
         />
 
-        <FormField
-          control={control}
-          name="po_number"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>PO Number</FormLabel>
-              <FormControl>
-                <Input {...field} placeholder="Purchase order number" className="max-w-xs" />
-              </FormControl>
-            </FormItem>
-          )}
-        />
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={control}
+            name="po_number"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>PO Number</FormLabel>
+                <FormControl>
+                  <Input {...field} placeholder="Purchase order number" />
+                </FormControl>
+              </FormItem>
+            )}
+          />
 
-        <FormField
-          control={control}
-          name="on_behalf_of_label"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>On behalf of</FormLabel>
-              <FormControl>
-                <Input
-                  {...field}
-                  placeholder="Optional — leave blank to use your organization name"
-                  className="max-w-sm"
-                />
-              </FormControl>
-            </FormItem>
-          )}
-        />
+          <FormField
+            control={control}
+            name="on_behalf_of_label"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>On behalf of</FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    placeholder="Leave blank to use your organization name"
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+        </div>
       </div>
     </Section>
   )
@@ -659,6 +788,12 @@ const NewInvoicePage = ({
       memo: '',
       po_number: '',
       on_behalf_of_label: '',
+      billing_line1: '',
+      billing_line2: '',
+      billing_city: '',
+      billing_state: '',
+      billing_postal_code: '',
+      billing_country: '',
     },
   })
 
@@ -673,6 +808,25 @@ const NewInvoicePage = ({
 
       setIsSubmitting(true)
       try {
+        // Update customer billing address if provided
+        const hasAddress =
+          values.billing_line1 || values.billing_city || values.billing_country
+        if (hasAddress && values.customer_id) {
+          await (api as any).PATCH('/v1/customers/{id}', {
+            params: { path: { id: values.customer_id } },
+            body: {
+              billing_address: {
+                line1: values.billing_line1 || null,
+                line2: values.billing_line2 || null,
+                city: values.billing_city || null,
+                state: values.billing_state || null,
+                postal_code: values.billing_postal_code || null,
+                country: values.billing_country || null,
+              },
+            },
+          })
+        }
+
         const lineItemsCents = values.line_items.map((item) => ({
           description: item.description,
           quantity: Number(item.quantity) || 1,
@@ -811,6 +965,7 @@ const NewInvoicePage = ({
                     organization={organization}
                     onNewCustomer={showCustomerModal}
                   />
+                  <InvoiceBillingAddressSection />
                   <InvoiceCurrencySection />
                   <InvoiceItemsSection
                     organization={organization}
@@ -866,6 +1021,7 @@ const NewInvoicePage = ({
                 organization={organization}
                 onNewCustomer={showCustomerModal}
               />
+              <InvoiceBillingAddressSection />
               <InvoiceCurrencySection />
               <InvoiceItemsSection
                 organization={organization}

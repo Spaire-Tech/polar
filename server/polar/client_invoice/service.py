@@ -223,8 +223,9 @@ class ClientInvoiceService:
             )
 
         footer = (
-            f"Issued by Spaire, Inc. as Merchant of Record "
-            f"on behalf of {on_behalf_of_label}."
+            f"This invoice is issued by Spaire, Inc. on behalf of {on_behalf_of_label}. "
+            f"Spaire, Inc. acts as the Merchant of Record for this transaction. "
+            f"© {date.today().year} Spaire, Inc. All rights reserved."
         )
 
         new_id = uuid.uuid4()

@@ -12,8 +12,6 @@ import {
 } from '@/hooks/queries/client_invoices'
 import { useCustomer } from '@/hooks/queries/customers'
 import { api } from '@/utils/client'
-import Download from '@mui/icons-material/Download'
-import Send from '@mui/icons-material/Send'
 import { schemas, unwrap } from '@spaire/client'
 import { formatCurrency } from '@spaire/currency'
 import Avatar from '@spaire/ui/components/atoms/Avatar'
@@ -206,7 +204,6 @@ const InvoicePage: React.FC<InvoicePageProps> = ({
           <div className="flex items-center gap-2">
             {canSend && (
               <Button loading={sendInvoice.isPending} onClick={handleSend}>
-                <Send fontSize="small" />
                 Send Invoice
               </Button>
             )}
@@ -223,7 +220,6 @@ const InvoicePage: React.FC<InvoicePageProps> = ({
                   loading={isDownloading || finalizeInvoice.isPending}
                   onClick={handleDownload}
                 >
-                  <Download fontSize="small" />
                   Download Invoice
                 </Button>
               )
