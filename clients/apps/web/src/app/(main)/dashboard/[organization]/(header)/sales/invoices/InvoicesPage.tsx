@@ -179,10 +179,10 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
             <div className="absolute inset-x-0 bottom-0 flex items-end justify-between p-8">
               <div className="flex max-w-sm flex-col gap-3">
-                <h3 className="text-4xl font-bold text-white">
+                <h3 className="text-5xl font-bold text-white">
                   Create and send invoices in minutes
                 </h3>
-                <p className="text-lg text-gray-300">
+                <p className="text-sm text-gray-400">
                   Send invoices with a link to pay online. Accept cards, bank
                   transfers, and more.
                 </p>
