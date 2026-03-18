@@ -1,5 +1,6 @@
 import textwrap
 from datetime import date, datetime
+from io import BytesIO
 from pathlib import Path
 from typing import ClassVar, Self
 
@@ -28,8 +29,8 @@ def format_percent(basis_points: int) -> str:
     return _format_percent(basis_points / 10000, locale="en_US")
 
 
-def format_date(date: date | datetime) -> str:
-    return _format_date(date, format="long", locale="en_US")
+def format_date(d: date | datetime) -> str:
+    return _format_date(d, format="long", locale="en_US")
 
 
 class InvoiceItem(BaseModel):
@@ -41,11 +42,11 @@ class InvoiceItem(BaseModel):
 
 class InvoiceHeadingItem(BaseModel):
     label: str
-    value: str | datetime
+    value: str | datetime | date
 
     @property
     def display_value(self) -> str:
-        if isinstance(self.value, datetime):
+        if isinstance(self.value, (datetime, date)):
             return format_date(self.value)
         return self.value
 
@@ -76,14 +77,29 @@ class Invoice(BaseModel):
     notes: str | None = None
     extra_heading_items: list[InvoiceHeadingItem] | None = None
     extra_totals_items: list[InvoiceTotalsItem] | None = None
+    # Client invoice extras
+    checkout_link: str | None = None
+    due_date: date | None = None
+    on_behalf_of_label: str | None = None
+
+    @property
+    def total(self) -> int:
+        return self.subtotal_amount - self.discount_amount + self.tax_amount
 
     @property
     def heading_items(self) -> list[InvoiceHeadingItem]:
-        return [
+        items = [
             InvoiceHeadingItem(label="Invoice number", value=self.number),
             InvoiceHeadingItem(label="Date of issue", value=self.date),
-            *(self.extra_heading_items or []),
         ]
+        if self.due_date:
+            items.append(InvoiceHeadingItem(label="Date due", value=self.due_date))
+        if self.on_behalf_of_label:
+            items.append(
+                InvoiceHeadingItem(label="On behalf of", value=self.on_behalf_of_label)
+            )
+        items.extend(self.extra_heading_items or [])
+        return items
 
     @property
     def tax_displayed(self) -> bool:
@@ -206,57 +222,54 @@ class InvoiceGenerator(FPDF):
     """Class to generate an invoice PDF using fpdf2."""
 
     logo: ClassVar[Path] = Path(__file__).parent / "invoicelogo.png"
-    """Path to the logo image for the invoice."""
+    """Path to the fallback logo image (used when no org logo is provided)."""
 
     regular_font_file = Path(__file__).parent / "fonts/Geist-Regular.otf"
-    """Path to the regular font file."""
-
     bold_font_file = Path(__file__).parent / "fonts/Geist-Bold.otf"
-    """Path to the bold font file."""
 
     font_name: ClassVar[str] = "geist"
-    """Font family name."""
-
     base_font_size: ClassVar[int] = 10
-    """Base font size in points."""
-
     footer_font_size: ClassVar[int] = 8
-    """Font size for the footer in points."""
-
     table_header_font_size: ClassVar[int] = 8
-    """Font size for table headers in points."""
 
+    # Accent (amber) — table headers, "Pay online" link
+    accent_color: ClassVar[tuple[int, int, int]] = (180, 130, 0)
+    # Muted blue — address text
+    address_text_color: ClassVar[tuple[int, int, int]] = (37, 99, 235)
+    # Light grey — table borders, dividers
     table_borders_color: ClassVar[tuple[int, int, int]] = (220, 220, 220)
-    """Color for table borders in RGB format."""
+    # Grey — footer legal text
+    footer_text_color: ClassVar[tuple[int, int, int]] = (100, 100, 100)
 
     line_height_percentage: ClassVar[float] = 1.5
-    """Line height as a percentage of the font size."""
-
     elements_y_margin: ClassVar[int] = 10
-    """Vertical margin between elements."""
-
     items_table_row_height: ClassVar[int] = 7
-    """Height of each row in the items table in points."""
-
     totals_table_row_height: ClassVar[int] = 6
-    """Height of each row in the totals table in points."""
+
+    # Extra bottom margin to accommodate the two-line legal footer
+    footer_height_mm: ClassVar[int] = 28
 
     def __init__(
         self,
         data: Invoice,
         heading_title: str = "Invoice",
         add_sandbox_warning: bool = settings.ENV == Environment.sandbox,
+        logo_bytes: bytes | None = None,
+        logo_label: str | None = None,
     ) -> None:
         super().__init__()
 
         self.add_font(self.font_name, fname=self.regular_font_file)
         self.add_font(self.font_name, fname=self.bold_font_file, style="B")
         self.set_font(self.font_name, size=self.base_font_size)
+        self.set_auto_page_break(auto=True, margin=self.footer_height_mm)
 
         self.alias_nb_pages()
         self.data = data
         self.heading_title = heading_title
         self.add_sandbox_warning = add_sandbox_warning
+        self.logo_bytes = logo_bytes
+        self.logo_label = logo_label
 
     def cell_height(self, font_size: float | None = None) -> float:
         font_size = font_size or self.base_font_size
@@ -276,13 +289,52 @@ class InvoiceGenerator(FPDF):
             self.ln(10)
 
     def footer(self) -> None:
-        # Position footer at 15mm from bottom
-        self.set_y(-self.b_margin)
-        self.set_font(size=self.footer_font_size)
-        # Invoice number on the left
-        self.cell(self.epw / 2, 10, f"{self.data.number}", align=Align.L)
-        # Page number on the right
-        self.cell(self.epw / 2, 10, f"Page {self.page_no()} of {{nb}}", align=Align.R)
+        self.set_y(-self.footer_height_mm)
+        self.set_font(self.font_name, size=self.footer_font_size)
+        self.set_text_color(*self.footer_text_color)
+
+        on_behalf = self.data.on_behalf_of_label or self.data.seller_name
+        legal_text = (
+            f"This invoice is issued by Spaire, Inc. on behalf of {on_behalf}. "
+            f"Spaire, Inc. acts as the Merchant of Record for this transaction."
+        )
+        self.multi_cell(
+            w=0,
+            h=self.cell_height(self.footer_font_size),
+            text=legal_text,
+            align=Align.C,
+            new_x=XPos.LMARGIN,
+            new_y=YPos.NEXT,
+        )
+        self.ln(4)
+        copyright_text = f"© {date.today().year} Spaire, Inc. All rights reserved."
+        self.cell(
+            w=0,
+            h=self.cell_height(self.footer_font_size),
+            text=copyright_text,
+            align=Align.C,
+        )
+        self.set_text_color(0, 0, 0)
+
+    def _render_logo(self) -> None:
+        """Render org logo (or fallback) top-right, with optional label below."""
+        logo_w = 20
+        if self.logo_bytes:
+            self.image(BytesIO(self.logo_bytes), x=Align.R, y=10, w=logo_w)
+        else:
+            self.image(str(self.logo), x=Align.R, y=10, w=15)
+            return  # no label for the generic fallback logo
+
+        if self.logo_label:
+            logo_x = self.w - self.r_margin - logo_w
+            saved_y = self.get_y()
+            self.set_xy(logo_x, 31)
+            self.set_font(size=6)
+            self.set_text_color(*self.footer_text_color)
+            self.cell(logo_w, 4, self.logo_label, align=Align.C)
+            self.set_text_color(0, 0, 0)
+            self.set_font(size=self.base_font_size)
+            self.set_y(saved_y)
 
     def generate(self) -> None:
         self.set_metadata()
@@ -296,12 +348,12 @@ class InvoiceGenerator(FPDF):
             new_y=YPos.NEXT,
         )
 
-        # Logo on top right
-        self.image(str(self.logo), x=Align.R, y=10, w=15)
+        # Logo (absolute positioned, top-right)
+        self._render_logo()
 
         self.set_y(self.get_y() + self.elements_y_margin)
 
-        # Heading items
+        # Heading items (invoice number, date of issue, date due, on behalf of)
         label_width = 30
         self.set_font(size=self.base_font_size)
         for heading_item in self.data.heading_items:
@@ -321,7 +373,7 @@ class InvoiceGenerator(FPDF):
         self.set_y(self.get_y() + self.elements_y_margin)
         addresses_y_start = self.get_y()
 
-        # Seller on left column
+        # Seller — left column (black text)
         self.set_font(style="B")
         self.multi_cell(
             80,
@@ -348,7 +400,7 @@ class InvoiceGenerator(FPDF):
             )
         left_seller_end_y = self.get_y()
 
-        # Customer on right column
+        # Customer — right column (address text in muted blue)
         self.set_xy(110, addresses_y_start)
         self.set_font(style="B")
         self.cell(
@@ -363,6 +415,7 @@ class InvoiceGenerator(FPDF):
             new_y=YPos.NEXT,
         )
         self.set_font(style="")
+        self.set_text_color(*self.address_text_color)
         if self.data.customer_address is not None:
             self.multi_cell(
                 80,
@@ -378,29 +431,61 @@ class InvoiceGenerator(FPDF):
                 text=self.data.customer_additional_info,
                 markdown=True,
             )
+        self.set_text_color(0, 0, 0)
         right_seller_end_y = self.get_y()
         bottom = max(left_seller_end_y, right_seller_end_y)
 
-        # Add spacing before table
+        # Prominent amount due headline
         self.set_y(bottom + self.elements_y_margin)
+        amount_str = format_currency(self.data.total, self.data.currency)
+        currency_upper = self.data.currency.upper()
+        if self.data.due_date:
+            headline = f"{amount_str} {currency_upper} due {format_date(self.data.due_date)}"
+        else:
+            headline = f"{amount_str} {currency_upper}"
+        self.set_font(style="B", size=14)
+        self.cell(
+            w=0,
+            h=self.cell_height(14),
+            text=headline,
+            new_x=XPos.LMARGIN,
+            new_y=YPos.NEXT,
+        )
+        self.set_font(size=self.base_font_size)
+
+        # "Pay online" link
+        if self.data.checkout_link:
+            self.set_y(self.get_y() + 3)
+            self.set_text_color(*self.accent_color)
+            self.cell(
+                w=0,
+                h=self.cell_height(),
+                text="Pay online",
+                link=self.data.checkout_link,
+                new_x=XPos.LMARGIN,
+                new_y=YPos.NEXT,
+            )
+            self.set_text_color(0, 0, 0)
 
         # Invoice items table
-        self.set_draw_color(*self.table_borders_color)  # Light grey color for borders
+        self.set_y(self.get_y() + self.elements_y_margin)
+        self.set_draw_color(*self.table_borders_color)
         with self.table(
             col_widths=(90, 30, 30, 30),
             text_align=(Align.L, Align.R, Align.R, Align.R),
-            headings_style=FontFace(size_pt=self.table_header_font_size),
+            headings_style=FontFace(
+                size_pt=self.table_header_font_size,
+                color=self.accent_color,
+            ),
             line_height=self.items_table_row_height,
             borders_layout=TableBordersLayout.HORIZONTAL_LINES,
         ) as table:
-            # Header
             header = table.row()
             header.cell("Description")
             header.cell("Quantity")
             header.cell("Unit Price")
             header.cell("Amount")
 
-            # Body
             for item in self.data.items:
                 row = table.row()
                 row.cell(textwrap.shorten(item.description, width=90, placeholder="…"))
@@ -408,10 +493,8 @@ class InvoiceGenerator(FPDF):
                 row.cell(format_currency(item.unit_amount, self.data.currency))
                 row.cell(format_currency(item.amount, self.data.currency))
 
-        # Add totals section after the table
+        # Totals
         self.set_y(self.get_y() + self.elements_y_margin)
-
-        # Create a table for totals
         with self.table(
             col_widths=(150, 30),
             text_align=(Align.R, Align.R),
@@ -426,7 +509,7 @@ class InvoiceGenerator(FPDF):
                 self.set_font(style="")
                 row.cell(format_currency(total_item.amount, total_item.currency))
 
-        # Add notes section
+        # Notes / memo
         self.set_font(style="")
         if self.data.notes:
             self.set_xy(self.l_margin, self.get_y() + self.elements_y_margin)
@@ -437,8 +520,62 @@ class InvoiceGenerator(FPDF):
                 markdown=True,
             )
 
+        # Bank transfer section
+        self._render_bank_transfer_section()
+
+    def _render_bank_transfer_section(self) -> None:
+        """Render bank transfer payment instructions if bank details are configured."""
+        if not settings.INVOICES_BANK_NAME:
+            return
+
+        self.set_y(self.get_y() + self.elements_y_margin)
+
+        amount_str = format_currency(self.data.total, self.data.currency)
+        self.set_font(style="B")
+        self.cell(
+            w=0,
+            h=self.cell_height(),
+            text=f"Pay {amount_str} with a bank transfer",
+            new_x=XPos.LMARGIN,
+            new_y=YPos.NEXT,
+        )
+        self.set_font(style="")
+        self.set_y(self.get_y() + 2)
+        self.multi_cell(
+            w=120,
+            h=self.cell_height(),
+            text=(
+                "Bank transfers can take up to two business days. To pay via bank "
+                "transfer, transfer funds using the following bank information."
+            ),
+            new_x=XPos.LMARGIN,
+            new_y=YPos.NEXT,
+        )
+        self.set_y(self.get_y() + 3)
+
+        label_w = 35
+        bank_rows: list[tuple[str, str | None]] = [
+            ("Bank name", settings.INVOICES_BANK_NAME),
+            ("Routing number", settings.INVOICES_BANK_ROUTING_NUMBER),
+            ("Account number", settings.INVOICES_BANK_ACCOUNT_NUMBER),
+            ("SWIFT code", settings.INVOICES_BANK_SWIFT_CODE),
+            ("Reference", self.data.number),
+        ]
+        for label, value in bank_rows:
+            if value is None:
+                continue
+            self.set_font(style="B")
+            self.cell(label_w, self.cell_height(), text=label)
+            self.set_font(style="")
+            self.cell(
+                w=0,
+                h=self.cell_height(),
+                text=value,
+                new_x=XPos.LMARGIN,
+                new_y=YPos.NEXT,
+            )
+
     def set_metadata(self) -> None:
-        """Set metadata for the PDF document."""
         self.set_title(f"Invoice {self.data.number}")
         self.set_creator("Spaire")
         self.set_author(settings.INVOICES_NAME)

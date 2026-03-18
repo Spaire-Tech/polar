@@ -316,6 +316,12 @@ class Settings(BaseSettings):
     INVOICES_ADDITIONAL_INFO: str | None = "[support@spairehq.com](mailto:support@spairehq.com)"
     PAYOUT_INVOICES_PREFIX: str = "SPAIRE-"
 
+    # Bank transfer details shown on invoices (all optional; section hidden if INVOICES_BANK_NAME is unset)
+    INVOICES_BANK_NAME: str | None = None
+    INVOICES_BANK_ROUTING_NUMBER: str | None = None
+    INVOICES_BANK_ACCOUNT_NUMBER: str | None = None
+    INVOICES_BANK_SWIFT_CODE: str | None = None
+
     # Application behaviours
     API_PAGINATION_MAX_LIMIT: int = 100
 

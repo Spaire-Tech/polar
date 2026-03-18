@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from datetime import date
 from typing import Any
 
+import httpx
 import stripe as stripe_lib
 import structlog
 
@@ -396,14 +397,9 @@ class ClientInvoiceService:
         invoice: ClientInvoice,
         organization: OrganizationModel,
         customer: Customer,
+        logo_bytes: bytes | None = None,
     ) -> bytes:
         """Generate a PDF for the given client invoice and return as bytes."""
-        notes_parts: list[str] = []
-        if invoice.include_payment_link and invoice.checkout_link:
-            notes_parts.append(f"Pay online: {invoice.checkout_link}")
-        if invoice.memo:
-            notes_parts.append(invoice.memo)
-
         inv = Invoice(
             number=str(invoice.id)[:8].upper(),
             date=invoice.created_at,
@@ -426,11 +422,34 @@ class ClientInvoiceService:
             tax_amount=invoice.tax_amount,
             tax_rate=None,
             currency=invoice.currency,
-            notes="\n".join(notes_parts) if notes_parts else None,
+            notes=invoice.memo or None,
+            checkout_link=(
+                invoice.checkout_link if invoice.include_payment_link else None
+            ),
+            due_date=invoice.due_date,
+            on_behalf_of_label=invoice.on_behalf_of_label,
         )
-        generator = InvoiceGenerator(inv, heading_title="Invoice")
+        generator = InvoiceGenerator(
+            inv,
+            heading_title="Invoice",
+            logo_bytes=logo_bytes,
+            logo_label="via spaire" if logo_bytes else None,
+        )
         generator.generate()
         return bytes(generator.output())
+
+    @staticmethod
+    async def _fetch_logo_bytes(url: str | None) -> bytes | None:
+        if not url:
+            return None
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.get(url)
+                if response.status_code == 200:
+                    return response.content
+        except Exception:
+            pass
+        return None
 
     async def get_pdf_bytes(
         self,
@@ -448,7 +467,8 @@ class ClientInvoiceService:
         organization = await org_repo.get_by_id(invoice.organization_id)
         assert organization is not None
 
-        return self._build_invoice_pdf_bytes(invoice, organization, customer)
+        logo_bytes = await self._fetch_logo_bytes(organization.avatar_url)
+        return self._build_invoice_pdf_bytes(invoice, organization, customer, logo_bytes)
 
     async def send(
         self,
@@ -491,7 +511,10 @@ class ClientInvoiceService:
         # Send our own invoice email (not Stripe's)
         try:
             # Generate PDF attachment
-            pdf_bytes = self._build_invoice_pdf_bytes(invoice, organization, customer)
+            logo_bytes = await self._fetch_logo_bytes(organization.avatar_url)
+            pdf_bytes = self._build_invoice_pdf_bytes(
+                invoice, organization, customer, logo_bytes
+            )
             invoice_number = str(invoice.id)[:8].upper()
             attachment: Attachment = {
                 "filename": f"invoice-{invoice_number}.pdf",
