@@ -3,6 +3,7 @@ from collections.abc import Sequence
 from datetime import date
 from typing import Any
 
+import stripe as stripe_lib
 import structlog
 
 from polar.auth.models import AuthSubject, Organization, User
@@ -115,7 +116,8 @@ class ClientInvoiceService:
                 )
 
         # Ensure the Stripe customer exists on the platform account
-        if customer.stripe_customer_id is None:
+        async def _ensure_stripe_customer() -> str:
+            nonlocal customer
             create_params: dict[str, Any] = {"email": customer.email}
             if customer.billing_name is not None:
                 create_params["name"] = customer.billing_name
@@ -123,13 +125,39 @@ class ClientInvoiceService:
                 create_params["name"] = customer.name
             if customer.billing_address is not None:
                 create_params["address"] = customer.billing_address.to_dict()
-
             stripe_customer = await stripe_service.create_customer(**create_params)
             customer = await customer_repository.update(
                 customer,
                 update_dict={"stripe_customer_id": stripe_customer.id},
                 flush=True,
             )
+            return stripe_customer.id
+
+        if customer.stripe_customer_id is None:
+            await _ensure_stripe_customer()
+        else:
+            # Verify the customer still exists and is not deleted in Stripe;
+            # re-create if stale (deleted customers return deleted=True, not an error)
+            needs_recreate = False
+            try:
+                existing = await stripe_service.get_customer(
+                    customer.stripe_customer_id
+                )
+                if getattr(existing, "deleted", False):
+                    needs_recreate = True
+            except stripe_lib.InvalidRequestError as e:
+                if e.code == "resource_missing":
+                    needs_recreate = True
+                else:
+                    raise
+
+            if needs_recreate:
+                log.warning(
+                    "client_invoice.create_draft.stripe_customer_stale",
+                    stripe_customer_id=customer.stripe_customer_id,
+                    customer_id=str(customer.id),
+                )
+                await _ensure_stripe_customer()
 
         assert customer.stripe_customer_id is not None
 
@@ -191,7 +219,7 @@ class ClientInvoiceService:
             )
 
         footer = (
-            f"Issued by Spaire Technology as Merchant of Record "
+            f"Issued by Spaire, Inc. as Merchant of Record "
             f"on behalf of {on_behalf_of_label}."
         )
 
@@ -295,6 +323,7 @@ class ClientInvoiceService:
                 discount_label=create_schema.discount_label,
                 include_payment_link=create_schema.include_payment_link,
                 stripe_hosted_invoice_url=stripe_invoice.hosted_invoice_url,
+                checkout_link=stripe_invoice.hosted_invoice_url,
                 user_metadata=create_schema.user_metadata,
             ),
             flush=True,
@@ -317,7 +346,12 @@ class ClientInvoiceService:
                 )
             )
 
-        return client_invoice
+        # Flush line items then reload the invoice so the selectin relationship
+        # is populated before Pydantic serializes the response.
+        await session.flush()
+        refreshed = await repository.get_by_id(client_invoice.id)
+        assert refreshed is not None
+        return refreshed
 
     async def send(
         self,

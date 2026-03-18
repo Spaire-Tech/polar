@@ -8,18 +8,23 @@ import {
   useSendClientInvoice,
   useVoidClientInvoice,
 } from '@/hooks/queries/client_invoices'
+import { useCustomer } from '@/hooks/queries/customers'
 import OpenInNew from '@mui/icons-material/OpenInNew'
 import Send from '@mui/icons-material/Send'
 import { schemas } from '@spaire/client'
+import { formatCurrency } from '@spaire/currency'
 import Button from '@spaire/ui/components/atoms/Button'
 import FormattedDateTime from '@spaire/ui/components/atoms/FormattedDateTime'
 import ShadowBox from '@spaire/ui/components/atoms/ShadowBox'
-import { formatCurrency } from '@spaire/currency'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import React, { useState } from 'react'
 
-const statusColors: Record<string, string> = {
+interface InvoicePageProps {
+  organization: schemas['Organization']
+  invoiceId: string
+}
+
+const STATUS_BADGE: Record<string, string> = {
   draft:
     'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
   open: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
@@ -29,26 +34,23 @@ const statusColors: Record<string, string> = {
     'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
 }
 
-interface InvoicePageProps {
-  organization: schemas['Organization']
-  invoiceId: string
-}
-
 const InvoicePage: React.FC<InvoicePageProps> = ({
   organization,
   invoiceId,
 }) => {
-  const router = useRouter()
   const [confirmVoid, setConfirmVoid] = useState(false)
 
   const { data: invoice, isLoading } = useClientInvoice(invoiceId)
+  const { data: customer } = useCustomer(
+    invoice ? invoice.customer_id.toString() : null,
+  )
   const sendInvoice = useSendClientInvoice(invoiceId)
   const voidInvoice = useVoidClientInvoice(invoiceId)
 
   if (isLoading || !invoice) {
     return (
-      <DashboardBody title="Invoice">
-        <div className="dark:bg-spaire-800 h-32 animate-pulse rounded-xl bg-gray-100" />
+      <DashboardBody title="Invoice" wrapperClassName="max-w-(--breakpoint-lg)!">
+        <div className="h-96 animate-pulse rounded-2xl bg-gray-100 dark:bg-gray-800" />
       </DashboardBody>
     )
   }
@@ -56,7 +58,7 @@ const InvoicePage: React.FC<InvoicePageProps> = ({
   const handleSend = async () => {
     try {
       await sendInvoice.mutateAsync()
-      toast({ title: 'Invoice sent' })
+      toast({ title: 'Invoice sent successfully' })
     } catch (err: any) {
       toast({
         title: 'Failed to send invoice',
@@ -87,173 +89,41 @@ const InvoicePage: React.FC<InvoicePageProps> = ({
   const isOpen = invoice.status === 'open'
   const isVoidable = isDraft || isOpen
 
+  const fmt = (cents: number) =>
+    formatCurrency('accounting')(cents, invoice.currency)
+
+  // Stripe dashboard URL for admin access
+  const stripeDashboardUrl = invoice.stripe_invoice_id
+    ? `https://dashboard.stripe.com/invoices/${invoice.stripe_invoice_id}`
+    : null
+
   return (
     <DashboardBody
       title={
-        <div className="flex flex-row items-center gap-3">
+        <div className="flex items-center gap-3">
           <span>Invoice</span>
           <span
-            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${statusColors[invoice.status] ?? ''}`}
+            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${STATUS_BADGE[invoice.status] ?? ''}`}
           >
             {invoice.status}
           </span>
         </div>
       }
-      header={
-        <div className="flex gap-2">
-          {invoice.stripe_hosted_invoice_url && (
-            <a
-              href={invoice.stripe_hosted_invoice_url}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Button variant="secondary" size="sm">
-                <OpenInNew fontSize="small" />
-                View online
-              </Button>
-            </a>
-          )}
-          {isDraft && (
-            <Button
-              size="sm"
-              loading={sendInvoice.isPending}
-              onClick={handleSend}
-            >
-              <Send fontSize="small" />
-              Send Invoice
-            </Button>
-          )}
-          {isVoidable && (
-            <Button
-              variant="secondary"
-              size="sm"
-              loading={voidInvoice.isPending}
-              onClick={handleVoid}
-              className={
-                confirmVoid
-                  ? 'border-red-500 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20'
-                  : ''
-              }
-            >
-              {confirmVoid ? 'Confirm void?' : 'Void'}
-            </Button>
-          )}
-        </div>
-      }
+      wrapperClassName="max-w-(--breakpoint-lg)!"
     >
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-        {/* Main content */}
-        <div className="flex flex-1 flex-col gap-6">
-          {/* Line items */}
-          <ShadowBox className="flex flex-col gap-0 p-0">
-            <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-700">
-              <h3 className="text-sm font-medium dark:text-white">Items</h3>
-            </div>
-            <div className="flex flex-col">
-              <div className="grid grid-cols-[1fr_60px_100px_100px] gap-3 border-b border-gray-100 px-6 py-2 text-xs text-gray-400 dark:border-gray-800 dark:text-gray-500">
-                <span>Description</span>
-                <span className="text-center">Qty</span>
-                <span className="text-right">Unit price</span>
-                <span className="text-right">Amount</span>
-              </div>
-              {invoice.line_items.map((item) => (
-                <div
-                  key={item.id}
-                  className="grid grid-cols-[1fr_60px_100px_100px] items-center gap-3 border-b border-gray-100 px-6 py-3 text-sm last:border-0 dark:border-gray-800"
-                >
-                  <span className="dark:text-white">{item.description}</span>
-                  <span className="text-center text-gray-500">
-                    {item.quantity}
-                  </span>
-                  <span className="text-right text-gray-500">
-                    {formatCurrency('compact')(item.unit_amount, invoice.currency)}
-                  </span>
-                  <span className="text-right font-medium dark:text-white">
-                    {formatCurrency('compact')(item.amount, invoice.currency)}
-                  </span>
-                </div>
-              ))}
-            </div>
-            {/* Totals */}
-            <div className="border-t border-gray-200 px-6 py-4 dark:border-gray-700">
-              <div className="flex flex-col items-end gap-2 text-sm">
-                <div className="flex w-48 justify-between text-gray-500">
-                  <span>Subtotal</span>
-                  <span>
-                    {formatCurrency('compact')(
-                      invoice.subtotal_amount,
-                      invoice.currency,
-                    )}
-                  </span>
-                </div>
-                {invoice.discount_amount > 0 && (
-                  <div className="flex w-48 justify-between text-green-600 dark:text-green-400">
-                    <span>{invoice.discount_label ?? 'Discount'}</span>
-                    <span>
-                      -
-                      {formatCurrency('compact')(
-                        invoice.discount_amount,
-                        invoice.currency,
-                      )}
-                    </span>
-                  </div>
-                )}
-                {invoice.tax_amount > 0 && (
-                  <div className="flex w-48 justify-between text-gray-500">
-                    <span>Tax</span>
-                    <span>
-                      {formatCurrency('compact')(
-                        invoice.tax_amount,
-                        invoice.currency,
-                      )}
-                    </span>
-                  </div>
-                )}
-                <div className="flex w-48 justify-between border-t border-gray-200 pt-2 font-semibold dark:border-gray-700 dark:text-white">
-                  <span>Total</span>
-                  <span>
-                    {formatCurrency('compact')(
-                      invoice.total_amount,
-                      invoice.currency,
-                    )}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </ShadowBox>
-
-          {/* Payment link */}
-          {invoice.stripe_hosted_invoice_url && invoice.include_payment_link && (
-            <ShadowBox className="flex flex-col gap-3">
-              <h3 className="text-sm font-medium dark:text-white">
-                Payment Link
-              </h3>
-              <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800">
-                <span className="flex-1 truncate text-xs text-blue-500 underline">
-                  {invoice.stripe_hosted_invoice_url}
-                </span>
-                <a
-                  href={invoice.stripe_hosted_invoice_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <OpenInNew
-                    fontSize="small"
-                    className="text-gray-400 hover:text-gray-600"
-                  />
-                </a>
-              </div>
-            </ShadowBox>
-          )}
-        </div>
-
-        {/* Right: invoice details */}
-        <div className="w-full lg:w-72">
-          <ShadowBox className="flex flex-col gap-4">
-            <h3 className="text-sm font-medium dark:text-white">Details</h3>
-            <DetailRow label="Invoice ID" value={invoice.id} />
+      <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
+        {/* ── Main content ─────────────────────────────────────────── */}
+        <div className="min-w-0 flex-1 flex flex-col gap-8">
+          {/* Customer section */}
+          <div className="flex flex-col">
+            {customer?.name && (
+              <DetailRow label="Customer" value={customer.name} />
+            )}
+            {customer?.email && (
+              <DetailRow label="Email" value={customer.email} />
+            )}
             <DetailRow
-              label="Created"
+              label="Invoice date"
               value={<FormattedDateTime datetime={invoice.created_at} />}
             />
             {invoice.due_date && (
@@ -262,15 +132,8 @@ const InvoicePage: React.FC<InvoicePageProps> = ({
                 value={<FormattedDateTime datetime={invoice.due_date} />}
               />
             )}
-            <DetailRow
-              label="Currency"
-              value={invoice.currency.toUpperCase()}
-            />
-            {invoice.memo && (
-              <DetailRow label="Notes" value={invoice.memo} />
-            )}
             {invoice.po_number && (
-              <DetailRow label="PO Number" value={invoice.po_number} />
+              <DetailRow label="PO number" value={invoice.po_number} />
             )}
             {invoice.on_behalf_of_label && (
               <DetailRow
@@ -278,19 +141,170 @@ const InvoicePage: React.FC<InvoicePageProps> = ({
                 value={invoice.on_behalf_of_label}
               />
             )}
-            {invoice.order_id && (
+          </div>
+
+          {/* Line items */}
+          {invoice.line_items.length > 0 && (
+            <div className="flex flex-col gap-4">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                Items
+              </h3>
+              <div className="flex flex-col">
+                {invoice.line_items.map((item) => (
+                  <DetailRow
+                    key={item.id}
+                    label={
+                      item.quantity > 1
+                        ? `${item.description} × ${item.quantity}`
+                        : item.description
+                    }
+                    value={fmt(item.unit_amount * item.quantity)}
+                    valueClassName="justify-end"
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Totals */}
+          <div className="flex flex-col">
+            <DetailRow
+              label="Subtotal"
+              value={fmt(invoice.subtotal_amount)}
+              valueClassName="justify-end"
+            />
+            {invoice.discount_amount > 0 && (
               <DetailRow
-                label="Order"
-                value={
-                  <Link
-                    href={`/dashboard/${organization.slug}/sales/${invoice.order_id}`}
-                    className="text-blue-500 underline"
-                  >
-                    View order
-                  </Link>
-                }
+                label={invoice.discount_label ?? 'Discount'}
+                value={fmt(-invoice.discount_amount)}
+                valueClassName="justify-end"
               />
             )}
+            {invoice.tax_amount > 0 && (
+              <DetailRow
+                label="Tax"
+                value={fmt(invoice.tax_amount)}
+                valueClassName="justify-end"
+              />
+            )}
+            <DetailRow
+              label="Total"
+              value={fmt(invoice.total_amount)}
+              valueClassName="justify-end font-semibold text-gray-900 dark:text-white"
+              labelClassName="font-semibold text-gray-900 dark:text-white"
+            />
+          </div>
+
+          {/* Memo */}
+          {invoice.memo && (
+            <div className="rounded-xl bg-gray-50 px-4 py-3 dark:bg-gray-900">
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                Note
+              </p>
+              <p className="mt-1 text-sm leading-relaxed text-gray-600 dark:text-gray-300">
+                {invoice.memo}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* ── Sidebar: actions + details ───────────────────────────── */}
+        <div className="w-full lg:w-64 lg:flex-shrink-0">
+          <ShadowBox className="flex flex-col gap-5">
+            {/* Actions */}
+            <div className="flex flex-col gap-2">
+              {isDraft && (
+                <Button
+                  fullWidth
+                  loading={sendInvoice.isPending}
+                  onClick={handleSend}
+                >
+                  <Send fontSize="small" />
+                  Send Invoice
+                </Button>
+              )}
+              {isOpen && invoice.checkout_link && (
+                <a
+                  href={invoice.checkout_link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full"
+                >
+                  <Button fullWidth>
+                    Pay online
+                  </Button>
+                </a>
+              )}
+              {stripeDashboardUrl && (
+                <a
+                  href={stripeDashboardUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full"
+                >
+                  <Button variant="secondary" fullWidth>
+                    <OpenInNew fontSize="small" />
+                    View on Stripe
+                  </Button>
+                </a>
+              )}
+              {isVoidable && (
+                <Button
+                  variant="secondary"
+                  fullWidth
+                  loading={voidInvoice.isPending}
+                  onClick={handleVoid}
+                  className={
+                    confirmVoid
+                      ? 'border-red-300 text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950/30'
+                      : ''
+                  }
+                >
+                  {confirmVoid ? 'Confirm void?' : 'Void invoice'}
+                </Button>
+              )}
+            </div>
+
+            <div className="border-t border-gray-100 dark:border-gray-800" />
+
+            {/* Details */}
+            <div className="flex flex-col gap-3">
+              <DetailRow
+                label="Invoice ID"
+                value={
+                  <span className="font-mono text-xs">
+                    {invoice.id.slice(0, 8).toUpperCase()}
+                  </span>
+                }
+              />
+              <DetailRow
+                label="Created"
+                value={<FormattedDateTime datetime={invoice.created_at} />}
+              />
+              {invoice.due_date && (
+                <DetailRow
+                  label="Due"
+                  value={<FormattedDateTime datetime={invoice.due_date} />}
+                />
+              )}
+              <DetailRow
+                label="Currency"
+                value={invoice.currency.toUpperCase()}
+              />
+              {invoice.order_id && (
+                <DetailRow
+                  label="Order"
+                  value={
+                    <Link
+                      href={`/dashboard/${organization.slug}/sales/${invoice.order_id}`}
+                      className="text-blue-500 underline"
+                    >
+                      View order
+                    </Link>
+                  }
+                />
+              )}
+            </div>
           </ShadowBox>
         </div>
       </div>

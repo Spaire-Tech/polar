@@ -1,7 +1,7 @@
 """Add extra fields to client_invoices
 
-Revision ID: b2c3d4e5f6a7
-Revises: a1b2c3d4e5f6
+Revision ID: cdaa3d0a2471
+Revises: a35f45bcfadd
 Create Date: 2026-03-17 01:00:00.000000
 
 """
@@ -11,8 +11,8 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = "4c7f9b2d5e8a"
-down_revision = "2e4f6a8b0c1d"
+revision = "cdaa3d0a2471"
+down_revision = "a35f45bcfadd"
 branch_labels = None
 depends_on = None
 

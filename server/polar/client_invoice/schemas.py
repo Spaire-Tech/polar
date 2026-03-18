@@ -92,6 +92,7 @@ class ClientInvoiceSchema(TimestampedSchema, IDSchema):
     discount_label: str | None
     include_payment_link: bool
     stripe_hosted_invoice_url: str | None
+    checkout_link: str | None
     user_metadata: dict[str, Any] | None
     order_id: UUID4 | None
     line_items: list[ClientInvoiceLineItemSchema] = Field(default_factory=list)
