@@ -179,7 +179,7 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
             <div className="absolute inset-x-0 bottom-0 flex items-end justify-between p-8">
               <div className="flex max-w-sm flex-col gap-3">
-                <h3 className="text-5xl font-bold text-white">
+                <h3 className="text-4xl font-bold text-white">
                   Create and send invoices in minutes
                 </h3>
                 <p className="text-sm text-gray-400">
@@ -188,7 +188,10 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
                 </p>
               </div>
               <Link href={`/dashboard/${organization.slug}/invoices/new`} className="ml-8 shrink-0">
-                <Button>
+                <Button
+                  size="lg"
+                  className="bg-white text-black hover:bg-gray-100 hover:opacity-100 border-white/20"
+                >
                   Create Invoice
                 </Button>
               </Link>

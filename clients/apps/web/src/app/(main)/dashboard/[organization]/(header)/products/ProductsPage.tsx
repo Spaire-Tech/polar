@@ -15,7 +15,6 @@ import {
   sortingStateToQueryParam,
 } from '@/utils/datatable'
 import AddOutlined from '@mui/icons-material/AddOutlined'
-import HiveOutlined from '@mui/icons-material/HiveOutlined'
 import Search from '@mui/icons-material/Search'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
@@ -229,26 +228,31 @@ export default function ClientPage({
             </List>
           </Pagination>
         ) : (
-          <ShadowBoxOnMd className="items-center justify-center gap-y-6 md:flex md:flex-col md:py-24">
-            <div className="flex max-w-md flex-col items-center gap-y-6 text-center">
-              <HiveOutlined
-                className="dark:text-spaire-600 text-5xl text-gray-300"
-                fontSize="large"
-              />
-              <div className="flex flex-col items-center gap-y-2">
-                <h3 className="text-xl font-medium">
+          <ShadowBoxOnMd className="relative overflow-hidden p-0 md:p-0">
+            <img
+              src="https://spaire-production-files-public.s3.us-east-1.amazonaws.com/Untitled+design+(38).png"
+              alt=""
+              aria-hidden="true"
+              className="h-[640px] w-full object-cover object-top"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+            <div className="absolute inset-x-0 bottom-0 flex items-end justify-between p-8">
+              <div className="flex max-w-sm flex-col gap-3">
+                <h3 className="text-4xl font-bold text-white">
                   Create your first product
                 </h3>
-                <p className="dark:text-spaire-500 text-gray-500">
-                  Products are what your customers purchase — subscriptions,
-                  one-time payments, or usage-based plans. Set up pricing,
-                  benefits, and checkout in one place.
+                <p className="text-sm text-gray-400">
+                  Sell subscriptions, one-time payments, or usage-based plans
+                  with checkout built in.
                 </p>
               </div>
-              <Button onClick={showCreateModal}>
-                  <AddOutlined className="h-4 w-4" />
-                  <span>Create product</span>
-                </Button>
+              <Button
+                size="lg"
+                className="ml-8 shrink-0 bg-white text-black hover:bg-gray-100 hover:opacity-100 border-white/20"
+                onClick={showCreateModal}
+              >
+                Create Product
+              </Button>
             </div>
           </ShadowBoxOnMd>
         )}
