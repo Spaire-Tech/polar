@@ -5,6 +5,7 @@ import ExtensionOutlined from '@mui/icons-material/ExtensionOutlined'
 import HiveOutlined from '@mui/icons-material/HiveOutlined'
 import PeopleAltOutlined from '@mui/icons-material/PeopleAltOutlined'
 import LayersOutlined from '@mui/icons-material/LayersOutlined'
+import ReceiptLongOutlined from '@mui/icons-material/ReceiptLongOutlined'
 import ShoppingBagOutlined from '@mui/icons-material/ShoppingBagOutlined'
 import SpaceDashboardOutlined from '@mui/icons-material/SpaceDashboardOutlined'
 import TrendingUp from '@mui/icons-material/TrendingUp'
@@ -182,6 +183,16 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
     if: true,
   },
   {
+    id: 'invoices',
+    title: 'Invoices',
+    icon: <ReceiptLongOutlined fontSize="inherit" />,
+    link: `/dashboard/${org?.slug}/invoices`,
+    checkIsActive: (currentRoute: string): boolean => {
+      return currentRoute.startsWith(`/dashboard/${org?.slug}/invoices`)
+    },
+    if: true,
+  },
+  {
     id: 'analytics',
     title: 'Analytics',
     icon: <TrendingUp fontSize="inherit" />,
@@ -192,8 +203,8 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
     if: true,
   },
   {
-    id: 'revenue',
-    title: 'Revenue',
+    id: 'sales',
+    title: 'Sales',
     icon: <ShoppingBagOutlined fontSize="inherit" />,
     link: `/dashboard/${org?.slug}/sales`,
     checkIsActive: (currentRoute: string): boolean => {

@@ -867,7 +867,7 @@ const NewInvoicePage = ({
           onClose()
         } else {
           router.push(
-            `/dashboard/${organization.slug}/sales/invoices/${invoice.id}`,
+            `/dashboard/${organization.slug}/invoices/${invoice.id}`,
           )
         }
       } catch (err: any) {
