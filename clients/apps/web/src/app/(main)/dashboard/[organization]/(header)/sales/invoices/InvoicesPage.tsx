@@ -158,28 +158,35 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
       <div className="flex flex-col gap-8 p-4 pb-16 md:p-8">
         <div className="flex flex-row items-center justify-between">
           <h1 className="text-xl font-medium dark:text-white">Invoices</h1>
-          <Link href={`/dashboard/${organization.slug}/invoices/new`}>
-            <Button>
-              <AddOutlined fontSize="small" />
-              New Invoice
-            </Button>
-          </Link>
+          {invoices.length > 0 && (
+            <Link href={`/dashboard/${organization.slug}/invoices/new`}>
+              <Button>
+                <AddOutlined fontSize="small" />
+                New Invoice
+              </Button>
+            </Link>
+          )}
         </div>
 
         {!invoicesHook.isLoading && invoices.length === 0 ? (
           <ShadowBoxOnMd className="relative overflow-hidden p-0 md:py-0">
             <img
-              src="https://spaire-production-files-public.s3.us-east-1.amazonaws.com/_+(12).jpeg"
+              src="https://spaire-production-files-public.s3.us-east-1.amazonaws.com/Untitled+design+-+2026-03-18T034247.543.png"
               alt=""
               aria-hidden="true"
               className="h-[480px] w-full object-cover object-top"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
             <div className="absolute inset-x-0 bottom-0 flex items-end justify-between p-6">
-              <h3 className="text-xl font-medium text-white">
-                Create and send invoices in minutes
-              </h3>
-              <Link href={`/dashboard/${organization.slug}/invoices/new`}>
+              <div className="flex flex-col gap-1">
+                <h3 className="text-xl font-medium text-white">
+                  Create and send invoices in minutes
+                </h3>
+                <p className="text-sm text-gray-300">
+                  Send invoices with a link to pay online. Accept cards, bank transfers, and more.
+                </p>
+              </div>
+              <Link href={`/dashboard/${organization.slug}/invoices/new`} className="ml-6 shrink-0">
                 <Button>
                   <AddOutlined className="h-4 w-4" />
                   <span>Create Invoice</span>
