@@ -167,16 +167,14 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
         </div>
 
         {!invoicesHook.isLoading && invoices.length === 0 ? (
-          <div
-            className="relative overflow-hidden rounded-2xl"
-            style={{
-              backgroundImage:
-                'url(https://spaire-production-files-public.s3.us-east-1.amazonaws.com/_+(12).jpeg)',
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              minHeight: 280,
-            }}
-          >
+          <div className="relative overflow-hidden rounded-2xl" style={{ minHeight: 280 }}>
+            {/* Background image */}
+            <img
+              src="https://spaire-production-files-public.s3.us-east-1.amazonaws.com/_+(12).jpeg"
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 h-full w-full object-cover object-center"
+            />
             {/* Dark overlay for readability */}
             <div className="absolute inset-0 bg-black/50" />
             <div className="relative flex h-full min-h-[280px] items-center justify-between px-10 py-12">
