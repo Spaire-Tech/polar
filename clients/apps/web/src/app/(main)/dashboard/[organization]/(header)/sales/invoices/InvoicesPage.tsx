@@ -1,5 +1,6 @@
 'use client'
 
+import { DashboardBody } from '@/components/Layout/DashboardLayout'
 import {
   ClientInvoice,
   useClientInvoices,
@@ -154,29 +155,17 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
   ]
 
   return (
-    <>
-      <div className="flex flex-col gap-8 p-4 pb-16 md:p-8">
-        <div className="flex flex-row items-center justify-between">
-          <h1 className="text-xl font-medium dark:text-white">Invoices</h1>
-          {invoices.length > 0 && (
-            <Link href={`/dashboard/${organization.slug}/invoices/new`}>
-              <Button>
-                <AddOutlined fontSize="small" />
-                New Invoice
-              </Button>
-            </Link>
-          )}
-        </div>
-
+    <DashboardBody>
+      <div className="flex flex-col gap-y-8">
         {!invoicesHook.isLoading && invoices.length === 0 ? (
           <ShadowBoxOnMd className="relative overflow-hidden p-0 md:p-0">
             <img
               src="https://spaire-production-files-public.s3.us-east-1.amazonaws.com/Untitled+design+-+2026-03-18T034247.543.png"
               alt=""
               aria-hidden="true"
-              className="h-[640px] w-full object-cover object-top"
+              className="h-[640px] w-full scale-110 object-cover object-top blur-sm"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
             <div className="absolute inset-x-0 bottom-0 flex items-end justify-between p-8">
               <div className="flex max-w-sm flex-col gap-3">
                 <h3 className="text-4xl font-bold text-white">
@@ -198,26 +187,36 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
             </div>
           </ShadowBoxOnMd>
         ) : (
-          <DataTable
-            columns={columns}
-            data={invoices}
-            rowCount={rowCount}
-            pageCount={pageCount}
-            pagination={pagination}
-            onPaginationChange={setPagination}
-            sorting={sorting}
-            onSortingChange={setSorting}
-            isLoading={invoicesHook.isLoading}
-            onRowClick={(row) =>
-              router.push(
-                `/dashboard/${organization.slug}/invoices/${row.original.id}`,
-              )
-            }
-          />
+          <>
+            <div className="flex flex-row items-center justify-between">
+              <h1 className="text-xl font-medium dark:text-white">Invoices</h1>
+              <Link href={`/dashboard/${organization.slug}/invoices/new`}>
+                <Button>
+                  <AddOutlined fontSize="small" />
+                  New Invoice
+                </Button>
+              </Link>
+            </div>
+            <DataTable
+              columns={columns}
+              data={invoices}
+              rowCount={rowCount}
+              pageCount={pageCount}
+              pagination={pagination}
+              onPaginationChange={setPagination}
+              sorting={sorting}
+              onSortingChange={setSorting}
+              isLoading={invoicesHook.isLoading}
+              onRowClick={(row) =>
+                router.push(
+                  `/dashboard/${organization.slug}/invoices/${row.original.id}`,
+                )
+              }
+            />
+          </>
         )}
       </div>
-
-    </>
+    </DashboardBody>
   )
 }
 
