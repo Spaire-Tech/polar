@@ -174,22 +174,21 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
               src="https://spaire-production-files-public.s3.us-east-1.amazonaws.com/Untitled+design+-+2026-03-18T034247.543.png"
               alt=""
               aria-hidden="true"
-              className="h-[480px] w-full object-cover object-top"
+              className="h-[560px] w-full object-cover object-top"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-            <div className="absolute inset-x-0 bottom-0 flex items-end justify-between p-6">
-              <div className="flex flex-col gap-1">
-                <h3 className="text-xl font-medium text-white">
+            <div className="absolute inset-x-0 bottom-0 flex items-end justify-between p-8">
+              <div className="flex flex-col gap-2">
+                <h3 className="text-3xl font-bold text-white">
                   Create and send invoices in minutes
                 </h3>
-                <p className="text-sm text-gray-300">
+                <p className="text-base text-gray-300">
                   Send invoices with a link to pay online. Accept cards, bank transfers, and more.
                 </p>
               </div>
-              <Link href={`/dashboard/${organization.slug}/invoices/new`} className="ml-6 shrink-0">
+              <Link href={`/dashboard/${organization.slug}/invoices/new`} className="ml-8 shrink-0">
                 <Button>
-                  <AddOutlined className="h-4 w-4" />
-                  <span>Create Invoice</span>
+                  Create Invoice
                 </Button>
               </Link>
             </div>
