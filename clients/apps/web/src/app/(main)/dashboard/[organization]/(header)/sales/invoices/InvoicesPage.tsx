@@ -1,6 +1,7 @@
 'use client'
 
 import { DashboardBody } from '@/components/Layout/DashboardLayout'
+import { InlineModal } from '@/components/Modal/InlineModal'
 import {
   ClientInvoice,
   useClientInvoices,
@@ -24,7 +25,8 @@ import ShadowBoxOnMd from '@spaire/ui/components/atoms/ShadowBoxOnMd'
 import { formatCurrency } from '@spaire/currency'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import React from 'react'
+import React, { useState } from 'react'
+import InvoicePage from './[id]/InvoicePage'
 
 const statusColors: Record<string, string> = {
   draft:
@@ -56,6 +58,7 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
   sorting,
 }) => {
   const router = useRouter()
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null)
 
   const invoicesHook = useClientInvoices(
     organization.id,
@@ -207,15 +210,28 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
               sorting={sorting}
               onSortingChange={setSorting}
               isLoading={invoicesHook.isLoading}
-              onRowClick={(row) =>
-                router.push(
-                  `/dashboard/${organization.slug}/invoices/${row.original.id}`,
-                )
-              }
+              onRowClick={(row) => setSelectedInvoiceId(row.original.id)}
             />
           </>
         )}
       </div>
+      <InlineModal
+        isShown={!!selectedInvoiceId}
+        hide={() => setSelectedInvoiceId(null)}
+        className="md:w-[720px]"
+        modalContent={
+          selectedInvoiceId ? (
+            <InvoicePage
+              organization={organization}
+              invoiceId={selectedInvoiceId}
+              panelMode
+              onClose={() => setSelectedInvoiceId(null)}
+            />
+          ) : (
+            <div />
+          )
+        }
+      />
     </DashboardBody>
   )
 }

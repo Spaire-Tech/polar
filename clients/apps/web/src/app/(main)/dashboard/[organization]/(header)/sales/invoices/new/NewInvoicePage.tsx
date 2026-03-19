@@ -578,6 +578,26 @@ const InvoicePaymentLinkSection = ({
     [linksData, linkQuery],
   )
 
+  const invoiceCurrency = useWatch<InvoiceFormValues, 'currency'>({ name: 'currency' })
+
+  const linkCurrencies = useMemo(() => {
+    if (!selectedCheckoutLink) return new Set<string>()
+    return new Set(
+      selectedCheckoutLink.products.flatMap((p) =>
+        p.prices.flatMap((price) =>
+          'price_currency' in price && price.price_currency
+            ? [price.price_currency as string]
+            : [],
+        ),
+      ),
+    )
+  }, [selectedCheckoutLink])
+
+  const hasCurrencyMismatch =
+    selectedCheckoutLink !== null &&
+    linkCurrencies.size > 0 &&
+    !linkCurrencies.has(invoiceCurrency.toLowerCase())
+
   return (
     <Section
       compact
@@ -624,6 +644,18 @@ const InvoicePaymentLinkSection = ({
               Copy
             </button>
           </div>
+        )}
+
+        {hasCurrencyMismatch && (
+          <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600 dark:bg-red-950/40 dark:text-red-400">
+            Currency mismatch: the invoice is in{' '}
+            <strong>{invoiceCurrency.toUpperCase()}</strong> but this checkout
+            link is in{' '}
+            <strong>{[...linkCurrencies].map((c) => c.toUpperCase()).join(' / ')}</strong>.
+            The customer will be charged in the checkout link&apos;s currency,
+            which may be confusing. Please select a matching checkout link or
+            change the invoice currency.
+          </p>
         )}
 
         <button
@@ -804,6 +836,25 @@ const NewInvoicePage = ({
       if (!values.customer_id) {
         form.setError('customer_id', { message: 'Please select a customer' })
         return
+      }
+
+      if (selectedCheckoutLink) {
+        const linkCurrencies = new Set(
+          selectedCheckoutLink.products.flatMap((p) =>
+            p.prices.flatMap((price) =>
+              'price_currency' in price && price.price_currency
+                ? [price.price_currency as string]
+                : [],
+            ),
+          ),
+        )
+        if (linkCurrencies.size > 0 && !linkCurrencies.has(values.currency.toLowerCase())) {
+          toast({
+            title: 'Currency mismatch',
+            description: `The invoice currency (${values.currency.toUpperCase()}) does not match the checkout link currency (${[...linkCurrencies].map((c) => c.toUpperCase()).join(' / ')}). Please fix this before sending.`,
+          })
+          return
+        }
       }
 
       setIsSubmitting(true)
