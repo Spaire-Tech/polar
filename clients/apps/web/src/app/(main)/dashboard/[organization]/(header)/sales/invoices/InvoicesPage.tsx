@@ -160,12 +160,12 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
         {!invoicesHook.isLoading && invoices.length === 0 ? (
           <ShadowBoxOnMd className="relative overflow-hidden p-0 md:p-0">
             <img
-              src="https://spaire-production-files-public.s3.us-east-1.amazonaws.com/Untitled+design+-+2026-03-18T034247.543.png"
+              src="https://spaire-production-files-public.s3.us-east-1.amazonaws.com/Untitled+design+-+2026-03-19T000318.337.png"
               alt=""
               aria-hidden="true"
-              className="h-[640px] w-full scale-110 object-cover object-top blur-sm"
+              className="h-[640px] w-full object-cover object-top"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent" />
             <div className="absolute inset-x-0 bottom-0 flex items-end justify-between p-8">
               <div className="flex max-w-sm flex-col gap-3">
                 <h3 className="text-4xl font-bold text-white">
