@@ -1,6 +1,7 @@
 'use client'
 
 import { DashboardBody } from '@/components/Layout/DashboardLayout'
+import { InlineModalHeader } from '@/components/Modal/InlineModal'
 import { DownloadInvoiceDashboard } from '@/components/Orders/DownloadInvoice'
 import { DetailRow } from '@/components/Shared/DetailRow'
 import { toast } from '@/components/Toast/use-toast'
@@ -28,6 +29,8 @@ import { twMerge } from 'tailwind-merge'
 interface InvoicePageProps {
   organization: schemas['Organization']
   invoiceId: string
+  panelMode?: boolean
+  onClose?: () => void
 }
 
 const STATUS_COLOR: Record<string, string> = {
@@ -94,6 +97,8 @@ const InvoiceCustomerSidebar = ({
 const InvoicePage: React.FC<InvoicePageProps> = ({
   organization,
   invoiceId,
+  panelMode = false,
+  onClose,
 }) => {
   const [confirmVoid, setConfirmVoid] = useState(false)
   const [isDownloading, setIsDownloading] = useState(false)
@@ -118,6 +123,18 @@ const InvoicePage: React.FC<InvoicePageProps> = ({
   const finalizeInvoice = useFinalizeClientInvoice(invoiceId)
 
   if (isLoading || !invoice) {
+    if (panelMode) {
+      return (
+        <div className="flex h-full flex-col">
+          <InlineModalHeader hide={onClose ?? (() => {})}>
+            <span>Invoice</span>
+          </InlineModalHeader>
+          <div className="p-8">
+            <div className="h-96 animate-pulse rounded-2xl bg-gray-100 dark:bg-gray-800" />
+          </div>
+        </div>
+      )
+    }
     return (
       <DashboardBody title="Invoice" wrapperClassName="max-w-(--breakpoint-lg)!">
         <div className="h-96 animate-pulse rounded-2xl bg-gray-100 dark:bg-gray-800" />
@@ -186,6 +203,111 @@ const InvoicePage: React.FC<InvoicePageProps> = ({
   const fmt = (cents: number) =>
     formatCurrency('accounting')(cents, invoice.currency)
 
+  const actionButtons = (
+    <div className="flex items-center gap-2 flex-wrap">
+      {canSend && (
+        <Button loading={sendInvoice.isPending} onClick={handleSend}>
+          Send Invoice
+        </Button>
+      )}
+      {!isVoid && (
+        isPaid && linkedOrder ? (
+          <DownloadInvoiceDashboard
+            order={linkedOrder}
+            organization={organization}
+            onInvoiceGenerated={refetch}
+          />
+        ) : (
+          <Button
+            variant="secondary"
+            loading={isDownloading || finalizeInvoice.isPending}
+            onClick={handleDownload}
+          >
+            Download Invoice
+          </Button>
+        )
+      )}
+      {isVoidable && (
+        <Button
+          variant="secondary"
+          loading={voidInvoice.isPending}
+          onClick={handleVoid}
+          className={
+            confirmVoid
+              ? 'border-red-300 text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950/30'
+              : 'dark:text-spaire-400 text-gray-500'
+          }
+        >
+          {confirmVoid ? 'Confirm void?' : 'Void'}
+        </Button>
+      )}
+    </div>
+  )
+
+  if (panelMode) {
+    return (
+      <div className="flex h-full flex-col">
+        <InlineModalHeader hide={onClose ?? (() => {})}>
+          <div className="flex items-center gap-3">
+            <span>Invoice</span>
+            <Status
+              status={invoice.status}
+              className={twMerge(STATUS_COLOR[invoice.status], 'capitalize')}
+            />
+          </div>
+        </InlineModalHeader>
+        <div className="flex flex-col gap-6 overflow-y-auto px-8 pb-8">
+          {actionButtons}
+          <ShadowBox className="dark:divide-spaire-700 flex flex-col divide-y divide-gray-200 border-gray-200 bg-transparent p-0 md:rounded-3xl!">
+            <div className="flex flex-col gap-6 p-4 md:p-8">
+              <div className="flex flex-col gap-1">
+                <DetailRow label="Invoice ID" value={invoice.id.slice(0, 8).toUpperCase()} valueClassName="font-mono text-sm" />
+                <DetailRow label="Invoice date" value={<FormattedDateTime dateStyle="medium" resolution="time" datetime={invoice.created_at} />} />
+                {invoice.due_date && <DetailRow label="Due date" value={<FormattedDateTime dateStyle="medium" datetime={invoice.due_date} />} />}
+                <DetailRow label="Status" value={<Status status={invoice.status} className={twMerge(STATUS_COLOR[invoice.status], 'w-fit capitalize')} />} />
+                <DetailRow label="Currency" value={invoice.currency.toUpperCase()} />
+                {invoice.po_number && <DetailRow label="PO number" value={invoice.po_number} />}
+                {invoice.on_behalf_of_label && <DetailRow label="On behalf of" value={invoice.on_behalf_of_label} />}
+                <Separator className="dark:bg-spaire-700 my-4 h-px bg-gray-300" />
+                <div className="flex flex-col gap-1 pb-4">
+                  {invoice.line_items.map((item) => (
+                    <DetailRow
+                      key={item.id}
+                      label={item.quantity > 1 ? `${item.description} × ${item.quantity}` : item.description}
+                      value={fmt(item.unit_amount * item.quantity)}
+                    />
+                  ))}
+                </div>
+                <DetailRow label="Subtotal" value={fmt(invoice.subtotal_amount)} />
+                <DetailRow label="Discount" value={invoice.discount_amount ? fmt(-invoice.discount_amount) : '—'} />
+                <DetailRow label="Tax" value={fmt(invoice.tax_amount)} />
+                <DetailRow label="Total" value={fmt(invoice.total_amount)} />
+                {invoice.memo && (
+                  <>
+                    <Separator className="dark:bg-spaire-700 my-4 h-px bg-gray-300" />
+                    <DetailRow label="Note" value={invoice.memo} />
+                  </>
+                )}
+                {linkedOrder?.invoice_number && (
+                  <>
+                    <Separator className="dark:bg-spaire-700 my-4 h-px bg-gray-300" />
+                    <DetailRow label="Invoice number" value={linkedOrder.invoice_number} />
+                  </>
+                )}
+              </div>
+            </div>
+          </ShadowBox>
+          {customer && (
+            <InvoiceCustomerSidebar
+              organization={organization}
+              customer={customer as schemas['Customer']}
+            />
+          )}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <DashboardBody
       title={
@@ -197,54 +319,7 @@ const InvoicePage: React.FC<InvoicePageProps> = ({
           />
         </div>
       }
-      header={
-        <div className="flex items-center gap-3">
-          {/* Primary actions: Send + Download side by side */}
-          <div className="flex items-center gap-2">
-            {canSend && (
-              <Button loading={sendInvoice.isPending} onClick={handleSend}>
-                Send Invoice
-              </Button>
-            )}
-            {!isVoid && (
-              isPaid && linkedOrder ? (
-                <DownloadInvoiceDashboard
-                  order={linkedOrder}
-                  organization={organization}
-                  onInvoiceGenerated={refetch}
-                />
-              ) : (
-                <Button
-                  variant="secondary"
-                  loading={isDownloading || finalizeInvoice.isPending}
-                  onClick={handleDownload}
-                >
-                  Download Invoice
-                </Button>
-              )
-            )}
-          </div>
-
-          {/* Destructive: Void Invoice — separated */}
-          {isVoidable && (
-            <>
-              <div className="h-5 w-px bg-gray-200 dark:bg-gray-700" />
-              <Button
-                variant="secondary"
-                loading={voidInvoice.isPending}
-                onClick={handleVoid}
-                className={
-                  confirmVoid
-                    ? 'border-red-300 text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950/30'
-                    : 'dark:text-spaire-400 text-gray-500'
-                }
-              >
-                {confirmVoid ? 'Confirm void?' : 'Void'}
-              </Button>
-            </>
-          )}
-        </div>
-      }
+      header={actionButtons}
       className="gap-y-12"
       contextView={
         customer ? (

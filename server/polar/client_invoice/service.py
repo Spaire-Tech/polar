@@ -403,8 +403,9 @@ class ClientInvoiceService:
         inv = Invoice(
             number=str(invoice.id)[:8].upper(),
             date=invoice.created_at,
-            seller_name=organization.name,
+            seller_name=settings.INVOICES_NAME,
             seller_address=settings.INVOICES_ADDRESS,
+            seller_additional_info=settings.INVOICES_ADDITIONAL_INFO,
             customer_name=customer.name or customer.email,
             customer_address=customer.billing_address,
             items=[

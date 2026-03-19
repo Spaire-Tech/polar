@@ -15,7 +15,6 @@ import {
   sortingStateToQueryParam,
 } from '@/utils/datatable'
 import AddOutlined from '@mui/icons-material/AddOutlined'
-import HiveOutlined from '@mui/icons-material/HiveOutlined'
 import Search from '@mui/icons-material/Search'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
@@ -146,109 +145,116 @@ export default function ClientPage({
   return (
     <DashboardBody>
       <div className="flex flex-col gap-y-8">
-        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center">
-            <Input
-              className="w-full md:max-w-64"
-              preSlot={<Search fontSize="small" />}
-              placeholder="Search Products"
-              value={query}
-              onChange={(e) => onQueryChange(e.target.value)}
-            />
-            <Select value={show} onValueChange={setShow}>
-              <SelectTrigger className="w-full md:max-w-fit">
-                <SelectValue placeholder="Show archived products" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="archived">Archived</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={currentSortingValue} onValueChange={onSortingChange}>
-              <SelectTrigger className="w-full md:max-w-fit">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="name">Name A-Z</SelectItem>
-                <SelectItem value="-name">Name Z-A</SelectItem>
-                <SelectItem value="-created_at">Newest</SelectItem>
-                <SelectItem value="created_at">Oldest</SelectItem>
-                <SelectItem value="price_amount">Price: Low to High</SelectItem>
-                <SelectItem value="-price_amount">
-                  Price: High to Low
-                </SelectItem>
-              </SelectContent>
-            </Select>
-            {(products.data?.pagination.total_count ?? 0) > 20 && (
-              <Select
-                value={pagination.pageSize.toString()}
-                onValueChange={onLimitChange}
-              >
-                <SelectTrigger className="w-full md:max-w-fit">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="20">Show 20</SelectItem>
-                  <SelectItem value="50">Show 50</SelectItem>
-                  <SelectItem value="100">Show 100</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
-          </div>
-          <Button
-            wrapperClassNames="gap-x-2 md:w-fit"
-            className="w-full md:w-fit"
-            onClick={showCreateModal}
-          >
-            <AddOutlined className="h-4 w-4" />
-            <span>Create product</span>
-          </Button>
-        </div>
         {products.data && products.data.items.length > 0 ? (
-          <Pagination
-            currentPage={pagination.pageIndex + 1}
-            pageSize={pagination.pageSize}
-            totalCount={products.data?.pagination.total_count || 0}
-            currentURL={serializeSearchParams(pagination, sorting)}
-            onPageChange={onPageChange}
-          >
-            <List size="small">
-              {products.data.items
-                .sort((a, b) => {
-                  if (a.is_archived === b.is_archived) return 0
-                  return a.is_archived ? 1 : -1
-                })
-                .map((product) => (
-                  <ProductListItem
-                    key={product.id}
-                    organization={org}
-                    product={product}
-                  />
-                ))}
-            </List>
-          </Pagination>
+          <>
+            <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center">
+                <Input
+                  className="w-full md:max-w-64"
+                  preSlot={<Search fontSize="small" />}
+                  placeholder="Search Products"
+                  value={query}
+                  onChange={(e) => onQueryChange(e.target.value)}
+                />
+                <Select value={show} onValueChange={setShow}>
+                  <SelectTrigger className="w-full md:max-w-fit">
+                    <SelectValue placeholder="Show archived products" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="archived">Archived</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={currentSortingValue} onValueChange={onSortingChange}>
+                  <SelectTrigger className="w-full md:max-w-fit">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="name">Name A-Z</SelectItem>
+                    <SelectItem value="-name">Name Z-A</SelectItem>
+                    <SelectItem value="-created_at">Newest</SelectItem>
+                    <SelectItem value="created_at">Oldest</SelectItem>
+                    <SelectItem value="price_amount">Price: Low to High</SelectItem>
+                    <SelectItem value="-price_amount">
+                      Price: High to Low
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                {(products.data?.pagination.total_count ?? 0) > 20 && (
+                  <Select
+                    value={pagination.pageSize.toString()}
+                    onValueChange={onLimitChange}
+                  >
+                    <SelectTrigger className="w-full md:max-w-fit">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="20">Show 20</SelectItem>
+                      <SelectItem value="50">Show 50</SelectItem>
+                      <SelectItem value="100">Show 100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+              <Button
+                wrapperClassNames="gap-x-2 md:w-fit"
+                className="w-full md:w-fit"
+                onClick={showCreateModal}
+              >
+                <AddOutlined className="h-4 w-4" />
+                <span>Create product</span>
+              </Button>
+            </div>
+            <Pagination
+              currentPage={pagination.pageIndex + 1}
+              pageSize={pagination.pageSize}
+              totalCount={products.data?.pagination.total_count || 0}
+              currentURL={serializeSearchParams(pagination, sorting)}
+              onPageChange={onPageChange}
+            >
+              <List size="small">
+                {products.data.items
+                  .sort((a, b) => {
+                    if (a.is_archived === b.is_archived) return 0
+                    return a.is_archived ? 1 : -1
+                  })
+                  .map((product) => (
+                    <ProductListItem
+                      key={product.id}
+                      organization={org}
+                      product={product}
+                    />
+                  ))}
+              </List>
+            </Pagination>
+          </>
         ) : (
-          <ShadowBoxOnMd className="items-center justify-center gap-y-6 md:flex md:flex-col md:py-24">
-            <div className="flex max-w-md flex-col items-center gap-y-6 text-center">
-              <HiveOutlined
-                className="dark:text-spaire-600 text-5xl text-gray-300"
-                fontSize="large"
-              />
-              <div className="flex flex-col items-center gap-y-2">
-                <h3 className="text-xl font-medium">
+          <ShadowBoxOnMd className="relative overflow-hidden p-0 md:p-0">
+            <img
+              src="https://spaire-production-files-public.s3.us-east-1.amazonaws.com/Untitled+design+-+2026-03-19T000326.960.png"
+              alt=""
+              aria-hidden="true"
+              className="h-[560px] w-full object-cover object-top"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent" />
+            <div className="absolute inset-x-0 bottom-0 flex items-end justify-between p-8">
+              <div className="flex max-w-sm flex-col gap-3">
+                <h3 className="text-4xl font-bold text-white">
                   Create your first product
                 </h3>
-                <p className="dark:text-spaire-500 text-gray-500">
-                  Products are what your customers purchase — subscriptions,
-                  one-time payments, or usage-based plans. Set up pricing,
-                  benefits, and checkout in one place.
+                <p className="text-sm text-gray-400">
+                  Sell subscriptions, one-time payments, or usage-based plans
+                  with checkout built in.
                 </p>
               </div>
-              <Button onClick={showCreateModal}>
-                  <AddOutlined className="h-4 w-4" />
-                  <span>Create product</span>
-                </Button>
+              <Button
+                size="lg"
+                className="ml-8 shrink-0 bg-white text-black hover:bg-gray-100 hover:opacity-100 border-white/20"
+                onClick={showCreateModal}
+              >
+                Create Product
+              </Button>
             </div>
           </ShadowBoxOnMd>
         )}
