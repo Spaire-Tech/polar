@@ -235,12 +235,12 @@ export default function ClientPage({
               src="https://spaire-production-files-public.s3.us-east-1.amazonaws.com/Untitled+design+-+2026-03-19T000326.960.png"
               alt=""
               aria-hidden="true"
-              className="h-[560px] w-full object-cover object-top"
+              className="h-[420px] w-full object-cover object-top md:h-[560px]"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent" />
-            <div className="absolute inset-x-0 bottom-0 flex items-end justify-between p-8">
-              <div className="flex max-w-sm flex-col gap-3">
-                <h3 className="text-4xl font-bold text-white">
+            <div className="absolute inset-x-0 bottom-0 flex flex-col gap-4 p-6 md:flex-row md:items-end md:justify-between md:p-8">
+              <div className="flex flex-col gap-2 md:gap-3">
+                <h3 className="text-2xl font-bold text-white md:text-4xl">
                   Create your first product
                 </h3>
                 <p className="text-sm text-gray-400">
@@ -250,7 +250,7 @@ export default function ClientPage({
               </div>
               <Button
                 size="lg"
-                className="ml-8 shrink-0 bg-white text-black hover:bg-gray-100 hover:opacity-100 border-white/20"
+                className="w-full shrink-0 bg-white text-black hover:bg-gray-100 hover:opacity-100 border-white/20 md:w-auto md:ml-8"
                 onClick={showCreateModal}
               >
                 Create Product
