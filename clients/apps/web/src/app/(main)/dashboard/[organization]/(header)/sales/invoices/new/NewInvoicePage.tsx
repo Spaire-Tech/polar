@@ -772,7 +772,7 @@ const InvoiceDetailsSection = () => {
 export interface NewInvoicePageProps {
   organization: schemas['Organization']
   panelMode?: boolean
-  onClose?: () => void
+  onClose?: (invoiceId?: string) => void
 }
 
 const NewInvoicePage = ({
@@ -915,7 +915,7 @@ const NewInvoicePage = ({
         toast({ title: 'Invoice created' })
 
         if (onClose) {
-          onClose()
+          onClose(invoice.id)
         } else {
           router.push(
             `/dashboard/${organization.slug}/invoices/${invoice.id}`,
