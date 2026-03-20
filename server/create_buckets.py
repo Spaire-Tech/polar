@@ -9,7 +9,12 @@ s3 = boto3.client(
     region_name=settings.AWS_REGION,
 )
 
-buckets = [settings.S3_FILES_BUCKET_NAME, settings.S3_FILES_PUBLIC_BUCKET_NAME]
+buckets = [
+    settings.S3_FILES_BUCKET_NAME,
+    settings.S3_FILES_PUBLIC_BUCKET_NAME,
+    settings.S3_CUSTOMER_INVOICES_BUCKET_NAME,
+    settings.S3_PAYOUT_INVOICES_BUCKET_NAME,
+]
 
 for bucket in buckets:
     try:

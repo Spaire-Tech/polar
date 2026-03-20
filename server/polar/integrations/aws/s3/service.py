@@ -28,6 +28,44 @@ if TYPE_CHECKING:
 log = structlog.get_logger()
 
 
+def ensure_buckets_exist() -> None:
+    """Create S3 buckets if they don't exist.
+
+    Called during app startup in sandbox/development environments
+    to avoid NoSuchBucket errors.
+    """
+    from polar.config import settings
+
+    if not settings.S3_ENDPOINT_URL:
+        return
+
+    s3_client = client
+    bucket_names = {
+        settings.S3_FILES_BUCKET_NAME,
+        settings.S3_FILES_PUBLIC_BUCKET_NAME,
+        settings.S3_CUSTOMER_INVOICES_BUCKET_NAME,
+        settings.S3_PAYOUT_INVOICES_BUCKET_NAME,
+    }
+
+    for bucket_name in bucket_names:
+        try:
+            s3_client.head_bucket(Bucket=bucket_name)
+            log.debug("s3.bucket_exists", bucket=bucket_name)
+        except ClientError:
+            try:
+                s3_client.create_bucket(
+                    Bucket=bucket_name,
+                    CreateBucketConfiguration={
+                        "LocationConstraint": settings.AWS_REGION
+                    },
+                )
+                log.info("s3.bucket_created", bucket=bucket_name)
+            except ClientError as e:
+                log.error(
+                    "s3.bucket_create_failed", bucket=bucket_name, error=str(e)
+                )
+
+
 class S3Service:
     def __init__(
         self,
