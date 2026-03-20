@@ -98,13 +98,22 @@ class S3Service:
             file.checksum_sha256_base64 = sha256_base64
             file.checksum_sha256_hex = base64.b64decode(sha256_base64).hex()
 
-        multipart_upload = self.client.create_multipart_upload(
-            Bucket=self.bucket,
-            Key=file.path,
-            ContentType=file.mime_type,
-            ChecksumAlgorithm="SHA256",
-            Metadata=file.to_metadata(),
-        )
+        try:
+            multipart_upload = self.client.create_multipart_upload(
+                Bucket=self.bucket,
+                Key=file.path,
+                ContentType=file.mime_type,
+                ChecksumAlgorithm="SHA256",
+                Metadata=file.to_metadata(),
+            )
+        except ClientError as e:
+            log.error(
+                "s3.create_multipart_upload_failed",
+                bucket=self.bucket,
+                key=file.path,
+                error=str(e),
+            )
+            raise
         multipart_upload_id = multipart_upload.get("UploadId")
         if not multipart_upload_id:
             log.error(
