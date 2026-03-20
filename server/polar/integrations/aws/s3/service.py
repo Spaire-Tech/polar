@@ -28,45 +28,9 @@ if TYPE_CHECKING:
 log = structlog.get_logger()
 
 
-def ensure_buckets_exist() -> None:
-    """Create S3 buckets if they don't exist.
-
-    Called during app startup in sandbox/development environments
-    to avoid NoSuchBucket errors.
-    """
-    from polar.config import settings
-
-    if not settings.S3_ENDPOINT_URL:
-        return
-
-    s3_client = client
-    bucket_names = {
-        settings.S3_FILES_BUCKET_NAME,
-        settings.S3_FILES_PUBLIC_BUCKET_NAME,
-        settings.S3_CUSTOMER_INVOICES_BUCKET_NAME,
-        settings.S3_PAYOUT_INVOICES_BUCKET_NAME,
-    }
-
-    for bucket_name in bucket_names:
-        try:
-            s3_client.head_bucket(Bucket=bucket_name)
-            log.debug("s3.bucket_exists", bucket=bucket_name)
-        except ClientError:
-            try:
-                s3_client.create_bucket(
-                    Bucket=bucket_name,
-                    CreateBucketConfiguration={
-                        "LocationConstraint": settings.AWS_REGION
-                    },
-                )
-                log.info("s3.bucket_created", bucket=bucket_name)
-            except ClientError as e:
-                log.error(
-                    "s3.bucket_create_failed", bucket=bucket_name, error=str(e)
-                )
-
-
 class S3Service:
+    _buckets_verified: set[str] = set()
+
     def __init__(
         self,
         bucket: str,
@@ -76,6 +40,38 @@ class S3Service:
         self.bucket = bucket
         self.presign_ttl = presign_ttl
         self.client = client
+
+    def _ensure_bucket_exists(self) -> None:
+        """Create the bucket if it doesn't exist (idempotent, cached)."""
+        if self.bucket in S3Service._buckets_verified:
+            return
+
+        from polar.config import settings
+
+        if not settings.S3_ENDPOINT_URL:
+            S3Service._buckets_verified.add(self.bucket)
+            return
+
+        try:
+            self.client.head_bucket(Bucket=self.bucket)
+        except ClientError:
+            try:
+                self.client.create_bucket(
+                    Bucket=self.bucket,
+                    CreateBucketConfiguration={
+                        "LocationConstraint": settings.AWS_REGION
+                    },
+                )
+                log.info("s3.bucket_created", bucket=self.bucket)
+            except ClientError as e:
+                log.error(
+                    "s3.bucket_create_failed",
+                    bucket=self.bucket,
+                    error=str(e),
+                )
+                raise
+
+        S3Service._buckets_verified.add(self.bucket)
 
     def upload(
         self,
@@ -89,6 +85,7 @@ class S3Service:
 
         Mostly useful for files we generate on the backend, like invoices or exports.
         """
+        self._ensure_bucket_exists()
         request: PutObjectRequestTypeDef = {
             "Bucket": self.bucket,
             "Key": path,
@@ -108,6 +105,7 @@ class S3Service:
     def create_multipart_upload(
         self, data: S3FileCreate, namespace: str = ""
     ) -> S3FileUpload:
+        self._ensure_bucket_exists()
         if not data.organization_id:
             raise S3FileError("Organization ID is required")
 

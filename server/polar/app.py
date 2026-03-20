@@ -156,11 +156,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[State]:
         )
         ip_geolocation_client = None
 
-    if settings.is_sandbox() or settings.is_development():
-        from polar.integrations.aws.s3.service import ensure_buckets_exist
-
-        ensure_buckets_exist()
-
     log.info("Polar API started")
 
     yield {
