@@ -232,7 +232,7 @@ export default function ClientPage({
         ) : (
           <ShadowBoxOnMd className="relative overflow-hidden p-0 md:p-0">
             <img
-              src="https://spaire-production-files-public.s3.us-east-1.amazonaws.com/Untitled+design+-+2026-03-19T000326.960.png"
+              src="https://spaire-production-files-public.s3.us-east-1.amazonaws.com/Untitled+design+(39).png"
               alt=""
               aria-hidden="true"
               className="h-[420px] w-full object-cover object-top md:h-[560px]"
