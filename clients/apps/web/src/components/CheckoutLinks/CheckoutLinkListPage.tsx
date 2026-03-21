@@ -10,8 +10,6 @@ import { toast } from '@/components/Toast/use-toast'
 import { useCheckoutLinks } from '@/hooks/queries'
 import { useInViewport } from '@/hooks/utils'
 import AddOutlined from '@mui/icons-material/AddOutlined'
-import ArrowDownward from '@mui/icons-material/ArrowDownward'
-import ArrowUpward from '@mui/icons-material/ArrowUpward'
 import LinkOutlined from '@mui/icons-material/LinkOutlined'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
@@ -20,11 +18,9 @@ import {
   parseAsArrayOf,
   parseAsBoolean,
   parseAsString,
-  parseAsStringLiteral,
   useQueryState,
 } from 'nuqs'
 import { useEffect, useMemo, useState } from 'react'
-import ProductSelect from '../Products/ProductSelect'
 
 interface CheckoutLinkListPageProps {
   organization: schemas['Organization']
@@ -38,21 +34,11 @@ export const CheckoutLinkListPage = ({
     parseAsArrayOf(parseAsString),
   )
 
-  const [sorting, setSorting] = useQueryState(
-    'sorting',
-    parseAsStringLiteral([
-      '-created_at',
-      'created_at',
-      'label',
-      '-label',
-    ] as const).withDefault('-created_at'),
-  )
-
   const [createCheckoutLinkQuerystring, setCreateCheckoutLinkQuerystring] =
     useQueryState('create_checkout_link', parseAsBoolean.withDefault(false))
 
   const { data, fetchNextPage, hasNextPage } = useCheckoutLinks(organization.id, {
-    sorting: [sorting],
+    sorting: ['-created_at'],
     product_id: productIds,
   })
 
@@ -85,38 +71,6 @@ export const CheckoutLinkListPage = ({
   return (
     <DashboardBody>
       <div className="flex flex-col gap-y-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex flex-row items-center gap-3">
-            <div className="w-full md:max-w-64">
-              <ProductSelect
-                organization={organization}
-                value={productIds ?? []}
-                onChange={(ids) => setProductIds(ids)}
-              />
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 shrink-0"
-              onClick={() =>
-                setSorting(
-                  sorting === '-created_at' ? 'created_at' : '-created_at',
-                )
-              }
-            >
-              {sorting === 'created_at' ? (
-                <ArrowUpward fontSize="small" />
-              ) : (
-                <ArrowDownward fontSize="small" />
-              )}
-            </Button>
-          </div>
-          <Button onClick={showCreateModal}>
-            <AddOutlined className="h-4 w-4" />
-            <span>Create link</span>
-          </Button>
-        </div>
-
         {checkoutLinks.length > 0 ? (
           <div className="dark:border-spaire-700 dark:divide-spaire-700 flex flex-col divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200">
             {checkoutLinks.map((link) => {
@@ -175,9 +129,9 @@ export const CheckoutLinkListPage = ({
             )}
           </div>
         ) : (
-          <ShadowBoxOnMd className="relative overflow-hidden p-0 md:p-0">
+          <ShadowBoxOnMd className="relative overflow-hidden rounded-2xl border border-gray-200 dark:border-spaire-700 p-0 md:p-0">
             <img
-              src="https://spaire-production-files-public.s3.us-east-1.amazonaws.com/Untitled+design+-+2026-03-19T000326.960.png"
+              src="https://spaire-production-files-public.s3.us-east-1.amazonaws.com/Untitled+design+(41).png"
               alt=""
               aria-hidden="true"
               className="h-[420px] w-full object-cover object-top md:h-[560px]"

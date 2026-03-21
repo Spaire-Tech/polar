@@ -167,9 +167,9 @@ export const CustomerListPage = ({ organization }: CustomerListPageProps) => {
             </div>
           </>
         ) : (
-          <ShadowBoxOnMd className="relative overflow-hidden p-0 md:p-0">
+          <ShadowBoxOnMd className="relative overflow-hidden rounded-2xl border border-gray-200 dark:border-spaire-700 p-0 md:p-0">
             <img
-              src="https://spaire-production-files-public.s3.us-east-1.amazonaws.com/Untitled+design+(41).png"
+              src="https://spaire-production-files-public.s3.us-east-1.amazonaws.com/Untitled+design+-+2026-03-19T000326.960.png"
               alt=""
               aria-hidden="true"
               className="h-[420px] w-full object-cover object-top md:h-[640px]"
