@@ -105,13 +105,14 @@ export const ProductListItem = ({
     !isSeatBasedProduct &&
     !isFreeProduct &&
     !isCustomProduct &&
-    product.type === 'recurring'
+    product.recurring_interval !== null &&
+    product.recurring_interval !== undefined
   const isOneTime =
     !isUsageBasedProduct &&
     !isSeatBasedProduct &&
     !isFreeProduct &&
     !isCustomProduct &&
-    product.type === 'one_time'
+    (product.recurring_interval === null || product.recurring_interval === undefined)
 
   return (
     <>
