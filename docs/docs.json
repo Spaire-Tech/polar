@@ -87,6 +87,7 @@
               "features/custom-fields",
               "features/discounts",
               "features/orders",
+              "features/invoices",
               "features/refunds",
               "features/analytics",
               "features/customer-management",
