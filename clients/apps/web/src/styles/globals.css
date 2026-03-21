@@ -160,19 +160,19 @@
   }
 }
 
-/* Light mode: remap blue → dark green */
+/* Light mode: remap blue → purple (Stripe-style, shifted more purple) */
 :root:not(.dark) {
-  --color-blue-50:  oklch(0.970 0.025 160.0);
-  --color-blue-100: oklch(0.935 0.055 160.0);
-  --color-blue-200: oklch(0.885 0.095 160.0);
-  --color-blue-300: oklch(0.810 0.140 160.0);
-  --color-blue-400: oklch(0.700 0.165 160.0);
-  --color-blue-500: oklch(0.545 0.155 160.0);
-  --color-blue-600: oklch(0.450 0.130 160.0);
-  --color-blue-700: oklch(0.375 0.108 160.0);
-  --color-blue-800: oklch(0.305 0.085 160.0);
-  --color-blue-900: oklch(0.248 0.065 160.0);
-  --color-blue-950: oklch(0.185 0.048 160.0);
+  --color-blue-50:  oklch(0.970 0.020 272.0);
+  --color-blue-100: oklch(0.940 0.042 272.0);
+  --color-blue-200: oklch(0.895 0.080 272.0);
+  --color-blue-300: oklch(0.825 0.135 272.0);
+  --color-blue-400: oklch(0.730 0.185 272.0);
+  --color-blue-500: oklch(0.558 0.225 272.0);
+  --color-blue-600: oklch(0.480 0.195 272.0);
+  --color-blue-700: oklch(0.405 0.165 272.0);
+  --color-blue-800: oklch(0.335 0.135 272.0);
+  --color-blue-900: oklch(0.272 0.105 272.0);
+  --color-blue-950: oklch(0.205 0.078 272.0);
   --color-blue: var(--color-blue-500);
 }
 
@@ -256,13 +256,20 @@ pre.shiki {
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  .shiki,
-  .shiki span {
-    color: var(--shiki-dark) !important;
-    font-style: var(--shiki-dark-font-style) !important;
-    font-weight: var(--shiki-dark-font-weight) !important;
-    text-decoration: var(--shiki-dark-text-decoration) !important;
-  }
+/* Use class-based theme switching so code colors follow the app theme, not the OS preference */
+:root:not(.dark) .shiki,
+:root:not(.dark) .shiki span {
+  color: var(--shiki-light) !important;
+  font-style: var(--shiki-light-font-style) !important;
+  font-weight: var(--shiki-light-font-weight) !important;
+  text-decoration: var(--shiki-light-text-decoration) !important;
+}
+
+.dark .shiki,
+.dark .shiki span {
+  color: var(--shiki-dark) !important;
+  font-style: var(--shiki-dark-font-style) !important;
+  font-weight: var(--shiki-dark-font-weight) !important;
+  text-decoration: var(--shiki-dark-text-decoration) !important;
 }
 

@@ -20,7 +20,7 @@ const ThemeOption = ({ id, label, description, selected, onSelect }: ThemeOption
       type="button"
       onClick={onSelect}
       className={twMerge(
-        'group relative flex flex-col overflow-hidden rounded-2xl border-2 transition-all duration-200 text-left',
+        'group relative flex flex-col rounded-2xl border-2 transition-all duration-200 text-left',
         selected
           ? 'border-blue-500 shadow-lg shadow-blue-500/20'
           : 'border-gray-200 dark:border-spaire-700 hover:border-gray-300 dark:hover:border-spaire-500',
@@ -29,7 +29,7 @@ const ThemeOption = ({ id, label, description, selected, onSelect }: ThemeOption
       {/* Preview window */}
       <div
         className={twMerge(
-          'relative h-44 w-full overflow-hidden',
+          'relative h-44 w-full overflow-hidden rounded-t-[14px]',
           isDark ? 'bg-black' : 'bg-gray-50',
         )}
       >
@@ -75,7 +75,7 @@ const ThemeOption = ({ id, label, description, selected, onSelect }: ThemeOption
 
       {/* Label */}
       <div className={twMerge(
-        'flex flex-row items-center justify-between px-5 py-4',
+        'flex flex-row items-center justify-between px-5 py-4 rounded-b-[14px]',
         isDark ? 'bg-spaire-900 text-white' : 'bg-white text-gray-900',
       )}>
         <div>
