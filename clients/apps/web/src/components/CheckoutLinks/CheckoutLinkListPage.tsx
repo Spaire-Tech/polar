@@ -154,11 +154,11 @@ export const CheckoutLinkListPage = ({
                       if (typeof navigator !== 'undefined') {
                         const meta = link.metadata as Record<string, string> | null
                         const t = meta?.checkout_theme
-                        const urlToCopy =
-                          t === 'dark' || t === 'light'
-                            ? `${link.url}?theme=${t}`
-                            : link.url
-                        navigator.clipboard.writeText(urlToCopy)
+                        const parsed = new URL(link.url)
+                        if (t === 'dark' || t === 'light') {
+                          parsed.searchParams.set('theme', t)
+                        }
+                        navigator.clipboard.writeText(parsed.toString())
                         toast({
                           title: 'Link Copied',
                           description: 'Checkout link copied to clipboard',

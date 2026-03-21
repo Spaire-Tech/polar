@@ -86,7 +86,7 @@ const RevenueWidget = ({ className, productId }: RevenueWidgetProps) => {
                       className={twMerge(
                         'absolute bottom-0 w-full rounded-2xl',
                         index === array.length - 1
-                          ? 'bg-indigo-300 dark:bg-indigo-500'
+                          ? 'bg-blue-400 dark:bg-blue-500'
                           : 'dark:bg-spaire-600 bg-gray-300',
                       )}
                       style={{

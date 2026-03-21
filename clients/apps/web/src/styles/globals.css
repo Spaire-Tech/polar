@@ -256,15 +256,9 @@ pre.shiki {
   }
 }
 
-/* Use class-based theme switching so code colors follow the app theme, not the OS preference */
-:root:not(.dark) .shiki,
-:root:not(.dark) .shiki span {
-  color: var(--shiki-light) !important;
-  font-style: var(--shiki-light-font-style) !important;
-  font-weight: var(--shiki-light-font-weight) !important;
-  text-decoration: var(--shiki-light-text-decoration) !important;
-}
-
+/* Use .dark class so code colors follow the app theme, not the OS preference.
+   Light mode: Shiki's defaultColor:'light' puts inline color on each span — no override needed.
+   Dark mode: override with the --shiki-dark vars Shiki defines on each span. */
 .dark .shiki,
 .dark .shiki span {
   color: var(--shiki-dark) !important;
