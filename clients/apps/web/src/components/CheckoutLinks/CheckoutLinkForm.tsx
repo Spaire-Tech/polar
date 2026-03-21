@@ -235,7 +235,7 @@ export const CheckoutLinkForm = ({
   return (
     <Form {...form}>
       <form onSubmit={handleSubmit(onSubmit)}>
-        <div className="dark:divide-[hsl(233,5%,14%)] flex flex-col divide-y">
+        <div className="dark:divide-[hsl(233,5%,11%)] flex flex-col divide-y">
           <Section
             title="Link details"
             description="Name this link and choose which products buyers can purchase"
