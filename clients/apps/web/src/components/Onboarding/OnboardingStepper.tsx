@@ -2,6 +2,8 @@
 
 import LogoIcon from '../Brand/LogoIcon'
 import CheckOutlined from '@mui/icons-material/CheckOutlined'
+import { schemas } from '@spaire/client'
+import Avatar from '@spaire/ui/components/atoms/Avatar'
 import { twMerge } from 'tailwind-merge'
 
 export interface OnboardingStep {
@@ -34,16 +36,26 @@ const defaultSteps: OnboardingStep[] = [
 export interface OnboardingStepperProps {
   currentStep: number
   steps?: OnboardingStep[]
+  organization?: schemas['Organization']
 }
 
 export const OnboardingStepper = ({
   currentStep,
   steps = defaultSteps,
+  organization,
 }: OnboardingStepperProps) => {
   return (
     <div className="dark:bg-spaire-900 hidden h-full w-[300px] shrink-0 flex-col justify-between border-r border-gray-100 bg-gray-50/50 p-10 dark:border-none md:flex">
       <div className="flex flex-col gap-y-16">
-        <LogoIcon size={36} />
+        {organization ? (
+          <Avatar
+            name={organization.name}
+            avatar_url={organization.avatar_url}
+            className="h-10 w-10"
+          />
+        ) : (
+          <LogoIcon size={36} />
+        )}
         <div className="flex flex-col gap-y-2">
           {steps.map((step, index) => {
             const isCompleted = index < currentStep

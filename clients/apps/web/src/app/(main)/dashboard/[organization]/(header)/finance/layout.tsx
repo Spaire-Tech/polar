@@ -20,6 +20,8 @@ export default function BalanceLayout({ children }: PropsWithChildren) {
 
   const { data: account } = useOrganizationAccount(organization.id)
   const payoutsEnabled = account?.is_payouts_enabled ?? false
+  // Hide the nav entirely while on the /account setup page
+  const isAccountSetupPage = pathname.startsWith(`${base}/account`)
 
   const visibleTabs = allTabs.filter(
     (t) => !t.requiresPayouts || payoutsEnabled,
@@ -28,6 +30,10 @@ export default function BalanceLayout({ children }: PropsWithChildren) {
   const activeTab =
     visibleTabs.find((t) => pathname.startsWith(`${base}${t.suffix}`)) ??
     visibleTabs[0]
+
+  if (isAccountSetupPage) {
+    return <>{children}</>
+  }
 
   return (
     <div className="flex h-full flex-col">

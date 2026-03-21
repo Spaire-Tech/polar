@@ -18,7 +18,6 @@ import Avatar from '@spaire/ui/components/atoms/Avatar'
 import Button from '@spaire/ui/components/atoms/Button'
 import CopyToClipboardInput from '@spaire/ui/components/atoms/CopyToClipboardInput'
 import Input from '@spaire/ui/components/atoms/Input'
-import MoneyInput from '@spaire/ui/components/atoms/MoneyInput'
 import {
   Select,
   SelectContent,
@@ -27,7 +26,6 @@ import {
   SelectValue,
 } from '@spaire/ui/components/atoms/Select'
 import TextArea from '@spaire/ui/components/atoms/TextArea'
-import { Checkbox } from '@spaire/ui/components/ui/checkbox'
 import {
   Form,
   FormControl,
@@ -52,15 +50,6 @@ import {
 interface OrganizationDetailsFormProps {
   organization: schemas['Organization']
   inKYCMode: boolean
-}
-
-const AcquisitionOptions = {
-  website: 'Website & SEO',
-  socials: 'Social media',
-  sales: 'Sales',
-  ads: 'Ads',
-  email: 'Email marketing',
-  other: 'Other',
 }
 
 const SwitchingFromOptions = {
@@ -431,29 +420,19 @@ export const OrganizationDetailsForm: React.FC<
       {/* Business Details - KYC Mode Only */}
       {inKYCMode && (
         <div className="border-t pt-8">
-          <div className="mb-6">
-            <h3 className="mb-2 text-lg font-medium">Business Details</h3>
-            <p className="text-sm text-gray-600">
-              Help us understand your business model
-            </p>
-          </div>
-
           <div className="space-y-6">
             <div>
               <label className="mb-2 block text-sm font-medium">
-                What does your SaaS do? *
+                Describe your product *
               </label>
-              <p className="mb-2 text-xs text-gray-600">
-                What problem do you solve and who are your target customers?
-              </p>
               <FormField
                 control={control}
-                name="details.about"
+                name="details.product_description"
                 rules={{
-                  required: 'Please describe your business',
+                  required: 'Please describe your product',
                   minLength: {
-                    value: 50,
-                    message: 'Please provide at least 50 characters',
+                    value: 20,
+                    message: 'Please provide at least 20 characters',
                   },
                   maxLength: {
                     value: 3000,
@@ -469,7 +448,7 @@ export const OrganizationDetailsForm: React.FC<
                     <div className="mt-1 flex items-center justify-between">
                       <FormMessage />
                       <span className="text-xs text-gray-500">
-                        {field.value?.length || 0}/3000 characters (min 50)
+                        {field.value?.length || 0}/3000 characters
                       </span>
                     </div>
                   </div>
@@ -479,188 +458,42 @@ export const OrganizationDetailsForm: React.FC<
 
             <div>
               <label className="mb-2 block text-sm font-medium">
-                Describe your plans and pricing *
-              </label>
-              <p className="mb-2 text-xs text-gray-600">
-                What plans do you offer, what&apos;s included, and how much do
-                they cost?
-              </p>
-              <FormField
-                control={control}
-                name="details.product_description"
-                rules={{
-                  required: 'Please describe what you sell',
-                  minLength: {
-                    value: 50,
-                    message: 'Please provide at least 50 characters',
-                  },
-                  maxLength: {
-                    value: 3000,
-                    message: 'Please keep under 3000 characters',
-                  },
-                }}
-                render={({ field }) => (
-                  <div>
-                    <CompactTextArea
-                      field={field}
-                      placeholder="Pro plan at $29/mo includes 5 seats, unlimited projects, and priority support. Enterprise at $99/mo adds SSO and dedicated support."
-                    />
-                    <div className="mt-1 flex items-center justify-between">
-                      <FormMessage />
-                      <span className="text-xs text-gray-500">
-                        {field.value?.length || 0}/3000 characters (min 50)
-                      </span>
-                    </div>
-                  </div>
-                )}
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium">
-                How will you use Spaire? *
-              </label>
-              <p className="mb-2 text-xs text-gray-600">
-                How will your customers subscribe and pay through Spaire?
-              </p>
-              <FormField
-                control={control}
-                name="details.intended_use"
-                rules={{
-                  required: 'Please describe how you will use Spaire',
-                  minLength: {
-                    value: 30,
-                    message: 'Please provide at least 30 characters',
-                  },
-                  maxLength: {
-                    value: 3000,
-                    message: 'Please keep under 3000 characters',
-                  },
-                }}
-                render={({ field }) => (
-                  <div>
-                    <CompactTextArea
-                      field={field}
-                      placeholder="Embedded checkout on our pricing page, API for managing subscriptions, webhooks to provision user accounts"
-                    />
-                    <div className="mt-1 flex items-center justify-between">
-                      <FormMessage />
-                      <span className="text-xs text-gray-500">
-                        {field.value?.length || 0}/3000 characters (min 30)
-                      </span>
-                    </div>
-                  </div>
-                )}
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium">
-                Main customer acquisition channels *
+                Currently using
               </label>
               <FormField
                 control={control}
-                name="details.customer_acquisition"
-                rules={{
-                  required: 'Please select at least one acquisition channel',
-                  validate: (value) =>
-                    (value && value.length > 0) ||
-                    'Please select at least one channel',
-                }}
+                name="details.switching_from"
                 render={({ field }) => (
                   <div>
-                    <div className="space-y-2">
-                      {Object.entries(AcquisitionOptions).map(
-                        ([key, label]) => (
-                          <label
-                            key={key}
-                            className="flex cursor-pointer items-center gap-2"
-                          >
-                            <Checkbox
-                              checked={field.value?.includes(key) || false}
-                              onCheckedChange={(checked) => {
-                                const current = field.value || []
-                                if (checked) {
-                                  field.onChange([...current, key])
-                                } else {
-                                  field.onChange(
-                                    current.filter((v) => v !== key),
-                                  )
-                                }
-                              }}
-                            />
-                            <span className="text-sm">{label}</span>
-                          </label>
-                        ),
-                      )}
-                    </div>
-                    <FormMessage className="mt-2" />
+                    <Select
+                      value={field.value || 'none'}
+                      onValueChange={(value) => {
+                        field.onChange(value === 'none' ? undefined : value)
+                        setValue('details.switching', value !== 'none', {
+                          shouldDirty: true,
+                        })
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a platform" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">
+                          This is my first billing provider
+                        </SelectItem>
+                        {Object.entries(SwitchingFromOptions).map(
+                          ([key, label]) => (
+                            <SelectItem key={key} value={key}>
+                              {label}
+                            </SelectItem>
+                          ),
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
                   </div>
                 )}
               />
-            </div>
-
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-              <div>
-                <label className="mb-2 block text-sm font-medium">
-                  Expected annual recurring revenue (ARR) *
-                </label>
-                <FormField
-                  control={control}
-                  name="details.future_annual_revenue"
-                  render={({ field }) => (
-                    <div>
-                      <MoneyInput
-                        {...field}
-                        placeholder={100_000_000}
-                        currency="usd"
-                        className="w-full"
-                      />
-                      <FormMessage />
-                    </div>
-                  )}
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium">
-                  Current billing provider
-                </label>
-                <FormField
-                  control={control}
-                  name="details.switching_from"
-                  render={({ field }) => (
-                    <div>
-                      <Select
-                        value={field.value || 'none'}
-                        onValueChange={(value) => {
-                          field.onChange(value === 'none' ? undefined : value)
-                          setValue('details.switching', value !== 'none', {
-                            shouldDirty: true,
-                          })
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a platform" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">
-                            This is my first billing provider
-                          </SelectItem>
-                          {Object.entries(SwitchingFromOptions).map(
-                            ([key, label]) => (
-                              <SelectItem key={key} value={key}>
-                                {label}
-                              </SelectItem>
-                            ),
-                          )}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </div>
-                  )}
-                />
-              </div>
             </div>
           </div>
         </div>

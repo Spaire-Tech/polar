@@ -295,6 +295,7 @@ export default function ClientPage({
       <OnboardingStepper
         currentStep={currentStepIndex}
         steps={payoutSteps}
+        organization={organization}
       />
 
       {/* Main content */}

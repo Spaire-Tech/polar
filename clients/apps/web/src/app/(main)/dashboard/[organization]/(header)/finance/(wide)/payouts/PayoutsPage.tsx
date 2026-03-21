@@ -7,7 +7,6 @@ import DownloadInvoice, {
 } from '@/components/Payouts/DownloadInvoice'
 import { PayoutProvider } from '@/components/Payouts/PayoutContext'
 import { PayoutStatus } from '@/components/Payouts/PayoutStatus'
-import AccountBanner from '@/components/Transactions/AccountBanner'
 import { platformFeesDisplayNames } from '@/components/Transactions/TransactionsList'
 import { useOrganizationAccount } from '@/hooks/queries'
 import { usePayouts } from '@/hooks/queries/payouts'
@@ -36,6 +35,7 @@ import {
 import { EllipsisVertical } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { useEffect } from 'react'
 
 const isPayout = (
   item: schemas['Payout'] | schemas['TransactionEmbedded'],
@@ -91,6 +91,13 @@ export default function ClientPage({
 
   const isNotAdmin =
     accountError && (accountError as any)?.response?.status === 403
+
+  // Redirect directly to account setup when payouts aren't enabled yet
+  useEffect(() => {
+    if (!isNotAdmin && account !== undefined && !account?.is_payouts_enabled) {
+      router.replace(`/dashboard/${organization.slug}/finance/account`)
+    }
+  }, [account, isNotAdmin, organization.slug, router])
 
   const { data: payouts, isLoading } = usePayouts(account?.id, {
     ...getAPIParams(pagination, sorting),
@@ -273,7 +280,6 @@ export default function ClientPage({
   return (
     <PayoutProvider>
       <div className="flex flex-col gap-y-8">
-        <AccountBanner organization={organization} />
         {account && (
           <AccountBalance account={account} organization={organization} />
         )}

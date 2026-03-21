@@ -236,19 +236,10 @@ export const DashboardSidebar = ({
         </motion.div>
       </SidebarContent>
       <SidebarFooter>
-        {/* Spaire logo + notification bell moved down to footer */}
-        <div className={twMerge('flex items-center gap-2', isCollapsed ? 'justify-center' : 'justify-between')}>
-          <SpaireLogotype
-            size={24}
-            href={organization ? `/dashboard/${organization.slug}` : '/dashboard'}
-          />
-          {!isCollapsed && <NotificationsPopover />}
+        {/* Notifications in footer, opens upward */}
+        <div className={twMerge('flex items-center', isCollapsed ? 'justify-center' : 'flex-row')}>
+          <NotificationsPopover />
         </div>
-        {isCollapsed && (
-          <div className="flex justify-center">
-            <NotificationsPopover />
-          </div>
-        )}
         <Separator />
         <Link
           href="mailto:support@spairehq.com"
