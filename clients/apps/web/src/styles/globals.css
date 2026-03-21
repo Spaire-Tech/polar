@@ -149,6 +149,7 @@
 
   body {
     color: var(--foreground);
+    background-color: var(--background);
   }
 }
 
@@ -159,9 +160,58 @@
   }
 }
 
+/* Light mode: remap blue → Stripe purple (oklch ~#635BFF) */
+:root:not(.dark) {
+  --color-blue-50:  oklch(0.970 0.018 264.0);
+  --color-blue-100: oklch(0.940 0.040 264.0);
+  --color-blue-200: oklch(0.895 0.075 264.0);
+  --color-blue-300: oklch(0.825 0.130 264.0);
+  --color-blue-400: oklch(0.730 0.180 264.0);
+  --color-blue-500: oklch(0.558 0.212 264.0);
+  --color-blue-600: oklch(0.480 0.190 264.0);
+  --color-blue-700: oklch(0.405 0.162 264.0);
+  --color-blue-800: oklch(0.335 0.132 264.0);
+  --color-blue-900: oklch(0.272 0.102 264.0);
+  --color-blue-950: oklch(0.205 0.076 264.0);
+  --color-blue: var(--color-blue-500);
+}
+
 /* shadcn/ui */
 @layer base {
+  /* Light mode defaults */
   :root {
+    --background: #ffffff;
+    --foreground: var(--color-gray-900);
+    --card: #ffffff;
+    --card-foreground: var(--color-gray-900);
+    --popover: #ffffff;
+    --popover-foreground: var(--color-gray-900);
+    --sidebar-background: var(--color-gray-50);
+    --sidebar-foreground: var(--color-gray-900);
+    --sidebar-primary: var(--color-blue);
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-border: var(--color-gray-200);
+    --sidebar-accent: var(--color-gray-100);
+    --sidebar-accent-foreground: var(--color-gray-900);
+    --sidebar-ring: var(--color-blue);
+    --primary: var(--color-blue);
+    --primary-foreground: #ffffff;
+    --secondary: var(--color-gray-100);
+    --secondary-foreground: var(--color-gray-900);
+    --muted: var(--color-gray-100);
+    --muted-foreground: var(--color-gray-500);
+    --accent: var(--color-gray-100);
+    --accent-foreground: var(--color-gray-900);
+    --destructive: var(--color-red-500);
+    --destructive-foreground: #ffffff;
+    --border: var(--color-gray-200);
+    --input: var(--color-gray-200);
+    --ring: var(--color-blue);
+    --radius: 0.6rem;
+  }
+
+  /* Dark mode overrides */
+  .dark {
     --background: var(--color-spaire-800);
     --foreground: var(--color-spaire-500);
     --card: var(--color-spaire-800);
@@ -173,6 +223,9 @@
     --sidebar-primary: var(--color-blue);
     --sidebar-primary-foreground: var(--color-spaire-50);
     --sidebar-border: var(--color-spaire-700);
+    --sidebar-accent: var(--color-spaire-700);
+    --sidebar-accent-foreground: var(--color-spaire-50);
+    --sidebar-ring: var(--color-spaire-700);
     --primary: var(--color-blue);
     --primary-foreground: var(--color-spaire-50);
     --secondary: var(--color-spaire-900);

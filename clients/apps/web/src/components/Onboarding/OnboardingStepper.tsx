@@ -23,6 +23,12 @@ const defaultSteps: OnboardingStep[] = [
     description: 'Launch something to sell',
     optional: true,
   },
+  {
+    id: 'theme',
+    label: 'Your Preferences',
+    description: 'Customize your experience',
+    optional: true,
+  },
 ]
 
 export interface OnboardingStepperProps {

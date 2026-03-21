@@ -32,11 +32,14 @@ import ProductSelect from '../Products/ProductSelect'
 import { toast } from '../Toast/use-toast'
 import { TrialConfigurationForm } from '../TrialConfiguration/TrialConfigurationForm'
 
+type CheckoutTheme = 'dark' | 'light' | 'system'
+
 type CheckoutLinkCreateForm = Omit<
   schemas['CheckoutLinkCreateProducts'],
   'payment_processor' | 'metadata'
 > & {
   metadata: { key: string; value: string | number | boolean }[]
+  checkout_theme: CheckoutTheme
 }
 
 export interface CheckoutLinkFormProps {
@@ -72,17 +75,20 @@ export const CheckoutLinkForm = ({
 
   const defaultValues = useMemo<CheckoutLinkCreateForm>(() => {
     if (checkoutLink) {
+      const meta = checkoutLink.metadata ?? {}
+      const existingTheme = (meta['checkout_theme'] as CheckoutTheme) ?? 'system'
       return {
         ...checkoutLink,
         label: checkoutLink.label ?? null,
-        metadata: Object.entries(checkoutLink.metadata ?? {}).map(
-          ([key, value]) => ({ key, value }),
-        ),
+        metadata: Object.entries(meta)
+          .filter(([key]) => key !== 'checkout_theme')
+          .map(([key, value]) => ({ key, value })),
         products: checkoutLink.products.map(({ id }) => id),
         allow_discount_codes: checkoutLink.allow_discount_codes ?? true,
         require_billing_address: checkoutLink.require_billing_address ?? false,
         success_url: checkoutLink.success_url ?? '',
         discount_id: checkoutLink.discount_id ?? '',
+        checkout_theme: existingTheme,
       }
     }
 
@@ -94,6 +100,7 @@ export const CheckoutLinkForm = ({
       require_billing_address: false,
       success_url: '',
       discount_id: '',
+      checkout_theme: 'system' as CheckoutTheme,
     }
   }, [checkoutLink, productIds])
 
@@ -167,15 +174,19 @@ export const CheckoutLinkForm = ({
 
   const onSubmit: SubmitHandler<CheckoutLinkCreateForm> = useCallback(
     async (data) => {
+      const { checkout_theme, ...rest } = data
       const body: schemas['CheckoutLinkCreateProducts'] = {
         payment_processor: 'stripe',
-        ...data,
-        discount_id: data.discount_id || null,
-        success_url: data.success_url || null,
-        metadata: data.metadata.reduce(
-          (acc, { key, value }) => ({ ...acc, [key]: value }),
-          {},
-        ),
+        ...rest,
+        discount_id: rest.discount_id || null,
+        success_url: rest.success_url || null,
+        metadata: {
+          ...rest.metadata.reduce(
+            (acc, { key, value }) => ({ ...acc, [key]: value }),
+            {} as Record<string, string | number | boolean>,
+          ),
+          checkout_theme,
+        },
       }
 
       let newCheckoutLink: schemas['CheckoutLink']
@@ -405,6 +416,39 @@ export const CheckoutLinkForm = ({
                 </FormItem>
               )
             }}
+          />
+
+          <FormField
+            control={control}
+            name="checkout_theme"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Checkout appearance</FormLabel>
+                <FormControl>
+                  <div className="dark:border-spaire-700 flex overflow-hidden rounded-xl border border-gray-200">
+                    {(['system', 'light', 'dark'] as const).map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => field.onChange(option)}
+                        className={[
+                          'flex-1 py-2 text-sm font-medium capitalize transition-colors',
+                          field.value === option
+                            ? 'bg-blue-500 text-white'
+                            : 'dark:hover:bg-spaire-800 text-gray-600 hover:bg-gray-50 dark:text-gray-400',
+                        ].join(' ')}
+                      >
+                        {option === 'system' ? 'Auto' : option.charAt(0).toUpperCase() + option.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                </FormControl>
+                <FormDescription className="text-xs">
+                  The color theme buyers will see on the checkout page.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
           />
 
           {hasRecurringProducts && (
