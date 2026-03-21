@@ -160,19 +160,19 @@
   }
 }
 
-/* Light mode: remap blue → Stripe purple (oklch ~#635BFF) */
+/* Light mode: remap blue → dark green */
 :root:not(.dark) {
-  --color-blue-50:  oklch(0.970 0.018 264.0);
-  --color-blue-100: oklch(0.940 0.040 264.0);
-  --color-blue-200: oklch(0.895 0.075 264.0);
-  --color-blue-300: oklch(0.825 0.130 264.0);
-  --color-blue-400: oklch(0.730 0.180 264.0);
-  --color-blue-500: oklch(0.558 0.212 264.0);
-  --color-blue-600: oklch(0.480 0.190 264.0);
-  --color-blue-700: oklch(0.405 0.162 264.0);
-  --color-blue-800: oklch(0.335 0.132 264.0);
-  --color-blue-900: oklch(0.272 0.102 264.0);
-  --color-blue-950: oklch(0.205 0.076 264.0);
+  --color-blue-50:  oklch(0.970 0.025 160.0);
+  --color-blue-100: oklch(0.935 0.055 160.0);
+  --color-blue-200: oklch(0.885 0.095 160.0);
+  --color-blue-300: oklch(0.810 0.140 160.0);
+  --color-blue-400: oklch(0.700 0.165 160.0);
+  --color-blue-500: oklch(0.545 0.155 160.0);
+  --color-blue-600: oklch(0.450 0.130 160.0);
+  --color-blue-700: oklch(0.375 0.108 160.0);
+  --color-blue-800: oklch(0.305 0.085 160.0);
+  --color-blue-900: oklch(0.248 0.065 160.0);
+  --color-blue-950: oklch(0.185 0.048 160.0);
   --color-blue: var(--color-blue-500);
 }
 

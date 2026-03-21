@@ -82,13 +82,19 @@ export default async function Page(props: {
 
   const locale = await resolveLocale(_locale, checkout.locale)
 
+  // Resolve theme: URL param takes priority, then checkout link metadata, then nothing (system)
+  const metaTheme = (checkout.metadata as Record<string, string> | null)?.checkout_theme
+  const resolvedTheme: 'light' | 'dark' | undefined =
+    theme ??
+    (metaTheme === 'light' || metaTheme === 'dark' ? metaTheme : undefined)
+
   return (
     <CheckoutProvider
       clientSecret={checkout.clientSecret}
       serverURL={getPublicServerURL()}
     >
       <CheckoutFormProvider locale={locale}>
-        <CheckoutPage theme={theme} embed={embed} locale={locale} />
+        <CheckoutPage theme={resolvedTheme} embed={embed} locale={locale} />
       </CheckoutFormProvider>
     </CheckoutProvider>
   )
