@@ -152,7 +152,13 @@ export const CheckoutLinkListPage = ({
                     variant="secondary"
                     onClick={() => {
                       if (typeof navigator !== 'undefined') {
-                        navigator.clipboard.writeText(link.url)
+                        const meta = link.metadata as Record<string, string> | null
+                        const t = meta?.checkout_theme
+                        const urlToCopy =
+                          t === 'dark' || t === 'light'
+                            ? `${link.url}?theme=${t}`
+                            : link.url
+                        navigator.clipboard.writeText(urlToCopy)
                         toast({
                           title: 'Link Copied',
                           description: 'Checkout link copied to clipboard',
