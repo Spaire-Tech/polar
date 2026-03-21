@@ -115,9 +115,7 @@ export const ProductStep = () => {
         await trackStepCompleted('product', organization.id)
       }
 
-      router.push(
-        `/dashboard/${organization.slug}/onboarding/integrate?productId=${product.id}`,
-      )
+      router.push(`/dashboard/${organization.slug}/onboarding/theme`)
     },
     [
       enabledBenefitIds,

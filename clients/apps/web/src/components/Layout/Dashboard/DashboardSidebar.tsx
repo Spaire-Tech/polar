@@ -4,7 +4,9 @@ import { useAuth } from '@/hooks'
 import { CONFIG } from '@/utils/config'
 import { isImpersonating } from '@/utils/impersonation'
 import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
+import DarkModeOutlined from '@mui/icons-material/DarkModeOutlined'
 import KeyboardArrowDown from '@mui/icons-material/KeyboardArrowDown'
+import LightModeOutlined from '@mui/icons-material/LightModeOutlined'
 import Search from '@mui/icons-material/Search'
 import SupportIcon from '@mui/icons-material/Support'
 import { schemas } from '@spaire/client'
@@ -30,6 +32,7 @@ import {
 import { Separator } from '@spaire/ui/components/ui/separator'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
+import { useTheme } from 'next-themes'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { twMerge } from 'tailwind-merge'
@@ -50,6 +53,7 @@ export const DashboardSidebar = ({
 }) => {
   const router = useRouter()
   const { state } = useSidebar()
+  const { theme, setTheme } = useTheme()
 
   const { currentUser } = useAuth()
 
@@ -153,6 +157,26 @@ export const DashboardSidebar = ({
         </motion.div>
       </SidebarContent>
       <SidebarFooter>
+        <button
+          type="button"
+          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          className={twMerge(
+            'flex cursor-pointer flex-row items-center rounded-lg border border-transparent px-2 py-1.5 text-sm transition-colors dark:border-transparent',
+            'dark:text-spaire-500 dark:hover:text-spaire-200 text-gray-500 hover:text-black',
+            isCollapsed && 'justify-center',
+          )}
+        >
+          {theme === 'dark' ? (
+            <LightModeOutlined fontSize="inherit" />
+          ) : (
+            <DarkModeOutlined fontSize="inherit" />
+          )}
+          {!isCollapsed && (
+            <span className="ml-4 font-medium">
+              {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+            </span>
+          )}
+        </button>
         <Link
           href="mailto:support@spairehq.com"
           className={twMerge(

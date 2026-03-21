@@ -23,8 +23,8 @@ import {
   parseAsStringLiteral,
   useQueryState,
 } from 'nuqs'
-import { useEffect, useMemo, useState } from 'react'
 import ProductSelect from '../Products/ProductSelect'
+import { useEffect, useMemo, useState } from 'react'
 
 interface CheckoutLinkListPageProps {
   organization: schemas['Organization']
@@ -85,39 +85,39 @@ export const CheckoutLinkListPage = ({
   return (
     <DashboardBody>
       <div className="flex flex-col gap-y-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex flex-row items-center gap-3">
-            <div className="w-full md:max-w-64">
-              <ProductSelect
-                organization={organization}
-                value={productIds ?? []}
-                onChange={(ids) => setProductIds(ids)}
-              />
+        {checkoutLinks.length > 0 ? (
+          <>
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-row items-center gap-3">
+              <div className="w-full md:max-w-64">
+                <ProductSelect
+                  organization={organization}
+                  value={productIds ?? []}
+                  onChange={(ids) => setProductIds(ids)}
+                />
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 shrink-0"
+                onClick={() =>
+                  setSorting(
+                    sorting === '-created_at' ? 'created_at' : '-created_at',
+                  )
+                }
+              >
+                {sorting === 'created_at' ? (
+                  <ArrowUpward fontSize="small" />
+                ) : (
+                  <ArrowDownward fontSize="small" />
+                )}
+              </Button>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 shrink-0"
-              onClick={() =>
-                setSorting(
-                  sorting === '-created_at' ? 'created_at' : '-created_at',
-                )
-              }
-            >
-              {sorting === 'created_at' ? (
-                <ArrowUpward fontSize="small" />
-              ) : (
-                <ArrowDownward fontSize="small" />
-              )}
+            <Button onClick={showCreateModal}>
+              <AddOutlined className="h-4 w-4" />
+              <span>Create link</span>
             </Button>
           </div>
-          <Button onClick={showCreateModal}>
-            <AddOutlined className="h-4 w-4" />
-            <span>Create link</span>
-          </Button>
-        </div>
-
-        {checkoutLinks.length > 0 ? (
           <div className="dark:border-spaire-700 dark:divide-spaire-700 flex flex-col divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200">
             {checkoutLinks.map((link) => {
               const productLabel =
@@ -174,10 +174,11 @@ export const CheckoutLinkListPage = ({
               </div>
             )}
           </div>
+          </>
         ) : (
-          <ShadowBoxOnMd className="relative overflow-hidden p-0 md:p-0">
+          <ShadowBoxOnMd className="relative overflow-hidden rounded-2xl border border-gray-200 dark:border-spaire-700 p-0 md:p-0">
             <img
-              src="https://spaire-production-files-public.s3.us-east-1.amazonaws.com/Untitled+design+-+2026-03-19T000326.960.png"
+              src="https://spaire-production-files-public.s3.us-east-1.amazonaws.com/Untitled+design+(41).png"
               alt=""
               aria-hidden="true"
               className="h-[420px] w-full object-cover object-top md:h-[560px]"

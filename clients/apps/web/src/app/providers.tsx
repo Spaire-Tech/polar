@@ -43,14 +43,12 @@ export function PolarThemeProvider({
   children,
 }: {
   children: React.ReactNode
-  forceTheme?: 'light' | 'dark'
 }) {
   return (
     <ThemeProvider
       defaultTheme="dark"
       enableSystem={false}
       attribute="class"
-      forcedTheme="dark"
     >
       {children}
     </ThemeProvider>

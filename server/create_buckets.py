@@ -18,10 +18,11 @@ buckets = [
 
 for bucket in buckets:
     try:
-        s3.create_bucket(
-            Bucket=bucket,
-            CreateBucketConfiguration={"LocationConstraint": settings.AWS_REGION},
-        )
+        kwargs = {"Bucket": bucket}
+        # us-east-1 must NOT include LocationConstraint
+        if settings.AWS_REGION != "us-east-1":
+            kwargs["CreateBucketConfiguration"] = {"LocationConstraint": settings.AWS_REGION}
+        s3.create_bucket(**kwargs)
         print(f"Created: {bucket}")
     except s3.exceptions.BucketAlreadyOwnedByYou:
         print(f"Already exists: {bucket}")

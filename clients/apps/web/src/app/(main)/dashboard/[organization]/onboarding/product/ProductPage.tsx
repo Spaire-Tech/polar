@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useContext, useEffect, useState } from 'react'
 
 import { FadeUp } from '@/components/Animated/FadeUp'
@@ -20,6 +21,7 @@ export default function ClientPage({
 }) {
   const { organization, organizations } = useContext(OrganizationContext)
   const { trackStepSkipped } = useOnboardingTracking()
+  const router = useRouter()
   const [mode, setMode] = useState<'assistant' | 'manual'>(
     isAssistantEnabled ? 'assistant' : 'manual',
   )
@@ -35,6 +37,13 @@ export default function ClientPage({
 
     return () => clearTimeout(timer)
   }, [isAssistantFinished])
+
+  // When assistant finishes, move to the theme step
+  useEffect(() => {
+    if (isAssistantFinished) {
+      router.push(`/dashboard/${organization.slug}/onboarding/theme`)
+    }
+  }, [isAssistantFinished, organization.slug, router])
 
   return (
     <div className="dark:md:bg-spaire-950 flex h-full w-full flex-row">
@@ -103,11 +112,11 @@ export default function ClientPage({
                 </>
               )}
               <Link
-                href={`/dashboard/${organization.slug}`}
+                href={`/dashboard/${organization.slug}/onboarding/theme`}
                 className="dark:text-spaire-500 cursor-pointer rounded-full px-2.5 py-1 text-gray-500 transition-colors duration-100 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-spaire-700 dark:hover:text-gray-300"
                 onClick={() => trackStepSkipped('product', organization.id)}
               >
-                Skip onboarding
+                Skip to next step
               </Link>
             </FadeUp>
           </motion.div>

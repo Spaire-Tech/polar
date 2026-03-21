@@ -149,6 +149,7 @@
 
   body {
     color: var(--foreground);
+    background-color: var(--background);
   }
 }
 
@@ -159,9 +160,58 @@
   }
 }
 
+/* Light mode: remap blue → purple (Stripe-style, shifted more purple) */
+:root:not(.dark) {
+  --color-blue-50:  oklch(0.970 0.020 272.0);
+  --color-blue-100: oklch(0.940 0.042 272.0);
+  --color-blue-200: oklch(0.895 0.080 272.0);
+  --color-blue-300: oklch(0.825 0.135 272.0);
+  --color-blue-400: oklch(0.730 0.185 272.0);
+  --color-blue-500: oklch(0.558 0.225 272.0);
+  --color-blue-600: oklch(0.480 0.195 272.0);
+  --color-blue-700: oklch(0.405 0.165 272.0);
+  --color-blue-800: oklch(0.335 0.135 272.0);
+  --color-blue-900: oklch(0.272 0.105 272.0);
+  --color-blue-950: oklch(0.205 0.078 272.0);
+  --color-blue: var(--color-blue-500);
+}
+
 /* shadcn/ui */
 @layer base {
+  /* Light mode defaults */
   :root {
+    --background: #ffffff;
+    --foreground: var(--color-gray-900);
+    --card: #ffffff;
+    --card-foreground: var(--color-gray-900);
+    --popover: #ffffff;
+    --popover-foreground: var(--color-gray-900);
+    --sidebar-background: var(--color-gray-50);
+    --sidebar-foreground: var(--color-gray-900);
+    --sidebar-primary: var(--color-blue);
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-border: var(--color-gray-200);
+    --sidebar-accent: var(--color-gray-100);
+    --sidebar-accent-foreground: var(--color-gray-900);
+    --sidebar-ring: var(--color-blue);
+    --primary: var(--color-blue);
+    --primary-foreground: #ffffff;
+    --secondary: var(--color-gray-100);
+    --secondary-foreground: var(--color-gray-900);
+    --muted: var(--color-gray-100);
+    --muted-foreground: var(--color-gray-500);
+    --accent: var(--color-gray-100);
+    --accent-foreground: var(--color-gray-900);
+    --destructive: var(--color-red-500);
+    --destructive-foreground: #ffffff;
+    --border: var(--color-gray-200);
+    --input: var(--color-gray-200);
+    --ring: var(--color-blue);
+    --radius: 0.6rem;
+  }
+
+  /* Dark mode overrides */
+  .dark {
     --background: var(--color-spaire-800);
     --foreground: var(--color-spaire-500);
     --card: var(--color-spaire-800);
@@ -173,6 +223,9 @@
     --sidebar-primary: var(--color-blue);
     --sidebar-primary-foreground: var(--color-spaire-50);
     --sidebar-border: var(--color-spaire-700);
+    --sidebar-accent: var(--color-spaire-700);
+    --sidebar-accent-foreground: var(--color-spaire-50);
+    --sidebar-ring: var(--color-spaire-700);
     --primary: var(--color-blue);
     --primary-foreground: var(--color-spaire-50);
     --secondary: var(--color-spaire-900);
@@ -203,13 +256,14 @@ pre.shiki {
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  .shiki,
-  .shiki span {
-    color: var(--shiki-dark) !important;
-    font-style: var(--shiki-dark-font-style) !important;
-    font-weight: var(--shiki-dark-font-weight) !important;
-    text-decoration: var(--shiki-dark-text-decoration) !important;
-  }
+/* Use .dark class so code colors follow the app theme, not the OS preference.
+   Light mode: Shiki's defaultColor:'light' puts inline color on each span — no override needed.
+   Dark mode: override with the --shiki-dark vars Shiki defines on each span. */
+.dark .shiki,
+.dark .shiki span {
+  color: var(--shiki-dark) !important;
+  font-style: var(--shiki-dark-font-style) !important;
+  font-weight: var(--shiki-dark-font-weight) !important;
+  text-decoration: var(--shiki-dark-text-decoration) !important;
 }
 
