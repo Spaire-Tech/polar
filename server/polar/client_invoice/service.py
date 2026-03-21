@@ -65,6 +65,14 @@ class ClientInvoiceAlreadyVoided(ClientInvoiceError):
         super().__init__(f"Client invoice {invoice.id} has already been voided.")
 
 
+class ClientInvoiceCannotMarkPaid(ClientInvoiceError):
+    def __init__(self, invoice: ClientInvoice) -> None:
+        self.invoice = invoice
+        super().__init__(
+            f"Client invoice {invoice.id} cannot be marked as paid (status={invoice.status})."
+        )
+
+
 class ClientInvoiceService:
     async def list(
         self,
@@ -578,6 +586,21 @@ class ClientInvoiceService:
         repository = ClientInvoiceRepository.from_session(session)
         return await repository.update(
             invoice, update_dict={"status": ClientInvoiceStatus.void}
+        )
+
+    async def mark_as_paid(
+        self,
+        session: AsyncSession,
+        invoice: ClientInvoice,
+    ) -> ClientInvoice:
+        """Mark an invoice as paid manually without interacting with Stripe.
+        Only allowed for draft or open invoices."""
+        if invoice.status not in {ClientInvoiceStatus.draft, ClientInvoiceStatus.open}:
+            raise ClientInvoiceCannotMarkPaid(invoice)
+
+        repository = ClientInvoiceRepository.from_session(session)
+        return await repository.update(
+            invoice, update_dict={"status": ClientInvoiceStatus.paid}
         )
 
     async def handle_stripe_invoice_paid(

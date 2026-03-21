@@ -17,6 +17,7 @@ from . import auth, sorting
 from .schemas import ClientInvoiceCreate, ClientInvoiceSchema
 from .service import (
     ClientInvoiceAlreadyVoided,
+    ClientInvoiceCannotMarkPaid,
     ClientInvoiceError,
     ClientInvoiceNotDraft,
     client_invoice as client_invoice_service,
@@ -160,6 +161,29 @@ async def send_client_invoice(
     try:
         invoice = await client_invoice_service.send(session, invoice)
     except ClientInvoiceNotDraft as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+
+    return ClientInvoiceSchema.model_validate(invoice)
+
+
+@router.post(
+    "/{id}/mark-paid",
+    summary="Mark Client Invoice as Paid",
+    response_model=ClientInvoiceSchema,
+)
+async def mark_client_invoice_paid(
+    id: UUID4,
+    auth_subject: auth.ClientInvoicesWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> ClientInvoiceSchema:
+    """Mark a draft or open invoice as paid manually without going through Stripe."""
+    invoice = await client_invoice_service.get_by_id(session, auth_subject, id)
+    if invoice is None:
+        raise ResourceNotFound()
+
+    try:
+        invoice = await client_invoice_service.mark_as_paid(session, invoice)
+    except ClientInvoiceCannotMarkPaid as e:
         raise HTTPException(status_code=409, detail=str(e)) from e
 
     return ClientInvoiceSchema.model_validate(invoice)

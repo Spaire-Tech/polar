@@ -9,6 +9,7 @@ import { setValidationErrors } from '@/utils/api/errors'
 import { CONFIG } from '@/utils/config'
 import { FormControl } from '@mui/material'
 import { schemas } from '@spaire/client'
+import Avatar from '@spaire/ui/components/atoms/Avatar'
 import Button from '@spaire/ui/components/atoms/Button'
 import Input from '@spaire/ui/components/atoms/Input'
 import {
@@ -133,11 +134,13 @@ export const OrganizationStep = ({
   const form = useForm<{
     name: string
     slug: string
+    avatar_url: string
     terms: boolean
   }>({
     defaultValues: {
       name: initialSlug || '',
       slug: initialSlug || '',
+      avatar_url: '',
       terms: false,
     },
   })
@@ -190,6 +193,7 @@ export const OrganizationStep = ({
 
   const name = watch('name')
   const slug = watch('slug')
+  const avatarUrl = watch('avatar_url')
   const terms = watch('terms')
 
   useEffect(() => {
@@ -206,13 +210,15 @@ export const OrganizationStep = ({
   const onSubmit = async (data: {
     name: string
     slug: string
+    avatar_url: string
     terms: boolean
   }) => {
     if (!data.terms) return
 
     const params = {
-      ...data,
+      name: data.name,
       slug: slug as string,
+      terms: data.terms,
     }
 
     posthog.capture('dashboard:organizations:create:submit', {
@@ -237,11 +243,14 @@ export const OrganizationStep = ({
     })
     setUserOrganizations((orgs) => [...orgs, organization])
 
-    // Always persist the selected currency so product defaults are correct
+    // Always persist the selected currency and avatar so product defaults are correct
     if (!hasExistingOrg) {
       await updateOrganization.mutateAsync({
         id: organization.id,
-        body: { default_presentment_currency: currency },
+        body: {
+          default_presentment_currency: currency,
+          ...(data.avatar_url ? { avatar_url: data.avatar_url } : {}),
+        },
         userId: currentUser?.id,
       })
       // Explicitly revalidate so the layout re-fetches the org with the new currency
@@ -414,6 +423,44 @@ export const OrganizationStep = ({
                   </div>
 
                   <div className="dark:bg-spaire-900 flex flex-col gap-y-5 rounded-2xl border border-gray-200 bg-white p-6 dark:border-none">
+                    {/* Logo upload — mandatory for invoicing & branding */}
+                    <FormField
+                      control={control}
+                      name="avatar_url"
+                      rules={{
+                        required: 'A logo is required for invoicing and your brand',
+                      }}
+                      render={({ field }) => (
+                        <FormItem className="w-full">
+                          <FormControl>
+                            <div className="flex flex-col gap-y-2">
+                              <Label htmlFor="avatar_url">
+                                Logo{' '}
+                                <span className="text-red-500">*</span>
+                              </Label>
+                              <p className="dark:text-spaire-500 text-xs text-gray-400">
+                                Your logo appears on invoices and your public storefront. Use a square image for best results.
+                              </p>
+                              <div className="flex items-center gap-4">
+                                <Avatar
+                                  avatar_url={avatarUrl || ''}
+                                  name={name || 'Logo'}
+                                  className="h-14 w-14 shrink-0"
+                                />
+                                <Input
+                                  {...field}
+                                  id="avatar_url"
+                                  placeholder="https://example.com/logo.png"
+                                  className="flex-1"
+                                />
+                              </div>
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
                     <FormField
                       control={control}
                       name="name"
@@ -572,7 +619,7 @@ export const OrganizationStep = ({
                     type="submit"
                     size="lg"
                     loading={createOrganization.isPending}
-                    disabled={name.length === 0 || slug.length === 0 || !terms}
+                    disabled={name.length === 0 || slug.length === 0 || !terms || avatarUrl.length === 0}
                   >
                     Continue
                   </Button>

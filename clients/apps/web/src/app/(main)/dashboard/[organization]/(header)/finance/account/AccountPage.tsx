@@ -3,9 +3,12 @@
 import AccountCreateModal from '@/components/Accounts/AccountCreateModal'
 import AccountsList from '@/components/Accounts/AccountsList'
 import StreamlinedAccountReview from '@/components/Finance/StreamlinedAccountReview'
-import { DashboardBody } from '@/components/Layout/DashboardLayout'
 import { Modal } from '@/components/Modal'
 import { useModal } from '@/components/Modal/useModal'
+import {
+  OnboardingStep,
+  OnboardingStepper,
+} from '@/components/Onboarding/OnboardingStepper'
 import { useAuth } from '@/hooks/auth'
 import {
   useListAccounts,
@@ -19,6 +22,38 @@ import { ShadowBoxOnMd } from '@spaire/ui/components/atoms/ShadowBox'
 import { Separator } from '@spaire/ui/components/ui/separator'
 import { loadStripe } from '@stripe/stripe-js'
 import React, { useCallback, useState } from 'react'
+
+const payoutSteps: OnboardingStep[] = [
+  {
+    id: 'review',
+    label: 'Business Review',
+    description: 'Tell us about your business',
+  },
+  {
+    id: 'validation',
+    label: 'Validation',
+    description: 'AI review of your profile',
+  },
+  {
+    id: 'account',
+    label: 'Payout Account',
+    description: 'Connect your bank account',
+  },
+  {
+    id: 'identity',
+    label: 'Identity',
+    description: 'Verify your identity',
+    optional: true,
+  },
+]
+
+const stepIndexMap: Record<string, number> = {
+  review: 0,
+  validation: 1,
+  account: 2,
+  identity: 3,
+  complete: 4,
+}
 
 export default function ClientPage({
   organization,
@@ -252,60 +287,80 @@ export default function ClientPage({
     ],
   )
 
+  const currentStepIndex = stepIndexMap[step] ?? 0
+
   return (
-    <DashboardBody>
-      <div className="flex flex-col gap-y-6">
-        <StreamlinedAccountReview
-          organization={organization}
-          currentStep={step}
-          requireDetails={requireDetails}
-          organizationAccount={organizationAccount}
-          organizationReviewStatus={reviewStatus}
-          identityVerificationStatus={currentUser?.identity_verification_status}
-          isNotAdmin={isNotAdmin}
-          onDetailsSubmitted={handleDetailsSubmitted}
-          onValidationCompleted={handleValidationCompleted}
-          onStartAccountSetup={handleStartAccountSetup}
-          onStartIdentityVerification={handleStartIdentityVerification}
-          onSkipAccountSetup={handleSkipAccountSetup}
-          onAppealApproved={handleAppealApproved}
-          onAppealSubmitted={handleAppealSubmitted}
-          onNavigateToStep={handleNavigateToStep}
-        />
+    <div className="dark:md:bg-spaire-950 flex h-full w-full flex-row overflow-y-auto">
+      {/* Left stepper panel — desktop only */}
+      <OnboardingStepper
+        currentStep={currentStepIndex}
+        steps={payoutSteps}
+      />
 
-        {accounts?.items && accounts.items.length > 0 ? (
-          <ShadowBoxOnMd>
-            <div className="flex flex-row items-center justify-between">
-              <div className="flex flex-col gap-y-2">
-                <h2 className="text-lg font-medium">All payout accounts</h2>
-                <p className="dark:text-spaire-500 text-sm text-gray-500">
-                  Payout accounts you manage
-                </p>
+      {/* Main content */}
+      <div className="flex flex-1 flex-col overflow-y-auto">
+        <div className="flex w-full flex-col gap-y-8 px-6 pt-16 pb-24 md:px-20">
+          <div className="flex flex-col gap-y-1">
+            <h1 className="text-2xl font-medium tracking-tight md:text-3xl">
+              Set up Payouts
+            </h1>
+            <p className="dark:text-spaire-400 max-w-md text-base text-gray-500">
+              Complete the steps below to start receiving payouts to your bank account.
+            </p>
+          </div>
+
+          <StreamlinedAccountReview
+            organization={organization}
+            currentStep={step}
+            requireDetails={requireDetails}
+            organizationAccount={organizationAccount}
+            organizationReviewStatus={reviewStatus}
+            identityVerificationStatus={currentUser?.identity_verification_status}
+            isNotAdmin={isNotAdmin}
+            onDetailsSubmitted={handleDetailsSubmitted}
+            onValidationCompleted={handleValidationCompleted}
+            onStartAccountSetup={handleStartAccountSetup}
+            onStartIdentityVerification={handleStartIdentityVerification}
+            onSkipAccountSetup={handleSkipAccountSetup}
+            onAppealApproved={handleAppealApproved}
+            onAppealSubmitted={handleAppealSubmitted}
+            onNavigateToStep={handleNavigateToStep}
+          />
+
+          {accounts?.items && accounts.items.length > 0 ? (
+            <ShadowBoxOnMd>
+              <div className="flex flex-row items-center justify-between">
+                <div className="flex flex-col gap-y-2">
+                  <h2 className="text-lg font-medium">All payout accounts</h2>
+                  <p className="dark:text-spaire-500 text-sm text-gray-500">
+                    Payout accounts you manage
+                  </p>
+                </div>
               </div>
-            </div>
-            <Separator className="my-8" />
-            {accounts?.items && (
-              <AccountsList
-                accounts={accounts?.items}
-                pauseActions={requireDetails}
-              />
-            )}
-          </ShadowBoxOnMd>
-        ) : null}
-
-        <Modal
-          title="Create Payout Account"
-          isShown={isShownSetupModal}
-          className="min-w-[400px]"
-          hide={hideSetupModal}
-          modalContent={
-            <AccountCreateModal
-              forOrganizationId={organization.id}
-              returnPath={`/dashboard/${organization.slug}/finance/account`}
-            />
-          }
-        />
+              <Separator className="my-8" />
+              {accounts?.items && (
+                <AccountsList
+                  accounts={accounts?.items}
+                  pauseActions={requireDetails}
+                />
+              )}
+            </ShadowBoxOnMd>
+          ) : null}
+        </div>
       </div>
-    </DashboardBody>
+
+      <Modal
+        title="Create Payout Account"
+        isShown={isShownSetupModal}
+        className="min-w-[400px]"
+        hide={hideSetupModal}
+        modalContent={
+          <AccountCreateModal
+            forOrganizationId={organization.id}
+            returnPath={`/dashboard/${organization.slug}/finance/account`}
+          />
+        }
+      />
+    </div>
   )
 }
