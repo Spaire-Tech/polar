@@ -29,7 +29,6 @@ const defaultSteps: OnboardingStep[] = [
     id: 'theme',
     label: 'Your Preferences',
     description: 'Customize your experience',
-    optional: true,
   },
 ]
 
