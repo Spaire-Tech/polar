@@ -173,7 +173,8 @@ export const DashboardSidebar = ({
           animate={{ opacity: 1 }}
           transition={{ duration: 1 }}
         >
-          {/* Theme toggle moved up next to sidebar trigger */}
+          {/* Notifications + Theme toggle next to sidebar trigger */}
+          <NotificationsPopover />
           <button
             type="button"
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
@@ -236,10 +237,6 @@ export const DashboardSidebar = ({
         </motion.div>
       </SidebarContent>
       <SidebarFooter>
-        {/* Notifications in footer, opens upward */}
-        <div className={twMerge('flex items-center', isCollapsed ? 'justify-center' : 'flex-row')}>
-          <NotificationsPopover />
-        </div>
         <Separator />
         <Link
           href="mailto:support@spairehq.com"

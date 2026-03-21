@@ -94,10 +94,14 @@ export default function ClientPage({
 
   // Redirect directly to account setup when payouts aren't enabled yet
   useEffect(() => {
-    if (!isNotAdmin && account !== undefined && !account?.is_payouts_enabled) {
+    if (isNotAdmin) return
+    // No account exists (404) or account exists but payouts not enabled
+    const noAccount = accountError && !isNotAdmin
+    const notEnabled = account !== undefined && !account?.is_payouts_enabled
+    if (noAccount || notEnabled) {
       router.replace(`/dashboard/${organization.slug}/finance/account`)
     }
-  }, [account, isNotAdmin, organization.slug, router])
+  }, [account, accountError, isNotAdmin, organization.slug, router])
 
   const { data: payouts, isLoading } = usePayouts(account?.id, {
     ...getAPIParams(pagination, sorting),
