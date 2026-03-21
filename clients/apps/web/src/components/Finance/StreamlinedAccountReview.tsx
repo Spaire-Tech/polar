@@ -301,27 +301,8 @@ export default function StreamlinedAccountReview({
     return null
   }
 
-  const currentStepIndex =
-    steps.findIndex((s) => s.id === currentStep) + 1
-
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col items-stretch gap-8 self-center">
-      {/* Header */}
-      <div className="space-y-1 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight dark:text-white">
-          Set up payouts
-        </h1>
-        <p className="dark:text-spaire-400 text-sm text-gray-500">
-          Add your payout details so Spaire can send your earnings from
-          customer payments.
-        </p>
-      </div>
-
-      {/* Progress stepper */}
-      <div className="px-4">
-        <StepProgress steps={steps} onStepClick={handleStepClick} />
-      </div>
-
       {/* Step content */}
       {currentStep === 'review' && (
         <StepCard
@@ -394,10 +375,6 @@ export default function StreamlinedAccountReview({
         </StepCard>
       )}
 
-      {/* Step counter */}
-      <p className="dark:text-spaire-500 text-center text-xs text-gray-400">
-        Step {currentStepIndex} of {steps.length}
-      </p>
     </div>
   )
 }
