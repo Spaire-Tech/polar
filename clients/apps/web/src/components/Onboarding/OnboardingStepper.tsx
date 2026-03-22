@@ -46,7 +46,7 @@ export const OnboardingStepper = ({
   showLogo = true,
 }: OnboardingStepperProps) => {
   return (
-    <div className="dark:bg-spaire-900 hidden h-full w-[300px] shrink-0 flex-col justify-between border-r border-gray-100 bg-gray-50/50 p-10 dark:border-none md:flex">
+    <div className="dark:bg-spaire-900 hidden h-full w-[300px] shrink-0 flex-col justify-between border-r border-gray-100 bg-white p-10 dark:border-none md:flex">
       <div className="flex flex-col gap-y-16">
         {showLogo && (
           organization ? (

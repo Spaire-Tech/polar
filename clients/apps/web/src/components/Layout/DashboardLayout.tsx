@@ -43,7 +43,7 @@ const DashboardLayout = (
 
   return (
     <DashboardProvider organization={organization}>
-      <div className="relative flex h-full w-full flex-col bg-white md:flex-row md:bg-gray-100 md:p-2 dark:bg-transparent">
+      <div className="relative flex h-full w-full flex-col bg-white md:flex-row dark:bg-transparent">
         <MobileNav
           organization={organization}
           organizations={organizations ?? []}
@@ -92,7 +92,7 @@ const MobileNav = ({
   }, [pathname])
 
   const header = (
-    <div className="dark:bg-black sticky top-0 right-0 left-0 flex w-full flex-row items-center justify-between bg-gray-50 p-4">
+    <div className="dark:bg-black sticky top-0 right-0 left-0 flex w-full flex-row items-center justify-between bg-white p-4">
       <a
         href="/"
         className="shrink-0 items-center font-semibold text-black dark:text-white"
@@ -108,11 +108,11 @@ const MobileNav = ({
   )
 
   return (
-    <div className="dark:bg-black relative z-20 flex w-screen flex-col items-center justify-between bg-gray-50 md:hidden">
+    <div className="dark:bg-black relative z-20 flex w-screen flex-col items-center justify-between bg-white md:hidden">
       {mobileNavOpen ? (
         <div className="relative flex h-full w-full flex-col">
           {header}
-          <div className="dark:bg-black flex h-full flex-col bg-gray-50 px-4">
+          <div className="dark:bg-black flex h-full flex-col bg-white px-4">
             <DashboardSidebar
               organization={organization}
               organizations={organizations}

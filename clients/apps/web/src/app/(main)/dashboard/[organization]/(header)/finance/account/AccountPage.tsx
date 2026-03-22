@@ -32,7 +32,7 @@ const payoutSteps: OnboardingStep[] = [
   {
     id: 'validation',
     label: 'Validation',
-    description: 'AI review of your profile',
+    description: 'Review of your profile',
   },
   {
     id: 'account',
@@ -43,7 +43,6 @@ const payoutSteps: OnboardingStep[] = [
     id: 'identity',
     label: 'Identity',
     description: 'Verify your identity',
-    optional: true,
   },
 ]
 
@@ -301,15 +300,6 @@ export default function ClientPage({
       {/* Main content */}
       <div className="flex flex-1 flex-col overflow-y-auto">
         <div className="flex w-full flex-col gap-y-8 px-6 pt-16 pb-24 md:px-20">
-          <div className="flex flex-col gap-y-1">
-            <h1 className="text-2xl font-medium tracking-tight md:text-3xl">
-              Set up Payouts
-            </h1>
-            <p className="dark:text-spaire-400 max-w-md text-base text-gray-500">
-              Complete the steps below to start receiving payouts to your bank account.
-            </p>
-          </div>
-
           <StreamlinedAccountReview
             organization={organization}
             currentStep={step}
