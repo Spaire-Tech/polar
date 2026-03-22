@@ -510,7 +510,7 @@ export const PHP_SDK_INTEGRATION: SdkIntegration = {
   howItWorks: [
     {
       title: 'Install SDK',
-      description: 'Add spaire-sh/sdk via Composer',
+      description: 'Add spaire-tech/spaire-php via Composer',
     },
     {
       title: 'Configure credentials',
@@ -521,8 +521,8 @@ export const PHP_SDK_INTEGRATION: SdkIntegration = {
       description: 'Create checkouts and handle webhooks',
     },
   ],
-  packages: 'spaire-sh/sdk',
-  pythonInstall: 'composer require spaire-sh/sdk',
+  packages: 'spaire-tech/spaire-php',
+  pythonInstall: 'composer require spaire-tech/spaire-php',
   docsLink: 'https://docs.spairehq.com/integrate/sdk/php',
   codeLang: 'php',
   envVars: `SPAIRE_ACCESS_TOKEN=your_access_token
