@@ -304,13 +304,13 @@ export default function StreamlinedAccountReview({
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col items-stretch gap-8 self-center">
       {/* Step content */}
-      {currentStep === ‘review’ && (
+      {currentStep === 'review' && (
         <StepCard
           title="Set up Payouts"
           subtitle={
             requireDetails
-              ? ‘Complete the steps below to start receiving payouts to your bank account.’
-              : ‘Review your submitted business details below.’
+              ? 'Complete the steps below to start receiving payouts to your bank account.'
+              : 'Review your submitted business details below.'
           }
         >
           {requireDetails ? (
