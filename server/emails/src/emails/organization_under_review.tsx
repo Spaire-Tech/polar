@@ -13,19 +13,23 @@ export function OrganizationUnderReview({
   return (
     <WrapperPolar>
       <Preview>
-        Your organization is under review - a standard part of our onboarding
-        process
+        Congrats on your first sale 🎉 — your organization is now undergoing a
+        routine review
       </Preview>
       <IntroWithHi>
-        Your organization <strong>{organization.name}</strong> is currently
-        under review as part of our standard onboarding process.
+        Congrats on your first sale 🎉
       </IntroWithHi>
       <Section>
         <BodyText>
-          This is a completely normal step that all organizations go through
-          when joining Spaire. As a Merchant of Record, we need to ensure
-          compliance with our acceptable use policies and verify account
-          information.
+          As part of our standard process, your organization{' '}
+          <strong>{organization.name}</strong> is now undergoing a routine
+          review.
+        </BodyText>
+        <BodyText>
+          This is a normal step that happens after the first transaction for all
+          accounts. As a Merchant of Record, we&apos;re required to verify
+          business details and ensure everything is compliant before continuing
+          to process payments at scale.
         </BodyText>
         <BodyText>
           <strong>What happens next?</strong>
