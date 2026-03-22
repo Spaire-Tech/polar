@@ -534,13 +534,21 @@ const OrganizationProfileSettings: React.FC<
       ),
     }
 
-    const { data, error } = await updateOrganization.mutateAsync({
+    const { data, error, response } = await updateOrganization.mutateAsync({
       id: organization.id,
       body: cleanedBody,
       userId: currentUser?.id,
     })
 
     if (error) {
+      if (response.status === 401) {
+        toast({
+          title: 'Session Expired',
+          description: 'Your session has expired. Please refresh the page and try again.',
+        })
+        return
+      }
+
       const errorMessage = Array.isArray(error.detail)
         ? error.detail[0]?.msg ||
           'An error occurred while updating the organization'

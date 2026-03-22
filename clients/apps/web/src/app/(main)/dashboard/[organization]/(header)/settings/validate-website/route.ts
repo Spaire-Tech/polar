@@ -69,7 +69,11 @@ export async function POST(request: Request): Promise<NextResponse> {
 
       clearTimeout(timeoutId)
 
-      const isReachable = response.status >= 200 && response.status < 400
+      // Accept any response from the server as "reachable" — even 4xx/5xx means
+      // the server exists. Common false-negatives: 405 (site blocks HEAD),
+      // 403 (WAF), 406 (content negotiation). Only truly unreachable sites
+      // (timeouts, DNS errors) should be flagged.
+      const isReachable = response.status < 600
 
       return NextResponse.json({
         reachable: isReachable,
