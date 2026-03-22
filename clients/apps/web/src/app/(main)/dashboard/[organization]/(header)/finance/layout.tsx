@@ -2,7 +2,7 @@
 
 import { useOrganizationAccount } from '@/hooks/queries'
 import { OrganizationContext } from '@/providers/maintainerOrganization'
-import { Tabs, TabsList, TabsTrigger } from '@spaire/ui/components/atoms/Tabs'
+import { cn } from '@spaire/ui/lib/utils'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { PropsWithChildren, useContext } from 'react'
@@ -20,16 +20,11 @@ export default function BalanceLayout({ children }: PropsWithChildren) {
 
   const { data: account } = useOrganizationAccount(organization.id)
   const payoutsEnabled = account?.is_payouts_enabled ?? false
-  // Hide the nav entirely while on the /account setup page
   const isAccountSetupPage = pathname.startsWith(`${base}/account`)
 
   const visibleTabs = allTabs.filter(
     (t) => !t.requiresPayouts || payoutsEnabled,
   )
-
-  const activeTab =
-    visibleTabs.find((t) => pathname.startsWith(`${base}${t.suffix}`)) ??
-    visibleTabs[0]
 
   if (isAccountSetupPage) {
     return <>{children}</>
@@ -37,25 +32,27 @@ export default function BalanceLayout({ children }: PropsWithChildren) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="px-4 pt-6 md:px-8">
-        <Tabs value={activeTab?.title ?? ''}>
-          <TabsList className="flex flex-row bg-transparent ring-0 dark:bg-transparent dark:ring-0">
-            {visibleTabs.map((tab) => (
+      <div className="px-4 md:px-8">
+        <div className="flex flex-row border-b border-gray-100 pt-6 dark:border-polar-800">
+          {visibleTabs.map((tab) => {
+            const isActive = pathname.startsWith(`${base}${tab.suffix}`)
+            return (
               <Link
                 key={tab.suffix}
                 href={`${base}${tab.suffix}`}
                 prefetch={true}
+                className={cn(
+                  'relative mr-6 pb-3 text-sm font-medium transition-colors last:mr-0',
+                  isActive
+                    ? 'text-gray-900 dark:text-white after:absolute after:bottom-[-1px] after:left-0 after:right-0 after:h-0.5 after:rounded-full after:bg-blue-500'
+                    : 'text-gray-400 hover:text-gray-600 dark:text-polar-500 dark:hover:text-polar-300',
+                )}
               >
-                <TabsTrigger
-                  className="flex flex-row items-center gap-x-2 px-4"
-                  value={tab.title}
-                >
-                  {tab.title}
-                </TabsTrigger>
+                {tab.title}
               </Link>
-            ))}
-          </TabsList>
-        </Tabs>
+            )
+          })}
+        </div>
       </div>
       {children}
     </div>

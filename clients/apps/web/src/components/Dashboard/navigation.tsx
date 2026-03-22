@@ -1,3 +1,4 @@
+import { useOrganizationAccount } from '@/hooks/queries'
 import { PolarHog, usePostHog } from '@/hooks/posthog'
 import AttachMoneyOutlined from '@mui/icons-material/AttachMoneyOutlined'
 import CodeOutlined from '@mui/icons-material/CodeOutlined'
@@ -12,7 +13,7 @@ import TrendingUp from '@mui/icons-material/TrendingUp'
 import TuneOutlined from '@mui/icons-material/TuneOutlined'
 import { schemas } from '@spaire/client'
 import { usePathname } from 'next/navigation'
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 
 export type SubRoute = {
   readonly title: string
@@ -140,7 +141,13 @@ export const useOrganizationRoutes = (
   org?: schemas['Organization'],
   allowAll?: boolean,
 ): RouteWithActive[] => {
-  return useResolveRoutes(organizationRoutesList, org, allowAll)
+  const { data: account } = useOrganizationAccount(org?.id)
+  const resolver = useCallback(
+    (o?: schemas['Organization'], posthog?: PolarHog) =>
+      organizationRoutesList(o, posthog, account),
+    [account],
+  )
+  return useResolveRoutes(resolver, org, allowAll)
 }
 
 export const useAccountRoutes = (): RouteWithActive[] => {
@@ -258,11 +265,19 @@ const accountRoutesList = (): Route[] => [
   },
 ]
 
-const organizationRoutesList = (org?: schemas['Organization']): Route[] => [
+const organizationRoutesList = (
+  org?: schemas['Organization'],
+  _posthog?: PolarHog,
+  account?: schemas['Account'],
+): Route[] => [
   {
     id: 'finance',
     title: 'Payouts',
-    link: `/dashboard/${org?.slug}/finance/income`,
+    // Send to account setup when payouts aren't enabled yet; otherwise go to income overview
+    link:
+      account?.is_payouts_enabled === false
+        ? `/dashboard/${org?.slug}/finance/account`
+        : `/dashboard/${org?.slug}/finance/income`,
     icon: <AttachMoneyOutlined fontSize="inherit" />,
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/finance`)
