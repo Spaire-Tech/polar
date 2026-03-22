@@ -97,7 +97,7 @@ export const NotificationsPopover = () => {
           )}
         </PopoverTrigger>
       </Button>
-      <PopoverContent sideOffset={12} align="start">
+      <PopoverContent side="bottom" sideOffset={12} align="start">
         <List
           notifications={notifs.data?.notifications ?? []}
           setIsInNestedModal={setIsInNestedModal}

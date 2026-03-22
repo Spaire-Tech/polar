@@ -9,6 +9,7 @@ import { setValidationErrors } from '@/utils/api/errors'
 import { CONFIG } from '@/utils/config'
 import { FormControl } from '@mui/material'
 import { schemas } from '@spaire/client'
+import Avatar from '@spaire/ui/components/atoms/Avatar'
 import Button from '@spaire/ui/components/atoms/Button'
 import Input from '@spaire/ui/components/atoms/Input'
 import {
@@ -26,13 +27,15 @@ import {
   FormMessage,
 } from '@spaire/ui/components/ui/form'
 import { Label } from '@spaire/ui/components/ui/label'
+import AddPhotoAlternateOutlined from '@mui/icons-material/AddPhotoAlternateOutlined'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import slugify from 'slugify'
 import { twMerge } from 'tailwind-merge'
+import { Upload } from '../FileUpload/Upload'
 import { FadeUp } from '../Animated/FadeUp'
 import LogoIcon from '../Brand/LogoIcon'
 import { getStatusRedirect } from '../Toast/utils'
@@ -158,6 +161,9 @@ export const OrganizationStep = ({
   const [audienceType, setAudienceType] = useState<string | null>(null)
   const [referralSource, setReferralSource] = useState<string | null>(null)
   const [currency, setCurrency] = useState<PresentmentCurrency>('usd')
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [logoPreview, setLogoPreview] = useState<string>('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const router = useRouter()
 
@@ -211,8 +217,9 @@ export const OrganizationStep = ({
     if (!data.terms) return
 
     const params = {
-      ...data,
+      name: data.name,
       slug: slug as string,
+      terms: data.terms,
     }
 
     posthog.capture('dashboard:organizations:create:submit', {
@@ -237,11 +244,38 @@ export const OrganizationStep = ({
     })
     setUserOrganizations((orgs) => [...orgs, organization])
 
-    // Always persist the selected currency so product defaults are correct
+    // Always persist the selected currency and avatar so product defaults are correct
     if (!hasExistingOrg) {
+      // Upload logo file if selected
+      let uploadedAvatarUrl: string | undefined
+      if (logoFile) {
+        try {
+          uploadedAvatarUrl = await new Promise<string>((resolve, reject) => {
+            const upload = new Upload({
+              service: 'organization_avatar',
+              organization,
+              file: logoFile,
+              onFileProcessing: () => {},
+              onFileCreate: () => {},
+              onFileUploadProgress: () => {},
+              onFileUploaded: (response) => {
+                resolve((response as { public_url: string }).public_url)
+              },
+              onFileError: (_id, err) => reject(err),
+            })
+            upload.run()
+          })
+        } catch {
+          // continue without avatar if upload fails
+        }
+      }
+
       await updateOrganization.mutateAsync({
         id: organization.id,
-        body: { default_presentment_currency: currency },
+        body: {
+          default_presentment_currency: currency,
+          ...(uploadedAvatarUrl ? { avatar_url: uploadedAvatarUrl } : {}),
+        },
         userId: currentUser?.id,
       })
       // Explicitly revalidate so the layout re-fetches the org with the new currency
@@ -414,6 +448,57 @@ export const OrganizationStep = ({
                   </div>
 
                   <div className="dark:bg-spaire-900 flex flex-col gap-y-5 rounded-2xl border border-gray-200 bg-white p-6 dark:border-none">
+                    {/* Logo upload — mandatory for invoicing & branding */}
+                    <div className="flex flex-col gap-y-2">
+                      <Label>
+                        Logo <span className="text-red-500">*</span>
+                      </Label>
+                      <p className="dark:text-spaire-500 text-xs text-gray-400">
+                        Your logo appears on invoices. Use a square image for best results.
+                      </p>
+                      <div className="flex items-center gap-4">
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="relative h-14 w-14 shrink-0 cursor-pointer overflow-hidden rounded-full transition-opacity hover:opacity-75"
+                        >
+                          <Avatar
+                            avatar_url={logoPreview || ''}
+                            name={name || 'Logo'}
+                            className="h-14 w-14"
+                          />
+                          <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity hover:opacity-100 bg-black/20 rounded-full">
+                            <AddPhotoAlternateOutlined className="text-white" fontSize="small" />
+                          </div>
+                        </button>
+                        <div className="flex flex-col gap-y-1">
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="dark:border-spaire-700 cursor-pointer rounded-lg border border-gray-200 px-3 py-1.5 text-sm transition-colors hover:bg-gray-50 dark:hover:bg-spaire-800"
+                          >
+                            {logoFile ? 'Change logo' : 'Upload logo'}
+                          </button>
+                          {logoFile && (
+                            <span className="text-xs text-gray-500 truncate max-w-[160px]">{logoFile.name}</span>
+                          )}
+                        </div>
+                      </div>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) {
+                            setLogoFile(file)
+                            setLogoPreview(URL.createObjectURL(file))
+                          }
+                        }}
+                      />
+                    </div>
+
                     <FormField
                       control={control}
                       name="name"
@@ -572,7 +657,7 @@ export const OrganizationStep = ({
                     type="submit"
                     size="lg"
                     loading={createOrganization.isPending}
-                    disabled={name.length === 0 || slug.length === 0 || !terms}
+                    disabled={name.length === 0 || slug.length === 0 || !terms || !logoFile}
                   >
                     Continue
                   </Button>

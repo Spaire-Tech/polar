@@ -94,10 +94,78 @@ export const DashboardSidebar = ({
             : 'flex-row items-center justify-between',
         )}
       >
-        <SpaireLogotype
-          size={32}
-          href={organization ? `/dashboard/${organization.slug}` : '/dashboard'}
-        />
+        {/* Client org logo at top — replaces Spaire logo */}
+        {type === 'organization' && organization ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex cursor-pointer items-center gap-2 rounded-lg p-1 transition-colors hover:bg-gray-100 dark:hover:bg-spaire-800">
+                <Avatar
+                  name={organization.name}
+                  avatar_url={organization.avatar_url}
+                  className="h-7 w-7"
+                />
+                {!isCollapsed && (
+                  <KeyboardArrowDown className="text-gray-400" fontSize="small" />
+                )}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              side="bottom"
+              align="start"
+              className="min-w-[200px]"
+            >
+              {organizations.map((org) => (
+                <DropdownMenuItem
+                  key={org.id}
+                  className="flex flex-row items-center gap-x-2"
+                  onClick={() => navigateToOrganization(org)}
+                >
+                  <Avatar
+                    name={org.name}
+                    avatar_url={org.avatar_url}
+                    className="h-6 w-6"
+                  />
+                  <span className="min-w-0 truncate">{org.name}</span>
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() =>
+                  router.push('/dashboard/create?existing_org=true')
+                }
+              >
+                New Organization
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => router.push('/dashboard/account')}
+              >
+                Account Settings
+              </DropdownMenuItem>
+              {!CONFIG.IS_SANDBOX && (
+                <DropdownMenuItem
+                  onClick={() =>
+                    router.push('https://sandbox.spairehq.com/start')
+                  }
+                >
+                  Go to Sandbox
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() =>
+                  router.push(`${CONFIG.BASE_URL}/v1/auth/logout`)
+                }
+              >
+                Logout
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          <SpaireLogotype
+            size={32}
+            href={organization ? `/dashboard/${organization.slug}` : '/dashboard'}
+          />
+        )}
         <motion.div
           key={isCollapsed ? 'header-collapsed' : 'header-expanded'}
           className={`flex ${isCollapsed ? 'flex-row md:flex-col-reverse' : 'flex-row'} items-center gap-2`}
@@ -105,7 +173,19 @@ export const DashboardSidebar = ({
           animate={{ opacity: 1 }}
           transition={{ duration: 1 }}
         >
+          {/* Notifications + Theme toggle next to sidebar trigger */}
           <NotificationsPopover />
+          <button
+            type="button"
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-gray-500 transition-colors hover:text-black dark:text-spaire-500 dark:hover:text-spaire-200"
+          >
+            {theme === 'dark' ? (
+              <LightModeOutlined fontSize="inherit" />
+            ) : (
+              <DarkModeOutlined fontSize="inherit" />
+            )}
+          </button>
           <SidebarTrigger />
         </motion.div>
       </SidebarHeader>
@@ -157,26 +237,7 @@ export const DashboardSidebar = ({
         </motion.div>
       </SidebarContent>
       <SidebarFooter>
-        <button
-          type="button"
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          className={twMerge(
-            'flex cursor-pointer flex-row items-center rounded-lg border border-transparent px-2 py-1.5 text-sm transition-colors dark:border-transparent',
-            'dark:text-spaire-500 dark:hover:text-spaire-200 text-gray-500 hover:text-black',
-            isCollapsed && 'justify-center',
-          )}
-        >
-          {theme === 'dark' ? (
-            <LightModeOutlined fontSize="inherit" />
-          ) : (
-            <DarkModeOutlined fontSize="inherit" />
-          )}
-          {!isCollapsed && (
-            <span className="ml-4 font-medium">
-              {theme === 'dark' ? 'Light mode' : 'Dark mode'}
-            </span>
-          )}
-        </button>
+        <Separator />
         <Link
           href="mailto:support@spairehq.com"
           className={twMerge(
@@ -202,85 +263,6 @@ export const DashboardSidebar = ({
             <span className="ml-4 font-medium">Documentation</span>
           )}
         </Link>
-        <Separator />
-        {type === 'organization' && organization && (
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <SidebarMenuButton>
-                    <Avatar
-                      name={organization.name}
-                      avatar_url={organization.avatar_url}
-                      className="h-6 w-6"
-                    />
-                    {!isCollapsed && (
-                      <>
-                        <span className="min-w-0 truncate">
-                          {organization.name}
-                        </span>
-                        <KeyboardArrowDown
-                          className="ml-auto"
-                          fontSize="small"
-                        />
-                      </>
-                    )}
-                  </SidebarMenuButton>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  side="top"
-                  align={isCollapsed ? 'start' : 'center'}
-                  className="w-(--radix-popper-anchor-width) min-w-[200px]"
-                >
-                  {organizations.map((org) => (
-                    <DropdownMenuItem
-                      key={org.id}
-                      className="flex flex-row items-center gap-x-2"
-                      onClick={() => navigateToOrganization(org)}
-                    >
-                      <Avatar
-                        name={org.name}
-                        avatar_url={org.avatar_url}
-                        className="h-6 w-6"
-                      />
-                      <span className="min-w-0 truncate">{org.name}</span>
-                    </DropdownMenuItem>
-                  ))}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() =>
-                      router.push('/dashboard/create?existing_org=true')
-                    }
-                  >
-                    New Organization
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => router.push('/dashboard/account')}
-                  >
-                    Account Settings
-                  </DropdownMenuItem>
-                  {!CONFIG.IS_SANDBOX && (
-                    <DropdownMenuItem
-                      onClick={() =>
-                        router.push('https://sandbox.spairehq.com/start')
-                      }
-                    >
-                      Go to Sandbox
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() =>
-                      router.push(`${CONFIG.BASE_URL}/v1/auth/logout`)
-                    }
-                  >
-                    Logout
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        )}
       </SidebarFooter>
     </Sidebar>
   )

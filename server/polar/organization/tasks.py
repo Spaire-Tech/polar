@@ -7,6 +7,8 @@ from polar.email.react import render_email_template
 from polar.email.schemas import (
     OrganizationReviewedEmail,
     OrganizationReviewedProps,
+    OrganizationUnderReviewEmail,
+    OrganizationUnderReviewProps,
 )
 from polar.email.sender import enqueue_email
 from polar.exceptions import PolarTaskError
@@ -94,6 +96,19 @@ async def organization_under_review(organization_id: uuid.UUID) -> None:
         await plain_service.create_organization_review_thread(
             session, organization
         )
+
+        admin_user = await repository.get_admin_user(session, organization)
+        if admin_user:
+            email = OrganizationUnderReviewEmail(
+                props=OrganizationUnderReviewProps.model_validate(
+                    {"email": admin_user.email, "organization": organization}
+                )
+            )
+            enqueue_email(
+                to_email_addr=admin_user.email,
+                subject="Congrats on your first sale 🎉",
+                html_content=render_email_template(email),
+            )
 
 
 @actor(actor_name="organization.reviewed", priority=TaskPriority.LOW)

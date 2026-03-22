@@ -8,6 +8,7 @@ import { toast } from '@/components/Toast/use-toast'
 import {
   useClientInvoice,
   useFinalizeClientInvoice,
+  useMarkClientInvoicePaid,
   useSendClientInvoice,
   useVoidClientInvoice,
 } from '@/hooks/queries/client_invoices'
@@ -121,6 +122,7 @@ const InvoicePage: React.FC<InvoicePageProps> = ({
   const sendInvoice = useSendClientInvoice(invoiceId)
   const voidInvoice = useVoidClientInvoice(invoiceId)
   const finalizeInvoice = useFinalizeClientInvoice(invoiceId)
+  const markPaid = useMarkClientInvoicePaid(invoiceId)
 
   if (isLoading || !invoice) {
     if (panelMode) {
@@ -199,6 +201,19 @@ const InvoicePage: React.FC<InvoicePageProps> = ({
   const isVoid = invoice.status === 'void'
   const isVoidable = isDraft || isOpen
   const canSend = isDraft || isOpen
+  const canMarkPaid = isDraft || isOpen
+
+  const handleMarkPaid = async () => {
+    try {
+      await markPaid.mutateAsync()
+      toast({ title: 'Invoice marked as paid' })
+    } catch (err: any) {
+      toast({
+        title: 'Failed to mark invoice as paid',
+        description: err?.detail ?? String(err),
+      })
+    }
+  }
 
   const fmt = (cents: number) =>
     formatCurrency('accounting')(cents, invoice.currency)
@@ -208,6 +223,16 @@ const InvoicePage: React.FC<InvoicePageProps> = ({
       {canSend && (
         <Button loading={sendInvoice.isPending} onClick={handleSend}>
           Send Invoice
+        </Button>
+      )}
+      {canMarkPaid && (
+        <Button
+          variant="secondary"
+          loading={markPaid.isPending}
+          onClick={handleMarkPaid}
+          className="border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
+        >
+          Mark as Paid
         </Button>
       )}
       {!isVoid && (

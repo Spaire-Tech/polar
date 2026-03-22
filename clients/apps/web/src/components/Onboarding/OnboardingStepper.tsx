@@ -2,6 +2,8 @@
 
 import LogoIcon from '../Brand/LogoIcon'
 import CheckOutlined from '@mui/icons-material/CheckOutlined'
+import { schemas } from '@spaire/client'
+import Avatar from '@spaire/ui/components/atoms/Avatar'
 import { twMerge } from 'tailwind-merge'
 
 export interface OnboardingStep {
@@ -27,23 +29,36 @@ const defaultSteps: OnboardingStep[] = [
     id: 'theme',
     label: 'Your Preferences',
     description: 'Customize your experience',
-    optional: true,
   },
 ]
 
 export interface OnboardingStepperProps {
   currentStep: number
   steps?: OnboardingStep[]
+  organization?: schemas['Organization']
+  showLogo?: boolean
 }
 
 export const OnboardingStepper = ({
   currentStep,
   steps = defaultSteps,
+  organization,
+  showLogo = true,
 }: OnboardingStepperProps) => {
   return (
-    <div className="dark:bg-spaire-900 hidden h-full w-[300px] shrink-0 flex-col justify-between border-r border-gray-100 bg-gray-50/50 p-10 dark:border-none md:flex">
+    <div className="dark:bg-spaire-900 hidden h-full w-[300px] shrink-0 flex-col justify-between border-r border-gray-100 bg-white p-10 dark:border-none md:flex">
       <div className="flex flex-col gap-y-16">
-        <LogoIcon size={36} />
+        {showLogo && (
+          organization ? (
+            <Avatar
+              name={organization.name}
+              avatar_url={organization.avatar_url}
+              className="h-10 w-10"
+            />
+          ) : (
+            <LogoIcon size={36} />
+          )
+        )}
         <div className="flex flex-col gap-y-2">
           {steps.map((step, index) => {
             const isCompleted = index < currentStep
@@ -110,9 +125,6 @@ export const OnboardingStepper = ({
           })}
         </div>
       </div>
-      <p className="dark:text-spaire-600 text-xs text-gray-400">
-        You can always change these settings later.
-      </p>
     </div>
   )
 }

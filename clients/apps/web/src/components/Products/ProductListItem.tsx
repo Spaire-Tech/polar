@@ -88,6 +88,32 @@ export const ProductListItem = ({
     isSeatBasedPrice(price),
   )
 
+  // Determine primary pricing type for the badge
+  const primaryPrice = product.prices.find(
+    (p) => !isMeteredPrice(p) && !isSeatBasedPrice(p),
+  )
+  const isFreeProduct =
+    !isUsageBasedProduct &&
+    !isSeatBasedProduct &&
+    primaryPrice?.amount_type === 'free'
+  const isCustomProduct =
+    !isUsageBasedProduct &&
+    !isSeatBasedProduct &&
+    primaryPrice?.amount_type === 'custom'
+  const isFixedRecurring =
+    !isUsageBasedProduct &&
+    !isSeatBasedProduct &&
+    !isFreeProduct &&
+    !isCustomProduct &&
+    product.recurring_interval !== null &&
+    product.recurring_interval !== undefined
+  const isOneTime =
+    !isUsageBasedProduct &&
+    !isSeatBasedProduct &&
+    !isFreeProduct &&
+    !isCustomProduct &&
+    (product.recurring_interval === null || product.recurring_interval === undefined)
+
   return (
     <>
       <Link href={`/dashboard/${organization.slug}/products/${product.id}`}>
@@ -127,6 +153,26 @@ export const ProductListItem = ({
                   <Pill color="blue" className="px-3 py-1 text-xs">
                     Seat Pricing
                   </Pill>
+                )}
+                {isFreeProduct && (
+                  <span className="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                    Free
+                  </span>
+                )}
+                {isCustomProduct && (
+                  <span className="inline-flex items-center rounded-full bg-purple-100 px-3 py-1 text-xs font-medium text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+                    Pay What You Want
+                  </span>
+                )}
+                {isFixedRecurring && (
+                  <span className="inline-flex items-center rounded-full bg-violet-100 px-3 py-1 text-xs font-medium text-violet-700 dark:bg-violet-900/30 dark:text-violet-400">
+                    Subscription
+                  </span>
+                )}
+                {isOneTime && (
+                  <span className="inline-flex items-center rounded-full bg-orange-100 px-3 py-1 text-xs font-medium text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+                    One-time
+                  </span>
                 )}
                 <span className="text-sm leading-snug">
                   {hasLegacyRecurringPrices(product) ? (

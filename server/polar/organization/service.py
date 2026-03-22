@@ -651,9 +651,7 @@ class OrganizationService:
             organization.next_review_threshold >= 0
             and transfers_sum >= organization.next_review_threshold
         ):
-            # Auto-approve: skip manual review entirely.
-            # Set a very high next threshold so this never triggers again.
-            await self.confirm_organization_reviewed(session, organization, 2147483647)
+            await self.set_organization_under_review(session, organization)
 
         return organization
 

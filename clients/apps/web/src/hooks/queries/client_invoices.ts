@@ -190,3 +190,23 @@ export const useFinalizeClientInvoice = (id: string) =>
       )
     },
   })
+
+export const useMarkClientInvoicePaid = (id: string) =>
+  useMutation({
+    mutationFn: async () => {
+      const { data, error } = await (api as any).POST(
+        '/v1/client-invoices/{id}/mark-paid',
+        { params: { path: { id } } },
+      )
+      if (error) throw error
+      return data as ClientInvoice
+    },
+    onSuccess: (updated) => {
+      const queryClient = getQueryClient()
+      queryClient.setQueriesData<ClientInvoice>(
+        { queryKey: ['client_invoices', { id }] },
+        updated,
+      )
+      queryClient.invalidateQueries({ queryKey: ['client_invoices'] })
+    },
+  })
