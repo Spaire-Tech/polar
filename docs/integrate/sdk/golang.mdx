@@ -2,29 +2,26 @@
 title: "Go SDK"
 sidebarTitle: "Go"
 icon: golang
-description: SDK for Golang
+description: SDK for Go
 ---
-
-## Examples
-
-- [With Go (Gin)](https://github.com/spairehq/examples/tree/main/with-golang-gin)
 
 ## Installation
 
-```bash
-go get github.com/spairehq/spaire-go
+```bash Terminal
+go get app.spairehq.com/go
 ```
 
 ## Quickstart
 
-```go icon="golang" main.go
+```go main.go
 package main
 
 import (
 	"context"
-	spairego "github.com/spairehq/spaire-go"
 	"log"
 	"os"
+
+	spairego "app.spairehq.com/go"
 )
 
 func main() {
@@ -43,16 +40,24 @@ func main() {
 			// handle items
 
 			res, err = res.Next()
-
 			if err != nil {
-				// handle error
+				log.Fatal(err)
 			}
-
 			if res == nil {
 				break
 			}
 		}
 	}
 }
+```
 
+## Sandbox Environment
+
+You can configure the SDK to hit the [sandbox environment](/integrate/sandbox) instead of production by passing the server name when instantiating the client:
+
+```go
+s := spairego.New(
+	spairego.WithServer(spairego.ServerSandbox),
+	spairego.WithSecurity(os.Getenv("SPAIRE_ACCESS_TOKEN")),
+)
 ```
