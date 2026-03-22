@@ -141,11 +141,18 @@ export const useOrganizationRoutes = (
   org?: schemas['Organization'],
   allowAll?: boolean,
 ): RouteWithActive[] => {
-  const { data: account } = useOrganizationAccount(org?.id)
+  const { data: account, error: accountError } = useOrganizationAccount(org?.id)
+  // Explicit 404 = no account exists yet → send to setup
+  const noAccount =
+    accountError && (accountError as any)?.response?.status === 404
+  // Pass false when no account or payouts disabled; undefined while still loading (no redirect)
+  const payoutsReady = noAccount
+    ? false
+    : account?.is_payouts_enabled
   const resolver = useCallback(
     (o?: schemas['Organization'], posthog?: PolarHog) =>
-      organizationRoutesList(o, posthog, account),
-    [account],
+      organizationRoutesList(o, posthog, payoutsReady),
+    [payoutsReady],
   )
   return useResolveRoutes(resolver, org, allowAll)
 }
@@ -268,14 +275,14 @@ const accountRoutesList = (): Route[] => [
 const organizationRoutesList = (
   org?: schemas['Organization'],
   _posthog?: PolarHog,
-  account?: schemas['Account'],
+  payoutsReady?: boolean,
 ): Route[] => [
   {
     id: 'finance',
     title: 'Payouts',
-    // Send to account setup when payouts aren't enabled yet; otherwise go to income overview
+    // false = no account or disabled → account setup; undefined = still loading → keep /income
     link:
-      account?.is_payouts_enabled === false
+      payoutsReady === false
         ? `/dashboard/${org?.slug}/finance/account`
         : `/dashboard/${org?.slug}/finance/income`,
     icon: <AttachMoneyOutlined fontSize="inherit" />,
