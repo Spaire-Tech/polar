@@ -2,25 +2,28 @@
 title: "PHP SDK"
 sidebarTitle: "PHP"
 icon: php
+description: SDK for PHP (>=8.2)
 ---
 
-A fully-featured PHP SDK for the Spaire API.
-
-### Quickstart
+## Installation
 
 ```bash Terminal
-composer require spaire-sh/sdk
+composer require spaire-tech/spaire-php
 ```
 
-```php
+## Quickstart
+
+```php index.php
+<?php
+
 declare(strict_types=1);
 
 require 'vendor/autoload.php';
 
-use Spaire;
+use Spaire\Spaire;
 
-$sdk = Spaire\Spaire::builder()
-    ->setSecurity('<YOUR_BEARER_TOKEN_HERE>')
+$sdk = Spaire::builder()
+    ->setSecurity(getenv('SPAIRE_ACCESS_TOKEN'))
     ->build();
 
 $responses = $sdk->organizations->list(
@@ -35,15 +38,13 @@ foreach ($responses as $response) {
 }
 ```
 
-[Read more](https://github.com/spairehq/spaire-php)
+## Sandbox Environment
 
-### Sandbox Environment
-
-You can configure the SDK so it hits the [sandbox environment](/integrate/sandbox) instead of the production one. You just need to set the server when building the client:
+You can configure the SDK to hit the [sandbox environment](/integrate/sandbox) instead of production by setting the server when building the client:
 
 ```php
-$sdk = Spaire\Spaire::builder()
+$sdk = Spaire::builder()
     ->setServer('sandbox')
-    ->setSecurity('<YOUR_BEARER_TOKEN_HERE>')
+    ->setSecurity(getenv('SPAIRE_ACCESS_TOKEN'))
     ->build();
 ```

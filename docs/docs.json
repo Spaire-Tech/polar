@@ -129,10 +129,10 @@
                   "integrate/sdk/typescript",
                   {
                     "group": "More SDKs",
-                    "hidden": true,
                     "pages": [
                       "integrate/sdk/golang",
-                      "integrate/sdk/php"
+                      "integrate/sdk/php",
+                      "integrate/sdk/ruby"
                     ]
                   }
                 ]
@@ -640,7 +640,7 @@
     }
   },
   "api": {
-    "languages": ["curl", "typescript", "python"]
+    "languages": ["curl", "typescript", "python", "go", "php", "ruby"]
   },
   "contextual": {
     "options": [
