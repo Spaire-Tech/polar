@@ -4,8 +4,8 @@
   "appearance": {
     "default": "system"
   },
-  "name": "Spaire | Documentations",
-  "description": "Discover the Cleverbridge Documentation featuring detailed guides and resources to help you navigate tools, streamline processes, and drive efficiency.",
+  "name": "Spaire | Documentation",
+  "description": "Everything you need to accept payments, manage subscriptions, and grow your SaaS — from API reference to step-by-step guides.",
   "colors": {
     "primary": "#000",
     "light": "#fff",
@@ -24,21 +24,46 @@
         "icon": "compass",
         "groups": [
           {
-            "group": "Bootup",
+            "group": "Get Started",
             "pages": [
               "introduction",
-              "migrate"
+              "quickstart",
+              "core-concepts",
+              "integrate/sandbox"
             ]
           },
           {
-            "group": "Features",
+            "group": "Payments",
             "pages": [
-              "features/products",
               {
-                "group": "Usage Based Billing",
+                "group": "Checkout",
+                "pages": [
+                  "features/checkout/links",
+                  "features/checkout/embed",
+                  "features/checkout/session"
+                ]
+              },
+              "features/products",
+              "features/custom-fields",
+              "features/discounts",
+              "features/invoices",
+              "features/refunds"
+            ]
+          },
+          {
+            "group": "Subscriptions",
+            "pages": [
+              "features/orders",
+              "features/trials",
+              "features/seat-based-pricing",
+              {
+                "group": "Usage-Based Billing",
                 "pages": [
                   "features/usage-based-billing/introduction",
                   "features/usage-based-billing/event-ingestion",
+                  "features/usage-based-billing/meters",
+                  "features/usage-based-billing/credits",
+                  "features/usage-based-billing/billing",
                   {
                     "group": "Ingestion Strategies",
                     "pages": [
@@ -48,85 +73,48 @@
                       "features/usage-based-billing/ingestion-strategies/stream-strategy",
                       "features/usage-based-billing/ingestion-strategies/delta-time-strategy"
                     ]
-                  },
-                  "features/usage-based-billing/meters",
-                  "features/usage-based-billing/credits",
-                  "features/usage-based-billing/billing"
-                ]
-              },
-              {
-                "group": "Cost Insights",
-                "pages": [
-                  "features/cost-insights/introduction",
-                  "features/cost-insights/cost-events",
-                  "features/cost-insights/cost-traces"
-                ]
-              },
-              {
-                "group": "Benefits",
-                "pages": [
-                  "features/benefits/introduction",
-                  "features/benefits/credits",
-                  "features/benefits/custom",
-                  "features/benefits/discord-access",
-                  "features/benefits/file-downloads",
-                  "features/benefits/github-access",
-                  "features/benefits/license-keys"
-                ]
-              },
-              {
-                "group": "Checkout",
-                "pages": [
-                  "features/checkout/embed",
-                  "features/checkout/links",
-                  "features/checkout/session"
-                ]
-              },
-              "features/trials",
-              "features/seat-based-pricing",
-              "features/custom-fields",
-              "features/discounts",
-              "features/orders",
-              "features/invoices",
-              "features/refunds",
-              "features/analytics",
-              "features/customer-management",
-              "features/customer-portal",
-              {
-                "group": "Finance & Payouts",
-                "pages": [
-                  "features/finance/accounts",
-                  "features/finance/balance",
-                  "features/finance/payouts"
-                ]
-              },
-              {
-                "group": "Integrations",
-                "hidden": true,
-                "pages": [
-                  "features/integrations/affonso",
-                  "features/integrations/fernand",
-                  "features/integrations/framer",
-                  "features/integrations/paritydeals",
-                  "features/integrations/raycast",
-                  "features/integrations/zapier"
+                  }
                 ]
               }
             ]
           },
           {
-            "group": "Integrate",
+            "group": "Customers",
+            "pages": [
+              "features/customer-management",
+              "features/customer-portal",
+              {
+                "group": "Benefits",
+                "pages": [
+                  "features/benefits/introduction",
+                  "features/benefits/credits",
+                  "features/benefits/license-keys",
+                  "features/benefits/custom",
+                  "features/benefits/discord-access",
+                  "features/benefits/file-downloads",
+                  "features/benefits/github-access"
+                ]
+              }
+            ]
+          },
+          {
+            "group": "Developer",
             "pages": [
               "integrate/authentication",
-              "integrate/sandbox",
               "integrate/customer-state",
-              "integrate/mcp",
-              "integrate/agent-commands",
+              {
+                "group": "Webhooks",
+                "pages": [
+                  "integrate/webhooks/endpoints",
+                  "integrate/webhooks/delivery",
+                  "integrate/webhooks/events"
+                ]
+              },
               {
                 "group": "SDKs",
                 "pages": [
-                  "integrate/sdk/python",
                   "integrate/sdk/typescript",
+                  "integrate/sdk/python",
                   {
                     "group": "More SDKs",
                     "pages": [
@@ -140,37 +128,23 @@
               {
                 "group": "Framework Adapters",
                 "pages": [
+                  "integrate/sdk/adapters/nextjs",
                   "integrate/sdk/adapters/astro",
-                  "integrate/sdk/adapters/better-auth",
-                  "integrate/sdk/adapters/deno",
-                  "integrate/sdk/adapters/elysia",
+                  "integrate/sdk/adapters/remix",
+                  "integrate/sdk/adapters/sveltekit",
+                  "integrate/sdk/adapters/nuxt",
+                  "integrate/sdk/adapters/tanstack-start",
                   "integrate/sdk/adapters/express",
                   "integrate/sdk/adapters/fastify",
                   "integrate/sdk/adapters/hono",
+                  "integrate/sdk/adapters/elysia",
+                  "integrate/sdk/adapters/deno",
                   "integrate/sdk/adapters/laravel",
-                  "integrate/sdk/adapters/nextjs",
-                  "integrate/sdk/adapters/nuxt",
-                  "integrate/sdk/adapters/remix",
-                  "integrate/sdk/adapters/supabase",
-                  "integrate/sdk/adapters/sveltekit",
-                  "integrate/sdk/adapters/tanstack-start"
+                  "integrate/sdk/adapters/better-auth",
+                  "integrate/sdk/adapters/supabase"
                 ]
               },
-              {
-                "group": "Framework Guides",
-                "pages": [
-                  "guides/nextjs",
-                  "guides/laravel"
-                ]
-              },
-              {
-                "group": "Webhooks",
-                "pages": [
-                  "integrate/webhooks/endpoints",
-                  "integrate/webhooks/delivery",
-                  "integrate/webhooks/events"
-                ]
-              },
+              "cli",
               {
                 "group": "OAuth 2.0",
                 "pages": [
@@ -178,17 +152,55 @@
                   "integrate/oauth2/setup",
                   "integrate/oauth2/connect"
                 ]
+              },
+              "integrate/mcp",
+              "integrate/agent-commands"
+            ]
+          },
+          {
+            "group": "Finance & Analytics",
+            "pages": [
+              "features/finance/accounts",
+              "features/finance/balance",
+              "features/finance/payouts",
+              "features/analytics",
+              {
+                "group": "Cost Insights",
+                "pages": [
+                  "features/cost-insights/introduction",
+                  "features/cost-insights/cost-events",
+                  "features/cost-insights/cost-traces"
+                ]
               }
             ]
           },
           {
-            "group": "Merchant of Record (MoR)",
+            "group": "Compliance",
             "pages": [
               "merchant-of-record/introduction",
               "merchant-of-record/fees",
               "merchant-of-record/supported-countries",
               "merchant-of-record/acceptable-use",
               "merchant-of-record/account-reviews"
+            ]
+          },
+          {
+            "group": "Migration",
+            "pages": [
+              "migrate",
+              "cli"
+            ]
+          },
+          {
+            "group": "Integrations",
+            "hidden": true,
+            "pages": [
+              "features/integrations/affonso",
+              "features/integrations/fernand",
+              "features/integrations/framer",
+              "features/integrations/paritydeals",
+              "features/integrations/raycast",
+              "features/integrations/zapier"
             ]
           }
         ]
@@ -571,30 +583,60 @@
       {
         "tab": "Guides",
         "icon": "book-open",
-        "hidden": true,
         "groups": [
           {
-            "group": "Guides",
+            "group": "Checkout",
             "pages": [
-              "guides/introduction",
-              "guides/allow-multiple-subscriptions-per-customer",
-              "guides/automate-post-purchase-link-sharing",
-              "guides/change-email-as-merchant",
               "guides/create-checkout-session",
-              "guides/create-multiple-organizations",
-              "guides/create-variants",
-              "guides/customize-benefits-order-in-checkouts",
               "guides/customize-products-order-in-checkouts",
-              "guides/disable-subscription-changes-in-customer-portal",
+              "guides/customize-benefits-order-in-checkouts",
               "guides/disable-email-editing-in-checkout",
-              "guides/grant-meter-credits-after-purchase",
-              "guides/grant-meter-credits-before-purchase",
-              "guides/subscription-downgrades",
-              "guides/schedule-subscription-downgrades-qstash",
+              "guides/theme-switch-in-checkout"
+            ]
+          },
+          {
+            "group": "Subscriptions",
+            "pages": [
               "guides/subscription-upgrades",
-              "guides/seat-based-pricing",
-              "guides/theme-switch-in-checkout",
-              "guides/proration-for-subscription-changes"
+              "guides/subscription-downgrades",
+              "guides/proration-for-subscription-changes",
+              "guides/schedule-subscription-downgrades-qstash",
+              "guides/allow-multiple-subscriptions-per-customer"
+            ]
+          },
+          {
+            "group": "Usage & Credits",
+            "pages": [
+              "guides/grant-meter-credits-after-purchase",
+              "guides/grant-meter-credits-before-purchase"
+            ]
+          },
+          {
+            "group": "Products",
+            "pages": [
+              "guides/create-variants",
+              "guides/seat-based-pricing"
+            ]
+          },
+          {
+            "group": "Customers",
+            "pages": [
+              "guides/disable-subscription-changes-in-customer-portal",
+              "guides/change-email-as-merchant"
+            ]
+          },
+          {
+            "group": "Organizations",
+            "pages": [
+              "guides/create-multiple-organizations",
+              "guides/automate-post-purchase-link-sharing"
+            ]
+          },
+          {
+            "group": "Frameworks",
+            "pages": [
+              "guides/nextjs",
+              "guides/laravel"
             ]
           }
         ]
@@ -602,7 +644,6 @@
       {
         "tab": "Changelog",
         "icon": "signal-stream",
-        "hidden": true,
         "pages": [
           "changelog/recent",
           "changelog/api"

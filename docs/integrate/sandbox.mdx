@@ -1,76 +1,101 @@
 ---
-title: "Sandbox Environment"
-sidebarTitle: "Sandbox Environment"
+title: "Sandbox"
+description: "A fully isolated environment for testing your integration — no real money, no production data."
 ---
 
-A separate environment, isolated from your production data
+The Spaire sandbox is a completely separate server from production. It has its own database, its own API, and its own accounts. Nothing you do in the sandbox touches your live data, customers, or balance.
 
-To test Spaire or work on your integration without worrying about actual money processing or breaking your live organization, you can use our [sandbox environment](https://sandbox.spairehq.com/start).
-
-It's a dedicated server, completely isolated from the production instance where you can do all the experiments you want.
+Use it to build your integration before going live, test edge cases and failure scenarios, and run automated tests against a real API without worrying about side effects.
 
 <Note>
-  **Why a dedicated environment instead of a test mode?**
-
-  Since we're dealing with money and need to keep track of all movements to assure our Merchant of Record service, we found it safer to isolate live data from test data so it never interferes. Besides, it allows you to create an unlimited number of account and organization to test lot of different scenarios. Consider it as your own development server!
+  The sandbox is a separate environment, not a test mode toggle. As a Merchant of Record handling real financial transactions, Spaire keeps test data and live data on entirely separate infrastructure — this prevents any possibility of test records contaminating production accounting.
 </Note>
 
-## Get started
+## Access the sandbox
 
-You can access the sandbox environment directly on [sandbox.spairehq.com](https://sandbox.spairehq.com/start) or by clicking on `Go to sandbox` from the organization switcher.
+Go to [sandbox.spairehq.com](https://sandbox.spairehq.com) or click **Go to sandbox** from the organization switcher in your dashboard.
 
-You'll then need to create a dedicated user account and organization, the same way described in our [Quick Start guide](/introduction).
+You'll need to create a separate account and organization in the sandbox. Your production credentials don't work there. This is intentional — and a feature: you can create as many sandbox accounts and organizations as you need, with no limits.
 
-### Testing payments
+## Test payments
 
-The sandbox environment allows you to experience the complete customer funnel, including checkout. You can perform test payments using Stripe's [test card numbers](https://docs.stripe.com/testing#cards).
+The sandbox runs on Stripe's test infrastructure. Use these card numbers to simulate different payment outcomes:
 
-The easiest one to test a successful payment is to use the following card number with a future expiration date and random CVC:
+| Scenario | Card number |
+|----------|-------------|
+| Successful payment | `4242 4242 4242 4242` |
+| Card declined | `4000 0000 0000 0002` |
+| Insufficient funds | `4000 0000 0000 9995` |
+| 3D Secure required | `4000 0025 0000 3155` |
 
-```
-4242 4242 4242 4242
-```
+For all test cards, use any future expiration date and any 3-digit CVC.
+
+See Stripe's [full test card reference](https://docs.stripe.com/testing#cards) for more scenarios including international cards and specific decline codes.
 
 ## API and SDK
 
-To make requests to our [API](/api-reference), all you need to do is to switch the base URL from `https://api.spairehq.com` to `https://sandbox-api.spairehq.com`. You'll also need to create an access token in the **sandbox environment**, the access token created in the production environment can't be used in the sandbox.
+The sandbox API base URL is `https://sandbox-api.spairehq.com`.
 
-Our official SDK supports the sandbox environment through a dedicated parameter.
+Generate an access token from your **sandbox** organization settings — production tokens don't work in sandbox, and sandbox tokens don't work in production.
 
 <CodeGroup>
-  ```ts TypeScript
-  const spaire = new Spaire({
-    server: 'sandbox',
-    accessToken: process.env['SPAIRE_ACCESS_TOKEN'] ?? '',
-  })
-  ```
 
-  ```py Python
-  s = Spaire(
-      server="sandbox",
-      access_token="<YOUR_BEARER_TOKEN_HERE>",
-  )
-  ```
+```ts TypeScript
+import { Spaire } from '@spaire/sdk'
 
-  ```go Go
- 	s := spairego.New(
-		spairego.WithServer("sandbox"),
-		spairego.WithSecurity(os.Getenv("SPAIRE_ACCESS_TOKEN")),
-	)
-  ```
+const spaire = new Spaire({
+  accessToken: process.env.SPAIRE_ACCESS_TOKEN,
+  server: 'sandbox',
+})
+```
 
-  ```php PHP
-  $sdk = Spaire\Spaire::builder()
-      ->setServer('sandbox')
-      ->setSecurity(
-          '<YOUR_BEARER_TOKEN_HERE>'
-      )
-      ->build();
-  ```
+```python Python
+from spaire_sdk import Spaire
+
+s = Spaire(
+    server="sandbox",
+    access_token="<YOUR_BEARER_TOKEN_HERE>",
+)
+```
+
+```go Go
+s := spairego.New(
+    spairego.WithServer(spairego.ServerSandbox),
+    spairego.WithSecurity(os.Getenv("SPAIRE_ACCESS_TOKEN")),
+)
+```
+
+```php PHP
+$sdk = Spaire::builder()
+    ->setServer('sandbox')
+    ->setSecurity(getenv('SPAIRE_ACCESS_TOKEN'))
+    ->build();
+```
+
+```ruby Ruby
+s = OpenApiSDK::Spaire.new(
+  server_url: 'https://sandbox-api.spairehq.com',
+  access_token: ENV['SPAIRE_ACCESS_TOKEN']
+)
+```
+
 </CodeGroup>
 
 ## Limitations
 
-The limitations listed below only apply to sandbox and doesn't reflect the behavior in production.
+These only apply to sandbox. Production behavior is not affected.
 
-* Subscriptions created in sandbox are automatically canceled **90 days after their creation**. 
+- Subscriptions are automatically canceled **90 days after creation**
+- Payout operations are simulated — no real funds are transferred
+- Webhook delivery may have higher latency than production
+
+## What's next
+
+<CardGroup cols={2}>
+  <Card icon="bolt" href="/quickstart" title="Quickstart">
+    Walk through the quickstart in the sandbox to test your full checkout flow.
+  </Card>
+  <Card icon="lock" href="/integrate/authentication" title="Authentication">
+    Generate your sandbox access token and make your first API call.
+  </Card>
+</CardGroup>
