@@ -1,340 +1,130 @@
 ---
 title: "Seat-Based Pricing"
-description: "Sell team products with assignable seats and tiered pricing"
+description: "Sell team products where one billing manager pays for a pool of seats and assigns them to team members."
 ---
 
-Seat-based pricing allows you to sell products where a billing manager purchases a specific number of seats and can assign them to team members. Each seat holder gets their own access to the product benefits, making it perfect for team subscriptions, perpetual licenses, and multi-user products.
+Seat-based pricing is for products sold to teams. One person (the billing manager) buys a number of seats and assigns them to individuals by email. Each seat holder gets their own access to the product's benefits — the billing manager gets none.
 
-<Info>
-  **Seat-based pricing is ideal for:**
-
-  - Team subscriptions where one billing manager pays for multiple users
-  - Perpetual team licenses with one-time payment
-  - Organizational licenses with per-seat pricing
-  - Products with volume-based tiering (e.g., \$10/seat for 1-4 seats, \$9/seat for 5+)
-</Info>
+Works for both **subscriptions** (recurring billing per seat) and **one-time purchases** (perpetual seat access, no renewal).
 
 ## How it works
 
-With seat-based pricing, a billing manager purchases a product (subscription or one-time) with a specific number of seats. They can then:
+1. Billing manager checks out and selects the number of seats
+2. After payment, they assign seats via the customer portal or API
+3. Each assigned person receives an invitation email with a 24-hour claim link
+4. Claim link is single-use — once clicked, benefits are granted immediately
+5. Billing manager can revoke seats, resend expired invitations, and add more seats
 
-1. **Assign seats** to team members via email or external customer ID
-2. **Manage seats** by resending invitations or revoking access
-3. **Scale up** by purchasing additional seats (or a new order for one-time products)
-4. **Track usage** by viewing which seats are claimed, pending, or available
+## Create a seat-based product
 
-Team members receive an invitation email with a claim link. Once they claim their seat, benefits are automatically granted.
+In **Catalog → Products → New product**:
 
-### Subscriptions vs One-Time Purchases
+1. Set the billing cycle: **Subscription** (monthly/yearly) or **One-time**
+2. Under **Pricing type**, select **Seat-based**
+3. Set pricing tiers:
+   - **Min seats** — the minimum a customer must purchase
+   - **Tiers** — each tier has a max seat count and a per-seat price
 
-Seat-based pricing works for both recurring subscriptions and one-time purchases:
+**Example tier setup:**
 
-| Feature           | Subscriptions              | One-Time Purchases       |
-| ----------------- | -------------------------- | ------------------------ |
-| **Payment**       | Recurring (monthly/yearly) | Single payment           |
-| **Seat Duration** | Active while subscribed    | Perpetual (never expire) |
-| **Adding Seats**  | Modify subscription        | Purchase new order       |
-| **Billing**       | Renews automatically       | No renewals              |
-| **Benefits**      | While subscription active  | Forever after claim      |
+| Seats | Price per seat |
+|-------|---------------|
+| 1–4 | $10/seat/month |
+| 5–9 | $9/seat/month |
+| 10+ | $8/seat/month |
 
-<Tip>
-  Use **subscriptions** for ongoing team access. Use **one-time purchases** for perpetual team licenses.
-</Tip>
-
-## Creating a seat-based product
-
-<Steps>
-  <Step title="Create a new product">
-    From your dashboard, navigate to Products and click **Create Product**.
-  </Step>
-  <Step title="Configure basic settings">
-    Set your product name, description, and media as usual.
-  </Step>
-  <Step title="Select seat-based pricing">
-    Under **Pricing**, select:
-
-    - **Product type**: Subscription or One-time
-    - **Billing cycle** (subscriptions only): Monthly or Yearly
-    - **Pricing type**: Seat-based
-  </Step>
-  <Step title="Configure seat tiers">
-    Define your pricing tiers based on seat quantity:
-
-    - **Min seats**: Minimum number of seats required to purchase
-    - **Tiers**: For each tier, set:
-      - **Max seats**: Upper limit for this tier (leave empty for unlimited)
-      - **Price per seat**: Amount charged per seat in this tier (in cents)
-
-    Example tiered pricing:
-
-    - 1-4 seats: \$10/seat per month
-    - 5-9 seats: \$9/seat per month
-    - 10+ seats: \$8/seat per month
-  </Step>
-  <Step title="Add benefits">
-    Configure the benefits that seat holders will receive. These are only granted when a seat is claimed, not when purchased.
-  </Step>
-</Steps>
+When a customer moves between tiers (e.g., from 4 seats to 5), the new per-seat rate applies to **all seats**, not just the additional ones.
 
 <Info>
-  Unlike standard subscriptions, seat-based products **do not grant benefits to the billing manager**. Benefits are only granted to team members who claim their assigned seats.
+  Benefits are only granted when a seat is claimed — not when the billing manager purchases. The billing manager has no direct access to product benefits.
 </Info>
 
-## Purchasing seats
+## Seat statuses
 
-When a customer purchases a seat-based product, they specify how many seats they want during checkout. The total amount is calculated based on your tiered pricing.
+| Status | Meaning |
+|--------|---------|
+| `pending` | Assigned, invitation sent, awaiting claim |
+| `claimed` | Team member accepted — benefits active |
+| `revoked` | Access removed, seat available for reassignment |
 
-The checkout experience clearly shows:
+## Assign a seat
 
-- Number of seats being purchased
-- Price per seat based on volume
-- Total amount
-- For subscriptions: recurring billing cycle
-- For one-time: perpetual access indication
+Via the customer portal (billing manager) or the API:
 
-Once payment is completed, the billing manager can immediately start assigning seats to their team.
+<CodeGroup>
 
-<Info>
-  For **one-time purchases**, each order is independent. If customers want more seats later, they purchase a new order with its own seat pool. All purchased seats remain perpetual.
-</Info>
+```ts TypeScript (subscription)
+await spaire.customerSeats.assign({
+  subscriptionId: '<subscription_id>',
+  email: 'teammate@company.com',
+  metadata: {
+    department: 'Engineering',
+    role: 'Developer',
+  },
+})
+```
 
-## Managing seats
+```ts TypeScript (one-time order)
+await spaire.customerSeats.assign({
+  orderId: '<order_id>',
+  email: 'teammate@company.com',
+})
+```
 
-### Assigning seats
+</CodeGroup>
 
-Billing managers can assign seats through:
+Optional fields: `externalCustomerId`, `customerId`, `metadata` (up to 10 keys, 1 KB total).
 
-1. **Customer Portal**: Accessible via the customer portal with billing manager permissions
-2. **API**: Programmatically assign seats using the [Customer Seats API](/api-reference/customer-seats/assign)
+Claim links expire after 24 hours. Resend from the portal or API if they expire.
 
-To assign a seat, provide:
+## Scale seats (subscriptions)
 
-- **Subscription ID** (for subscriptions) or **Order ID** (for one-time purchases)
-- **Email address** (creates a new customer if needed)
-- **External customer ID** (optional, for syncing with your system)
-- **Customer ID** (if customer already exists in Spaire)
-- **Metadata** (optional, up to 10 keys for custom data like role, department)
+**Add seats:**
+1. Update the subscription seat count
+2. Proration is calculated immediately for the current billing period
+3. New seats can be assigned right away
 
-An invitation email is automatically sent to the recipient with a secure claim link (valid for 24 hours).
-
-### Seat statuses
-
-Each seat can have one of three statuses:
-
-- **Pending**: Seat assigned, invitation sent, awaiting claim
-- **Claimed**: Seat claimed by team member, benefits granted
-- **Revoked**: Seat revoked, benefits removed, can be reassigned
-
-### Resending invitations
-
-For pending seats, billing managers can resend the invitation email if it was lost or expired.
-
-### Revoking seats
-
-Billing managers can revoke a claimed seat at any time:
-
-1. Benefits are immediately removed from the seat holder
-2. The seat becomes available for reassignment
-3. The seat holder loses access to all product benefits
-4. The revoked seat can be assigned to a different team member
+**Remove seats:**
+1. Revoke enough claimed seats to reach the target count
+2. Update the subscription to the lower seat count
+3. Reduction takes effect at the next renewal
 
 <Warning>
-  Revoking a seat does **not** issue a refund. The billing manager continues to pay for the total number of seats in their subscription.
+  You can't reduce the seat count below the number of currently claimed seats. Revoke seats first.
 </Warning>
 
-## Claiming seats
+## One-time purchases
 
-When a team member receives a seat invitation:
-
-1. They click the claim link in the email
-2. A claim page displays the product details and organization info
-3. They click **Claim Seat** to accept
-4. Benefits are automatically granted
-5. They receive a customer session token for immediate portal access
-6. They can access their benefits through the customer portal
-
-<Info>
-  Claim links are single-use and expire after 24 hours for security. If expired, the billing manager can resend the invitation.
-</Info>
-
-## Scaling seats
-
-### Adding seats
-
-**For subscriptions:**
-
-Billing managers can upgrade their subscription to add more seats:
-
-1. The new seat count is applied immediately
-2. Prorated charges are calculated for the current billing period
-3. Future renewals bill at the new seat count
-4. New seats can be assigned right away
-
-If adding seats moves to a different pricing tier, the new per-seat rate applies to **all seats**, not just the additional ones.
-
-**For one-time purchases:**
-
-Billing managers purchase a new order with additional seats:
-
-1. Create a new checkout for the same product with desired seat quantity
-2. Once paid, a new independent order is created
-3. Each order has its own seat pool
-4. All seats remain perpetual across all orders
-
-### Reducing seats
-
-**For subscriptions:**
-
-To reduce seats, the billing manager should:
-
-1. Revoke seats until the desired count is reached
-2. Update the subscription to reflect the lower seat count
-3. The change takes effect at the next renewal
-
-<Warning>
-  You cannot reduce subscription seats below the number of currently claimed seats. Revoke seats first before reducing the subscription seat count.
-</Warning>
-
-**For one-time purchases:**
-
-Seats cannot be reduced or refunded as they are perpetual. The billing manager can:
-
-1. Revoke unwanted seats to make them unassigned
-2. The seats remain available for future assignment
-3. No refund is issued for revoked seats
-
-## API Integration
-
-Seat-based pricing provides full API support for:
-
-- Creating seat-based products with tiered pricing
-- Checking out with seat quantities
-- Assigning seats programmatically
-- Listing seats and their statuses
-- Revoking seats
-
-<Note>
-  **SDK Version Requirement**
-
-  To use seat-based pricing features, ensure you have the latest version of the Spaire SDK installed:
-
-  - TypeScript/JavaScript: `npm install @spaire/sdk@latest`
-  - Python: `pip install --upgrade spaire-sdk`
-
-  Older SDK versions may not include seat-based pricing support.
-</Note>
-
-See the [Customer Seats API Reference](/api-reference/customer-seats/assign) for complete documentation.
-
-### Example: Assign a seat (subscription)
-
-```typescript
-await spaire.customerSeats.assign({
-  subscription_id: "sub_123",
-  email: "engineer@company.com",
-  metadata: {
-    department: "Engineering",
-    role: "Developer"
-  }
-});
-```
-
-### Example: Assign a seat (one-time purchase)
-
-```typescript
-await spaire.customerSeats.assign({
-  order_id: "order_456",
-  email: "engineer@company.com",
-  metadata: {
-    department: "Engineering",
-    role: "Developer"
-  }
-});
-```
-
-### Example: List seats for subscription
-
-```typescript
-const seats = await spaire.customerSeats.list({
-  subscription_id: "sub_123"
-});
-
-console.log(`Available: ${seats.available_seats}/${seats.total_seats}`);
-```
-
-### Example: List seats for order
-
-```typescript
-const seats = await spaire.customerSeats.list({
-  order_id: "order_456"
-});
-
-console.log(`Available: ${seats.available_seats}/${seats.total_seats}`);
-```
+Each order is an independent seat pool. To add more seats, purchase a new order — seats from multiple orders can coexist. All seats are perpetual and never expire. Seats can be revoked (access removed) but not refunded.
 
 ## Webhooks
 
-Seat-based pricing triggers webhooks for both subscriptions and orders:
-
-**Subscription events:**
-
-- `subscription.created` - When seat-based subscription is purchased
-- `subscription.updated` - When seat count changes
-- `subscription.canceled` - When subscription is cancelled
-
-**Order events:**
-
-- `order.created` - When seat-based one-time purchase is completed
-- `order.updated` - When order is updated
-
-**Seat and benefit events (both types):**
-
-- `benefit_grant.created` - When a seat is claimed and benefits granted
-- `benefit_grant.revoked` - When a seat is revoked and benefits removed
+| Event | When |
+|-------|------|
+| `subscription.created` | Seat-based subscription purchased |
+| `subscription.updated` | Seat count changed |
+| `order.created` | Seat-based one-time purchase completed |
+| `benefit_grant.created` | Seat claimed — benefits granted |
+| `benefit_grant.revoked` | Seat revoked — benefits removed |
 
 <Info>
-  For both subscriptions and one-time purchases, `benefit_grant.created` events are triggered per seat claim, not at purchase time.
+  `benefit_grant.created` fires per seat claim, not at purchase time. Use this event to provision access in your application.
 </Info>
 
-## Best Practices
+## Limits
 
-### Use tiered pricing strategically
-
-Structure your tiers to incentivize volume:
-
-- Lower per-seat prices as quantity increases
-- Create tiers at natural team sizes (5, 10, 25, etc.)
-- Consider flat pricing for very large teams
-
-### Leverage metadata
-
-Use seat metadata to store:
-
-- Team member roles
-- Departments or cost centers
-
-### Monitor seat utilization
-
-Track how many purchased seats are actually claimed to identify:
-
-- Organizations that may need more seats
-- Unused capacity that could be reduced
-- Patterns in team adoption
-
-### Communicate clearly
-
-Ensure product pages clearly explain:
-
-- The billing manager will not get direct access
-- Seats must be assigned to team members
-- Pricing structure and volume discounts
-- Seat assignment and claiming process
-
-## Limitations
-
-- Seats must be assigned individually (no bulk import via dashboard, use API instead)
+- Maximum 1,000 seats per subscription
+- Seat metadata: up to 10 keys, 1 KB total
 - Claim links expire after 24 hours
-- Billing manager does not receive product benefits
-- Maximum of 1,000 seats per subscription
-- Metadata limited to 10 keys and 1KB total size per seat
-- **Usage-based pricing with shared emails**: If you sell to multiple businesses and different businesses assign seats to the same email address (e.g., "[john@gmail.com](mailto:john@gmail.com)"), and usage-based pricing is enabled, separate meters should be created for each business to properly segregate usage. This is a rare scenario since employees from different businesses typically don't share the same email address.
+- Seats must be assigned individually (use the API for bulk assignment)
+
+## What's next
+
+<CardGroup cols={2}>
+  <Card icon="chart-bar" href="/features/usage-based-billing/introduction" title="Usage-Based Billing">
+    Combine seat-based pricing with usage meters for hybrid billing.
+  </Card>
+  <Card icon="webhook" href="/integrate/webhooks/events" title="Webhooks">
+    Listen to benefit grant events to provision access in your app.
+  </Card>
+</CardGroup>

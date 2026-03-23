@@ -1,67 +1,78 @@
 ---
 title: "Billing"
-description: "How billing works with Usage Based"
+description: "How metered usage is charged alongside subscription invoices — including caps, discounts, and what happens at cancellation."
 ---
 
-## Metered Pricing
+Metered usage is billed as part of the subscription invoice. At the end of each billing period, Spaire tallies each meter, calculates the charge, and adds it to the invoice alongside the base subscription fee.
 
-Metered Pricing is a pricing model where you charge your customers based on the usage of your application.
+## Add a metered price to a product
 
-There are a few different pricing models unique to Usage Based Billing:
+Metered prices live on subscription products. Each metered price links one meter to the product and sets a price per unit.
 
-- Unit Pricing
-- Volume Pricing _(coming soon)_
+To add one:
 
-### Unit Pricing
+1. Open a subscription product
+2. Click **Add metered price**
+3. Select the meter
+4. Set the price per unit
 
-Unit pricing is a simple pricing model where you charge a fixed amount for each unit of usage.
+Multiple metered prices are supported — for example, one meter for prompt tokens and another for completion tokens, each with different per-unit rates.
 
-For example:
+### Usage cap
 
-| Product Meter       | Price per unit |
-| ------------------- | -------------- |
-| `prompt-tokens`     | \$0.10         |
-| `completion-tokens` | \$0.18         |
+Optionally set a **cap** on any metered price. If a customer's usage exceeds the cap during the billing period, they're charged the cap amount regardless of actual usage.
 
-This means that every unit of `prompt-tokens` consumed by a customer will be charged at \$0.10 and every unit of `completion-tokens` will be charged at \$0.18.
+Caps provide predictable maximum charges for customers — useful for plan limits or overage ceilings.
 
-It's a linear pricing model, where the price per unit is fixed.
+## How invoicing works
 
-### Volume Pricing _(coming soon)_
+| Billing cycle | When is usage charged? |
+|---------------|----------------------|
+| **Monthly** | Usage aggregated and invoiced at end of each month |
+| **Yearly** | Usage aggregated and invoiced at end of each year |
 
-Volume pricing is a pricing model where you charge a fixed amount for a certain volume of usage. Volume pricing is not yet available, but will be coming soon.
+The metered amount is combined with the base subscription fee into a single invoice. Customers see the breakdown (base + usage per meter) on their invoice and in the customer portal.
 
-## Invoicing Customers for Usage
+## Discounts and usage charges
 
-Our Usage Based Billing infrastructure is built to work with Subscription products out of the box.
+A discount applied to a subscription applies to the **entire invoice** — including metered usage. There is no way to apply a discount to only the base fee or only the metered portion.
 
-### Add a metered price to your product
+## Cancellation and usage
 
-To charge your customers for usage, you need to add a metered price to your product. You'll need the select the **Meter** and the **amount per unit**.
+When a subscription is canceled at period end (`cancel_at_period_end: true`), usage continues to accrue during the remaining billing period. A final invoice is issued at period end that includes all usage accumulated during the grace period.
 
-<img
-  className="hidden dark:block"
-  src="/assets/features/usage/cap.dark.png"
-/>
+If a subscription is revoked immediately, usage accrued up to that point is invoiced at the time of revocation.
 
-Optionally, you can set a **cap**. The customer will be charged the cap amount if they exceed it, regardless of the usage.
+## Preview the next charge
 
-### Monthly Invoicing
+Use the charge preview API to show customers what they'll owe before the invoice is generated:
 
-If a customer has a subscription with a monthly billing period, usage is aggregated monthly and invoiced at the end of the month with the rest of the subscription.
+```ts
+const preview = await spaire.subscriptions.chargePreview('<subscription_id>')
 
-### Yearly Invoicing
+console.log({
+  base: preview.base_amount,
+  metered: preview.metered_amount,
+  subtotal: preview.subtotal_amount,
+  discount: preview.discount_amount,
+  tax: preview.tax_amount,
+  total: preview.total_amount,
+})
+```
 
-If a customer has a subscription with a yearly billing period, usage is aggregated yearly and invoiced at the end of the year with the rest of the subscription.
+All amounts are in cents.
 
-### Usage Charges and Subscription Cancellation
+## Customer portal
 
-When a subscription is canceled, it generally remains active until the end of the current billing period (known as the grace period). During this grace period, all accumulated usage-based charges continue to be tracked. A final invoice will be issued at the end of that period to cover the consumed usage, even if the subscription will not be renewed. This ensures no pending usage charges are lost.
+Customers can see their current period usage for each meter in the customer portal — the estimated charge for each meter, and their total upcoming invoice.
 
-<Warning>
-  If a [discount](/features/discounts) is applied on the subscription, it'll be applied on the **whole invoice**, including metered usage.
-</Warning>
+## What's next
 
-## Customer Portal
-
-Customers can view their estimated charges for each meter in the Customer Portal.
+<CardGroup cols={2}>
+  <Card icon="coins" href="/features/usage-based-billing/credits" title="Credits">
+    Let customers pre-pay for usage to avoid surprise invoices.
+  </Card>
+  <Card icon="gauge" href="/features/usage-based-billing/meters" title="Meters">
+    Define how events are filtered and aggregated into billable units.
+  </Card>
+</CardGroup>
