@@ -1,8 +1,171 @@
 ---
 title: "Core Concepts"
-description: "The key building blocks of Spaire — organizations, products, customers, and how they fit together."
+description: "The Spaire data model — how organizations, products, customers, orders, and subscriptions fit together."
 ---
 
-<Note>
-This page is being written. Check back soon.
-</Note>
+Understanding how Spaire models the world makes everything else — the API, webhooks, the dashboard — much easier to work with. This page covers the key objects and how they relate.
+
+## The data model
+
+```
+Organization
+├── Products
+│   ├── Prices (fixed, usage-based)
+│   └── Benefits (license keys, credits, Discord, custom...)
+├── Customers
+│   ├── Orders (one-time purchases)
+│   ├── Subscriptions (recurring purchases)
+│   └── Benefit Grants (active entitlements)
+├── Checkouts (payment sessions)
+├── Discounts
+└── Account (your payout account)
+```
+
+---
+
+## Organization
+
+Your organization is the root object in Spaire. Everything lives under it — products, customers, webhooks, access tokens, and your payout account.
+
+Each organization has a unique **slug** (e.g., `acme-corp`) that appears in your dashboard URL and throughout the API. You can operate multiple organizations from a single Spaire account if you run separate products or brands independently.
+
+---
+
+## Products and Prices
+
+A **product** is what you're selling. It has a name, an optional description, optional media, and one or more prices attached to it.
+
+A **price** defines the billing terms:
+
+| Attribute | Options |
+|-----------|---------|
+| Billing cycle | One-time, monthly, yearly |
+| Pricing type | Fixed amount, free, usage-based |
+| Currency | USD (more coming) |
+
+A single product can have multiple prices — useful for offering both a monthly and a yearly option on the same plan. Customers pick the price they want at checkout.
+
+<Warning>
+  Billing cycle and pricing type cannot be changed after a price is created. Create a new price if you need to adjust terms.
+</Warning>
+
+---
+
+## Checkout
+
+A **checkout** is a payment session — the moment a customer is ready to pay. Spaire gives you three ways to create one depending on how much control you need:
+
+| Method | How it works | Best for |
+|--------|-------------|----------|
+| [Checkout link](/features/checkout/links) | A permanent URL you share anywhere | Landing pages, emails, docs |
+| [Embedded checkout](/features/checkout/embed) | A widget rendered on your own site | Keeping users in your UI |
+| [Checkout session](/features/checkout/session) | Created server-side via API | Custom flows, pre-filled fields, metadata |
+
+All three result in the same outcome: a completed order or subscription linked to a customer in your Spaire account.
+
+---
+
+## Customers
+
+A **customer** is a person or business that has completed a checkout or been created explicitly via the API.
+
+Customers are created automatically the first time someone pays. You can link a Spaire customer to your own user system using the `external_id` field — set it to your internal user ID when creating or updating a customer. This lets you look up their billing state without storing Spaire IDs in your database:
+
+```bash
+GET /v1/customers/external/{your_user_id}
+```
+
+Customers have a portal where they can view their orders, manage subscriptions, update payment methods, and download files — hosted by Spaire, no code required.
+
+---
+
+## Orders and Subscriptions
+
+An **order** is the record of a completed transaction.
+
+- For **one-time purchases**, an order captures the full lifecycle of that sale — paid, refunded, or disputed.
+- For **subscriptions**, Spaire creates a new order on each billing period. The subscription itself is the parent object that tracks the ongoing relationship.
+
+Subscriptions follow a clear lifecycle:
+
+```
+created → active → (canceled | past_due | revoked)
+                        ↕
+                   uncanceled
+```
+
+- `created` — checkout completed, subscription scheduled
+- `active` — paying and in good standing
+- `past_due` — payment failed, retrying
+- `canceled` — customer or merchant canceled; access ends at period end
+- `revoked` — access ended immediately
+
+Listen to `subscription.*` webhook events to react to each transition in your application.
+
+---
+
+## Benefits and Benefit Grants
+
+A **benefit** is an automated entitlement you attach to a product. When a customer purchases that product, Spaire creates a **benefit grant** — activating the entitlement for them without any code from you.
+
+Built-in benefit types:
+
+| Type | What happens |
+|------|-------------|
+| **License key** | A unique key is generated and delivered to the customer |
+| **Usage credits** | Credits are added to the customer's meter balance |
+| **Discord role** | A role is assigned via Discord OAuth |
+| **File download** | Customer gets access to files you've uploaded |
+| **GitHub repository** | Access is granted via GitHub OAuth |
+| **Custom** | Spaire calls a URL you provide to provision and revoke |
+
+When a subscription is canceled or a refund is issued, Spaire automatically revokes all associated grants. You don't need to write cleanup logic for the built-in types.
+
+---
+
+## Webhooks
+
+Webhooks are how Spaire notifies your application that something changed. Every significant state change emits a signed event you can subscribe to:
+
+```
+order.paid               → fulfill a one-time purchase
+subscription.active      → unlock access for a new subscriber
+subscription.canceled    → schedule access removal
+subscription.revoked     → revoke access immediately
+benefit_grant.created    → provision a custom entitlement
+benefit_grant.revoked    → deprovision a custom entitlement
+customer.state_changed   → customer's access profile changed
+```
+
+All webhook payloads follow the [Standard Webhooks](https://www.standardwebhooks.com) specification and are signed with a secret you verify on your server. See the full [event reference](/integrate/webhooks/events).
+
+---
+
+## Account and Payouts
+
+Your **account** is your payout account — a Stripe Connect account linked to your Spaire organization. You set it up once during onboarding by connecting a bank account.
+
+Your balance increases as orders are settled after Spaire's fee. You can see your current balance under **Finance → Balance** and withdraw to your bank at any time from **Finance → Payouts**.
+
+<Info>
+  Spaire operates as Merchant of Record, which means we're the seller of record on every transaction. We collect payment from customers, remit taxes, and then pay out your earnings to your bank account. See [how it works](/merchant-of-record/introduction).
+</Info>
+
+---
+
+## What's next
+
+<CardGroup cols={2}>
+  <Card icon="cart-shopping" href="/features/checkout/links" title="Set up checkout">
+    The three ways to accept payments — links, embedded, and API sessions.
+  </Card>
+  <Card icon="webhook" href="/integrate/webhooks/endpoints" title="Handle webhooks">
+    Subscribe to billing events and keep your application in sync.
+  </Card>
+  <Card icon="person-running" href="/integrate/customer-state" title="Customer State API">
+    Query everything a customer can access in one call — the fastest way to gate features.
+  </Card>
+  <Card icon="key" href="/features/benefits/introduction" title="Automate entitlements">
+    Attach benefits to products and let Spaire handle provisioning and revocation.
+  </Card>
+</CardGroup>

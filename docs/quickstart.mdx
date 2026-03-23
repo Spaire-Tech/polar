@@ -1,8 +1,99 @@
 ---
 title: "Quickstart"
-description: "Get your first checkout live in under 5 minutes."
+description: "Create a product and take your first test payment in under 5 minutes."
 ---
 
+This guide gets you from a blank Spaire account to a working checkout — no code required for the first four steps. By the end, you'll have a live product, a shareable checkout URL, and a completed test payment.
+
 <Note>
-This page is being written. Check back soon.
+  Want to experiment without touching live data? Use [sandbox.spairehq.com](https://sandbox.spairehq.com) instead of the production dashboard. Everything works identically, and test payments use Stripe's test cards.
 </Note>
+
+## Step 1: Create your account
+
+Sign up at [spairehq.com](https://www.spairehq.com). After verifying your email, you'll land on your organization dashboard.
+
+Your **organization** is the container for everything in Spaire — your products, customers, orders, API tokens, and payout account. You can create additional organizations later if you have multiple products or brands.
+
+## Step 2: Create a product
+
+Go to **Catalog → Products** in the sidebar and click **New product**.
+
+Fill in the basics:
+
+- **Name** — what your customers will see at checkout (e.g., *Pro Plan*)
+- **Description** — optional, supports Markdown
+- **Pricing** — choose *Recurring* (monthly or yearly) or *One-time*, then set your price
+
+Click **Create product**. Your product is immediately ready to sell.
+
+<Info>
+  Billing cycle and pricing type are locked after creation. If you need to change them, create a new product. You can have both a monthly and yearly version of the same plan — just create two products and link them at checkout.
+</Info>
+
+## Step 3: Create a checkout link
+
+The fastest way to start selling is a **checkout link** — a hosted payment page you can drop anywhere.
+
+1. Open your product and click the **Share** button, or go to **Checkout → Links → New link**
+2. Select your product
+3. Click **Create**
+
+You'll get a URL like `checkout.spairehq.com/c/abc123`. Drop it in an email, a landing page button, or your pricing page — anyone who clicks it can pay immediately.
+
+## Step 4: Test a payment
+
+Use Stripe's test card to simulate a successful payment:
+
+| Field | Value |
+|-------|-------|
+| Card number | `4242 4242 4242 4242` |
+| Expiry | Any future date |
+| CVC | Any 3 digits |
+| Name / address | Anything |
+
+After submitting, the order will appear under **Orders** and the customer will be created automatically under **Customers**. If you attached any [benefits](/features/benefits/introduction) to the product, they'll be granted immediately.
+
+## Step 5: Get your API key
+
+To integrate Spaire into your application — creating checkout sessions from your server, reading customer state, or handling webhooks — you'll need an access token.
+
+1. Go to **Settings → Developers → Access Tokens**
+2. Click **New token**, give it a name, and click **Create**
+3. Copy the token — it won't be shown again
+
+Store it as an environment variable:
+
+```bash
+export SPAIRE_ACCESS_TOKEN="spaire_..."
+```
+
+Make your first API call to confirm it works:
+
+```bash
+curl https://api.spairehq.com/v1/products \
+  -H "Authorization: Bearer $SPAIRE_ACCESS_TOKEN"
+```
+
+<Warning>
+  Never expose your access token in client-side code or commit it to version control. If a token is leaked, revoke it immediately from **Settings → Developers**.
+</Warning>
+
+## What's next
+
+You've got a product and a working checkout. Here's where to go depending on what you're building:
+
+<CardGroup cols={2}>
+  <Card icon="cube" href="/core-concepts" title="Core Concepts">
+    Understand how organizations, products, customers, and orders relate to each other before you go deeper.
+  </Card>
+  <Card icon="webhook" href="/integrate/webhooks/endpoints" title="Set up webhooks">
+    Listen for `order.paid` and `subscription.active` to sync billing state with your application.
+  </Card>
+  <Card icon="code" href="/integrate/sdk/typescript" title="Install an SDK">
+    Use the TypeScript, Python, Go, PHP, or Ruby SDK to create checkout sessions and query customers from your backend.
+  </Card>
+  <Card icon="person-running" href="/integrate/customer-state" title="Check customer state">
+    Query everything a customer has purchased and what they can currently access — in a single API call.
+  </Card>
+</CardGroup>
