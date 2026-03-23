@@ -249,39 +249,11 @@ const MetricChartBox = ({
                   </span>
                 )}
               </div>
-              {previousData && (
-                <div className="flex flex-row items-center gap-x-2 text-sm">
-                  <span className="h-2.5 w-2.5 rounded-full bg-blue-500 dark:bg-violet-600" />
-                  {hoveredPreviousPeriod ? (
-                    <FormattedDateTime
-                      datetime={hoveredPreviousPeriod.timestamp}
-                      dateStyle="medium"
-                    />
-                  ) : (
-                    <span className="dark:text-spaire-500 text-gray-500">
-                      Last period
-                    </span>
-                  )}
-                </div>
-              )}
             </div>
           )}
         </div>
 
         <div className="flex flex-row items-center gap-x-4">
-          {trend !== 0 && !isNaN(trend) && trend !== Infinity && (
-            <Status
-              status={
-                trend > 0 ? `+${trend.toFixed(0)}%` : `${trend.toFixed(0)}%`
-              }
-              className={twMerge(
-                'text-sm',
-                trend > 0
-                  ? 'bg-emerald-100 text-emerald-500 dark:bg-emerald-950'
-                  : 'bg-red-100 text-red-500 dark:bg-red-950',
-              )}
-            />
-          )}
           {shareable && (
             <Tooltip>
               <TooltipTrigger asChild>
