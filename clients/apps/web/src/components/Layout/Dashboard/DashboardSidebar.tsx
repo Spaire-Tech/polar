@@ -1,13 +1,11 @@
-import { NotificationsPopover } from '@/components/Notifications/NotificationsPopover'
-import { OmniSearch } from '@/components/Search/OmniSearch'
 import { useAuth } from '@/hooks'
 import { CONFIG } from '@/utils/config'
 import { isImpersonating } from '@/utils/impersonation'
 import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
+import CodeOutlined from '@mui/icons-material/CodeOutlined'
 import DarkModeOutlined from '@mui/icons-material/DarkModeOutlined'
 import KeyboardArrowDown from '@mui/icons-material/KeyboardArrowDown'
 import LightModeOutlined from '@mui/icons-material/LightModeOutlined'
-import Search from '@mui/icons-material/Search'
 import SupportIcon from '@mui/icons-material/Support'
 import { schemas } from '@spaire/client'
 import Avatar from '@spaire/ui/components/atoms/Avatar'
@@ -58,7 +56,6 @@ export const DashboardSidebar = ({
   const { currentUser } = useAuth()
 
   const isCollapsed = state === 'collapsed'
-  const [searchOpen, setSearchOpen] = useState(false)
 
   const navigateToOrganization = (org: schemas['Organization']) => {
     router.push(`/dashboard/${org.slug}`)
@@ -70,18 +67,6 @@ export const DashboardSidebar = ({
     setIsImpersonating(isImpersonating())
   }, [])
   const isTopBannerVisible = CONFIG.IS_SANDBOX || _isImpersonating
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault()
-        setSearchOpen(true)
-      }
-    }
-
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [])
 
   return (
     <Sidebar variant="inset" collapsible="icon">
@@ -136,11 +121,6 @@ export const DashboardSidebar = ({
               >
                 New Organization
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => router.push('/dashboard/account')}
-              >
-                Account Settings
-              </DropdownMenuItem>
               {!CONFIG.IS_SANDBOX && (
                 <DropdownMenuItem
                   onClick={() =>
@@ -173,8 +153,6 @@ export const DashboardSidebar = ({
           animate={{ opacity: 1 }}
           transition={{ duration: 1 }}
         >
-          {/* Notifications + Theme toggle next to sidebar trigger */}
-          <NotificationsPopover />
           <button
             type="button"
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
@@ -191,38 +169,6 @@ export const DashboardSidebar = ({
       </SidebarHeader>
 
       <SidebarContent className="gap-4 px-2 py-4">
-        {type === 'organization' && organization && (
-          <>
-            <button
-              onClick={() => setSearchOpen(true)}
-              className={twMerge(
-                'flex cursor-pointer items-center gap-4 rounded-lg border px-2 py-2 text-sm transition-colors',
-                'dark:bg-spaire-950 dark:border-spaire-800 dark:hover:bg-spaire-900 border-gray-200 bg-white hover:bg-gray-50',
-                isCollapsed && 'justify-center px-2',
-              )}
-            >
-              <Search
-                className="dark:text-spaire-500 text-gray-500"
-                fontSize="inherit"
-              />
-              {!isCollapsed && (
-                <>
-                  <span className="dark:text-spaire-500 flex-1 text-left text-gray-500">
-                    Search...
-                  </span>
-                  <kbd className="dark:border-spaire-700 dark:bg-spaire-800 dark:text-spaire-400 pointer-events-none inline-flex h-5 items-center gap-1 rounded border border-gray-200 bg-gray-100 px-1.5 font-mono text-[11px] text-gray-600 select-none">
-                    <span className="text-sm">⌘</span>K
-                  </kbd>
-                </>
-              )}
-            </button>
-            <OmniSearch
-              open={searchOpen}
-              onOpenChange={setSearchOpen}
-              organization={organization}
-            />
-          </>
-        )}
         <motion.div
           key={isCollapsed ? 'nav-collapsed' : 'nav-expanded'}
           className="flex flex-col items-center gap-2"
@@ -238,6 +184,17 @@ export const DashboardSidebar = ({
       </SidebarContent>
       <SidebarFooter>
         <Separator />
+        <Link
+          href="/dashboard/account/developer"
+          className={twMerge(
+            'mt-2 flex cursor-pointer flex-row items-center rounded-lg border border-transparent px-2 text-sm transition-colors dark:border-transparent',
+            'dark:text-spaire-500 dark:hover:text-spaire-200 text-gray-500 hover:text-black',
+            isCollapsed && '!dark:text-spaire-600',
+          )}
+        >
+          <CodeOutlined fontSize="inherit" />
+          {!isCollapsed && <span className="ml-4 font-medium">Developers</span>}
+        </Link>
         <Link
           href="mailto:support@spairehq.com"
           className={twMerge(

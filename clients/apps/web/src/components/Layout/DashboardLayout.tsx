@@ -1,9 +1,12 @@
 'use client'
 
 import LogoIcon from '@/components/Brand/LogoIcon'
+import { NotificationsPopover } from '@/components/Notifications/NotificationsPopover'
+import { OmniSearch } from '@/components/Search/OmniSearch'
 import { useAuth } from '@/hooks/auth'
 import { OrganizationContext } from '@/providers/maintainerOrganization'
 import { setLastVisitedOrg } from '@/utils/cookies'
+import SearchOutlined from '@mui/icons-material/SearchOutlined'
 import { schemas } from '@spaire/client'
 import {
   SidebarTrigger,
@@ -210,10 +213,23 @@ export const DashboardBody = ({
   wide = false,
 }: DashboardBodyProps) => {
   const { currentRoute, currentSubRoute } = useRoute()
+  const { organization } = useContext(OrganizationContext)
 
   const { state } = useSidebar()
 
   const isCollapsed = state === 'collapsed'
+  const [searchOpen, setSearchOpen] = useState(false)
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setSearchOpen(true)
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   const current = currentSubRoute ?? currentRoute
 
@@ -232,11 +248,40 @@ export const DashboardBody = ({
       <div className="dark:md:bg-black dark:border-spaire-800 relative flex min-w-0 flex-2 flex-col items-center rounded-2xl border-gray-200 px-4 md:overflow-y-auto md:border md:bg-white md:px-8 md:shadow-xs">
         <div
           className={twMerge(
-            'flex min-h-full w-full flex-col gap-8 pt-8',
+            'flex min-h-full w-full flex-col gap-8 pt-6',
             wrapperClassName,
             wide ? '' : 'max-w-(--breakpoint-xl)',
           )}
         >
+          {/* Search + Notifications bar */}
+          <div className="flex items-center justify-end gap-x-2">
+            {organization && (
+              <>
+                <button
+                  onClick={() => setSearchOpen(true)}
+                  className="dark:bg-spaire-900 dark:border-spaire-700 dark:hover:bg-spaire-800 flex w-56 cursor-pointer items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm transition-colors hover:bg-gray-50"
+                >
+                  <SearchOutlined
+                    fontSize="small"
+                    className="dark:text-spaire-500 shrink-0 text-gray-400"
+                  />
+                  <span className="dark:text-spaire-500 flex-1 text-left text-gray-400">
+                    Search...
+                  </span>
+                  <kbd className="dark:border-spaire-700 dark:bg-spaire-800 dark:text-spaire-400 hidden h-5 items-center gap-0.5 rounded border border-gray-200 bg-gray-100 px-1.5 font-mono text-[10px] text-gray-500 sm:inline-flex">
+                    <span className="text-xs">⌘</span>K
+                  </kbd>
+                </button>
+                <OmniSearch
+                  open={searchOpen}
+                  onOpenChange={setSearchOpen}
+                  organization={organization}
+                />
+              </>
+            )}
+            <NotificationsPopover />
+          </div>
+
           {(title !== null || !!header) && (
             <div className="flex flex-col gap-y-4 md:flex-row md:items-center md:justify-between md:gap-x-4">
               {title !== null &&
