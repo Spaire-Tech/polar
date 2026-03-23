@@ -1,26 +1,29 @@
 ---
 title: "Embedded Checkout"
 sidebarTitle: "Embedded Checkout"
-description: "Embed our checkout directly on your site"
+description: "Render the Spaire checkout as a modal or inline widget inside your own page — no redirect to an external URL."
 ---
 
-You can either copy and paste our code snippet to get up and running in a second or use our JavaScript library for more advanced integrations. Our embedded checkout allows you to provide a seamless purchasing experience without redirecting users away from your site.
+Embedded checkout keeps customers on your site. Instead of redirecting to a hosted payment page, Spaire renders the checkout as an overlay or inline frame directly in your UI.
 
-## Code Snippet
+There are two ways to set it up: a no-code **HTML snippet** you can drop into any page, and a **JavaScript library** for React and other framework-based apps.
 
-The code snippet can be used on any website or CMS that allows you to insert HTML.
+## HTML snippet
 
-First, create a [Checkout Link](/features/checkout/links) as described in the previous section. The code snippet can directly be copied from there by clicking on `Copy Embed Code`.
+The quickest option. Works on any website or CMS that lets you insert HTML.
+
+1. Create a [checkout link](/features/checkout/links)
+2. Open the link's settings and click **Copy Embed Code**
 
 The snippet looks like this:
 
-```typescript
+```html
 <a
-  href="__CHECKOUT_LINK__"
+  href="YOUR_CHECKOUT_LINK_URL"
   data-spaire-checkout
   data-spaire-checkout-theme="light"
 >
-  Purchase
+  Buy now
 </a>
 
 <script
@@ -30,13 +33,13 @@ The snippet looks like this:
 ></script>
 ```
 
-This will display a `Purchase` link which will open an inline checkout when clicked.
+When clicked, the link opens the checkout as an overlay. Style the trigger element however you like — just keep the `data-spaire-checkout` attribute.
 
-You can style the trigger element any way you want, as long as you keep the `data-spaire-checkout` attribute.
+Change `data-spaire-checkout-theme` to `"dark"` for the dark variant.
 
-## Import Library
+## JavaScript library
 
-If you have a more advanced project in JavaScript, like a React app, adding the `<script>` tag may not be an option. In this case, you can install our dedicated library.
+For React and other component-based apps, import the library instead of adding a `<script>` tag.
 
 <CodeGroup>
 
@@ -44,11 +47,9 @@ If you have a more advanced project in JavaScript, like a React app, adding the 
 npm install @spaire/checkout
 ```
 
-
 ```bash pnpm
 pnpm add @spaire/checkout
 ```
-
 
 ```bash yarn
 yarn add @spaire/checkout
@@ -56,253 +57,146 @@ yarn add @spaire/checkout
 
 </CodeGroup>
 
-Then, you should import the `SpaireEmbedCheckout` helper class and manually call `SpaireEmbedCheckout.init()`. This will add the required handlers on elements having the `data-spaire-checkout` attribute.
+Then import `SpaireEmbedCheckout` and call `init()` to attach handlers to all elements with `data-spaire-checkout`:
 
-Here is an example in React:
-
-```ts
+```tsx
 import { SpaireEmbedCheckout } from '@spaire/checkout/embed'
 import { useEffect } from 'react'
 
-const PurchaseLink = () => {
+const BuyButton = () => {
   useEffect(() => {
     SpaireEmbedCheckout.init()
   }, [])
 
   return (
     <a
-      href="__CHECKOUT_LINK__"
+      href="YOUR_CHECKOUT_LINK_URL"
       data-spaire-checkout
       data-spaire-checkout-theme="light"
     >
-      Purchase
+      Buy now
     </a>
   )
 }
 
-export default PurchaseLink
+export default BuyButton
 ```
 
-<Tip>
-  Instead of a Checkout Link, you can also use a [Checkout Session](/features/checkout/session) URL created dynamically from the API.
+## Programmatic control
 
-  For this to work, make sure to set the [`embed_origin`](/api-reference/checkouts/create-session#body-embed-origin) parameter correctly when creating the Checkout Session. For example, if your checkout page is served on the URL `https://example.com/checkout`, you should set `embed_origin` to `https://example.com`.
-</Tip>
+For full control — opening checkout on custom triggers, handling events, managing the lifecycle — use `SpaireEmbedCheckout.create()` directly.
 
-## Advanced Integration
-
-For users who need more control over the embedded checkout flow, the `SpaireEmbedCheckout` class provides several advanced features.
-
-### Programmatically creating an embed
-
-Instead of using declarative triggers with `data-spaire-checkout` attributes, you can programmatically create and control checkout instances:
+### Open and listen for events
 
 ```ts
-import { SpaireEmbedCheckout } from "@spaire/checkout/embed";
+import { SpaireEmbedCheckout } from '@spaire/checkout/embed'
 
-// Open checkout programmatically when needed
 const openCheckout = async () => {
-  const checkoutLink = "__CHECKOUT_LINK__";
-  const theme = "light"; // or 'dark'
-
-  try {
-    // This creates the checkout iframe and returns a Promise
-    // that resolves when the checkout is fully loaded
-    const checkout = await SpaireEmbedCheckout.create(checkoutLink, {
-      theme,
-    });
-
-    // Now you can interact with the checkout instance
-    return checkout;
-  } catch (error) {
-    console.error("Failed to open checkout", error);
-  }
-};
-
-// Example: Trigger checkout when a button is clicked
-document.getElementById("buy-button").addEventListener("click", () => {
-  openCheckout();
-});
-```
-
-### Listening for checkout events
-
-You can listen for checkout events to respond to user interactions. For the `loaded` event, we recommend using the `onLoaded` callback in the `create` method to ensure it's always executed, even if the checkout loads very quickly.
-
-```ts
-import { SpaireEmbedCheckout } from "@spaire/checkout/embed";
-
-const openCheckoutWithEvents = async () => {
-  const checkout = await SpaireEmbedCheckout.create("__CHECKOUT_LINK__", {
-    onLoaded: (event) => {
-      console.log("Checkout loaded");
+  const checkout = await SpaireEmbedCheckout.create('YOUR_CHECKOUT_LINK_URL', {
+    theme: 'light',
+    onLoaded: () => {
+      console.log('Checkout is ready')
     },
-  });
+  })
 
-  // Listen for when the checkout has been closed
-  checkout.addEventListener("close", (event) => {
-    console.log("Checkout has been closed");
-    // Call event.preventDefault() if you want to prevent the standard behavior
-    // event.preventDefault()
-  });
+  checkout.addEventListener('confirmed', () => {
+    // Payment is processing — checkout is now non-closable
+    console.log('Payment processing')
+  })
 
-  // Listen for when the checkout has been confirmed (payment processing)
-  checkout.addEventListener("confirmed", (event) => {
-    console.log("Order confirmed, processing payment");
-    // Call event.preventDefault() if you want to prevent the standard behavior
-    // event.preventDefault()
-    // Note: This would prevent setting the checkout as non-closable
-  });
-
-  // Listen for successful completion
-  checkout.addEventListener("success", (event) => {
-    console.log("Purchase successful!", event.detail);
-
-    // Call event.preventDefault() if you want to prevent the standard behavior
-    // event.preventDefault()
-    // Note: For success event, this prevents automatic redirection if redirect is true
-
-    // If redirect is false, you can show your own success message
+  checkout.addEventListener('success', (event) => {
+    // Purchase completed
+    console.log('Purchase successful', event.detail)
+    // event.detail.redirect is true if Spaire will redirect automatically
     if (!event.detail.redirect) {
-      showSuccessMessage();
+      showSuccessState()
     }
-    // Otherwise, the user will be redirected to the success URL (unless prevented)
-  });
+  })
 
-  return checkout;
-};
+  checkout.addEventListener('close', () => {
+    console.log('Checkout closed')
+  })
+}
 ```
 
-### React Integration with event handling
-
-Here's a more complete React example that handles checkout events:
+### Close programmatically
 
 ```ts
+let activeCheckout = null
+
+async function openCheckout() {
+  activeCheckout = await SpaireEmbedCheckout.create('YOUR_CHECKOUT_LINK_URL')
+  activeCheckout.addEventListener('close', () => {
+    activeCheckout = null
+  })
+}
+
+function closeCheckout() {
+  activeCheckout?.close()
+}
+```
+
+### React example with full lifecycle
+
+```tsx
 import { SpaireEmbedCheckout } from '@spaire/checkout/embed'
 import { useState, useEffect } from 'react'
 
 const CheckoutButton = () => {
-  const [checkoutInstance, setCheckoutInstance] = useState(null)
+  const [checkout, setCheckout] = useState(null)
 
-  // Clean up checkout instance on unmount
   useEffect(() => {
-    return () => {
-      if (checkoutInstance) {
-        checkoutInstance.close()
+    return () => checkout?.close()
+  }, [checkout])
+
+  const handleClick = async () => {
+    const instance = await SpaireEmbedCheckout.create('YOUR_CHECKOUT_LINK_URL', {
+      theme: 'light',
+      onLoaded: () => console.log('Loaded'),
+    })
+
+    setCheckout(instance)
+
+    instance.addEventListener('success', (event) => {
+      if (!event.detail.redirect) {
+        // Show your own confirmation UI
       }
-    }
-  }, [checkoutInstance])
+    })
 
-  const handleCheckout = async () => {
-      try {
-        const checkout = await SpaireEmbedCheckout.create(
-          '__CHECKOUT_LINK__',
-          {
-            theme: 'light',
-            onLoaded: (event) => {
-              console.log('Checkout loaded successfully');
-              // This is guaranteed to be called even if checkout loads quickly
-            }
-          }
-        )
-
-      setCheckoutInstance(checkout)
-
-      checkout.addEventListener('success', (event) => {
-        // Track successful purchase
-        analytics.track('Purchase Completed', {
-          productId: 'your-product-id',
-          // Add other analytics data
-        })
-
-        // Show success message or redirect
-        if (!event.detail.redirect) {
-          // Handle success in your app
-        }
-      })
-
-      checkout.addEventListener('close', (event) => {
-        // Clean up our reference when checkout is closed
-        setCheckoutInstance(null)
-      })
-    } catch (error) {
-      console.error('Failed to open checkout', error)
-    }
+    instance.addEventListener('close', () => {
+      setCheckout(null)
+    })
   }
 
-  return (
-    <button onClick={handleCheckout}>
-      Complete Purchase
-    </button>
-  )
+  return <button onClick={handleClick}>Buy now</button>
 }
 
 export default CheckoutButton
 ```
 
-### Programmatically closing checkout
+## Using a checkout session URL
 
-In some cases, you might need to programmatically close the checkout - for instance, if you detect that a user needs to take an action elsewhere in your application first:
+Instead of a checkout link, you can pass a dynamically created checkout session URL from your backend. This lets you pre-fill customer data, set metadata, and customize the flow server-side.
 
-```ts
-import { SpaireEmbedCheckout } from "@spaire/checkout/embed";
+<Note>
+  When using an embedded checkout with a session URL, you must set the `embed_origin` parameter when creating the session. Set it to the origin of the page hosting the checkout — e.g., `https://example.com`. Without this, the iframe will be blocked for security reasons.
+</Note>
 
-// Example: open checkout and store the instance
-let activeCheckout = null;
+See [Checkout Sessions](/features/checkout/session) for how to create session URLs from the API.
 
-async function openCheckout() {
-  const checkout = await SpaireEmbedCheckout.create("__CHECKOUT_LINK__");
-  activeCheckout = checkout;
-  return checkout;
-}
+## Apple Pay and Google Pay
 
-// Later, close it programmatically when needed
-function closeCheckout() {
-  if (activeCheckout) {
-    activeCheckout.close();
-    // The 'close' event will fire automatically
-    // Don't set activeCheckout to null here, as we'll handle that in the event listener
-  }
-}
+Wallet payment methods work automatically in hosted checkout (non-embedded). In embedded mode, your domain must be manually verified before wallet payments are enabled.
 
-// Add a listener to update our reference when checkout is closed
-function setupCheckout(checkout) {
-  checkout.addEventListener("close", (event) => {
-    // Reset our reference when checkout is closed
-    activeCheckout = null;
-  });
-  return checkout;
-}
+To enable Apple Pay or Google Pay for your embedded checkout, email [support@spairehq.com](mailto:support@spairehq.com) with your organization slug and the domain you're embedding on.
 
-// Example usage
-document.getElementById("open-checkout").addEventListener("click", async () => {
-  const checkout = await openCheckout();
-  setupCheckout(checkout);
-});
-document
-  .getElementById("close-checkout")
-  .addEventListener("click", closeCheckout);
-```
+## What's next
 
-## Enabling Wallet Payment Methods (Apple Pay, Google Pay, etc.)
-
-Wallet payment methods such as Apple Pay and Google Pay are supported in the checkout with the following conditions:
-
-- **Apple Pay** appears automatically in the checkout if:
-  - The user is on an Apple device
-  - The browser is Safari
-  - The device is connected to an Apple account with Apple Pay configured
-- **Google Pay** appears automatically in the checkout if:
-  - The user is on Google Chrome
-  - The browser is connected to a Google account with Google Pay configured
-
-**No additional action is required** if you meet these conditions and are not using an embedded checkout.
-
-### Enabling Wallet Payments for Embedded Checkout
-
-By default, wallet payment methods (Apple Pay, Google Pay, etc.) are **not enabled** when you embed our checkout form into your website. For security reasons, your website domain needs to be manually validated before enabling these payment methods in embedded mode.
-
-To enable wallet payment methods on your embedded checkout, please [email us](mailto:support@spairehq.com) with:
-
-- Your organization slug
-- The domain you wish to allow for wallet payments
+<CardGroup cols={2}>
+  <Card icon="server" href="/features/checkout/session" title="Checkout Sessions">
+    Create sessions from your backend for pre-filled, metadata-rich checkout flows.
+  </Card>
+  <Card icon="globe" href="/features/checkout/localization" title="Localized Checkout">
+    Serve checkout in your customer's language across 10 supported locales.
+  </Card>
+</CardGroup>

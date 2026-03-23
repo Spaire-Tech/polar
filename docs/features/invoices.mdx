@@ -1,92 +1,93 @@
 ---
 title: "Invoices"
 sidebarTitle: "Invoices"
-description: "Create and send invoices to customers for sales-assisted billing and manual payment collection"
+description: "Send formal invoices to customers for sales-assisted deals — with a payment link so they can pay online directly."
 ---
 
-Invoices let you bill customers directly without requiring them to go through a checkout flow. Create a draft, review it, then finalize and share it — with an optional payment link so customers can pay online.
+Invoices are for sales-assisted billing — situations where you've already agreed on a deal and need to send a formal document for payment. They're not a self-serve checkout flow. If you want customers to pay on their own, use a [checkout link](/features/checkout/links) instead.
 
-<Info>
-  Invoices are designed for **sales-assisted billing** — situations where you've already agreed on a deal and need to send a formal invoice. For self-serve purchases, use [Checkout Links](/features/checkout/links) instead.
-</Info>
+An invoice can include a payment link, so the customer can pay online directly from the email they receive.
 
 ## Invoice lifecycle
 
-Invoices move through the following statuses:
-
-| Status | Meaning |
-|--------|---------|
-| **Draft** | Editable. Not yet sent to the customer. |
-| **Open** | Finalized and sent. Awaiting payment. |
-| **Paid** | Payment confirmed. |
-| **Void** | Cancelled before or after being sent. |
+| Status | Description |
+|--------|-------------|
+| `draft` | Editable. Not yet sent. |
+| `open` | Finalized and sent. Awaiting payment. |
+| `paid` | Payment confirmed. |
+| `void` | Cancelled. Cannot be re-opened. |
 
 ## Create an invoice
 
-Navigate to **Sales → Invoices** and click **New Invoice**.
+Go to **Sales → Invoices** and click **New Invoice**.
 
 ### Customer
 
-Select an existing customer from your customer list, or create a new one inline. Once a customer is selected, the invoice currency selector appears — choose the currency you want to invoice in.
-
-<Tip>
-  You can invoice in any of the 30+ supported currencies, including USD, EUR, GBP, AED, JPY, and more.
-</Tip>
+Select an existing customer from your account, or create a new one inline. After selecting a customer, choose the invoice currency — you can invoice in any of the 36 supported currencies.
 
 ### Billing address
 
-Once a customer is selected, a billing address section appears. It auto-fills from the customer's stored billing address if one exists. The billing address is used for tax calculation and is printed on the PDF invoice.
+Auto-fills from the customer's stored billing address if one exists. The address is used for tax calculation and printed on the PDF. You can edit it before finalizing.
 
 ### Line items
 
-Add one or more line items. Each line item has:
+Add one or more line items. Each has:
 
 - **Description** — what you're charging for
 - **Quantity** — number of units
 - **Unit amount** — price per unit in the invoice currency
 
-You can populate a line item from an existing product in your catalog (which auto-fills the description and amount), or enter custom values. Use **Add item** to add more lines, and **New product** to create a product inline without leaving the invoice form.
+You can populate a line item from an existing product in your catalog (auto-fills description and amount), or enter custom values. Click **Add item** to add more lines.
 
 ### Discount
 
-Optionally apply a discount from your catalog. Supports both percentage and fixed-amount discounts. You can also create a new discount inline.
-
-The discount is applied to the invoice subtotal and shown as a line on the PDF.
+Optionally apply a discount from your catalog. Both percentage and fixed-amount discounts are supported. The discount is applied to the subtotal and appears as a line on the PDF. You can also create a new discount inline.
 
 ### Payment link
 
-Attach a checkout link to the invoice so the customer can pay online directly from it. When a payment link is included, the finalized invoice will contain a clickable **Pay now** button.
+Attach a [checkout link](/features/checkout/links) so the customer can pay online. When included, the finalized invoice email contains a **Pay now** button.
 
 <Warning>
-  Make sure the checkout link's currency matches the invoice currency. If they differ, a warning is shown — the customer would be charged in the checkout link's currency, which may be confusing.
+  The checkout link's currency must match the invoice currency. If they differ, a warning is shown — the customer would be charged in the checkout link's currency, which may be unexpected.
 </Warning>
-
-You can select an existing checkout link or create one inline. See [Checkout Links](/features/checkout/links) for how to set them up.
 
 ### Details
 
-Configure payment terms and additional references:
-
-- **Payment due** — set a due date using the Net 7 / 15 / 30 / 60 shortcuts or pick a custom date
+- **Payment due** — set using Net 7 / 15 / 30 / 60 shortcuts or a custom date
 - **Memo** — a note printed on the invoice, visible to the customer
-- **PO Number** — the customer's purchase order reference number
+- **PO Number** — the customer's purchase order reference
 - **On behalf of** — override the seller name printed on the invoice (defaults to your organization name)
 
-## Finalizing an invoice
+## Finalize an invoice
 
-Once you're happy with the draft, click **Finalize**. This:
+Once your draft is complete, click **Finalize**. This:
 
-1. Locks the invoice and assigns it an invoice number
-2. Calculates tax automatically based on the billing address
-3. Generates a PDF
-4. Changes the status from **Draft** → **Open**
+1. Locks the invoice — no more edits
+2. Assigns an invoice number
+3. Calculates tax based on the billing address
+4. Generates a PDF
+5. Changes status from `draft` → `open`
 
-Finalized invoices cannot be edited. If you need to make changes, void the invoice and create a new one.
+Finalized invoices cannot be edited. If you need changes, void the invoice and create a new one.
 
-## Sending an invoice
+## Send an invoice
 
-After finalizing, use **Send** to deliver the invoice to the customer. They receive an email with the invoice PDF attached and, if a payment link was attached, a button to pay online.
+After finalizing, click **Send**. The customer receives an email with:
 
-## Voiding an invoice
+- The invoice PDF attached
+- A **Pay now** button if you attached a payment link
 
-Both draft and open invoices can be voided. A voided invoice is permanently cancelled and cannot be re-opened.
+## Void an invoice
+
+Both `draft` and `open` invoices can be voided. A voided invoice is permanently cancelled and cannot be re-opened.
+
+## What's next
+
+<CardGroup cols={2}>
+  <Card icon="cart-shopping" href="/features/checkout/links" title="Checkout Links">
+    Add a payment link to invoices so customers can pay online.
+  </Card>
+  <Card icon="arrows-rotate" href="/features/refunds" title="Refunds">
+    Issue full or partial refunds on completed orders.
+  </Card>
+</CardGroup>
