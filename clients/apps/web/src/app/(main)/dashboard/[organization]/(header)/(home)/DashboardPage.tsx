@@ -4,26 +4,100 @@ import CancellationsDistributionChart from '@/components/Metrics/CancellationsDi
 import CancellationsStackedChart from '@/components/Metrics/CancellationsStackedChart'
 import { DashboardBody } from '@/components/Layout/DashboardLayout'
 import MetricChartBox from '@/components/Metrics/MetricChartBox'
+import { Modal } from '@/components/Modal'
+import { useModal } from '@/components/Modal/useModal'
 import { OrdersWidget } from '@/components/Widgets/OrdersWidget'
 import {
   useMetrics,
   useOrganizationPaymentStatus,
 } from '@/hooks/queries'
-import { getChartRangeParams } from '@/utils/metrics'
+import { ALL_METRICS, getChartRangeParams, getPreviousDateRange } from '@/utils/metrics'
 import { schemas } from '@spaire/client'
 import ArrowForwardOutlined from '@mui/icons-material/ArrowForwardOutlined'
+import CheckOutlined from '@mui/icons-material/CheckOutlined'
+import TuneOutlined from '@mui/icons-material/TuneOutlined'
 import Button from '@spaire/ui/components/atoms/Button'
 import Link from 'next/link'
-import { useMemo } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { twMerge } from 'tailwind-merge'
 import { CANCELLATION_METRICS } from '../analytics/metrics/components/metrics-config'
 
-const OVERVIEW_METRICS: (keyof schemas['Metrics'])[] = [
+// --- Overview Metrics Config ---
+
+const DEFAULT_OVERVIEW_METRICS: (keyof schemas['Metrics'])[] = [
   'revenue',
   'orders',
   'average_order_value',
   'cumulative_revenue',
 ]
+
+const OVERVIEW_METRICS_KEY = 'spaire-overview-metrics'
+
+function useOverviewMetrics() {
+  const [metrics, setMetrics] = useState<(keyof schemas['Metrics'])[]>(() => {
+    if (typeof window === 'undefined') return DEFAULT_OVERVIEW_METRICS
+    try {
+      const stored = localStorage.getItem(OVERVIEW_METRICS_KEY)
+      return stored ? (JSON.parse(stored) as (keyof schemas['Metrics'])[]) : DEFAULT_OVERVIEW_METRICS
+    } catch {
+      return DEFAULT_OVERVIEW_METRICS
+    }
+  })
+
+  const updateMetrics = useCallback((newMetrics: (keyof schemas['Metrics'])[]) => {
+    setMetrics(newMetrics)
+    localStorage.setItem(OVERVIEW_METRICS_KEY, JSON.stringify(newMetrics))
+  }, [])
+
+  return { metrics, updateMetrics }
+}
+
+// --- Manage Metrics Modal Content ---
+
+const ManageMetricsContent = ({
+  selectedMetrics,
+  onUpdate,
+}: {
+  selectedMetrics: (keyof schemas['Metrics'])[]
+  onUpdate: (metrics: (keyof schemas['Metrics'])[]) => void
+}) => {
+  const toggleMetric = (slug: keyof schemas['Metrics']) => {
+    if (selectedMetrics.includes(slug)) {
+      if (selectedMetrics.length <= 1) return
+      onUpdate(selectedMetrics.filter((m) => m !== slug))
+    } else {
+      onUpdate([...selectedMetrics, slug])
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-y-4 p-6">
+      <p className="dark:text-spaire-400 text-sm text-gray-500">
+        Choose which metrics appear on your overview page.
+      </p>
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+        {ALL_METRICS.map((metric) => {
+          const isSelected = selectedMetrics.includes(metric.slug)
+          return (
+            <button
+              key={metric.slug}
+              onClick={() => toggleMetric(metric.slug)}
+              className={twMerge(
+                'flex items-center justify-between rounded-xl border px-4 py-3 text-left text-sm transition-colors',
+                isSelected
+                  ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-600 dark:bg-blue-950/30 dark:text-blue-400'
+                  : 'dark:border-spaire-700 dark:hover:border-spaire-600 dark:text-spaire-300 border-gray-200 text-gray-700 hover:border-gray-300',
+              )}
+            >
+              <span>{metric.display_name}</span>
+              {isSelected && <CheckOutlined fontSize="small" />}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
 // --- Profile Completion Banner ---
 
@@ -66,9 +140,17 @@ const OverviewMetrics = ({
 }: {
   organization: schemas['Organization']
 }) => {
+  const { metrics: overviewMetrics, updateMetrics } = useOverviewMetrics()
+  const { isShown: isManageOpen, show: showManage, hide: hideManage } = useModal()
+
   const [startDate, endDate, interval] = useMemo(
     () => getChartRangeParams('30d', organization.created_at),
     [organization.created_at],
+  )
+
+  const [prevStartDate, prevEndDate] = useMemo(
+    () => getPreviousDateRange(startDate, endDate),
+    [startDate, endDate],
   )
 
   const { data, isLoading } = useMetrics({
@@ -76,31 +158,83 @@ const OverviewMetrics = ({
     startDate,
     endDate,
     interval,
-    metrics: OVERVIEW_METRICS,
+    metrics: overviewMetrics,
   })
 
+  const { data: previousData } = useMetrics({
+    organization_id: organization.id,
+    startDate: prevStartDate,
+    endDate: prevEndDate,
+    interval,
+    metrics: overviewMetrics,
+  })
+
+  const [firstMetric, ...restMetrics] = overviewMetrics
+
   return (
-    <div className="flex flex-col gap-y-6">
+    <div className="flex flex-col gap-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-medium">Overview</h2>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={showManage}
+          className="dark:text-spaire-400 gap-x-1.5 text-gray-500"
+        >
+          <TuneOutlined fontSize="small" />
+          <span>Edit metrics</span>
+        </Button>
+      </div>
+
       <div className="dark:border-spaire-700 flex flex-col overflow-hidden rounded-2xl border border-gray-200">
-        <div className="grid grid-cols-1 flex-col [clip-path:inset(1px_1px_1px_1px)] md:grid-cols-2 lg:grid-cols-3">
-          {OVERVIEW_METRICS.map((metricKey, index) => (
-            <MetricChartBox
-              key={metricKey}
-              data={data}
-              interval={interval}
-              metric={metricKey}
-              loading={isLoading}
-              height={200}
-              chartType="line"
-              className={twMerge(
-                'rounded-none! bg-transparent dark:bg-transparent',
-                index === 0 && 'lg:col-span-2',
-                'dark:border-spaire-700 border-t-0 border-r border-b border-l-0 border-gray-200 shadow-none',
-              )}
-            />
-          ))}
+        <div className="[clip-path:inset(1px_1px_1px_1px)]">
+          {/* First metric — full width */}
+          <MetricChartBox
+            data={data}
+            previousData={previousData}
+            interval={interval}
+            metric={firstMetric}
+            loading={isLoading}
+            height={200}
+            chartType="line"
+            className="dark:border-spaire-700 rounded-none! border-t-0 border-r-0 border-b border-l-0 border-gray-200 bg-transparent shadow-none dark:bg-transparent"
+          />
+
+          {/* Rest of metrics — responsive grid */}
+          {restMetrics.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+              {restMetrics.map((metricKey) => (
+                <MetricChartBox
+                  key={metricKey}
+                  data={data}
+                  previousData={previousData}
+                  interval={interval}
+                  metric={metricKey}
+                  loading={isLoading}
+                  height={200}
+                  chartType="line"
+                  className={twMerge(
+                    'rounded-none! bg-transparent dark:bg-transparent',
+                    'dark:border-spaire-700 border-t-0 border-r border-b border-l-0 border-gray-200 shadow-none',
+                  )}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </div>
+
+      <Modal
+        title="Edit Overview Metrics"
+        isShown={isManageOpen}
+        hide={hideManage}
+        modalContent={
+          <ManageMetricsContent
+            selectedMetrics={overviewMetrics}
+            onUpdate={updateMetrics}
+          />
+        }
+      />
     </div>
   )
 }
