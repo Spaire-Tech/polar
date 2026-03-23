@@ -1,45 +1,53 @@
 ---
-title: "Manage Refunds"
+title: "Refunds"
 sidebarTitle: "Refunds"
-description: "You can easily refund orders on Spaire - both in full or in parts."
+description: "Issue full or partial refunds on any order — with control over whether benefits are revoked."
 ---
 
-No matter what refund policy you offer to customers, Spaire makes it easy to offer both full and partial refunds to easily deliver the customer experience and refund policy you want.
-
-However, even in case you have a “no refund” policy, Spaire reserves the right to issue refunds within 60 days of purchase - at our own discretion. We reserve this right in an effort to automatically and proactively reduce costly chargebacks.
+Spaire supports full and partial refunds on any paid order. Refunds are issued from your dashboard and the amount is deducted from your balance.
 
 <Note>
-  **Spaire can issue refunds on your behalf**
-
-  Spaire reserves the right to issue refunds within 60 days of purchase, at its own discretion, in order to prevent chargebacks. So if you choose to have a “no refunds” policy, be aware that Spaire could still issue refunds in an effort to proactively prevent chargebacks.
+  As Merchant of Record, Spaire may issue refunds on your behalf — even if your policy is no refunds. We reserve this right within 60 days of purchase to proactively prevent chargebacks. You'll be notified if this happens.
 </Note>
 
-## Issuing a refund
+## Issue a refund
 
-1. Go to the order details page for the specific order you want to refund
-2. Scroll down to the “Refund” section
-3. Click “Refund”
+1. Go to **Sales → Orders** and open the order you want to refund
+2. Scroll to the **Refund** section
+3. Click **Refund**
 
-**Amount**
+### Amount
 
-Specify the amount to refund. By default it’s the full order amount, but you can reduce this to issue a partial refund instead.
+Defaults to the full order amount. Lower the amount to issue a partial refund instead.
 
 <Warning>
-  **Payment fees are not refunded**
-
-  Unfortunately, credit card networks and PSPs charge us for the underlying transactions regardless of whether it’s later refunded (industry standard). Therefore, we cannot offer a refund on our fees since the costs remain constant.
-
-  Example: An order of $30 costs ~$1.6 in fees to Spaire. You can still refund the customer $30, but the ~$1.6 fee remains and is deducted on your balance from other purchases.
+  Payment processing fees are non-refundable. The fee charged on the original transaction remains and is deducted from your balance even when you issue a full refund to the customer. For example, a $30 order with ~$1.60 in fees: the customer receives $30, but your balance is reduced by ~$1.60 to cover the fee.
 </Warning>
 
-**Reason**
+### Reason
 
-Select the reason for the refund - helpful for future reference.
+Select a reason for the refund. This is stored for your records and is visible to your team in the order details.
 
-**Revoke Benefits (One-time purchases)**
+### Revoke benefits
 
-For one-time purchases, you can revoke the customers access to product benefits, e.g license keys or custom entitlements. By default this is selected since we default to a full refund, but can be disabled.
+**One-time purchases** — when refunding, you can choose whether to revoke the customer's access to product benefits (license keys, file downloads, custom entitlements, etc.). This defaults to on when issuing a full refund.
 
-**Revoke Benefits (Subscriptions)**
+**Subscriptions** — you cannot revoke access by refunding a subscription order. To end a subscriber's access, cancel the subscription. Spaire will revoke all benefit grants automatically once the subscription ends.
 
-You cannot revoke access by refunding an order associated with a subscription. Instead the subscription is required to be canceled and Spaire will then automatically revoke access once the subscription itself is revoked.
+## Order status after refund
+
+| Action | Resulting status |
+|--------|-----------------|
+| Full refund | `refunded` |
+| Partial refund | `partially_refunded` |
+
+## What's next
+
+<CardGroup cols={2}>
+  <Card icon="arrows-rotate" href="/core-concepts#subscriptions" title="Subscriptions">
+    Cancel a subscription to end recurring billing and revoke access.
+  </Card>
+  <Card icon="webhook" href="/integrate/webhooks/events" title="Webhook events">
+    Listen for `order.refunded` to sync refund state in your application.
+  </Card>
+</CardGroup>

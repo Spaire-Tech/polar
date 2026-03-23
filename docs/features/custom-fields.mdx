@@ -1,106 +1,107 @@
 ---
 title: "Custom Fields"
-description: "Learn how to add custom input fields to your checkout with Spaire"
+description: "Collect additional information from customers at checkout — terms acceptance, company names, referral sources, and more."
 ---
 
-By default, the Checkout form will only ask basic information from the customer to fulfill the order: a name, an email address, billing information, etc. But you might need more! A few examples:
+By default, Spaire collects the minimum required for payment: name, email, and billing info. Custom fields let you add anything on top of that — terms of service checkboxes, company names, phone numbers, select menus, or any other data your business needs at the point of purchase.
 
-- A checkbox asking the customer to accept your terms
-- An opt-in newsletter consent
-- A select menu to ask where they heard from you
-- ...
+Custom fields are defined once at the organization level, then attached to specific products.
 
-With Spaire, you can easily add such fields to your checkout using **Custom Fields**.
+## Create a custom field
 
-## Create Custom Fields
+Go to **Settings → Custom Fields** and click **New Custom Field**.
 
-Custom Fields are managed at an organization's level. To create them, go to **Settings** and **Custom Fields**. You'll see the list of all the available fields on your organization.
+### Field type
 
-Click on **New Custom Field** to create a new one.
+The type determines what input is shown to the customer. You must choose a type when creating the field — it can't be changed afterward.
 
-### Type
+| Type | Input | Stored as |
+|------|-------|-----------|
+| **Text** | Single-line input (or textarea) | `string` |
+| **Number** | Numeric input | `number` |
+| **Date** | Date picker | `string` (ISO 8601) |
+| **Checkbox** | Checkbox | `boolean` |
+| **Select** | Dropdown with predefined options | `string` |
 
-The type of the field is the most important thing to select. It determines what type of input will be displayed to the customer during checkout.
+**Text** — optionally render as a textarea via the form input options. Supports min/max character length validation.
 
-The type can't be changed after the field is created.
+**Number** — supports min/max value validation.
 
-We support five types of fields:
+**Date** — supports min/max date validation.
 
-#### Text
+**Checkbox** — the most common use: terms of service acceptance. Mark it required and the customer must check it before completing checkout.
 
-This will display a simple text field to input textual data. By default, it'll render a simple input field but you can render a **textarea** by toggling the option under `Form input options`.
-
-Under `Validation constraints`, you can add minimum and maximum length validation.
-
-Underneath, the data will be stored as a string.
-
-#### Number
-
-This will display a number input field. Under `Validation constraints`, you can add minimum and maximum validation.
-
-Underneath, the data will be stored as a number.
-
-#### Date
-
-This will display a date input field. Under `Validation constraints`, you can add minimum and maximum validation.
-
-Underneath, the data will be stored as a string using the ISO 8601 format.
-
-#### Checkbox
-
-This will display a checkbox field.
-
-Underneath, the data will be stored as a boolean (`true` or `false`).
-
-#### Select
-
-This will display a select field with a predefined set of options. Each option is a pair of `Value` and `Label`, the first one being the value that'll be stored underneath and the latter the one that will be shown to the customer.
+**Select** — define a list of options, each with a `Value` (stored in the database) and a `Label` (shown to the customer).
 
 ### Slug and name
 
-The slug determines the key that'll be used to store the data inside objects related to the checkout, like Orders and Subscriptions. It must be unique across your organization. You can change it afterwards, we'll automatically update the data to reflect the new slug.
+The **slug** is the key used to identify this field in the API. It must be unique across your organization. You can change it later — Spaire will update existing data automatically.
 
-The name is what we'll be displayed to you to recognize the field across your dashboard. By default, it'll also be the label of the field displayed to the customer, unless you customize it under `Form input options`.
+The **name** is your internal label for the field in the dashboard. It's also used as the default label shown to customers at checkout, unless you override it in the form input options.
 
-<img
-  className="block dark:hidden"
-  src="/assets/features/custom-fields/create_custom_field.light.png"
-/>
+### Form display options
 
-### Form input options
+Customize how the field appears to customers:
 
-Those options allow you to customize how the field is displayed to the customer. You can set:
+- **Label** — the text shown above the field (Markdown supported for bold, italic, links)
+- **Help text** — displayed below the field (Markdown supported)
+- **Placeholder** — shown inside the field when empty
 
-- The label, displayed above the field
-- The help text, displayed below the field
-- The placeholder, displayed inside the field when there is no value
+## Add a field to checkout
 
-The label and help text supports basic Markdown syntax, so you can add bold, italic or even links.
-
-## Add Custom Field to Checkout
-
-Custom Fields are enabled on Checkout specifically on each **product**. While [creating or updating](/features/products) a product, you can select the custom fields you want to include in the checkout for this product.
-
-Note that you can make the field `Required`.
+Custom fields are enabled per product. While creating or editing a product, go to **Checkout Fields** and select which fields to include. For each field you can set whether it's **required** or optional.
 
 <Tip>
-  If you make a **checkbox** field **required**, customers will have to check the box before submitting the checkout. Very useful for terms acceptance!
+  A required **checkbox** field means the customer must tick it before they can complete the purchase — the ideal way to enforce terms of service or opt-in consent.
 </Tip>
 
-The fields are now added as part of the Checkout form for this product.
+Once attached, the field appears in the checkout form for that product and the customer's response is collected at payment time.
 
-## Read data
+## Read field data
 
-Once you have added Custom Fields to your organization, they'll be automatically displayed as a column in your `Sales` page, both on Orders and Subscriptions. From there, you'll be able to see the data input by the customer.
+Submitted field data is available in two places:
 
-This data is also available from the [Orders](/api-reference/orders/get) and [Subscriptions](/api-reference/subscriptions/get) API, under the `custom_field_data` property. Each value is referenced by the **slug** of the field.
+**Dashboard** — your **Sales → Orders** and **Sales → Subscriptions** tables show a column for each custom field, displaying what each customer submitted.
+
+**API** — field data is available under the `custom_field_data` property on [Orders](/api-reference/orders/get) and [Subscriptions](/api-reference/subscriptions/get). Each key is the field's slug.
 
 ```json
 {
-  // ...
-  "custom_field_value": {
-    "terms": true,
-    "source": "social_media"
+  "custom_field_data": {
+    "terms_accepted": true,
+    "company_name": "Acme Inc.",
+    "referral_source": "product_hunt"
   }
 }
 ```
+
+## Pre-fill via checkout session
+
+When creating a checkout session from your backend, you can pre-populate custom field values:
+
+```ts
+const checkout = await spaire.checkouts.create({
+  products: ['<product_id>'],
+  customFieldData: {
+    company_name: 'Acme Inc.',
+    terms_accepted: true,
+  },
+})
+```
+
+You can also pre-fill via [query parameters](/features/checkout/links#custom-fields) on a checkout link URL:
+
+```
+?custom_field_data.company_name=Acme+Inc.
+```
+
+## What's next
+
+<CardGroup cols={2}>
+  <Card icon="cube" href="/features/products" title="Products">
+    Attach custom fields to specific products in your catalog.
+  </Card>
+  <Card icon="server" href="/features/checkout/session" title="Checkout Sessions">
+    Pre-fill custom field data when creating sessions from your backend.
+  </Card>
+</CardGroup>

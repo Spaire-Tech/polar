@@ -1,112 +1,117 @@
 ---
 title: "Products"
-description: "Create digital products on Spaire in minutes"
+description: "Define what you're selling — one-time purchases, recurring subscriptions, usage-based plans, or seat-based pricing."
 ---
 
-<Info>
-  **Everything is a product**
-
-  Subscriptions or pay once products are both considered a product in Spaire (API & data model). Just with different pricing & billing logic. So both are shown & managed under Products with the ability to filter based on pricing model.
-</Info>
+In Spaire, everything you sell is a **product**. Whether it's a one-time download, a monthly SaaS plan, or a usage-metered API — the product is the core object that holds your pricing, benefits, and billing configuration.
 
 ## Create a product
 
-### Name & Description
+Navigate to **Catalog → Products** and click **New product**.
 
-Starting off with the basic.
+### Name and description
 
-- **Name** The title of your product.
-- **Description** Markdown is supported here too.
+- **Name** — shown to customers at checkout and on their receipts
+- **Description** — optional, Markdown supported, shown at checkout
 
 ### Pricing
 
-Determine how you want to charge your customers for this product.
+Every product has a **billing cycle** and a **price type**. These are locked after creation — if you need different terms, create a new product.
 
-<Steps>
-  <Step title="Billing cycle">
-    - **One-time purchase** Customer is charged once and gets access to the product forever.
-    - **Monthly** Customer is charged every month.
-    - **Yearly** Customer is charged every year.
-  </Step>
-  <Step title="Pricing type">
-    - **Fixed price** Set a fixed price for the product.
-    - **Free** No charge for the product.
-  </Step>
-  <Step title="Price">
-    For fixed price products, set the amount you want to charge.
-  </Step>
-</Steps>
+**Billing cycles:**
 
-<Info>
-  Billing cycle and pricing type cannot be changed after the product is created.
-</Info>
+| Cycle | When to use |
+|-------|-------------|
+| One-time | Single charge, no renewal |
+| Monthly | Recurring charge every month |
+| Yearly | Recurring charge every year |
 
-<Info>
-  **What if I want both a monthly and yearly pricing?**
+**Price types:**
 
-  Spaire has a unique approach to what the industry typically calls **variants**. Each product has a single pricing model, but you can create multiple products with different pricing models, and showcase them both at checkout.
-</Info>
+| Type | Description |
+|------|-------------|
+| `fixed` | A set amount — e.g., $29/month |
+| `free` | No charge — free tiers, trials, or open-access products |
+| `custom` | Pay-what-you-want with optional min/max bounds |
+| `seat_based` | Billed per seat, tiered by seat count |
+| `metered_unit` | Billed per unit consumed, measured by a meter |
 
-### Trial Period
-
-For recurring products, you can set a trial period during which the customer won't be charged. Toggle **Enable trial period** to enable it. Then, you'll be able to set the duration of the trial period, given a number and a unit (days, weeks, months or years).
-
-You can read more about how trials work [here](/features/trials).
-
-### Product Media
-
-- You can upload public product images to be displayed on product pages
-- They can be up to 10MB each
-- You can remove and re-arrange images
-
-### Checkout Fields
-
-You can collect additional information from your customers at checkout. This can be useful for things like phone number, terms of service agreement or specific data you need to collect.
-
-Fields are managed from your organization settings, and you can choose which fields to show on a per-product basis, and set if they are required or not. We support the following field types:
-
-- Text
-- Number
-- Date
-- Checkbox
-- Select
+Spaire supports 36 currencies. Set your price in any supported currency — AED, ARS, AUD, BRL, CAD, CHF, CLP, CNY, CZK, DKK, EUR, GBP, HKD, HUF, ILS, INR, JPY, KRW, MXN, MYR, NOK, NZD, PLN, RON, SEK, SGD, THB, TWD, UAH, USD, and more.
 
 <Info>
-  If you make a checkbox **required**, the customer will need to check it before confirming their purchase. Very handy for legal terms!
+  Billing cycle and price type cannot be changed after a product is created. Create a new product if you need different terms. You can always present multiple products — e.g., monthly and yearly — together at checkout.
 </Info>
 
-The data collected will be available in the order and subscription details.
+### Trial period
 
-### Automated Entitlements
+For recurring products, you can offer a free trial before the first charge. Enable **Trial period** and set the duration in days, weeks, months, or years.
 
-Finally, you can enable or create new entitlements (what we call Benefits) that you tie to the product.
+During a trial, the subscription status is `trialing`. Billing begins automatically when the trial ends. See [Trials](/features/trials) for more.
 
-Read more in our [product benefits guide](/features/benefits/introduction) on how they work and how to customize the built-in ones we offer:
+### Product media
 
-- License Keys
-- Credits
-- Custom Benefit
+Upload images to display on your product page and at checkout. Each image can be up to 10 MB. You can reorder and remove images at any time.
 
-## Variants
+### Checkout fields
 
-Spaire has a unique approach regarding what the industry typically calls **variants**.
+Collect additional information from customers at checkout — phone numbers, company names, terms acceptance, or anything else you need. Fields are created at the organization level in **Settings → Custom Fields** and then enabled per product.
 
-We believe having a single product with multiple pricing models and benefits adds unnecessary complexity to the user and to the API. Instead, we chose to treat everything as a product, giving you maximum flexibility about the pricing and benefits you want to offer.
+See [Custom Fields](/features/custom-fields) for the full setup guide.
 
-You can showcase several products at checkout, allowing the customer to switch between them. Typically, you can offer a monthly and a yearly product, with specific pricing and benefits for each. Read more about how to do so using [Checkout Links](/features/checkout/links) or the [Checkout Session API](/features/checkout/session).
+### Benefits
+
+Attach automated entitlements to your product. When a customer purchases, Spaire immediately grants access — no fulfillment code required for the built-in types.
+
+Available benefit types:
+
+| Type | What Spaire does |
+|------|-----------------|
+| `license_keys` | Generates a unique license key and delivers it |
+| `meter_credit` | Adds credits to the customer's usage meter balance |
+| `discord` | Assigns a Discord role via OAuth |
+| `downloadables` | Grants access to uploaded files |
+| `github_repository` | Grants access to a GitHub repository |
+| `custom` | Calls a webhook URL you define to provision and revoke |
+
+See [Benefits](/features/benefits/introduction) for setup details on each type.
+
+## Multiple prices for one product
+
+Spaire doesn't have "variants" in the traditional sense. Instead, create separate products for each pricing model — monthly and yearly, for example — and present them together at checkout.
+
+Both [checkout links](/features/checkout/links) and [checkout sessions](/features/checkout/session) support multiple products, letting customers switch between them before paying.
 
 ## Update a product
 
-You can edit any product details, except the **billing cycle** and **pricing type**.
+You can edit name, description, media, benefits, and custom fields at any time.
 
-For fixed price products, you can change the price. Existing subscribers will remain on their current pricing.
+**Price changes:** For fixed-price products, you can change the amount. Existing subscribers stay on their current price — the new price applies only to new subscribers.
 
-If you add benefits, existing subscribers will get them automatically. If you remove benefits, existing subscribers will lose access to them.
+**Adding benefits:** Existing subscribers get new benefits automatically.
+
+**Removing benefits:** Existing subscribers lose access to removed benefits immediately.
 
 ## Archive a product
 
-Products on Spaire can't be deleted, but they can be **archived**. You can do so by clicking the **Archive** button on the bottom right of the product page.
+Products can't be deleted, but they can be **archived**. Archived products stop appearing for new purchases, but existing subscribers keep their access and subscriptions continue to renew.
 
-Existing customers will keep their access to the product, and subscriptions will continue to renew. However, the product will no longer be available for new purchases.
+To archive: open the product and click **Archive** at the bottom of the page.
 
-It's possible to unarchive a product using the [Products Update API](/api-reference/products/update#body-is-archived).
+To unarchive: use the [Products API](/api-reference/products/update) with `is_archived: false`.
+
+## What's next
+
+<CardGroup cols={2}>
+  <Card icon="cart-shopping" href="/features/checkout/links" title="Checkout Links">
+    Create a shareable URL that takes customers straight to payment.
+  </Card>
+  <Card icon="key" href="/features/benefits/introduction" title="Benefits">
+    Attach license keys, file access, Discord roles, and more to your products.
+  </Card>
+  <Card icon="tag" href="/features/discounts" title="Discounts">
+    Create percentage and fixed-amount discounts for your products.
+  </Card>
+  <Card icon="input-text" href="/features/custom-fields" title="Custom Fields">
+    Collect extra information from customers at checkout.
+  </Card>
+</CardGroup>
