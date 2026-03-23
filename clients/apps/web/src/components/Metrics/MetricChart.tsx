@@ -62,14 +62,14 @@ const MetricChart = ({
         ? [
             {
               key: 'previous',
-              label: 'Last period',
-              color: isDark ? '#7C3AED' : '#3B82F6',
+              label: 'Previous Period',
+              color: isDark ? '#383942' : '#ccc',
             },
           ]
         : []),
       {
         key: 'current',
-        label: 'Chosen period',
+        label: 'Current Period',
         color: isDark ? '#004664' : '#635BFF',
       },
     ],
