@@ -1,3 +1,4 @@
+import { useOrganizationAccount } from '@/hooks/queries'
 import { PolarHog, usePostHog } from '@/hooks/posthog'
 import AttachMoneyOutlined from '@mui/icons-material/AttachMoneyOutlined'
 import CodeOutlined from '@mui/icons-material/CodeOutlined'
@@ -12,7 +13,7 @@ import TrendingUp from '@mui/icons-material/TrendingUp'
 import TuneOutlined from '@mui/icons-material/TuneOutlined'
 import { schemas } from '@spaire/client'
 import { usePathname } from 'next/navigation'
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 
 export type SubRoute = {
   readonly title: string
@@ -140,7 +141,20 @@ export const useOrganizationRoutes = (
   org?: schemas['Organization'],
   allowAll?: boolean,
 ): RouteWithActive[] => {
-  return useResolveRoutes(organizationRoutesList, org, allowAll)
+  const { data: account, error: accountError } = useOrganizationAccount(org?.id)
+  // Explicit 404 = no account exists yet → send to setup
+  const noAccount =
+    accountError && (accountError as any)?.response?.status === 404
+  // Pass false when no account or payouts disabled; undefined while still loading (no redirect)
+  const payoutsReady = noAccount
+    ? false
+    : account?.is_payouts_enabled
+  const resolver = useCallback(
+    (o?: schemas['Organization'], posthog?: PolarHog) =>
+      organizationRoutesList(o, posthog, payoutsReady),
+    [payoutsReady],
+  )
+  return useResolveRoutes(resolver, org, allowAll)
 }
 
 export const useAccountRoutes = (): RouteWithActive[] => {
@@ -258,11 +272,19 @@ const accountRoutesList = (): Route[] => [
   },
 ]
 
-const organizationRoutesList = (org?: schemas['Organization']): Route[] => [
+const organizationRoutesList = (
+  org?: schemas['Organization'],
+  _posthog?: PolarHog,
+  payoutsReady?: boolean,
+): Route[] => [
   {
     id: 'finance',
     title: 'Payouts',
-    link: `/dashboard/${org?.slug}/finance/income`,
+    // false = no account or disabled → account setup; undefined = still loading → keep /income
+    link:
+      payoutsReady === false
+        ? `/dashboard/${org?.slug}/finance/account`
+        : `/dashboard/${org?.slug}/finance/income`,
     icon: <AttachMoneyOutlined fontSize="inherit" />,
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/finance`)
