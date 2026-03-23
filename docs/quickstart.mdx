@@ -1,74 +1,90 @@
 ---
 title: "Quickstart"
-description: "Create a product and take your first test payment in under 5 minutes."
+description: "Create a product and run your first checkout in under 5 minutes."
 ---
 
-This guide gets you from a blank Spaire account to a working checkout — no code required for the first four steps. By the end, you'll have a live product, a shareable checkout URL, and a completed test payment.
+This guide walks you through your first Spaire checkout — creating a product, getting a checkout link, and running a test transaction. No code required.
 
-<Note>
-  Want to experiment without touching live data? Use [sandbox.spairehq.com](https://sandbox.spairehq.com) instead of the production dashboard. Everything works identically, and test payments use Stripe's test cards.
-</Note>
+<Tip>
+  Start in the **sandbox** at [sandbox.spairehq.com](https://sandbox.spairehq.com) if you want to test with no real money involved. The sandbox is a fully isolated environment with its own accounts — see [Sandbox](/integrate/sandbox) for details.
+</Tip>
 
 ## Step 1: Create your account
 
-Sign up at [spairehq.com](https://www.spairehq.com). After verifying your email, you'll land on your organization dashboard.
+Go to [app.spairehq.com](https://app.spairehq.com) and sign up. After verifying your email, you'll land in your organization dashboard.
 
-Your **organization** is the container for everything in Spaire — your products, customers, orders, API tokens, and payout account. You can create additional organizations later if you have multiple products or brands.
+Your **organization** is the container for everything in Spaire — your products, customers, orders, API tokens, webhooks, and payout account. You can run multiple organizations from one account if you have separate products or brands.
 
 ## Step 2: Create a product
 
-Go to **Catalog → Products** in the sidebar and click **New product**.
+Navigate to **Catalog → Products** and click **New product**.
 
 Fill in the basics:
 
 - **Name** — what your customers will see at checkout (e.g., *Pro Plan*)
-- **Description** — optional, supports Markdown
-- **Pricing** — choose *Recurring* (monthly or yearly) or *One-time*, then set your price
+- **Description** — optional, Markdown supported
+- **Pricing** — choose how you want to bill:
 
-Click **Create product**. Your product is immediately ready to sell.
+| Billing model | When to use |
+|---------------|-------------|
+| Recurring — monthly | Subscription billed every month |
+| Recurring — yearly | Subscription billed every year |
+| One-time | Single charge, no renewal |
+
+Set your price and currency — Spaire supports 36 currencies including USD, EUR, GBP, CAD, AUD, JPY, and more.
+
+Click **Create product**. It's immediately available to sell.
 
 <Info>
-  Billing cycle and pricing type are locked after creation. If you need to change them, create a new product. You can have both a monthly and yearly version of the same plan — just create two products and link them at checkout.
+  Billing cycle and pricing type are locked once set. If you need to change them later, create a new product. You can present both a monthly and yearly option at checkout by creating two products and linking them together.
 </Info>
 
-## Step 3: Create a checkout link
+## Step 3: Get a checkout link
 
-The fastest way to start selling is a **checkout link** — a hosted payment page you can drop anywhere.
+The fastest way to start selling is a **checkout link** — a permanent, hosted payment page you can share anywhere.
 
-1. Open your product and click the **Share** button, or go to **Checkout → Links → New link**
+1. Open your product and click **Share**, or go to **Checkout → Links → New link**
 2. Select your product
 3. Click **Create**
 
-You'll get a URL like `checkout.spairehq.com/c/abc123`. Drop it in an email, a landing page button, or your pricing page — anyone who clicks it can pay immediately.
+You'll get a URL you can drop into an email, a landing page button, your pricing page, or anywhere else.
 
-## Step 4: Test a payment
+## Step 4: Test the checkout
 
-Use Stripe's test card to simulate a successful payment:
+**In sandbox:** Use the test card `4242 4242 4242 4242` with any future expiry and any 3-digit CVC. See [Sandbox](/integrate/sandbox) for the full list of test scenarios.
 
-| Field | Value |
-|-------|-------|
-| Card number | `4242 4242 4242 4242` |
-| Expiry | Any future date |
-| CVC | Any 3 digits |
-| Name / address | Anything |
+**In production:** Create a 100% discount and apply it at checkout — the order goes through the full payment flow without charging a real card.
 
-After submitting, the order will appear under **Orders** and the customer will be created automatically under **Customers**. If you attached any [benefits](/features/benefits/introduction) to the product, they'll be granted immediately.
+<AccordionGroup>
+  <Accordion title="How to create a 100% test discount">
+    1. Go to **Catalog → Discounts → New discount**
+    2. Set **Type** to *Percentage*
+    3. Set the value to **100%**
+    4. Set **Duration** to *Once*
+    5. Optionally add a **Code** (e.g., `TESTORDER`) to apply it manually at checkout
+    6. Click **Create**
+
+    To apply it automatically, attach the discount when creating a checkout link. Or share the link and enter the code at checkout.
+
+    Delete or deactivate the discount when you're done testing.
+  </Accordion>
+</AccordionGroup>
+
+After a successful checkout, the order appears under **Orders** and the customer is created automatically under **Customers**. Any benefits attached to the product are granted immediately.
 
 ## Step 5: Get your API key
 
-To integrate Spaire into your application — creating checkout sessions from your server, reading customer state, or handling webhooks — you'll need an access token.
+To integrate Spaire into your application — creating checkout sessions from your backend, querying customer state, handling webhooks — you need an access token.
 
 1. Go to **Settings → Developers → Access Tokens**
 2. Click **New token**, give it a name, and click **Create**
 3. Copy the token — it won't be shown again
 
-Store it as an environment variable:
-
 ```bash
 export SPAIRE_ACCESS_TOKEN="spaire_..."
 ```
 
-Make your first API call to confirm it works:
+Verify it works:
 
 ```bash
 curl https://api.spairehq.com/v1/products \
@@ -76,24 +92,22 @@ curl https://api.spairehq.com/v1/products \
 ```
 
 <Warning>
-  Never expose your access token in client-side code or commit it to version control. If a token is leaked, revoke it immediately from **Settings → Developers**.
+  Never expose your access token in client-side code or commit it to version control. Rotate it immediately from **Settings → Developers** if it's ever compromised.
 </Warning>
 
 ## What's next
 
-You've got a product and a working checkout. Here's where to go depending on what you're building:
-
 <CardGroup cols={2}>
   <Card icon="cube" href="/core-concepts" title="Core Concepts">
-    Understand how organizations, products, customers, and orders relate to each other before you go deeper.
+    Understand the full data model before you go deeper into the API.
   </Card>
   <Card icon="webhook" href="/integrate/webhooks/endpoints" title="Set up webhooks">
-    Listen for `order.paid` and `subscription.active` to sync billing state with your application.
+    Listen for `order.paid` and `subscription.active` to react to purchases in your application.
   </Card>
   <Card icon="code" href="/integrate/sdk/typescript" title="Install an SDK">
-    Use the TypeScript, Python, Go, PHP, or Ruby SDK to create checkout sessions and query customers from your backend.
+    Use the TypeScript, Python, Go, PHP, or Ruby SDK to build your integration faster.
   </Card>
   <Card icon="person-running" href="/integrate/customer-state" title="Check customer state">
-    Query everything a customer has purchased and what they can currently access — in a single API call.
+    Query everything a customer can currently access — in a single API call.
   </Card>
 </CardGroup>
