@@ -245,7 +245,7 @@ const MetricChartBox = ({
                   />
                 ) : (
                   <span className="dark:text-spaire-500 text-gray-500">
-                    Chosen period
+                    Current period
                   </span>
                 )}
               </div>

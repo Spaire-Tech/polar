@@ -173,13 +173,12 @@ const OverviewMetrics = ({
 
   return (
     <div className="flex flex-col gap-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-medium">Overview</h2>
+      <div className="flex justify-end">
         <Button
-          variant="ghost"
+          variant="secondary"
           size="sm"
           onClick={showManage}
-          className="dark:text-spaire-400 gap-x-1.5 text-gray-500"
+          className="gap-x-1.5"
         >
           <TuneOutlined fontSize="small" />
           <span>Edit metrics</span>
