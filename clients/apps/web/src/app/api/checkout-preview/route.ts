@@ -25,6 +25,8 @@ export async function POST(request: NextRequest) {
       products: [product_id],
       allow_discount_codes: true,
       require_billing_address: false,
+      allow_trial: true,
+      is_business_customer: false,
     },
   })
 
