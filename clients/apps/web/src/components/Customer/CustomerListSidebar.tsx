@@ -218,6 +218,7 @@ export const CustomerListSidebar: React.FC<CustomerListSidebarProps> = ({
       <InlineModal
         isShown={isCreateCustomerModalOpen}
         hide={hideCreateCustomerModal}
+        className="md:w-[680px]"
         modalContent={
           <CreateCustomerModal
             organization={organization}

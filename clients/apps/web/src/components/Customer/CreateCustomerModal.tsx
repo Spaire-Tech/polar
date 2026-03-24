@@ -60,6 +60,7 @@ export const CreateCustomerModal = ({
   })
   const createCustomer = useCreateCustomer(organization.id)
 
+  const type = useWatch({ control: form.control, name: 'type' })
   const firstName = useWatch({ control: form.control, name: 'first_name' })
   const lastName = useWatch({ control: form.control, name: 'last_name' })
   const country = useWatch({
@@ -67,12 +68,15 @@ export const CreateCustomerModal = ({
     name: 'billing_address.country',
   })
 
+  const isCompany = type === 'team'
+
   useEffect(() => {
+    if (isCompany) return
     const composed = [firstName, lastName].filter(Boolean).join(' ')
     if (composed) {
       form.setValue('name', composed)
     }
-  }, [firstName, lastName, form])
+  }, [firstName, lastName, isCompany, form])
 
   const handleCreateCustomer = (customerCreate: CustomerCreateForm) => {
     const { first_name, last_name, billing_address, ...rest } = customerCreate
@@ -147,13 +151,13 @@ export const CreateCustomerModal = ({
                 </FormItem>
               )}
             />
-            <div className="grid grid-cols-2 gap-4">
+            {isCompany ? (
               <FormField
                 control={form.control}
                 name="first_name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>First Name</FormLabel>
+                    <FormLabel>Registered Name</FormLabel>
                     <FormControl>
                       <Input {...field} value={field.value || ''} />
                     </FormControl>
@@ -161,20 +165,36 @@ export const CreateCustomerModal = ({
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="last_name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Last Name</FormLabel>
-                    <FormControl>
-                      <Input {...field} value={field.value || ''} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="first_name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>First Name</FormLabel>
+                      <FormControl>
+                        <Input {...field} value={field.value || ''} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="last_name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Last Name</FormLabel>
+                      <FormControl>
+                        <Input {...field} value={field.value || ''} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            )}
             <FormField
               control={form.control}
               name="name"
@@ -185,7 +205,7 @@ export const CreateCustomerModal = ({
                     <Input
                       {...field}
                       value={field.value || ''}
-                      placeholder="Auto-filled from first & last name"
+                      placeholder={isCompany ? '' : 'Auto-filled from first & last name'}
                     />
                   </FormControl>
                   <FormMessage />
