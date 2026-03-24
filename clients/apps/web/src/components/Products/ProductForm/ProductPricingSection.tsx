@@ -96,11 +96,13 @@ const getActiveCurrencies = (prices: ProductFormType['prices']): string[] => {
 export interface ProductPriceFixedItemProps {
   index: number
   currency: string
+  currencyControl?: React.ReactNode
 }
 
 export const ProductPriceFixedItem: React.FC<ProductPriceFixedItemProps> = ({
   index,
   currency,
+  currencyControl,
 }) => {
   const { control, setValue } = useFormContext<ProductFormType>()
 
@@ -118,7 +120,7 @@ export const ProductPriceFixedItem: React.FC<ProductPriceFixedItemProps> = ({
             <FormItem className="grow">
               <div className="flex items-center gap-2">
                 <FormControl>
-                  <div ref={field.ref} tabIndex={-1}>
+                  <div ref={field.ref} tabIndex={-1} className="flex-1">
                     <MoneyInput
                       name={field.name}
                       currency={currency}
@@ -131,6 +133,9 @@ export const ProductPriceFixedItem: React.FC<ProductPriceFixedItemProps> = ({
                     />
                   </div>
                 </FormControl>
+                {currencyControl && (
+                  <div className="shrink-0">{currencyControl}</div>
+                )}
               </div>
               <FormMessage />
             </FormItem>
@@ -744,6 +749,7 @@ interface ProductPriceItemProps {
     amountType: ProductPriceCreate['amount_type'],
   ) => void
   canRemove: boolean
+  currencyControl?: React.ReactNode
 }
 
 const ProductPriceItem: React.FC<ProductPriceItemProps> = ({
@@ -753,6 +759,7 @@ const ProductPriceItem: React.FC<ProductPriceItemProps> = ({
   onRemove,
   onAmountTypeChange,
   canRemove,
+  currencyControl,
 }) => {
   const { register, control, watch } = useFormContext<ProductFormType>()
   const amountType = watch(`prices.${index}.amount_type`)
@@ -866,7 +873,11 @@ const ProductPriceItem: React.FC<ProductPriceItemProps> = ({
       {amountType && amountType !== 'free' && (
         <div className="dark:border-spaire-700 flex flex-col gap-3 rounded-2xl border border-gray-200 p-4">
           {amountType === 'fixed' && (
-            <ProductPriceFixedItem index={index} currency={currency} />
+            <ProductPriceFixedItem
+              index={index}
+              currency={currency}
+              currencyControl={currencyControl}
+            />
           )}
           {amountType === 'custom' && (
             <ProductPriceCustomItem index={index} currency={currency} />
@@ -1443,18 +1454,8 @@ export const ProductPricingSection = ({
           </RadioGroup>
         </div>
 
-        {/* Currency Tabs */}
-        <CurrencyTabs
-          activeCurrencies={activeCurrencies}
-          selectedCurrency={validatedSelectedCurrency}
-          onSelectCurrency={setSelectedCurrency}
-          onAddCurrency={handleAddCurrency}
-          onRemoveCurrency={handleRemoveCurrency}
-          defaultCurrency={defaultCurrency}
-        />
-
-        {/* Prices for selected currency */}
-        {pricesForSelectedCurrency.map(({ price, index }) => (
+        {/* Prices for selected currency — CurrencyTabs are inlined next to the price amount */}
+        {pricesForSelectedCurrency.map(({ price, index }, position) => (
           <ProductPriceItem
             organization={organization}
             index={index}
@@ -1468,6 +1469,18 @@ export const ProductPricingSection = ({
               ).length > 1
             }
             key={`${selectedCurrency}-${index}`}
+            currencyControl={
+              position === 0 ? (
+                <CurrencyTabs
+                  activeCurrencies={activeCurrencies}
+                  selectedCurrency={validatedSelectedCurrency}
+                  onSelectCurrency={setSelectedCurrency}
+                  onAddCurrency={handleAddCurrency}
+                  onRemoveCurrency={handleRemoveCurrency}
+                  defaultCurrency={defaultCurrency}
+                />
+              ) : undefined
+            }
           />
         ))}
 

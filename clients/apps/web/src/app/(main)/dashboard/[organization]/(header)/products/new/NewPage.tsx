@@ -1,6 +1,6 @@
 'use client'
 
-import { CreateProductPageWrapper } from '@/components/Products/CreateProductPageWrapper'
+import { CreateProductSplitPage } from '@/components/Products/CreateProductSplitPage'
 import { schemas } from '@spaire/client'
 import { useSearchParams } from 'next/navigation'
 
@@ -13,7 +13,7 @@ export default function Page({
   const fromProductId = searchParams.get('fromProductId')
 
   return (
-    <CreateProductPageWrapper
+    <CreateProductSplitPage
       organization={organization}
       fromProductId={fromProductId ?? undefined}
     />

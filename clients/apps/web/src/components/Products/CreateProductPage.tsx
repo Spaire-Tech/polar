@@ -10,8 +10,8 @@ import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import { Form } from '@spaire/ui/components/ui/form'
 import { useRouter } from 'next/navigation'
-import { useCallback, useMemo, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useForm, useWatch } from 'react-hook-form'
 import { DashboardBody } from '../Layout/DashboardLayout'
 import { InlineModalHeader } from '../Modal/InlineModal'
 import { toast } from '../Toast/use-toast'
@@ -46,14 +46,24 @@ export interface CreateProductPageProps {
   organization: schemas['Organization']
   sourceProduct?: schemas['Product']
   panelMode?: boolean
+  /** Render without DashboardBody — used in split-screen layout */
+  splitMode?: boolean
   onClose?: () => void
+  onPriceChange?: (price: {
+    amount: number | null
+    currency: string
+    recurringInterval: string | null
+    recurringIntervalCount: number | null
+  }) => void
 }
 
 export const CreateProductPage = ({
   organization,
   sourceProduct,
   panelMode,
+  splitMode,
   onClose,
+  onPriceChange,
 }: CreateProductPageProps) => {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -102,7 +112,35 @@ export const CreateProductPage = ({
   const form = useForm<ProductEditOrCreateForm>({
     defaultValues: getDefaultValues(),
   })
-  const { handleSubmit, setError } = form
+  const { handleSubmit, setError, control } = form
+
+  // Notify parent of price changes for the preview panel
+  const watchedPrices = useWatch({ control, name: 'prices' })
+  const watchedInterval = useWatch({ control, name: 'recurring_interval' })
+  const watchedIntervalCount = useWatch({
+    control,
+    name: 'recurring_interval_count',
+  })
+  useEffect(() => {
+    if (!onPriceChange) return
+    const firstFixedPrice = watchedPrices?.find(
+      (p: any) => p.amount_type === 'fixed',
+    ) as any
+    onPriceChange({
+      amount: firstFixedPrice?.price_amount ?? null,
+      currency:
+        firstFixedPrice?.price_currency ??
+        organization.default_presentment_currency,
+      recurringInterval: watchedInterval ?? null,
+      recurringIntervalCount: watchedIntervalCount ?? null,
+    })
+  }, [
+    watchedPrices,
+    watchedInterval,
+    watchedIntervalCount,
+    onPriceChange,
+    organization.default_presentment_currency,
+  ])
 
   const createProduct = useCreateProduct(organization)
   const updateBenefits = useUpdateProductBenefits(organization)
@@ -252,6 +290,17 @@ export const CreateProductPage = ({
         <div className="flex flex-col gap-8 overflow-y-auto px-8 pb-8">
           {formContent}
         </div>
+      </div>
+    )
+  }
+
+  if (splitMode) {
+    return (
+      <div className="flex flex-col gap-8 px-8 py-8">
+        <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+          {sourceProduct ? 'Duplicate Product' : 'New Product'}
+        </h1>
+        {formContent}
       </div>
     )
   }
