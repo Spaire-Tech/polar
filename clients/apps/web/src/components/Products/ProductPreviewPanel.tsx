@@ -284,7 +284,7 @@ export const ProductPreviewPanel = ({
       </div>
 
       {country && (
-        <div className="flex flex-col gap-4 border-t border-gray-200 pt-4 dark:border-[hsl(233,5%,11%)]">
+        <div className="flex flex-col gap-4 border-t border-gray-200 pt-4 dark:border-spaire-700">
           {loading ? (
             <div className="h-24 animate-pulse rounded-xl bg-gray-100 dark:bg-spaire-700" />
           ) : (
@@ -301,7 +301,7 @@ export const ProductPreviewPanel = ({
                 </span>
               </p>
 
-              <div className="border-t border-gray-200 dark:border-[hsl(233,5%,11%)]" />
+              <div className="border-t border-gray-200 dark:border-spaire-700" />
 
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between text-sm">
@@ -329,7 +329,7 @@ export const ProductPreviewPanel = ({
                   </span>
                 </div>
 
-                <div className="border-t border-gray-200 pt-2 dark:border-[hsl(233,5%,11%)]">
+                <div className="border-t border-gray-200 pt-2 dark:border-spaire-700">
                   <div className="flex items-center justify-between text-sm">
                     <div>
                       <span className="font-semibold text-gray-900 dark:text-white">
