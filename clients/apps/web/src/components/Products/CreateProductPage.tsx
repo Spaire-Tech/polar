@@ -54,6 +54,7 @@ export interface CreateProductPageProps {
     currency: string
     recurringInterval: string | null
     recurringIntervalCount: number | null
+    allPrices: { currency: string; amount: number | null; amountType: string }[]
   }) => void
 }
 
@@ -123,16 +124,36 @@ export const CreateProductPage = ({
   })
   useEffect(() => {
     if (!onPriceChange) return
-    const firstFixedPrice = watchedPrices?.find(
-      (p: any) => p.amount_type === 'fixed',
-    ) as any
+
+    // Build per-currency price map (fixed + seat_based)
+    const currencyMap = new Map<string, { amount: number | null; amountType: string }>()
+    for (const p of watchedPrices ?? []) {
+      if (!('price_currency' in p)) continue
+      const cur = (p as any).price_currency as string
+      const amountType = (p as any).amount_type as string
+      let amount: number | null = null
+      if (amountType === 'fixed') {
+        amount = (p as any).price_amount ?? null
+      } else if (amountType === 'seat_based') {
+        amount = (p as any).seat_tiers?.tiers?.[0]?.price_per_seat ?? null
+      }
+      if (!currencyMap.has(cur) || amount !== null) {
+        currencyMap.set(cur, { amount, amountType })
+      }
+    }
+
+    const allPrices = Array.from(currencyMap.entries()).map(([currency, v]) => ({
+      currency,
+      amount: v.amount,
+      amountType: v.amountType,
+    }))
+    const first = allPrices[0]
     onPriceChange({
-      amount: firstFixedPrice?.price_amount ?? null,
-      currency:
-        firstFixedPrice?.price_currency ??
-        organization.default_presentment_currency,
+      amount: first?.amount ?? null,
+      currency: first?.currency ?? organization.default_presentment_currency,
       recurringInterval: watchedInterval ?? null,
       recurringIntervalCount: watchedIntervalCount ?? null,
+      allPrices,
     })
   }, [
     watchedPrices,

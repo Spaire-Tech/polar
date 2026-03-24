@@ -29,11 +29,13 @@ const CreateProductSplitPageInner = ({
     currency: string
     recurringInterval: string | null
     recurringIntervalCount: number | null
+    allPrices: { currency: string; amount: number | null; amountType: string }[]
   }>({
     amount: null,
     currency: organization.default_presentment_currency,
     recurringInterval: null,
     recurringIntervalCount: null,
+    allPrices: [],
   })
 
   return (
@@ -67,6 +69,7 @@ const CreateProductSplitPageInner = ({
             currency={previewPrice.currency}
             recurringInterval={previewPrice.recurringInterval}
             recurringIntervalCount={previewPrice.recurringIntervalCount}
+            allPrices={previewPrice.allPrices}
           />
         </div>
       </div>

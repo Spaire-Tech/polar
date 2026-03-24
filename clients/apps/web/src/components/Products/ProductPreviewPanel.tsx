@@ -11,6 +11,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@spaire/ui/components/atoms/Select'
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+} from '@spaire/ui/components/atoms/Tabs'
 import { formatCurrency } from '@spaire/currency'
 import { useCallback, useEffect, useState } from 'react'
 
@@ -30,6 +35,7 @@ interface ProductPreviewPanelProps {
   currency: string
   recurringInterval: string | null
   recurringIntervalCount: number | null
+  allPrices?: { currency: string; amount: number | null; amountType: string }[]
 }
 
 const fmt = formatCurrency('standard')
@@ -117,12 +123,30 @@ export const ProductPreviewPanel = ({
   currency,
   recurringInterval,
   recurringIntervalCount,
+  allPrices = [],
 }: ProductPreviewPanelProps) => {
   const [quantity, setQuantity] = useState(1)
-  const [country, setCountry] = useState<string>('')
+  // Default to GB so the preview shows UK tax immediately
+  const [country, setCountry] = useState<string>('GB')
   const [state, setState] = useState<string>('')
   const [preview, setPreview] = useState<TaxPreviewResult | null>(null)
   const [loading, setLoading] = useState(false)
+
+  // Track which currency is selected in the preview
+  const [selectedCurrency, setSelectedCurrency] = useState<string>(currency)
+
+  // When allPrices changes (new currencies added), keep selectedCurrency valid
+  useEffect(() => {
+    if (allPrices.length > 0 && !allPrices.some((p) => p.currency === selectedCurrency)) {
+      setSelectedCurrency(allPrices[0].currency)
+    }
+  }, [allPrices, selectedCurrency])
+
+  // Resolve the active price amount for the selected currency
+  const activePriceEntry = allPrices.find((p) => p.currency === selectedCurrency)
+  const activeCurrency = activePriceEntry?.currency ?? currency
+  const activeAmount = activePriceEntry?.amount ?? (activeCurrency === currency ? priceAmount : null)
+  const effectiveAmount = activeAmount ?? 0
 
   const handleCountryChange = (value: string) => {
     setCountry(value)
@@ -130,14 +154,7 @@ export const ProductPreviewPanel = ({
   }
 
   const fetchPreview = useCallback(async () => {
-    if (!country) {
-      setPreview(null)
-      return
-    }
-
-    const amount = priceAmount && priceAmount > 0 ? priceAmount : 0
-
-    if (amount === 0) {
+    if (!country || effectiveAmount <= 0) {
       setPreview(null)
       return
     }
@@ -146,8 +163,8 @@ export const ProductPreviewPanel = ({
     try {
       const { data } = await (api as any).POST('/v1/products/tax-preview', {
         body: {
-          amount,
-          currency: currency.toLowerCase(),
+          amount: effectiveAmount,
+          currency: activeCurrency.toLowerCase(),
           country: country.toUpperCase(),
           quantity,
           state: state || undefined,
@@ -161,13 +178,18 @@ export const ProductPreviewPanel = ({
     } finally {
       setLoading(false)
     }
-  }, [priceAmount, currency, country, quantity, state])
+  }, [effectiveAmount, activeCurrency, country, quantity, state])
 
   useEffect(() => {
     fetchPreview()
   }, [fetchPreview])
 
-  const effectiveAmount = priceAmount ?? 0
+  // Reset preview when currency changes
+  useEffect(() => {
+    setPreview(null)
+  }, [selectedCurrency])
+
+  const multipleCurrencies = allPrices.length > 1
 
   return (
     <div className="flex flex-col gap-6">
@@ -179,6 +201,19 @@ export const ProductPreviewPanel = ({
           Estimate totals based on pricing model, unit quantity, and tax.
         </p>
       </div>
+
+      {/* Currency tabs — only shown when multiple currencies */}
+      {multipleCurrencies && (
+        <Tabs value={selectedCurrency} onValueChange={setSelectedCurrency}>
+          <TabsList>
+            {allPrices.map((p) => (
+              <TabsTrigger key={p.currency} value={p.currency}>
+                {p.currency.toUpperCase()}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+      )}
 
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
@@ -249,7 +284,7 @@ export const ProductPreviewPanel = ({
       </div>
 
       {country && (
-        <div className="flex flex-col gap-4 border-t border-gray-200 pt-4 dark:border-spaire-700">
+        <div className="flex flex-col gap-4 border-t border-gray-200 pt-4 dark:border-[hsl(233,5%,11%)]">
           {loading ? (
             <div className="h-24 animate-pulse rounded-xl bg-gray-100 dark:bg-spaire-700" />
           ) : (
@@ -258,15 +293,15 @@ export const ProductPreviewPanel = ({
                 <span className="text-blue-500">{quantity}</span>
                 {' × '}
                 <span className="text-blue-500">
-                  {formatAmount(effectiveAmount, currency)}
+                  {formatAmount(effectiveAmount, activeCurrency)}
                 </span>
                 {' = '}
-                <span className="text-blue-500 font-semibold">
-                  {formatAmount(effectiveAmount * quantity, currency)}
+                <span className="font-semibold text-blue-500">
+                  {formatAmount(effectiveAmount * quantity, activeCurrency)}
                 </span>
               </p>
 
-              <div className="border-t border-gray-200 dark:border-spaire-700" />
+              <div className="border-t border-gray-200 dark:border-[hsl(233,5%,11%)]" />
 
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between text-sm">
@@ -275,8 +310,8 @@ export const ProductPreviewPanel = ({
                   </span>
                   <span className="font-medium text-gray-900 dark:text-white">
                     {preview
-                      ? formatAmount(preview.subtotal, currency)
-                      : formatAmount(effectiveAmount * quantity, currency)}
+                      ? formatAmount(preview.subtotal, activeCurrency)
+                      : formatAmount(effectiveAmount * quantity, activeCurrency)}
                   </span>
                 </div>
 
@@ -289,12 +324,12 @@ export const ProductPreviewPanel = ({
                   </span>
                   <span className="font-medium text-gray-900 dark:text-white">
                     {preview && preview.tax_amount > 0
-                      ? formatAmount(preview.tax_amount, currency)
+                      ? formatAmount(preview.tax_amount, activeCurrency)
                       : '—'}
                   </span>
                 </div>
 
-                <div className="border-t border-gray-200 pt-2 dark:border-spaire-700">
+                <div className="border-t border-gray-200 pt-2 dark:border-[hsl(233,5%,11%)]">
                   <div className="flex items-center justify-between text-sm">
                     <div>
                       <span className="font-semibold text-gray-900 dark:text-white">
@@ -311,8 +346,8 @@ export const ProductPreviewPanel = ({
                     </div>
                     <span className="text-base font-semibold text-gray-900 dark:text-white">
                       {preview
-                        ? formatAmount(preview.total, currency)
-                        : formatAmount(effectiveAmount * quantity, currency)}
+                        ? formatAmount(preview.total, activeCurrency)
+                        : formatAmount(effectiveAmount * quantity, activeCurrency)}
                     </span>
                   </div>
                 </div>
