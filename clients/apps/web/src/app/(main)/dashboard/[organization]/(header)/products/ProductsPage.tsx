@@ -1,10 +1,7 @@
 'use client'
 
 import { DashboardBody } from '@/components/Layout/DashboardLayout'
-import { InlineModal } from '@/components/Modal/InlineModal'
-import { useModal } from '@/components/Modal/useModal'
 import Pagination from '@/components/Pagination/Pagination'
-import { CreateProductPage } from '@/components/Products/CreateProductPage'
 import { ProductListItem } from '@/components/Products/ProductListItem'
 import { useProducts } from '@/hooks/queries/products'
 import { useDebouncedCallback } from '@/hooks/utils'
@@ -49,14 +46,12 @@ export default function ClientPage({
     defaultValue: 'active',
   })
 
-  const {
-    isShown: isCreateModalShown,
-    show: showCreateModal,
-    hide: hideCreateModal,
-  } = useModal()
-
   const router = useRouter()
   const pathname = usePathname()
+
+  const handleCreateProduct = useCallback(() => {
+    router.push(`/dashboard/${org.slug}/products/new`)
+  }, [router, org.slug])
 
   const onPageChange = useCallback(
     (page: number) => {
@@ -200,7 +195,7 @@ export default function ClientPage({
               <Button
                 wrapperClassNames="gap-x-2 md:w-fit"
                 className="w-full md:w-fit"
-                onClick={showCreateModal}
+                onClick={handleCreateProduct}
               >
                 <AddOutlined className="h-4 w-4" />
                 <span>Create product</span>
@@ -251,7 +246,7 @@ export default function ClientPage({
               <Button
                 size="lg"
                 className="w-full shrink-0 bg-white text-black hover:bg-gray-100 hover:opacity-100 border-white/20 md:w-auto md:ml-8"
-                onClick={showCreateModal}
+                onClick={handleCreateProduct}
               >
                 Create Product
               </Button>
@@ -259,18 +254,6 @@ export default function ClientPage({
           </ShadowBoxOnMd>
         )}
       </div>
-      <InlineModal
-        isShown={isCreateModalShown}
-        hide={hideCreateModal}
-        className="md:w-[720px]"
-        modalContent={
-          <CreateProductPage
-            organization={org}
-            panelMode={true}
-            onClose={hideCreateModal}
-          />
-        }
-      />
     </DashboardBody>
   )
 }
