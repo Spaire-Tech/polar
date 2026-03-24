@@ -39,7 +39,7 @@ const CreateProductSplitPageInner = ({
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-spaire-900">
       {/* Left panel — product form */}
-      <div className="flex w-[560px] shrink-0 flex-col overflow-hidden border-r border-gray-200 bg-white dark:border-spaire-700 dark:bg-spaire-800">
+      <div className="flex flex-1 min-w-0 flex-col overflow-hidden border-r border-gray-200 bg-white dark:border-spaire-700 dark:bg-spaire-800">
         <div className="border-b border-gray-200 px-6 py-4 dark:border-spaire-700">
           <Link
             href={`/dashboard/${organization.slug}/products`}
@@ -60,7 +60,7 @@ const CreateProductSplitPageInner = ({
       </div>
 
       {/* Right panel — preview */}
-      <div className="flex flex-1 flex-col overflow-y-auto p-8">
+      <div className="flex w-[420px] shrink-0 flex-col overflow-y-auto p-8">
         <div className="mx-auto w-full max-w-sm">
           <ProductPreviewPanel
             priceAmount={previewPrice.amount}

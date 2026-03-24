@@ -4,6 +4,13 @@ import { api } from '@/utils/client'
 import { enums } from '@spaire/client'
 import CountryPicker from '@spaire/ui/components/atoms/CountryPicker'
 import Input from '@spaire/ui/components/atoms/Input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@spaire/ui/components/atoms/Select'
 import { formatCurrency } from '@spaire/currency'
 import { useCallback, useEffect, useState } from 'react'
 
@@ -38,6 +45,73 @@ const intervalLabel = (
   return `per ${interval}`
 }
 
+const US_STATES: [string, string][] = [
+  ['AL', 'Alabama'],
+  ['AK', 'Alaska'],
+  ['AZ', 'Arizona'],
+  ['AR', 'Arkansas'],
+  ['CA', 'California'],
+  ['CO', 'Colorado'],
+  ['CT', 'Connecticut'],
+  ['DE', 'Delaware'],
+  ['FL', 'Florida'],
+  ['GA', 'Georgia'],
+  ['HI', 'Hawaii'],
+  ['ID', 'Idaho'],
+  ['IL', 'Illinois'],
+  ['IN', 'Indiana'],
+  ['IA', 'Iowa'],
+  ['KS', 'Kansas'],
+  ['KY', 'Kentucky'],
+  ['LA', 'Louisiana'],
+  ['ME', 'Maine'],
+  ['MD', 'Maryland'],
+  ['MA', 'Massachusetts'],
+  ['MI', 'Michigan'],
+  ['MN', 'Minnesota'],
+  ['MS', 'Mississippi'],
+  ['MO', 'Missouri'],
+  ['MT', 'Montana'],
+  ['NE', 'Nebraska'],
+  ['NV', 'Nevada'],
+  ['NH', 'New Hampshire'],
+  ['NJ', 'New Jersey'],
+  ['NM', 'New Mexico'],
+  ['NY', 'New York'],
+  ['NC', 'North Carolina'],
+  ['ND', 'North Dakota'],
+  ['OH', 'Ohio'],
+  ['OK', 'Oklahoma'],
+  ['OR', 'Oregon'],
+  ['PA', 'Pennsylvania'],
+  ['RI', 'Rhode Island'],
+  ['SC', 'South Carolina'],
+  ['SD', 'South Dakota'],
+  ['TN', 'Tennessee'],
+  ['TX', 'Texas'],
+  ['UT', 'Utah'],
+  ['VT', 'Vermont'],
+  ['VA', 'Virginia'],
+  ['WA', 'Washington'],
+  ['WV', 'West Virginia'],
+  ['WI', 'Wisconsin'],
+  ['WY', 'Wyoming'],
+  ['DC', 'District of Columbia'],
+]
+
+const CA_PROVINCES: [string, string][] = [
+  ['AB', 'Alberta'],
+  ['BC', 'British Columbia'],
+  ['MB', 'Manitoba'],
+  ['NB', 'New Brunswick'],
+  ['NL', 'Newfoundland and Labrador'],
+  ['NS', 'Nova Scotia'],
+  ['ON', 'Ontario'],
+  ['PE', 'Prince Edward Island'],
+  ['QC', 'Quebec'],
+  ['SK', 'Saskatchewan'],
+]
+
 export const ProductPreviewPanel = ({
   priceAmount,
   currency,
@@ -46,11 +120,24 @@ export const ProductPreviewPanel = ({
 }: ProductPreviewPanelProps) => {
   const [quantity, setQuantity] = useState(1)
   const [country, setCountry] = useState<string>('')
+  const [state, setState] = useState<string>('')
   const [preview, setPreview] = useState<TaxPreviewResult | null>(null)
   const [loading, setLoading] = useState(false)
 
+  const handleCountryChange = (value: string) => {
+    setCountry(value)
+    setState('')
+  }
+
   const fetchPreview = useCallback(async () => {
-    if (!priceAmount || priceAmount <= 0 || !country) {
+    if (!country) {
+      setPreview(null)
+      return
+    }
+
+    const amount = priceAmount && priceAmount > 0 ? priceAmount : 0
+
+    if (amount === 0) {
       setPreview(null)
       return
     }
@@ -59,10 +146,11 @@ export const ProductPreviewPanel = ({
     try {
       const { data } = await (api as any).POST('/v1/products/tax-preview', {
         body: {
-          amount: priceAmount,
+          amount,
           currency: currency.toLowerCase(),
           country: country.toUpperCase(),
           quantity,
+          state: state || undefined,
         },
       })
       if (data) {
@@ -73,13 +161,13 @@ export const ProductPreviewPanel = ({
     } finally {
       setLoading(false)
     }
-  }, [priceAmount, currency, country, quantity])
+  }, [priceAmount, currency, country, quantity, state])
 
   useEffect(() => {
     fetchPreview()
   }, [fetchPreview])
 
-  const hasPrice = priceAmount && priceAmount > 0
+  const effectiveAmount = priceAmount ?? 0
 
   return (
     <div className="flex flex-col gap-6">
@@ -87,7 +175,7 @@ export const ProductPreviewPanel = ({
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
           Preview
         </h2>
-        <p className="dark:text-polar-400 mt-1 text-sm text-gray-500">
+        <p className="mt-1 text-sm text-gray-500 dark:text-spaire-400">
           Estimate totals based on pricing model, unit quantity, and tax.
         </p>
       </div>
@@ -115,25 +203,70 @@ export const ProductPreviewPanel = ({
           <CountryPicker
             allowedCountries={enums.addressInputCountryValues}
             value={country || undefined}
-            onChange={setCountry}
+            onChange={handleCountryChange}
           />
         </div>
+
+        {country === 'US' && (
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              State
+            </label>
+            <Select value={state} onValueChange={setState}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select state" />
+              </SelectTrigger>
+              <SelectContent>
+                {US_STATES.map(([code, label]) => (
+                  <SelectItem key={code} value={code}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {country === 'CA' && (
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Province
+            </label>
+            <Select value={state} onValueChange={setState}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select province" />
+              </SelectTrigger>
+              <SelectContent>
+                {CA_PROVINCES.map(([code, label]) => (
+                  <SelectItem key={code} value={code}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
 
-      {hasPrice && country && (
-        <div className="dark:border-polar-700 flex flex-col gap-4 border-t border-gray-200 pt-4">
+      {country && (
+        <div className="flex flex-col gap-4 border-t border-gray-200 pt-4 dark:border-spaire-700">
           {loading ? (
-            <div className="dark:bg-polar-700 h-24 animate-pulse rounded-xl bg-gray-100" />
+            <div className="h-24 animate-pulse rounded-xl bg-gray-100 dark:bg-spaire-700" />
           ) : (
             <>
               <p className="text-sm font-medium text-gray-900 dark:text-white">
-                {quantity} × {formatAmount(priceAmount, currency)} ={' '}
-                <span className="font-semibold">
-                  {formatAmount(priceAmount * quantity, currency)}
+                <span className="text-blue-500">{quantity}</span>
+                {' × '}
+                <span className="text-blue-500">
+                  {formatAmount(effectiveAmount, currency)}
+                </span>
+                {' = '}
+                <span className="text-blue-500 font-semibold">
+                  {formatAmount(effectiveAmount * quantity, currency)}
                 </span>
               </p>
 
-              <div className="dark:border-polar-700 border-t border-gray-200" />
+              <div className="border-t border-gray-200 dark:border-spaire-700" />
 
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between text-sm">
@@ -143,36 +276,25 @@ export const ProductPreviewPanel = ({
                   <span className="font-medium text-gray-900 dark:text-white">
                     {preview
                       ? formatAmount(preview.subtotal, currency)
-                      : formatAmount(priceAmount * quantity, currency)}
+                      : formatAmount(effectiveAmount * quantity, currency)}
                   </span>
                 </div>
 
-                {preview && preview.tax_amount > 0 && preview.tax_rate && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600 dark:text-gray-400">
-                      {preview.tax_rate.display_name}
-                      {preview.tax_rate.percentage !== null
-                        ? ` ${preview.tax_rate.percentage}%`
-                        : ''}
-                    </span>
-                    <span className="font-medium text-gray-900 dark:text-white">
-                      {formatAmount(preview.tax_amount, currency)}
-                    </span>
-                  </div>
-                )}
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">
+                    {'ⓘ '}
+                    {preview && preview.tax_rate
+                      ? `${preview.tax_rate.display_name}${preview.tax_rate.percentage !== null ? ` ${preview.tax_rate.percentage}%` : ''}`
+                      : 'Tax'}
+                  </span>
+                  <span className="font-medium text-gray-900 dark:text-white">
+                    {preview && preview.tax_amount > 0
+                      ? formatAmount(preview.tax_amount, currency)
+                      : '—'}
+                  </span>
+                </div>
 
-                {preview && preview.tax_amount === 0 && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="dark:text-polar-400 text-gray-500">
-                      Tax
-                    </span>
-                    <span className="dark:text-polar-400 text-gray-500">
-                      —
-                    </span>
-                  </div>
-                )}
-
-                <div className="dark:border-polar-700 border-t border-gray-200 pt-2">
+                <div className="border-t border-gray-200 pt-2 dark:border-spaire-700">
                   <div className="flex items-center justify-between text-sm">
                     <div>
                       <span className="font-semibold text-gray-900 dark:text-white">
@@ -182,7 +304,7 @@ export const ProductPreviewPanel = ({
                           : ''}
                       </span>
                       {recurringInterval && (
-                        <p className="dark:text-polar-500 mt-0.5 text-xs text-gray-400">
+                        <p className="mt-0.5 text-xs text-gray-400 dark:text-spaire-500">
                           Billed at the start of the period
                         </p>
                       )}
@@ -190,7 +312,7 @@ export const ProductPreviewPanel = ({
                     <span className="text-base font-semibold text-gray-900 dark:text-white">
                       {preview
                         ? formatAmount(preview.total, currency)
-                        : formatAmount(priceAmount * quantity, currency)}
+                        : formatAmount(effectiveAmount * quantity, currency)}
                     </span>
                   </div>
                 </div>
@@ -198,18 +320,6 @@ export const ProductPreviewPanel = ({
             </>
           )}
         </div>
-      )}
-
-      {!hasPrice && (
-        <p className="dark:text-polar-400 text-sm text-gray-400">
-          Set a price to see the estimate.
-        </p>
-      )}
-
-      {hasPrice && !country && (
-        <p className="dark:text-polar-400 text-sm text-gray-400">
-          Select a location to see the tax estimate.
-        </p>
       )}
     </div>
   )

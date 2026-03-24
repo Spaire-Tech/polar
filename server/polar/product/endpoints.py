@@ -231,7 +231,7 @@ async def preview_tax(
     subtotal = preview_request.amount * quantity
 
     try:
-        address = Address(country=preview_request.country)  # type: ignore[arg-type]
+        address = Address(country=preview_request.country, state=preview_request.state)  # type: ignore[arg-type]
         tax_service = get_tax_service(settings.DEFAULT_TAX_PROCESSOR)
         calculation = await tax_service.calculate(
             identifier=uuid.uuid4(),

@@ -818,6 +818,10 @@ class ProductTaxPreviewRequest(Schema):
         ge=1,
         description="Unit quantity for the preview calculation.",
     )
+    state: str | None = Field(
+        default=None,
+        description="State/province code for US/CA (e.g. 'WA' or 'US-WA').",
+    )
 
 
 class TaxRatePreview(Schema):
