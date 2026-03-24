@@ -11,7 +11,7 @@ import {
   useMetrics,
   useOrganizationPaymentStatus,
 } from '@/hooks/queries'
-import { ALL_METRICS, getChartRangeParams, getPreviousDateRange } from '@/utils/metrics'
+import { ALL_METRICS, getChartRangeParams } from '@/utils/metrics'
 import { schemas } from '@spaire/client'
 import ArrowForwardOutlined from '@mui/icons-material/ArrowForwardOutlined'
 import CheckOutlined from '@mui/icons-material/CheckOutlined'
@@ -148,23 +148,10 @@ const OverviewMetrics = ({
     [organization.created_at],
   )
 
-  const [prevStartDate, prevEndDate] = useMemo(
-    () => getPreviousDateRange(startDate, endDate),
-    [startDate, endDate],
-  )
-
   const { data, isLoading } = useMetrics({
     organization_id: organization.id,
     startDate,
     endDate,
-    interval,
-    metrics: overviewMetrics,
-  })
-
-  const { data: previousData } = useMetrics({
-    organization_id: organization.id,
-    startDate: prevStartDate,
-    endDate: prevEndDate,
     interval,
     metrics: overviewMetrics,
   })
@@ -190,7 +177,6 @@ const OverviewMetrics = ({
           {/* First metric — full width */}
           <MetricChartBox
             data={data}
-            previousData={previousData}
             interval={interval}
             metric={firstMetric}
             loading={isLoading}
@@ -206,7 +192,6 @@ const OverviewMetrics = ({
                 <MetricChartBox
                   key={metricKey}
                   data={data}
-                  previousData={previousData}
                   interval={interval}
                   metric={metricKey}
                   loading={isLoading}
