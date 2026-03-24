@@ -232,22 +232,27 @@ const nextConfig = {
       },
 
       // Redirect /maintainer to polar.sh if on a different domain name
-      {
-        source: '/dashboard/:path*',
-        destination: `https://${defaultFrontendHostname}/dashboard/:path*`,
-        missing: [
-          {
-            type: 'host',
-            value: defaultFrontendHostname,
-          },
-          {
-            type: 'header',
-            key: 'x-forwarded-host',
-            value: defaultFrontendHostname,
-          },
-        ],
-        permanent: false,
-      },
+      // Skip in development so local dev server serves the dashboard directly
+      ...(ENVIRONMENT !== 'development'
+        ? [
+            {
+              source: '/dashboard/:path*',
+              destination: `https://${defaultFrontendHostname}/dashboard/:path*`,
+              missing: [
+                {
+                  type: 'host',
+                  value: defaultFrontendHostname,
+                },
+                {
+                  type: 'header',
+                  key: 'x-forwarded-host',
+                  value: defaultFrontendHostname,
+                },
+              ],
+              permanent: false,
+            },
+          ]
+        : []),
 
       {
         source: '/maintainer',
