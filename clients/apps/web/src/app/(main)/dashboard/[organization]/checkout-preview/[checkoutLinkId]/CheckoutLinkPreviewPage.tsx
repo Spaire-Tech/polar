@@ -190,12 +190,18 @@ export const CheckoutLinkPreviewPage = ({
               </div>
             </div>
 
-            {/* Iframe fills remaining space — no scroll needed */}
-            <div className="min-h-0 flex-1 overflow-hidden">
+            {/* Scaled iframe — renders at 1/SCALE viewport so checkout fits */}
+            <div className="relative min-h-0 flex-1 overflow-hidden">
               <iframe
                 key={iframeSrc}
                 src={iframeSrc}
-                className="h-full w-full border-0"
+                className="absolute left-0 top-0 border-0"
+                style={{
+                  width: `${(100 / 0.72).toFixed(2)}%`,
+                  height: `${(100 / 0.72).toFixed(2)}%`,
+                  transform: 'scale(0.72)',
+                  transformOrigin: 'top left',
+                }}
                 title="Checkout preview"
               />
             </div>

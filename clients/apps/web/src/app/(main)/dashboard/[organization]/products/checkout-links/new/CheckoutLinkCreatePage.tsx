@@ -23,20 +23,22 @@ export const CheckoutLinkCreatePage = ({
   }
 
   return (
-    <div className="dark:bg-polar-950 flex h-screen overflow-hidden bg-gray-50">
+    <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-polar-950">
       {/* Left panel — form */}
-      <div className="dark:border-polar-800 dark:bg-polar-900 flex w-[480px] shrink-0 flex-col overflow-hidden border-r border-gray-200 bg-white">
-        <div className="dark:border-polar-800 border-b border-gray-200 px-6 py-4">
+      <div className="flex w-[460px] shrink-0 flex-col overflow-hidden border-r border-gray-200 bg-white dark:border-polar-800 dark:bg-polar-900">
+        <div className="border-b border-gray-200 px-6 py-4 dark:border-polar-800">
           <Link
             href={`/dashboard/${organization.slug}/products/checkout-links`}
-            className="dark:text-polar-400 flex items-center gap-2 text-sm text-gray-500 transition-colors hover:text-black dark:hover:text-white"
+            className="flex items-center gap-2 text-sm text-gray-500 transition-colors hover:text-black dark:text-polar-400 dark:hover:text-white"
           >
             <ArrowBackOutlined fontSize="small" />
             <span>Back to Checkout Links</span>
           </Link>
         </div>
-        <div className="flex flex-col gap-8 overflow-y-auto px-8 py-8">
-          <h1 className="text-xl dark:text-white">Create Checkout Link</h1>
+        <div className="flex flex-col gap-6 overflow-y-auto px-8 py-8">
+          <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+            Create Checkout Link
+          </h1>
           <CheckoutLinkForm
             organization={organization}
             onClose={handleClose}
