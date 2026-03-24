@@ -10,16 +10,39 @@ export async function POST(request: NextRequest) {
 
   const api = await getServerSideAPI()
 
-  const { data, error } = await api.POST('/v1/checkouts/client/', {
+  // Try the public client endpoint first
+  const clientResult = await api.POST('/v1/checkouts/client/', {
     body: { product_id },
   })
 
-  if (error) {
-    return NextResponse.json(
-      { error: typeof error.detail === 'string' ? error.detail : 'Failed to create checkout' },
-      { status: 422 },
-    )
+  if (!clientResult.error) {
+    return NextResponse.json({ client_secret: clientResult.data.client_secret })
   }
 
-  return NextResponse.json({ client_secret: data.client_secret })
+  // Fall back to the authenticated endpoint using products array
+  const authResult = await api.POST('/v1/checkouts/', {
+    body: {
+      products: [product_id],
+      allow_discount_codes: true,
+      require_billing_address: false,
+    },
+  })
+
+  if (!authResult.error) {
+    return NextResponse.json({ client_secret: authResult.data.client_secret })
+  }
+
+  // Return the first error with its full detail for debugging
+  const errorDetail = clientResult.error.detail
+  return NextResponse.json(
+    {
+      error:
+        typeof errorDetail === 'string'
+          ? errorDetail
+          : Array.isArray(errorDetail)
+            ? (errorDetail[0] as { msg?: string })?.msg ?? 'Validation error'
+            : 'Failed to create checkout preview',
+    },
+    { status: 422 },
+  )
 }

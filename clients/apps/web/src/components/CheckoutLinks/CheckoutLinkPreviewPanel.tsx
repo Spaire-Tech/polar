@@ -15,7 +15,7 @@ export const CheckoutLinkPreviewPanel = ({
 }: CheckoutLinkPreviewPanelProps) => {
   const [dark, setDark] = useState(false)
 
-  const { data: checkout, isLoading, isError } = useQuery({
+  const { data: checkout, isLoading, error } = useQuery({
     queryKey: ['checkout-preview', productId],
     queryFn: async () => {
       const res = await fetch('/api/checkout-preview', {
@@ -23,8 +23,9 @@ export const CheckoutLinkPreviewPanel = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ product_id: productId }),
       })
-      if (!res.ok) throw new Error('Failed to create checkout preview')
-      return res.json() as Promise<{ client_secret: string }>
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? 'Failed to create checkout preview')
+      return json as { client_secret: string }
     },
     enabled: !!productId,
     staleTime: Infinity,
@@ -60,9 +61,9 @@ export const CheckoutLinkPreviewPanel = ({
           </p>
         ) : isLoading ? (
           <div className="dark:bg-spaire-700 h-32 w-full max-w-md animate-pulse rounded-xl bg-gray-200" />
-        ) : isError ? (
-          <p className="dark:text-spaire-500 text-sm text-gray-400">
-            Preview not available for this product
+        ) : error ? (
+          <p className="dark:text-spaire-500 text-center text-sm text-gray-400">
+            {(error as Error).message}
           </p>
         ) : iframeSrc ? (
           <div className="h-full w-full overflow-hidden rounded-xl shadow-lg">
