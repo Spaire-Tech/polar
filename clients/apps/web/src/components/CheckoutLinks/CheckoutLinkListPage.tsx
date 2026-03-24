@@ -2,9 +2,7 @@
 
 import { CheckoutLinkDetailPanel } from '@/components/CheckoutLinks/CheckoutLinkDetailPanel'
 import { DashboardBody } from '@/components/Layout/DashboardLayout'
-import { CheckoutLinkManagementModal } from '@/components/CheckoutLinks/CheckoutLinkManagementModal'
 import { InlineModal } from '@/components/Modal/InlineModal'
-import { useModal } from '@/components/Modal/useModal'
 import Spinner from '@/components/Shared/Spinner'
 import { toast } from '@/components/Toast/use-toast'
 import { useCheckoutLinks } from '@/hooks/queries'
@@ -18,13 +16,13 @@ import Button from '@spaire/ui/components/atoms/Button'
 import { ShadowBoxOnMd } from '@spaire/ui/components/atoms/ShadowBox'
 import {
   parseAsArrayOf,
-  parseAsBoolean,
   parseAsString,
   parseAsStringLiteral,
   useQueryState,
 } from 'nuqs'
 import ProductSelect from '../Products/ProductSelect'
 import { useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 
 interface CheckoutLinkListPageProps {
   organization: schemas['Organization']
@@ -33,6 +31,8 @@ interface CheckoutLinkListPageProps {
 export const CheckoutLinkListPage = ({
   organization,
 }: CheckoutLinkListPageProps) => {
+  const router = useRouter()
+
   const [productIds, setProductIds] = useQueryState(
     'productId',
     parseAsArrayOf(parseAsString),
@@ -48,9 +48,6 @@ export const CheckoutLinkListPage = ({
     ] as const).withDefault('-created_at'),
   )
 
-  const [createCheckoutLinkQuerystring, setCreateCheckoutLinkQuerystring] =
-    useQueryState('create_checkout_link', parseAsBoolean.withDefault(false))
-
   const { data, fetchNextPage, hasNextPage } = useCheckoutLinks(organization.id, {
     sorting: [sorting],
     product_id: productIds,
@@ -63,24 +60,15 @@ export const CheckoutLinkListPage = ({
 
   const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null)
 
-  const {
-    isShown: isCreateModalShown,
-    show: showCreateModal,
-    hide: hideCreateModal,
-  } = useModal()
-
   const { ref: loadingRef, inViewport } = useInViewport<HTMLDivElement>()
 
   useEffect(() => {
     if (inViewport && hasNextPage) fetchNextPage()
   }, [inViewport, hasNextPage, fetchNextPage])
 
-  useEffect(() => {
-    if (createCheckoutLinkQuerystring) {
-      showCreateModal()
-      setCreateCheckoutLinkQuerystring(null)
-    }
-  }, [createCheckoutLinkQuerystring, setCreateCheckoutLinkQuerystring, showCreateModal])
+  const navigateToCreate = () => {
+    router.push(`/dashboard/${organization.slug}/products/checkout-links/new`)
+  }
 
   return (
     <DashboardBody>
@@ -113,7 +101,7 @@ export const CheckoutLinkListPage = ({
                 )}
               </Button>
             </div>
-            <Button onClick={showCreateModal}>
+            <Button onClick={navigateToCreate}>
               <AddOutlined className="h-4 w-4" />
               <span>Create link</span>
             </Button>
@@ -197,7 +185,7 @@ export const CheckoutLinkListPage = ({
               <Button
                 size="lg"
                 className="w-full shrink-0 bg-white text-black hover:bg-gray-100 hover:opacity-100 border-white/20 md:w-auto md:ml-8"
-                onClick={showCreateModal}
+                onClick={navigateToCreate}
               >
                 Create link
               </Button>
@@ -205,23 +193,6 @@ export const CheckoutLinkListPage = ({
           </ShadowBoxOnMd>
         )}
       </div>
-
-      <InlineModal
-        isShown={isCreateModalShown}
-        hide={hideCreateModal}
-        className="md:w-[960px]"
-        modalContent={
-          <CheckoutLinkManagementModal
-            organization={organization}
-            productIds={productIds ?? []}
-            onClose={(link) => {
-              setProductIds([])
-              hideCreateModal()
-              setSelectedLinkId(link.id)
-            }}
-          />
-        }
-      />
 
       <InlineModal
         isShown={!!selectedLinkId}

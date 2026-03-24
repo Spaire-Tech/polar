@@ -18,8 +18,10 @@ export default function CatalogLayout({ children }: PropsWithChildren) {
   const pathname = usePathname()
   const base = `/dashboard/${params.organization}/products`
 
-  // Hide tabs on detail pages (new product, product edit, etc.)
-  const isDetailPage = /\/products\/(new|[0-9a-f-]{36})/.test(pathname)
+  // Hide tabs on detail pages (new product, product edit, checkout-links/new, etc.)
+  const isDetailPage =
+    /\/products\/(new|[0-9a-f-]{36})/.test(pathname) ||
+    pathname.endsWith('/checkout-links/new')
 
   if (isDetailPage) {
     return children

@@ -21,7 +21,6 @@ export const CheckoutLinkPreviewPanel = ({
     queryFn: async () => {
       const { data, error } = await api.POST('/v1/checkouts/client/', {
         body: {
-          payment_processor: 'stripe',
           product_id: productId!,
         },
       })
