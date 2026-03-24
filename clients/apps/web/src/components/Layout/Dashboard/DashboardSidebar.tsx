@@ -1,3 +1,4 @@
+import { NotificationsPopover } from '@/components/Notifications/NotificationsPopover'
 import { useAuth } from '@/hooks'
 import { CONFIG } from '@/utils/config'
 import { isImpersonating } from '@/utils/impersonation'
@@ -153,17 +154,7 @@ export const DashboardSidebar = ({
           animate={{ opacity: 1 }}
           transition={{ duration: 1 }}
         >
-          <button
-            type="button"
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-gray-500 transition-colors hover:text-black dark:text-spaire-500 dark:hover:text-spaire-200"
-          >
-            {theme === 'dark' ? (
-              <LightModeOutlined fontSize="inherit" />
-            ) : (
-              <DarkModeOutlined fontSize="inherit" />
-            )}
-          </button>
+          <NotificationsPopover />
           <SidebarTrigger />
         </motion.div>
       </SidebarHeader>
@@ -184,6 +175,26 @@ export const DashboardSidebar = ({
       </SidebarContent>
       <SidebarFooter>
         <Separator />
+        <button
+          type="button"
+          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          className={twMerge(
+            'mt-2 flex cursor-pointer flex-row items-center rounded-lg border border-transparent px-2 text-sm transition-colors dark:border-transparent',
+            'dark:text-spaire-500 dark:hover:text-spaire-200 text-gray-500 hover:text-black',
+            isCollapsed && '!dark:text-spaire-600',
+          )}
+        >
+          {theme === 'dark' ? (
+            <LightModeOutlined fontSize="inherit" />
+          ) : (
+            <DarkModeOutlined fontSize="inherit" />
+          )}
+          {!isCollapsed && (
+            <span className="ml-4 font-medium">
+              {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+            </span>
+          )}
+        </button>
         <Link
           href="/dashboard/account/developer"
           className={twMerge(
