@@ -105,6 +105,14 @@ export const CheckoutLinkList = ({
               ? checkoutLink.products[0].name
               : `${checkoutLink.products.length} Products`
 
+          const isActive =
+            (checkoutLink.metadata as Record<string, unknown> | null)
+              ?.is_active !== false
+          const displayName =
+            checkoutLink.label ??
+            checkoutLink.products[0]?.name ??
+            'Untitled'
+
           return (
             <div
               key={checkoutLink.id}
@@ -116,9 +124,15 @@ export const CheckoutLinkList = ({
               )}
             >
               <div className="flex flex-row items-center gap-3 px-4 py-3">
+                <div
+                  className={`h-2 w-2 shrink-0 rounded-full ${isActive ? 'bg-green-500' : 'bg-gray-300 dark:bg-spaire-600'}`}
+                  title={isActive ? 'Active' : 'Inactive'}
+                />
                 <div className="flex min-w-0 flex-1 flex-col gap-1">
-                  <div className="w-full truncate text-sm">
-                    {checkoutLink.label ?? 'Untitled'}
+                  <div
+                    className={`w-full truncate text-sm ${isActive ? '' : 'text-gray-400 line-through dark:text-spaire-500'}`}
+                  >
+                    {displayName}
                   </div>
                   <div>
                     <div className="dark:text-spaire-500 w-full truncate text-sm text-gray-500">

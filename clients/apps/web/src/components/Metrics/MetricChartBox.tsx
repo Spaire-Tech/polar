@@ -237,7 +237,7 @@ const MetricChartBox = ({
           {!compact && (
             <div className="flex flex-col gap-x-6 gap-y-2 md:flex-row md:items-center">
               <div className="flex flex-row items-center gap-x-2 text-sm">
-                <span className="h-3 w-3 rounded-full border-2 border-blue-500" />
+                <span className="h-2.5 w-2.5 rounded-full bg-[#635BFF] dark:bg-[#004664]" />
                 {hoveredPeriod ? (
                   <FormattedDateTime
                     datetime={hoveredPeriod.timestamp}
@@ -245,55 +245,15 @@ const MetricChartBox = ({
                   />
                 ) : (
                   <span className="dark:text-spaire-500 text-gray-500">
-                    {startDate && endDate && (
-                      <FormattedInterval
-                        startDatetime={startDate}
-                        endDatetime={endDate}
-                        hideCurrentYear={false}
-                      />
-                    )}
+                    Current period
                   </span>
                 )}
               </div>
-              {previousData && (
-                <div className="flex flex-row items-center gap-x-2 text-sm">
-                  <span className="dark:border-spaire-600 h-3 w-3 rounded-full border-2 border-gray-500" />
-                  {hoveredPreviousPeriod ? (
-                    <FormattedDateTime
-                      datetime={hoveredPreviousPeriod.timestamp}
-                      dateStyle="medium"
-                    />
-                  ) : (
-                    <span className="dark:text-spaire-500 text-gray-500">
-                      {previousStartDate && previousEndDate && (
-                        <FormattedInterval
-                          startDatetime={previousStartDate}
-                          endDatetime={previousEndDate}
-                          hideCurrentYear={false}
-                        />
-                      )}
-                    </span>
-                  )}
-                </div>
-              )}
             </div>
           )}
         </div>
 
         <div className="flex flex-row items-center gap-x-4">
-          {trend !== 0 && !isNaN(trend) && trend !== Infinity && (
-            <Status
-              status={
-                trend > 0 ? `+${trend.toFixed(0)}%` : `${trend.toFixed(0)}%`
-              }
-              className={twMerge(
-                'text-sm',
-                trend > 0
-                  ? 'bg-emerald-100 text-emerald-500 dark:bg-emerald-950'
-                  : 'bg-red-100 text-red-500 dark:bg-red-950',
-              )}
-            />
-          )}
           {shareable && (
             <Tooltip>
               <TooltipTrigger asChild>

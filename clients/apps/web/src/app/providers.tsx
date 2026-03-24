@@ -46,8 +46,8 @@ export function PolarThemeProvider({
 }) {
   return (
     <ThemeProvider
-      defaultTheme="dark"
-      enableSystem={false}
+      defaultTheme="system"
+      enableSystem={true}
       attribute="class"
     >
       {children}

@@ -106,9 +106,21 @@ export interface CheckoutProps {
   embed?: boolean
   theme?: 'light' | 'dark'
   locale?: string
+  preview?: boolean
+  showLogo?: boolean
+  showMedia?: boolean
+  showDescription?: boolean
 }
 
-const Checkout = ({ embed: _embed, theme: _theme, locale: localeProp }: CheckoutProps) => {
+const Checkout = ({
+  embed: _embed,
+  theme: _theme,
+  locale: localeProp,
+  preview = false,
+  showLogo = true,
+  showMedia = true,
+  showDescription = true,
+}: CheckoutProps) => {
   const { client } = useCheckout()
   const {
     checkout,
@@ -179,7 +191,7 @@ const Checkout = ({ embed: _embed, theme: _theme, locale: localeProp }: Checkout
   ])
 
   const PaymentNotReadyBanner = () => {
-    if (!shouldBlockCheckout) return null
+    if (!shouldBlockCheckout || preview) return null
 
     const isDenied = paymentStatus?.organization_status === 'denied'
 
@@ -301,7 +313,9 @@ const Checkout = ({ embed: _embed, theme: _theme, locale: localeProp }: Checkout
   }
 
   const hasMedia =
-    !!enrichedCheckout && enrichedCheckout.product.medias.length > 0
+    !!enrichedCheckout &&
+    enrichedCheckout.product.medias.length > 0 &&
+    showMedia
 
   const orgHeader = (
     <div className="flex flex-row items-center gap-x-4">
@@ -314,11 +328,13 @@ const Checkout = ({ embed: _embed, theme: _theme, locale: localeProp }: Checkout
         </Link>
       )}
       <div className="flex flex-row items-center gap-x-2">
-        <Avatar
-          avatar_url={checkout.organization.avatarUrl}
-          name={checkout.organization.name}
-          className="h-6 w-6"
-        />
+        {showLogo && (
+          <Avatar
+            avatar_url={checkout.organization.avatarUrl}
+            name={checkout.organization.name}
+            className="h-6 w-6"
+          />
+        )}
         <span className="text-sm dark:text-white">
           {checkout.organization.name}
         </span>
@@ -377,7 +393,8 @@ const Checkout = ({ embed: _embed, theme: _theme, locale: localeProp }: Checkout
                         {enrichedCheckout.product.name}
                       </span>
                       {enrichedCheckout.product.description &&
-                        !hasMarkdown(enrichedCheckout.product.description) && (
+                        !hasMarkdown(enrichedCheckout.product.description) &&
+                        showDescription && (
                           <TruncatedDescription
                             description={enrichedCheckout.product.description}
                             productName={enrichedCheckout.product.name}
