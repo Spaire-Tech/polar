@@ -232,65 +232,63 @@ export default function ClientPage({
           <div className="flex flex-col items-center gap-10 py-12 text-center">
             {/* Floating UI mockup */}
             <div className="relative mx-auto h-[300px] w-full max-w-[680px] select-none">
-              {/* Back card: product list */}
+              {/* Back card: storefront product catalog */}
               <div
-                className="absolute left-0 top-8 flex w-[420px] overflow-hidden rounded-2xl shadow-xl ring-1 ring-black/5"
+                className="absolute left-0 top-8 w-[420px] overflow-hidden rounded-2xl bg-white shadow-xl ring-1 ring-black/5"
                 style={{ transform: 'rotate(-1.5deg)' }}
               >
-                {/* Accent panel */}
-                <div className="flex w-[160px] shrink-0 flex-col gap-3 bg-purple-600 px-5 py-5 dark:bg-blue-700">
-                  <div className="flex items-center gap-1.5">
-                    <div className="h-3.5 w-3.5 rounded-full bg-white/80" />
-                    <div className="h-2 w-14 rounded-full bg-white/60" />
-                  </div>
-                  <div className="mt-1 flex flex-col gap-1">
-                    <div className="h-2 w-20 rounded-full bg-white/50" />
-                    <div className="h-5 w-12 rounded-full bg-white/90" />
-                  </div>
-                  <div className="mt-1 flex h-[100px] w-full flex-col gap-2 rounded-xl bg-white/20 px-3 py-3">
-                    {[80, 60, 70].map((w, i) => (
-                      <div key={i} className="flex items-center justify-between">
-                        <div className="h-2 rounded-full bg-white/50" style={{ width: `${w}%` }} />
-                        <div className="h-2 w-8 rounded-full bg-white/70" />
-                      </div>
-                    ))}
-                  </div>
+                <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3">
+                  <div className="h-1.5 w-16 rounded-full bg-gray-300" />
+                  <div className="h-5 w-20 rounded-lg bg-blue-500/10" />
                 </div>
-                {/* Product rows */}
-                <div className="flex flex-1 flex-col bg-white">
-                  <div className="border-b border-gray-100 px-4 py-2.5">
-                    <div className="h-1.5 w-12 rounded-full bg-gray-300" />
-                  </div>
-                  {[
-                    { w: 56, price: '$29/mo', type: 'Sub' },
-                    { w: 40, price: '$9/mo', type: 'Sub' },
-                    { w: 64, price: '$49', type: 'One-time' },
-                  ].map((row, i) => (
-                    <div key={i} className="flex items-center justify-between border-b border-gray-50 px-4 py-3 last:border-0">
-                      <div className="flex flex-col gap-1">
-                        <div className="h-2 rounded-full bg-gray-300" style={{ width: `${row.w}px` }} />
-                        <div className="h-1.5 w-10 rounded-full bg-gray-200" />
+                {[
+                  { nameW: 64, sub: true, price: '$29/mo', barW: 72 },
+                  { nameW: 48, sub: true, price: '$9/mo', barW: 52 },
+                  { nameW: 76, sub: false, price: '$49', barW: 40 },
+                ].map((row, i) => (
+                  <div key={i} className="flex items-center gap-4 border-b border-gray-50 px-5 py-3.5 last:border-0">
+                    {/* Product icon placeholder */}
+                    <div className="h-9 w-9 shrink-0 rounded-xl bg-gray-100" />
+                    <div className="flex flex-1 flex-col gap-1.5">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 rounded-full bg-gray-800" style={{ width: `${row.nameW}px` }} />
+                        <div className={`h-4 w-14 rounded-full ${row.sub ? 'bg-blue-500/15' : 'bg-gray-100'}`} />
                       </div>
-                      <div className="h-2 w-10 rounded-full bg-gray-300" />
+                      {/* Mini subscriber bar */}
+                      <div className="h-1 rounded-full bg-gray-100">
+                        <div className="h-1 rounded-full bg-blue-500/40" style={{ width: `${row.barW}%` }} />
+                      </div>
                     </div>
-                  ))}
-                </div>
+                    <div className="h-2 w-10 rounded-full bg-gray-300" />
+                  </div>
+                ))}
               </div>
 
-              {/* Front card: "product created" status */}
-              <div className="absolute right-0 top-0 w-[244px] rounded-2xl border border-gray-200 bg-white p-5 shadow-2xl ring-1 ring-black/5 dark:border-spaire-700 dark:bg-spaire-900">
-                <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                  Product is{' '}
-                  <span className="text-purple-600 dark:text-blue-400">live</span>
-                </p>
-                <p className="mt-1 text-xs text-gray-500 dark:text-spaire-400">
-                  Share your checkout link to start selling.
-                </p>
-                <div className="mt-3 truncate rounded-lg bg-gray-50 px-3 py-2 text-left text-xs font-medium text-blue-600 dark:bg-spaire-800 dark:text-blue-400">
-                  spairehq.com/checkout/ab1c23d
+              {/* Front card: subscriber stats */}
+              <div className="absolute right-0 top-0 w-[244px] rounded-2xl border border-gray-200 bg-white p-5 shadow-2xl ring-1 ring-black/5">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-gray-900">
+                    Pro Plan
+                  </p>
+                  <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-semibold text-blue-500">
+                    Live
+                  </span>
                 </div>
-                <button className="mt-3 w-full rounded-lg bg-purple-600 py-2 text-xs font-semibold text-white dark:bg-blue-600">
-                  Share
+                <p className="mt-3 text-2xl font-bold text-gray-900">
+                  $29<span className="text-sm font-normal text-gray-400">/mo</span>
+                </p>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <div className="rounded-xl bg-gray-50 px-3 py-2.5">
+                    <p className="text-[10px] text-gray-400">Subscribers</p>
+                    <p className="mt-0.5 text-sm font-semibold text-gray-900">48</p>
+                  </div>
+                  <div className="rounded-xl bg-gray-50 px-3 py-2.5">
+                    <p className="text-[10px] text-gray-400">MRR</p>
+                    <p className="mt-0.5 text-sm font-semibold text-gray-900">$1,392</p>
+                  </div>
+                </div>
+                <button className="mt-3 w-full rounded-lg bg-blue-500 py-2 text-xs font-semibold text-white">
+                  Create product
                 </button>
               </div>
             </div>
