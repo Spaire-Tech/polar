@@ -171,7 +171,7 @@ const Checkout = ({
 
   const isPaymentReady = paymentStatus?.payment_ready ?? true
   const isPaymentRequired = checkout.isPaymentRequired
-  const shouldBlockCheckout = !isPaymentReady && isPaymentRequired
+  const shouldBlockCheckout = !isPaymentReady && isPaymentRequired && !preview
 
   useEffect(() => {
     if (shouldBlockCheckout && paymentStatus) {

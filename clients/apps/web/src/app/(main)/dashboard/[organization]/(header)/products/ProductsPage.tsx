@@ -27,7 +27,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@spaire/ui/components/atoms/Select'
-import { ShadowBoxOnMd } from '@spaire/ui/components/atoms/ShadowBox'
 import { usePathname, useRouter } from 'next/navigation'
 import { useQueryState } from 'nuqs'
 import { useCallback, useState } from 'react'
@@ -230,33 +229,89 @@ export default function ClientPage({
             </Pagination>
           </>
         ) : (
-          <ShadowBoxOnMd className="relative overflow-hidden p-0 md:p-0">
-            <img
-              src="https://spaire-production-files-public.s3.us-east-1.amazonaws.com/Untitled+design+(39).png"
-              alt=""
-              aria-hidden="true"
-              className="h-[420px] w-full object-cover object-top md:h-[560px]"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent" />
-            <div className="absolute inset-x-0 bottom-0 flex flex-col gap-4 p-6 md:flex-row md:items-end md:justify-between md:p-8">
-              <div className="flex flex-col gap-2 md:gap-3">
-                <h3 className="text-2xl font-bold text-white md:text-4xl">
-                  Create your first product
-                </h3>
-                <p className="text-sm text-gray-400">
-                  Sell subscriptions, one-time payments, or usage-based plans
-                  with checkout built in.
-                </p>
-              </div>
-              <Button
-                size="lg"
-                className="w-full shrink-0 bg-white text-black hover:bg-gray-100 hover:opacity-100 border-white/20 md:w-auto md:ml-8"
-                onClick={showCreateModal}
+          <div className="flex flex-col items-center gap-10 py-12 text-center">
+            {/* Floating UI mockup */}
+            <div className="relative mx-auto h-[300px] w-full max-w-[680px] select-none">
+              {/* Back card: product list */}
+              <div
+                className="absolute left-0 top-8 flex w-[420px] overflow-hidden rounded-2xl shadow-xl ring-1 ring-black/5"
+                style={{ transform: 'rotate(-1.5deg)' }}
               >
-                Create Product
-              </Button>
+                {/* Accent panel */}
+                <div className="flex w-[160px] shrink-0 flex-col gap-3 bg-purple-600 px-5 py-5 dark:bg-blue-700">
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-3.5 w-3.5 rounded-full bg-white/80" />
+                    <div className="h-2 w-14 rounded-full bg-white/60" />
+                  </div>
+                  <div className="mt-1 flex flex-col gap-1">
+                    <div className="h-2 w-20 rounded-full bg-white/50" />
+                    <div className="h-5 w-12 rounded-full bg-white/90" />
+                  </div>
+                  <div className="mt-1 flex h-[100px] w-full flex-col gap-2 rounded-xl bg-white/20 px-3 py-3">
+                    {[80, 60, 70].map((w, i) => (
+                      <div key={i} className="flex items-center justify-between">
+                        <div className="h-2 rounded-full bg-white/50" style={{ width: `${w}%` }} />
+                        <div className="h-2 w-8 rounded-full bg-white/70" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {/* Product rows */}
+                <div className="flex flex-1 flex-col bg-white">
+                  <div className="border-b border-gray-100 px-4 py-2.5">
+                    <div className="h-1.5 w-12 rounded-full bg-gray-300" />
+                  </div>
+                  {[
+                    { w: 56, price: '$29/mo', type: 'Sub' },
+                    { w: 40, price: '$9/mo', type: 'Sub' },
+                    { w: 64, price: '$49', type: 'One-time' },
+                  ].map((row, i) => (
+                    <div key={i} className="flex items-center justify-between border-b border-gray-50 px-4 py-3 last:border-0">
+                      <div className="flex flex-col gap-1">
+                        <div className="h-2 rounded-full bg-gray-300" style={{ width: `${row.w}px` }} />
+                        <div className="h-1.5 w-10 rounded-full bg-gray-200" />
+                      </div>
+                      <div className="h-2 w-10 rounded-full bg-gray-300" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Front card: "product created" status */}
+              <div className="absolute right-0 top-0 w-[244px] rounded-2xl border border-gray-200 bg-white p-5 shadow-2xl ring-1 ring-black/5 dark:border-spaire-700 dark:bg-spaire-900">
+                <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                  Product is{' '}
+                  <span className="text-purple-600 dark:text-blue-400">live</span>
+                </p>
+                <p className="mt-1 text-xs text-gray-500 dark:text-spaire-400">
+                  Share your checkout link to start selling.
+                </p>
+                <div className="mt-3 truncate rounded-lg bg-gray-50 px-3 py-2 text-left text-xs font-medium text-blue-600 dark:bg-spaire-800 dark:text-blue-400">
+                  spairehq.com/checkout/ab1c23d
+                </div>
+                <button className="mt-3 w-full rounded-lg bg-purple-600 py-2 text-xs font-semibold text-white dark:bg-blue-600">
+                  Share
+                </button>
+              </div>
             </div>
-          </ShadowBoxOnMd>
+
+            {/* Title + description */}
+            <div className="flex flex-col gap-3 max-w-lg">
+              <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
+                Create your first product
+              </h2>
+              <p className="text-gray-500 dark:text-spaire-400">
+                Sell subscriptions, one-time payments, or usage-based plans —
+                checkout included.
+              </p>
+            </div>
+
+            {/* CTA */}
+            <Button size="lg" onClick={showCreateModal} className="gap-2">
+              <AddOutlined fontSize="small" />
+              Create Product
+            </Button>
+          </div>
         )}
       </div>
       <InlineModal
