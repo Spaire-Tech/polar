@@ -1,9 +1,18 @@
 import revalidate from '@/app/actions'
 import { useCreateCustomer } from '@/hooks/queries'
 import { setValidationErrors } from '@/utils/api/errors'
-import { schemas } from '@spaire/client'
+import { enums, schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
+import CountryPicker from '@spaire/ui/components/atoms/CountryPicker'
+import CountryStatePicker from '@spaire/ui/components/atoms/CountryStatePicker'
 import Input from '@spaire/ui/components/atoms/Input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@spaire/ui/components/atoms/Select'
 import {
   Form,
   FormControl,
@@ -13,12 +22,26 @@ import {
   FormLabel,
   FormMessage,
 } from '@spaire/ui/components/ui/form'
-import { useForm } from 'react-hook-form'
+import { useEffect } from 'react'
+import { useForm, useWatch } from 'react-hook-form'
 import { toast } from '../Toast/use-toast'
 import { CustomerMetadataForm } from './CustomerMetadataForm'
 
-export type CustomerCreateForm = Omit<schemas['CustomerCreate'], 'metadata'> & {
+export type CustomerCreateForm = Omit<
+  schemas['CustomerCreate'],
+  'metadata' | 'billing_address'
+> & {
   metadata: { key: string; value: string | number | boolean }[]
+  first_name?: string
+  last_name?: string
+  billing_address?: {
+    line1?: string | null
+    line2?: string | null
+    postal_code?: string | null
+    city?: string | null
+    state?: string | null
+    country?: string
+  } | null
 }
 
 export const CreateCustomerModal = ({
@@ -31,14 +54,38 @@ export const CreateCustomerModal = ({
   const form = useForm<CustomerCreateForm>({
     defaultValues: {
       organization_id: organization.id,
+      type: 'individual',
       metadata: [],
     },
   })
   const createCustomer = useCreateCustomer(organization.id)
 
+  const firstName = useWatch({ control: form.control, name: 'first_name' })
+  const lastName = useWatch({ control: form.control, name: 'last_name' })
+  const country = useWatch({
+    control: form.control,
+    name: 'billing_address.country',
+  })
+
+  useEffect(() => {
+    const composed = [firstName, lastName].filter(Boolean).join(' ')
+    if (composed) {
+      form.setValue('name', composed)
+    }
+  }, [firstName, lastName, form])
+
   const handleCreateCustomer = (customerCreate: CustomerCreateForm) => {
+    const { first_name, last_name, billing_address, ...rest } = customerCreate
     const data = {
-      ...customerCreate,
+      ...rest,
+      name:
+        rest.name ||
+        [first_name, last_name].filter(Boolean).join(' ') ||
+        undefined,
+      billing_address:
+        billing_address?.country
+          ? (billing_address as schemas['AddressInput'])
+          : undefined,
       metadata: customerCreate.metadata?.reduce(
         (acc, { key, value }) => ({ ...acc, [key]: value }),
         {},
@@ -71,15 +118,75 @@ export const CreateCustomerModal = ({
           onSubmit={form.handleSubmit(handleCreateCustomer)}
           className="flex flex-col gap-8"
         >
+          {/* Customer Information */}
           <div className="flex flex-col gap-4">
+            <h3 className="text-sm font-medium text-gray-500 dark:text-polar-400">
+              Customer Information
+            </h3>
+            <FormField
+              control={form.control}
+              name="type"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Type</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value ?? 'individual'}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="individual">Individual</SelectItem>
+                      <SelectItem value="team">Company</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="first_name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>First Name</FormLabel>
+                    <FormControl>
+                      <Input {...field} value={field.value || ''} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="last_name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Last Name</FormLabel>
+                    <FormControl>
+                      <Input {...field} value={field.value || ''} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
             <FormField
               control={form.control}
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel> Name</FormLabel>
+                  <FormLabel>Display Name</FormLabel>
                   <FormControl>
-                    <Input {...field} value={field.value || ''} />
+                    <Input
+                      {...field}
+                      value={field.value || ''}
+                      placeholder="Auto-filled from first & last name"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -105,6 +212,125 @@ export const CreateCustomerModal = ({
                 </FormItem>
               )}
             />
+          </div>
+
+          {/* Billing Address */}
+          <div className="flex flex-col gap-4">
+            <h3 className="text-sm font-medium text-gray-500 dark:text-polar-400">
+              Billing Address
+            </h3>
+            <FormField
+              control={form.control}
+              name="billing_address.line1"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Line 1</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      value={field.value || ''}
+                      placeholder="Street address"
+                      autoComplete="billing address-line1"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="billing_address.line2"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Line 2</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      value={field.value || ''}
+                      placeholder="Apt, suite, etc. (optional)"
+                      autoComplete="billing address-line2"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="billing_address.city"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>City</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        value={field.value || ''}
+                        autoComplete="billing address-level2"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="billing_address.postal_code"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Postal Code</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        value={field.value || ''}
+                        autoComplete="billing postal-code"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <FormField
+              control={form.control}
+              name="billing_address.country"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Country</FormLabel>
+                  <FormControl>
+                    <CountryPicker
+                      autoComplete="billing country"
+                      value={field.value || undefined}
+                      onChange={field.onChange}
+                      allowedCountries={enums.addressInputCountryValues}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="billing_address.state"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>State / Province</FormLabel>
+                  <FormControl>
+                    <CountryStatePicker
+                      autoComplete="billing address-level1"
+                      country={country}
+                      value={field.value || ''}
+                      onChange={field.onChange}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          {/* External ID */}
+          <div className="flex flex-col gap-4">
             <FormField
               control={form.control}
               name="external_id"
@@ -122,12 +348,15 @@ export const CreateCustomerModal = ({
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="metadata"
-              render={() => <CustomerMetadataForm />}
-            />
           </div>
+
+          {/* Metadata */}
+          <FormField
+            control={form.control}
+            name="metadata"
+            render={() => <CustomerMetadataForm />}
+          />
+
           <Button
             type="submit"
             className="self-start"
