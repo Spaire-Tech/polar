@@ -114,8 +114,15 @@ export const CheckoutLinkForm = ({
   const selectedProductIdsJson = JSON.stringify(selectedProductIds)
   useEffect(() => {
     onProductsChange?.(selectedProductIds)
+    // Auto-fill label from first product name when creating a new link
+    if (!checkoutLink && selectedProducts && selectedProducts.length > 0) {
+      const currentLabel = form.getValues('label')
+      if (!currentLabel) {
+        form.setValue('label', selectedProducts[0].name)
+      }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedProductIdsJson])
+  }, [selectedProductIdsJson, selectedProducts])
 
   const showLogoValue = watch('show_logo')
   const showMediaValue = watch('show_media')
@@ -349,7 +356,7 @@ export const CheckoutLinkForm = ({
             <button
               type="button"
               onClick={() => append({ key: '', value: '' })}
-              className="dark:text-polar-400 text-xs text-gray-500 transition-opacity hover:opacity-60"
+              className="text-xs text-gray-500 transition-opacity hover:opacity-60 dark:text-spaire-400"
             >
               + Add field
             </button>
