@@ -17,11 +17,27 @@ export default async function Page(props: {
     embed?: string
     theme?: 'light' | 'dark'
     locale?: string
+    preview?: string
+    show_logo?: string
+    show_media?: string
+    show_description?: string
   }>
 }) {
   const searchParams = await props.searchParams
 
-  const { embed: _embed, theme, locale: _locale } = searchParams
+  const {
+    embed: _embed,
+    theme,
+    locale: _locale,
+    preview: _preview,
+    show_logo,
+    show_media,
+    show_description,
+  } = searchParams
+  const preview = _preview === 'true'
+  const showLogo = show_logo !== 'false'
+  const showMedia = show_media !== 'false'
+  const showDescription = show_description !== 'false'
 
   const params = await props.params
 
@@ -88,7 +104,15 @@ export default async function Page(props: {
       serverURL={getPublicServerURL()}
     >
       <CheckoutFormProvider locale={locale}>
-        <CheckoutPage theme={theme} embed={embed} locale={locale} />
+        <CheckoutPage
+          theme={theme}
+          embed={embed}
+          locale={locale}
+          preview={preview}
+          showLogo={showLogo}
+          showMedia={showMedia}
+          showDescription={showDescription}
+        />
       </CheckoutFormProvider>
     </CheckoutProvider>
   )

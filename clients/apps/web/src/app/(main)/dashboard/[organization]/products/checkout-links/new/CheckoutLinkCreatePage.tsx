@@ -15,6 +15,11 @@ export const CheckoutLinkCreatePage = ({
 }) => {
   const router = useRouter()
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([])
+  const [displaySettings, setDisplaySettings] = useState({
+    showLogo: true,
+    showMedia: true,
+    showDescription: true,
+  })
 
   const handleClose = (checkoutLink: schemas['CheckoutLink']) => {
     router.push(
@@ -23,13 +28,13 @@ export const CheckoutLinkCreatePage = ({
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-polar-950">
+    <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-spaire-900">
       {/* Left panel — form */}
-      <div className="flex w-[460px] shrink-0 flex-col overflow-hidden border-r border-gray-200 bg-white dark:border-polar-800 dark:bg-polar-900">
-        <div className="border-b border-gray-200 px-6 py-4 dark:border-polar-800">
+      <div className="flex w-[460px] shrink-0 flex-col overflow-hidden border-r border-gray-200 bg-white dark:border-spaire-700 dark:bg-spaire-800">
+        <div className="border-b border-gray-200 px-6 py-4 dark:border-spaire-700">
           <Link
             href={`/dashboard/${organization.slug}/products/checkout-links`}
-            className="flex items-center gap-2 text-sm text-gray-500 transition-colors hover:text-black dark:text-polar-400 dark:hover:text-white"
+            className="flex items-center gap-2 text-sm text-gray-500 transition-colors hover:text-black dark:text-spaire-400 dark:hover:text-white"
           >
             <ArrowBackOutlined fontSize="small" />
             <span>Back to Checkout Links</span>
@@ -43,13 +48,19 @@ export const CheckoutLinkCreatePage = ({
             organization={organization}
             onClose={handleClose}
             onProductsChange={setSelectedProductIds}
+            onDisplaySettingsChange={setDisplaySettings}
           />
         </div>
       </div>
 
       {/* Right panel — live preview */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        <CheckoutLinkPreviewPanel productId={selectedProductIds[0]} />
+        <CheckoutLinkPreviewPanel
+          productId={selectedProductIds[0]}
+          showLogo={displaySettings.showLogo}
+          showMedia={displaySettings.showMedia}
+          showDescription={displaySettings.showDescription}
+        />
       </div>
     </div>
   )

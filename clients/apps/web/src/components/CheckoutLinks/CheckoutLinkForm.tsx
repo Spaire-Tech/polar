@@ -43,6 +43,11 @@ export interface CheckoutLinkFormProps {
   productIds?: string[]
   onClose: (checkoutLink: schemas['CheckoutLink']) => void
   onProductsChange?: (productIds: string[]) => void
+  onDisplaySettingsChange?: (settings: {
+    showLogo: boolean
+    showMedia: boolean
+    showDescription: boolean
+  }) => void
 }
 
 export const CheckoutLinkForm = ({
@@ -51,6 +56,7 @@ export const CheckoutLinkForm = ({
   onClose,
   productIds,
   onProductsChange,
+  onDisplaySettingsChange,
 }: CheckoutLinkFormProps) => {
   const defaultValues = useMemo<CheckoutLinkCreateForm>(() => {
     if (checkoutLink) {
@@ -110,6 +116,17 @@ export const CheckoutLinkForm = ({
     onProductsChange?.(selectedProductIds)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProductIdsJson])
+
+  const showLogoValue = watch('show_logo')
+  const showMediaValue = watch('show_media')
+  const showDescriptionValue = watch('show_description')
+  useEffect(() => {
+    onDisplaySettingsChange?.({
+      showLogo: showLogoValue,
+      showMedia: showMediaValue,
+      showDescription: showDescriptionValue,
+    })
+  }, [showLogoValue, showMediaValue, showDescriptionValue]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!checkoutLink) return
@@ -262,7 +279,7 @@ export const CheckoutLinkForm = ({
         </div>
 
         {/* Toggle rows */}
-        <div className="dark:divide-polar-800 dark:border-polar-800 flex flex-col divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200">
+        <div className="dark:divide-spaire-700 dark:border-spaire-700 flex flex-col divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200">
           <ToggleRow
             label="Show organization logo"
             control={control}
@@ -420,7 +437,7 @@ function ToggleRow({
       name={name as any}
       render={({ field }) => (
         <FormItem>
-          <div className="dark:hover:bg-polar-800/50 flex items-center justify-between px-4 py-3.5 transition-colors hover:bg-gray-50">
+          <div className="dark:hover:bg-spaire-700/50 flex items-center justify-between px-4 py-3.5 transition-colors hover:bg-gray-50">
             <span className="text-sm dark:text-white">{label}</span>
             <FormControl>
               <Switch
