@@ -1,6 +1,5 @@
 'use client'
 
-import { api } from '@/utils/client'
 import { CONFIG } from '@/utils/config'
 import ArrowBackOutlined from '@mui/icons-material/ArrowBackOutlined'
 import ComputerOutlined from '@mui/icons-material/ComputerOutlined'
@@ -38,13 +37,13 @@ export const CheckoutLinkPreviewPage = ({
   const { data: previewCheckout, isLoading: isLoadingPreview } = useQuery({
     queryKey: ['checkout-preview', firstProductId],
     queryFn: async () => {
-      const { data, error } = await api.POST('/v1/checkouts/client/', {
-        body: {
-          product_id: firstProductId!,
-        },
+      const res = await fetch('/api/checkout-preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product_id: firstProductId }),
       })
-      if (error) throw error
-      return data
+      if (!res.ok) throw new Error('Failed to create checkout preview')
+      return res.json() as Promise<{ client_secret: string }>
     },
     enabled: !!firstProductId,
     staleTime: Infinity,
@@ -52,8 +51,9 @@ export const CheckoutLinkPreviewPage = ({
   })
 
   const iframeSrc = useMemo(() => {
-    if (!previewCheckout?.client_secret) return null
-    return `${CONFIG.FRONTEND_BASE_URL}/checkout/${previewCheckout.client_secret}?theme=${darkPreview ? 'dark' : 'light'}`
+    const secret = previewCheckout?.client_secret
+    if (!secret) return null
+    return `${CONFIG.FRONTEND_BASE_URL}/checkout/${secret}?theme=${darkPreview ? 'dark' : 'light'}`
   }, [previewCheckout, darkPreview])
 
   const embedCode = useMemo(

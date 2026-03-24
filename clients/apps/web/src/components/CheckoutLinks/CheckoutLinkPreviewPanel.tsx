@@ -1,6 +1,5 @@
 'use client'
 
-import { api } from '@/utils/client'
 import { CONFIG } from '@/utils/config'
 import DarkModeOutlined from '@mui/icons-material/DarkModeOutlined'
 import LightModeOutlined from '@mui/icons-material/LightModeOutlined'
@@ -16,16 +15,16 @@ export const CheckoutLinkPreviewPanel = ({
 }: CheckoutLinkPreviewPanelProps) => {
   const [dark, setDark] = useState(false)
 
-  const { data: checkout, isLoading } = useQuery({
+  const { data: checkout, isLoading, isError } = useQuery({
     queryKey: ['checkout-preview', productId],
     queryFn: async () => {
-      const { data, error } = await api.POST('/v1/checkouts/client/', {
-        body: {
-          product_id: productId!,
-        },
+      const res = await fetch('/api/checkout-preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product_id: productId }),
       })
-      if (error) throw error
-      return data
+      if (!res.ok) throw new Error('Failed to create checkout preview')
+      return res.json() as Promise<{ client_secret: string }>
     },
     enabled: !!productId,
     staleTime: Infinity,
@@ -61,6 +60,10 @@ export const CheckoutLinkPreviewPanel = ({
           </p>
         ) : isLoading ? (
           <div className="dark:bg-spaire-700 h-32 w-full max-w-md animate-pulse rounded-xl bg-gray-200" />
+        ) : isError ? (
+          <p className="dark:text-spaire-500 text-sm text-gray-400">
+            Preview not available for this product
+          </p>
         ) : iframeSrc ? (
           <div className="h-full w-full overflow-hidden rounded-xl shadow-lg">
             <iframe
@@ -70,11 +73,7 @@ export const CheckoutLinkPreviewPanel = ({
               title="Checkout preview"
             />
           </div>
-        ) : (
-          <p className="dark:text-spaire-500 text-sm text-gray-400">
-            Failed to load preview
-          </p>
-        )}
+        ) : null}
       </div>
     </div>
   )
