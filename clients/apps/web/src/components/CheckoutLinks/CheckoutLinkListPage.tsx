@@ -355,7 +355,7 @@ function StripeStyleEmptyState({ onCreateClick }: { onCreateClick: () => void })
         {/* Left: checkout page (teal bg + payment form side-by-side) */}
         <div className="absolute left-0 top-8 flex h-[256px] w-[420px] overflow-hidden rounded-2xl shadow-xl ring-1 ring-black/5">
           {/* Product panel (teal) */}
-          <div className="flex w-[160px] shrink-0 flex-col gap-3 bg-teal-600 px-5 py-5">
+          <div className="flex w-[160px] shrink-0 flex-col gap-3 bg-blue-500 px-5 py-5">
             <div className="flex items-center gap-1.5">
               <div className="h-3.5 w-3.5 rounded-full bg-white/80" />
               <div className="h-2 w-14 rounded-full bg-white/60" />
@@ -396,15 +396,15 @@ function StripeStyleEmptyState({ onCreateClick }: { onCreateClick: () => void })
         <div className="absolute right-0 top-0 w-[244px] rounded-2xl border border-gray-200 bg-white p-5 shadow-2xl ring-1 ring-black/5">
           <p className="text-sm font-semibold text-gray-900">
             Checkout link is{' '}
-            <span className="text-green-500">active</span>
+            <span className="text-blue-500">active</span>
           </p>
           <p className="mt-1 text-xs text-gray-500">
             Share your link to accept payments.
           </p>
           <div className="mt-3 truncate rounded-lg bg-gray-50 px-3 py-2 text-left text-xs font-medium text-blue-600">
-            spaire.com/checkout/ab1c23d
+            spairehq.com/checkout/ab1c23d
           </div>
-          <button className="mt-3 w-full rounded-lg bg-blue-600 py-2 text-xs font-semibold text-white transition-colors hover:bg-blue-700">
+          <button className="mt-3 w-full rounded-lg bg-blue-500 py-2 text-xs font-semibold text-white">
             Share
           </button>
         </div>
