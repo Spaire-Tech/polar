@@ -153,39 +153,6 @@
   }
 }
 
-@keyframes mesh-a {
-  from {
-    transform: translate(0, 0) scale(1);
-    border-radius: 63% 37% 54% 46% / 55% 48% 52% 45%;
-  }
-  to {
-    transform: translate(6%, 10%) scale(1.08);
-    border-radius: 42% 58% 38% 62% / 48% 62% 38% 52%;
-  }
-}
-
-@keyframes mesh-b {
-  from {
-    transform: translate(0, 0) scale(0.95);
-    border-radius: 45% 55% 67% 33% / 42% 57% 43% 58%;
-  }
-  to {
-    transform: translate(-8%, -10%) scale(1.1);
-    border-radius: 64% 36% 45% 55% / 57% 45% 55% 43%;
-  }
-}
-
-@keyframes mesh-c {
-  from {
-    transform: translate(0, 0) scale(1.05);
-    border-radius: 55% 45% 38% 62% / 62% 44% 56% 38%;
-  }
-  to {
-    transform: translate(10%, -8%) scale(0.92);
-    border-radius: 38% 62% 55% 45% / 44% 56% 44% 56%;
-  }
-}
-
 @media (prefers-color-scheme: light) {
   img[src$='#gh-dark-mode-only'],
   img[src$='#only-dark'] {
