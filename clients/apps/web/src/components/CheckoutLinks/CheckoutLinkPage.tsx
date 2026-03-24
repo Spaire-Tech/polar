@@ -1,6 +1,7 @@
 import { OrganizationContext } from '@/providers/maintainerOrganization'
 import { CONFIG } from '@/utils/config'
 import QrCode from '@mui/icons-material/QrCode'
+import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import CopyToClipboardInput from '@spaire/ui/components/atoms/CopyToClipboardInput'
@@ -12,6 +13,7 @@ import {
 } from '@spaire/ui/components/atoms/Tabs'
 import { Checkbox } from '@spaire/ui/components/ui/checkbox'
 import { Label } from '@spaire/ui/components/ui/label'
+import Link from 'next/link'
 import { useContext, useMemo, useState } from 'react'
 import { Modal } from '../Modal'
 import { useModal } from '../Modal/useModal'
@@ -80,6 +82,14 @@ export const CheckoutLinkPage = ({ checkoutLink }: CheckoutLinkPageProps) => {
               <QrCode />
               <span className="ml-2">QR Code</span>
             </Button>
+            <Link
+              href={`/dashboard/${organization.slug}/checkout-preview/${checkoutLink.id}`}
+            >
+              <Button variant="secondary">
+                <VisibilityOutlined />
+                <span className="ml-2">Preview</span>
+              </Button>
+            </Link>
           </div>
         </TabsContent>
 
