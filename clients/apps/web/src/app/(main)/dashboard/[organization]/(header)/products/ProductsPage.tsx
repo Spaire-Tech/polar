@@ -14,6 +14,10 @@ import {
   serializeSearchParams,
   sortingStateToQueryParam,
 } from '@/utils/datatable'
+import {
+  CATALOG_BLOBS,
+  MeshGradient,
+} from '@/components/UI/MeshGradient'
 import AddOutlined from '@mui/icons-material/AddOutlined'
 import Search from '@mui/icons-material/Search'
 import { schemas } from '@spaire/client'
@@ -144,6 +148,7 @@ export default function ClientPage({
 
   return (
     <DashboardBody>
+      <MeshGradient blobs={CATALOG_BLOBS} />
       <div className="flex flex-col gap-y-8">
         {products.data && products.data.items.length > 0 ? (
           <>
