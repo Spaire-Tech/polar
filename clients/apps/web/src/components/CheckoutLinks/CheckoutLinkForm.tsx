@@ -45,6 +45,7 @@ export interface CheckoutLinkFormProps {
   checkoutLink?: schemas['CheckoutLink']
   productIds?: string[]
   onClose: (checkoutLink: schemas['CheckoutLink']) => void
+  onProductsChange?: (productIds: string[]) => void
 }
 
 export const CheckoutLinkForm = ({
@@ -52,6 +53,7 @@ export const CheckoutLinkForm = ({
   checkoutLink,
   onClose,
   productIds,
+  onProductsChange,
 }: CheckoutLinkFormProps) => {
   const [discountQuery, setDiscountQuery] = useState('')
 
@@ -118,6 +120,12 @@ export const CheckoutLinkForm = ({
   const hasRecurringProducts = useMemo(() => {
     return selectedProducts?.some((product) => product.is_recurring) ?? false
   }, [selectedProducts])
+
+  const selectedProductIdsJson = JSON.stringify(selectedProductIds)
+  useEffect(() => {
+    onProductsChange?.(selectedProductIds)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProductIdsJson])
 
   useEffect(() => {
     if (!checkoutLink) return

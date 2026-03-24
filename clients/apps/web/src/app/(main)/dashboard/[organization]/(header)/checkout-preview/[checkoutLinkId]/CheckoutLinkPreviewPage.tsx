@@ -1,5 +1,6 @@
 'use client'
 
+import { api } from '@/utils/client'
 import { CONFIG } from '@/utils/config'
 import ArrowBackOutlined from '@mui/icons-material/ArrowBackOutlined'
 import ComputerOutlined from '@mui/icons-material/ComputerOutlined'
@@ -15,6 +16,7 @@ import {
   TabsList,
   TabsTrigger,
 } from '@spaire/ui/components/atoms/Tabs'
+import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
 import { twMerge } from 'tailwind-merge'
@@ -31,11 +33,29 @@ export const CheckoutLinkPreviewPage = ({
   const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop')
   const [darkPreview, setDarkPreview] = useState(false)
 
+  const firstProductId = checkoutLink.products[0]?.id
+
+  const { data: previewCheckout, isLoading: isLoadingPreview } = useQuery({
+    queryKey: ['checkout-preview', firstProductId],
+    queryFn: async () => {
+      const { data, error } = await api.POST('/v1/checkouts/client/', {
+        body: {
+          payment_processor: 'stripe',
+          product_id: firstProductId!,
+        },
+      })
+      if (error) throw error
+      return data
+    },
+    enabled: !!firstProductId,
+    staleTime: Infinity,
+    retry: false,
+  })
+
   const iframeSrc = useMemo(() => {
-    const url = new URL(checkoutLink.url)
-    url.searchParams.set('theme', darkPreview ? 'dark' : 'light')
-    return url.toString()
-  }, [checkoutLink.url, darkPreview])
+    if (!previewCheckout?.client_secret) return null
+    return `${CONFIG.FRONTEND_BASE_URL}/checkout/${previewCheckout.client_secret}?theme=${darkPreview ? 'dark' : 'light'}`
+  }, [previewCheckout, darkPreview])
 
   const embedCode = useMemo(
     () =>
@@ -161,21 +181,29 @@ export const CheckoutLinkPreviewPage = ({
 
         {/* iframe */}
         <div className="flex flex-1 items-center justify-center overflow-hidden p-8">
-          <div
-            className={twMerge(
-              'overflow-hidden rounded-2xl shadow-xl transition-all duration-300',
-              device === 'mobile'
-                ? 'h-[760px] w-[390px]'
-                : 'h-full w-full max-h-[860px]',
-            )}
-          >
-            <iframe
-              key={iframeSrc}
-              src={iframeSrc}
-              className="h-full w-full border-0"
-              title="Checkout preview"
-            />
-          </div>
+          {isLoadingPreview ? (
+            <div className="dark:bg-spaire-700 h-32 w-full max-w-md animate-pulse rounded-xl bg-gray-200" />
+          ) : iframeSrc ? (
+            <div
+              className={twMerge(
+                'overflow-hidden rounded-2xl shadow-xl transition-all duration-300',
+                device === 'mobile'
+                  ? 'h-[760px] w-[390px]'
+                  : 'h-full w-full max-h-[860px]',
+              )}
+            >
+              <iframe
+                key={iframeSrc}
+                src={iframeSrc}
+                className="h-full w-full border-0"
+                title="Checkout preview"
+              />
+            </div>
+          ) : (
+            <p className="dark:text-spaire-500 text-sm text-gray-400">
+              Failed to load preview
+            </p>
+          )}
         </div>
       </div>
     </div>

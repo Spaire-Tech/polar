@@ -209,6 +209,7 @@ export const CheckoutLinkListPage = ({
       <InlineModal
         isShown={isCreateModalShown}
         hide={hideCreateModal}
+        className="md:w-[960px]"
         modalContent={
           <CheckoutLinkManagementModal
             organization={organization}
