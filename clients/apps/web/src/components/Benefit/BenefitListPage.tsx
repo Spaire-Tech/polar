@@ -19,7 +19,6 @@ import Search from '@mui/icons-material/Search'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import Input from '@spaire/ui/components/atoms/Input'
-import { ShadowBoxOnMd } from '@spaire/ui/components/atoms/ShadowBox'
 import {
   parseAsBoolean,
   parseAsString,
@@ -155,21 +154,25 @@ export const BenefitListPage = ({ organization }: BenefitListPageProps) => {
             )}
           </div>
         ) : (
-          <ShadowBoxOnMd className="items-center justify-center gap-y-6 md:flex md:flex-col md:py-24">
-            <div className="flex max-w-md flex-col items-center gap-y-6 text-center">
-              <div className="flex flex-col items-center gap-y-2">
-                <h3 className="text-xl font-medium">No benefits yet</h3>
-                <p className="dark:text-spaire-500 text-gray-500">
-                  Benefits are extras you attach to products — license keys,
-                  usage credits, custom integrations, and more.
-                </p>
-              </div>
-              <Button onClick={showCreateModal}>
-                <AddOutlined className="h-4 w-4" />
-                <span>Create benefit</span>
-              </Button>
+          <div className="flex flex-col items-center gap-8 pt-4 pb-12 text-center">
+            <div style={{ isolation: 'isolate' }} className="relative h-[88px] w-[88px]">
+              <div style={{ mixBlendMode: 'multiply' }} className="absolute top-0 left-0 h-14 w-14 rounded-2xl bg-orange-300" />
+              <div style={{ mixBlendMode: 'multiply' }} className="absolute bottom-0 right-0 h-14 w-14 rounded-full bg-yellow-300" />
             </div>
-          </ShadowBoxOnMd>
+            <div className="flex max-w-lg flex-col gap-3">
+              <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
+                Attach extras to your products
+              </h2>
+              <p className="text-gray-500 dark:text-spaire-400">
+                Benefits are extras you attach to products — license keys,
+                usage credits, custom integrations, and more.
+              </p>
+            </div>
+            <Button size="lg" onClick={showCreateModal} className="gap-2">
+              <AddOutlined className="h-4 w-4" />
+              Create benefit
+            </Button>
+          </div>
         )}
       </div>
 

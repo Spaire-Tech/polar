@@ -168,12 +168,9 @@ export const CustomerListPage = ({ organization }: CustomerListPageProps) => {
           </>
         ) : (
           <div className="flex flex-col items-center gap-8 pt-4 pb-12 text-center">
-            <div className="overflow-hidden rounded-2xl">
-              <img
-                src="https://spaire-production-files-public.s3.us-east-1.amazonaws.com/Untitled+design+-+2026-03-19T000326.960.png"
-                alt="Customers"
-                className="h-[260px] w-auto object-cover"
-              />
+            <div style={{ isolation: 'isolate' }} className="relative h-[88px] w-[88px]">
+              <div style={{ mixBlendMode: 'multiply' }} className="absolute top-0 left-0 h-14 w-14 rounded-full bg-cyan-300" />
+              <div style={{ mixBlendMode: 'multiply' }} className="absolute bottom-0 right-0 h-14 w-14 rounded-full bg-blue-300" />
             </div>
             <div className="flex max-w-lg flex-col gap-3">
               <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
