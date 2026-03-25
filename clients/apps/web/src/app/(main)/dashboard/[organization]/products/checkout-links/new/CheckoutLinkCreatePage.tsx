@@ -30,8 +30,8 @@ export const CheckoutLinkCreatePage = ({
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-spaire-900">
       {/* Left panel — form */}
-      <div className="flex w-[460px] shrink-0 flex-col overflow-hidden border-r border-gray-200 bg-white dark:border-spaire-700 dark:bg-spaire-800">
-        <div className="border-b border-gray-200 px-6 py-4 dark:border-spaire-700">
+      <div className="flex w-[460px] shrink-0 flex-col overflow-hidden border-r border-gray-200 bg-white dark:border-spaire-800 dark:bg-spaire-900">
+        <div className="border-b border-gray-200 px-6 py-4 dark:border-spaire-800">
           <Link
             href={`/dashboard/${organization.slug}/products/checkout-links`}
             className="flex items-center gap-2 text-sm text-gray-500 transition-colors hover:text-black dark:text-spaire-400 dark:hover:text-white"
