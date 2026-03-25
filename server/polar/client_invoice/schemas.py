@@ -53,10 +53,64 @@ class ClientInvoiceCreate(Schema):
         default=True,
         description="Whether to include a hosted payment link in the invoice email.",
     )
+    show_logo: bool = Field(
+        default=True,
+        description="Whether to show the organization logo on the PDF.",
+    )
+    show_mor_attribution: bool = Field(
+        default=True,
+        description="Whether to show 'via spaire' label under the logo.",
+    )
     user_metadata: dict[str, Any] | None = Field(
         default=None,
         description="Arbitrary key-value metadata to attach to the invoice.",
     )
+
+    @field_validator("currency")
+    @classmethod
+    def validate_currency(cls, v: str) -> str:
+        return v.lower()
+
+
+class ClientInvoicePreviewRequest(Schema):
+    """Request body for generating a real-time PDF preview without persisting."""
+
+    organization_id: UUID4 = Field(description="Organization ID.")
+    customer_id: UUID4 | None = Field(
+        default=None, description="Optional customer ID to pull name/address from."
+    )
+    currency: str = Field(
+        min_length=3, max_length=3, description="ISO 4217 currency code."
+    )
+    line_items: list[ClientInvoiceLineItemCreate] = Field(
+        min_length=1, description="Invoice line items."
+    )
+    due_date: date | None = Field(default=None)
+    memo: str | None = Field(default=None)
+    po_number: str | None = Field(default=None)
+    on_behalf_of_label: str | None = Field(default=None)
+    discount_amount: int = Field(default=0, ge=0)
+    discount_label: str | None = Field(default=None)
+    include_payment_link: bool = Field(default=True)
+    checkout_link_url: str | None = Field(default=None)
+
+    # Display options
+    show_logo: bool = Field(
+        default=True, description="Whether to show the organization logo on the PDF."
+    )
+    show_mor_attribution: bool = Field(
+        default=True,
+        description="Whether to show 'via spaire' label under the logo.",
+    )
+
+    # Customer address overrides (from the form)
+    billing_name: str | None = Field(default=None)
+    billing_line1: str | None = Field(default=None)
+    billing_line2: str | None = Field(default=None)
+    billing_city: str | None = Field(default=None)
+    billing_state: str | None = Field(default=None)
+    billing_postal_code: str | None = Field(default=None)
+    billing_country: str | None = Field(default=None)
 
     @field_validator("currency")
     @classmethod
@@ -91,6 +145,8 @@ class ClientInvoiceSchema(TimestampedSchema, IDSchema):
     on_behalf_of_label: str | None
     discount_label: str | None
     include_payment_link: bool
+    show_logo: bool
+    show_mor_attribution: bool
     stripe_hosted_invoice_url: str | None
     invoice_pdf_url: str | None
     checkout_link: str | None

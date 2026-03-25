@@ -22,6 +22,8 @@ export interface ClientInvoiceCreate {
   discount_amount?: number
   discount_label?: string | null
   include_payment_link?: boolean
+  show_logo?: boolean
+  show_mor_attribution?: boolean
   user_metadata?: Record<string, string> | null
 }
 
@@ -58,6 +60,8 @@ export interface ClientInvoice {
   on_behalf_of_label: string | null
   discount_label: string | null
   include_payment_link: boolean
+  show_logo: boolean
+  show_mor_attribution: boolean
   stripe_hosted_invoice_url: string | null
   invoice_pdf_url: string | null
   checkout_link: string | null
@@ -75,6 +79,47 @@ export interface ClientInvoiceListParams {
   page?: number
   limit?: number
   sorting?: string[]
+}
+
+export interface ClientInvoicePreviewRequest {
+  organization_id: string
+  customer_id?: string | null
+  currency: string
+  line_items: ClientInvoiceLineItemCreate[]
+  due_date?: string | null
+  memo?: string | null
+  po_number?: string | null
+  on_behalf_of_label?: string | null
+  discount_amount?: number
+  discount_label?: string | null
+  include_payment_link?: boolean
+  checkout_link_url?: string | null
+  show_logo: boolean
+  show_mor_attribution: boolean
+  billing_name?: string | null
+  billing_line1?: string | null
+  billing_line2?: string | null
+  billing_city?: string | null
+  billing_state?: string | null
+  billing_postal_code?: string | null
+  billing_country?: string | null
+}
+
+export async function fetchInvoicePreviewPdf(
+  body: ClientInvoicePreviewRequest,
+): Promise<string> {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL as string
+  const response = await fetch(`${apiUrl}/v1/client-invoices/preview-pdf`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(body),
+  })
+  if (!response.ok) {
+    throw new Error(`Preview failed: ${response.status}`)
+  }
+  const blob = await response.blob()
+  return URL.createObjectURL(blob)
 }
 
 export const useClientInvoices = (

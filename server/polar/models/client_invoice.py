@@ -86,6 +86,14 @@ class ClientInvoice(RecordModel):
         String, nullable=True, default=None
     )
 
+    # Display options
+    show_logo: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="true"
+    )
+    show_mor_attribution: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="true"
+    )
+
     # Pass-through metadata
     user_metadata: Mapped[dict | None] = mapped_column(JSONB, nullable=True, default=None)
 

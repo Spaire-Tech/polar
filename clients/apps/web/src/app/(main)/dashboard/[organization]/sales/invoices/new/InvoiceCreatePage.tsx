@@ -41,7 +41,7 @@ export const InvoiceCreatePage = ({
     setSelectedCheckoutLink,
     onSubmit,
     handleSubmit,
-  } = useInvoiceForm(organization, handleClose)
+  } = useInvoiceForm(organization, handleClose, { showLogo, showMorAttribution })
 
   return (
     <Form {...form}>

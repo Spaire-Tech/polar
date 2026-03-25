@@ -767,7 +767,11 @@ const InvoiceDetailsSection = () => {
 
 // ─── Hook: useInvoiceForm ─────────────────────────────────────────────────────
 
-export function useInvoiceForm(organization: schemas['Organization'], onClose?: (invoiceId?: string) => void) {
+export function useInvoiceForm(
+  organization: schemas['Organization'],
+  onClose?: (invoiceId?: string) => void,
+  displayOptions?: { showLogo: boolean; showMorAttribution: boolean },
+) {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -867,6 +871,8 @@ export function useInvoiceForm(organization: schemas['Organization'], onClose?: 
           discount_amount: discountCents,
           discount_label: selectedDiscount?.name ?? null,
           include_payment_link: !!selectedCheckoutLink,
+          show_logo: displayOptions?.showLogo ?? true,
+          show_mor_attribution: displayOptions?.showMorAttribution ?? true,
           user_metadata: selectedCheckoutLink
             ? {
                 checkout_link_url: selectedCheckoutLink.url,
@@ -894,7 +900,7 @@ export function useInvoiceForm(organization: schemas['Organization'], onClose?: 
         setIsSubmitting(false)
       }
     },
-    [organization, selectedDiscount, selectedCheckoutLink, createInvoice, form, router, onClose],
+    [organization, selectedDiscount, selectedCheckoutLink, createInvoice, form, router, onClose, displayOptions],
   )
 
   return {
