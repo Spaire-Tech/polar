@@ -20,6 +20,10 @@ export interface InvoiceDocumentData {
   customerName?: string
   customerEmail?: string
   onBehalfOfLabel?: string
+  organizationName?: string
+  organizationLogoUrl?: string
+  showLogo?: boolean
+  showMorAttribution?: boolean
   lineItems: Array<{
     description: string
     quantity: number
@@ -64,11 +68,28 @@ const InvoiceDocument: React.FC<{
       <div className="p-8">
         {/* ── Header ─────────────────────────────────────────────── */}
         <div className="flex items-start justify-between">
-          <div>
-            <p className="text-lg font-bold tracking-tight text-gray-900 dark:text-white">
-              Spaire, Inc.
-            </p>
-            <p className="mt-0.5 text-xs text-gray-400">Merchant of Record</p>
+          <div className="flex items-center gap-3">
+            {data.showLogo !== false && data.organizationLogoUrl && (
+              <img
+                src={data.organizationLogoUrl}
+                alt={data.organizationName ?? 'Logo'}
+                className="h-10 w-10 rounded-lg object-cover"
+              />
+            )}
+            <div>
+              <p className="text-lg font-bold tracking-tight text-gray-900 dark:text-white">
+                {data.showMorAttribution !== false
+                  ? 'Spaire, Inc.'
+                  : data.organizationName ?? 'Spaire, Inc.'}
+              </p>
+              {data.showMorAttribution !== false ? (
+                <p className="mt-0.5 text-xs text-gray-400">Merchant of Record</p>
+              ) : data.organizationName ? (
+                <p className="mt-0.5 text-xs text-gray-400">Invoice</p>
+              ) : (
+                <p className="mt-0.5 text-xs text-gray-400">Merchant of Record</p>
+              )}
+            </div>
           </div>
           <div className="text-right">
             <p className="text-3xl font-thin uppercase tracking-[0.25em] text-gray-200 dark:text-gray-700">
@@ -125,12 +146,20 @@ const InvoiceDocument: React.FC<{
             <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400">
               From
             </p>
-            <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
-              Spaire, Inc.
-            </p>
-            {data.onBehalfOfLabel && (
-              <p className="mt-0.5 text-xs text-gray-500">
-                on behalf of {data.onBehalfOfLabel}
+            {data.showMorAttribution !== false ? (
+              <>
+                <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
+                  Spaire, Inc.
+                </p>
+                {data.onBehalfOfLabel && (
+                  <p className="mt-0.5 text-xs text-gray-500">
+                    on behalf of {data.onBehalfOfLabel}
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
+                {data.onBehalfOfLabel || data.organizationName || 'Your Organization'}
               </p>
             )}
           </div>
@@ -242,10 +271,17 @@ const InvoiceDocument: React.FC<{
 
         {/* ── Footer ──────────────────────────────────────────────── */}
         <div className="mt-8 border-t border-gray-100 pt-4 dark:border-gray-800">
-          <p className="text-[10px] leading-relaxed text-gray-400">
-            Issued by Spaire, Inc. as Merchant of Record on behalf of{' '}
-            {data.onBehalfOfLabel ?? 'the organization'}.
-          </p>
+          {data.showMorAttribution !== false ? (
+            <p className="text-[10px] leading-relaxed text-gray-400">
+              Issued by Spaire, Inc. as Merchant of Record on behalf of{' '}
+              {data.onBehalfOfLabel ?? 'the organization'}.
+            </p>
+          ) : (
+            <p className="text-[10px] leading-relaxed text-gray-400">
+              Issued by{' '}
+              {data.onBehalfOfLabel || data.organizationName || 'the organization'}.
+            </p>
+          )}
         </div>
       </div>
     </div>
