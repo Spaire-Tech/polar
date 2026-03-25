@@ -19,7 +19,6 @@ import Search from '@mui/icons-material/Search'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import Input from '@spaire/ui/components/atoms/Input'
-import { ShadowBoxOnMd } from '@spaire/ui/components/atoms/ShadowBox'
 import {
   parseAsBoolean,
   parseAsString,
@@ -89,42 +88,42 @@ export const BenefitListPage = ({ organization }: BenefitListPageProps) => {
   return (
     <DashboardBody>
       <div className="flex flex-col gap-y-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex flex-row items-center gap-3">
-            <div className="relative w-full md:max-w-64">
-              <Search className="dark:text-spaire-500 absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <Input
-                className="pl-9"
-                placeholder="Search benefits"
-                value={query ?? ''}
-                onChange={(e) => setQuery(e.target.value || null)}
-              />
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 shrink-0"
-              onClick={() =>
-                setSorting(
-                  sorting === '-created_at' ? 'created_at' : '-created_at',
-                )
-              }
-            >
-              {sorting === 'created_at' ? (
-                <ArrowUpward fontSize="small" />
-              ) : (
-                <ArrowDownward fontSize="small" />
-              )}
-            </Button>
-          </div>
-          <Button onClick={showCreateModal}>
-            <AddOutlined className="h-4 w-4" />
-            <span>Create benefit</span>
-          </Button>
-        </div>
-
         {benefits.length > 0 ? (
-          <div className="dark:border-spaire-700 dark:divide-spaire-700 flex flex-col divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200">
+          <>
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="flex flex-row items-center gap-3">
+                <div className="relative w-full md:max-w-64">
+                  <Search className="dark:text-spaire-500 absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <Input
+                    className="pl-9"
+                    placeholder="Search benefits"
+                    value={query ?? ''}
+                    onChange={(e) => setQuery(e.target.value || null)}
+                  />
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 shrink-0"
+                  onClick={() =>
+                    setSorting(
+                      sorting === '-created_at' ? 'created_at' : '-created_at',
+                    )
+                  }
+                >
+                  {sorting === 'created_at' ? (
+                    <ArrowUpward fontSize="small" />
+                  ) : (
+                    <ArrowDownward fontSize="small" />
+                  )}
+                </Button>
+              </div>
+              <Button onClick={showCreateModal}>
+                <AddOutlined className="h-4 w-4" />
+                <span>Create benefit</span>
+              </Button>
+            </div>
+            <div className="dark:border-spaire-700 dark:divide-spaire-700 flex flex-col divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200">
             {benefits.map((benefit) => (
               <button
                 key={benefit.id}
@@ -154,22 +153,27 @@ export const BenefitListPage = ({ organization }: BenefitListPageProps) => {
               </div>
             )}
           </div>
+          </>
         ) : (
-          <ShadowBoxOnMd className="items-center justify-center gap-y-6 md:flex md:flex-col md:py-24">
-            <div className="flex max-w-md flex-col items-center gap-y-6 text-center">
-              <div className="flex flex-col items-center gap-y-2">
-                <h3 className="text-xl font-medium">No benefits yet</h3>
-                <p className="dark:text-spaire-500 text-gray-500">
-                  Benefits are extras you attach to products — license keys,
-                  usage credits, custom integrations, and more.
-                </p>
-              </div>
-              <Button onClick={showCreateModal}>
-                <AddOutlined className="h-4 w-4" />
-                <span>Create benefit</span>
-              </Button>
+          <div className="flex min-h-[50vh] flex-col items-center justify-center gap-8 text-center">
+            <div style={{ isolation: 'isolate' }} className="relative h-[88px] w-[88px]">
+              <div style={{ mixBlendMode: 'multiply' }} className="absolute top-0 left-0 h-14 w-14 rounded-2xl bg-orange-300" />
+              <div style={{ mixBlendMode: 'multiply' }} className="absolute bottom-0 right-0 h-14 w-14 rounded-full bg-yellow-300" />
             </div>
-          </ShadowBoxOnMd>
+            <div className="flex max-w-lg flex-col gap-3">
+              <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
+                Attach extras to your products
+              </h2>
+              <p className="text-gray-500 dark:text-spaire-400">
+                Benefits are extras you attach to products — license keys,
+                usage credits, custom integrations, and more.
+              </p>
+            </div>
+            <Button size="lg" onClick={showCreateModal} className="gap-2">
+              <AddOutlined className="h-4 w-4" />
+              Create benefit
+            </Button>
+          </div>
         )}
       </div>
 

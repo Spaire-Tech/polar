@@ -289,13 +289,15 @@ export default function ClientPage({
   const currentStepIndex = stepIndexMap[step] ?? 0
 
   return (
-    <div className="dark:md:bg-spaire-950 flex h-full w-full flex-row overflow-y-auto">
-      {/* Left stepper panel — desktop only */}
-      <OnboardingStepper
-        currentStep={currentStepIndex}
-        steps={payoutSteps}
-        showLogo={false}
-      />
+    <div className="dark:md:bg-spaire-950 flex h-screen w-full flex-row overflow-hidden">
+      {/* Left stepper panel — desktop only, hidden once setup is complete */}
+      {step !== 'complete' && (
+        <OnboardingStepper
+          currentStep={currentStepIndex}
+          steps={payoutSteps}
+          showLogo={false}
+        />
+      )}
 
       {/* Main content */}
       <div className="flex flex-1 flex-col overflow-y-auto">

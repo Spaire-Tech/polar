@@ -1,11 +1,11 @@
 import { getServerSideAPI } from '@/utils/client/serverside'
 import { getOrganizationBySlugOrNotFound } from '@/utils/organization'
 import { Metadata } from 'next'
-import AccountPage from './AccountPage'
+import AccountPage from '../../(header)/finance/account/AccountPage'
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
-    title: `Balance - Payout Account`, // " | Polar is added by the template"
+    title: `Balance - Payout Account`,
   }
 }
 

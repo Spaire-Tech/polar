@@ -136,6 +136,8 @@ export const CreateProductPage = ({
         amount = (p as any).price_amount ?? null
       } else if (amountType === 'seat_based') {
         amount = (p as any).seat_tiers?.tiers?.[0]?.price_per_seat ?? null
+      } else if (amountType === 'custom') {
+        amount = (p as any).minimum_amount ?? null
       }
       if (!currencyMap.has(cur) || amount !== null) {
         currencyMap.set(cur, { amount, amountType })

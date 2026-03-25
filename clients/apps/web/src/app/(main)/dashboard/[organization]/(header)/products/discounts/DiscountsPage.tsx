@@ -322,38 +322,64 @@ const ClientPage: React.FC<ClientPageProps> = ({
     setShowUpdateModal(true)
   }
 
+  const isEmpty = !discountsHook.isLoading && discounts.length === 0 && !query
+
   return (
     <DashboardBody wide>
       <div className="flex flex-col gap-8">
-        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-          <Input
-            className="w-full md:max-w-64"
-            preSlot={<Search fontSize="small" />}
-            placeholder="Search Discounts"
-            value={query}
-            onChange={(e) => onQueryChange(e.target.value)}
-          />
-          <Button
-            type="button"
-            wrapperClassNames="flex flex-row items-center gap-x-2"
-            onClick={() => setShowNewModal(true)}
-          >
-            <AddOutlined fontSize="small" />
-            <span>New Discount</span>
-          </Button>
-        </div>
-        {discounts && pageCount !== undefined && (
-          <DataTable
-            columns={columns}
-            data={discounts}
-            rowCount={rowCount}
-            pageCount={pageCount}
-            pagination={pagination}
-            onPaginationChange={setPagination}
-            sorting={sorting}
-            onSortingChange={setSorting}
-            isLoading={discountsHook.isLoading}
-          />
+        {isEmpty ? (
+          <div className="flex min-h-[50vh] flex-col items-center justify-center gap-8 text-center">
+            <div style={{ isolation: 'isolate' }} className="relative h-[88px] w-[88px]">
+              <div style={{ mixBlendMode: 'multiply' }} className="absolute top-0 left-0 h-14 w-14 rounded-full bg-pink-300" />
+              <div style={{ mixBlendMode: 'multiply' }} className="absolute bottom-0 right-0 h-14 w-14 rounded-2xl bg-violet-400" />
+            </div>
+            <div className="flex max-w-lg flex-col gap-3">
+              <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
+                Reward customers with discounts
+              </h2>
+              <p className="text-gray-500 dark:text-spaire-400">
+                Create percentage or fixed-amount discount codes to share with
+                customers at checkout.
+              </p>
+            </div>
+            <Button size="lg" onClick={() => setShowNewModal(true)} className="gap-2">
+              <AddOutlined fontSize="small" />
+              New Discount
+            </Button>
+          </div>
+        ) : (
+          <>
+            <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+              <Input
+                className="w-full md:max-w-64"
+                preSlot={<Search fontSize="small" />}
+                placeholder="Search Discounts"
+                value={query}
+                onChange={(e) => onQueryChange(e.target.value)}
+              />
+              <Button
+                type="button"
+                wrapperClassNames="flex flex-row items-center gap-x-2"
+                onClick={() => setShowNewModal(true)}
+              >
+                <AddOutlined fontSize="small" />
+                <span>New Discount</span>
+              </Button>
+            </div>
+            {discounts && pageCount !== undefined && (
+              <DataTable
+                columns={columns}
+                data={discounts}
+                rowCount={rowCount}
+                pageCount={pageCount}
+                pagination={pagination}
+                onPaginationChange={setPagination}
+                sorting={sorting}
+                onSortingChange={setSorting}
+                isLoading={discountsHook.isLoading}
+              />
+            )}
+          </>
         )}
       </div>
       <InlineModal

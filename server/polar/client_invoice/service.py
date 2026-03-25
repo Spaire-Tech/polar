@@ -272,52 +272,30 @@ class ClientInvoiceService:
                 amount=-discount_amount,
                 currency=currency,
                 description=create_schema.discount_label or "Discount",
-                tax_amounts=None,
             )
-
-        # Distribute tax proportionally across line items
-        remaining_tax = tax_amount
-        line_items_with_tax: list[tuple[Any, int]] = []
-        num_items = len(create_schema.line_items)
-        for i, item in enumerate(create_schema.line_items):
-            item_amount = item.unit_amount * item.quantity
-            if i == num_items - 1:
-                item_tax = remaining_tax
-            elif taxable_amount > 0:
-                item_tax = round(tax_amount * item_amount / taxable_amount)
-                remaining_tax -= item_tax
-            else:
-                item_tax = 0
-            line_items_with_tax.append((item, item_tax))
 
         # Create Stripe invoice items
         stripe_item_ids: list[str] = []
-        for item, item_tax in line_items_with_tax:
+        for item in create_schema.line_items:
             item_amount = item.unit_amount * item.quantity
-            tax_amounts_param = None
-            if item_tax > 0 and customer.billing_address is not None:
-                tax_amounts_param = [
-                    {
-                        "amount": item_tax,
-                        "tax_rate_data": {
-                            "display_name": "Tax",
-                            "percentage": 0,
-                            "inclusive": False,
-                            "country": customer.billing_address.country,
-                        },
-                        "taxable_amount": item_amount,
-                    }
-                ]
-
             stripe_item = await stripe_service.create_invoice_item(
                 customer=customer.stripe_customer_id,
                 invoice=stripe_invoice.id,
                 amount=item_amount,
                 currency=currency,
                 description=item.description,
-                tax_amounts=tax_amounts_param,
             )
             stripe_item_ids.append(stripe_item.id)
+
+        # Add a single tax line item if tax was calculated
+        if tax_amount > 0:
+            await stripe_service.create_invoice_item(
+                customer=customer.stripe_customer_id,
+                invoice=stripe_invoice.id,
+                amount=tax_amount,
+                currency=currency,
+                description="Tax",
+            )
 
         # Persist
         repository = ClientInvoiceRepository.from_session(session)
@@ -354,9 +332,7 @@ class ClientInvoiceService:
         )
 
         line_item_repository = ClientInvoiceLineItemRepository.from_session(session)
-        for (item, item_tax), stripe_item_id in zip(
-            line_items_with_tax, stripe_item_ids
-        ):
+        for item, stripe_item_id in zip(create_schema.line_items, stripe_item_ids):
             await line_item_repository.create(
                 ClientInvoiceLineItem(
                     client_invoice_id=client_invoice.id,
@@ -366,7 +342,7 @@ class ClientInvoiceService:
                     unit_amount=item.unit_amount,
                     currency=currency,
                     amount=item.unit_amount * item.quantity,
-                    tax_amount=item_tax,
+                    tax_amount=0,
                 )
             )
 

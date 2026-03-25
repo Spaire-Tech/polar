@@ -76,7 +76,7 @@ export const CheckoutLinkPreviewPage = ({
   return (
     <div className="dark:bg-spaire-900 flex h-screen overflow-hidden bg-gray-100">
       {/* ── Left settings panel ── */}
-      <div className="dark:border-spaire-700 dark:bg-spaire-800 flex w-[300px] shrink-0 flex-col gap-6 overflow-y-auto border-r border-gray-200 bg-white p-6">
+      <div className="dark:border-spaire-700 dark:bg-spaire-800 flex w-[300px] min-h-0 shrink-0 flex-col gap-6 overflow-y-auto border-r border-gray-200 bg-white p-6 pb-12">
         {/* Back */}
         <Link
           href={`/dashboard/${organization.slug}/products/checkout-links/${checkoutLink.id}`}

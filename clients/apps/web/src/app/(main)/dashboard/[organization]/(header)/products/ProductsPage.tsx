@@ -225,33 +225,24 @@ export default function ClientPage({
             </Pagination>
           </>
         ) : (
-          <ShadowBoxOnMd className="relative overflow-hidden p-0 md:p-0">
-            <img
-              src="https://spaire-production-files-public.s3.us-east-1.amazonaws.com/Untitled+design+(39).png"
-              alt=""
-              aria-hidden="true"
-              className="h-[420px] w-full object-cover object-top md:h-[560px]"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent" />
-            <div className="absolute inset-x-0 bottom-0 flex flex-col gap-4 p-6 md:flex-row md:items-end md:justify-between md:p-8">
-              <div className="flex flex-col gap-2 md:gap-3">
-                <h3 className="text-2xl font-bold text-white md:text-4xl">
-                  Create your first product
-                </h3>
-                <p className="text-sm text-gray-400">
-                  Sell subscriptions, one-time payments, or usage-based plans
-                  with checkout built in.
-                </p>
-              </div>
-              <Button
-                size="lg"
-                className="w-full shrink-0 bg-white text-black hover:bg-gray-100 hover:opacity-100 border-white/20 md:w-auto md:ml-8"
-                onClick={handleCreateProduct}
-              >
-                Create Product
-              </Button>
+          <div className="flex min-h-[50vh] flex-col items-center justify-center gap-8 text-center">
+            <div style={{ isolation: 'isolate' }} className="relative h-[88px] w-[88px]">
+              <div style={{ mixBlendMode: 'multiply' }} className="absolute top-0 left-0 h-14 w-14 rounded-2xl bg-cyan-300" />
+              <div style={{ mixBlendMode: 'multiply' }} className="absolute bottom-0 right-0 h-14 w-14 rounded-2xl bg-emerald-300" />
             </div>
-          </ShadowBoxOnMd>
+            <div className="flex max-w-lg flex-col gap-3">
+              <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
+                Create your first product
+              </h2>
+              <p className="text-gray-500 dark:text-spaire-400">
+                Sell subscriptions, one-time payments, or usage-based plans
+                with checkout built in.
+              </p>
+            </div>
+            <Button size="lg" onClick={handleCreateProduct} className="gap-2">
+              Create Product
+            </Button>
+          </div>
         )}
       </div>
     </DashboardBody>
