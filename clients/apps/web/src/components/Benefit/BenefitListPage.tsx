@@ -88,42 +88,42 @@ export const BenefitListPage = ({ organization }: BenefitListPageProps) => {
   return (
     <DashboardBody>
       <div className="flex flex-col gap-y-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex flex-row items-center gap-3">
-            <div className="relative w-full md:max-w-64">
-              <Search className="dark:text-spaire-500 absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <Input
-                className="pl-9"
-                placeholder="Search benefits"
-                value={query ?? ''}
-                onChange={(e) => setQuery(e.target.value || null)}
-              />
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 shrink-0"
-              onClick={() =>
-                setSorting(
-                  sorting === '-created_at' ? 'created_at' : '-created_at',
-                )
-              }
-            >
-              {sorting === 'created_at' ? (
-                <ArrowUpward fontSize="small" />
-              ) : (
-                <ArrowDownward fontSize="small" />
-              )}
-            </Button>
-          </div>
-          <Button onClick={showCreateModal}>
-            <AddOutlined className="h-4 w-4" />
-            <span>Create benefit</span>
-          </Button>
-        </div>
-
         {benefits.length > 0 ? (
-          <div className="dark:border-spaire-700 dark:divide-spaire-700 flex flex-col divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200">
+          <>
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="flex flex-row items-center gap-3">
+                <div className="relative w-full md:max-w-64">
+                  <Search className="dark:text-spaire-500 absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <Input
+                    className="pl-9"
+                    placeholder="Search benefits"
+                    value={query ?? ''}
+                    onChange={(e) => setQuery(e.target.value || null)}
+                  />
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 shrink-0"
+                  onClick={() =>
+                    setSorting(
+                      sorting === '-created_at' ? 'created_at' : '-created_at',
+                    )
+                  }
+                >
+                  {sorting === 'created_at' ? (
+                    <ArrowUpward fontSize="small" />
+                  ) : (
+                    <ArrowDownward fontSize="small" />
+                  )}
+                </Button>
+              </div>
+              <Button onClick={showCreateModal}>
+                <AddOutlined className="h-4 w-4" />
+                <span>Create benefit</span>
+              </Button>
+            </div>
+            <div className="dark:border-spaire-700 dark:divide-spaire-700 flex flex-col divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200">
             {benefits.map((benefit) => (
               <button
                 key={benefit.id}
@@ -153,8 +153,9 @@ export const BenefitListPage = ({ organization }: BenefitListPageProps) => {
               </div>
             )}
           </div>
+          </>
         ) : (
-          <div className="flex flex-col items-center gap-8 pt-4 pb-12 text-center">
+          <div className="flex min-h-[50vh] flex-col items-center justify-center gap-8 text-center">
             <div style={{ isolation: 'isolate' }} className="relative h-[88px] w-[88px]">
               <div style={{ mixBlendMode: 'multiply' }} className="absolute top-0 left-0 h-14 w-14 rounded-2xl bg-orange-300" />
               <div style={{ mixBlendMode: 'multiply' }} className="absolute bottom-0 right-0 h-14 w-14 rounded-full bg-yellow-300" />

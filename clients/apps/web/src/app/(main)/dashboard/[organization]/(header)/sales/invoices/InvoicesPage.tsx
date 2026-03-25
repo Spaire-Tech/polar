@@ -161,7 +161,7 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
     <DashboardBody>
       <div className="flex flex-col gap-y-8">
         {!invoicesHook.isLoading && invoices.length === 0 ? (
-          <div className="flex flex-col items-center gap-8 pt-4 pb-12 text-center">
+          <div className="flex min-h-[50vh] flex-col items-center justify-center gap-8 text-center">
             <div style={{ isolation: 'isolate' }} className="relative h-[88px] w-[88px]">
               <div style={{ mixBlendMode: 'multiply' }} className="absolute top-2 left-0 h-11 w-16 rounded-2xl bg-amber-300" />
               <div style={{ mixBlendMode: 'multiply' }} className="absolute bottom-0 right-0 h-14 w-14 rounded-full bg-emerald-300" />

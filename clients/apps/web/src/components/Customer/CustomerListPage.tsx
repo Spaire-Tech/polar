@@ -167,7 +167,7 @@ export const CustomerListPage = ({ organization }: CustomerListPageProps) => {
             </div>
           </>
         ) : (
-          <div className="flex flex-col items-center gap-8 pt-4 pb-12 text-center">
+          <div className="flex min-h-[50vh] flex-col items-center justify-center gap-8 text-center">
             <div style={{ isolation: 'isolate' }} className="relative h-[88px] w-[88px]">
               <div style={{ mixBlendMode: 'multiply' }} className="absolute top-0 left-0 h-14 w-14 rounded-full bg-cyan-300" />
               <div style={{ mixBlendMode: 'multiply' }} className="absolute bottom-0 right-0 h-14 w-14 rounded-full bg-blue-300" />
