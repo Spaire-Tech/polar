@@ -50,17 +50,11 @@ export const InvoicePreviewPanel = ({
   const prevUrlRef = useRef<string | null>(null)
 
   const generatePreview = useCallback(async () => {
-    const items = (lineItems ?? [])
-      .filter((item) => item.description || item.unit_amount)
-      .map((item) => ({
-        description: item.description || '—',
-        quantity: Number(item.quantity) || 1,
-        unit_amount: Math.round((parseFloat(item.unit_amount) || 0) * 100),
-      }))
-
-    if (items.length === 0) {
-      items.push({ description: '—', quantity: 1, unit_amount: 0 })
-    }
+    const items = (lineItems ?? []).map((item) => ({
+      description: item.description || '—',
+      quantity: Number(item.quantity) || 1,
+      unit_amount: Math.max(1, Math.round((parseFloat(item.unit_amount) || 0) * 100)),
+    }))
 
     const subtotalCents = items.reduce(
       (sum, item) => sum + item.unit_amount * item.quantity,
