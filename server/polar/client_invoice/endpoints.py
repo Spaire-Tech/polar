@@ -14,7 +14,7 @@ from polar.postgres import (
 from polar.routing import APIRouter
 
 from . import auth, sorting
-from .schemas import ClientInvoiceCreate, ClientInvoiceSchema
+from .schemas import ClientInvoiceCreate, ClientInvoicePreviewRequest, ClientInvoiceSchema
 from .service import (
     ClientInvoiceAlreadyVoided,
     ClientInvoiceCannotMarkPaid,
@@ -74,6 +74,33 @@ async def create_client_invoice(
         raise HTTPException(status_code=422, detail=str(e)) from e
 
     return ClientInvoiceSchema.model_validate(invoice)
+
+
+@router.post(
+    "/preview-pdf",
+    summary="Preview Client Invoice PDF",
+    response_class=Response,
+)
+async def preview_client_invoice_pdf(
+    preview: ClientInvoicePreviewRequest,
+    auth_subject: auth.ClientInvoicesRead,
+    session: AsyncReadSession = Depends(get_db_read_session),
+) -> Response:
+    """Generate a real PDF preview from form data without creating anything."""
+    try:
+        pdf_bytes = await client_invoice_service.preview_pdf(
+            session, auth_subject, preview
+        )
+    except ClientInvoiceError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": 'inline; filename="invoice-preview.pdf"'
+        },
+    )
 
 
 @router.get(

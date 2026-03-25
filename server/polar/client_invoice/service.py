@@ -1,7 +1,7 @@
 import base64
 import uuid
 from collections.abc import Sequence
-from datetime import date
+from datetime import date, datetime
 from typing import Any
 
 import httpx
@@ -36,7 +36,7 @@ from polar.tax.calculation import TaxCalculationError, TaxCode, get_tax_service
 from polar.worker import enqueue_job
 
 from .repository import ClientInvoiceLineItemRepository, ClientInvoiceRepository
-from .schemas import ClientInvoiceCreate
+from .schemas import ClientInvoiceCreate, ClientInvoicePreviewRequest
 from .sorting import ClientInvoiceSortProperty
 
 log: Logger = structlog.get_logger()
@@ -340,6 +340,8 @@ class ClientInvoiceService:
                 on_behalf_of_label=on_behalf_of_label,
                 discount_label=create_schema.discount_label,
                 include_payment_link=create_schema.include_payment_link,
+                show_logo=create_schema.show_logo,
+                show_mor_attribution=create_schema.show_mor_attribution,
                 stripe_hosted_invoice_url=stripe_invoice.hosted_invoice_url,
                 invoice_pdf_url=stripe_invoice.invoice_pdf,
                 checkout_link=(
@@ -438,11 +440,17 @@ class ClientInvoiceService:
             due_date=invoice.due_date,
             on_behalf_of_label=invoice.on_behalf_of_label,
         )
+        # Respect stored display preferences
+        effective_logo = logo_bytes if invoice.show_logo else None
+        effective_label: str | None = None
+        if effective_logo and invoice.show_mor_attribution:
+            effective_label = "via spaire"
+
         generator = InvoiceGenerator(
             inv,
             heading_title="Invoice",
-            logo_bytes=logo_bytes,
-            logo_label="via spaire" if logo_bytes else None,
+            logo_bytes=effective_logo,
+            logo_label=effective_label,
         )
         generator.generate()
         return bytes(generator.output())
@@ -478,6 +486,98 @@ class ClientInvoiceService:
 
         logo_bytes = await self._fetch_logo_bytes(organization.avatar_url)
         return self._build_invoice_pdf_bytes(invoice, organization, customer, logo_bytes)
+
+    async def preview_pdf(
+        self,
+        session: AsyncReadSession,
+        auth_subject: AuthSubject[User | Organization],
+        preview: ClientInvoicePreviewRequest,
+    ) -> bytes:
+        """Generate a real PDF preview from form data without persisting anything."""
+        from polar.customer.repository import CustomerRepository
+
+        org_repo = OrganizationRepository.from_session(session)
+        organization = await org_repo.get_by_id(preview.organization_id)
+        if organization is None:
+            raise ClientInvoiceError(
+                f"Organization {preview.organization_id} not found."
+            )
+
+        # Resolve customer name from DB if provided
+        customer_name: str | None = preview.billing_name
+        if preview.customer_id is not None and not customer_name:
+            customer_repo = CustomerRepository.from_session(session)
+            customer = await customer_repo.get_by_id(preview.customer_id)
+            if customer is not None:
+                customer_name = customer.name or customer.email
+
+        from polar.kit.address import Address
+
+        customer_address: Address | None = None
+        if preview.billing_line1 or preview.billing_city or preview.billing_country:
+            customer_address = Address(
+                line1=preview.billing_line1,
+                line2=preview.billing_line2,
+                city=preview.billing_city,
+                state=preview.billing_state,
+                postal_code=preview.billing_postal_code,
+                country=preview.billing_country,
+            )
+
+        subtotal_amount = sum(
+            item.unit_amount * item.quantity for item in preview.line_items
+        )
+        discount_amount = min(preview.discount_amount, subtotal_amount)
+        total_amount = subtotal_amount - discount_amount
+
+        on_behalf_of_label = preview.on_behalf_of_label or organization.name
+
+        inv = Invoice(
+            number="DRAFT",
+            date=datetime.utcnow(),
+            seller_name=settings.INVOICES_NAME,
+            seller_address=settings.INVOICES_ADDRESS,
+            seller_additional_info=settings.INVOICES_ADDITIONAL_INFO,
+            customer_name=customer_name or "—",
+            customer_address=customer_address,
+            items=[
+                InvoiceItem(
+                    description=item.description or "—",
+                    quantity=item.quantity,
+                    unit_amount=item.unit_amount,
+                    amount=item.unit_amount * item.quantity,
+                )
+                for item in preview.line_items
+            ],
+            subtotal_amount=subtotal_amount,
+            discount_amount=discount_amount,
+            taxability_reason=None,
+            tax_amount=0,
+            tax_rate=None,
+            currency=preview.currency,
+            notes=preview.memo or None,
+            checkout_link=preview.checkout_link_url if preview.include_payment_link else None,
+            due_date=preview.due_date,
+            on_behalf_of_label=on_behalf_of_label,
+        )
+
+        # Fetch logo only if show_logo is enabled
+        logo_bytes: bytes | None = None
+        if preview.show_logo:
+            logo_bytes = await self._fetch_logo_bytes(organization.avatar_url)
+
+        logo_label: str | None = None
+        if logo_bytes and preview.show_mor_attribution:
+            logo_label = "via spaire"
+
+        generator = InvoiceGenerator(
+            inv,
+            heading_title="Invoice",
+            logo_bytes=logo_bytes,
+            logo_label=logo_label,
+        )
+        generator.generate()
+        return bytes(generator.output())
 
     async def send(
         self,

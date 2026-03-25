@@ -1,7 +1,7 @@
 import { getServerSideAPI } from '@/utils/client/serverside'
 import { getOrganizationBySlugOrNotFound } from '@/utils/organization'
 import { Metadata } from 'next'
-import NewInvoicePage from './NewInvoicePage'
+import { InvoiceCreatePage } from './InvoiceCreatePage'
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
@@ -19,5 +19,5 @@ export default async function Page(props: {
     params.organization,
   )
 
-  return <NewInvoicePage organization={organization} />
+  return <InvoiceCreatePage organization={organization} />
 }

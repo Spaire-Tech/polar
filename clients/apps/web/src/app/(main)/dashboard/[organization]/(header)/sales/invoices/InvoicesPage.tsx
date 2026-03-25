@@ -2,7 +2,6 @@
 
 import { DashboardBody } from '@/components/Layout/DashboardLayout'
 import { InlineModal } from '@/components/Modal/InlineModal'
-import { useModal } from '@/components/Modal/useModal'
 import {
   ClientInvoice,
   useClientInvoices,
@@ -28,7 +27,6 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import React, { useState } from 'react'
 import InvoicePage from './[id]/InvoicePage'
-import NewInvoicePage from './new/NewInvoicePage'
 
 const statusColors: Record<string, string> = {
   draft:
@@ -61,11 +59,6 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
 }) => {
   const router = useRouter()
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null)
-  const {
-    isShown: isNewInvoiceShown,
-    show: showNewInvoice,
-    hide: hideNewInvoice,
-  } = useModal()
 
   const invoicesHook = useClientInvoices(
     organization.id,
@@ -186,23 +179,26 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
                   transfers, and more.
                 </p>
               </div>
-              <Button
-                size="lg"
-                className="w-full shrink-0 bg-white text-black hover:bg-gray-100 hover:opacity-100 border-white/20 md:w-auto md:ml-8"
-                onClick={showNewInvoice}
-              >
-                Create Invoice
-              </Button>
+              <Link href={`/dashboard/${organization.slug}/sales/invoices/new`}>
+                <Button
+                  size="lg"
+                  className="w-full shrink-0 bg-white text-black hover:bg-gray-100 hover:opacity-100 border-white/20 md:w-auto md:ml-8"
+                >
+                  Create Invoice
+                </Button>
+              </Link>
             </div>
           </ShadowBoxOnMd>
         ) : (
           <>
             <div className="flex flex-row items-center justify-between">
               <h1 className="text-xl font-medium dark:text-white">Invoices</h1>
-              <Button onClick={showNewInvoice}>
-                <AddOutlined fontSize="small" />
-                New Invoice
-              </Button>
+              <Link href={`/dashboard/${organization.slug}/sales/invoices/new`}>
+                <Button>
+                  <AddOutlined fontSize="small" />
+                  New Invoice
+                </Button>
+              </Link>
             </div>
             <DataTable
               columns={columns}
@@ -234,21 +230,6 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
           ) : (
             <div />
           )
-        }
-      />
-      <InlineModal
-        isShown={isNewInvoiceShown}
-        hide={hideNewInvoice}
-        className="md:w-[720px]"
-        modalContent={
-          <NewInvoicePage
-            organization={organization}
-            panelMode
-            onClose={(invoiceId?: string) => {
-              hideNewInvoice()
-              if (invoiceId) setSelectedInvoiceId(invoiceId)
-            }}
-          />
         }
       />
     </DashboardBody>

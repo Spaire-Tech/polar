@@ -3,14 +3,6 @@
 import { formatCurrency } from '@spaire/currency'
 import { format } from 'date-fns'
 
-const STATUS_STYLES: Record<string, string> = {
-  draft: 'bg-yellow-50 text-yellow-700 border border-yellow-200',
-  open: 'bg-blue-50 text-blue-700 border border-blue-200',
-  paid: 'bg-green-50 text-green-700 border border-green-200',
-  void: 'bg-gray-100 text-gray-500 border border-gray-200',
-  uncollectible: 'bg-red-50 text-red-700 border border-red-200',
-}
-
 export interface InvoiceDocumentData {
   invoiceNumber?: string
   status?: string
@@ -19,7 +11,22 @@ export interface InvoiceDocumentData {
   currency: string
   customerName?: string
   customerEmail?: string
+  customerAddress?: {
+    line1?: string | null
+    line2?: string | null
+    city?: string | null
+    state?: string | null
+    postalCode?: string | null
+    country?: string | null
+  } | null
   onBehalfOfLabel?: string
+  organizationName?: string
+  organizationLogoUrl?: string
+  showLogo?: boolean
+  showMorAttribution?: boolean
+  sellerName?: string
+  sellerAddress?: string
+  sellerAdditionalInfo?: string
   lineItems: Array<{
     description: string
     quantity: number
@@ -32,220 +39,252 @@ export interface InvoiceDocumentData {
   totalAmount: number
   memo?: string
   poNumber?: string
+  checkoutLink?: string | null
 }
 
 function fmtDate(d: Date | string | null | undefined): string {
   if (!d) return '—'
   try {
     const date = typeof d === 'string' ? new Date(d) : d
-    return format(date, 'MMM d, yyyy')
+    return format(date, 'MMMM d, yyyy')
   } catch {
     return '—'
   }
+}
+
+function formatAddress(addr: InvoiceDocumentData['customerAddress']): string[] {
+  if (!addr) return []
+  const lines: string[] = []
+  if (addr.line1) lines.push(addr.line1)
+  if (addr.line2) lines.push(addr.line2)
+  const cityLine = [addr.city, addr.state, addr.postalCode]
+    .filter(Boolean)
+    .join(', ')
+  if (cityLine) lines.push(cityLine)
+  if (addr.country) lines.push(addr.country)
+  return lines
 }
 
 const InvoiceDocument: React.FC<{
   data: InvoiceDocumentData
   isPreview?: boolean
 }> = ({ data, isPreview }) => {
-  const fmt = (cents: number) => formatCurrency('compact')(cents, data.currency)
+  const fmt = (cents: number) => formatCurrency('accounting')(cents, data.currency)
   const currency = data.currency.toUpperCase()
+  const sellerName = data.sellerName || 'Spaire, Inc.'
+  const onBehalf = data.onBehalfOfLabel || data.organizationName || sellerName
+
+  const headingItems: Array<{ label: string; value: string }> = [
+    { label: 'Invoice number', value: data.invoiceNumber || 'DRAFT' },
+    { label: 'Date of issue', value: fmtDate(data.issueDate ?? new Date()) },
+  ]
+  if (data.dueDate) {
+    headingItems.push({ label: 'Date due', value: fmtDate(data.dueDate) })
+  }
+  if (data.onBehalfOfLabel) {
+    headingItems.push({ label: 'On behalf of', value: data.onBehalfOfLabel })
+  }
+
+  const dueLine = data.dueDate
+    ? `${fmt(data.totalAmount)} due ${fmtDate(data.dueDate)}`
+    : `${fmt(data.totalAmount)} ${currency}`
+
+  const customerAddressLines = formatAddress(data.customerAddress)
+
+  // Footer summary line
+  const footerAmount = `${fmt(data.totalAmount)} ${currency}`
+  const footerSummary = data.dueDate
+    ? `${data.invoiceNumber || 'DRAFT'} \u00b7 ${footerAmount} due ${fmtDate(data.dueDate)}`
+    : `${data.invoiceNumber || 'DRAFT'} \u00b7 ${footerAmount}`
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-950">
+    <div className="bg-white text-black" style={{ fontFamily: 'system-ui, -apple-system, sans-serif', fontSize: '10px', lineHeight: 1.5 }}>
       {isPreview && (
-        <div className="border-b border-dashed border-gray-200 bg-gray-50 px-6 py-2 dark:border-gray-700 dark:bg-gray-900">
+        <div className="border-b border-dashed border-gray-300 bg-gray-50 px-6 py-1.5">
           <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400">
-            Live Preview
+            Invoice Preview
           </span>
         </div>
       )}
 
-      <div className="p-8">
-        {/* ── Header ─────────────────────────────────────────────── */}
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-lg font-bold tracking-tight text-gray-900 dark:text-white">
-              Spaire, Inc.
-            </p>
-            <p className="mt-0.5 text-xs text-gray-400">Merchant of Record</p>
-          </div>
-          <div className="text-right">
-            <p className="text-3xl font-thin uppercase tracking-[0.25em] text-gray-200 dark:text-gray-700">
-              Invoice
-            </p>
-            {data.invoiceNumber && (
-              <p className="mt-1 font-mono text-xs text-gray-400">
-                #{data.invoiceNumber}
-              </p>
-            )}
-            <p className="mt-1 text-xs font-medium text-gray-500 dark:text-gray-400">
-              {currency}
-            </p>
-          </div>
-        </div>
-
-        {/* ── Date / Status Bar ───────────────────────────────────── */}
-        <div className="mt-6 grid grid-cols-3 overflow-hidden rounded-xl border border-gray-100 dark:border-gray-800">
-          <div className="px-4 py-3">
-            <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400">
-              Date Issued
-            </p>
-            <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">
-              {fmtDate(data.issueDate ?? new Date())}
-            </p>
-          </div>
-          <div className="border-x border-gray-100 px-4 py-3 dark:border-gray-800">
-            <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400">
-              Due Date
-            </p>
-            <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">
-              {fmtDate(data.dueDate)}
-            </p>
-          </div>
-          <div className="px-4 py-3">
-            <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400">
-              Status
-            </p>
-            {data.status ? (
-              <span
-                className={`mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ${STATUS_STYLES[data.status] ?? ''}`}
-              >
-                {data.status}
-              </span>
-            ) : (
-              <p className="mt-1 text-sm text-gray-400">Draft</p>
-            )}
-          </div>
-        </div>
-
-        {/* ── Addresses ───────────────────────────────────────────── */}
-        <div className="mt-8 grid grid-cols-2 gap-8">
-          <div>
-            <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400">
-              From
-            </p>
-            <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
-              Spaire, Inc.
-            </p>
-            {data.onBehalfOfLabel && (
-              <p className="mt-0.5 text-xs text-gray-500">
-                on behalf of {data.onBehalfOfLabel}
-              </p>
-            )}
-          </div>
-          <div>
-            <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400">
-              Bill To
-            </p>
-            {data.customerName ? (
-              <>
-                <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
-                  {data.customerName}
-                </p>
-                {data.customerEmail && (
-                  <p className="mt-0.5 text-xs text-gray-500">
-                    {data.customerEmail}
-                  </p>
+      {/* Page container with letter-size aspect ratio */}
+      <div className="relative flex flex-col" style={{ padding: '40px', minHeight: isPreview ? '680px' : '792px' }}>
+        {/* Main content */}
+        <div className="flex-1">
+          {/* Header: Title + Logo */}
+          <div className="flex items-start justify-between">
+            <h1 style={{ fontSize: '18px', fontWeight: 700 }}>Invoice</h1>
+            {data.showLogo !== false && data.organizationLogoUrl ? (
+              <div className="flex flex-col items-center">
+                <img
+                  src={data.organizationLogoUrl}
+                  alt={data.organizationName ?? 'Logo'}
+                  className="rounded object-cover"
+                  style={{ width: '48px', height: '48px' }}
+                />
+                {data.showMorAttribution !== false && (
+                  <span className="mt-1 text-center" style={{ fontSize: '6px', color: '#646464' }}>
+                    via spaire
+                  </span>
                 )}
-              </>
+              </div>
             ) : (
-              <p className="mt-2 text-sm text-gray-300 dark:text-gray-600">
-                No customer selected
-              </p>
-            )}
-            {data.poNumber && (
-              <p className="mt-1 text-xs text-gray-500">PO: {data.poNumber}</p>
+              <div style={{ width: '48px' }} />
             )}
           </div>
-        </div>
 
-        {/* ── Line Items ──────────────────────────────────────────── */}
-        <div className="mt-8">
-          <div className="grid grid-cols-[1fr_44px_90px_90px] gap-x-3 border-b-2 border-gray-100 pb-2 dark:border-gray-800">
-            {['Description', 'Qty', 'Unit Price', 'Amount'].map((h, i) => (
-              <span
-                key={h}
-                className={`text-[9px] font-semibold uppercase tracking-wider text-gray-400 ${i === 1 ? 'text-center' : i > 1 ? 'text-right' : ''}`}
-              >
-                {h}
-              </span>
+          {/* Heading Items */}
+          <div className="mt-4 flex flex-col gap-0.5">
+            {headingItems.map((item) => (
+              <div key={item.label} className="flex gap-2" style={{ fontSize: '10px' }}>
+                <span style={{ fontWeight: 700, width: '100px', flexShrink: 0 }}>{item.label}</span>
+                <span>{item.value}</span>
+              </div>
             ))}
           </div>
 
-          {data.lineItems.length === 0 ? (
-            <div className="py-8 text-center text-sm text-gray-300 dark:text-gray-700">
-              No items yet
+          {/* Addresses */}
+          <div className="mt-6 grid grid-cols-2 gap-8" style={{ fontSize: '10px' }}>
+            {/* Seller */}
+            <div>
+              <p style={{ fontWeight: 700 }}>{sellerName}</p>
+              {data.sellerAddress && (
+                <p style={{ whiteSpace: 'pre-line' }}>{data.sellerAddress}</p>
+              )}
+              {data.sellerAdditionalInfo && (
+                <p>{data.sellerAdditionalInfo}</p>
+              )}
             </div>
-          ) : (
-            data.lineItems.map((item, i) => (
-              <div
-                key={i}
-                className="grid grid-cols-[1fr_44px_90px_90px] gap-x-3 border-b border-gray-50 py-3 last:border-0 dark:border-gray-800/50"
-              >
-                <span className="text-sm text-gray-800 dark:text-gray-200">
-                  {item.description || (
-                    <span className="text-gray-300 dark:text-gray-600">—</span>
+            {/* Customer */}
+            <div>
+              <p style={{ fontWeight: 700 }}>Bill to</p>
+              {data.customerName ? (
+                <>
+                  <p style={{ fontWeight: 700 }}>{data.customerName}</p>
+                  {customerAddressLines.length > 0 && (
+                    <div>
+                      {customerAddressLines.map((line, i) => (
+                        <p key={i}>{line}</p>
+                      ))}
+                    </div>
                   )}
-                </span>
-                <span className="text-center text-sm text-gray-500">
-                  {item.quantity}
-                </span>
-                <span className="text-right text-sm text-gray-500">
-                  {item.unitAmount > 0 ? fmt(item.unitAmount) : '—'}
-                </span>
-                <span className="text-right text-sm font-medium text-gray-900 dark:text-white">
-                  {item.unitAmount > 0 ? fmt(item.unitAmount * item.quantity) : '—'}
-                </span>
+                  {data.customerEmail && !data.customerName.includes('@') && (
+                    <p>{data.customerEmail}</p>
+                  )}
+                </>
+              ) : (
+                <p style={{ color: '#999' }}>Example Customer</p>
+              )}
+            </div>
+          </div>
+
+          {/* Amount Due Headline */}
+          <div className="mt-6">
+            <p style={{ fontSize: '14px', fontWeight: 700 }}>{dueLine}</p>
+            {data.checkoutLink && (
+              <p className="mt-1" style={{ fontSize: '10px', color: '#2563eb' }}>
+                Pay online
+              </p>
+            )}
+          </div>
+
+          {/* Items Table */}
+          <div className="mt-4">
+            <div
+              className="grid border-b pb-1"
+              style={{
+                gridTemplateColumns: '1fr 60px 80px 80px',
+                fontSize: '8px',
+                color: '#000',
+                fontWeight: 600,
+                letterSpacing: '0.02em',
+                borderColor: '#dcdcdc',
+              }}
+            >
+              <span>Description</span>
+              <span className="text-right">Qty</span>
+              <span className="text-right">Unit price</span>
+              <span className="text-right">Amount</span>
+            </div>
+
+            {data.lineItems.length === 0 ? (
+              <div className="py-6 text-center" style={{ color: '#aaa', fontSize: '10px' }}>
+                No items yet
               </div>
-            ))
+            ) : (
+              data.lineItems.map((item, i) => (
+                <div
+                  key={i}
+                  className="grid border-b py-1.5"
+                  style={{
+                    gridTemplateColumns: '1fr 60px 80px 80px',
+                    fontSize: '10px',
+                    borderColor: '#dcdcdc',
+                  }}
+                >
+                  <span>{item.description || '—'}</span>
+                  <span className="text-right">{item.quantity.toLocaleString('en-US')}</span>
+                  <span className="text-right">{fmt(item.unitAmount)}</span>
+                  <span className="text-right">{fmt(item.unitAmount * item.quantity)}</span>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Totals */}
+          <div className="mt-4 flex justify-end">
+            <div className="flex flex-col gap-1" style={{ width: '180px', fontSize: '10px' }}>
+              <div className="flex justify-between">
+                <span style={{ fontWeight: 700 }}>Subtotal</span>
+                <span>{fmt(data.subtotalAmount)}</span>
+              </div>
+              {data.discountAmount > 0 && (
+                <div className="flex justify-between">
+                  <span style={{ fontWeight: 700 }}>{data.discountLabel ?? 'Discount'}</span>
+                  <span>-{fmt(data.discountAmount)}</span>
+                </div>
+              )}
+              {data.taxAmount > 0 && (
+                <div className="flex justify-between">
+                  <span style={{ fontWeight: 700 }}>Tax</span>
+                  <span>{fmt(data.taxAmount)}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span style={{ fontWeight: 700 }}>Total</span>
+                <span>{fmt(data.totalAmount)}</span>
+              </div>
+              <div className="flex justify-between pt-1">
+                <span style={{ fontWeight: 700 }}>Amount due</span>
+                <span style={{ fontWeight: 700 }}>{fmt(data.totalAmount)} {currency}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Notes */}
+          {data.memo && (
+            <div className="mt-6" style={{ fontSize: '10px' }}>
+              <p>{data.memo}</p>
+            </div>
           )}
         </div>
 
-        {/* ── Totals ──────────────────────────────────────────────── */}
-        <div className="mt-4 flex justify-end">
-          <div className="w-56 space-y-2.5">
-            <div className="flex justify-between text-sm text-gray-500">
-              <span>Subtotal</span>
-              <span>{fmt(data.subtotalAmount)}</span>
-            </div>
-            {data.discountAmount > 0 && (
-              <div className="flex justify-between text-sm text-emerald-600 dark:text-emerald-400">
-                <span>{data.discountLabel ?? 'Discount'}</span>
-                <span>−{fmt(data.discountAmount)}</span>
-              </div>
-            )}
-            {data.taxAmount > 0 && (
-              <div className="flex justify-between text-sm text-gray-500">
-                <span>Tax</span>
-                <span>{fmt(data.taxAmount)}</span>
-              </div>
-            )}
-            <div className="flex justify-between border-t border-gray-200 pt-2.5 text-base font-bold text-gray-900 dark:border-gray-700 dark:text-white">
-              <span>Total due</span>
-              <span>{fmt(data.totalAmount)}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Memo ────────────────────────────────────────────────── */}
-        {data.memo && (
-          <div className="mt-8 rounded-xl bg-gray-50 px-4 py-3 dark:bg-gray-900">
-            <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400">
-              Note
+        {/* Footer — pinned to bottom */}
+        <div className="mt-auto pt-6">
+          {/* MOR legal text */}
+          <div style={{ fontSize: '8px', color: '#646464', textAlign: 'center' }}>
+            <p>
+              This invoice is issued by Spaire, Inc. on behalf of {onBehalf}.{' '}
+              Spaire, Inc. acts as the Merchant of Record for this transaction.
             </p>
-            <p className="mt-1 text-sm leading-relaxed text-gray-600 dark:text-gray-300">
-              {data.memo}
+            <p className="mt-1">
+              &copy; {new Date().getFullYear()} Spaire, Inc. All rights reserved.
             </p>
           </div>
-        )}
-
-        {/* ── Footer ──────────────────────────────────────────────── */}
-        <div className="mt-8 border-t border-gray-100 pt-4 dark:border-gray-800">
-          <p className="text-[10px] leading-relaxed text-gray-400">
-            Issued by Spaire, Inc. as Merchant of Record on behalf of{' '}
-            {data.onBehalfOfLabel ?? 'the organization'}.
-          </p>
+          {/* Separator + summary */}
+          <div className="mt-3" style={{ borderTop: '1px solid #dcdcdc', paddingTop: '10px' }}>
+            <p style={{ fontSize: '8px', color: '#646464' }}>{footerSummary}</p>
+          </div>
         </div>
       </div>
     </div>
