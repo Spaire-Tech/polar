@@ -1462,7 +1462,7 @@ export const ProductPricingSection = ({
           </RadioGroup>
         </div>
 
-        <hr className="dark:border-polar-700 border-gray-200" />
+        <hr className="dark:border-spaire-700 border-gray-200" />
 
         {/* Prices for selected currency — CurrencyTabs are inlined next to the price amount */}
         {pricesForSelectedCurrency.map(({ price, index }, position) => (
