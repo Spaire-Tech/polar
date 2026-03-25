@@ -185,28 +185,6 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
       return currentRoute.startsWith(`/dashboard/${org?.slug}/products`)
     },
     if: true,
-    subs: [
-      {
-        title: 'Products',
-        link: `/dashboard/${org?.slug}/products`,
-      },
-      {
-        title: 'Payment Links',
-        link: `/dashboard/${org?.slug}/products/checkout-links`,
-      },
-      {
-        title: 'Discounts',
-        link: `/dashboard/${org?.slug}/products/discounts`,
-      },
-      {
-        title: 'Benefits',
-        link: `/dashboard/${org?.slug}/products/benefits`,
-      },
-      {
-        title: 'Usage-based',
-        link: `/dashboard/${org?.slug}/products/meters`,
-      },
-    ],
   },
   {
     id: 'customers',

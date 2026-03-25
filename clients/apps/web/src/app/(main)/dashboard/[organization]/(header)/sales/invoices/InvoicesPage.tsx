@@ -123,7 +123,7 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
       ),
       cell: ({ row: { original: invoice } }) => (
         <span className="font-mono text-xs text-gray-500 dark:text-gray-400">
-          {invoice.number ?? '—'}
+          {invoice.number ?? invoice.id}
         </span>
       ),
     },
