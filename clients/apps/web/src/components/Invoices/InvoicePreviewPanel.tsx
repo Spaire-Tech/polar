@@ -15,6 +15,7 @@ interface InvoicePreviewPanelProps {
   showLogo: boolean
   showMorAttribution: boolean
   selectedDiscount: schemas['Discount'] | null
+  selectedCheckoutLink: schemas['CheckoutLink'] | null
 }
 
 export const InvoicePreviewPanel = ({
@@ -22,6 +23,7 @@ export const InvoicePreviewPanel = ({
   showLogo,
   showMorAttribution,
   selectedDiscount,
+  selectedCheckoutLink,
 }: InvoicePreviewPanelProps) => {
   const { control } = useFormContext<InvoiceFormValues>()
 
@@ -32,6 +34,12 @@ export const InvoicePreviewPanel = ({
   const memo = useWatch({ control, name: 'memo' })
   const poNumber = useWatch({ control, name: 'po_number' })
   const onBehalfOfLabel = useWatch({ control, name: 'on_behalf_of_label' })
+  const billingLine1 = useWatch({ control, name: 'billing_line1' })
+  const billingLine2 = useWatch({ control, name: 'billing_line2' })
+  const billingCity = useWatch({ control, name: 'billing_city' })
+  const billingState = useWatch({ control, name: 'billing_state' })
+  const billingPostalCode = useWatch({ control, name: 'billing_postal_code' })
+  const billingCountry = useWatch({ control, name: 'billing_country' })
 
   const { data: selectedCustomer } = useCustomer(customerId || null)
 
@@ -53,6 +61,18 @@ export const InvoicePreviewPanel = ({
 
     const totalAmount = Math.max(0, subtotalAmount - discountAmount)
 
+    const hasAddress = billingLine1 || billingCity || billingCountry
+    const customerAddress = hasAddress
+      ? {
+          line1: billingLine1 || null,
+          line2: billingLine2 || null,
+          city: billingCity || null,
+          state: billingState || null,
+          postalCode: billingPostalCode || null,
+          country: billingCountry || null,
+        }
+      : null
+
     return {
       invoiceNumber: 'DRAFT',
       status: 'draft',
@@ -65,6 +85,7 @@ export const InvoicePreviewPanel = ({
       customerEmail: selectedCustomer
         ? (selectedCustomer as any).email
         : undefined,
+      customerAddress,
       onBehalfOfLabel: onBehalfOfLabel || undefined,
       organizationName: organization.name,
       organizationLogoUrl: organization.avatar_url ?? undefined,
@@ -78,6 +99,7 @@ export const InvoicePreviewPanel = ({
       totalAmount,
       memo: memo || undefined,
       poNumber: poNumber || undefined,
+      checkoutLink: selectedCheckoutLink?.url ?? null,
     }
   }, [
     lineItems,
@@ -86,8 +108,15 @@ export const InvoicePreviewPanel = ({
     memo,
     poNumber,
     onBehalfOfLabel,
+    billingLine1,
+    billingLine2,
+    billingCity,
+    billingState,
+    billingPostalCode,
+    billingCountry,
     selectedCustomer,
     selectedDiscount,
+    selectedCheckoutLink,
     organization,
     showLogo,
     showMorAttribution,
@@ -100,9 +129,9 @@ export const InvoicePreviewPanel = ({
         <span className="text-sm font-medium dark:text-white">Preview</span>
       </div>
 
-      {/* Preview area */}
+      {/* Preview area — white paper on gray background */}
       <div className="flex flex-1 items-start justify-center overflow-y-auto p-8">
-        <div className="w-full max-w-[560px]">
+        <div className="w-full max-w-[560px] rounded-sm shadow-lg">
           <InvoiceDocument data={previewData} isPreview />
         </div>
       </div>

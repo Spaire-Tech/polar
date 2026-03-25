@@ -106,6 +106,7 @@ export const InvoiceCreatePage = ({
             showLogo={showLogo}
             showMorAttribution={showMorAttribution}
             selectedDiscount={selectedDiscount}
+            selectedCheckoutLink={selectedCheckoutLink}
           />
         </div>
       </div>
