@@ -110,11 +110,15 @@ const InvoiceDocument: React.FC<{
                 className="rounded object-cover"
                 style={{ width: '48px', height: '48px' }}
               />
-              {data.organizationName && (
+              {data.showMorAttribution !== false ? (
+                <span className="mt-1 text-center" style={{ fontSize: '6px', color: '#646464' }}>
+                  via spaire
+                </span>
+              ) : data.organizationName ? (
                 <span className="mt-1 text-center" style={{ fontSize: '6px', color: '#646464' }}>
                   {data.organizationName}
                 </span>
-              )}
+              ) : null}
             </div>
           ) : (
             <div style={{ width: '48px' }} />
