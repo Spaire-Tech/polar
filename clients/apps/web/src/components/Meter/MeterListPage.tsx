@@ -165,7 +165,6 @@ export const MeterListPage = ({ organization }: MeterListPageProps) => {
               </Button>
             </div>
           <div className="dark:border-spaire-700 dark:divide-spaire-700 flex flex-col divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200">
-          <div className="dark:border-spaire-700 dark:divide-spaire-700 flex flex-col divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200">
             {meters.map((meter) => (
               <button
                 key={meter.id}
