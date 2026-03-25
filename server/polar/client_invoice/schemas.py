@@ -15,6 +15,16 @@ class ClientInvoiceLineItemCreate(Schema):
     )
 
 
+class ClientInvoiceLineItemPreview(Schema):
+    """Relaxed line item for preview — allows zero amounts for in-progress editing."""
+
+    description: str = Field(default="—", description="Line item description.")
+    quantity: int = Field(default=1, ge=1, description="Quantity.")
+    unit_amount: int = Field(
+        default=0, ge=0, description="Unit price in cents (0 allowed for preview)."
+    )
+
+
 class ClientInvoiceCreate(Schema):
     customer_id: UUID4 = Field(description="ID of the Spaire customer to invoice.")
     currency: str = Field(
@@ -82,7 +92,7 @@ class ClientInvoicePreviewRequest(Schema):
     currency: str = Field(
         min_length=3, max_length=3, description="ISO 4217 currency code."
     )
-    line_items: list[ClientInvoiceLineItemCreate] = Field(
+    line_items: list[ClientInvoiceLineItemPreview] = Field(
         min_length=1, description="Invoice line items."
     )
     due_date: date | None = Field(default=None)
