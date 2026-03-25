@@ -225,33 +225,27 @@ export default function ClientPage({
             </Pagination>
           </>
         ) : (
-          <ShadowBoxOnMd className="relative overflow-hidden p-0 md:p-0">
-            <img
-              src="https://spaire-production-files-public.s3.us-east-1.amazonaws.com/Untitled+design+(39).png"
-              alt=""
-              aria-hidden="true"
-              className="h-[420px] w-full object-cover object-top md:h-[560px]"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent" />
-            <div className="absolute inset-x-0 bottom-0 flex flex-col gap-4 p-6 md:flex-row md:items-end md:justify-between md:p-8">
-              <div className="flex flex-col gap-2 md:gap-3">
-                <h3 className="text-2xl font-bold text-white md:text-4xl">
-                  Create your first product
-                </h3>
-                <p className="text-sm text-gray-400">
-                  Sell subscriptions, one-time payments, or usage-based plans
-                  with checkout built in.
-                </p>
-              </div>
-              <Button
-                size="lg"
-                className="w-full shrink-0 bg-white text-black hover:bg-gray-100 hover:opacity-100 border-white/20 md:w-auto md:ml-8"
-                onClick={handleCreateProduct}
-              >
-                Create Product
-              </Button>
+          <div className="flex flex-col items-center gap-8 pt-4 pb-12 text-center">
+            <div className="overflow-hidden rounded-2xl">
+              <img
+                src="https://spaire-production-files-public.s3.us-east-1.amazonaws.com/Untitled+design+(39).png"
+                alt="Products"
+                className="h-[260px] w-auto object-cover"
+              />
             </div>
-          </ShadowBoxOnMd>
+            <div className="flex max-w-lg flex-col gap-3">
+              <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
+                Create your first product
+              </h2>
+              <p className="text-gray-500 dark:text-spaire-400">
+                Sell subscriptions, one-time payments, or usage-based plans
+                with checkout built in.
+              </p>
+            </div>
+            <Button size="lg" onClick={handleCreateProduct} className="gap-2">
+              Create Product
+            </Button>
+          </div>
         )}
       </div>
     </DashboardBody>

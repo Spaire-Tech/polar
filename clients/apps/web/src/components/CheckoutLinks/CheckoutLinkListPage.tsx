@@ -349,7 +349,7 @@ export const CheckoutLinkListPage = ({
 // Empty state
 function StripeStyleEmptyState({ onCreateClick }: { onCreateClick: () => void }) {
   return (
-    <div className="flex flex-col items-center gap-8 py-12 text-center">
+    <div className="flex flex-col items-center gap-8 pt-4 pb-12 text-center">
       {/* Image */}
       <div className="overflow-hidden rounded-2xl">
         <img
