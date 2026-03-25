@@ -244,8 +244,8 @@ class InvoiceGenerator(FPDF):
     items_table_row_height: ClassVar[int] = 7
     totals_table_row_height: ClassVar[int] = 6
 
-    # Bottom margin for footer (separator line + summary line)
-    footer_height_mm: ClassVar[int] = 28
+    # Bottom margin for footer (MOR text + separator + summary)
+    footer_height_mm: ClassVar[int] = 36
 
     def __init__(
         self,
@@ -287,16 +287,42 @@ class InvoiceGenerator(FPDF):
             self.ln(10)
 
     def footer(self) -> None:
-        # Separator line
         self.set_y(-self.footer_height_mm)
-        self.set_draw_color(*self.table_borders_color)
-        self.line(self.l_margin, self.get_y(), self.w - self.r_margin, self.get_y())
-        self.ln(6)
-
-        # Summary line: "DRAFT · $0.00 USD due April 24, 2026"
         self.set_font(self.font_name, size=self.footer_font_size)
         self.set_text_color(*self.footer_text_color)
 
+        # MOR legal text (centered)
+        on_behalf = self.data.on_behalf_of_label or self.data.seller_name
+        legal_text = (
+            f"This invoice is issued by Spaire, Inc. on behalf of {on_behalf}. "
+            f"Spaire, Inc. acts as the Merchant of Record for this transaction."
+        )
+        self.multi_cell(
+            w=0,
+            h=self.cell_height(self.footer_font_size),
+            text=legal_text,
+            align=Align.C,
+            new_x=XPos.LMARGIN,
+            new_y=YPos.NEXT,
+        )
+        self.ln(1)
+        copyright_text = f"© {date.today().year} Spaire, Inc. All rights reserved."
+        self.cell(
+            w=0,
+            h=self.cell_height(self.footer_font_size),
+            text=copyright_text,
+            align=Align.C,
+            new_x=XPos.LMARGIN,
+            new_y=YPos.NEXT,
+        )
+
+        # Separator line
+        self.ln(3)
+        self.set_draw_color(*self.table_borders_color)
+        self.line(self.l_margin, self.get_y(), self.w - self.r_margin, self.get_y())
+        self.ln(4)
+
+        # Summary line
         amount_str = format_currency(self.data.total, self.data.currency)
         currency_upper = self.data.currency.upper()
         if self.data.due_date:

@@ -47,7 +47,7 @@ export const InvoiceCreatePage = ({
     <Form {...form}>
       <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-spaire-900">
         {/* Left panel — form */}
-        <div className="flex w-[460px] shrink-0 flex-col overflow-hidden border-r border-gray-200 bg-white dark:border-spaire-700 dark:bg-spaire-800">
+        <div className="flex w-1/2 shrink-0 flex-col overflow-hidden border-r border-gray-200 bg-white dark:border-spaire-700 dark:bg-spaire-800">
           <div className="border-b border-gray-200 px-6 py-4 dark:border-spaire-700">
             <Link
               href={`/dashboard/${organization.slug}/invoices`}

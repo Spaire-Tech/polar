@@ -69,7 +69,7 @@ const InvoiceDocument: React.FC<{
   data: InvoiceDocumentData
   isPreview?: boolean
 }> = ({ data, isPreview }) => {
-  const fmt = (cents: number) => formatCurrency('compact')(cents, data.currency)
+  const fmt = (cents: number) => formatCurrency('accounting')(cents, data.currency)
   const currency = data.currency.toUpperCase()
   const sellerName = data.sellerName || 'Spaire, Inc.'
   const onBehalf = data.onBehalfOfLabel || data.organizationName || sellerName
@@ -109,9 +109,9 @@ const InvoiceDocument: React.FC<{
 
       {/* Page container with letter-size aspect ratio */}
       <div className="relative flex flex-col" style={{ padding: '40px', minHeight: isPreview ? '680px' : '792px' }}>
-        {/* ── Main content ──────────────────────────────────── */}
+        {/* Main content */}
         <div className="flex-1">
-          {/* ── Header: Title + Logo ──────────────────────────── */}
+          {/* Header: Title + Logo */}
           <div className="flex items-start justify-between">
             <h1 style={{ fontSize: '18px', fontWeight: 700 }}>Invoice</h1>
             {data.showLogo !== false && data.organizationLogoUrl ? (
@@ -133,7 +133,7 @@ const InvoiceDocument: React.FC<{
             )}
           </div>
 
-          {/* ── Heading Items ────────────────────────────────── */}
+          {/* Heading Items */}
           <div className="mt-4 flex flex-col gap-0.5">
             {headingItems.map((item) => (
               <div key={item.label} className="flex gap-2" style={{ fontSize: '10px' }}>
@@ -143,7 +143,7 @@ const InvoiceDocument: React.FC<{
             ))}
           </div>
 
-          {/* ── Addresses ────────────────────────────────────── */}
+          {/* Addresses */}
           <div className="mt-6 grid grid-cols-2 gap-8" style={{ fontSize: '10px' }}>
             {/* Seller */}
             <div>
@@ -178,7 +178,7 @@ const InvoiceDocument: React.FC<{
             </div>
           </div>
 
-          {/* ── Amount Due Headline ──────────────────────────── */}
+          {/* Amount Due Headline */}
           <div className="mt-6">
             <p style={{ fontSize: '14px', fontWeight: 700 }}>{dueLine}</p>
             {data.checkoutLink && (
@@ -188,9 +188,8 @@ const InvoiceDocument: React.FC<{
             )}
           </div>
 
-          {/* ── Items Table ──────────────────────────────────── */}
+          {/* Items Table */}
           <div className="mt-4">
-            {/* Table header */}
             <div
               className="grid border-b pb-1"
               style={{
@@ -208,7 +207,6 @@ const InvoiceDocument: React.FC<{
               <span className="text-right">Amount</span>
             </div>
 
-            {/* Table rows */}
             {data.lineItems.length === 0 ? (
               <div className="py-6 text-center" style={{ color: '#aaa', fontSize: '10px' }}>
                 No items yet
@@ -233,7 +231,7 @@ const InvoiceDocument: React.FC<{
             )}
           </div>
 
-          {/* ── Totals ───────────────────────────────────────── */}
+          {/* Totals */}
           <div className="mt-4 flex justify-end">
             <div className="flex flex-col gap-1" style={{ width: '180px', fontSize: '10px' }}>
               <div className="flex justify-between">
@@ -263,7 +261,7 @@ const InvoiceDocument: React.FC<{
             </div>
           </div>
 
-          {/* ── Notes ────────────────────────────────────────── */}
+          {/* Notes */}
           {data.memo && (
             <div className="mt-6" style={{ fontSize: '10px' }}>
               <p>{data.memo}</p>
@@ -271,9 +269,20 @@ const InvoiceDocument: React.FC<{
           )}
         </div>
 
-        {/* ── Footer — always at the bottom ─────────────────── */}
+        {/* Footer — pinned to bottom */}
         <div className="mt-auto pt-6">
-          <div style={{ borderTop: '1px solid #dcdcdc', paddingTop: '12px' }}>
+          {/* MOR legal text */}
+          <div style={{ fontSize: '8px', color: '#646464', textAlign: 'center' }}>
+            <p>
+              This invoice is issued by Spaire, Inc. on behalf of {onBehalf}.{' '}
+              Spaire, Inc. acts as the Merchant of Record for this transaction.
+            </p>
+            <p className="mt-1">
+              &copy; {new Date().getFullYear()} Spaire, Inc. All rights reserved.
+            </p>
+          </div>
+          {/* Separator + summary */}
+          <div className="mt-3" style={{ borderTop: '1px solid #dcdcdc', paddingTop: '10px' }}>
             <p style={{ fontSize: '8px', color: '#646464' }}>{footerSummary}</p>
           </div>
         </div>

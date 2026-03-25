@@ -96,6 +96,8 @@ export const InvoicePreviewPanel = ({
       showLogo,
       showMorAttribution,
       sellerName: 'Spaire, Inc.',
+      sellerAddress: '1111B S Governors Ave\n# 47283\nDover, US-DE 19904\nUnited States',
+      sellerAdditionalInfo: 'support@spairehq.com',
       lineItems: items,
       subtotalAmount,
       discountAmount,
