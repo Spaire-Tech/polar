@@ -91,79 +91,80 @@ export const MeterListPage = ({ organization }: MeterListPageProps) => {
   return (
     <DashboardBody>
       <div className="flex flex-col gap-y-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex flex-row items-center gap-3">
-            <div className="relative w-full md:max-w-64">
-              <Search className="dark:text-spaire-500 absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <Input
-                className="pl-9"
-                placeholder="Search meters"
-                value={query ?? ''}
-                onChange={(e) => setQuery(e.target.value || null)}
-              />
-            </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button size="icon" variant="ghost" className="h-9 w-9 shrink-0">
-                  <FilterList fontSize="small" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setArchivedFilter('all')}>
-                  <CheckOutlined
-                    className={twMerge(
-                      'h-4 w-4',
-                      archivedFilter !== 'all' && 'invisible',
-                    )}
-                  />
-                  <span>All</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setArchivedFilter('active')}>
-                  <CheckOutlined
-                    className={twMerge(
-                      'h-4 w-4',
-                      archivedFilter !== 'active' && 'invisible',
-                    )}
-                  />
-                  <span>Active</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setArchivedFilter('archived')}>
-                  <CheckOutlined
-                    className={twMerge(
-                      'h-4 w-4',
-                      archivedFilter !== 'archived' && 'invisible',
-                    )}
-                  />
-                  <span>Archived</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 shrink-0"
-              onClick={() =>
-                setSorting(
-                  sorting === '-created_at' ? 'created_at' : '-created_at',
-                )
-              }
-            >
-              {sorting === 'created_at' ? (
-                <ArrowUpward fontSize="small" />
-              ) : (
-                <ArrowDownward fontSize="small" />
-              )}
-            </Button>
-          </div>
-          <Button onClick={showCreateModal}>
-            <AddOutlined className="h-4 w-4" />
-            <span>Create meter</span>
-          </Button>
-        </div>
-
         {hasNoMeters ? (
           <MeterIngestionGuide />
         ) : meters.length > 0 ? (
+          <>
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="flex flex-row items-center gap-3">
+                <div className="relative w-full md:max-w-64">
+                  <Search className="dark:text-spaire-500 absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <Input
+                    className="pl-9"
+                    placeholder="Search meters"
+                    value={query ?? ''}
+                    onChange={(e) => setQuery(e.target.value || null)}
+                  />
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="icon" variant="ghost" className="h-9 w-9 shrink-0">
+                      <FilterList fontSize="small" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setArchivedFilter('all')}>
+                      <CheckOutlined
+                        className={twMerge(
+                          'h-4 w-4',
+                          archivedFilter !== 'all' && 'invisible',
+                        )}
+                      />
+                      <span>All</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setArchivedFilter('active')}>
+                      <CheckOutlined
+                        className={twMerge(
+                          'h-4 w-4',
+                          archivedFilter !== 'active' && 'invisible',
+                        )}
+                      />
+                      <span>Active</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setArchivedFilter('archived')}>
+                      <CheckOutlined
+                        className={twMerge(
+                          'h-4 w-4',
+                          archivedFilter !== 'archived' && 'invisible',
+                        )}
+                      />
+                      <span>Archived</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 shrink-0"
+                  onClick={() =>
+                    setSorting(
+                      sorting === '-created_at' ? 'created_at' : '-created_at',
+                    )
+                  }
+                >
+                  {sorting === 'created_at' ? (
+                    <ArrowUpward fontSize="small" />
+                  ) : (
+                    <ArrowDownward fontSize="small" />
+                  )}
+                </Button>
+              </div>
+              <Button onClick={showCreateModal}>
+                <AddOutlined className="h-4 w-4" />
+                <span>Create meter</span>
+              </Button>
+            </div>
+          <div className="dark:border-spaire-700 dark:divide-spaire-700 flex flex-col divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200">
           <div className="dark:border-spaire-700 dark:divide-spaire-700 flex flex-col divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200">
             {meters.map((meter) => (
               <button
@@ -199,6 +200,7 @@ export const MeterListPage = ({ organization }: MeterListPageProps) => {
               </div>
             )}
           </div>
+          </>
         ) : (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <p className="dark:text-spaire-500 text-gray-500">
