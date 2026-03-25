@@ -232,13 +232,11 @@ class InvoiceGenerator(FPDF):
     footer_font_size: ClassVar[int] = 8
     table_header_font_size: ClassVar[int] = 8
 
-    # Accent (amber) — table headers, "Pay online" link
-    accent_color: ClassVar[tuple[int, int, int]] = (180, 130, 0)
-    # Muted blue — address text
-    address_text_color: ClassVar[tuple[int, int, int]] = (37, 99, 235)
+    # Blue — "Pay online" link only
+    link_color: ClassVar[tuple[int, int, int]] = (37, 99, 235)
     # Light grey — table borders, dividers
     table_borders_color: ClassVar[tuple[int, int, int]] = (220, 220, 220)
-    # Grey — footer legal text
+    # Grey — footer text, logo label
     footer_text_color: ClassVar[tuple[int, int, int]] = (100, 100, 100)
 
     line_height_percentage: ClassVar[float] = 1.5
@@ -246,7 +244,7 @@ class InvoiceGenerator(FPDF):
     items_table_row_height: ClassVar[int] = 7
     totals_table_row_height: ClassVar[int] = 6
 
-    # Extra bottom margin to accommodate the two-line legal footer
+    # Bottom margin for footer (separator line + summary line)
     footer_height_mm: ClassVar[int] = 28
 
     def __init__(
@@ -289,30 +287,27 @@ class InvoiceGenerator(FPDF):
             self.ln(10)
 
     def footer(self) -> None:
+        # Separator line
         self.set_y(-self.footer_height_mm)
+        self.set_draw_color(*self.table_borders_color)
+        self.line(self.l_margin, self.get_y(), self.w - self.r_margin, self.get_y())
+        self.ln(6)
+
+        # Summary line: "DRAFT · $0.00 USD due April 24, 2026"
         self.set_font(self.font_name, size=self.footer_font_size)
         self.set_text_color(*self.footer_text_color)
 
-        on_behalf = self.data.on_behalf_of_label or self.data.seller_name
-        legal_text = (
-            f"This invoice is issued by Spaire, Inc. on behalf of {on_behalf}. "
-            f"Spaire, Inc. acts as the Merchant of Record for this transaction."
-        )
-        self.multi_cell(
-            w=0,
-            h=self.cell_height(self.footer_font_size),
-            text=legal_text,
-            align=Align.C,
-            new_x=XPos.LMARGIN,
-            new_y=YPos.NEXT,
-        )
-        self.ln(4)
-        copyright_text = f"© {date.today().year} Spaire, Inc. All rights reserved."
+        amount_str = format_currency(self.data.total, self.data.currency)
+        currency_upper = self.data.currency.upper()
+        if self.data.due_date:
+            summary = f"{self.data.number} \u00b7 {amount_str} {currency_upper} due {format_date(self.data.due_date)}"
+        else:
+            summary = f"{self.data.number} \u00b7 {amount_str} {currency_upper}"
         self.cell(
             w=0,
             h=self.cell_height(self.footer_font_size),
-            text=copyright_text,
-            align=Align.C,
+            text=summary,
+            align=Align.L,
         )
         self.set_text_color(0, 0, 0)
 
@@ -373,7 +368,7 @@ class InvoiceGenerator(FPDF):
         self.set_y(self.get_y() + self.elements_y_margin)
         addresses_y_start = self.get_y()
 
-        # Seller — left column (black text)
+        # Seller — left column
         self.set_font(style="B")
         self.multi_cell(
             80,
@@ -400,7 +395,7 @@ class InvoiceGenerator(FPDF):
             )
         left_seller_end_y = self.get_y()
 
-        # Customer — right column (address text in muted blue)
+        # Customer — right column
         self.set_xy(110, addresses_y_start)
         self.set_font(style="B")
         self.cell(
@@ -415,7 +410,6 @@ class InvoiceGenerator(FPDF):
             new_y=YPos.NEXT,
         )
         self.set_font(style="")
-        self.set_text_color(*self.address_text_color)
         if self.data.customer_address is not None:
             self.multi_cell(
                 80,
@@ -431,7 +425,6 @@ class InvoiceGenerator(FPDF):
                 text=self.data.customer_additional_info,
                 markdown=True,
             )
-        self.set_text_color(0, 0, 0)
         right_seller_end_y = self.get_y()
         bottom = max(left_seller_end_y, right_seller_end_y)
 
@@ -440,7 +433,7 @@ class InvoiceGenerator(FPDF):
         amount_str = format_currency(self.data.total, self.data.currency)
         currency_upper = self.data.currency.upper()
         if self.data.due_date:
-            headline = f"{amount_str} {currency_upper} due {format_date(self.data.due_date)}"
+            headline = f"{amount_str} due {format_date(self.data.due_date)}"
         else:
             headline = f"{amount_str} {currency_upper}"
         self.set_font(style="B", size=14)
@@ -453,10 +446,10 @@ class InvoiceGenerator(FPDF):
         )
         self.set_font(size=self.base_font_size)
 
-        # "Pay online" link
+        # "Pay online" link — blue
         if self.data.checkout_link:
             self.set_y(self.get_y() + 3)
-            self.set_text_color(*self.accent_color)
+            self.set_text_color(*self.link_color)
             self.cell(
                 w=0,
                 h=self.cell_height(),
@@ -467,7 +460,7 @@ class InvoiceGenerator(FPDF):
             )
             self.set_text_color(0, 0, 0)
 
-        # Invoice items table
+        # Invoice items table — all black
         self.set_y(self.get_y() + self.elements_y_margin)
         self.set_draw_color(*self.table_borders_color)
         with self.table(
@@ -475,15 +468,15 @@ class InvoiceGenerator(FPDF):
             text_align=(Align.L, Align.R, Align.R, Align.R),
             headings_style=FontFace(
                 size_pt=self.table_header_font_size,
-                color=self.accent_color,
+                color=(0, 0, 0),
             ),
             line_height=self.items_table_row_height,
             borders_layout=TableBordersLayout.HORIZONTAL_LINES,
         ) as table:
             header = table.row()
             header.cell("Description")
-            header.cell("Quantity")
-            header.cell("Unit Price")
+            header.cell("Qty")
+            header.cell("Unit price")
             header.cell("Amount")
 
             for item in self.data.items:
@@ -495,6 +488,7 @@ class InvoiceGenerator(FPDF):
 
         # Totals
         self.set_y(self.get_y() + self.elements_y_margin)
+        totals = self.data.totals_items
         with self.table(
             col_widths=(150, 30),
             text_align=(Align.R, Align.R),
@@ -502,12 +496,27 @@ class InvoiceGenerator(FPDF):
             line_height=self.totals_table_row_height,
             borders_layout=TableBordersLayout.NONE,
         ) as totals_table:
-            for total_item in self.data.totals_items:
+            for total_item in totals:
                 self.set_font(style="B")
                 row = totals_table.row()
                 row.cell(total_item.label)
                 self.set_font(style="")
                 row.cell(format_currency(total_item.amount, total_item.currency))
+
+        # "Amount due" row — bold label and bold amount with currency
+        self.set_y(self.get_y() + 2)
+        with self.table(
+            col_widths=(150, 30),
+            text_align=(Align.R, Align.R),
+            first_row_as_headings=False,
+            line_height=self.totals_table_row_height,
+            borders_layout=TableBordersLayout.NONE,
+        ) as due_table:
+            self.set_font(style="B")
+            row = due_table.row()
+            row.cell("Amount due")
+            amount_due = format_currency(self.data.total, self.data.currency)
+            row.cell(f"{amount_due} {currency_upper}")
 
         # Notes / memo
         self.set_font(style="")

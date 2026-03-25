@@ -5,6 +5,7 @@ import InvoiceDocument, {
 } from '@/app/(main)/dashboard/[organization]/(header)/sales/invoices/InvoiceDocument'
 import { useCustomer } from '@/hooks/queries'
 import { schemas } from '@spaire/client'
+import { format } from 'date-fns'
 import { useMemo } from 'react'
 import { useFormContext, useWatch } from 'react-hook-form'
 import type { InvoiceFormValues } from './InvoiceForm'
@@ -73,11 +74,14 @@ export const InvoicePreviewPanel = ({
         }
       : null
 
+    // Default due date to today if not set (like Stripe preview)
+    const defaultDueDate = format(new Date(), 'yyyy-MM-dd')
+
     return {
       invoiceNumber: 'DRAFT',
       status: 'draft',
       issueDate: new Date(),
-      dueDate: dueDate || null,
+      dueDate: dueDate || defaultDueDate,
       currency: currency || 'usd',
       customerName: selectedCustomer
         ? (selectedCustomer as any).name ?? (selectedCustomer as any).email
@@ -91,6 +95,7 @@ export const InvoicePreviewPanel = ({
       organizationLogoUrl: organization.avatar_url ?? undefined,
       showLogo,
       showMorAttribution,
+      sellerName: 'Spaire, Inc.',
       lineItems: items,
       subtotalAmount,
       discountAmount,
