@@ -47,9 +47,27 @@ function fmtDate(d: Date | string | null | undefined): string {
 const InvoiceDocument: React.FC<{
   data: InvoiceDocumentData
   isPreview?: boolean
-}> = ({ data, isPreview }) => {
+  /** Show the organization's logo in the invoice header */
+  showLogo?: boolean
+  /** Show Spaire MoR branding (header subtitle + footer) */
+  showViaSpaire?: boolean
+  /** Organization name used when showViaSpaire=false */
+  organizationName?: string
+  /** Organization avatar/logo URL */
+  organizationLogoUrl?: string | null
+}> = ({
+  data,
+  isPreview,
+  showLogo = true,
+  showViaSpaire = true,
+  organizationName,
+  organizationLogoUrl,
+}) => {
   const fmt = (cents: number) => formatCurrency('compact')(cents, data.currency)
   const currency = data.currency.toUpperCase()
+
+  // Sender info depends on branding settings
+  const senderName = showViaSpaire ? 'Spaire, Inc.' : (organizationName ?? 'Your Organization')
 
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-950">
@@ -64,11 +82,26 @@ const InvoiceDocument: React.FC<{
       <div className="p-8">
         {/* ── Header ─────────────────────────────────────────────── */}
         <div className="flex items-start justify-between">
-          <div>
-            <p className="text-lg font-bold tracking-tight text-gray-900 dark:text-white">
-              Spaire, Inc.
-            </p>
-            <p className="mt-0.5 text-xs text-gray-400">Merchant of Record</p>
+          <div className="flex items-center gap-3">
+            {showLogo && organizationLogoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={organizationLogoUrl}
+                alt={organizationName ?? 'Organization'}
+                className="h-10 w-10 rounded-lg object-cover"
+              />
+            )}
+            <div>
+              <p className="text-lg font-bold tracking-tight text-gray-900 dark:text-white">
+                {senderName}
+              </p>
+              {showViaSpaire && (
+                <p className="mt-0.5 text-xs text-gray-400">Merchant of Record</p>
+              )}
+              {!showViaSpaire && organizationName && data.onBehalfOfLabel && (
+                <p className="mt-0.5 text-xs text-gray-400">{data.onBehalfOfLabel}</p>
+              )}
+            </div>
           </div>
           <div className="text-right">
             <p className="text-3xl font-thin uppercase tracking-[0.25em] text-gray-200 dark:text-gray-700">
@@ -126,11 +159,16 @@ const InvoiceDocument: React.FC<{
               From
             </p>
             <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
-              Spaire, Inc.
+              {senderName}
             </p>
-            {data.onBehalfOfLabel && (
+            {showViaSpaire && data.onBehalfOfLabel && (
               <p className="mt-0.5 text-xs text-gray-500">
                 on behalf of {data.onBehalfOfLabel}
+              </p>
+            )}
+            {showViaSpaire && !data.onBehalfOfLabel && organizationName && (
+              <p className="mt-0.5 text-xs text-gray-500">
+                on behalf of {organizationName}
               </p>
             )}
           </div>
@@ -241,12 +279,14 @@ const InvoiceDocument: React.FC<{
         )}
 
         {/* ── Footer ──────────────────────────────────────────────── */}
-        <div className="mt-8 border-t border-gray-100 pt-4 dark:border-gray-800">
-          <p className="text-[10px] leading-relaxed text-gray-400">
-            Issued by Spaire, Inc. as Merchant of Record on behalf of{' '}
-            {data.onBehalfOfLabel ?? 'the organization'}.
-          </p>
-        </div>
+        {showViaSpaire && (
+          <div className="mt-8 border-t border-gray-100 pt-4 dark:border-gray-800">
+            <p className="text-[10px] leading-relaxed text-gray-400">
+              Issued by Spaire, Inc. as Merchant of Record on behalf of{' '}
+              {data.onBehalfOfLabel ?? organizationName ?? 'the organization'}.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   )
