@@ -108,17 +108,16 @@ export interface ClientInvoicePreviewRequest {
 export async function fetchInvoicePreviewPdf(
   body: ClientInvoicePreviewRequest,
 ): Promise<string> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL as string
-  const response = await fetch(`${apiUrl}/v1/client-invoices/preview-pdf`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify(body),
+  const response = await (api as any).POST('/v1/client-invoices/preview-pdf', {
+    body,
+    parseAs: 'arrayBuffer',
   })
-  if (!response.ok) {
-    throw new Error(`Preview failed: ${response.status}`)
+  if (response.error) {
+    throw new Error('Preview failed')
   }
-  const blob = await response.blob()
+  const blob = new Blob([response.data as ArrayBuffer], {
+    type: 'application/pdf',
+  })
   return URL.createObjectURL(blob)
 }
 
