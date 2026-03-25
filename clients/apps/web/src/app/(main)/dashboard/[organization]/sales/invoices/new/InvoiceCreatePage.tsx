@@ -63,7 +63,7 @@ export const InvoiceCreatePage = ({
             </h1>
 
             {/* Display toggles */}
-            <div className="flex flex-col gap-4 rounded-2xl border border-gray-200 p-4 dark:border-spaire-700">
+            <div className="flex flex-col gap-2 rounded-xl border border-gray-200 p-3 dark:border-spaire-700">
               <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
                 Display Options
               </p>
