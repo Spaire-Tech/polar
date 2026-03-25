@@ -91,12 +91,6 @@ const InvoiceDocument: React.FC<{
 
   const customerAddressLines = formatAddress(data.customerAddress)
 
-  // Footer summary line
-  const footerAmount = `${fmt(data.totalAmount)} ${currency}`
-  const footerSummary = data.dueDate
-    ? `${data.invoiceNumber || 'DRAFT'} \u00b7 ${footerAmount} due ${fmtDate(data.dueDate)}`
-    : `${data.invoiceNumber || 'DRAFT'} \u00b7 ${footerAmount}`
-
   return (
     <div className="bg-white text-black" style={{ fontFamily: 'system-ui, -apple-system, sans-serif', fontSize: '10px', lineHeight: 1.5 }}>
       {isPreview && (
@@ -271,19 +265,18 @@ const InvoiceDocument: React.FC<{
 
         {/* Footer — pinned to bottom */}
         <div className="mt-auto pt-6">
-          {/* MOR legal text */}
-          <div style={{ fontSize: '8px', color: '#646464', textAlign: 'center' }}>
-            <p>
-              This invoice is issued by Spaire, Inc. on behalf of {onBehalf}.{' '}
-              Spaire, Inc. acts as the Merchant of Record for this transaction.
-            </p>
-            <p className="mt-1">
-              &copy; {new Date().getFullYear()} Spaire, Inc. All rights reserved.
-            </p>
-          </div>
-          {/* Separator + summary */}
-          <div className="mt-3" style={{ borderTop: '1px solid #dcdcdc', paddingTop: '10px' }}>
-            <p style={{ fontSize: '8px', color: '#646464' }}>{footerSummary}</p>
+          {/* Separator line */}
+          <div style={{ borderTop: '1px solid #dcdcdc', paddingTop: '10px' }}>
+            {/* MOR legal text below line */}
+            <div style={{ fontSize: '8px', color: '#646464', textAlign: 'center' }}>
+              <p>
+                This invoice is issued by Spaire, Inc. on behalf of {onBehalf}.{' '}
+                Spaire, Inc. acts as the Merchant of Record for this transaction.
+              </p>
+              <p className="mt-1">
+                &copy; {new Date().getFullYear()} Spaire, Inc. All rights reserved.
+              </p>
+            </div>
           </div>
         </div>
       </div>
