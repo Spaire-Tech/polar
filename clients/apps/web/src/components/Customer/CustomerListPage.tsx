@@ -200,6 +200,7 @@ export const CustomerListPage = ({ organization }: CustomerListPageProps) => {
       <InlineModal
         isShown={isCreateModalOpen}
         hide={hideCreateModal}
+        className="md:w-[680px]"
         modalContent={
           <CreateCustomerModal
             organization={organization}

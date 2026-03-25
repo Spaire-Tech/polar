@@ -796,3 +796,46 @@ BenefitPublicList = Annotated[
         description="List of benefits granted by the product.",
     ),
 ]
+
+
+class ProductTaxPreviewRequest(Schema):
+    """Request body for previewing tax on a product price."""
+
+    amount: int = Field(
+        description="Amount in smallest currency unit (e.g. cents for USD).",
+        ge=0,
+    )
+    currency: str = Field(
+        description="ISO 4217 currency code (e.g. 'usd').",
+    )
+    country: str = Field(
+        description="ISO 3166-1 alpha-2 country code (e.g. 'AU').",
+        min_length=2,
+        max_length=2,
+    )
+    quantity: int = Field(
+        default=1,
+        ge=1,
+        description="Unit quantity for the preview calculation.",
+    )
+    state: str | None = Field(
+        default=None,
+        description="State/province code for US/CA (e.g. 'WA' or 'US-WA').",
+    )
+
+
+class TaxRatePreview(Schema):
+    display_name: str
+    percentage: float | None = None
+
+
+class ProductTaxPreviewResponse(Schema):
+    """Tax preview result for a product price."""
+
+    subtotal: int
+    tax_amount: int
+    total: int
+    currency: str
+    quantity: int
+    tax_rate: TaxRatePreview | None = None
+    taxability_reason: str | None = None

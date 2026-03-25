@@ -10,8 +10,8 @@ import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import { Form } from '@spaire/ui/components/ui/form'
 import { useRouter } from 'next/navigation'
-import { useCallback, useMemo, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useForm, useWatch } from 'react-hook-form'
 import { DashboardBody } from '../Layout/DashboardLayout'
 import { InlineModalHeader } from '../Modal/InlineModal'
 import { toast } from '../Toast/use-toast'
@@ -46,14 +46,25 @@ export interface CreateProductPageProps {
   organization: schemas['Organization']
   sourceProduct?: schemas['Product']
   panelMode?: boolean
+  /** Render without DashboardBody — used in split-screen layout */
+  splitMode?: boolean
   onClose?: () => void
+  onPriceChange?: (price: {
+    amount: number | null
+    currency: string
+    recurringInterval: string | null
+    recurringIntervalCount: number | null
+    allPrices: { currency: string; amount: number | null; amountType: string }[]
+  }) => void
 }
 
 export const CreateProductPage = ({
   organization,
   sourceProduct,
   panelMode,
+  splitMode,
   onClose,
+  onPriceChange,
 }: CreateProductPageProps) => {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -102,7 +113,55 @@ export const CreateProductPage = ({
   const form = useForm<ProductEditOrCreateForm>({
     defaultValues: getDefaultValues(),
   })
-  const { handleSubmit, setError } = form
+  const { handleSubmit, setError, control } = form
+
+  // Notify parent of price changes for the preview panel
+  const watchedPrices = useWatch({ control, name: 'prices' })
+  const watchedInterval = useWatch({ control, name: 'recurring_interval' })
+  const watchedIntervalCount = useWatch({
+    control,
+    name: 'recurring_interval_count',
+  })
+  useEffect(() => {
+    if (!onPriceChange) return
+
+    // Build per-currency price map (fixed + seat_based)
+    const currencyMap = new Map<string, { amount: number | null; amountType: string }>()
+    for (const p of watchedPrices ?? []) {
+      if (!('price_currency' in p)) continue
+      const cur = (p as any).price_currency as string
+      const amountType = (p as any).amount_type as string
+      let amount: number | null = null
+      if (amountType === 'fixed') {
+        amount = (p as any).price_amount ?? null
+      } else if (amountType === 'seat_based') {
+        amount = (p as any).seat_tiers?.tiers?.[0]?.price_per_seat ?? null
+      }
+      if (!currencyMap.has(cur) || amount !== null) {
+        currencyMap.set(cur, { amount, amountType })
+      }
+    }
+
+    const allPrices = Array.from(currencyMap.entries()).map(([currency, v]) => ({
+      currency,
+      amount: v.amount,
+      amountType: v.amountType,
+    }))
+    const first = allPrices[0]
+    onPriceChange({
+      amount: first?.amount ?? null,
+      currency: first?.currency ?? organization.default_presentment_currency,
+      recurringInterval: watchedInterval ?? null,
+      recurringIntervalCount: watchedIntervalCount ?? null,
+      allPrices,
+    })
+  }, [
+    watchedPrices,
+    watchedInterval,
+    watchedIntervalCount,
+    onPriceChange,
+    organization.default_presentment_currency,
+  ])
 
   const createProduct = useCreateProduct(organization)
   const updateBenefits = useUpdateProductBenefits(organization)
@@ -252,6 +311,17 @@ export const CreateProductPage = ({
         <div className="flex flex-col gap-8 overflow-y-auto px-8 pb-8">
           {formContent}
         </div>
+      </div>
+    )
+  }
+
+  if (splitMode) {
+    return (
+      <div className="flex flex-col gap-8 px-8 py-8">
+        <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+          {sourceProduct ? 'Duplicate Product' : 'New Product'}
+        </h1>
+        {formContent}
       </div>
     )
   }

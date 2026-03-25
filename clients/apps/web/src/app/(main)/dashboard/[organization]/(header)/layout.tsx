@@ -14,7 +14,7 @@ export default async function Layout({
   return (
     <>
       <ImpersonationBanner />
-      <SidebarProvider defaultOpen={!defaultCollapsed}>
+      <SidebarProvider defaultOpen={!defaultCollapsed} className="h-full">
         <DashboardLayout>{children}</DashboardLayout>
       </SidebarProvider>
     </>

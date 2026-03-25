@@ -1,10 +1,12 @@
 import builtins
+import uuid
 from typing import Annotated
 
 from fastapi import Depends, Query
 
 from polar.benefit.schemas import BenefitID
 from polar.exceptions import NotPermitted, ResourceNotFound
+from polar.kit.address import Address
 from polar.kit.metadata import MetadataQuery, get_metadata_query_openapi_schema
 from polar.kit.pagination import ListResource, PaginationParamsQuery
 from polar.kit.schemas import MultipleQueryFilter
@@ -19,11 +21,22 @@ from polar.postgres import (
     get_db_read_session,
     get_db_session,
 )
+from polar.config import settings
 from polar.routing import APIRouter
+from polar.tax.calculation import get_tax_service
+from polar.tax.calculation.base import TaxCalculationError, TaxCode
 
 from . import auth
 from .schemas import Product as ProductSchema
-from .schemas import ProductBenefitsUpdate, ProductCreate, ProductID, ProductUpdate
+from .schemas import (
+    ProductBenefitsUpdate,
+    ProductCreate,
+    ProductID,
+    ProductTaxPreviewRequest,
+    ProductTaxPreviewResponse,
+    ProductUpdate,
+    TaxRatePreview,
+)
 from .service import product as product_service
 from .sorting import ProductSortProperty
 
@@ -198,3 +211,64 @@ async def update_benefits(
         session, product, benefits_update.benefits, auth_subject
     )
     return product
+
+
+@router.post(
+    "/tax-preview",
+    response_model=ProductTaxPreviewResponse,
+    summary="Preview Tax",
+    tags=["products"],
+)
+async def preview_tax(
+    preview_request: ProductTaxPreviewRequest,
+    auth_subject: auth.CreatorProductsRead,
+) -> ProductTaxPreviewResponse:
+    """
+    Estimate tax for a product price given a customer location and quantity.
+    Uses the configured tax provider (Stripe Tax) to calculate applicable taxes.
+    """
+    quantity = preview_request.quantity
+    subtotal = preview_request.amount * quantity
+
+    try:
+        address = Address(country=preview_request.country, state=preview_request.state)  # type: ignore[arg-type]
+        tax_service = get_tax_service(settings.DEFAULT_TAX_PROCESSOR)
+        calculation = await tax_service.calculate(
+            identifier=uuid.uuid4(),
+            currency=preview_request.currency,
+            amount=subtotal,
+            tax_code=TaxCode.general_electronically_supplied_services,
+            address=address,
+            tax_ids=[],
+            customer_exempt=False,
+        )
+    except TaxCalculationError:
+        return ProductTaxPreviewResponse(
+            subtotal=subtotal,
+            tax_amount=0,
+            total=subtotal,
+            currency=preview_request.currency,
+            quantity=quantity,
+        )
+
+    tax_amount = calculation["amount"]
+    tax_rate: TaxRatePreview | None = None
+    raw_rate = calculation.get("tax_rate")
+    if raw_rate:
+        basis_points = raw_rate.get("basis_points")
+        tax_rate = TaxRatePreview(
+            display_name=raw_rate["display_name"],
+            percentage=basis_points / 100 if basis_points is not None else None,
+        )
+
+    taxability_reason = calculation.get("taxability_reason")
+
+    return ProductTaxPreviewResponse(
+        subtotal=subtotal,
+        tax_amount=tax_amount,
+        total=subtotal + tax_amount,
+        currency=preview_request.currency,
+        quantity=quantity,
+        tax_rate=tax_rate,
+        taxability_reason=str(taxability_reason) if taxability_reason else None,
+    )
