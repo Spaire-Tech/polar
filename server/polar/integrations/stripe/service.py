@@ -669,7 +669,6 @@ class StripeService:
         amount: int,
         currency: str,
         description: str,
-        tax_amounts: list[dict[str, object]] | None = None,
     ) -> stripe_lib.InvoiceItem:
         params: dict[str, object] = {
             "customer": customer,
@@ -678,8 +677,6 @@ class StripeService:
             "currency": currency,
             "description": description,
         }
-        if tax_amounts is not None:
-            params["tax_amounts"] = tax_amounts
         return await stripe_lib.InvoiceItem.create_async(**params)  # type: ignore[arg-type]
 
     async def finalize_invoice(self, invoice_id: str) -> stripe_lib.Invoice:
