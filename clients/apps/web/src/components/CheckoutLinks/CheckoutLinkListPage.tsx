@@ -346,72 +346,21 @@ export const CheckoutLinkListPage = ({
   )
 }
 
-// Stripe-style empty state
+// Empty state
 function StripeStyleEmptyState({ onCreateClick }: { onCreateClick: () => void }) {
   return (
-    <div className="flex flex-col items-center gap-10 py-12 text-center">
-      {/* Visual mockup */}
-      <div className="relative h-[300px] w-full max-w-[680px] select-none">
-        {/* Left: checkout page (teal bg + payment form side-by-side) */}
-        <div className="absolute left-0 top-8 flex h-[256px] w-[420px] overflow-hidden rounded-2xl shadow-xl ring-1 ring-black/5">
-          {/* Product panel (teal) */}
-          <div className="flex w-[160px] shrink-0 flex-col gap-3 bg-blue-500 px-5 py-5">
-            <div className="flex items-center gap-1.5">
-              <div className="h-3.5 w-3.5 rounded-full bg-white/80" />
-              <div className="h-2 w-14 rounded-full bg-white/60" />
-            </div>
-            <div className="mt-1 flex flex-col gap-1">
-              <div className="h-2 w-28 rounded-full bg-white/50" />
-              <div className="h-5 w-16 rounded-full bg-white/90" />
-            </div>
-            <div className="mt-1 flex h-[100px] w-full items-center justify-center rounded-xl bg-white/20">
-              <svg className="h-10 w-10 text-white/60" fill="none" viewBox="0 0 40 40">
-                <rect x="4" y="4" width="32" height="32" rx="6" fill="currentColor" fillOpacity="0.3" />
-                <rect x="10" y="18" width="6" height="12" rx="1.5" fill="currentColor" fillOpacity="0.8" />
-                <rect x="17" y="12" width="6" height="18" rx="1.5" fill="currentColor" fillOpacity="0.8" />
-                <rect x="24" y="8" width="6" height="22" rx="1.5" fill="currentColor" fillOpacity="0.8" />
-              </svg>
-            </div>
-          </div>
-
-          {/* Payment form (white) */}
-          <div className="flex flex-1 flex-col gap-2 bg-white px-4 py-4">
-            <div className="mb-1 h-8 rounded-lg bg-gray-900" />
-            <div className="flex items-center gap-2 py-0.5">
-              <div className="h-px flex-1 bg-gray-100" />
-              <div className="h-1.5 w-16 rounded-full bg-gray-200" />
-              <div className="h-px flex-1 bg-gray-100" />
-            </div>
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="flex flex-col gap-0.5">
-                <div className="h-1.5 w-10 rounded-full bg-gray-300" />
-                <div className="h-6 rounded-md border border-gray-200 bg-gray-50" />
-              </div>
-            ))}
-            <div className="mt-1 h-8 rounded-lg bg-gray-900" />
-          </div>
-        </div>
-
-        {/* Right: "Checkout link is active" status card */}
-        <div className="absolute right-0 top-0 w-[244px] rounded-2xl border border-gray-200 bg-white p-5 shadow-2xl ring-1 ring-black/5">
-          <p className="text-sm font-semibold text-gray-900">
-            Checkout link is{' '}
-            <span className="text-blue-500">active</span>
-          </p>
-          <p className="mt-1 text-xs text-gray-500">
-            Share your link to accept payments.
-          </p>
-          <div className="mt-3 truncate rounded-lg bg-gray-50 px-3 py-2 text-left text-xs font-medium text-blue-600">
-            spairehq.com/checkout/ab1c23d
-          </div>
-          <button className="mt-3 w-full rounded-lg bg-blue-500 py-2 text-xs font-semibold text-white">
-            Share
-          </button>
-        </div>
+    <div className="flex flex-col items-center gap-8 py-12 text-center">
+      {/* Image */}
+      <div className="overflow-hidden rounded-2xl">
+        <img
+          src="https://spaire-production-files-public.s3.us-east-1.amazonaws.com/Untitled+design+-+2026-03-19T000318.337.png"
+          alt="Checkout links"
+          className="h-[260px] w-auto object-cover"
+        />
       </div>
 
       {/* Title + description */}
-      <div className="flex flex-col gap-3 max-w-lg">
+      <div className="flex max-w-lg flex-col gap-3">
         <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
           Create a checkout page in a few clicks
         </h2>

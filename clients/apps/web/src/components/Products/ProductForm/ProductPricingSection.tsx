@@ -149,11 +149,13 @@ export const ProductPriceFixedItem: React.FC<ProductPriceFixedItemProps> = ({
 export interface ProductPriceCustomItemProps {
   index: number
   currency: string
+  currencyControl?: React.ReactNode
 }
 
 export const ProductPriceCustomItem: React.FC<ProductPriceCustomItemProps> = ({
   index,
   currency,
+  currencyControl,
 }) => {
   const { control, setValue, getValues } = useFormContext<ProductFormType>()
 
@@ -173,6 +175,7 @@ export const ProductPriceCustomItem: React.FC<ProductPriceCustomItemProps> = ({
 
   return (
     <div className="mt-1.5 flex flex-col gap-2">
+      {currencyControl && <div>{currencyControl}</div>}
       <div className="flex flex-row gap-4 gap-x-6">
         <FormField
           control={control}
@@ -266,11 +269,12 @@ export const ProductPriceCustomItem: React.FC<ProductPriceCustomItemProps> = ({
 export interface ProductPriceSeatBasedItemProps {
   index: number
   currency: string
+  currencyControl?: React.ReactNode
 }
 
 export const ProductPriceSeatBasedItem: React.FC<
   ProductPriceSeatBasedItemProps
-> = ({ index, currency }) => {
+> = ({ index, currency, currencyControl }) => {
   const { control, setValue, watch } = useFormContext<ProductFormType>()
   const { fields, append, remove } = useFieldArray({
     control,
@@ -340,6 +344,7 @@ export const ProductPriceSeatBasedItem: React.FC<
 
   return (
     <div className="flex flex-col gap-3">
+      {currencyControl && <div>{currencyControl}</div>}
       {fields.map((field, tierIndex) => {
         const isLast = tierIndex === fields.length - 1
         const isFirst = tierIndex === 0
@@ -540,11 +545,12 @@ export interface ProductPriceMeteredUnitItemProps {
   organization: schemas['Organization']
   index: number
   currency: string
+  currencyControl?: React.ReactNode
 }
 
 export const ProductPriceMeteredUnitItem: React.FC<
   ProductPriceMeteredUnitItemProps
-> = ({ organization, index, currency }) => {
+> = ({ organization, index, currency, currencyControl }) => {
   const { control, setValue } = useFormContext<ProductFormType>()
 
   const { data: meters } = useMeters(organization.id, {
@@ -583,6 +589,7 @@ export const ProductPriceMeteredUnitItem: React.FC<
 
   return (
     <>
+      {currencyControl && <div className="mb-1">{currencyControl}</div>}
       {meters.items.length === 0 ? (
         <div className="flex flex-col gap-y-2">
           <Button
@@ -880,16 +887,17 @@ const ProductPriceItem: React.FC<ProductPriceItemProps> = ({
             />
           )}
           {amountType === 'custom' && (
-            <ProductPriceCustomItem index={index} currency={currency} />
+            <ProductPriceCustomItem index={index} currency={currency} currencyControl={currencyControl} />
           )}
           {amountType === 'seat_based' && (
-            <ProductPriceSeatBasedItem index={index} currency={currency} />
+            <ProductPriceSeatBasedItem index={index} currency={currency} currencyControl={currencyControl} />
           )}
           {amountType === 'metered_unit' && (
             <ProductPriceMeteredUnitItem
               organization={organization}
               index={index}
               currency={currency}
+              currencyControl={currencyControl}
             />
           )}
         </div>
