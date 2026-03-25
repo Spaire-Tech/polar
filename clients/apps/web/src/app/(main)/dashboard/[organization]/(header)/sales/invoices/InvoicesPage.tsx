@@ -6,6 +6,7 @@ import {
   ClientInvoice,
   useClientInvoices,
 } from '@/hooks/queries/client_invoices'
+import { useCustomer } from '@/hooks/queries/customers'
 import {
   DataTablePaginationState,
   DataTableSortingState,
@@ -45,6 +46,22 @@ const StatusBadge = ({ status }: { status: string }) => (
     {status}
   </span>
 )
+
+const CustomerCell = ({ customerId }: { customerId: string }) => {
+  const { data: customer } = useCustomer(customerId)
+  if (!customer) {
+    return (
+      <span className="font-mono text-xs text-gray-400 dark:text-gray-500">
+        {customerId.slice(0, 8)}…
+      </span>
+    )
+  }
+  return (
+    <span className="text-sm">
+      {customer.name || customer.email}
+    </span>
+  )
+}
 
 interface InvoicesPageProps {
   organization: schemas['Organization']
@@ -99,15 +116,25 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
 
   const columns: DataTableColumnDef<ClientInvoice>[] = [
     {
+      accessorKey: 'number',
+      enableSorting: false,
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Invoice #" />
+      ),
+      cell: ({ row: { original: invoice } }) => (
+        <span className="font-mono text-xs text-gray-500 dark:text-gray-400">
+          {invoice.number ?? '—'}
+        </span>
+      ),
+    },
+    {
       accessorKey: 'customer_id',
       enableSorting: false,
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Customer" />
       ),
       cell: ({ row: { original: invoice } }) => (
-        <span className="font-mono text-xs text-gray-500 dark:text-gray-400">
-          {invoice.customer_id}
-        </span>
+        <CustomerCell customerId={invoice.customer_id} />
       ),
     },
     {
@@ -183,8 +210,7 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
           </div>
         ) : (
           <>
-            <div className="flex flex-row items-center justify-between">
-              <h1 className="text-xl font-medium dark:text-white">Invoices</h1>
+            <div className="flex flex-row items-center justify-end">
               <Link href={`/dashboard/${organization.slug}/sales/invoices/new`}>
                 <Button>
                   <AddOutlined fontSize="small" />

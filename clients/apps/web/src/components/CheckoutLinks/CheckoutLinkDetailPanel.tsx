@@ -35,7 +35,7 @@ export const CheckoutLinkDetailPanel = ({
     return (
       <div className="flex h-full flex-col">
         <InlineModalHeader hide={onClose}>
-          <span>Checkout Link</span>
+          <span>Payment Link</span>
         </InlineModalHeader>
         <div className="flex flex-1 items-center justify-center">
           <SpinnerNoMargin />
@@ -48,7 +48,7 @@ export const CheckoutLinkDetailPanel = ({
     return (
       <div className="flex h-full flex-col">
         <InlineModalHeader hide={onClose}>
-          <span>Checkout Link</span>
+          <span>Payment Link</span>
         </InlineModalHeader>
         <div className="flex flex-1 items-center justify-center">
           <p className="dark:text-spaire-500 text-gray-500">Link not found</p>
@@ -94,7 +94,7 @@ const CheckoutLinkDetailPanelContent = ({
         return
       }
       toast({
-        title: 'Checkout Link Deleted',
+        title: 'Payment Link Deleted',
         description: `${checkoutLink.label ?? 'Untitled'} was deleted.`,
       })
       onClose()
@@ -138,7 +138,7 @@ const CheckoutLinkDetailPanelContent = ({
             className="dark:bg-spaire-800 bg-gray-50 shadow-lg"
           >
             <DropdownMenuItem destructive onClick={showDeleteModal}>
-              Delete checkout link
+              Delete payment link
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -149,7 +149,7 @@ const CheckoutLinkDetailPanelContent = ({
       </div>
 
       <ConfirmModal
-        title="Delete Checkout Link"
+        title="Delete Payment Link"
         description="It will cause 404 responses if the link is still in use."
         onConfirm={onDelete}
         isShown={isDeleteModalShown}

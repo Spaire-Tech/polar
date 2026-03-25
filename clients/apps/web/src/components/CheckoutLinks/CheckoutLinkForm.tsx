@@ -223,8 +223,8 @@ export const CheckoutLinkForm = ({
         }
         newCheckoutLink = updatedCheckoutLink
         toast({
-          title: 'Checkout Link Updated',
-          description: `${newCheckoutLink.label ?? 'Unlabeled'} Checkout Link was updated successfully`,
+          title: 'Payment Link Updated',
+          description: `${newCheckoutLink.label ?? 'Unlabeled'} Payment Link was updated successfully`,
         })
       } else {
         const { data: createdCheckoutLink, error } =
@@ -239,8 +239,8 @@ export const CheckoutLinkForm = ({
         }
         newCheckoutLink = createdCheckoutLink
         toast({
-          title: 'Checkout Link Created',
-          description: `${newCheckoutLink.label ?? 'Unlabeled'} Checkout Link was created successfully`,
+          title: 'Payment Link Created',
+          description: `${newCheckoutLink.label ?? 'Unlabeled'} Payment Link was created successfully`,
         })
       }
 

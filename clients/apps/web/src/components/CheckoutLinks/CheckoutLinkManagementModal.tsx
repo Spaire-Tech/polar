@@ -23,7 +23,7 @@ export const CheckoutLinkManagementModal = ({
     <div className="flex h-full flex-row overflow-hidden">
       <div className="dark:border-spaire-700 flex w-[480px] shrink-0 flex-col gap-8 overflow-y-auto border-r border-gray-200 px-8 py-12">
         <div className="flex flex-row items-center justify-between">
-          <h1 className="text-xl">Create Checkout Link</h1>
+          <h1 className="text-xl">Create Payment Link</h1>
         </div>
         <CheckoutLinkForm
           organization={organization}

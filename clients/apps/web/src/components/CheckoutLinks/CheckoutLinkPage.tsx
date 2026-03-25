@@ -74,7 +74,7 @@ export const CheckoutLinkPage = ({ checkoutLink }: CheckoutLinkPageProps) => {
               onCopy={() => {
                 toast({
                   title: 'Copied To Clipboard',
-                  description: `Checkout Link was copied to clipboard`,
+                  description: `Payment Link was copied to clipboard`,
                 })
               }}
             />
