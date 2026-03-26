@@ -5,6 +5,7 @@ import { InlineModal } from '@/components/Modal/InlineModal'
 import { useModal } from '@/components/Modal/useModal'
 import { FEATURED_PERKS, type Perk } from '@/constants/perksData'
 import { OrganizationContext } from '@/providers/maintainerOrganization'
+import { CONFIG } from '@/utils/config'
 import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
 import Button from '@spaire/ui/components/atoms/Button'
 import { useContext, useState } from 'react'
@@ -51,8 +52,9 @@ const FeaturedPerkCard = ({
 export default function StartupStackPage() {
   const { organization } = useContext(OrganizationContext)
   const perksUnlocked =
-    (organization.feature_settings as Record<string, boolean>)
-      ?.perks_unlocked ?? false
+    !CONFIG.IS_SANDBOX &&
+    ((organization.feature_settings as Record<string, boolean>)
+      ?.perks_unlocked ?? false)
 
   const { isShown, show, hide } = useModal(false)
   const [selectedPerk, setSelectedPerk] = useState<Perk | null>(null)

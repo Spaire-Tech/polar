@@ -291,6 +291,11 @@ class InvoiceGenerator(FPDF):
         self.set_font(self.font_name, size=self.footer_font_size)
         self.set_text_color(*self.footer_text_color)
 
+        # Separator line
+        self.set_draw_color(*self.table_borders_color)
+        self.line(self.l_margin, self.get_y(), self.w - self.r_margin, self.get_y())
+        self.ln(4)
+
         # MOR legal text (centered)
         on_behalf = self.data.on_behalf_of_label or self.data.seller_name
         legal_text = (
@@ -314,26 +319,6 @@ class InvoiceGenerator(FPDF):
             align=Align.C,
             new_x=XPos.LMARGIN,
             new_y=YPos.NEXT,
-        )
-
-        # Separator line
-        self.ln(3)
-        self.set_draw_color(*self.table_borders_color)
-        self.line(self.l_margin, self.get_y(), self.w - self.r_margin, self.get_y())
-        self.ln(4)
-
-        # Summary line
-        amount_str = format_currency(self.data.total, self.data.currency)
-        currency_upper = self.data.currency.upper()
-        if self.data.due_date:
-            summary = f"{self.data.number} \u00b7 {amount_str} {currency_upper} due {format_date(self.data.due_date)}"
-        else:
-            summary = f"{self.data.number} \u00b7 {amount_str} {currency_upper}"
-        self.cell(
-            w=0,
-            h=self.cell_height(self.footer_font_size),
-            text=summary,
-            align=Align.L,
         )
         self.set_text_color(0, 0, 0)
 

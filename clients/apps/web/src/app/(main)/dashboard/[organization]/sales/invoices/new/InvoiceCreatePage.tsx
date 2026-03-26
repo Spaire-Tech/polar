@@ -47,7 +47,7 @@ export const InvoiceCreatePage = ({
     <Form {...form}>
       <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-spaire-900">
         {/* Left panel — form */}
-        <div className="flex w-1/2 shrink-0 flex-col overflow-hidden border-r border-gray-200 bg-white dark:border-spaire-800 dark:bg-spaire-900">
+        <div className="flex w-full md:w-1/2 shrink-0 flex-col overflow-hidden border-r border-gray-200 bg-white dark:border-spaire-800 dark:bg-spaire-900">
           <div className="border-b border-gray-200 px-6 py-4 dark:border-spaire-800">
             <Link
               href={`/dashboard/${organization.slug}/invoices`}
@@ -63,28 +63,30 @@ export const InvoiceCreatePage = ({
             </h1>
 
             {/* Display toggles */}
-            <div className="flex flex-col gap-2 rounded-xl border border-gray-200 p-3 dark:border-spaire-800">
+            <div className="flex flex-col gap-2">
               <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
                 Display Options
               </p>
-              <label className="flex cursor-pointer items-center justify-between">
-                <span className="text-sm text-gray-700 dark:text-gray-300">
-                  Show organization logo
-                </span>
-                <Switch
-                  checked={showLogo}
-                  onCheckedChange={setShowLogo}
-                />
-              </label>
-              <label className="flex cursor-pointer items-center justify-between">
-                <span className="text-sm text-gray-700 dark:text-gray-300">
-                  Show &ldquo;via Spaire&rdquo; attribution
-                </span>
-                <Switch
-                  checked={showMorAttribution}
-                  onCheckedChange={setShowMorAttribution}
-                />
-              </label>
+              <div className="dark:divide-spaire-700 dark:border-spaire-700 flex flex-col divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200">
+                <label className="flex cursor-pointer items-center justify-between px-4 py-3">
+                  <span className="text-sm text-gray-700 dark:text-gray-300">
+                    Show organization logo
+                  </span>
+                  <Switch
+                    checked={showLogo}
+                    onCheckedChange={setShowLogo}
+                  />
+                </label>
+                <label className="flex cursor-pointer items-center justify-between px-4 py-3">
+                  <span className="text-sm text-gray-700 dark:text-gray-300">
+                    Show &ldquo;via Spaire&rdquo; attribution
+                  </span>
+                  <Switch
+                    checked={showMorAttribution}
+                    onCheckedChange={setShowMorAttribution}
+                  />
+                </label>
+              </div>
             </div>
 
             <InvoiceFormContent
@@ -100,7 +102,7 @@ export const InvoiceCreatePage = ({
         </div>
 
         {/* Right panel — live preview */}
-        <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="hidden md:flex flex-1 flex-col overflow-hidden">
           <InvoicePreviewPanel
             organization={organization}
             showLogo={showLogo}
