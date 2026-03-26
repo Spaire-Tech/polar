@@ -62,7 +62,7 @@ const CreateProductSplitPageInner = ({
       </div>
 
       {/* Right panel — preview */}
-      <div className="flex w-[420px] shrink-0 flex-col overflow-y-auto p-8">
+      <div className="hidden md:flex w-[420px] shrink-0 flex-col overflow-y-auto p-8">
         <div className="mx-auto w-full max-w-sm">
           <ProductPreviewPanel
             priceAmount={previewPrice.amount}

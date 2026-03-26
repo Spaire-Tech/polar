@@ -138,6 +138,7 @@ export const Benefits = ({
       <InlineModal
         isShown={createModalOpen}
         hide={() => setCreateModalOpen(false)}
+        className="md:w-[720px]"
         modalContent={
           <CreateBenefitModalContent
             organization={organization}

@@ -385,6 +385,7 @@ const ClientPage: React.FC<ClientPageProps> = ({
       <InlineModal
         isShown={showNewModal}
         hide={() => setShowNewModal(false)}
+        className="md:w-[720px]"
         modalContent={
           <CreateDiscountModalContent
             organization={organization}
@@ -396,6 +397,7 @@ const ClientPage: React.FC<ClientPageProps> = ({
       <InlineModal
         isShown={showUpdateModal}
         hide={() => setShowUpdateModal(false)}
+        className="md:w-[720px]"
         modalContent={
           selectedDiscount ? (
             <UpdateDiscountModalContent

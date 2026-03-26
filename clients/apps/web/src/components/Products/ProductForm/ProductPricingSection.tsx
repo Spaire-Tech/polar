@@ -1474,9 +1474,9 @@ export const ProductPricingSection = ({
             onAmountTypeChange={handleAmountTypeChange}
             canRemove={
               isMeteredPrice(price as ProductPrice) &&
-              pricesForSelectedCurrency.filter((p) =>
-                isMeteredPrice(p.price as ProductPrice),
-              ).length > 1
+              pricesForSelectedCurrency.some(
+                (p) => !isMeteredPrice(p.price as ProductPrice),
+              )
             }
             key={`${selectedCurrency}-${index}`}
             currencyControl={
