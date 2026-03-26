@@ -1,73 +1,98 @@
 ---
-title: "Welcome to Spaire"
+title: "Spaire | The financial and legal backbone for SaaS startups"
 sidebarTitle: "Introduction"
-description: "Financial infrastructure for SaaS startups. Sell globally, stay compliant, and get paid — without building a billing stack."
+description: "Spaire lets software companies sell globally without building payments and tax infrastructure from scratch. We handle billing, tax compliance, subscriptions, payouts, and product access, so you can focus on shipping code."
 ---
 
-Spaire is the financial infrastructure for SaaS founders and builders who want to sell globally without the friction of international compliance. Whether you're shipping an AI product, a B2B tool, or a dev-focused utility — Spaire handles the parts that aren't your core business.
+## What is Spaire?
 
-When you sell through Spaire, we become the legal seller on every transaction. We collect and remit taxes across 36 currencies and 190+ countries, absorb chargeback liability, and handle the compliance obligations that come with selling software globally — so you never have to register for VAT in dozens of countries or build a tax engine yourself.
+Spaire is a Merchant of Record built for SaaS.
 
-On top of that, Spaire is your complete billing stack: subscriptions, usage-based pricing, seat-based plans, checkout, customer portal, automated entitlements, and payouts — all in one platform.
+We become the legal seller to your customers. That means we manage global tax collection and remittance, handle regulatory obligations, and operate the billing layer behind your product.
 
-## What you can build
+You keep building. We run the financial and compliance engine underneath.
 
 <CardGroup cols={2}>
-  <Card icon="cart-shopping" href="/features/checkout/links" title="Accept payments">
-    Launch checkout in minutes — via a shareable link, an embedded widget on your site, or a fully server-side API flow.
+  <Card title="Merchant of Record" icon="globe" href="/merchant-of-record/introduction">
+    Spaire is the legal seller to your end customer. We handle global tax collection and remittance, and shoulder the regulatory obligations tied to the sale.
   </Card>
-  <Card icon="arrows-rotate" href="/features/orders" title="Run subscriptions">
-    Sell monthly and yearly plans, handle upgrades and downgrades, apply proration, and offer free trials — all built in.
-  </Card>
-  <Card icon="chart-line" href="/features/usage-based-billing/introduction" title="Meter usage">
-    Bill customers based on what they actually consume. Ingest events, define meters, and attach usage prices to any subscription.
-  </Card>
-  <Card icon="users" href="/features/seat-based-pricing" title="Sell team plans">
-    Assign seats to individual users, enforce limits, and handle seat-based upgrades automatically.
-  </Card>
-  <Card icon="key" href="/features/benefits/introduction" title="Gate access automatically">
-    Issue license keys, grant credits, provision Discord roles, or call your own API — automatically on every purchase and cancellation.
-  </Card>
-  <Card icon="wallet" href="/features/finance/accounts" title="Get paid">
-    Connect your bank account, watch your balance grow, and withdraw whenever you want.
+
+  <Card title="Billing & Revenue Platform" icon="gear" href="/features/products">
+    Subscriptions, usage-based billing, checkout, entitlements, customer portal, and payout operations — all in one system.
   </Card>
 </CardGroup>
 
-## How it fits together
+## Why SaaS Teams Choose Spaire
 
-Spaire sits between you and your customers. You define your products and pricing, point your checkout at Spaire, and we handle everything downstream: payment collection, tax calculation and remittance, invoicing, entitlement delivery, and payout operations.
+<AccordionGroup>
+  <Accordion title="Global tax and compliance are operationally heavy" icon="building-columns">
+    Cross-border SaaS revenue creates immediate VAT, GST, and sales tax complexity. Spaire centralizes tax calculation, collection, and remittance so your team can stay focused on product and growth.
+  </Accordion>
+
+  <Accordion title="Billing systems are often fragmented" icon="gears">
+    Most teams stitch together payment gateways, tax engines, invoicing, entitlement logic, and support tooling. Spaire provides a unified platform for subscriptions, metered billing, checkout, discounts, and lifecycle management.
+  </Accordion>
+
+  <Accordion title="Revenue-to-payout latency hurts velocity" icon="money-bill-transfer">
+    Traditional flows can delay access to earned funds. Spaire includes payout capabilities so revenue operations and business spending can move faster.
+  </Accordion>
+
+  <Accordion title="Manual entitlement workflows don't scale" icon="box-open-full">
+    License provisioning and entitlement access are automated with built-in benefits and APIs, keeping payment state and user access synchronized.
+  </Accordion>
+</AccordionGroup>
+
+## Core Platform Capabilities
+
+<CardGroup cols={3}>
+  <Card title="Billing Engine" icon="receipt" href="/features/products">
+    Subscriptions, one-time purchases, seat-based and usage-based pricing, discounts, trials, refunds, and proration.
+  </Card>
+
+  <Card title="Checkout & Customer Portal" icon="cart-shopping" href="/features/checkout/links">
+    Hosted and embedded checkout experiences plus customer self-service for subscriptions, payment methods, and billing updates.
+  </Card>
+
+  <Card title="Entitlements" icon="key" href="/features/benefits/introduction">
+    Automate license keys, usage credits, and custom entitlement workflows.
+  </Card>
+
+  <Card title="API & Webhooks" icon="code" href="/api-reference">
+    Integrate Spaire into your product with APIs, official SDKs, and event-driven automation.
+  </Card>
+
+  <Card title="Merchant of Record" icon="shield-check" href="/merchant-of-record/introduction">
+    Spaire operates as seller-of-record, handling global tax and compliance so you don't have to.
+  </Card>
+
+  <Card title="Payouts" icon="wallet" href="/features/finance/accounts">
+    Track balances, manage payouts, and operate your revenue workflows from one system.
+  </Card>
+</CardGroup>
+
+## Getting Started
 
 <Steps>
-  <Step title="Create products and prices">
-    Define what you're selling — a fixed monthly subscription, a usage-based plan, a one-time purchase, or all three. No code required to get started.
+  <Step title="Create your Spaire organization">
+    Create an account and set up your organization in the Spaire dashboard.
   </Step>
-  <Step title="Add checkout to your site">
-    Share a checkout link, embed a checkout widget, or generate sessions programmatically from your server. Customers pay; Spaire handles the rest.
+  <Step title="Model your pricing and products">
+    Configure products, prices, subscriptions, and usage meters based on your SaaS packaging strategy.
   </Step>
-  <Step title="Automate post-purchase access">
-    Attach benefits to your products. The moment someone subscribes or buys, Spaire automatically provisions their entitlements — no custom fulfillment logic needed for common cases.
+  <Step title="Connect checkout and entitlements">
+    Launch with hosted checkout links, embedded checkout, or API-driven sessions, then attach benefits for automatic post-purchase access.
   </Step>
-  <Step title="Sync billing state to your app">
-    Use webhooks or the Customer State API to keep your application in sync with what each customer has purchased and what they're currently allowed to access.
+  <Step title="Integrate API, webhooks, and portal">
+    Use Organization Access Tokens, SDKs, and webhooks to sync billing events with your application and internal systems.
   </Step>
-  <Step title="Withdraw your earnings">
-    Connect your bank account once. Your balance accumulates as sales come in, and you can withdraw whenever you're ready.
+  <Step title="Go live globally with MoR coverage">
+    Move to production and sell globally on Spaire's Merchant of Record infrastructure.
   </Step>
 </Steps>
 
-## Start here
+## Recommended Reading
 
-<CardGroup cols={2}>
-  <Card icon="bolt" href="/quickstart" title="Quickstart">
-    Create a product and run your first checkout in under 5 minutes — no code required to start.
-  </Card>
-  <Card icon="cube" href="/core-concepts" title="Core Concepts">
-    Understand the Spaire data model: organizations, products, customers, orders, subscriptions, and how they connect.
-  </Card>
-  <Card icon="flask" href="/integrate/sandbox" title="Sandbox">
-    Test your integration against a fully isolated environment with no real money involved.
-  </Card>
-  <Card icon="rectangle-terminal" href="/api-reference/introduction" title="API Reference">
-    Explore the full REST API — every endpoint, every parameter, with live examples in 6 languages.
-  </Card>
-</CardGroup>
+- [Merchant of Record overview](/merchant-of-record/introduction)
+- [Products and pricing models](/features/products)
+- [Checkout options](/features/checkout/links)
+- [API overvie](/api-reference)w
