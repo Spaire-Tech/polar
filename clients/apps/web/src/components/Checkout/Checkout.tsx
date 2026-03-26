@@ -196,16 +196,12 @@ const Checkout = ({
     const isDenied = paymentStatus?.organization_status === 'denied'
 
     return (
-      <Alert color="red">
-        <div className="flex flex-col gap-y-2 p-2">
-          <div className="font-medium">Payments are currently unavailable</div>
-          <div className="text-sm">
-            {isDenied
-              ? `${checkout.organization.name} doesn't allow payments.`
-              : `${checkout.organization.name} needs to complete their payment setup before you can make a purchase. You can still test with free products or 100% discount orders.`}
-          </div>
-        </div>
-      </Alert>
+      <div className="rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm text-violet-700 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-400">
+        <span className="font-medium">Payments are currently unavailable. </span>
+        {isDenied
+          ? `${checkout.organization.name} doesn't allow payments.`
+          : `${checkout.organization.name} needs to complete their payment setup. You can still test with free products or 100% discount orders.`}
+      </div>
     )
   }
 
