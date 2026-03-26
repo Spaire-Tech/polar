@@ -43,6 +43,7 @@ export interface ClientInvoiceLineItem {
 
 export interface ClientInvoice {
   id: string
+  number?: string | null
   created_at: string
   modified_at: string | null
   organization_id: string

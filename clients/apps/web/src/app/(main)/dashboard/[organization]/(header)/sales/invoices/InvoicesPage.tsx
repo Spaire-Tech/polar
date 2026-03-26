@@ -6,6 +6,7 @@ import {
   ClientInvoice,
   useClientInvoices,
 } from '@/hooks/queries/client_invoices'
+import { useCustomer } from '@/hooks/queries/customers'
 import {
   DataTablePaginationState,
   DataTableSortingState,
@@ -13,6 +14,7 @@ import {
   serializeSearchParams,
 } from '@/utils/datatable'
 import AddOutlined from '@mui/icons-material/AddOutlined'
+import Search from '@mui/icons-material/Search'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import {
@@ -21,11 +23,19 @@ import {
   DataTableColumnHeader,
 } from '@spaire/ui/components/atoms/DataTable'
 import FormattedDateTime from '@spaire/ui/components/atoms/FormattedDateTime'
+import Input from '@spaire/ui/components/atoms/Input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@spaire/ui/components/atoms/Select'
 import ShadowBoxOnMd from '@spaire/ui/components/atoms/ShadowBoxOnMd'
 import { formatCurrency } from '@spaire/currency'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import InvoicePage from './[id]/InvoicePage'
 
 const statusColors: Record<string, string> = {
@@ -46,6 +56,22 @@ const StatusBadge = ({ status }: { status: string }) => (
   </span>
 )
 
+const CustomerCell = ({ customerId }: { customerId: string }) => {
+  const { data: customer } = useCustomer(customerId)
+  if (!customer) {
+    return (
+      <span className="font-mono text-xs text-gray-400 dark:text-gray-500">
+        {customerId.slice(0, 8)}…
+      </span>
+    )
+  }
+  return (
+    <span className="text-sm">
+      {customer.name || customer.email}
+    </span>
+  )
+}
+
 interface InvoicesPageProps {
   organization: schemas['Organization']
   pagination: DataTablePaginationState
@@ -59,13 +85,37 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
 }) => {
   const router = useRouter()
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [sortValue, setSortValue] = useState('-created_at')
 
   const invoicesHook = useClientInvoices(
     organization.id,
     getAPIParams(pagination, sorting),
   )
 
-  const invoices = invoicesHook.data?.items ?? []
+  const allInvoices = invoicesHook.data?.items ?? []
+
+  const invoices = useMemo(() => {
+    let result = allInvoices
+    if (query) {
+      const q = query.toLowerCase()
+      result = result.filter(
+        (i) =>
+          i.id.toLowerCase().includes(q) ||
+          (i.number ?? '').toLowerCase().includes(q),
+      )
+    }
+    if (statusFilter !== 'all') {
+      result = result.filter((i) => i.status === statusFilter)
+    }
+    if (sortValue === '-created_at') result = [...result].sort((a, b) => b.created_at.localeCompare(a.created_at))
+    if (sortValue === 'created_at') result = [...result].sort((a, b) => a.created_at.localeCompare(b.created_at))
+    if (sortValue === '-total_amount') result = [...result].sort((a, b) => b.total_amount - a.total_amount)
+    if (sortValue === 'total_amount') result = [...result].sort((a, b) => a.total_amount - b.total_amount)
+    return result
+  }, [allInvoices, query, statusFilter, sortValue])
+
   const rowCount = invoicesHook.data?.pagination.total_count ?? 0
   const pageCount = invoicesHook.data?.pagination.max_page ?? 1
 
@@ -99,15 +149,25 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
 
   const columns: DataTableColumnDef<ClientInvoice>[] = [
     {
+      accessorKey: 'number',
+      enableSorting: false,
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Invoice #" />
+      ),
+      cell: ({ row: { original: invoice } }) => (
+        <span className="font-mono text-xs text-gray-500 dark:text-gray-400">
+          {invoice.number ?? invoice.id}
+        </span>
+      ),
+    },
+    {
       accessorKey: 'customer_id',
       enableSorting: false,
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Customer" />
       ),
       cell: ({ row: { original: invoice } }) => (
-        <span className="font-mono text-xs text-gray-500 dark:text-gray-400">
-          {invoice.customer_id}
-        </span>
+        <CustomerCell customerId={invoice.customer_id} />
       ),
     },
     {
@@ -183,8 +243,40 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
           </div>
         ) : (
           <>
-            <div className="flex flex-row items-center justify-between">
-              <h1 className="text-xl font-medium dark:text-white">Invoices</h1>
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center">
+                <Input
+                  className="w-full md:max-w-64"
+                  preSlot={<Search fontSize="small" />}
+                  placeholder="Search invoices"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-full md:max-w-fit">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All statuses</SelectItem>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="open">Open</SelectItem>
+                    <SelectItem value="paid">Paid</SelectItem>
+                    <SelectItem value="void">Void</SelectItem>
+                    <SelectItem value="uncollectible">Uncollectible</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={sortValue} onValueChange={setSortValue}>
+                  <SelectTrigger className="w-full md:max-w-fit">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="-created_at">Newest</SelectItem>
+                    <SelectItem value="created_at">Oldest</SelectItem>
+                    <SelectItem value="-total_amount">Amount: High to Low</SelectItem>
+                    <SelectItem value="total_amount">Amount: Low to High</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <Link href={`/dashboard/${organization.slug}/sales/invoices/new`}>
                 <Button>
                   <AddOutlined fontSize="small" />

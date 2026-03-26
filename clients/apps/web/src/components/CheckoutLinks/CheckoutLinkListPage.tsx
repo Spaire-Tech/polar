@@ -22,6 +22,7 @@ import OpenInNewOutlined from '@mui/icons-material/OpenInNewOutlined'
 import PowerSettingsNewOutlined from '@mui/icons-material/PowerSettingsNewOutlined'
 import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined'
 import { schemas } from '@spaire/client'
+import { formatCurrency } from '@spaire/currency'
 import Button from '@spaire/ui/components/atoms/Button'
 import {
   DropdownMenu,
@@ -58,6 +59,20 @@ function isLinkActive(link: schemas['CheckoutLink']): boolean {
 
 function getLinkDisplayName(link: schemas['CheckoutLink']): string {
   return link.label ?? link.products[0]?.name ?? 'Untitled'
+}
+
+function getLinkPriceDisplay(link: schemas['CheckoutLink']): string {
+  const firstPrice = link.products[0]?.prices[0]
+  if (!firstPrice) return '—'
+  if (firstPrice.amount_type === 'fixed') {
+    return formatCurrency('compact')(
+      (firstPrice as { price_amount: number }).price_amount,
+      (firstPrice as { price_currency: string }).price_currency,
+    )
+  }
+  if (firstPrice.amount_type === 'free') return 'Free'
+  if (firstPrice.amount_type === 'custom') return 'Pay what you want'
+  return '—'
 }
 
 export const CheckoutLinkListPage = ({
@@ -107,7 +122,7 @@ export const CheckoutLinkListPage = ({
 
   const handleCopyUrl = (link: schemas['CheckoutLink']) => {
     navigator.clipboard.writeText(link.url)
-    toast({ title: 'Link Copied', description: 'Checkout link copied to clipboard' })
+    toast({ title: 'Link Copied', description: 'Payment link copied to clipboard' })
   }
 
   const handleToggleActive = async (link: schemas['CheckoutLink']) => {
@@ -183,11 +198,20 @@ export const CheckoutLinkListPage = ({
               </div>
               <Button onClick={navigateToCreate}>
                 <AddOutlined className="h-4 w-4" />
-                <span>Create link</span>
+                <span>Create payment link</span>
               </Button>
             </div>
 
             <div className="dark:border-spaire-700 dark:divide-spaire-700 flex flex-col divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200">
+              {/* Header row */}
+              <div className="flex flex-row items-center gap-3 px-6 py-2">
+                <div className="w-2 shrink-0" />
+                <span className="min-w-0 flex-1 text-xs font-medium text-gray-400 dark:text-spaire-500">Name</span>
+                <span className="hidden w-28 shrink-0 text-right text-xs font-medium text-gray-400 dark:text-spaire-500 sm:block">Price</span>
+                <span className="hidden w-28 shrink-0 text-right text-xs font-medium text-gray-400 dark:text-spaire-500 md:block">Collected</span>
+                <span className="hidden w-32 shrink-0 text-right text-xs font-medium text-gray-400 dark:text-spaire-500 lg:block">Created</span>
+                <div className="w-8 shrink-0" />
+              </div>
               {checkoutLinks.map((link) => {
                 const active = isLinkActive(link)
                 const name = getLinkDisplayName(link)
@@ -195,6 +219,11 @@ export const CheckoutLinkListPage = ({
                   link.products.length === 1
                     ? link.products[0].name
                     : `${link.products.length} products`
+                const priceDisplay = getLinkPriceDisplay(link)
+                const createdAt = new Date(link.created_at).toLocaleDateString(
+                  undefined,
+                  { year: 'numeric', month: 'short', day: 'numeric' },
+                )
 
                 return (
                   <div
@@ -223,6 +252,21 @@ export const CheckoutLinkListPage = ({
                       </span>
                     </button>
 
+                    {/* Price */}
+                    <span className="hidden w-28 shrink-0 text-right text-sm text-gray-700 dark:text-spaire-300 sm:block">
+                      {priceDisplay}
+                    </span>
+
+                    {/* Collected fees */}
+                    <span className="hidden w-28 shrink-0 text-right text-sm text-gray-400 dark:text-spaire-500 md:block">
+                      —
+                    </span>
+
+                    {/* Created date */}
+                    <span className="hidden w-32 shrink-0 text-right text-sm text-gray-500 dark:text-spaire-400 lg:block">
+                      {createdAt}
+                    </span>
+
                     {/* Three-dots menu */}
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -250,7 +294,7 @@ export const CheckoutLinkListPage = ({
                           }
                         >
                           <VisibilityOutlined fontSize="small" className="mr-2" />
-                          Preview checkout link
+                          Preview payment link
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => openRename(link)}>
                           <DriveFileRenameOutlineOutlined
@@ -359,7 +403,7 @@ function StripeStyleEmptyState({ onCreateClick }: { onCreateClick: () => void })
       {/* Title + description */}
       <div className="flex max-w-lg flex-col gap-3">
         <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
-          Create a checkout page in a few clicks
+          Create a payment link in a few clicks
         </h2>
         <p className="text-gray-500 dark:text-spaire-400">
           Sell products, offer subscriptions, or accept donations with a
@@ -370,7 +414,7 @@ function StripeStyleEmptyState({ onCreateClick }: { onCreateClick: () => void })
       {/* CTA */}
       <Button size="lg" onClick={onCreateClick} className="gap-2">
         <AddOutlined fontSize="small" />
-        Create checkout link
+        Create payment link
       </Button>
     </div>
   )

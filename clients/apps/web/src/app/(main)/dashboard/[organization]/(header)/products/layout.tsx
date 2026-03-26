@@ -7,10 +7,10 @@ import { PropsWithChildren } from 'react'
 
 const catalogTabs = [
   { title: 'Products', suffix: '' },
-  { title: 'Checkout Links', suffix: '/checkout-links' },
+  { title: 'Payment Links', suffix: '/checkout-links' },
   { title: 'Discounts', suffix: '/discounts' },
   { title: 'Benefits', suffix: '/benefits' },
-  { title: 'Meters', suffix: '/meters' },
+  { title: 'Usage-based', suffix: '/meters' },
 ]
 
 export default function CatalogLayout({ children }: PropsWithChildren) {

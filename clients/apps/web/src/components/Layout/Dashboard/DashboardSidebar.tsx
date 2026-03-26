@@ -7,6 +7,7 @@ import CodeOutlined from '@mui/icons-material/CodeOutlined'
 import DarkModeOutlined from '@mui/icons-material/DarkModeOutlined'
 import KeyboardArrowDown from '@mui/icons-material/KeyboardArrowDown'
 import LightModeOutlined from '@mui/icons-material/LightModeOutlined'
+import ScienceOutlined from '@mui/icons-material/ScienceOutlined'
 import SupportIcon from '@mui/icons-material/Support'
 import { schemas } from '@spaire/client'
 import Avatar from '@spaire/ui/components/atoms/Avatar'
@@ -122,15 +123,6 @@ export const DashboardSidebar = ({
               >
                 New Organization
               </DropdownMenuItem>
-              {!CONFIG.IS_SANDBOX && (
-                <DropdownMenuItem
-                  onClick={() =>
-                    router.push('https://sandbox.spairehq.com/start')
-                  }
-                >
-                  Go to Sandbox
-                </DropdownMenuItem>
-              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() =>
@@ -195,6 +187,20 @@ export const DashboardSidebar = ({
             </span>
           )}
         </button>
+        {!CONFIG.IS_SANDBOX && (
+          <Link
+            href="https://sandbox.spairehq.com/start"
+            target="_blank"
+            className={twMerge(
+              'mt-2 flex cursor-pointer flex-row items-center rounded-lg border border-transparent px-2 text-sm transition-colors dark:border-transparent',
+              'dark:text-spaire-500 dark:hover:text-spaire-200 text-gray-500 hover:text-black',
+              isCollapsed && '!dark:text-spaire-600',
+            )}
+          >
+            <ScienceOutlined fontSize="inherit" />
+            {!isCollapsed && <span className="ml-4 font-medium">Sandbox</span>}
+          </Link>
+        )}
         <Link
           href="/dashboard/account/developer"
           className={twMerge(

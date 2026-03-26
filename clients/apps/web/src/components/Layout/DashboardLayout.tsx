@@ -222,7 +222,7 @@ export const DashboardBody = ({
   return (
     <motion.div
       className={twMerge(
-        'flex h-full w-full flex-row gap-x-2',
+        'flex min-h-0 flex-1 flex-row gap-x-2',
         contextViewPlacement === 'left' ? 'flex-row-reverse' : '',
       )}
       initial="initial"

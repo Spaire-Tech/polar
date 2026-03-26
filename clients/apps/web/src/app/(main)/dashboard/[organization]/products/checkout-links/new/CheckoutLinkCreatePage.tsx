@@ -37,12 +37,12 @@ export const CheckoutLinkCreatePage = ({
             className="flex items-center gap-2 text-sm text-gray-500 transition-colors hover:text-black dark:text-spaire-400 dark:hover:text-white"
           >
             <ArrowBackOutlined fontSize="small" />
-            <span>Back to Checkout Links</span>
+            <span>Back to Payment Links</span>
           </Link>
         </div>
         <div className="flex flex-col gap-6 overflow-y-auto px-8 py-8">
           <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
-            Create Checkout Link
+            Create Payment Link
           </h1>
           <CheckoutLinkForm
             organization={organization}

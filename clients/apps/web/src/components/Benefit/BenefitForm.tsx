@@ -328,7 +328,6 @@ const BenefitTypeSelect = () => {
                 </SelectTrigger>
                 <SelectContent>
                   {enums.benefitTypeValues
-                    .filter((value) => !['discord', 'github_repository', 'downloadables'].includes(value))
                     .map((value) => (
                     <SelectItem key={value} value={value}>
                       {benefitsDisplayNames[value]}

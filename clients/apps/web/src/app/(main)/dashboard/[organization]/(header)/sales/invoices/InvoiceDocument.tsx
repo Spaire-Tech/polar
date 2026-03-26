@@ -271,15 +271,11 @@ const InvoiceDocument: React.FC<{
 
         {/* Footer — pinned to bottom */}
         <div className="mt-auto pt-6">
-          {/* Separator + MOR legal text below */}
+          {/* Separator + legal text below */}
           <div style={{ borderTop: '1px solid #dcdcdc', paddingTop: '10px' }}>
             <div style={{ fontSize: '8px', color: '#646464', textAlign: 'center' }}>
               <p>
-                This invoice is issued by Spaire, Inc. on behalf of {onBehalf}.{' '}
-                Spaire, Inc. acts as the Merchant of Record for this transaction.
-              </p>
-              <p className="mt-1">
-                &copy; {new Date().getFullYear()} Spaire, Inc. All rights reserved.
+                This invoice is issued by Spaire, Inc. on behalf of Spairehq. Spaire, Inc. acts as the Merchant of Record for this transaction. &copy; 2026 Spaire, Inc. All rights reserved.
               </p>
             </div>
           </div>

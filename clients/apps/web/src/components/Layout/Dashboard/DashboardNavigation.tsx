@@ -69,7 +69,7 @@ export const OrganizationNavigation = ({
               <span className="ml-2 text-sm font-medium">{route.title}</span>
             </Link>
           </SidebarMenuButton>
-          {route.isActive && route.subs && (
+          {route.isActive && route.subs && route.showSubsInNav !== false && (
             <SidebarMenuSub className="my-2 gap-y-2">
               {route.subs.map((subRoute: SubRouteWithActive) => {
                 return (
