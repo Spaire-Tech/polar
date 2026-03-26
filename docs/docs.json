@@ -645,6 +645,7 @@
       {
         "tab": "Changelog",
         "icon": "signal-stream",
+        "hidden": true,
         "pages": [
           "changelog/recent",
           "changelog/api"
@@ -653,6 +654,7 @@
       {
         "tab": "Support",
         "icon": "square-question",
+        "hidden": true,
         "pages": [
           "support"
         ]
