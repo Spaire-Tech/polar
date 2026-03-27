@@ -32,7 +32,6 @@
           },
           {
             "group": "Features",
-            "hidden": true,
             "pages": [
               "features/products",
               {
