@@ -123,7 +123,6 @@
               "integrate/mcp",
               {
                 "group": "SDKs",
-                "openapi": "https://api.spairehq.com/openapi.json",
                 "pages": [
                   "integrate/sdk/golang",
                   "integrate/sdk/php",
@@ -202,6 +201,7 @@
             "pages": [
               {
                 "group": "Checkout",
+                "openapi": "https://api.spairehq.com/openapi.json",
                 "pages": [
                   "api-reference/checkouts/create-session",
                   "api-reference/checkouts/get-session",
