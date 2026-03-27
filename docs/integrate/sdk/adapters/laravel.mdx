@@ -1,13 +1,12 @@
 ---
 title: "Laravel"
 description: "Payments and Checkouts made dead simple with Laravel"
-hidden: true
 ---
 
-Seamlessly integrate Spaire subscriptions and payments into your Laravel application.
+Seamlessly integrate Spaire.sh subscriptions and payments into your Laravel application. This package provides an elegant way to handle subscriptions, manage recurring payments, and interact with Spaire's API. With built-in support for webhooks, subscription management, and a fluent API, you can focus on building your application while we handle the complexities of subscription billing.
 
 <Note>
-This provider is not maintained or officially supported by Spaire. Use at your own discretion. If you have questions about the provider, please contact the project maintainer.
+  This provider is not maintained or officially supported by Spaire. Use at your own discretion. If you have questions about the provider, please contact the project maintainer.
 </Note>
 
 ## Installation
@@ -120,10 +119,10 @@ return [
 
 ### Access Token
 
-Configure your access token. Create a new token in the Spaire Dashboard > Settings > Developers and paste it in the `.env` file.
+Configure your access token. Create a new token in the Spaire Dashboard \> Settings \> Developers and paste it in the `.env` file.
 
-- https://sandbox.spairehq.com/dashboard/ORG_SLUG/settings (Sandbox)
-- https://www.spairehq.com/dashboard/ORG_SLUG/settings (Production)
+- [https://sandbox.spairehq.com/dashboard/ORG\_SLUG/settings](https://sandbox.spairehq.com/dashboard/ORG_SLUG/settings) (Sandbox)
+- [https://www.spairehq.com/dashboard/ORG\_SLUG/settings](https://www.spairehq.com/dashboard/ORG_SLUG/settings) (Production)
 
 ```bash Terminal
 SPAIRE_ACCESS_TOKEN="<your_access_token>"
@@ -131,10 +130,10 @@ SPAIRE_ACCESS_TOKEN="<your_access_token>"
 
 ### Webhook Secret
 
-Configure your webhook secret. Create a new webhook in the Spaire Dashboard > Settings > Webhooks.
+Configure your webhook secret. Create a new webhook in the Spaire Dashboard \> Settings \> Webhooks.
 
-- https://sandbox.spairehq.com/dashboard/ORG_SLUG/settings/webhooks (Sandbox)
-- https://www.spairehq.com/dashboard/ORG_SLUG/settings/webhooks (Production)
+- [https://sandbox.spairehq.com/dashboard/ORG\_SLUG/settings/webhooks](https://sandbox.spairehq.com/dashboard/ORG_SLUG/settings/webhooks) (Sandbox)
+- [https://www.spairehq.com/dashboard/ORG\_SLUG/settings/webhooks](https://www.spairehq.com/dashboard/ORG_SLUG/settings/webhooks) (Production)
 
 Configure the webhook for the following events that this package supports:
 
@@ -210,8 +209,8 @@ Or if you're using Laravel v11 and up, you should exclude `spaire/*` in your app
 
 This package includes a list of commands that you can use to retrieve information about your Spaire account.
 
-| Command                      | Description                                |
-| ---------------------------- | ------------------------------------------ |
+| Command | Description |
+| --- | --- |
 | `php artisan spaire:products` | List all available products with their ids |
 
 ### Checkouts
@@ -240,8 +239,7 @@ Route::get('/subscribe', function (Request $request) {
 
 This could be useful if you want to offer monthly, yearly, and lifetime plans for example.
 
-> [!NOTE]
-> If you are requesting the checkout a lot of times we recommend you to cache the URL returned by the `checkout` method.
+> \[!NOTE\] If you are requesting the checkout a lot of times we recommend you to cache the URL returned by the `checkout` method.
 
 #### Custom Price
 
@@ -391,7 +389,7 @@ Or you can use some of the helper methods offers by the `Order` model:
 $order->paid();
 ```
 
-Aside from that, you can run two other checks: refunded, and partially refunded. If the order is refunded, you can utilize the refunded_at timestamp:
+Aside from that, you can run two other checks: refunded, and partially refunded. If the order is refunded, you can utilize the refunded\_at timestamp:
 
 ```blade
 @if ($order->refunded())
@@ -616,7 +614,7 @@ $user = User::find(1);
 $user->subscription()->cancel();
 ```
 
-This will cause your subscription to be cancelled. If you cancel your subscription in the middle of the cycle, it will enter a grace period, and the ends_at column will be updated. The customer will continue to have access to the services offered for the duration of the period. You may check the grace period by calling the `onGracePeriod` method:
+This will cause your subscription to be cancelled. If you cancel your subscription in the middle of the cycle, it will enter a grace period, and the ends\_at column will be updated. The customer will continue to have access to the services offered for the duration of the period. You may check the grace period by calling the `onGracePeriod` method:
 
 ```php
 if ($user->subscription()->onGracePeriod()) {

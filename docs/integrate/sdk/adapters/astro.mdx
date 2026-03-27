@@ -1,7 +1,6 @@
 ---
 title: "Astro"
 description: "Payments and Checkouts made dead simple with Astro"
-hidden: true
 ---
 
 ## Examples
@@ -40,7 +39,7 @@ Install the required Spaire packages using the following command:
 
 Create a Checkout handler which takes care of redirections.
 
-```typescript icon="square-js" 
+```typescript icon=square-js
 import { Checkout } from "@spaire/astro";
 import { SPAIRE_ACCESS_TOKEN, SPAIRE_SUCCESS_URL } from "astro:env/server";
 
@@ -68,7 +67,7 @@ Pass query params to this route.
 
 Create a customer portal where your customer can view orders and subscriptions.
 
-```typescript icon="square-js" 
+```typescript icon=square-js
 import { CustomerPortal } from "@spaire/astro";
 import { SPAIRE_ACCESS_TOKEN } from "astro:env/server";
 
@@ -84,7 +83,7 @@ export const GET = CustomerPortal({
 
 A simple utility which resolves incoming webhook payloads by signing the webhook secret properly.
 
-```typescript icon="square-js" 
+```typescript icon=square-js
 import { Webhooks } from '@spaire/astro';
 import { SPAIRE_WEBHOOK_SECRET } from "astro:env/server"
 

@@ -1,7 +1,6 @@
 ---
 title: "BetterAuth"
 description: "Payments and Checkouts made dead simple with BetterAuth"
-hidden: true
 ---
 
 ## @spaire/better-auth
@@ -54,7 +53,6 @@ Install the required Better Auth and Spaire packages using the following command
     ```bash .env
     SPAIRE_ACCESS_TOKEN=...
     ```
-
   </Step>
   <Step title="Configure BetterAuth Server">
     The Spaire plugin comes with it's own set of plugins to add functionality to your stack:
@@ -64,11 +62,11 @@ Install the required Better Auth and Spaire packages using the following command
     - **usage** - List customer meters & ingest events for Usage Based Billing
     - **webhooks** - Listen for relevant Spaire webhooks
 
-    ```typescript icon="square-js" BetterAuth Server with Spaire Example
+    ```typescript BetterAuth Server with Spaire Example icon=square-js
     import { betterAuth } from "better-auth";
     import { spaire, checkout, portal, usage, webhooks } from "@spaire/better-auth"; // [!code ++]
     import { Spaire } from "@spaire/sdk"; // [!code ++]
-
+    
     const spaireClient = new Spaire({ // [!code ++]
         accessToken: process.env.SPAIRE_ACCESS_TOKEN, // [!code ++]
         // Use 'sandbox' if you're using the Spaire Sandbox environment
@@ -76,7 +74,7 @@ Install the required Better Auth and Spaire packages using the following command
         // Access tokens obtained in Production are for instance not usable in the Sandbox environment.
         server: 'sandbox' // [!code ++]
     }); // [!code ++]
-
+    
     const auth = betterAuth({
         // ... Better Auth config
         plugins: [
@@ -113,7 +111,7 @@ Install the required Better Auth and Spaire packages using the following command
 
     ```typescript
     // ...
-
+    
     const auth = betterAuth({
       // ... Better Auth config
       plugins: [
@@ -137,22 +135,20 @@ Install the required Better Auth and Spaire packages using the following command
     - `createCustomerOnSignUp` (optional): Automatically create a Spaire customer when a user signs up
     - `getCustomerCreateParams` (optional): Custom function to provide additional customer creation metadata
     - `use` (optional): Array of Spaire plugins to enable specific functionality (checkout, portal, usage, and webhooks)
-
   </Step>
   <Step title="Configure BetterAuth Client">
     You will be using the BetterAuth Client to interact with the Spaire functionalities.
 
-    ```typescript icon="square-js" BetterAuth Client with Spaire Example
+    ```typescript BetterAuth Client with Spaire Example icon=square-js
     import { createAuthClient } from "better-auth/react";
     import { spaireClient } from "@spaire/better-auth/client"; // [!code ++]
     import { organizationClient } from "better-auth/client/plugins"; // [!code ++]
-
+    
     // All Spaire plugins, etc. should be attached to BetterAuth server
     export const authClient = createAuthClient({ // [!code ++]
       plugins: [spaireClient()], // [!code ++]
     }); // [!code ++]
     ```
-
   </Step>
 </Steps>
 
@@ -166,17 +162,17 @@ All new customers are created with an associated `externalId`, i.e. the ID of yo
 
 To add user deletion logic with external Spaire customer deletion in BetterAuth, extend the user config of your betterAuth setup with the deleteUser option and an afterDelete hook. Here’s how to integrate this alongside your Spaire plugin and automatic customer creation:
 
-```typescript icon="square-js" Customer Deletion Example
+```typescript Customer Deletion Example icon=square-js
 const auth = betterAuth({
   user: {
-    // [!code ++]
+ // [!code ++]
     deleteUser: {
-      // [!code ++]
+ // [!code ++]
       enabled: true, // [!code ++]
       afterDelete: async (user, request) => {
-        // [!code ++]
+ // [!code ++]
         await spaire.customers.deleteExternal({
-          // [!code ++]
+ // [!code ++]
           externalId: user.id, // [!code ++]
         }); // [!code ++]
       }, // [!code ++]
@@ -186,7 +182,6 @@ const auth = betterAuth({
 ```
 
 ## Checkout Plugin
-
 
 To support [checkouts](/features/checkout/links) in your app, you would pass the `checkout` plugin in the `use` property.
 
@@ -202,12 +197,12 @@ The checkout plugin accepts the following configuration options:
   <Step title="Use Checkout Plugin">
     Update the `use` property of the Spaire plugin for BetterAuth client to have the `checkout` plugin.
 
-    ```typescript icon="square-js" Checkout Plugin Example
+    ```typescript Checkout Plugin Example icon=square-js
     import {
       spaire,
       checkout // [!code ++]
     } from "@spaire/better-auth";
-
+    
     const auth = betterAuth({
         // ... Better Auth config
         plugins: [
@@ -229,7 +224,6 @@ The checkout plugin accepts the following configuration options:
         ]
     });
     ```
-
   </Step>
   <Step title="Create checkouts using BetterAuth client">
     When the `checkout` plugin is passed, you are then able to initialize Checkout Sessions using the `checkout` method on the BetterAuth client. This will redirect the user to the product's checkout link.
@@ -240,7 +234,7 @@ The checkout plugin accepts the following configuration options:
     - **`slug`** (optional): A string that can be used as a reference to the `products` defined in the Checkout config
     - **`referenceId`** (optional): An identifier that will be saved in the metadata of the checkout, order & subscription object
 
-    ```typescript icon="square-js" BetterAuth Checkout with Spaire Example
+    ```typescript BetterAuth Checkout with Spaire Example icon=square-js
     await authClient.checkout({
       // Spaire Product IDs
       products: ["e651f46d-ac20-4f26-b769-ad088b123df2"], // [!code ++]
@@ -252,9 +246,9 @@ The checkout plugin accepts the following configuration options:
 
     This plugin supports the Organization plugin. If you pass the organization ID to the Checkout referenceId, you will be able to keep track of purchases made from organization members.
 
-    ```typescript icon="square-js" BetterAuth Checkout with Spaire Organization Example
+    ```typescript BetterAuth Checkout with Spaire Organization Example icon=square-js
     const organizationId = (await authClient.organization.list())?.data?.[0]?.id,
-
+    
     await authClient.checkout({
         // Any Spaire Product ID can be passed here
         products: ["e651f46d-ac20-4f26-b769-ad088b123df2"],
@@ -264,7 +258,6 @@ The checkout plugin accepts the following configuration options:
         referenceId: organizationId
     });
     ```
-
   </Step>
 </Steps>
 
@@ -274,7 +267,7 @@ A plugin for Usage Based Billing that allows you to [ingest events](#event-inges
 
 To enable [usage based billing](/integrate/sdk/adapters/better-auth) in your app, you would pass the `usage` plugin in the `use` property.
 
-```typescript icon="square-js" Usage Plugin Example
+```typescript Usage Plugin Example icon=square-js
 import {
   spaire, checkout, portal,
   usage // [!code ++]
@@ -302,14 +295,13 @@ Spaire's Usage Based Billing builds entirely on event ingestion. Ingest events f
 The `ingestion` method of the `usage` plugin accepts the following parameters:
 
 - `event` (string): The name of the event to ingest. For example, `ai_usage`, `video_streamed` or `file_uploaded`.
-
 - `metadata` (object): A record containing key-value pairs that provide additional context about the event. Values can be strings, numbers, or booleans. This is useful for storing information that can be used to filter the events or compute the actual usage. For example, you can store the duration of the video streamed or the size of the file uploaded.
 
 <Info>
   The authenticated user is automatically associated with the ingested event.
 </Info>
 
-```typescript icon="square-js" Event Ingestion with Usage Plugin Example
+```typescript Event Ingestion with Usage Plugin Example icon=square-js
 const { data: ingested } = await authClient.usage.ingestion({
   event: "file-uploads",
   metadata: {
@@ -325,10 +317,9 @@ A method to list the authenticated user's Usage Meters (aka Customer Meters). A 
 The `meters` method of the `usage` plugin accepts the following parameters:
 
 - `page` (number): The page number for pagination (starts from 1).
-
 - `limit` (number): The maximum number of meters to return per page.
 
-```typescript icon="square-js" Customer Meters with Usage Plugin Example
+```typescript Customer Meters with Usage Plugin Example icon=square-js
 const { data: customerMeters } = await authClient.usage.meters.list({
   query: {
     page: 1,
@@ -358,20 +349,20 @@ To set up the Spaire `webhooks` plugin with the BetterAuth client, follow the st
   </Step>
   <Step title="Add the Webhook Secret">
     Add the obtained webhook secret to your application environment as an environment variable (to be used as `process.env.SPAIRE_WEBHOOK_SECRET`):
-  
+
     ```bash .env
     SPAIRE_WEBHOOK_SECRET="..."
     ```
   </Step>
   <Step title="Use Webhooks Plugin in BetterAuth client">
     Pass the `webhooks` plugin in the `use` property.
-    
-    ```typescript icon="square-js" Webhooks Plugin Example
+
+    ```typescript Webhooks Plugin Example icon=square-js
     import {
       spaire,
       webhooks // [!code ++]
     } from "@spaire/better-auth";
-
+    
     const auth = betterAuth({
         // ... Better Auth config
         plugins: [
@@ -390,7 +381,6 @@ To set up the Spaire `webhooks` plugin with the BetterAuth client, follow the st
         ]
     });
     ```
-
   </Step>
 </Steps>
 
@@ -427,7 +417,7 @@ The `webhooks` plugin allows you to invoke handlers for all Spaire webhook event
 
 A plugin which enables customer management of their purchases, orders and subscriptions.
 
-```typescript icon="square-js" Portal Plugin Example
+```typescript Portal Plugin Example icon=square-js
 import {
   spaire, checkout,
   portal // [!code ++]
@@ -455,7 +445,7 @@ The `portal` plugin gives the BetterAuth Client a set of customer management met
 
 The following method will redirect the user to the Spaire Customer Portal, where they can see their orders, purchases, subscriptions, benefits, etc.
 
-```typescript icon="square-js" Open Customer Portal Example
+```typescript Open Customer Portal Example icon=square-js
 await authClient.customer.portal();
 ```
 
@@ -463,7 +453,7 @@ await authClient.customer.portal();
 
 The portal plugin also adds a convenient method to retrieve the Customer State.
 
-```typescript icon="square-js" Retrieve Customer State Example
+```typescript Retrieve Customer State Example icon=square-js
 const { data: customerState } = await authClient.customer.state();
 ```
 
@@ -472,8 +462,7 @@ The customer state object contains:
 - All the data about the customer.
 - The list of their active subscriptions.
   <Note>
-    This does not include subscriptions done by a parent organization. See the
-    subscription list-method below for more information.
+    This does not include subscriptions done by a parent organization. See the subscription list-method below for more information.
   </Note>
 - The list of their granted benefits.
 - The list of their active meters, with their current balance.
@@ -490,7 +479,7 @@ The portal plugin adds the following 3 convenient methods for listing benefits, 
 
 This method only lists granted benefits for the authenticated user/customer.
 
-```typescript icon="square-js" List User Benefits Example
+```typescript List User Benefits Example icon=square-js
 const { data: benefits } = await authClient.customer.benefits.list({
   query: {
     page: 1,
@@ -503,7 +492,7 @@ const { data: benefits } = await authClient.customer.benefits.list({
 
 This method lists orders like purchases and subscription renewals for the authenticated user/customer.
 
-```typescript icon="square-js" List User Orders Example
+```typescript List User Orders Example icon=square-js
 const { data: orders } = await authClient.customer.orders.list({
   query: {
     page: 1,
@@ -517,7 +506,7 @@ Using the Organization ID as the `referenceId` you can retrieve all the subscrip
 
 To figure out if a user should have access, pass the user's organization ID to see if there is an active subscription for that organization.
 
-```typescript icon="square-js" List Organization Subscriptions Example
+```typescript List Organization Subscriptions Example icon=square-js
 const organizationId = (await authClient.organization.list())?.data?.[0]?.id,
 
 const { data: subscriptions } = await authClient.customer.orders.list({
@@ -538,7 +527,7 @@ const userShouldHaveAccess = subscriptions.some(
 
 This method lists the subscriptions associated with authenticated user/customer.
 
-```typescript icon="square-js" List User Subscriptions Example
+```typescript List User Subscriptions Example icon=square-js
 const { data: subscriptions } = await authClient.customer.subscriptions.list({
   query: {
     page: 1,
@@ -549,6 +538,5 @@ const { data: subscriptions } = await authClient.customer.subscriptions.list({
 ```
 
 <Danger>
-  This will not return subscriptions made by a parent organization to the
-  authenticated user.
+  This will not return subscriptions made by a parent organization to the authenticated user.
 </Danger>

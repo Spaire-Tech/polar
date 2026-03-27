@@ -1,7 +1,6 @@
 ---
 title: "Remix"
 description: "Payments and Checkouts made dead simple with Remix"
-hidden: true
 ---
 
 ## Examples
@@ -35,12 +34,11 @@ Install the required Spaire packages using the following command:
   </Tab>
 </Tabs>
 
-
 ## Checkout
 
 Create a Checkout handler which takes care of redirections.
 
-```typescript icon="square-js" app/routes/checkout.tsx
+```typescript app/routes/checkout.tsx icon=square-js
 import { Checkout } from "@spaire/remix";
 
 export const loader = Checkout({
@@ -67,7 +65,7 @@ Pass query params to this route.
 
 Create a customer portal where your customer can view orders and subscriptions.
 
-```typescript icon="square-js" app/routes/customer-portal.tsx
+```typescript app/routes/customer-portal.tsx icon=square-js
 import { CustomerPortal } from "@spaire/remix";
 
 export const loader = CustomerPortal({
@@ -82,7 +80,7 @@ export const loader = CustomerPortal({
 
 A simple utility which resolves incoming webhook payloads by signing the webhook secret properly.
 
-```typescript icon="square-js" app/routes/webhook.tsx
+```typescript app/routes/webhook.tsx icon=square-js
 import { Webhooks } from "@spaire/remix";
 
 export const action = Webhooks({
