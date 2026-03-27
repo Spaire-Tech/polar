@@ -278,6 +278,16 @@ export const OrganizationStep = ({
         },
         userId: currentUser?.id,
       })
+
+      // Update auth context so the sidebar immediately reflects the new avatar
+      if (uploadedAvatarUrl) {
+        setUserOrganizations((orgs) =>
+          orgs.map((o) =>
+            o.id === organization.id ? { ...o, avatar_url: uploadedAvatarUrl } : o,
+          ),
+        )
+      }
+
       // Explicitly revalidate so the layout re-fetches the org with the new currency
       // before the router push renders the next page
       await revalidate(`organizations:${organization.id}`)
@@ -448,10 +458,10 @@ export const OrganizationStep = ({
                   </div>
 
                   <div className="dark:bg-spaire-900 flex flex-col gap-y-5 rounded-2xl border border-gray-200 bg-white p-6 dark:border-none">
-                    {/* Logo upload — mandatory for invoicing & branding */}
+                    {/* Logo upload — optional */}
                     <div className="flex flex-col gap-y-2">
                       <Label>
-                        Logo <span className="text-red-500">*</span>
+                        Logo
                       </Label>
                       <p className="dark:text-spaire-500 text-xs text-gray-400">
                         Your logo appears on invoices. Use a square image for best results.
@@ -657,7 +667,7 @@ export const OrganizationStep = ({
                     type="submit"
                     size="lg"
                     loading={createOrganization.isPending}
-                    disabled={name.length === 0 || slug.length === 0 || !terms || !logoFile}
+                    disabled={name.length === 0 || slug.length === 0 || !terms}
                   >
                     Continue
                   </Button>
