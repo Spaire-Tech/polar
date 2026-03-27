@@ -4,11 +4,6 @@ sidebarTitle: "Handle incoming webhooks"
 description: "How to parse, validate and handle webhooks and monitor their deliveries on Spaire"
 ---
 
-<img
-  className="block dark:hidden"
-  src="/assets/integrate/webhooks/delivery.light.png"
-/>
-
 Once a webhook endpoint is setup you will have access to the delivery overview page. Here you can:
 
 - See historic deliveries
@@ -57,7 +52,6 @@ app.post(
 )
 ```
 
-
 ```python Python (Flask)
 import os
 from flask import Flask, request
@@ -104,7 +98,7 @@ If you are using a firewall or a reverse proxy that requires IP allowlisting, he
 
   Starting **October 27th, 2025**, new IP ranges will be added:
 
-  ```
+  ```text
   74.220.50.0/24
   74.220.58.0/24
   ```
@@ -120,7 +114,6 @@ If you are using a firewall or a reverse proxy that requires IP allowlisting, he
 74.220.50.0/24
 74.220.58.0/24
 ```
-
 
 ```txt Sandbox
 3.134.238.10
