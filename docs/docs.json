@@ -36,7 +36,6 @@
               "features/products",
               {
                 "group": "Usage Based Billing",
-                "icon": "meter",
                 "pages": [
                   "features/usage-based-billing/introduction",
                   "features/usage-based-billing/event-ingestion",
@@ -57,7 +56,6 @@
               },
               {
                 "group": "Cost Insights",
-                "icon": "money-bill-trend-up",
                 "tag": "Beta",
                 "pages": [
                   "features/cost-insights/introduction",
