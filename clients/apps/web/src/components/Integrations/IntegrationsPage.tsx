@@ -5,20 +5,42 @@ import { OrganizationContext } from '@/providers/maintainerOrganization'
 import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
 import Link from 'next/link'
 import { useContext } from 'react'
+import AstroIcon from '../Icons/frameworks/astro'
 import BetterAuthIcon from '../Icons/frameworks/better-auth'
 import BoltIcon from '../Icons/frameworks/bolt'
+import ElysiaIcon from '../Icons/frameworks/elysia'
 import ExpressIcon from '../Icons/frameworks/express'
+import FastifyIcon from '../Icons/frameworks/fastify'
+import HonoIcon from '../Icons/frameworks/hono'
+import LaravelIcon from '../Icons/frameworks/laravel'
 import LovableIcon from '../Icons/frameworks/lovable'
 import NextJsIcon from '../Icons/frameworks/nextjs'
+import NuxtIcon from '../Icons/frameworks/nuxt'
 import PhpIcon from '../Icons/frameworks/php'
 import PythonIcon from '../Icons/frameworks/python'
+import RemixIcon from '../Icons/frameworks/remix'
 import ReplitIcon from '../Icons/frameworks/replit'
+import RubyIcon from '../Icons/frameworks/ruby'
 import SupabaseIcon from '../Icons/frameworks/supabase'
+import SvelteKitIcon from '../Icons/frameworks/sveltekit'
+import TanStackIcon from '../Icons/frameworks/tanstack'
+import TypeScriptIcon from '../Icons/frameworks/typescript'
 import V0Icon from '../Icons/frameworks/v0'
 import { ALL_INTEGRATIONS, type Integration } from './integrations'
 
 const INTEGRATION_ICONS: Record<string, React.ReactNode> = {
+  'typescript-sdk': <TypeScriptIcon size={36} />,
   nextjs: <NextJsIcon size={36} />,
+  'ruby-sdk': <RubyIcon size={36} />,
+  astro: <AstroIcon size={36} />,
+  elysia: <ElysiaIcon size={36} />,
+  fastify: <FastifyIcon size={36} />,
+  hono: <HonoIcon size={36} />,
+  laravel: <LaravelIcon size={36} />,
+  nuxt: <NuxtIcon size={36} />,
+  remix: <RemixIcon size={36} />,
+  sveltekit: <SvelteKitIcon size={36} />,
+  'tanstack-start': <TanStackIcon size={36} />,
   lovable: <LovableIcon size={36} />,
   supabase: <SupabaseIcon size={36} />,
   v0: <V0Icon size={36} />,
