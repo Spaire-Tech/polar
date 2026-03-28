@@ -4,7 +4,7 @@
   "author": "Spaire",
   "license": "Apache-2.0",
   "type": "module",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "repository": {
     "type": "git",
     "url": "https://github.com/Spaire-Tech/polar.git",
@@ -37,8 +37,8 @@
     }
   },
   "devDependencies": {
-    "@polar-sh/i18n": "workspace:^",
     "@spaire/currency": "workspace:^",
+    "@spaire/i18n": "workspace:^",
     "@spaire/typescript-config": "workspace:*",
     "@stripe/react-stripe-js": "^4.0.2",
     "@stripe/stripe-js": "^7.9.0",

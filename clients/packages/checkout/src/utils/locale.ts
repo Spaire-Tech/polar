@@ -1,5 +1,5 @@
-import type { AcceptedLocale, SupportedLocale } from '@polar-sh/i18n'
-import { getTranslationLocale, isSupportedLocale } from '@polar-sh/i18n'
+import type { AcceptedLocale, SupportedLocale } from '@spaire/i18n'
+import { getTranslationLocale, isSupportedLocale } from '@spaire/i18n'
 import type { StripeElementLocale } from '@stripe/stripe-js'
 
 export const convertLocaleToStripeElementLocale = (
