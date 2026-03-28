@@ -548,8 +548,476 @@ $response = $sdk->checkouts->create([
 header('Location: ' . $response->url);`,
 }
 
+export const TYPESCRIPT_SDK_INTEGRATION: SdkIntegration = {
+  type: 'sdk',
+  slug: 'typescript-sdk',
+  name: 'TypeScript SDK',
+  tagline: 'Build with TypeScript. Monetize with Spaire.',
+  description:
+    'The official Spaire TypeScript SDK gives you a clean, type-safe interface to create checkouts, manage subscriptions, and handle webhooks — built for any TypeScript or JavaScript runtime.',
+  category: 'backend',
+  categoryLabel: 'Backend SDK',
+  howItWorks: [
+    {
+      title: 'Install SDK',
+      description: 'Add @spaire/sdk to your project',
+    },
+    {
+      title: 'Configure credentials',
+      description: 'Set your access token in the environment',
+    },
+    {
+      title: 'Go live',
+      description: 'Create checkouts and handle webhooks',
+    },
+  ],
+  packages: '@spaire/sdk',
+  docsLink: 'https://docs.spairehq.com/integrate/sdk/typescript',
+  codeLang: 'typescript',
+  envVars: `SPAIRE_ACCESS_TOKEN=your_access_token
+SPAIRE_SUCCESS_URL=https://example.com/success?checkout_id={CHECKOUT_ID}`,
+  code: `import { Spaire } from "@spaire/sdk";
+
+const spaire = new Spaire({
+  accessToken: process.env.SPAIRE_ACCESS_TOKEN,
+});
+
+const checkout = await spaire.checkouts.create({
+  products: ["YOUR_PRODUCT_ID"],
+  successUrl: process.env.SPAIRE_SUCCESS_URL,
+});
+
+// Redirect to checkout
+redirect(checkout.url);`,
+}
+
+export const RUBY_SDK_INTEGRATION: SdkIntegration = {
+  type: 'sdk',
+  slug: 'ruby-sdk',
+  name: 'Ruby SDK',
+  tagline: 'Build with Ruby. Monetize with Spaire.',
+  description:
+    'The official Spaire Ruby SDK gives you a clean interface to create checkouts, manage subscriptions, and handle webhooks — built for any Ruby application or framework.',
+  category: 'backend',
+  categoryLabel: 'Backend SDK',
+  howItWorks: [
+    {
+      title: 'Install gem',
+      description: 'Add spaire to your project via gem or Bundler',
+    },
+    {
+      title: 'Configure credentials',
+      description: 'Set your access token in the environment',
+    },
+    {
+      title: 'Go live',
+      description: 'Create checkouts and handle webhooks',
+    },
+  ],
+  packages: 'spaire',
+  pythonInstall: 'gem install spaire',
+  docsLink: 'https://docs.spairehq.com/integrate/sdk/ruby',
+  codeLang: 'bash',
+  envVars: `SPAIRE_ACCESS_TOKEN=your_access_token`,
+  code: `require 'spaire'
+
+s = OpenApiSDK::Spaire.new(
+  access_token: ENV['SPAIRE_ACCESS_TOKEN']
+)
+
+res = s.checkouts.create(
+  products: ['YOUR_PRODUCT_ID'],
+  success_url: 'https://example.com/success'
+)
+
+# Redirect to checkout
+redirect res.url`,
+}
+
+export const ASTRO_INTEGRATION: SdkIntegration = {
+  type: 'sdk',
+  slug: 'astro',
+  name: 'Astro',
+  tagline: 'Build with Astro. Monetize with Spaire.',
+  description:
+    'The official @spaire/astro adapter gives you checkout, customer portal, and webhooks out of the box — the full billing loop in a single package.',
+  category: 'framework',
+  categoryLabel: 'Framework',
+  howItWorks: [
+    {
+      title: 'Install adapter',
+      description: 'Add @spaire/astro to your project',
+    },
+    {
+      title: 'Add route handler',
+      description: 'One-line checkout API route',
+    },
+    {
+      title: 'Go live',
+      description: 'Checkout, portal, and webhooks ready',
+    },
+  ],
+  packages: 'zod @spaire/astro',
+  docsLink: 'https://docs.spairehq.com/integrate/sdk/adapters/astro',
+  codeLang: 'typescript',
+  envVars: `SPAIRE_ACCESS_TOKEN=your_access_token
+SPAIRE_SUCCESS_URL=https://example.com/success?checkout_id={CHECKOUT_ID}`,
+  code: `import { Checkout } from "@spaire/astro";
+import { SPAIRE_ACCESS_TOKEN, SPAIRE_SUCCESS_URL } from "astro:env/server";
+
+// src/pages/api/checkout.ts
+export const GET = Checkout({
+  accessToken: SPAIRE_ACCESS_TOKEN,
+  successUrl: SPAIRE_SUCCESS_URL,
+});`,
+}
+
+export const ELYSIA_INTEGRATION: SdkIntegration = {
+  type: 'sdk',
+  slug: 'elysia',
+  name: 'Elysia',
+  tagline: 'Build with Elysia. Monetize with Spaire.',
+  description:
+    'The official @spaire/elysia adapter gives you checkout, customer portal, and webhooks out of the box — the full billing loop in a single package.',
+  category: 'framework',
+  categoryLabel: 'Framework',
+  howItWorks: [
+    {
+      title: 'Install adapter',
+      description: 'Add @spaire/elysia to your project',
+    },
+    {
+      title: 'Add route handler',
+      description: 'One-line checkout route',
+    },
+    {
+      title: 'Go live',
+      description: 'Checkout, portal, and webhooks ready',
+    },
+  ],
+  packages: 'zod @spaire/elysia',
+  docsLink: 'https://docs.spairehq.com/integrate/sdk/adapters/elysia',
+  codeLang: 'typescript',
+  envVars: `SPAIRE_ACCESS_TOKEN=your_access_token
+SPAIRE_SUCCESS_URL=https://example.com/success?checkout_id={CHECKOUT_ID}`,
+  code: `import { Elysia } from "elysia";
+import { Checkout } from "@spaire/elysia";
+
+const app = new Elysia();
+
+app.get(
+  "/checkout",
+  Checkout({
+    accessToken: process.env.SPAIRE_ACCESS_TOKEN!,
+    successUrl: process.env.SPAIRE_SUCCESS_URL!,
+  })
+);`,
+}
+
+export const FASTIFY_INTEGRATION: SdkIntegration = {
+  type: 'sdk',
+  slug: 'fastify',
+  name: 'Fastify',
+  tagline: 'Build with Fastify. Monetize with Spaire.',
+  description:
+    'The official @spaire/fastify adapter gives you checkout, customer portal, and webhooks out of the box — the full billing loop in a single package.',
+  category: 'framework',
+  categoryLabel: 'Framework',
+  howItWorks: [
+    {
+      title: 'Install adapter',
+      description: 'Add @spaire/fastify to your project',
+    },
+    {
+      title: 'Add route handler',
+      description: 'One-line checkout route',
+    },
+    {
+      title: 'Go live',
+      description: 'Checkout, portal, and webhooks ready',
+    },
+  ],
+  packages: 'zod @spaire/fastify',
+  docsLink: 'https://docs.spairehq.com/integrate/sdk/adapters/fastify',
+  codeLang: 'typescript',
+  envVars: `SPAIRE_ACCESS_TOKEN=your_access_token
+SPAIRE_SUCCESS_URL=https://example.com/success?checkout_id={CHECKOUT_ID}`,
+  code: `import fastify from "fastify";
+import { Checkout } from "@spaire/fastify";
+
+const app = fastify();
+
+app.get(
+  "/checkout",
+  Checkout({
+    accessToken: process.env.SPAIRE_ACCESS_TOKEN!,
+    successUrl: process.env.SPAIRE_SUCCESS_URL!,
+  })
+);`,
+}
+
+export const HONO_INTEGRATION: SdkIntegration = {
+  type: 'sdk',
+  slug: 'hono',
+  name: 'Hono',
+  tagline: 'Build with Hono. Monetize with Spaire.',
+  description:
+    'The official @spaire/hono adapter gives you checkout, customer portal, and webhooks out of the box — the full billing loop in a single package.',
+  category: 'framework',
+  categoryLabel: 'Framework',
+  howItWorks: [
+    {
+      title: 'Install adapter',
+      description: 'Add @spaire/hono to your project',
+    },
+    {
+      title: 'Add route handler',
+      description: 'One-line checkout route',
+    },
+    {
+      title: 'Go live',
+      description: 'Checkout, portal, and webhooks ready',
+    },
+  ],
+  packages: 'zod @spaire/hono',
+  docsLink: 'https://docs.spairehq.com/integrate/sdk/adapters/hono',
+  codeLang: 'typescript',
+  envVars: `SPAIRE_ACCESS_TOKEN=your_access_token
+SPAIRE_SUCCESS_URL=https://example.com/success?checkout_id={CHECKOUT_ID}`,
+  code: `import { Hono } from "hono";
+import { Checkout } from "@spaire/hono";
+
+const app = new Hono();
+
+app.get(
+  "/checkout",
+  Checkout({
+    accessToken: process.env.SPAIRE_ACCESS_TOKEN!,
+    successUrl: process.env.SPAIRE_SUCCESS_URL!,
+  })
+);`,
+}
+
+export const LARAVEL_INTEGRATION: SdkIntegration = {
+  type: 'sdk',
+  slug: 'laravel',
+  name: 'Laravel',
+  tagline: 'Build with Laravel. Monetize with Spaire.',
+  description:
+    'The official Laravel adapter for Spaire gives you checkout, subscriptions, customer portal, and webhooks — all integrated with Eloquent and your existing auth.',
+  category: 'framework',
+  categoryLabel: 'Framework',
+  howItWorks: [
+    {
+      title: 'Install package',
+      description: 'Add laravel-spaire via Composer',
+    },
+    {
+      title: 'Run installer',
+      description: 'php artisan spaire:install sets up everything',
+    },
+    {
+      title: 'Go live',
+      description: 'Checkout, subscriptions, and webhooks ready',
+    },
+  ],
+  packages: 'danestves/laravel-spaire',
+  pythonInstall: 'composer require danestves/laravel-spaire',
+  docsLink: 'https://docs.spairehq.com/integrate/sdk/adapters/laravel',
+  codeLang: 'php',
+  envVars: `SPAIRE_ACCESS_TOKEN=your_access_token
+SPAIRE_WEBHOOK_SECRET=your_webhook_secret`,
+  code: `<?php
+
+use Illuminate\\Http\\Request;
+
+// Add Billable trait to your User model
+// use Danestves\\LaravelSpaire\\Billable;
+
+Route::post('/checkout', function (Request $request) {
+    return $request->user()->checkout(['product_id_123']);
+});
+
+Route::post('/subscribe', function (Request $request) {
+    return $request->user()->subscribe('product_id_123');
+});`,
+}
+
+export const NUXT_INTEGRATION: SdkIntegration = {
+  type: 'sdk',
+  slug: 'nuxt',
+  name: 'Nuxt',
+  tagline: 'Build with Nuxt. Monetize with Spaire.',
+  description:
+    'The official @spaire/nuxt module gives you checkout, customer portal, and webhooks out of the box — the full billing loop as a Nuxt module.',
+  category: 'framework',
+  categoryLabel: 'Framework',
+  howItWorks: [
+    {
+      title: 'Install module',
+      description: 'Add @spaire/nuxt to your project',
+    },
+    {
+      title: 'Register module',
+      description: 'Add to your nuxt.config.ts modules array',
+    },
+    {
+      title: 'Go live',
+      description: 'Checkout, portal, and webhooks ready',
+    },
+  ],
+  packages: 'zod @spaire/nuxt',
+  docsLink: 'https://docs.spairehq.com/integrate/sdk/adapters/nuxt',
+  codeLang: 'typescript',
+  envVars: `SPAIRE_ACCESS_TOKEN=your_access_token
+SPAIRE_SUCCESS_URL=https://example.com/success?checkout_id={CHECKOUT_ID}`,
+  code: `// nuxt.config.ts
+export default defineNuxtConfig({
+  modules: ["@spaire/nuxt"],
+});
+
+// server/routes/api/checkout.post.ts
+import { Checkout } from "@spaire/nuxt";
+
+export default defineEventHandler((event) => {
+  return Checkout({
+    accessToken: process.env.SPAIRE_ACCESS_TOKEN!,
+    successUrl: process.env.SPAIRE_SUCCESS_URL!,
+  })(event);
+});`,
+}
+
+export const REMIX_INTEGRATION: SdkIntegration = {
+  type: 'sdk',
+  slug: 'remix',
+  name: 'Remix',
+  tagline: 'Build with Remix. Monetize with Spaire.',
+  description:
+    'The official @spaire/remix adapter gives you checkout, customer portal, and webhooks out of the box — the full billing loop in a single package.',
+  category: 'framework',
+  categoryLabel: 'Framework',
+  howItWorks: [
+    {
+      title: 'Install adapter',
+      description: 'Add @spaire/remix to your project',
+    },
+    {
+      title: 'Add loader',
+      description: 'One-line checkout route loader',
+    },
+    {
+      title: 'Go live',
+      description: 'Checkout, portal, and webhooks ready',
+    },
+  ],
+  packages: 'zod @spaire/remix',
+  docsLink: 'https://docs.spairehq.com/integrate/sdk/adapters/remix',
+  codeLang: 'typescript',
+  envVars: `SPAIRE_ACCESS_TOKEN=your_access_token
+SPAIRE_SUCCESS_URL=https://example.com/success?checkout_id={CHECKOUT_ID}`,
+  code: `import { Checkout } from "@spaire/remix";
+
+// app/routes/checkout.tsx
+export const loader = Checkout({
+  accessToken: process.env.SPAIRE_ACCESS_TOKEN!,
+  successUrl: process.env.SPAIRE_SUCCESS_URL!,
+});`,
+}
+
+export const SVELTEKIT_INTEGRATION: SdkIntegration = {
+  type: 'sdk',
+  slug: 'sveltekit',
+  name: 'SvelteKit',
+  tagline: 'Build with SvelteKit. Monetize with Spaire.',
+  description:
+    'The official @spaire/sveltekit adapter gives you checkout, customer portal, and webhooks out of the box — the full billing loop in a single package.',
+  category: 'framework',
+  categoryLabel: 'Framework',
+  howItWorks: [
+    {
+      title: 'Install adapter',
+      description: 'Add @spaire/sveltekit to your project',
+    },
+    {
+      title: 'Add server route',
+      description: 'One-line checkout endpoint',
+    },
+    {
+      title: 'Go live',
+      description: 'Checkout, portal, and webhooks ready',
+    },
+  ],
+  packages: 'zod @spaire/sveltekit',
+  docsLink: 'https://docs.spairehq.com/integrate/sdk/adapters/sveltekit',
+  codeLang: 'typescript',
+  envVars: `SPAIRE_ACCESS_TOKEN=your_access_token
+SPAIRE_SUCCESS_URL=https://example.com/success?checkout_id={CHECKOUT_ID}`,
+  code: `import { Checkout } from "@spaire/sveltekit";
+
+// src/routes/checkout/+server.ts
+export const GET = Checkout({
+  accessToken: process.env.SPAIRE_ACCESS_TOKEN!,
+  successUrl: process.env.SPAIRE_SUCCESS_URL!,
+});`,
+}
+
+export const TANSTACK_START_INTEGRATION: SdkIntegration = {
+  type: 'sdk',
+  slug: 'tanstack-start',
+  name: 'TanStack Start',
+  tagline: 'Build with TanStack Start. Monetize with Spaire.',
+  description:
+    'The official @spaire/tanstack-start adapter gives you checkout, customer portal, and webhooks out of the box — the full billing loop in a single package.',
+  category: 'framework',
+  categoryLabel: 'Framework',
+  howItWorks: [
+    {
+      title: 'Install adapter',
+      description: 'Add @spaire/tanstack-start to your project',
+    },
+    {
+      title: 'Add file route',
+      description: 'One-line checkout route handler',
+    },
+    {
+      title: 'Go live',
+      description: 'Checkout, portal, and webhooks ready',
+    },
+  ],
+  packages: 'zod @spaire/tanstack-start',
+  docsLink: 'https://docs.spairehq.com/integrate/sdk/adapters/tanstack-start',
+  codeLang: 'typescript',
+  envVars: `SPAIRE_ACCESS_TOKEN=your_access_token
+SPAIRE_SUCCESS_URL=https://example.com/success?checkout_id={CHECKOUT_ID}`,
+  code: `import { Checkout } from "@spaire/tanstack-start";
+import { createFileRoute } from "@tanstack/react-start";
+
+// routes/api/checkout.ts
+export const Route = createFileRoute("/api/checkout")({
+  server: {
+    handlers: {
+      GET: Checkout({
+        accessToken: process.env.SPAIRE_ACCESS_TOKEN!,
+        successUrl: process.env.SPAIRE_SUCCESS_URL!,
+      }),
+    },
+  },
+});`,
+}
+
 export const ALL_INTEGRATIONS: Integration[] = [
+  TYPESCRIPT_SDK_INTEGRATION,
   NEXTJS_INTEGRATION,
+  RUBY_SDK_INTEGRATION,
+  ASTRO_INTEGRATION,
+  ELYSIA_INTEGRATION,
+  FASTIFY_INTEGRATION,
+  HONO_INTEGRATION,
+  LARAVEL_INTEGRATION,
+  NUXT_INTEGRATION,
+  REMIX_INTEGRATION,
+  SVELTEKIT_INTEGRATION,
+  TANSTACK_START_INTEGRATION,
   SUPABASE_INTEGRATION,
   BETTERAUTH_INTEGRATION,
   EXPRESS_INTEGRATION,
