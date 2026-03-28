@@ -632,12 +632,6 @@ importers:
 
   packages/checkout:
     dependencies:
-      '@polar-sh/i18n':
-        specifier: workspace:^
-        version: link:../i18n
-      '@spaire/currency':
-        specifier: workspace:^
-        version: link:../currency
       '@spaire/sdk':
         specifier: ^0.45.1
         version: 0.45.1
@@ -657,6 +651,12 @@ importers:
         specifier: ~7.71.1
         version: 7.71.1(react@19.2.4)
     devDependencies:
+      '@polar-sh/i18n':
+        specifier: workspace:^
+        version: link:../i18n
+      '@spaire/currency':
+        specifier: workspace:^
+        version: link:../currency
       '@spaire/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
@@ -895,9 +895,6 @@ importers:
       '@radix-ui/react-tooltip':
         specifier: ^1.2.8
         version: 1.2.8(@types/react-dom@19.2.3(@types/react@19.2.3))(@types/react@19.2.3)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      '@spaire/currency':
-        specifier: workspace:^
-        version: link:../currency
       '@tanstack/react-table':
         specifier: ^8.21.3
         version: 8.21.3(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -938,6 +935,9 @@ importers:
         specifier: ^3.4.0
         version: 3.4.0
     devDependencies:
+      '@spaire/currency':
+        specifier: workspace:^
+        version: link:../currency
       '@spaire/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
