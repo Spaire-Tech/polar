@@ -49,8 +49,8 @@ import AmountLabel from './AmountLabel'
 import CustomFieldInput from './CustomFieldInput'
 import MeteredPriceLabel from './MeteredPriceLabel'
 import SpaireLogo from './SpaireLogo'
-import type { AcceptedLocale } from '@polar-sh/i18n'
-import { DEFAULT_LOCALE, useTranslations } from '@polar-sh/i18n'
+import type { AcceptedLocale } from '@spaire/i18n'
+import { DEFAULT_LOCALE, useTranslations } from '@spaire/i18n'
 import { convertLocaleToStripeElementLocale } from '../utils/locale'
 
 const DetailRow = ({
