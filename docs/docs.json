@@ -150,6 +150,7 @@
               },
               {
                 "group": "Framework Guides",
+                "hidden": true,
                 "pages": [
                   "guides/nextjs",
                   "guides/laravel"
