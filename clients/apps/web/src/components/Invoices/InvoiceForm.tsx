@@ -335,7 +335,7 @@ const InvoiceCurrencySection = () => {
             <FormControl>
               <select
                 {...field}
-                className="dark:bg-spaire-600 dark:border-spaire-700 w-full max-w-xs rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm focus:outline-none"
+                className="dark:bg-spaire-700 dark:border-spaire-700 w-full max-w-xs rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm focus:outline-none"
               >
                 {CURRENCIES.map((c) => (
                   <option key={c.value} value={c.value}>
