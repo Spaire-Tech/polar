@@ -3,12 +3,10 @@ import { useAuth } from '@/hooks'
 import { CONFIG } from '@/utils/config'
 import { isImpersonating } from '@/utils/impersonation'
 import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
-import CodeOutlined from '@mui/icons-material/CodeOutlined'
 import DarkModeOutlined from '@mui/icons-material/DarkModeOutlined'
 import KeyboardArrowDown from '@mui/icons-material/KeyboardArrowDown'
 import LightModeOutlined from '@mui/icons-material/LightModeOutlined'
 import ScienceOutlined from '@mui/icons-material/ScienceOutlined'
-import SupportIcon from '@mui/icons-material/Support'
 import { schemas } from '@spaire/client'
 import Avatar from '@spaire/ui/components/atoms/Avatar'
 import {
@@ -201,28 +199,6 @@ export const DashboardSidebar = ({
             {!isCollapsed && <span className="ml-4 font-medium">Sandbox</span>}
           </Link>
         )}
-        <Link
-          href="/dashboard/account/developer"
-          className={twMerge(
-            'mt-2 flex cursor-pointer flex-row items-center rounded-lg border border-transparent px-2 text-sm transition-colors dark:border-transparent',
-            'dark:text-spaire-500 dark:hover:text-spaire-200 text-gray-500 hover:text-black',
-            isCollapsed && '!dark:text-spaire-600',
-          )}
-        >
-          <CodeOutlined fontSize="inherit" />
-          {!isCollapsed && <span className="ml-4 font-medium">Developers</span>}
-        </Link>
-        <Link
-          href="mailto:support@spairehq.com"
-          className={twMerge(
-            'mt-2 flex cursor-pointer flex-row items-center rounded-lg border border-transparent px-2 text-sm transition-colors dark:border-transparent',
-            'dark:text-spaire-500 dark:hover:text-spaire-200 text-gray-500 hover:text-black',
-            isCollapsed && '!dark:text-spaire-600',
-          )}
-        >
-          <SupportIcon fontSize="inherit" />
-          {!isCollapsed && <span className="ml-4 font-medium">Support</span>}
-        </Link>
         <Link
           className={twMerge(
             'flex flex-row items-center rounded-lg border border-transparent text-sm transition-colors dark:border-transparent',

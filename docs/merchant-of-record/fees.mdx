@@ -1,61 +1,63 @@
 ---
 title: "Fees"
-description: "Transparent fees at a 20% discount vs. other MoRs"
+description: "Simple, transparent pricing — no hidden markups."
 ---
 
 ## Transaction Fees
 
-All transactions on Spaire come with a small fee of 4% \+ 40¢ - applied to the entire transaction amount.
+Every transaction processed through Spaire carries a fee of **4% + €0.40**, applied to the full transaction amount including tax.
 
-### **Additional Fees**
+### Additional fees
 
-- \+1.5% for international cards (non-US)
-- \+0.5% for subscription payments
+- **+1.5%** for international cards (non-European)
+- **+0.5%** for subscription payments
 
-**Example**
+### Example
 
-Let's look at an example breakdown with all these additional fees applied. Below is a payment of a \$30 subscription from Sweden (25% VAT).
+A customer in France subscribes to a €30/month plan. France has a 20% VAT rate on digital services.
 
 | Item | Amount |
-| --- | --- |
-| Product Price | \$30 |
-| VAT (25%) | \$7.5 |
-| **Total Transaction Value** | **\$37.5** |
-| Transaction Fee (4% \+ 40¢) | \$1.9 |
-| International Card (\+1.5%) | \$0.56 |
-| Subscription (\+0.5%) | \$0.19 |
-| **Total Fees (Before Payout)** | **\$2.65** |
+|---|---|
+| Product price | €30.00 |
+| VAT (20% — France) | €6.00 |
+| **Total transaction value** | **€36.00** |
+| Transaction fee (4% + €0.40) | €1.84 |
+| International card (+1.5%) | €0.54 |
+| Subscription (+0.5%) | €0.18 |
+| **Total fees** | **€2.56** |
+| **You receive** | **€33.44** |
+
+Spaire handles the VAT collection and remittance to the French tax authorities — you never touch it.
 
 ### Refunds
 
-You can issue both full or partial refunds on Spaire to your customers. However, the initial transaction fees are not refunded to you since credit card networks and PSPs charge them regardless of a future refund.
+You can issue full or partial refunds at any time from the dashboard or via the API. The original transaction fees are not returned to you — card networks and payment processors charge those regardless of a later refund.
 
-Please note: Spaire reserves the right to issue refunds at our own discretion up to 60 days after the purchase as part of our efforts to continuously and proactively reduce disputes & chargebacks which costs you \$15/dispute. We only leverage this right for this purpose and in the interest of reducing chargebacks and fees for you.
+Spaire also reserves the right to issue refunds on your behalf within 60 days of purchase, strictly to reduce disputes and chargebacks. We only exercise this in the interest of protecting your chargeback rate and keeping fees low.
 
-### Dispute/Chargeback Fees
+### Disputes & chargebacks
 
-Sometimes, customers can open a **dispute/chargeback** via their bank for a purchase. **Disputes cost \$15 per dispute** regardless of outcome and is deducted from your balance directly. This fee is charged by the underlying credit card networks & PSPs regardless of outcome and therefore something we cannot refund.
+When a customer opens a dispute through their bank, a **€15 flat fee** is charged per dispute regardless of outcome. This fee comes from the card networks and cannot be waived.
 
-However, we continuously work to proactively reduce the rate of chargebacks across Spaire to be at or lower than industry standards.
+Spaire actively monitors chargeback rates across the platform and works to keep them below industry thresholds (~0.7%). Because we're the Merchant of Record, a high chargeback rate on your account affects the whole platform — so if your rate approaches that threshold, we'll reach out and may need to take action including account suspension until the rate is resolved.
 
-Credit card networks impose monitoring programs, penalties and higher chargeback costs for sellers with high chargeback rates (~0.7%\+). Since Spaire is the Merchant of Record, we therefore always monitor and proactively prevent our rate coming close to these thresholds.
-
-Therefore, we might need to intervene and even suspend your account unless swift and proactive measures are taken to reduce chargebacks to an acceptable industry standard.
+---
 
 ## Payout Fees
 
-While payouts may incur fees charged by our payout provider (Stripe), Spaire does not add any extra fees or markup. These are strictly Stripe’s fees, and Spaire does not profit from them.
+Spaire does not add any markup on payouts. The fees below are charged by Stripe (our payout provider) and passed through at cost.
 
-In addition, Spaire offers manual withdrawals for developers. Keeping you in control of when to issue payouts.
+| Fee | Amount |
+|---|---|
+| Monthly active payout | €2.00/month |
+| Per payout | 0.25% + €0.25 |
+| Currency conversion (EU) | 0.25% |
+| Currency conversion (other) | 1.00% |
 
-_Unless you have a Spaire balance that you haven't withdrawn for several months, at which point we'll eventually need to trigger a payout on your behalf._
+Payouts are manual by default — you choose when to withdraw your balance. If you leave a balance sitting for several months without withdrawing, Spaire will eventually trigger a payout on your behalf.
 
-**Fees (Stripe)**
-
-- \$2 per month of active payout(s)
-- 0.25% \+ \$0.25 per payout
-- Cross border fees (currency conversion): 0.25% (EU) - 1% in other countries.
+---
 
 ## Volume pricing
 
-Large or fast-growing business? We can offer custom pricing to better fit your needs. [Reach out to us](/support).
+Growing fast or processing high volumes? We offer custom pricing for larger businesses. [Talk to us](/support).
