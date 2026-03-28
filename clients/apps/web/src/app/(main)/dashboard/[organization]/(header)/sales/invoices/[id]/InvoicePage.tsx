@@ -436,7 +436,7 @@ const InvoicePage: React.FC<InvoicePageProps> = ({
                 invoice.discount_amount ? fmt(-invoice.discount_amount) : '—'
               }
             />
-            <DetailRow label="Tax" value={fmt(invoice.tax_amount)} />
+            <DetailRow label="Sales Tax" value={invoice.tax_amount > 0 ? fmt(invoice.tax_amount) : '—'} />
             <DetailRow label="Total" value={fmt(invoice.total_amount)} />
 
             {/* Memo */}
