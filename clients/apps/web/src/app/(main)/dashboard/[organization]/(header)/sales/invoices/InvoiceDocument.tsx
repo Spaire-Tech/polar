@@ -244,12 +244,10 @@ const InvoiceDocument: React.FC<{
                   <span>-{fmt(data.discountAmount)}</span>
                 </div>
               )}
-              {data.taxAmount > 0 && (
-                <div className="flex justify-between">
-                  <span style={{ fontWeight: 700 }}>Tax</span>
-                  <span>{fmt(data.taxAmount)}</span>
-                </div>
-              )}
+              <div className="flex justify-between">
+                <span style={{ fontWeight: 700 }}>Sales Tax</span>
+                <span>{data.taxAmount > 0 ? fmt(data.taxAmount) : '—'}</span>
+              </div>
               <div className="flex justify-between">
                 <span style={{ fontWeight: 700 }}>Total</span>
                 <span>{fmt(data.totalAmount)}</span>
