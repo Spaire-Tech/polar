@@ -23,7 +23,7 @@ from sqlalchemy.orm import Mapped, Mapper, declared_attr, mapped_column, relatio
 
 from polar.config import settings
 from polar.custom_field.data import CustomFieldDataMixin
-from polar.enums import PaymentProcessor, TaxProcessor
+from polar.enums import PaymentProcessor, TaxBehavior, TaxProcessor
 from polar.kit.address import Address, AddressType
 from polar.kit.db.models import RecordModel
 from polar.kit.extensions.sqlalchemy.types import StringEnum
@@ -136,10 +136,14 @@ class Checkout(
     locale: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
 
     amount: Mapped[int] = mapped_column(Integer, nullable=False)
+    net_amount: Mapped[int] = mapped_column(Integer, nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False)
     seats: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
 
     tax_amount: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
+    tax_behavior: Mapped[TaxBehavior | None] = mapped_column(
+        StringEnum(TaxBehavior), nullable=True, default=None
+    )
     tax_processor: Mapped[TaxProcessor | None] = mapped_column(
         StringEnum(TaxProcessor), default=None, nullable=True
     )
@@ -294,11 +298,7 @@ class Checkout(
 
     @property
     def discount_amount(self) -> int:
-        return self.discount.get_discount_amount(self.amount) if self.discount else 0
-
-    @property
-    def net_amount(self) -> int:
-        return self.amount - self.discount_amount
+        return self.discount.get_discount_amount(self.amount, self.currency) if self.discount else 0
 
     @property
     def total_amount(self) -> int:

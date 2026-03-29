@@ -20693,6 +20693,8 @@ export interface components {
       details_submitted_at: string | null
       /** @description Default presentment currency. Used as fallback in checkout and customer portal, if the customer's local currency is not available. */
       default_presentment_currency: components['schemas']['PresentmentCurrency']
+      /** @description Default tax behavior applied on products. */
+      default_tax_behavior: components['schemas']['TaxBehaviorOption']
       /** @description Organization feature settings */
       feature_settings:
         | components['schemas']['OrganizationFeatureSettings']
@@ -20912,6 +20914,8 @@ export interface components {
       socials?: components['schemas']['OrganizationSocialLink'][] | null
       /** @description Additional, private, business details Polar needs about active organizations for compliance (KYC). */
       details?: components['schemas']['OrganizationDetails'] | null
+      /** @description Default tax behavior applied on products. */
+      default_tax_behavior?: components['schemas']['TaxBehaviorOption'] | null
       feature_settings?:
         | components['schemas']['OrganizationFeatureSettings']
         | null
@@ -21346,6 +21350,8 @@ export interface components {
       details?: components['schemas']['OrganizationDetails'] | null
       /** @description Default presentment currency for products and checkout. */
       default_presentment_currency?: components['schemas']['PresentmentCurrency'] | null
+      /** @description Default tax behavior applied on products. */
+      default_tax_behavior?: components['schemas']['TaxBehaviorOption'] | null
       feature_settings?:
         | components['schemas']['OrganizationFeatureSettings']
         | null
@@ -22170,6 +22176,8 @@ export interface components {
        * @description Whether the price is archived and no longer available.
        */
       is_archived: boolean
+      /** @description Tax behavior for this price. Overrides the organization default if set. */
+      tax_behavior: components['schemas']['TaxBehaviorOption'] | null
       /**
        * Product Id
        * Format: uuid4
@@ -22266,6 +22274,8 @@ export interface components {
        * @description Whether the price is archived and no longer available.
        */
       is_archived: boolean
+      /** @description Tax behavior for this price. Overrides the organization default if set. */
+      tax_behavior: components['schemas']['TaxBehaviorOption'] | null
       /**
        * Product Id
        * Format: uuid4
@@ -22341,6 +22351,8 @@ export interface components {
        * @description Whether the price is archived and no longer available.
        */
       is_archived: boolean
+      /** @description Tax behavior for this price. Overrides the organization default if set. */
+      tax_behavior: components['schemas']['TaxBehaviorOption'] | null
       /**
        * Product Id
        * Format: uuid4
@@ -22423,6 +22435,8 @@ export interface components {
        * @description Whether the price is archived and no longer available.
        */
       is_archived: boolean
+      /** @description Tax behavior for this price. Overrides the organization default if set. */
+      tax_behavior: components['schemas']['TaxBehaviorOption'] | null
       /**
        * Product Id
        * Format: uuid4
@@ -22522,6 +22536,8 @@ export interface components {
        * @description Whether the price is archived and no longer available.
        */
       is_archived: boolean
+      /** @description Tax behavior for this price. Overrides the organization default if set. */
+      tax_behavior: components['schemas']['TaxBehaviorOption'] | null
       /**
        * Product Id
        * Format: uuid4
@@ -25011,6 +25027,12 @@ export interface components {
       | 've_rif'
       | 'vn_tin'
       | 'za_vat'
+    /**
+     * TaxBehaviorOption
+     * @description Tax behavior option for products and organizations.
+     * @enum {string}
+     */
+    TaxBehaviorOption: 'inclusive' | 'exclusive' | 'location'
     /**
      * TimeInterval
      * @enum {string}
@@ -43893,3 +43915,6 @@ export const revokeTokenRequestToken_type_hintAnyOf0Values: ReadonlyArray<
 export const introspectTokenRequestToken_type_hintAnyOf0Values: ReadonlyArray<
   FlattenedDeepRequired<components>['schemas']['IntrospectTokenRequest']['token_type_hint']
 > = ['access_token', 'refresh_token']
+export const taxBehaviorOptionValues: ReadonlyArray<
+  FlattenedDeepRequired<components>['schemas']['TaxBehaviorOption']
+> = ['inclusive', 'exclusive', 'location']

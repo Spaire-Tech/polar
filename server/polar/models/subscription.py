@@ -25,7 +25,7 @@ from sqlalchemy.orm.attributes import OP_BULK_REPLACE, Event
 
 from polar.config import settings
 from polar.custom_field.data import CustomFieldDataMixin
-from polar.enums import SubscriptionRecurringInterval
+from polar.enums import SubscriptionRecurringInterval, TaxBehavior
 from polar.kit.db.models import RecordModel
 from polar.kit.extensions.sqlalchemy.types import StringEnum
 from polar.kit.metadata import MetadataMixin
@@ -106,6 +106,7 @@ class Subscription(CustomFieldDataMixin, MetadataMixin, RecordModel):
     __tablename__ = "subscriptions"
 
     amount: Mapped[int] = mapped_column(Integer, nullable=False)
+    net_amount: Mapped[int] = mapped_column(Integer, nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False)
     recurring_interval: Mapped[SubscriptionRecurringInterval] = mapped_column(
         StringEnum(SubscriptionRecurringInterval), nullable=False, index=True
@@ -130,6 +131,9 @@ class Subscription(CustomFieldDataMixin, MetadataMixin, RecordModel):
     registered in a given country, so we don't surprise customers with
     tax charges.
     """
+    tax_behavior: Mapped[TaxBehavior | None] = mapped_column(
+        StringEnum(TaxBehavior), nullable=True, default=None
+    )
 
     status: Mapped[SubscriptionStatus] = mapped_column(
         StringEnum(SubscriptionStatus), nullable=False
@@ -376,8 +380,9 @@ class Subscription(CustomFieldDataMixin, MetadataMixin, RecordModel):
     ) -> None:
         amount = sum(price.amount for price in prices)
         if discount is not None:
-            amount -= discount.get_discount_amount(amount)
+            amount -= discount.get_discount_amount(amount, self.currency)
         self.amount = amount
+        self.net_amount = amount  # Same as amount while tax-exclusive
 
     def update_meters(self, prices: Sequence["SubscriptionProductPrice"]) -> None:
         subscription_meters = self.meters or []

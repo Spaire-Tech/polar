@@ -4,8 +4,7 @@ from collections.abc import Sequence
 import stripe as stripe_lib
 
 from polar.auth.models import AuthSubject, Organization, User
-from polar.config import settings
-from polar.enums import PaymentProcessor
+from polar.enums import PaymentProcessor, TaxBehaviorOption
 from polar.exceptions import PolarError
 from polar.integrations.stripe.service import stripe as stripe_service
 from polar.kit.pagination import PaginationParams
@@ -15,7 +14,8 @@ from polar.models.payment_method import PaymentMethod
 from polar.models.wallet import WalletType
 from polar.payment_method.service import payment_method as payment_method_service
 from polar.postgres import AsyncReadSession, AsyncSession
-from polar.tax.calculation import TaxabilityReason, TaxCode, TaxRate, get_tax_service
+from polar.tax.calculation import TaxabilityReason, TaxCode, TaxRate
+from polar.tax.calculation import tax_calculation as tax_calculation_service
 
 from .repository import WalletRepository, WalletTransactionRepository
 from .sorting import WalletSortProperty
@@ -118,18 +118,17 @@ class WalletService:
         billing_address = customer.billing_address
 
         # Calculate tax
-        tax_processor = settings.DEFAULT_TAX_PROCESSOR
         tax_amount = 0
         taxability_reason: TaxabilityReason | None = None
         tax_rate: TaxRate | None = None
         tax_calculation_processor_id: str | None = None
         if billing_address is not None:
-            tax_service = get_tax_service(tax_processor)
             tax_id = customer.tax_id
-            tax_calculation = await tax_service.calculate(
+            tax_calculation, _ = await tax_calculation_service.calculate(
                 f"top_up:{wallet.id}:{uuid.uuid4()}",
                 wallet.currency,
                 amount,
+                TaxBehaviorOption.exclusive,  # TODO: add tax behavior to wallet top-up
                 TaxCode.general_electronically_supplied_services,
                 billing_address,
                 [tax_id] if tax_id is not None else [],
@@ -165,6 +164,7 @@ class WalletService:
                 statement_descriptor_suffix=organization.statement_descriptor(),
                 description=f"{organization.name} — Wallet Top-Up",
                 metadata={
+                    "organization_id": str(organization.id),
                     "customer_id": str(wallet.customer.id),
                     "wallet_id": str(wallet.id),
                     "wallet_transaction_id": str(transaction.id),

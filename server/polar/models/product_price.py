@@ -27,7 +27,7 @@ from sqlalchemy.orm import (
     relationship,
 )
 
-from polar.enums import SubscriptionRecurringInterval
+from polar.enums import SubscriptionRecurringInterval, TaxBehaviorOption
 from polar.kit.currency import format_currency
 from polar.kit.db.models import RecordModel
 from polar.kit.extensions.sqlalchemy.types import StringEnum
@@ -100,6 +100,9 @@ class ProductPrice(RecordModel):
         String(3), nullable=False, use_existing_column=True
     )
     is_archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    tax_behavior: Mapped[TaxBehaviorOption | None] = mapped_column(
+        StringEnum(TaxBehaviorOption), nullable=True
+    )
 
     product_id: Mapped[UUID] = mapped_column(
         Uuid, ForeignKey("products.id", ondelete="cascade"), nullable=False, index=True

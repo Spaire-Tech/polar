@@ -101,6 +101,7 @@ class InvoiceService:
             taxability_reason=TaxabilityReason.product_exempt,
             tax_amount=0,
             tax_rate=None,
+            net_amount=payout.amount,
             currency=payout.currency,
             items=[
                 InvoiceItem(

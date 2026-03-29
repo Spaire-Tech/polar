@@ -24,7 +24,7 @@ from polar.customer_session.service import customer_session as customer_session_
 from polar.email.react import render_email_template
 from polar.email.schemas import EmailAdapter
 from polar.email.sender import Attachment, enqueue_email
-from polar.enums import PaymentProcessor
+from polar.enums import PaymentProcessor, TaxBehavior, TaxBehaviorOption
 from polar.event.service import event as event_service
 from polar.event.system import (
     BalanceCreditOrderMetadata,
@@ -541,7 +541,9 @@ class OrderService:
                 status=OrderStatus.paid,
                 subtotal_amount=checkout.amount,
                 discount_amount=discount_amount,
+                net_amount=checkout.net_amount,
                 tax_amount=checkout.tax_amount or 0,
+                tax_behavior=checkout.tax_behavior,
                 currency=checkout.currency,
                 billing_reason=billing_reason,
                 billing_name=customer.billing_name,
@@ -626,7 +628,13 @@ class OrderService:
             # Calculate tax
             tax_processor = settings.DEFAULT_TAX_PROCESSOR
             tax_calculation: TaxCalculation | None = None
-            taxable_amount = subtotal_amount - discount_amount
+            net_amount = subtotal_amount - discount_amount
+            tax_behavior: TaxBehavior | None = None
+            tax_behavior_option = (
+                subscription.tax_behavior.to_option()
+                if subscription.tax_behavior is not None
+                else customer.organization.default_tax_behavior
+            )
             tax_amount = 0
             taxability_reason: TaxabilityReason | None = None
             tax_rate: TaxRate | None = None
@@ -634,7 +642,7 @@ class OrderService:
             tax_calculation_processor_id: str | None = None
 
             if (
-                taxable_amount != 0
+                net_amount != 0
                 and product.is_tax_applicable
                 and billing_address is not None
             ):
@@ -644,7 +652,8 @@ class OrderService:
                         order_id,
                         subscription.currency,
                         # Stripe doesn't support calculating negative tax amounts
-                        taxable_amount if taxable_amount >= 0 else -taxable_amount,
+                        net_amount if net_amount >= 0 else -net_amount,
+                        tax_behavior_option,
                         product.tax_code,
                         billing_address,
                         [tax_id] if tax_id is not None else [],
@@ -660,7 +669,8 @@ class OrderService:
                     tax_amount = 0
                     tax_calculation_processor_id = None
                 else:
-                    if taxable_amount >= 0:
+                    tax_behavior = tax_calculation["tax_behavior"]
+                    if net_amount >= 0:
                         tax_calculation_processor_id = tax_calculation["processor_id"]
                         tax_amount = tax_calculation["amount"]
                     else:
@@ -670,6 +680,8 @@ class OrderService:
                         # don't have to record the tax transaction either.
                         tax_calculation_processor_id = None
                         tax_amount = -tax_calculation["amount"]
+                    if tax_behavior == TaxBehavior.inclusive:
+                        net_amount -= tax_amount
 
                 if tax_calculation is not None:
                     taxability_reason = tax_calculation["taxability_reason"]
@@ -679,7 +691,7 @@ class OrderService:
                 session, subscription.organization, customer
             )
 
-            total_amount = subtotal_amount - discount_amount + tax_amount
+            total_amount = net_amount + tax_amount
             customer_balance = await wallet_service.get_billing_wallet_balance(
                 session, customer, subscription.currency
             )
@@ -705,7 +717,9 @@ class OrderService:
                     status=OrderStatus.pending,
                     subtotal_amount=subtotal_amount,
                     discount_amount=discount_amount,
+                    net_amount=net_amount,
                     tax_amount=tax_amount,
+                    tax_behavior=tax_behavior,
                     applied_balance_amount=applied_balance_amount,
                     currency=subscription.currency,
                     billing_reason=billing_reason,
@@ -850,13 +864,16 @@ class OrderService:
             session, wallet.organization, wallet.customer
         )
 
+        wallet_tax_amount = wallet_transaction.tax_amount or 0
         repository = OrderRepository.from_session(session)
         order = await repository.create(
             Order(
                 status=OrderStatus.paid,
                 subtotal_amount=subtotal_amount,
                 discount_amount=0,
-                tax_amount=wallet_transaction.tax_amount or 0,
+                net_amount=subtotal_amount - wallet_tax_amount,
+                tax_amount=wallet_tax_amount,
+                tax_behavior=TaxBehavior.exclusive,  # TODO: add tax behavior to wallet transactions
                 applied_balance_amount=0,
                 currency=wallet.currency,
                 billing_reason=OrderBillingReasonInternal.purchase,

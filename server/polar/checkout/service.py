@@ -31,7 +31,7 @@ from polar.customer.repository import CustomerRepository
 from polar.customer_session.service import customer_session as customer_session_service
 from polar.discount.service import DiscountNotRedeemableError
 from polar.discount.service import discount as discount_service
-from polar.enums import PaymentProcessor
+from polar.enums import PaymentProcessor, TaxBehavior
 from polar.event.service import event as event_service
 from polar.event.system import (
     CheckoutCreatedMetadata,
@@ -2154,9 +2154,12 @@ class CheckoutService:
     ) -> Checkout:
         is_tax_applicable = True
         tax_code = TaxCode.general_electronically_supplied_services
+        tax_behavior = checkout.organization.default_tax_behavior
         if has_product_checkout(checkout):
             is_tax_applicable = checkout.product.is_tax_applicable
             tax_code = checkout.product.tax_code
+            if checkout.product_price.tax_behavior is not None:
+                tax_behavior = checkout.product_price.tax_behavior
 
         if not (checkout.is_payment_form_required and is_tax_applicable):
             checkout.tax_amount = 0
@@ -2171,6 +2174,7 @@ class CheckoutService:
                     checkout.id,
                     checkout.currency,
                     checkout.net_amount,
+                    tax_behavior,
                     tax_code,
                     checkout.customer_billing_address,
                     (
@@ -2181,11 +2185,18 @@ class CheckoutService:
                     customer_exempt=False,
                 )
                 checkout.tax_amount = tax_calculation["amount"]
+                checkout.tax_behavior = tax_calculation["tax_behavior"]
+                checkout.net_amount = (
+                    checkout.net_amount - checkout.tax_amount
+                    if checkout.tax_behavior == TaxBehavior.inclusive
+                    else checkout.net_amount
+                )
                 checkout.tax_processor_id = tax_calculation["processor_id"]
                 checkout.taxability_reason = tax_calculation["taxability_reason"]
                 checkout.tax_rate = tax_calculation["tax_rate"]
             except TaxCalculationError:
                 checkout.tax_amount = None
+                checkout.tax_behavior = None
                 checkout.tax_processor_id = None
                 checkout.taxability_reason = None
                 checkout.tax_rate = None
