@@ -21,6 +21,7 @@ export interface Perk {
   description: string
   url: string
   featured?: boolean
+  hidden?: boolean
   details?: PerkDetails
 }
 
@@ -31,10 +32,10 @@ export const PERKS: Perk[] = [
     incentive: '$1,000 in Combined Credits',
     description:
       'Through our partnership with Deel, startups receive $1,000 in onboarding value: $500 in Deel credits for global hiring and payroll, and $500 in Spaire credits to offset revenue fees as you scale internationally.',
-    url: 'https://get.deel.com/t2prquaa8c6t',
+    url: 'https://get.deel.com/i4rqw957p9cm',
     featured: true,
     details: {
-      claimUrl: 'https://get.deel.com/t2prquaa8c6t',
+      claimUrl: 'https://get.deel.com/i4rqw957p9cm',
       sections: [
         {
           heading: 'What is Deel?',
@@ -927,6 +928,7 @@ export const PERKS: Perk[] = [
     name: 'Google Cloud',
     logo: 'https://spaire-production-files-public.s3.us-east-1.amazonaws.com/google_cloud_logo.jpg',
     incentive: 'Up to $200K in Credits',
+    hidden: true,
     description:
       'Run and scale your product on Google Cloud. Build your backend infrastructure, host applications, and leverage powerful cloud services including databases, AI tools, and analytics.',
     url: 'https://cloud.google.com/startup/apply?utm_campaign=FY21-Q1-global-demandgen-website-cs-startup_program_mc&utm_content=Mercury&utm_source=CJ&utm_medium=affiliate&refparam=CJ-16985197-100861638',
@@ -1012,5 +1014,5 @@ export const PERKS: Perk[] = [
   },
 ]
 
-export const FEATURED_PERKS = PERKS.filter((p) => p.featured)
-export const OTHER_PERKS = PERKS.filter((p) => !p.featured)
+export const FEATURED_PERKS = PERKS.filter((p) => p.featured && !p.hidden)
+export const OTHER_PERKS = PERKS.filter((p) => !p.featured && !p.hidden)
