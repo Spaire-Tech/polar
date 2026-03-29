@@ -10,6 +10,7 @@ export {
   presentmentCurrencyValues,
   propertyAggregationFuncValues,
   refundReasonValues,
+  seatTierTypeValues,
   stripeAccountCountryValues,
   taxBehaviorOptionValues,
   timeIntervalValues,

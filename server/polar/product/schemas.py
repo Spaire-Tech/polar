@@ -18,7 +18,7 @@ from polar.custom_field.schemas import (
     AttachedCustomField,
     AttachedCustomFieldListCreate,
 )
-from polar.enums import SubscriptionRecurringInterval, TaxBehaviorOption
+from polar.enums import SeatTierType, SubscriptionRecurringInterval, TaxBehaviorOption
 from polar.file.schemas import ProductMediaFileRead
 from polar.kit.currency import PresentmentCurrency
 from polar.kit.db.models import Model
@@ -223,6 +223,14 @@ class ProductPriceSeatTiers(Schema):
     - maximum_seats = last tier's max_seats (None for unlimited)
     """
 
+    seat_tier_type: SeatTierType = Field(
+        default=SeatTierType.volume,
+        description=(
+            "How tiers are applied. "
+            "'volume' prices all seats at the matching tier's rate. "
+            "'graduated' prices each tier's range independently."
+        ),
+    )
     tiers: list[ProductPriceSeatTier] = Field(
         min_length=1, description="List of pricing tiers"
     )
@@ -288,7 +296,10 @@ class ProductPriceSeatTiers(Schema):
 
 class ProductPriceSeatBasedCreate(ProductPriceCreateBase):
     """
-    Schema to create a seat-based price with volume-based tiers.
+    Schema to create a seat-based price with tiered pricing.
+
+    Supports volume pricing (all seats at matching tier's rate) and
+    graduated pricing (each tier's range priced independently).
     """
 
     amount_type: Literal[ProductPriceAmountType.seat_based]

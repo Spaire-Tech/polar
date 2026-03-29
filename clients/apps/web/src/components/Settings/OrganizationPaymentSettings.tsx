@@ -3,8 +3,7 @@
 import { useUpdateOrganization } from '@/hooks/queries'
 import { useAutoSave } from '@/hooks/useAutoSave'
 import { setValidationErrors } from '@/utils/api/errors'
-import { isValidationError, schemas } from '@spaire/client'
-import { taxBehaviorOptionValues } from '@spaire/client/enums'
+import { enums, isValidationError, schemas } from '@spaire/client'
 import {
   Select,
   SelectContent,
@@ -196,7 +195,7 @@ const OrganizationPaymentSettings: React.FC<
                         </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
-                        {taxBehaviorOptionValues.map((v) => (
+                        {enums.taxBehaviorOptionValues.map((v) => (
                           <SelectItem key={v} value={v}>
                             {TAX_BEHAVIOR_LABELS[v]}
                           </SelectItem>

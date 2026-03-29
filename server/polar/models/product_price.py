@@ -70,6 +70,7 @@ class SeatTiersData(TypedDict):
     """The structure of the seat_tiers JSONB column."""
 
     tiers: list[SeatTier]
+    seat_tier_type: str  # 'volume' or 'graduated', defaults to 'volume'
 
 
 LEGACY_IDENTITY_PREFIX = "legacy_"
@@ -373,7 +374,29 @@ class ProductPriceSeatUnit(NewProductPrice, ProductPrice):
         return tier["price_per_seat"]
 
     def calculate_amount(self, seats: int) -> int:
+        tier_type = self.seat_tiers.get("seat_tier_type", "volume")
+        if tier_type == "graduated":
+            return self._calculate_graduated_amount(seats)
         return self.get_price_per_seat(seats) * seats
+
+    def _calculate_graduated_amount(self, seats: int) -> int:
+        """Calculate total for graduated pricing: each tier's range is priced independently."""
+        total = 0
+        remaining = seats
+        for tier in sorted(self.seat_tiers.get("tiers", []), key=lambda t: t["min_seats"]):
+            min_seats = tier["min_seats"]
+            max_seats = tier.get("max_seats")
+            price_per_seat = tier["price_per_seat"]
+
+            if remaining <= 0:
+                break
+
+            tier_size = (max_seats - min_seats + 1) if max_seats is not None else remaining
+            seats_in_tier = min(remaining, tier_size)
+            total += seats_in_tier * price_per_seat
+            remaining -= seats_in_tier
+
+        return total
 
     def get_minimum_seats(self) -> int:
         """Get the minimum number of seats allowed, derived from first tier's min_seats."""

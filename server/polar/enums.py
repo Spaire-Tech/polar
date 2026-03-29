@@ -43,6 +43,11 @@ class TaxBehaviorOption(StrEnum):
     exclusive = "exclusive"
 
 
+class SeatTierType(StrEnum):
+    volume = "volume"
+    graduated = "graduated"
+
+
 class AccountType(StrEnum):
     stripe = "stripe"
     manual = "manual"

@@ -22601,6 +22601,8 @@ export interface components {
      *     - maximum_seats = last tier's max_seats (None for unlimited)
      */
     'ProductPriceSeatTiers-Input': {
+      /** @description How tiers are applied. 'volume' prices all seats at the matching tier's rate. 'graduated' prices each tier's range independently. */
+      seat_tier_type?: components['schemas']['SeatTierType']
       /**
        * Tiers
        * @description List of pricing tiers
@@ -22616,6 +22618,8 @@ export interface components {
      *     - maximum_seats = last tier's max_seats (None for unlimited)
      */
     'ProductPriceSeatTiers-Output': {
+      /** @description How tiers are applied. 'volume' prices all seats at the matching tier's rate. 'graduated' prices each tier's range independently. */
+      seat_tier_type: components['schemas']['SeatTierType']
       /**
        * Tiers
        * @description List of pricing tiers
@@ -22632,6 +22636,12 @@ export interface components {
        */
       readonly maximum_seats: number | null
     }
+    /**
+     * SeatTierType
+     * @description How seat tiers are applied.
+     * @enum {string}
+     */
+    SeatTierType: 'volume' | 'graduated'
     /**
      * ProductPriceSource
      * @enum {string}
@@ -43918,3 +43928,6 @@ export const introspectTokenRequestToken_type_hintAnyOf0Values: ReadonlyArray<
 export const taxBehaviorOptionValues: ReadonlyArray<
   FlattenedDeepRequired<components>['schemas']['TaxBehaviorOption']
 > = ['inclusive', 'exclusive', 'location']
+export const seatTierTypeValues: ReadonlyArray<
+  FlattenedDeepRequired<components>['schemas']['SeatTierType']
+> = ['volume', 'graduated']
