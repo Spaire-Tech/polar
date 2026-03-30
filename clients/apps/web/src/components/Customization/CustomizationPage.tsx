@@ -70,6 +70,18 @@ const Customization = ({
   const form = useForm<schemas['OrganizationUpdate']>({
     defaultValues: {
       ...organization,
+      storefront_settings: organization.storefront_settings ?? {
+        enabled: false,
+        show_header: true,
+        header_image_url: null,
+        show_logo: true,
+        show_name: true,
+        show_description: true,
+        description: null,
+        thumbnail_size: 'medium',
+        show_product_details: true,
+        accent_color: null,
+      },
     },
   })
 

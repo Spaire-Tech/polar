@@ -17348,6 +17348,7 @@ export interface components {
       | components['schemas']['DownloadableFileCreate']
       | components['schemas']['ProductMediaFileCreate']
       | components['schemas']['OrganizationAvatarFileCreate']
+      | components['schemas']['StorefrontHeaderFileCreate']
     /** FileDownload */
     FileDownload: {
       /**
@@ -17399,7 +17400,7 @@ export interface components {
      * FileServiceTypes
      * @enum {string}
      */
-    FileServiceTypes: 'downloadable' | 'product_media' | 'organization_avatar'
+    FileServiceTypes: 'downloadable' | 'product_media' | 'organization_avatar' | 'storefront_header'
     /** FileUpload */
     FileUpload: {
       /**
@@ -18397,6 +18398,7 @@ export interface components {
         | components['schemas']['DownloadableFileRead']
         | components['schemas']['ProductMediaFileRead']
         | components['schemas']['OrganizationAvatarFileRead']
+        | components['schemas']['StorefrontHeaderFileRead']
       )[]
       pagination: components['schemas']['Pagination']
     }
@@ -20705,6 +20707,8 @@ export interface components {
       customer_email_settings: components['schemas']['OrganizationCustomerEmailSettings']
       /** @description Settings related to the customer portal */
       customer_portal_settings: components['schemas']['OrganizationCustomerPortalSettings']
+      /** @description Storefront customization settings */
+      storefront_settings: components['schemas']['OrganizationStorefrontSettings']
     }
     /** OrganizationAccessToken */
     OrganizationAccessToken: {
@@ -20887,6 +20891,145 @@ export interface components {
       /** Public Url */
       readonly public_url: string
     }
+    /**
+     * OrganizationStorefrontSettings
+     * @description Storefront customization settings.
+     */
+    OrganizationStorefrontSettings: {
+      /**
+       * Enabled
+       * @description Enable or disable the storefront
+       */
+      enabled?: boolean
+      /**
+       * Show Header
+       * @description Show the banner header image
+       */
+      show_header?: boolean
+      /**
+       * Header Image Url
+       * @description URL of the uploaded banner header image
+       */
+      header_image_url?: string | null
+      /**
+       * Show Logo
+       * @description Show the store logo
+       */
+      show_logo?: boolean
+      /**
+       * Show Name
+       * @description Show the store name
+       */
+      show_name?: boolean
+      /**
+       * Show Description
+       * @description Show the store description
+       */
+      show_description?: boolean
+      /**
+       * Description
+       * @description Store description text
+       */
+      description?: string | null
+      /**
+       * Thumbnail Size
+       * @description Product thumbnail size
+       */
+      thumbnail_size?: 'small' | 'medium' | 'large'
+      /**
+       * Show Product Details
+       * @description Show product description and View Product button
+       */
+      show_product_details?: boolean
+      /**
+       * Accent Color
+       * @description Accent color for the store theme
+       */
+      accent_color?: string | null
+    }
+    /**
+     * StorefrontHeaderFileCreate
+     * @description Schema to create a file to be used as a storefront header banner image.
+     */
+    StorefrontHeaderFileCreate: {
+      /** Organization Id */
+      organization_id?: string | null
+      /** Name */
+      name: string
+      /**
+       * Mime Type
+       * @description MIME type of the file. Only images are supported for this type of file.
+       */
+      mime_type: string
+      /**
+       * Size
+       * @description Size of the file. A maximum of 10 MB is allowed for this type of file.
+       */
+      size: number
+      /** Checksum Sha256 Base64 */
+      checksum_sha256_base64?: string | null
+      upload: components['schemas']['S3FileCreateMultipart']
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      service: 'storefront_header'
+      /** Version */
+      version?: string | null
+    }
+    /**
+     * StorefrontHeaderFileRead
+     * @description File to be used as a storefront header banner image.
+     */
+    StorefrontHeaderFileRead: {
+      /**
+       * Id
+       * Format: uuid4
+       * @description The ID of the object.
+       */
+      id: string
+      /**
+       * Organization Id
+       * Format: uuid4
+       */
+      organization_id: string
+      /** Name */
+      name: string
+      /** Path */
+      path: string
+      /** Mime Type */
+      mime_type: string
+      /** Size */
+      size: number
+      /** Storage Version */
+      storage_version: string | null
+      /** Checksum Etag */
+      checksum_etag: string | null
+      /** Checksum Sha256 Base64 */
+      checksum_sha256_base64: string | null
+      /** Checksum Sha256 Hex */
+      checksum_sha256_hex: string | null
+      /** Last Modified At */
+      last_modified_at: string | null
+      /** Version */
+      version: string | null
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      service: 'storefront_header'
+      /** Is Uploaded */
+      is_uploaded: boolean
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string
+      /** Size Readable */
+      readonly size_readable: string
+      /** Public Url */
+      readonly public_url: string
+    }
     /** OrganizationCreate */
     OrganizationCreate: {
       /** Name */
@@ -20926,6 +21069,9 @@ export interface components {
         | null
       customer_portal_settings?:
         | components['schemas']['OrganizationCustomerPortalSettings']
+        | null
+      storefront_settings?:
+        | components['schemas']['OrganizationStorefrontSettings']
         | null
     }
     /** OrganizationCustomerEmailSettings */
@@ -21360,6 +21506,9 @@ export interface components {
         | null
       customer_portal_settings?:
         | components['schemas']['OrganizationCustomerPortalSettings']
+        | null
+      storefront_settings?:
+        | components['schemas']['OrganizationStorefrontSettings']
         | null
     }
     /**
@@ -43113,7 +43262,7 @@ export const eventTypesSortPropertyValues: ReadonlyArray<
 ]
 export const fileServiceTypesValues: ReadonlyArray<
   FlattenedDeepRequired<components>['schemas']['FileServiceTypes']
-> = ['downloadable', 'product_media', 'organization_avatar']
+> = ['downloadable', 'product_media', 'organization_avatar', 'storefront_header']
 export const filterConjunctionValues: ReadonlyArray<
   FlattenedDeepRequired<components>['schemas']['FilterConjunction']
 > = ['and', 'or']
@@ -43261,6 +43410,12 @@ export const organizationAvatarFileCreateServiceValues: ReadonlyArray<
 export const organizationAvatarFileReadServiceValues: ReadonlyArray<
   FlattenedDeepRequired<components>['schemas']['OrganizationAvatarFileRead']['service']
 > = ['organization_avatar']
+export const storefrontHeaderFileCreateServiceValues: ReadonlyArray<
+  FlattenedDeepRequired<components>['schemas']['StorefrontHeaderFileCreate']['service']
+> = ['storefront_header']
+export const storefrontHeaderFileReadServiceValues: ReadonlyArray<
+  FlattenedDeepRequired<components>['schemas']['StorefrontHeaderFileRead']['service']
+> = ['storefront_header']
 export const organizationDeletionBlockedReasonValues: ReadonlyArray<
   FlattenedDeepRequired<components>['schemas']['OrganizationDeletionBlockedReason']
 > = ['has_orders', 'has_active_subscriptions', 'stripe_account_deletion_failed']

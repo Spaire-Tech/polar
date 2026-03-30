@@ -15,12 +15,18 @@ import { ProductsGrid } from './ProductsGrid'
 export const Storefront = ({
   organization,
   products,
+  storefrontSettings,
 }: {
   organization: schemas['CustomerOrganization']
   products: schemas['ProductStorefront'][]
+  storefrontSettings?: schemas['OrganizationStorefrontSettings'] | null
 }) => {
   const [recurringInterval, setRecurringInterval, hasBothIntervals] =
     useRecurringInterval(products)
+
+  const showDetails = storefrontSettings?.show_product_details ?? true
+  const thumbnailSize = storefrontSettings?.thumbnail_size ?? 'medium'
+  const accentColor = storefrontSettings?.accent_color
 
   const subscriptionProducts = useMemo(
     () =>
@@ -49,13 +55,13 @@ export const Storefront = ({
           {subscriptionProducts.length < 1 && oneTimeProducts.length < 1 ? (
             <ShadowBoxOnMd className="items-center justify-center gap-y-6 md:flex md:flex-col md:py-48">
               <HiveOutlined
-                className="dark:text-spaire-600 text-5xl text-gray-300"
+                className="dark:text-polar-600 text-5xl text-gray-300"
                 fontSize="large"
               />
               <div className="flex flex-col items-center gap-y-6">
                 <div className="flex flex-col items-center gap-y-2">
                   <h3 className="text-lg font-medium">No products found</h3>
-                  <p className="dark:text-spaire-500 text-gray-500">
+                  <p className="dark:text-polar-500 text-gray-500">
                     {organization.name} is not offering any products yet
                   </p>
                 </div>
@@ -97,7 +103,13 @@ export const Storefront = ({
                     `products/${product.id}`,
                   )}
                 >
-                  <ProductCard key={product.id} product={product} />
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    showDetails={showDetails}
+                    thumbnailSize={thumbnailSize}
+                    accentColor={accentColor}
+                  />
                 </Link>
               ))}
             </ProductsGrid>
