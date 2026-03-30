@@ -228,23 +228,29 @@ export const StorefrontSidebar = ({
 
   const updateOrganization = useUpdateOrganization()
 
+  const profileSettings = (organization as Record<string, unknown>)
+    .profile_settings as
+    | { accent_color?: string; description?: string; enabled?: boolean }
+    | null
+    | undefined
+
   const [description, setDescription] = useState(
-    organization.profile_settings?.description ?? '',
+    profileSettings?.description ?? '',
   )
   const [accentColor, setAccentColor] = useState(
-    organization.profile_settings?.accent_color ?? '#6366f1',
+    profileSettings?.accent_color ?? '#6366f1',
   )
 
   const hasProfileChanges =
-    description !== (organization.profile_settings?.description ?? '') ||
-    accentColor !== (organization.profile_settings?.accent_color ?? '#6366f1')
+    description !== (profileSettings?.description ?? '') ||
+    accentColor !== (profileSettings?.accent_color ?? '#6366f1')
 
   const onSubmit = useCallback(
     async (organizationUpdate: schemas['OrganizationUpdate']) => {
       const body = {
         ...organizationUpdate,
         profile_settings: {
-          ...organization.profile_settings,
+          ...profileSettings,
           description,
           accent_color: accentColor,
         },
@@ -275,8 +281,7 @@ export const StorefrontSidebar = ({
     [organization, description, accentColor, setError, updateOrganization, reset],
   )
 
-  const storefrontEnabled =
-    organization.profile_settings?.enabled ?? false
+  const storefrontEnabled = profileSettings?.enabled ?? false
   const storefrontURL = `${CONFIG.FRONTEND_BASE_URL}/${organization.slug}`
 
   return (

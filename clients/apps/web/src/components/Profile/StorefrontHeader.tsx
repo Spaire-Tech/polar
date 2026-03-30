@@ -22,8 +22,13 @@ interface StorefrontHeaderProps {
 }
 
 export const StorefrontHeader = ({ organization }: StorefrontHeaderProps) => {
-  const accentColor =
-    organization.profile_settings?.accent_color || '#6366f1'
+  const profileSettings = (organization as Record<string, unknown>)
+    .profile_settings as
+    | { accent_color?: string; description?: string }
+    | null
+    | undefined
+
+  const accentColor = profileSettings?.accent_color || '#6366f1'
 
   const gradient = useMemo(
     () => (typeof window !== 'undefined' ? new Gradient() : undefined),
@@ -47,7 +52,7 @@ export const StorefrontHeader = ({ organization }: StorefrontHeaderProps) => {
     gradient.initGradient('#gradient-canvas')
   }, [gradient, accentColor, organization])
 
-  const description = organization.profile_settings?.description
+  const description = profileSettings?.description
   const socials = organization.socials ?? []
 
   return (
