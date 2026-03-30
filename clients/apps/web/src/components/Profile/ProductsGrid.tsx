@@ -33,7 +33,7 @@ export const ProductsGrid = ({
   return (
     <div className={twMerge('flex grow flex-col gap-y-8', className)}>
       <div className="flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
-        {title && <h2 className="text-2xl font-medium">{title}</h2>}
+        {title && <h2 className="text-xl font-semibold text-gray-900 dark:text-white">{title}</h2>}
         {hasBothIntervals && recurringInterval && setRecurringInterval && (
           <>
             <div className="hidden justify-center md:flex">
@@ -65,7 +65,7 @@ export const ProductsGrid = ({
       </div>
       <div
         className={twMerge(
-          'grid w-full grid-cols-1 gap-10 md:grid-cols-2 lg:grid-cols-3',
+          'grid w-full grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3',
           gridClassName,
         )}
       >

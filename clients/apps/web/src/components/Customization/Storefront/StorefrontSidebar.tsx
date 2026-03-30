@@ -47,7 +47,7 @@ const StorefrontSidebarContentWrapper = ({
           {enabled && (
             <Button size="sm">
               <Link href={`/${organization.slug}`} target="_blank">
-                Open Storefront
+                Open Space
               </Link>
             </Button>
           )}
@@ -162,7 +162,7 @@ const StorefrontForm = ({
         render={({ field }) => (
           <FormItem className="flex flex-col gap-y-1">
             <div className="flex flex-row items-center justify-between">
-              <FormLabel>Organization Name</FormLabel>
+              <FormLabel>Store Name</FormLabel>
             </div>
             <FormControl>
               <Input {...field} value={field.value || ''} />
@@ -171,6 +171,56 @@ const StorefrontForm = ({
           </FormItem>
         )}
       />
+
+      <div className="flex flex-col gap-y-1">
+        <Label className="text-sm font-medium">Description</Label>
+        <textarea
+          className="dark:border-spaire-700 dark:bg-spaire-800 min-h-[80px] w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          placeholder="Tell visitors about your store..."
+          maxLength={160}
+          value={
+            (watch('profile_settings') as Record<string, unknown>)
+              ?.description as string ?? ''
+          }
+          onChange={(e) => {
+            const current = watch('profile_settings') as Record<string, unknown> ?? {}
+            setValue(
+              'profile_settings' as any,
+              { ...current, description: e.target.value },
+              { shouldDirty: true },
+            )
+          }}
+        />
+        <p className="text-xs text-gray-400">
+          {((watch('profile_settings') as Record<string, unknown>)?.description as string)?.length ?? 0}/160
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-y-2">
+        <Label className="text-sm font-medium">Accent Color</Label>
+        <div className="flex flex-row items-center gap-3">
+          <input
+            type="color"
+            className="h-10 w-10 cursor-pointer rounded-lg border border-gray-200 p-0.5 dark:border-spaire-700"
+            value={
+              ((watch('profile_settings') as Record<string, unknown>)
+                ?.accent_color as string) ?? '#6366f1'
+            }
+            onChange={(e) => {
+              const current =
+                (watch('profile_settings') as Record<string, unknown>) ?? {}
+              setValue(
+                'profile_settings' as any,
+                { ...current, accent_color: e.target.value },
+                { shouldDirty: true },
+              )
+            }}
+          />
+          <span className="text-sm text-gray-500">
+            Used for the banner gradient
+          </span>
+        </div>
+      </div>
 
       <ErrorMessage
         errors={errors}
@@ -220,13 +270,14 @@ export const StorefrontSidebar = ({
     [organization, setError, updateOrganization, reset],
   )
 
-  const storefrontEnabled = false
+  const storefrontEnabled =
+    organization.profile_settings?.enabled ?? false
   const storefrontURL = `${CONFIG.FRONTEND_BASE_URL}/${organization.slug}`
 
   return (
     <StorefrontSidebarContentWrapper
-      title="Storefront"
-      enabled={false}
+      title="Spaire Space"
+      enabled={storefrontEnabled}
       organization={organization}
     >
       <div className="flex flex-col gap-y-8">
@@ -246,36 +297,22 @@ export const StorefrontSidebar = ({
             </Button>
           </div>
         </form>
-        {storefrontEnabled && (
-          <>
-            <Separator />
+        <Separator />
 
-            <div className="flex flex-col gap-y-4">
-              <Label>Share</Label>
-              <CopyToClipboardInput
-                value={storefrontURL}
-                buttonLabel="Copy"
-                className="bg-white"
-                onCopy={() => {
-                  toast({
-                    title: 'Copied To Clipboard',
-                    description: `Storefront URL was copied to clipboard`,
-                  })
-                }}
-              />
-              <p className="text-center text-xs text-gray-500">
-                Add an official link from GitHub to Spaire.{' '}
-                <a
-                  href="/docs/github/funding-yaml"
-                  target="_blank"
-                  className="underline"
-                >
-                  Learn more.
-                </a>
-              </p>
-            </div>
-          </>
-        )}
+        <div className="flex flex-col gap-y-4">
+          <Label>Share your Spaire Space</Label>
+          <CopyToClipboardInput
+            value={storefrontURL}
+            buttonLabel="Copy"
+            className="bg-white"
+            onCopy={() => {
+              toast({
+                title: 'Copied To Clipboard',
+                description: `Spaire Space URL was copied to clipboard`,
+              })
+            }}
+          />
+        </div>
       </div>
     </StorefrontSidebarContentWrapper>
   )

@@ -15,11 +15,11 @@ export async function generateMetadata(props: {
 
   return {
     title: `${organization.name}`, // " | Polar is added by the template"
-    description: `${organization.name} on Spaire`,
+    description: `${organization.name} on Spaire Space`,
     openGraph: {
-      title: `${organization.name} on Spaire`,
-      description: `${organization.name} on Spaire`,
-      siteName: 'Spaire',
+      title: `${organization.name} on Spaire Space`,
+      description: `${organization.name} on Spaire Space`,
+      siteName: 'Spaire Space',
       type: 'website',
       images: [
         {
@@ -35,12 +35,12 @@ export async function generateMetadata(props: {
           url: `https://spairehq.com/og?org=${organization.slug}`,
           width: 1200,
           height: 630,
-          alt: `${organization.name} on Spaire`,
+          alt: `${organization.name} on Spaire Space`,
         },
       ],
       card: 'summary_large_image',
-      title: `${organization.name} on Spaire`,
-      description: `${organization.name} on Spaire`,
+      title: `${organization.name} on Spaire Space`,
+      description: `${organization.name} on Spaire Space`,
     },
   }
 }

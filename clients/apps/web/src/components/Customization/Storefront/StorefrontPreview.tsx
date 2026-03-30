@@ -1,7 +1,5 @@
 'use client'
 
-import { SpaireLogotype } from '@/components/Layout/Public/SpaireLogotype'
-import TopbarRight from '@/components/Layout/Public/TopbarRight'
 import { useAuth } from '@/hooks'
 import { useProducts } from '@/hooks/queries'
 import { schemas } from '@spaire/client'
@@ -16,7 +14,6 @@ export const StorefrontPreview = ({
   organization: schemas['Organization']
 }) => {
   const { watch } = useFormContext<schemas['OrganizationUpdate']>()
-  const { currentUser } = useAuth()
   const organizationUpdate = watch()
 
   const organization = { ...org, ...organizationUpdate }
@@ -25,21 +22,11 @@ export const StorefrontPreview = ({
     useProducts(organization.id, { is_archived: false }).data?.items ?? []
 
   return (
-    <ShadowBox className="dark:bg-spaire-950 flex h-full w-full flex-col items-center overflow-y-auto bg-white">
-      <div className="flex w-full max-w-7xl flex-col gap-y-12">
-        <div className="relative flex flex-row items-center justify-end gap-x-6">
-          <SpaireLogotype
-            className="absolute left-1/2 -translate-x-1/2"
-            size={50}
-          />
-
-          <TopbarRight authenticatedUser={currentUser} />
-        </div>
-        <div className="flex grow flex-col items-center">
-          <StorefrontHeader
-            organization={organization as schemas['Organization']}
-          />
-        </div>
+    <ShadowBox className="dark:bg-spaire-950 flex h-full w-full flex-col items-center overflow-y-auto bg-gray-50">
+      <div className="flex w-full max-w-7xl flex-col gap-y-12 px-8 py-10">
+        <StorefrontHeader
+          organization={organization as schemas['Organization']}
+        />
         <div className="flex h-full grow flex-col gap-y-8 pb-16 md:gap-y-16">
           <Storefront
             organization={organization as schemas['Organization']}
