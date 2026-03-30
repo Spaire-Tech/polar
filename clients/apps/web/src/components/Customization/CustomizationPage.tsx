@@ -88,7 +88,7 @@ const Customization = ({
           >
             <ArrowBack fontSize="small" />
           </Button>
-          <h1 className="text-xl">Spaire Space</h1>
+          <h1 className="text-xl">Storefront</h1>
         </div>
         <Tabs
           className="absolute left-1/2 flex -translate-x-1/2 flex-row items-center"
@@ -102,7 +102,7 @@ const Customization = ({
               className="data-[state=active]:bg-white data-[state=active]:shadow-xs"
               value="storefront"
             >
-              Space
+              Storefront
             </TabsTrigger>
             <TabsTrigger
               className="data-[state=active]:bg-white data-[state=active]:shadow-xs"

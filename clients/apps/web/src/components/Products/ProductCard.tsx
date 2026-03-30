@@ -12,35 +12,48 @@ interface ProductCardProps {
 
 export const ProductCard = ({ product }: ProductCardProps) => {
   return (
-    <div className="group flex h-full w-full flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition-all hover:-translate-y-1 hover:shadow-md dark:border-spaire-800 dark:bg-spaire-900">
-      {/* Product image */}
+    <div className="flex h-full w-full flex-col gap-4 transition-opacity hover:opacity-50">
       {product.medias.length > 0 ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          className="aspect-square w-full object-cover"
+          className="dark:bg-spaire-950 aspect-video w-full rounded-2xl bg-gray-100 object-cover"
           alt={product.medias[0].name}
           width={600}
           height={600}
           src={product.medias[0].public_url}
         />
       ) : (
-        <div className="flex aspect-square w-full flex-col items-center justify-center bg-gray-50 dark:bg-spaire-800">
-          <LogoIcon className="h-16 w-16 text-gray-200 dark:text-spaire-700" />
+        <div className="dark:bg-spaire-800 flex aspect-video w-full flex-col items-center justify-center rounded-2xl bg-gray-100">
+          <div className="flex flex-col items-center justify-center text-4xl text-blue-500 dark:text-white">
+            <LogoIcon className="dark:text-spaire-600 h-12 w-12 text-gray-300" />
+          </div>
         </div>
       )}
-
-      {/* Product info */}
-      <div className="flex flex-col items-center gap-y-1 px-4 py-5 text-center">
-        <h3 className="line-clamp-2 text-base font-medium leading-snug text-gray-900 dark:text-white">
+      <div className="flex grow flex-col gap-y-1 text-lg">
+        <h3 className="line-clamp-1 flex items-center justify-between gap-1 leading-snug text-gray-950 dark:text-white">
           {product.name}
         </h3>
-        <span className="text-sm text-gray-500 dark:text-spaire-500">
-          {hasLegacyRecurringPrices(product) ? (
-            <LegacyRecurringProductPrices product={product} />
-          ) : (
-            <ProductPriceLabel product={product} />
-          )}
-        </span>
+        <div className="flex flex-row items-center justify-between">
+          <span className="dark:text-spaire-500 flex flex-row items-center gap-x-2 text-base text-gray-500">
+            <h3 className="leading-snug">
+              {hasLegacyRecurringPrices(product) ? (
+                <LegacyRecurringProductPrices product={product} />
+              ) : (
+                <ProductPriceLabel product={product} />
+              )}
+            </h3>
+            {product.benefits.length > 0 && (
+              <>
+                ·
+                <span>
+                  {product.benefits.length === 1
+                    ? `${product.benefits.length} Benefit`
+                    : `${product.benefits.length} Benefits`}
+                </span>
+              </>
+            )}
+          </span>
+        </div>
       </div>
     </div>
   )

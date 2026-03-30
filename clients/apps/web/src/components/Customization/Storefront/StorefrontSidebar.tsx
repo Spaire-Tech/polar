@@ -22,7 +22,7 @@ import {
 import { Label } from '@spaire/ui/components/ui/label'
 import { Separator } from '@spaire/ui/components/ui/separator'
 import Link from 'next/link'
-import { PropsWithChildren, useCallback, useState } from 'react'
+import { PropsWithChildren, useCallback } from 'react'
 import { FileRejection } from 'react-dropzone'
 import { useFormContext } from 'react-hook-form'
 import { twMerge } from 'tailwind-merge'
@@ -47,7 +47,7 @@ const StorefrontSidebarContentWrapper = ({
           {enabled && (
             <Button size="sm">
               <Link href={`/${organization.slug}`} target="_blank">
-                Open Space
+                Open Storefront
               </Link>
             </Button>
           )}
@@ -62,16 +62,8 @@ const StorefrontSidebarContentWrapper = ({
 
 const StorefrontForm = ({
   organization,
-  description,
-  setDescription,
-  accentColor,
-  setAccentColor,
 }: {
   organization: schemas['Organization']
-  description: string
-  setDescription: (value: string) => void
-  accentColor: string
-  setAccentColor: (value: string) => void
 }) => {
   const {
     control,
@@ -170,7 +162,7 @@ const StorefrontForm = ({
         render={({ field }) => (
           <FormItem className="flex flex-col gap-y-1">
             <div className="flex flex-row items-center justify-between">
-              <FormLabel>Store Name</FormLabel>
+              <FormLabel>Organization Name</FormLabel>
             </div>
             <FormControl>
               <Input {...field} value={field.value || ''} />
@@ -179,33 +171,6 @@ const StorefrontForm = ({
           </FormItem>
         )}
       />
-
-      <div className="flex flex-col gap-y-1">
-        <Label className="text-sm font-medium">Description</Label>
-        <textarea
-          className="dark:border-spaire-700 dark:bg-spaire-800 min-h-[80px] w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-          placeholder="Tell visitors about your store..."
-          maxLength={160}
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-        />
-        <p className="text-xs text-gray-400">{description.length}/160</p>
-      </div>
-
-      <div className="flex flex-col gap-y-2">
-        <Label className="text-sm font-medium">Accent Color</Label>
-        <div className="flex flex-row items-center gap-3">
-          <input
-            type="color"
-            className="h-10 w-10 cursor-pointer rounded-lg border border-gray-200 p-0.5 dark:border-spaire-700"
-            value={accentColor}
-            onChange={(e) => setAccentColor(e.target.value)}
-          />
-          <span className="text-sm text-gray-500">
-            Used for the banner gradient
-          </span>
-        </div>
-      </div>
 
       <ErrorMessage
         errors={errors}
@@ -228,37 +193,11 @@ export const StorefrontSidebar = ({
 
   const updateOrganization = useUpdateOrganization()
 
-  const profileSettings = (organization as Record<string, unknown>)
-    .profile_settings as
-    | { accent_color?: string; description?: string; enabled?: boolean }
-    | null
-    | undefined
-
-  const [description, setDescription] = useState(
-    profileSettings?.description ?? '',
-  )
-  const [accentColor, setAccentColor] = useState(
-    profileSettings?.accent_color ?? '#6366f1',
-  )
-
-  const hasProfileChanges =
-    description !== (profileSettings?.description ?? '') ||
-    accentColor !== (profileSettings?.accent_color ?? '#6366f1')
-
   const onSubmit = useCallback(
     async (organizationUpdate: schemas['OrganizationUpdate']) => {
-      const body = {
-        ...organizationUpdate,
-        profile_settings: {
-          ...profileSettings,
-          description,
-          accent_color: accentColor,
-        },
-      }
-
       const { data: org, error } = await updateOrganization.mutateAsync({
         id: organization.id,
-        body: body as schemas['OrganizationUpdate'],
+        body: organizationUpdate,
       })
       if (error) {
         if (isValidationError(error.detail)) {
@@ -278,16 +217,16 @@ export const StorefrontSidebar = ({
       })
       reset(org)
     },
-    [organization, description, accentColor, setError, updateOrganization, reset],
+    [organization, setError, updateOrganization, reset],
   )
 
-  const storefrontEnabled = profileSettings?.enabled ?? false
+  const storefrontEnabled = false
   const storefrontURL = `${CONFIG.FRONTEND_BASE_URL}/${organization.slug}`
 
   return (
     <StorefrontSidebarContentWrapper
-      title="Spaire Space"
-      enabled={storefrontEnabled}
+      title="Storefront"
+      enabled={false}
       organization={organization}
     >
       <div className="flex flex-col gap-y-8">
@@ -295,43 +234,48 @@ export const StorefrontSidebar = ({
           onSubmit={handleSubmit(onSubmit)}
           className="flex flex-col gap-y-8"
         >
-          <StorefrontForm
-            organization={organization}
-            description={description}
-            setDescription={setDescription}
-            accentColor={accentColor}
-            setAccentColor={setAccentColor}
-          />
+          <StorefrontForm organization={organization} />
           <div className="flex flex-row items-center gap-x-4">
             <Button
               className="self-start"
               type="submit"
               loading={updateOrganization.isPending}
-              disabled={
-                !formState.isDirty &&
-                !hasProfileChanges
-              }
+              disabled={!formState.isDirty || updateOrganization.isPending}
             >
               Save
             </Button>
           </div>
         </form>
-        <Separator />
+        {storefrontEnabled && (
+          <>
+            <Separator />
 
-        <div className="flex flex-col gap-y-4">
-          <Label>Share your Spaire Space</Label>
-          <CopyToClipboardInput
-            value={storefrontURL}
-            buttonLabel="Copy"
-            className="bg-white"
-            onCopy={() => {
-              toast({
-                title: 'Copied To Clipboard',
-                description: `Spaire Space URL was copied to clipboard`,
-              })
-            }}
-          />
-        </div>
+            <div className="flex flex-col gap-y-4">
+              <Label>Share</Label>
+              <CopyToClipboardInput
+                value={storefrontURL}
+                buttonLabel="Copy"
+                className="bg-white"
+                onCopy={() => {
+                  toast({
+                    title: 'Copied To Clipboard',
+                    description: `Storefront URL was copied to clipboard`,
+                  })
+                }}
+              />
+              <p className="text-center text-xs text-gray-500">
+                Add an official link from GitHub to Spaire.{' '}
+                <a
+                  href="/docs/github/funding-yaml"
+                  target="_blank"
+                  className="underline"
+                >
+                  Learn more.
+                </a>
+              </p>
+            </div>
+          </>
+        )}
       </div>
     </StorefrontSidebarContentWrapper>
   )
