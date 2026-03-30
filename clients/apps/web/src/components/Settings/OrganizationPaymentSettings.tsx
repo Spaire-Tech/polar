@@ -115,7 +115,9 @@ const OrganizationPaymentSettings: React.FC<
       default_presentment_currency:
         data.default_presentment_currency as PresentmentCurrency,
       default_tax_behavior:
-        (data.default_tax_behavior as TaxBehaviorOption) ?? 'location',
+        (data.default_tax_behavior as TaxBehaviorOption) ??
+        body.default_tax_behavior ??
+        'location',
     })
   }
 
