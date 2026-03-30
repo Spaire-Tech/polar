@@ -26,7 +26,7 @@ from polar.discount.service import discount as discount_service
 from polar.email.react import render_email_template
 from polar.email.schemas import EmailAdapter
 from polar.email.sender import enqueue_email
-from polar.enums import SubscriptionProrationBehavior, SubscriptionRecurringInterval
+from polar.enums import SubscriptionProrationBehavior, SubscriptionRecurringInterval, TaxBehavior
 from polar.event.service import event as event_service
 from polar.event.system import (
     SubscriptionCanceledMetadata,
@@ -589,6 +589,7 @@ class SubscriptionService:
         subscription.product = product
         subscription.subscription_product_prices = subscription_product_prices
         subscription.currency = currency
+        subscription.tax_behavior = checkout.tax_behavior
         subscription.discount = checkout.discount
         # For non-trial checkouts with a discount, the discount is applied immediately
         # (the first payment at checkout includes the discount)
@@ -1841,13 +1842,18 @@ class SubscriptionService:
         if applicable_discount is not None:
             discount_amount = applicable_discount.get_discount_amount(subtotal_amount)
 
-        taxable_amount = subtotal_amount - discount_amount
-
+        net_amount = subtotal_amount - discount_amount
         tax_amount = 0
+        tax_behavior_option = (
+            subscription.tax_behavior.to_option()
+            if subscription.tax_behavior is not None
+            else subscription.customer.organization.default_tax_behavior
+        )
 
         if (
-            taxable_amount > 0
+            net_amount > 0
             and subscription.product.is_tax_applicable
+            and subscription.tax_behavior
             and subscription.customer.billing_address is not None
         ):
             tax_service = get_tax_service(settings.DEFAULT_TAX_PROCESSOR)
@@ -1855,7 +1861,8 @@ class SubscriptionService:
                 tax = await tax_service.calculate(
                     subscription.id,
                     subscription.currency,
-                    taxable_amount,
+                    net_amount,
+                    tax_behavior_option,
                     subscription.product.tax_code,
                     subscription.customer.billing_address,
                     [subscription.customer.tax_id]
@@ -1872,14 +1879,17 @@ class SubscriptionService:
                 tax_amount = 0
             else:
                 tax_amount = tax["amount"]
+                if subscription.tax_behavior == TaxBehavior.inclusive:
+                    net_amount -= tax_amount
 
-        total = taxable_amount + tax_amount
+        total = net_amount + tax_amount
 
         return SubscriptionChargePreview(
             base_amount=base_price,
             metered_amount=metered_amount,
             subtotal_amount=subtotal_amount,
             discount_amount=discount_amount,
+            net_amount=net_amount,
             tax_amount=tax_amount,
             total_amount=total,
         )

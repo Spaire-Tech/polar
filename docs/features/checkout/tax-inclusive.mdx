@@ -10,7 +10,7 @@ Tax-inclusive pricing flips this: the price you set **already includes tax**. Th
 
 ## How it works
 
-When tax-inclusive pricing is enabled on a product price, Spaire back-calculates the tax component from the displayed price rather than adding it on top.
+When tax-inclusive pricing is set on a product price, Spaire back-calculates the tax component from the displayed price rather than adding it on top.
 
 **Example — €20 product in France (20% VAT):**
 
@@ -21,19 +21,38 @@ When tax-inclusive pricing is enabled on a product price, Spaire back-calculates
 
 The price the customer sees is the price they pay. No surprises at checkout.
 
-## Enable tax-inclusive pricing
+## Tax behavior options
 
-Tax-inclusive pricing is set per price, not per product. You can have one price that's tax-inclusive and another that isn't on the same product.
+Tax behavior is configured at two levels:
+
+- **Organization default** — applies to all products unless overridden
+- **Per-price override** — overrides the organization default for a specific price
+
+There are three tax behavior options:
+
+| Option | Behavior |
+|---|---|
+| `location` (default) | Uses regional conventions: inclusive for EU/most countries, exclusive for US/CA/IN |
+| `inclusive` | Price includes tax; tax is back-calculated at checkout |
+| `exclusive` | Tax is added on top of the displayed price |
+
+## Configure the organization default
+
+Set the default for your entire organization in **Settings → Billing → Default tax behavior**.
+
+## Set per-price tax behavior
+
+Tax behavior can be set per price, not per product. You can have one price that's tax-inclusive and another that isn't on the same product.
 
 ### From the dashboard
 
 1. Go to **Products** → select your product → **Edit**
-2. On the price you want to update, enable **Tax-inclusive pricing**
+2. On the price you want to update, set the **Tax behavior**
 3. Save
 
 ### Via the API
 
-Set `is_tax_inclusive: true` when creating or updating a product price:
+Set `tax_behavior` when creating or updating a product price:
 
 <CodeGroup>
 
@@ -53,7 +72,7 @@ const product = await spaire.products.create({
       price_amount: 2000, // €20.00
       price_currency: 'eur',
       recurring_interval: 'month',
-      is_tax_inclusive: true,
+      tax_behavior: 'inclusive',
     },
   ],
 })
@@ -72,7 +91,7 @@ with Spaire(access_token="<YOUR_ACCESS_TOKEN>") as spaire:
                 "price_amount": 2000,
                 "price_currency": "eur",
                 "recurring_interval": "month",
-                "is_tax_inclusive": True,
+                "tax_behavior": "inclusive",
             }
         ],
     })
@@ -90,7 +109,7 @@ curl -X POST https://api.spairehq.com/v1/products \
       "price_amount": 2000,
       "price_currency": "eur",
       "recurring_interval": "month",
-      "is_tax_inclusive": true
+      "tax_behavior": "inclusive"
     }]
   }'
 ```

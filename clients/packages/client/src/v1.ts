@@ -17737,46 +17737,18 @@ export interface components {
        * @enum {string}
        */
       amount_type: 'custom'
-      /** @description The currency in which the customer will be charged. */
       price_currency: components['schemas']['PresentmentCurrency']
-      /**
-       * Is Archived
-       * @description Whether the price is archived and no longer available.
-       */
       is_archived: boolean
-      /**
-       * Product Id
-       * Format: uuid4
-       * @description The ID of the product owning the price.
-       */
+      /** @description Tax behavior for this price. Overrides the organization default if set. */
+      tax_behavior: components['schemas']['TaxBehaviorOption'] | null
       product_id: string
-      /**
-       * Type
-       * @description The type of the price.
-       * @constant
-       */
+      /** @constant */
       type: 'recurring'
-      /** @description The recurring interval of the price. */
       recurring_interval: components['schemas']['SubscriptionRecurringInterval']
-      /**
-       * Minimum Amount
-       * @description The minimum amount the customer can pay. If 0, the price is 'free or pay what you want'. Defaults to 50 cents.
-       */
       minimum_amount: number
-      /**
-       * Maximum Amount
-       * @description The maximum amount the customer can pay.
-       */
       maximum_amount: number | null
-      /**
-       * Preset Amount
-       * @description The initial amount shown to the customer.
-       */
       preset_amount: number | null
-      /**
-       * Legacy
-       * @constant
-       */
+      /** @constant */
       readonly legacy: true
     }
     /**
@@ -17786,60 +17758,22 @@ export interface components {
      *     **Deprecated**: The recurring interval should be set on the product itself.
      */
     LegacyRecurringProductPriceFixed: {
-      /**
-       * Created At
-       * Format: date-time
-       * @description Creation timestamp of the object.
-       */
       created_at: string
-      /**
-       * Modified At
-       * @description Last modification timestamp of the object.
-       */
       modified_at: string | null
-      /**
-       * Id
-       * Format: uuid4
-       * @description The ID of the price.
-       */
       id: string
-      /** @description The source of the price . `catalog` is a predefined price, while `ad_hoc` is a price created dynamically on a Checkout session. */
       source: components['schemas']['ProductPriceSource']
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
+      /** @enum {string} */
       amount_type: 'fixed'
-      /** @description The currency in which the customer will be charged. */
       price_currency: components['schemas']['PresentmentCurrency']
-      /**
-       * Is Archived
-       * @description Whether the price is archived and no longer available.
-       */
       is_archived: boolean
-      /**
-       * Product Id
-       * Format: uuid4
-       * @description The ID of the product owning the price.
-       */
+      /** @description Tax behavior for this price. Overrides the organization default if set. */
+      tax_behavior: components['schemas']['TaxBehaviorOption'] | null
       product_id: string
-      /**
-       * Type
-       * @description The type of the price.
-       * @constant
-       */
+      /** @constant */
       type: 'recurring'
-      /** @description The recurring interval of the price. */
       recurring_interval: components['schemas']['SubscriptionRecurringInterval']
-      /**
-       * Price Amount
-       * @description The price in cents.
-       */
       price_amount: number
-      /**
-       * Legacy
-       * @constant
-       */
+      /** @constant */
       readonly legacy: true
     }
     /**
@@ -17849,48 +17783,18 @@ export interface components {
      *     **Deprecated**: The recurring interval should be set on the product itself.
      */
     LegacyRecurringProductPriceFree: {
-      /**
-       * Created At
-       * Format: date-time
-       * @description Creation timestamp of the object.
-       */
       created_at: string
-      /**
-       * Modified At
-       * @description Last modification timestamp of the object.
-       */
       modified_at: string | null
-      /**
-       * Id
-       * Format: uuid4
-       * @description The ID of the price.
-       */
       id: string
-      /** @description The source of the price . `catalog` is a predefined price, while `ad_hoc` is a price created dynamically on a Checkout session. */
       source: components['schemas']['ProductPriceSource']
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
+      /** @enum {string} */
       amount_type: 'free'
-      /** @description The currency in which the customer will be charged. */
       price_currency: components['schemas']['PresentmentCurrency']
-      /**
-       * Is Archived
-       * @description Whether the price is archived and no longer available.
-       */
       is_archived: boolean
-      /**
-       * Product Id
-       * Format: uuid4
-       * @description The ID of the product owning the price.
-       */
+      /** @description Tax behavior for this price. Overrides the organization default if set. */
+      tax_behavior: components['schemas']['TaxBehaviorOption'] | null
       product_id: string
-      /**
-       * Type
-       * @description The type of the price.
-       * @constant
-       */
+      /** @constant */
       type: 'recurring'
       /** @description The recurring interval of the price. */
       recurring_interval: components['schemas']['SubscriptionRecurringInterval']
@@ -20693,6 +20597,8 @@ export interface components {
       details_submitted_at: string | null
       /** @description Default presentment currency. Used as fallback in checkout and customer portal, if the customer's local currency is not available. */
       default_presentment_currency: components['schemas']['PresentmentCurrency']
+      /** @description Default tax behavior applied on products. */
+      default_tax_behavior: components['schemas']['TaxBehaviorOption']
       /** @description Organization feature settings */
       feature_settings:
         | components['schemas']['OrganizationFeatureSettings']
@@ -20912,6 +20818,8 @@ export interface components {
       socials?: components['schemas']['OrganizationSocialLink'][] | null
       /** @description Additional, private, business details Polar needs about active organizations for compliance (KYC). */
       details?: components['schemas']['OrganizationDetails'] | null
+      /** @description Default tax behavior applied on products. */
+      default_tax_behavior?: components['schemas']['TaxBehaviorOption'] | null
       feature_settings?:
         | components['schemas']['OrganizationFeatureSettings']
         | null
@@ -21346,6 +21254,8 @@ export interface components {
       details?: components['schemas']['OrganizationDetails'] | null
       /** @description Default presentment currency for products and checkout. */
       default_presentment_currency?: components['schemas']['PresentmentCurrency'] | null
+      /** @description Default tax behavior applied on products. */
+      default_tax_behavior?: components['schemas']['TaxBehaviorOption'] | null
       feature_settings?:
         | components['schemas']['OrganizationFeatureSettings']
         | null
@@ -22170,6 +22080,8 @@ export interface components {
        * @description Whether the price is archived and no longer available.
        */
       is_archived: boolean
+      /** @description Tax behavior for this price. Overrides the organization default if set. */
+      tax_behavior: components['schemas']['TaxBehaviorOption'] | null
       /**
        * Product Id
        * Format: uuid4
@@ -22266,6 +22178,8 @@ export interface components {
        * @description Whether the price is archived and no longer available.
        */
       is_archived: boolean
+      /** @description Tax behavior for this price. Overrides the organization default if set. */
+      tax_behavior: components['schemas']['TaxBehaviorOption'] | null
       /**
        * Product Id
        * Format: uuid4
@@ -22341,6 +22255,8 @@ export interface components {
        * @description Whether the price is archived and no longer available.
        */
       is_archived: boolean
+      /** @description Tax behavior for this price. Overrides the organization default if set. */
+      tax_behavior: components['schemas']['TaxBehaviorOption'] | null
       /**
        * Product Id
        * Format: uuid4
@@ -22423,6 +22339,8 @@ export interface components {
        * @description Whether the price is archived and no longer available.
        */
       is_archived: boolean
+      /** @description Tax behavior for this price. Overrides the organization default if set. */
+      tax_behavior: components['schemas']['TaxBehaviorOption'] | null
       /**
        * Product Id
        * Format: uuid4
@@ -22522,6 +22440,8 @@ export interface components {
        * @description Whether the price is archived and no longer available.
        */
       is_archived: boolean
+      /** @description Tax behavior for this price. Overrides the organization default if set. */
+      tax_behavior: components['schemas']['TaxBehaviorOption'] | null
       /**
        * Product Id
        * Format: uuid4
@@ -22585,6 +22505,8 @@ export interface components {
      *     - maximum_seats = last tier's max_seats (None for unlimited)
      */
     'ProductPriceSeatTiers-Input': {
+      /** @description How tiers are applied. 'volume' prices all seats at the matching tier's rate. 'graduated' prices each tier's range independently. */
+      seat_tier_type?: components['schemas']['SeatTierType']
       /**
        * Tiers
        * @description List of pricing tiers
@@ -22600,6 +22522,8 @@ export interface components {
      *     - maximum_seats = last tier's max_seats (None for unlimited)
      */
     'ProductPriceSeatTiers-Output': {
+      /** @description How tiers are applied. 'volume' prices all seats at the matching tier's rate. 'graduated' prices each tier's range independently. */
+      seat_tier_type: components['schemas']['SeatTierType']
       /**
        * Tiers
        * @description List of pricing tiers
@@ -22616,6 +22540,12 @@ export interface components {
        */
       readonly maximum_seats: number | null
     }
+    /**
+     * SeatTierType
+     * @description How seat tiers are applied.
+     * @enum {string}
+     */
+    SeatTierType: 'volume' | 'graduated'
     /**
      * ProductPriceSource
      * @enum {string}
@@ -25011,6 +24941,12 @@ export interface components {
       | 've_rif'
       | 'vn_tin'
       | 'za_vat'
+    /**
+     * TaxBehaviorOption
+     * @description Tax behavior option for products and organizations.
+     * @enum {string}
+     */
+    TaxBehaviorOption: 'inclusive' | 'exclusive' | 'location'
     /**
      * TimeInterval
      * @enum {string}
@@ -43893,3 +43829,9 @@ export const revokeTokenRequestToken_type_hintAnyOf0Values: ReadonlyArray<
 export const introspectTokenRequestToken_type_hintAnyOf0Values: ReadonlyArray<
   FlattenedDeepRequired<components>['schemas']['IntrospectTokenRequest']['token_type_hint']
 > = ['access_token', 'refresh_token']
+export const taxBehaviorOptionValues: ReadonlyArray<
+  FlattenedDeepRequired<components>['schemas']['TaxBehaviorOption']
+> = ['inclusive', 'exclusive', 'location']
+export const seatTierTypeValues: ReadonlyArray<
+  FlattenedDeepRequired<components>['schemas']['SeatTierType']
+> = ['volume', 'graduated']

@@ -53,6 +53,7 @@ const PRODUCT_PREVIEW: schemas['ProductStorefront'] = {
       price_amount: 10000,
       price_currency: 'usd',
       is_archived: false,
+      tax_behavior: null,
       created_at: new Date().toISOString(),
       modified_at: new Date().toISOString(),
       product_id: '123',

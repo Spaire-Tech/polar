@@ -18,7 +18,7 @@ from polar.custom_field.schemas import (
     AttachedCustomField,
     AttachedCustomFieldListCreate,
 )
-from polar.enums import SubscriptionRecurringInterval
+from polar.enums import SeatTierType, SubscriptionRecurringInterval, TaxBehaviorOption
 from polar.file.schemas import ProductMediaFileRead
 from polar.kit.currency import PresentmentCurrency
 from polar.kit.db.models import Model
@@ -116,6 +116,13 @@ ProductDescription = Annotated[
 class ProductPriceCreateBase(Schema):
     amount_type: ProductPriceAmountType
     price_currency: PriceCurrency = PresentmentCurrency.usd
+    tax_behavior: TaxBehaviorOption | None = Field(
+        default=None,
+        description=(
+            "The tax behavior of the price. "
+            "If not set, it will default to the organization's default tax behavior."
+        ),
+    )
 
     def get_model_class(self) -> builtins.type[Model]:
         raise NotImplementedError()
@@ -216,6 +223,14 @@ class ProductPriceSeatTiers(Schema):
     - maximum_seats = last tier's max_seats (None for unlimited)
     """
 
+    seat_tier_type: SeatTierType = Field(
+        default=SeatTierType.volume,
+        description=(
+            "How tiers are applied. "
+            "'volume' prices all seats at the matching tier's rate. "
+            "'graduated' prices each tier's range independently."
+        ),
+    )
     tiers: list[ProductPriceSeatTier] = Field(
         min_length=1, description="List of pricing tiers"
     )
@@ -281,7 +296,10 @@ class ProductPriceSeatTiers(Schema):
 
 class ProductPriceSeatBasedCreate(ProductPriceCreateBase):
     """
-    Schema to create a seat-based price with volume-based tiers.
+    Schema to create a seat-based price with tiered pricing.
+
+    Supports volume pricing (all seats at matching tier's rate) and
+    graduated pricing (each tier's range priced independently).
     """
 
     amount_type: Literal[ProductPriceAmountType.seat_based]
@@ -513,6 +531,12 @@ class ProductPriceBase(TimestampedSchema):
         description="The type of amount, either fixed or custom."
     )
     price_currency: PriceCurrency
+    tax_behavior: TaxBehaviorOption | None = Field(
+        description=(
+            "The tax behavior of the price. "
+            "If null, it defaults to the organization's default tax behavior."
+        )
+    )
     is_archived: bool = Field(
         description="Whether the price is archived and no longer available."
     )

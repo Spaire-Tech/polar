@@ -1,11 +1,13 @@
 import hashlib
 import uuid
+from datetime import datetime
 from typing import Literal
 
 import stripe as stripe_lib
 import structlog
 
 from polar.config import settings
+from polar.enums import TaxBehavior
 from polar.integrations.stripe.service import stripe as stripe_service
 from polar.kit.address import Address
 from polar.logging import Logger
@@ -14,7 +16,8 @@ from ..tax_id import TaxID, to_stripe_tax_id
 from .base import (
     TaxabilityReason,
     TaxCalculation,
-    TaxCalculationError,
+    TaxCalculationLogicalError,
+    TaxCalculationTechnicalError,
     TaxCode,
     TaxRate,
     TaxServiceProtocol,
@@ -23,29 +26,23 @@ from .base import (
 log: Logger = structlog.get_logger()
 
 
-class StripeTaxCalculationError(TaxCalculationError):
+class StripeTaxCalculationLogicalError(TaxCalculationLogicalError):
     def __init__(
         self,
         stripe_error: stripe_lib.StripeError,
-        message: str | None = None,
+        message: str = "An error occurred while calculating tax.",
     ) -> None:
         self.stripe_error = stripe_error
-        # Use Stripe's user-facing message if no override provided
-        stripe_message = (
-            stripe_error.user_message
-            or (stripe_error.error.message if stripe_error.error else None)
-            or str(stripe_error)
-        )
-        self.message = message or f"Tax calculation error: {stripe_message}"
-        super().__init__(self.message)
+        self.message = message
+        super().__init__(message)
 
 
-class IncompleteTaxLocation(StripeTaxCalculationError):
+class IncompleteTaxLocation(StripeTaxCalculationLogicalError):
     def __init__(self, stripe_error: stripe_lib.InvalidRequestError) -> None:
         super().__init__(stripe_error, "Required tax location information is missing.")
 
 
-class InvalidTaxLocation(StripeTaxCalculationError):
+class InvalidTaxLocation(StripeTaxCalculationLogicalError):
     def __init__(self, stripe_error: stripe_lib.StripeError) -> None:
         super().__init__(
             stripe_error,
@@ -118,6 +115,7 @@ class StripeTaxService(TaxServiceProtocol):
         identifier: uuid.UUID | str,
         currency: str,
         amount: int,
+        tax_behavior: TaxBehavior,
         tax_code: TaxCode,
         address: Address,
         tax_ids: list[TaxID],
@@ -129,7 +127,7 @@ class StripeTaxService(TaxServiceProtocol):
         taxability_override: Literal["customer_exempt", "none"] = (
             "customer_exempt" if customer_exempt else "none"
         )
-        idempotency_key_str = f"{identifier}:{currency}:{amount}:{tax_code}:{address_str}:{tax_ids_str}:{taxability_override}"
+        idempotency_key_str = f"{identifier}:{currency}:{amount}:{tax_code}:{address_str}:{tax_ids_str}:{taxability_override}:{tax_behavior}"
         idempotency_key = hashlib.sha256(idempotency_key_str.encode()).hexdigest()
 
         try:
@@ -138,6 +136,7 @@ class StripeTaxService(TaxServiceProtocol):
                 line_items=[
                     {
                         "amount": amount,
+                        "tax_behavior": tax_behavior.to_stripe(),
                         "tax_code": tax_code.to_stripe(),
                         "quantity": 1,
                         "reference": str(identifier),
@@ -162,11 +161,12 @@ class StripeTaxService(TaxServiceProtocol):
                 return {
                     "processor_id": f"taxcalc_sandbox_{uuid.uuid4().hex}",
                     "amount": 0,
+                    "currency": currency,
+                    "tax_behavior": tax_behavior,
                     "taxability_reason": None,
                     "tax_rate": None,
                 }
-            log.error("Stripe Tax API rate limit exceeded", identifier=str(identifier), error=str(e))
-            raise StripeTaxCalculationError(e, "Stripe Tax API rate limit exceeded.") from e
+            raise TaxCalculationTechnicalError("Rate limit exceeded") from e
         except stripe_lib.InvalidRequestError as e:
             if (
                 e.error is not None
@@ -174,20 +174,20 @@ class StripeTaxService(TaxServiceProtocol):
                 and e.error.param.startswith("customer_details[address]")
             ):
                 raise IncompleteTaxLocation(e) from e
-            log.error("Stripe Tax invalid request", identifier=str(identifier), error=str(e), param=e.error.param if e.error else None)
-            raise StripeTaxCalculationError(e) from e
+            raise TaxCalculationTechnicalError(str(e)) from e
         except stripe_lib.StripeError as e:
-            if e.error is not None and e.error.code == "customer_tax_location_invalid":
-                raise InvalidTaxLocation(e) from e
-            log.error("Stripe Tax API error", identifier=str(identifier), error=str(e), code=e.error.code if e.error else None)
-            raise StripeTaxCalculationError(e) from e
+            if e.error is None or e.error.code != "customer_tax_location_invalid":
+                raise
+            raise InvalidTaxLocation(e) from e
         else:
             assert calculation.id is not None
-            amount = calculation.tax_amount_exclusive
+            amount = calculation.tax_amount_exclusive + calculation.tax_amount_inclusive
             breakdown = calculation.tax_breakdown[0]
             return {
                 "processor_id": calculation.id,
                 "amount": amount,
+                "currency": currency,
+                "tax_behavior": tax_behavior,
                 "taxability_reason": TaxabilityReason.from_stripe(
                     breakdown.taxability_reason, amount
                 ),
@@ -204,19 +204,33 @@ class StripeTaxService(TaxServiceProtocol):
         self,
         transaction_id: str,
         reference: str,
-        total_amount: int | None = None,
-        tax_amount: int | None = None,
+        reverted_amount: int | None = None,
+        reverted_tax_amount: int | None = None,
     ) -> str:
-        if total_amount is None and tax_amount is None:
+        if reverted_amount is None and reverted_tax_amount is None:
             transaction = await stripe_service.revert_tax_transaction(
                 transaction_id, "full", reference
             )
         else:
-            assert total_amount is not None
+            assert reverted_amount is not None
             transaction = await stripe_service.revert_tax_transaction(
-                transaction_id, "partial", reference, -total_amount
+                transaction_id, "partial", reference, -reverted_amount
             )
         return transaction.id
+
+    async def backfill(
+        self,
+        amount: int,
+        tax_amount: int,
+        currency: str,
+        address: Address,
+        tax_code: TaxCode,
+        reference: str,
+        transaction_date: datetime,
+    ) -> str:
+        raise NotImplementedError(
+            "Backfilling tax calculations is not supported for StripeTaxService."
+        )
 
 
 stripe_tax_service = StripeTaxService()

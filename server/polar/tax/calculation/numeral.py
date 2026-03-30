@@ -1,20 +1,23 @@
-import asyncio
 import uuid
+from datetime import datetime
 from typing import Literal, NotRequired, TypedDict
 
 import httpx
 import structlog
 
 from polar.config import settings
+from polar.enums import TaxBehavior
 from polar.kit.address import Address
 from polar.logging import Logger
 
 from ..tax_id import TaxID
 from .base import (
+    CalculationExpiredError,
     InvalidTaxIDError,
     TaxabilityReason,
     TaxCalculation,
-    TaxCalculationError,
+    TaxCalculationLogicalError,
+    TaxCalculationTechnicalError,
     TaxCode,
     TaxRate,
     TaxRecordError,
@@ -142,11 +145,11 @@ class NumeralTaxService(TaxServiceProtocol):
         identifier: uuid.UUID | str,
         currency: str,
         amount: int,
+        tax_behavior: TaxBehavior,
         tax_code: TaxCode,
         address: Address,
         tax_ids: list[TaxID],
         customer_exempt: bool,
-        attempt: int = 1,
     ) -> TaxCalculation:
         customer_type = "BUSINESS" if len(tax_ids) > 0 else "CONSUMER"
         product_category = "EXEMPT" if customer_exempt else tax_code.to_numeral()
@@ -183,7 +186,7 @@ class NumeralTaxService(TaxServiceProtocol):
                         "quantity": 1,
                     }
                 ],
-                "tax_included_in_amount": False,
+                "tax_included_in_amount": tax_behavior == TaxBehavior.inclusive,
             },
         }
 
@@ -191,22 +194,16 @@ class NumeralTaxService(TaxServiceProtocol):
             response = await self.client.post("/tax/calculations", json=payload)
             response.raise_for_status()
         except httpx.HTTPStatusError as e:
+            if e.response.is_server_error:
+                log.debug(
+                    "Numeral tax calculation server error",
+                    status_code=e.response.status_code,
+                    text=e.response.text,
+                )
+                raise TaxCalculationTechnicalError("Numeral server error") from e
             if e.response.status_code == 429:
                 log.debug("Numeral rate limit exceeded")
-                retry_after = int(e.response.headers.get("Retry-After", "1"))
-                if attempt <= 3:
-                    await asyncio.sleep(retry_after)
-                    return await self.calculate(
-                        identifier,
-                        currency,
-                        amount,
-                        tax_code,
-                        address,
-                        tax_ids,
-                        customer_exempt,
-                        attempt=attempt + 1,
-                    )
-                raise TaxCalculationError("Rate limit exceeded") from e
+                raise TaxCalculationTechnicalError("Rate limit exceeded") from e
 
             log.debug("Numeral tax calculation error: %s", e.response.text)
             error_response: NumeralTaxCalculationErrorResponse = e.response.json()
@@ -215,6 +212,8 @@ class NumeralTaxService(TaxServiceProtocol):
                 return TaxCalculation(
                     processor_id=None,
                     amount=0,
+                    currency=currency,
+                    tax_behavior=tax_behavior,
                     taxability_reason=TaxabilityReason.not_supported,
                     tax_rate=TaxRate(
                         rate_type="percentage",
@@ -230,13 +229,16 @@ class NumeralTaxService(TaxServiceProtocol):
             if error_meta is not None and error_meta["field"].startswith(
                 "customer.address"
             ):
-                raise TaxCalculationError("Invalid address provided") from e
+                raise TaxCalculationLogicalError("Invalid address provided") from e
             error_message = error_response["error"]["error_message"].lower()
             if "address_zip_code" in error_message:
-                raise TaxCalculationError("Invalid postal code provided") from e
+                raise TaxCalculationLogicalError("Invalid postal code provided") from e
             if "vat id" in error_message:
                 raise InvalidTaxIDError() from e
             raise
+        except httpx.RequestError as e:
+            log.debug("Numeral tax calculation request error: %s", str(e))
+            raise TaxCalculationTechnicalError(str(e)) from e
 
         calculation: NumeralTaxCalculationResponse = response.json()
 
@@ -254,6 +256,8 @@ class NumeralTaxService(TaxServiceProtocol):
         return TaxCalculation(
             processor_id=calculation["id"],
             amount=calculation["total_tax_amount"],
+            currency=currency,
+            tax_behavior=tax_behavior,
             taxability_reason=taxability_reason,
             tax_rate=tax_rate,
         )
@@ -269,7 +273,18 @@ class NumeralTaxService(TaxServiceProtocol):
             )
             response.raise_for_status()
         except httpx.HTTPStatusError as e:
-            log.debug("Numeral tax record error: %s", e.response.text)
+            if e.response.is_server_error:
+                log.warning(
+                    "Numeral tax record server error",
+                    status_code=e.response.status_code,
+                    text=e.response.text,
+                )
+                raise TaxRecordError() from e
+            error_json = e.response.json()
+            error_code = error_json.get("error", {}).get("error_code")
+            if error_code == "calculation_expired":
+                raise CalculationExpiredError() from e
+            log.warning("Numeral tax record error: %s", e.response.text)
             raise TaxRecordError() from e
 
         transaction: NumeralTaxTransactionResponse = response.json()
@@ -279,12 +294,12 @@ class NumeralTaxService(TaxServiceProtocol):
         self,
         transaction_id: str,
         reference: str,
-        total_amount: int | None = None,
-        tax_amount: int | None = None,
+        reverted_amount: int | None = None,
+        reverted_tax_amount: int | None = None,
     ) -> str:
         refund: NumeralTaxRefundResponse
 
-        if total_amount is None and tax_amount is None:
+        if reverted_amount is None and reverted_tax_amount is None:
             response = await self.client.post(
                 "/tax/refunds",
                 json={
@@ -296,8 +311,8 @@ class NumeralTaxService(TaxServiceProtocol):
             refund = response.json()
             return refund["id"]
 
-        assert total_amount is not None
-        assert tax_amount is not None
+        assert reverted_amount is not None
+        assert reverted_tax_amount is not None
 
         response = await self.client.get(f"/tax/transactions/{transaction_id}")
         response.raise_for_status()
@@ -314,8 +329,10 @@ class NumeralTaxService(TaxServiceProtocol):
                     {
                         "reference_product_id": reference_product_id,
                         "quantity": 1,
-                        "sales_amount_refunded": -(total_amount - tax_amount),
-                        "tax_amount_refunded": -tax_amount,
+                        "sales_amount_refunded": -(
+                            reverted_amount - reverted_tax_amount
+                        ),
+                        "tax_amount_refunded": -reverted_tax_amount,
                     }
                 ],
             },
@@ -324,6 +341,39 @@ class NumeralTaxService(TaxServiceProtocol):
 
         refund = response.json()
         return refund["id"]
+
+    async def backfill(
+        self,
+        amount: int,
+        tax_amount: int,
+        currency: str,
+        address: Address,
+        tax_code: TaxCode,
+        reference: str,
+        transaction_date: datetime,
+    ) -> str:
+        response = await self.client.post(
+            "/tax/manual_line_items",
+            json={
+                "order_id": reference,
+                "address_postal_code": address.postal_code or "",
+                "address_province": address.get_unprefixed_state() or "",
+                "address_country": address.country,
+                "transaction_date_time": int(transaction_date.timestamp()),
+                "currency_code": currency,
+                "line_items": [
+                    {
+                        "line_item_id": reference,
+                        "sales": amount,
+                        "total_taxes": tax_amount,
+                        "product_category": tax_code.to_numeral(),
+                    }
+                ],
+            },
+        )
+        response.raise_for_status()
+        manual_line_item = response.json()
+        return manual_line_item["line_item_id"]
 
 
 numeral_tax_service = NumeralTaxService()

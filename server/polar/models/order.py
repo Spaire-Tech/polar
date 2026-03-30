@@ -23,7 +23,7 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
 
 from polar.custom_field.data import CustomFieldDataMixin
-from polar.enums import TaxProcessor
+from polar.enums import TaxBehavior, TaxProcessor
 from polar.exceptions import PolarError
 from polar.kit.address import Address, AddressType
 from polar.kit.db.models import RecordModel
@@ -89,10 +89,7 @@ class RefundAmountTooHigh(OrderError):
 class Order(CustomFieldDataMixin, MetadataMixin, RecordModel):
     __tablename__ = "orders"
     __table_args__ = (
-        Index("ix_net_amount", text("(subtotal_amount - discount_amount)")),
-        Index(
-            "ix_total_amount", text("(subtotal_amount - discount_amount + tax_amount)")
-        ),
+        Index("ix_total_amount", text("(net_amount + tax_amount)")),
         Index(
             "ix_orders_search_vector",
             "search_vector",
@@ -107,6 +104,7 @@ class Order(CustomFieldDataMixin, MetadataMixin, RecordModel):
     )
     subtotal_amount: Mapped[int] = mapped_column(Integer, nullable=False)
     discount_amount: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    net_amount: Mapped[int] = mapped_column(Integer, nullable=False)
     tax_amount: Mapped[int] = mapped_column(Integer, nullable=False)
     applied_balance_amount: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0
@@ -134,6 +132,9 @@ class Order(CustomFieldDataMixin, MetadataMixin, RecordModel):
 
     taxability_reason: Mapped[TaxabilityReason | None] = mapped_column(
         String, nullable=True, default=None
+    )
+    tax_behavior: Mapped[TaxBehavior | None] = mapped_column(
+        StringEnum(TaxBehavior), nullable=True, default=None
     )
     tax_id: Mapped[TaxID | None] = mapped_column(TaxIDType, nullable=True, default=None)
     tax_rate: Mapped[TaxRate | None] = mapped_column(
@@ -265,22 +266,16 @@ class Order(CustomFieldDataMixin, MetadataMixin, RecordModel):
         )
 
     @hybrid_property
-    def net_amount(self) -> int:
-        return self.subtotal_amount - self.discount_amount
-
-    @net_amount.inplace.expression
-    @classmethod
-    def _net_amount_expression(cls) -> ColumnElement[int]:
-        return cls.subtotal_amount - cls.discount_amount
-
-    @hybrid_property
     def total_amount(self) -> int:
         return self.net_amount + self.tax_amount
 
     @total_amount.inplace.expression
     @classmethod
     def _total_amount_expression(cls) -> ColumnElement[int]:
-        return cls.net_amount + cls.tax_amount
+        return (
+            func.coalesce(cls.net_amount, cls.subtotal_amount - cls.discount_amount)
+            + cls.tax_amount
+        )
 
     @hybrid_property
     def due_amount(self) -> int:
@@ -298,7 +293,11 @@ class Order(CustomFieldDataMixin, MetadataMixin, RecordModel):
     @payout_amount.inplace.expression
     @classmethod
     def _payout_amount_expression(cls) -> ColumnElement[int]:
-        return cls.net_amount - cls.platform_fee_amount - cls.refunded_amount
+        return (
+            func.coalesce(cls.net_amount, cls.subtotal_amount - cls.discount_amount)
+            - cls.platform_fee_amount
+            - cls.refunded_amount
+        )
 
     @property
     def taxed(self) -> int:

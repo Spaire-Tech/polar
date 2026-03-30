@@ -1,7 +1,9 @@
 import uuid
+from datetime import datetime
 from enum import StrEnum
 from typing import Literal, Protocol, TypedDict, overload
 
+from polar.enums import TaxBehavior
 from polar.exceptions import PolarError
 from polar.kit.address import Address
 
@@ -11,15 +13,26 @@ from ..tax_id import TaxID
 class TaxError(PolarError): ...
 
 
-class TaxCalculationError(TaxError):
+class TaxCalculationError(TaxError): ...
+
+
+class TaxCalculationTechnicalError(TaxCalculationError):
     def __init__(
         self,
-        message: str = "An error occurred while calculating tax.",
+        message: str = "A technical error occurred while calculating tax.",
     ) -> None:
         super().__init__(message)
 
 
-class InvalidTaxIDError(TaxCalculationError):
+class TaxCalculationLogicalError(TaxError):
+    def __init__(
+        self,
+        message: str = "A logical error occurred while calculating tax.",
+    ) -> None:
+        super().__init__(message)
+
+
+class InvalidTaxIDError(TaxCalculationLogicalError):
     def __init__(self) -> None:
         message = "The provided tax ID is invalid."
         super().__init__(message)
@@ -28,6 +41,12 @@ class InvalidTaxIDError(TaxCalculationError):
 class TaxRecordError(TaxError):
     def __init__(self) -> None:
         message = "An error occurred while recording the tax calculation."
+        super().__init__(message)
+
+
+class CalculationExpiredError(TaxError):
+    def __init__(self) -> None:
+        message = "The tax calculation has expired and cannot be recorded."
         super().__init__(message)
 
 
@@ -106,6 +125,8 @@ class TaxRate(TypedDict):
 class TaxCalculation(TypedDict):
     processor_id: str | None
     amount: int
+    currency: str
+    tax_behavior: TaxBehavior
     taxability_reason: TaxabilityReason | None
     tax_rate: TaxRate | None
 
@@ -116,6 +137,7 @@ class TaxServiceProtocol(Protocol):
         identifier: uuid.UUID | str,
         currency: str,
         amount: int,
+        tax_behavior: TaxBehavior,
         tax_code: TaxCode,
         address: Address,
         tax_ids: list[TaxID],
@@ -126,7 +148,11 @@ class TaxServiceProtocol(Protocol):
 
     @overload
     async def revert(
-        self, transaction_id: str, reference: str, total_amount: int, tax_amount: int
+        self,
+        transaction_id: str,
+        reference: str,
+        reverted_amount: int,
+        reverted_tax_amount: int,
     ) -> str: ...
 
     @overload
@@ -136,6 +162,17 @@ class TaxServiceProtocol(Protocol):
         self,
         transaction_id: str,
         reference: str,
-        total_amount: int | None = None,
-        tax_amount: int | None = None,
+        reverted_amount: int | None = None,
+        reverted_tax_amount: int | None = None,
+    ) -> str: ...
+
+    async def backfill(
+        self,
+        amount: int,
+        tax_amount: int,
+        currency: str,
+        address: Address,
+        tax_code: TaxCode,
+        reference: str,
+        transaction_date: datetime,
     ) -> str: ...
