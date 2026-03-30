@@ -109,6 +109,8 @@ const StorefrontForm = ({
     initialFiles: [],
   })
 
+  const profileSettings = (watch('profile_settings') as unknown as Record<string, unknown> | null | undefined) ?? {}
+
   return (
     <>
       <FormField
@@ -178,21 +180,17 @@ const StorefrontForm = ({
           className="dark:border-spaire-700 dark:bg-spaire-800 min-h-[80px] w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
           placeholder="Tell visitors about your store..."
           maxLength={160}
-          value={
-            (watch('profile_settings') as Record<string, unknown>)
-              ?.description as string ?? ''
-          }
+          value={(profileSettings.description as string) ?? ''}
           onChange={(e) => {
-            const current = watch('profile_settings') as Record<string, unknown> ?? {}
             setValue(
               'profile_settings' as any,
-              { ...current, description: e.target.value },
+              { ...profileSettings, description: e.target.value },
               { shouldDirty: true },
             )
           }}
         />
         <p className="text-xs text-gray-400">
-          {((watch('profile_settings') as Record<string, unknown>)?.description as string)?.length ?? 0}/160
+          {((profileSettings.description as string) ?? '').length}/160
         </p>
       </div>
 
@@ -202,16 +200,11 @@ const StorefrontForm = ({
           <input
             type="color"
             className="h-10 w-10 cursor-pointer rounded-lg border border-gray-200 p-0.5 dark:border-spaire-700"
-            value={
-              ((watch('profile_settings') as Record<string, unknown>)
-                ?.accent_color as string) ?? '#6366f1'
-            }
+            value={(profileSettings.accent_color as string) ?? '#6366f1'}
             onChange={(e) => {
-              const current =
-                (watch('profile_settings') as Record<string, unknown>) ?? {}
               setValue(
                 'profile_settings' as any,
-                { ...current, accent_color: e.target.value },
+                { ...profileSettings, accent_color: e.target.value },
                 { shouldDirty: true },
               )
             }}
