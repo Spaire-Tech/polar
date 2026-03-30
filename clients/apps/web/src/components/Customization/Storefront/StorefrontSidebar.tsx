@@ -22,7 +22,7 @@ import {
 import { Label } from '@spaire/ui/components/ui/label'
 import { Separator } from '@spaire/ui/components/ui/separator'
 import Link from 'next/link'
-import { PropsWithChildren, useCallback } from 'react'
+import { PropsWithChildren, useCallback, useState } from 'react'
 import { FileRejection } from 'react-dropzone'
 import { useFormContext } from 'react-hook-form'
 import { twMerge } from 'tailwind-merge'
@@ -62,8 +62,16 @@ const StorefrontSidebarContentWrapper = ({
 
 const StorefrontForm = ({
   organization,
+  description,
+  setDescription,
+  accentColor,
+  setAccentColor,
 }: {
   organization: schemas['Organization']
+  description: string
+  setDescription: (value: string) => void
+  accentColor: string
+  setAccentColor: (value: string) => void
 }) => {
   const {
     control,
@@ -108,8 +116,6 @@ const StorefrontForm = ({
     onFilesRejected,
     initialFiles: [],
   })
-
-  const profileSettings = (watch('profile_settings') as unknown as Record<string, unknown> | null | undefined) ?? {}
 
   return (
     <>
@@ -180,18 +186,10 @@ const StorefrontForm = ({
           className="dark:border-spaire-700 dark:bg-spaire-800 min-h-[80px] w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
           placeholder="Tell visitors about your store..."
           maxLength={160}
-          value={(profileSettings.description as string) ?? ''}
-          onChange={(e) => {
-            setValue(
-              'profile_settings' as any,
-              { ...profileSettings, description: e.target.value },
-              { shouldDirty: true },
-            )
-          }}
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
         />
-        <p className="text-xs text-gray-400">
-          {((profileSettings.description as string) ?? '').length}/160
-        </p>
+        <p className="text-xs text-gray-400">{description.length}/160</p>
       </div>
 
       <div className="flex flex-col gap-y-2">
@@ -200,14 +198,8 @@ const StorefrontForm = ({
           <input
             type="color"
             className="h-10 w-10 cursor-pointer rounded-lg border border-gray-200 p-0.5 dark:border-spaire-700"
-            value={(profileSettings.accent_color as string) ?? '#6366f1'}
-            onChange={(e) => {
-              setValue(
-                'profile_settings' as any,
-                { ...profileSettings, accent_color: e.target.value },
-                { shouldDirty: true },
-              )
-            }}
+            value={accentColor}
+            onChange={(e) => setAccentColor(e.target.value)}
           />
           <span className="text-sm text-gray-500">
             Used for the banner gradient
@@ -236,11 +228,31 @@ export const StorefrontSidebar = ({
 
   const updateOrganization = useUpdateOrganization()
 
+  const [description, setDescription] = useState(
+    organization.profile_settings?.description ?? '',
+  )
+  const [accentColor, setAccentColor] = useState(
+    organization.profile_settings?.accent_color ?? '#6366f1',
+  )
+
+  const hasProfileChanges =
+    description !== (organization.profile_settings?.description ?? '') ||
+    accentColor !== (organization.profile_settings?.accent_color ?? '#6366f1')
+
   const onSubmit = useCallback(
     async (organizationUpdate: schemas['OrganizationUpdate']) => {
+      const body = {
+        ...organizationUpdate,
+        profile_settings: {
+          ...organization.profile_settings,
+          description,
+          accent_color: accentColor,
+        },
+      }
+
       const { data: org, error } = await updateOrganization.mutateAsync({
         id: organization.id,
-        body: organizationUpdate,
+        body: body as schemas['OrganizationUpdate'],
       })
       if (error) {
         if (isValidationError(error.detail)) {
@@ -260,7 +272,7 @@ export const StorefrontSidebar = ({
       })
       reset(org)
     },
-    [organization, setError, updateOrganization, reset],
+    [organization, description, accentColor, setError, updateOrganization, reset],
   )
 
   const storefrontEnabled =
@@ -278,13 +290,22 @@ export const StorefrontSidebar = ({
           onSubmit={handleSubmit(onSubmit)}
           className="flex flex-col gap-y-8"
         >
-          <StorefrontForm organization={organization} />
+          <StorefrontForm
+            organization={organization}
+            description={description}
+            setDescription={setDescription}
+            accentColor={accentColor}
+            setAccentColor={setAccentColor}
+          />
           <div className="flex flex-row items-center gap-x-4">
             <Button
               className="self-start"
               type="submit"
               loading={updateOrganization.isPending}
-              disabled={!formState.isDirty || updateOrganization.isPending}
+              disabled={
+                !formState.isDirty &&
+                !hasProfileChanges
+              }
             >
               Save
             </Button>
