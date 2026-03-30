@@ -247,6 +247,14 @@ class OrganizationService:
         if update_schema.notification_settings is not None:
             organization.notification_settings = update_schema.notification_settings
 
+        if update_schema.storefront_settings is not None:
+            organization.storefront_settings = {
+                **organization.storefront_settings,
+                **update_schema.storefront_settings.model_dump(
+                    mode="json", exclude_unset=True
+                ),
+            }
+
         previous_details = organization.details
         update_dict = update_schema.model_dump(
             by_alias=True,
@@ -255,6 +263,7 @@ class OrganizationService:
                 "profile_settings",
                 "feature_settings",
                 "subscription_settings",
+                "storefront_settings",
                 "details",
             },
         )

@@ -99,6 +99,30 @@ class OrganizationFeatureSettings(Schema):
     )
 
 
+class OrganizationStorefrontSettings(Schema):
+    enabled: bool = Field(False, description="Enable or disable the storefront")
+    show_header: bool = Field(True, description="Show the banner header image")
+    header_image_url: str | None = Field(
+        None, description="URL of the uploaded banner header image"
+    )
+    show_logo: bool = Field(True, description="Show the store logo")
+    show_name: bool = Field(True, description="Show the store name")
+    show_description: bool = Field(True, description="Show the store description")
+    description: Annotated[
+        str | None,
+        Field(max_length=160, description="Store description text"),
+    ] = None
+    thumbnail_size: Literal["small", "medium", "large"] = Field(
+        "medium", description="Product thumbnail size"
+    )
+    show_product_details: bool = Field(
+        True, description="Show product description and View Product button"
+    )
+    accent_color: str | None = Field(
+        None, description="Accent color for the store theme"
+    )
+
+
 class OrganizationSubscribePromoteSettings(Schema):
     promote: bool = Field(True, description="Promote email subscription (free)")
     show_count: bool = Field(True, description="Show subscription count publicly")
@@ -342,6 +366,9 @@ class Organization(OrganizationBase):
     customer_portal_settings: OrganizationCustomerPortalSettings = Field(
         description="Settings related to the customer portal",
     )
+    storefront_settings: OrganizationStorefrontSettings = Field(
+        description="Settings related to the public storefront (Spaire Space)",
+    )
 
 
 class OrganizationCreate(Schema):
@@ -365,6 +392,7 @@ class OrganizationCreate(Schema):
     notification_settings: OrganizationNotificationSettings | None = None
     customer_email_settings: OrganizationCustomerEmailSettings | None = None
     customer_portal_settings: OrganizationCustomerPortalSettings | None = None
+    storefront_settings: OrganizationStorefrontSettings | None = None
 
 
 class OrganizationUpdate(Schema):
@@ -392,6 +420,7 @@ class OrganizationUpdate(Schema):
     notification_settings: OrganizationNotificationSettings | None = None
     customer_email_settings: OrganizationCustomerEmailSettings | None = None
     customer_portal_settings: OrganizationCustomerPortalSettings | None = None
+    storefront_settings: OrganizationStorefrontSettings | None = None
 
 
 class OrganizationPaymentStep(Schema):

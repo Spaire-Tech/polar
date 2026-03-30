@@ -135,6 +135,33 @@ _default_customer_portal_settings: OrganizationCustomerPortalSettings = {
 }
 
 
+class OrganizationStorefrontSettings(TypedDict):
+    enabled: bool
+    show_header: bool
+    header_image_url: str | None
+    show_logo: bool
+    show_name: bool
+    show_description: bool
+    description: str | None
+    thumbnail_size: str  # "small" | "medium" | "large"
+    show_product_details: bool
+    accent_color: str | None
+
+
+_default_storefront_settings: OrganizationStorefrontSettings = {
+    "enabled": False,
+    "show_header": True,
+    "header_image_url": None,
+    "show_logo": True,
+    "show_name": True,
+    "show_description": True,
+    "description": None,
+    "thumbnail_size": "medium",
+    "show_product_details": True,
+    "accent_color": None,
+}
+
+
 class OrganizationStatus(StrEnum):
     CREATED = "created"
     ONBOARDING_STARTED = "onboarding_started"
@@ -273,6 +300,10 @@ class Organization(RateLimitGroupMixin, RecordModel):
         mapped_column(JSONB, nullable=False, default=_default_customer_portal_settings)
     )
 
+    storefront_settings: Mapped[OrganizationStorefrontSettings] = mapped_column(
+        JSONB, nullable=False, default=_default_storefront_settings
+    )
+
     @property
     def allow_customer_updates(self) -> bool:
         return self.customer_portal_settings["subscription"]["update_plan"]
@@ -320,12 +351,12 @@ class Organization(RateLimitGroupMixin, RecordModel):
 
     @hybrid_property
     def storefront_enabled(self) -> bool:
-        return self.profile_settings.get("enabled", False)
+        return self.storefront_settings.get("enabled", False)
 
     @storefront_enabled.inplace.expression
     @classmethod
     def _storefront_enabled_expression(cls) -> ColumnElement[bool]:
-        return Organization.profile_settings["enabled"].as_boolean()
+        return Organization.storefront_settings["enabled"].as_boolean()
 
     @hybrid_property
     def is_under_review(self) -> bool:
