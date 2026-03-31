@@ -488,6 +488,7 @@ class CheckoutService:
             payment_processor=PaymentProcessor.stripe,
             client_secret=generate_token(prefix=CHECKOUT_CLIENT_SECRET_PREFIX),
             amount=amount,
+            net_amount=amount,
             currency=currency,
             organization=product.organization,
             checkout_products=checkout_products,
@@ -707,6 +708,7 @@ class CheckoutService:
             payment_processor=PaymentProcessor.stripe,
             client_secret=generate_token(prefix=CHECKOUT_CLIENT_SECRET_PREFIX),
             amount=amount,
+            net_amount=amount,
             currency=currency,
             seats=checkout_create.seats,
             allow_trial=True,
@@ -860,6 +862,7 @@ class CheckoutService:
         checkout = Checkout(
             client_secret=generate_token(prefix=CHECKOUT_CLIENT_SECRET_PREFIX),
             amount=amount,
+            net_amount=amount,
             currency=currency,
             seats=seats,
             trial_interval=checkout_link.trial_interval,
