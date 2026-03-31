@@ -20843,9 +20843,29 @@ export interface components {
       thumbnail_size?: 'small' | 'medium' | 'large'
       /**
        * Show Product Details
-       * @description Show product details (name, price, reviews)
+       * @description Show product details (name, price)
        */
       show_product_details?: boolean
+      /**
+       * Profile Title
+       * @description Profile title (e.g. Designer, 3D Artist)
+       */
+      profile_title?: string | null
+      /**
+       * Skills
+       * @description Skill/expertise tags displayed on the profile
+       */
+      skills?: string[]
+      /**
+       * Languages
+       * @description Languages spoken
+       */
+      languages?: string[]
+      /**
+       * Available For Work
+       * @description Show 'Available for work' badge on the profile
+       */
+      available_for_work?: boolean
     }
     /**
      * StorefrontHeaderFileCreate

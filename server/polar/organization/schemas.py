@@ -118,7 +118,21 @@ class OrganizationStorefrontSettings(Schema):
         "medium", description="Product thumbnail size"
     )
     show_product_details: bool = Field(
-        True, description="Show product details (name, price, reviews)"
+        True, description="Show product details (name, price)"
+    )
+    profile_title: Annotated[
+        str | None,
+        Field(max_length=50, description="Profile title (e.g. Designer, 3D Artist)"),
+        EmptyStrToNoneValidator,
+    ] = None
+    skills: list[str] = Field(
+        default_factory=list, description="Skill/expertise tags displayed on the profile"
+    )
+    languages: list[str] = Field(
+        default_factory=list, description="Languages spoken"
+    )
+    available_for_work: bool = Field(
+        False, description="Show 'Available for work' badge on the profile"
     )
 
 

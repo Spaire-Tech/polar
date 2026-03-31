@@ -18,7 +18,7 @@ export default async function Layout(props: {
 
   const api = await getServerSideAPI()
 
-  const { organization } = await getStorefrontOrNotFound(
+  const { organization, products } = await getStorefrontOrNotFound(
     api,
     params.organization,
   )
@@ -26,34 +26,36 @@ export default async function Layout(props: {
   const authenticatedUser = await getAuthenticatedUser()
 
   return (
-    <PublicLayout className="gap-y-0 py-6 md:py-12" wide>
-      {/* Topbar */}
-      <div className="relative flex flex-row items-center justify-end gap-x-6">
-        <SpaireLogotype
-          className="absolute left-1/2 -translate-x-1/2"
-          size={50}
-        />
-        <TopbarRight
-          authenticatedUser={authenticatedUser}
-          storefrontOrg={organization}
-        />
-      </div>
+    <div className="min-h-screen bg-white">
+      <PublicLayout className="gap-y-0 py-6 md:py-12" wide>
+        {/* Topbar */}
+        <div className="relative flex flex-row items-center justify-end gap-x-6">
+          <SpaireLogotype
+            className="absolute left-1/2 -translate-x-1/2"
+            size={50}
+          />
+          <TopbarRight
+            authenticatedUser={authenticatedUser}
+            storefrontOrg={organization}
+          />
+        </div>
 
-      {/* Two-column layout */}
-      <div className="mt-8 flex flex-col gap-8 md:flex-row md:gap-12">
-        {/* Left column — Profile card (sticky on desktop) */}
-        <aside className="w-full shrink-0 md:sticky md:top-8 md:w-[380px] md:self-start">
-          <ProfileCard organization={organization} />
-        </aside>
+        {/* Two-column layout */}
+        <div className="mt-8 flex flex-col gap-8 md:flex-row md:gap-12">
+          {/* Left column — Profile card (sticky on desktop) */}
+          <aside className="w-full shrink-0 md:sticky md:top-8 md:w-[420px] md:self-start">
+            <ProfileCard organization={organization} products={products} />
+          </aside>
 
-        {/* Right column — Nav + Products */}
-        <main className="flex min-w-0 flex-1 flex-col gap-y-6">
-          <StorefrontNav organization={organization} />
-          <div className="flex h-full grow flex-col">
-            {children}
-          </div>
-        </main>
-      </div>
-    </PublicLayout>
+          {/* Right column — Nav + Products */}
+          <main className="flex min-w-0 flex-1 flex-col gap-y-6">
+            <StorefrontNav organization={organization} />
+            <div className="flex h-full grow flex-col">
+              {children}
+            </div>
+          </main>
+        </div>
+      </PublicLayout>
+    </div>
   )
 }

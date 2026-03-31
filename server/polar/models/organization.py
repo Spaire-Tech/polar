@@ -50,6 +50,10 @@ class OrganizationStorefrontSettings(TypedDict, total=False):
     description: str | None
     thumbnail_size: str  # "small" | "medium" | "large"
     show_product_details: bool
+    profile_title: str | None
+    skills: list[str]
+    languages: list[str]
+    available_for_work: bool
 
 
 _default_storefront_settings: OrganizationStorefrontSettings = {
@@ -62,6 +66,10 @@ _default_storefront_settings: OrganizationStorefrontSettings = {
     "description": None,
     "thumbnail_size": "medium",
     "show_product_details": True,
+    "profile_title": None,
+    "skills": [],
+    "languages": [],
+    "available_for_work": False,
 }
 
 

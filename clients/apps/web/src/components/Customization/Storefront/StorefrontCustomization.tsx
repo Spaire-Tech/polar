@@ -1,12 +1,12 @@
 'use client'
 
 import { schemas } from '@spaire/client'
-import { StorefrontPreview } from './StorefrontPreview'
+import { StorefrontLivePreview } from './StorefrontPreview'
 
 export const StorefrontCustomization = ({
   organization,
 }: {
   organization: schemas['Organization']
 }) => {
-  return <StorefrontPreview organization={organization} />
+  return <StorefrontLivePreview organization={organization} />
 }

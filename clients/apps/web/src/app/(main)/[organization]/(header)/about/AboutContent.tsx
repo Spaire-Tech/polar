@@ -61,7 +61,7 @@ export const AboutContent = ({ organization }: AboutContentProps) => {
   if (!hasAnyInfo) {
     return (
       <div className="flex flex-col items-center justify-center py-24">
-        <p className="dark:text-polar-500 text-gray-500">
+        <p className="text-gray-500">
           No information available yet
         </p>
       </div>
@@ -73,10 +73,10 @@ export const AboutContent = ({ organization }: AboutContentProps) => {
       {/* Description */}
       {description && (
         <div className="flex flex-col gap-y-3">
-          <h2 className="text-lg font-medium text-gray-950 dark:text-white">
+          <h2 className="text-lg font-medium text-gray-950">
             About
           </h2>
-          <p className="dark:text-polar-400 leading-relaxed text-gray-600">
+          <p className="leading-relaxed text-gray-600">
             {description}
           </p>
         </div>
@@ -85,7 +85,7 @@ export const AboutContent = ({ organization }: AboutContentProps) => {
       {/* Links & Socials */}
       {(hasSocials || hasWebsite || hasEmail) && (
         <div className="flex flex-col gap-y-3">
-          <h2 className="text-lg font-medium text-gray-950 dark:text-white">
+          <h2 className="text-lg font-medium text-gray-950">
             Links
           </h2>
           <div className="flex flex-col gap-y-3">
@@ -94,7 +94,7 @@ export const AboutContent = ({ organization }: AboutContentProps) => {
                 href={organization.website!}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="dark:text-polar-400 flex flex-row items-center gap-x-3 text-sm text-gray-600 transition-colors hover:text-gray-900 dark:hover:text-white"
+                className="flex flex-row items-center gap-x-3 text-sm text-gray-600 transition-colors hover:text-gray-900"
               >
                 <LanguageOutlined className="h-5 w-5" />
                 <span>{organization.website}</span>
@@ -103,7 +103,7 @@ export const AboutContent = ({ organization }: AboutContentProps) => {
             {hasEmail && (
               <Link
                 href={`mailto:${organization.email}`}
-                className="dark:text-polar-400 flex flex-row items-center gap-x-3 text-sm text-gray-600 transition-colors hover:text-gray-900 dark:hover:text-white"
+                className="flex flex-row items-center gap-x-3 text-sm text-gray-600 transition-colors hover:text-gray-900"
               >
                 <EmailOutlined className="h-5 w-5" />
                 <span>{organization.email}</span>
@@ -115,7 +115,7 @@ export const AboutContent = ({ organization }: AboutContentProps) => {
                 href={social.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="dark:text-polar-400 flex flex-row items-center gap-x-3 text-sm text-gray-600 transition-colors hover:text-gray-900 dark:hover:text-white"
+                className="flex flex-row items-center gap-x-3 text-sm text-gray-600 transition-colors hover:text-gray-900"
               >
                 {getSocialIcon(social.platform)}
                 <span>{getPlatformLabel(social.platform)}</span>
