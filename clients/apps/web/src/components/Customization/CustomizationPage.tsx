@@ -70,20 +70,20 @@ const Customization = ({
   )
 
   return (
-    <div className="dark:bg-polar-950 flex h-full flex-col bg-gray-100">
+    <div className="flex h-full flex-col bg-gray-50">
       {/* Top bar */}
-      <div className="flex flex-row items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-polar-700">
+      <div className="flex flex-row items-center justify-between border-b border-gray-200 bg-white px-6 py-4">
         <div className="flex flex-row items-center gap-x-3">
           <Button
             size="icon"
             variant="ghost"
-            className="h-9 w-9 text-gray-600 dark:text-gray-400"
+            className="h-9 w-9 text-gray-600"
             onClick={() => router.push(`/dashboard/${organization.slug}`)}
             tabIndex={-1}
           >
             <CloseOutlined fontSize="small" />
           </Button>
-          <h1 className="text-lg font-medium">Design</h1>
+          <h1 className="text-lg font-medium text-gray-900">Design Your Space</h1>
         </div>
         <Button
           className="rounded-full px-6"

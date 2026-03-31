@@ -38,12 +38,12 @@ export const StorefrontPreview = ({
           {/* Right — Products */}
           <div className="flex min-w-0 flex-1 flex-col gap-y-4">
             {/* Nav preview */}
-            <div className="flex flex-row gap-x-4 border-b border-gray-100 pb-2 dark:border-polar-700">
-              <span className="relative pb-1 text-xs font-medium text-gray-950 dark:text-white">
+            <div className="flex flex-row gap-x-4 border-b border-gray-100 pb-2">
+              <span className="relative pb-1 text-xs font-medium text-gray-950">
                 Products
-                <span className="absolute bottom-0 left-0 h-0.5 w-full rounded-full bg-gray-950 dark:bg-white" />
+                <span className="absolute bottom-0 left-0 h-0.5 w-full rounded-full bg-gray-950" />
               </span>
-              <span className="dark:text-polar-500 text-xs text-gray-400">
+              <span className="text-xs text-gray-400">
                 About
               </span>
             </div>
@@ -63,7 +63,7 @@ export const StorefrontPreview = ({
               </div>
             ) : (
               <div className="flex items-center justify-center py-12">
-                <span className="dark:text-polar-500 text-xs text-gray-400">
+                <span className="text-xs text-gray-400">
                   No products yet
                 </span>
               </div>

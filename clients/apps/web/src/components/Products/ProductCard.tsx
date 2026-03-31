@@ -16,9 +16,9 @@ interface ProductCardProps {
 }
 
 const thumbnailAspect: Record<ThumbnailSize, string> = {
-  small: 'aspect-square',
+  small: 'aspect-video',
   medium: 'aspect-[4/3]',
-  large: 'aspect-video',
+  large: 'aspect-square',
 }
 
 export const ProductCard = ({
@@ -29,7 +29,7 @@ export const ProductCard = ({
   const aspect = thumbnailAspect[thumbnailSize]
 
   return (
-    <div className="dark:border-polar-700 dark:bg-polar-900 flex h-full w-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white transition-shadow hover:shadow-md">
+    <div className="flex h-full w-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white transition-shadow hover:shadow-md">
       {/* Image with price overlay */}
       <div className="relative">
         {product.medias.length > 0 ? (
@@ -45,10 +45,10 @@ export const ProductCard = ({
           <div
             className={twMerge(
               aspect,
-              'dark:bg-polar-800 flex w-full flex-col items-center justify-center bg-gray-100',
+              'flex w-full flex-col items-center justify-center bg-gray-100',
             )}
           >
-            <LogoIcon className="dark:text-polar-600 h-12 w-12 text-gray-300" />
+            <LogoIcon className="h-12 w-12 text-gray-300" />
           </div>
         )}
         {/* Price badge */}
@@ -64,12 +64,9 @@ export const ProductCard = ({
       {/* Details */}
       {showDetails && (
         <div className="flex flex-col gap-y-1 px-4 py-3">
-          <h3 className="line-clamp-1 text-sm font-medium text-gray-950 dark:text-white">
+          <h3 className="line-clamp-1 text-sm font-medium text-gray-950">
             {product.name}
           </h3>
-          <span className="dark:text-polar-500 text-xs text-gray-400">
-            0 review
-          </span>
         </div>
       )}
     </div>

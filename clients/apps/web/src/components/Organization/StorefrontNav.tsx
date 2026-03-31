@@ -41,13 +41,13 @@ export const StorefrontNav = ({
           className={twMerge(
             'relative pb-2 text-sm font-medium transition-colors',
             currentTab === tab.id
-              ? 'text-gray-950 dark:text-white'
-              : 'dark:text-polar-500 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300',
+              ? 'text-gray-950'
+              : 'text-gray-500 hover:text-gray-700',
           )}
         >
           {tab.label}
           {currentTab === tab.id && (
-            <span className="absolute bottom-0 left-0 h-0.5 w-full rounded-full bg-gray-950 dark:bg-white" />
+            <span className="absolute bottom-0 left-0 h-0.5 w-full rounded-full bg-gray-950" />
           )}
         </Link>
       ))}

@@ -54,12 +54,12 @@ export const Storefront = ({
     return (
       <div className="flex flex-col items-center justify-center py-24">
         <HiveOutlined
-          className="dark:text-polar-600 text-5xl text-gray-300"
+          className="text-5xl text-gray-300"
           fontSize="large"
         />
         <div className="mt-6 flex flex-col items-center gap-y-2">
-          <h3 className="text-lg font-medium">No products yet</h3>
-          <p className="dark:text-polar-500 text-gray-500">
+          <h3 className="text-lg font-medium text-gray-900">No products yet</h3>
+          <p className="text-gray-500">
             {organization.name} is not offering any products yet
           </p>
         </div>
@@ -74,7 +74,7 @@ export const Storefront = ({
         <select
           value={sort}
           onChange={(e) => setSort(e.target.value as SortOption)}
-          className="dark:border-polar-700 dark:bg-polar-900 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300"
+          className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700"
         >
           <option value="last_added">Last added</option>
           <option value="price_low">Price: Low to High</option>
