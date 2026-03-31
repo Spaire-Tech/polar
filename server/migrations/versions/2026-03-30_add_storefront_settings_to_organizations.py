@@ -1,17 +1,19 @@
 """Add storefront_settings to organizations
 
-Revision ID: a1b2c3d4e5f6
+Revision ID: 7ec79cee1daf
 Revises: f4a2b9c1d3e5
 Create Date: 2026-03-30 00:00:00.000000
 
 """
+
+import json
 
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB
 
 # revision identifiers, used by Alembic.
-revision = "a1b2c3d4e5f6"
+revision = "7ec79cee1daf"
 down_revision = "f4a2b9c1d3e5"
 branch_labels = None
 depends_on = None
@@ -38,14 +40,12 @@ def upgrade() -> None:
             JSONB,
             nullable=False,
             server_default=sa.text(
-                f"'{sa.inspect(DEFAULT_STOREFRONT_SETTINGS)}'::jsonb"
-                if False
-                else "'{}'::jsonb"
+                f"'{json.dumps(DEFAULT_STOREFRONT_SETTINGS)}'::jsonb"
             ),
         ),
     )
 
-    # Migrate existing profile_settings.enabled to storefront_settings.enabled
+    # Migrate existing profile_settings data to storefront_settings
     op.execute(
         """
         UPDATE organizations
