@@ -2,42 +2,29 @@
 
 import { schemas } from '@spaire/client'
 import Avatar from '@spaire/ui/components/atoms/Avatar'
+import Link from 'next/link'
 import { useEffect, useMemo } from 'react'
 import { Gradient } from './GradientMesh'
 import { computeComplementaryColor } from './utils'
 
 interface StorefrontHeaderProps {
   organization: schemas['Organization']
-  storefrontSettings?: schemas['OrganizationStorefrontSettings'] | null
 }
 
-export const StorefrontHeader = ({
-  organization,
-  storefrontSettings,
-}: StorefrontHeaderProps) => {
-  const settings = storefrontSettings ?? organization.storefront_settings
-  const showHeader = settings?.show_header ?? true
-  const showLogo = settings?.show_logo ?? true
-  const showName = settings?.show_name ?? true
-  const showDescription = settings?.show_description ?? true
-  const headerImageUrl = settings?.header_image_url
-  const description = settings?.description
-  const accentColor = settings?.accent_color
-
+export const StorefrontHeader = ({ organization }: StorefrontHeaderProps) => {
   const gradient = useMemo(
     () => (typeof window !== 'undefined' ? new Gradient() : undefined),
     [],
   )
 
   useEffect(() => {
-    if (!gradient || !showHeader || headerImageUrl) {
+    if (!gradient) {
       return
     }
 
     const root = document.documentElement
-    const baseColor = accentColor || '#121316'
 
-    const [a, b, c, d] = computeComplementaryColor(baseColor)
+    const [a, b, c, d] = computeComplementaryColor('#121316')
 
     root.style.setProperty('--gradient-color-1', `#${a.toHex()}`)
     root.style.setProperty('--gradient-color-2', `#${b.toHex()}`)
@@ -46,61 +33,35 @@ export const StorefrontHeader = ({
 
     /* @ts-ignore */
     gradient.initGradient('#gradient-canvas')
-  }, [gradient, organization, showHeader, headerImageUrl, accentColor])
+  }, [gradient, organization])
 
   return (
-    <div className="flex w-full flex-col items-center">
-      {/* Banner */}
-      {showHeader && (
-        <div className="relative w-full overflow-hidden rounded-none bg-gray-100 dark:bg-black"
-          style={{ aspectRatio: '16 / 3' }}
-        >
-          {headerImageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={headerImageUrl}
-              alt="Store banner"
-              className="absolute inset-0 h-full w-full object-cover"
-            />
-          ) : (
-            <canvas
-              id="gradient-canvas"
-              className="absolute inset-0 h-full w-full"
-            />
-          )}
-          {showLogo && (
-            <Avatar
-              className="dark:border-polar-950 absolute -bottom-10 left-1/2 h-20 w-20 -translate-x-1/2 border-4 border-white text-lg md:text-3xl"
-              name={organization.name}
-              avatar_url={organization.avatar_url}
-            />
-          )}
-        </div>
-      )}
-
-      {/* If no header but logo, show avatar centered */}
-      {!showHeader && showLogo && (
+    <div className="flex w-full grow flex-col items-center gap-y-6">
+      <div className="relative aspect-3/1 w-full rounded-2xl bg-gray-100 md:aspect-4/1 md:rounded-4xl dark:bg-black">
+        <canvas
+          id="gradient-canvas"
+          className="absolute top-0 right-0 bottom-0 left-0 h-full w-full rounded-2xl md:rounded-4xl"
+        />
         <Avatar
-          className="h-20 w-20 text-lg md:text-3xl"
+          className="dark:border-spaire-950 absolute -bottom-16 left-1/2 h-32 w-32 -translate-x-1/2 border-8 border-white text-lg md:text-5xl"
           name={organization.name}
           avatar_url={organization.avatar_url}
         />
-      )}
-
-      {/* Name + Description */}
-      <div
-        className={`flex flex-col items-center gap-y-2 ${showHeader && showLogo ? 'mt-14' : 'mt-4'}`}
-      >
-        {showName && (
-          <h1 className="text-xl font-bold dark:text-white">
-            {organization.name}
-          </h1>
-        )}
-        {showDescription && description && (
-          <p className="dark:text-polar-400 max-w-lg text-center text-sm text-gray-500">
-            {description}
-          </p>
-        )}
+      </div>
+      <div className="mt-16 flex grow flex-col items-center">
+        <div className="flex flex-col items-center md:gap-y-1">
+          <h1 className="text-xl md:text-3xl">{organization.name}</h1>
+          <Link
+            className="dark:text-spaire-500 text-gray-500"
+            href={`/${organization.slug}`}
+            tabIndex={-1}
+          >
+            @{organization.slug}
+          </Link>
+        </div>
+      </div>
+      <div className="flex w-full grow flex-col items-center">
+        <div className="flex w-full grow flex-col items-center gap-y-6"></div>
       </div>
     </div>
   )

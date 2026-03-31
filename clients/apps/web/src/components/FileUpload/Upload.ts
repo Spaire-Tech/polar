@@ -8,7 +8,6 @@ export type FileRead =
   | schemas['DownloadableFileRead']
   | schemas['ProductMediaFileRead']
   | schemas['OrganizationAvatarFileRead']
-  | schemas['StorefrontHeaderFileRead']
 
 interface UploadProperties {
   organization: schemas['Organization']

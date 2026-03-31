@@ -30,7 +30,6 @@ class FileServiceTypes(StrEnum):
     downloadable = "downloadable"
     product_media = "product_media"
     organization_avatar = "organization_avatar"
-    storefront_header = "storefront_header"
 
 
 class File(RecordModel):
@@ -90,10 +89,4 @@ class ProductMediaFile(File):
 class OrganizationAvatarFile(File):
     __mapper_args__ = {
         "polymorphic_identity": FileServiceTypes.organization_avatar,
-    }
-
-
-class StorefrontHeaderFile(File):
-    __mapper_args__ = {
-        "polymorphic_identity": FileServiceTypes.storefront_header,
     }
