@@ -39,8 +39,9 @@ export function UserWelcome({ email }: schemas['UserWelcomeProps']) {
       </Section>
       <Section>
         <Text>
-          If anything feels unclear or you get stuck, just reply to this email
-          and we&apos;ll help you out.
+          If anything feels unclear or you get stuck, reach out to us at{' '}
+          <a href="mailto:support@spairehq.com">support@spairehq.com</a> and
+          we&apos;ll help you out.
         </Text>
         <Text>
           Cheers,
