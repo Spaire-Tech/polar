@@ -1,14 +1,11 @@
 'use client'
 
-import { SpaireLogotype } from '@/components/Layout/Public/SpaireLogotype'
-import TopbarRight from '@/components/Layout/Public/TopbarRight'
-import { useAuth } from '@/hooks'
 import { useProducts } from '@/hooks/queries'
 import { schemas } from '@spaire/client'
-import ShadowBox from '@spaire/ui/components/atoms/ShadowBox'
 import { useFormContext } from 'react-hook-form'
-import { Storefront } from '../../Profile/Storefront'
-import { StorefrontHeader } from '../../Profile/StorefrontHeader'
+import { ProfileCard } from '../../Profile/ProfileCard'
+import { ProductCard } from '../../Products/ProductCard'
+import { BrowserChrome } from '../BrowserChrome'
 
 export const StorefrontPreview = ({
   organization: org,
@@ -16,37 +13,64 @@ export const StorefrontPreview = ({
   organization: schemas['Organization']
 }) => {
   const { watch } = useFormContext<schemas['OrganizationUpdate']>()
-  const { currentUser } = useAuth()
   const organizationUpdate = watch()
 
-  const organization = { ...org, ...organizationUpdate }
+  const organization = { ...org, ...organizationUpdate } as schemas['Organization']
 
   const products =
     useProducts(organization.id, { is_archived: false }).data?.items ?? []
 
-  return (
-    <ShadowBox className="dark:bg-spaire-950 flex h-full w-full flex-col items-center overflow-y-auto bg-white">
-      <div className="flex w-full max-w-7xl flex-col gap-y-12">
-        <div className="relative flex flex-row items-center justify-end gap-x-6">
-          <SpaireLogotype
-            className="absolute left-1/2 -translate-x-1/2"
-            size={50}
-          />
+  const showDetails =
+    organization.storefront_settings?.show_product_details ?? true
+  const thumbnailSize =
+    (organization.storefront_settings?.thumbnail_size as 'small' | 'medium' | 'large') ?? 'medium'
 
-          <TopbarRight authenticatedUser={currentUser} />
-        </div>
-        <div className="flex grow flex-col items-center">
-          <StorefrontHeader
-            organization={organization as schemas['Organization']}
-          />
-        </div>
-        <div className="flex h-full grow flex-col gap-y-8 pb-16 md:gap-y-16">
-          <Storefront
-            organization={organization as schemas['Organization']}
-            products={products}
-          />
+  return (
+    <BrowserChrome url={`space.spairehq.com/${organization.slug}`}>
+      <div className="p-6">
+        {/* Two-column layout preview */}
+        <div className="flex flex-row gap-6">
+          {/* Left — Profile card */}
+          <div className="w-[260px] shrink-0">
+            <ProfileCard organization={organization} />
+          </div>
+
+          {/* Right — Products */}
+          <div className="flex min-w-0 flex-1 flex-col gap-y-4">
+            {/* Nav preview */}
+            <div className="flex flex-row gap-x-4 border-b border-gray-100 pb-2 dark:border-polar-700">
+              <span className="relative pb-1 text-xs font-medium text-gray-950 dark:text-white">
+                Products
+                <span className="absolute bottom-0 left-0 h-0.5 w-full rounded-full bg-gray-950 dark:bg-white" />
+              </span>
+              <span className="dark:text-polar-500 text-xs text-gray-400">
+                About
+              </span>
+            </div>
+
+            {/* Product grid preview */}
+            {products.length > 0 ? (
+              <div className="grid grid-cols-2 gap-3">
+                {products.slice(0, 4).map((product) => (
+                  <div key={product.id} className="pointer-events-none">
+                    <ProductCard
+                      product={product}
+                      showDetails={showDetails}
+                      thumbnailSize={thumbnailSize}
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex items-center justify-center py-12">
+                <span className="dark:text-polar-500 text-xs text-gray-400">
+                  No products yet
+                </span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </ShadowBox>
+    </BrowserChrome>
   )
 }

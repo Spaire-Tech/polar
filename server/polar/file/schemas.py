@@ -64,8 +64,29 @@ class OrganizationAvatarFileCreate(FileCreateBase):
     )
 
 
+class StorefrontHeaderFileCreate(FileCreateBase):
+    """Schema to create a file to be used as a storefront header/banner image."""
+
+    service: Literal[FileServiceTypes.storefront_header]
+    mime_type: str = Field(
+        description=(
+            "MIME type of the file. Only images are supported for this type of file."
+        ),
+        pattern=r"^image\/(jpeg|png|gif|webp|svg\+xml)$",
+    )
+    size: int = Field(
+        description=(
+            "Size of the file. A maximum of 10 MB is allowed for this type of file."
+        ),
+        le=10 * 1024 * 1024,
+    )
+
+
 FileCreate = Annotated[
-    DownloadableFileCreate | ProductMediaFileCreate | OrganizationAvatarFileCreate,
+    DownloadableFileCreate
+    | ProductMediaFileCreate
+    | OrganizationAvatarFileCreate
+    | StorefrontHeaderFileCreate,
     Discriminator("service"),
     SetSchemaReference("FileCreate"),
 ]
@@ -103,8 +124,17 @@ class OrganizationAvatarFileRead(PublicFileReadBase):
     service: Literal[FileServiceTypes.organization_avatar]
 
 
+class StorefrontHeaderFileRead(PublicFileReadBase):
+    """File to be used as a storefront header/banner image."""
+
+    service: Literal[FileServiceTypes.storefront_header]
+
+
 FileRead = Annotated[
-    DownloadableFileRead | ProductMediaFileRead | OrganizationAvatarFileRead,
+    DownloadableFileRead
+    | ProductMediaFileRead
+    | OrganizationAvatarFileRead
+    | StorefrontHeaderFileRead,
     Discriminator("service"),
     MergeJSONSchema({"title": "FileRead"}),
     ClassName("FileRead"),

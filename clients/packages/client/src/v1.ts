@@ -17348,6 +17348,7 @@ export interface components {
       | components['schemas']['DownloadableFileCreate']
       | components['schemas']['ProductMediaFileCreate']
       | components['schemas']['OrganizationAvatarFileCreate']
+      | components['schemas']['StorefrontHeaderFileCreate']
     /** FileDownload */
     FileDownload: {
       /**
@@ -17399,7 +17400,7 @@ export interface components {
      * FileServiceTypes
      * @enum {string}
      */
-    FileServiceTypes: 'downloadable' | 'product_media' | 'organization_avatar'
+    FileServiceTypes: 'downloadable' | 'product_media' | 'organization_avatar' | 'storefront_header'
     /** FileUpload */
     FileUpload: {
       /**
@@ -20611,6 +20612,10 @@ export interface components {
       customer_email_settings: components['schemas']['OrganizationCustomerEmailSettings']
       /** @description Settings related to the customer portal */
       customer_portal_settings: components['schemas']['OrganizationCustomerPortalSettings']
+      /** @description Storefront settings */
+      storefront_settings:
+        | components['schemas']['OrganizationStorefrontSettings']
+        | null
     }
     /** OrganizationAccessToken */
     OrganizationAccessToken: {
@@ -20793,6 +20798,138 @@ export interface components {
       /** Public Url */
       readonly public_url: string
     }
+    /** OrganizationStorefrontSettings */
+    OrganizationStorefrontSettings: {
+      /**
+       * Enabled
+       * @description Whether the storefront is enabled
+       */
+      enabled?: boolean
+      /**
+       * Show Header
+       * @description Show the storefront header/banner
+       */
+      show_header?: boolean
+      /**
+       * Header Image Url
+       * @description URL of the storefront header/banner image
+       */
+      header_image_url?: string | null
+      /**
+       * Show Logo
+       * @description Show the organization logo
+       */
+      show_logo?: boolean
+      /**
+       * Show Name
+       * @description Show the organization name
+       */
+      show_name?: boolean
+      /**
+       * Show Description
+       * @description Show the storefront description
+       */
+      show_description?: boolean
+      /**
+       * Description
+       * @description Storefront description
+       */
+      description?: string | null
+      /**
+       * Thumbnail Size
+       * @description Product thumbnail size
+       * @enum {string}
+       */
+      thumbnail_size?: 'small' | 'medium' | 'large'
+      /**
+       * Show Product Details
+       * @description Show product details (name, price, reviews)
+       */
+      show_product_details?: boolean
+    }
+    /**
+     * StorefrontHeaderFileCreate
+     * @description Schema to create a file to be used as a storefront header/banner image.
+     */
+    StorefrontHeaderFileCreate: {
+      /** Organization Id */
+      organization_id?: string | null
+      /** Name */
+      name: string
+      /**
+       * Mime Type
+       * @description MIME type of the file. Only images are supported for this type of file.
+       */
+      mime_type: string
+      /**
+       * Size
+       * @description Size of the file. A maximum of 10 MB is allowed for this type of file.
+       */
+      size: number
+      /** Checksum Sha256 Base64 */
+      checksum_sha256_base64?: string | null
+      upload: components['schemas']['S3FileCreateMultipart']
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      service: 'storefront_header'
+      /** Version */
+      version?: string | null
+    }
+    /**
+     * StorefrontHeaderFileRead
+     * @description File to be used as a storefront header/banner image.
+     */
+    StorefrontHeaderFileRead: {
+      /**
+       * Id
+       * Format: uuid4
+       * @description The ID of the object.
+       */
+      id: string
+      /**
+       * Organization Id
+       * Format: uuid4
+       */
+      organization_id: string
+      /** Name */
+      name: string
+      /** Path */
+      path: string
+      /** Mime Type */
+      mime_type: string
+      /** Size */
+      size: number
+      /** Storage Version */
+      storage_version: string | null
+      /** Checksum Etag */
+      checksum_etag: string | null
+      /** Checksum Sha256 Base64 */
+      checksum_sha256_base64: string | null
+      /** Checksum Sha256 Hex */
+      checksum_sha256_hex: string | null
+      /** Last Modified At */
+      last_modified_at: string | null
+      /** Version */
+      version: string | null
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      service: 'storefront_header'
+      /** Is Uploaded */
+      is_uploaded: boolean
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string
+      /** Size Readable */
+      readonly size_readable: string
+      /** Public Url */
+      readonly public_url: string
+    }
     /** OrganizationCreate */
     OrganizationCreate: {
       /** Name */
@@ -20834,6 +20971,9 @@ export interface components {
         | null
       customer_portal_settings?:
         | components['schemas']['OrganizationCustomerPortalSettings']
+        | null
+      storefront_settings?:
+        | components['schemas']['OrganizationStorefrontSettings']
         | null
     }
     /** OrganizationCustomerEmailSettings */
@@ -21270,6 +21410,9 @@ export interface components {
         | null
       customer_portal_settings?:
         | components['schemas']['OrganizationCustomerPortalSettings']
+        | null
+      storefront_settings?:
+        | components['schemas']['OrganizationStorefrontSettings']
         | null
     }
     /**

@@ -1,101 +1,104 @@
 'use client'
 
-import { toast } from '@/components/Toast/use-toast'
-import { useUpdateOrganization } from '@/hooks/queries'
-import { setValidationErrors } from '@/utils/api/errors'
-import { CONFIG } from '@/utils/config'
-import { ErrorMessage } from '@hookform/error-message'
-import AddPhotoAlternateOutlined from '@mui/icons-material/AddPhotoAlternateOutlined'
-import { isValidationError, schemas } from '@spaire/client'
-import Avatar from '@spaire/ui/components/atoms/Avatar'
-import Button from '@spaire/ui/components/atoms/Button'
-import CopyToClipboardInput from '@spaire/ui/components/atoms/CopyToClipboardInput'
-import Input from '@spaire/ui/components/atoms/Input'
-import ShadowBox from '@spaire/ui/components/atoms/ShadowBox'
+import { schemas } from '@spaire/client'
+import Switch from '@spaire/ui/components/atoms/Switch'
 import {
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@spaire/ui/components/ui/form'
-import { Label } from '@spaire/ui/components/ui/label'
-import { Separator } from '@spaire/ui/components/ui/separator'
-import Link from 'next/link'
-import { PropsWithChildren, useCallback } from 'react'
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@spaire/ui/components/atoms/Select'
+import { useCallback } from 'react'
 import { FileRejection } from 'react-dropzone'
 import { useFormContext } from 'react-hook-form'
 import { twMerge } from 'tailwind-merge'
 import { FileObject, useFileUpload } from '../../FileUpload'
+import AddPhotoAlternateOutlined from '@mui/icons-material/AddPhotoAlternateOutlined'
 
-const StorefrontSidebarContentWrapper = ({
-  title,
-  enabled,
-  children,
-  organization,
-}: PropsWithChildren<{
-  title: string
-  enabled: boolean
-  organization: schemas['Organization']
-}>) => {
-  return (
-    <ShadowBox className="shadow-3xl flex h-full min-h-0 w-full max-w-96 shrink-0 grow-0 flex-col overflow-y-auto bg-white p-8 dark:border-transparent">
-      <div className="flex h-full flex-col gap-y-8">
-        <div className="flex flex-row items-center justify-between">
-          <h2 className="text-lg">{title}</h2>
-
-          {enabled && (
-            <Button size="sm">
-              <Link href={`/${organization.slug}`} target="_blank">
-                Open Storefront
-              </Link>
-            </Button>
-          )}
-        </div>
-        <div className="flex grow flex-col justify-between gap-y-8">
-          {children}
-        </div>
-      </div>
-    </ShadowBox>
-  )
+interface ToggleRowProps {
+  label: string
+  description?: string
+  checked: boolean
+  onCheckedChange: (checked: boolean) => void
+  children?: React.ReactNode
 }
 
-const StorefrontForm = ({
+const ToggleRow = ({
+  label,
+  description,
+  checked,
+  onCheckedChange,
+  children,
+}: ToggleRowProps) => (
+  <div className="flex flex-col gap-y-3">
+    <div className="flex flex-row items-center justify-between">
+      <div className="flex flex-col gap-y-0.5">
+        <span className="text-sm font-medium text-gray-900 dark:text-white">
+          {label}
+        </span>
+        {description && (
+          <span className="dark:text-polar-500 text-xs text-gray-500">
+            {description}
+          </span>
+        )}
+      </div>
+      <Switch checked={checked} onCheckedChange={onCheckedChange} />
+    </div>
+    {checked && children}
+  </div>
+)
+
+export const StorefrontSidebar = ({
   organization,
 }: {
   organization: schemas['Organization']
 }) => {
-  const {
-    control,
-    formState: { errors },
-    setValue,
-    setError,
-    watch,
-  } = useFormContext<schemas['OrganizationUpdate']>()
+  const { watch, setValue } = useFormContext<schemas['OrganizationUpdate']>()
 
-  const avatarURL = watch('avatar_url')
+  const settings = watch('storefront_settings')
 
-  const onFilesUpdated = useCallback(
-    (files: FileObject<schemas['OrganizationAvatarFileRead']>[]) => {
-      if (files.length === 0) {
-        return
-      }
+  const updateSetting = useCallback(
+    <K extends keyof NonNullable<schemas['OrganizationStorefrontSettings']>>(
+      key: K,
+      value: NonNullable<schemas['OrganizationStorefrontSettings']>[K],
+    ) => {
+      setValue(
+        'storefront_settings',
+        { ...settings, [key]: value },
+        { shouldDirty: true },
+      )
+    },
+    [settings, setValue],
+  )
+
+  // Banner upload
+  const onBannerFilesUpdated = useCallback(
+    (files: FileObject<schemas['StorefrontHeaderFileRead']>[]) => {
+      if (files.length === 0) return
       const lastFile = files[files.length - 1]
-      setValue('avatar_url', lastFile.public_url, { shouldDirty: true })
+      updateSetting('header_image_url', lastFile.public_url)
     },
-    [setValue],
+    [updateSetting],
   )
-  const onFilesRejected = useCallback(
+
+  const onBannerFilesRejected = useCallback(
     (rejections: FileRejection[]) => {
-      rejections.forEach((rejection) => {
-        setError('avatar_url', { message: rejection.errors[0].message })
-      })
+      // Show first error
+      if (rejections.length > 0) {
+        console.error('File rejected:', rejections[0].errors[0].message)
+      }
     },
-    [setError],
+    [],
   )
-  const { getRootProps, getInputProps, isDragActive } = useFileUpload({
+
+  const {
+    getRootProps: getBannerRootProps,
+    getInputProps: getBannerInputProps,
+    isDragActive: isBannerDragActive,
+  } = useFileUpload({
     organization,
-    service: 'organization_avatar',
+    service: 'storefront_header',
     accept: {
       'image/jpeg': [],
       'image/png': [],
@@ -103,180 +106,119 @@ const StorefrontForm = ({
       'image/webp': [],
       'image/svg+xml': [],
     },
-    maxSize: 1 * 1024 * 1024,
-    onFilesUpdated,
-    onFilesRejected,
+    maxSize: 10 * 1024 * 1024,
+    onFilesUpdated: onBannerFilesUpdated,
+    onFilesRejected: onBannerFilesRejected,
     initialFiles: [],
   })
 
   return (
-    <>
-      <FormField
-        control={control}
-        name="avatar_url"
-        render={({ field }) => (
-          <div className="flex flex-row items-center gap-4">
-            <div
-              {...getRootProps()}
-              className={twMerge(
-                'group relative',
-                isDragActive && 'opacity-50',
-              )}
-            >
-              <input {...getInputProps()} />
-              <Avatar
-                avatar_url={avatarURL ?? ''}
-                name={organization.name}
-                className={twMerge(
-                  'h-16 w-16 group-hover:opacity-50',
-                  isDragActive && 'opacity-50',
-                )}
-              />
-              <div
-                className={twMerge(
-                  'absolute top-0 left-0 h-16 w-16 cursor-pointer items-center justify-center group-hover:flex',
-                  isDragActive ? 'flex' : 'hidden',
-                )}
-              >
-                <AddPhotoAlternateOutlined />
-              </div>
-            </div>
-            <FormItem className="grow">
-              <FormControl>
-                <Input
-                  {...field}
-                  value={field.value || ''}
-                  placeholder="Logo URL"
-                />
-              </FormControl>
-
-              <FormMessage />
-            </FormItem>
-          </div>
-        )}
-      />
-      <FormField
-        control={control}
-        name="name"
-        defaultValue=""
-        render={({ field }) => (
-          <FormItem className="flex flex-col gap-y-1">
-            <div className="flex flex-row items-center justify-between">
-              <FormLabel>Organization Name</FormLabel>
-            </div>
-            <FormControl>
-              <Input {...field} value={field.value || ''} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
+    <aside className="dark:border-polar-700 flex h-full w-[280px] shrink-0 flex-col gap-y-6 overflow-y-auto border-r border-gray-200 bg-white px-5 py-6 dark:bg-polar-900">
+      {/* Enable store */}
+      <ToggleRow
+        label="Enable your store"
+        description="Display your store or hide it and redirect to your website instead."
+        checked={settings?.enabled ?? false}
+        onCheckedChange={(v) => updateSetting('enabled', v)}
       />
 
-      <ErrorMessage
-        errors={errors}
-        name="prices"
-        render={({ message }) => (
-          <p className="text-destructive text-sm">{message}</p>
-        )}
-      />
-    </>
-  )
-}
-
-export const StorefrontSidebar = ({
-  organization,
-}: {
-  organization: schemas['Organization']
-}) => {
-  const { handleSubmit, setError, formState, reset } =
-    useFormContext<schemas['OrganizationUpdate']>()
-
-  const updateOrganization = useUpdateOrganization()
-
-  const onSubmit = useCallback(
-    async (organizationUpdate: schemas['OrganizationUpdate']) => {
-      const { data: org, error } = await updateOrganization.mutateAsync({
-        id: organization.id,
-        body: organizationUpdate,
-      })
-      if (error) {
-        if (isValidationError(error.detail)) {
-          setValidationErrors(error.detail, setError)
-        } else {
-          toast({
-            title: 'Organization Update Failed',
-            description: `Error updating organization: ${error.detail}`,
-          })
-        }
-        return
-      }
-
-      toast({
-        title: 'Organization Updated',
-        description: `Organization ${organization.name} was successfully updated`,
-      })
-      reset(org)
-    },
-    [organization, setError, updateOrganization, reset],
-  )
-
-  const storefrontEnabled = false
-  const storefrontURL = `${CONFIG.FRONTEND_BASE_URL}/${organization.slug}`
-
-  return (
-    <StorefrontSidebarContentWrapper
-      title="Storefront"
-      enabled={false}
-      organization={organization}
-    >
-      <div className="flex flex-col gap-y-8">
-        <form
-          onSubmit={handleSubmit(onSubmit)}
-          className="flex flex-col gap-y-8"
+      {/* Show header */}
+      <ToggleRow
+        label="Show store header"
+        checked={settings?.show_header ?? true}
+        onCheckedChange={(v) => updateSetting('show_header', v)}
+      >
+        {/* Banner upload area */}
+        <div
+          {...getBannerRootProps()}
+          className={twMerge(
+            'dark:border-polar-600 flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 p-4 transition-colors hover:border-gray-400 dark:hover:border-polar-500',
+            isBannerDragActive && 'border-blue-500 bg-blue-50 dark:bg-blue-900/20',
+          )}
         >
-          <StorefrontForm organization={organization} />
-          <div className="flex flex-row items-center gap-x-4">
-            <Button
-              className="self-start"
-              type="submit"
-              loading={updateOrganization.isPending}
-              disabled={!formState.isDirty || updateOrganization.isPending}
-            >
-              Save
-            </Button>
-          </div>
-        </form>
-        {storefrontEnabled && (
-          <>
-            <Separator />
-
-            <div className="flex flex-col gap-y-4">
-              <Label>Share</Label>
-              <CopyToClipboardInput
-                value={storefrontURL}
-                buttonLabel="Copy"
-                className="bg-white"
-                onCopy={() => {
-                  toast({
-                    title: 'Copied To Clipboard',
-                    description: `Storefront URL was copied to clipboard`,
-                  })
-                }}
-              />
-              <p className="text-center text-xs text-gray-500">
-                Add an official link from GitHub to Spaire.{' '}
-                <a
-                  href="/docs/github/funding-yaml"
-                  target="_blank"
-                  className="underline"
-                >
-                  Learn more.
-                </a>
-              </p>
+          <input {...getBannerInputProps()} />
+          {settings?.header_image_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={settings.header_image_url}
+              alt="Banner preview"
+              className="max-h-20 w-full rounded object-cover"
+            />
+          ) : (
+            <div className="flex flex-col items-center gap-y-1">
+              <AddPhotoAlternateOutlined className="dark:text-polar-500 text-gray-400" fontSize="small" />
+              <span className="dark:text-polar-500 text-xs text-gray-500">
+                Upload banner
+              </span>
             </div>
-          </>
-        )}
+          )}
+        </div>
+        <span className="dark:text-polar-500 text-xs text-gray-400">
+          1600 × 300 (16:3) recommended / 10MB max file size.
+        </span>
+      </ToggleRow>
+
+      {/* Show logo */}
+      <ToggleRow
+        label="Show store logo"
+        checked={settings?.show_logo ?? true}
+        onCheckedChange={(v) => updateSetting('show_logo', v)}
+      />
+
+      {/* Show name */}
+      <ToggleRow
+        label="Show store name"
+        checked={settings?.show_name ?? true}
+        onCheckedChange={(v) => updateSetting('show_name', v)}
+      />
+
+      {/* Show description */}
+      <ToggleRow
+        label="Show store description"
+        checked={settings?.show_description ?? true}
+        onCheckedChange={(v) => updateSetting('show_description', v)}
+      >
+        <textarea
+          value={settings?.description ?? ''}
+          onChange={(e) => updateSetting('description', e.target.value)}
+          placeholder="Give your store a short, clear description."
+          maxLength={160}
+          rows={3}
+          className="dark:border-polar-600 dark:bg-polar-800 dark:text-polar-200 w-full resize-none rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none dark:placeholder:text-polar-500"
+        />
+        <span className="dark:text-polar-500 text-xs text-gray-400">
+          Give your store a short, clear description.
+        </span>
+      </ToggleRow>
+
+      {/* Thumbnail size */}
+      <div className="flex flex-row items-center justify-between">
+        <span className="text-sm font-medium text-gray-900 dark:text-white">
+          Thumbnail size
+        </span>
+        <Select
+          value={settings?.thumbnail_size ?? 'medium'}
+          onValueChange={(v) =>
+            updateSetting('thumbnail_size', v as 'small' | 'medium' | 'large')
+          }
+        >
+          <SelectTrigger className="w-[100px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="small">Small</SelectItem>
+            <SelectItem value="medium">Medium</SelectItem>
+            <SelectItem value="large">Large</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
-    </StorefrontSidebarContentWrapper>
+
+      {/* Show product details */}
+      <ToggleRow
+        label="Show product details"
+        checked={settings?.show_product_details ?? true}
+        onCheckedChange={(v) => updateSetting('show_product_details', v)}
+      />
+    </aside>
   )
 }
