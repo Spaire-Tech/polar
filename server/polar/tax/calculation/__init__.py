@@ -15,6 +15,7 @@ from .base import (
     InvalidTaxIDError,
     TaxabilityReason,
     TaxCalculation,
+    TaxCalculationError,
     TaxCalculationLogicalError,
     TaxCalculationTechnicalError,
     TaxCode,
@@ -33,6 +34,10 @@ def _get_tax_service(processor: TaxProcessor) -> TaxServiceProtocol:
             return stripe_tax_service
         case TaxProcessor.numeral:
             return numeral_tax_service
+
+
+# Public alias used by order and subscription services
+get_tax_service = _get_tax_service
 
 
 TAX_EXCLUSIVE_COUNTRIES = {
@@ -202,8 +207,10 @@ tax_calculation = TaxCalculationService()
 
 __all__ = [
     "CalculationExpiredError",
+    "get_tax_service",
     "InvalidTaxIDError",
     "TaxCalculation",
+    "TaxCalculationError",
     "TaxCalculationLogicalError",
     "TaxCalculationTechnicalError",
     "TaxCode",
