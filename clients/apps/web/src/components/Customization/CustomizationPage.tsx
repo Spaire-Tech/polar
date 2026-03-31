@@ -6,15 +6,14 @@ import {
 import { toast } from '@/components/Toast/use-toast'
 import { useUpdateOrganization } from '@/hooks/queries'
 import { setValidationErrors } from '@/utils/api/errors'
-import CloseOutlined from '@mui/icons-material/CloseOutlined'
 import { isValidationError, schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import { Form } from '@spaire/ui/components/ui/form'
 import { useRouter } from 'next/navigation'
 import { useCallback } from 'react'
 import { useForm } from 'react-hook-form'
-import { StorefrontCustomization } from './Storefront/StorefrontCustomization'
-import { StorefrontSidebar } from './Storefront/StorefrontSidebar'
+import { StorefrontEditorForm } from './Storefront/StorefrontSidebar'
+import { StorefrontLivePreview } from './Storefront/StorefrontPreview'
 
 export const CustomizationPage = ({
   organization,
@@ -72,19 +71,14 @@ const Customization = ({
   return (
     <div className="flex h-full flex-col bg-gray-50">
       {/* Top bar */}
-      <div className="flex flex-row items-center justify-between border-b border-gray-200 bg-white px-6 py-4">
-        <div className="flex flex-row items-center gap-x-3">
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-9 w-9 text-gray-600"
-            onClick={() => router.push(`/dashboard/${organization.slug}`)}
-            tabIndex={-1}
-          >
-            <CloseOutlined fontSize="small" />
-          </Button>
-          <h1 className="text-lg font-medium text-gray-900">Design Your Space</h1>
-        </div>
+      <div className="flex flex-row items-center justify-between border-b border-gray-200 bg-white px-8 py-4">
+        <button
+          type="button"
+          onClick={() => router.push(`/dashboard/${organization.slug}`)}
+          className="text-[14px] text-gray-500 transition-colors hover:text-gray-700"
+        >
+          &larr; Back to dashboard
+        </button>
         <Button
           className="rounded-full px-6"
           onClick={form.handleSubmit(onPublish)}
@@ -95,12 +89,26 @@ const Customization = ({
         </Button>
       </div>
 
-      {/* Content: sidebar + preview */}
+      {/* Two-column: preview left, form right */}
       <Form {...form}>
-        <div className="flex min-h-0 grow flex-row">
-          <StorefrontSidebar organization={organization} />
-          <div className="flex min-w-0 flex-1 p-6">
-            <StorefrontCustomization organization={organization} />
+        <div className="flex min-h-0 grow flex-row overflow-hidden">
+          {/* Left — heading + live card preview */}
+          <div className="flex flex-1 flex-col overflow-y-auto p-10">
+            <h1 className="text-[28px] font-bold text-gray-950">
+              Let&apos;s create your card
+            </h1>
+            <p className="mt-1 text-[15px] text-gray-500">
+              Introduce yourself and design your personal Space ID card.
+            </p>
+
+            <div className="mt-8 max-w-[460px]">
+              <StorefrontLivePreview organization={organization} />
+            </div>
+          </div>
+
+          {/* Right — form sections */}
+          <div className="w-[520px] shrink-0 overflow-y-auto border-l border-gray-200 bg-white">
+            <StorefrontEditorForm organization={organization} />
           </div>
         </div>
       </Form>

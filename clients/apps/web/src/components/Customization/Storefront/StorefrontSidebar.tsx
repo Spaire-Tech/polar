@@ -15,13 +15,12 @@ import { FileRejection } from 'react-dropzone'
 import { useFormContext } from 'react-hook-form'
 import { twMerge } from 'tailwind-merge'
 import { FileObject, useFileUpload } from '../../FileUpload'
-import AddPhotoAlternateOutlined from '@mui/icons-material/AddPhotoAlternateOutlined'
+import ExpandMoreOutlined from '@mui/icons-material/ExpandMoreOutlined'
 import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined'
 import OpenInNewOutlined from '@mui/icons-material/OpenInNewOutlined'
-import ExpandMoreOutlined from '@mui/icons-material/ExpandMoreOutlined'
 import CheckOutlined from '@mui/icons-material/CheckOutlined'
 
-// Predefined skill options for digital product creators
+// Predefined options
 const SKILL_OPTIONS = [
   '2D Design', '3D Design', '3D Modeling', '2D Animation', '3D Animation',
   'Game Art', 'Illustration', 'Digital Art', 'Graphic Design', 'UI/UX Design',
@@ -46,7 +45,7 @@ const PROFILE_TITLE_OPTIONS = [
   'Game Developer', 'UI/UX Designer', 'Graphic Designer', 'Motion Designer',
 ]
 
-// --- Reusable section component ---
+// --- Collapsible section with dark header (matching Ruul) ---
 const Section = ({
   title,
   defaultOpen = true,
@@ -62,20 +61,24 @@ const Section = ({
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex w-full flex-row items-center justify-between px-5 py-4"
+        className="flex w-full flex-row items-center justify-between rounded-lg bg-gray-900 px-5 py-3.5"
       >
-        <span className="text-sm font-semibold text-gray-900">{title}</span>
-        <ExpandMoreOutlined
-          style={{ fontSize: 20 }}
-          className={twMerge('text-gray-400 transition-transform', open && 'rotate-180')}
-        />
+        <span className="text-[14px] font-semibold text-white">{title}</span>
+        <div className="flex h-7 w-7 items-center justify-center rounded-md bg-white/20">
+          <ExpandMoreOutlined
+            style={{ fontSize: 18 }}
+            className={twMerge('text-white transition-transform', open && 'rotate-180')}
+          />
+        </div>
       </button>
-      {open && <div className="flex flex-col gap-y-4 px-5 pb-5">{children}</div>}
+      {open && (
+        <div className="flex flex-col gap-y-5 px-1 py-6">{children}</div>
+      )}
     </div>
   )
 }
 
-// --- Tag input component ---
+// --- Tag input with dropdown ---
 const TagInput = ({
   value,
   onChange,
@@ -105,13 +108,12 @@ const TagInput = ({
 
   return (
     <div className="relative">
-      {/* Selected tags */}
       {value.length > 0 && (
         <div className="mb-2 flex flex-row flex-wrap gap-1.5">
           {value.map((tag) => (
             <span
               key={tag}
-              className="flex items-center gap-x-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-700"
+              className="flex items-center gap-x-1 rounded-full bg-gray-100 px-2.5 py-1 text-[12px] text-gray-700"
             >
               {tag}
               <button
@@ -125,26 +127,30 @@ const TagInput = ({
           ))}
         </div>
       )}
-      {/* Search input */}
-      <input
-        type="text"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        onFocus={() => setShowDropdown(true)}
-        onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
-        placeholder={placeholder}
-        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none"
-      />
-      {/* Dropdown */}
+      <div className="relative">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          onFocus={() => setShowDropdown(true)}
+          onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+          placeholder={placeholder}
+          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-[14px] text-gray-900 placeholder:text-gray-400 focus:border-gray-400 focus:outline-none"
+        />
+        <ExpandMoreOutlined
+          className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-gray-400"
+          style={{ fontSize: 18 }}
+        />
+      </div>
       {showDropdown && filtered.length > 0 && (
-        <div className="absolute z-10 mt-1 max-h-40 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
-          {filtered.slice(0, 10).map((option) => (
+        <div className="absolute z-10 mt-1 max-h-44 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+          {filtered.slice(0, 12).map((option) => (
             <button
               key={option}
               type="button"
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => addTag(option)}
-              className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+              className="w-full px-3 py-2 text-left text-[13px] text-gray-700 hover:bg-gray-50"
             >
               {option}
             </button>
@@ -155,36 +161,8 @@ const TagInput = ({
   )
 }
 
-// --- Toggle row component ---
-const ToggleRow = ({
-  label,
-  description,
-  checked,
-  onCheckedChange,
-  children,
-}: {
-  label: string
-  description?: string
-  checked: boolean
-  onCheckedChange: (checked: boolean) => void
-  children?: React.ReactNode
-}) => (
-  <div className="flex flex-col gap-y-3">
-    <div className="flex flex-row items-center justify-between">
-      <div className="flex flex-col gap-y-0.5">
-        <span className="text-sm font-medium text-gray-900">{label}</span>
-        {description && (
-          <span className="text-xs text-gray-500">{description}</span>
-        )}
-      </div>
-      <Switch checked={checked} onCheckedChange={onCheckedChange} />
-    </div>
-    {checked && children}
-  </div>
-)
-
-// --- Main sidebar ---
-export const StorefrontSidebar = ({
+// --- Main editor form (right column) ---
+export const StorefrontEditorForm = ({
   organization,
 }: {
   organization: schemas['Organization']
@@ -257,19 +235,23 @@ export const StorefrontSidebar = ({
   const isEnabled = settings?.enabled ?? false
 
   return (
-    <aside className="flex h-full w-[320px] shrink-0 flex-col overflow-y-auto border-r border-gray-200 bg-white">
-      {/* Enable Your Space — always visible at top */}
-      <div className="border-b border-gray-100 px-5 py-5">
-        <ToggleRow
-          label="Enable Your Space"
-          description="Make your storefront visible to the public."
-          checked={isEnabled}
-          onCheckedChange={(v) => updateSetting('enabled', v)}
-        />
+    <div className="flex flex-col gap-y-0 p-6">
+      {/* Enable Your Space */}
+      <div className="mb-6 flex flex-col gap-y-3 rounded-xl border border-gray-100 bg-gray-50 p-5">
+        <div className="flex flex-row items-center justify-between">
+          <div>
+            <span className="text-[14px] font-semibold text-gray-900">Enable Your Space</span>
+            <p className="mt-0.5 text-[12px] text-gray-500">Make your storefront visible to the public.</p>
+          </div>
+          <Switch
+            checked={isEnabled}
+            onCheckedChange={(v) => updateSetting('enabled', v)}
+          />
+        </div>
         {isEnabled && (
-          <div className="mt-3 flex flex-row items-center gap-2">
-            <div className="flex min-w-0 flex-1 items-center rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
-              <span className="truncate text-xs text-gray-600">{spaceUrl}</span>
+          <div className="flex flex-row items-center gap-2">
+            <div className="flex min-w-0 flex-1 items-center rounded-lg border border-gray-200 bg-white px-3 py-2">
+              <span className="truncate text-[12px] text-gray-600">{spaceUrl}</span>
             </div>
             <button
               type="button"
@@ -296,73 +278,92 @@ export const StorefrontSidebar = ({
         )}
       </div>
 
-      {/* Profile Information */}
+      {/* Profile Information — dark header section */}
       <Section title="Profile Information">
-        {/* Profile Title */}
-        <div className="flex flex-col gap-y-1.5">
-          <label className="text-xs font-medium text-gray-700">Profile Title</label>
-          <Select
-            value={settings?.profile_title ?? ''}
-            onValueChange={(v) => updateSetting('profile_title', v || null)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="e.g. Designer" />
-            </SelectTrigger>
-            <SelectContent>
-              {PROFILE_TITLE_OPTIONS.map((title) => (
-                <SelectItem key={title} value={title}>
-                  {title}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        {/* Display Name + Profile Title — side by side */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="flex flex-col gap-y-1.5">
+            <label className="text-[13px] font-medium text-gray-700">Display Name</label>
+            <input
+              type="text"
+              value={organization.name}
+              disabled
+              className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-[14px] text-gray-500"
+            />
+          </div>
+          <div className="flex flex-col gap-y-1.5">
+            <label className="text-[13px] font-medium text-gray-700">Profile Title</label>
+            <Select
+              value={settings?.profile_title ?? ''}
+              onValueChange={(v) => updateSetting('profile_title', v || null)}
+            >
+              <SelectTrigger className="h-[42px]">
+                <SelectValue placeholder="eg. Designer" />
+              </SelectTrigger>
+              <SelectContent>
+                {PROFILE_TITLE_OPTIONS.map((title) => (
+                  <SelectItem key={title} value={title}>
+                    {title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
-        {/* Profile Photo (avatar) */}
-        <div className="flex flex-col gap-y-1.5">
-          <label className="text-xs font-medium text-gray-700">Cover Image</label>
-          <div
-            {...getBannerRootProps()}
-            className={twMerge(
-              'flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 p-4 transition-colors hover:border-gray-400',
-              isBannerDragActive && 'border-blue-500 bg-blue-50',
-            )}
-          >
-            <input {...getBannerInputProps()} />
-            {settings?.header_image_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={settings.header_image_url}
-                alt="Banner preview"
-                className="max-h-20 w-full rounded object-cover"
-              />
-            ) : (
-              <div className="flex flex-col items-center gap-y-1">
-                <AddPhotoAlternateOutlined className="text-gray-400" fontSize="small" />
-                <span className="text-xs text-gray-500">
-                  Drop your image here, or click to browse
-                </span>
-              </div>
-            )}
+        {/* Profile Photo + Cover color or image — side by side */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="flex flex-col gap-y-1.5">
+            <label className="text-[13px] font-medium text-gray-700">Profile Photo</label>
+            <div className="flex h-[100px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-white transition-colors hover:border-gray-400">
+              <span className="text-[13px] text-gray-500">
+                Drop your photo here,{' '}
+                <span className="text-blue-500">or click to browse</span>
+              </span>
+              <span className="mt-0.5 text-[11px] text-gray-400">
+                Square image, at least 400x400px. Max 10MB.
+              </span>
+            </div>
           </div>
-          <span className="text-xs text-gray-400">
-            1600 x 300 recommended. Max 10MB.
-          </span>
+          <div className="flex flex-col gap-y-1.5">
+            <label className="text-[13px] font-medium text-gray-700">Cover color or image</label>
+            <div
+              {...getBannerRootProps()}
+              className={twMerge(
+                'flex h-[100px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-white transition-colors hover:border-gray-400',
+                isBannerDragActive && 'border-blue-500 bg-blue-50',
+              )}
+            >
+              <input {...getBannerInputProps()} />
+              {settings?.header_image_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={settings.header_image_url}
+                  alt="Cover preview"
+                  className="h-full w-full rounded-md object-cover"
+                />
+              ) : (
+                <span className="text-[13px] text-gray-400">
+                  Upload cover image
+                </span>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Profile Description */}
         <div className="flex flex-col gap-y-1.5">
-          <label className="text-xs font-medium text-gray-700">Profile Description</label>
-          <textarea
-            value={settings?.description ?? ''}
-            onChange={(e) => updateSetting('description', e.target.value)}
-            placeholder="e.g. I'm a product manager with a passion for building products that help people."
-            maxLength={160}
-            rows={3}
-            className="w-full resize-none rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none"
-          />
-          <div className="flex justify-end">
-            <span className="text-xs text-gray-400">
+          <label className="text-[13px] font-medium text-gray-700">Profile Description</label>
+          <div className="relative">
+            <textarea
+              value={settings?.description ?? ''}
+              onChange={(e) => updateSetting('description', e.target.value)}
+              placeholder="eg. I'm a product manager with a passion for building products that help people."
+              maxLength={160}
+              rows={3}
+              className="w-full resize-none rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-[14px] text-gray-900 placeholder:text-gray-400 focus:border-gray-400 focus:outline-none"
+            />
+            <span className="absolute bottom-2 right-3 text-[11px] text-gray-400">
               {(settings?.description ?? '').length}/160
             </span>
           </div>
@@ -370,84 +371,92 @@ export const StorefrontSidebar = ({
 
         {/* Skills */}
         <div className="flex flex-col gap-y-1.5">
-          <label className="text-xs font-medium text-gray-700">Skills</label>
+          <label className="text-[13px] font-medium text-gray-700">Skills</label>
           <TagInput
             value={settings?.skills ?? []}
             onChange={(tags) => updateSetting('skills', tags)}
             options={SKILL_OPTIONS}
-            placeholder="e.g. Figma, Blender, etc."
+            placeholder="eg. Figma, Java, etc."
           />
         </div>
 
         {/* Languages */}
         <div className="flex flex-col gap-y-1.5">
-          <label className="text-xs font-medium text-gray-700">Languages</label>
+          <label className="text-[13px] font-medium text-gray-700">Languages</label>
           <TagInput
             value={settings?.languages ?? []}
             onChange={(tags) => updateSetting('languages', tags)}
             options={LANGUAGE_OPTIONS}
-            placeholder="e.g. English, French, etc."
+            placeholder="eg. English, French, etc."
           />
+        </div>
+      </Section>
+
+      {/* Highlights & Social Links */}
+      <Section title="Highlights & Social Links" defaultOpen={false}>
+        <div className="flex flex-col gap-y-3">
+          <p className="text-[13px] text-gray-500">
+            Social links are managed from your organization settings. Your product images automatically appear as highlights on your card.
+          </p>
+          <div className="flex flex-col gap-y-2">
+            <label className="text-[13px] font-medium text-gray-700">Available for work</label>
+            <div className="flex flex-row items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3">
+              <span className="text-[13px] text-gray-700">Show &quot;Available for work&quot; badge</span>
+              <Switch
+                checked={settings?.available_for_work ?? false}
+                onCheckedChange={(v) => updateSetting('available_for_work', v)}
+              />
+            </div>
+          </div>
         </div>
       </Section>
 
       {/* Display Settings */}
       <Section title="Display Settings" defaultOpen={false}>
-        <ToggleRow
-          label="Show cover image"
-          checked={settings?.show_header ?? true}
-          onCheckedChange={(v) => updateSetting('show_header', v)}
-        />
-        <ToggleRow
-          label="Show profile photo"
-          checked={settings?.show_logo ?? true}
-          onCheckedChange={(v) => updateSetting('show_logo', v)}
-        />
-        <ToggleRow
-          label="Show name"
-          checked={settings?.show_name ?? true}
-          onCheckedChange={(v) => updateSetting('show_name', v)}
-        />
-        <ToggleRow
-          label="Show description"
-          checked={settings?.show_description ?? true}
-          onCheckedChange={(v) => updateSetting('show_description', v)}
-        />
-        <ToggleRow
-          label="Available for work"
-          description="Show a green badge on your profile."
-          checked={settings?.available_for_work ?? false}
-          onCheckedChange={(v) => updateSetting('available_for_work', v)}
-        />
+        <div className="flex flex-col gap-y-3">
+          {[
+            { key: 'show_header' as const, label: 'Show cover image', def: true },
+            { key: 'show_logo' as const, label: 'Show profile photo', def: true },
+            { key: 'show_name' as const, label: 'Show name', def: true },
+            { key: 'show_description' as const, label: 'Show description', def: true },
+            { key: 'show_product_details' as const, label: 'Show product details', def: true },
+          ].map(({ key, label, def }) => (
+            <div
+              key={key}
+              className="flex flex-row items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3"
+            >
+              <span className="text-[13px] text-gray-700">{label}</span>
+              <Switch
+                checked={(settings?.[key] as boolean | undefined) ?? def}
+                onCheckedChange={(v) => updateSetting(key, v)}
+              />
+            </div>
+          ))}
 
-        {/* Thumbnail size */}
-        <div className="flex flex-row items-center justify-between">
-          <span className="text-sm font-medium text-gray-900">
-            Thumbnail size
-          </span>
-          <Select
-            value={settings?.thumbnail_size ?? 'medium'}
-            onValueChange={(v) =>
-              updateSetting('thumbnail_size', v as 'small' | 'medium' | 'large')
-            }
-          >
-            <SelectTrigger className="w-[100px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="small">Small</SelectItem>
-              <SelectItem value="medium">Medium</SelectItem>
-              <SelectItem value="large">Large</SelectItem>
-            </SelectContent>
-          </Select>
+          {/* Thumbnail size */}
+          <div className="flex flex-row items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3">
+            <span className="text-[13px] text-gray-700">Thumbnail size</span>
+            <Select
+              value={settings?.thumbnail_size ?? 'medium'}
+              onValueChange={(v) =>
+                updateSetting('thumbnail_size', v as 'small' | 'medium' | 'large')
+              }
+            >
+              <SelectTrigger className="w-[100px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="small">Small</SelectItem>
+                <SelectItem value="medium">Medium</SelectItem>
+                <SelectItem value="large">Large</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-
-        <ToggleRow
-          label="Show product details"
-          checked={settings?.show_product_details ?? true}
-          onCheckedChange={(v) => updateSetting('show_product_details', v)}
-        />
       </Section>
-    </aside>
+    </div>
   )
 }
+
+// Backward-compat export
+export const StorefrontSidebar = StorefrontEditorForm

@@ -3,11 +3,18 @@
 import { ProductCard } from '@/components/Products/ProductCard'
 import { organizationPageLink } from '@/utils/nav'
 import HiveOutlined from '@mui/icons-material/HiveOutlined'
+import KeyboardArrowDownOutlined from '@mui/icons-material/KeyboardArrowDownOutlined'
 import { schemas } from '@spaire/client'
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
 
 type SortOption = 'last_added' | 'price_low' | 'price_high'
+
+const sortLabels: Record<SortOption, string> = {
+  last_added: 'Last added',
+  price_low: 'Price: Low to High',
+  price_high: 'Price: High to Low',
+}
 
 export const Storefront = ({
   organization,
@@ -69,20 +76,26 @@ export const Storefront = ({
 
   return (
     <div className="flex w-full flex-col gap-y-6">
-      {/* Sort dropdown */}
+      {/* Sort dropdown — rounded pill like Ruul */}
       <div className="flex justify-end">
-        <select
-          value={sort}
-          onChange={(e) => setSort(e.target.value as SortOption)}
-          className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700"
-        >
-          <option value="last_added">Last added</option>
-          <option value="price_low">Price: Low to High</option>
-          <option value="price_high">Price: High to Low</option>
-        </select>
+        <div className="relative">
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as SortOption)}
+            className="appearance-none rounded-full border border-gray-200 bg-white py-2 pl-4 pr-9 text-[13px] font-medium text-gray-700 focus:border-gray-300 focus:outline-none"
+          >
+            <option value="last_added">{sortLabels.last_added}</option>
+            <option value="price_low">{sortLabels.price_low}</option>
+            <option value="price_high">{sortLabels.price_high}</option>
+          </select>
+          <KeyboardArrowDownOutlined
+            className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-gray-400"
+            style={{ fontSize: 18 }}
+          />
+        </div>
       </div>
 
-      {/* Product grid */}
+      {/* Product grid — 2 columns */}
       <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-2">
         {sortedProducts.map((product) => (
           <Link

@@ -18,7 +18,7 @@ export default async function Layout(props: {
 
   const api = await getServerSideAPI()
 
-  const { organization } = await getStorefrontOrNotFound(
+  const { organization, products } = await getStorefrontOrNotFound(
     api,
     params.organization,
   )
@@ -43,8 +43,8 @@ export default async function Layout(props: {
         {/* Two-column layout */}
         <div className="mt-8 flex flex-col gap-8 md:flex-row md:gap-12">
           {/* Left column — Profile card (sticky on desktop) */}
-          <aside className="w-full shrink-0 md:sticky md:top-8 md:w-[380px] md:self-start">
-            <ProfileCard organization={organization} />
+          <aside className="w-full shrink-0 md:sticky md:top-8 md:w-[420px] md:self-start">
+            <ProfileCard organization={organization} products={products} />
           </aside>
 
           {/* Right column — Nav + Products */}

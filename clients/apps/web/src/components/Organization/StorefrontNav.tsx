@@ -39,10 +39,10 @@ export const StorefrontNav = ({
           key={tab.id}
           href={tab.href}
           className={twMerge(
-            'relative pb-2 text-sm font-medium transition-colors',
+            'relative pb-2 text-[14px] font-medium transition-colors',
             currentTab === tab.id
               ? 'text-gray-950'
-              : 'text-gray-500 hover:text-gray-700',
+              : 'text-gray-400 hover:text-gray-600',
           )}
         >
           {tab.label}
