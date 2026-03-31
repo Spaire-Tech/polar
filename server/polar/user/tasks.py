@@ -8,8 +8,8 @@ from polar.worker import AsyncSessionMaker, TaskPriority, actor
 
 from .repository import UserRepository
 
-BIRK_FROM_NAME = "Birk from Spaire"
-BIRK_FROM_EMAIL = "birk@spairehq.com"
+BASS_FROM_NAME = "Bass from Spaire"
+BASS_FROM_EMAIL = "bass@spairehq.com"
 
 
 class UserTaskError(PolarTaskError): ...
@@ -35,10 +35,10 @@ async def user_on_after_signup(user_id: uuid.UUID) -> None:
         )
         enqueue_email(
             to_email_addr=user.email,
-            subject="Hey, thanks for signing up to use Spaire!",
+            subject="Hey, thanks for signing up to Spaire.",
             html_content=body,
-            from_name=BIRK_FROM_NAME,
-            from_email_addr=BIRK_FROM_EMAIL,
-            reply_to_name=BIRK_FROM_NAME,
-            reply_to_email_addr=BIRK_FROM_EMAIL,
+            from_name=BASS_FROM_NAME,
+            from_email_addr=BASS_FROM_EMAIL,
+            reply_to_name=BASS_FROM_NAME,
+            reply_to_email_addr=BASS_FROM_EMAIL,
         )
