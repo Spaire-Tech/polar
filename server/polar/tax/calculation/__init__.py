@@ -8,7 +8,6 @@ from polar.enums import TaxBehavior, TaxBehaviorOption, TaxProcessor
 from polar.kit.address import Address
 from polar.kit.utils import utc_now
 from polar.logging import Logger
-from polar.observability import TAX_CALCULATION_TOTAL
 
 from ..tax_id import TaxID
 from .base import (
@@ -16,6 +15,7 @@ from .base import (
     InvalidTaxIDError,
     TaxabilityReason,
     TaxCalculation,
+    TaxCalculationError,
     TaxCalculationLogicalError,
     TaxCalculationTechnicalError,
     TaxCode,
@@ -34,6 +34,10 @@ def _get_tax_service(processor: TaxProcessor) -> TaxServiceProtocol:
             return stripe_tax_service
         case TaxProcessor.numeral:
             return numeral_tax_service
+
+
+# Public alias used by order and subscription services
+get_tax_service = _get_tax_service
 
 
 TAX_EXCLUSIVE_COUNTRIES = {
@@ -110,9 +114,10 @@ class TaxCalculationService:
                     tax_ids=tax_ids,
                     customer_exempt=customer_exempt,
                 )
-                TAX_CALCULATION_TOTAL.labels(
-                    provider=processor.value, success="true"
-                ).inc()
+                log.debug(
+                    "Tax calculation succeeded",
+                    processor=processor,
+                )
                 return result, processor
             except TaxCalculationTechnicalError as e:
                 log.warning(
@@ -120,9 +125,6 @@ class TaxCalculationService:
                     processor=processor,
                     error=str(e),
                 )
-                TAX_CALCULATION_TOTAL.labels(
-                    provider=processor.value, success="false"
-                ).inc()
                 continue
 
         raise TaxCalculationTechnicalError("All tax processors failed to calculate tax")
@@ -205,8 +207,10 @@ tax_calculation = TaxCalculationService()
 
 __all__ = [
     "CalculationExpiredError",
+    "get_tax_service",
     "InvalidTaxIDError",
     "TaxCalculation",
+    "TaxCalculationError",
     "TaxCalculationLogicalError",
     "TaxCalculationTechnicalError",
     "TaxCode",

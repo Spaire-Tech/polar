@@ -48,7 +48,7 @@ def upgrade() -> None:
                     CASE
                         WHEN c.discount_id IS NULL THEN 0
                         WHEN d.type = 'percentage' THEN CAST(ROUND(CAST(c.amount AS BIGINT) * d.basis_points / 10000.0) AS INTEGER)
-                        WHEN d.type = 'fixed' THEN LEAST(CAST(d.amounts->>(c.currency) AS INTEGER), c.amount)
+                        WHEN d.type = 'fixed' THEN CASE WHEN d.currency = c.currency THEN LEAST(d.amount, c.amount) ELSE 0 END
                         ELSE 0
                     END,
                     0
