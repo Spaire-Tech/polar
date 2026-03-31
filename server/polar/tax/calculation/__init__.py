@@ -8,7 +8,6 @@ from polar.enums import TaxBehavior, TaxBehaviorOption, TaxProcessor
 from polar.kit.address import Address
 from polar.kit.utils import utc_now
 from polar.logging import Logger
-from polar.observability import TAX_CALCULATION_TOTAL
 
 from ..tax_id import TaxID
 from .base import (
@@ -110,9 +109,10 @@ class TaxCalculationService:
                     tax_ids=tax_ids,
                     customer_exempt=customer_exempt,
                 )
-                TAX_CALCULATION_TOTAL.labels(
-                    provider=processor.value, success="true"
-                ).inc()
+                log.debug(
+                    "Tax calculation succeeded",
+                    processor=processor,
+                )
                 return result, processor
             except TaxCalculationTechnicalError as e:
                 log.warning(
@@ -120,9 +120,6 @@ class TaxCalculationService:
                     processor=processor,
                     error=str(e),
                 )
-                TAX_CALCULATION_TOTAL.labels(
-                    provider=processor.value, success="false"
-                ).inc()
                 continue
 
         raise TaxCalculationTechnicalError("All tax processors failed to calculate tax")
