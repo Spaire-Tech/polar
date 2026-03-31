@@ -1,23 +1,16 @@
 'use client'
 
-import {
-  CustomizationContextMode,
-  CustomizationProvider,
-  useCustomizationContext,
-} from '@/components/Customization/CustomizationProvider'
-import PublicProfileDropdown from '@/components/Navigation/PublicProfileDropdown'
-import { useAuth } from '@/hooks'
-import { useProduct } from '@/hooks/queries'
-import ArrowBack from '@mui/icons-material/ArrowBack'
-import { schemas } from '@spaire/client'
+import { toast } from '@/components/Toast/use-toast'
+import { useUpdateOrganization } from '@/hooks/queries'
+import { setValidationErrors } from '@/utils/api/errors'
+import Close from '@mui/icons-material/Close'
+import { isValidationError, schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
-import { Tabs, TabsList, TabsTrigger } from '@spaire/ui/components/atoms/Tabs'
 import { Form } from '@spaire/ui/components/ui/form'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { useMemo } from 'react'
+import { useRouter } from 'next/navigation'
+import { useCallback } from 'react'
 import { useForm } from 'react-hook-form'
-import { CheckoutCustomization } from './Checkout/CheckoutCustomization'
-import { StorefrontCustomization } from './Storefront/StorefrontCustomization'
+import { StorefrontPreview } from './Storefront/StorefrontPreview'
 import { StorefrontSidebar } from './Storefront/StorefrontSidebar'
 
 export const CustomizationPage = ({
@@ -25,104 +18,89 @@ export const CustomizationPage = ({
 }: {
   organization: schemas['Organization']
 }) => {
-  const search = useSearchParams()
-
-  return (
-    <CustomizationProvider
-      initialCustomizationMode={
-        (search.get('mode') as CustomizationContextMode) ?? undefined
-      }
-    >
-      <Customization organization={organization} />
-    </CustomizationProvider>
-  )
-}
-
-const Customization = ({
-  organization,
-}: {
-  organization: schemas['Organization']
-}) => {
-  const { setCustomizationMode, customizationMode } = useCustomizationContext()
-
   const router = useRouter()
-  const { currentUser } = useAuth()
-  const params = useSearchParams()
-  const productId = params.get('productId')
-
-  const { data: product, isLoading } = useProduct(productId ?? '')
-
-  const customizationContent = useMemo(() => {
-    switch (customizationMode) {
-      case 'checkout':
-        return isLoading ? null : (
-          <CheckoutCustomization
-            organization={organization}
-            product={product}
-          />
-        )
-      case 'storefront':
-      default:
-        return <StorefrontCustomization organization={organization} />
-    }
-  }, [customizationMode, product, isLoading, organization])
+  const updateOrganization = useUpdateOrganization()
 
   const form = useForm<schemas['OrganizationUpdate']>({
     defaultValues: {
       ...organization,
+      storefront_settings: organization.storefront_settings ?? {
+        enabled: false,
+        show_header: true,
+        header_image_url: null,
+        show_logo: true,
+        show_name: true,
+        show_description: true,
+        description: null,
+        thumbnail_size: 'medium',
+        show_product_details: true,
+        accent_color: null,
+      },
     },
   })
 
+  const onPublish = useCallback(
+    async (organizationUpdate: schemas['OrganizationUpdate']) => {
+      const { data: org, error } = await updateOrganization.mutateAsync({
+        id: organization.id,
+        body: organizationUpdate,
+      })
+      if (error) {
+        if (isValidationError(error.detail)) {
+          setValidationErrors(error.detail, form.setError)
+        } else {
+          toast({
+            title: 'Publish Failed',
+            description: `Error publishing changes: ${error.detail}`,
+          })
+        }
+        return
+      }
+
+      toast({
+        title: 'Changes Published',
+        description: 'Your storefront has been updated.',
+      })
+      form.reset(org)
+    },
+    [organization, form, updateOrganization],
+  )
+
   return (
-    <div className="dark:bg-spaire-950 flex h-full flex-col bg-gray-100 px-8">
-      <div className="relative z-50 flex flex-row items-center justify-between py-8">
-        <div className="flex flex-row items-center gap-x-2">
+    <div className="dark:bg-polar-950 flex h-full flex-col bg-gray-100">
+      {/* Top bar */}
+      <div className="flex flex-row items-center justify-between px-6 py-4">
+        <div className="flex flex-row items-center gap-x-4">
           <Button
             size="icon"
             variant="ghost"
-            className="h-12 w-12 text-black dark:text-white"
+            className="h-10 w-10 text-gray-500 hover:text-black dark:text-polar-400 dark:hover:text-white"
             onClick={() => {
               router.push(`/dashboard/${organization.slug}`)
             }}
             tabIndex={-1}
           >
-            <ArrowBack fontSize="small" />
+            <Close fontSize="small" />
           </Button>
-          <h1 className="text-xl">Storefront</h1>
+          <h1 className="text-lg font-semibold dark:text-white">Design</h1>
         </div>
-        <Tabs
-          className="absolute left-1/2 flex -translate-x-1/2 flex-row items-center"
-          value={customizationMode}
-          onValueChange={(value) => {
-            setCustomizationMode(value as CustomizationContextMode)
-          }}
+        <Button
+          className="rounded-full bg-blue-500 px-6 text-white hover:bg-blue-600"
+          onClick={form.handleSubmit(onPublish)}
+          loading={updateOrganization.isPending}
+          disabled={!form.formState.isDirty || updateOrganization.isPending}
         >
-          <TabsList className="rounded-full bg-gray-200 dark:bg-transparent">
-            <TabsTrigger
-              className="data-[state=active]:bg-white data-[state=active]:shadow-xs"
-              value="storefront"
-            >
-              Storefront
-            </TabsTrigger>
-            <TabsTrigger
-              className="data-[state=active]:bg-white data-[state=active]:shadow-xs"
-              value="checkout"
-            >
-              Checkout
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-        <PublicProfileDropdown
-          authenticatedUser={currentUser}
-          className="shrink-0"
-        />
+          Publish Changes
+        </Button>
       </div>
+
+      {/* Content */}
       <Form {...form}>
-        <div className="flex min-h-0 grow flex-row gap-x-6 pb-8">
-          {customizationContent}
-          {customizationMode === 'storefront' && (
-            <StorefrontSidebar organization={organization} />
-          )}
+        <div className="flex min-h-0 grow flex-row">
+          <StorefrontSidebar organization={organization} />
+          <div className="flex-1 p-4 pl-0">
+            <StorefrontPreview organization={organization} />
+          </div>
         </div>
       </Form>
     </div>

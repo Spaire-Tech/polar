@@ -8,53 +8,70 @@ import ProductPriceLabel from './ProductPriceLabel'
 
 interface ProductCardProps {
   product: schemas['ProductStorefront']
+  showDetails?: boolean
+  thumbnailSize?: 'small' | 'medium' | 'large'
 }
 
-export const ProductCard = ({ product }: ProductCardProps) => {
+const thumbnailAspectClass = {
+  small: 'aspect-[4/3]',
+  medium: 'aspect-video',
+  large: 'aspect-square',
+}
+
+export const ProductCard = ({
+  product,
+  showDetails = true,
+  thumbnailSize = 'medium',
+}: ProductCardProps) => {
+  const aspectClass = thumbnailAspectClass[thumbnailSize]
+
   return (
-    <div className="flex h-full w-full flex-col gap-4 transition-opacity hover:opacity-50">
+    <div className="flex h-full w-full flex-col gap-y-3">
+      {/* Thumbnail */}
       {product.medias.length > 0 ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          className="dark:bg-spaire-950 aspect-video w-full rounded-2xl bg-gray-100 object-cover"
+          className={`dark:bg-polar-900 w-full rounded-xl bg-gray-100 object-cover ${aspectClass}`}
           alt={product.medias[0].name}
           width={600}
           height={600}
           src={product.medias[0].public_url}
         />
       ) : (
-        <div className="dark:bg-spaire-800 flex aspect-video w-full flex-col items-center justify-center rounded-2xl bg-gray-100">
-          <div className="flex flex-col items-center justify-center text-4xl text-blue-500 dark:text-white">
-            <LogoIcon className="dark:text-spaire-600 h-12 w-12 text-gray-300" />
-          </div>
+        <div
+          className={`dark:bg-polar-900 flex w-full flex-col items-center justify-center rounded-xl bg-gray-100 ${aspectClass}`}
+        >
+          <LogoIcon className="dark:text-polar-600 h-10 w-10 text-gray-300" />
         </div>
       )}
-      <div className="flex grow flex-col gap-y-1 text-lg">
-        <h3 className="line-clamp-1 flex items-center justify-between gap-1 leading-snug text-gray-950 dark:text-white">
+
+      {/* Name + Price row */}
+      <div className="flex flex-row items-start justify-between gap-x-3">
+        <h3 className="text-sm font-medium text-gray-900 dark:text-white">
           {product.name}
         </h3>
-        <div className="flex flex-row items-center justify-between">
-          <span className="dark:text-spaire-500 flex flex-row items-center gap-x-2 text-base text-gray-500">
-            <h3 className="leading-snug">
-              {hasLegacyRecurringPrices(product) ? (
-                <LegacyRecurringProductPrices product={product} />
-              ) : (
-                <ProductPriceLabel product={product} />
-              )}
-            </h3>
-            {product.benefits.length > 0 && (
-              <>
-                ·
-                <span>
-                  {product.benefits.length === 1
-                    ? `${product.benefits.length} Benefit`
-                    : `${product.benefits.length} Benefits`}
-                </span>
-              </>
-            )}
-          </span>
-        </div>
+        <span className="dark:text-polar-400 shrink-0 text-sm text-gray-500">
+          {hasLegacyRecurringPrices(product) ? (
+            <LegacyRecurringProductPrices product={product} />
+          ) : (
+            <ProductPriceLabel product={product} />
+          )}
+        </span>
       </div>
+
+      {/* Description */}
+      {showDetails && product.description && (
+        <p className="dark:text-polar-400 line-clamp-2 text-sm text-gray-500">
+          {product.description}
+        </p>
+      )}
+
+      {/* View Product button */}
+      {showDetails && (
+        <button className="dark:border-polar-600 dark:text-polar-300 mt-auto w-fit rounded-md border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:hover:bg-polar-800">
+          View Product
+        </button>
+      )}
     </div>
   )
 }

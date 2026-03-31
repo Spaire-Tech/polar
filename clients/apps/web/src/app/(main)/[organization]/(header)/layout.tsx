@@ -40,7 +40,10 @@ export default async function Layout(props: {
       </div>
       <div className="flex flex-col gap-y-8">
         <div className="flex grow flex-col items-center">
-          <StorefrontHeader organization={organization} />
+          <StorefrontHeader
+            organization={organization}
+            storefrontSettings={organization.storefront_settings}
+          />
         </div>
         <div className="flex flex-col items-center">
           <StorefrontNav organization={organization} />
