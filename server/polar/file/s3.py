@@ -18,7 +18,4 @@ S3_SERVICES: dict[FileServiceTypes, S3Service] = {
     FileServiceTypes.organization_avatar: _get_s3_service(
         settings.S3_FILES_PUBLIC_BUCKET_NAME
     ),
-    FileServiceTypes.storefront_header: _get_s3_service(
-        settings.S3_FILES_PUBLIC_BUCKET_NAME
-    ),
 }

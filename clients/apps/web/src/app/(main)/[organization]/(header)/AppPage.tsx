@@ -10,16 +10,7 @@ const ClientPage = ({
   organization: schemas['CustomerOrganization']
   products: schemas['ProductStorefront'][]
 }) => {
-  // Extract storefront_settings if available (Organization has it, CustomerOrganization doesn't)
-  const storefrontSettings = (organization as any).storefront_settings ?? null
-
-  return (
-    <Storefront
-      organization={organization}
-      products={products}
-      storefrontSettings={storefrontSettings}
-    />
-  )
+  return <Storefront organization={organization} products={products} />
 }
 
 export default ClientPage
