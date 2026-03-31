@@ -68,7 +68,44 @@ const getLoginResponse = (request: NextRequest): NextResponse => {
   return NextResponse.redirect(redirectURL)
 }
 
+const SPACE_HOSTNAME =
+  process.env.NEXT_PUBLIC_SPACE_BASE_URL
+    ? new URL(process.env.NEXT_PUBLIC_SPACE_BASE_URL).hostname
+    : 'space.spairehq.com'
+
+const SPACE_BLOCKED_PREFIXES = [
+  '/dashboard',
+  '/login',
+  '/signup',
+  '/settings',
+  '/start',
+  '/checkout',
+  '/oauth2',
+  '/docs',
+  '/blog',
+]
+
 export async function proxy(request: NextRequest) {
+  // --- Spaire Space subdomain routing ---
+  const host =
+    request.headers.get('x-forwarded-host') ??
+    request.headers.get('host') ??
+    ''
+  const hostname = host.split(':')[0]
+
+  if (hostname === SPACE_HOSTNAME) {
+    const { pathname } = request.nextUrl
+
+    // Block non-storefront routes on the space domain — redirect to main app
+    if (SPACE_BLOCKED_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
+      const mainUrl = new URL(
+        pathname,
+        process.env.NEXT_PUBLIC_FRONTEND_BASE_URL || 'https://app.spairehq.com',
+      )
+      return NextResponse.redirect(mainUrl)
+    }
+  }
+
   // Do not run middleware for forwarded routes
   // @pieterbeulque added this because the `config.matcher` behavior below
   // doesn't appear to be working consistently with Vercel rewrites
