@@ -22,6 +22,8 @@ export const StorefrontPreview = ({
 
   const showDetails =
     organization.storefront_settings?.show_product_details ?? true
+  const thumbnailSize =
+    (organization.storefront_settings?.thumbnail_size as 'small' | 'medium' | 'large') ?? 'medium'
 
   return (
     <BrowserChrome url={`space.spairehq.com/${organization.slug}`}>
@@ -54,6 +56,7 @@ export const StorefrontPreview = ({
                     <ProductCard
                       product={product}
                       showDetails={showDetails}
+                      thumbnailSize={thumbnailSize}
                     />
                   </div>
                 ))}

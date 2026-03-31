@@ -1,3 +1,4 @@
+import { spacePageLink } from '@/utils/nav'
 import { getServerSideAPI } from '@/utils/client/serverside'
 import { getStorefrontOrNotFound } from '@/utils/storefront'
 import type { Metadata } from 'next'
@@ -13,17 +14,29 @@ export async function generateMetadata(props: {
     params.organization,
   )
 
+  const description =
+    organization.storefront_settings?.description ??
+    `${organization.name} on Spaire`
+  const ogImage =
+    organization.storefront_settings?.header_image_url ??
+    `https://spairehq.com/og?org=${organization.slug}`
+  const canonicalUrl = spacePageLink(organization)
+
   return {
-    title: `${organization.name}`, // " | Polar is added by the template"
-    description: `${organization.name} on Spaire`,
+    title: `${organization.name} — Spaire Space`,
+    description,
+    alternates: {
+      canonical: canonicalUrl,
+    },
     openGraph: {
-      title: `${organization.name} on Spaire`,
-      description: `${organization.name} on Spaire`,
+      title: `${organization.name} — Spaire Space`,
+      description,
       siteName: 'Spaire',
       type: 'website',
+      url: canonicalUrl,
       images: [
         {
-          url: `https://spairehq.com/og?org=${organization.slug}`,
+          url: ogImage,
           width: 1200,
           height: 630,
         },
@@ -32,15 +45,15 @@ export async function generateMetadata(props: {
     twitter: {
       images: [
         {
-          url: `https://spairehq.com/og?org=${organization.slug}`,
+          url: ogImage,
           width: 1200,
           height: 630,
-          alt: `${organization.name} on Spaire`,
+          alt: `${organization.name} — Spaire Space`,
         },
       ],
       card: 'summary_large_image',
-      title: `${organization.name} on Spaire`,
-      description: `${organization.name} on Spaire`,
+      title: `${organization.name} — Spaire Space`,
+      description,
     },
   }
 }

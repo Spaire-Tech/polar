@@ -11,3 +11,17 @@ export const organizationPageLink = (
 ): string => {
   return `${CONFIG.FRONTEND_BASE_URL}/${org.slug}/${path ?? ''}`
 }
+
+/**
+ * Generate a public Spaire Space URL for sharing and SEO.
+ * e.g., https://space.spairehq.com/miles-becker
+ */
+export const spacePageLink = (
+  org:
+    | schemas['Organization']
+    | schemas['CustomerOrganization']
+    | OrganizationSDK,
+  path?: string,
+): string => {
+  return `${CONFIG.SPACE_BASE_URL}/${org.slug}/${path ?? ''}`
+}

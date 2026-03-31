@@ -23,6 +23,11 @@ export const Storefront = ({
       ? (organization.storefront_settings?.show_product_details ?? true)
       : true
 
+  const thumbnailSize =
+    'storefront_settings' in organization
+      ? ((organization.storefront_settings?.thumbnail_size as 'small' | 'medium' | 'large') ?? 'medium')
+      : 'medium'
+
   const sortedProducts = useMemo(() => {
     const sorted = [...products]
     switch (sort) {
@@ -84,7 +89,7 @@ export const Storefront = ({
             key={product.id}
             href={organizationPageLink(organization, `products/${product.id}`)}
           >
-            <ProductCard product={product} showDetails={showDetails} />
+            <ProductCard product={product} showDetails={showDetails} thumbnailSize={thumbnailSize} />
           </Link>
         ))}
       </div>

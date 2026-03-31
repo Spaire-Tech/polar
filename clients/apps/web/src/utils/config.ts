@@ -14,6 +14,8 @@ const defaults = {
     'development',
   FRONTEND_BASE_URL:
     process.env.NEXT_PUBLIC_FRONTEND_BASE_URL || 'http://127.0.0.1:3000',
+  SPACE_BASE_URL:
+    process.env.NEXT_PUBLIC_SPACE_BASE_URL || 'https://space.spairehq.com',
   BASE_URL: process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000',
   AUTH_COOKIE_KEY: process.env.POLAR_AUTH_COOKIE_KEY || 'spaire_session',
   AUTH_MCP_COOKIE_KEY:
