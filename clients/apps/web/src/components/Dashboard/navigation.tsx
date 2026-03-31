@@ -9,6 +9,7 @@ import LayersOutlined from '@mui/icons-material/LayersOutlined'
 import ReceiptLongOutlined from '@mui/icons-material/ReceiptLongOutlined'
 import ShoppingBagOutlined from '@mui/icons-material/ShoppingBagOutlined'
 import SpaceDashboardOutlined from '@mui/icons-material/SpaceDashboardOutlined'
+import StorefrontOutlined from '@mui/icons-material/StorefrontOutlined'
 import TrendingUp from '@mui/icons-material/TrendingUp'
 import TuneOutlined from '@mui/icons-material/TuneOutlined'
 import { schemas } from '@spaire/client'
@@ -175,6 +176,16 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
     link: `/dashboard/${org?.slug}`,
     checkIsActive: (currentRoute: string) =>
       currentRoute === `/dashboard/${org?.slug}`,
+    if: true,
+  },
+  {
+    id: 'space',
+    title: 'Spaire Space',
+    icon: <StorefrontOutlined fontSize="inherit" />,
+    link: `/dashboard/${org?.slug}/storefront`,
+    checkIsActive: (currentRoute: string): boolean => {
+      return currentRoute.startsWith(`/dashboard/${org?.slug}/storefront`)
+    },
     if: true,
   },
   {
