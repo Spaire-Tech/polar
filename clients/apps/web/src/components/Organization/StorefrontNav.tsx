@@ -1,7 +1,5 @@
 'use client'
 
-import { useCustomerOrders } from '@/hooks/queries'
-import { api } from '@/utils/client'
 import { organizationPageLink } from '@/utils/nav'
 import { schemas } from '@spaire/client'
 import {
@@ -11,9 +9,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@spaire/ui/components/atoms/Select'
-import { Tabs, TabsList, TabsTrigger } from '@spaire/ui/components/atoms/Tabs'
 import Link from 'next/link'
-import { useRouter, useSelectedLayoutSegment } from 'next/navigation'
+import { useSelectedLayoutSegment } from 'next/navigation'
 import { twMerge } from 'tailwind-merge'
 
 interface OrganizationStorefrontNavProps {
@@ -27,55 +24,43 @@ export const StorefrontNav = ({
 }: OrganizationStorefrontNavProps) => {
   const routeSegment = useSelectedLayoutSegment()
   const currentTab = routeSegment ?? 'products'
-  const router = useRouter()
 
-  const { data: orders } = useCustomerOrders(api)
+  const tabs = [
+    { id: 'products', label: 'Products', href: organizationPageLink(organization) },
+    { id: 'about', label: 'About', href: organizationPageLink(organization, 'about') },
+  ]
 
   return (
-    <>
-      <Tabs className="w-full md:w-fit" value={currentTab}>
-        <TabsList
-          className={twMerge(
-            'hidden w-full flex-row overflow-x-auto bg-transparent ring-0 sm:flex dark:bg-transparent dark:ring-0',
-            className,
-          )}
-        >
-          <Link href={organizationPageLink(organization)}>
-            <TabsTrigger value="products">Products</TabsTrigger>
+    <div className={twMerge('flex w-full flex-row items-center justify-between', className)}>
+      {/* Tabs */}
+      <div className="flex flex-row items-center gap-x-6">
+        {tabs.map((tab) => (
+          <Link
+            key={tab.id}
+            href={tab.href}
+            className={twMerge(
+              'dark:text-polar-400 border-b-2 border-transparent pb-2 text-sm font-medium text-gray-500 transition-colors hover:text-gray-900 dark:hover:text-white',
+              currentTab === tab.id &&
+                'border-gray-900 text-gray-900 dark:border-white dark:text-white',
+            )}
+          >
+            {tab.label}
           </Link>
+        ))}
+      </div>
 
-          {(orders?.items.length ?? 0) > 0 && (
-            <Link href={organizationPageLink(organization, 'portal')}>
-              <TabsTrigger value="portal">My Orders</TabsTrigger>
-            </Link>
-          )}
-        </TabsList>
-      </Tabs>
-
-      <Select
-        onValueChange={(value) => {
-          const link = {
-            products: organizationPageLink(organization),
-            portal: organizationPageLink(organization, 'portal'),
-          }[value]
-          if (link) router.push(link)
-        }}
-        value={currentTab}
-      >
-        <SelectTrigger className="sm:hidden">
-          <SelectValue placeholder="Select a section" />
+      {/* Sort dropdown */}
+      <Select defaultValue="last_added">
+        <SelectTrigger className="dark:border-polar-700 dark:bg-polar-900 h-9 w-32 rounded-lg border-gray-200 text-sm">
+          <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="products">
-            <span className="whitespace-nowrap">Products</span>
-          </SelectItem>
-          {(orders?.items.length ?? 0) > 0 && (
-            <SelectItem value="portal">
-              <span className="whitespace-nowrap">My Orders</span>
-            </SelectItem>
-          )}
+          <SelectItem value="last_added">Last added</SelectItem>
+          <SelectItem value="price_asc">Price: Low</SelectItem>
+          <SelectItem value="price_desc">Price: High</SelectItem>
+          <SelectItem value="name_asc">Name: A-Z</SelectItem>
         </SelectContent>
       </Select>
-    </>
+    </div>
   )
 }

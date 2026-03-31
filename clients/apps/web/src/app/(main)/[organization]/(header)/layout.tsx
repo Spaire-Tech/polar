@@ -38,18 +38,25 @@ export default async function Layout(props: {
           storefrontOrg={organization}
         />
       </div>
-      <div className="flex flex-col gap-y-8">
-        <div className="flex grow flex-col items-center">
-          <StorefrontHeader
-            organization={organization}
-            storefrontSettings={organization.storefront_settings}
-          />
+
+      {/* Two-column layout */}
+      <div className="mt-8 flex flex-col gap-8 lg:flex-row">
+        {/* Left: Profile card (sticky) */}
+        <div className="w-full shrink-0 lg:w-[380px]">
+          <div className="lg:sticky lg:top-8">
+            <StorefrontHeader
+              organization={organization}
+              storefrontSettings={organization.storefront_settings}
+            />
+          </div>
         </div>
-        <div className="flex flex-col items-center">
+
+        {/* Right: Nav + Products */}
+        <div className="flex min-w-0 flex-1 flex-col gap-y-6">
           <StorefrontNav organization={organization} />
-        </div>
-        <div className="flex h-full grow flex-col gap-y-8 md:gap-y-16 md:py-12">
-          {children}
+          <div className="flex h-full grow flex-col">
+            {children}
+          </div>
         </div>
       </div>
     </PublicLayout>
