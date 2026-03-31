@@ -1,5 +1,8 @@
 import uuid
 
+from polar.email.react import render_email_template
+from polar.email.schemas import UserWelcomeEmail, UserWelcomeProps
+from polar.email.sender import DEFAULT_FROM_EMAIL_ADDRESS, DEFAULT_FROM_NAME, enqueue_email
 from polar.exceptions import PolarTaskError
 from polar.worker import AsyncSessionMaker, TaskPriority, actor
 
@@ -23,3 +26,16 @@ async def user_on_after_signup(user_id: uuid.UUID) -> None:
         user = await repository.get_by_id(user_id)
         if user is None:
             raise UserDoesNotExist(user_id)
+
+        body = render_email_template(
+            UserWelcomeEmail(props=UserWelcomeProps(email=user.email))
+        )
+        enqueue_email(
+            to_email_addr=user.email,
+            subject="Hey, thanks for signing up to Spaire.",
+            html_content=body,
+            from_name=DEFAULT_FROM_NAME,
+            from_email_addr=DEFAULT_FROM_EMAIL_ADDRESS,
+            reply_to_name="Spaire Support",
+            reply_to_email_addr="support@spairehq.com",
+        )
