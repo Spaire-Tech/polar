@@ -2,7 +2,6 @@
 
 import { schemas } from '@spaire/client'
 import Avatar from '@spaire/ui/components/atoms/Avatar'
-import Link from 'next/link'
 import { useEffect, useMemo } from 'react'
 import { Gradient } from './GradientMesh'
 import { computeComplementaryColor } from './utils'
@@ -50,25 +49,28 @@ export const StorefrontHeader = ({
   }, [gradient, organization, showHeader, headerImageUrl, accentColor])
 
   return (
-    <div className="flex w-full grow flex-col items-center gap-y-6">
+    <div className="flex w-full flex-col items-center">
+      {/* Banner */}
       {showHeader && (
-        <div className="relative aspect-3/1 w-full rounded-2xl bg-gray-100 md:aspect-4/1 md:rounded-4xl dark:bg-black">
+        <div className="relative w-full overflow-hidden rounded-none bg-gray-100 dark:bg-black"
+          style={{ aspectRatio: '16 / 3' }}
+        >
           {headerImageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={headerImageUrl}
               alt="Store banner"
-              className="absolute top-0 right-0 bottom-0 left-0 h-full w-full rounded-2xl object-cover md:rounded-4xl"
+              className="absolute inset-0 h-full w-full object-cover"
             />
           ) : (
             <canvas
               id="gradient-canvas"
-              className="absolute top-0 right-0 bottom-0 left-0 h-full w-full rounded-2xl md:rounded-4xl"
+              className="absolute inset-0 h-full w-full"
             />
           )}
           {showLogo && (
             <Avatar
-              className="dark:border-polar-950 absolute -bottom-16 left-1/2 h-32 w-32 -translate-x-1/2 border-8 border-white text-lg md:text-5xl"
+              className="dark:border-polar-950 absolute -bottom-10 left-1/2 h-20 w-20 -translate-x-1/2 border-4 border-white text-lg md:text-3xl"
               name={organization.name}
               avatar_url={organization.avatar_url}
             />
@@ -76,34 +78,26 @@ export const StorefrontHeader = ({
         </div>
       )}
 
-      {/* If no header but logo, show avatar centered without banner */}
+      {/* If no header but logo, show avatar centered */}
       {!showHeader && showLogo && (
         <Avatar
-          className="h-24 w-24 text-lg md:text-4xl"
+          className="h-20 w-20 text-lg md:text-3xl"
           name={organization.name}
           avatar_url={organization.avatar_url}
         />
       )}
 
+      {/* Name + Description */}
       <div
-        className={`flex grow flex-col items-center ${showHeader && showLogo ? 'mt-16' : 'mt-4'}`}
+        className={`flex flex-col items-center gap-y-2 ${showHeader && showLogo ? 'mt-14' : 'mt-4'}`}
       >
-        <div className="flex flex-col items-center md:gap-y-1">
-          {showName && (
-            <h1 className="text-xl md:text-3xl">{organization.name}</h1>
-          )}
-          {showName && (
-            <Link
-              className="dark:text-polar-500 text-gray-500"
-              href={`/${organization.slug}`}
-              tabIndex={-1}
-            >
-              @{organization.slug}
-            </Link>
-          )}
-        </div>
+        {showName && (
+          <h1 className="text-xl font-bold dark:text-white">
+            {organization.name}
+          </h1>
+        )}
         {showDescription && description && (
-          <p className="dark:text-polar-400 mt-3 max-w-lg text-center text-gray-500">
+          <p className="dark:text-polar-400 max-w-lg text-center text-sm text-gray-500">
             {description}
           </p>
         )}
