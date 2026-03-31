@@ -40,6 +40,31 @@ class OrganizationSocials(TypedDict):
     url: str
 
 
+class OrganizationStorefrontSettings(TypedDict, total=False):
+    enabled: bool
+    show_header: bool
+    header_image_url: str | None
+    show_logo: bool
+    show_name: bool
+    show_description: bool
+    description: str | None
+    thumbnail_size: str  # "small" | "medium" | "large"
+    show_product_details: bool
+
+
+_default_storefront_settings: OrganizationStorefrontSettings = {
+    "enabled": False,
+    "show_header": True,
+    "header_image_url": None,
+    "show_logo": True,
+    "show_name": True,
+    "show_description": True,
+    "description": None,
+    "thumbnail_size": "medium",
+    "show_product_details": True,
+}
+
+
 class OrganizationDetails(TypedDict):
     about: str
     product_description: str
@@ -253,6 +278,10 @@ class Organization(RateLimitGroupMixin, RecordModel):
         JSONB, nullable=False, default=dict
     )
 
+    storefront_settings: Mapped[OrganizationStorefrontSettings] = mapped_column(
+        JSONB, nullable=False, default=_default_storefront_settings
+    )
+
     subscription_settings: Mapped[OrganizationSubscriptionSettings] = mapped_column(
         JSONB, nullable=False, default=_default_subscription_settings
     )
@@ -325,12 +354,14 @@ class Organization(RateLimitGroupMixin, RecordModel):
 
     @hybrid_property
     def storefront_enabled(self) -> bool:
-        return self.profile_settings.get("enabled", False)
+        return self.storefront_settings.get(
+            "enabled", self.profile_settings.get("enabled", False)
+        )
 
     @storefront_enabled.inplace.expression
     @classmethod
     def _storefront_enabled_expression(cls) -> ColumnElement[bool]:
-        return Organization.profile_settings["enabled"].as_boolean()
+        return Organization.storefront_settings["enabled"].as_boolean()
 
     @hybrid_property
     def is_under_review(self) -> bool:

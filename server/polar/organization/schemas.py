@@ -34,6 +34,7 @@ from polar.models.organization import (
     OrganizationNotificationSettings,
     OrganizationStatus,
     OrganizationSubscriptionSettings,
+    OrganizationStorefrontSettings as OrganizationStorefrontSettingsDict,
 )
 from polar.models.organization_review import OrganizationReview
 
@@ -96,6 +97,28 @@ class OrganizationFeatureSettings(Schema):
     perks_unlocked: bool = Field(
         False,
         description="If this organization has unlocked the Startup Stack perks by completing their first sale",
+    )
+
+
+class OrganizationStorefrontSettings(Schema):
+    enabled: bool = Field(False, description="Whether the storefront is enabled")
+    show_header: bool = Field(True, description="Show the storefront header/banner")
+    header_image_url: str | None = Field(
+        None, description="URL of the storefront header/banner image"
+    )
+    show_logo: bool = Field(True, description="Show the organization logo")
+    show_name: bool = Field(True, description="Show the organization name")
+    show_description: bool = Field(True, description="Show the storefront description")
+    description: Annotated[
+        str | None,
+        Field(max_length=160, description="Storefront description"),
+        EmptyStrToNoneValidator,
+    ] = None
+    thumbnail_size: Literal["small", "medium", "large"] = Field(
+        "medium", description="Product thumbnail size"
+    )
+    show_product_details: bool = Field(
+        True, description="Show product details (name, price, reviews)"
     )
 
 
@@ -345,6 +368,9 @@ class Organization(OrganizationBase):
     customer_portal_settings: OrganizationCustomerPortalSettings = Field(
         description="Settings related to the customer portal",
     )
+    storefront_settings: OrganizationStorefrontSettings | None = Field(
+        None, description="Storefront settings"
+    )
 
 
 class OrganizationCreate(Schema):
@@ -372,6 +398,7 @@ class OrganizationCreate(Schema):
     notification_settings: OrganizationNotificationSettings | None = None
     customer_email_settings: OrganizationCustomerEmailSettings | None = None
     customer_portal_settings: OrganizationCustomerPortalSettings | None = None
+    storefront_settings: OrganizationStorefrontSettings | None = None
 
 
 class OrganizationUpdate(Schema):
@@ -402,6 +429,7 @@ class OrganizationUpdate(Schema):
     notification_settings: OrganizationNotificationSettings | None = None
     customer_email_settings: OrganizationCustomerEmailSettings | None = None
     customer_portal_settings: OrganizationCustomerPortalSettings | None = None
+    storefront_settings: OrganizationStorefrontSettings | None = None
 
 
 class OrganizationPaymentStep(Schema):
