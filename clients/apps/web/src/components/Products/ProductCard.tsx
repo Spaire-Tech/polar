@@ -8,53 +8,52 @@ import ProductPriceLabel from './ProductPriceLabel'
 
 interface ProductCardProps {
   product: schemas['ProductStorefront']
+  showDetails?: boolean
 }
 
-export const ProductCard = ({ product }: ProductCardProps) => {
+export const ProductCard = ({
+  product,
+  showDetails = true,
+}: ProductCardProps) => {
   return (
-    <div className="flex h-full w-full flex-col gap-4 transition-opacity hover:opacity-50">
-      {product.medias.length > 0 ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          className="dark:bg-spaire-950 aspect-video w-full rounded-2xl bg-gray-100 object-cover"
-          alt={product.medias[0].name}
-          width={600}
-          height={600}
-          src={product.medias[0].public_url}
-        />
-      ) : (
-        <div className="dark:bg-spaire-800 flex aspect-video w-full flex-col items-center justify-center rounded-2xl bg-gray-100">
-          <div className="flex flex-col items-center justify-center text-4xl text-blue-500 dark:text-white">
-            <LogoIcon className="dark:text-spaire-600 h-12 w-12 text-gray-300" />
+    <div className="dark:border-polar-700 dark:bg-polar-900 flex h-full w-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white transition-shadow hover:shadow-md">
+      {/* Image with price overlay */}
+      <div className="relative">
+        {product.medias.length > 0 ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            className="aspect-[4/3] w-full object-cover"
+            alt={product.medias[0].name}
+            width={600}
+            height={450}
+            src={product.medias[0].public_url}
+          />
+        ) : (
+          <div className="dark:bg-polar-800 flex aspect-[4/3] w-full flex-col items-center justify-center bg-gray-100">
+            <LogoIcon className="dark:text-polar-600 h-12 w-12 text-gray-300" />
           </div>
-        </div>
-      )}
-      <div className="flex grow flex-col gap-y-1 text-lg">
-        <h3 className="line-clamp-1 flex items-center justify-between gap-1 leading-snug text-gray-950 dark:text-white">
-          {product.name}
-        </h3>
-        <div className="flex flex-row items-center justify-between">
-          <span className="dark:text-spaire-500 flex flex-row items-center gap-x-2 text-base text-gray-500">
-            <h3 className="leading-snug">
-              {hasLegacyRecurringPrices(product) ? (
-                <LegacyRecurringProductPrices product={product} />
-              ) : (
-                <ProductPriceLabel product={product} />
-              )}
-            </h3>
-            {product.benefits.length > 0 && (
-              <>
-                ·
-                <span>
-                  {product.benefits.length === 1
-                    ? `${product.benefits.length} Benefit`
-                    : `${product.benefits.length} Benefits`}
-                </span>
-              </>
-            )}
-          </span>
+        )}
+        {/* Price badge */}
+        <div className="absolute bottom-3 right-3 rounded-full bg-white px-3 py-1 text-sm font-medium text-gray-900 shadow-sm">
+          {hasLegacyRecurringPrices(product) ? (
+            <LegacyRecurringProductPrices product={product} />
+          ) : (
+            <ProductPriceLabel product={product} />
+          )}
         </div>
       </div>
+
+      {/* Details */}
+      {showDetails && (
+        <div className="flex flex-col gap-y-1 px-4 py-3">
+          <h3 className="line-clamp-1 text-sm font-medium text-gray-950 dark:text-white">
+            {product.name}
+          </h3>
+          <span className="dark:text-polar-500 text-xs text-gray-400">
+            0 review
+          </span>
+        </div>
+      )}
     </div>
   )
 }
