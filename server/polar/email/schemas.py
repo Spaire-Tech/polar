@@ -39,6 +39,7 @@ class EmailTemplate(StrEnum):
     subscription_revoked = "subscription_revoked"
     subscription_uncanceled = "subscription_uncanceled"
     subscription_updated = "subscription_updated"
+    user_welcome = "user_welcome"
     webhook_endpoint_disabled = "webhook_endpoint_disabled"
     notification_new_sale = "notification_new_sale"
     notification_new_subscription = "notification_new_subscription"
@@ -319,6 +320,14 @@ class SubscriptionUpdatedEmail(BaseModel):
     props: SubscriptionUpdatedProps
 
 
+class UserWelcomeProps(EmailProps): ...
+
+
+class UserWelcomeEmail(BaseModel):
+    template: Literal[EmailTemplate.user_welcome] = EmailTemplate.user_welcome
+    props: UserWelcomeProps
+
+
 class WebhookEndpointDisabledProps(EmailProps):
     organization: Organization
     webhook_endpoint_url: str
@@ -394,6 +403,7 @@ Email = Annotated[
     | SubscriptionRevokedEmail
     | SubscriptionUncanceledEmail
     | SubscriptionUpdatedEmail
+    | UserWelcomeEmail
     | WebhookEndpointDisabledEmail
     | NotificationNewSaleEmail
     | NotificationNewSubscriptionEmail
