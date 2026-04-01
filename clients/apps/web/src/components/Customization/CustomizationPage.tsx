@@ -10,7 +10,7 @@ import { isValidationError, schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import { Form } from '@spaire/ui/components/ui/form'
 import { useRouter } from 'next/navigation'
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { StorefrontEditorForm } from './Storefront/StorefrontSidebar'
 import { StorefrontLivePreview } from './Storefront/StorefrontPreview'
@@ -27,20 +27,6 @@ export const CustomizationPage = ({
   )
 }
 
-// Only send fields that OrganizationUpdate accepts
-function extractUpdateFields(
-  data: Record<string, unknown>,
-): schemas['OrganizationUpdate'] {
-  return {
-    name: data.name as string,
-    ...(data.avatar_url !== undefined && { avatar_url: data.avatar_url as string | null }),
-    ...(data.socials !== undefined && { socials: data.socials as schemas['OrganizationSocialLink'][] | null }),
-    ...(data.storefront_settings !== undefined && {
-      storefront_settings: data.storefront_settings as schemas['OrganizationStorefrontSettings'] | null,
-    }),
-  }
-}
-
 const Customization = ({
   organization,
 }: {
@@ -48,6 +34,7 @@ const Customization = ({
 }) => {
   const router = useRouter()
   const updateOrganization = useUpdateOrganization()
+  const [publishing, setPublishing] = useState(false)
 
   const form = useForm<schemas['OrganizationUpdate']>({
     defaultValues: {
@@ -58,51 +45,61 @@ const Customization = ({
     },
   })
 
-  const onPublish = useCallback(
-    async (data: schemas['OrganizationUpdate']) => {
-      try {
-        const body = extractUpdateFields(data as Record<string, unknown>)
-        const { data: org, error } = await updateOrganization.mutateAsync({
-          id: organization.id,
-          body,
-        })
-        if (error) {
-          if (isValidationError(error.detail)) {
-            setValidationErrors(error.detail, form.setError)
-          } else {
-            toast({
-              title: 'Publish Failed',
-              description: `Error: ${typeof error.detail === 'string' ? error.detail : JSON.stringify(error.detail)}`,
-            })
-          }
-          return
-        }
+  const handlePublish = useCallback(async () => {
+    if (publishing) return
+    setPublishing(true)
 
-        toast({
-          title: 'Changes Published',
-          description: 'Your storefront has been updated.',
-        })
-        form.reset({
-          name: org.name,
-          avatar_url: org.avatar_url,
-          socials: org.socials,
-          storefront_settings: org.storefront_settings,
-        })
-      } catch (err) {
-        toast({
-          title: 'Publish Failed',
-          description: `Unexpected error: ${err instanceof Error ? err.message : String(err)}`,
-        })
+    try {
+      const values = form.getValues()
+
+      const body: schemas['OrganizationUpdate'] = {
+        name: values.name ?? organization.name,
+        avatar_url: values.avatar_url,
+        socials: values.socials,
+        storefront_settings: values.storefront_settings,
       }
-    },
-    [organization, updateOrganization, form],
-  )
 
-  const isDirty = form.formState.isDirty
+      const { data: org, error } = await updateOrganization.mutateAsync({
+        id: organization.id,
+        body,
+      })
+
+      if (error) {
+        if (isValidationError(error.detail)) {
+          setValidationErrors(error.detail, form.setError)
+        } else {
+          toast({
+            title: 'Publish Failed',
+            description: `Error: ${typeof error.detail === 'string' ? error.detail : JSON.stringify(error.detail)}`,
+          })
+        }
+        return
+      }
+
+      toast({
+        title: 'Changes Published',
+        description: 'Your storefront has been updated.',
+      })
+
+      form.reset({
+        name: org.name,
+        avatar_url: org.avatar_url,
+        socials: org.socials,
+        storefront_settings: org.storefront_settings,
+      })
+    } catch (err) {
+      toast({
+        title: 'Publish Failed',
+        description: `Unexpected error: ${err instanceof Error ? err.message : String(err)}`,
+      })
+    } finally {
+      setPublishing(false)
+    }
+  }, [form, organization, updateOrganization, publishing])
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onPublish)} className="flex h-full flex-col bg-gray-50">
+      <div className="flex h-full flex-col bg-gray-50">
         {/* Top bar */}
         <div className="flex flex-row items-center justify-between border-b border-gray-200 bg-white px-8 py-4">
           <button
@@ -114,9 +111,9 @@ const Customization = ({
           </button>
           <Button
             className="rounded-full px-6"
-            type="submit"
-            loading={updateOrganization.isPending}
-            disabled={!isDirty || updateOrganization.isPending}
+            type="button"
+            onClick={handlePublish}
+            loading={publishing}
           >
             Publish Changes
           </Button>
@@ -143,7 +140,7 @@ const Customization = ({
             <StorefrontEditorForm organization={organization} />
           </div>
         </div>
-      </form>
+      </div>
     </Form>
   )
 }
