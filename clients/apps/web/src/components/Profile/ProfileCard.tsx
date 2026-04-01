@@ -89,14 +89,23 @@ export const ProfileCard = ({ organization, products = [] }: ProfileCardProps) =
       )}
 
       <div className="relative flex flex-col px-6 pb-6">
-        {/* Avatar — overlapping banner */}
+        {/* Avatar — overlapping banner, full-bleed logo */}
         {showLogo && (
           <div className={showHeader ? '-mt-10' : 'mt-6'}>
-            <Avatar
-              className="h-20 w-20 rounded-xl border-4 border-white text-lg shadow-sm"
-              name={organization.name}
-              avatar_url={organization.avatar_url}
-            />
+            {organization.avatar_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={organization.avatar_url}
+                alt={organization.name}
+                className="h-20 w-20 rounded-xl border-4 border-white object-cover shadow-sm"
+              />
+            ) : (
+              <Avatar
+                className="h-20 w-20 rounded-xl border-4 border-white text-lg shadow-sm"
+                name={organization.name}
+                avatar_url={null}
+              />
+            )}
           </div>
         )}
 

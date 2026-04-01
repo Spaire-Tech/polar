@@ -1,12 +1,12 @@
 'use client'
 
 import { ProductCard } from '@/components/Products/ProductCard'
-import { organizationPageLink } from '@/utils/nav'
+import { CONFIG } from '@/utils/config'
 import HiveOutlined from '@mui/icons-material/HiveOutlined'
 import KeyboardArrowDownOutlined from '@mui/icons-material/KeyboardArrowDownOutlined'
 import { schemas } from '@spaire/client'
-import Link from 'next/link'
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
+import { api } from '@/utils/client'
 
 type SortOption = 'last_added' | 'price_low' | 'price_high'
 
@@ -24,6 +24,7 @@ export const Storefront = ({
   products: schemas['ProductStorefront'][]
 }) => {
   const [sort, setSort] = useState<SortOption>('last_added')
+  const [loadingProductId, setLoadingProductId] = useState<string | null>(null)
 
   const showDetails =
     'storefront_settings' in organization
@@ -70,6 +71,25 @@ export const Storefront = ({
     }
   }, [displayProducts, sort])
 
+  // Create checkout and redirect to full checkout page
+  const handleProductClick = useCallback(async (productId: string) => {
+    if (loadingProductId) return
+    setLoadingProductId(productId)
+    try {
+      const { data: checkout } = await api.POST('/v1/checkouts/client/', {
+        body: { product_id: productId },
+      })
+      if (checkout?.client_secret) {
+        window.location.href = `${CONFIG.FRONTEND_BASE_URL}/checkout/${checkout.client_secret}`
+      }
+    } catch {
+      // Fallback: navigate to product page
+      window.location.href = `${CONFIG.FRONTEND_BASE_URL}/${organization.slug}/products/${productId}`
+    } finally {
+      setLoadingProductId(null)
+    }
+  }, [loadingProductId, organization.slug])
+
   if (products.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-24">
@@ -89,7 +109,7 @@ export const Storefront = ({
 
   return (
     <div className="flex w-full flex-col gap-y-6">
-      {/* Sort dropdown — rounded pill like Ruul */}
+      {/* Sort dropdown — rounded pill */}
       <div className="flex justify-end">
         <div className="relative">
           <select
@@ -111,12 +131,19 @@ export const Storefront = ({
       {/* Product grid — 2 columns */}
       <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-2">
         {sortedProducts.map((product) => (
-          <Link
+          <button
             key={product.id}
-            href={organizationPageLink(organization, `products/${product.id}`)}
+            type="button"
+            onClick={() => handleProductClick(product.id)}
+            disabled={loadingProductId === product.id}
+            className="text-left"
           >
-            <ProductCard product={product} showDetails={showDetails} thumbnailSize={thumbnailSize} />
-          </Link>
+            <ProductCard
+              product={product}
+              showDetails={showDetails}
+              thumbnailSize={thumbnailSize}
+            />
+          </button>
         ))}
       </div>
     </div>

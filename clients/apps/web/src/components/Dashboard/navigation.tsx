@@ -179,22 +179,12 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
     if: true,
   },
   {
-    id: 'space',
-    title: 'Spaire Space',
-    icon: <StorefrontOutlined fontSize="inherit" />,
-    link: `/dashboard/${org?.slug}/storefront`,
-    checkIsActive: (currentRoute: string): boolean => {
-      return currentRoute.startsWith(`/dashboard/${org?.slug}/storefront`)
-    },
-    if: true,
-  },
-  {
     id: 'catalog',
     title: 'Catalog',
     icon: <HiveOutlined fontSize="inherit" />,
     link: `/dashboard/${org?.slug}/products`,
     checkIsActive: (currentRoute: string): boolean => {
-      return currentRoute.startsWith(`/dashboard/${org?.slug}/products`)
+      return currentRoute.startsWith(`/dashboard/${org?.slug}/products`) || currentRoute.startsWith(`/dashboard/${org?.slug}/storefront`)
     },
     if: true,
     showSubsInNav: false,
@@ -203,7 +193,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
       { title: 'Payment Links', link: `/dashboard/${org?.slug}/products/checkout-links` },
       { title: 'Discounts', link: `/dashboard/${org?.slug}/products/discounts` },
       { title: 'Benefits', link: `/dashboard/${org?.slug}/products/benefits` },
-      { title: 'Usage-based', link: `/dashboard/${org?.slug}/products/meters` },
+      { title: 'Spaire Space', link: `/dashboard/${org?.slug}/storefront` },
     ],
   },
   {
