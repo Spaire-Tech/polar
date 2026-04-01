@@ -20866,6 +20866,11 @@ export interface components {
        * @description Show 'Available for work' badge on the profile
        */
       available_for_work?: boolean
+      /**
+       * Featured Product Ids
+       * @description Product IDs to feature on the storefront (empty = show all)
+       */
+      featured_product_ids?: string[]
     }
     /**
      * StorefrontHeaderFileCreate

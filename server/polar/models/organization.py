@@ -54,6 +54,7 @@ class OrganizationStorefrontSettings(TypedDict, total=False):
     skills: list[str]
     languages: list[str]
     available_for_work: bool
+    featured_product_ids: list[str]
 
 
 _default_storefront_settings: OrganizationStorefrontSettings = {
@@ -70,6 +71,7 @@ _default_storefront_settings: OrganizationStorefrontSettings = {
     "skills": [],
     "languages": [],
     "available_for_work": False,
+    "featured_product_ids": [],
 }
 
 

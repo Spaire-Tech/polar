@@ -111,6 +111,7 @@ export const useUpdateOrganization = () =>
       })
       await revalidate(`organizations:${data.id}`)
       await revalidate(`organizations:${data.slug}`)
+      await revalidate(`storefront:${data.slug}`)
 
       if (variables.userId) {
         await revalidate(`users:${variables.userId}:organizations`, {

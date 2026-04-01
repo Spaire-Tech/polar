@@ -15,8 +15,14 @@ export const StorefrontLivePreview = ({
 
   const organization = { ...org, ...organizationUpdate } as schemas['Organization']
 
-  const products =
+  const allProducts =
     useProducts(organization.id, { is_archived: false }).data?.items ?? []
+
+  // Filter by featured product IDs if set
+  const featuredIds = organization.storefront_settings?.featured_product_ids ?? []
+  const products = featuredIds.length > 0
+    ? allProducts.filter((p) => featuredIds.includes(p.id))
+    : allProducts
 
   return (
     <ProfileCard organization={organization} products={products} />

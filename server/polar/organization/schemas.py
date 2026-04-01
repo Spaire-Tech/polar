@@ -134,6 +134,9 @@ class OrganizationStorefrontSettings(Schema):
     available_for_work: bool = Field(
         False, description="Show 'Available for work' badge on the profile"
     )
+    featured_product_ids: list[str] = Field(
+        default_factory=list, description="Product IDs to feature on the storefront (empty = show all)"
+    )
 
 
 class OrganizationSubscribePromoteSettings(Schema):

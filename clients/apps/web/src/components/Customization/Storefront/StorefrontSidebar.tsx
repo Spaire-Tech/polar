@@ -16,12 +16,12 @@ import { FileRejection } from 'react-dropzone'
 import { useFormContext } from 'react-hook-form'
 import { twMerge } from 'tailwind-merge'
 import { FileObject, useFileUpload } from '../../FileUpload'
+import { useProducts } from '@/hooks/queries'
 import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined'
 import OpenInNewOutlined from '@mui/icons-material/OpenInNewOutlined'
 import CheckOutlined from '@mui/icons-material/CheckOutlined'
 import AddOutlined from '@mui/icons-material/AddOutlined'
 import DeleteOutlined from '@mui/icons-material/DeleteOutlined'
-import ExpandMoreOutlined from '@mui/icons-material/ExpandMoreOutlined'
 import Instagram from '@mui/icons-material/Instagram'
 import Facebook from '@mui/icons-material/Facebook'
 import LinkedIn from '@mui/icons-material/LinkedIn'
@@ -31,6 +31,13 @@ import X from '@mui/icons-material/X'
 import Public from '@mui/icons-material/Public'
 import Avatar from '@spaire/ui/components/atoms/Avatar'
 import AddPhotoAlternateOutlined from '@mui/icons-material/AddPhotoAlternateOutlined'
+
+// TikTok SVG icon (not available in MUI)
+const TikTokIcon = ({ className, style }: { className?: string; style?: React.CSSProperties }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className={className} style={style} width="1em" height="1em">
+    <path d="M16.6 5.82s.51.5 0 0A4.278 4.278 0 0 1 15.54 3h-3.09v12.4a2.592 2.592 0 0 1-2.59 2.5c-1.42 0-2.6-1.16-2.6-2.6 0-1.72 1.66-3.01 3.37-2.48V9.66c-3.45-.46-6.47 2.22-6.47 5.64 0 3.33 2.76 5.7 5.69 5.7 3.14 0 5.69-2.55 5.69-5.7V9.01a7.35 7.35 0 0 0 4.3 1.38V7.3s-1.88.09-3.24-1.48z" />
+  </svg>
+)
 
 // Predefined options
 const SKILL_OPTIONS = [
@@ -64,40 +71,11 @@ const SOCIAL_PLATFORMS = [
   { value: 'youtube', label: 'YouTube', icon: YouTube },
   { value: 'github', label: 'GitHub', icon: GitHub },
   { value: 'facebook', label: 'Facebook', icon: Facebook },
-  { value: 'tiktok', label: 'TikTok', icon: Public },
+  { value: 'tiktok', label: 'TikTok', icon: TikTokIcon },
   { value: 'other', label: 'Website', icon: Public },
 ]
 
-// --- Collapsible section ---
-const Section = ({
-  title,
-  defaultOpen = true,
-  children,
-}: {
-  title: string
-  defaultOpen?: boolean
-  children: React.ReactNode
-}) => {
-  const [open, setOpen] = useState(defaultOpen)
-  return (
-    <div className="flex flex-col gap-y-4">
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="flex w-full flex-row items-center justify-between"
-      >
-        <span className="text-sm font-semibold text-gray-900">{title}</span>
-        <ExpandMoreOutlined
-          style={{ fontSize: 18 }}
-          className={twMerge('text-gray-400 transition-transform', open && 'rotate-180')}
-        />
-      </button>
-      {open && children}
-    </div>
-  )
-}
-
-// --- Tag input ---
+// --- Tag input with full scrollable dropdown ---
 const TagInput = ({
   value,
   onChange,
@@ -147,14 +125,10 @@ const TagInput = ({
           placeholder={placeholder}
           className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-gray-300 focus:outline-none"
         />
-        <ExpandMoreOutlined
-          className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-gray-400"
-          style={{ fontSize: 18 }}
-        />
       </div>
       {showDropdown && filtered.length > 0 && (
-        <div className="absolute z-10 mt-1 max-h-44 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg">
-          {filtered.slice(0, 12).map((option) => (
+        <div className="absolute z-10 mt-1 max-h-52 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg">
+          {filtered.map((option) => (
             <button
               key={option}
               type="button"
@@ -172,13 +146,15 @@ const TagInput = ({
 }
 
 // --- Social Link Row ---
+type SocialLink = schemas['OrganizationSocialLink']
+
 const SocialLinkRow = ({
   social,
   onUpdate,
   onRemove,
 }: {
-  social: schemas['OrganizationSocialLink']
-  onUpdate: (social: schemas['OrganizationSocialLink']) => void
+  social: SocialLink
+  onUpdate: (social: SocialLink) => void
   onRemove: () => void
 }) => {
   const currentPlatform = SOCIAL_PLATFORMS.find((p) => p.value === social.platform)
@@ -188,7 +164,7 @@ const SocialLinkRow = ({
     <div className="flex flex-row items-center gap-2">
       <Select
         value={social.platform}
-        onValueChange={(v) => onUpdate({ ...social, platform: v as schemas['OrganizationSocialLink']['platform'] })}
+        onValueChange={(v) => onUpdate({ ...social, platform: v as SocialLink['platform'] })}
       >
         <SelectTrigger className="h-10 w-[120px] shrink-0">
           <div className="flex items-center gap-x-2">
@@ -258,7 +234,6 @@ export const StorefrontEditorForm = ({
   }, [spaceUrl])
 
   // Socials — read from organization, write to form
-  type SocialLink = schemas['OrganizationSocialLink']
   const socials: SocialLink[] = (watch('socials') ?? organization.socials ?? []) as SocialLink[]
   const addSocial = () => {
     setValue('socials', [...socials, { platform: 'instagram', url: '' } as SocialLink], { shouldDirty: true })
@@ -357,6 +332,19 @@ export const StorefrontEditorForm = ({
     initialFiles: [],
   })
 
+  // Products — for featured selection
+  const allProducts = useProducts(organization.id, { is_archived: false }).data?.items ?? []
+  const featuredIds: string[] = settings?.featured_product_ids ?? []
+
+  const toggleProduct = (productId: string) => {
+    const current = featuredIds
+    if (current.includes(productId)) {
+      updateSetting('featured_product_ids', current.filter((id) => id !== productId))
+    } else {
+      updateSetting('featured_product_ids', [...current, productId])
+    }
+  }
+
   const isEnabled = settings?.enabled ?? false
 
   return (
@@ -406,7 +394,8 @@ export const StorefrontEditorForm = ({
       </div>
 
       {/* Profile Information */}
-      <Section title="Profile Information">
+      <div className="flex flex-col gap-y-2">
+        <h3 className="text-sm font-semibold text-gray-900">Profile Information</h3>
         <div className="flex flex-col gap-y-5">
           {/* Display Name + Profile Title */}
           <div className="grid grid-cols-2 gap-4">
@@ -414,9 +403,10 @@ export const StorefrontEditorForm = ({
               <label className="text-sm font-medium text-gray-700">Display Name</label>
               <input
                 type="text"
-                value={organization.name}
-                disabled
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-500"
+                value={watch('name') ?? organization.name}
+                onChange={(e) => setValue('name', e.target.value, { shouldDirty: true })}
+                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-gray-300 focus:outline-none"
+                placeholder="Your display name"
               />
             </div>
             <div className="flex flex-col gap-y-1.5">
@@ -447,7 +437,7 @@ export const StorefrontEditorForm = ({
                 {...getAvatarRootProps()}
                 className={twMerge(
                   'flex h-[120px] cursor-pointer flex-col items-center justify-center gap-y-2 rounded-xl border-2 border-dashed border-gray-300 bg-white transition-colors hover:border-gray-400',
-                  isAvatarDragActive && 'border-blue-500 bg-blue-50',
+                  isAvatarDragActive && 'border-purple-500 bg-purple-50',
                 )}
               >
                 <input {...getAvatarInputProps()} />
@@ -462,7 +452,7 @@ export const StorefrontEditorForm = ({
                     <AddPhotoAlternateOutlined className="text-gray-400" />
                     <span className="text-center text-xs text-gray-500">
                       Drop your photo here,{' '}
-                      <span className="text-blue-500">or click to browse</span>
+                      <span className="text-purple-500">or click to browse</span>
                     </span>
                   </>
                 )}
@@ -475,7 +465,7 @@ export const StorefrontEditorForm = ({
                 {...getBannerRootProps()}
                 className={twMerge(
                   'flex h-[120px] cursor-pointer flex-col items-center justify-center gap-y-2 rounded-xl border-2 border-dashed border-gray-300 bg-white transition-colors hover:border-gray-400',
-                  isBannerDragActive && 'border-blue-500 bg-blue-50',
+                  isBannerDragActive && 'border-purple-500 bg-purple-50',
                 )}
               >
                 <input {...getBannerInputProps()} />
@@ -539,12 +529,13 @@ export const StorefrontEditorForm = ({
             />
           </div>
         </div>
-      </Section>
+      </div>
 
-      {/* Social Links */}
-      <Section title="Social Links" defaultOpen={false}>
+      {/* Social Links — always visible, not collapsible */}
+      <div className="flex flex-col gap-y-2">
+        <h3 className="text-sm font-semibold text-gray-900">Social Links</h3>
         <div className="flex flex-col gap-y-3">
-          {socials.map((social: schemas['OrganizationSocialLink'], idx: number) => (
+          {socials.map((social: SocialLink, idx: number) => (
             <SocialLinkRow
               key={idx}
               social={social}
@@ -561,10 +552,54 @@ export const StorefrontEditorForm = ({
             Add social link
           </button>
         </div>
-      </Section>
+      </div>
 
-      {/* Display Settings */}
-      <Section title="Display Settings" defaultOpen={false}>
+      {/* Products to Display */}
+      <div className="flex flex-col gap-y-2">
+        <h3 className="text-sm font-semibold text-gray-900">Products to Display</h3>
+        <p className="text-xs text-gray-500">Select which products appear on your storefront. Leave all unchecked to show everything.</p>
+        {allProducts.length > 0 ? (
+          <div className="flex flex-col divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200">
+            {allProducts.map((product) => (
+              <label
+                key={product.id}
+                className="flex cursor-pointer items-center gap-x-3 px-4 py-3 transition-colors hover:bg-gray-50"
+              >
+                <input
+                  type="checkbox"
+                  checked={featuredIds.length === 0 || featuredIds.includes(product.id)}
+                  onChange={() => toggleProduct(product.id)}
+                  className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                />
+                <div className="flex min-w-0 flex-1 items-center gap-x-3">
+                  {product.medias?.[0] && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={product.medias[0].public_url}
+                      alt=""
+                      className="h-10 w-10 shrink-0 rounded-lg object-cover"
+                    />
+                  )}
+                  <div className="min-w-0">
+                    <span className="block truncate text-sm font-medium text-gray-900">{product.name}</span>
+                    {product.prices?.[0] && 'price_amount' in product.prices[0] && (
+                      <span className="text-xs text-gray-500">
+                        ${((product.prices[0] as { price_amount: number }).price_amount / 100).toFixed(2)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </label>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-gray-400">No products yet. Create a product to get started.</p>
+        )}
+      </div>
+
+      {/* Display Settings — always visible, not collapsible */}
+      <div className="flex flex-col gap-y-2">
+        <h3 className="text-sm font-semibold text-gray-900">Display Settings</h3>
         <div className="flex flex-col divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200">
           {[
             { key: 'show_header' as const, label: 'Show cover image', def: true },
@@ -604,7 +639,7 @@ export const StorefrontEditorForm = ({
             </Select>
           </div>
         </div>
-      </Section>
+      </div>
     </div>
   )
 }

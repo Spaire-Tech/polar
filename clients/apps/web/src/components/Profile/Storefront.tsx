@@ -35,8 +35,21 @@ export const Storefront = ({
       ? ((organization.storefront_settings?.thumbnail_size as 'small' | 'medium' | 'large') ?? 'medium')
       : 'medium'
 
+  // Filter by featured product IDs if set
+  const featuredIds =
+    'storefront_settings' in organization
+      ? (organization.storefront_settings?.featured_product_ids ?? [])
+      : []
+
+  const displayProducts = useMemo(() => {
+    if (featuredIds.length > 0) {
+      return products.filter((p) => featuredIds.includes(p.id))
+    }
+    return products
+  }, [products, featuredIds])
+
   const sortedProducts = useMemo(() => {
-    const sorted = [...products]
+    const sorted = [...displayProducts]
     switch (sort) {
       case 'last_added':
         return sorted
@@ -55,7 +68,7 @@ export const Storefront = ({
       default:
         return sorted
     }
-  }, [products, sort])
+  }, [displayProducts, sort])
 
   if (products.length === 0) {
     return (

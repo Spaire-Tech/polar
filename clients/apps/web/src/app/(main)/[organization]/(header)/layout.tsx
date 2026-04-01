@@ -26,7 +26,7 @@ export default async function Layout(props: {
 
   return (
     <div className="min-h-screen bg-white">
-      <PublicLayout className="gap-y-0 py-6 md:py-12" wide>
+      <PublicLayout className="gap-y-0 py-6 md:py-12" wide footer={false}>
         {/* Topbar — user menu only, no logo */}
         <div className="flex flex-row items-center justify-end">
           <TopbarRight

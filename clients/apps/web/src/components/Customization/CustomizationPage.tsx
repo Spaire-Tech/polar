@@ -107,7 +107,7 @@ const Customization = ({
           </div>
 
           {/* Right — form sections (wider, matching checkout link style) */}
-          <div className="w-[580px] shrink-0 overflow-y-auto border-l border-gray-200 bg-white shadow-sm">
+          <div className="w-[700px] shrink-0 overflow-y-auto border-l border-gray-200 bg-white shadow-sm">
             <StorefrontEditorForm organization={organization} />
           </div>
         </div>
