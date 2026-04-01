@@ -12,6 +12,7 @@ import { Form } from '@spaire/ui/components/ui/form'
 import { useRouter } from 'next/navigation'
 import { useCallback, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { ForceLightMode } from '@/components/Profile/ForceLightMode'
 import { StorefrontEditorForm } from './Storefront/StorefrontSidebar'
 import { StorefrontLivePreview } from './Storefront/StorefrontPreview'
 
@@ -99,6 +100,7 @@ const Customization = ({
 
   return (
     <Form {...form}>
+      <ForceLightMode />
       <div className="flex h-full flex-col bg-gray-50">
         {/* Top bar */}
         <div className="flex flex-row items-center justify-between border-b border-gray-200 bg-white px-8 py-4">
