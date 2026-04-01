@@ -205,7 +205,7 @@ export const ProfileCard = ({ organization, products = [] }: ProfileCardProps) =
           />
           <button
             type="button"
-            className="shrink-0 rounded-xl bg-purple-600 px-5 py-2.5 text-[13px] font-medium text-white transition-colors hover:bg-purple-700"
+            className="shrink-0 rounded-xl bg-blue-500 px-5 py-2.5 text-[13px] font-medium text-white transition-opacity hover:opacity-85"
           >
             Subscribe
           </button>

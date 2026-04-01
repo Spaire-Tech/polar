@@ -337,11 +337,25 @@ export const StorefrontEditorForm = ({
   const featuredIds: string[] = settings?.featured_product_ids ?? []
 
   const toggleProduct = (productId: string) => {
-    const current = featuredIds
-    if (current.includes(productId)) {
-      updateSetting('featured_product_ids', current.filter((id) => id !== productId))
+    if (featuredIds.length === 0) {
+      // Currently showing all — user wants to hide this one product
+      // Set featured to all product IDs except the unchecked one
+      updateSetting(
+        'featured_product_ids',
+        allProducts.map((p) => p.id).filter((id) => id !== productId),
+      )
+    } else if (featuredIds.includes(productId)) {
+      const remaining = featuredIds.filter((id) => id !== productId)
+      // If removing the last one, clear the list (show all)
+      updateSetting('featured_product_ids', remaining.length === 0 ? [] : remaining)
     } else {
-      updateSetting('featured_product_ids', [...current, productId])
+      // Check if adding this would select all — if so, clear the list
+      const updated = [...featuredIds, productId]
+      if (updated.length === allProducts.length) {
+        updateSetting('featured_product_ids', [])
+      } else {
+        updateSetting('featured_product_ids', updated)
+      }
     }
   }
 
@@ -437,7 +451,7 @@ export const StorefrontEditorForm = ({
                 {...getAvatarRootProps()}
                 className={twMerge(
                   'flex h-[120px] cursor-pointer flex-col items-center justify-center gap-y-2 rounded-xl border-2 border-dashed border-gray-300 bg-white transition-colors hover:border-gray-400',
-                  isAvatarDragActive && 'border-purple-500 bg-purple-50',
+                  isAvatarDragActive && 'border-blue-500 bg-blue-50',
                 )}
               >
                 <input {...getAvatarInputProps()} />
@@ -452,7 +466,7 @@ export const StorefrontEditorForm = ({
                     <AddPhotoAlternateOutlined className="text-gray-400" />
                     <span className="text-center text-xs text-gray-500">
                       Drop your photo here,{' '}
-                      <span className="text-purple-500">or click to browse</span>
+                      <span className="text-blue-500">or click to browse</span>
                     </span>
                   </>
                 )}
@@ -465,7 +479,7 @@ export const StorefrontEditorForm = ({
                 {...getBannerRootProps()}
                 className={twMerge(
                   'flex h-[120px] cursor-pointer flex-col items-center justify-center gap-y-2 rounded-xl border-2 border-dashed border-gray-300 bg-white transition-colors hover:border-gray-400',
-                  isBannerDragActive && 'border-purple-500 bg-purple-50',
+                  isBannerDragActive && 'border-blue-500 bg-blue-50',
                 )}
               >
                 <input {...getBannerInputProps()} />
@@ -569,7 +583,7 @@ export const StorefrontEditorForm = ({
                   type="checkbox"
                   checked={featuredIds.length === 0 || featuredIds.includes(product.id)}
                   onChange={() => toggleProduct(product.id)}
-                  className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                  className="h-4 w-4 rounded border-gray-300 text-blue-600 accent-blue-600 focus:ring-blue-500"
                 />
                 <div className="flex min-w-0 flex-1 items-center gap-x-3">
                   {product.medias?.[0] && (

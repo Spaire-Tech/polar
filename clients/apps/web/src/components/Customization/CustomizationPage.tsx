@@ -69,28 +69,28 @@ const Customization = ({
   )
 
   return (
-    <div className="flex h-full flex-col bg-gray-50">
-      {/* Top bar */}
-      <div className="flex flex-row items-center justify-between border-b border-gray-200 bg-white px-8 py-4">
-        <button
-          type="button"
-          onClick={() => router.push(`/dashboard/${organization.slug}`)}
-          className="text-[14px] text-gray-500 transition-colors hover:text-gray-700"
-        >
-          &larr; Back to dashboard
-        </button>
-        <Button
-          className="rounded-full px-6"
-          onClick={form.handleSubmit(onPublish)}
-          loading={updateOrganization.isPending}
-          disabled={!form.formState.isDirty || updateOrganization.isPending}
-        >
-          Publish Changes
-        </Button>
-      </div>
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onPublish)} className="flex h-full flex-col bg-gray-50">
+        {/* Top bar */}
+        <div className="flex flex-row items-center justify-between border-b border-gray-200 bg-white px-8 py-4">
+          <button
+            type="button"
+            onClick={() => router.push(`/dashboard/${organization.slug}`)}
+            className="text-[14px] text-gray-500 transition-colors hover:text-gray-700"
+          >
+            &larr; Back to dashboard
+          </button>
+          <Button
+            className="rounded-full px-6"
+            type="submit"
+            loading={updateOrganization.isPending}
+            disabled={!form.formState.isDirty || updateOrganization.isPending}
+          >
+            Publish Changes
+          </Button>
+        </div>
 
-      {/* Two-column: preview left, form right */}
-      <Form {...form}>
+        {/* Two-column: preview left, form right */}
         <div className="flex min-h-0 grow flex-row overflow-hidden">
           {/* Left — heading + live card preview */}
           <div className="flex flex-1 flex-col overflow-y-auto p-10">
@@ -111,7 +111,7 @@ const Customization = ({
             <StorefrontEditorForm organization={organization} />
           </div>
         </div>
-      </Form>
-    </div>
+      </form>
+    </Form>
   )
 }
