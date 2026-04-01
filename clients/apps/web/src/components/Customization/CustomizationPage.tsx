@@ -95,7 +95,7 @@ const Customization = ({
           {/* Left — heading + live card preview */}
           <div className="flex flex-1 flex-col overflow-y-auto p-10">
             <h1 className="text-[28px] font-bold text-gray-950">
-              Let&apos;s create your card
+              Let&apos;s Create your Space Card
             </h1>
             <p className="mt-1 text-[15px] text-gray-500">
               Introduce yourself and design your personal Space ID card.
@@ -106,8 +106,8 @@ const Customization = ({
             </div>
           </div>
 
-          {/* Right — form sections */}
-          <div className="w-[520px] shrink-0 overflow-y-auto border-l border-gray-200 bg-white">
+          {/* Right — form sections (wider, matching checkout link style) */}
+          <div className="w-[580px] shrink-0 overflow-y-auto border-l border-gray-200 bg-white shadow-sm">
             <StorefrontEditorForm organization={organization} />
           </div>
         </div>
