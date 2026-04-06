@@ -4317,6 +4317,146 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/v1/email-subscribers/': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** List Email Subscribers */
+    get: operations['email_subscribers:list']
+    put?: never
+    /** Create Email Subscriber */
+    post: operations['email_subscribers:create']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/email-subscribers/stats': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Get Email Subscriber Stats */
+    get: operations['email_subscribers:stats']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/email-subscribers/{subscriber_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Get Email Subscriber */
+    get: operations['email_subscribers:get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    /** Update Email Subscriber */
+    patch: operations['email_subscribers:update']
+    trace?: never
+  }
+  '/v1/email-broadcasts/': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** List Email Broadcasts */
+    get: operations['email_broadcasts:list']
+    put?: never
+    /** Create Email Broadcast */
+    post: operations['email_broadcasts:create']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/email-broadcasts/{broadcast_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Get Email Broadcast */
+    get: operations['email_broadcasts:get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    /** Update Email Broadcast */
+    patch: operations['email_broadcasts:update']
+    trace?: never
+  }
+  '/v1/email-broadcasts/{broadcast_id}/send': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Send Email Broadcast */
+    post: operations['email_broadcasts:send']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/email-broadcasts/{broadcast_id}/analytics': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Get Email Broadcast Analytics */
+    get: operations['email_broadcasts:analytics']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/storefronts/{slug}/subscribe': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Subscribe to Storefront */
+    post: operations['storefronts:subscribe']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
 }
 export interface webhooks {
   'checkout.created': {
@@ -16899,6 +17039,176 @@ export interface components {
       file: components['schemas']['FileDownload']
     }
     /** EmailUpdateRequest */
+    /** EmailSubscriber */
+    EmailSubscriber: {
+      /** Id */
+      id: string
+      /** @description Organization ID */
+      organization_id: string
+      /** Email */
+      email: string
+      /** Name */
+      name: string | null
+      /**
+       * Status
+       * @enum {string}
+       */
+      status: 'active' | 'unsubscribed' | 'archived' | 'invalid'
+      /**
+       * Source
+       * @enum {string}
+       */
+      source: 'space_signup' | 'purchase' | 'manual' | 'import'
+      /** Import Source */
+      import_source: string | null
+      /** Customer Id */
+      customer_id: string | null
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string
+      /**
+       * Modified At
+       * Format: date-time
+       */
+      modified_at: string | null
+    }
+    /** EmailSubscriberCreate */
+    EmailSubscriberCreate: {
+      /** Email */
+      email: string
+      /** Name */
+      name?: string | null
+    }
+    /** EmailSubscriberUpdate */
+    EmailSubscriberUpdate: {
+      /** Name */
+      name?: string | null
+      /** Status */
+      status?: string | null
+    }
+    /** EmailSubscriberStats */
+    EmailSubscriberStats: {
+      /** Total */
+      total: number
+      /** Active */
+      active: number
+      /** Unsubscribed */
+      unsubscribed: number
+      /** Invalid */
+      invalid: number
+    }
+    /** ListResource[EmailSubscriber] */
+    ListResource_EmailSubscriber_: {
+      /** Items */
+      items: components['schemas']['EmailSubscriber'][]
+      pagination: components['schemas']['Pagination']
+    }
+    /** EmailBroadcast */
+    EmailBroadcast: {
+      /** Id */
+      id: string
+      /** @description Organization ID */
+      organization_id: string
+      /** Subject */
+      subject: string
+      /** Sender Name */
+      sender_name: string
+      /** Sender Email */
+      sender_email: string
+      /** Reply To Email */
+      reply_to_email: string | null
+      /** Content Json */
+      content_json: Record<string, unknown> | null
+      /** Content Html */
+      content_html: string | null
+      /** Segment Id */
+      segment_id: string | null
+      /**
+       * Status
+       * @enum {string}
+       */
+      status: 'draft' | 'pending_approval' | 'sending' | 'sent' | 'failed' | 'scheduled'
+      /**
+       * Scheduled At
+       * Format: date-time
+       */
+      scheduled_at: string | null
+      /**
+       * Sent At
+       * Format: date-time
+       */
+      sent_at: string | null
+      /** Total Recipients */
+      total_recipients: number
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string
+      /**
+       * Modified At
+       * Format: date-time
+       */
+      modified_at: string | null
+    }
+    /** EmailBroadcastCreate */
+    EmailBroadcastCreate: {
+      /** Subject */
+      subject: string
+      /** Sender Name */
+      sender_name: string
+      /** Reply To Email */
+      reply_to_email?: string | null
+      /** Content Html */
+      content_html?: string | null
+      /** Content Json */
+      content_json?: Record<string, unknown> | null
+    }
+    /** EmailBroadcastUpdate */
+    EmailBroadcastUpdate: {
+      /** Subject */
+      subject?: string | null
+      /** Sender Name */
+      sender_name?: string | null
+      /** Reply To Email */
+      reply_to_email?: string | null
+      /** Content Html */
+      content_html?: string | null
+      /** Content Json */
+      content_json?: Record<string, unknown> | null
+    }
+    /** EmailBroadcastAnalytics */
+    EmailBroadcastAnalytics: {
+      /** Total Recipients */
+      total_recipients: number
+      /** Delivered */
+      delivered: number
+      /** Opened */
+      opened: number
+      /** Clicked */
+      clicked: number
+      /** Bounced */
+      bounced: number
+      /** Open Rate */
+      open_rate: number
+      /** Click Rate */
+      click_rate: number
+    }
+    /** ListResource[EmailBroadcast] */
+    ListResource_EmailBroadcast_: {
+      /** Items */
+      items: components['schemas']['EmailBroadcast'][]
+      pagination: components['schemas']['Pagination']
+    }
+    /** StorefrontSubscribe */
+    StorefrontSubscribe: {
+      /** Email */
+      email: string
+      /** Name */
+      name?: string | null
+    }
     EmailUpdateRequest: {
       /**
        * Email
@@ -39893,6 +40203,331 @@ export interface operations {
         headers: {
           [name: string]: unknown
         }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  'email_subscribers:list': {
+    parameters: {
+      query?: {
+        organization_id?: string | string[] | null
+        status?: string | null
+        page?: number
+        limit?: number
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      200: {
+        headers: { [name: string]: unknown }
+        content: {
+          'application/json': components['schemas']['ListResource_EmailSubscriber_']
+        }
+      }
+      422: {
+        headers: { [name: string]: unknown }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  'email_subscribers:stats': {
+    parameters: {
+      query?: {
+        organization_id?: string | null
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      200: {
+        headers: { [name: string]: unknown }
+        content: {
+          'application/json': components['schemas']['EmailSubscriberStats']
+        }
+      }
+      422: {
+        headers: { [name: string]: unknown }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  'email_subscribers:get': {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        subscriber_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      200: {
+        headers: { [name: string]: unknown }
+        content: {
+          'application/json': components['schemas']['EmailSubscriber']
+        }
+      }
+      422: {
+        headers: { [name: string]: unknown }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  'email_subscribers:create': {
+    parameters: {
+      query?: {
+        organization_id?: string | null
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['EmailSubscriberCreate']
+      }
+    }
+    responses: {
+      201: {
+        headers: { [name: string]: unknown }
+        content: {
+          'application/json': components['schemas']['EmailSubscriber']
+        }
+      }
+      422: {
+        headers: { [name: string]: unknown }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  'email_subscribers:update': {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        subscriber_id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['EmailSubscriberUpdate']
+      }
+    }
+    responses: {
+      200: {
+        headers: { [name: string]: unknown }
+        content: {
+          'application/json': components['schemas']['EmailSubscriber']
+        }
+      }
+      422: {
+        headers: { [name: string]: unknown }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  'email_broadcasts:list': {
+    parameters: {
+      query?: {
+        organization_id?: string | string[] | null
+        page?: number
+        limit?: number
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      200: {
+        headers: { [name: string]: unknown }
+        content: {
+          'application/json': components['schemas']['ListResource_EmailBroadcast_']
+        }
+      }
+      422: {
+        headers: { [name: string]: unknown }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  'email_broadcasts:get': {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        broadcast_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      200: {
+        headers: { [name: string]: unknown }
+        content: {
+          'application/json': components['schemas']['EmailBroadcast']
+        }
+      }
+      422: {
+        headers: { [name: string]: unknown }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  'email_broadcasts:create': {
+    parameters: {
+      query?: {
+        organization_id?: string | null
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['EmailBroadcastCreate']
+      }
+    }
+    responses: {
+      201: {
+        headers: { [name: string]: unknown }
+        content: {
+          'application/json': components['schemas']['EmailBroadcast']
+        }
+      }
+      422: {
+        headers: { [name: string]: unknown }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  'email_broadcasts:update': {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        broadcast_id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['EmailBroadcastUpdate']
+      }
+    }
+    responses: {
+      200: {
+        headers: { [name: string]: unknown }
+        content: {
+          'application/json': components['schemas']['EmailBroadcast']
+        }
+      }
+      422: {
+        headers: { [name: string]: unknown }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  'email_broadcasts:send': {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        broadcast_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      200: {
+        headers: { [name: string]: unknown }
+        content: {
+          'application/json': components['schemas']['EmailBroadcast']
+        }
+      }
+      422: {
+        headers: { [name: string]: unknown }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  'email_broadcasts:analytics': {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        broadcast_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      200: {
+        headers: { [name: string]: unknown }
+        content: {
+          'application/json': components['schemas']['EmailBroadcastAnalytics']
+        }
+      }
+      422: {
+        headers: { [name: string]: unknown }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  'storefronts:subscribe': {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        slug: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['StorefrontSubscribe']
+      }
+    }
+    responses: {
+      200: {
+        headers: { [name: string]: unknown }
+        content: {
+          'application/json': components['schemas']['EmailSubscriber']
+        }
+      }
+      422: {
+        headers: { [name: string]: unknown }
         content: {
           'application/json': components['schemas']['HTTPValidationError']
         }
