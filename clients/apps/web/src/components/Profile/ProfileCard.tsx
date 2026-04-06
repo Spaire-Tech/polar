@@ -13,6 +13,7 @@ import YouTube from '@mui/icons-material/YouTube'
 import TranslateOutlined from '@mui/icons-material/TranslateOutlined'
 import Link from 'next/link'
 import { useState } from 'react'
+import LogoType from '../Brand/LogoType'
 
 // TikTok SVG icon (not available in MUI)
 const TikTokIcon = ({ className }: { className?: string }) => (
@@ -172,8 +173,14 @@ export const ProfileCard = ({ organization, products = [] }: ProfileCardProps) =
               </span>
             ))}
             {skills.length > MAX_VISIBLE_SKILLS && (
-              <span className="rounded-full border border-gray-200 px-3 py-1 text-[12px] text-gray-400">
+              <span
+                className="group relative rounded-full border border-gray-200 px-3 py-1 text-[12px] text-gray-400"
+                title={skills.slice(MAX_VISIBLE_SKILLS).join(', ')}
+              >
                 +{skills.length - MAX_VISIBLE_SKILLS}
+                <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded-lg bg-gray-900 px-3 py-1.5 text-[11px] text-white shadow-lg group-hover:block">
+                  {skills.slice(MAX_VISIBLE_SKILLS).join(', ')}
+                </span>
               </span>
             )}
           </div>
@@ -231,7 +238,7 @@ export const ProfileCard = ({ organization, products = [] }: ProfileCardProps) =
         {/* Powered by Spaire */}
         <div className="mt-6 flex flex-row items-center justify-center gap-x-1.5 border-t border-gray-100 pt-4">
           <span className="text-[11px] text-gray-400">Powered by</span>
-          <span className="text-[11px] font-semibold text-gray-500">Spaire</span>
+          <LogoType className="h-4" />
         </div>
       </div>
     </div>

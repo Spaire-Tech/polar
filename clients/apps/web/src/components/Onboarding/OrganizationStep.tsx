@@ -83,11 +83,62 @@ const CURRENCIES: { code: PresentmentCurrency; flag: string }[] = [
   { code: 'zar', flag: '🇿🇦' },
 ]
 
+const COUNTRIES = [
+  { code: 'US', name: 'United States', flag: '🇺🇸' },
+  { code: 'GB', name: 'United Kingdom', flag: '🇬🇧' },
+  { code: 'CA', name: 'Canada', flag: '🇨🇦' },
+  { code: 'AU', name: 'Australia', flag: '🇦🇺' },
+  { code: 'DE', name: 'Germany', flag: '🇩🇪' },
+  { code: 'FR', name: 'France', flag: '🇫🇷' },
+  { code: 'NL', name: 'Netherlands', flag: '🇳🇱' },
+  { code: 'SE', name: 'Sweden', flag: '🇸🇪' },
+  { code: 'NO', name: 'Norway', flag: '🇳🇴' },
+  { code: 'DK', name: 'Denmark', flag: '🇩🇰' },
+  { code: 'FI', name: 'Finland', flag: '🇫🇮' },
+  { code: 'CH', name: 'Switzerland', flag: '🇨🇭' },
+  { code: 'AT', name: 'Austria', flag: '🇦🇹' },
+  { code: 'BE', name: 'Belgium', flag: '🇧🇪' },
+  { code: 'IE', name: 'Ireland', flag: '🇮🇪' },
+  { code: 'IT', name: 'Italy', flag: '🇮🇹' },
+  { code: 'ES', name: 'Spain', flag: '🇪🇸' },
+  { code: 'PT', name: 'Portugal', flag: '🇵🇹' },
+  { code: 'PL', name: 'Poland', flag: '🇵🇱' },
+  { code: 'CZ', name: 'Czech Republic', flag: '🇨🇿' },
+  { code: 'RO', name: 'Romania', flag: '🇷🇴' },
+  { code: 'HU', name: 'Hungary', flag: '🇭🇺' },
+  { code: 'JP', name: 'Japan', flag: '🇯🇵' },
+  { code: 'KR', name: 'South Korea', flag: '🇰🇷' },
+  { code: 'SG', name: 'Singapore', flag: '🇸🇬' },
+  { code: 'HK', name: 'Hong Kong', flag: '🇭🇰' },
+  { code: 'TW', name: 'Taiwan', flag: '🇹🇼' },
+  { code: 'IN', name: 'India', flag: '🇮🇳' },
+  { code: 'IL', name: 'Israel', flag: '🇮🇱' },
+  { code: 'AE', name: 'United Arab Emirates', flag: '🇦🇪' },
+  { code: 'SA', name: 'Saudi Arabia', flag: '🇸🇦' },
+  { code: 'BR', name: 'Brazil', flag: '🇧🇷' },
+  { code: 'MX', name: 'Mexico', flag: '🇲🇽' },
+  { code: 'AR', name: 'Argentina', flag: '🇦🇷' },
+  { code: 'CL', name: 'Chile', flag: '🇨🇱' },
+  { code: 'CO', name: 'Colombia', flag: '🇨🇴' },
+  { code: 'PE', name: 'Peru', flag: '🇵🇪' },
+  { code: 'ZA', name: 'South Africa', flag: '🇿🇦' },
+  { code: 'NG', name: 'Nigeria', flag: '🇳🇬' },
+  { code: 'KE', name: 'Kenya', flag: '🇰🇪' },
+  { code: 'EG', name: 'Egypt', flag: '🇪🇬' },
+  { code: 'MY', name: 'Malaysia', flag: '🇲🇾' },
+  { code: 'TH', name: 'Thailand', flag: '🇹🇭' },
+  { code: 'PH', name: 'Philippines', flag: '🇵🇭' },
+  { code: 'ID', name: 'Indonesia', flag: '🇮🇩' },
+  { code: 'NZ', name: 'New Zealand', flag: '🇳🇿' },
+  { code: 'TR', name: 'Turkey', flag: '🇹🇷' },
+  { code: 'CN', name: 'China', flag: '🇨🇳' },
+]
+
 const businessTypes = [
   { id: 'early-stage', label: 'Early-Stage Startup', description: 'Pre-seed to seed, finding product-market fit' },
   { id: 'venture-backed', label: 'Venture-Backed', description: 'Series A+ with an established product' },
   { id: 'bootstrapped', label: 'Bootstrapped / Profitable', description: 'Self-funded and growing organically' },
-  { id: 'indie', label: 'Indie Hacker / Solo Creator', description: 'Building and shipping independently' },
+  { id: 'indie', label: 'Digital Creator', description: 'Building and shipping independently' },
 ] as const
 
 const audienceTypes = [
@@ -161,6 +212,7 @@ export const OrganizationStep = ({
   const [audienceType, setAudienceType] = useState<string | null>(null)
   const [referralSource, setReferralSource] = useState<string | null>(null)
   const [currency, setCurrency] = useState<PresentmentCurrency>('usd')
+  const [accountType, setAccountType] = useState<'individual' | 'business'>('individual')
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string>('')
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -441,6 +493,41 @@ export const OrganizationStep = ({
               </FadeUp>
             )}
 
+            {/* Using Spaire as — Individual / Business toggle */}
+            {!hasExistingOrg && (
+              <FadeUp className="flex flex-col gap-y-4">
+                <div className="flex flex-col gap-y-1">
+                  <Label className="text-sm font-medium">Using Spaire as</Label>
+                  <p className="dark:text-spaire-500 text-xs text-gray-400">
+                    Choose how you&apos;ll be using the platform.
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  {([
+                    { id: 'individual' as const, label: 'Individual', description: 'Sell as a solo creator or freelancer' },
+                    { id: 'business' as const, label: 'Business', description: 'Sell as a registered company or team' },
+                  ]).map((type) => (
+                    <button
+                      key={type.id}
+                      type="button"
+                      onClick={() => setAccountType(type.id)}
+                      className={twMerge(
+                        'dark:bg-spaire-900 dark:border-spaire-700 flex cursor-pointer flex-col gap-y-1.5 rounded-2xl border border-gray-200 bg-white p-5 text-left transition-all',
+                        accountType === type.id
+                          ? 'border-blue-500 ring-1 ring-blue-500 dark:border-blue-500'
+                          : 'hover:border-gray-300 dark:hover:border-spaire-600',
+                      )}
+                    >
+                      <span className="text-sm font-medium">{type.label}</span>
+                      <span className="dark:text-spaire-500 text-xs leading-relaxed text-gray-400">
+                        {type.description}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </FadeUp>
+            )}
+
             {/* Organization Form */}
             <Form {...form}>
               <form
@@ -518,8 +605,10 @@ export const OrganizationStep = ({
                       render={({ field }) => (
                         <FormItem className="w-full">
                           <FormControl className="flex w-full flex-col gap-y-2">
-                            <Label htmlFor="name">Organization Name</Label>
-                            <Input {...field} placeholder="Acme Inc." />
+                            <Label htmlFor="name">
+                              {accountType === 'business' ? 'Organization Name' : 'Name'}
+                            </Label>
+                            <Input {...field} placeholder={accountType === 'business' ? 'Acme Inc.' : 'Jane Doe'} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -535,12 +624,14 @@ export const OrganizationStep = ({
                       render={({ field }) => (
                         <FormItem className="w-full">
                           <FormControl className="flex w-full flex-col gap-y-2">
-                            <Label htmlFor="slug">URL Handle</Label>
+                            <Label htmlFor="slug">
+                              {accountType === 'business' ? 'Organization Slug' : 'Slug'}
+                            </Label>
                             <Input
                               type="text"
                               {...field}
                               size={slug?.length || 1}
-                              placeholder="acme-inc"
+                              placeholder={accountType === 'business' ? 'acme-inc' : 'jane-doe'}
                               onFocus={() => setEditedSlug(true)}
                             />
                           </FormControl>
@@ -548,6 +639,31 @@ export const OrganizationStep = ({
                         </FormItem>
                       )}
                     />
+
+                    {/* Business-only fields */}
+                    {accountType === 'business' && (
+                      <>
+                        <div className="flex flex-col gap-y-2">
+                          <Label>Registered Business Name</Label>
+                          <Input placeholder="Acme Corporation Ltd." />
+                        </div>
+                        <div className="flex flex-col gap-y-2">
+                          <Label>Business Country</Label>
+                          <Select>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a country" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {COUNTRIES.map((c) => (
+                                <SelectItem key={c.code} value={c.code}>
+                                  {c.flag} {c.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </FadeUp>
 

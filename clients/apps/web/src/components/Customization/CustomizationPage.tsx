@@ -15,6 +15,7 @@ import { useForm } from 'react-hook-form'
 import { ForceLightMode } from '@/components/Profile/ForceLightMode'
 import { StorefrontEditorForm } from './Storefront/StorefrontSidebar'
 import { StorefrontLivePreview } from './Storefront/StorefrontPreview'
+import { ProfileCard } from '@/components/Profile/ProfileCard'
 
 export const CustomizationPage = ({
   organization,
@@ -36,6 +37,8 @@ const Customization = ({
   const router = useRouter()
   const updateOrganization = useUpdateOrganization()
   const [publishing, setPublishing] = useState(false)
+  const isSpaceEnabled = organization.storefront_settings?.enabled ?? false
+  const [isEditing, setIsEditing] = useState(!isSpaceEnabled)
 
   const form = useForm<schemas['OrganizationUpdate']>({
     defaultValues: {
@@ -92,6 +95,11 @@ const Customization = ({
         socials: org.socials,
         storefront_settings: org.storefront_settings,
       })
+
+      // After publishing, switch to preview mode if space is enabled
+      if (org.storefront_settings?.enabled) {
+        setIsEditing(false)
+      }
     } catch (err) {
       toast({
         title: 'Publish Failed',
@@ -102,6 +110,52 @@ const Customization = ({
     }
   }, [form, organization, updateOrganization, publishing])
 
+  // Published preview mode — card centered with Edit Space button
+  if (!isEditing && isSpaceEnabled) {
+    return (
+      <>
+        <ForceLightMode />
+        <div className="flex h-full flex-col bg-gray-50">
+          {/* Top bar */}
+          <div className="flex flex-row items-center justify-between border-b border-gray-200 bg-white px-8 py-4">
+            <button
+              type="button"
+              onClick={() => router.push(`/dashboard/${organization.slug}`)}
+              className="text-[14px] text-gray-500 transition-colors hover:text-gray-700"
+            >
+              &larr; Back to dashboard
+            </button>
+            <div className="flex items-center gap-3">
+              <a
+                href={`/${organization.slug}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-full border border-gray-200 px-6 py-2 text-[14px] font-medium text-gray-700 transition-colors hover:bg-gray-50"
+              >
+                Visit Space
+              </a>
+              <Button
+                className="rounded-full px-6"
+                type="button"
+                onClick={() => setIsEditing(true)}
+              >
+                Edit Space
+              </Button>
+            </div>
+          </div>
+
+          {/* Centered card preview */}
+          <div className="flex flex-1 items-center justify-center overflow-y-auto p-10">
+            <div className="w-full max-w-[460px]">
+              <ProfileCard organization={organization} />
+            </div>
+          </div>
+        </div>
+      </>
+    )
+  }
+
+  // Editor mode — two-column layout
   return (
     <Form {...form}>
       <ForceLightMode />
@@ -110,10 +164,16 @@ const Customization = ({
         <div className="flex flex-row items-center justify-between border-b border-gray-200 bg-white px-8 py-4">
           <button
             type="button"
-            onClick={() => router.push(`/dashboard/${organization.slug}`)}
+            onClick={() => {
+              if (isSpaceEnabled) {
+                setIsEditing(false)
+              } else {
+                router.push(`/dashboard/${organization.slug}`)
+              }
+            }}
             className="text-[14px] text-gray-500 transition-colors hover:text-gray-700"
           >
-            &larr; Back to dashboard
+            {isSpaceEnabled ? '\u2190 Back to preview' : '\u2190 Back to dashboard'}
           </button>
           <Button
             className="rounded-full px-6"
@@ -130,7 +190,7 @@ const Customization = ({
           {/* Left — heading + live card preview */}
           <div className="flex flex-1 flex-col overflow-y-auto p-10">
             <h1 className="text-[28px] font-bold text-gray-950">
-              Let&apos;s Create your Space Card
+              {isSpaceEnabled ? 'Edit your Space Card' : 'Let\u2019s Create your Space Card'}
             </h1>
             <p className="mt-1 text-[15px] text-gray-500">
               Introduce yourself and design your personal Space ID card.
