@@ -5,7 +5,6 @@ import structlog
 from fastapi import HTTPException, Request
 
 from polar.config import settings
-from polar.postgres import AsyncSession, get_db_session
 from polar.routing import APIRouter
 from polar.worker import enqueue_job
 

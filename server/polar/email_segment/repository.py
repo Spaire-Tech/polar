@@ -103,7 +103,7 @@ class EmailSegmentRepository(
         else:
             return 0
 
-        result = await self._session.execute(statement)
+        result = await self.session.execute(statement)
         return result.scalar_one()
 
     async def get_subscriber_ids_for_segment(
@@ -161,7 +161,7 @@ class EmailSegmentRepository(
         else:
             return []
 
-        result = await self._session.execute(statement)
+        result = await self.session.execute(statement)
         return list(result.scalars().all())
 
     async def get_manual_segment_subscriber_ids(
@@ -172,7 +172,7 @@ class EmailSegmentRepository(
             EmailSegmentSubscriber.segment_id == segment_id,
             EmailSegmentSubscriber.deleted_at.is_(None),
         )
-        result = await self._session.execute(statement)
+        result = await self.session.execute(statement)
         return list(result.scalars().all())
 
     async def get_segment_subscriber_entry(
@@ -184,5 +184,5 @@ class EmailSegmentRepository(
             EmailSegmentSubscriber.subscriber_id == subscriber_id,
             EmailSegmentSubscriber.deleted_at.is_(None),
         )
-        result = await self._session.execute(statement)
+        result = await self.session.execute(statement)
         return result.scalar_one_or_none()

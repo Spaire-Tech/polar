@@ -13,7 +13,7 @@ from polar.worker import AsyncSessionMaker, TaskPriority, actor
 log = structlog.get_logger()
 
 
-@actor(actor_name="email_broadcast.send_emails", priority=TaskPriority.DEFAULT)
+@actor(actor_name="email_broadcast.send_emails", priority=TaskPriority.MEDIUM)
 async def send_emails(broadcast_id: UUID) -> None:
     """Send all pending emails for a broadcast."""
     async with AsyncSessionMaker() as session:

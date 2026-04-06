@@ -44,7 +44,7 @@ class EmailBroadcastRepository(
             EmailSubscriber.status == EmailSubscriberStatus.active,
             EmailSubscriber.deleted_at.is_(None),
         )
-        result = await self._session.execute(statement)
+        result = await self.session.execute(statement)
         return list(result.scalars().all())
 
     async def get_analytics_counts(
@@ -59,7 +59,7 @@ class EmailBroadcastRepository(
             )
             .group_by(EmailBroadcastSend.status)
         )
-        result = await self._session.execute(statement)
+        result = await self.session.execute(statement)
         return {row[0]: row[1] for row in result.all()}
 
     async def count_unsubscribed_for_broadcast(
@@ -74,5 +74,5 @@ class EmailBroadcastRepository(
                 EmailBroadcastSend.deleted_at.is_(None),
             )
         )
-        result = await self._session.execute(statement)
+        result = await self.session.execute(statement)
         return result.scalar_one()
