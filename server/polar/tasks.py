@@ -15,6 +15,7 @@ from polar.eventstream import tasks as eventstream
 from polar.external_event import tasks as external_event
 from polar.integrations.chargeback_stop import tasks as chargeback_stop
 from polar.integrations.loops import tasks as loops
+from polar.integrations.resend import tasks as resend
 from polar.integrations.stripe import tasks as stripe
 from polar.meter import tasks as meter
 from polar.notifications import tasks as notifications
@@ -55,6 +56,7 @@ __all__ = [
     "payout",
     "personal_access_token",
     "processor_transaction",
+    "resend",
     "stripe",
     "subscription",
     "transaction",

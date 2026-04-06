@@ -1,45 +1,16 @@
 from collections.abc import Sequence
 from uuid import UUID
 
-from sqlalchemy import Select, func, select
-
-from polar.auth.models import AuthSubject, Organization, User, is_organization, is_user
+from polar.auth.models import AuthSubject, Organization, User
 from polar.postgres import AsyncReadSession, AsyncSession
 from polar.kit.pagination import PaginationParams
-from polar.kit.repository import RepositoryBase, RepositorySoftDeletionMixin
 from polar.kit.utils import utc_now
-from polar.models import UserOrganization
 from polar.models.email_broadcast import EmailBroadcast, EmailBroadcastStatus
 from polar.models.email_broadcast_send import EmailBroadcastSend, EmailBroadcastSendStatus
-from polar.models.email_subscriber import EmailSubscriber, EmailSubscriberStatus
+from polar.models.email_subscriber import EmailSubscriber
 from polar.worker import enqueue_job
 
-
-class EmailBroadcastRepository(
-    RepositorySoftDeletionMixin[EmailBroadcast],
-    RepositoryBase[EmailBroadcast],
-):
-    model = EmailBroadcast
-
-    def get_readable_statement(
-        self, auth_subject: AuthSubject[User | Organization]
-    ) -> Select[tuple[EmailBroadcast]]:
-        statement = self.get_base_statement()
-        if is_user(auth_subject):
-            user = auth_subject.subject
-            statement = statement.where(
-                EmailBroadcast.organization_id.in_(
-                    select(UserOrganization.organization_id).where(
-                        UserOrganization.user_id == user.id,
-                        UserOrganization.deleted_at.is_(None),
-                    )
-                )
-            )
-        elif is_organization(auth_subject):
-            statement = statement.where(
-                EmailBroadcast.organization_id == auth_subject.subject.id,
-            )
-        return statement
+from .repository import EmailBroadcastRepository
 
 
 class EmailBroadcastService:
@@ -136,15 +107,29 @@ class EmailBroadcastService:
         """Initiate sending a broadcast. Creates send records and enqueues jobs."""
         repository = EmailBroadcastRepository.from_session(session)
 
-        # Get all active subscribers for the org
-        # TODO: Filter by segment when segments are fully implemented
-        subscriber_statement = select(EmailSubscriber).where(
-            EmailSubscriber.organization_id == broadcast.organization_id,
-            EmailSubscriber.status == EmailSubscriberStatus.active,
-            EmailSubscriber.deleted_at.is_(None),
-        )
-        result = await session.execute(subscriber_statement)
-        subscribers = result.scalars().all()
+        # Get subscribers — filter by segment if one is set
+        if broadcast.segment_id is not None:
+            from polar.email_segment.service import email_segment as segment_service
+            from polar.models.email_segment import EmailSegment
+
+            segment = await session.get(EmailSegment, broadcast.segment_id)
+            if segment is not None:
+                subscriber_ids = await segment_service.get_subscriber_ids(
+                    session, segment
+                )
+                subscribers = []
+                for sid in subscriber_ids:
+                    sub = await session.get(EmailSubscriber, sid)
+                    if sub is not None:
+                        subscribers.append(sub)
+            else:
+                subscribers = await repository.get_active_subscribers_for_org(
+                    broadcast.organization_id
+                )
+        else:
+            subscribers = await repository.get_active_subscribers_for_org(
+                broadcast.organization_id
+            )
 
         if not subscribers:
             broadcast.status = EmailBroadcastStatus.sent
@@ -182,30 +167,33 @@ class EmailBroadcastService:
         broadcast_id: UUID,
     ) -> dict[str, int | float]:
         """Get analytics for a broadcast."""
-        statement = (
-            select(EmailBroadcastSend.status, func.count(EmailBroadcastSend.id))
-            .where(EmailBroadcastSend.broadcast_id == broadcast_id)
-            .group_by(EmailBroadcastSend.status)
-        )
-        result = await session.execute(statement)
-        counts = {row[0]: row[1] for row in result.all()}
+        repository = EmailBroadcastRepository.from_session(session)
+        counts = await repository.get_analytics_counts(broadcast_id)
 
         total = sum(counts.values())
-        opened = counts.get(EmailBroadcastSendStatus.opened, 0) + counts.get(
-            EmailBroadcastSendStatus.clicked, 0
+        delivered = (
+            counts.get(EmailBroadcastSendStatus.delivered, 0)
+            + counts.get(EmailBroadcastSendStatus.opened, 0)
+            + counts.get(EmailBroadcastSendStatus.clicked, 0)
+        )
+        opened = (
+            counts.get(EmailBroadcastSendStatus.opened, 0)
+            + counts.get(EmailBroadcastSendStatus.clicked, 0)
         )
         clicked = counts.get(EmailBroadcastSendStatus.clicked, 0)
+        bounced = counts.get(EmailBroadcastSendStatus.bounced, 0)
+        unsubscribed = await repository.count_unsubscribed_for_broadcast(broadcast_id)
 
         return {
             "total_recipients": total,
-            "sent": counts.get(EmailBroadcastSendStatus.sent, 0) + opened + clicked,
-            "delivered": counts.get(EmailBroadcastSendStatus.delivered, 0) + opened + clicked,
+            "sent": total - counts.get(EmailBroadcastSendStatus.pending, 0) - counts.get(EmailBroadcastSendStatus.failed, 0),
+            "delivered": delivered,
             "opened": opened,
             "clicked": clicked,
-            "bounced": counts.get(EmailBroadcastSendStatus.bounced, 0),
-            "unsubscribed": 0,  # Tracked separately
-            "open_rate": (opened / total * 100) if total > 0 else 0.0,
-            "click_rate": (clicked / total * 100) if total > 0 else 0.0,
+            "bounced": bounced,
+            "unsubscribed": unsubscribed,
+            "open_rate": (opened / delivered * 100) if delivered > 0 else 0.0,
+            "click_rate": (clicked / delivered * 100) if delivered > 0 else 0.0,
         }
 
 

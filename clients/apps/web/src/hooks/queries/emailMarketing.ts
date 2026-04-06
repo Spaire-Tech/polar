@@ -116,6 +116,7 @@ export const useCreateEmailBroadcast = (organizationId: string) =>
       reply_to_email?: string
       content_html?: string
       content_json?: Record<string, unknown>
+      segment_id?: string
     }) =>
       api.POST('/v1/email-broadcasts/', {
         params: { query: { organization_id: organizationId } },
@@ -178,6 +179,52 @@ export const useEmailBroadcastAnalytics = (broadcastId: string) =>
         .then((r) => r.data),
     retry: defaultRetry,
     enabled: !!broadcastId,
+  })
+
+// ── Segments ──
+
+export const useEmailSegments = (organizationId: string) =>
+  useQuery({
+    queryKey: ['email_segments', organizationId],
+    queryFn: () =>
+      api
+        .GET('/v1/email-segments/', {
+          params: { query: { organization_id: organizationId } },
+        })
+        .then((r) => r.data),
+    retry: defaultRetry,
+  })
+
+export const useCreateEmailSegment = (organizationId: string) =>
+  useMutation({
+    mutationFn: (body: {
+      name: string
+      slug: string
+      type?: string
+      product_id?: string
+    }) =>
+      api.POST('/v1/email-segments/', {
+        params: { query: { organization_id: organizationId } },
+        body,
+      }),
+    onSuccess: () => {
+      getQueryClient().invalidateQueries({
+        queryKey: ['email_segments'],
+      })
+    },
+  })
+
+export const useDeleteEmailSegment = () =>
+  useMutation({
+    mutationFn: (segmentId: string) =>
+      api.DELETE('/v1/email-segments/{segment_id}', {
+        params: { path: { segment_id: segmentId } },
+      }),
+    onSuccess: () => {
+      getQueryClient().invalidateQueries({
+        queryKey: ['email_segments'],
+      })
+    },
   })
 
 // ── Storefront Subscribe (public) ──

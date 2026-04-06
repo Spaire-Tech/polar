@@ -3,7 +3,6 @@
 import { DashboardBody } from '@/components/Layout/DashboardLayout'
 import {
   useEmailBroadcastAnalytics,
-  useEmailBroadcasts,
   useSendEmailBroadcast,
   useUpdateEmailBroadcast,
 } from '@/hooks/queries/emailMarketing'
@@ -131,20 +130,72 @@ export default function BroadcastDetailPage({
 
         {/* Analytics (for sent broadcasts) */}
         {isSent && analytics && (
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
-            <AnalyticsCard label="Recipients" value={analytics.total_recipients} />
-            <AnalyticsCard label="Delivered" value={analytics.delivered} />
-            <AnalyticsCard
-              label="Opened"
-              value={analytics.opened}
-              rate={analytics.open_rate}
-            />
-            <AnalyticsCard
-              label="Clicked"
-              value={analytics.clicked}
-              rate={analytics.click_rate}
-            />
-            <AnalyticsCard label="Bounced" value={analytics.bounced} />
+          <div className="flex flex-col gap-y-6">
+            {/* Summary cards */}
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+              <AnalyticsCard label="Recipients" value={analytics.total_recipients} />
+              <AnalyticsCard
+                label="Delivered"
+                value={analytics.delivered}
+                total={analytics.total_recipients}
+                color="text-blue-500"
+              />
+              <AnalyticsCard
+                label="Opened"
+                value={analytics.opened}
+                rate={analytics.open_rate}
+                color="text-green-500"
+              />
+              <AnalyticsCard
+                label="Clicked"
+                value={analytics.clicked}
+                rate={analytics.click_rate}
+                color="text-purple-500"
+              />
+              <AnalyticsCard
+                label="Bounced"
+                value={analytics.bounced}
+                total={analytics.total_recipients}
+                color="text-red-500"
+              />
+              <AnalyticsCard
+                label="Unsubscribed"
+                value={analytics.unsubscribed}
+                total={analytics.total_recipients}
+                color="text-orange-500"
+              />
+            </div>
+
+            {/* Delivery funnel */}
+            <div className="dark:border-spaire-700 dark:bg-spaire-900 rounded-2xl border border-gray-200 bg-white p-6">
+              <h3 className="mb-4 text-sm font-medium">Delivery Funnel</h3>
+              <div className="flex flex-col gap-y-3">
+                <FunnelBar
+                  label="Sent"
+                  value={analytics.sent || analytics.total_recipients}
+                  total={analytics.total_recipients}
+                  color="bg-blue-500"
+                />
+                <FunnelBar
+                  label="Delivered"
+                  value={analytics.delivered}
+                  total={analytics.total_recipients}
+                  color="bg-blue-400"
+                />
+                <FunnelBar
+                  label="Opened"
+                  value={analytics.opened}
+                  total={analytics.total_recipients}
+                  color="bg-green-500"
+                />
+                <FunnelBar
+                  label="Clicked"
+                  value={analytics.clicked}
+                  total={analytics.total_recipients}
+                  color="bg-purple-500"
+                />
+              </div>
+            </div>
           </div>
         )}
 
@@ -207,18 +258,57 @@ function AnalyticsCard({
   label,
   value,
   rate,
+  total,
+  color,
 }: {
   label: string
   value: number
   rate?: number
+  total?: number
+  color?: string
 }) {
+  const pct = rate !== undefined ? rate : total && total > 0 ? (value / total) * 100 : undefined
+
   return (
     <div className="dark:border-spaire-700 dark:bg-spaire-900 flex flex-col gap-1 rounded-2xl border border-gray-200 bg-white p-4">
       <span className="dark:text-spaire-400 text-xs text-gray-500">{label}</span>
-      <span className="text-2xl font-semibold">{value.toLocaleString()}</span>
-      {rate !== undefined && (
-        <span className="text-xs text-blue-500">{rate.toFixed(1)}%</span>
+      <span className={`text-2xl font-semibold ${color ?? ''}`}>
+        {value.toLocaleString()}
+      </span>
+      {pct !== undefined && (
+        <span className="dark:text-spaire-400 text-xs text-gray-500">
+          {pct.toFixed(1)}%
+        </span>
       )}
+    </div>
+  )
+}
+
+function FunnelBar({
+  label,
+  value,
+  total,
+  color,
+}: {
+  label: string
+  value: number
+  total: number
+  color: string
+}) {
+  const pct = total > 0 ? (value / total) * 100 : 0
+
+  return (
+    <div className="flex flex-row items-center gap-4">
+      <div className="w-20 text-right text-xs text-gray-500">{label}</div>
+      <div className="dark:bg-spaire-800 flex-1 rounded-full bg-gray-100">
+        <div
+          className={`h-5 rounded-full ${color} transition-all`}
+          style={{ width: `${Math.max(pct, 1)}%` }}
+        />
+      </div>
+      <div className="w-20 text-xs text-gray-500">
+        {value.toLocaleString()} ({pct.toFixed(1)}%)
+      </div>
     </div>
   )
 }

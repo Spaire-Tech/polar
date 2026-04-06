@@ -61,6 +61,16 @@ class EmailSubscriberRepository(
         )
         return await self.get_all(statement)
 
+    async def get_all_for_export(
+        self, organization_id: UUID
+    ) -> list[EmailSubscriber]:
+        """Get all subscribers (including non-active) for CSV export."""
+        statement = self.get_base_statement().where(
+            EmailSubscriber.organization_id == organization_id,
+            EmailSubscriber.deleted_at.is_(None),
+        ).order_by(EmailSubscriber.created_at.desc())
+        return list(await self.get_all(statement))
+
     def get_readable_statement(
         self, auth_subject: AuthSubject[User | Organization]
     ) -> Select[tuple[EmailSubscriber]]:

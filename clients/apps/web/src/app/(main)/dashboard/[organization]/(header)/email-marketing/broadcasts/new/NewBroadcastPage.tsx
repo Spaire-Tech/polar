@@ -1,12 +1,22 @@
 'use client'
 
 import { DashboardBody } from '@/components/Layout/DashboardLayout'
-import { useCreateEmailBroadcast } from '@/hooks/queries/emailMarketing'
+import {
+  useCreateEmailBroadcast,
+  useEmailSegments,
+} from '@/hooks/queries/emailMarketing'
 import ArrowBackOutlined from '@mui/icons-material/ArrowBackOutlined'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import Input from '@spaire/ui/components/atoms/Input'
 import { Label } from '@spaire/ui/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@spaire/ui/components/atoms/Select'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useCallback, useState } from 'react'
@@ -18,11 +28,14 @@ export default function NewBroadcastPage({
 }) {
   const router = useRouter()
   const createBroadcast = useCreateEmailBroadcast(organization.id)
+  const segmentsQuery = useEmailSegments(organization.id)
+  const segments = segmentsQuery.data as any[] | undefined
 
   const [subject, setSubject] = useState('')
   const [senderName, setSenderName] = useState(organization.name)
   const [replyToEmail, setReplyToEmail] = useState('')
   const [contentHtml, setContentHtml] = useState('')
+  const [segmentId, setSegmentId] = useState<string>('all')
 
   const handleCreate = useCallback(async () => {
     if (!subject.trim() || !senderName.trim()) return
@@ -32,6 +45,7 @@ export default function NewBroadcastPage({
       sender_name: senderName.trim(),
       reply_to_email: replyToEmail.trim() || undefined,
       content_html: contentHtml || undefined,
+      segment_id: segmentId !== 'all' ? segmentId : undefined,
     })
 
     if (result.data) {
@@ -39,7 +53,7 @@ export default function NewBroadcastPage({
         `/dashboard/${organization.slug}/email-marketing/broadcasts/${result.data.id}`,
       )
     }
-  }, [subject, senderName, replyToEmail, contentHtml, createBroadcast, router, organization.slug])
+  }, [subject, senderName, replyToEmail, contentHtml, segmentId, createBroadcast, router, organization.slug])
 
   return (
     <DashboardBody>
@@ -87,6 +101,27 @@ export default function NewBroadcastPage({
                   placeholder="you@example.com"
                 />
               </div>
+            </div>
+
+            {/* Segment selector */}
+            <div className="flex flex-col gap-y-2">
+              <Label>Send to</Label>
+              <Select value={segmentId} onValueChange={setSegmentId}>
+                <SelectTrigger className="w-64">
+                  <SelectValue placeholder="All subscribers" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All active subscribers</SelectItem>
+                  {segments?.map((seg: any) => (
+                    <SelectItem key={seg.id} value={seg.id}>
+                      {seg.name} ({seg.subscriber_count.toLocaleString()})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="dark:text-spaire-500 text-xs text-gray-400">
+                Choose a segment to target specific subscribers, or send to all.
+              </p>
             </div>
 
             <p className="dark:text-spaire-500 text-xs text-gray-400">

@@ -8,6 +8,7 @@ import { PropsWithChildren } from 'react'
 const emailTabs = [
   { title: 'Subscribers', suffix: '' },
   { title: 'Broadcasts', suffix: '/broadcasts' },
+  { title: 'Segments', suffix: '/segments' },
 ]
 
 export default function EmailMarketingLayout({ children }: PropsWithChildren) {

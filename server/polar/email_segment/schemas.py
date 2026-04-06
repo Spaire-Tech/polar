@@ -10,6 +10,10 @@ class EmailSegmentCreate(Schema):
     product_id: UUID4 | None = Field(default=None, description="Product ID for product-specific segments")
 
 
+class EmailSegmentUpdate(Schema):
+    name: str | None = None
+
+
 class EmailSegment(TimestampedSchema, IDSchema):
     id: UUID4
     organization_id: UUID4
@@ -19,3 +23,7 @@ class EmailSegment(TimestampedSchema, IDSchema):
     product_id: UUID4 | None = None
     is_system: bool
     subscriber_count: int = 0
+
+
+class EmailSegmentSubscriberAction(Schema):
+    subscriber_ids: list[UUID4] = Field(description="List of subscriber IDs")

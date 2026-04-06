@@ -162,6 +162,14 @@ class EmailSubscriberService:
             customer_id=customer_id,
         )
 
+    async def get_all_for_export(
+        self,
+        session: AsyncReadSession,
+        organization_id: UUID,
+    ) -> list[EmailSubscriber]:
+        repository = EmailSubscriberRepository.from_session(session)
+        return await repository.get_all_for_export(organization_id)
+
     async def get_stats(
         self,
         session: AsyncReadSession,

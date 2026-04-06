@@ -1,39 +1,13 @@
 from collections.abc import Sequence
 from uuid import UUID
 
-from sqlalchemy import func, select
-
+from polar.auth.models import AuthSubject, Organization, User
 from polar.postgres import AsyncReadSession, AsyncSession
+from polar.kit.utils import utc_now
 from polar.models.email_segment import EmailSegment, EmailSegmentType
-from polar.models.email_subscriber import EmailSubscriber, EmailSubscriberStatus
+from polar.models.email_segment_subscriber import EmailSegmentSubscriber
 
-from polar.kit.repository import RepositoryBase, RepositorySoftDeletionMixin
-
-
-class EmailSegmentRepository(
-    RepositorySoftDeletionMixin[EmailSegment],
-    RepositoryBase[EmailSegment],
-):
-    model = EmailSegment
-
-    async def get_by_organization(
-        self, organization_id: UUID
-    ) -> Sequence[EmailSegment]:
-        statement = self.get_base_statement().where(
-            EmailSegment.organization_id == organization_id,
-            EmailSegment.deleted_at.is_(None),
-        )
-        return await self.get_all(statement)
-
-    async def get_by_slug_and_organization(
-        self, slug: str, organization_id: UUID
-    ) -> EmailSegment | None:
-        statement = self.get_base_statement().where(
-            EmailSegment.slug == slug,
-            EmailSegment.organization_id == organization_id,
-            EmailSegment.deleted_at.is_(None),
-        )
-        return await self.get_one_or_none(statement)
+from .repository import EmailSegmentRepository
 
 
 class EmailSegmentService:
@@ -78,55 +52,135 @@ class EmailSegmentService:
 
         results = []
         for segment in segments:
-            count = await self._count_subscribers(session, segment)
+            count = await repository.count_subscribers(segment)
             results.append({
-                **{
-                    "id": segment.id,
-                    "organization_id": segment.organization_id,
-                    "name": segment.name,
-                    "slug": segment.slug,
-                    "type": segment.type,
-                    "product_id": segment.product_id,
-                    "is_system": segment.is_system,
-                    "created_at": segment.created_at,
-                    "modified_at": segment.modified_at,
-                },
+                "id": segment.id,
+                "organization_id": segment.organization_id,
+                "name": segment.name,
+                "slug": segment.slug,
+                "type": segment.type,
+                "product_id": segment.product_id,
+                "is_system": segment.is_system,
+                "created_at": segment.created_at,
+                "modified_at": segment.modified_at,
                 "subscriber_count": count,
             })
 
         return results
 
-    async def _count_subscribers(
+    async def get_by_id(
+        self,
+        session: AsyncReadSession,
+        auth_subject: AuthSubject[User | Organization],
+        segment_id: UUID,
+    ) -> EmailSegment | None:
+        repository = EmailSegmentRepository.from_session(session)
+        statement = repository.get_readable_statement(auth_subject).where(
+            EmailSegment.id == segment_id
+        )
+        return await repository.get_one_or_none(statement)
+
+    async def create(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        name: str,
+        slug: str,
+        type: str = EmailSegmentType.manual,
+        product_id: UUID | None = None,
+    ) -> EmailSegment:
+        repository = EmailSegmentRepository.from_session(session)
+        segment = EmailSegment(
+            organization_id=organization_id,
+            name=name,
+            slug=slug,
+            type=type,
+            product_id=product_id,
+            is_system=False,
+        )
+        return await repository.create(segment)
+
+    async def update(
+        self,
+        session: AsyncSession,
+        segment: EmailSegment,
+        *,
+        name: str | None = None,
+    ) -> EmailSegment:
+        repository = EmailSegmentRepository.from_session(session)
+        if name is not None:
+            segment.name = name
+        return await repository.update(segment)
+
+    async def delete(
+        self,
+        session: AsyncSession,
+        segment: EmailSegment,
+    ) -> None:
+        """Soft-delete a segment. System segments cannot be deleted."""
+        if segment.is_system:
+            raise ValueError("System segments cannot be deleted")
+        repository = EmailSegmentRepository.from_session(session)
+        segment.deleted_at = utc_now()
+        await repository.update(segment)
+
+    async def add_subscribers(
+        self,
+        session: AsyncSession,
+        segment: EmailSegment,
+        subscriber_ids: list[UUID],
+    ) -> int:
+        """Add subscribers to a manual segment. Returns count added."""
+        if segment.type != EmailSegmentType.manual:
+            raise ValueError("Can only add subscribers to manual segments")
+
+        repository = EmailSegmentRepository.from_session(session)
+        added = 0
+        for subscriber_id in subscriber_ids:
+            existing = await repository.get_segment_subscriber_entry(
+                segment.id, subscriber_id
+            )
+            if existing is None:
+                entry = EmailSegmentSubscriber(
+                    segment_id=segment.id,
+                    subscriber_id=subscriber_id,
+                )
+                session.add(entry)
+                added += 1
+
+        return added
+
+    async def remove_subscribers(
+        self,
+        session: AsyncSession,
+        segment: EmailSegment,
+        subscriber_ids: list[UUID],
+    ) -> int:
+        """Remove subscribers from a manual segment. Returns count removed."""
+        if segment.type != EmailSegmentType.manual:
+            raise ValueError("Can only remove subscribers from manual segments")
+
+        repository = EmailSegmentRepository.from_session(session)
+        removed = 0
+        for subscriber_id in subscriber_ids:
+            entry = await repository.get_segment_subscriber_entry(
+                segment.id, subscriber_id
+            )
+            if entry is not None:
+                entry.deleted_at = utc_now()
+                removed += 1
+
+        return removed
+
+    async def get_subscriber_ids(
         self,
         session: AsyncReadSession,
         segment: EmailSegment,
-    ) -> int:
-        """Dynamically count subscribers in a segment."""
-        if segment.type == EmailSegmentType.all:
-            statement = select(func.count(EmailSubscriber.id)).where(
-                EmailSubscriber.organization_id == segment.organization_id,
-                EmailSubscriber.status == EmailSubscriberStatus.active,
-                EmailSubscriber.deleted_at.is_(None),
-            )
-        elif segment.type == EmailSegmentType.customers:
-            statement = select(func.count(EmailSubscriber.id)).where(
-                EmailSubscriber.organization_id == segment.organization_id,
-                EmailSubscriber.status == EmailSubscriberStatus.active,
-                EmailSubscriber.customer_id.isnot(None),
-                EmailSubscriber.deleted_at.is_(None),
-            )
-        elif segment.type == EmailSegmentType.archived:
-            statement = select(func.count(EmailSubscriber.id)).where(
-                EmailSubscriber.organization_id == segment.organization_id,
-                EmailSubscriber.status == EmailSubscriberStatus.archived,
-                EmailSubscriber.deleted_at.is_(None),
-            )
-        else:
-            # Manual or other segments — count via M2M (future)
-            return 0
-
-        result = await session.execute(statement)
-        return result.scalar_one()
+    ) -> list[UUID]:
+        """Get all active subscriber IDs matching a segment."""
+        repository = EmailSegmentRepository.from_session(session)
+        return await repository.get_subscriber_ids_for_segment(segment)
 
 
 email_segment = EmailSegmentService()

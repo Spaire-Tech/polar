@@ -8,6 +8,7 @@ import {
   useUpdateEmailSubscriber,
 } from '@/hooks/queries/emailMarketing'
 import AddOutlined from '@mui/icons-material/AddOutlined'
+import FileDownloadOutlined from '@mui/icons-material/FileDownloadOutlined'
 import PersonOutlined from '@mui/icons-material/PersonOutlined'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
@@ -104,10 +105,24 @@ export default function SubscribersPage({
               </SelectContent>
             </Select>
           </div>
-          <Button onClick={() => setShowAddForm(true)}>
-            <AddOutlined className="mr-1" fontSize="small" />
-            Add subscriber
-          </Button>
+          <div className="flex flex-row gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                window.open(
+                  `/api/v1/email-subscribers/export?organization_id=${organization.id}`,
+                  '_blank',
+                )
+              }}
+            >
+              <FileDownloadOutlined className="mr-1" fontSize="small" />
+              Export CSV
+            </Button>
+            <Button onClick={() => setShowAddForm(true)}>
+              <AddOutlined className="mr-1" fontSize="small" />
+              Add subscriber
+            </Button>
+          </div>
         </div>
 
         {/* Add form */}

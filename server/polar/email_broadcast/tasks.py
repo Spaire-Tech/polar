@@ -1,13 +1,16 @@
 from uuid import UUID
 
+import structlog
 from sqlalchemy import select
 
-from polar.email.sender import enqueue_email
+from polar.email.sender import email_sender
 from polar.kit.utils import utc_now
 from polar.models.email_broadcast import EmailBroadcast, EmailBroadcastStatus
 from polar.models.email_broadcast_send import EmailBroadcastSend, EmailBroadcastSendStatus
 from polar.models.email_subscriber import EmailSubscriber
 from polar.worker import AsyncSessionMaker, TaskPriority, actor
+
+log = structlog.get_logger()
 
 
 @actor(actor_name="email_broadcast.send_emails", priority=TaskPriority.DEFAULT)
@@ -41,8 +44,8 @@ async def send_emails(broadcast_id: UUID) -> None:
                 # Build unsubscribe URL
                 unsubscribe_url = f"https://space.spairehq.com/email/unsubscribe?sid={send.subscriber_id}"
 
-                # Send via Resend (enqueue_email is sync)
-                enqueue_email(
+                # Send via Resend directly to capture email ID
+                resend_email_id = await email_sender.send(
                     to_email_addr=subscriber.email,
                     subject=broadcast.subject,
                     html_content=broadcast.content_html or "<p>No content</p>",
@@ -58,7 +61,14 @@ async def send_emails(broadcast_id: UUID) -> None:
 
                 send.status = EmailBroadcastSendStatus.sent
                 send.sent_at = utc_now()
+                if resend_email_id:
+                    send.resend_email_id = resend_email_id
             except Exception:
+                log.exception(
+                    "email_broadcast.send_failed",
+                    broadcast_id=str(broadcast_id),
+                    subscriber_id=str(send.subscriber_id),
+                )
                 send.status = EmailBroadcastSendStatus.failed
 
         # Mark broadcast as sent

@@ -1,7 +1,10 @@
+import csv
+import io
 from uuid import UUID
 
 from fastapi import Depends, Query
 from pydantic import UUID4
+from starlette.responses import StreamingResponse
 
 from polar.exceptions import ResourceNotFound
 from polar.kit.pagination import ListResource, Pagination, PaginationParamsQuery
@@ -102,6 +105,39 @@ async def update_email_subscriber(
         status=subscriber_update.status,
     )
     return EmailSubscriberSchema.model_validate(updated, from_attributes=True)
+
+
+@router.get("/export")
+async def export_email_subscribers(
+    auth_subject: auth.EmailSubscribersRead,
+    organization_id: UUID = Query(),
+    session: AsyncReadSession = Depends(get_db_read_session),
+) -> StreamingResponse:
+    """Export subscribers as a CSV file."""
+    subscribers = await email_subscriber_service.get_all_for_export(
+        session, organization_id
+    )
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["email", "name", "status", "source", "created_at"])
+    for sub in subscribers:
+        writer.writerow([
+            sub.email,
+            sub.name or "",
+            sub.status,
+            sub.source,
+            sub.created_at.isoformat() if sub.created_at else "",
+        ])
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": "attachment; filename=subscribers.csv",
+        },
+    )
 
 
 @router.delete("/{subscriber_id}", status_code=204)
