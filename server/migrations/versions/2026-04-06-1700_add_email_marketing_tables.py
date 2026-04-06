@@ -1,7 +1,7 @@
 """Add email marketing tables
 
-Revision ID: a1b2c3d4e5f6
-Revises: 8c4a2b3d5e6f
+Revision ID: 92760713e9ff
+Revises: c7d5e8f1a2b3
 Create Date: 2026-04-06 17:00:00.000000
 
 """
@@ -12,8 +12,8 @@ from alembic import op
 # Polar Custom Imports
 
 # revision identifiers, used by Alembic.
-revision = "a1b2c3d4e5f6"
-down_revision = "8c4a2b3d5e6f"
+revision = "92760713e9ff"
+down_revision = "c7d5e8f1a2b3"
 branch_labels: tuple[str] | None = None
 depends_on: tuple[str] | None = None
 
