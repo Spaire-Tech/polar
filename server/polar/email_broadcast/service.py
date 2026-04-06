@@ -68,7 +68,7 @@ class EmailBroadcastService:
             segment_id=segment_id,
             status=EmailBroadcastStatus.draft,
         )
-        return await repository.create(broadcast)
+        return await repository.create(broadcast, flush=True)
 
     async def update(
         self,

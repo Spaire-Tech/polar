@@ -36,7 +36,7 @@ class EmailSegmentService:
                     type=seg_type,
                     is_system=True,
                 )
-                segment = await repository.create(segment)
+                segment = await repository.create(segment, flush=True)
                 created.append(segment)
 
         return created
@@ -99,7 +99,7 @@ class EmailSegmentService:
             product_id=product_id,
             is_system=False,
         )
-        return await repository.create(segment)
+        return await repository.create(segment, flush=True)
 
     async def update(
         self,

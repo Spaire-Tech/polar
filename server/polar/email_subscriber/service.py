@@ -41,12 +41,14 @@ class EmailSubscriberService:
 
         # Apply sorting
         order_clauses = []
-        for s in sorting:
-            column = getattr(EmailSubscriber, s.property.value, None)
-            if column is not None:
-                order_clauses.append(
-                    desc(column) if s.direction == "desc" else asc(column)
-                )
+        for criterion, is_desc in sorting:
+            clause_function = desc if is_desc else asc
+            if criterion == EmailSubscriberSortProperty.created_at:
+                order_clauses.append(clause_function(EmailSubscriber.created_at))
+            elif criterion == EmailSubscriberSortProperty.email:
+                order_clauses.append(clause_function(EmailSubscriber.email))
+            elif criterion == EmailSubscriberSortProperty.status:
+                order_clauses.append(clause_function(EmailSubscriber.status))
         if order_clauses:
             statement = statement.order_by(*order_clauses)
 
@@ -105,7 +107,7 @@ class EmailSubscriberService:
             import_source=import_source,
             customer_id=customer_id,
         )
-        return await repository.create(subscriber)
+        return await repository.create(subscriber, flush=True)
 
     async def update(
         self,
