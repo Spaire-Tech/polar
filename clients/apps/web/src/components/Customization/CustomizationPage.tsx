@@ -125,13 +125,23 @@ const Customization = ({
             >
               &larr; Back to dashboard
             </button>
-            <Button
-              className="rounded-full px-6"
-              type="button"
-              onClick={() => setIsEditing(true)}
-            >
-              Edit Space
-            </Button>
+            <div className="flex items-center gap-3">
+              <a
+                href={`/${organization.slug}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-full border border-gray-200 px-6 py-2 text-[14px] font-medium text-gray-700 transition-colors hover:bg-gray-50"
+              >
+                Visit Space
+              </a>
+              <Button
+                className="rounded-full px-6"
+                type="button"
+                onClick={() => setIsEditing(true)}
+              >
+                Edit Space
+              </Button>
+            </div>
           </div>
 
           {/* Centered card preview */}
