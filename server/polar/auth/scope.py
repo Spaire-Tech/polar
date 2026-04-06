@@ -83,6 +83,12 @@ class Scope(StrEnum):
     refunds_write = "refunds:write"
     payments_read = "payments:read"
 
+    email_subscribers_read = "email_subscribers:read"
+    email_subscribers_write = "email_subscribers:write"
+
+    email_broadcasts_read = "email_broadcasts:read"
+    email_broadcasts_write = "email_broadcasts:write"
+
     metrics_read = "metrics:read"
 
     webhooks_read = "webhooks:read"

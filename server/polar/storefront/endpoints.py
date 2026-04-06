@@ -1,7 +1,10 @@
 from fastapi import Depends
 
+from polar.email_subscriber.schemas import StorefrontSubscribe
+from polar.email_subscriber.service import email_subscriber as email_subscriber_service
 from polar.exceptions import ResourceNotFound
 from polar.kit.pagination import PaginationParams
+from polar.kit.schemas import Schema
 from polar.models import Product
 from polar.openapi import APITag
 from polar.postgres import AsyncSession, get_db_session
@@ -9,6 +12,10 @@ from polar.routing import APIRouter
 
 from .schemas import OrganizationSlugLookup, Storefront
 from .service import storefront as storefront_service
+
+
+class SubscribeResponse(Schema):
+    success: bool = True
 
 router = APIRouter(prefix="/storefronts", tags=["storefronts", APITag.private])
 
@@ -94,3 +101,29 @@ async def get_organization_slug_by_subscription_id(
         raise ResourceNotFound()
 
     return OrganizationSlugLookup(organization_slug=organization_slug)
+
+
+@router.post(
+    "/{slug}/subscribe",
+    summary="Subscribe to Storefront",
+    response_model=SubscribeResponse,
+    status_code=201,
+)
+async def subscribe_to_storefront(
+    slug: str,
+    subscribe: StorefrontSubscribe,
+    session: AsyncSession = Depends(get_db_session),
+) -> SubscribeResponse:
+    """Public endpoint: subscribe an email to an organization's storefront."""
+    organization = await storefront_service.get(session, slug)
+    if organization is None:
+        raise ResourceNotFound()
+
+    await email_subscriber_service.subscribe_from_storefront(
+        session,
+        organization_id=organization.id,
+        email=subscribe.email,
+        name=subscribe.name,
+    )
+
+    return SubscribeResponse(success=True)
