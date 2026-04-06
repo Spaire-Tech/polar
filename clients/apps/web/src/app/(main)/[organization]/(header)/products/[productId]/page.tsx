@@ -1,16 +1,10 @@
-import { getPublicServerURL } from '@/utils/api'
 import { getServerSideAPI } from '@/utils/client/serverside'
 import { isCrawler } from '@/utils/crawlers'
 import { getStorefrontOrNotFound } from '@/utils/storefront'
-import {
-  CheckoutFormProvider,
-  CheckoutProvider,
-} from '@spaire/checkout/providers'
 import { unwrap } from '@spaire/client'
 import type { Metadata } from 'next'
 import { headers } from 'next/headers'
-import { notFound } from 'next/navigation'
-import ProductPage from './ProductPage'
+import { notFound, redirect } from 'next/navigation'
 
 export async function generateMetadata(props: {
   params: Promise<{ organization: string; productId: string }>
@@ -89,14 +83,6 @@ export default async function Page(props: {
     }),
   )
 
-  return (
-    <CheckoutProvider
-      clientSecret={checkout.client_secret}
-      serverURL={getPublicServerURL()}
-    >
-      <CheckoutFormProvider>
-        <ProductPage />
-      </CheckoutFormProvider>
-    </CheckoutProvider>
-  )
+  // Redirect to full-page checkout in light mode
+  redirect(`/checkout/${checkout.client_secret}?theme=light`)
 }

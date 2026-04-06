@@ -53,10 +53,14 @@ const Customization = ({
     try {
       const values = form.getValues()
 
+      // Filter out social links with empty URLs before sending
+      const cleanSocials = (values.socials ?? [])
+        .filter((s: { url?: string }) => s?.url?.trim())
+
       const body: schemas['OrganizationUpdate'] = {
         name: values.name ?? organization.name,
         avatar_url: values.avatar_url,
-        socials: values.socials,
+        socials: cleanSocials.length > 0 ? cleanSocials : [],
         storefront_settings: values.storefront_settings,
       }
 
