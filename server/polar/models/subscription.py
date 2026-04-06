@@ -380,7 +380,7 @@ class Subscription(CustomFieldDataMixin, MetadataMixin, RecordModel):
     ) -> None:
         amount = sum(price.amount for price in prices)
         if discount is not None:
-            amount -= discount.get_discount_amount(amount, self.currency)
+            amount -= discount.get_discount_amount(amount)
         self.amount = amount
         self.net_amount = amount  # Same as amount while tax-exclusive
 

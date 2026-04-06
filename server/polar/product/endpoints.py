@@ -23,6 +23,7 @@ from polar.postgres import (
 )
 from polar.config import settings
 from polar.routing import APIRouter
+from polar.enums import TaxBehavior
 from polar.tax.calculation import get_tax_service
 from polar.tax.calculation.base import TaxCalculationError, TaxCode
 
@@ -237,6 +238,7 @@ async def preview_tax(
             identifier=uuid.uuid4(),
             currency=preview_request.currency,
             amount=subtotal,
+            tax_behavior=TaxBehavior.exclusive,
             tax_code=TaxCode.general_electronically_supplied_services,
             address=address,
             tax_ids=[],

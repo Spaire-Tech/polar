@@ -1,7 +1,6 @@
 import { Section } from '@/components/Layout/Section'
 import { schemas } from '@spaire/client'
 import { ProductMetadataForm } from '../ProductMetadataForm'
-import { ProductCheckoutSection } from './ProductCheckoutSection'
 import { ProductCustomerPortalSection } from './ProductCustomerPortalSection'
 import { ProductInfoSection } from './ProductInfoSection'
 import { ProductPricingSection } from './ProductPricingSection'
@@ -29,7 +28,7 @@ const ProductForm = ({
 }) => {
   return (
     <div className="flex flex-col divide-y dark:divide-spaire-700">
-      <ProductInfoSection />
+      <ProductInfoSection organization={organization} />
 
       <ProductPricingSection organization={organization} update={update} />
 
@@ -43,8 +42,6 @@ const ProductForm = ({
       </Section>
 
       <ProductCustomerPortalSection />
-
-      <ProductCheckoutSection organization={organization} />
     </div>
   )
 }
