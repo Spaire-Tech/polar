@@ -187,8 +187,8 @@ const Customization = ({
 
         {/* Two-column: preview left, form right */}
         <div className="flex min-h-0 grow flex-row overflow-hidden">
-          {/* Left — heading + live card preview */}
-          <div className="flex flex-1 flex-col overflow-y-auto p-10">
+          {/* Left — heading + live card preview (hidden on mobile) */}
+          <div className="hidden flex-1 flex-col overflow-y-auto p-10 md:flex">
             <h1 className="text-[28px] font-bold text-gray-950">
               {isSpaceEnabled ? 'Edit your Space Card' : 'Let\u2019s Create your Space Card'}
             </h1>
@@ -201,8 +201,8 @@ const Customization = ({
             </div>
           </div>
 
-          {/* Right — form sections */}
-          <div className="w-[700px] shrink-0 overflow-y-auto border-l border-gray-200 bg-white shadow-sm">
+          {/* Right — form sections (full width on mobile) */}
+          <div className="w-full shrink-0 overflow-y-auto border-l border-gray-200 bg-white shadow-sm md:w-[700px]">
             <StorefrontEditorForm organization={organization} />
           </div>
         </div>
