@@ -69,8 +69,8 @@ export default function SubscribersPage({
   return (
     <DashboardBody title="Subscribers">
       <div className="flex flex-col gap-y-8">
-        {/* Stats cards */}
-        {stats && (
+        {/* Stats cards — only show when there are subscribers */}
+        {stats && stats.total > 0 && (
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
             <StatCard label="Total" value={stats.total} />
             <StatCard label="Active" value={stats.active} color="text-green-600" />
@@ -83,47 +83,49 @@ export default function SubscribersPage({
           </div>
         )}
 
-        {/* Controls */}
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex flex-row items-center gap-3">
-            <Select
-              value={statusFilter}
-              onValueChange={(v) => {
-                setStatusFilter(v)
-                setPage(1)
-              }}
-            >
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All statuses</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="unsubscribed">Unsubscribed</SelectItem>
-                <SelectItem value="archived">Archived</SelectItem>
-                <SelectItem value="invalid">Invalid</SelectItem>
-              </SelectContent>
-            </Select>
+        {/* Controls — only show when there are subscribers */}
+        {subscribers?.items && subscribers.items.length > 0 && (
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-row items-center gap-3">
+              <Select
+                value={statusFilter}
+                onValueChange={(v) => {
+                  setStatusFilter(v)
+                  setPage(1)
+                }}
+              >
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="unsubscribed">Unsubscribed</SelectItem>
+                  <SelectItem value="archived">Archived</SelectItem>
+                  <SelectItem value="invalid">Invalid</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-row gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  window.open(
+                    `/api/v1/email-subscribers/export?organization_id=${organization.id}`,
+                    '_blank',
+                  )
+                }}
+              >
+                <FileDownloadOutlined className="mr-1" fontSize="small" />
+                Export CSV
+              </Button>
+              <Button onClick={() => setShowAddForm(true)}>
+                <AddOutlined className="mr-1" fontSize="small" />
+                Add subscriber
+              </Button>
+            </div>
           </div>
-          <div className="flex flex-row gap-2">
-            <Button
-              variant="secondary"
-              onClick={() => {
-                window.open(
-                  `/api/v1/email-subscribers/export?organization_id=${organization.id}`,
-                  '_blank',
-                )
-              }}
-            >
-              <FileDownloadOutlined className="mr-1" fontSize="small" />
-              Export CSV
-            </Button>
-            <Button onClick={() => setShowAddForm(true)}>
-              <AddOutlined className="mr-1" fontSize="small" />
-              Add subscriber
-            </Button>
-          </div>
-        </div>
+        )}
 
         {/* Add form */}
         {showAddForm && (
@@ -154,62 +156,71 @@ export default function SubscribersPage({
         )}
 
         {/* Subscriber list */}
-        <div className="dark:border-spaire-700 dark:divide-spaire-700 flex flex-col divide-y divide-gray-100 rounded-2xl border border-gray-200">
-          {/* Header row */}
-          <div className="dark:bg-spaire-900 flex flex-row items-center gap-4 rounded-t-2xl bg-gray-50 px-6 py-3 text-xs font-medium text-gray-500">
-            <div className="flex-1">Email</div>
-            <div className="w-32">Name</div>
-            <div className="w-28">Source</div>
-            <div className="w-24">Status</div>
-            <div className="w-20" />
-          </div>
+        {subscribers?.items && subscribers.items.length > 0 ? (
+          <div className="dark:border-spaire-700 dark:divide-spaire-700 flex flex-col divide-y divide-gray-100 rounded-2xl border border-gray-200">
+            {/* Header row */}
+            <div className="dark:bg-spaire-900 flex flex-row items-center gap-4 rounded-t-2xl bg-gray-50 px-6 py-3 text-xs font-medium text-gray-500">
+              <div className="flex-1">Email</div>
+              <div className="w-32">Name</div>
+              <div className="w-28">Source</div>
+              <div className="w-24">Status</div>
+              <div className="w-20" />
+            </div>
 
-          {subscribers?.items?.map((sub: any) => (
-            <div
-              key={sub.id}
-              className="dark:hover:bg-spaire-800 flex flex-row items-center gap-4 px-6 py-4 hover:bg-gray-50"
-            >
-              <div className="flex flex-1 flex-row items-center gap-3">
-                <div className="dark:bg-spaire-700 flex h-8 w-8 items-center justify-center rounded-full bg-gray-100">
-                  <PersonOutlined className="text-gray-400" fontSize="small" />
+            {subscribers.items.map((sub: any) => (
+              <div
+                key={sub.id}
+                className="dark:hover:bg-spaire-800 flex flex-row items-center gap-4 px-6 py-4 hover:bg-gray-50"
+              >
+                <div className="flex flex-1 flex-row items-center gap-3">
+                  <div className="dark:bg-spaire-700 flex h-8 w-8 items-center justify-center rounded-full bg-gray-100">
+                    <PersonOutlined className="text-gray-400" fontSize="small" />
+                  </div>
+                  <span className="text-sm">{sub.email}</span>
                 </div>
-                <span className="text-sm">{sub.email}</span>
+                <div className="w-32 truncate text-sm text-gray-500">
+                  {sub.name || '—'}
+                </div>
+                <div className="w-28">
+                  <SourceBadge source={sub.source} />
+                </div>
+                <div className="w-24">
+                  <StatusBadge status={sub.status} />
+                </div>
+                <div className="w-20 text-right">
+                  {sub.status === 'active' && (
+                    <button
+                      onClick={() => handleArchive(sub.id)}
+                      className="text-xs text-gray-400 transition-colors hover:text-red-500"
+                    >
+                      Archive
+                    </button>
+                  )}
+                </div>
               </div>
-              <div className="w-32 truncate text-sm text-gray-500">
-                {sub.name || '—'}
-              </div>
-              <div className="w-28">
-                <SourceBadge source={sub.source} />
-              </div>
-              <div className="w-24">
-                <StatusBadge status={sub.status} />
-              </div>
-              <div className="w-20 text-right">
-                {sub.status === 'active' && (
-                  <button
-                    onClick={() => handleArchive(sub.id)}
-                    className="text-xs text-gray-400 transition-colors hover:text-red-500"
-                  >
-                    Archive
-                  </button>
-                )}
-              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="flex min-h-[50vh] flex-col items-center justify-center gap-8 text-center">
+            <div style={{ isolation: 'isolate' }} className="relative h-[88px] w-[88px]">
+              <div style={{ mixBlendMode: 'multiply' }} className="absolute top-0 left-0 h-14 w-14 rounded-full bg-cyan-300" />
+              <div style={{ mixBlendMode: 'multiply' }} className="absolute bottom-0 right-0 h-14 w-14 rounded-full bg-blue-300" />
             </div>
-          ))}
-
-          {(!subscribers?.items || subscribers.items.length === 0) && (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <PersonOutlined className="mb-3 text-gray-300" style={{ fontSize: 48 }} />
+            <div className="flex max-w-lg flex-col gap-3">
+              <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
+                Your subscribers, all in one place
+              </h2>
               <p className="dark:text-spaire-400 text-gray-500">
-                No subscribers yet
-              </p>
-              <p className="dark:text-spaire-500 mt-1 text-sm text-gray-400">
-                Subscribers will appear here when people subscribe via your Space
-                or make a purchase.
+                Subscribers are added automatically when people subscribe via your
+                Space or make a purchase. You can also add them manually.
               </p>
             </div>
-          )}
-        </div>
+            <Button size="lg" onClick={() => setShowAddForm(true)} className="gap-2">
+              <AddOutlined fontSize="small" />
+              Add subscriber
+            </Button>
+          </div>
+        )}
 
         {/* Pagination */}
         {subscribers?.pagination && subscribers.pagination.total_count > 20 && (

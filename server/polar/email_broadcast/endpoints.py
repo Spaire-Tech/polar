@@ -5,7 +5,7 @@ from pydantic import UUID4
 
 from polar.email_subscriber.auth import EmailSubscribersRead, EmailSubscribersWrite
 from polar.exceptions import ResourceNotFound
-from polar.kit.pagination import ListResource, Pagination, PaginationParamsQuery
+from polar.kit.pagination import ListResource, PaginationParamsQuery
 from polar.postgres import AsyncReadSession, AsyncSession, get_db_read_session, get_db_session
 from polar.routing import APIRouter
 
@@ -33,9 +33,10 @@ async def list_email_broadcasts(
         organization_id=organization_id,
         pagination=pagination,
     )
-    return ListResource(
-        items=[EmailBroadcastSchema.model_validate(r, from_attributes=True) for r in results],
-        pagination=Pagination(page=pagination.page, total_count=count),
+    return ListResource.from_paginated_results(
+        [EmailBroadcastSchema.model_validate(r, from_attributes=True) for r in results],
+        count,
+        pagination,
     )
 
 
