@@ -52,7 +52,7 @@ class EmailSubscriberService:
         if order_clauses:
             statement = statement.order_by(*order_clauses)
 
-        return await repository.paginate(statement, pagination.limit, pagination.page)
+        return await repository.paginate(statement, limit=pagination.limit, page=pagination.page)
 
     async def get_by_id(
         self,

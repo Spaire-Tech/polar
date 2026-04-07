@@ -31,7 +31,7 @@ class EmailBroadcastService:
             )
 
         statement = statement.order_by(EmailBroadcast.created_at.desc())
-        return await repository.paginate(statement, pagination.limit, pagination.page)
+        return await repository.paginate(statement, limit=pagination.limit, page=pagination.page)
 
     async def get_by_id(
         self,
