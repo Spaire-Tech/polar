@@ -57,6 +57,30 @@ async def get_email_subscriber_stats(
     return EmailSubscriberStats(**stats)
 
 
+@router.get("/daily-growth")
+async def get_email_subscriber_daily_growth(
+    auth_subject: auth.EmailSubscribersRead,
+    organization_id: UUID = Query(),
+    days: int = Query(default=30),
+    session: AsyncReadSession = Depends(get_db_read_session),
+) -> list[dict]:
+    return await email_subscriber_service.get_daily_growth(
+        session, organization_id, days
+    )
+
+
+@router.get("/daily-unsubscribes")
+async def get_email_subscriber_daily_unsubscribes(
+    auth_subject: auth.EmailSubscribersRead,
+    organization_id: UUID = Query(),
+    days: int = Query(default=30),
+    session: AsyncReadSession = Depends(get_db_read_session),
+) -> list[dict]:
+    return await email_subscriber_service.get_daily_unsubscribes(
+        session, organization_id, days
+    )
+
+
 @router.post("/", response_model=EmailSubscriberSchema, status_code=201)
 async def create_email_subscriber(
     auth_subject: auth.EmailSubscribersWrite,

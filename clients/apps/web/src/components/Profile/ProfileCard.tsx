@@ -65,6 +65,8 @@ export const ProfileCard = ({ organization, products = [] }: ProfileCardProps) =
   const [email, setEmail] = useState('')
   const [subscribed, setSubscribed] = useState(false)
   const [subscribing, setSubscribing] = useState(false)
+  const [showLanguagesTooltip, setShowLanguagesTooltip] = useState(false)
+  const [showSkillsTooltip, setShowSkillsTooltip] = useState(false)
   const subscribe = useStorefrontSubscribe()
 
   const handleSubscribe = async () => {
@@ -161,20 +163,23 @@ export const ProfileCard = ({ organization, products = [] }: ProfileCardProps) =
               </span>
             )}
             {languages.length > 0 && (
-              <span
+              <button
+                type="button"
                 className="group relative flex flex-row items-center gap-x-1.5 rounded-full border border-gray-200 px-3 py-1 text-[12px] text-gray-500"
-                title={languages.join(', ')}
+                onClick={() => setShowLanguagesTooltip(!showLanguagesTooltip)}
+                onMouseEnter={() => setShowLanguagesTooltip(true)}
+                onMouseLeave={() => setShowLanguagesTooltip(false)}
               >
                 <TranslateOutlined style={{ fontSize: 14 }} />
                 {languages.length <= 2
                   ? languages.join(', ')
                   : `${languages[0]}, ${languages.length - 1} more`}
-                {languages.length > 2 && (
-                  <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded-lg bg-gray-900 px-3 py-1.5 text-[11px] text-white shadow-lg group-hover:block">
+                {languages.length > 2 && showLanguagesTooltip && (
+                  <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-gray-900 px-3 py-1.5 text-[11px] text-white shadow-lg">
                     {languages.join(', ')}
                   </span>
                 )}
-              </span>
+              </button>
             )}
           </div>
         )}
@@ -191,15 +196,20 @@ export const ProfileCard = ({ organization, products = [] }: ProfileCardProps) =
               </span>
             ))}
             {skills.length > MAX_VISIBLE_SKILLS && (
-              <span
+              <button
+                type="button"
                 className="group relative rounded-full border border-gray-200 px-3 py-1 text-[12px] text-gray-400"
-                title={skills.slice(MAX_VISIBLE_SKILLS).join(', ')}
+                onClick={() => setShowSkillsTooltip(!showSkillsTooltip)}
+                onMouseEnter={() => setShowSkillsTooltip(true)}
+                onMouseLeave={() => setShowSkillsTooltip(false)}
               >
                 +{skills.length - MAX_VISIBLE_SKILLS}
-                <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded-lg bg-gray-900 px-3 py-1.5 text-[11px] text-white shadow-lg group-hover:block">
-                  {skills.slice(MAX_VISIBLE_SKILLS).join(', ')}
-                </span>
-              </span>
+                {showSkillsTooltip && (
+                  <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-gray-900 px-3 py-1.5 text-[11px] text-white shadow-lg">
+                    {skills.slice(MAX_VISIBLE_SKILLS).join(', ')}
+                  </span>
+                )}
+              </button>
             )}
           </div>
         )}
