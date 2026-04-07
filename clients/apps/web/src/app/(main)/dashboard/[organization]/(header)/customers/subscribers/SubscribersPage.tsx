@@ -133,7 +133,7 @@ export default function SubscribersPage({
   const hasStats = stats && stats.total > 0
 
   return (
-    <DashboardBody>
+    <DashboardBody title="Subscribers">
       <div className="flex flex-col gap-y-6">
         {/* Analytics chart + stat cards */}
         {hasStats && (
@@ -350,26 +350,19 @@ export default function SubscribersPage({
           </>
         ) : (
           <div className="flex min-h-[70vh] flex-col items-center justify-center gap-8 text-center">
-            <div
-              style={{ isolation: 'isolate' }}
-              className="relative h-[88px] w-[88px]"
-            >
-              <div
-                style={{ mixBlendMode: 'multiply' }}
-                className="absolute top-0 left-0 h-14 w-14 rounded-full bg-cyan-300"
-              />
-              <div
-                style={{ mixBlendMode: 'multiply' }}
-                className="absolute bottom-0 right-0 h-14 w-14 rounded-full bg-blue-300"
-              />
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-500/10">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-500">
+                <rect x="2" y="4" width="20" height="16" rx="2" />
+                <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+              </svg>
             </div>
             <div className="flex max-w-lg flex-col gap-3">
               <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
-                Your subscribers, all in one place
+                Grow your email list
               </h2>
               <p className="dark:text-polar-400 text-gray-500">
-                Subscribers are added automatically when people subscribe via
-                your Space or make a purchase. You can also add them manually.
+                Collect subscribers through your Space or add them manually.
+                Send broadcasts and keep your audience engaged.
               </p>
             </div>
             <Button size="lg" onClick={showAddModal} className="gap-2">
