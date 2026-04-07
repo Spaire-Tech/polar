@@ -1,5 +1,6 @@
 'use client'
 
+import { GenericChart } from '@/components/Charts/GenericChart'
 import { DashboardBody } from '@/components/Layout/DashboardLayout'
 import { InlineModal } from '@/components/Modal/InlineModal'
 import { useModal } from '@/components/Modal/useModal'
@@ -132,12 +133,12 @@ export default function SubscribersPage({
   const hasStats = stats && stats.total > 0
 
   return (
-    <DashboardBody>
+    <DashboardBody title="Subscribers">
       <div className="flex flex-col gap-y-6">
         {/* Analytics chart + stat cards */}
         {hasStats && (
           <>
-            <MiniLineChart data={dailyGrowth ?? []} />
+            <SubscriberChart data={dailyGrowth ?? []} stats={stats} />
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <StatCard
                 value={stats.total}
@@ -355,20 +356,20 @@ export default function SubscribersPage({
             >
               <div
                 style={{ mixBlendMode: 'multiply' }}
-                className="absolute top-0 left-0 h-14 w-14 rounded-full bg-cyan-300"
+                className="absolute top-0 left-0 h-14 w-14 rounded-2xl bg-indigo-300"
               />
               <div
                 style={{ mixBlendMode: 'multiply' }}
-                className="absolute bottom-0 right-0 h-14 w-14 rounded-full bg-blue-300"
+                className="absolute bottom-0 right-0 h-14 w-14 rounded-full bg-violet-300"
               />
             </div>
             <div className="flex max-w-lg flex-col gap-3">
               <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
-                Your subscribers, all in one place
+                Grow your email list
               </h2>
               <p className="dark:text-polar-400 text-gray-500">
-                Subscribers are added automatically when people subscribe via
-                your Space or make a purchase. You can also add them manually.
+                Collect subscribers through your Space or add them manually.
+                Send broadcasts and keep your audience engaged.
               </p>
             </div>
             <Button size="lg" onClick={showAddModal} className="gap-2">
@@ -488,91 +489,53 @@ function StatCard({
   )
 }
 
-function MiniLineChart({ data }: { data: { day: string; count: number }[] }) {
-  if (!data || data.length === 0) {
-    return (
-      <div className="dark:border-polar-700 dark:bg-polar-800 flex h-48 items-center justify-center rounded-2xl border border-gray-200 bg-white">
-        <span className="dark:text-polar-500 text-sm text-gray-400">
-          Subscriber growth chart will appear as data accumulates
-        </span>
-      </div>
-    )
+function SubscriberChart({
+  data,
+  stats,
+}: {
+  data: { day: string; count: number }[]
+  stats: { total: number; active: number; unsubscribed: number }
+}) {
+  // Build cumulative subscriber count over time
+  // Start from (total - sum of daily new) and accumulate
+  const totalNew = data.reduce((s, d) => s + d.count, 0)
+  let running = Math.max(stats.total - totalNew, 0)
+
+  const chartData = data.map((d) => {
+    running += d.count
+    return {
+      day: new Date(d.day).toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+      }),
+      subscribers: running,
+    }
+  })
+
+  // If no daily data yet, show a single point with the current total
+  if (chartData.length === 0) {
+    const today = new Date().toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+    })
+    chartData.push({ day: today, subscribers: stats.total })
   }
-
-  const maxCount = Math.max(...data.map((d) => d.count), 1)
-  const width = 800
-  const height = 160
-  const paddingX = 40
-  const paddingY = 20
-  const chartW = width - paddingX * 2
-  const chartH = height - paddingY * 2
-
-  // Build cumulative line
-  let cumulative = 0
-  const cumulativeData = data.map((d) => {
-    cumulative += d.count
-    return { day: d.day, count: cumulative }
-  })
-  const maxCum = Math.max(...cumulativeData.map((d) => d.count), 1)
-
-  const points = cumulativeData.map((d, i) => {
-    const x = paddingX + (i / Math.max(cumulativeData.length - 1, 1)) * chartW
-    const y = paddingY + chartH - (d.count / maxCum) * chartH
-    return `${x},${y}`
-  })
-
-  const firstDay = data[0]?.day ?? ''
-  const lastDay = data[data.length - 1]?.day ?? ''
 
   return (
     <div className="dark:border-polar-700 dark:bg-polar-800 overflow-hidden rounded-2xl border border-gray-200 bg-white p-4">
-      <svg
-        viewBox={`0 0 ${width} ${height}`}
-        className="h-40 w-full"
-        preserveAspectRatio="none"
-      >
-        {/* Grid lines */}
-        {[0.25, 0.5, 0.75, 1].map((frac) => (
-          <line
-            key={frac}
-            x1={paddingX}
-            y1={paddingY + chartH * (1 - frac)}
-            x2={width - paddingX}
-            y2={paddingY + chartH * (1 - frac)}
-            stroke="currentColor"
-            className="text-gray-100 dark:text-gray-800"
-            strokeWidth="1"
-          />
-        ))}
-        {/* Line */}
-        <polyline
-          points={points.join(' ')}
-          fill="none"
-          stroke="#6366f1"
-          strokeWidth="2.5"
-          strokeLinejoin="round"
-          strokeLinecap="round"
-        />
-        {/* Area fill */}
-        <polygon
-          points={`${paddingX},${paddingY + chartH} ${points.join(' ')} ${paddingX + chartW},${paddingY + chartH}`}
-          fill="url(#chartGradient)"
-        />
-        <defs>
-          <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#6366f1" stopOpacity="0.15" />
-            <stop offset="100%" stopColor="#6366f1" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-      </svg>
-      <div className="mt-1 flex flex-row justify-between px-2">
-        <span className="dark:text-polar-500 text-xs text-gray-400">
-          {firstDay}
-        </span>
-        <span className="dark:text-polar-500 text-xs text-gray-400">
-          {lastDay}
-        </span>
-      </div>
+      <GenericChart
+        data={chartData}
+        series={[
+          {
+            key: 'subscribers',
+            label: 'Subscribers',
+            color: '#6366f1',
+          },
+        ]}
+        xAxisKey="day"
+        height={200}
+        simple
+      />
     </div>
   )
 }
