@@ -96,6 +96,10 @@ class Settings(BaseSettings):
     BACKOFFICE_HOST: str | None = None
     CHECKOUT_LINK_HOST: str | None = None  # e.g., "buy.spairehq.com" in production
 
+    # URL to the storefront app (space.spairehq.com in production).
+    # Added to CORS allowed origins with credentials.
+    STOREFRONT_BASE_URL: str = ""
+
     # URL to frontend app.
     # Update to ngrok domain or similar in case you want
     # working Github badges in development.

@@ -65,17 +65,6 @@ export default function SegmentsPage({
   return (
     <DashboardBody title="Segments">
       <div className="flex flex-col gap-y-8">
-        {/* Controls */}
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <p className="dark:text-spaire-400 text-sm text-gray-500">
-            Organize subscribers into segments for targeted broadcasts.
-          </p>
-          <Button onClick={() => setShowCreateForm(true)}>
-            <AddOutlined className="mr-1" fontSize="small" />
-            New segment
-          </Button>
-        </div>
-
         {/* Create form */}
         {showCreateForm && (
           <div className="dark:border-spaire-700 dark:bg-spaire-900 flex flex-row items-end gap-3 rounded-2xl border border-gray-200 bg-white p-4">
@@ -112,70 +101,89 @@ export default function SegmentsPage({
           </div>
         )}
 
-        {/* Segment list */}
-        <div className="dark:border-spaire-700 dark:divide-spaire-700 flex flex-col divide-y divide-gray-100 rounded-2xl border border-gray-200">
-          {/* Header */}
-          <div className="dark:bg-spaire-900 flex flex-row items-center gap-4 rounded-t-2xl bg-gray-50 px-6 py-3 text-xs font-medium text-gray-500">
-            <div className="flex-1">Name</div>
-            <div className="w-28">Type</div>
-            <div className="w-28 text-right">Subscribers</div>
-            <div className="w-16" />
-          </div>
-
-          {segments?.map((segment: any) => (
-            <div
-              key={segment.id}
-              className="dark:hover:bg-spaire-800 flex flex-row items-center gap-4 px-6 py-4 hover:bg-gray-50"
-            >
-              <div className="flex flex-1 flex-row items-center gap-3">
-                {segment.is_system ? (
-                  <LockOutlined
-                    className="dark:text-spaire-500 text-gray-400"
-                    fontSize="small"
-                  />
-                ) : (
-                  <CategoryOutlined
-                    className="dark:text-spaire-500 text-gray-400"
-                    fontSize="small"
-                  />
-                )}
-                <span className="text-sm font-medium">{segment.name}</span>
-              </div>
-              <div className="w-28">
-                <SegmentTypeBadge type={segment.type} />
-              </div>
-              <div className="dark:text-spaire-300 w-28 text-right text-sm">
-                {segment.subscriber_count.toLocaleString()}
-              </div>
-              <div className="w-16 text-right">
-                {!segment.is_system && (
-                  <button
-                    onClick={() => handleDelete(segment.id)}
-                    className="text-gray-400 transition-colors hover:text-red-500"
-                  >
-                    <DeleteOutlined fontSize="small" />
-                  </button>
-                )}
-              </div>
+        {segments && segments.length > 0 ? (
+          <>
+            {/* Controls */}
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <p className="dark:text-spaire-400 text-sm text-gray-500">
+                Organize subscribers into segments for targeted broadcasts.
+              </p>
+              <Button onClick={() => setShowCreateForm(true)}>
+                <AddOutlined className="mr-1" fontSize="small" />
+                New segment
+              </Button>
             </div>
-          ))}
 
-          {(!segments || segments.length === 0) && (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <CategoryOutlined
-                className="mb-3 text-gray-300"
-                style={{ fontSize: 48 }}
-              />
+            {/* Segment list */}
+            <div className="dark:border-spaire-700 dark:divide-spaire-700 flex flex-col divide-y divide-gray-100 rounded-2xl border border-gray-200">
+              {/* Header */}
+              <div className="dark:bg-spaire-900 flex flex-row items-center gap-4 rounded-t-2xl bg-gray-50 px-6 py-3 text-xs font-medium text-gray-500">
+                <div className="flex-1">Name</div>
+                <div className="w-28">Type</div>
+                <div className="w-28 text-right">Subscribers</div>
+                <div className="w-16" />
+              </div>
+
+              {segments.map((segment: any) => (
+                <div
+                  key={segment.id}
+                  className="dark:hover:bg-spaire-800 flex flex-row items-center gap-4 px-6 py-4 hover:bg-gray-50"
+                >
+                  <div className="flex flex-1 flex-row items-center gap-3">
+                    {segment.is_system ? (
+                      <LockOutlined
+                        className="dark:text-spaire-500 text-gray-400"
+                        fontSize="small"
+                      />
+                    ) : (
+                      <CategoryOutlined
+                        className="dark:text-spaire-500 text-gray-400"
+                        fontSize="small"
+                      />
+                    )}
+                    <span className="text-sm font-medium">{segment.name}</span>
+                  </div>
+                  <div className="w-28">
+                    <SegmentTypeBadge type={segment.type} />
+                  </div>
+                  <div className="dark:text-spaire-300 w-28 text-right text-sm">
+                    {segment.subscriber_count.toLocaleString()}
+                  </div>
+                  <div className="w-16 text-right">
+                    {!segment.is_system && (
+                      <button
+                        onClick={() => handleDelete(segment.id)}
+                        className="text-gray-400 transition-colors hover:text-red-500"
+                      >
+                        <DeleteOutlined fontSize="small" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : !showCreateForm ? (
+          <div className="flex min-h-[50vh] flex-col items-center justify-center gap-8 text-center">
+            <div style={{ isolation: 'isolate' }} className="relative h-[88px] w-[88px]">
+              <div style={{ mixBlendMode: 'multiply' }} className="absolute top-0 left-0 h-14 w-14 rounded-2xl bg-orange-300" />
+              <div style={{ mixBlendMode: 'multiply' }} className="absolute bottom-0 right-0 h-14 w-14 rounded-full bg-yellow-300" />
+            </div>
+            <div className="flex max-w-lg flex-col gap-3">
+              <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
+                Organize subscribers into segments
+              </h2>
               <p className="dark:text-spaire-400 text-gray-500">
-                No segments yet
-              </p>
-              <p className="dark:text-spaire-500 mt-1 text-sm text-gray-400">
-                System segments will be created automatically. You can also
-                create custom segments.
+                Segments let you target specific groups of subscribers for your
+                broadcasts — all subscribers, customers, or custom lists.
               </p>
             </div>
-          )}
-        </div>
+            <Button size="lg" onClick={() => setShowCreateForm(true)} className="gap-2">
+              <AddOutlined fontSize="small" />
+              New segment
+            </Button>
+          </div>
+        ) : null}
       </div>
     </DashboardBody>
   )

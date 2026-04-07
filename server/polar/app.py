@@ -73,6 +73,8 @@ def configure_cors(app: FastAPI) -> None:
     # (e.g. sandbox environments where the origin would otherwise fall through
     # to the wildcard api_config which disallows credentials).
     frontend_origins = set(settings.CORS_ORIGINS) | {settings.FRONTEND_BASE_URL}
+    if settings.STOREFRONT_BASE_URL:
+        frontend_origins.add(settings.STOREFRONT_BASE_URL)
 
     def polar_frontend_matcher(origin: str, scope: Scope) -> bool:
         return origin in frontend_origins
