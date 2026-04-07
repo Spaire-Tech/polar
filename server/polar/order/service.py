@@ -1736,7 +1736,7 @@ class OrderService:
         # Auto-subscribe buyer to email marketing list
         enqueue_job(
             "email_subscriber.subscribe_from_order",
-            organization_id=order.organization_id,
+            organization_id=order.organization.id,
             email=order.customer.email,
             name=order.customer.name,
             customer_id=order.customer_id,
