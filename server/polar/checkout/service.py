@@ -1052,6 +1052,13 @@ class CheckoutService:
                 }
             )
 
+        # Flush net_amount and tax_amount so they are persisted before
+        # the PaymentIntent is created.  The charge.succeeded webhook
+        # later reads these values to build the Order and asserts the
+        # amounts match.
+        session.add(checkout)
+        await session.flush()
+
         # Case where the price was archived after the checkout was created
         if has_product_checkout(checkout) and checkout.product_price.is_archived:
             errors.append(
@@ -2174,6 +2181,7 @@ class CheckoutService:
         if not (checkout.is_payment_form_required and is_tax_applicable):
             checkout.tax_amount = 0
             checkout.tax_processor_id = None
+            session.add(checkout)
             return checkout
 
         if checkout.customer_billing_address is not None:
