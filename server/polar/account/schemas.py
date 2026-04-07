@@ -51,7 +51,6 @@ class StripeAccountCountry(StrEnum):
     HK = "HK"
     HU = "HU"
     IS = "IS"
-    IN = "IN"
     ID = "ID"
     IE = "IE"
     IL = "IL"
