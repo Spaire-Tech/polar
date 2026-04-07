@@ -188,4 +188,23 @@ class EmailSubscriberService:
         }
 
 
+    async def get_daily_growth(
+        self,
+        session: AsyncReadSession,
+        organization_id: UUID,
+        days: int = 30,
+    ) -> list[dict]:
+        repository = EmailSubscriberRepository.from_session(session)
+        return await repository.get_daily_counts(organization_id, days)
+
+    async def get_daily_unsubscribes(
+        self,
+        session: AsyncReadSession,
+        organization_id: UUID,
+        days: int = 30,
+    ) -> list[dict]:
+        repository = EmailSubscriberRepository.from_session(session)
+        return await repository.get_daily_unsubscribes(organization_id, days)
+
+
 email_subscriber = EmailSubscriberService()

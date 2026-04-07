@@ -40,6 +40,29 @@ async def list_email_broadcasts(
     )
 
 
+@router.get("/aggregate-analytics")
+async def get_broadcast_aggregate_analytics(
+    auth_subject: EmailSubscribersRead,
+    organization_id: UUID = Query(),
+    session: AsyncReadSession = Depends(get_db_read_session),
+) -> dict:
+    return await email_broadcast_service.get_aggregate_analytics(
+        session, organization_id
+    )
+
+
+@router.get("/daily-sends")
+async def get_broadcast_daily_sends(
+    auth_subject: EmailSubscribersRead,
+    organization_id: UUID = Query(),
+    days: int = Query(default=30),
+    session: AsyncReadSession = Depends(get_db_read_session),
+) -> list[dict]:
+    return await email_broadcast_service.get_daily_sends(
+        session, organization_id, days
+    )
+
+
 @router.post("/", response_model=EmailBroadcastSchema, status_code=201)
 async def create_email_broadcast(
     auth_subject: EmailSubscribersWrite,

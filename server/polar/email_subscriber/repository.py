@@ -1,6 +1,8 @@
 from uuid import UUID
 
-from sqlalchemy import Select, func, select
+from datetime import date, timedelta
+
+from sqlalchemy import Select, cast, Date, func, select
 
 from polar.auth.models import AuthSubject, Organization, User, is_organization, is_user
 from polar.kit.repository import (
@@ -70,6 +72,49 @@ class EmailSubscriberRepository(
             EmailSubscriber.deleted_at.is_(None),
         ).order_by(EmailSubscriber.created_at.desc())
         return list(await self.get_all(statement))
+
+    async def get_daily_counts(
+        self, organization_id: UUID, days: int = 30
+    ) -> list[dict]:
+        """Get daily subscriber counts for the last N days."""
+        start_date = date.today() - timedelta(days=days)
+        statement = (
+            select(
+                cast(EmailSubscriber.created_at, Date).label("day"),
+                func.count(EmailSubscriber.id).label("count"),
+            )
+            .where(
+                EmailSubscriber.organization_id == organization_id,
+                EmailSubscriber.deleted_at.is_(None),
+                cast(EmailSubscriber.created_at, Date) >= start_date,
+            )
+            .group_by(cast(EmailSubscriber.created_at, Date))
+            .order_by(cast(EmailSubscriber.created_at, Date))
+        )
+        result = await self.session.execute(statement)
+        return [{"day": str(row[0]), "count": row[1]} for row in result.all()]
+
+    async def get_daily_unsubscribes(
+        self, organization_id: UUID, days: int = 30
+    ) -> list[dict]:
+        """Get daily unsubscribe counts for the last N days."""
+        start_date = date.today() - timedelta(days=days)
+        statement = (
+            select(
+                cast(EmailSubscriber.unsubscribed_at, Date).label("day"),
+                func.count(EmailSubscriber.id).label("count"),
+            )
+            .where(
+                EmailSubscriber.organization_id == organization_id,
+                EmailSubscriber.deleted_at.is_(None),
+                EmailSubscriber.unsubscribed_at.isnot(None),
+                cast(EmailSubscriber.unsubscribed_at, Date) >= start_date,
+            )
+            .group_by(cast(EmailSubscriber.unsubscribed_at, Date))
+            .order_by(cast(EmailSubscriber.unsubscribed_at, Date))
+        )
+        result = await self.session.execute(statement)
+        return [{"day": str(row[0]), "count": row[1]} for row in result.all()]
 
     def get_readable_statement(
         self, auth_subject: AuthSubject[User | Organization]

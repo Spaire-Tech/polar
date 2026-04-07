@@ -3,7 +3,6 @@ import { PolarHog, usePostHog } from '@/hooks/posthog'
 import AttachMoneyOutlined from '@mui/icons-material/AttachMoneyOutlined'
 import CodeOutlined from '@mui/icons-material/CodeOutlined'
 import ExtensionOutlined from '@mui/icons-material/ExtensionOutlined'
-import EmailOutlined from '@mui/icons-material/EmailOutlined'
 import HiveOutlined from '@mui/icons-material/HiveOutlined'
 import PeopleAltOutlined from '@mui/icons-material/PeopleAltOutlined'
 import LayersOutlined from '@mui/icons-material/LayersOutlined'
@@ -206,22 +205,6 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
       return currentRoute.startsWith(`/dashboard/${org?.slug}/customers`)
     },
     if: true,
-  },
-  {
-    id: 'email-marketing',
-    title: 'Email',
-    icon: <EmailOutlined fontSize="inherit" />,
-    link: `/dashboard/${org?.slug}/email-marketing`,
-    checkIsActive: (currentRoute: string): boolean => {
-      return currentRoute.startsWith(`/dashboard/${org?.slug}/email-marketing`)
-    },
-    if: true,
-    showSubsInNav: true,
-    subs: [
-      { title: 'Subscribers', link: `/dashboard/${org?.slug}/email-marketing` },
-      { title: 'Broadcasts', link: `/dashboard/${org?.slug}/email-marketing/broadcasts` },
-      { title: 'Segments', link: `/dashboard/${org?.slug}/email-marketing/segments` },
-    ],
   },
   {
     id: 'invoices',

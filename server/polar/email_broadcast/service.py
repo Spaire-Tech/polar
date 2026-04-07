@@ -197,4 +197,38 @@ class EmailBroadcastService:
         }
 
 
+    async def get_aggregate_analytics(
+        self,
+        session: AsyncReadSession,
+        organization_id: UUID,
+    ) -> dict[str, int | float]:
+        repository = EmailBroadcastRepository.from_session(session)
+        counts = await repository.get_aggregate_analytics(organization_id)
+
+        total_sent = counts["total_sent"]
+        delivered = counts["delivered"]
+        opened = counts["opened"]
+        clicked = counts["clicked"]
+        unsubscribed = counts["unsubscribed"]
+
+        return {
+            "total_sent": total_sent,
+            "delivered": delivered,
+            "opened": opened,
+            "clicked": clicked,
+            "unsubscribed": unsubscribed,
+            "open_rate": (opened / delivered * 100) if delivered > 0 else 0.0,
+            "click_rate": (clicked / delivered * 100) if delivered > 0 else 0.0,
+        }
+
+    async def get_daily_sends(
+        self,
+        session: AsyncReadSession,
+        organization_id: UUID,
+        days: int = 30,
+    ) -> list[dict]:
+        repository = EmailBroadcastRepository.from_session(session)
+        return await repository.get_daily_sends(organization_id, days)
+
+
 email_broadcast = EmailBroadcastService()

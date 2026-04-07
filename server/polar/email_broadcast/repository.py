@@ -1,6 +1,7 @@
+from datetime import date, timedelta
 from uuid import UUID
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import Date, Select, cast, func, select
 
 from polar.auth.models import AuthSubject, Organization, User, is_organization, is_user
 from polar.kit.repository import RepositoryBase, RepositorySoftDeletionMixin
@@ -76,3 +77,68 @@ class EmailBroadcastRepository(
         )
         result = await self.session.execute(statement)
         return result.scalar_one()
+
+    async def get_aggregate_analytics(
+        self, organization_id: UUID
+    ) -> dict[str, int]:
+        """Get aggregate analytics across all broadcasts for an org."""
+        statement = (
+            select(
+                func.count(EmailBroadcastSend.id).label("total_sent"),
+                func.count(EmailBroadcastSend.id).filter(
+                    EmailBroadcastSend.status.in_([
+                        EmailBroadcastSendStatus.delivered,
+                        EmailBroadcastSendStatus.opened,
+                        EmailBroadcastSendStatus.clicked,
+                    ])
+                ).label("delivered"),
+                func.count(EmailBroadcastSend.id).filter(
+                    EmailBroadcastSend.status.in_([
+                        EmailBroadcastSendStatus.opened,
+                        EmailBroadcastSendStatus.clicked,
+                    ])
+                ).label("opened"),
+                func.count(EmailBroadcastSend.id).filter(
+                    EmailBroadcastSend.status == EmailBroadcastSendStatus.clicked
+                ).label("clicked"),
+                func.count(EmailBroadcastSend.id).filter(
+                    EmailBroadcastSend.unsubscribed_at.isnot(None)
+                ).label("unsubscribed"),
+            )
+            .join(EmailBroadcast, EmailBroadcastSend.broadcast_id == EmailBroadcast.id)
+            .where(
+                EmailBroadcast.organization_id == organization_id,
+                EmailBroadcastSend.deleted_at.is_(None),
+            )
+        )
+        result = await self.session.execute(statement)
+        row = result.one()
+        return {
+            "total_sent": row[0],
+            "delivered": row[1],
+            "opened": row[2],
+            "clicked": row[3],
+            "unsubscribed": row[4],
+        }
+
+    async def get_daily_sends(
+        self, organization_id: UUID, days: int = 30
+    ) -> list[dict]:
+        """Get daily send counts for chart."""
+        start_date = date.today() - timedelta(days=days)
+        statement = (
+            select(
+                cast(EmailBroadcastSend.created_at, Date).label("day"),
+                func.count(EmailBroadcastSend.id).label("count"),
+            )
+            .join(EmailBroadcast, EmailBroadcastSend.broadcast_id == EmailBroadcast.id)
+            .where(
+                EmailBroadcast.organization_id == organization_id,
+                EmailBroadcastSend.deleted_at.is_(None),
+                cast(EmailBroadcastSend.created_at, Date) >= start_date,
+            )
+            .group_by(cast(EmailBroadcastSend.created_at, Date))
+            .order_by(cast(EmailBroadcastSend.created_at, Date))
+        )
+        result = await self.session.execute(statement)
+        return [{"day": str(row[0]), "count": row[1]} for row in result.all()]

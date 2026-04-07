@@ -6,6 +6,7 @@ import {
   useCreateEmailSubscriber,
   useEmailSubscribers,
   useEmailSubscriberStats,
+  useSubscriberDailyGrowth,
   useUpdateEmailSubscriber,
 } from '@/hooks/queries/emailMarketing'
 import AddOutlined from '@mui/icons-material/AddOutlined'
@@ -45,11 +46,13 @@ export default function SubscribersPage({
     limit: 20,
   })
   const statsQuery = useEmailSubscriberStats(organization.id)
+  const dailyGrowthQuery = useSubscriberDailyGrowth(organization.id, 30)
   const createSubscriber = useCreateEmailSubscriber(organization.id)
   const updateSubscriber = useUpdateEmailSubscriber()
 
   const stats = statsQuery.data
   const subscribers = subscribersQuery.data
+  const dailyGrowth = dailyGrowthQuery.data
 
   // Filter by search query on client side
   const filteredItems = subscribers?.items?.filter((sub: any) => {

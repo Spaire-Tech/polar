@@ -1,7 +1,15 @@
+import { getServerURL } from '@/utils/api'
 import { getQueryClient } from '@/utils/api/query'
 import { api } from '@/utils/client'
 import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query'
 import { defaultRetry } from './retry'
+
+// Helper for fetching JSON from API endpoints with credentials
+const fetchApi = async <T>(path: string): Promise<T> => {
+  const res = await fetch(getServerURL(path), { credentials: 'include' })
+  if (!res.ok) throw new Error(`API error: ${res.status}`)
+  return res.json()
+}
 
 // ── Subscribers ──
 
@@ -39,6 +47,26 @@ export const useEmailSubscriberStats = (organizationId: string) =>
           params: { query: { organization_id: organizationId } },
         })
         .then((r) => r.data),
+    retry: defaultRetry,
+  })
+
+export const useSubscriberDailyGrowth = (organizationId: string, days = 30) =>
+  useQuery({
+    queryKey: ['subscriber_daily_growth', organizationId, days],
+    queryFn: () =>
+      fetchApi<{ day: string; count: number }[]>(
+        `/v1/email-subscribers/daily-growth?organization_id=${organizationId}&days=${days}`,
+      ),
+    retry: defaultRetry,
+  })
+
+export const useSubscriberDailyUnsubscribes = (organizationId: string, days = 30) =>
+  useQuery({
+    queryKey: ['subscriber_daily_unsubscribes', organizationId, days],
+    queryFn: () =>
+      fetchApi<{ day: string; count: number }[]>(
+        `/v1/email-subscribers/daily-unsubscribes?organization_id=${organizationId}&days=${days}`,
+      ),
     retry: defaultRetry,
   })
 
@@ -83,6 +111,32 @@ export const useUpdateEmailSubscriber = () =>
   })
 
 // ── Broadcasts ──
+
+export const useBroadcastAggregateAnalytics = (organizationId: string) =>
+  useQuery({
+    queryKey: ['broadcast_aggregate_analytics', organizationId],
+    queryFn: () =>
+      fetchApi<{
+        total_sent: number
+        delivered: number
+        opened: number
+        clicked: number
+        unsubscribed: number
+        open_rate: number
+        click_rate: number
+      }>(`/v1/email-broadcasts/aggregate-analytics?organization_id=${organizationId}`),
+    retry: defaultRetry,
+  })
+
+export const useBroadcastDailySends = (organizationId: string, days = 30) =>
+  useQuery({
+    queryKey: ['broadcast_daily_sends', organizationId, days],
+    queryFn: () =>
+      fetchApi<{ day: string; count: number }[]>(
+        `/v1/email-broadcasts/daily-sends?organization_id=${organizationId}&days=${days}`,
+      ),
+    retry: defaultRetry,
+  })
 
 export const useEmailBroadcasts = (
   organizationId: string,
