@@ -350,11 +350,18 @@ export default function SubscribersPage({
           </>
         ) : (
           <div className="flex min-h-[70vh] flex-col items-center justify-center gap-8 text-center">
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-500/10">
-              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-500">
-                <rect x="2" y="4" width="20" height="16" rx="2" />
-                <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
-              </svg>
+            <div
+              style={{ isolation: 'isolate' }}
+              className="relative h-[88px] w-[88px]"
+            >
+              <div
+                style={{ mixBlendMode: 'multiply' }}
+                className="absolute top-0 left-0 h-14 w-14 rounded-2xl bg-indigo-300"
+              />
+              <div
+                style={{ mixBlendMode: 'multiply' }}
+                className="absolute bottom-0 right-0 h-14 w-14 rounded-full bg-violet-300"
+              />
             </div>
             <div className="flex max-w-lg flex-col gap-3">
               <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
