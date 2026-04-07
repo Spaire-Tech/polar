@@ -23593,6 +23593,7 @@ export interface components {
       | 'HK'
       | 'HU'
       | 'IS'
+      | 'IN'
       | 'ID'
       | 'IE'
       | 'IL'
@@ -43683,6 +43684,7 @@ export const stripeAccountCountryValues: ReadonlyArray<
   'HK',
   'HU',
   'IS',
+  'IN',
   'ID',
   'IE',
   'IL',
