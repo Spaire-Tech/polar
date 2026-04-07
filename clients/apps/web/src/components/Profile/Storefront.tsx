@@ -77,6 +77,8 @@ export const Storefront = ({
 
   return (
     <div className="flex w-full flex-col">
+      {/* Products heading — mobile only */}
+      <h2 className="mb-4 text-lg font-semibold text-gray-900 md:hidden">Products</h2>
       {/* Product grid — 2 columns */}
       <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-2">
         {displayProducts.map((product) => (
