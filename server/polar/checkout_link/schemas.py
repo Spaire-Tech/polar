@@ -67,9 +67,6 @@ class CheckoutLinkCreateBase(TrialConfigurationInputMixin, MetadataInputMixin, S
     allow_discount_codes: bool = Field(
         default=True, description=_allow_discount_codes_description
     )
-    require_billing_address: bool = Field(
-        default=False, description=_require_billing_address_description
-    )
     discount_id: UUID4 | None = Field(
         default=None, description=_discount_id_description
     )
@@ -124,9 +121,6 @@ class CheckoutLinkUpdate(MetadataInputMixin, TrialConfigurationInputMixin):
     label: str | None = None
     allow_discount_codes: bool | None = Field(
         default=None, description=_allow_discount_codes_description
-    )
-    require_billing_address: bool | None = Field(
-        default=None, description=_require_billing_address_description
     )
     discount_id: UUID4 | None = Field(
         default=None, description=_discount_id_description

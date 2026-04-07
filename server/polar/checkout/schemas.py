@@ -204,9 +204,6 @@ class CheckoutCreateBase(
     allow_discount_codes: bool = Field(
         default=True, description=_allow_discount_codes_description
     )
-    require_billing_address: bool = Field(
-        default=False, description=_require_billing_address_description
-    )
     amount: Amount | None = None
     seats: int | None = Field(
         default=None,
@@ -398,9 +395,6 @@ class CheckoutUpdate(
     )
     allow_discount_codes: bool | None = Field(
         default=None, description=_allow_discount_codes_description
-    )
-    require_billing_address: bool | None = Field(
-        default=None, description=_require_billing_address_description
     )
     allow_trial: bool | None = Field(default=None, description=_allow_trial_description)
     customer_ip_address: CustomerIPAddress | None = None
