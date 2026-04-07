@@ -101,7 +101,12 @@ from polar.product.schemas import ProductPriceCreateList
 from polar.product.service import product as product_service
 from polar.subscription.repository import SubscriptionRepository
 from polar.subscription.service import subscription as subscription_service
-from polar.tax.calculation import TaxCalculationError, TaxCode, get_tax_service
+from polar.tax.calculation import (
+    TaxCalculationError,
+    TaxCode,
+    get_tax_behavior_from_option,
+    get_tax_service,
+)
 from polar.tax.tax_id import InvalidTaxID, TaxID, to_stripe_tax_id, validate_tax_id
 from polar.trial_redemption.service import trial_redemption as trial_redemption_service
 from polar.webhook.service import webhook as webhook_service
@@ -473,7 +478,7 @@ class CheckoutService:
             for i, product in enumerate(products)
         ]
 
-        require_billing_address = checkout_create.require_billing_address
+        require_billing_address = True
         customer_billing_address = checkout_create.customer_billing_address
         if customer_billing_address is not None and any(
             (
@@ -510,7 +515,6 @@ class CheckoutService:
                     "prices",
                     "amount",
                     "currency",
-                    "require_billing_address",
                     "customer_billing_address",
                     "customer_tax_id",
                     "subscription_id",
@@ -869,7 +873,7 @@ class CheckoutService:
             trial_interval_count=checkout_link.trial_interval_count,
             allow_discount_codes=checkout_link.allow_discount_codes,
             allow_trial=True,
-            require_billing_address=checkout_link.require_billing_address,
+            require_billing_address=True,
             organization=checkout_link.organization,
             checkout_products=[
                 CheckoutProduct(product=p, order=i, ad_hoc_prices=[])
@@ -2157,12 +2161,15 @@ class CheckoutService:
     ) -> Checkout:
         is_tax_applicable = True
         tax_code = TaxCode.general_electronically_supplied_services
-        tax_behavior = checkout.organization.default_tax_behavior
+        tax_behavior_option = checkout.organization.default_tax_behavior
         if has_product_checkout(checkout):
             is_tax_applicable = checkout.product.is_tax_applicable
             tax_code = checkout.product.tax_code
             if checkout.product_price.tax_behavior is not None:
-                tax_behavior = checkout.product_price.tax_behavior
+                tax_behavior_option = checkout.product_price.tax_behavior
+
+        # Update net_amount to reflect the post-discount amount
+        checkout.net_amount = checkout.amount - checkout.discount_amount
 
         if not (checkout.is_payment_form_required and is_tax_applicable):
             checkout.tax_amount = 0
@@ -2170,6 +2177,9 @@ class CheckoutService:
             return checkout
 
         if checkout.customer_billing_address is not None:
+            tax_behavior = get_tax_behavior_from_option(
+                tax_behavior_option, checkout.customer_billing_address
+            )
             tax_processor = checkout.tax_processor or settings.DEFAULT_TAX_PROCESSOR
             tax_service = get_tax_service(tax_processor)
             try:
