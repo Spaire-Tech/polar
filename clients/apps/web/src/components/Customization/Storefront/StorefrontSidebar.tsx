@@ -233,6 +233,20 @@ export const StorefrontEditorForm = ({
     setTimeout(() => setCopied(false), 2000)
   }, [spaceUrl])
 
+  const [copiedShare, setCopiedShare] = useState(false)
+  const copyShareMessage = useCallback(() => {
+    navigator.clipboard.writeText(`I just launched my Spaire Space\n\nAll my work is up here now!\n${spaceUrl}`)
+    setCopiedShare(true)
+    setTimeout(() => setCopiedShare(false), 2000)
+  }, [spaceUrl])
+  const shareOnTwitter = useCallback(() => {
+    const msg = 'I just launched my Spaire Space\n\nAll my work is up here now!'
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(msg)}&url=${encodeURIComponent(spaceUrl)}`, '_blank')
+  }, [spaceUrl])
+  const shareOnLinkedIn = useCallback(() => {
+    window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(spaceUrl)}`, '_blank')
+  }, [spaceUrl])
+
   // Socials — read from organization, write to form
   const socials: SocialLink[] = (watch('socials') ?? organization.socials ?? []) as SocialLink[]
   const addSocial = () => {
@@ -378,32 +392,48 @@ export const StorefrontEditorForm = ({
           </div>
         </div>
         {isEnabled && (
-          <div className="flex flex-row items-center gap-2">
-            <div className="flex min-w-0 flex-1 items-center rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5">
-              <span className="truncate text-xs text-gray-600">{spaceUrl}</span>
+          <>
+            <div className="flex flex-row items-center gap-2">
+              <div className="flex min-w-0 flex-1 items-center rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5">
+                <span className="truncate text-xs text-gray-600">{spaceUrl}</span>
+              </div>
+              <button
+                type="button"
+                onClick={copyLink}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700"
+                title="Copy link"
+              >
+                {copied ? (
+                  <CheckOutlined style={{ fontSize: 16 }} />
+                ) : (
+                  <ContentCopyOutlined style={{ fontSize: 16 }} />
+                )}
+              </button>
+              <a
+                href={spaceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700"
+                title="Visit your Space"
+              >
+                <OpenInNewOutlined style={{ fontSize: 16 }} />
+              </a>
             </div>
-            <button
-              type="button"
-              onClick={copyLink}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700"
-              title="Copy link"
-            >
-              {copied ? (
-                <CheckOutlined style={{ fontSize: 16 }} />
-              ) : (
-                <ContentCopyOutlined style={{ fontSize: 16 }} />
-              )}
-            </button>
-            <a
-              href={spaceUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700"
-              title="Visit your Space"
-            >
-              <OpenInNewOutlined style={{ fontSize: 16 }} />
-            </a>
-          </div>
+            <div className="flex flex-col gap-2 pt-2">
+              <span className="text-xs font-medium text-gray-500">Share your Space</span>
+              <div className="flex flex-row items-center gap-2">
+                <button type="button" onClick={shareOnTwitter} className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                  Post on X
+                </button>
+                <button type="button" onClick={shareOnLinkedIn} className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                  LinkedIn
+                </button>
+                <button type="button" onClick={copyShareMessage} className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                  {copiedShare ? 'Copied!' : 'Copy message'}
+                </button>
+              </div>
+            </div>
+          </>
         )}
       </div>
 
