@@ -117,6 +117,28 @@ async def payment_intent_succeeded(event_id: uuid.UUID) -> None:
                         )
                 return
 
+            # Handle new checkout payments via the latest charge.
+            # This is a fallback in case charge.succeeded is not configured
+            # in the Stripe webhook or arrives before payment_intent.succeeded.
+            if payment_intent.metadata and payment_intent.metadata.get("checkout_id"):
+                checkout = await payment.resolve_checkout(session, payment_intent)
+                if checkout is not None:
+                    latest_charge_id = payment_intent.latest_charge
+                    if latest_charge_id is not None:
+                        from polar.integrations.stripe.service import (
+                            stripe as stripe_service,
+                        )
+
+                        charge = await stripe_service.get_charge(
+                            str(latest_charge_id)
+                        )
+                        try:
+                            await payment.handle_success(session, charge)
+                        except (NotConfirmedCheckout, payment.OrderDoesNotExist) as e:
+                            if can_retry():
+                                raise Retry() from e
+                            raise
+
 
 @actor(
     actor_name="stripe.webhook.payment_intent.payment_failed",
