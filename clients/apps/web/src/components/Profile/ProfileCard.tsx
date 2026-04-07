@@ -1,5 +1,6 @@
 'use client'
 
+import { useStorefrontSubscribe } from '@/hooks/queries/emailMarketing'
 import { schemas } from '@spaire/client'
 import Avatar from '@spaire/ui/components/atoms/Avatar'
 import Facebook from '@mui/icons-material/Facebook'
@@ -62,6 +63,23 @@ export const ProfileCard = ({ organization, products = [] }: ProfileCardProps) =
   const availableForWork = settings?.available_for_work ?? false
 
   const [email, setEmail] = useState('')
+  const [subscribed, setSubscribed] = useState(false)
+  const [subscribing, setSubscribing] = useState(false)
+  const subscribe = useStorefrontSubscribe()
+
+  const handleSubscribe = async () => {
+    if (!email.trim() || subscribing) return
+    setSubscribing(true)
+    try {
+      await subscribe.mutateAsync({ slug: organization.slug, email: email.trim() })
+      setSubscribed(true)
+      setEmail('')
+    } catch {
+      // silently fail
+    } finally {
+      setSubscribing(false)
+    }
+  }
 
   const MAX_VISIBLE_SKILLS = 4
   const MAX_HIGHLIGHTS = 7
@@ -219,21 +237,30 @@ export const ProfileCard = ({ organization, products = [] }: ProfileCardProps) =
         )}
 
         {/* Email Subscribe */}
-        <div className="mt-5 flex flex-row gap-2">
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Enter your email address..."
-            className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] text-gray-900 placeholder:text-gray-400 focus:border-gray-300 focus:outline-none"
-          />
-          <button
-            type="button"
-            className="shrink-0 rounded-xl bg-blue-500 px-5 py-2.5 text-[13px] font-medium text-white transition-opacity hover:opacity-85"
-          >
-            Subscribe
-          </button>
-        </div>
+        {subscribed ? (
+          <div className="mt-5 flex items-center justify-center rounded-xl bg-green-50 px-4 py-3 text-[13px] font-medium text-green-700">
+            You&apos;re subscribed!
+          </div>
+        ) : (
+          <div className="mt-5 flex flex-row gap-2">
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSubscribe()}
+              placeholder="Enter your email address..."
+              className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] text-gray-900 placeholder:text-gray-400 focus:border-gray-300 focus:outline-none"
+            />
+            <button
+              type="button"
+              onClick={handleSubscribe}
+              disabled={subscribing || !email.trim()}
+              className="shrink-0 rounded-xl bg-blue-500 px-5 py-2.5 text-[13px] font-medium text-white transition-opacity hover:opacity-85 disabled:opacity-50"
+            >
+              {subscribing ? 'Subscribing...' : 'Subscribe'}
+            </button>
+          </div>
+        )}
 
         {/* Powered by Spaire */}
         <div className="mt-6 flex flex-row items-center justify-center gap-x-1.5 border-t border-gray-100 pt-4">

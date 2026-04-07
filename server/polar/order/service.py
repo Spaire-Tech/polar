@@ -1733,6 +1733,15 @@ class OrderService:
             ),
         )
 
+        # Auto-subscribe buyer to email marketing list
+        enqueue_job(
+            "email_subscriber.subscribe_from_order",
+            organization_id=order.organization_id,
+            email=order.customer.email,
+            name=order.customer.name,
+            customer_id=order.customer_id,
+        )
+
         if order.subscription_id is not None and order.billing_reason in (
             OrderBillingReasonInternal.subscription_cycle,
             OrderBillingReasonInternal.subscription_cycle_after_trial,

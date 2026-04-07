@@ -127,7 +127,7 @@ const Customization = ({
             </button>
             <div className="flex items-center gap-3">
               <a
-                href={`/${organization.slug}`}
+                href={`https://space.spairehq.com/${organization.slug}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="rounded-full border border-gray-200 px-6 py-2 text-[14px] font-medium text-gray-700 transition-colors hover:bg-gray-50"

@@ -15,6 +15,9 @@ from polar.customer_seat.endpoints import router as customer_seat_router
 from polar.customer_session.endpoints import router as customer_session_router
 from polar.discount.endpoints import router as discount_router
 from polar.dispute.endpoints import router as dispute_router
+from polar.email_broadcast.endpoints import router as email_broadcast_router
+from polar.email_segment.endpoints import router as email_segment_router
+from polar.email_subscriber.endpoints import router as email_subscriber_router
 from polar.email_update.endpoints import router as email_update_router
 from polar.event.endpoints import router as event_router
 from polar.event_type.endpoints import router as event_type_router
@@ -31,6 +34,7 @@ from polar.integrations.github_repository_benefit.endpoints import (
 )
 from polar.integrations.google.endpoints import router as google_router
 from polar.integrations.plain.endpoints import router as plain_router
+from polar.integrations.resend.endpoints import router as resend_router
 from polar.integrations.stripe.endpoints import router as stripe_router
 from polar.license_key.endpoints import router as license_key_router
 from polar.login_code.endpoints import router as login_code_router
@@ -136,6 +140,12 @@ router.include_router(member_router)
 router.include_router(customer_portal_router)
 # /seats
 router.include_router(customer_seat_router)
+# /email-subscribers
+router.include_router(email_subscriber_router)
+# /email-segments
+router.include_router(email_segment_router)
+# /email-broadcasts
+router.include_router(email_broadcast_router)
 # /update-email
 router.include_router(email_update_router)
 # /customer-sessions
@@ -160,5 +170,7 @@ router.include_router(payment_router)
 router.include_router(payout_router)
 # /wallets
 router.include_router(wallet_router)
+# /integrations/resend
+router.include_router(resend_router)
 # /integrations/chargeback-stop
 router.include_router(chargeback_stop_router)

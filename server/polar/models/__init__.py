@@ -22,6 +22,11 @@ from .discount_product import DiscountProduct
 from .discount_redemption import DiscountRedemption
 from .dispute import Dispute
 from .downloadable import Downloadable
+from .email_broadcast import EmailBroadcast
+from .email_broadcast_send import EmailBroadcastSend
+from .email_segment import EmailSegment
+from .email_segment_subscriber import EmailSegmentSubscriber
+from .email_subscriber import EmailSubscriber
 from .email_verification import EmailVerification
 from .event import Event, EventClosure
 from .event_type import EventType
@@ -110,6 +115,11 @@ __all__ = [
     "DiscountRedemption",
     "Dispute",
     "Downloadable",
+    "EmailBroadcast",
+    "EmailBroadcastSend",
+    "EmailSegment",
+    "EmailSegmentSubscriber",
+    "EmailSubscriber",
     "EmailVerification",
     "Event",
     "EventClosure",
