@@ -1,9 +1,11 @@
 'use client'
 
+import revalidate from '@/app/actions'
 import { FadeUp } from '@/components/Animated/FadeUp'
 import LogoIcon from '@/components/Brand/LogoIcon'
 import { OnboardingStepper } from '@/components/Onboarding/OnboardingStepper'
 import { ThemeStep } from '@/components/Onboarding/ThemeStep'
+import { useAuth } from '@/hooks'
 import { OrganizationContext } from '@/providers/maintainerOrganization'
 import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
@@ -11,9 +13,16 @@ import { useContext } from 'react'
 
 export default function ThemePage() {
   const { organization } = useContext(OrganizationContext)
+  const { currentUser } = useAuth()
   const router = useRouter()
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
+    // Revalidate caches so the dashboard layout fetches fresh org data (including avatar)
+    await Promise.all([
+      revalidate(`organizations:${organization.id}`),
+      revalidate(`organizations:${organization.slug}`),
+      revalidate(`users:${currentUser?.id}:organizations`, { expire: 0 }),
+    ])
     router.push(`/dashboard/${organization.slug}`)
   }
 
