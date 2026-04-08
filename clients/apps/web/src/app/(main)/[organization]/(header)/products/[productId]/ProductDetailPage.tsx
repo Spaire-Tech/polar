@@ -205,7 +205,7 @@ function MediaGallery({
         <img
           src={active?.public_url}
           alt={active?.name ?? productName}
-          className="aspect-[4/3] w-full object-cover"
+          className="w-full object-contain"
         />
         {medias.length > 1 && (
           <>
