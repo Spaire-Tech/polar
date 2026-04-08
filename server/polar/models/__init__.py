@@ -63,6 +63,7 @@ from .product import Product, ProductVisibility
 from .product_benefit import ProductBenefit
 from .product_custom_field import ProductCustomField
 from .product_media import ProductMedia
+from .product_review import ProductReview
 from .product_price import (
     LegacyRecurringProductPriceCustom,
     LegacyRecurringProductPriceFixed,

@@ -1,10 +1,8 @@
 import { getServerSideAPI } from '@/utils/client/serverside'
-import { isCrawler } from '@/utils/crawlers'
 import { getStorefrontOrNotFound } from '@/utils/storefront'
-import { unwrap } from '@spaire/client'
 import type { Metadata } from 'next'
-import { headers } from 'next/headers'
-import { notFound, redirect } from 'next/navigation'
+import { notFound } from 'next/navigation'
+import { ProductDetailPage } from './ProductDetailPage'
 
 export async function generateMetadata(props: {
   params: Promise<{ organization: string; productId: string }>
@@ -22,10 +20,10 @@ export async function generateMetadata(props: {
   }
 
   return {
-    title: `${product.name} by ${organization.name}`, // " | Polar is added by the template"
+    title: `${product.name} by ${organization.name}`,
     openGraph: {
       title: `${product.name}`,
-      description: `A product from ${organization.name}`,
+      description: product.description || `A product from ${organization.name}`,
       siteName: 'Spaire',
       type: 'website',
       images: [
@@ -51,7 +49,7 @@ export async function generateMetadata(props: {
       ],
       card: 'summary_large_image',
       title: `${product.name}`,
-      description: `A product from ${organization.name}`,
+      description: product.description || `A product from ${organization.name}`,
     },
   }
 }
@@ -61,28 +59,23 @@ export default async function Page(props: {
 }) {
   const params = await props.params
   const api = await getServerSideAPI()
-  const { products } = await getStorefrontOrNotFound(api, params.organization)
+  const { organization, products } = await getStorefrontOrNotFound(
+    api,
+    params.organization,
+  )
   const product = products.find((p) => p.id === params.productId)
 
   if (!product) {
     notFound()
   }
 
-  /* Avoid creating a checkout for crawlers */
-  const headersList = await headers()
-  const userAgent = headersList.get('user-agent')
-  if (userAgent && isCrawler(userAgent)) {
-    return <></>
-  }
+  const otherProducts = products.filter((p) => p.id !== product.id)
 
-  const checkout = await unwrap(
-    api.POST('/v1/checkouts/client/', {
-      body: {
-        product_id: product.id,
-      },
-    }),
+  return (
+    <ProductDetailPage
+      organization={organization}
+      product={product}
+      otherProducts={otherProducts}
+    />
   )
-
-  // Redirect to full-page checkout in light mode
-  redirect(`/checkout/${checkout.client_secret}?theme=light`)
 }

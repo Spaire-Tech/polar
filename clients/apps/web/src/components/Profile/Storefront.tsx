@@ -1,11 +1,10 @@
 'use client'
 
 import { ProductCard } from '@/components/Products/ProductCard'
-import { CONFIG } from '@/utils/config'
 import HiveOutlined from '@mui/icons-material/HiveOutlined'
 import { schemas } from '@spaire/client'
-import { useCallback, useMemo, useState } from 'react'
-import { api } from '@/utils/client'
+import Link from 'next/link'
+import { useMemo } from 'react'
 
 export const Storefront = ({
   organization,
@@ -14,8 +13,6 @@ export const Storefront = ({
   organization: schemas['Organization'] | schemas['CustomerOrganization']
   products: schemas['ProductStorefront'][]
 }) => {
-  const [loadingProductId, setLoadingProductId] = useState<string | null>(null)
-
   const showDetails =
     'storefront_settings' in organization
       ? (organization.storefront_settings?.show_product_details ?? true)
@@ -26,7 +23,6 @@ export const Storefront = ({
       ? ((organization.storefront_settings?.thumbnail_size as 'small' | 'medium' | 'large') ?? 'medium')
       : 'medium'
 
-  // Filter by featured product IDs if set
   const featuredIds =
     'storefront_settings' in organization
       ? (organization.storefront_settings?.featured_product_ids ?? [])
@@ -38,25 +34,6 @@ export const Storefront = ({
     }
     return products
   }, [products, featuredIds])
-
-  // Create checkout and redirect to full checkout page (light theme)
-  const handleProductClick = useCallback(async (productId: string) => {
-    if (loadingProductId) return
-    setLoadingProductId(productId)
-    try {
-      const { data: checkout } = await api.POST('/v1/checkouts/client/', {
-        body: { product_id: productId },
-      })
-      if (checkout?.client_secret) {
-        window.location.href = `${CONFIG.FRONTEND_BASE_URL}/checkout/${checkout.client_secret}?theme=light`
-      }
-    } catch {
-      // Fallback: navigate to product page
-      window.location.href = `${CONFIG.FRONTEND_BASE_URL}/${organization.slug}/products/${productId}`
-    } finally {
-      setLoadingProductId(null)
-    }
-  }, [loadingProductId, organization.slug])
 
   if (products.length === 0) {
     return (
@@ -77,24 +54,19 @@ export const Storefront = ({
 
   return (
     <div className="flex w-full flex-col">
-      {/* Products heading — mobile only */}
       <h2 className="mb-4 text-lg font-semibold text-gray-900 md:hidden">Products</h2>
-      {/* Product grid — 2 columns */}
       <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-2">
         {displayProducts.map((product) => (
-          <button
+          <Link
             key={product.id}
-            type="button"
-            onClick={() => handleProductClick(product.id)}
-            disabled={loadingProductId === product.id}
-            className="text-left"
+            href={`/${organization.slug}/products/${product.id}`}
           >
             <ProductCard
               product={product}
               showDetails={showDetails}
               thumbnailSize={thumbnailSize}
             />
-          </button>
+          </Link>
         ))}
       </div>
     </div>
