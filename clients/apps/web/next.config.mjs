@@ -231,6 +231,30 @@ const nextConfig = {
         permanent: false,
       },
 
+      // On app.spairehq.com, redirect unauthenticated visitors to /signup
+      // The marketing homepage is served on www.spairehq.com instead
+      {
+        source: '/',
+        destination: '/signup',
+        has: [
+          {
+            type: 'host',
+            value: defaultFrontendHostname,
+          },
+        ],
+        missing: [
+          {
+            type: 'cookie',
+            key: POLAR_AUTH_COOKIE_KEY,
+          },
+          {
+            type: 'cookie',
+            key: 'polar_session',
+          },
+        ],
+        permanent: false,
+      },
+
       // Redirect /maintainer to polar.sh if on a different domain name
       // Skip in development so local dev server serves the dashboard directly
       ...(ENVIRONMENT !== 'development'
