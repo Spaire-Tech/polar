@@ -11,7 +11,7 @@ from polar.account_credit.service import account_credit_service
 from polar.auth.models import AuthSubject
 from polar.campaign.service import campaign as campaign_service
 from polar.enums import AccountType
-from polar.exceptions import PolarError
+from polar.exceptions import BadRequest, PolarError
 from polar.integrations.loops.service import loops as loops_service
 from polar.integrations.stripe.service import V2AccountInfo, stripe
 from polar.kit.pagination import PaginationParams
@@ -232,7 +232,7 @@ class AccountService:
                     )
                 except stripe_lib.StripeError as e:
                     if e.user_message:
-                        raise AccountServiceError(e.user_message) from e
+                        raise BadRequest(e.user_message) from e
                     else:
                         raise AccountServiceError(
                             "An unexpected Stripe error happened"
@@ -317,7 +317,7 @@ class AccountService:
             )  # TODO: name
         except stripe_lib.StripeError as e:
             if e.user_message:
-                raise AccountServiceError(e.user_message) from e
+                raise BadRequest(e.user_message) from e
             else:
                 raise AccountServiceError("An unexpected Stripe error happened") from e
 
