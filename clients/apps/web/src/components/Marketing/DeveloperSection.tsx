@@ -14,10 +14,10 @@ export default function DeveloperSection() {
               Ship more quickly with powerful and easy-to-use APIs
             </h2>
             <p className="mt-5 max-w-[480px] text-[17px] leading-relaxed text-[#8898aa]">
-              Save engineering time with a unified billing and payments platform.
-              We obsess over the complexity of global tax, entitlements, and
-              subscription lifecycle so that your teams can build what they need
-              on one platform.
+              Save engineering time with unified payments and billing. We obsess
+              over the maze of tax rules, entitlement logic, and subscription
+              lifecycle management so that your team can build what they need on
+              one platform.
             </p>
             <Link
               href="https://docs.spairehq.com"
@@ -176,25 +176,25 @@ export default function DeveloperSection() {
           {[
             {
               title: 'Use Spaire with your stack',
-              desc: 'We offer TypeScript, Python, Go, PHP, and Ruby SDKs plus a REST API for any language.',
+              desc: 'We offer client and server libraries in everything from TypeScript and Python to Go, PHP, and Ruby.',
               link: 'See libraries',
               href: 'https://docs.spairehq.com/integrate/sdk/typescript',
             },
             {
               title: 'Try no-code options',
-              desc: 'Checkout links and the dashboard let you accept payments with zero code.',
+              desc: 'Create checkout links and manage products directly from the Spaire Dashboard.',
               link: 'Explore no-code',
-              href: '/features/checkout',
+              href: 'https://docs.spairehq.com/features/checkout/links',
             },
             {
-              title: 'Explore framework adapters',
-              desc: 'Connect Spaire to Next.js, Remix, Nuxt, SvelteKit, Astro, Laravel, and more.',
+              title: 'Explore prebuilt integrations',
+              desc: 'Connect Spaire to Next.js, Remix, Nuxt, SvelteKit, Astro, Laravel, Better Auth, and more.',
               link: 'Browse adapters',
               href: 'https://docs.spairehq.com/integrate/sdk/typescript',
             },
             {
               title: 'Automate with webhooks',
-              desc: 'Real-time events for orders, subscriptions, and customer changes — in JSON, Slack, or Discord format.',
+              desc: 'Real-time events for orders, subscriptions, benefits, and customer changes — in JSON, Slack, or Discord.',
               link: 'Learn about webhooks',
               href: 'https://docs.spairehq.com/integrate/webhooks/delivery',
             },

@@ -14,10 +14,11 @@ export default function LaunchSection() {
               No-code and low-code options for getting started
             </h2>
             <p className="mt-5 max-w-[480px] text-[17px] leading-relaxed text-[#425466]">
-              If you&apos;d like to use Spaire for your SaaS but don&apos;t have
-              developers on staff, no problem. Create products, generate checkout
-              links, and manage subscriptions entirely from the dashboard — or
-              embed a checkout with a single line of code.
+              If you&apos;d like to use Spaire but don&apos;t have developers on
+              staff, no problem. We&apos;ll help you find a solution. Create
+              products, generate checkout links, and manage subscriptions
+              entirely from the dashboard — or embed a checkout with a single
+              line of code.
             </p>
             <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:gap-6">
               <Link

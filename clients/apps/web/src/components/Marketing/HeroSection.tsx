@@ -24,12 +24,13 @@ export default function HeroSection() {
           {/* Left: Copy */}
           <div>
             <h1 className="text-[48px] leading-[1.08] font-semibold tracking-tight text-[#0a2540] sm:text-[56px] lg:text-[68px]">
-              The financial backbone for SaaS
+              Payment infrastructure for software
             </h1>
             <p className="mt-6 max-w-[500px] text-[17px] leading-relaxed text-[#425466] lg:text-[19px]">
-              Thousands of software companies use Spaire to accept payments,
-              manage subscriptions, handle global tax compliance, and grow
-              revenue — without building financial infrastructure from scratch.
+              SaaS companies and digital product creators use Spaire to accept
+              payments, manage billing, automate tax compliance, and grow
+              revenue. We are the merchant of record — so you can focus on
+              building, not operations.
             </p>
             <div className="mt-8 flex items-center gap-5">
               <Link
@@ -95,9 +96,9 @@ export default function HeroSection() {
                   </svg>
                 </div>
                 <p className="text-[14px] font-medium text-[#0a2540]">
-                  Pro Plan
+                  Starter Kit
                 </p>
-                <p className="text-[13px] text-[#425466]">$49 per month</p>
+                <p className="text-[13px] text-[#425466]">$19 per month</p>
               </div>
 
               {/* Apple Pay Button */}

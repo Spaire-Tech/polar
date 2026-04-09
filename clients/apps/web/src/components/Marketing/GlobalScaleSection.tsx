@@ -21,13 +21,13 @@ export default function GlobalScaleSection() {
                 Global scale
               </p>
               <h2 className="text-[34px] leading-[1.15] font-semibold tracking-tight text-white sm:text-[44px]">
-                The backbone for global SaaS commerce
+                The backbone for global software commerce
               </h2>
               <p className="mt-5 max-w-[480px] text-[17px] leading-relaxed text-[#8898aa]">
-                Spaire makes selling software globally as easy and programmable
-                as deploying code. We handle tax in every jurisdiction, support
-                36+ currencies, and process payments for ambitious SaaS
-                businesses of all sizes.
+                Spaire makes selling software and digital products as easy and
+                programmable as deploying code. Our teams handle tax compliance
+                across every jurisdiction so you can sell to customers around the
+                world from day one.
               </p>
             </div>
 
@@ -129,10 +129,10 @@ export default function GlobalScaleSection() {
           {/* Stats row */}
           <div className="mt-16 grid grid-cols-2 gap-8 lg:grid-cols-4">
             {[
-              { value: '36+', desc: 'currencies supported' },
-              { value: '99.9%', desc: 'uptime for Spaire services' },
-              { value: '100+', desc: 'countries covered by MoR' },
-              { value: '5 min', desc: 'to first checkout' },
+              { value: '36+', desc: 'currencies and payment methods supported.' },
+              { value: '99.9%', desc: 'historical uptime for Spaire services.' },
+              { value: '100+', desc: 'countries covered by merchant of record.' },
+              { value: '135+', desc: 'tax jurisdictions where Spaire collects and remits.' },
             ].map((stat) => (
               <div key={stat.value} className="border-l-2 border-[#635bff] pl-4">
                 <p className="text-[28px] font-semibold text-white">

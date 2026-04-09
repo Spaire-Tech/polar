@@ -10,8 +10,8 @@ export default function FooterCTA() {
           </h2>
           <p className="mt-5 text-[17px] leading-relaxed text-[#425466]">
             Explore Spaire now, or create an account and start accepting
-            payments. You can always contact us to design a custom package for
-            your SaaS.
+            payments in minutes. You can always contact us to design a custom
+            package for your business.
           </p>
           <div className="mt-8 flex items-center justify-center gap-5">
             <Link

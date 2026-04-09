@@ -89,16 +89,16 @@ function ModularSolutionsIntro() {
   return (
     <div className="border-b border-[#e6ebf1] py-24">
       <p className="mb-3 text-[15px] font-semibold text-[#635bff]">
-        Modular platform
+        Unified commerce
       </p>
       <h2 className="max-w-[550px] text-[34px] leading-[1.15] font-semibold tracking-tight text-[#0a2540] sm:text-[44px]">
         A fully integrated suite of billing, payments, and compliance products
       </h2>
       <p className="mt-5 max-w-[560px] text-[17px] leading-relaxed text-[#425466]">
-        Reduce costs, grow revenue, and run your SaaS business more efficiently
-        on a fully integrated platform. Use Spaire to handle billing,
-        subscriptions, tax compliance, and revenue operations — and launch (or
-        scale) new business models.
+        Reduce costs, grow revenue, and run your software business more
+        efficiently on a single platform. Use Spaire to handle all of your
+        payments-related needs, manage revenue operations, and launch (or invent)
+        new business models.
       </p>
     </div>
   )
@@ -110,13 +110,13 @@ function PaymentsSection() {
     <ProductSection
       eyebrow="Payments"
       title="Accept and optimize payments, globally"
-      description="Support 36+ currencies, increase authorization rates, optimize your checkout conversion, and offer local payment methods in every market."
+      description="Increase authorization rates, optimize your checkout conversion, and offer local payment methods in every market. Support 36+ currencies with a single integration."
       ctaLabel="Start with Payments"
       ctaHref="/signup"
       seeAlso={[
-        { label: 'Checkout Links', desc: 'for no-code payment pages', href: '/features/checkout' },
-        { label: 'Fraud Prevention', desc: 'for transaction security', href: '/features/fraud' },
-        { label: 'Customer Portal', desc: 'for self-service billing', href: '/features/portal' },
+        { label: 'Tax compliance', desc: 'for automating sales tax and VAT', href: 'https://docs.spairehq.com/merchant-of-record/introduction' },
+        { label: 'Fraud prevention', desc: 'for real-time transaction security', href: 'https://docs.spairehq.com/features/fraud' },
+        { label: 'Customer Portal', desc: 'for self-service billing management', href: 'https://docs.spairehq.com/features/customer-portal' },
       ]}
     >
       {/* Checkout mockup */}
@@ -127,7 +127,7 @@ function PaymentsSection() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
             </svg>
           </div>
-          <p className="text-[14px] font-medium text-[#0a2540]">SaaS Starter</p>
+          <p className="text-[14px] font-medium text-[#0a2540]">Design System Pro</p>
           <p className="text-[20px] font-semibold text-[#0a2540]">$149</p>
         </div>
 
@@ -173,6 +173,16 @@ function PaymentsSection() {
           </div>
         </div>
 
+        <div className="mb-2">
+          <label className="mb-1 block text-[12px] text-[#0a2540]">Country or region</label>
+          <div className="flex h-9 items-center justify-between rounded-md border border-gray-300 px-3">
+            <span className="text-[12px] text-[#0a2540]">United States</span>
+            <svg className="h-3 w-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </div>
+
         <button className="mt-3 flex h-10 w-full items-center justify-center rounded-md bg-[#635bff] text-[14px] font-semibold text-white">
           Pay $149
         </button>
@@ -188,14 +198,14 @@ function BillingSection() {
       eyebrow="Billing"
       eyebrowColor="#00d4aa"
       title="Capture recurring revenue"
-      description="Support recurring business models, minimize churn, and automate billing operations. Monthly, yearly, seat-based, or usage-based — all from one platform."
+      description="Support subscriptions, one-time purchases, seat-based licensing, and usage-based billing — all from one engine. Manage trials, proration, dunning, and lifecycle events automatically."
       ctaLabel="Start with Billing"
       ctaHref="/signup"
       reversed
       seeAlso={[
-        { label: 'Usage-based Billing', desc: 'for metered pricing', href: '/features/usage-billing' },
-        { label: 'Seat-based Pricing', desc: 'for team products', href: '/features/seats' },
-        { label: 'Discounts', desc: 'for promotional pricing', href: '/features/discounts' },
+        { label: 'Usage-based billing', desc: 'for metered and consumption pricing', href: 'https://docs.spairehq.com/features/usage-based-billing/introduction' },
+        { label: 'Seat-based pricing', desc: 'for team and enterprise products', href: 'https://docs.spairehq.com/features/seat-based-pricing' },
+        { label: 'Discounts', desc: 'for coupons, trials, and promotional pricing', href: 'https://docs.spairehq.com/features/discounts' },
       ]}
     >
       {/* Pricing table mockup */}
@@ -266,14 +276,14 @@ function MerchantOfRecordSection() {
     <ProductSection
       eyebrow="Merchant of Record"
       eyebrowColor="#0048e5"
-      title="Sell globally without the tax and compliance burden"
-      description="Spaire becomes the legal seller to your customers. We handle global VAT, GST, and sales tax collection and remittance — so your lean team operates at enterprise-grade compliance standards."
-      ctaLabel="Start with MoR"
-      ctaHref="/signup"
+      title="We handle taxes, you handle product"
+      description="Spaire is the legal seller on every transaction. We calculate, collect, and remit VAT, GST, and sales tax globally — so you can sell in 100+ countries without registering a single tax entity."
+      ctaLabel="Learn about MoR"
+      ctaHref="https://docs.spairehq.com/merchant-of-record/introduction"
       seeAlso={[
-        { label: 'Supported Countries', desc: 'for global coverage', href: '/merchant-of-record/countries' },
-        { label: 'Payouts', desc: 'for revenue operations', href: '/features/payouts' },
-        { label: 'Invoices', desc: 'for automated billing documents', href: '/features/invoices' },
+        { label: 'Supported countries', desc: 'for global coverage details', href: 'https://docs.spairehq.com/merchant-of-record/supported-countries' },
+        { label: 'Payouts', desc: 'for balance tracking and disbursements', href: 'https://docs.spairehq.com/features/finance/payouts' },
+        { label: 'Invoicing', desc: 'for compliant billing documents', href: 'https://docs.spairehq.com/features/invoices' },
       ]}
     >
       {/* MoR flow diagram */}
@@ -314,7 +324,7 @@ function MerchantOfRecordSection() {
                 Spaire (MoR)
               </div>
               <span className="text-[13px] font-medium text-[#0a2540]">
-                Tax & compliance handled
+                Tax &amp; compliance
               </span>
             </div>
             <div className="my-2 flex flex-col items-center">
@@ -345,15 +355,15 @@ function SpairSpaceSection() {
     <ProductSection
       eyebrow="Spaire Space"
       eyebrowColor="#00d4aa"
-      title="Launch a branded storefront for your digital products"
-      description="Get a beautiful, hosted product page out of the box. Showcase your SaaS plans, digital downloads, and license keys — no custom site required."
+      title="Your storefront, ready in minutes"
+      description="Every account gets a hosted product page. Sell subscriptions, digital downloads, license keys, and one-time products from a branded storefront — no website required."
       ctaLabel="Start with Space"
       ctaHref="/signup"
       reversed
       seeAlso={[
-        { label: 'Products', desc: 'for catalog management', href: '/features/products' },
-        { label: 'Benefits', desc: 'for automated entitlements', href: '/features/benefits' },
-        { label: 'License Keys', desc: 'for software distribution', href: '/features/license-keys' },
+        { label: 'Products', desc: 'for catalog and pricing configuration', href: 'https://docs.spairehq.com/features/products' },
+        { label: 'Benefits', desc: 'for automated entitlements and delivery', href: 'https://docs.spairehq.com/features/benefits/introduction' },
+        { label: 'License keys', desc: 'for software activation and distribution', href: 'https://docs.spairehq.com/features/benefits/license-keys' },
       ]}
     >
       {/* Storefront mockup */}
@@ -376,8 +386,8 @@ function SpairSpaceSection() {
         <div className="space-y-3">
           {[
             { name: 'Pro Plan', price: '$49/mo', tag: 'Subscription' },
-            { name: 'Enterprise', price: '$299/mo', tag: 'Subscription' },
-            { name: 'Design Kit', price: '$29', tag: 'One-time' },
+            { name: 'Icon Pack', price: '$29', tag: 'Digital download' },
+            { name: 'Enterprise', price: '$299/mo', tag: 'Seat-based' },
           ].map((p) => (
             <div
               key={p.name}

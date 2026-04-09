@@ -10,14 +10,14 @@ export default function GrowthSection() {
             Built for growth
           </p>
           <h2 className="max-w-[550px] text-[34px] leading-[1.15] font-semibold tracking-tight text-[#0a2540] sm:text-[44px]">
-            Take your startup farther, faster
+            Take your business farther, faster
           </h2>
           <p className="mt-5 max-w-[560px] text-[17px] leading-relaxed text-[#425466]">
-            Startups build on Spaire to launch faster, adapt as they grow, and
-            automate workflows to do more with less. Build your own API-based
-            integration or use our low- to no-code solutions, which are simple
-            enough for easy implementation and powerful enough to scale as fast
-            and as far as you need.
+            Software companies and digital product creators build on Spaire to
+            launch faster, adapt as they grow, and automate workflows to do more
+            with less. Build your own API-based integration or use our low- to
+            no-code solutions, which are simple enough for easy implementation
+            and powerful enough to scale as far as you need.
           </p>
         </div>
 

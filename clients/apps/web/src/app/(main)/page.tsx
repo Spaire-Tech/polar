@@ -2,13 +2,13 @@ import Homepage from '@/components/Marketing/Homepage'
 import { Metadata } from 'next/types'
 
 export const metadata: Metadata = {
-  title: 'Spaire | The financial backbone for SaaS',
+  title: 'Spaire | Payment infrastructure for software',
   description:
-    'Spaire is a Merchant of Record built for SaaS. Accept payments, manage subscriptions, handle global tax compliance, and grow revenue — without building financial infrastructure from scratch.',
+    'Spaire is a Merchant of Record for software companies and digital product creators. Accept payments, manage billing, automate tax compliance, and grow revenue — we handle the financial operations so you can focus on building.',
   openGraph: {
-    title: 'Spaire | The financial backbone for SaaS',
+    title: 'Spaire | Payment infrastructure for software',
     description:
-      'Accept payments, manage subscriptions, handle global tax compliance, and grow revenue.',
+      'Accept payments, manage billing, automate tax compliance, and grow revenue.',
     url: 'https://www.spairehq.com',
   },
   alternates: {
