@@ -40,11 +40,11 @@ export const ProductCard = ({
   )
 
   return (
-    <div className="group flex h-full w-full flex-col gap-3">
+    <div className="group flex h-full w-full flex-col gap-4">
       {/* Image area */}
       <div className="relative">
         {medias.length > 0 ? (
-          <div className="relative overflow-hidden rounded-2xl">
+          <div className="relative overflow-hidden rounded-3xl">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               className={twMerge(aspect, 'w-full object-cover')}
@@ -92,15 +92,15 @@ export const ProductCard = ({
           <div
             className={twMerge(
               aspect,
-              'flex w-full flex-col items-center justify-center rounded-2xl bg-gray-100',
+              'flex w-full flex-col items-center justify-center rounded-3xl bg-gray-100',
             )}
           >
             <LogoIcon className="h-12 w-12 text-gray-300" />
           </div>
         )}
-        {/* Arrow icon — top right */}
-        <div className="absolute top-3 right-3 flex h-9 w-9 items-center justify-center rounded-full border border-gray-900/20 bg-white/80 backdrop-blur-sm transition-colors group-hover:bg-white">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        {/* Arrow icon — top right, glass circle with thin border */}
+        <div className="absolute top-4 right-4 flex h-11 w-11 items-center justify-center rounded-full border border-gray-900/25 bg-white/20 backdrop-blur-sm">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M7 17 17 7" />
             <path d="M7 7h10v10" />
           </svg>
@@ -109,11 +109,11 @@ export const ProductCard = ({
 
       {/* Product name + price below image */}
       {showDetails && (
-        <div className="flex flex-col gap-0.5 px-0.5">
-          <h3 className="line-clamp-1 text-[15px] font-semibold text-gray-900">
+        <div className="flex flex-col gap-1">
+          <h3 className="line-clamp-1 text-xl font-bold text-gray-900">
             {product.name}
           </h3>
-          <div className="text-[14px] text-gray-500">
+          <div className="text-base text-gray-700">
             {hasLegacyRecurringPrices(product) ? (
               <LegacyRecurringProductPrices product={product} />
             ) : (
