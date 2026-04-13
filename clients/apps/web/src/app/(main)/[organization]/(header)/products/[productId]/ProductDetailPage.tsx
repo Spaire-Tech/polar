@@ -207,13 +207,13 @@ function MediaGallery({
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Main image */}
-      <div className="relative aspect-[4/3] overflow-hidden rounded-3xl bg-gray-50">
+      {/* Main image — fills the card */}
+      <div className="relative aspect-[4/3] overflow-hidden rounded-3xl bg-gray-100">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={active?.public_url}
           alt={active?.name ?? productName}
-          className="h-full w-full object-contain"
+          className="absolute inset-0 h-full w-full object-cover"
         />
         {medias.length > 1 && (
           <>
