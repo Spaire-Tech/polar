@@ -54,6 +54,21 @@ class ProductVisibility(StrEnum):
     public = "public"
 
 
+class ProductCategory(StrEnum):
+    ebook = "ebook"
+    template = "template"
+    assets = "assets"
+    course = "course"
+    guide = "guide"
+    music = "music"
+    video = "video"
+    photo = "photo"
+    software = "software"
+    coaching = "coaching"
+    membership = "membership"
+    other = "other"
+
+
 class Product(TrialConfigurationMixin, MetadataMixin, RecordModel):
     __tablename__ = "products"
     __table_args__ = (
@@ -73,6 +88,11 @@ class Product(TrialConfigurationMixin, MetadataMixin, RecordModel):
         StringEnum(ProductVisibility),
         nullable=True,
         default=ProductVisibility.public,
+    )
+    category: Mapped[ProductCategory | None] = mapped_column(
+        StringEnum(ProductCategory),
+        nullable=True,
+        default=None,
     )
     recurring_interval: Mapped[SubscriptionRecurringInterval | None] = mapped_column(
         StringEnum(SubscriptionRecurringInterval),
