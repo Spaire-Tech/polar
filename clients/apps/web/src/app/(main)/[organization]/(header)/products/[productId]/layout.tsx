@@ -8,9 +8,7 @@ export default function ProductDetailLayout({
   return (
     <>
       <style>{`
-        @media (max-width: 767px) {
-          [data-profile-card] { display: none !important; }
-        }
+        [data-profile-card] { display: none !important; }
       `}</style>
       {children}
     </>

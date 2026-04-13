@@ -86,33 +86,51 @@ export const ProductDetailPage = ({
 
       {/* Main product section */}
       <div className="flex flex-col gap-8 lg:flex-row lg:gap-12">
-        {/* Left — Media gallery */}
+        {/* Left — Media gallery (large) */}
         <div className="w-full lg:flex-1">
           <MediaGallery medias={product.medias} productName={product.name} />
         </div>
 
         {/* Right — Product info */}
-        <div className="flex w-full flex-col gap-6 lg:w-[360px] lg:shrink-0">
-          <div className="flex flex-col gap-3">
-            <h1 className="text-2xl font-bold text-gray-900">{product.name}</h1>
-            <div className="text-xl font-semibold text-gray-900">
-              {hasLegacyRecurringPrices(product) ? (
-                <LegacyRecurringProductPrices product={product} />
-              ) : (
-                <ProductPriceLabel product={product} />
-              )}
-            </div>
+        <div className="flex w-full flex-col gap-5 lg:w-[380px] lg:shrink-0">
+          <div className="flex flex-col gap-1">
+            <h1 className="text-4xl font-normal leading-tight text-gray-900">
+              {product.name}
+            </h1>
+            {organization.name && (
+              <div className="text-[15px] text-gray-500">
+                by {organization.name}
+              </div>
+            )}
           </div>
 
+          <div className="text-3xl font-normal text-gray-900">
+            {hasLegacyRecurringPrices(product) ? (
+              <LegacyRecurringProductPrices product={product} />
+            ) : (
+              <ProductPriceLabel product={product} />
+            )}
+          </div>
+
+          {/* Buy button */}
+          <button
+            type="button"
+            onClick={handleBuy}
+            disabled={checkoutLoading}
+            className="flex h-12 w-full items-center justify-center rounded-full bg-gray-900 text-[15px] font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
+          >
+            {checkoutLoading ? 'Loading...' : 'Buy'}
+          </button>
+
           {product.description && (
-            <div className="text-[15px] leading-relaxed text-gray-600 whitespace-pre-wrap">
+            <div className="text-[15px] leading-relaxed whitespace-pre-wrap text-gray-600">
               {product.description}
             </div>
           )}
 
           {/* Benefits */}
           {product.benefits.length > 0 && (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3 pt-2">
               <h3 className="text-sm font-semibold text-gray-900">
                 What&apos;s included
               </h3>
@@ -139,16 +157,6 @@ export const ProductDetailPage = ({
               </ul>
             </div>
           )}
-
-          {/* Buy button */}
-          <button
-            type="button"
-            onClick={handleBuy}
-            disabled={checkoutLoading}
-            className="mt-2 flex h-12 w-full items-center justify-center rounded-full bg-gray-900 text-[15px] font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
-          >
-            {checkoutLoading ? 'Loading...' : 'Buy Now'}
-          </button>
         </div>
       </div>
 
@@ -189,7 +197,7 @@ function MediaGallery({
 
   if (medias.length === 0) {
     return (
-      <div className="flex aspect-[4/3] w-full items-center justify-center rounded-2xl bg-gray-50">
+      <div className="flex aspect-[4/3] w-full items-center justify-center rounded-3xl bg-gray-50">
         <LogoIcon className="h-16 w-16 text-gray-200" />
       </div>
     )
@@ -200,12 +208,12 @@ function MediaGallery({
   return (
     <div className="flex flex-col gap-3">
       {/* Main image */}
-      <div className="relative overflow-hidden rounded-2xl bg-gray-50">
+      <div className="relative aspect-[4/3] overflow-hidden rounded-3xl bg-gray-50">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={active?.public_url}
           alt={active?.name ?? productName}
-          className="w-full object-contain"
+          className="h-full w-full object-contain"
         />
         {medias.length > 1 && (
           <>

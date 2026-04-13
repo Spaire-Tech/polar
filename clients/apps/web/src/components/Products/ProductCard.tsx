@@ -47,7 +47,7 @@ export const ProductCard = ({
           <div className="relative overflow-hidden rounded-3xl">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              className={twMerge(aspect, 'w-full object-cover')}
+              className={twMerge(aspect, 'w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]')}
               alt={medias[current]?.name ?? product.name}
               width={600}
               height={450}
@@ -110,10 +110,10 @@ export const ProductCard = ({
       {/* Product name + price below image */}
       {showDetails && (
         <div className="flex flex-col gap-1">
-          <h3 className="line-clamp-1 text-xl font-bold text-gray-900">
+          <h3 className="line-clamp-1 text-xl font-normal text-gray-900">
             {product.name}
           </h3>
-          <div className="text-base text-gray-700">
+          <div className="text-base font-normal text-gray-500">
             {hasLegacyRecurringPrices(product) ? (
               <LegacyRecurringProductPrices product={product} />
             ) : (
