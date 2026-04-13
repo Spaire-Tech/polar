@@ -134,32 +134,6 @@ const COUNTRIES = [
   { code: 'CN', name: 'China', flag: '🇨🇳' },
 ]
 
-const businessTypes = [
-  { id: 'early-stage', label: 'Early-Stage Startup', description: 'Pre-seed to seed, finding product-market fit' },
-  { id: 'venture-backed', label: 'Venture-Backed', description: 'Series A+ with an established product' },
-  { id: 'bootstrapped', label: 'Bootstrapped / Profitable', description: 'Self-funded and growing organically' },
-  { id: 'indie', label: 'Digital Creator', description: 'Building and shipping independently' },
-] as const
-
-const audienceTypes = [
-  { id: 'b2b', label: 'B2B', description: 'Selling to businesses and teams' },
-  { id: 'b2c', label: 'B2C', description: 'Selling to individual consumers' },
-  { id: 'both', label: 'Both', description: 'A mix of business and consumer' },
-] as const
-
-const referralSources = [
-  { id: 'search', label: 'Search Engine' },
-  { id: 'twitter', label: 'Twitter / X' },
-  { id: 'linkedin', label: 'LinkedIn' },
-  { id: 'youtube', label: 'YouTube' },
-  { id: 'friend', label: 'Friend or Colleague' },
-  { id: 'blog', label: 'Blog or Article' },
-  { id: 'podcast', label: 'Podcast' },
-  { id: 'github', label: 'GitHub' },
-  { id: 'community', label: 'Online Community' },
-  { id: 'other', label: 'Other' },
-] as const
-
 export interface OrganizationStepProps {
   slug?: string
   validationErrors?: schemas['ValidationError'][]
@@ -176,13 +150,8 @@ export const OrganizationStep = ({
   const posthog = usePostHog()
   const { currentUser, setUserOrganizations } = useAuth()
   const oauthAccounts = useOAuthAccounts()
-  const {
-    startOnboarding,
-    trackStepStarted,
-    trackStepCompleted,
-    updateSurveyAnswers,
-    experimentVariant,
-  } = useOnboardingTracking()
+  const { startOnboarding, trackStepStarted, trackStepCompleted } =
+    useOnboardingTracking()
 
   const form = useForm<{
     name: string
@@ -208,9 +177,6 @@ export const OrganizationStep = ({
   const createOrganization = useCreateOrganization()
   const updateOrganization = useUpdateOrganization()
   const [editedSlug, setEditedSlug] = useState(false)
-  const [businessType, setBusinessType] = useState<string | null>(null)
-  const [audienceType, setAudienceType] = useState<string | null>(null)
-  const [referralSource, setReferralSource] = useState<string | null>(null)
   const [currency, setCurrency] = useState<PresentmentCurrency>('usd')
   const [accountType, setAccountType] = useState<'individual' | 'business'>('individual')
   const [logoFile, setLogoFile] = useState<File | null>(null)
@@ -274,12 +240,7 @@ export const OrganizationStep = ({
       terms: data.terms,
     }
 
-    posthog.capture('dashboard:organizations:create:submit', {
-      ...params,
-      business_type: businessType,
-      audience_type: audienceType,
-      referral_source: referralSource,
-    })
+    posthog.capture('dashboard:organizations:create:submit', params)
 
     const { data: organization, error } =
       await createOrganization.mutateAsync(params)
@@ -348,11 +309,6 @@ export const OrganizationStep = ({
 
     if (!hasExistingOrg) {
       await trackStepCompleted('org', organization.id)
-      updateSurveyAnswers({
-        business_type: businessType ?? undefined,
-        audience_type: audienceType ?? undefined,
-        referral_source: referralSource ?? undefined,
-      })
     }
 
     if (hasExistingOrg) {
@@ -398,100 +354,6 @@ export const OrganizationStep = ({
                   : "A few quick questions to personalize your setup."}
               </p>
             </FadeUp>
-
-            {/* About You Section - only show for new users */}
-            {!hasExistingOrg && (
-              <FadeUp className="flex flex-col gap-y-10">
-                {/* Business Stage */}
-                <div className="flex flex-col gap-y-4">
-                  <div className="flex flex-col gap-y-1">
-                    <Label className="text-sm font-medium">What best describes your business?</Label>
-                    <p className="dark:text-spaire-500 text-xs text-gray-400">
-                      This helps us tailor your onboarding experience.
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    {businessTypes.map((type) => (
-                      <button
-                        key={type.id}
-                        type="button"
-                        onClick={() => setBusinessType(type.id)}
-                        className={twMerge(
-                          'dark:bg-spaire-900 dark:border-spaire-700 flex cursor-pointer flex-col gap-y-1.5 rounded-2xl border border-gray-200 bg-white p-5 text-left transition-all',
-                          businessType === type.id
-                            ? 'border-blue-500 ring-1 ring-blue-500 dark:border-blue-500'
-                            : 'hover:border-gray-300 dark:hover:border-spaire-600',
-                        )}
-                      >
-                        <span className="text-sm font-medium">{type.label}</span>
-                        <span className="dark:text-spaire-500 text-xs leading-relaxed text-gray-400">
-                          {type.description}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Audience Type */}
-                <div className="flex flex-col gap-y-4">
-                  <div className="flex flex-col gap-y-1">
-                    <Label className="text-sm font-medium">Who are your customers?</Label>
-                    <p className="dark:text-spaire-500 text-xs text-gray-400">
-                      We&apos;ll optimize your checkout and billing accordingly.
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-3 gap-3">
-                    {audienceTypes.map((type) => (
-                      <button
-                        key={type.id}
-                        type="button"
-                        onClick={() => setAudienceType(type.id)}
-                        className={twMerge(
-                          'dark:bg-spaire-900 dark:border-spaire-700 flex cursor-pointer flex-col items-center gap-y-1.5 rounded-2xl border border-gray-200 bg-white p-5 text-center transition-all',
-                          audienceType === type.id
-                            ? 'border-blue-500 ring-1 ring-blue-500 dark:border-blue-500'
-                            : 'hover:border-gray-300 dark:hover:border-spaire-600',
-                        )}
-                      >
-                        <span className="text-sm font-medium">{type.label}</span>
-                        <span className="dark:text-spaire-500 text-xs text-gray-400">
-                          {type.description}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Referral Source */}
-                <div className="flex flex-col gap-y-4">
-                  <Label className="text-sm font-medium">How did you hear about Spaire?</Label>
-                  <div className="flex flex-wrap gap-2.5">
-                    {referralSources.map((source) => (
-                      <button
-                        key={source.id}
-                        type="button"
-                        onClick={() => setReferralSource(source.id)}
-                        className={twMerge(
-                          'dark:bg-spaire-900 dark:border-spaire-700 cursor-pointer rounded-full border border-gray-200 px-4 py-2 text-sm transition-all',
-                          referralSource === source.id
-                            ? 'border-blue-500 bg-blue-50 text-blue-600 dark:border-blue-500 dark:bg-blue-500/10 dark:text-blue-400'
-                            : 'hover:border-gray-300 dark:hover:border-spaire-600',
-                        )}
-                      >
-                        {source.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </FadeUp>
-            )}
-
-            {/* Divider */}
-            {!hasExistingOrg && (
-              <FadeUp>
-                <div className="dark:border-spaire-800 border-t border-gray-100" />
-              </FadeUp>
-            )}
 
             {/* Using Spaire as — Individual / Business toggle */}
             {!hasExistingOrg && (

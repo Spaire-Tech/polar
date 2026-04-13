@@ -9,7 +9,6 @@ import LayersOutlined from '@mui/icons-material/LayersOutlined'
 import ReceiptLongOutlined from '@mui/icons-material/ReceiptLongOutlined'
 import ShoppingBagOutlined from '@mui/icons-material/ShoppingBagOutlined'
 import SpaceDashboardOutlined from '@mui/icons-material/SpaceDashboardOutlined'
-import StorefrontOutlined from '@mui/icons-material/StorefrontOutlined'
 import TrendingUp from '@mui/icons-material/TrendingUp'
 import TuneOutlined from '@mui/icons-material/TuneOutlined'
 import { schemas } from '@spaire/client'
@@ -179,30 +178,23 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
     if: true,
   },
   {
-    id: 'spaire-space',
-    title: 'Spaire Space',
-    icon: <StorefrontOutlined fontSize="inherit" />,
-    link: `/dashboard/${org?.slug}/storefront`,
-    checkIsActive: (currentRoute: string): boolean => {
-      return currentRoute.startsWith(`/dashboard/${org?.slug}/storefront`)
-    },
-    if: true,
-  },
-  {
     id: 'catalog',
-    title: 'Catalog',
+    title: 'Spaire Space',
     icon: <HiveOutlined fontSize="inherit" />,
     link: `/dashboard/${org?.slug}/products`,
     checkIsActive: (currentRoute: string): boolean => {
-      return currentRoute.startsWith(`/dashboard/${org?.slug}/products`)
+      return (
+        currentRoute.startsWith(`/dashboard/${org?.slug}/products`) ||
+        currentRoute.startsWith(`/dashboard/${org?.slug}/storefront`)
+      )
     },
     if: true,
     showSubsInNav: false,
     subs: [
       { title: 'Products', link: `/dashboard/${org?.slug}/products` },
+      { title: 'Space Card', link: `/dashboard/${org?.slug}/storefront` },
       { title: 'Payment Links', link: `/dashboard/${org?.slug}/products/checkout-links` },
       { title: 'Discounts', link: `/dashboard/${org?.slug}/products/discounts` },
-      { title: 'Benefits', link: `/dashboard/${org?.slug}/products/benefits` },
     ],
   },
   {

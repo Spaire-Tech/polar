@@ -26,7 +26,7 @@ export default async function Page(props: {
               Welcome back to Spaire
             </h2>
             <h2 className="dark:text-spaire-400 text-lg text-gray-500">
-              The financial backbone for SaaS startups selling worldwide
+              Payments, tax, and billing for digital products
             </h2>
           </div>
         </div>
