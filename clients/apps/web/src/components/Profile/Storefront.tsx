@@ -113,9 +113,16 @@ export const Storefront = ({
         <section
           key={section.key}
           id={`section-${section.key}`}
-          className="flex flex-col gap-5 scroll-mt-24"
+          className="flex scroll-mt-24 flex-col gap-6"
         >
-          <h3 className="text-xl font-medium text-gray-900">{section.label}</h3>
+          <div className="inline-flex items-center gap-2 self-start rounded-full border border-white/60 bg-white/40 px-3.5 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_2px_rgba(0,0,0,0.04)] backdrop-blur-xl">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-700">
+              {section.label}
+            </span>
+            <span className="text-[11px] font-medium tabular-nums text-gray-400">
+              {section.items.length}
+            </span>
+          </div>
           <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-2">
             {section.items.map((product) => (
               <Link
