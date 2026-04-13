@@ -9,8 +9,7 @@ const catalogTabs = [
   { title: 'Products', suffix: '' },
   { title: 'Payment Links', suffix: '/checkout-links' },
   { title: 'Discounts', suffix: '/discounts' },
-  { title: 'Benefits', suffix: '/benefits' },
-  { title: 'Spaire Space', suffix: '__storefront__' },
+  { title: 'Space Card', suffix: '__storefront__' },
 ]
 
 export default function CatalogLayout({ children }: PropsWithChildren) {
