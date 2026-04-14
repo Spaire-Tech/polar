@@ -72,6 +72,11 @@ const TOOL_LABELS = {
     ),
     error: () => 'Error creating meter.',
   },
+  generateCoverImage: {
+    input: () => 'Painting the cover with Imagen…',
+    output: () => 'Cover image ready.',
+    error: () => 'Error generating cover image.',
+  },
 }
 
 const getToolLabel = (part: DynamicToolUIPart): string => {

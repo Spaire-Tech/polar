@@ -3,9 +3,11 @@
 import { getServerSideAPI } from '@/utils/client/serverside'
 import { getAuthenticatedUser } from '@/utils/user'
 import { anthropic } from '@ai-sdk/anthropic'
+import { google } from '@ai-sdk/google'
 import { withTracing } from '@posthog/ai'
 import {
   convertToModelMessages,
+  experimental_generateImage as generateImage,
   smoothStream,
   stepCountIs,
   streamText,
@@ -14,6 +16,7 @@ import {
 } from 'ai'
 import { PostHog } from 'posthog-node'
 import { z } from 'zod'
+import { uploadProductMedia } from './uploadImage'
 
 const phClient = process.env.NEXT_PUBLIC_POSTHOG_TOKEN
   ? new PostHog(process.env.NEXT_PUBLIC_POSTHOG_TOKEN!, {
@@ -32,14 +35,17 @@ Spaire acts as a Merchant of Record for creators, handling international
 sales taxes and compliance so creators can focus on creating. Studio is the
 fastest path from "idea" to "a Product I can sell globally, today."
 
-# What you create (Sprint 1 scope)
-You create text-first **workbook products**: print-ready, self-paced guides
-structured like premium indie books. Think "the 30-day launch playbook",
-"the founder morning ritual", "the first 100 customers workbook".
+# What you create (Sprint 2 scope)
+You create **workbook products**: print-ready, self-paced guides structured
+like premium indie books. Think "the 30-day launch playbook", "the founder
+morning ritual", "the first 100 customers workbook".
 
-You do NOT yet generate PDFs, covers, images, or Notion templates. Those are
-coming. For now, the workbook **manuscript** you draft in markdown becomes
-the Product's description on the storefront.
+Each workbook ships with:
+- A full manuscript in markdown (becomes the Product's storefront description).
+- A **cover image** generated with Google Imagen and attached as the Product's
+  cover media.
+
+PDFs and Notion templates are still on the roadmap — don't promise them yet.
 
 # The conversation shape
 
@@ -82,19 +88,37 @@ the Product's description on the storefront.
    Want me to publish it, or should we pick a different price?"
 5. Once the creator confirms price (and any last edits), call the tools in
    this exact order:
-   a. createBenefit with type "custom" and description "{Product} Access"
-   b. createProduct as a one-time purchase (recurring_interval: null,
+   a. generateCoverImage with a vivid, 1-2 sentence image prompt that
+      captures the workbook's visual tone (colors, mood, subject matter,
+      art style). No text / typography in the image — Imagen handles text
+      poorly. This returns a media_id.
+   b. createBenefit with type "custom" and description "{Product} Access".
+   c. createProduct as a one-time purchase (recurring_interval: null,
       price_type: "fixed", price_amount in cents, price_currency "usd").
-      The product description is the **full workbook markdown** you drafted.
-   c. updateProductBenefits to attach the benefit to the product.
-   d. markAsDone with the created productId.
+      Pass the media_id from step (a) as media_ids: [media_id]. The product
+      description is the **full workbook markdown** you drafted.
+   d. updateProductBenefits to attach the benefit to the product.
+   e. markAsDone with the created productId.
+
+# Cover-image prompt guidance
+Think editorial, minimal, and premium — what you'd see on the cover of a
+modern indie business book. Strong single subject, painterly or photographic,
+calm confident mood. Examples of good prompts:
+- "A minimalist flat-lay of a linen notebook, a ceramic mug of black coffee,
+  and a sprig of eucalyptus on a warm beige background, soft morning light."
+- "An editorial photograph of a single origami paper boat on a deep navy
+  textured paper, dramatic side lighting, negative space, magazine-cover feel."
+Never include words, logos, or UI screenshots. Never name real people.
 
 # Rules
 - Never render IDs in your text response.
 - Write in markdown (headings, lists, emphasis are all fine).
-- Don't ask if the creator wants a PDF, cover, or Notion export — those
-  are out of scope for now. If asked, say: "Coming soon. For now, I ship
-  the manuscript as your Product's storefront description."
+- Don't ask if the creator wants a PDF or Notion export — those are on the
+  roadmap. If asked, say: "Coming soon. For now, I ship the manuscript plus
+  an Imagen-generated cover as your Product."
+- You always generate a cover image as part of publishing — don't ask the
+  creator whether they want one. If they want to tweak the visual direction,
+  take their note and regenerate.
 - Don't propose usage-based pricing, subscriptions, trials, or seats —
   workbooks are one-time purchases.
 - Don't propose multiple products at once. One workbook, one product.
@@ -186,8 +210,20 @@ export async function POST(req: Request) {
         .string()
         .default('usd')
         .describe('3-letter currency code (default: usd)'),
+      media_ids: z
+        .array(z.string())
+        .optional()
+        .describe(
+          'List of product_media file IDs to attach as storefront images. Pass the media_id returned by generateCoverImage.',
+        ),
     }),
-    execute: async ({ name, description, price_amount, price_currency }) => {
+    execute: async ({
+      name,
+      description,
+      price_amount,
+      price_currency,
+      media_ids,
+    }) => {
       const api = await getServerSideAPI()
 
       const { data, error } = await api.POST('/v1/products/', {
@@ -204,6 +240,7 @@ export async function POST(req: Request) {
               price_amount,
             },
           ],
+          medias: media_ids && media_ids.length > 0 ? media_ids : undefined,
         } as never,
       })
 
@@ -212,6 +249,60 @@ export async function POST(req: Request) {
       }
 
       return { success: true, product_id: data.id, name: data.name }
+    },
+  })
+
+  const generateCoverImage = tool({
+    description: `Generate a cover image for the workbook using Google Imagen
+and upload it as product media. Call this BEFORE createProduct and pass the
+returned media_id into createProduct's media_ids. Do not include any text
+or typography in the prompt — Imagen handles text poorly.`,
+    inputSchema: z.object({
+      prompt: z
+        .string()
+        .describe(
+          'A vivid, 1-2 sentence image prompt. Describe visual style, mood, colors, subject, and art direction. No text / typography / words in the image.',
+        ),
+      filename: z
+        .string()
+        .describe(
+          'A short kebab-case filename without extension (e.g. "morning-routines-cover"). Saved as PNG.',
+        ),
+    }),
+    execute: async ({ prompt, filename }) => {
+      try {
+        const { image } = await generateImage({
+          model: google.image('imagen-4.0-generate-001'),
+          prompt,
+          aspectRatio: '16:9',
+          n: 1,
+          providerOptions: {
+            google: { personGeneration: 'allow_adult' },
+          },
+        })
+
+        const api = await getServerSideAPI()
+        const safeName = filename.replace(/[^a-z0-9-_]/gi, '-').slice(0, 64)
+        const result = await uploadProductMedia({
+          api,
+          organizationId,
+          bytes: image.uint8Array,
+          filename: `${safeName || 'cover'}.png`,
+          mimeType: image.mediaType || 'image/png',
+        })
+
+        if (!result.success) {
+          return { success: false, error: result.error }
+        }
+
+        return { success: true, media_id: result.mediaId }
+      } catch (err) {
+        console.error('[studio/chat] generateCoverImage error:', err)
+        return {
+          success: false,
+          error: err instanceof Error ? err.message : String(err),
+        }
+      }
     },
   })
 
@@ -255,6 +346,7 @@ fully published before calling it.`,
     const result = streamText({
       model,
       tools: {
+        generateCoverImage,
         createBenefit,
         createProduct,
         updateProductBenefits,

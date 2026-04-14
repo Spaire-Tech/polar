@@ -159,7 +159,8 @@ export const StudioPage = ({
             </h1>
             <p className="dark:text-polar-400 max-w-xl text-base text-gray-500">
               Tell Studio what you want to create — Claude drafts the workbook,
-              proposes a price, and publishes it as a real product in{' '}
+              Imagen paints the cover, and together they publish a real product
+              in{' '}
               <span className="font-medium text-gray-900 dark:text-white">
                 {organization.name}
               </span>
