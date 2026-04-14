@@ -1,433 +1,337 @@
 'use client'
 
 import { MemoizedMarkdown } from '@/components/Markdown/MemoizedMarkdown'
-import { usePostHog } from '@/hooks/posthog'
-import { getServerURL } from '@/utils/api'
+import { ToolCallGroup } from '@/components/Onboarding/ToolCallGroup'
+import { useChat } from '@ai-sdk/react'
+import ArrowForwardOutlined from '@mui/icons-material/ArrowForwardOutlined'
 import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined'
-import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined'
-import DownloadOutlined from '@mui/icons-material/DownloadOutlined'
-import StopCircleOutlined from '@mui/icons-material/StopCircleOutlined'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
-import Input from '@spaire/ui/components/atoms/Input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@spaire/ui/components/atoms/Select'
 import TextArea from '@spaire/ui/components/atoms/TextArea'
-import React, { useCallback, useMemo, useRef, useState } from 'react'
+import { DefaultChatTransport, DynamicToolUIPart } from 'ai'
+import { nanoid } from 'nanoid'
+import Link from 'next/link'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { twMerge } from 'tailwind-merge'
 
-type Tone = 'warm' | 'direct' | 'playful' | 'clinical'
-type Length = 'short' | 'standard' | 'deep'
-type Status = 'idle' | 'streaming' | 'done' | 'error'
-
-interface Usage {
-  input_tokens: number
-  output_tokens: number
-  cache_creation_input_tokens: number
-  cache_read_input_tokens: number
+type MessagePart = {
+  type: string
+  [key: string]: unknown
 }
 
-interface FormState {
-  topic: string
-  audience: string
-  outcome: string
-  tone: Tone
-  length: Length
-}
+type RenderableItem =
+  | { type: 'single'; part: MessagePart; index: number }
+  | { type: 'group'; parts: MessagePart[]; startIndex: number }
 
-const DEFAULT_FORM: FormState = {
-  topic: '',
-  audience: '',
-  outcome: '',
-  tone: 'warm',
-  length: 'standard',
-}
+// Group consecutive dynamic-tool parts together
+const groupMessageParts = (parts: MessagePart[]): RenderableItem[] => {
+  const result: RenderableItem[] = []
+  let currentGroup: MessagePart[] = []
+  let groupStartIndex = 0
 
-// Parse a chunk of an SSE stream, yielding complete events.
-const parseSSE = (
-  buffer: string,
-): { events: Array<{ event: string; data: string }>; remainder: string } => {
-  const blocks = buffer.split('\n\n')
-  const remainder = blocks.pop() ?? ''
-  const events: Array<{ event: string; data: string }> = []
-  for (const block of blocks) {
-    if (!block.trim()) continue
-    let event = 'message'
-    let data = ''
-    for (const line of block.split('\n')) {
-      if (line.startsWith('event:')) {
-        event = line.slice(6).trim()
-      } else if (line.startsWith('data:')) {
-        data += line.slice(5).trim()
+  parts
+    .filter(({ type }) => type !== 'step-start')
+    .forEach((part, index) => {
+      if (part.type === 'dynamic-tool') {
+        if (currentGroup.length === 0) {
+          groupStartIndex = index
+        }
+        currentGroup.push(part)
+      } else {
+        if (currentGroup.length > 0) {
+          result.push({
+            type: 'group',
+            parts: currentGroup,
+            startIndex: groupStartIndex,
+          })
+          currentGroup = []
+        }
+        result.push({ type: 'single', part, index })
       }
-    }
-    events.push({ event, data })
+    })
+
+  if (currentGroup.length > 0) {
+    result.push({
+      type: 'group',
+      parts: currentGroup,
+      startIndex: groupStartIndex,
+    })
   }
-  return { events, remainder }
+
+  return result
 }
+
+const PROMPT_SUGGESTIONS = [
+  'A 30-day morning routine workbook for remote founders',
+  'A launch playbook for solo SaaS founders in year one',
+  'A founder-interview workbook for early-stage product validation',
+]
 
 export const StudioPage = ({
   organization,
 }: {
   organization: schemas['Organization']
 }) => {
-  const posthog = usePostHog()
-  const [form, setForm] = useState<FormState>(DEFAULT_FORM)
-  const [status, setStatus] = useState<Status>('idle')
-  const [markdown, setMarkdown] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [usage, setUsage] = useState<Usage | null>(null)
-  const abortRef = useRef<AbortController | null>(null)
+  const [input, setInput] = useState('')
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  const canSubmit =
-    form.topic.trim().length >= 3 &&
-    form.audience.trim().length >= 3 &&
-    form.outcome.trim().length >= 3 &&
-    status !== 'streaming'
+  const conversationId = useMemo(() => nanoid(), [])
 
-  const handleGenerate = useCallback(async () => {
-    setStatus('streaming')
-    setMarkdown('')
-    setError(null)
-    setUsage(null)
+  const { messages, sendMessage, status, error } = useChat({
+    transport: new DefaultChatTransport({
+      api: `/dashboard/${organization.slug}/studio/chat`,
+      credentials: 'include',
+      body: {
+        organizationId: organization.id,
+        conversationId,
+      },
+    }),
+  })
 
-    posthog.capture('dashboard:studio:workbook:start', {
-      organization_id: organization.id,
-      tone: form.tone,
-      length: form.length,
-    })
-
-    const controller = new AbortController()
-    abortRef.current = controller
-
-    try {
-      const response = await fetch(
-        `${getServerURL()}/v1/studio/workbook/generate`,
-        {
-          method: 'POST',
-          credentials: 'include',
-          headers: {
-            'content-type': 'application/json',
-            accept: 'text/event-stream',
-          },
-          body: JSON.stringify({
-            organization_id: organization.id,
-            topic: form.topic.trim(),
-            audience: form.audience.trim(),
-            outcome: form.outcome.trim(),
-            tone: form.tone,
-            length: form.length,
-          }),
-          signal: controller.signal,
-        },
-      )
-
-      if (!response.ok || !response.body) {
-        const body = await response.text().catch(() => '')
-        throw new Error(body || `Request failed (${response.status})`)
-      }
-
-      const reader = response.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        buffer += decoder.decode(value, { stream: true })
-        const { events, remainder } = parseSSE(buffer)
-        buffer = remainder
-        for (const { event, data } of events) {
-          if (!data) continue
-          try {
-            const payload = JSON.parse(data)
-            if (event === 'delta' && typeof payload.text === 'string') {
-              setMarkdown((prev) => prev + payload.text)
-            } else if (event === 'done') {
-              setUsage(payload.usage ?? null)
-              setStatus('done')
-              posthog.capture('dashboard:studio:workbook:done', {
-                organization_id: organization.id,
-                output_tokens: payload?.usage?.output_tokens ?? null,
-                cache_read_input_tokens:
-                  payload?.usage?.cache_read_input_tokens ?? null,
-              })
-            } else if (event === 'error') {
-              setError(payload.message ?? 'Generation failed')
-              setStatus('error')
-              posthog.capture('dashboard:studio:workbook:fail', {
-                organization_id: organization.id,
-                message: payload.message,
-              })
-            }
-          } catch {
-            // Swallow malformed frames; the stream will recover.
+  const publishedProductId = useMemo(() => {
+    for (const message of messages) {
+      for (const part of message.parts) {
+        if (
+          part.type === 'tool-markAsDone' &&
+          (part.state === 'input-available' ||
+            part.state === 'output-available')
+        ) {
+          const input = part.input as { productId?: string } | undefined
+          if (input?.productId) {
+            return input.productId
           }
         }
       }
-
-      setStatus((prev) => (prev === 'streaming' ? 'done' : prev))
-    } catch (e: unknown) {
-      if ((e as Error).name === 'AbortError') {
-        setStatus('idle')
-        return
-      }
-      const message = e instanceof Error ? e.message : 'Generation failed'
-      setError(message)
-      setStatus('error')
-      posthog.capture('dashboard:studio:workbook:fail', {
-        organization_id: organization.id,
-        message,
-      })
-    } finally {
-      abortRef.current = null
     }
-  }, [form, organization.id, posthog])
+    return null
+  }, [messages])
 
-  const handleStop = useCallback(() => {
-    abortRef.current?.abort()
-  }, [])
+  const isFinished = publishedProductId !== null
 
-  const handleCopy = useCallback(() => {
-    if (!markdown) return
-    void navigator.clipboard.writeText(markdown)
-    posthog.capture('dashboard:studio:workbook:copy', {
-      organization_id: organization.id,
-    })
-  }, [markdown, organization.id, posthog])
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`
+    }
+  }, [input])
 
-  const handleDownload = useCallback(() => {
-    if (!markdown) return
-    const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    const slug = form.topic
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '')
-      .slice(0, 48)
-    a.href = url
-    a.download = `${slug || 'workbook'}.md`
-    a.click()
-    URL.revokeObjectURL(url)
-    posthog.capture('dashboard:studio:workbook:download', {
-      organization_id: organization.id,
-    })
-  }, [markdown, form.topic, organization.id, posthog])
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
 
-  const wordCount = useMemo(
-    () => (markdown.trim() ? markdown.trim().split(/\s+/).length : 0),
-    [markdown],
-  )
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (input.trim()) {
+      sendMessage({ text: input })
+      setInput('')
+      textareaRef.current?.focus()
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      if (input.trim() && status === 'ready') {
+        sendMessage({ text: input })
+        setInput('')
+        textareaRef.current?.focus()
+      }
+    }
+  }
+
+  const handleSuggestion = (suggestion: string) => {
+    if (status !== 'ready') return
+    sendMessage({ text: suggestion })
+  }
 
   return (
-    <div className="flex h-full w-full flex-col gap-6 p-4 md:flex-row md:gap-8 md:p-8">
-      {/* Brief form */}
-      <aside className="dark:border-polar-700 dark:bg-polar-800 flex w-full flex-col gap-5 rounded-2xl border border-gray-200 bg-white p-6 md:w-[420px] md:shrink-0">
-        <div className="flex items-center gap-2">
-          <AutoAwesomeOutlined className="text-blue-500" fontSize="small" />
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Studio · Workbook
-          </h2>
-        </div>
-        <p className="dark:text-polar-400 text-sm text-gray-500">
-          Draft a print-ready workbook in minutes. Tell Studio who it's for and
-          what transformation it delivers — Claude writes the rest.
-        </p>
-
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
-            Topic
-          </label>
-          <Input
-            value={form.topic}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setForm({ ...form, topic: e.target.value })
-            }
-            placeholder="Morning routines for remote founders"
-            maxLength={200}
-          />
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
-            Audience
-          </label>
-          <Input
-            value={form.audience}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setForm({ ...form, audience: e.target.value })
-            }
-            placeholder="First-time SaaS founders in year 1"
-            maxLength={200}
-          />
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
-            Outcome
-          </label>
-          <TextArea
-            value={form.outcome}
-            onChange={(e) => setForm({ ...form, outcome: e.target.value })}
-            placeholder="A repeatable 30-day launch plan with daily checklists"
-            maxLength={300}
-            resizable={false}
-            className="min-h-[88px]"
-          />
-        </div>
-
-        <div className="flex gap-3">
-          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-            <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
-              Tone
-            </label>
-            <Select
-              value={form.tone}
-              onValueChange={(v) => setForm({ ...form, tone: v as Tone })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="warm">Warm</SelectItem>
-                <SelectItem value="direct">Direct</SelectItem>
-                <SelectItem value="playful">Playful</SelectItem>
-                <SelectItem value="clinical">Clinical</SelectItem>
-              </SelectContent>
-            </Select>
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8 md:px-8">
+      {messages.length === 0 && (
+        <div className="flex flex-col gap-6 pt-8">
+          <div className="flex flex-col items-start gap-3">
+            <div className="dark:bg-polar-800 inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600 dark:text-gray-300">
+              <AutoAwesomeOutlined fontSize="inherit" />
+              Spaire Studio
+            </div>
+            <h1 className="text-3xl font-semibold tracking-tight text-gray-900 md:text-4xl dark:text-white">
+              Describe a product. Ship it.
+            </h1>
+            <p className="dark:text-polar-400 max-w-xl text-base text-gray-500">
+              Tell Studio what you want to create — Claude drafts the workbook,
+              proposes a price, and publishes it as a real product in{' '}
+              <span className="font-medium text-gray-900 dark:text-white">
+                {organization.name}
+              </span>
+              .
+            </p>
           </div>
-
-          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-            <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
-              Length
-            </label>
-            <Select
-              value={form.length}
-              onValueChange={(v) => setForm({ ...form, length: v as Length })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="short">Short · ~8 pages</SelectItem>
-                <SelectItem value="standard">Standard · ~16 pages</SelectItem>
-                <SelectItem value="deep">Deep · ~32 pages</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="flex flex-col gap-2">
+            <span className="text-xs font-medium tracking-wide text-gray-400 uppercase">
+              Try one of these
+            </span>
+            <div className="flex flex-col gap-2">
+              {PROMPT_SUGGESTIONS.map((suggestion) => (
+                <button
+                  key={suggestion}
+                  type="button"
+                  onClick={() => handleSuggestion(suggestion)}
+                  disabled={status !== 'ready'}
+                  className="dark:border-polar-700 dark:hover:bg-polar-800 group flex items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-5 py-4 text-left text-sm text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-transparent dark:text-gray-200"
+                >
+                  <span>{suggestion}</span>
+                  <ArrowForwardOutlined
+                    className="text-gray-300 transition group-hover:translate-x-0.5 group-hover:text-gray-500 dark:text-gray-600 dark:group-hover:text-gray-400"
+                    fontSize="small"
+                  />
+                </button>
+              ))}
+            </div>
           </div>
         </div>
+      )}
 
-        {status === 'streaming' ? (
-          <Button
-            variant="secondary"
-            onClick={handleStop}
-            className="mt-2 w-full"
+      <div className="dark:bg-spaire-900 flex flex-col overflow-hidden rounded-3xl">
+        {messages.length > 0 && (
+          <div
+            className={twMerge(
+              'dark:border-spaire-700 flex h-full max-h-[720px] flex-1 flex-col gap-y-6 overflow-y-auto rounded-t-3xl border border-gray-200 p-6',
+              isFinished ? 'rounded-b-3xl border-b' : 'border-b-0',
+            )}
           >
-            <StopCircleOutlined className="mr-2" fontSize="small" />
-            Stop
-          </Button>
-        ) : (
-          <Button
-            onClick={handleGenerate}
-            disabled={!canSubmit}
-            className="mt-2 w-full"
-          >
-            <AutoAwesomeOutlined className="mr-2" fontSize="small" />
-            Generate workbook
-          </Button>
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className={`flex flex-col gap-y-1 ${
+                  message.role === 'user' ? 'items-end' : 'items-start'
+                }`}
+              >
+                <div
+                  className={`prose dark:prose-invert text-sm ${
+                    message.role === 'user'
+                      ? 'dark:bg-spaire-800 rounded-2xl bg-gray-100 px-4 py-2 dark:text-white'
+                      : 'w-full space-y-4 dark:text-white'
+                  }`}
+                >
+                  {groupMessageParts(message.parts).map((item) => {
+                    if (item.type === 'group') {
+                      return (
+                        <ToolCallGroup
+                          key={`${message.id}-group-${item.startIndex}`}
+                          parts={item.parts as DynamicToolUIPart[]}
+                          messageId={message.id}
+                        />
+                      )
+                    }
+
+                    const part = item.part
+                    const index = item.index
+
+                    if (part.type === 'text') {
+                      return (
+                        <MemoizedMarkdown
+                          key={`${message.id}-${index}`}
+                          content={part.text as string}
+                        />
+                      )
+                    }
+
+                    if (part.type === 'reasoning') {
+                      if (part.state === 'streaming') {
+                        return (
+                          <p
+                            key={`${message.id}-${index}`}
+                            className="dark:text-spaire-500 animate-pulse text-sm text-gray-500 italic"
+                          >
+                            Thinking…
+                          </p>
+                        )
+                      }
+                      return null
+                    }
+
+                    if (part.type === 'tool-markAsDone') {
+                      switch (part.state) {
+                        case 'input-available':
+                        case 'output-available': {
+                          const productId = (
+                            part.input as { productId?: string }
+                          ).productId
+
+                          if (!productId) return null
+
+                          return (
+                            <div
+                              key={`${message.id}-${index}`}
+                              className="dark:bg-spaire-800 dark:text-spaire-500 flex flex-col items-center gap-y-4 rounded-2xl bg-gray-100 p-4 text-center text-gray-500"
+                            >
+                              Your workbook is live.
+                              <br />
+                              Open it to preview the storefront or share the
+                              checkout link.
+                              <Link
+                                href={`/dashboard/${organization.slug}/products/${productId}`}
+                              >
+                                <Button className="dark:hover:bg-spaire-50 rounded-full bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black">
+                                  Open product
+                                </Button>
+                              </Link>
+                            </div>
+                          )
+                        }
+                        default:
+                          return null
+                      }
+                    }
+
+                    return null
+                  })}
+                </div>
+              </div>
+            ))}
+            <div ref={messagesEndRef} className="-mt-6" />
+          </div>
         )}
 
         {error && (
-          <div className="rounded-xl bg-red-50 p-3 text-xs text-red-600 dark:bg-red-900/20 dark:text-red-400">
-            {error}
+          <div className="dark:border-spaire-700 border-t border-gray-200 px-6 py-3 text-xs text-red-500">
+            {error.message}
           </div>
         )}
 
-        <div className="dark:border-polar-700 mt-2 border-t border-gray-100 pt-3 text-[11px] text-gray-400">
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-white/60 bg-white/40 px-2.5 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_2px_rgba(0,0,0,0.04)] backdrop-blur-xl dark:border-white/10 dark:bg-white/5">
-            <span className="text-[10px] font-semibold tracking-[0.14em] text-gray-700 uppercase dark:text-gray-300">
-              Made with Claude
-            </span>
-          </div>
-        </div>
-      </aside>
-
-      {/* Preview */}
-      <section className="dark:border-polar-700 dark:bg-polar-800 flex min-h-0 flex-1 flex-col rounded-2xl border border-gray-200 bg-white">
-        <header className="dark:border-polar-700 flex items-center justify-between border-b border-gray-100 px-6 py-4">
-          <div className="flex flex-col">
-            <span className="text-sm font-medium text-gray-900 dark:text-white">
-              Manuscript
-            </span>
-            <span className="text-[11px] text-gray-400">
-              {status === 'streaming'
-                ? 'Generating…'
-                : status === 'done'
-                  ? `${wordCount.toLocaleString()} words`
-                  : status === 'error'
-                    ? 'Stopped'
-                    : 'Idle'}
-              {usage && status === 'done' ? (
-                <>
-                  {' · '}
-                  {usage.output_tokens.toLocaleString()} output tokens
-                  {usage.cache_read_input_tokens > 0 ? (
-                    <>
-                      {' · '}
-                      {usage.cache_read_input_tokens.toLocaleString()} cached
-                    </>
-                  ) : null}
-                </>
-              ) : null}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled={!markdown || status === 'streaming'}
-              onClick={handleCopy}
-            >
-              <ContentCopyOutlined className="mr-1.5" fontSize="inherit" />
-              Copy
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled={!markdown || status === 'streaming'}
-              onClick={handleDownload}
-            >
-              <DownloadOutlined className="mr-1.5" fontSize="inherit" />
-              Download .md
-            </Button>
-          </div>
-        </header>
-
-        <div className="flex-1 overflow-auto px-8 py-6">
-          {markdown ? (
-            <article className="prose dark:prose-invert prose-sm prose-headings:font-semibold prose-h1:text-2xl prose-h2:mt-10 prose-h2:text-xl prose-h3:text-base prose-h3:uppercase prose-h3:tracking-[0.12em] prose-h3:text-gray-500 prose-p:text-gray-700 dark:prose-p:text-gray-300 prose-li:marker:text-blue-500 max-w-3xl">
-              <MemoizedMarkdown content={markdown} />
-              {status === 'streaming' && (
-                <span className="ml-0.5 inline-block h-4 w-1.5 translate-y-0.5 animate-pulse bg-blue-500" />
-              )}
-            </article>
-          ) : (
-            <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-              <AutoAwesomeOutlined className="text-gray-300" fontSize="large" />
-              <p className="max-w-sm text-sm text-gray-500 dark:text-gray-400">
-                Fill out the brief and click <b>Generate workbook</b>. Studio
-                will stream a complete Markdown manuscript you can copy,
-                download, or publish as a Spaire product.
-              </p>
+        {!isFinished && (
+          <form
+            onSubmit={handleSubmit}
+            className="dark:border-spaire-700 flex shrink-0 flex-col gap-3 overflow-hidden rounded-b-3xl border first:rounded-t-3xl"
+          >
+            <TextArea
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              disabled={status !== 'ready'}
+              placeholder={
+                messages.length === 0
+                  ? 'Describe the workbook you want to create…'
+                  : 'Reply…'
+              }
+              rows={1}
+              className="max-h-[240px] min-h-[72px] resize-none overflow-y-auto border-none px-6 pt-5 pb-0 text-sm/5 shadow-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none disabled:opacity-50 dark:bg-transparent"
+            />
+            <div className="flex items-center justify-end gap-2 px-4 pb-4">
+              <Button
+                type="submit"
+                disabled={status !== 'ready' || !input.trim()}
+                loading={status === 'submitted' || status === 'streaming'}
+                className="dark:hover:bg-spaire-50 rounded-full bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black"
+              >
+                {messages.length === 0 ? 'Create' : 'Send'}
+                <ArrowForwardOutlined className="ml-2" fontSize="inherit" />
+              </Button>
             </div>
-          )}
-        </div>
-      </section>
+          </form>
+        )}
+      </div>
     </div>
   )
 }
