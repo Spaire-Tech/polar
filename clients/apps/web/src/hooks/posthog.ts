@@ -1,7 +1,7 @@
 'use client'
 
-import type { schemas } from '@spaire/client'
 import type { JsonType } from '@posthog/core'
+import type { schemas } from '@spaire/client'
 import { usePostHog as useOuterPostHog } from 'posthog-js/react'
 import { useCallback, useMemo } from 'react'
 
@@ -26,6 +26,7 @@ type Category =
   | 'user'
   | 'organizations'
   | 'issues'
+  | 'studio'
 
 type Noun = string
 
@@ -51,6 +52,8 @@ type Verb =
   | 'open'
   | 'close'
   | 'complete'
+  | 'copy'
+  | 'download'
 
 export type EventName = `${Surface}:${Category}:${Noun}:${Verb}`
 

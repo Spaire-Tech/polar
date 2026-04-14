@@ -219,6 +219,10 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL: str = "o4-mini-2025-04-16"
 
+    # Anthropic (Spaire Studio — AI workbook generation)
+    ANTHROPIC_API_KEY: str = ""
+    ANTHROPIC_MODEL: str = "claude-opus-4-6"
+
     # Stripe
     STRIPE_SECRET_KEY: str = ""
     STRIPE_PUBLISHABLE_KEY: str = ""
@@ -318,7 +322,9 @@ class Settings(BaseSettings):
         state="US-DE",
         country=CountryAlpha2("US"),
     )
-    INVOICES_ADDITIONAL_INFO: str | None = "[support@spairehq.com](mailto:support@spairehq.com)"
+    INVOICES_ADDITIONAL_INFO: str | None = (
+        "[support@spairehq.com](mailto:support@spairehq.com)"
+    )
     PAYOUT_INVOICES_PREFIX: str = "SPAIRE-"
 
     # Bank transfer details shown on invoices (all optional; section hidden if INVOICES_BANK_NAME is unset)

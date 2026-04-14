@@ -1,11 +1,12 @@
-import { useOrganizationAccount } from '@/hooks/queries'
 import { PolarHog, usePostHog } from '@/hooks/posthog'
+import { useOrganizationAccount } from '@/hooks/queries'
 import AttachMoneyOutlined from '@mui/icons-material/AttachMoneyOutlined'
+import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined'
 import CodeOutlined from '@mui/icons-material/CodeOutlined'
 import ExtensionOutlined from '@mui/icons-material/ExtensionOutlined'
 import HiveOutlined from '@mui/icons-material/HiveOutlined'
-import PeopleAltOutlined from '@mui/icons-material/PeopleAltOutlined'
 import LayersOutlined from '@mui/icons-material/LayersOutlined'
+import PeopleAltOutlined from '@mui/icons-material/PeopleAltOutlined'
 import ReceiptLongOutlined from '@mui/icons-material/ReceiptLongOutlined'
 import ShoppingBagOutlined from '@mui/icons-material/ShoppingBagOutlined'
 import SpaceDashboardOutlined from '@mui/icons-material/SpaceDashboardOutlined'
@@ -147,9 +148,7 @@ export const useOrganizationRoutes = (
   const noAccount =
     accountError && (accountError as any)?.response?.status === 404
   // Pass false when no account or payouts disabled; undefined while still loading (no redirect)
-  const payoutsReady = noAccount
-    ? false
-    : account?.is_payouts_enabled
+  const payoutsReady = noAccount ? false : account?.is_payouts_enabled
   const resolver = useCallback(
     (o?: schemas['Organization'], posthog?: PolarHog) =>
       organizationRoutesList(o, posthog, payoutsReady),
@@ -192,10 +191,26 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
     showSubsInNav: false,
     subs: [
       { title: 'Products', link: `/dashboard/${org?.slug}/products` },
-      { title: 'Payment Links', link: `/dashboard/${org?.slug}/products/checkout-links` },
-      { title: 'Discounts', link: `/dashboard/${org?.slug}/products/discounts` },
+      {
+        title: 'Payment Links',
+        link: `/dashboard/${org?.slug}/products/checkout-links`,
+      },
+      {
+        title: 'Discounts',
+        link: `/dashboard/${org?.slug}/products/discounts`,
+      },
       { title: 'Space Card', link: `/dashboard/${org?.slug}/storefront` },
     ],
+  },
+  {
+    id: 'studio',
+    title: 'Studio',
+    icon: <AutoAwesomeOutlined fontSize="inherit" />,
+    link: `/dashboard/${org?.slug}/studio`,
+    checkIsActive: (currentRoute: string): boolean => {
+      return currentRoute.startsWith(`/dashboard/${org?.slug}/studio`)
+    },
+    if: true,
   },
   {
     id: 'customers',
