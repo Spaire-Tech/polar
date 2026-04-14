@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Annotated, Literal
 
 from annotated_types import Ge
-from pydantic import AfterValidator, DirectoryPath, Field, PostgresDsn
+from pydantic import AfterValidator, AliasChoices, DirectoryPath, Field, PostgresDsn
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from polar.enums import TaxProcessor
@@ -219,8 +219,18 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL: str = "o4-mini-2025-04-16"
 
-    # Anthropic (Spaire Studio — AI workbook generation)
-    ANTHROPIC_API_KEY: str = ""
+    # Anthropic (Spaire Studio — AI workbook generation).
+    # Accept either SPAIRE_ANTHROPIC_API_KEY (Spaire-prefixed, consistent
+    # with other Spaire settings) or plain ANTHROPIC_API_KEY (what the
+    # Vercel AI SDK and most local tooling already use) so creators only
+    # need to set the key once.
+    ANTHROPIC_API_KEY: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "spaire_anthropic_api_key",
+            "anthropic_api_key",
+        ),
+    )
     ANTHROPIC_MODEL: str = "claude-opus-4-6"
 
     # Stripe
