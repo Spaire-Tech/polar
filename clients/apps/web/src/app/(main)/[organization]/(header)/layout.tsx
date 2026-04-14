@@ -27,7 +27,7 @@ export default async function Layout(props: {
         {/* Two-column layout — no topbar, no login, no nav tabs */}
         <div className="flex flex-col gap-8 md:flex-row md:gap-12">
           {/* Left column — Profile card (sticky on desktop) */}
-          <aside className="w-full shrink-0 md:sticky md:top-8 md:w-[420px] md:self-start">
+          <aside data-profile-card className="w-full shrink-0 md:sticky md:top-8 md:w-[420px] md:self-start">
             <ProfileCard organization={organization} products={products} />
           </aside>
 

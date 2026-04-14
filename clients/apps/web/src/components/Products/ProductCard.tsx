@@ -40,14 +40,14 @@ export const ProductCard = ({
   )
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition-shadow hover:shadow-md">
-      {/* Image with price overlay */}
-      <div className="group relative">
+    <div className="group flex h-full w-full flex-col gap-4">
+      {/* Image area */}
+      <div className="relative">
         {medias.length > 0 ? (
-          <div className="relative overflow-hidden">
+          <div className="relative overflow-hidden rounded-3xl">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              className={twMerge(aspect, 'w-full object-cover')}
+              className={twMerge(aspect, 'w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]')}
               alt={medias[current]?.name ?? product.name}
               width={600}
               height={450}
@@ -58,20 +58,20 @@ export const ProductCard = ({
                 <button
                   type="button"
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); goTo(current - 1) }}
-                  className="absolute top-1/2 left-2 -translate-y-1/2 rounded-full bg-white/80 p-1 opacity-0 shadow transition-opacity group-hover:opacity-100"
+                  className="absolute top-1/2 left-3 -translate-y-1/2 rounded-full bg-white/80 p-1.5 opacity-0 shadow transition-opacity group-hover:opacity-100"
                   aria-label="Previous image"
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
                 </button>
                 <button
                   type="button"
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); goTo(current + 1) }}
-                  className="absolute top-1/2 right-2 -translate-y-1/2 rounded-full bg-white/80 p-1 opacity-0 shadow transition-opacity group-hover:opacity-100"
+                  className="absolute top-1/2 right-3 -translate-y-1/2 rounded-full bg-white/80 p-1.5 opacity-0 shadow transition-opacity group-hover:opacity-100"
                   aria-label="Next image"
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
                 </button>
-                <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1">
+                <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1">
                   {medias.map((_, i) => (
                     <button
                       key={i}
@@ -92,28 +92,34 @@ export const ProductCard = ({
           <div
             className={twMerge(
               aspect,
-              'flex w-full flex-col items-center justify-center bg-gray-50',
+              'flex w-full flex-col items-center justify-center rounded-3xl bg-gray-100',
             )}
           >
-            <LogoIcon className="h-12 w-12 text-gray-200" />
+            <LogoIcon className="h-12 w-12 text-gray-300" />
           </div>
         )}
-        {/* Price badge — white pill, bottom-right */}
-        <div className="absolute bottom-3 right-3 rounded-full bg-white px-3 py-1 text-[13px] font-medium text-gray-900 shadow">
-          {hasLegacyRecurringPrices(product) ? (
-            <LegacyRecurringProductPrices product={product} />
-          ) : (
-            <ProductPriceLabel product={product} />
-          )}
+        {/* Arrow icon — top right, glass circle with thin border */}
+        <div className="absolute top-4 right-4 flex h-11 w-11 items-center justify-center rounded-full border border-gray-900/25 bg-white/20 backdrop-blur-sm">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M7 17 17 7" />
+            <path d="M7 7h10v10" />
+          </svg>
         </div>
       </div>
 
-      {/* Product name only — no reviews */}
+      {/* Product name + price below image */}
       {showDetails && (
-        <div className="px-4 py-3">
-          <h3 className="line-clamp-1 text-[14px] font-medium text-gray-900">
+        <div className="flex flex-col gap-1">
+          <h3 className="line-clamp-1 text-xl font-normal text-gray-900">
             {product.name}
           </h3>
+          <div className="text-base font-normal text-gray-500">
+            {hasLegacyRecurringPrices(product) ? (
+              <LegacyRecurringProductPrices product={product} />
+            ) : (
+              <ProductPriceLabel product={product} />
+            )}
+          </div>
         </div>
       )}
     </div>

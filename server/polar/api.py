@@ -54,6 +54,7 @@ from polar.payment.endpoints import router as payment_router
 from polar.payout.endpoints import router as payout_router
 from polar.personal_access_token.endpoints import router as pat_router
 from polar.product.endpoints import router as product_router
+from polar.product_review.endpoints import router as product_review_router
 from polar.refund.endpoints import router as refund_router
 from polar.storefront.endpoints import router as storefront_router
 from polar.subscription.endpoints import router as subscription_router
@@ -128,6 +129,8 @@ router.include_router(license_key_router)
 router.include_router(checkout_link_router)
 # /storefronts
 router.include_router(storefront_router)
+# /product-reviews
+router.include_router(product_review_router)
 # /custom-fields
 router.include_router(custom_field_router)
 # /discounts

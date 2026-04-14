@@ -36,7 +36,7 @@ from polar.kit.schemas import (
     TimestampedSchema,
 )
 from polar.kit.trial import TrialConfigurationInputMixin, TrialConfigurationOutputMixin
-from polar.models.product import ProductVisibility
+from polar.models.product import ProductCategory, ProductVisibility
 from polar.models.product_price import (
     ProductPriceAmountType,
     ProductPriceSource,
@@ -370,6 +370,10 @@ ProductPriceCreateList = Annotated[
 class ProductCreateBase(MetadataInputMixin, Schema):
     name: ProductName
     description: ProductDescription = None
+    category: ProductCategory | None = Field(
+        default=None,
+        description="The digital product category (ebook, template, course, etc.).",
+    )
     visibility: ProductVisibility = Field(
         default=ProductVisibility.public,
         description="The visibility of the product.",
@@ -453,6 +457,10 @@ class ProductUpdate(TrialConfigurationInputMixin, MetadataInputMixin, Schema):
 
     name: ProductName | None = None
     description: ProductDescription = None
+    category: ProductCategory | None = Field(
+        default=None,
+        description="The digital product category.",
+    )
     recurring_interval: SubscriptionRecurringInterval | None = Field(
         default=None,
         description=(
@@ -756,6 +764,10 @@ ProductPrice = Annotated[
 class ProductBase(TrialConfigurationOutputMixin, TimestampedSchema, IDSchema):
     name: str = Field(description="The name of the product.")
     description: str | None = Field(description="The description of the product.")
+    category: ProductCategory | None = Field(
+        default=None,
+        description="The digital product category.",
+    )
     visibility: ProductVisibility = Field(description="The visibility of the product.")
     recurring_interval: SubscriptionRecurringInterval | None = Field(
         description=(

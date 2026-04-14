@@ -4,6 +4,13 @@ import { Section } from '@/components/Layout/Section'
 import Input from '@spaire/ui/components/atoms/Input'
 import TextArea from '@spaire/ui/components/atoms/TextArea'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@spaire/ui/components/atoms/Select'
+import {
   FormControl,
   FormField,
   FormItem,
@@ -17,6 +24,21 @@ export interface ProductInfoSectionProps {
   className?: string
   compact?: boolean
 }
+
+const CATEGORY_OPTIONS: { value: string; label: string }[] = [
+  { value: 'ebook', label: 'eBook' },
+  { value: 'template', label: 'Template' },
+  { value: 'assets', label: 'Assets' },
+  { value: 'course', label: 'Course' },
+  { value: 'guide', label: 'Guide' },
+  { value: 'music', label: 'Music' },
+  { value: 'video', label: 'Video' },
+  { value: 'photo', label: 'Photo' },
+  { value: 'software', label: 'Software' },
+  { value: 'coaching', label: 'Coaching' },
+  { value: 'membership', label: 'Membership' },
+  { value: 'other', label: 'Other' },
+]
 
 export const ProductInfoSection = ({
   className,
@@ -73,6 +95,36 @@ export const ProductInfoSection = ({
                   {...field}
                   value={field.value || ''}
                 />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={control}
+          name={'category' as any}
+          render={({ field }) => (
+            <FormItem>
+              <div className="flex flex-row items-center justify-between">
+                <FormLabel>Category</FormLabel>
+              </div>
+              <FormControl>
+                <Select
+                  value={(field.value as string | undefined) ?? ''}
+                  onValueChange={(v) => field.onChange(v || null)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CATEGORY_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </FormControl>
               <FormMessage />
             </FormItem>

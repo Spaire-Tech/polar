@@ -684,6 +684,23 @@ export const StorefrontEditorForm = ({
           </div>
         </div>
       </div>
+
+      {/* Reviews */}
+      <div className="flex flex-col gap-y-2">
+        <h3 className="text-sm font-semibold text-gray-900">Reviews</h3>
+        <div className="flex flex-col divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200">
+          <div className="flex items-center justify-between px-4 py-3.5 transition-colors hover:bg-gray-50">
+            <div>
+              <span className="text-sm font-medium text-gray-900">Enable Reviews</span>
+              <p className="text-xs text-gray-500">Allow customers to leave reviews on your products.</p>
+            </div>
+            <Switch
+              checked={(settings as any)?.enable_reviews ?? false}
+              onCheckedChange={(v) => updateSetting('enable_reviews' as any, v)}
+            />
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
