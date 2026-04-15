@@ -873,7 +873,7 @@ class CheckoutService:
             trial_interval_count=checkout_link.trial_interval_count,
             allow_discount_codes=checkout_link.allow_discount_codes,
             allow_trial=True,
-            require_billing_address=True,
+            require_billing_address=checkout_link.require_billing_address,
             organization=checkout_link.organization,
             checkout_products=[
                 CheckoutProduct(product=p, order=i, ad_hoc_prices=[])

@@ -41,6 +41,7 @@ export default {
       subtotal: 'Subtotaal',
       taxableAmount: 'Belastbaar bedrag',
       taxes: 'BTW',
+      taxesInclusive: 'BTW (incl.)',
       free: 'Gratis',
       payWhatYouWant: 'Betaal wat je wilt',
       total: 'Totaal',

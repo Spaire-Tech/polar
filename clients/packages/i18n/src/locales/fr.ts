@@ -41,6 +41,7 @@ export default {
       subtotal: 'Sous-total',
       taxableAmount: 'Total HT',
       taxes: 'TVA',
+      taxesInclusive: 'TVA comprise',
       free: 'Gratuit',
       payWhatYouWant: 'Payez ce que vous voulez',
       total: 'Total',

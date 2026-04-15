@@ -41,6 +41,7 @@ export default {
       subtotal: 'Részösszeg',
       taxableAmount: 'Adóköteles összeg',
       taxes: 'Adók',
+      taxesInclusive: 'Adók (bruttó)',
       free: 'Ingyenes',
       payWhatYouWant: 'Választható ár',
       total: 'Végösszeg',

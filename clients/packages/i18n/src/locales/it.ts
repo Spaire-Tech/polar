@@ -41,6 +41,7 @@ export default {
       subtotal: 'Subtotale',
       taxableAmount: 'Importo imponibile',
       taxes: 'IVA',
+      taxesInclusive: 'IVA inclusa',
       free: 'Gratis',
       payWhatYouWant: 'Paga quanto vuoi',
       total: 'Totale',
