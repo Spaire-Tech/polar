@@ -7,10 +7,10 @@ from .benefit_grant import BenefitGrant
 from .billing_entry import BillingEntry
 from .campaign import Campaign
 from .checkout import Checkout
-from .client_invoice import ClientInvoice, ClientInvoiceLineItem, ClientInvoiceStatus
 from .checkout_link import CheckoutLink
 from .checkout_link_product import CheckoutLinkProduct
 from .checkout_product import CheckoutProduct
+from .client_invoice import ClientInvoice, ClientInvoiceLineItem, ClientInvoiceStatus
 from .custom_field import CustomField
 from .customer import Customer
 from .customer_meter import CustomerMeter
@@ -63,7 +63,6 @@ from .product import Product, ProductVisibility
 from .product_benefit import ProductBenefit
 from .product_custom_field import ProductCustomField
 from .product_media import ProductMedia
-from .product_review import ProductReview
 from .product_price import (
     LegacyRecurringProductPriceCustom,
     LegacyRecurringProductPriceFixed,
@@ -75,7 +74,9 @@ from .product_price import (
     ProductPriceMeteredUnit,
     ProductPriceSeatUnit,
 )
+from .product_review import ProductReview
 from .refund import Refund
+from .studio_conversation import StudioConversation, StudioConversationMessage
 from .subscription import Subscription
 from .subscription_meter import SubscriptionMeter
 from .subscription_product_price import SubscriptionProductPrice
@@ -100,11 +101,11 @@ __all__ = [
     "Campaign",
     "Checkout",
     "CheckoutLink",
+    "CheckoutLinkProduct",
+    "CheckoutProduct",
     "ClientInvoice",
     "ClientInvoiceLineItem",
     "ClientInvoiceStatus",
-    "CheckoutLinkProduct",
-    "CheckoutProduct",
     "CustomField",
     "Customer",
     "CustomerMeter",
@@ -170,9 +171,12 @@ __all__ = [
     "ProductPriceFree",
     "ProductPriceMeteredUnit",
     "ProductPriceSeatUnit",
+    "ProductReview",
     "ProductVisibility",
     "Refund",
     "SeatStatus",
+    "StudioConversation",
+    "StudioConversationMessage",
     "Subscription",
     "SubscriptionMeter",
     "SubscriptionProductPrice",
