@@ -207,6 +207,7 @@ tax_calculation = TaxCalculationService()
 
 __all__ = [
     "CalculationExpiredError",
+    "get_tax_behavior_from_option",
     "get_tax_service",
     "InvalidTaxIDError",
     "TaxCalculation",
