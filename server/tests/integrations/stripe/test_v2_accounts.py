@@ -277,6 +277,7 @@ class TestV2AccountCreation:
         params = call_kwargs.kwargs["params"]
         assert params["dashboard"] == "express"
         assert params["identity"]["country"] == "SE"
+        assert params["configuration"]["merchant"]["capabilities"]["card_payments"]["requested"] is True
         assert params["configuration"]["recipient"]["capabilities"]["stripe_balance"]["stripe_transfers"]["requested"] is True
         assert params["display_name"] == "Test Org"
 
