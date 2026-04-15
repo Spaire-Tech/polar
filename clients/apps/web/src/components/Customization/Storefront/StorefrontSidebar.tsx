@@ -81,11 +81,13 @@ const TagInput = ({
   onChange,
   options,
   placeholder,
+  allowCustom = false,
 }: {
   value: string[]
   onChange: (tags: string[]) => void
   options: string[]
   placeholder: string
+  allowCustom?: boolean
 }) => {
   const [search, setSearch] = useState('')
   const [showDropdown, setShowDropdown] = useState(false)
@@ -93,6 +95,21 @@ const TagInput = ({
   const filtered = options.filter(
     (o) => !value.includes(o) && o.toLowerCase().includes(search.toLowerCase()),
   )
+
+  const addTag = (tag: string) => {
+    const trimmed = tag.trim()
+    if (trimmed && !value.includes(trimmed)) {
+      onChange([...value, trimmed])
+      setSearch('')
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (allowCustom && e.key === 'Enter' && search.trim()) {
+      e.preventDefault()
+      addTag(search)
+    }
+  }
 
   return (
     <div className="relative">
@@ -122,6 +139,7 @@ const TagInput = ({
           onChange={(e) => setSearch(e.target.value)}
           onFocus={() => setShowDropdown(true)}
           onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+          onKeyDown={handleKeyDown}
           placeholder={placeholder}
           className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-gray-300 focus:outline-none"
         />
@@ -559,6 +577,7 @@ export const StorefrontEditorForm = ({
               onChange={(tags) => updateSetting('skills', tags)}
               options={SKILL_OPTIONS}
               placeholder="eg. Figma, Blender, etc."
+              allowCustom={true}
             />
           </div>
 

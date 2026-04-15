@@ -194,6 +194,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
       { title: 'Products', link: `/dashboard/${org?.slug}/products` },
       { title: 'Payment Links', link: `/dashboard/${org?.slug}/products/checkout-links` },
       { title: 'Discounts', link: `/dashboard/${org?.slug}/products/discounts` },
+      { title: 'Files', link: `/dashboard/${org?.slug}/products/benefits` },
       { title: 'Space Card', link: `/dashboard/${org?.slug}/storefront` },
     ],
   },

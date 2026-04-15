@@ -188,16 +188,18 @@ const Customization = ({
         {/* Two-column: preview left, form right */}
         <div className="flex min-h-0 grow flex-row overflow-hidden">
           {/* Left — heading + live card preview (hidden on mobile) */}
-          <div className="hidden flex-1 flex-col overflow-y-auto p-10 md:flex">
-            <h1 className="text-[28px] font-bold text-gray-950">
-              {isSpaceEnabled ? 'Edit your Space Card' : 'Let\u2019s Create your Space Card'}
-            </h1>
-            <p className="mt-1 text-[15px] text-gray-500">
-              Introduce yourself and design your personal Space ID card.
-            </p>
+          <div className="hidden flex-1 flex-col items-center justify-center overflow-y-auto p-10 md:flex">
+            <div className="flex w-full max-w-[500px] flex-col items-center">
+              <h1 className="text-center text-[28px] font-bold text-gray-950">
+                {isSpaceEnabled ? 'Edit your Space Card' : 'Let\u2019s Create your Space Card'}
+              </h1>
+              <p className="mt-1 text-center text-[15px] text-gray-500">
+                Introduce yourself and design your personal Space ID card.
+              </p>
 
-            <div className="mt-8 max-w-[460px]">
-              <StorefrontLivePreview organization={organization} />
+              <div className="mt-8 w-full max-w-[460px]">
+                <StorefrontLivePreview organization={organization} />
+              </div>
             </div>
           </div>
 

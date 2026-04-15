@@ -9,6 +9,7 @@ const catalogTabs = [
   { title: 'Products', suffix: '' },
   { title: 'Payment Links', suffix: '/checkout-links' },
   { title: 'Discounts', suffix: '/discounts' },
+  { title: 'Files', suffix: '/benefits' },
   { title: 'Space Card', suffix: '__storefront__' },
 ]
 
