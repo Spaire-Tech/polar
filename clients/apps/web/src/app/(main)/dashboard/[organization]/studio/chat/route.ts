@@ -16,7 +16,8 @@ import {
 } from 'ai'
 import { PostHog } from 'posthog-node'
 import { z } from 'zod'
-import { uploadProductMedia } from './uploadImage'
+import { renderWorkbookPdf } from './renderPdf'
+import { uploadFile, uploadProductMedia } from './uploadImage'
 
 const phClient = process.env.NEXT_PUBLIC_POSTHOG_TOKEN
   ? new PostHog(process.env.NEXT_PUBLIC_POSTHOG_TOKEN!, {
@@ -35,7 +36,7 @@ Spaire acts as a Merchant of Record for creators, handling international
 sales taxes and compliance so creators can focus on creating. Studio is the
 fastest path from "idea" to "a Product I can sell globally, today."
 
-# What you create (Sprint 2 scope)
+# What you create (Sprint 3 scope)
 You create **workbook products**: print-ready, self-paced guides structured
 like premium indie books. Think "the 30-day launch playbook", "the founder
 morning ritual", "the first 100 customers workbook".
@@ -44,8 +45,10 @@ Each workbook ships with:
 - A full manuscript in markdown (becomes the Product's storefront description).
 - A **cover image** generated with Google Imagen and attached as the Product's
   cover media.
-
-PDFs and Notion templates are still on the roadmap — don't promise them yet.
+- A **downloadable PDF** of the manuscript, delivered to the customer after
+  purchase.
+- The raw **.md source** of the manuscript, also downloadable — creators
+  asked for this so they can drop the workbook straight into Notion.
 
 # The conversation shape
 
@@ -92,12 +95,15 @@ PDFs and Notion templates are still on the roadmap — don't promise them yet.
       captures the workbook's visual tone (colors, mood, subject matter,
       art style). No text / typography in the image — Imagen handles text
       poorly. This returns a media_id.
-   b. createBenefit with type "custom" and description "{Product} Access".
+   b. attachDownloadable with the full manuscript markdown and a kebab-case
+      slug. This renders the manuscript to PDF, uploads both the PDF and
+      the raw .md, and creates a "downloadables" benefit containing both.
+      Returns a benefit_id.
    c. createProduct as a one-time purchase (recurring_interval: null,
       price_type: "fixed", price_amount in cents, price_currency "usd").
       Pass the media_id from step (a) as media_ids: [media_id]. The product
       description is the **full workbook markdown** you drafted.
-   d. updateProductBenefits to attach the benefit to the product.
+   d. updateProductBenefits with the benefit_id from step (b).
    e. markAsDone with the created productId.
 
 # Cover-image prompt guidance
@@ -113,12 +119,9 @@ Never include words, logos, or UI screenshots. Never name real people.
 # Rules
 - Never render IDs in your text response.
 - Write in markdown (headings, lists, emphasis are all fine).
-- Don't ask if the creator wants a PDF or Notion export — those are on the
-  roadmap. If asked, say: "Coming soon. For now, I ship the manuscript plus
-  an Imagen-generated cover as your Product."
-- You always generate a cover image as part of publishing — don't ask the
-  creator whether they want one. If they want to tweak the visual direction,
-  take their note and regenerate.
+- You always generate a cover image AND a downloadable PDF + .md as part of
+  publishing — don't ask the creator whether they want them. If they want to
+  tweak the visual direction, take their note and regenerate.
 - Don't propose usage-based pricing, subscriptions, trials, or seats —
   workbooks are one-time purchases.
 - Don't propose multiple products at once. One workbook, one product.
@@ -159,36 +162,89 @@ export async function POST(req: Request) {
       })
     : anthropic('claude-sonnet-4-5')
 
-  const createBenefit = tool({
-    description:
-      'Create a custom benefit that will be granted to customers when they purchase the workbook product.',
+  const attachDownloadable = tool({
+    description: `Render the workbook manuscript to a PDF, upload it alongside
+the raw .md source as product downloads, and create a "downloadables" benefit
+bundling both. Call this BEFORE createProduct. Return the benefit_id to pass
+into updateProductBenefits.`,
     inputSchema: z.object({
-      description: z
+      name: z
         .string()
         .describe(
-          'The benefit description shown to customers (e.g. "Morning Routines Workbook Access")',
+          'The product / workbook name. Used for the benefit description and file names.',
+        ),
+      slug: z
+        .string()
+        .describe(
+          'A kebab-case slug for the downloadable filenames (e.g. "morning-routines").',
+        ),
+      markdown: z
+        .string()
+        .describe(
+          'The full workbook manuscript as markdown. Will be rendered to PDF and also shipped as a .md file.',
         ),
     }),
-    execute: async ({ description }) => {
-      const api = await getServerSideAPI()
+    execute: async ({ name, slug, markdown }) => {
+      try {
+        const api = await getServerSideAPI()
+        const safeSlug =
+          slug.replace(/[^a-z0-9-_]/gi, '-').slice(0, 64) || 'workbook'
 
-      const { data, error } = await api.POST('/v1/benefits/', {
-        body: {
-          type: 'custom',
-          description,
-          organization_id: organizationId,
-          properties: { note: null },
-        } as never,
-      })
+        const pdfBytes = await renderWorkbookPdf(markdown)
 
-      if (error) {
-        return { success: false, error: JSON.stringify(error) }
-      }
+        const pdfUpload = await uploadFile({
+          api,
+          organizationId,
+          bytes: pdfBytes,
+          filename: `${safeSlug}.pdf`,
+          mimeType: 'application/pdf',
+          service: 'downloadable',
+        })
+        if (!pdfUpload.success) {
+          return { success: false, error: `PDF upload: ${pdfUpload.error}` }
+        }
 
-      return {
-        success: true,
-        benefit_id: data.id,
-        description: data.description,
+        const mdBytes = new TextEncoder().encode(markdown)
+        const mdUpload = await uploadFile({
+          api,
+          organizationId,
+          bytes: mdBytes,
+          filename: `${safeSlug}.md`,
+          mimeType: 'text/markdown',
+          service: 'downloadable',
+        })
+        if (!mdUpload.success) {
+          return { success: false, error: `Markdown upload: ${mdUpload.error}` }
+        }
+
+        const { data, error } = await api.POST('/v1/benefits/', {
+          body: {
+            type: 'downloadables',
+            description: `${name} — PDF + Markdown`,
+            organization_id: organizationId,
+            properties: {
+              archived: {},
+              files: [pdfUpload.fileId, mdUpload.fileId],
+            },
+          } as never,
+        })
+
+        if (error) {
+          return { success: false, error: JSON.stringify(error) }
+        }
+
+        return {
+          success: true,
+          benefit_id: data.id,
+          pdf_file_id: pdfUpload.fileId,
+          md_file_id: mdUpload.fileId,
+        }
+      } catch (err) {
+        console.error('[studio/chat] attachDownloadable error:', err)
+        return {
+          success: false,
+          error: err instanceof Error ? err.message : String(err),
+        }
       }
     },
   })
@@ -347,7 +403,7 @@ fully published before calling it.`,
       model,
       tools: {
         generateCoverImage,
-        createBenefit,
+        attachDownloadable,
         createProduct,
         updateProductBenefits,
         markAsDone,

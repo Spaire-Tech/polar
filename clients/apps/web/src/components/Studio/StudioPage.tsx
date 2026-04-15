@@ -2,15 +2,27 @@
 
 import { MemoizedMarkdown } from '@/components/Markdown/MemoizedMarkdown'
 import { ToolCallGroup } from '@/components/Onboarding/ToolCallGroup'
+import {
+  StudioConversation,
+  StudioConversationMessage,
+  useDeleteStudioConversation,
+  useStudioConversations,
+  useSyncStudioConversation,
+  useUpdateStudioConversation,
+} from '@/hooks/queries/studio'
 import { useChat } from '@ai-sdk/react'
+import AddOutlined from '@mui/icons-material/AddOutlined'
 import ArrowForwardOutlined from '@mui/icons-material/ArrowForwardOutlined'
 import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined'
+import DeleteOutline from '@mui/icons-material/DeleteOutline'
+import DriveFileRenameOutline from '@mui/icons-material/DriveFileRenameOutline'
+import HistoryOutlined from '@mui/icons-material/HistoryOutlined'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import TextArea from '@spaire/ui/components/atoms/TextArea'
-import { DefaultChatTransport, DynamicToolUIPart } from 'ai'
-import { nanoid } from 'nanoid'
+import { DefaultChatTransport, DynamicToolUIPart, UIMessage } from 'ai'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { twMerge } from 'tailwind-merge'
 
@@ -67,18 +79,69 @@ const PROMPT_SUGGESTIONS = [
   'A founder-interview workbook for early-stage product validation',
 ]
 
+function deriveTitle(messages: UIMessage[]): string {
+  for (const message of messages) {
+    if (message.role !== 'user') continue
+    for (const part of message.parts) {
+      if (
+        part.type === 'text' &&
+        typeof (part as { text?: unknown }).text === 'string'
+      ) {
+        const text = (part as { text: string }).text.trim()
+        if (text.length > 0) {
+          return text.length > 60 ? `${text.slice(0, 57)}…` : text
+        }
+      }
+    }
+  }
+  return 'Untitled workbook'
+}
+
+function hydrateMessages(messages: StudioConversationMessage[]): UIMessage[] {
+  return messages.map((m) => ({
+    id: m.id,
+    role: m.role as UIMessage['role'],
+    parts: m.parts as UIMessage['parts'],
+  }))
+}
+
+type StudioPageProps = {
+  organization: schemas['Organization']
+  initialConversationId?: string | null
+  initialMessages?: StudioConversationMessage[]
+  initialTitle?: string
+  initialProductId?: string | null
+}
+
 export const StudioPage = ({
   organization,
-}: {
-  organization: schemas['Organization']
-}) => {
+  initialConversationId = null,
+  initialMessages,
+  initialTitle,
+  initialProductId = null,
+}: StudioPageProps) => {
+  const router = useRouter()
   const [input, setInput] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [historyOpen, setHistoryOpen] = useState(false)
 
-  const conversationId = useMemo(() => nanoid(), [])
+  // Conversation id is stable for this mount: either resumed from the URL or
+  // freshly generated. We post it to the chat route on every turn and use it
+  // as the key when syncing history back to the server.
+  const conversationId = useMemo(
+    () => initialConversationId ?? crypto.randomUUID(),
+    [initialConversationId],
+  )
+  const isNewConversation = initialConversationId === null
+
+  const seedMessages = useMemo(
+    () => (initialMessages ? hydrateMessages(initialMessages) : undefined),
+    [initialMessages],
+  )
 
   const { messages, sendMessage, status, error } = useChat({
+    messages: seedMessages,
     transport: new DefaultChatTransport({
       api: `/dashboard/${organization.slug}/studio/chat`,
       credentials: 'include',
@@ -104,10 +167,52 @@ export const StudioPage = ({
         }
       }
     }
-    return null
-  }, [messages])
+    return initialProductId ?? null
+  }, [messages, initialProductId])
 
   const isFinished = publishedProductId !== null
+
+  const syncMutation = useSyncStudioConversation()
+
+  // Autosave after each streamed response finishes. We wait until the chat
+  // settles (status === 'ready') and at least one new message has been added
+  // since the last sync before firing.
+  const lastSyncedCountRef = useRef<number>(seedMessages?.length ?? 0)
+  const pushedUrlRef = useRef<boolean>(!isNewConversation)
+  useEffect(() => {
+    if (status !== 'ready') return
+    if (messages.length === 0) return
+    if (messages.length === lastSyncedCountRef.current) return
+
+    const title = initialTitle ?? deriveTitle(messages)
+    lastSyncedCountRef.current = messages.length
+
+    syncMutation.mutate(
+      {
+        id: conversationId,
+        organization_id: organization.id,
+        title,
+        product_id: publishedProductId,
+        messages: messages.map((m) => ({
+          role: m.role,
+          parts: m.parts as Array<Record<string, unknown>>,
+        })),
+      },
+      {
+        onSuccess: () => {
+          // Move the URL to the canonical conversation path the first time
+          // we persist, so refresh / copy-link behaves correctly.
+          if (!pushedUrlRef.current) {
+            pushedUrlRef.current = true
+            router.replace(
+              `/dashboard/${organization.slug}/studio/${conversationId}`,
+            )
+          }
+        },
+      },
+    )
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, messages.length, publishedProductId])
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -146,9 +251,27 @@ export const StudioPage = ({
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8 md:px-8">
+    <div className="relative mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8 md:px-8">
+      <div className="flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => setHistoryOpen(true)}
+          className="dark:text-polar-400 dark:hover:bg-polar-800 flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100"
+        >
+          <HistoryOutlined fontSize="inherit" />
+          History
+        </button>
+        <Link
+          href={`/dashboard/${organization.slug}/studio`}
+          className="dark:text-polar-400 dark:hover:bg-polar-800 flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100"
+        >
+          <AddOutlined fontSize="inherit" />
+          New workbook
+        </Link>
+      </div>
+
       {messages.length === 0 && (
-        <div className="flex flex-col gap-6 pt-8">
+        <div className="flex flex-col gap-6 pt-4">
           <div className="flex flex-col items-start gap-3">
             <div className="dark:bg-polar-800 inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600 dark:text-gray-300">
               <AutoAwesomeOutlined fontSize="inherit" />
@@ -164,7 +287,8 @@ export const StudioPage = ({
               <span className="font-medium text-gray-900 dark:text-white">
                 {organization.name}
               </span>
-              .
+              . Every workbook ships with a downloadable PDF and its raw
+              markdown source.
             </p>
           </div>
           <div className="flex flex-col gap-2">
@@ -332,6 +456,144 @@ export const StudioPage = ({
             </div>
           </form>
         )}
+      </div>
+
+      {historyOpen && (
+        <HistoryDrawer
+          organizationId={organization.id}
+          organizationSlug={organization.slug}
+          activeId={isNewConversation ? null : conversationId}
+          onClose={() => setHistoryOpen(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+function HistoryDrawer({
+  organizationId,
+  organizationSlug,
+  activeId,
+  onClose,
+}: {
+  organizationId: string
+  organizationSlug: string
+  activeId: string | null
+  onClose: () => void
+}) {
+  const { data, isLoading } = useStudioConversations(organizationId)
+  const updateMutation = useUpdateStudioConversation()
+  const deleteMutation = useDeleteStudioConversation()
+
+  const handleRename = (conversation: StudioConversation) => {
+    const next = window.prompt('Rename workbook draft', conversation.title)
+    if (!next || next.trim() === conversation.title) return
+    updateMutation.mutate({
+      id: conversation.id,
+      organization_id: organizationId,
+      body: { title: next.trim().slice(0, 200) },
+    })
+  }
+
+  const handleDelete = (conversation: StudioConversation) => {
+    if (
+      !window.confirm(
+        `Delete "${conversation.title}"? This removes the chat history, not any published product.`,
+      )
+    )
+      return
+    deleteMutation.mutate({
+      id: conversation.id,
+      organization_id: organizationId,
+    })
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-40 flex justify-end bg-black/30"
+      onClick={onClose}
+    >
+      <div
+        className="dark:bg-polar-900 dark:border-polar-700 flex h-full w-full max-w-sm flex-col gap-4 overflow-hidden border-l border-gray-200 bg-white p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+            Studio history
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="dark:text-polar-400 text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+          >
+            Close
+          </button>
+        </div>
+
+        {isLoading && (
+          <div className="dark:bg-polar-800 h-20 animate-pulse rounded-xl bg-gray-100" />
+        )}
+
+        {!isLoading && (data?.items.length ?? 0) === 0 && (
+          <p className="dark:text-polar-400 text-sm text-gray-500">
+            No saved drafts yet. Start a chat and it'll appear here.
+          </p>
+        )}
+
+        <div className="flex flex-col gap-2 overflow-y-auto">
+          {data?.items.map((conversation) => {
+            const isActive = conversation.id === activeId
+            return (
+              <div
+                key={conversation.id}
+                className={twMerge(
+                  'group flex flex-col gap-2 rounded-xl border px-4 py-3 text-sm transition',
+                  isActive
+                    ? 'border-gray-900 bg-gray-900/5 dark:border-white dark:bg-white/10'
+                    : 'dark:border-polar-700 dark:hover:bg-polar-800 border-gray-200 hover:bg-gray-50',
+                )}
+              >
+                <Link
+                  href={`/dashboard/${organizationSlug}/studio/${conversation.id}`}
+                  onClick={onClose}
+                  className="flex flex-col gap-1"
+                >
+                  <span className="line-clamp-2 font-medium text-gray-900 dark:text-white">
+                    {conversation.title}
+                  </span>
+                  <span className="dark:text-polar-400 flex items-center gap-2 text-xs text-gray-500">
+                    {new Date(
+                      conversation.modified_at ?? conversation.created_at,
+                    ).toLocaleString()}
+                    {conversation.product_id && (
+                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                        Published
+                      </span>
+                    )}
+                  </span>
+                </Link>
+                <div className="flex gap-2 opacity-0 transition group-hover:opacity-100">
+                  <button
+                    type="button"
+                    onClick={() => handleRename(conversation)}
+                    className="dark:text-polar-400 inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                  >
+                    <DriveFileRenameOutline fontSize="inherit" />
+                    Rename
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(conversation)}
+                    className="inline-flex items-center gap-1 text-xs text-red-500 hover:text-red-600"
+                  >
+                    <DeleteOutline fontSize="inherit" />
+                    Delete
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
       </div>
     </div>
   )

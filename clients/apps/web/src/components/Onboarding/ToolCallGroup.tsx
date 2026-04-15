@@ -63,6 +63,15 @@ const TOOL_LABELS = {
     ),
     error: () => 'Error creating benefit.',
   },
+  attachDownloadable: {
+    input: ensureJSONArgument((input?: { name?: string }) =>
+      input?.name
+        ? `Typesetting "${input.name}" (PDF + Markdown)…`
+        : 'Typesetting workbook (PDF + Markdown)…',
+    ),
+    output: () => 'PDF and Markdown attached as downloads.',
+    error: () => 'Error preparing downloads.',
+  },
   createMeter: {
     input: ensureJSONArgument((input?: { name?: string }) =>
       input?.name ? `Creating meter "${input.name}"` : 'Creating meter…',
