@@ -345,37 +345,14 @@ const Checkout = ({
           <div className="flex flex-col gap-y-8 md:sticky md:top-8">
             {enrichedCheckout && (
               <>
+                {/* Name + price + all pricing details first */}
                 <div className="flex flex-col gap-y-4">
-                  {/* Product name */}
                   <span className="text-lg font-semibold text-gray-900 dark:text-white">
                     {enrichedCheckout.product.name}
                   </span>
-
-                  {/* Price */}
                   <span className="text-3xl font-medium">
                     <CheckoutHeroPrice checkout={enrichedCheckout} />
                   </span>
-
-                  {/* Media carousel — full-width with border */}
-                  {hasMedia && (
-                    <div className="overflow-hidden rounded-2xl border border-gray-200 dark:border-spaire-700">
-                      <Slideshow
-                        images={enrichedCheckout.product.medias.map(
-                          (m) => m.publicUrl,
-                        )}
-                      />
-                    </div>
-                  )}
-
-                  {/* Description */}
-                  {enrichedCheckout.product.description &&
-                    !hasMarkdown(enrichedCheckout.product.description) &&
-                    showDescription && (
-                      <TruncatedDescription
-                        description={enrichedCheckout.product.description}
-                        productName={enrichedCheckout.product.name}
-                      />
-                    )}
                 </div>
                 <CheckoutProductSwitcher
                   checkout={enrichedCheckout}
@@ -414,6 +391,29 @@ const Checkout = ({
                     />
                   </div>
                 )}
+
+                {/* Media carousel — just above description */}
+                {hasMedia && (
+                  <div className="overflow-hidden rounded-2xl border border-gray-200 dark:border-spaire-700">
+                    <Slideshow
+                      images={enrichedCheckout.product.medias.map(
+                        (m) => m.publicUrl,
+                      )}
+                    />
+                  </div>
+                )}
+
+                {/* Plain-text description */}
+                {enrichedCheckout.product.description &&
+                  !hasMarkdown(enrichedCheckout.product.description) &&
+                  showDescription && (
+                    <TruncatedDescription
+                      description={enrichedCheckout.product.description}
+                      productName={enrichedCheckout.product.name}
+                    />
+                  )}
+
+                {/* Markdown description */}
                 {enrichedCheckout.product.description &&
                   hasMarkdown(enrichedCheckout.product.description) && (
                     <div
