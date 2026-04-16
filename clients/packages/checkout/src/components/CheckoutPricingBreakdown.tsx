@@ -34,12 +34,6 @@ const DetailRow = ({
   )
 }
 
-// The @spaire/sdk may not yet include taxBehavior; extend locally so we can
-// consume the field that the backend already sends.
-type CheckoutWithTaxBehavior = CheckoutPublic & {
-  taxBehavior?: 'inclusive' | 'exclusive' | null
-}
-
 export interface CheckoutPricingBreakdownProps {
   checkout: CheckoutPublic
 }
@@ -65,10 +59,8 @@ const formatTotalLabel = (
 }
 
 const CheckoutPricingBreakdown = ({
-  checkout: checkoutProp,
+  checkout,
 }: CheckoutPricingBreakdownProps) => {
-  const checkout = checkoutProp as CheckoutWithTaxBehavior
-  const isInclusiveTax = checkout.taxBehavior === 'inclusive'
   const interval = hasProductCheckout(checkout)
     ? isLegacyRecurringPrice(checkout.productPrice!)
       ? checkout.productPrice!.recurringInterval
@@ -105,31 +97,18 @@ const CheckoutPricingBreakdown = ({
           </DetailRow>
 
           {checkout.discount && (
-            <>
-              <DetailRow
-                title={`${checkout.discount.name}${checkout.discount.type === 'percentage' ? ` (${getDiscountDisplay(checkout.discount as any)})` : ''}`}
-                className="text-gray-600"
-              >
-                {formatCurrency('standard')(
-                  -checkout.discountAmount,
-                  checkout.currency,
-                )}
-              </DetailRow>
-              {!isInclusiveTax && (
-                <DetailRow title="Taxable amount" className="text-gray-600">
-                  {formatCurrency('standard')(
-                    checkout.netAmount,
-                    checkout.currency,
-                  )}
-                </DetailRow>
+            <DetailRow
+              title={`${checkout.discount.name}${checkout.discount.type === 'percentage' ? ` (${getDiscountDisplay(checkout.discount as any)})` : ''}`}
+              className="text-gray-600"
+            >
+              {formatCurrency('standard')(
+                -checkout.discountAmount,
+                checkout.currency,
               )}
-            </>
+            </DetailRow>
           )}
 
-          <DetailRow
-            title={isInclusiveTax ? 'Tax (incl.)' : 'Taxes'}
-            className="text-gray-600"
-          >
+          <DetailRow title="Taxes" className="text-gray-600">
             {checkout.taxAmount !== null
               ? formatCurrency('standard')(
                   checkout.taxAmount,

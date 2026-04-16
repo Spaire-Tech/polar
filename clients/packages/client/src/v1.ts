@@ -9453,11 +9453,6 @@ export interface components {
        */
       tax_amount: number | null
       /**
-       * Tax Behavior
-       * @description Whether tax is inclusive (already included in the price) or exclusive (added on top). `null` when tax has not been calculated yet.
-       */
-      tax_behavior: components['schemas']['TaxBehavior'] | null
-      /**
        * Total Amount
        * @description Amount in cents, after discounts and taxes.
        */
@@ -11065,11 +11060,6 @@ export interface components {
        */
       tax_amount: number | null
       /**
-       * Tax Behavior
-       * @description Whether tax is inclusive (already included in the price) or exclusive (added on top). `null` when tax has not been calculated yet.
-       */
-      tax_behavior: components['schemas']['TaxBehavior'] | null
-      /**
        * Total Amount
        * @description Amount in cents, after discounts and taxes.
        */
@@ -11326,11 +11316,6 @@ export interface components {
        * @description Sales tax amount in cents. If `null`, it means there is no enough information yet to calculate it.
        */
       tax_amount: number | null
-      /**
-       * Tax Behavior
-       * @description Whether tax is inclusive (already included in the price) or exclusive (added on top). `null` when tax has not been calculated yet.
-       */
-      tax_behavior: components['schemas']['TaxBehavior'] | null
       /**
        * Total Amount
        * @description Amount in cents, after discounts and taxes.
@@ -25557,12 +25542,6 @@ export interface components {
       | 've_rif'
       | 'vn_tin'
       | 'za_vat'
-    /**
-     * TaxBehavior
-     * @description Resolved tax behavior for a transaction (inclusive or exclusive).
-     * @enum {string}
-     */
-    TaxBehavior: 'inclusive' | 'exclusive'
     /**
      * TaxBehaviorOption
      * @description Tax behavior option for products and organizations.

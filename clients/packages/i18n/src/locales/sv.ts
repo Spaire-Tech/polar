@@ -41,7 +41,6 @@ export default {
       subtotal: 'Delsumma',
       taxableAmount: 'Momspliktigt belopp',
       taxes: 'Moms',
-      taxesInclusive: 'Moms (inkl.)',
       free: 'Gratis',
       payWhatYouWant: 'Betala vad du vill',
       total: 'Totalt',

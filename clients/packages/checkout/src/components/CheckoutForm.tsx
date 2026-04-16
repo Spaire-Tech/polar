@@ -102,15 +102,9 @@ interface BaseCheckoutFormProps {
   locale?: AcceptedLocale | string
 }
 
-// The @spaire/sdk may not yet include taxBehavior; extend locally so we can
-// consume the field that the backend already sends.
-type CheckoutWithTaxBehavior = CheckoutPublic & {
-  taxBehavior?: 'inclusive' | 'exclusive' | null
-}
-
 const BaseCheckoutForm = ({
   form,
-  checkout: checkoutProp,
+  checkout,
   confirm,
   update,
   loading,
@@ -122,8 +116,6 @@ const BaseCheckoutForm = ({
   hidePricingBreakdown,
   locale: localeProp,
 }: React.PropsWithChildren<BaseCheckoutFormProps>) => {
-  const checkout = checkoutProp as CheckoutWithTaxBehavior
-  const isInclusiveTax = checkout.taxBehavior === 'inclusive'
   const locale = (localeProp || DEFAULT_LOCALE) as AcceptedLocale
   const t = useTranslations(locale)
   const interval = hasProductCheckout(checkout)
@@ -803,35 +795,17 @@ const BaseCheckoutForm = ({
                     </DetailRow>
 
                     {checkout.discount && (
-                      <>
-                        <DetailRow
-                          title={`${checkout.discount.name} (${getDiscountDisplay(checkout.discount)})`}
-                        >
-                          {formatCurrency('standard')(
-                            -checkout.discountAmount,
-                            checkout.currency,
-                          )}
-                        </DetailRow>
-                        {!isInclusiveTax && (
-                          <DetailRow
-                            title={t('checkout.pricing.taxableAmount')}
-                          >
-                            {formatCurrency('standard')(
-                              checkout.netAmount,
-                              checkout.currency,
-                            )}
-                          </DetailRow>
+                      <DetailRow
+                        title={`${checkout.discount.name} (${getDiscountDisplay(checkout.discount)})`}
+                      >
+                        {formatCurrency('standard')(
+                          -checkout.discountAmount,
+                          checkout.currency,
                         )}
-                      </>
+                      </DetailRow>
                     )}
 
-                    <DetailRow
-                      title={t(
-                        isInclusiveTax
-                          ? 'checkout.pricing.taxesInclusive'
-                          : 'checkout.pricing.taxes',
-                      )}
-                    >
+                    <DetailRow title={t('checkout.pricing.taxes')}>
                       {checkout.taxAmount !== null
                         ? formatCurrency('standard')(
                             checkout.taxAmount,

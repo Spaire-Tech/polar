@@ -2185,8 +2185,15 @@ class CheckoutService:
             return checkout
 
         if checkout.customer_billing_address is not None:
+            addr = checkout.customer_billing_address
+            # Stripe Tax requires state or postal_code for US/CA addresses.
+            # Skip calculation until the customer fills in those fields.
+            if addr.country in {"US", "CA"} and not addr.state and not addr.postal_code:
+                session.add(checkout)
+                return checkout
+
             tax_behavior = get_tax_behavior_from_option(
-                tax_behavior_option, checkout.customer_billing_address
+                tax_behavior_option, addr
             )
             tax_processor = checkout.tax_processor or settings.DEFAULT_TAX_PROCESSOR
             tax_service = get_tax_service(tax_processor)
@@ -2197,7 +2204,7 @@ class CheckoutService:
                     checkout.net_amount,
                     tax_behavior,
                     tax_code,
-                    checkout.customer_billing_address,
+                    addr,
                     (
                         [checkout.customer_tax_id]
                         if checkout.customer_tax_id is not None

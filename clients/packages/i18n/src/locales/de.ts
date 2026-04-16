@@ -41,7 +41,6 @@ export default {
       subtotal: 'Zwischensumme',
       taxableAmount: 'Steuerpflichtiger Betrag',
       taxes: 'Steuern',
-      taxesInclusive: 'Steuern (inkl.)',
       free: 'Kostenlos',
       payWhatYouWant: 'Zahle, was du möchtest',
       total: 'Gesamtbetrag',
