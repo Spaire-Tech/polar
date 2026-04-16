@@ -2,7 +2,6 @@
 
 import { DashboardBody } from '@/components/Layout/DashboardLayout'
 import FeatureSettings from '@/components/Settings/FeatureSettings'
-import OrganizationAccessTokensSettings from '@/components/Settings/OrganizationAccessTokensSettings'
 import OrganizationDeleteSettings from '@/components/Settings/OrganizationDeleteSettings'
 import OrganizationNotificationSettings from '@/components/Settings/OrganizationNotificationSettings'
 import OrganizationProfileSettings from '@/components/Settings/OrganizationProfileSettings'
@@ -36,14 +35,6 @@ export default function ClientPage({
             description="Manage alpha & beta features for your organization"
           />
           <FeatureSettings organization={org} />
-        </Section>
-
-        <Section id="developers">
-          <SectionDescription
-            title="Developers"
-            description="Manage API keys and access tokens"
-          />
-          <OrganizationAccessTokensSettings organization={org} />
         </Section>
 
         <Section id="danger">

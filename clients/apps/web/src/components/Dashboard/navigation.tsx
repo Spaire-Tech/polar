@@ -239,12 +239,12 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
     if: true,
   },
   {
-    id: 'integrations',
-    title: 'Integrations',
+    id: 'developers',
+    title: 'Developers',
     icon: <ExtensionOutlined fontSize="inherit" />,
-    link: `/dashboard/${org?.slug}/integrations`,
+    link: `/dashboard/${org?.slug}/developers`,
     checkIsActive: (currentRoute: string): boolean => {
-      return currentRoute.startsWith(`/dashboard/${org?.slug}/integrations`)
+      return currentRoute.startsWith(`/dashboard/${org?.slug}/developers`)
     },
     if: true,
   },
