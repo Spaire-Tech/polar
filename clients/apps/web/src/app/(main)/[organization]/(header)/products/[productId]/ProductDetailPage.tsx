@@ -199,7 +199,7 @@ export const ProductDetailPage = ({
           {/* Breadcrumb: Space • Category */}
           <div className="flex items-center gap-2.5">
             <span className="rounded-full border border-gray-200 bg-white px-3.5 py-1 text-[13px] font-medium text-gray-700 shadow-sm">
-              Space
+              space
             </span>
             {categoryLabel && (
               <>
@@ -223,11 +223,15 @@ export const ProductDetailPage = ({
             )}
           </div>
 
-          {/* Description */}
+          {/* Description — split on blank lines to preserve paragraphs */}
           {product.description && (
-            <p className="text-[15px] leading-relaxed text-gray-500">
-              {product.description}
-            </p>
+            <div className="flex flex-col gap-3">
+              {product.description.split(/\n\s*\n/).map((para, i) => (
+                <p key={i} className="whitespace-pre-wrap text-[15px] leading-relaxed text-gray-500">
+                  {para.trim()}
+                </p>
+              ))}
+            </div>
           )}
 
           {/* Buy Now button */}
@@ -293,8 +297,8 @@ export const ProductDetailPage = ({
         </div>
       </div>
 
-      {/* Reviews */}
-      {reviewsEnabled && (
+      {/* Reviews — hidden until fully implemented */}
+      {false && reviewsEnabled && (
         <ReviewsSection productId={product.id} />
       )}
 
@@ -346,7 +350,7 @@ function MediaGallery({
         <img
           src={active?.public_url}
           alt={active?.name ?? productName}
-          className="absolute inset-0 h-full w-full object-contain p-6"
+          className="absolute inset-0 h-full w-full object-cover"
         />
         {medias.length > 1 && (
           <>
@@ -385,7 +389,7 @@ function MediaGallery({
               type="button"
               onClick={() => setActiveIdx(i)}
               className={twMerge(
-                'h-[68px] w-[68px] shrink-0 overflow-hidden rounded-xl border-2 bg-gray-50 transition-all',
+                'h-14 w-14 shrink-0 overflow-hidden rounded-lg border-2 bg-gray-50 transition-all',
                 i === activeIdx
                   ? 'border-gray-900'
                   : 'border-transparent opacity-60 hover:opacity-100',
@@ -395,7 +399,7 @@ function MediaGallery({
               <img
                 src={m.public_url}
                 alt={m.name ?? `Image ${i + 1}`}
-                className="h-full w-full object-contain p-1"
+                className="h-full w-full object-cover"
               />
             </button>
           ))}

@@ -100,7 +100,7 @@ export const ProductAdditionalDetailsSection = () => {
   return (
     <Section
       title="Additional Details"
-      description="Add structured details about your product — like page count, format, language, or level. These appear on your product page in the Space, helping customers quickly understand what they're getting."
+      description="Define your product with details like format, length, and level."
     >
       <div className="flex flex-col gap-4">
         {/* Existing detail rows */}
