@@ -3,6 +3,7 @@ import { schemas } from '@spaire/client'
 import { FormLabel } from '@spaire/ui/components/ui/form'
 import Link from 'next/link'
 import { ProductMetadataForm } from '../ProductMetadataForm'
+import { ProductAdditionalDetailsSection } from './ProductAdditionalDetailsSection'
 import { ProductCustomFieldSection } from './ProductCustomFieldSection'
 import { ProductCustomerPortalSection } from './ProductCustomerPortalSection'
 import { ProductInfoSection } from './ProductInfoSection'
@@ -39,6 +40,8 @@ const ProductForm = ({
       <ProductMediaSection organization={organization} />
 
       {benefitsSlot}
+
+      <ProductAdditionalDetailsSection />
 
       <Section
         title="Metadata"

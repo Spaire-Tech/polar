@@ -1,6 +1,6 @@
 'use client'
 
-import { ProductCard } from '@/components/Products/ProductCard'
+import { DETAIL_OPTION_MAP, DETAIL_KEYS } from '@/components/Products/ProductForm/ProductAdditionalDetailsSection'
 import ProductPriceLabel from '@/components/Products/ProductPriceLabel'
 import { hasLegacyRecurringPrices } from '@/utils/product'
 import LegacyRecurringProductPrices from '@/components/Products/LegacyRecurringProductPrices'
@@ -12,6 +12,110 @@ import Link from 'next/link'
 import { useCallback, useEffect, useState } from 'react'
 import { twMerge } from 'tailwind-merge'
 import LogoIcon from '@/components/Brand/LogoIcon'
+import { ProductCard } from '@/components/Products/ProductCard'
+
+const CATEGORY_LABELS: Record<string, string> = {
+  ebook: 'eBook',
+  template: 'Template',
+  assets: 'Assets',
+  course: 'Course',
+  guide: 'Guide',
+  music: 'Music',
+  video: 'Video',
+  photo: 'Photo',
+  software: 'Software',
+  coaching: 'Coaching',
+  membership: 'Membership',
+  other: 'Other',
+}
+
+// SVG icons for detail rows
+function DetailIcon({ detailKey }: { detailKey: string }) {
+  const cls = 'h-[18px] w-[18px] shrink-0 text-gray-500'
+  switch (detailKey) {
+    case 'pages':
+    case 'chapters':
+      return (
+        <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+        </svg>
+      )
+    case 'format':
+    case 'file_size':
+      return (
+        <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" />
+        </svg>
+      )
+    case 'language':
+      return (
+        <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+        </svg>
+      )
+    case 'level':
+      return (
+        <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+        </svg>
+      )
+    case 'duration':
+      return (
+        <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+        </svg>
+      )
+    case 'dimensions':
+    case 'size':
+      return (
+        <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+        </svg>
+      )
+    case 'words':
+      return (
+        <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="17" y1="10" x2="3" y2="10" /><line x1="21" y1="6" x2="3" y2="6" /><line x1="21" y1="14" x2="3" y2="14" /><line x1="17" y1="18" x2="3" y2="18" />
+        </svg>
+      )
+    case 'resolution':
+      return (
+        <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="2" y="3" width="20" height="14" rx="2" ry="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
+        </svg>
+      )
+    case 'license':
+      return (
+        <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M9 13h6M9 17h4M14 2v6h6" />
+        </svg>
+      )
+    case 'compatible_with':
+      return (
+        <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="3" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14" />
+        </svg>
+      )
+    case 'release_year':
+      return (
+        <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+        </svg>
+      )
+    case 'edition':
+      return (
+        <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" />
+        </svg>
+      )
+    default:
+      return (
+        <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+      )
+  }
+}
 
 interface ReviewData {
   id: string
@@ -41,6 +145,21 @@ export const ProductDetailPage = ({
     (organization.storefront_settings as any)?.enable_reviews === true
   const [checkoutLoading, setCheckoutLoading] = useState(false)
 
+  const category = (product as any).category as string | null | undefined
+  const categoryLabel = category ? (CATEGORY_LABELS[category] ?? category) : null
+
+  // Extract "additional details" from metadata
+  const rawMetadata = (product as any).metadata as Record<string, unknown> | null | undefined
+  const details: { key: string; label: string; value: string }[] = rawMetadata
+    ? Object.entries(rawMetadata)
+        .filter(([k]) => DETAIL_KEYS.has(k))
+        .map(([k, v]) => ({
+          key: k,
+          label: DETAIL_OPTION_MAP[k] ?? k,
+          value: String(v),
+        }))
+    : []
+
   const handleBuy = useCallback(async () => {
     if (checkoutLoading) return
     setCheckoutLoading(true)
@@ -58,53 +177,45 @@ export const ProductDetailPage = ({
     }
   }, [checkoutLoading, product.id])
 
-  const handleOtherProductClick = useCallback(
-    async (productId: string) => {
-      try {
-        const { data: checkout } = await api.POST('/v1/checkouts/client/', {
-          body: { product_id: productId },
-        })
-        if (checkout?.client_secret) {
-          window.location.href = `${CONFIG.FRONTEND_BASE_URL}/checkout/${checkout.client_secret}?theme=light`
-        }
-      } catch {
-        // fallback
-      }
-    },
-    [],
-  )
-
   return (
     <div className="flex w-full flex-col gap-10">
       {/* Back link */}
       <Link
         href={`/${organization.slug}`}
-        className="text-sm text-gray-500 transition-colors hover:text-gray-700"
+        className="text-sm text-gray-400 transition-colors hover:text-gray-600"
       >
         &larr; Back to {organization.name}
       </Link>
 
-      {/* Main product section */}
-      <div className="flex flex-col gap-8 lg:flex-row lg:gap-12">
-        {/* Left — Media gallery (large) */}
+      {/* Main product section — matches screenshot layout */}
+      <div className="flex flex-col gap-10 lg:flex-row lg:items-start lg:gap-16">
+        {/* Left — Media gallery */}
         <div className="w-full lg:flex-1">
           <MediaGallery medias={product.medias} productName={product.name} />
         </div>
 
         {/* Right — Product info */}
-        <div className="flex w-full flex-col gap-5 lg:w-[380px] lg:shrink-0">
-          <div className="flex flex-col gap-1">
-            <h1 className="text-4xl font-normal leading-tight text-gray-900">
-              {product.name}
-            </h1>
-            {organization.name && (
-              <div className="text-[15px] text-gray-500">
-                by {organization.name}
-              </div>
+        <div className="flex w-full flex-col gap-5 lg:w-[420px] lg:shrink-0">
+          {/* Breadcrumb: Space • Category */}
+          <div className="flex items-center gap-2.5">
+            <span className="rounded-full border border-gray-200 bg-white px-3.5 py-1 text-[13px] font-medium text-gray-700 shadow-sm">
+              Space
+            </span>
+            {categoryLabel && (
+              <>
+                <span className="text-[13px] text-gray-400">•</span>
+                <span className="text-[13px] text-gray-500">{categoryLabel}</span>
+              </>
             )}
           </div>
 
-          <div className="text-3xl font-normal text-gray-900">
+          {/* Title */}
+          <h1 className="text-[36px] font-bold leading-tight tracking-tight text-gray-900">
+            {product.name}
+          </h1>
+
+          {/* Price */}
+          <div className="text-[26px] font-semibold text-gray-900">
             {hasLegacyRecurringPrices(product) ? (
               <LegacyRecurringProductPrices product={product} />
             ) : (
@@ -112,25 +223,26 @@ export const ProductDetailPage = ({
             )}
           </div>
 
-          {/* Buy button */}
+          {/* Description */}
+          {product.description && (
+            <p className="text-[15px] leading-relaxed text-gray-500">
+              {product.description}
+            </p>
+          )}
+
+          {/* Buy Now button */}
           <button
             type="button"
             onClick={handleBuy}
             disabled={checkoutLoading}
-            className="flex h-12 w-full items-center justify-center rounded-full bg-gray-900 text-[15px] font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
+            className="mt-1 flex h-14 w-full items-center justify-center rounded-full bg-gray-900 text-[16px] font-semibold text-white transition-colors hover:bg-gray-700 disabled:opacity-50"
           >
-            {checkoutLoading ? 'Loading...' : 'Buy'}
+            {checkoutLoading ? 'Loading...' : 'Buy Now'}
           </button>
-
-          {product.description && (
-            <div className="text-[15px] leading-relaxed whitespace-pre-wrap text-gray-600">
-              {product.description}
-            </div>
-          )}
 
           {/* Benefits */}
           {product.benefits.length > 0 && (
-            <div className="flex flex-col gap-3 pt-2">
+            <div className="flex flex-col gap-3 pt-1">
               <h3 className="text-sm font-semibold text-gray-900">
                 What&apos;s included
               </h3>
@@ -155,6 +267,27 @@ export const ProductDetailPage = ({
                   </li>
                 ))}
               </ul>
+            </div>
+          )}
+
+          {/* Additional details — rows with icon, label, value */}
+          {details.length > 0 && (
+            <div className="mt-2 flex flex-col">
+              {details.map((detail, i) => (
+                <div
+                  key={detail.key}
+                  className={twMerge(
+                    'flex items-center gap-4 py-4',
+                    i > 0 && 'border-t border-gray-100',
+                  )}
+                >
+                  <DetailIcon detailKey={detail.key} />
+                  <span className="w-28 shrink-0 text-[14px] font-semibold text-gray-800">
+                    {detail.label}
+                  </span>
+                  <span className="text-[14px] text-gray-500">{detail.value}</span>
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -207,13 +340,13 @@ function MediaGallery({
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Main image — fills the card */}
-      <div className="relative aspect-[4/3] overflow-hidden rounded-3xl bg-gray-100">
+      {/* Main image */}
+      <div className="relative overflow-hidden rounded-3xl bg-gray-50" style={{ aspectRatio: '4/3' }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={active?.public_url}
           alt={active?.name ?? productName}
-          className="absolute inset-0 h-full w-full object-cover"
+          className="absolute inset-0 h-full w-full object-contain p-6"
         />
         {medias.length > 1 && (
           <>
@@ -224,7 +357,7 @@ function MediaGallery({
                   (activeIdx - 1 + medias.length) % medias.length,
                 )
               }
-              className="absolute top-1/2 left-3 -translate-y-1/2 rounded-full bg-white/90 p-2 shadow transition-opacity hover:bg-white"
+              className="absolute top-1/2 left-3 -translate-y-1/2 rounded-full bg-white/90 p-2 shadow transition-colors hover:bg-white"
               aria-label="Previous"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
@@ -234,7 +367,7 @@ function MediaGallery({
               onClick={() =>
                 setActiveIdx((activeIdx + 1) % medias.length)
               }
-              className="absolute top-1/2 right-3 -translate-y-1/2 rounded-full bg-white/90 p-2 shadow transition-opacity hover:bg-white"
+              className="absolute top-1/2 right-3 -translate-y-1/2 rounded-full bg-white/90 p-2 shadow transition-colors hover:bg-white"
               aria-label="Next"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
@@ -245,14 +378,14 @@ function MediaGallery({
 
       {/* Thumbnail strip */}
       {medias.length > 1 && (
-        <div className="flex gap-2 overflow-x-auto">
+        <div className="flex gap-2 overflow-x-auto pb-1">
           {medias.map((m, i) => (
             <button
               key={m.id ?? i}
               type="button"
               onClick={() => setActiveIdx(i)}
               className={twMerge(
-                'h-16 w-16 shrink-0 overflow-hidden rounded-lg border-2 transition-all',
+                'h-[68px] w-[68px] shrink-0 overflow-hidden rounded-xl border-2 bg-gray-50 transition-all',
                 i === activeIdx
                   ? 'border-gray-900'
                   : 'border-transparent opacity-60 hover:opacity-100',
@@ -262,7 +395,7 @@ function MediaGallery({
               <img
                 src={m.public_url}
                 alt={m.name ?? `Image ${i + 1}`}
-                className="h-full w-full object-cover"
+                className="h-full w-full object-contain p-1"
               />
             </button>
           ))}
