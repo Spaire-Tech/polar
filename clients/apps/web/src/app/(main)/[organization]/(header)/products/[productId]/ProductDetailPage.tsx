@@ -1,18 +1,65 @@
 'use client'
 
 import { DETAIL_OPTION_MAP, DETAIL_KEYS } from '@/components/Products/ProductForm/ProductAdditionalDetailsSection'
-import ProductPriceLabel from '@/components/Products/ProductPriceLabel'
 import { hasLegacyRecurringPrices } from '@/utils/product'
 import LegacyRecurringProductPrices from '@/components/Products/LegacyRecurringProductPrices'
 import { CONFIG } from '@/utils/config'
 import { getServerURL } from '@/utils/api'
 import { api } from '@/utils/client'
 import { schemas } from '@spaire/client'
+import { formatCurrency } from '@spaire/currency'
 import Link from 'next/link'
 import { useCallback, useEffect, useState } from 'react'
 import { twMerge } from 'tailwind-merge'
 import LogoIcon from '@/components/Brand/LogoIcon'
 import { ProductCard } from '@/components/Products/ProductCard'
+
+// Renders "USD $59.00" / "EUR €59.00" etc.
+function PriceDisplay({ product }: { product: schemas['ProductStorefront'] }) {
+  const staticPrice = product.prices.find(({ amount_type }) =>
+    ['fixed', 'custom', 'free', 'seat_based'].includes(amount_type),
+  )
+
+  if (!staticPrice) return null
+
+  if (staticPrice.amount_type === 'fixed') {
+    const code = staticPrice.price_currency.toUpperCase()
+    const formatted = formatCurrency('accounting')(
+      staticPrice.price_amount,
+      staticPrice.price_currency,
+    )
+    return (
+      <span>
+        {code} {formatted}
+      </span>
+    )
+  }
+
+  if (staticPrice.amount_type === 'seat_based') {
+    const tiers = staticPrice.seat_tiers.tiers
+    if (tiers.length > 0) {
+      const code = staticPrice.price_currency.toUpperCase()
+      const formatted = formatCurrency('accounting')(
+        tiers[0].price_per_seat,
+        staticPrice.price_currency,
+      )
+      return (
+        <span>
+          {tiers.length > 1 && <span className="mr-1 text-[18px] text-gray-400">From</span>}
+          {code} {formatted}
+          <span className="ml-1 text-[18px] text-gray-400">/ seat</span>
+        </span>
+      )
+    }
+    return null
+  }
+
+  if (staticPrice.amount_type === 'custom') {
+    return <span className="text-[22px]">Pay what you want</span>
+  }
+
+  return <span className="text-[22px]">Free</span>
+}
 
 const CATEGORY_LABELS: Record<string, string> = {
   ebook: 'eBook',
@@ -214,12 +261,12 @@ export const ProductDetailPage = ({
             {product.name}
           </h1>
 
-          {/* Price */}
+          {/* Price — "USD $59.00" format */}
           <div className="text-[26px] font-semibold text-gray-900">
             {hasLegacyRecurringPrices(product) ? (
               <LegacyRecurringProductPrices product={product} />
             ) : (
-              <ProductPriceLabel product={product} />
+              <PriceDisplay product={product} />
             )}
           </div>
 
