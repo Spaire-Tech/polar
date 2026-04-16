@@ -257,12 +257,12 @@ export const ProductDetailPage = ({
           </div>
 
           {/* Title */}
-          <h1 className="text-[36px] font-bold leading-tight tracking-tight text-gray-900">
+          <h1 className="text-[36px] font-semibold leading-tight tracking-tight text-gray-900">
             {product.name}
           </h1>
 
           {/* Price — "USD $59.00" format */}
-          <div className="text-[26px] font-semibold text-gray-900">
+          <div className="text-[22px] font-normal text-gray-900">
             {hasLegacyRecurringPrices(product) ? (
               <LegacyRecurringProductPrices product={product} />
             ) : (

@@ -351,6 +351,11 @@ const Checkout = ({
                     {enrichedCheckout.product.name}
                   </span>
 
+                  {/* Price */}
+                  <span className="text-3xl font-medium">
+                    <CheckoutHeroPrice checkout={enrichedCheckout} />
+                  </span>
+
                   {/* Media carousel — full-width with border */}
                   {hasMedia && (
                     <div className="overflow-hidden rounded-2xl border border-gray-200 dark:border-spaire-700">
@@ -371,11 +376,6 @@ const Checkout = ({
                         productName={enrichedCheckout.product.name}
                       />
                     )}
-
-                  {/* Price */}
-                  <span className="text-3xl font-medium">
-                    <CheckoutHeroPrice checkout={enrichedCheckout} />
-                  </span>
                 </div>
                 <CheckoutProductSwitcher
                   checkout={enrichedCheckout}

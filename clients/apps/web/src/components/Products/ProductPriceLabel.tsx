@@ -1,5 +1,6 @@
 import { isLegacyRecurringPrice } from '@/utils/product'
 import { schemas } from '@spaire/client'
+import { formatCurrency } from '@spaire/currency'
 import AmountLabel from '../Shared/AmountLabel'
 
 interface ProductPriceLabelProps {
@@ -27,42 +28,41 @@ const ProductPriceLabel: React.FC<ProductPriceLabelProps> = ({
   }
 
   if (staticPrice.amount_type === 'fixed') {
+    const code = staticPrice.price_currency.toUpperCase()
+    const formatted = formatCurrency('accounting')(
+      staticPrice.price_amount,
+      staticPrice.price_currency,
+    )
+    const interval = isLegacyRecurringPrice(staticPrice)
+      ? staticPrice.recurring_interval
+      : product.recurring_interval || undefined
+    const intervalLabel = interval
+      ? { month: '/ mo', year: '/ yr', week: '/ wk', day: '/ dy' }[interval] ?? ''
+      : ''
     return (
-      <AmountLabel
-        amount={staticPrice.price_amount}
-        currency={staticPrice.price_currency}
-        interval={
-          isLegacyRecurringPrice(staticPrice)
-            ? staticPrice.recurring_interval
-            : product.recurring_interval || undefined
-        }
-        intervalCount={product.recurring_interval_count}
-      />
+      <span className="flex items-baseline gap-1">
+        <span>{code} {formatted}</span>
+        {intervalLabel && (
+          <span className="dark:text-spaire-500 text-[0.5em] text-gray-500">{intervalLabel}</span>
+        )}
+      </span>
     )
   } else if (isSeatBasedPrice(staticPrice)) {
     const tiers = staticPrice.seat_tiers.tiers
-
-    // Show the starting tier price with "from" indicator if multiple tiers
     if (tiers.length > 0) {
-      const firstTier = tiers[0]
-      const hasMultipleTiers = tiers.length > 1
-
+      const code = staticPrice.price_currency.toUpperCase()
+      const formatted = formatCurrency('accounting')(
+        tiers[0].price_per_seat,
+        staticPrice.price_currency,
+      )
       return (
-        <div className="flex items-baseline gap-1.5">
-          {hasMultipleTiers && (
-            <span className="dark:text-spaire-500 text-xs text-gray-500">
-              From
-            </span>
+        <span className="flex items-baseline gap-1.5">
+          {tiers.length > 1 && (
+            <span className="dark:text-spaire-500 text-xs text-gray-500">From</span>
           )}
-          <AmountLabel
-            amount={firstTier.price_per_seat}
-            currency={staticPrice.price_currency}
-            interval={product.recurring_interval || undefined}
-          />
-          <span className="dark:text-spaire-500 text-xs text-gray-500">
-            / seat
-          </span>
-        </div>
+          <span>{code} {formatted}</span>
+          <span className="dark:text-spaire-500 text-xs text-gray-500">/ seat</span>
+        </span>
       )
     }
     return null
