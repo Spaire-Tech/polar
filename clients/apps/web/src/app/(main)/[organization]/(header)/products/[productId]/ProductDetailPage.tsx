@@ -270,60 +270,9 @@ export const ProductDetailPage = ({
             )}
           </div>
 
-          {/* Description — split on blank lines to preserve paragraphs */}
-          {product.description && (
-            <div className="flex flex-col gap-3">
-              {product.description.split(/\n\s*\n/).map((para, i) => (
-                <p key={i} className="whitespace-pre-wrap text-[15px] leading-relaxed text-gray-500">
-                  {para.trim()}
-                </p>
-              ))}
-            </div>
-          )}
-
-          {/* Buy Now button */}
-          <button
-            type="button"
-            onClick={handleBuy}
-            disabled={checkoutLoading}
-            className="mt-1 flex h-14 w-full items-center justify-center rounded-full bg-gray-900 text-[16px] font-semibold text-white transition-colors hover:bg-gray-700 disabled:opacity-50"
-          >
-            {checkoutLoading ? 'Loading...' : 'Buy Now'}
-          </button>
-
-          {/* Benefits */}
-          {product.benefits.length > 0 && (
-            <div className="flex flex-col gap-3 pt-1">
-              <h3 className="text-sm font-semibold text-gray-900">
-                What&apos;s included
-              </h3>
-              <ul className="flex flex-col gap-2">
-                {product.benefits.map((benefit) => (
-                  <li
-                    key={benefit.id}
-                    className="flex items-start gap-2 text-sm text-gray-600"
-                  >
-                    <svg
-                      className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    <span>{benefit.description}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Additional details — rows with icon, label, value */}
+          {/* 1. Additional details — rows with icon, label, value */}
           {details.length > 0 && (
-            <div className="mt-2 flex flex-col">
+            <div className="flex flex-col">
               {details.map((detail, i) => (
                 <div
                   key={detail.key}
@@ -339,6 +288,49 @@ export const ProductDetailPage = ({
                   <span className="text-[14px] text-gray-500">{detail.value}</span>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* 2. Buy Now button */}
+          <button
+            type="button"
+            onClick={handleBuy}
+            disabled={checkoutLoading}
+            className="mt-1 flex h-14 w-full items-center justify-center rounded-full bg-gray-900 text-[16px] font-semibold text-white transition-colors hover:bg-gray-700 disabled:opacity-50"
+          >
+            {checkoutLoading ? 'Loading...' : 'Buy Now'}
+          </button>
+
+          {/* 3. Overview: description + benefits */}
+          {(product.description || product.benefits.length > 0) && (
+            <div className="flex flex-col gap-4 border-t border-gray-100 pt-5">
+              <h2 className="text-[15px] font-semibold text-gray-900">Overview</h2>
+
+              {product.description && (
+                <div className="flex flex-col gap-3">
+                  {product.description.split(/\n\s*\n/).map((para, i) => (
+                    <p key={i} className="whitespace-pre-wrap text-[15px] leading-relaxed text-gray-500">
+                      {para.trim()}
+                    </p>
+                  ))}
+                </div>
+              )}
+
+              {product.benefits.length > 0 && (
+                <div className="flex flex-col gap-2 pt-1">
+                  <h3 className="text-sm font-semibold text-gray-900">What&apos;s included</h3>
+                  <ul className="flex flex-col gap-2">
+                    {product.benefits.map((benefit) => (
+                      <li key={benefit.id} className="flex items-start gap-2 text-sm text-gray-600">
+                        <svg className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+                        </svg>
+                        <span>{benefit.description}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -35,7 +35,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@spaire/ui/components/ui/dialog'
 import { getThemePreset } from '@spaire/ui/hooks/theming'
 import type { Stripe, StripeElements } from '@stripe/stripe-js'
@@ -346,58 +345,34 @@ const Checkout = ({
           <div className="flex flex-col gap-y-8 md:sticky md:top-8">
             {enrichedCheckout && (
               <>
-                <div className="flex flex-col gap-y-2">
-                  <div className="flex flex-row items-start gap-x-3">
-                    {hasMedia && enrichedCheckout.product.medias[0]?.publicUrl && (
-                      <Dialog>
-                        <DialogTrigger
-                          asChild
-                          disabled={enrichedCheckout.product.medias.length <= 1}
-                        >
-                          <button
-                            className={`relative h-10 w-10 shrink-0 ${enrichedCheckout.product.medias.length > 1 ? 'cursor-pointer' : 'cursor-default'}`}
-                          >
-                            <img
-                              src={enrichedCheckout.product.medias[0].publicUrl}
-                              alt={enrichedCheckout.product.name}
-                              className="h-10 w-10 rounded-lg object-cover"
-                            />
-                            {enrichedCheckout.product.medias.length > 1 && (
-                              <span className="absolute right-0 bottom-0 rounded bg-black/60 px-1 py-0.5 text-[10px] leading-none font-medium text-white">
-                                +{enrichedCheckout.product.medias.length - 1}
-                              </span>
-                            )}
-                          </button>
-                        </DialogTrigger>
-                        <DialogContent className="dark:bg-spaire-900 max-w-2xl">
-                          <DialogHeader>
-                            <DialogTitle>{enrichedCheckout.product.name}</DialogTitle>
-                            <DialogDescription className="sr-only">
-                              Product images
-                            </DialogDescription>
-                          </DialogHeader>
-                          <Slideshow
-                            images={enrichedCheckout.product.medias.map(
-                              (m) => m.publicUrl,
-                            )}
-                          />
-                        </DialogContent>
-                      </Dialog>
-                    )}
-                    <div className="flex min-w-0 flex-col gap-y-1">
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">
-                        {enrichedCheckout.product.name}
-                      </span>
-                      {enrichedCheckout.product.description &&
-                        !hasMarkdown(enrichedCheckout.product.description) &&
-                        showDescription && (
-                          <TruncatedDescription
-                            description={enrichedCheckout.product.description}
-                            productName={enrichedCheckout.product.name}
-                          />
+                <div className="flex flex-col gap-y-4">
+                  {/* Product name */}
+                  <span className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {enrichedCheckout.product.name}
+                  </span>
+
+                  {/* Media carousel — full-width with border */}
+                  {hasMedia && (
+                    <div className="overflow-hidden rounded-2xl border border-gray-200 dark:border-spaire-700">
+                      <Slideshow
+                        images={enrichedCheckout.product.medias.map(
+                          (m) => m.publicUrl,
                         )}
+                      />
                     </div>
-                  </div>
+                  )}
+
+                  {/* Description */}
+                  {enrichedCheckout.product.description &&
+                    !hasMarkdown(enrichedCheckout.product.description) &&
+                    showDescription && (
+                      <TruncatedDescription
+                        description={enrichedCheckout.product.description}
+                        productName={enrichedCheckout.product.name}
+                      />
+                    )}
+
+                  {/* Price */}
                   <span className="text-3xl font-medium">
                     <CheckoutHeroPrice checkout={enrichedCheckout} />
                   </span>
