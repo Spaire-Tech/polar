@@ -32,8 +32,8 @@ export default function BalanceLayout({ children }: PropsWithChildren) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="px-4 md:px-8">
-        <div className="flex flex-row gap-1 pt-6">
+      <div className="overflow-x-auto px-4 md:px-8">
+        <div className="flex min-w-max flex-row gap-1 pt-6">
           {visibleTabs.map((tab) => {
             const isActive = pathname.startsWith(`${base}${tab.suffix}`)
             return (

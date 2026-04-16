@@ -162,11 +162,10 @@ export const BenefitListPage = ({ organization }: BenefitListPageProps) => {
             </div>
             <div className="flex max-w-lg flex-col gap-3">
               <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
-                Attach extras to your products
+                Attach files to your products
               </h2>
               <p className="text-gray-500 dark:text-spaire-400">
-                Benefits are extras you attach to products — license keys,
-                usage credits, custom integrations, and more.
+                Upload the files your customer will receive after purchase
               </p>
             </div>
             <Button size="lg" onClick={showCreateModal} className="gap-2">

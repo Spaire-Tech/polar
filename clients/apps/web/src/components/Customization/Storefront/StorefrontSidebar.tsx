@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@spaire/ui/components/atoms/Select'
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { FileRejection } from 'react-dropzone'
 import { useFormContext } from 'react-hook-form'
 import { twMerge } from 'tailwind-merge'
@@ -29,7 +29,6 @@ import YouTube from '@mui/icons-material/YouTube'
 import GitHub from '@mui/icons-material/GitHub'
 import X from '@mui/icons-material/X'
 import Public from '@mui/icons-material/Public'
-import Avatar from '@spaire/ui/components/atoms/Avatar'
 import AddPhotoAlternateOutlined from '@mui/icons-material/AddPhotoAlternateOutlined'
 
 // TikTok SVG icon (not available in MUI)
@@ -75,17 +74,45 @@ const SOCIAL_PLATFORMS = [
   { value: 'other', label: 'Website', icon: Public },
 ]
 
+// --- Focal point helpers ---
+export const focalPointToObjectPosition = (focal: string): string => {
+  // "X% Y%" is stored directly as CSS object-position
+  if (focal.includes('%')) return focal
+  // Legacy named values
+  const map: Record<string, string> = {
+    'top-left': 'left top', top: 'center top', 'top-right': 'right top',
+    left: 'left center', center: 'center center', right: 'right center',
+    'bottom-left': 'left bottom', bottom: 'center bottom', 'bottom-right': 'right bottom',
+  }
+  return map[focal] ?? 'center center'
+}
+
+const parseFocalPosition = (raw: string): { x: number; y: number } => {
+  if (raw.includes('%') && raw.includes(' ')) {
+    const [px, py] = raw.split(' ')
+    return { x: parseFloat(px), y: parseFloat(py) }
+  }
+  const named: Record<string, { x: number; y: number }> = {
+    'top-left': { x: 0, y: 0 }, top: { x: 50, y: 0 }, 'top-right': { x: 100, y: 0 },
+    left: { x: 0, y: 50 }, center: { x: 50, y: 50 }, right: { x: 100, y: 50 },
+    'bottom-left': { x: 0, y: 100 }, bottom: { x: 50, y: 100 }, 'bottom-right': { x: 100, y: 100 },
+  }
+  return named[raw] ?? { x: 50, y: 50 }
+}
+
 // --- Tag input with full scrollable dropdown ---
 const TagInput = ({
   value,
   onChange,
   options,
   placeholder,
+  allowCustom = false,
 }: {
   value: string[]
   onChange: (tags: string[]) => void
   options: string[]
   placeholder: string
+  allowCustom?: boolean
 }) => {
   const [search, setSearch] = useState('')
   const [showDropdown, setShowDropdown] = useState(false)
@@ -93,6 +120,21 @@ const TagInput = ({
   const filtered = options.filter(
     (o) => !value.includes(o) && o.toLowerCase().includes(search.toLowerCase()),
   )
+
+  const addTag = (tag: string) => {
+    const trimmed = tag.trim()
+    if (trimmed && !value.includes(trimmed)) {
+      onChange([...value, trimmed])
+      setSearch('')
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (allowCustom && e.key === 'Enter' && search.trim()) {
+      e.preventDefault()
+      addTag(search)
+    }
+  }
 
   return (
     <div className="relative">
@@ -122,6 +164,7 @@ const TagInput = ({
           onChange={(e) => setSearch(e.target.value)}
           onFocus={() => setShowDropdown(true)}
           onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+          onKeyDown={handleKeyDown}
           placeholder={placeholder}
           className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-gray-300 focus:outline-none"
         />
@@ -374,6 +417,27 @@ export const StorefrontEditorForm = ({
   }
 
   const isEnabled = settings?.enabled ?? false
+  const headerFocalRaw = (settings as any)?.header_focal_point ?? '50% 50%'
+  const coverPos = parseFocalPosition(headerFocalRaw)
+
+  // Drag-to-reposition cover image
+  const [isCoverDragging, setIsCoverDragging] = useState(false)
+  const coverDragRef = useRef<{
+    startX: number; startY: number; posX: number; posY: number
+  } | null>(null)
+
+  const startCoverDrag = (clientX: number, clientY: number) => {
+    setIsCoverDragging(true)
+    coverDragRef.current = { startX: clientX, startY: clientY, posX: coverPos.x, posY: coverPos.y }
+  }
+  const moveCoverDrag = (clientX: number, clientY: number) => {
+    if (!coverDragRef.current) return
+    const { startX, startY, posX, posY } = coverDragRef.current
+    const newX = Math.max(0, Math.min(100, posX - (clientX - startX) * 0.5))
+    const newY = Math.max(0, Math.min(100, posY - (clientY - startY) * 1.5))
+    updateSetting('header_focal_point' as any, `${newX.toFixed(1)}% ${newY.toFixed(1)}%`)
+  }
+  const endCoverDrag = () => { setIsCoverDragging(false); coverDragRef.current = null }
 
   return (
     <div className="flex flex-col gap-y-8 px-8 py-8">
@@ -480,16 +544,17 @@ export const StorefrontEditorForm = ({
               <div
                 {...getAvatarRootProps()}
                 className={twMerge(
-                  'flex h-[120px] cursor-pointer flex-col items-center justify-center gap-y-2 rounded-xl border-2 border-dashed border-gray-300 bg-white transition-colors hover:border-gray-400',
+                  'flex h-[120px] cursor-pointer flex-col items-center justify-center gap-y-2 overflow-hidden rounded-xl border-2 border-dashed border-gray-300 bg-white transition-colors hover:border-gray-400',
                   isAvatarDragActive && 'border-blue-500 bg-blue-50',
                 )}
               >
                 <input {...getAvatarInputProps()} />
                 {avatarUrl ? (
-                  <Avatar
-                    avatar_url={avatarUrl}
-                    name={organization.name}
-                    className="h-16 w-16 rounded-xl"
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={avatarUrl}
+                    alt={organization.name}
+                    className="h-full w-full object-cover"
                   />
                 ) : (
                   <>
@@ -505,30 +570,55 @@ export const StorefrontEditorForm = ({
             </div>
             <div className="flex flex-col gap-y-1.5">
               <label className="text-sm font-medium text-gray-700">Cover Image</label>
-              <div
-                {...getBannerRootProps()}
-                className={twMerge(
-                  'flex h-[120px] cursor-pointer flex-col items-center justify-center gap-y-2 rounded-xl border-2 border-dashed border-gray-300 bg-white transition-colors hover:border-gray-400',
-                  isBannerDragActive && 'border-blue-500 bg-blue-50',
-                )}
-              >
-                <input {...getBannerInputProps()} />
-                {settings?.header_image_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={settings.header_image_url}
-                    alt="Cover preview"
-                    className="h-full w-full rounded-lg object-cover"
-                  />
-                ) : (
-                  <>
-                    <AddPhotoAlternateOutlined className="text-gray-400" />
-                    <span className="text-center text-xs text-gray-500">
-                      Upload cover image
-                    </span>
-                  </>
-                )}
-              </div>
+              {settings?.header_image_url ? (
+                <>
+                  {/* Drag-to-reposition when image is set */}
+                  <div
+                    className={twMerge(
+                      'group relative h-[120px] select-none overflow-hidden rounded-xl',
+                      isCoverDragging ? 'cursor-grabbing' : 'cursor-grab',
+                    )}
+                    onMouseDown={(e) => { e.preventDefault(); startCoverDrag(e.clientX, e.clientY) }}
+                    onMouseMove={(e) => isCoverDragging && moveCoverDrag(e.clientX, e.clientY)}
+                    onMouseUp={endCoverDrag}
+                    onMouseLeave={endCoverDrag}
+                    onTouchStart={(e) => { const t = e.touches[0]; startCoverDrag(t.clientX, t.clientY) }}
+                    onTouchMove={(e) => { const t = e.touches[0]; moveCoverDrag(t.clientX, t.clientY) }}
+                    onTouchEnd={endCoverDrag}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={settings.header_image_url}
+                      alt="Cover preview"
+                      className="pointer-events-none h-full w-full object-cover"
+                      style={{ objectPosition: `${coverPos.x.toFixed(1)}% ${coverPos.y.toFixed(1)}%` }}
+                      draggable={false}
+                    />
+                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/25 opacity-0 transition-opacity group-hover:opacity-100">
+                      <span className="rounded-full bg-black/50 px-3 py-1 text-xs text-white">Drag to reposition</span>
+                    </div>
+                  </div>
+                  {/* Replace button */}
+                  <div {...getBannerRootProps()} className="cursor-pointer">
+                    <input {...getBannerInputProps()} />
+                    <span className="text-xs text-blue-500 hover:underline">Replace image</span>
+                  </div>
+                </>
+              ) : (
+                <div
+                  {...getBannerRootProps()}
+                  className={twMerge(
+                    'flex h-[120px] cursor-pointer flex-col items-center justify-center gap-y-2 overflow-hidden rounded-xl border-2 border-dashed border-gray-300 bg-white transition-colors hover:border-gray-400',
+                    isBannerDragActive && 'border-blue-500 bg-blue-50',
+                  )}
+                >
+                  <input {...getBannerInputProps()} />
+                  <AddPhotoAlternateOutlined className="text-gray-400" />
+                  <span className="text-center text-xs text-gray-500">
+                    Upload cover image
+                  </span>
+                </div>
+              )}
               <span className="text-xs text-gray-400">1600 x 300 recommended. Max 10MB.</span>
             </div>
           </div>
@@ -559,6 +649,7 @@ export const StorefrontEditorForm = ({
               onChange={(tags) => updateSetting('skills', tags)}
               options={SKILL_OPTIONS}
               placeholder="eg. Figma, Blender, etc."
+              allowCustom={true}
             />
           </div>
 

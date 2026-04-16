@@ -21,8 +21,8 @@ export const ProductMediaSection = ({
 
   return (
     <Section
-      title="Media"
-      description="Drop your images here, or click to browse"
+      title="Thumbnail"
+      description="This image appears in Checkouts, your Spaire Space, in emails, social sharing and more."
     >
       <FormField
         control={control}
@@ -36,9 +36,6 @@ export const ProductMediaSection = ({
                 onChange={field.onChange}
               />
             </FormControl>
-            <p className="dark:text-spaire-500 text-xs text-gray-500">
-              1600 x 1200 (4:3) recommended, up to 10MB each. Add up to 10 images to your product. Used to represent your product during checkout, in email, social sharing and more.
-            </p>
             <FormMessage />
           </FormItem>
         )}

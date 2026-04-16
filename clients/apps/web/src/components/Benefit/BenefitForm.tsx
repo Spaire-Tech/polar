@@ -1,6 +1,6 @@
 import { useDiscordGuild } from '@/hooks/queries'
 import { getBotDiscordAuthorizeURL } from '@/utils/auth'
-import { enums, schemas } from '@spaire/client'
+import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import Input from '@spaire/ui/components/atoms/Input'
 import {
@@ -327,7 +327,7 @@ const BenefitTypeSelect = () => {
                   <SelectValue placeholder="Select a benefit type" />
                 </SelectTrigger>
                 <SelectContent>
-                  {enums.benefitTypeValues
+                  {(['downloadables', 'discord', 'github_repository', 'license_keys', 'meter_credit', 'custom'] as const)
                     .map((value) => (
                     <SelectItem key={value} value={value}>
                       {benefitsDisplayNames[value]}

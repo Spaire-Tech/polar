@@ -5,40 +5,43 @@ import Link from 'next/link'
 import { useParams, usePathname } from 'next/navigation'
 import { PropsWithChildren } from 'react'
 
-const integrationsTabs = [
+const developersTabs = [
   { title: 'Agent Install', suffix: '' },
   { title: 'Frameworks', suffix: '/frameworks' },
+  { title: 'API', suffix: '/api' },
 ]
 
-export default function IntegrationsLayout({ children }: PropsWithChildren) {
+export default function DevelopersLayout({ children }: PropsWithChildren) {
   const params = useParams<{ organization: string }>()
   const pathname = usePathname()
-  const base = `/dashboard/${params.organization}/integrations`
+  const base = `/dashboard/${params.organization}/developers`
 
-  // Hide tabs on detail pages (individual framework or agent command pages)
+  // Show tabs only on the top-level tab pages
   const isTabPage =
     pathname === base ||
     pathname === `${base}/` ||
     pathname === `${base}/frameworks` ||
-    pathname === `${base}/frameworks/`
+    pathname === `${base}/frameworks/` ||
+    pathname === `${base}/api` ||
+    pathname === `${base}/api/`
 
   if (!isTabPage) {
     return children
   }
 
   const activeTab =
-    integrationsTabs.find((t) =>
+    developersTabs.find((t) =>
       t.suffix === ''
         ? pathname === base || pathname === `${base}/`
         : pathname.startsWith(`${base}${t.suffix}`),
-    ) ?? integrationsTabs[0]
+    ) ?? developersTabs[0]
 
   return (
     <div className="flex h-full flex-col">
-      <div className="px-4 pt-6 md:px-8">
+      <div className="overflow-x-auto px-4 pt-6 md:px-8">
         <Tabs value={activeTab.title}>
-          <TabsList className="flex flex-row bg-transparent ring-0 dark:bg-transparent dark:ring-0">
-            {integrationsTabs.map((tab) => (
+          <TabsList className="flex min-w-max flex-row bg-transparent ring-0 dark:bg-transparent dark:ring-0">
+            {developersTabs.map((tab) => (
               <Link
                 key={tab.suffix}
                 href={`${base}${tab.suffix}`}

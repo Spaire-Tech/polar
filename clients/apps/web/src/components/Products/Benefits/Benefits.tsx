@@ -5,7 +5,7 @@ import {
   CreatableBenefit,
   resolveBenefitIcon,
 } from '@/components/Benefit/utils'
-import { enums, schemas } from '@spaire/client'
+import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import {
   DropdownMenu,
@@ -67,10 +67,19 @@ export const Benefits = ({
   const hasSelectedBenefits = selectedBenefits.length > 0
   const isSimplifiedView = totalBenefitCount <= SIMPLIFIED_VIEW_THRESHOLD
 
+  const orderedBenefitTypes = [
+    'downloadables',
+    'discord',
+    'github_repository',
+    'license_keys',
+    'meter_credit',
+    'custom',
+  ] as const
+
   return (
     <Section
-      title="Automated Benefits"
-      description="Configure which benefits you want to grant to your customers when they purchase the product"
+      title="Downloadable Files"
+      description="Upload an unlimited number of files/benefits to your product. Your customers will be given access to them after purchase."
       className={className}
     >
       <div className="flex flex-col gap-4">
@@ -107,7 +116,7 @@ export const Benefits = ({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="min-w-[200px]">
-                {enums.benefitTypeValues.map((type) => (
+                {orderedBenefitTypes.map((type) => (
                   <DropdownMenuItem
                     key={type}
                     onClick={() => {

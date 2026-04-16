@@ -179,7 +179,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
   },
   {
     id: 'catalog',
-    title: 'Spaire Space',
+    title: 'Space Card',
     icon: <HiveOutlined fontSize="inherit" />,
     link: `/dashboard/${org?.slug}/products`,
     checkIsActive: (currentRoute: string): boolean => {
@@ -194,6 +194,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
       { title: 'Products', link: `/dashboard/${org?.slug}/products` },
       { title: 'Payment Links', link: `/dashboard/${org?.slug}/products/checkout-links` },
       { title: 'Discounts', link: `/dashboard/${org?.slug}/products/discounts` },
+      { title: 'Files', link: `/dashboard/${org?.slug}/products/benefits` },
       { title: 'Space Card', link: `/dashboard/${org?.slug}/storefront` },
     ],
   },
@@ -238,12 +239,12 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
     if: true,
   },
   {
-    id: 'integrations',
-    title: 'Integrations',
+    id: 'developers',
+    title: 'Developers',
     icon: <ExtensionOutlined fontSize="inherit" />,
-    link: `/dashboard/${org?.slug}/integrations`,
+    link: `/dashboard/${org?.slug}/developers`,
     checkIsActive: (currentRoute: string): boolean => {
-      return currentRoute.startsWith(`/dashboard/${org?.slug}/integrations`)
+      return currentRoute.startsWith(`/dashboard/${org?.slug}/developers`)
     },
     if: true,
   },
