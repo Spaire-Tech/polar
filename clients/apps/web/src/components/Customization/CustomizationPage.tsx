@@ -187,24 +187,24 @@ const Customization = ({
 
         {/* Two-column: preview left, form right */}
         <div className="flex min-h-0 grow flex-row overflow-hidden">
-          {/* Left — heading + live card preview (hidden on mobile) */}
-          <div className="hidden flex-1 flex-col items-center justify-center overflow-y-auto p-10 md:flex">
-            <div className="flex w-full max-w-[500px] flex-col items-center">
-              <h1 className="text-center text-[28px] font-bold text-gray-950">
-                {isSpaceEnabled ? 'Edit your Space Card' : 'Let\u2019s Create your Space Card'}
+          {/* Left — heading + full space page live preview (hidden on mobile) */}
+          <div className="hidden flex-1 flex-col overflow-y-auto bg-gray-50 p-6 md:flex">
+            <div className="mb-4 shrink-0">
+              <h1 className="text-[22px] font-bold text-gray-950">
+                {isSpaceEnabled ? 'Edit your Spaire Space' : 'Let\u2019s Create your Spaire Space'}
               </h1>
-              <p className="mt-1 text-center text-[15px] text-gray-500">
+              <p className="mt-1 text-[14px] text-gray-500">
                 Introduce yourself and design your personal Space ID card.
               </p>
+            </div>
 
-              <div className="mt-8 w-full max-w-[460px]">
-                <StorefrontLivePreview organization={organization} />
-              </div>
+            <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+              <StorefrontLivePreview organization={organization} />
             </div>
           </div>
 
           {/* Right — form sections (full width on mobile) */}
-          <div className="w-full shrink-0 overflow-y-auto border-l border-gray-200 bg-white shadow-sm md:w-[700px]">
+          <div className="w-full shrink-0 overflow-y-auto border-l border-gray-200 bg-white shadow-sm md:w-[460px]">
             <StorefrontEditorForm organization={organization} />
           </div>
         </div>

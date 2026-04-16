@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@spaire/ui/components/atoms/Select'
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { FileRejection } from 'react-dropzone'
 import { useFormContext } from 'react-hook-form'
 import { twMerge } from 'tailwind-merge'
@@ -75,49 +75,30 @@ const SOCIAL_PLATFORMS = [
 ]
 
 // --- Focal point helpers ---
-const FOCAL_POINT_GRID = [
-  ['top-left', 'top', 'top-right'],
-  ['left', 'center', 'right'],
-  ['bottom-left', 'bottom', 'bottom-right'],
-] as const
-
 export const focalPointToObjectPosition = (focal: string): string => {
+  // "X% Y%" is stored directly as CSS object-position
+  if (focal.includes('%')) return focal
+  // Legacy named values
   const map: Record<string, string> = {
-    'top-left': 'left top',
-    'top': 'center top',
-    'top-right': 'right top',
-    'left': 'left center',
-    'center': 'center center',
-    'right': 'right center',
-    'bottom-left': 'left bottom',
-    'bottom': 'center bottom',
-    'bottom-right': 'right bottom',
+    'top-left': 'left top', top: 'center top', 'top-right': 'right top',
+    left: 'left center', center: 'center center', right: 'right center',
+    'bottom-left': 'left bottom', bottom: 'center bottom', 'bottom-right': 'right bottom',
   }
   return map[focal] ?? 'center center'
 }
 
-const FocalPointPicker = ({
-  value,
-  onChange,
-}: {
-  value: string
-  onChange: (v: string) => void
-}) => (
-  <div className="grid grid-cols-3 gap-0.5 overflow-hidden rounded-md border border-gray-200 bg-gray-200">
-    {FOCAL_POINT_GRID.flat().map((point) => (
-      <button
-        key={point}
-        type="button"
-        title={point.replace('-', ' ')}
-        onClick={() => onChange(point)}
-        className={twMerge(
-          'h-3.5 w-3.5 transition-colors',
-          value === point ? 'bg-blue-500' : 'bg-gray-100 hover:bg-gray-300',
-        )}
-      />
-    ))}
-  </div>
-)
+const parseFocalPosition = (raw: string): { x: number; y: number } => {
+  if (raw.includes('%') && raw.includes(' ')) {
+    const [px, py] = raw.split(' ')
+    return { x: parseFloat(px), y: parseFloat(py) }
+  }
+  const named: Record<string, { x: number; y: number }> = {
+    'top-left': { x: 0, y: 0 }, top: { x: 50, y: 0 }, 'top-right': { x: 100, y: 0 },
+    left: { x: 0, y: 50 }, center: { x: 50, y: 50 }, right: { x: 100, y: 50 },
+    'bottom-left': { x: 0, y: 100 }, bottom: { x: 50, y: 100 }, 'bottom-right': { x: 100, y: 100 },
+  }
+  return named[raw] ?? { x: 50, y: 50 }
+}
 
 // --- Tag input with full scrollable dropdown ---
 const TagInput = ({
@@ -436,8 +417,27 @@ export const StorefrontEditorForm = ({
   }
 
   const isEnabled = settings?.enabled ?? false
-  const avatarFocal = (settings as any)?.avatar_focal_point ?? 'center'
-  const headerFocal = (settings as any)?.header_focal_point ?? 'center'
+  const headerFocalRaw = (settings as any)?.header_focal_point ?? '50% 50%'
+  const coverPos = parseFocalPosition(headerFocalRaw)
+
+  // Drag-to-reposition cover image
+  const [isCoverDragging, setIsCoverDragging] = useState(false)
+  const coverDragRef = useRef<{
+    startX: number; startY: number; posX: number; posY: number
+  } | null>(null)
+
+  const startCoverDrag = (clientX: number, clientY: number) => {
+    setIsCoverDragging(true)
+    coverDragRef.current = { startX: clientX, startY: clientY, posX: coverPos.x, posY: coverPos.y }
+  }
+  const moveCoverDrag = (clientX: number, clientY: number) => {
+    if (!coverDragRef.current) return
+    const { startX, startY, posX, posY } = coverDragRef.current
+    const newX = Math.max(0, Math.min(100, posX - (clientX - startX) * 0.5))
+    const newY = Math.max(0, Math.min(100, posY - (clientY - startY) * 1.5))
+    updateSetting('header_focal_point' as any, `${newX.toFixed(1)}% ${newY.toFixed(1)}%`)
+  }
+  const endCoverDrag = () => { setIsCoverDragging(false); coverDragRef.current = null }
 
   return (
     <div className="flex flex-col gap-y-8 px-8 py-8">
@@ -555,7 +555,6 @@ export const StorefrontEditorForm = ({
                     src={avatarUrl}
                     alt={organization.name}
                     className="h-full w-full object-cover"
-                    style={{ objectPosition: focalPointToObjectPosition(avatarFocal) }}
                   />
                 ) : (
                   <>
@@ -567,51 +566,57 @@ export const StorefrontEditorForm = ({
                   </>
                 )}
               </div>
-              {avatarUrl && (
-                <div className="flex items-center gap-x-2">
-                  <span className="text-xs text-gray-400">Focal point</span>
-                  <FocalPointPicker
-                    value={avatarFocal}
-                    onChange={(v) => updateSetting('avatar_focal_point' as any, v)}
-                  />
-                </div>
-              )}
               <span className="text-xs text-gray-400">Square image, 400x400px. Max 1MB.</span>
             </div>
             <div className="flex flex-col gap-y-1.5">
               <label className="text-sm font-medium text-gray-700">Cover Image</label>
-              <div
-                {...getBannerRootProps()}
-                className={twMerge(
-                  'flex h-[120px] cursor-pointer flex-col items-center justify-center gap-y-2 overflow-hidden rounded-xl border-2 border-dashed border-gray-300 bg-white transition-colors hover:border-gray-400',
-                  isBannerDragActive && 'border-blue-500 bg-blue-50',
-                )}
-              >
-                <input {...getBannerInputProps()} />
-                {settings?.header_image_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={settings.header_image_url}
-                    alt="Cover preview"
-                    className="h-full w-full object-cover"
-                    style={{ objectPosition: focalPointToObjectPosition(headerFocal) }}
-                  />
-                ) : (
-                  <>
-                    <AddPhotoAlternateOutlined className="text-gray-400" />
-                    <span className="text-center text-xs text-gray-500">
-                      Upload cover image
-                    </span>
-                  </>
-                )}
-              </div>
-              {settings?.header_image_url && (
-                <div className="flex items-center gap-x-2">
-                  <span className="text-xs text-gray-400">Focal point</span>
-                  <FocalPointPicker
-                    value={headerFocal}
-                    onChange={(v) => updateSetting('header_focal_point' as any, v)}
-                  />
+              {settings?.header_image_url ? (
+                <>
+                  {/* Drag-to-reposition when image is set */}
+                  <div
+                    className={twMerge(
+                      'group relative h-[120px] select-none overflow-hidden rounded-xl',
+                      isCoverDragging ? 'cursor-grabbing' : 'cursor-grab',
+                    )}
+                    onMouseDown={(e) => { e.preventDefault(); startCoverDrag(e.clientX, e.clientY) }}
+                    onMouseMove={(e) => isCoverDragging && moveCoverDrag(e.clientX, e.clientY)}
+                    onMouseUp={endCoverDrag}
+                    onMouseLeave={endCoverDrag}
+                    onTouchStart={(e) => { const t = e.touches[0]; startCoverDrag(t.clientX, t.clientY) }}
+                    onTouchMove={(e) => { const t = e.touches[0]; moveCoverDrag(t.clientX, t.clientY) }}
+                    onTouchEnd={endCoverDrag}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={settings.header_image_url}
+                      alt="Cover preview"
+                      className="pointer-events-none h-full w-full object-cover"
+                      style={{ objectPosition: `${coverPos.x.toFixed(1)}% ${coverPos.y.toFixed(1)}%` }}
+                      draggable={false}
+                    />
+                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/25 opacity-0 transition-opacity group-hover:opacity-100">
+                      <span className="rounded-full bg-black/50 px-3 py-1 text-xs text-white">Drag to reposition</span>
+                    </div>
+                  </div>
+                  {/* Replace button */}
+                  <div {...getBannerRootProps()} className="cursor-pointer">
+                    <input {...getBannerInputProps()} />
+                    <span className="text-xs text-blue-500 hover:underline">Replace image</span>
+                  </div>
+                </>
+              ) : (
+                <div
+                  {...getBannerRootProps()}
+                  className={twMerge(
+                    'flex h-[120px] cursor-pointer flex-col items-center justify-center gap-y-2 overflow-hidden rounded-xl border-2 border-dashed border-gray-300 bg-white transition-colors hover:border-gray-400',
+                    isBannerDragActive && 'border-blue-500 bg-blue-50',
+                  )}
+                >
+                  <input {...getBannerInputProps()} />
+                  <AddPhotoAlternateOutlined className="text-gray-400" />
+                  <span className="text-center text-xs text-gray-500">
+                    Upload cover image
+                  </span>
                 </div>
               )}
               <span className="text-xs text-gray-400">1600 x 300 recommended. Max 10MB.</span>

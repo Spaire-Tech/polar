@@ -35,6 +35,11 @@ export const Storefront = ({
       ? (organization.storefront_settings?.show_product_details ?? true)
       : true
 
+  const enableReviews =
+    'storefront_settings' in organization
+      ? ((organization.storefront_settings as any)?.enable_reviews ?? false)
+      : false
+
   const thumbnailSize =
     'storefront_settings' in organization
       ? ((organization.storefront_settings?.thumbnail_size as
@@ -139,6 +144,22 @@ export const Storefront = ({
           </div>
         </section>
       ))}
+
+      {/* Reviews section — shown when enabled */}
+      {enableReviews && (
+        <section className="flex flex-col gap-6">
+          <div className="inline-flex items-center gap-2 self-start rounded-full border border-white/60 bg-white/40 px-3.5 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_2px_rgba(0,0,0,0.04)] backdrop-blur-xl">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-700">
+              Reviews
+            </span>
+          </div>
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-gray-100 bg-white/60 py-10 text-center">
+            <span className="text-2xl">★★★★★</span>
+            <p className="mt-3 text-sm font-medium text-gray-700">Reviews from your customers will appear here</p>
+            <p className="mt-1 text-xs text-gray-400">Share your products to start collecting reviews</p>
+          </div>
+        </section>
+      )}
     </div>
   )
 }

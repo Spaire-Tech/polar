@@ -63,8 +63,7 @@ export const ProfileCard = ({ organization, products = [] }: ProfileCardProps) =
   const languages = settings?.languages ?? []
   const availableForWork = settings?.available_for_work ?? false
 
-  const avatarFocal = (settings as any)?.avatar_focal_point ?? 'center'
-  const headerFocal = (settings as any)?.header_focal_point ?? 'center'
+  const headerFocal = (settings as any)?.header_focal_point ?? '50% 50%'
 
   const [email, setEmail] = useState('')
   const [subscribed, setSubscribed] = useState(false)
@@ -124,7 +123,6 @@ export const ProfileCard = ({ organization, products = [] }: ProfileCardProps) =
                 src={organization.avatar_url}
                 alt={organization.name}
                 className="h-20 w-20 rounded-xl border-4 border-white object-cover shadow-sm"
-                style={{ objectPosition: focalPointToObjectPosition(avatarFocal) }}
               />
             ) : (
               <Avatar
