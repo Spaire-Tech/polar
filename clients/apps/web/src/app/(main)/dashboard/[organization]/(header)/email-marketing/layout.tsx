@@ -33,9 +33,9 @@ export default function EmailMarketingLayout({ children }: PropsWithChildren) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="px-4 pt-6 md:px-8">
+      <div className="overflow-x-auto px-4 pt-6 md:px-8">
         <Tabs value={activeTab.title}>
-          <TabsList className="flex flex-row bg-transparent ring-0 dark:bg-transparent dark:ring-0">
+          <TabsList className="flex min-w-max flex-row bg-transparent ring-0 dark:bg-transparent dark:ring-0">
             {emailTabs.map((tab) => (
               <Link
                 key={tab.title}

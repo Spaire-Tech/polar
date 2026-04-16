@@ -29,7 +29,6 @@ import YouTube from '@mui/icons-material/YouTube'
 import GitHub from '@mui/icons-material/GitHub'
 import X from '@mui/icons-material/X'
 import Public from '@mui/icons-material/Public'
-import Avatar from '@spaire/ui/components/atoms/Avatar'
 import AddPhotoAlternateOutlined from '@mui/icons-material/AddPhotoAlternateOutlined'
 
 // TikTok SVG icon (not available in MUI)
@@ -74,6 +73,51 @@ const SOCIAL_PLATFORMS = [
   { value: 'tiktok', label: 'TikTok', icon: TikTokIcon },
   { value: 'other', label: 'Website', icon: Public },
 ]
+
+// --- Focal point helpers ---
+const FOCAL_POINT_GRID = [
+  ['top-left', 'top', 'top-right'],
+  ['left', 'center', 'right'],
+  ['bottom-left', 'bottom', 'bottom-right'],
+] as const
+
+export const focalPointToObjectPosition = (focal: string): string => {
+  const map: Record<string, string> = {
+    'top-left': 'left top',
+    'top': 'center top',
+    'top-right': 'right top',
+    'left': 'left center',
+    'center': 'center center',
+    'right': 'right center',
+    'bottom-left': 'left bottom',
+    'bottom': 'center bottom',
+    'bottom-right': 'right bottom',
+  }
+  return map[focal] ?? 'center center'
+}
+
+const FocalPointPicker = ({
+  value,
+  onChange,
+}: {
+  value: string
+  onChange: (v: string) => void
+}) => (
+  <div className="grid grid-cols-3 gap-0.5 overflow-hidden rounded-md border border-gray-200 bg-gray-200">
+    {FOCAL_POINT_GRID.flat().map((point) => (
+      <button
+        key={point}
+        type="button"
+        title={point.replace('-', ' ')}
+        onClick={() => onChange(point)}
+        className={twMerge(
+          'h-3.5 w-3.5 transition-colors',
+          value === point ? 'bg-blue-500' : 'bg-gray-100 hover:bg-gray-300',
+        )}
+      />
+    ))}
+  </div>
+)
 
 // --- Tag input with full scrollable dropdown ---
 const TagInput = ({
@@ -392,6 +436,8 @@ export const StorefrontEditorForm = ({
   }
 
   const isEnabled = settings?.enabled ?? false
+  const avatarFocal = (settings as any)?.avatar_focal_point ?? 'center'
+  const headerFocal = (settings as any)?.header_focal_point ?? 'center'
 
   return (
     <div className="flex flex-col gap-y-8 px-8 py-8">
@@ -498,16 +544,18 @@ export const StorefrontEditorForm = ({
               <div
                 {...getAvatarRootProps()}
                 className={twMerge(
-                  'flex h-[120px] cursor-pointer flex-col items-center justify-center gap-y-2 rounded-xl border-2 border-dashed border-gray-300 bg-white transition-colors hover:border-gray-400',
+                  'flex h-[120px] cursor-pointer flex-col items-center justify-center gap-y-2 overflow-hidden rounded-xl border-2 border-dashed border-gray-300 bg-white transition-colors hover:border-gray-400',
                   isAvatarDragActive && 'border-blue-500 bg-blue-50',
                 )}
               >
                 <input {...getAvatarInputProps()} />
                 {avatarUrl ? (
-                  <Avatar
-                    avatar_url={avatarUrl}
-                    name={organization.name}
-                    className="h-16 w-16 rounded-xl"
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={avatarUrl}
+                    alt={organization.name}
+                    className="h-full w-full object-cover"
+                    style={{ objectPosition: focalPointToObjectPosition(avatarFocal) }}
                   />
                 ) : (
                   <>
@@ -519,6 +567,15 @@ export const StorefrontEditorForm = ({
                   </>
                 )}
               </div>
+              {avatarUrl && (
+                <div className="flex items-center gap-x-2">
+                  <span className="text-xs text-gray-400">Focal point</span>
+                  <FocalPointPicker
+                    value={avatarFocal}
+                    onChange={(v) => updateSetting('avatar_focal_point' as any, v)}
+                  />
+                </div>
+              )}
               <span className="text-xs text-gray-400">Square image, 400x400px. Max 1MB.</span>
             </div>
             <div className="flex flex-col gap-y-1.5">
@@ -526,7 +583,7 @@ export const StorefrontEditorForm = ({
               <div
                 {...getBannerRootProps()}
                 className={twMerge(
-                  'flex h-[120px] cursor-pointer flex-col items-center justify-center gap-y-2 rounded-xl border-2 border-dashed border-gray-300 bg-white transition-colors hover:border-gray-400',
+                  'flex h-[120px] cursor-pointer flex-col items-center justify-center gap-y-2 overflow-hidden rounded-xl border-2 border-dashed border-gray-300 bg-white transition-colors hover:border-gray-400',
                   isBannerDragActive && 'border-blue-500 bg-blue-50',
                 )}
               >
@@ -536,7 +593,8 @@ export const StorefrontEditorForm = ({
                   <img
                     src={settings.header_image_url}
                     alt="Cover preview"
-                    className="h-full w-full rounded-lg object-cover"
+                    className="h-full w-full object-cover"
+                    style={{ objectPosition: focalPointToObjectPosition(headerFocal) }}
                   />
                 ) : (
                   <>
@@ -547,6 +605,15 @@ export const StorefrontEditorForm = ({
                   </>
                 )}
               </div>
+              {settings?.header_image_url && (
+                <div className="flex items-center gap-x-2">
+                  <span className="text-xs text-gray-400">Focal point</span>
+                  <FocalPointPicker
+                    value={headerFocal}
+                    onChange={(v) => updateSetting('header_focal_point' as any, v)}
+                  />
+                </div>
+              )}
               <span className="text-xs text-gray-400">1600 x 300 recommended. Max 10MB.</span>
             </div>
           </div>

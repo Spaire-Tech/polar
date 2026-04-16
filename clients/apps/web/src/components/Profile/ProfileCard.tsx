@@ -1,6 +1,7 @@
 'use client'
 
 import { useStorefrontSubscribe } from '@/hooks/queries/emailMarketing'
+import { focalPointToObjectPosition } from '@/components/Customization/Storefront/StorefrontSidebar'
 import { schemas } from '@spaire/client'
 import Avatar from '@spaire/ui/components/atoms/Avatar'
 import Facebook from '@mui/icons-material/Facebook'
@@ -62,6 +63,9 @@ export const ProfileCard = ({ organization, products = [] }: ProfileCardProps) =
   const languages = settings?.languages ?? []
   const availableForWork = settings?.available_for_work ?? false
 
+  const avatarFocal = (settings as any)?.avatar_focal_point ?? 'center'
+  const headerFocal = (settings as any)?.header_focal_point ?? 'center'
+
   const [email, setEmail] = useState('')
   const [subscribed, setSubscribed] = useState(false)
   const [subscribing, setSubscribing] = useState(false)
@@ -102,6 +106,7 @@ export const ProfileCard = ({ organization, products = [] }: ProfileCardProps) =
               src={settings.header_image_url}
               alt=""
               className="aspect-[16/5] w-full object-cover"
+              style={{ objectPosition: focalPointToObjectPosition(headerFocal) }}
             />
           ) : (
             <div className="aspect-[16/5] w-full bg-gradient-to-br from-gray-800 to-gray-950" />
@@ -119,6 +124,7 @@ export const ProfileCard = ({ organization, products = [] }: ProfileCardProps) =
                 src={organization.avatar_url}
                 alt={organization.name}
                 className="h-20 w-20 rounded-xl border-4 border-white object-cover shadow-sm"
+                style={{ objectPosition: focalPointToObjectPosition(avatarFocal) }}
               />
             ) : (
               <Avatar

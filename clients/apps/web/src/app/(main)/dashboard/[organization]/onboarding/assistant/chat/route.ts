@@ -98,9 +98,13 @@ Do not suggest seat-based pricing for simple software subscriptions where only o
 
 Spaire has these benefit types:
 
+ - Downloadable files: lets you deliver files to customers after purchase (ebooks, templates, presets, fonts, brushes, etc.). The benefit is created here; files are uploaded afterward in the Files section of the dashboard.
  - License keys: software license keys that can be customized and implemented
  - Meter credits: allows you to credit a customer's Usage Meter balance
  - Custom benefit: a catch-all benefit that allows you to optionally attach a custom Markdown note which is made available to your customers when they purchase your product
+
+### Digital products with file delivery
+For ebooks, templates, presets, fonts, sound packs, or any product where the customer receives a downloadable file, always create a Downloadable Files benefit and attach it to the product. After setup, let the user know they can upload their actual files in the Files section of the dashboard.
 
 ### Setting up subscriptions for software businesses
 
@@ -177,7 +181,7 @@ So, in general, you should follow this order:
   ask the user which one they would like to configure first. If a follow-up instruction is ambiguous, ask what product
   to apply it to, but keep all products in mind until your final tool call or when asked for the configuration.
 - Derive the configuration from what the user has told you, don't propose other setups like bundles or others.
-- Do not ask for media uploads as your interface does not support these.
+- Do not ask for image/thumbnail uploads as your interface does not support these.
 - Do not ask for any additional pages (privacy policy, terms of service, refund policies) to be created as this is out of your scope.
 - The goal is to get the user to a minimal configuration fast, so once there is reasonable confidence that you have all the information you need,
   do not ask for more information. Users will always be able to add more products, descriptions, and details later.
@@ -193,6 +197,8 @@ So, in general, you should follow this order:
 - Remember that you are helping the user with their initial setup, you're the first thing they see after signing up, so don't ask for pre-existing information (ID's, meters). Assume you'll have to create from scratch.
 - Be friendly and helpful if people ask questions like "What is Spaire?" or "What can I sell?".
 - When you use createProduct, always attach benefits immediately after using updateProductBenefits. Never leave a product without its benefits.
+- For ebooks, templates, presets, fonts, sound packs, brushes, or any product that the customer receives as a file: always create a Downloadable Files benefit and attach it. After completing setup, tell the user their product is ready and remind them to upload their actual file(s) in the **Files** section of the dashboard.
+- If a user describes a digital product (ebook, template, preset, etc.) without mentioning a file, proactively ask: "Would you like to attach a downloadable file to this product?" before proceeding.
 
 The user will now describe their product and you will start the configuration assistant.
 `
@@ -265,7 +271,7 @@ export async function POST(req: Request) {
         requiresManualSetup: z
           .boolean()
           .describe(
-            'Whether the user request requires manual setup due to unsupported benefit types (file download, GitHub, Discord) or too complex configuration',
+            'Whether the user request requires manual setup due to unsupported benefit types (GitHub repository access, Discord role) or too complex configuration. Note: downloadable files ARE supported — do not flag them as requiring manual setup.',
           ),
         requiresToolAccess: z
           .boolean()
@@ -361,8 +367,8 @@ export async function POST(req: Request) {
       'Create a benefit that will be granted to customers when they purchase a product.',
     inputSchema: z.object({
       type: z
-        .enum(['custom', 'license_keys', 'meter_credit'])
-        .describe('The type of benefit to create'),
+        .enum(['custom', 'license_keys', 'meter_credit', 'downloadables'])
+        .describe('The type of benefit to create. Use "downloadables" for ebooks, templates, presets, fonts, or any file-based digital product.'),
       description: z
         .string()
         .describe(
@@ -419,16 +425,23 @@ export async function POST(req: Request) {
                   limit_usage: null,
                 },
               }
-            : {
-                type: 'meter_credit' as const,
-                description,
-                organization_id: organizationId,
-                properties: {
-                  meter_id: meter_id!,
-                  units: units ?? 0,
-                  rollover: rollover ?? false,
-                },
-              }
+            : type === 'downloadables'
+              ? {
+                  type: 'downloadables' as const,
+                  description,
+                  organization_id: organizationId,
+                  properties: { files: [] },
+                }
+              : {
+                  type: 'meter_credit' as const,
+                  description,
+                  organization_id: organizationId,
+                  properties: {
+                    meter_id: meter_id!,
+                    units: units ?? 0,
+                    rollover: rollover ?? false,
+                  },
+                }
 
       const { data, error } = await api.POST('/v1/benefits/', {
         body: body as never,
