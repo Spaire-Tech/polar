@@ -179,7 +179,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
   },
   {
     id: 'catalog',
-    title: 'Spaire Space',
+    title: 'Space Card',
     icon: <HiveOutlined fontSize="inherit" />,
     link: `/dashboard/${org?.slug}/products`,
     checkIsActive: (currentRoute: string): boolean => {
@@ -195,7 +195,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
       { title: 'Payment Links', link: `/dashboard/${org?.slug}/products/checkout-links` },
       { title: 'Discounts', link: `/dashboard/${org?.slug}/products/discounts` },
       { title: 'Files', link: `/dashboard/${org?.slug}/products/benefits` },
-      { title: 'Spaire Space', link: `/dashboard/${org?.slug}/storefront` },
+      { title: 'Space Card', link: `/dashboard/${org?.slug}/storefront` },
     ],
   },
   {
