@@ -64,6 +64,8 @@ const PRODUCT_PREVIEW: schemas['ProductStorefront'] = {
   ],
   name: 'Pro Tier',
   description: PRODUCT_DESCRIPTION,
+  category: null,
+  metadata: {},
   benefits: [
     {
       id: '123',

@@ -22,7 +22,7 @@ const ProductPriceListItem = ({
   selected,
   onSelect,
 }: {
-  product: schemas['ProductStorefront']
+  product: schemas['CustomerProduct'] | schemas['CustomerSubscriptionProduct']
   selected: boolean
   onSelect?: () => void
 }) => {
@@ -64,7 +64,7 @@ const CustomerChangePlanModal = ({
   )
 
   const [selectedProduct, setSelectedProduct] = useState<
-    schemas['ProductStorefront'] | null
+    schemas['CustomerProduct'] | null
   >(null)
 
   const paymentMethods = useCustomerPaymentMethods(api)
