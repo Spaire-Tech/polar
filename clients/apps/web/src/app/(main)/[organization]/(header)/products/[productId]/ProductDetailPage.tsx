@@ -192,13 +192,12 @@ export const ProductDetailPage = ({
     (organization.storefront_settings as any)?.enable_reviews === true
   const [checkoutLoading, setCheckoutLoading] = useState(false)
 
-  const category = (product as any).category as string | null | undefined
+  const category = product.category
   const categoryLabel = category ? (CATEGORY_LABELS[category] ?? category) : null
 
   // Extract "additional details" from metadata
-  const rawMetadata = (product as any).metadata as Record<string, unknown> | null | undefined
-  const details: { key: string; label: string; value: string }[] = rawMetadata
-    ? Object.entries(rawMetadata)
+  const details: { key: string; label: string; value: string }[] = product.metadata
+    ? Object.entries(product.metadata)
         .filter(([k]) => DETAIL_KEYS.has(k))
         .map(([k, v]) => ({
           key: k,

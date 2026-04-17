@@ -2,12 +2,13 @@ from pydantic import Field
 
 from polar.benefit.schemas import BenefitPublic
 from polar.file.schemas import ProductMediaFileRead
+from polar.kit.metadata import MetadataOutputMixin
 from polar.kit.schemas import Schema
 from polar.organization.schemas import Organization
 from polar.product.schemas import ProductBase, ProductPrice
 
 
-class ProductStorefront(ProductBase):
+class ProductStorefront(MetadataOutputMixin, ProductBase):
     """Schema of a public product."""
 
     prices: list[ProductPrice] = Field(

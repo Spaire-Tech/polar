@@ -7,6 +7,8 @@ interface ProductPriceLabelProps {
     | schemas['Product']
     | schemas['ProductStorefront']
     | schemas['CheckoutProduct']
+    | schemas['CustomerProduct']
+    | schemas['CustomerSubscriptionProduct']
 }
 
 function isSeatBasedPrice(
