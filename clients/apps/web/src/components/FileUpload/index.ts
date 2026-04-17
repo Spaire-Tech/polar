@@ -162,6 +162,20 @@ export const useFileUpload = <T extends FileRead | schemas['FileUpload']>({
     }
   }
 
+  const uploadFile = (file: File) => {
+    const upload = new Upload({
+      service,
+      organization,
+      file,
+      onFileProcessing,
+      onFileCreate,
+      onFileUploadProgress,
+      onFileUploaded,
+      onFileError: handleFileError,
+    })
+    upload.run()
+  }
+
   const dropzone = useDropzone({
     maxSize,
     accept,
@@ -173,6 +187,7 @@ export const useFileUpload = <T extends FileRead | schemas['FileUpload']>({
     setFiles,
     updateFile,
     removeFile,
+    uploadFile,
     ...dropzone,
   }
 }
