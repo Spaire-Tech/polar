@@ -167,7 +167,10 @@ class Address(BaseModel):
         return self
 
     def to_dict(self) -> AddressDict:
-        return cast(AddressDict, self.model_dump(exclude_none=True))
+        d = cast(AddressDict, self.model_dump(exclude_none=True))
+        if "state" in d:
+            d["state"] = self.get_unprefixed_state()  # type: ignore[assignment]
+        return d
 
     def get_unprefixed_state(self) -> str | None:
         if self.state is None:

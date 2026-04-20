@@ -86,6 +86,7 @@ from polar.tax.calculation import (
     TaxCalculation,
     TaxCalculationError,
     TaxRate,
+    get_tax_behavior_from_option,
     get_tax_service,
 )
 from polar.transaction.service.balance import PaymentTransactionForChargeDoesNotExist
@@ -653,7 +654,7 @@ class OrderService:
                         subscription.currency,
                         # Stripe doesn't support calculating negative tax amounts
                         net_amount if net_amount >= 0 else -net_amount,
-                        tax_behavior_option,
+                        get_tax_behavior_from_option(tax_behavior_option, billing_address),
                         product.tax_code,
                         billing_address,
                         [tax_id] if tax_id is not None else [],

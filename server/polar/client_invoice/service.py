@@ -32,7 +32,13 @@ from polar.order.repository import OrderRepository
 from polar.organization.repository import OrganizationRepository
 from polar.organization.service import organization as organization_service
 from polar.postgres import AsyncReadSession, AsyncSession
-from polar.tax.calculation import TaxCalculationError, TaxCode, get_tax_service
+from polar.enums import TaxBehavior
+from polar.tax.calculation import (
+    TaxCalculationError,
+    TaxCode,
+    get_tax_behavior_from_option,
+    get_tax_service,
+)
 from polar.worker import enqueue_job
 
 from .repository import ClientInvoiceLineItemRepository, ClientInvoiceRepository
@@ -197,6 +203,10 @@ class ClientInvoiceService:
                     uuid.uuid4(),
                     currency,
                     taxable_amount,
+                    get_tax_behavior_from_option(
+                        organization.default_tax_behavior,
+                        customer.billing_address,
+                    ),
                     TaxCode.general_electronically_supplied_services,
                     customer.billing_address,
                     [customer.tax_id] if customer.tax_id is not None else [],

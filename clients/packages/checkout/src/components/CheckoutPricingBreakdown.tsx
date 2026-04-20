@@ -97,23 +97,15 @@ const CheckoutPricingBreakdown = ({
           </DetailRow>
 
           {checkout.discount && (
-            <>
-              <DetailRow
-                title={`${checkout.discount.name}${checkout.discount.type === 'percentage' ? ` (${getDiscountDisplay(checkout.discount as any)})` : ''}`}
-                className="text-gray-600"
-              >
-                {formatCurrency('standard')(
-                  -checkout.discountAmount,
-                  checkout.currency,
-                )}
-              </DetailRow>
-              <DetailRow title="Taxable amount" className="text-gray-600">
-                {formatCurrency('standard')(
-                  checkout.netAmount,
-                  checkout.currency,
-                )}
-              </DetailRow>
-            </>
+            <DetailRow
+              title={`${checkout.discount.name}${checkout.discount.type === 'percentage' ? ` (${getDiscountDisplay(checkout.discount as any)})` : ''}`}
+              className="text-gray-600"
+            >
+              {formatCurrency('standard')(
+                -checkout.discountAmount,
+                checkout.currency,
+              )}
+            </DetailRow>
           )}
 
           <DetailRow title="Taxes" className="text-gray-600">

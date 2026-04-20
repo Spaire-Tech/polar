@@ -52,11 +52,11 @@ def test_invalid_state(country: str, state: str) -> None:
         ({"country": "FR", "state": "AURA"}, {"country": "FR", "state": "AURA"}),
         (
             {"country": "US", "state": "US-NY", "city": "New-York"},
-            {"country": "US", "state": "US-NY", "city": "New-York"},
+            {"country": "US", "state": "NY", "city": "New-York"},
         ),
         (
             {"country": "US", "state": "NY", "city": "New-York"},
-            {"country": "US", "state": "US-NY", "city": "New-York"},
+            {"country": "US", "state": "NY", "city": "New-York"},
         ),
     ],
 )

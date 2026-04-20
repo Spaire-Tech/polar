@@ -367,13 +367,13 @@ class Checkout(
     def customer_billing_address_fields(self) -> CheckoutCustomerBillingAddressFields:
         address = self.customer_billing_address
         country = address.country if address else None
-        is_us = country == "US"
+        is_us_or_ca = country in {"US", "CA"}
         require_billing_address = (
-            self.require_billing_address or self.is_business_customer or is_us
+            self.require_billing_address or self.is_business_customer or is_us_or_ca
         )
         return {
             "country": True,
-            "state": country in {"US", "CA"},
+            "state": is_us_or_ca,
             "line1": require_billing_address,
             "line2": False,
             "city": require_billing_address,
@@ -384,14 +384,14 @@ class Checkout(
     def billing_address_fields(self) -> CheckoutBillingAddressFields:
         address = self.customer_billing_address
         country = address.country if address else None
-        is_us = country == "US"
+        is_us_or_ca = country in {"US", "CA"}
         require_billing_address = (
-            self.require_billing_address or self.is_business_customer or is_us
+            self.require_billing_address or self.is_business_customer or is_us_or_ca
         )
         return {
             "country": BillingAddressFieldMode.required,
             "state": BillingAddressFieldMode.required
-            if country in {"US", "CA"}
+            if is_us_or_ca
             else (
                 BillingAddressFieldMode.optional
                 if require_billing_address

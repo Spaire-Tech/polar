@@ -91,7 +91,7 @@ from polar.product.guard import (
 from polar.product.price_set import NoPricesForCurrencies, PriceSet
 from polar.product.repository import ProductRepository
 from polar.product.service import product as product_service
-from polar.tax.calculation import get_tax_service
+from polar.tax.calculation import get_tax_behavior_from_option, get_tax_service
 from polar.tax.calculation.base import TaxCalculationError
 from polar.webhook.service import webhook as webhook_service
 from polar.worker import enqueue_job, make_bulk_job_delay_calculator
@@ -1862,7 +1862,10 @@ class SubscriptionService:
                     subscription.id,
                     subscription.currency,
                     net_amount,
-                    tax_behavior_option,
+                    get_tax_behavior_from_option(
+                        tax_behavior_option,
+                        subscription.customer.billing_address,
+                    ),
                     subscription.product.tax_code,
                     subscription.customer.billing_address,
                     [subscription.customer.tax_id]

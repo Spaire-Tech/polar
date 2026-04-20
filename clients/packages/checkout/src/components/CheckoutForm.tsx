@@ -795,22 +795,14 @@ const BaseCheckoutForm = ({
                     </DetailRow>
 
                     {checkout.discount && (
-                      <>
-                        <DetailRow
-                          title={`${checkout.discount.name} (${getDiscountDisplay(checkout.discount)})`}
-                        >
-                          {formatCurrency('standard')(
-                            -checkout.discountAmount,
-                            checkout.currency,
-                          )}
-                        </DetailRow>
-                        <DetailRow title={t('checkout.pricing.taxableAmount')}>
-                          {formatCurrency('standard')(
-                            checkout.netAmount,
-                            checkout.currency,
-                          )}
-                        </DetailRow>
-                      </>
+                      <DetailRow
+                        title={`${checkout.discount.name} (${getDiscountDisplay(checkout.discount)})`}
+                      >
+                        {formatCurrency('standard')(
+                          -checkout.discountAmount,
+                          checkout.currency,
+                        )}
+                      </DetailRow>
                     )}
 
                     <DetailRow title={t('checkout.pricing.taxes')}>
