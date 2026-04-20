@@ -1,25 +1,32 @@
 'use client'
 
-import { useStorefrontSubscribe } from '@/hooks/queries/emailMarketing'
 import { focalPointToObjectPosition } from '@/components/Customization/Storefront/StorefrontSidebar'
-import { schemas } from '@spaire/client'
-import Avatar from '@spaire/ui/components/atoms/Avatar'
+import { LinkButtonList } from '@/components/Profile/LinkButtonList'
+import { useStorefrontSubscribe } from '@/hooks/queries/emailMarketing'
 import Facebook from '@mui/icons-material/Facebook'
 import GitHub from '@mui/icons-material/GitHub'
 import Instagram from '@mui/icons-material/Instagram'
 import LinkedIn from '@mui/icons-material/LinkedIn'
 import Public from '@mui/icons-material/Public'
+import TranslateOutlined from '@mui/icons-material/TranslateOutlined'
 import Verified from '@mui/icons-material/Verified'
 import X from '@mui/icons-material/X'
 import YouTube from '@mui/icons-material/YouTube'
-import TranslateOutlined from '@mui/icons-material/TranslateOutlined'
+import { schemas } from '@spaire/client'
+import Avatar from '@spaire/ui/components/atoms/Avatar'
 import Link from 'next/link'
 import { useState } from 'react'
 import LogoType from '../Brand/LogoType'
 
 // TikTok SVG icon (not available in MUI)
 const TikTokIcon = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={className} width="24" height="24">
+  <svg
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    className={className}
+    width="24"
+    height="24"
+  >
     <path d="M16.6 5.82s.51.5 0 0A4.278 4.278 0 0 1 15.54 3h-3.09v12.4a2.592 2.592 0 0 1-2.59 2.5c-1.42 0-2.6-1.16-2.6-2.6 0-1.72 1.66-3.01 3.37-2.48V9.66c-3.45-.46-6.47 2.22-6.47 5.64 0 3.33 2.76 5.7 5.69 5.7 3.14 0 5.69-2.55 5.69-5.7V9.01a7.35 7.35 0 0 0 4.3 1.38V7.3s-1.88.09-3.24-1.48z" />
   </svg>
 )
@@ -51,7 +58,10 @@ const getSocialIcon = (platform: string) => {
   }
 }
 
-export const ProfileCard = ({ organization, products = [] }: ProfileCardProps) => {
+export const ProfileCard = ({
+  organization,
+  products = [],
+}: ProfileCardProps) => {
   const settings = organization.storefront_settings
   const showHeader = settings?.show_header ?? true
   const showLogo = settings?.show_logo ?? true
@@ -76,7 +86,10 @@ export const ProfileCard = ({ organization, products = [] }: ProfileCardProps) =
     if (!email.trim() || subscribing) return
     setSubscribing(true)
     try {
-      await subscribe.mutateAsync({ slug: organization.slug, email: email.trim() })
+      await subscribe.mutateAsync({
+        slug: organization.slug,
+        email: email.trim(),
+      })
       setSubscribed(true)
       setEmail('')
     } catch {
@@ -105,7 +118,9 @@ export const ProfileCard = ({ organization, products = [] }: ProfileCardProps) =
               src={settings.header_image_url}
               alt=""
               className="aspect-[16/5] w-full object-cover"
-              style={{ objectPosition: focalPointToObjectPosition(headerFocal) }}
+              style={{
+                objectPosition: focalPointToObjectPosition(headerFocal),
+              }}
             />
           ) : (
             <div className="aspect-[16/5] w-full bg-gradient-to-br from-gray-800 to-gray-950" />
@@ -136,14 +151,16 @@ export const ProfileCard = ({ organization, products = [] }: ProfileCardProps) =
 
         {/* Profile title label + Name with verified badge */}
         {showName && (
-          <div className={`flex flex-col gap-y-0.5 ${showLogo ? 'mt-5' : 'mt-6'}`}>
+          <div
+            className={`flex flex-col gap-y-0.5 ${showLogo ? 'mt-5' : 'mt-6'}`}
+          >
             {profileTitle && (
-              <span className="text-[11px] font-semibold uppercase tracking-widest text-emerald-600">
+              <span className="text-[11px] font-semibold tracking-widest text-emerald-600 uppercase">
                 {profileTitle}
               </span>
             )}
             <div className="flex flex-row items-center gap-x-1.5">
-              <h1 className="text-[26px] font-bold leading-tight text-gray-950">
+              <h1 className="text-[26px] leading-tight font-bold text-gray-950">
                 {organization.name}
               </h1>
               <Verified className="h-5 w-5 text-blue-500" />
@@ -179,7 +196,7 @@ export const ProfileCard = ({ organization, products = [] }: ProfileCardProps) =
                   ? languages.join(', ')
                   : `${languages[0]}, ${languages.length - 1} more`}
                 {languages.length > 2 && showLanguagesTooltip && (
-                  <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-gray-900 px-3 py-1.5 text-[11px] text-white shadow-lg">
+                  <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2 rounded-lg bg-gray-900 px-3 py-1.5 text-[11px] whitespace-nowrap text-white shadow-lg">
                     {languages.join(', ')}
                   </span>
                 )}
@@ -209,7 +226,7 @@ export const ProfileCard = ({ organization, products = [] }: ProfileCardProps) =
               >
                 +{skills.length - MAX_VISIBLE_SKILLS}
                 {showSkillsTooltip && (
-                  <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-gray-900 px-3 py-1.5 text-[11px] text-white shadow-lg">
+                  <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2 rounded-lg bg-gray-900 px-3 py-1.5 text-[11px] whitespace-nowrap text-white shadow-lg">
                     {skills.slice(MAX_VISIBLE_SKILLS).join(', ')}
                   </span>
                 )}
@@ -234,6 +251,9 @@ export const ProfileCard = ({ organization, products = [] }: ProfileCardProps) =
             ))}
           </div>
         )}
+
+        {/* Link buttons (link-in-bio) */}
+        <LinkButtonList slug={organization.slug} />
 
         {/* Highlights — product thumbnail row */}
         {highlights.length > 0 && (

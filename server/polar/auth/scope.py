@@ -109,6 +109,9 @@ class Scope(StrEnum):
     organization_access_tokens_read = "organization_access_tokens:read"
     organization_access_tokens_write = "organization_access_tokens:write"
 
+    organization_links_read = "organization_links:read"
+    organization_links_write = "organization_links:write"
+
     @classmethod
     def __get_pydantic_json_schema__(
         cls, core_schema: cs.CoreSchema, handler: GetJsonSchemaHandler
@@ -189,6 +192,8 @@ SCOPES_SUPPORTED_DISPLAY_NAMES: dict[Scope, str] = {
     Scope.notification_recipients_write: "Create or modify notification recipients",
     Scope.organization_access_tokens_read: "Read organization access tokens",
     Scope.organization_access_tokens_write: "Create or modify organization access tokens",
+    Scope.organization_links_read: "Read organization link-in-bio links",
+    Scope.organization_links_write: "Create or modify organization link-in-bio links",
 }
 
 
