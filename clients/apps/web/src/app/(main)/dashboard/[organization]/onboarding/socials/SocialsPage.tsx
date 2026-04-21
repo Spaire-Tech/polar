@@ -107,7 +107,7 @@ export default function SocialsPage() {
   )
 
   return (
-    <div className="flex min-h-screen w-full flex-col items-center bg-white px-4 py-12">
+    <div className="flex h-full w-full flex-col items-center overflow-y-auto bg-white px-4 py-12">
       <div className="mb-12 w-full max-w-lg">
         <OnboardingProgressBar currentStep={2} totalSteps={4} />
       </div>

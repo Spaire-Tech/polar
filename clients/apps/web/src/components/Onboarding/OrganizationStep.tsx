@@ -305,7 +305,7 @@ export const OrganizationStep = ({
   }
 
   return (
-    <div className="flex min-h-screen w-full flex-col items-center bg-white px-4 py-12">
+    <div className="flex h-full w-full flex-col items-center overflow-y-auto bg-white px-4 py-12">
       {/* Progress bar */}
       {!hasExistingOrg && (
         <div className="mb-12 w-full max-w-lg">
