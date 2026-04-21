@@ -183,6 +183,16 @@ class OrganizationSocialPlatforms(StrEnum):
     youtube = "youtube"
     tiktok = "tiktok"
     linkedin = "linkedin"
+    whatsapp = "whatsapp"
+    spotify = "spotify"
+    threads = "threads"
+    soundcloud = "soundcloud"
+    snapchat = "snapchat"
+    pinterest = "pinterest"
+    patreon = "patreon"
+    twitch = "twitch"
+    apple_music = "apple_music"
+    website = "website"
     other = "other"
 
 
@@ -194,6 +204,15 @@ PLATFORM_DOMAINS = {
     "youtube": ["youtube.com", "youtu.be"],
     "tiktok": ["tiktok.com"],
     "linkedin": ["linkedin.com"],
+    "whatsapp": ["wa.me", "whatsapp.com"],
+    "spotify": ["spotify.com", "open.spotify.com"],
+    "threads": ["threads.net"],
+    "soundcloud": ["soundcloud.com"],
+    "snapchat": ["snapchat.com"],
+    "pinterest": ["pinterest.com", "pin.it"],
+    "patreon": ["patreon.com"],
+    "twitch": ["twitch.tv"],
+    "apple_music": ["music.apple.com"],
 }
 
 
@@ -212,10 +231,12 @@ class OrganizationSocialLink(Schema):
         if not (platform and url):
             return data
 
-        if platform == "other":
+        if platform in ("other", "website"):
             return data
 
-        valid_domains = PLATFORM_DOMAINS[platform]
+        valid_domains = PLATFORM_DOMAINS.get(platform, [])
+        if not valid_domains:
+            return data
         if not any(domain in url for domain in valid_domains):
             raise ValueError(
                 f"Invalid URL for {platform}. Must be from: {', '.join(valid_domains)}"

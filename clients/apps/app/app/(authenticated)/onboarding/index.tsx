@@ -1,9 +1,7 @@
 import { FormInput } from '@/components/Form/FormInput'
 import { Box } from '@/components/Shared/Box'
 import { Button } from '@/components/Shared/Button'
-import { Checkbox } from '@/components/Shared/Checkbox'
 import { Text } from '@/components/Shared/Text'
-import { Touchable } from '@/components/Shared/Touchable'
 import { useTheme } from '@/design-system/useTheme'
 import { useCreateOrganization } from '@/hooks/polar/organizations'
 import { OrganizationContext } from '@/providers/OrganizationProvider'
@@ -12,19 +10,44 @@ import { ClientResponseError, schemas } from '@spaire/client'
 import { Stack, useRouter } from 'expo-router'
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { Linking, SafeAreaView, ScrollView } from 'react-native'
+import { SafeAreaView, ScrollView, TouchableOpacity, View } from 'react-native'
 import slugify from 'slugify'
+
+const PROFILE_TYPES = [
+  {
+    id: 'creator',
+    label: 'Digital Creator',
+    description: 'Build your following and monetize your audience.',
+    emoji: '🎨',
+  },
+  {
+    id: 'business',
+    label: 'Business',
+    description: 'Grow my business and reach more customers.',
+    emoji: '💼',
+  },
+  {
+    id: 'personal',
+    label: 'Personal',
+    description: 'Share my work and connect with my audience.',
+    emoji: '👤',
+  },
+] as const
+
+type ProfileType = (typeof PROFILE_TYPES)[number]['id']
 
 export default function Onboarding() {
   const theme = useTheme()
   const router = useRouter()
   const { organizations, setOrganization } = useContext(OrganizationContext)
 
-  const form = useForm<schemas['OrganizationCreate'] & { terms: boolean }>({
+  const [step, setStep] = useState<'profile_type' | 'setup'>('profile_type')
+  const [profileType, setProfileType] = useState<ProfileType | null>(null)
+
+  const form = useForm<schemas['OrganizationCreate']>({
     defaultValues: {
       name: '',
       slug: '',
-      terms: false,
     },
   })
 
@@ -43,11 +66,10 @@ export default function Onboarding() {
 
   const name = watch('name')
   const slug = watch('slug')
-  const terms = watch('terms')
 
   const isValid = useMemo(() => {
-    return name.length > 2 && slug.length > 2 && terms
-  }, [name, slug, terms])
+    return name.length > 2 && slug.length > 2
+  }, [name, slug])
 
   useEffect(() => {
     if (!editedSlug && name) {
@@ -74,7 +96,6 @@ export default function Onboarding() {
 
           if (Array.isArray(errorDetail)) {
             const validationError = errorDetail[0]
-
             setError('root', { message: validationError.msg })
             return
           }
@@ -109,107 +130,92 @@ export default function Onboarding() {
           gap: theme.spacing['spacing-32'],
         }}
       >
-        <Box gap="spacing-16">
-          <Text
-            variant="display"
-            style={{
-              paddingVertical: theme.spacing['spacing-32'],
-            }}
-          >
-            Create your organization
-          </Text>
-          {errors.root ? (
-            <Text color="error">{errors.root.message}</Text>
-          ) : null}
-          <FormInput
-            label="Organization Name"
-            placeholder="Acme Inc."
-            control={control}
-            name="name"
-          />
-          <FormInput
-            label="Organization Slug"
-            placeholder="acme-inc"
-            control={control}
-            onFocus={() => setEditedSlug(true)}
-            name="slug"
-          />
-          <Checkbox
-            label="I agree to the terms below"
-            checked={watch('terms')}
-            onChange={(checked) => setValue('terms', checked)}
-          />
-          <Box>
-            <Box marginLeft="spacing-4" gap="spacing-8">
-              <Box flexDirection="row" alignItems="flex-start">
-                <Box>
-                  <Touchable
-                    onPress={() =>
-                      Linking.openURL(
-                        'https://docs.polar.sh/merchant-of-record/acceptable-use',
-                      )
-                    }
-                  >
-                    <Text color="primary">Acceptable Use Policy</Text>
-                  </Touchable>
-                  <Text color="subtext">
-                    I&apos;ll only sell digital products and SaaS that complies
-                    with it or risk suspension.
+        {step === 'profile_type' ? (
+          <Box gap="spacing-16">
+            <Text
+              variant="display"
+              style={{ paddingVertical: theme.spacing['spacing-32'] }}
+            >
+              Which best describes your goal?
+            </Text>
+            <Text color="subtext">This helps us personalize your experience.</Text>
+
+            {PROFILE_TYPES.map((type) => (
+              <TouchableOpacity
+                key={type.id}
+                onPress={() => setProfileType(type.id)}
+                style={{
+                  borderWidth: 2,
+                  borderColor:
+                    profileType === type.id
+                      ? theme.colors.primary
+                      : theme.colors.border,
+                  borderRadius: 16,
+                  padding: theme.spacing['spacing-16'],
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: theme.spacing['spacing-12'],
+                  backgroundColor: theme.colors.background,
+                }}
+              >
+                <Text style={{ fontSize: 32 }}>{type.emoji}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text variant="body">{type.label}</Text>
+                  <Text color="subtext" style={{ fontSize: 13 }}>
+                    {type.description}
                   </Text>
-                </Box>
-              </Box>
-              <Box>
-                <Touchable
-                  onPress={() =>
-                    Linking.openURL(
-                      'https://docs.polar.sh/merchant-of-record/account-reviews',
-                    )
-                  }
-                >
-                  <Text color="primary">Account Reviews</Text>
-                </Touchable>
-                <Text color="subtext">
-                  I&apos;ll comply with all reviews and requests for compliance
-                  materials (KYC/AML).
-                </Text>
-              </Box>
-              <Box>
-                <Touchable
-                  onPress={() =>
-                    Linking.openURL('https://www.spairehq.com/legal/terms-of-service')
-                  }
-                >
-                  <Text color="primary">Terms of Service</Text>
-                </Touchable>
-              </Box>
+                </View>
+              </TouchableOpacity>
+            ))}
 
-              <Box>
-                <Touchable
-                  onPress={() =>
-                    Linking.openURL('https://www.spairehq.com/legal/privacy-policy')
-                  }
-                >
-                  <Text color="primary">Privacy Policy</Text>
-                </Touchable>
-              </Box>
-            </Box>
-          </Box>
-        </Box>
-
-        <Box gap="spacing-8">
-          <Box>
-            <Button onPress={handleSubmit(onSubmit)} disabled={!isValid}>
-              Create Organization
+            <Button
+              onPress={() => profileType && setStep('setup')}
+              disabled={!profileType}
+            >
+              Continue
             </Button>
-          </Box>
-          {organizations.length > 0 ? (
-            <Box>
+
+            {organizations.length > 0 && (
               <Button onPress={() => router.replace('/')} variant="secondary">
                 Back to Dashboard
               </Button>
+            )}
+          </Box>
+        ) : (
+          <Box gap="spacing-16">
+            <Text
+              variant="display"
+              style={{ paddingVertical: theme.spacing['spacing-32'] }}
+            >
+              Set up your Space Card
+            </Text>
+            {errors.root ? (
+              <Text color="error">{errors.root.message}</Text>
+            ) : null}
+            <FormInput
+              label="Name"
+              placeholder="Jane Doe"
+              control={control}
+              name="name"
+            />
+            <FormInput
+              label="Username"
+              placeholder="jane-doe"
+              control={control}
+              onFocus={() => setEditedSlug(true)}
+              name="slug"
+            />
+
+            <Box gap="spacing-8">
+              <Button onPress={handleSubmit(onSubmit)} disabled={!isValid}>
+                Continue
+              </Button>
+              <Button onPress={() => setStep('profile_type')} variant="secondary">
+                Back
+              </Button>
             </Box>
-          ) : null}
-        </Box>
+          </Box>
+        )}
       </SafeAreaView>
     </ScrollView>
   )

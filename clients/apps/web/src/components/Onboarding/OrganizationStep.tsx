@@ -19,7 +19,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@spaire/ui/components/atoms/Select'
-import { Checkbox } from '@spaire/ui/components/ui/checkbox'
 import {
   Form,
   FormField,
@@ -34,13 +33,11 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import slugify from 'slugify'
-import { twMerge } from 'tailwind-merge'
 import { Upload } from '../FileUpload/Upload'
 import { FadeUp } from '../Animated/FadeUp'
 import LogoIcon from '../Brand/LogoIcon'
 import { getStatusRedirect } from '../Toast/utils'
-import SupportedUseCases from './components/SupportedUseCases'
-import { OnboardingStepper } from './OnboardingStepper'
+import { OnboardingProgressBar } from './OnboardingProgressBar'
 
 type PresentmentCurrency = schemas['PresentmentCurrency']
 
@@ -83,57 +80,6 @@ const CURRENCIES: { code: PresentmentCurrency; flag: string }[] = [
   { code: 'zar', flag: '🇿🇦' },
 ]
 
-const COUNTRIES = [
-  { code: 'US', name: 'United States', flag: '🇺🇸' },
-  { code: 'GB', name: 'United Kingdom', flag: '🇬🇧' },
-  { code: 'CA', name: 'Canada', flag: '🇨🇦' },
-  { code: 'AU', name: 'Australia', flag: '🇦🇺' },
-  { code: 'DE', name: 'Germany', flag: '🇩🇪' },
-  { code: 'FR', name: 'France', flag: '🇫🇷' },
-  { code: 'NL', name: 'Netherlands', flag: '🇳🇱' },
-  { code: 'SE', name: 'Sweden', flag: '🇸🇪' },
-  { code: 'NO', name: 'Norway', flag: '🇳🇴' },
-  { code: 'DK', name: 'Denmark', flag: '🇩🇰' },
-  { code: 'FI', name: 'Finland', flag: '🇫🇮' },
-  { code: 'CH', name: 'Switzerland', flag: '🇨🇭' },
-  { code: 'AT', name: 'Austria', flag: '🇦🇹' },
-  { code: 'BE', name: 'Belgium', flag: '🇧🇪' },
-  { code: 'IE', name: 'Ireland', flag: '🇮🇪' },
-  { code: 'IT', name: 'Italy', flag: '🇮🇹' },
-  { code: 'ES', name: 'Spain', flag: '🇪🇸' },
-  { code: 'PT', name: 'Portugal', flag: '🇵🇹' },
-  { code: 'PL', name: 'Poland', flag: '🇵🇱' },
-  { code: 'CZ', name: 'Czech Republic', flag: '🇨🇿' },
-  { code: 'RO', name: 'Romania', flag: '🇷🇴' },
-  { code: 'HU', name: 'Hungary', flag: '🇭🇺' },
-  { code: 'JP', name: 'Japan', flag: '🇯🇵' },
-  { code: 'KR', name: 'South Korea', flag: '🇰🇷' },
-  { code: 'SG', name: 'Singapore', flag: '🇸🇬' },
-  { code: 'HK', name: 'Hong Kong', flag: '🇭🇰' },
-  { code: 'TW', name: 'Taiwan', flag: '🇹🇼' },
-  { code: 'IN', name: 'India', flag: '🇮🇳' },
-  { code: 'IL', name: 'Israel', flag: '🇮🇱' },
-  { code: 'AE', name: 'United Arab Emirates', flag: '🇦🇪' },
-  { code: 'SA', name: 'Saudi Arabia', flag: '🇸🇦' },
-  { code: 'BR', name: 'Brazil', flag: '🇧🇷' },
-  { code: 'MX', name: 'Mexico', flag: '🇲🇽' },
-  { code: 'AR', name: 'Argentina', flag: '🇦🇷' },
-  { code: 'CL', name: 'Chile', flag: '🇨🇱' },
-  { code: 'CO', name: 'Colombia', flag: '🇨🇴' },
-  { code: 'PE', name: 'Peru', flag: '🇵🇪' },
-  { code: 'ZA', name: 'South Africa', flag: '🇿🇦' },
-  { code: 'NG', name: 'Nigeria', flag: '🇳🇬' },
-  { code: 'KE', name: 'Kenya', flag: '🇰🇪' },
-  { code: 'EG', name: 'Egypt', flag: '🇪🇬' },
-  { code: 'MY', name: 'Malaysia', flag: '🇲🇾' },
-  { code: 'TH', name: 'Thailand', flag: '🇹🇭' },
-  { code: 'PH', name: 'Philippines', flag: '🇵🇭' },
-  { code: 'ID', name: 'Indonesia', flag: '🇮🇩' },
-  { code: 'NZ', name: 'New Zealand', flag: '🇳🇿' },
-  { code: 'TR', name: 'Turkey', flag: '🇹🇷' },
-  { code: 'CN', name: 'China', flag: '🇨🇳' },
-]
-
 export interface OrganizationStepProps {
   slug?: string
   validationErrors?: schemas['ValidationError'][]
@@ -156,12 +102,12 @@ export const OrganizationStep = ({
   const form = useForm<{
     name: string
     slug: string
-    terms: boolean
+    description: string
   }>({
     defaultValues: {
       name: initialSlug || '',
       slug: initialSlug || '',
-      terms: false,
+      description: '',
     },
   })
 
@@ -174,14 +120,21 @@ export const OrganizationStep = ({
     setValue,
     formState: { errors },
   } = form
+
   const createOrganization = useCreateOrganization()
   const updateOrganization = useUpdateOrganization()
   const [editedSlug, setEditedSlug] = useState(false)
   const [currency, setCurrency] = useState<PresentmentCurrency>('usd')
-  const [accountType, setAccountType] = useState<'individual' | 'business'>('individual')
+
+  // Avatar / logo upload
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string>('')
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const logoInputRef = useRef<HTMLInputElement>(null)
+
+  // Cover image upload
+  const [coverFile, setCoverFile] = useState<File | null>(null)
+  const [coverPreview, setCoverPreview] = useState<string>('')
+  const coverInputRef = useRef<HTMLInputElement>(null)
 
   const router = useRouter()
 
@@ -214,7 +167,7 @@ export const OrganizationStep = ({
 
   const name = watch('name')
   const slug = watch('slug')
-  const terms = watch('terms')
+  const description = watch('description')
 
   useEffect(() => {
     if (!editedSlug && name) {
@@ -227,17 +180,35 @@ export const OrganizationStep = ({
     }
   }, [name, editedSlug, slug, setValue])
 
+  const uploadFile = (
+    organization: schemas['Organization'],
+    service: schemas['FileServiceTypes'],
+    file: File,
+  ): Promise<string> =>
+    new Promise<string>((resolve, reject) => {
+      const upload = new Upload({
+        service,
+        organization,
+        file,
+        onFileProcessing: () => {},
+        onFileCreate: () => {},
+        onFileUploadProgress: () => {},
+        onFileUploaded: (response) => {
+          resolve((response as { public_url: string }).public_url)
+        },
+        onFileError: (_id, err) => reject(err),
+      })
+      upload.run()
+    })
+
   const onSubmit = async (data: {
     name: string
     slug: string
-    terms: boolean
+    description: string
   }) => {
-    if (!data.terms) return
-
     const params = {
       name: data.name,
       slug: slug as string,
-      terms: data.terms,
     }
 
     posthog.capture('dashboard:organizations:create:submit', params)
@@ -257,30 +228,39 @@ export const OrganizationStep = ({
     })
     setUserOrganizations((orgs) => [...orgs, organization])
 
-    // Always persist the selected currency and avatar so product defaults are correct
     if (!hasExistingOrg) {
-      // Upload logo file if selected
       let uploadedAvatarUrl: string | undefined
+      let uploadedCoverUrl: string | undefined
+
+      // Upload avatar
       if (logoFile) {
         try {
-          uploadedAvatarUrl = await new Promise<string>((resolve, reject) => {
-            const upload = new Upload({
-              service: 'organization_avatar',
-              organization,
-              file: logoFile,
-              onFileProcessing: () => {},
-              onFileCreate: () => {},
-              onFileUploadProgress: () => {},
-              onFileUploaded: (response) => {
-                resolve((response as { public_url: string }).public_url)
-              },
-              onFileError: (_id, err) => reject(err),
-            })
-            upload.run()
-          })
+          uploadedAvatarUrl = await uploadFile(
+            organization,
+            'organization_avatar',
+            logoFile,
+          )
         } catch {
-          // continue without avatar if upload fails
+          // continue without avatar
         }
+      }
+
+      // Upload cover image
+      if (coverFile) {
+        try {
+          uploadedCoverUrl = await uploadFile(
+            organization,
+            'storefront_header',
+            coverFile,
+          )
+        } catch {
+          // continue without cover
+        }
+      }
+
+      const storefrontSettings = {
+        ...(data.description ? { description: data.description } : {}),
+        ...(uploadedCoverUrl ? { header_image_url: uploadedCoverUrl } : {}),
       }
 
       await updateOrganization.mutateAsync({
@@ -288,11 +268,13 @@ export const OrganizationStep = ({
         body: {
           default_presentment_currency: currency,
           ...(uploadedAvatarUrl ? { avatar_url: uploadedAvatarUrl } : {}),
+          ...(Object.keys(storefrontSettings).length > 0
+            ? { storefront_settings: storefrontSettings }
+            : {}),
         },
         userId: currentUser?.id,
       })
 
-      // Update auth context so the sidebar immediately reflects the new avatar
       if (uploadedAvatarUrl) {
         setUserOrganizations((orgs) =>
           orgs.map((o) =>
@@ -301,8 +283,6 @@ export const OrganizationStep = ({
         )
       }
 
-      // Explicitly revalidate so the layout re-fetches the org with the new currency
-      // before the router push renders the next page
       await revalidate(`organizations:${organization.id}`)
       await revalidate(`organizations:${organization.slug}`)
     }
@@ -320,358 +300,277 @@ export const OrganizationStep = ({
         ),
       )
     } else {
-      router.push(`/dashboard/${organization.slug}/onboarding/product`)
+      router.push(`/dashboard/${organization.slug}/onboarding/socials`)
     }
   }
 
   return (
-    <div className="dark:md:bg-spaire-950 flex h-full w-full flex-row">
-      {/* Stepper Sidebar - desktop only */}
-      <OnboardingStepper currentStep={0} />
+    <div className="flex min-h-screen w-full flex-col items-center bg-white px-4 py-12">
+      {/* Progress bar */}
+      {!hasExistingOrg && (
+        <div className="mb-12 w-full max-w-lg">
+          <OnboardingProgressBar currentStep={1} totalSteps={4} />
+        </div>
+      )}
 
-      {/* Main content */}
-      <div className="flex flex-1 flex-col overflow-y-auto">
-        <div className="flex w-full flex-col items-center px-6 pt-16 pb-24 md:px-20">
-          <motion.div
-            initial="hidden"
-            animate="visible"
-            transition={{ duration: 1, staggerChildren: 0.2 }}
-            className="flex w-full max-w-2xl flex-col gap-16"
+      <motion.div
+        initial="hidden"
+        animate="visible"
+        transition={{ duration: 0.8, staggerChildren: 0.15 }}
+        className="flex w-full max-w-lg flex-col gap-8"
+      >
+        {/* Logo — mobile only on new-user flow */}
+        {!hasExistingOrg && (
+          <FadeUp className="flex justify-center md:hidden">
+            <LogoIcon size={32} />
+          </FadeUp>
+        )}
+
+        {/* Heading */}
+        <FadeUp className="flex flex-col gap-y-2 text-center">
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900">
+            {hasExistingOrg ? 'Add a new organization' : 'Set up your Space Card'}
+          </h1>
+          <p className="text-sm text-gray-500">
+            {hasExistingOrg
+              ? 'Set up a new workspace for your team or project.'
+              : 'A few details to get your card looking great.'}
+          </p>
+        </FadeUp>
+
+        <Form {...form}>
+          <form
+            onSubmit={handleSubmit(onSubmit)}
+            className="flex flex-col gap-6"
           >
-            {/* Header */}
-            <FadeUp className="flex flex-col gap-y-3">
-              <div className="md:hidden mb-8">
-                <LogoIcon size={36} />
-              </div>
-              <h1 className="text-2xl font-medium tracking-tight md:text-3xl">
-                {hasExistingOrg
-                  ? 'Add a new organization'
-                  : 'Welcome to Spaire'}
-              </h1>
-              <p className="dark:text-spaire-400 max-w-md text-base text-gray-500">
-                {hasExistingOrg
-                  ? 'Set up a new workspace for your team or project.'
-                  : "A few quick questions to personalize your setup."}
-              </p>
-            </FadeUp>
-
-            {/* Using Spaire as — Individual / Business toggle */}
+            {/* Cover image upload */}
             {!hasExistingOrg && (
-              <FadeUp className="flex flex-col gap-y-4">
-                <div className="flex flex-col gap-y-1">
-                  <Label className="text-sm font-medium">Using Spaire as</Label>
-                  <p className="dark:text-spaire-500 text-xs text-gray-400">
-                    Choose how you&apos;ll be using the platform.
+              <FadeUp className="flex flex-col gap-3">
+                <div>
+                  <Label>Cover Image</Label>
+                  <p className="mt-0.5 text-xs text-gray-400">
+                    Shown as the banner on your Space Card.
                   </p>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  {([
-                    { id: 'individual' as const, label: 'Individual', description: 'Sell as a solo creator or freelancer' },
-                    { id: 'business' as const, label: 'Business', description: 'Sell as a registered company or team' },
-                  ]).map((type) => (
+                <button
+                  type="button"
+                  onClick={() => coverInputRef.current?.click()}
+                  className="relative flex h-28 w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 transition-colors hover:border-gray-300 hover:bg-gray-100"
+                >
+                  {coverPreview ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={coverPreview}
+                      alt="Cover"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center gap-1 text-gray-400">
+                      <AddPhotoAlternateOutlined fontSize="medium" />
+                      <span className="text-xs">Upload cover image</span>
+                    </div>
+                  )}
+                </button>
+                <input
+                  ref={coverInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) {
+                      setCoverFile(file)
+                      setCoverPreview(URL.createObjectURL(file))
+                    }
+                  }}
+                />
+              </FadeUp>
+            )}
+
+            {/* Profile picture + Name + Slug */}
+            <FadeUp className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+              <div className="flex flex-col gap-5">
+                {/* Avatar upload */}
+                <div className="flex flex-col gap-2">
+                  <Label>Profile Picture</Label>
+                  <div className="flex items-center gap-4">
                     <button
-                      key={type.id}
                       type="button"
-                      onClick={() => setAccountType(type.id)}
-                      className={twMerge(
-                        'dark:bg-spaire-900 dark:border-spaire-700 flex cursor-pointer flex-col gap-y-1.5 rounded-2xl border border-gray-200 bg-white p-5 text-left transition-all',
-                        accountType === type.id
-                          ? 'border-blue-500 ring-1 ring-blue-500 dark:border-blue-500'
-                          : 'hover:border-gray-300 dark:hover:border-spaire-600',
-                      )}
+                      onClick={() => logoInputRef.current?.click()}
+                      className="relative h-16 w-16 shrink-0 cursor-pointer overflow-hidden rounded-full transition-opacity hover:opacity-75"
                     >
-                      <span className="text-sm font-medium">{type.label}</span>
-                      <span className="dark:text-spaire-500 text-xs leading-relaxed text-gray-400">
-                        {type.description}
-                      </span>
+                      <Avatar
+                        avatar_url={logoPreview || ''}
+                        name={name || 'You'}
+                        className="h-16 w-16"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/20 opacity-0 transition-opacity hover:opacity-100">
+                        <AddPhotoAlternateOutlined className="text-white" fontSize="small" />
+                      </div>
                     </button>
-                  ))}
+                    <button
+                      type="button"
+                      onClick={() => logoInputRef.current?.click()}
+                      className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm transition-colors hover:bg-gray-50"
+                    >
+                      {logoFile ? 'Change photo' : 'Upload photo'}
+                    </button>
+                  </div>
+                  <input
+                    ref={logoInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) {
+                        setLogoFile(file)
+                        setLogoPreview(URL.createObjectURL(file))
+                      }
+                    }}
+                  />
+                </div>
+
+                <FormField
+                  control={control}
+                  name="name"
+                  rules={{ required: 'This field is required' }}
+                  render={({ field }) => (
+                    <FormItem className="w-full">
+                      <FormControl className="flex w-full flex-col gap-y-1.5">
+                        <Label htmlFor="name">Name</Label>
+                        <Input {...field} placeholder="Jane Doe" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={control}
+                  name="slug"
+                  rules={{ required: 'Username is required' }}
+                  render={({ field }) => (
+                    <FormItem className="w-full">
+                      <FormControl className="flex w-full flex-col gap-y-1.5">
+                        <Label htmlFor="slug">Username</Label>
+                        <div className="flex items-center overflow-hidden rounded-xl border border-gray-200 focus-within:border-gray-400">
+                          <span className="select-none border-r border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-400">
+                            spairehq.com/
+                          </span>
+                          <input
+                            {...field}
+                            id="slug"
+                            size={Math.max(slug?.length || 1, 6)}
+                            placeholder="jane-doe"
+                            onFocus={() => setEditedSlug(true)}
+                            className="flex-1 bg-white px-3 py-2.5 text-sm outline-none"
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Description */}
+                <FormField
+                  control={control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem className="w-full">
+                      <FormControl className="flex w-full flex-col gap-y-1.5">
+                        <Label htmlFor="description">Bio</Label>
+                        <textarea
+                          {...field}
+                          id="description"
+                          placeholder="A short bio about yourself..."
+                          rows={3}
+                          maxLength={160}
+                          className="w-full resize-none rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-gray-400"
+                        />
+                        <p className="text-right text-xs text-gray-400">
+                          {description.length}/160
+                        </p>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </FadeUp>
+
+            {/* Currency — only for new orgs */}
+            {!hasExistingOrg && (
+              <FadeUp className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+                <div className="flex flex-col gap-3">
+                  <div>
+                    <Label className="text-sm font-medium">Default Currency</Label>
+                    <p className="mt-0.5 text-xs text-gray-400">
+                      Used for your products by default. You can change this later.
+                    </p>
+                  </div>
+                  <Select
+                    value={currency}
+                    onValueChange={(v) => setCurrency(v as PresentmentCurrency)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue>
+                        {(() => {
+                          const c = CURRENCIES.find((c) => c.code === currency)
+                          return c ? `${c.flag} ${c.code.toUpperCase()}` : currency.toUpperCase()
+                        })()}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CURRENCIES.map((c) => (
+                        <SelectItem key={c.code} value={c.code}>
+                          {c.flag} {c.code.toUpperCase()}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </FadeUp>
             )}
 
-            {/* Organization Form */}
-            <Form {...form}>
-              <form
-                onSubmit={handleSubmit(onSubmit)}
-                className="flex w-full flex-col gap-y-10"
+            {errors.root && (
+              <p className="text-sm text-red-500">{errors.root.message}</p>
+            )}
+
+            <FadeUp className="flex flex-col gap-3 pt-2">
+              <button
+                type="submit"
+                disabled={
+                  name.length === 0 ||
+                  slug.length === 0 ||
+                  createOrganization.isPending
+                }
+                className="w-full rounded-full bg-blue-600 py-4 text-sm font-semibold text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
               >
-                <FadeUp className="flex flex-col gap-y-6">
-                  <div className="flex flex-col gap-y-1">
-                    <h2 className="text-base font-medium">
-                      {hasExistingOrg ? 'Organization details' : 'Your workspace'}
-                    </h2>
-                    <p className="dark:text-spaire-500 text-sm text-gray-400">
-                      This is where you&apos;ll manage your products and payments.
-                    </p>
-                  </div>
-
-                  <div className="dark:bg-spaire-900 flex flex-col gap-y-5 rounded-2xl border border-gray-200 bg-white p-6 dark:border-none">
-                    {/* Logo upload — optional */}
-                    <div className="flex flex-col gap-y-2">
-                      <Label>
-                        Logo
-                      </Label>
-                      <p className="dark:text-spaire-500 text-xs text-gray-400">
-                        Your logo appears on invoices. Use a square image for best results.
-                      </p>
-                      <div className="flex items-center gap-4">
-                        <button
-                          type="button"
-                          onClick={() => fileInputRef.current?.click()}
-                          className="relative h-14 w-14 shrink-0 cursor-pointer overflow-hidden rounded-full transition-opacity hover:opacity-75"
-                        >
-                          <Avatar
-                            avatar_url={logoPreview || ''}
-                            name={name || 'Logo'}
-                            className="h-14 w-14"
-                          />
-                          <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity hover:opacity-100 bg-black/20 rounded-full">
-                            <AddPhotoAlternateOutlined className="text-white" fontSize="small" />
-                          </div>
-                        </button>
-                        <div className="flex flex-col gap-y-1">
-                          <button
-                            type="button"
-                            onClick={() => fileInputRef.current?.click()}
-                            className="dark:border-spaire-700 cursor-pointer rounded-lg border border-gray-200 px-3 py-1.5 text-sm transition-colors hover:bg-gray-50 dark:hover:bg-spaire-800"
-                          >
-                            {logoFile ? 'Change logo' : 'Upload logo'}
-                          </button>
-                          {logoFile && (
-                            <span className="text-xs text-gray-500 truncate max-w-[160px]">{logoFile.name}</span>
-                          )}
-                        </div>
-                      </div>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0]
-                          if (file) {
-                            setLogoFile(file)
-                            setLogoPreview(URL.createObjectURL(file))
-                          }
-                        }}
-                      />
-                    </div>
-
-                    <FormField
-                      control={control}
-                      name="name"
-                      rules={{
-                        required: 'This field is required',
-                      }}
-                      render={({ field }) => (
-                        <FormItem className="w-full">
-                          <FormControl className="flex w-full flex-col gap-y-2">
-                            <Label htmlFor="name">
-                              {accountType === 'business' ? 'Organization Name' : 'Name'}
-                            </Label>
-                            <Input {...field} placeholder={accountType === 'business' ? 'Acme Inc.' : 'Jane Doe'} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={control}
-                      name="slug"
-                      rules={{
-                        required: 'Slug is required',
-                      }}
-                      render={({ field }) => (
-                        <FormItem className="w-full">
-                          <FormControl className="flex w-full flex-col gap-y-2">
-                            <Label htmlFor="slug">
-                              {accountType === 'business' ? 'Organization Slug' : 'Slug'}
-                            </Label>
-                            <Input
-                              type="text"
-                              {...field}
-                              size={slug?.length || 1}
-                              placeholder={accountType === 'business' ? 'acme-inc' : 'jane-doe'}
-                              onFocus={() => setEditedSlug(true)}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    {/* Business-only fields */}
-                    {accountType === 'business' && (
-                      <>
-                        <div className="flex flex-col gap-y-2">
-                          <Label>Registered Business Name</Label>
-                          <Input placeholder="Acme Corporation Ltd." />
-                        </div>
-                        <div className="flex flex-col gap-y-2">
-                          <Label>Business Country</Label>
-                          <Select>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a country" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {COUNTRIES.map((c) => (
-                                <SelectItem key={c.code} value={c.code}>
-                                  {c.flag} {c.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </FadeUp>
-
-                {/* Currency selector — only for new orgs */}
-                {!hasExistingOrg && (
-                  <FadeUp className="dark:bg-spaire-900 flex flex-col gap-y-5 rounded-2xl border border-gray-200 bg-white p-6 dark:border-none">
-                    <div className="flex flex-col gap-y-1">
-                      <Label className="text-sm font-medium">Default payment currency</Label>
-                      <p className="dark:text-spaire-500 text-xs text-gray-400">
-                        Used for your products by default. You can change this later in settings.
-                      </p>
-                    </div>
-                    <Select value={currency} onValueChange={(v) => setCurrency(v as PresentmentCurrency)}>
-                      <SelectTrigger>
-                        <SelectValue>
-                          {(() => {
-                            const c = CURRENCIES.find((c) => c.code === currency)
-                            return c ? `${c.flag} ${c.code.toUpperCase()}` : currency.toUpperCase()
-                          })()}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CURRENCIES.map((c) => (
-                          <SelectItem key={c.code} value={c.code}>
-                            {c.flag} {c.code.toUpperCase()}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </FadeUp>
-                )}
-
-                <FadeUp className="dark:bg-spaire-900 flex flex-col gap-y-4 rounded-2xl border border-gray-200 bg-white p-6 dark:border-none">
-                  <SupportedUseCases />
-                </FadeUp>
-
-                <FadeUp>
-                  <FormField
-                    control={control}
-                    name="terms"
-                    rules={{
-                      required: 'You must accept the terms to continue',
-                    }}
-                    render={({ field }) => {
-                      return (
-                        <FormItem>
-                          <div className="flex flex-row items-start gap-x-3">
-                            <Checkbox
-                              id="terms"
-                              checked={field.value}
-                              onCheckedChange={(checked) => {
-                                const value = checked ? true : false
-                                setValue('terms', value)
-                              }}
-                              className="mt-1"
-                            />
-                            <div className="flex flex-col gap-y-2 text-sm">
-                              <label
-                                htmlFor="terms"
-                                className="cursor-pointer leading-relaxed font-medium"
-                              >
-                                I acknowledge the platform guidelines and accept
-                                Spaire&apos;s terms
-                              </label>
-                              <ul className="dark:text-spaire-500 flex flex-col gap-y-1 text-sm text-gray-500">
-                                <li>
-                                  <a
-                                    href="https://docs.spairehq.com/merchant-of-record/account-reviews"
-                                    className="text-blue-600 hover:underline dark:text-blue-400"
-                                    target="_blank"
-                                    rel="noreferrer"
-                                  >
-                                    Account Reviews Policy
-                                  </a>
-                                  {' - '}I&apos;ll comply with KYC/AML
-                                  requirements including website and social
-                                  verification
-                                </li>
-                                <li>
-                                  <a
-                                    href="https://www.spairehq.com/legal/terms-of-service"
-                                    className="text-blue-600 hover:underline dark:text-blue-400"
-                                    target="_blank"
-                                    rel="noreferrer"
-                                  >
-                                    Terms of Service
-                                  </a>
-                                </li>
-                                <li>
-                                  <a
-                                    href="https://www.spairehq.com/legal/privacy-policy"
-                                    className="text-blue-600 hover:underline dark:text-blue-400"
-                                    target="_blank"
-                                    rel="noreferrer"
-                                  >
-                                    Privacy Policy
-                                  </a>
-                                </li>
-                              </ul>
-                            </div>
-                          </div>
-                          <FormMessage />
-                        </FormItem>
-                      )
-                    }}
-                  />
-                </FadeUp>
-
-                {errors.root && (
-                  <p className="text-destructive-foreground text-sm">
-                    {errors.root.message}
-                  </p>
-                )}
-
-                <FadeUp className="flex flex-col gap-y-4 pt-2">
-                  <Button
-                    type="submit"
-                    size="lg"
-                    loading={createOrganization.isPending}
-                    disabled={name.length === 0 || slug.length === 0 || !terms}
-                  >
-                    Continue
+                {createOrganization.isPending ? 'Creating…' : 'Continue'}
+              </button>
+              {hasExistingOrg ? (
+                <Link href="/dashboard" className="w-full">
+                  <Button variant="secondary" fullWidth size="lg">
+                    Back to Dashboard
                   </Button>
-                  {hasExistingOrg ? (
-                    <Link href={`/dashboard`} className="w-full">
-                      <Button variant="secondary" fullWidth size="lg">
-                        Back to Dashboard
-                      </Button>
-                    </Link>
-                  ) : (
-                    <Link
-                      href={`${CONFIG.BASE_URL}/v1/auth/logout`}
-                      prefetch={false}
-                      className="w-full"
-                    >
-                      <Button variant="secondary" fullWidth size="lg">
-                        Sign Out
-                      </Button>
-                    </Link>
-                  )}
-                </FadeUp>
-              </form>
-            </Form>
-          </motion.div>
-        </div>
-      </div>
+                </Link>
+              ) : (
+                <Link
+                  href={`${CONFIG.BASE_URL}/v1/auth/logout`}
+                  prefetch={false}
+                  className="w-full"
+                >
+                  <Button variant="secondary" fullWidth size="lg">
+                    Sign Out
+                  </Button>
+                </Link>
+              )}
+            </FadeUp>
+          </form>
+        </Form>
+      </motion.div>
     </div>
   )
 }

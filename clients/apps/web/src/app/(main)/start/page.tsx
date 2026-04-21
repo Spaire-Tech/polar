@@ -20,7 +20,7 @@ export default async function Page() {
   const userOrganizations = await getUserOrganizations(api, true)
 
   if (userOrganizations.length === 0) {
-    redirect('/dashboard/create')
+    redirect('/welcome')
   }
 
   const lastVisitedOrg = getLastVisitedOrg(await cookies(), userOrganizations)
