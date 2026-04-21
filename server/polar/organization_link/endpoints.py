@@ -48,7 +48,7 @@ async def list_links(
     organization_id: UUID = Query(description="Organization whose links to return."),
     session: AsyncReadSession = Depends(get_db_read_session),
 ) -> list[OrganizationLinkSchema]:
-    links = await organization_link_service.list(
+    links = await organization_link_service.list_by_organization(
         session, auth_subject, organization_id=organization_id
     )
     return [
@@ -97,7 +97,7 @@ async def reorder_links(
 )
 async def public_list_links(
     slug: str,
-    session: AsyncReadSession = Depends(get_db_read_session),
+    session: AsyncSession = Depends(get_db_session),
 ) -> list[OrganizationLinkPublic]:
     """Return enabled organization links for a public storefront."""
     organization = await storefront_service.get(session, slug)
@@ -112,6 +112,8 @@ async def public_list_links(
             label=link.label,
             url=link.url,
             icon=link.icon,
+            description=link.description,
+            button_label=link.button_label,
         )
         for link in links
     ]

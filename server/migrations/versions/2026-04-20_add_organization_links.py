@@ -29,6 +29,8 @@ def upgrade() -> None:
         sa.Column("label", sa.String(length=80), nullable=False),
         sa.Column("url", sa.String(length=2048), nullable=False),
         sa.Column("icon", sa.String(length=40), nullable=True),
+        sa.Column("description", sa.String(length=200), nullable=True),
+        sa.Column("button_label", sa.String(length=40), nullable=True),
         sa.Column("order", sa.Integer(), nullable=False, server_default="0"),
         sa.Column(
             "enabled",

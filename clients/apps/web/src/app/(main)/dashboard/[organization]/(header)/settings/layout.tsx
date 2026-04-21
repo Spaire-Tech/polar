@@ -11,7 +11,6 @@ const settingsTabs = [
   { title: 'Members', suffix: '/members' },
   { title: 'Webhooks', suffix: '/webhooks' },
   { title: 'Custom Fields', suffix: '/custom-fields' },
-  { title: 'Links', suffix: '/links' },
 ]
 
 export default function SettingsLayout({ children }: PropsWithChildren) {

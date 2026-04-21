@@ -55,6 +55,7 @@ class OrganizationStorefrontSettings(TypedDict, total=False):
     languages: list[str]
     available_for_work: bool
     featured_product_ids: list[str]
+    theme: str  # "light" | "dark"
 
 
 _default_storefront_settings: OrganizationStorefrontSettings = {
@@ -72,6 +73,7 @@ _default_storefront_settings: OrganizationStorefrontSettings = {
     "languages": [],
     "available_for_work": False,
     "featured_product_ids": [],
+    "theme": "light",
 }
 
 

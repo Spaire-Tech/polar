@@ -22,6 +22,12 @@ class OrganizationLink(RecordModel):
     label: Mapped[str] = mapped_column(String(80), nullable=False)
     url: Mapped[str] = mapped_column(String(2048), nullable=False)
     icon: Mapped[str | None] = mapped_column(String(40), nullable=True, default=None)
+    description: Mapped[str | None] = mapped_column(
+        String(200), nullable=True, default=None
+    )
+    button_label: Mapped[str | None] = mapped_column(
+        String(40), nullable=True, default=None
+    )
     order: Mapped[int] = mapped_column(Integer, nullable=False, default=0, index=True)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 

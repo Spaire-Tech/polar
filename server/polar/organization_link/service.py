@@ -16,7 +16,7 @@ from .schemas import (
 
 
 class OrganizationLinkService:
-    async def list(
+    async def list_by_organization(
         self,
         session: AsyncReadSession,
         auth_subject: AuthSubject[User | Organization],
@@ -63,6 +63,8 @@ class OrganizationLinkService:
             label=create_schema.label,
             url=create_schema.url,
             icon=create_schema.icon,
+            description=create_schema.description,
+            button_label=create_schema.button_label,
             order=order,
             enabled=create_schema.enabled,
         )

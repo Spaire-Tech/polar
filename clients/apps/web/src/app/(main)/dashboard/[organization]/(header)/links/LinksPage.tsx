@@ -3,6 +3,7 @@
 import { DashboardBody } from '@/components/Layout/DashboardLayout'
 import { InlineModal, InlineModalHeader } from '@/components/Modal/InlineModal'
 import { toast } from '@/components/Toast/use-toast'
+import { useUpdateOrganization } from '@/hooks/queries'
 import {
   OrganizationLink,
   useCreateOrganizationLink,
@@ -43,6 +44,8 @@ interface LinkFormState {
   label: string
   url: string
   icon: string
+  description: string
+  button_label: string
   enabled: boolean
 }
 
@@ -50,6 +53,8 @@ const emptyForm: LinkFormState = {
   label: '',
   url: '',
   icon: 'link',
+  description: '',
+  button_label: '',
   enabled: true,
 }
 
@@ -65,6 +70,29 @@ const LinksPage = ({
   const updateLink = useUpdateOrganizationLink(organization.id)
   const deleteLink = useDeleteOrganizationLink(organization.id)
   const reorderLinks = useReorderOrganizationLinks(organization.id)
+  const updateOrganization = useUpdateOrganization()
+
+  const theme =
+    (organization.storefront_settings as { theme?: string } | null)?.theme ??
+    'light'
+
+  const handleThemeChange = async (nextTheme: 'light' | 'dark') => {
+    if (nextTheme === theme) return
+    try {
+      await updateOrganization.mutateAsync({
+        id: organization.id,
+        body: {
+          storefront_settings: {
+            ...(organization.storefront_settings ?? {}),
+            theme: nextTheme,
+          } as schemas['OrganizationStorefrontSettings'],
+        },
+      })
+      toast({ title: `Theme set to ${nextTheme}` })
+    } catch (e) {
+      toast({ title: 'Failed to update theme' })
+    }
+  }
 
   const [showNewModal, setShowNewModal] = useState(false)
   const [editingLink, setEditingLink] = useState<OrganizationLink | null>(null)
@@ -75,6 +103,8 @@ const LinksPage = ({
         label: form.label,
         url: form.url,
         icon: form.icon,
+        description: form.description.trim() || null,
+        button_label: form.button_label.trim() || null,
         enabled: form.enabled,
       })
       toast({ title: 'Link created' })
@@ -92,6 +122,8 @@ const LinksPage = ({
           label: form.label,
           url: form.url,
           icon: form.icon,
+          description: form.description.trim() || null,
+          button_label: form.button_label.trim() || null,
           enabled: form.enabled,
         },
       })
@@ -138,14 +170,40 @@ const LinksPage = ({
   return (
     <DashboardBody
       header={
-        <Button
-          wrapperClassNames="flex flex-row gap-x-2"
-          type="button"
-          onClick={() => setShowNewModal(true)}
-        >
-          <AddOutlined className="h-4 w-4" />
-          <span>New Link</span>
-        </Button>
+        <div className="flex flex-row items-center gap-2">
+          <div className="flex flex-row items-center rounded-xl border border-gray-200 bg-white p-0.5">
+            <button
+              type="button"
+              onClick={() => handleThemeChange('light')}
+              className={`rounded-lg px-3 py-1 text-xs font-medium ${
+                theme === 'light'
+                  ? 'bg-gray-900 text-white'
+                  : 'text-gray-500 hover:text-gray-900'
+              }`}
+            >
+              Light
+            </button>
+            <button
+              type="button"
+              onClick={() => handleThemeChange('dark')}
+              className={`rounded-lg px-3 py-1 text-xs font-medium ${
+                theme === 'dark'
+                  ? 'bg-gray-900 text-white'
+                  : 'text-gray-500 hover:text-gray-900'
+              }`}
+            >
+              Dark
+            </button>
+          </div>
+          <Button
+            wrapperClassNames="flex flex-row gap-x-2"
+            type="button"
+            onClick={() => setShowNewModal(true)}
+          >
+            <AddOutlined className="h-4 w-4" />
+            <span>New Link</span>
+          </Button>
+        </div>
       }
       wide
     >
@@ -256,6 +314,8 @@ const LinksPage = ({
                 label: editingLink.label,
                 url: editingLink.url,
                 icon: editingLink.icon ?? 'link',
+                description: editingLink.description ?? '',
+                button_label: editingLink.button_label ?? '',
                 enabled: editingLink.enabled,
               }}
               isSubmitting={updateLink.isPending}
@@ -315,6 +375,32 @@ const LinkFormModal = ({
             placeholder="https://..."
             onChange={(e: ChangeEvent<HTMLInputElement>) =>
               setForm({ ...form, url: e.target.value })
+            }
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium text-gray-900">
+            Description <span className="text-gray-400">(optional)</span>
+          </label>
+          <Input
+            value={form.description}
+            maxLength={200}
+            placeholder="Short subtitle shown on the card"
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+              setForm({ ...form, description: e.target.value })
+            }
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium text-gray-900">
+            Button label <span className="text-gray-400">(optional)</span>
+          </label>
+          <Input
+            value={form.button_label}
+            maxLength={40}
+            placeholder="View"
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+              setForm({ ...form, button_label: e.target.value })
             }
           />
         </div>

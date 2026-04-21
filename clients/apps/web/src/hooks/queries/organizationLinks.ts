@@ -9,6 +9,8 @@ export interface OrganizationLink {
   label: string
   url: string
   icon: string | null
+  description: string | null
+  button_label: string | null
   order: number
   enabled: boolean
   created_at: string
@@ -20,6 +22,8 @@ export interface OrganizationLinkCreate {
   label: string
   url: string
   icon?: string | null
+  description?: string | null
+  button_label?: string | null
   order?: number | null
   enabled?: boolean
 }
@@ -28,6 +32,8 @@ export interface OrganizationLinkUpdate {
   label?: string
   url?: string
   icon?: string | null
+  description?: string | null
+  button_label?: string | null
   order?: number
   enabled?: boolean
 }

@@ -6,6 +6,7 @@ import ExtensionOutlined from '@mui/icons-material/ExtensionOutlined'
 import HiveOutlined from '@mui/icons-material/HiveOutlined'
 import PeopleAltOutlined from '@mui/icons-material/PeopleAltOutlined'
 import LayersOutlined from '@mui/icons-material/LayersOutlined'
+import LinkOutlined from '@mui/icons-material/LinkOutlined'
 import ReceiptLongOutlined from '@mui/icons-material/ReceiptLongOutlined'
 import ShoppingBagOutlined from '@mui/icons-material/ShoppingBagOutlined'
 import SpaceDashboardOutlined from '@mui/icons-material/SpaceDashboardOutlined'
@@ -255,6 +256,16 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
     link: `/dashboard/${org?.slug}/founder-tools`,
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/founder-tools`)
+    },
+    if: true,
+  },
+  {
+    id: 'links',
+    title: 'Links',
+    icon: <LinkOutlined fontSize="inherit" />,
+    link: `/dashboard/${org?.slug}/links`,
+    checkIsActive: (currentRoute: string): boolean => {
+      return currentRoute.startsWith(`/dashboard/${org?.slug}/links`)
     },
     if: true,
   },
