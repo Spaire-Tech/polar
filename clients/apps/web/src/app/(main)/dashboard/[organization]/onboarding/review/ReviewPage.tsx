@@ -214,7 +214,6 @@ export default function ReviewPage() {
       thumbnail_size: organization.storefront_settings?.thumbnail_size ?? 'medium',
       show_product_details: organization.storefront_settings?.show_product_details ?? true,
       featured_product_ids: organization.storefront_settings?.featured_product_ids ?? [],
-      enable_reviews: organization.storefront_settings?.enable_reviews ?? false,
     },
   }
 
