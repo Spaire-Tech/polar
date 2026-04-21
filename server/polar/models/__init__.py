@@ -5,6 +5,7 @@ from .account_credit import AccountCredit
 from .benefit import Benefit
 from .benefit_grant import BenefitGrant
 from .billing_entry import BillingEntry
+from .bio_block import BioBlock
 from .campaign import Campaign
 from .checkout import Checkout
 from .checkout_link import CheckoutLink
@@ -51,7 +52,6 @@ from .order import Order
 from .order_item import OrderItem
 from .organization import Organization
 from .organization_access_token import OrganizationAccessToken
-from .organization_link import OrganizationLink
 from .organization_review import OrganizationReview
 from .payment import Payment
 from .payment_method import PaymentMethod
@@ -98,6 +98,7 @@ __all__ = [
     "Benefit",
     "BenefitGrant",
     "BillingEntry",
+    "BioBlock",
     "Campaign",
     "Checkout",
     "CheckoutLink",
@@ -153,7 +154,6 @@ __all__ = [
     "OrderItem",
     "Organization",
     "OrganizationAccessToken",
-    "OrganizationLink",
     "OrganizationReview",
     "Payment",
     "PaymentMethod",

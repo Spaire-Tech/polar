@@ -1,12 +1,12 @@
 import { useOrganizationAccount } from '@/hooks/queries'
 import { PolarHog, usePostHog } from '@/hooks/posthog'
 import AttachMoneyOutlined from '@mui/icons-material/AttachMoneyOutlined'
+import AccountCircleOutlined from '@mui/icons-material/AccountCircleOutlined'
 import CodeOutlined from '@mui/icons-material/CodeOutlined'
 import ExtensionOutlined from '@mui/icons-material/ExtensionOutlined'
 import HiveOutlined from '@mui/icons-material/HiveOutlined'
 import PeopleAltOutlined from '@mui/icons-material/PeopleAltOutlined'
 import LayersOutlined from '@mui/icons-material/LayersOutlined'
-import LinkOutlined from '@mui/icons-material/LinkOutlined'
 import ReceiptLongOutlined from '@mui/icons-material/ReceiptLongOutlined'
 import ShoppingBagOutlined from '@mui/icons-material/ShoppingBagOutlined'
 import SpaceDashboardOutlined from '@mui/icons-material/SpaceDashboardOutlined'
@@ -200,6 +200,16 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
     ],
   },
   {
+    id: 'bio',
+    title: 'Bio',
+    icon: <AccountCircleOutlined fontSize="inherit" />,
+    link: `/dashboard/${org?.slug}/bio`,
+    checkIsActive: (currentRoute: string): boolean => {
+      return currentRoute.startsWith(`/dashboard/${org?.slug}/bio`)
+    },
+    if: true,
+  },
+  {
     id: 'customers',
     title: 'Customers',
     icon: <PeopleAltOutlined fontSize="inherit" />,
@@ -256,16 +266,6 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
     link: `/dashboard/${org?.slug}/founder-tools`,
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/founder-tools`)
-    },
-    if: true,
-  },
-  {
-    id: 'links',
-    title: 'Links',
-    icon: <LinkOutlined fontSize="inherit" />,
-    link: `/dashboard/${org?.slug}/links`,
-    checkIsActive: (currentRoute: string): boolean => {
-      return currentRoute.startsWith(`/dashboard/${org?.slug}/links`)
     },
     if: true,
   },

@@ -1,13 +1,6 @@
+import { BioBuilderPage } from '@/components/Bio/BioBuilderPage'
 import { getServerSideAPI } from '@/utils/client/serverside'
 import { getOrganizationBySlugOrNotFound } from '@/utils/organization'
-import { Metadata } from 'next'
-import LinksPage from './LinksPage'
-
-export async function generateMetadata(): Promise<Metadata> {
-  return {
-    title: 'Links',
-  }
-}
 
 export default async function Page(props: {
   params: Promise<{ organization: string }>
@@ -18,6 +11,5 @@ export default async function Page(props: {
     api,
     params.organization,
   )
-
-  return <LinksPage organization={organization} />
+  return <BioBuilderPage organization={organization} />
 }

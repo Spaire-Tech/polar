@@ -55,7 +55,17 @@ class OrganizationStorefrontSettings(TypedDict, total=False):
     languages: list[str]
     available_for_work: bool
     featured_product_ids: list[str]
-    theme: str  # "light" | "dark"
+
+
+class OrganizationBioSettings(TypedDict, total=False):
+    enabled: bool
+    display_title: str | None  # Role/title line below name
+    short_bio: str | None
+    avatar_shape: str  # "circle" | "rounded"
+    show_powered_by: bool
+    newsletter_enabled: bool
+    newsletter_heading: str | None
+    newsletter_description: str | None
 
 
 _default_storefront_settings: OrganizationStorefrontSettings = {
@@ -73,7 +83,18 @@ _default_storefront_settings: OrganizationStorefrontSettings = {
     "languages": [],
     "available_for_work": False,
     "featured_product_ids": [],
-    "theme": "light",
+}
+
+
+_default_bio_settings: OrganizationBioSettings = {
+    "enabled": False,
+    "display_title": None,
+    "short_bio": None,
+    "avatar_shape": "circle",
+    "show_powered_by": True,
+    "newsletter_enabled": False,
+    "newsletter_heading": None,
+    "newsletter_description": None,
 }
 
 
@@ -294,6 +315,10 @@ class Organization(RateLimitGroupMixin, RecordModel):
         JSONB, nullable=False, default=_default_storefront_settings
     )
 
+    bio_settings: Mapped[OrganizationBioSettings] = mapped_column(
+        JSONB, nullable=False, default=_default_bio_settings
+    )
+
     subscription_settings: Mapped[OrganizationSubscriptionSettings] = mapped_column(
         JSONB, nullable=False, default=_default_subscription_settings
     )
@@ -374,6 +399,15 @@ class Organization(RateLimitGroupMixin, RecordModel):
     @classmethod
     def _storefront_enabled_expression(cls) -> ColumnElement[bool]:
         return Organization.storefront_settings["enabled"].as_boolean()
+
+    @hybrid_property
+    def bio_enabled(self) -> bool:
+        return self.bio_settings.get("enabled", False)
+
+    @bio_enabled.inplace.expression
+    @classmethod
+    def _bio_enabled_expression(cls) -> ColumnElement[bool]:
+        return Organization.bio_settings["enabled"].as_boolean()
 
     @hybrid_property
     def is_under_review(self) -> bool:

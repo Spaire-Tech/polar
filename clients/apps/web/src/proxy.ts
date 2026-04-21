@@ -73,7 +73,12 @@ const SPACE_HOSTNAME =
     ? new URL(process.env.NEXT_PUBLIC_SPACE_BASE_URL).hostname
     : 'space.spairehq.com'
 
-const SPACE_BLOCKED_PREFIXES = [
+const BIO_HOSTNAME =
+  process.env.NEXT_PUBLIC_BIO_BASE_URL
+    ? new URL(process.env.NEXT_PUBLIC_BIO_BASE_URL).hostname
+    : 'bio.spairehq.com'
+
+const PUBLIC_SUBDOMAIN_BLOCKED_PREFIXES = [
   '/dashboard',
   '/login',
   '/signup',
@@ -97,12 +102,41 @@ export async function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl
 
     // Block non-storefront routes on the space domain — redirect to main app
-    if (SPACE_BLOCKED_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
+    if (
+      PUBLIC_SUBDOMAIN_BLOCKED_PREFIXES.some((prefix) =>
+        pathname.startsWith(prefix),
+      )
+    ) {
       const mainUrl = new URL(
         pathname,
         process.env.NEXT_PUBLIC_FRONTEND_BASE_URL || 'https://app.spairehq.com',
       )
       return NextResponse.redirect(mainUrl)
+    }
+  }
+
+  // --- Spaire Bio subdomain routing ---
+  // bio.spairehq.com/{slug} rewrites to internal /bio/{slug} route
+  if (hostname === BIO_HOSTNAME) {
+    const { pathname } = request.nextUrl
+
+    if (
+      PUBLIC_SUBDOMAIN_BLOCKED_PREFIXES.some((prefix) =>
+        pathname.startsWith(prefix),
+      )
+    ) {
+      const mainUrl = new URL(
+        pathname,
+        process.env.NEXT_PUBLIC_FRONTEND_BASE_URL || 'https://app.spairehq.com',
+      )
+      return NextResponse.redirect(mainUrl)
+    }
+
+    // Avoid double-prefixing if internal route already starts with /bio
+    if (!pathname.startsWith('/bio')) {
+      const rewriteUrl = request.nextUrl.clone()
+      rewriteUrl.pathname = `/bio${pathname === '/' ? '' : pathname}`
+      return NextResponse.rewrite(rewriteUrl)
     }
   }
 

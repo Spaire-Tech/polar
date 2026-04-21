@@ -4,6 +4,7 @@ from polar.account.endpoints import router as accounts_router
 from polar.auth.endpoints import router as auth_router
 from polar.benefit.endpoints import router as benefits_router
 from polar.benefit.grant.endpoints import router as benefit_grants_router
+from polar.bio.endpoints import router as bio_router
 from polar.checkout.endpoints import router as checkout_router
 from polar.checkout_link.endpoints import router as checkout_link_router
 from polar.cli.endpoints import router as cli_router
@@ -50,7 +51,6 @@ from polar.organization.endpoints import router as organization_router
 from polar.organization_access_token.endpoints import (
     router as organization_access_token_router,
 )
-from polar.organization_link.endpoints import router as organization_link_router
 from polar.payment.endpoints import router as payment_router
 from polar.payout.endpoints import router as payout_router
 from polar.personal_access_token.endpoints import router as pat_router
@@ -102,6 +102,8 @@ router.include_router(oauth2_router)
 router.include_router(benefits_router)
 # /benefit-grants
 router.include_router(benefit_grants_router)
+# /bio
+router.include_router(bio_router)
 # /webhooks
 router.include_router(webhook_router)
 # /products
@@ -166,8 +168,6 @@ router.include_router(event_type_router)
 router.include_router(meter_router)
 # /organization-access-tokens
 router.include_router(organization_access_token_router)
-# /organization-links
-router.include_router(organization_link_router)
 # /customer-meters
 router.include_router(customer_meter_router)
 # /payments

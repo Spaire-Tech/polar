@@ -1,7 +1,6 @@
 'use client'
 
 import { focalPointToObjectPosition } from '@/components/Customization/Storefront/StorefrontSidebar'
-import { LinkButtonList } from '@/components/Profile/LinkButtonList'
 import { useStorefrontSubscribe } from '@/hooks/queries/emailMarketing'
 import Facebook from '@mui/icons-material/Facebook'
 import GitHub from '@mui/icons-material/GitHub'
@@ -251,9 +250,6 @@ export const ProfileCard = ({
             ))}
           </div>
         )}
-
-        {/* Link buttons (link-in-bio) */}
-        <LinkButtonList slug={organization.slug} />
 
         {/* Highlights — product thumbnail row */}
         {highlights.length > 0 && (

@@ -1,6 +1,6 @@
 'use client'
 
-import { LinkInBioProfile } from '@/components/Profile/LinkInBioProfile'
+import { Storefront } from '@/components/Profile/Storefront'
 import { schemas } from '@spaire/client'
 
 const ClientPage = ({
@@ -10,7 +10,7 @@ const ClientPage = ({
   organization: schemas['Organization']
   products: schemas['ProductStorefront'][]
 }) => {
-  return <LinkInBioProfile organization={organization} products={products} />
+  return <Storefront organization={organization} products={products} />
 }
 
 export default ClientPage
