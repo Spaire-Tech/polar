@@ -12,6 +12,11 @@ import {
   SelectValue,
 } from '@spaire/ui/components/atoms/Select'
 import { StorefrontLinkItem } from '@/components/Profile/StorefrontLinks'
+import ViewStreamOutlined from '@mui/icons-material/ViewStreamOutlined'
+import ViewCarouselOutlined from '@mui/icons-material/ViewCarouselOutlined'
+import GridViewOutlined from '@mui/icons-material/GridViewOutlined'
+import WebAssetOutlined from '@mui/icons-material/WebAssetOutlined'
+import ChevronRightOutlined from '@mui/icons-material/ChevronRightOutlined'
 import { useCallback, useRef, useState } from 'react'
 import { FileRejection } from 'react-dropzone'
 import { useFormContext } from 'react-hook-form'
@@ -77,110 +82,6 @@ const SOCIAL_PLATFORMS = [
   { value: 'other', label: 'Website', icon: Public },
 ]
 
-// --- Storefront link helpers ---
-function detectPlatform(url: string): string | null {
-  try {
-    const host = new URL(url).hostname.replace('www.', '')
-    if (host === 'youtube.com' || host === 'youtu.be') return 'youtube'
-    if (host === 'open.spotify.com') return 'spotify'
-    if (host === 'tiktok.com') return 'tiktok'
-    if (host === 'soundcloud.com') return 'soundcloud'
-    if (host === 'instagram.com') return 'instagram'
-  } catch {}
-  return null
-}
-
-const EMBEDDABLE_PLATFORMS = new Set(['youtube', 'spotify', 'soundcloud'])
-
-function getDomain(url: string): string {
-  try {
-    return new URL(url).hostname.replace('www.', '')
-  } catch {
-    return url
-  }
-}
-
-const TikTokIcon2 = ({ style }: { style?: React.CSSProperties }) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" style={style} width="1em" height="1em">
-    <path d="M16.6 5.82s.51.5 0 0A4.278 4.278 0 0 1 15.54 3h-3.09v12.4a2.592 2.592 0 0 1-2.59 2.5c-1.42 0-2.6-1.16-2.6-2.6 0-1.72 1.66-3.01 3.37-2.48V9.66c-3.45-.46-6.47 2.22-6.47 5.64 0 3.33 2.76 5.7 5.69 5.7 3.14 0 5.69-2.55 5.69-5.7V9.01a7.35 7.35 0 0 0 4.3 1.38V7.3s-1.88.09-3.24-1.48z" />
-  </svg>
-)
-
-import MusicNoteOutlined from '@mui/icons-material/MusicNoteOutlined'
-import LinkOutlined from '@mui/icons-material/LinkOutlined'
-
-const LINK_PLATFORM_ICONS: Record<string, React.FC<{ style?: React.CSSProperties }>> = {
-  youtube: ({ style }) => <YouTube style={style} />,
-  spotify: ({ style }) => <MusicNoteOutlined style={style} />,
-  soundcloud: ({ style }) => <MusicNoteOutlined style={style} />,
-  tiktok: ({ style }) => <TikTokIcon2 style={style} />,
-  instagram: ({ style }) => <Instagram style={style} />,
-}
-
-const StorefrontLinkRow = ({
-  link,
-  onUpdate,
-  onRemove,
-}: {
-  link: StorefrontLinkItem
-  onUpdate: (link: StorefrontLinkItem) => void
-  onRemove: () => void
-}) => {
-  const [editingTitle, setEditingTitle] = useState(false)
-  const domain = getDomain(link.url)
-  const PlatformIcon = link.platform ? (LINK_PLATFORM_ICONS[link.platform] ?? null) : null
-
-  return (
-    <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5">
-      <span className="shrink-0 text-gray-400">
-        {PlatformIcon ? (
-          <PlatformIcon style={{ fontSize: 16 }} />
-        ) : (
-          <LinkOutlined style={{ fontSize: 16 }} />
-        )}
-      </span>
-      <div className="min-w-0 flex-1">
-        {editingTitle ? (
-          <input
-            autoFocus
-            defaultValue={link.title ?? domain}
-            onBlur={(e) => {
-              onUpdate({ ...link, title: e.target.value || null })
-              setEditingTitle(false)
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
-              if (e.key === 'Escape') setEditingTitle(false)
-            }}
-            className="w-full text-sm text-gray-900 outline-none"
-          />
-        ) : (
-          <button
-            type="button"
-            onClick={() => setEditingTitle(true)}
-            className="block w-full truncate text-left text-sm text-gray-900 hover:text-gray-700"
-            title="Click to edit title"
-          >
-            {link.title || domain}
-          </button>
-        )}
-        <span className="block truncate text-xs text-gray-400">{domain}</span>
-      </div>
-      {link.type === 'embedded' && (
-        <span className="shrink-0 rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-medium text-violet-600">
-          Embed
-        </span>
-      )}
-      <button
-        type="button"
-        onClick={onRemove}
-        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
-      >
-        <DeleteOutlined style={{ fontSize: 16 }} />
-      </button>
-    </div>
-  )
-}
 
 // --- Focal point helpers ---
 export const focalPointToObjectPosition = (focal: string): string => {
@@ -355,8 +256,10 @@ const SocialLinkRow = ({
 // --- Main editor form ---
 export const StorefrontEditorForm = ({
   organization,
+  onEnterLinksMode,
 }: {
   organization: schemas['Organization']
+  onEnterLinksMode?: () => void
 }) => {
   const { watch, setValue } = useFormContext<schemas['OrganizationUpdate']>()
   const settings = watch('storefront_settings')
@@ -415,43 +318,7 @@ export const StorefrontEditorForm = ({
   // Storefront links
   const storefrontLinks: StorefrontLinkItem[] = ((settings as any)?.storefront_links ?? []) as StorefrontLinkItem[]
   const linksPosition: string = (settings as any)?.links_position ?? 'after_products'
-  const [newLinkUrl, setNewLinkUrl] = useState('')
-
-  const addLink = () => {
-    const url = newLinkUrl.trim()
-    if (!url) return
-    const platform = detectPlatform(url)
-    const type: 'standard' | 'embedded' = platform && EMBEDDABLE_PLATFORMS.has(platform) ? 'embedded' : 'standard'
-    const newLink: StorefrontLinkItem = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      url,
-      title: null,
-      type,
-      platform,
-    }
-    setValue(
-      'storefront_settings',
-      { ...(settings ?? {}), storefront_links: [...storefrontLinks, newLink] } as any,
-      { shouldDirty: true },
-    )
-    setNewLinkUrl('')
-  }
-
-  const updateLink = (updated: StorefrontLinkItem) => {
-    setValue(
-      'storefront_settings',
-      { ...(settings ?? {}), storefront_links: storefrontLinks.map((l) => (l.id === updated.id ? updated : l)) } as any,
-      { shouldDirty: true },
-    )
-  }
-
-  const removeLink = (id: string) => {
-    setValue(
-      'storefront_settings',
-      { ...(settings ?? {}), storefront_links: storefrontLinks.filter((l) => l.id !== id) } as any,
-      { shouldDirty: true },
-    )
-  }
+  const linksLayout: string = (settings as any)?.links_layout ?? 'carousel'
 
   // Avatar upload
   const avatarUrl = watch('avatar_url') ?? organization.avatar_url
@@ -840,66 +707,86 @@ export const StorefrontEditorForm = ({
       </div>
 
       {/* Links */}
-      <div className="flex flex-col gap-y-2">
-        <h3 className="text-sm font-semibold text-gray-900">Links</h3>
-        <p className="text-xs text-gray-500">
-          Add buttons or embeds. YouTube, Spotify, and SoundCloud URLs are automatically embedded.
-        </p>
-
-        {storefrontLinks.length > 0 && (
-          <div className="flex flex-col gap-y-2">
-            {storefrontLinks.map((link) => (
-              <StorefrontLinkRow
-                key={link.id}
-                link={link}
-                onUpdate={updateLink}
-                onRemove={() => removeLink(link.id)}
-              />
-            ))}
-          </div>
-        )}
-
-        <div className="flex gap-2">
-          <input
-            type="url"
-            value={newLinkUrl}
-            onChange={(e) => setNewLinkUrl(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') { e.preventDefault(); addLink() }
-            }}
-            placeholder="Paste a URL…"
-            className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-gray-300 focus:outline-none"
-          />
-          <button
-            type="button"
-            onClick={addLink}
-            disabled={!newLinkUrl.trim()}
-            className="flex h-[42px] items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-default disabled:opacity-40"
-          >
-            <AddOutlined style={{ fontSize: 16 }} />
-            Add
-          </button>
+      <div className="flex flex-col gap-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-gray-900">Links</h3>
+          {storefrontLinks.length > 0 && (
+            <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
+              {storefrontLinks.length}
+            </span>
+          )}
         </div>
 
+        {/* Manage links button — opens left panel */}
+        <button
+          type="button"
+          onClick={onEnterLinksMode}
+          className="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 transition-colors hover:bg-gray-50"
+        >
+          <span className="font-medium">
+            {storefrontLinks.length === 0
+              ? 'Add links & embeds'
+              : `Manage ${storefrontLinks.length} link${storefrontLinks.length !== 1 ? 's' : ''}`}
+          </span>
+          <ChevronRightOutlined style={{ fontSize: 18 }} className="text-gray-400" />
+        </button>
+
         {storefrontLinks.length > 0 && (
-          <div className="flex flex-col divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200">
-            <div className="flex items-center justify-between px-4 py-3.5">
-              <div>
-                <span className="text-sm text-gray-700">Show before products</span>
-                <p className="text-xs text-gray-400">Off = show after products</p>
+          <>
+            {/* Layout selector */}
+            <div className="flex flex-col gap-y-2">
+              <label className="text-xs font-medium text-gray-600">Layout</label>
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  { value: 'classic', label: 'Classic', Icon: ViewStreamOutlined },
+                  { value: 'carousel', label: 'Carousel', Icon: ViewCarouselOutlined },
+                  { value: 'image_grid', label: 'Grid', Icon: GridViewOutlined },
+                  { value: 'card', label: 'Card', Icon: WebAssetOutlined },
+                ].map(({ value, label, Icon }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() =>
+                      setValue(
+                        'storefront_settings',
+                        { ...(settings ?? {}), links_layout: value } as any,
+                        { shouldDirty: true },
+                      )
+                    }
+                    className={twMerge(
+                      'flex flex-col items-center gap-1 rounded-xl border p-2.5 text-center transition-all',
+                      linksLayout === value
+                        ? 'border-gray-900 bg-gray-900 text-white'
+                        : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300',
+                    )}
+                  >
+                    <Icon style={{ fontSize: 18 }} />
+                    <span className="text-[10px] font-medium">{label}</span>
+                  </button>
+                ))}
               </div>
-              <Switch
-                checked={linksPosition === 'before_products'}
-                onCheckedChange={(v) =>
-                  setValue(
-                    'storefront_settings',
-                    { ...(settings ?? {}), links_position: v ? 'before_products' : 'after_products' } as any,
-                    { shouldDirty: true },
-                  )
-                }
-              />
             </div>
-          </div>
+
+            {/* Position toggle */}
+            <div className="flex flex-col divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200">
+              <div className="flex items-center justify-between px-4 py-3.5">
+                <div>
+                  <span className="text-sm text-gray-700">Show before products</span>
+                  <p className="text-xs text-gray-400">Off = show after products</p>
+                </div>
+                <Switch
+                  checked={linksPosition === 'before_products'}
+                  onCheckedChange={(v) =>
+                    setValue(
+                      'storefront_settings',
+                      { ...(settings ?? {}), links_position: v ? 'before_products' : 'after_products' } as any,
+                      { shouldDirty: true },
+                    )
+                  }
+                />
+              </div>
+            </div>
+          </>
         )}
       </div>
 

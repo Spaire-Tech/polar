@@ -108,6 +108,12 @@ class StorefrontLink(Schema):
         Field(max_length=100, description="Display title for the link"),
         EmptyStrToNoneValidator,
     ] = None
+    description: Annotated[
+        str | None,
+        Field(max_length=200, description="Short description shown on the card"),
+        EmptyStrToNoneValidator,
+    ] = None
+    image_url: str | None = Field(None, description="Thumbnail image URL for the link card")
     type: Literal["standard", "embedded"] = Field("standard", description="Link type")
     platform: str | None = Field(
         None,
@@ -165,6 +171,10 @@ class OrganizationStorefrontSettings(Schema):
     links_position: Literal["before_products", "after_products"] = Field(
         "after_products",
         description="Where to show the links carousel relative to products",
+    )
+    links_layout: Literal["classic", "carousel", "image_grid", "card"] = Field(
+        "carousel",
+        description="Visual layout for the links section",
     )
 
 

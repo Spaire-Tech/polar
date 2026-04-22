@@ -17,6 +17,7 @@ import { ProfileCard } from '@/components/Profile/ProfileCard'
 import { Storefront } from '@/components/Profile/Storefront'
 import { StorefrontEditorForm } from './Storefront/StorefrontSidebar'
 import { StorefrontLivePreview } from './Storefront/StorefrontPreview'
+import { StorefrontLinksPanel } from './Storefront/StorefrontLinksPanel'
 import { useStorefront } from '@/hooks/queries/storefront'
 
 export const CustomizationPage = ({
@@ -39,6 +40,7 @@ const Customization = ({
   const router = useRouter()
   const updateOrganization = useUpdateOrganization()
   const [publishing, setPublishing] = useState(false)
+  const [linksMode, setLinksMode] = useState(false)
   const isSpaceEnabled = organization.storefront_settings?.enabled ?? false
   const [isEditing, setIsEditing] = useState(!isSpaceEnabled)
 
@@ -215,14 +217,24 @@ const Customization = ({
               </p>
 
               <div className="mt-8 w-full max-w-[460px]">
-                <StorefrontLivePreview organization={organization} />
+                {linksMode ? (
+                  <StorefrontLinksPanel
+                    organization={organization}
+                    onBack={() => setLinksMode(false)}
+                  />
+                ) : (
+                  <StorefrontLivePreview organization={organization} />
+                )}
               </div>
             </div>
           </div>
 
           {/* Right — form sections (full width on mobile) */}
           <div className="w-full shrink-0 overflow-y-auto border-l border-gray-200 bg-white shadow-sm md:w-[700px]">
-            <StorefrontEditorForm organization={organization} />
+            <StorefrontEditorForm
+              organization={organization}
+              onEnterLinksMode={() => setLinksMode(true)}
+            />
           </div>
         </div>
       </div>

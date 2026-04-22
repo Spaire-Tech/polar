@@ -64,6 +64,11 @@ export const Storefront = ({
       ? (((organization.storefront_settings as any)?.links_position ?? 'after_products') as 'before_products' | 'after_products')
       : 'after_products'
 
+  const linksLayout =
+    'storefront_settings' in organization
+      ? (((organization.storefront_settings as any)?.links_layout ?? 'carousel') as 'classic' | 'carousel' | 'image_grid' | 'card')
+      : 'carousel'
+
   // Products scoped by featuredIds (creator curation)
   const scopedProducts = useMemo(() => {
     if (featuredIds.length > 0) {
@@ -126,7 +131,7 @@ export const Storefront = ({
       </h2>
 
       {storefrontLinks.length > 0 && linksPosition === 'before_products' && (
-        <StorefrontLinks links={storefrontLinks} />
+        <StorefrontLinks links={storefrontLinks} layout={linksLayout} />
       )}
 
       {sections.map((section) => (
@@ -161,7 +166,7 @@ export const Storefront = ({
       ))}
 
       {storefrontLinks.length > 0 && linksPosition === 'after_products' && (
-        <StorefrontLinks links={storefrontLinks} />
+        <StorefrontLinks links={storefrontLinks} layout={linksLayout} />
       )}
 
       {/* Reviews section — shown when enabled */}

@@ -58,6 +58,7 @@ class OrganizationStorefrontSettings(TypedDict, total=False):
     show_card_products: bool
     storefront_links: list[dict]  # list of StorefrontLink dicts
     links_position: str  # "before_products" | "after_products"
+    links_layout: str  # "classic" | "carousel" | "image_grid" | "card"
 
 
 _default_storefront_settings: OrganizationStorefrontSettings = {
@@ -78,6 +79,7 @@ _default_storefront_settings: OrganizationStorefrontSettings = {
     "show_card_products": True,
     "storefront_links": [],
     "links_position": "after_products",
+    "links_layout": "carousel",
 }
 
 
