@@ -100,6 +100,21 @@ class OrganizationFeatureSettings(Schema):
     )
 
 
+class StorefrontLink(Schema):
+    id: str = Field(description="Unique identifier for the link")
+    url: HttpUrlToStr = Field(description="The URL of the link")
+    title: Annotated[
+        str | None,
+        Field(max_length=100, description="Display title for the link"),
+        EmptyStrToNoneValidator,
+    ] = None
+    type: Literal["standard", "embedded"] = Field("standard", description="Link type")
+    platform: str | None = Field(
+        None,
+        description="Detected platform (youtube, spotify, tiktok, soundcloud, instagram)",
+    )
+
+
 class OrganizationStorefrontSettings(Schema):
     enabled: bool = Field(False, description="Whether the storefront is enabled")
     show_header: bool = Field(True, description="Show the storefront header/banner")
@@ -139,6 +154,17 @@ class OrganizationStorefrontSettings(Schema):
     )
     enable_reviews: bool = Field(
         False, description="Allow customers to leave reviews on products"
+    )
+    show_card_products: bool = Field(
+        True, description="Show product images in the profile card"
+    )
+    storefront_links: list[StorefrontLink] = Field(
+        default_factory=list,
+        description="Links displayed in a carousel on the storefront",
+    )
+    links_position: Literal["before_products", "after_products"] = Field(
+        "after_products",
+        description="Where to show the links carousel relative to products",
     )
 
 

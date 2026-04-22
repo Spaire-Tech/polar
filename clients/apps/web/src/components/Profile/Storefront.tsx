@@ -1,6 +1,7 @@
 'use client'
 
 import { ProductCard } from '@/components/Products/ProductCard'
+import { StorefrontLinks, StorefrontLinkItem } from './StorefrontLinks'
 import HiveOutlined from '@mui/icons-material/HiveOutlined'
 import { schemas } from '@spaire/client'
 import Link from 'next/link'
@@ -52,6 +53,16 @@ export const Storefront = ({
     'storefront_settings' in organization
       ? (organization.storefront_settings?.featured_product_ids ?? [])
       : []
+
+  const storefrontLinks: StorefrontLinkItem[] =
+    'storefront_settings' in organization
+      ? (((organization.storefront_settings as any)?.storefront_links ?? []) as StorefrontLinkItem[])
+      : []
+
+  const linksPosition: 'before_products' | 'after_products' =
+    'storefront_settings' in organization
+      ? (((organization.storefront_settings as any)?.links_position ?? 'after_products') as 'before_products' | 'after_products')
+      : 'after_products'
 
   // Products scoped by featuredIds (creator curation)
   const scopedProducts = useMemo(() => {
@@ -114,6 +125,10 @@ export const Storefront = ({
         Products
       </h2>
 
+      {storefrontLinks.length > 0 && linksPosition === 'before_products' && (
+        <StorefrontLinks links={storefrontLinks} />
+      )}
+
       {sections.map((section) => (
         <section
           key={section.key}
@@ -144,6 +159,10 @@ export const Storefront = ({
           </div>
         </section>
       ))}
+
+      {storefrontLinks.length > 0 && linksPosition === 'after_products' && (
+        <StorefrontLinks links={storefrontLinks} />
+      )}
 
       {/* Reviews section — shown when enabled */}
       {enableReviews && (
