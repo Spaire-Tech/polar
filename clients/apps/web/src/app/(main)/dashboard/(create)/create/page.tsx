@@ -27,18 +27,22 @@ export default async function Page(props: {
   let validationErrors: schemas['ValidationError'][] = []
   const error: string | undefined = undefined
 
+  // Always show welcome first for brand-new users who haven't come from it yet
+  if (!from_welcome && !existing_org) {
+    const api = await getServerSideAPI()
+    const existingOrgs = await getUserOrganizations(api, true)
+    if (existingOrgs.length === 0) {
+      // Carry slug/auto through so the welcome page can forward them back
+      const params = new URLSearchParams()
+      if (slug) params.set('slug', slug)
+      if (auto) params.set('auto', auto)
+      const qs = params.toString()
+      return redirect(`/welcome${qs ? `?${qs}` : ''}`)
+    }
+  }
+
   // Create the organization automatically if the slug is provided and auto is true
   if (auto === 'true' && slug) {
-    // If the user hasn't been through the welcome page, send them there first
-    // (only for brand-new users — if they already have orgs, skip welcome)
-    if (!from_welcome && !existing_org) {
-      const api = await getServerSideAPI()
-      const existingOrgs = await getUserOrganizations(api, true)
-      if (existingOrgs.length === 0) {
-        const params = new URLSearchParams({ slug, auto: 'true', from_welcome: 'true' })
-        return redirect(`/welcome?${params}`)
-      }
-    }
 
     const api = await getServerSideAPI()
     const { data: organization, error } = await api.POST('/v1/organizations/', {

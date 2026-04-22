@@ -48,15 +48,13 @@ export default function WelcomePage() {
   const handleContinue = () => {
     if (!selected) return
     updateSurveyAnswers({ audience_type: selected })
-    // Forward auto-create params if they were passed (e.g. from landing page CTA)
+    // Always pass from_welcome=true so create/page.tsx knows welcome was shown
+    const params = new URLSearchParams({ from_welcome: 'true' })
     const slug = searchParams.get('slug')
     const auto = searchParams.get('auto')
-    if (slug && auto === 'true') {
-      const params = new URLSearchParams({ slug, auto: 'true', from_welcome: 'true' })
-      router.push(`/dashboard/create?${params}`)
-    } else {
-      router.push('/dashboard/create')
-    }
+    if (slug) params.set('slug', slug)
+    if (auto) params.set('auto', auto)
+    router.push(`/dashboard/create?${params}`)
   }
 
   return (
