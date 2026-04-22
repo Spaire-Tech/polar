@@ -64,7 +64,7 @@ const GetStartedButton = ({
         size={size}
         onClick={onClick}
         onSubmit={onSubmit}
-        className="dark:hover:bg-spaire-50 rounded-full bg-black font-medium text-white hover:bg-gray-800 dark:bg-white dark:text-black"
+        className=" rounded-full bg-black font-medium text-white hover:bg-gray-800 "
         {...props}
       >
         <div>{text}</div>

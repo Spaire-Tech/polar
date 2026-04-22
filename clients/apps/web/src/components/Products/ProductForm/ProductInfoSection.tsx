@@ -70,7 +70,7 @@ export const ProductInfoSection = ({
               <FormControl>
                 <Input {...field} value={field.value || ''} />
               </FormControl>
-              <p className="dark:text-spaire-500 text-xs text-gray-500">
+              <p className=" text-xs text-gray-500">
                 50-60 characters is the recommended length for search engines.
               </p>
               <FormMessage />
@@ -85,7 +85,7 @@ export const ProductInfoSection = ({
             <FormItem className="flex flex-col gap-2">
               <div className="flex flex-row items-center justify-between">
                 <FormLabel>Description</FormLabel>
-                <p className="dark:text-spaire-500 text-sm text-gray-500">
+                <p className=" text-sm text-gray-500">
                   Markdown format
                 </p>
               </div>

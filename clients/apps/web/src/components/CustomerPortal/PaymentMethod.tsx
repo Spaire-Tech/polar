@@ -26,11 +26,11 @@ const PaymentMethodCard = ({
       <CreditCardBrandIcon
         width="4em"
         brand={brand}
-        className="dark:border-spaire-700 rounded-lg border border-gray-200 p-2"
+        className=" rounded-lg border border-gray-200 p-2"
       />
       <div className="flex flex-col">
         <span className="capitalize">{`${brand} •••• ${last4}`}</span>
-        <span className="dark:text-spaire-500 text-sm text-gray-500">
+        <span className=" text-sm text-gray-500">
           Expires {exp_month}/{exp_year}
         </span>
       </div>
@@ -81,7 +81,7 @@ const PaymentMethod = ({
         {paymentMethod.id === customer.default_payment_method_id && (
           <Status
             status="Default Method"
-            className="bg-emerald-50 text-emerald-500 dark:bg-emerald-950"
+            className="bg-emerald-50 text-emerald-500"
           />
         )}
         {deletable && (

@@ -61,12 +61,12 @@ export const SubscribersWidget = ({ className }: SubscribersWidgetProps) => {
         </h2>
       </CardHeader>
       <TooltipProvider>
-        <CardFooter className="dark:bg-spaire-900 m-2 flex h-full flex-row items-end justify-between gap-x-1 rounded-3xl bg-white p-4">
+        <CardFooter className=" m-2 flex h-full flex-row items-end justify-between gap-x-1 rounded-3xl bg-white p-4">
           {subscriberMetrics.data?.periods.map((period, i) => {
             const activeClass =
               i === subscriberMetrics.data.periods.length - 1
-                ? 'bg-blue dark:bg-blue'
-                : 'hover:bg-blue-100 dark:hover:bg-blue-900'
+                ? 'bg-blue'
+                : 'hover:bg-blue-100'
 
             const tooltipContent = `${period.active_subscriptions} in ${period.timestamp.toLocaleDateString(
               'en-US',
@@ -87,7 +87,7 @@ export const SubscribersWidget = ({ className }: SubscribersWidgetProps) => {
                     )}%`,
                   }}
                   className={twMerge(
-                    'dark:bg-spaire-700 w-3 shrink rounded-full bg-gray-300',
+                    ' w-3 shrink rounded-full bg-gray-300',
                     activeClass,
                   )}
                 />

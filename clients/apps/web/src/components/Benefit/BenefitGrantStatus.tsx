@@ -32,10 +32,10 @@ export const BenefitGrantStatus = ({ grant }: BenefitGrantStatusProps) => {
   }
 
   const statusClassNames = {
-    Revoked: 'bg-red-100 text-red-500 dark:bg-red-950',
-    Granted: 'bg-emerald-200 text-emerald-500 dark:bg-emerald-950',
-    Pending: 'bg-yellow-100 text-yellow-500 dark:bg-yellow-950',
-    Error: 'bg-red-100 text-red-500 dark:bg-red-950',
+    Revoked: 'bg-red-100 text-red-500',
+    Granted: 'bg-emerald-200 text-emerald-500',
+    Pending: 'bg-yellow-100 text-yellow-500',
+    Error: 'bg-red-100 text-red-500',
   }
 
   return (

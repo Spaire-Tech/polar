@@ -23,7 +23,7 @@ export const NavigationContainer = ({
     <div className="flex flex-col gap-y-3">
       {title && (
         <span
-          className="dark:text-spaire-500 text-xxs px-3 tracking-widest text-gray-400 uppercase"
+          className=" text-xxs px-3 tracking-widest text-gray-400 uppercase"
           style={{
             fontFeatureSettings: `'ss02'`,
           }}
@@ -38,10 +38,10 @@ export const NavigationContainer = ({
               <Link
                 key={route.link}
                 className={twMerge(
-                  'flex flex-row items-center gap-x-4 rounded-xl border border-transparent px-3 py-2 transition-colors dark:border-transparent',
+                  'flex flex-row items-center gap-x-4 rounded-xl border border-transparent px-3 py-2 transition-colors',
                   route.isActive
-                    ? 'dark:bg-spaire-900 dark:border-spaire-800 border-gray-200 bg-white text-black shadow-xs dark:text-white'
-                    : 'dark:text-spaire-500 dark:hover:text-spaire-200 text-gray-500 hover:text-black',
+                    ? ' border-gray-200 bg-white text-black shadow-xs '
+                    : ' text-gray-500 hover:text-black',
                 )}
                 href={route.link}
               >
@@ -50,7 +50,7 @@ export const NavigationContainer = ({
                     className={twMerge(
                       'flex flex-col items-center justify-center rounded-full bg-transparent text-[18px]',
                       route.isActive
-                        ? 'text-blue-500 dark:text-white'
+                        ? 'text-blue-500'
                         : 'bg-transparent',
                     )}
                   >

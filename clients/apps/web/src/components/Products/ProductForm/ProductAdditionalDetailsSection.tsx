@@ -112,7 +112,7 @@ export const ProductAdditionalDetailsSection = () => {
                 className="flex flex-row items-center gap-2"
               >
                 <div className="w-40 shrink-0">
-                  <div className="dark:bg-spaire-900 dark:border-spaire-700 flex h-10 items-center rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700">
+                  <div className=" flex h-10 items-center rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700">
                     {DETAIL_OPTION_MAP[String(detail.key)] ?? String(detail.key)}
                   </div>
                 </div>
@@ -124,7 +124,7 @@ export const ProductAdditionalDetailsSection = () => {
                   />
                 </div>
                 <Button
-                  className="border-none bg-transparent text-[16px] opacity-50 transition-opacity hover:opacity-100 dark:bg-transparent"
+                  className="border-none bg-transparent text-[16px] opacity-50 transition-opacity hover:opacity-100"
                   size="icon"
                   variant="secondary"
                   type="button"
@@ -186,11 +186,6 @@ export const ProductAdditionalDetailsSection = () => {
           </div>
         )}
 
-        {details.length === 0 && !pendingKey && (
-          <p className="dark:text-spaire-500 dark:bg-spaire-800 flex h-10 items-center justify-center rounded-2xl bg-gray-50 text-center text-sm text-gray-500 italic">
-            No details added yet. Use the fields above to add product attributes.
-          </p>
-        )}
       </div>
     </Section>
   )

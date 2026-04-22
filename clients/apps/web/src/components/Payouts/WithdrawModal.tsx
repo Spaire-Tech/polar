@@ -127,7 +127,7 @@ const WithdrawModal: React.FC<WithdrawModalProps> = ({
 
             {errorMessage && (
               <div className="flex flex-col gap-8">
-                <p className="text-black dark:text-white">{errorMessage}</p>
+                <p className="text-black">{errorMessage}</p>
                 <div className="flex flex-row gap-x-4">
                   <Button variant="default" onClick={hide}>
                     Close
@@ -140,7 +140,7 @@ const WithdrawModal: React.FC<WithdrawModalProps> = ({
                 <div className="flex flex-col gap-8">
                   <div className="flex flex-col gap-2">
                     <h1 className="text-2xl">Withdraw your balance</h1>
-                    <p className="dark:text-spaire-500 text-gray-500">
+                    <p className=" text-gray-500">
                       You&apos;re about to withdraw your balance to your bank
                       account.
                     </p>

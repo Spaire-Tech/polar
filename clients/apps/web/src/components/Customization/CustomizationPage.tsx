@@ -13,9 +13,11 @@ import { useRouter } from 'next/navigation'
 import { useCallback, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { ForceLightMode } from '@/components/Profile/ForceLightMode'
+import { ProfileCard } from '@/components/Profile/ProfileCard'
+import { Storefront } from '@/components/Profile/Storefront'
 import { StorefrontEditorForm } from './Storefront/StorefrontSidebar'
 import { StorefrontLivePreview } from './Storefront/StorefrontPreview'
-import { ProfileCard } from '@/components/Profile/ProfileCard'
+import { useStorefront } from '@/hooks/queries/storefront'
 
 export const CustomizationPage = ({
   organization,
@@ -39,6 +41,8 @@ const Customization = ({
   const [publishing, setPublishing] = useState(false)
   const isSpaceEnabled = organization.storefront_settings?.enabled ?? false
   const [isEditing, setIsEditing] = useState(!isSpaceEnabled)
+
+  const { data: storefrontData } = useStorefront(organization.slug)
 
   const form = useForm<schemas['OrganizationUpdate']>({
     defaultValues: {
@@ -144,10 +148,23 @@ const Customization = ({
             </div>
           </div>
 
-          {/* Centered card preview */}
-          <div className="flex flex-1 items-center justify-center overflow-y-auto p-10">
-            <div className="w-full max-w-[460px]">
-              <ProfileCard organization={organization} />
+          {/* Full storefront preview — mirrors the public layout */}
+          <div className="flex flex-1 overflow-y-auto p-10">
+            <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-8 md:flex-row md:gap-12">
+              {/* Left — sticky profile card */}
+              <aside className="w-full shrink-0 md:sticky md:top-0 md:w-[460px] md:self-start">
+                <ProfileCard
+                  organization={storefrontData?.organization ?? organization}
+                  products={storefrontData?.products ?? []}
+                />
+              </aside>
+              {/* Right — products */}
+              <main className="flex min-w-0 flex-1 flex-col">
+                <Storefront
+                  organization={storefrontData?.organization ?? organization}
+                  products={storefrontData?.products ?? []}
+                />
+              </main>
             </div>
           </div>
         </div>

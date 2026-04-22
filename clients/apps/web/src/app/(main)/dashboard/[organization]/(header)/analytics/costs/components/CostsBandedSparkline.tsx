@@ -6,7 +6,6 @@ import {
   ComposedChart,
   Line,
 } from '@spaire/ui/components/ui/chart'
-import { useTheme } from 'next-themes'
 import { useMemo } from 'react'
 
 // Find the least squares slope to determine trend direction
@@ -96,8 +95,7 @@ export const CostsBandedSparkline = ({
   height = 80,
   className = '',
 }: CostsBandedSparklineProps) => {
-  const { resolvedTheme } = useTheme()
-  const isDark = resolvedTheme === 'dark'
+  const isDark = false
 
   const chartData = useMemo<ChartDataPoint[]>(() => {
     const length = Math.max(average.length, p10.length, p90.length, p99.length)

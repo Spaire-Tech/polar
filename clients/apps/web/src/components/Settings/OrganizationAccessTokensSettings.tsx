@@ -121,7 +121,7 @@ const AccessTokenForm = ({ update }: { update?: boolean }) => {
                       </SelectItem>
                     ))}
                     <SelectItem value="no-expiration">
-                      <span className="text-red-500 dark:text-red-400">
+                      <span className="text-red-500">
                         No expiration
                       </span>
                     </SelectItem>
@@ -350,7 +350,7 @@ const AccessTokenItem = ({
           <div className="gap-y flex flex-col">
             <h3 className="text-md">{token.comment}</h3>
             {!minimal && (
-              <p className="dark:text-spaire-400 text-sm text-gray-500">
+              <p className=" text-sm text-gray-500">
                 {token.expires_at ? (
                   <>
                     Expires on{' '}
@@ -360,7 +360,7 @@ const AccessTokenItem = ({
                     />
                   </>
                 ) : (
-                  <span className="text-red-500 dark:text-red-400">
+                  <span className="text-red-500">
                     Never expires
                   </span>
                 )}{' '}
@@ -380,7 +380,7 @@ const AccessTokenItem = ({
             )}
           </div>
         </div>{' '}
-        <div className="dark:text-spaire-400 flex flex-row items-center gap-2 text-gray-500">
+        <div className=" flex flex-row items-center gap-2 text-gray-500">
           <Button onClick={showUpdateModal} size="sm">
             Update
           </Button>
@@ -481,7 +481,7 @@ const OrganizationAccessTokensSettings = ({
               return (
                 <div
                   key={token.id}
-                  className="dark:ring-spaire-700 dark:bg-spaire-800 w-full rounded-2xl bg-transparent p-5 ring-1 ring-gray-200"
+                  className=" w-full rounded-2xl bg-transparent p-5 ring-1 ring-gray-200"
                 >
                   <AccessTokenItem
                     token={token}
@@ -530,7 +530,7 @@ const OrganizationAccessTokensSettings = ({
           })
         ) : (
           <ShadowListGroup.Item>
-            <p className="dark:text-spaire-400 text-sm text-gray-500">
+            <p className=" text-sm text-gray-500">
               You don&apos;t have any active Organization Access Tokens.
             </p>
           </ShadowListGroup.Item>

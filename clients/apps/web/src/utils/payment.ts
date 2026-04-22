@@ -13,9 +13,9 @@ export const PaymentStatusDisplayColor: Record<
   schemas['PaymentStatus'],
   string
 > = {
-  succeeded: 'bg-emerald-100 text-emerald-500 dark:bg-emerald-950',
-  pending: 'bg-yellow-100 text-yellow-500 dark:bg-yellow-950',
-  failed: 'bg-red-100 text-red-500 dark:bg-red-950',
+  succeeded: 'bg-emerald-100 text-emerald-500',
+  pending: 'bg-yellow-100 text-yellow-500',
+  failed: 'bg-red-100 text-red-500',
 }
 
 export const isCardPayment = (

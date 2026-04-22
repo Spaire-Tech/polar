@@ -8,7 +8,6 @@ import { useCustomerPortalCustomer } from '@spaire/customer-portal/react'
 import Button from '@spaire/ui/components/atoms/Button'
 import { Separator } from '@spaire/ui/components/ui/separator'
 import { getThemePreset } from '@spaire/ui/hooks/theming'
-import { useTheme } from 'next-themes'
 import { useRouter } from 'next/navigation'
 import { Modal } from '../Modal'
 import { useModal } from '../Modal/useModal'
@@ -34,10 +33,9 @@ export const CustomerPortalSettings = ({
   const api = createClientSideAPI(customerSessionToken)
   const router = useRouter()
 
-  const theme = useTheme()
   const themePreset = getThemePreset(
     organization.slug,
-    theme.resolvedTheme as 'light' | 'dark',
+    'light',
   )
 
   const {
@@ -55,11 +53,11 @@ export const CustomerPortalSettings = ({
   return (
     <div className="flex flex-col gap-y-8">
       <h3 className="text-2xl">Settings</h3>
-      <Well className="dark:bg-spaire-900 flex flex-col gap-y-6 bg-gray-50">
+      <Well className=" flex flex-col gap-y-6 bg-gray-50">
         <WellHeader className="flex-row items-start justify-between">
           <div className="flex flex-col gap-y-2">
             <h3 className="text-xl">Payment Methods</h3>
-            <p className="dark:text-spaire-500 text-gray-500">
+            <p className=" text-gray-500">
               Methods used for subscriptions & one-time purchases
             </p>
           </div>
@@ -79,16 +77,16 @@ export const CustomerPortalSettings = ({
           ))}
         </WellContent>
       </Well>
-      <Well className="dark:bg-spaire-900 flex flex-col gap-y-6 bg-gray-50">
+      <Well className=" flex flex-col gap-y-6 bg-gray-50">
         <WellHeader className="flex-row items-center justify-between">
           <div className="flex flex-col gap-y-2">
             <h3 className="text-xl">Billing Details</h3>
-            <p className="dark:text-spaire-500 text-gray-500">
+            <p className=" text-gray-500">
               Update your billing details
             </p>
           </div>
         </WellHeader>
-        <Separator className="dark:bg-spaire-700" />
+        <Separator className="" />
         <WellContent>
           <EditBillingDetails
             onSuccess={() => {

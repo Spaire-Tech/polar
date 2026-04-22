@@ -49,7 +49,7 @@ export const CheckoutLinkPage = ({ checkoutLink }: CheckoutLinkPageProps) => {
   const showDarkmodeToggle = embedType === 'svg' || embedType === 'checkout'
 
   const triggerClassName =
-    'dark:data-[state=active]:bg-spaire-900 data-[state=active]:bg-white w-full rounded-full!'
+    ' data-[state=active]:bg-white w-full rounded-full!'
 
   return (
     <div className="flex w-full flex-col gap-8">
@@ -57,7 +57,7 @@ export const CheckoutLinkPage = ({ checkoutLink }: CheckoutLinkPageProps) => {
         defaultValue={embedType}
         onValueChange={(value) => setEmbedType(value)}
       >
-        <TabsList className="dark:bg-spaire-800 mb-4 w-full rounded-full bg-gray-100">
+        <TabsList className=" mb-4 w-full rounded-full bg-gray-100">
           <TabsTrigger className={triggerClassName} value="link">
             Link
           </TabsTrigger>

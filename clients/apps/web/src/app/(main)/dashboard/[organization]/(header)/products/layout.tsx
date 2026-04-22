@@ -6,11 +6,11 @@ import { useParams, usePathname } from 'next/navigation'
 import { PropsWithChildren } from 'react'
 
 const catalogTabs = [
+  { title: 'Spaire Space', suffix: '__storefront__' },
   { title: 'Products', suffix: '' },
   { title: 'Payment Links', suffix: '/checkout-links' },
   { title: 'Discounts', suffix: '/discounts' },
   { title: 'Files', suffix: '/benefits' },
-  { title: 'Space Card', suffix: '__storefront__' },
 ]
 
 export default function CatalogLayout({ children }: PropsWithChildren) {
@@ -34,13 +34,13 @@ export default function CatalogLayout({ children }: PropsWithChildren) {
       return t.suffix === ''
         ? pathname === base || pathname === `${base}/`
         : pathname.startsWith(`${base}${t.suffix}`)
-    }) ?? catalogTabs[0]
+    }) ?? catalogTabs.find((t) => t.suffix === '') ?? catalogTabs[0]
 
   return (
     <div className="flex h-full flex-col">
       <div className="overflow-x-auto px-4 pt-6 md:px-8">
         <Tabs value={activeTab.title}>
-          <TabsList className="flex min-w-max flex-row bg-transparent ring-0 dark:bg-transparent dark:ring-0">
+          <TabsList className="flex min-w-max flex-row bg-transparent ring-0 ">
             {catalogTabs.map((tab) => (
               <Link
                 key={tab.title}

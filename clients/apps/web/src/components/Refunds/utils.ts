@@ -10,10 +10,10 @@ export const RefundStatusDisplayTitle: Record<schemas['RefundStatus'], string> =
 
 export const RefundStatusDisplayColor: Record<schemas['RefundStatus'], string> =
   {
-    succeeded: 'bg-emerald-100 text-emerald-500 dark:bg-emerald-950',
-    pending: 'bg-yellow-100 text-yellow-500 dark:bg-yellow-950',
-    failed: 'bg-red-100 text-red-500 dark:bg-red-950',
-    canceled: 'bg-gray-500 text-black dark:text-white dark:bg-spaire-500',
+    succeeded: 'bg-emerald-100 text-emerald-500',
+    pending: 'bg-yellow-100 text-yellow-500',
+    failed: 'bg-red-100 text-red-500',
+    canceled: 'bg-gray-500 text-black ',
   }
 
 export const RefundReasonDisplay: Record<schemas['RefundReason'], string> = {

@@ -42,8 +42,8 @@ export const CLAUDE_CODE_PLATFORM: AgentPlatform = {
   description:
     'Add two slash commands to your project, open Claude Code, and type the command. Claude Code reads your project files, asks a few clarifying questions, and writes the billing code directly into your codebase.',
   categoryLabel: 'Terminal AI Agent',
-  categoryColor: 'text-orange-600 dark:text-orange-400',
-  categoryBg: 'bg-orange-50 dark:bg-orange-500/10',
+  categoryColor: 'text-orange-600',
+  categoryBg: 'bg-orange-50',
   installCommand: 'npm install -g @anthropic-ai/claude-code',
   howItWorks: [
     {
@@ -96,8 +96,8 @@ export const CURSOR_PLATFORM: AgentPlatform = {
   description:
     'Drop `.cursor/rules/spaire.mdc` into your project. When you open Cursor Agent mode and describe what you want, Cursor has full Spaire API and SDK context — so you don\'t have to explain it yourself.',
   categoryLabel: 'AI Code Editor',
-  categoryColor: 'text-sky-600 dark:text-sky-400',
-  categoryBg: 'bg-sky-50 dark:bg-sky-500/10',
+  categoryColor: 'text-sky-600',
+  categoryBg: 'bg-sky-50',
   howItWorks: [
     {
       title: 'Download the rules file',
@@ -148,8 +148,8 @@ export const CODEX_PLATFORM: AgentPlatform = {
   description:
     'Install the Codex CLI, add a context file to your project, then give it a task. Codex reads AGENTS.md at startup, so it has Spaire API context before it touches your code.',
   categoryLabel: 'CLI AI Agent',
-  categoryColor: 'text-neutral-500 dark:text-neutral-400',
-  categoryBg: 'bg-neutral-100 dark:bg-neutral-500/10',
+  categoryColor: 'text-neutral-500',
+  categoryBg: 'bg-neutral-100',
   installCommand: 'npm i -g @openai/codex',
   howItWorks: [
     {
@@ -200,8 +200,8 @@ export const GITHUB_COPILOT_PLATFORM: AgentPlatform = {
   description:
     'Commit `.github/copilot-instructions.md` to your repo. GitHub Copilot loads it automatically in every chat session — so when you describe what you want, it already has Spaire API context.',
   categoryLabel: 'AI Pair Programmer',
-  categoryColor: 'text-violet-600 dark:text-violet-400',
-  categoryBg: 'bg-violet-50 dark:bg-violet-500/10',
+  categoryColor: 'text-violet-600',
+  categoryBg: 'bg-violet-50',
   howItWorks: [
     {
       title: 'Add the context file',

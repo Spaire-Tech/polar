@@ -5,7 +5,7 @@ import { SpaireLogotype } from '../Layout/Public/SpaireLogotype'
 
 const Footer = () => {
   return (
-    <div className="mt-16 flex w-full flex-col items-center gap-y-12 bg-white dark:bg-black">
+    <div className="mt-16 flex w-full flex-col items-center gap-y-12 bg-white">
       <div className="flex w-full flex-col items-center px-6 py-16 md:max-w-3xl md:px-0 lg:py-32 xl:max-w-6xl">
         <div className="grid w-full grid-cols-1 gap-12 md:grid-cols-2 md:justify-between md:gap-16 lg:grid-cols-6">
           <div className="flex h-full flex-1 flex-col justify-between gap-y-6 md:col-span-2">
@@ -19,19 +19,19 @@ const Footer = () => {
             <div className="flex flex-col gap-y-6">
               <Link
                 href="/signup"
-                className="flex w-fit flex-row items-center gap-x-2 border-b border-black pb-0.5 dark:border-white"
+                className="flex w-fit flex-row items-center gap-x-2 border-b border-black pb-0.5"
               >
                 <span>Join Spaire today</span>
                 <ArrowOutwardOutlined fontSize="inherit" />
               </Link>
-              <span className="dark:text-spaire-500 w-full text-gray-500">
+              <span className=" w-full text-gray-500">
                 &copy; Spaire {new Date().getFullYear()}
               </span>
             </div>
           </div>
 
           <div className="flex flex-col gap-y-4 text-sm">
-            <h3 className="dark:text-spaire-500 text-gray-500">Features</h3>
+            <h3 className=" text-gray-500">Features</h3>
             <div className="flex flex-col gap-y-3">
               <FooterLink href="/features/products">Products</FooterLink>
               <FooterLink href="/features/analytics">Usage Billing</FooterLink>
@@ -42,7 +42,7 @@ const Footer = () => {
             </div>
           </div>
           <div className="flex flex-col gap-y-4 text-sm">
-            <h3 className="dark:text-spaire-500 text-gray-500">Resources</h3>
+            <h3 className=" text-gray-500">Resources</h3>
             <div className="flex flex-col gap-y-3">
               <FooterLink href="/resources/why">Why Spaire</FooterLink>
               <FooterLink href="/resources/merchant-of-record">
@@ -53,7 +53,7 @@ const Footer = () => {
             </div>
           </div>
           <div className="flex flex-col gap-y-4 text-sm">
-            <h3 className="dark:text-spaire-500 text-gray-500">Company</h3>
+            <h3 className=" text-gray-500">Company</h3>
             <div className="flex flex-col gap-y-3">
               <FooterLink href="/company">About Spaire</FooterLink>
               <FooterLink href="https://github.com/spaire-tech">
@@ -75,7 +75,7 @@ const Footer = () => {
             </div>
           </div>
           <div className="flex flex-col gap-y-4 text-sm">
-            <h3 className="dark:text-spaire-500 text-gray-500">Support</h3>
+            <h3 className=" text-gray-500">Support</h3>
             <div className="flex flex-col gap-y-3">
               <FooterLink href="https://docs.spairehq.com">Docs</FooterLink>
               <FooterLink href="mailto:support@spairehq.com">Contact</FooterLink>
@@ -93,7 +93,7 @@ const Footer = () => {
 export default Footer
 
 const FooterLinkClassnames =
-  'dark:text-white dark:hover:text-spaire-100 flex flex-row items-center gap-x-1 text-black transition-colors hover:text-gray-500'
+  ' flex flex-row items-center gap-x-1 text-black transition-colors hover:text-gray-500'
 
 const FooterLink = (props: PropsWithChildren<{ href: string }>) => {
   const isExternal = props.href.toString().startsWith('http')

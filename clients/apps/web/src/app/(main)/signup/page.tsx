@@ -27,13 +27,13 @@ export default async function Page(props: {
 
   return (
     <div className="flex h-screen w-full flex-col items-center justify-center">
-      <div className="md:dark:border-spaire-700 md:dark:bg-spaire-900 grid w-full max-w-7xl grid-cols-1 gap-y-12 p-12 md:grid-cols-3 md:gap-x-32 md:rounded-4xl md:border md:border-gray-200 md:bg-gray-50 md:py-12 md:pr-0 md:pl-12">
+      <div className="grid w-full max-w-7xl grid-cols-1 gap-y-12 p-12 md:grid-cols-3 md:gap-x-32 md:rounded-4xl md:border md:border-gray-200 md:bg-gray-50 md:py-12 md:pr-0 md:pl-12">
         <div className="flex flex-col justify-between gap-y-24">
-          <LogoIcon className="text-blue-500 dark:text-white" size={80} />
+          <LogoIcon className="text-blue-500" size={80} />
 
           <div className="flex flex-col gap-y-4">
             <h1 className="text-3xl">Sign up to Spaire</h1>
-            <p className="dark:text-spaire-500 text-xl text-gray-500">
+            <p className=" text-xl text-gray-500">
               Payments, tax, and billing for digital products
             </p>
           </div>
@@ -41,7 +41,7 @@ export default async function Page(props: {
           <div className="flex flex-col gap-y-12">
             {/* <div className="flex flex-col gap-y-2">
               <label
-                className="dark:text-spaire-500 text-sm text-gray-500"
+                className=" text-sm text-gray-500"
                 htmlFor="org-name"
               >
                 Organization Name
@@ -56,11 +56,11 @@ export default async function Page(props: {
                   intent: 'creator',
                 }}
               />
-              <p className="text-center text-sm text-gray-500 dark:text-spaire-400">
+              <p className="text-center text-sm text-gray-500">
                 Already have an account?{' '}
                 <Link
                   href="/login"
-                  className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300"
+                  className="text-blue-500 hover:text-blue-600 "
                 >
                   Sign in
                 </Link>
@@ -68,7 +68,7 @@ export default async function Page(props: {
             </div>
           </div>
         </div>
-        <div className="dark:bg-spaire-950 dark:border-spaire-700 col-span-2 hidden overflow-hidden rounded-4xl rounded-r-none border border-r-0 border-gray-200 bg-gray-100 md:flex">
+        <div className=" col-span-2 hidden overflow-hidden rounded-4xl rounded-r-none border border-r-0 border-gray-200 bg-gray-100 md:flex">
           <picture className="flex h-full">
             <source
               media="(prefers-color-scheme: dark)"

@@ -4,7 +4,6 @@ import { CONFIG } from '@/utils/config'
 import ComputerOutlined from '@mui/icons-material/ComputerOutlined'
 import SmartphoneOutlined from '@mui/icons-material/SmartphoneOutlined'
 import { useQuery } from '@tanstack/react-query'
-import { useTheme } from 'next-themes'
 import { useMemo, useState } from 'react'
 import { twMerge } from 'tailwind-merge'
 
@@ -24,7 +23,6 @@ export const CheckoutLinkPreviewPanel = ({
   showDescription = true,
 }: CheckoutLinkPreviewPanelProps) => {
   const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop')
-  const { resolvedTheme } = useTheme()
 
   const { data: checkout, isLoading, error } = useQuery({
     queryKey: ['checkout-preview', productId],
@@ -46,7 +44,7 @@ export const CheckoutLinkPreviewPanel = ({
 
   const iframeSrc = useMemo(() => {
     if (!checkout?.client_secret) return null
-    const theme = resolvedTheme === 'dark' ? 'dark' : 'light'
+    const theme = 'light'
     const params = new URLSearchParams({
       theme,
       preview: 'true',
@@ -55,15 +53,15 @@ export const CheckoutLinkPreviewPanel = ({
       show_description: String(showDescription),
     })
     return `${CONFIG.FRONTEND_BASE_URL}/checkout/${checkout.client_secret}?${params}`
-  }, [checkout, resolvedTheme, showLogo, showMedia, showDescription])
+  }, [checkout, showLogo, showMedia, showDescription])
 
   const pct = `${(100 / SCALE).toFixed(2)}%`
 
   return (
-    <div className="flex h-full flex-col bg-gray-100 dark:bg-spaire-900">
+    <div className="flex h-full flex-col bg-gray-100">
       {/* Toolbar */}
-      <div className="flex shrink-0 items-center justify-between border-b border-gray-200 bg-white px-4 py-2.5 dark:border-spaire-700 dark:bg-spaire-800">
-        <span className="text-sm font-medium dark:text-white">Preview</span>
+      <div className="flex shrink-0 items-center justify-between border-b border-gray-200 bg-white px-4 py-2.5 ">
+        <span className="text-sm font-medium">Preview</span>
         <div className="flex items-center gap-1">
           <button
             type="button"
@@ -71,8 +69,8 @@ export const CheckoutLinkPreviewPanel = ({
             className={twMerge(
               'flex h-7 w-7 items-center justify-center rounded-lg transition-colors',
               device === 'desktop'
-                ? 'bg-gray-100 text-gray-900 dark:bg-spaire-700 dark:text-white'
-                : 'text-gray-400 hover:text-gray-700 dark:text-spaire-400 dark:hover:text-spaire-200',
+                ? 'bg-gray-100 text-gray-900 '
+                : 'text-gray-400 hover:text-gray-700 ',
             )}
           >
             <ComputerOutlined style={{ fontSize: 16 }} />
@@ -83,8 +81,8 @@ export const CheckoutLinkPreviewPanel = ({
             className={twMerge(
               'flex h-7 w-7 items-center justify-center rounded-lg transition-colors',
               device === 'mobile'
-                ? 'bg-gray-100 text-gray-900 dark:bg-spaire-700 dark:text-white'
-                : 'text-gray-400 hover:text-gray-700 dark:text-spaire-400 dark:hover:text-spaire-200',
+                ? 'bg-gray-100 text-gray-900 '
+                : 'text-gray-400 hover:text-gray-700 ',
             )}
           >
             <SmartphoneOutlined style={{ fontSize: 16 }} />
@@ -95,31 +93,31 @@ export const CheckoutLinkPreviewPanel = ({
       {/* Preview area */}
       <div className="flex flex-1 items-center justify-center overflow-hidden p-6">
         {!productId ? (
-          <p className="text-sm text-gray-400 dark:text-spaire-400">
+          <p className="text-sm text-gray-400">
             Select a product to preview the checkout
           </p>
         ) : isLoading ? (
-          <div className="h-32 w-full max-w-md animate-pulse rounded-xl bg-gray-200 dark:bg-spaire-700" />
+          <div className="h-32 w-full max-w-md animate-pulse rounded-xl bg-gray-200" />
         ) : error ? (
-          <p className="text-center text-sm text-gray-400 dark:text-spaire-400">
+          <p className="text-center text-sm text-gray-400">
             {(error as Error).message}
           </p>
         ) : iframeSrc ? (
           <div
             className={twMerge(
-              'flex flex-col overflow-hidden rounded-xl border border-gray-200 shadow-xl dark:border-spaire-700',
+              'flex flex-col overflow-hidden rounded-xl border border-gray-200 shadow-xl',
               'h-full',
               device === 'mobile' ? 'w-[300px]' : 'w-full',
             )}
           >
             {/* Browser chrome */}
-            <div className="flex shrink-0 items-center gap-2.5 border-b border-gray-200 bg-gray-100 px-3 py-2 dark:border-spaire-700 dark:bg-spaire-700">
+            <div className="flex shrink-0 items-center gap-2.5 border-b border-gray-200 bg-gray-100 px-3 py-2 ">
               <div className="flex items-center gap-1">
                 <div className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
                 <div className="h-2.5 w-2.5 rounded-full bg-[#ffbd2e]" />
                 <div className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
               </div>
-              <div className="flex-1 rounded-md border border-gray-200 bg-white px-2 py-0.5 text-center text-[10px] text-gray-400 dark:border-spaire-600 dark:bg-spaire-600 dark:text-spaire-300">
+              <div className="flex-1 rounded-md border border-gray-200 bg-white px-2 py-0.5 text-center text-[10px] text-gray-400  ">
                 checkout
               </div>
             </div>

@@ -11,7 +11,6 @@ import {
   CheckoutContext,
   CheckoutFormContext,
 } from '@spaire/checkout/providers'
-import { useTheme } from 'next-themes'
 
 const DummyCheckoutContextProvider = ({
   checkout,
@@ -34,8 +33,7 @@ const DummyCheckoutContextProvider = ({
 
   const embed = _embed === true
 
-  const { resolvedTheme } = useTheme()
-  const theme = _theme || (resolvedTheme as 'light' | 'dark')
+  const theme = _theme || 'light'
 
   return (
     <CheckoutContext.Provider

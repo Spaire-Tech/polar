@@ -57,7 +57,7 @@ export const Modal: FunctionComponent<ModalProps> = ({
       <FocusLock>
         <div
           ref={ref}
-          className="fixed top-0 right-0 bottom-0 left-0 z-50 overflow-hidden focus-within:outline-none dark:text-white"
+          className="fixed top-0 right-0 bottom-0 left-0 z-50 overflow-hidden focus-within:outline-none"
           aria-modal
           tabIndex={-1}
           role="dialog"
@@ -74,7 +74,7 @@ export const Modal: FunctionComponent<ModalProps> = ({
             <div className="block h-20 w-2 lg:max-h-[10%] lg:grow-2"></div>
             <motion.div
               className={twMerge(
-                'dark:bg-spaire-950 dark:border-spaire-800 relative z-10 flex max-h-full w-full flex-col gap-y-1 overflow-x-hidden overflow-y-auto rounded-3xl bg-gray-100 p-1 shadow-sm lg:w-[800px] lg:max-w-full dark:border',
+                ' relative z-10 flex max-h-full w-full flex-col gap-y-1 overflow-x-hidden overflow-y-auto rounded-3xl bg-gray-100 p-1 shadow-sm lg:w-[800px] lg:max-w-full ',
                 className,
               )}
               initial={{ opacity: 0, scale: 0.99 }}
@@ -83,19 +83,19 @@ export const Modal: FunctionComponent<ModalProps> = ({
               onClick={onInnerClick}
             >
               <div className="flex flex-row items-center justify-between pt-1 pr-1 pb-0 pl-4 text-sm">
-                <span className="dark:text-spaire-500 text-gray-500">
+                <span className=" text-gray-500">
                   {title}
                 </span>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="dark:text-spaire-500 dark:hover:text-spaire-400 size-8 rounded-full text-gray-500 hover:text-gray-600"
+                  className=" size-8 rounded-full text-gray-500 hover:text-gray-600"
                   onClick={hide}
                 >
                   <CloseOutlined fontSize="inherit" />
                 </Button>
               </div>
-              <div className="dark:bg-spaire-900 flex flex-col overflow-y-auto rounded-[20px] bg-white">
+              <div className=" flex flex-col overflow-y-auto rounded-[20px] bg-white">
                 {modalContent}
               </div>
             </motion.div>
@@ -116,7 +116,7 @@ export const ModalHeader = (props: {
   return (
     <div
       className={twMerge(
-        'dark:bg-spaire-800 dark:text-spaire-100 flex w-full items-center justify-between border-b px-5 py-3',
+        ' flex w-full items-center justify-between border-b px-5 py-3',
         props.className,
       )}
     >
@@ -167,7 +167,7 @@ export const ModalBox = ({
   return (
     <div
       className={twMerge(
-        'dark:bg-spaire-700 z-0 flex h-full w-full flex-col space-y-2 overflow-hidden rounded-2xl bg-gray-50 p-5 shadow-2xl',
+        ' z-0 flex h-full w-full flex-col space-y-2 overflow-hidden rounded-2xl bg-gray-50 p-5 shadow-2xl',
         className,
       )}
     >

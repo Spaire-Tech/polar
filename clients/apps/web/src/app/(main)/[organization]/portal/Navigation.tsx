@@ -105,7 +105,7 @@ const NavigationContent = ({
         {customerPortalSession && customerPortalSession.return_url && (
           <Link
             href={customerPortalSession.return_url}
-            className="dark:text-spaire-500 flex flex-row items-center gap-x-4 py-2 text-gray-500"
+            className=" flex flex-row items-center gap-x-4 py-2 text-gray-500"
           >
             <ArrowBackOutlined fontSize="inherit" />
             <span>Back to {organization.name}</span>
@@ -113,7 +113,7 @@ const NavigationContent = ({
         )}
         <div className="flex flex-col">
           <h3>{authenticatedUser?.name ?? '—'}</h3>
-          <span className="dark:text-spaire-500 text-gray-500">
+          <span className=" text-gray-500">
             {authenticatedUser?.email ?? '—'}
           </span>
         </div>
@@ -123,9 +123,9 @@ const NavigationContent = ({
               key={link.href}
               href={buildPath(link.href)}
               className={twMerge(
-                'dark:text-spaire-500 dark:hover:bg-spaire-800 rounded-lg border border-transparent px-3 py-1.5 text-sm font-medium text-gray-500 transition-colors duration-75 hover:bg-gray-100',
+                ' rounded-lg border border-transparent px-3 py-1.5 text-sm font-medium text-gray-500 transition-colors duration-75 hover:bg-gray-100',
                 link.isActive(currentPath) &&
-                  'dark:bg-spaire-800 dark:border-spaire-700 bg-gray-100 text-black dark:text-white',
+                  ' bg-gray-100 text-black ',
               )}
               prefetch
             >

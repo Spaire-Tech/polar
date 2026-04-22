@@ -51,7 +51,7 @@ export const CheckoutLinkDetailPanel = ({
           <span>Payment Link</span>
         </InlineModalHeader>
         <div className="flex flex-1 items-center justify-center">
-          <p className="dark:text-spaire-500 text-gray-500">Link not found</p>
+          <p className=" text-gray-500">Link not found</p>
         </div>
       </div>
     )
@@ -110,7 +110,7 @@ const CheckoutLinkDetailPanelContent = ({
     <div className="flex h-full flex-col">
       <InlineModalHeader hide={onClose}>
         <div className="flex flex-row items-center gap-3">
-          <span className="dark:bg-spaire-700 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600 dark:text-gray-300">
+          <span className=" flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600">
             <LinkOutlined fontSize="small" />
           </span>
           <div className="flex flex-col">
@@ -119,14 +119,14 @@ const CheckoutLinkDetailPanelContent = ({
                 ? checkoutLink.label
                 : 'Untitled'}
             </span>
-            <span className="dark:text-spaire-500 font-mono text-xs text-gray-500">
+            <span className=" font-mono text-xs text-gray-500">
               {productLabel}
             </span>
           </div>
         </div>
       </InlineModalHeader>
 
-      <div className="flex flex-row items-center justify-end border-b border-gray-200 px-8 py-3 dark:border-spaire-700">
+      <div className="flex flex-row items-center justify-end border-b border-gray-200 px-8 py-3">
         <DropdownMenu>
           <DropdownMenuTrigger className="focus:outline-none" asChild>
             <Button size="icon" variant="secondary" loading={isDeletePending}>
@@ -135,7 +135,7 @@ const CheckoutLinkDetailPanelContent = ({
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="end"
-            className="dark:bg-spaire-800 bg-gray-50 shadow-lg"
+            className=" bg-gray-50 shadow-lg"
           >
             <DropdownMenuItem destructive onClick={showDeleteModal}>
               Delete payment link

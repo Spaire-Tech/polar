@@ -25,10 +25,10 @@ export default function StepIndicator({ currentStep }: StepIndicatorProps) {
                   'flex h-7 w-7 items-center justify-center rounded-full text-xs font-medium transition-colors',
                   isCompleted && 'bg-blue-500 text-white',
                   isActive &&
-                    'border-2 border-blue-500 bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400',
+                    'border-2 border-blue-500 bg-blue-50 text-blue-600 ',
                   !isActive &&
                     !isCompleted &&
-                    'dark:border-spaire-600 dark:text-spaire-500 border-2 border-gray-300 text-gray-400',
+                    ' border-2 border-gray-300 text-gray-400',
                 )}
               >
                 {isCompleted ? (
@@ -40,11 +40,11 @@ export default function StepIndicator({ currentStep }: StepIndicatorProps) {
               <span
                 className={twMerge(
                   'hidden text-xs font-medium md:block',
-                  isActive && 'text-blue-600 dark:text-blue-400',
-                  isCompleted && 'text-gray-500 dark:text-gray-400',
+                  isActive && 'text-blue-600',
+                  isCompleted && 'text-gray-500',
                   !isActive &&
                     !isCompleted &&
-                    'dark:text-spaire-500 text-gray-400',
+                    ' text-gray-400',
                 )}
               >
                 {label}
@@ -57,7 +57,7 @@ export default function StepIndicator({ currentStep }: StepIndicatorProps) {
                   'mx-3 h-0.5 w-12 md:w-20',
                   stepNum < currentStep
                     ? 'bg-blue-500'
-                    : 'dark:bg-spaire-700 bg-gray-200',
+                    : ' bg-gray-200',
                 )}
               />
             )}

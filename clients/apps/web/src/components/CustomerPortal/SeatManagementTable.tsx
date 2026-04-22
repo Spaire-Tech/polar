@@ -16,15 +16,15 @@ import { twMerge } from 'tailwind-merge'
 const seatStatusToDisplayName = {
   pending: [
     'Pending',
-    'bg-yellow-100 text-yellow-500 dark:bg-yellow-950 dark:text-yellow-500',
+    'bg-yellow-100 text-yellow-500 ',
   ],
   claimed: [
     'Claimed',
-    'bg-emerald-100 text-emerald-500 dark:bg-emerald-950 dark:text-emerald-500',
+    'bg-emerald-100 text-emerald-500 ',
   ],
   revoked: [
     'Revoked',
-    'bg-gray-100 text-gray-500 dark:bg-spaire-700 dark:text-spaire-500',
+    'bg-gray-100 text-gray-500 ',
   ],
 } as const
 

@@ -135,7 +135,7 @@ export function MetricsSubNav({
 
       <div className={`hidden ${breakpointBlock}`}>
         <Tabs className="-mx-4.5" value={currentTab?.title}>
-          <TabsList className="flex flex-row flex-wrap justify-start bg-transparent ring-0 dark:bg-transparent dark:ring-0">
+          <TabsList className="flex flex-row flex-wrap justify-start bg-transparent ring-0 ">
             {tabs.map((tab) => {
               const href = queryString ? `${tab.href}?${queryString}` : tab.href
               return (

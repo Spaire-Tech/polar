@@ -66,9 +66,9 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
       if (modeMatch) {
         const mode = modeMatch[1]
         if (mode === 'light') {
-          className = `${className} dark:hidden`
+          className = `${className}`
         } else {
-          className = `${className} hidden dark:block`
+          className = `${className} hidden`
         }
       }
       // @ts-ignore

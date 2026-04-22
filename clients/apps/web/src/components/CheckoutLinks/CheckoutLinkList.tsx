@@ -62,7 +62,7 @@ export const CheckoutLinkList = ({
   }, [inViewport, hasNextPage, fetchNextPage])
 
   return (
-    <div className="dark:divide-spaire-800 flex h-full flex-col divide-y divide-gray-200">
+    <div className=" flex h-full flex-col divide-y divide-gray-200">
       <div className="flex flex-row items-center justify-between gap-6 px-4 py-4">
         <div>Checkout Links</div>
         <div className="flex flex-row items-center gap-4">
@@ -98,7 +98,7 @@ export const CheckoutLinkList = ({
           onChange={(productIds) => setProductIds(productIds)}
         />
       </div>
-      <div className="dark:divide-spaire-800 flex h-full grow flex-col divide-y divide-gray-50 overflow-y-auto">
+      <div className=" flex h-full grow flex-col divide-y divide-gray-50 overflow-y-auto">
         {checkoutLinks.map((checkoutLink) => {
           const productLabel =
             checkoutLink.products.length === 1
@@ -118,24 +118,24 @@ export const CheckoutLinkList = ({
               key={checkoutLink.id}
               onClick={() => setSelectedCheckoutLinkId(checkoutLink.id)}
               className={twMerge(
-                'dark:hover:bg-spaire-800 cursor-pointer hover:bg-gray-100',
+                ' cursor-pointer hover:bg-gray-100',
                 selectedCheckoutLinkId === checkoutLink.id &&
-                  'dark:bg-spaire-800 bg-gray-100',
+                  ' bg-gray-100',
               )}
             >
               <div className="flex flex-row items-center gap-3 px-4 py-3">
                 <div
-                  className={`h-2 w-2 shrink-0 rounded-full ${isActive ? 'bg-green-500' : 'bg-gray-300 dark:bg-spaire-600'}`}
+                  className={`h-2 w-2 shrink-0 rounded-full ${isActive ? 'bg-green-500' : 'bg-gray-300'}`}
                   title={isActive ? 'Active' : 'Inactive'}
                 />
                 <div className="flex min-w-0 flex-1 flex-col gap-1">
                   <div
-                    className={`w-full truncate text-sm ${isActive ? '' : 'text-gray-400 line-through dark:text-spaire-500'}`}
+                    className={`w-full truncate text-sm ${isActive ? '' : 'text-gray-400 line-through'}`}
                   >
                     {displayName}
                   </div>
                   <div>
-                    <div className="dark:text-spaire-500 w-full truncate text-sm text-gray-500">
+                    <div className=" w-full truncate text-sm text-gray-500">
                       {productLabel}
                     </div>
                   </div>

@@ -22,7 +22,7 @@ export const CustomerPortalGrantsSimple = ({
           {benefitGrants?.map((benefitGrant) => (
             <ListItem
               key={benefitGrant.id}
-              className="py-6 hover:bg-transparent dark:hover:bg-transparent"
+              className="py-6 hover:bg-transparent"
             >
               <BenefitGrant api={api} benefitGrant={benefitGrant} />
             </ListItem>

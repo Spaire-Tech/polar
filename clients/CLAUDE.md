@@ -44,29 +44,13 @@ clients/
 blue-500   /* Primary actions, links */
 blue-600   /* Hover states */
 
-/* Grays for light mode */
+/* Grays */
 gray-50    /* Subtle backgrounds */
 gray-100   /* Card backgrounds */
 gray-200   /* Borders */
 gray-400   /* Secondary text */
 gray-500   /* Muted text */
 gray-900   /* Primary text */
-
-/* Polar colors for dark mode */
-polar-700  /* Card backgrounds */
-polar-800  /* Page backgrounds */
-polar-900  /* Deeper backgrounds */
-polar-950  /* Darkest */
-```
-
-### Dark Mode Pattern
-
-Always provide dark mode variants using the `dark:` prefix:
-
-```tsx
-<div className="dark:bg-polar-800 bg-white text-gray-900 dark:text-gray-200">
-  <p className="dark:text-polar-400 text-gray-500">Muted text</p>
-</div>
 ```
 
 ### Border Radius
@@ -102,9 +86,9 @@ const buttonVariants = cva(
       variant: {
         default: 'bg-blue-500 text-white hover:bg-blue-600',
         secondary:
-          'bg-gray-100 dark:bg-polar-700 text-gray-900 dark:text-white',
-        outline: 'border border-gray-200 dark:border-polar-700 bg-transparent',
-        ghost: 'hover:bg-gray-100 dark:hover:bg-polar-700',
+          'bg-gray-100 text-gray-900',
+        outline: 'border border-gray-200 bg-transparent',
+        ghost: 'hover:bg-gray-100',
       },
       size: {
         default: 'h-10 px-4 py-2',
@@ -131,9 +115,9 @@ const Button = ({ className, variant, size, ...props }) => (
 ### Card Pattern
 
 ```tsx
-<div className="dark:border-polar-700 dark:bg-polar-800 rounded-xl border border-gray-200 bg-white p-4">
-  <h3 className="text-lg font-medium text-gray-900 dark:text-white">Title</h3>
-  <p className="dark:text-polar-400 text-gray-500">Description</p>
+<div className="rounded-xl border border-gray-200 bg-white p-4">
+  <h3 className="text-lg font-medium text-gray-900">Title</h3>
+  <p className="text-gray-500">Description</p>
 </div>
 ```
 
@@ -262,7 +246,7 @@ import { cn } from '@spaire/ui/lib/utils' // className merger
 ```tsx
 if (isLoading) {
   return (
-    <div className="dark:bg-polar-700 h-32 animate-pulse rounded-xl bg-gray-100" />
+    <div className="h-32 animate-pulse rounded-xl bg-gray-100" />
   )
 }
 ```
@@ -273,7 +257,7 @@ if (isLoading) {
 if (!data?.length) {
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
-      <p className="dark:text-polar-400 text-gray-500">No items found</p>
+      <p className="text-gray-500">No items found</p>
       <Button variant="secondary" className="mt-4">
         Create First Item
       </Button>
@@ -287,7 +271,7 @@ if (!data?.length) {
 ```tsx
 if (error) {
   return (
-    <div className="rounded-xl bg-red-50 p-4 text-red-600 dark:bg-red-900/20 dark:text-red-400">
+    <div className="rounded-xl bg-red-50 p-4 text-red-600">
       {error.message}
     </div>
   )

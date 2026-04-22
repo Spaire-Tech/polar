@@ -121,7 +121,7 @@ export default function FounderIntentStep({
         <FadeUp className="flex flex-col gap-y-4">
           <div className="flex flex-col gap-y-1">
             <Label className="text-sm font-medium">What are you building?</Label>
-            <p className="dark:text-spaire-500 text-xs text-gray-400">
+            <p className=" text-xs text-gray-400">
               This helps us recommend the right entity type.
             </p>
           </div>
@@ -135,14 +135,14 @@ export default function FounderIntentStep({
                   form.setValue('product_type', type.id as FounderIntentData['product_type'])
                 }}
                 className={twMerge(
-                  'dark:bg-spaire-900 dark:border-spaire-700 flex cursor-pointer flex-col gap-y-1.5 rounded-2xl border border-gray-200 bg-white p-5 text-left transition-all',
+                  ' flex cursor-pointer flex-col gap-y-1.5 rounded-2xl border border-gray-200 bg-white p-5 text-left transition-all',
                   productType === type.id
-                    ? 'border-blue-500 ring-1 ring-blue-500 dark:border-blue-500'
-                    : 'hover:border-gray-300 dark:hover:border-spaire-600',
+                    ? 'border-blue-500 ring-1 ring-blue-500'
+                    : 'hover:border-gray-300',
                 )}
               >
                 <span className="text-sm font-medium">{type.label}</span>
-                <span className="dark:text-spaire-500 text-xs leading-relaxed text-gray-400">
+                <span className=" text-xs leading-relaxed text-gray-400">
                   {type.description}
                 </span>
               </button>
@@ -232,14 +232,14 @@ export default function FounderIntentStep({
                   form.setValue('planning_to_raise_vc', option.id as FounderIntentData['planning_to_raise_vc'])
                 }}
                 className={twMerge(
-                  'dark:bg-spaire-900 dark:border-spaire-700 flex cursor-pointer flex-col items-center gap-y-1.5 rounded-2xl border border-gray-200 bg-white p-5 text-center transition-all',
+                  ' flex cursor-pointer flex-col items-center gap-y-1.5 rounded-2xl border border-gray-200 bg-white p-5 text-center transition-all',
                   vcPlan === option.id
-                    ? 'border-blue-500 ring-1 ring-blue-500 dark:border-blue-500'
-                    : 'hover:border-gray-300 dark:hover:border-spaire-600',
+                    ? 'border-blue-500 ring-1 ring-blue-500'
+                    : 'hover:border-gray-300',
                 )}
               >
                 <span className="text-sm font-medium">{option.label}</span>
-                <span className="dark:text-spaire-500 text-xs text-gray-400">
+                <span className=" text-xs text-gray-400">
                   {option.description}
                 </span>
               </button>
@@ -269,10 +269,10 @@ export default function FounderIntentStep({
                   form.setValue('number_of_founders', option.id as FounderIntentData['number_of_founders'])
                 }}
                 className={twMerge(
-                  'dark:bg-spaire-900 dark:border-spaire-700 cursor-pointer rounded-full border border-gray-200 px-4 py-2 text-sm transition-all',
+                  ' cursor-pointer rounded-full border border-gray-200 px-4 py-2 text-sm transition-all',
                   founderCount === option.id
-                    ? 'border-blue-500 bg-blue-50 text-blue-600 dark:border-blue-500 dark:bg-blue-500/10 dark:text-blue-400'
-                    : 'hover:border-gray-300 dark:hover:border-spaire-600',
+                    ? 'border-blue-500 bg-blue-50 text-blue-600  '
+                    : 'hover:border-gray-300',
                 )}
               >
                 {option.label}
@@ -294,7 +294,7 @@ export default function FounderIntentStep({
         <FadeUp className="flex flex-col gap-y-4">
           <div className="flex flex-col gap-y-1">
             <Label className="text-sm font-medium">Plan to issue equity (stock options, SAFEs)?</Label>
-            <p className="dark:text-spaire-500 text-xs text-gray-400">
+            <p className=" text-xs text-gray-400">
               Common for startups hiring engineers or raising capital.
             </p>
           </div>
@@ -308,10 +308,10 @@ export default function FounderIntentStep({
                   form.setValue('equity_plans', option.id as FounderIntentData['equity_plans'])
                 }}
                 className={twMerge(
-                  'dark:bg-spaire-900 dark:border-spaire-700 cursor-pointer rounded-full border border-gray-200 px-4 py-2 text-sm transition-all',
+                  ' cursor-pointer rounded-full border border-gray-200 px-4 py-2 text-sm transition-all',
                   equityPlan === option.id
-                    ? 'border-blue-500 bg-blue-50 text-blue-600 dark:border-blue-500 dark:bg-blue-500/10 dark:text-blue-400'
-                    : 'hover:border-gray-300 dark:hover:border-spaire-600',
+                    ? 'border-blue-500 bg-blue-50 text-blue-600  '
+                    : 'hover:border-gray-300',
                 )}
               >
                 {option.label}

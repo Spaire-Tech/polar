@@ -30,35 +30,35 @@ export default function FormationRecommendationCard({
     recommendation.formation_state
 
   return (
-    <Card className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30">
+    <Card className="border-blue-200 bg-blue-50 ">
       <CardHeader className="pb-3">
         <div className="flex items-center gap-2">
           <AccountBalanceOutlined
-            className="text-blue-600 dark:text-blue-400"
+            className="text-blue-600"
             fontSize="small"
           />
-          <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
+          <span className="text-sm font-medium text-blue-600">
             Recommended Structure
           </span>
           {recommendation.confidence === 'high' && (
-            <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
+            <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 ">
               High confidence
             </span>
           )}
         </div>
-        <h3 className="text-xl font-semibold dark:text-white">
+        <h3 className="text-xl font-semibold">
           {stateLabel} {entityLabel}
         </h3>
       </CardHeader>
       <CardContent>
-        <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+        <p className="mb-2 text-sm font-medium text-gray-700">
           Why this recommendation?
         </p>
         <ul className="space-y-1.5">
           {recommendation.reasons.map((reason, i) => (
             <li
               key={i}
-              className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400"
+              className="flex items-start gap-2 text-sm text-gray-600"
             >
               <CheckCircleOutlined
                 className="mt-0.5 shrink-0 text-green-500"

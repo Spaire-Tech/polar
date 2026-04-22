@@ -59,11 +59,11 @@ export const AnonymousCustomerAvatar = ({
   return (
     <div
       className={twMerge(
-        'relative flex size-8 items-center justify-center overflow-hidden rounded-full bg-white dark:bg-black',
+        'relative flex size-8 items-center justify-center overflow-hidden rounded-full bg-white',
         className,
       )}
     >
-      <div className="absolute inset-0 rounded-full ring ring-black/5 ring-inset dark:ring-white/10" />
+      <div className="absolute inset-0 rounded-full ring ring-black/5 ring-inset" />
       <svg viewBox="0 0 24 24" fill="white">
         <defs>
           <linearGradient
@@ -169,7 +169,7 @@ export const AnonymousCustomerAvatar = ({
           </mask>
         </defs>
         <g
-          className="opacity-30 dark:opacity-10"
+          className="opacity-30"
           filter={`url(#${id}-saturate)`}
         >
           <rect
@@ -191,7 +191,7 @@ export const AnonymousCustomerAvatar = ({
         <g
           filter={`url(#${id}-saturate)`}
           mask={`url(#${id}-shape-mask)`}
-          className="opacity-95 dark:opacity-60"
+          className="opacity-95"
         >
           <rect
             width="100%"

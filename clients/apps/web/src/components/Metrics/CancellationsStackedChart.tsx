@@ -15,7 +15,6 @@ import {
   XAxis,
   YAxis,
 } from '@spaire/ui/components/ui/chart'
-import { useTheme } from 'next-themes'
 import { useMemo } from 'react'
 import {
   CANCELLATION_REASONS,
@@ -34,8 +33,7 @@ export default function CancellationsStackedChart({
   interval,
   height = 300,
 }: CancellationsStackedChartProps) {
-  const { resolvedTheme } = useTheme()
-  const isDark = resolvedTheme === 'dark'
+  const isDark = false
 
   const chartData = useMemo(() => {
     return data.periods.map((period) => ({

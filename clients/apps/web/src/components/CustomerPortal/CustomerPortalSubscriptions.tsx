@@ -5,7 +5,6 @@ import Button from '@spaire/ui/components/atoms/Button'
 import { DataTable } from '@spaire/ui/components/atoms/DataTable'
 import FormattedDateTime from '@spaire/ui/components/atoms/FormattedDateTime'
 import { getThemePreset } from '@spaire/ui/hooks/theming'
-import { useTheme } from 'next-themes'
 import { useRouter } from 'next/navigation'
 import { useCallback, useMemo, useState } from 'react'
 import { InlineModal } from '../Modal/InlineModal'
@@ -48,7 +47,7 @@ export const ActiveSubscriptionsOverview = ({
             />
           ))
         ) : (
-          <div className="dark:border-spaire-700 flex flex-col items-center justify-center rounded-2xl border border-gray-200 p-12 text-gray-500">
+          <div className=" flex flex-col items-center justify-center rounded-2xl border border-gray-200 p-12 text-gray-500">
             <p>No Subscriptions Found</p>
           </div>
         )}
@@ -69,10 +68,9 @@ export const InactiveSubscriptionsOverview = ({
   customerSessionToken,
 }: SubscriptionsOverviewProps) => {
   const router = useRouter()
-  const theme = useTheme()
   const themingPreset = getThemePreset(
     organization.slug,
-    theme.resolvedTheme as 'light' | 'dark',
+    'light',
   )
 
   const [selectedSubscription, setSelectedSubscription] = useState<

@@ -9,7 +9,7 @@ export default async function Layout({ children }: PropsWithChildren) {
 
   return (
     <PolarThemeProvider>
-      <div className="h-full bg-white dark:bg-black dark:text-white">
+      <div className="h-full bg-white ">
         {children}
         <CookieConsent countryCode={countryCode} />
       </div>

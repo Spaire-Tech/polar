@@ -295,9 +295,9 @@ export const ProductMockupGenerator = ({
         if (!v) onClose()
       }}
     >
-      <DialogContent className="dark:bg-spaire-900 max-w-4xl gap-5 border-gray-200 bg-white dark:border-spaire-700">
+      <DialogContent className=" max-w-4xl gap-5 border-gray-200 bg-white">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-gray-900 dark:text-white">
+          <DialogTitle className="flex items-center gap-2 text-gray-900">
             <AutoFixHighOutlined fontSize="small" />
             Generate Product Mockup
           </DialogTitle>
@@ -313,8 +313,8 @@ export const ProductMockupGenerator = ({
               className={cn(
                 'flex flex-col items-start gap-1.5 rounded-xl border p-3 text-left transition-all',
                 frameStyle === opt.id
-                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40'
-                  : 'dark:border-spaire-700 border-gray-200 hover:border-gray-300 dark:hover:border-spaire-600',
+                  ? 'border-blue-500 bg-blue-50'
+                  : ' border-gray-200 hover:border-gray-300',
               )}
             >
               {/* Mini frame preview */}
@@ -324,10 +324,10 @@ export const ProductMockupGenerator = ({
                   opt.bgClass,
                 )}
               />
-              <span className="text-xs font-medium text-gray-900 dark:text-white">
+              <span className="text-xs font-medium text-gray-900">
                 {opt.label}
               </span>
-              <span className="dark:text-spaire-400 text-[11px] leading-tight text-gray-500">
+              <span className=" text-[11px] leading-tight text-gray-500">
                 {opt.description}
               </span>
             </button>
@@ -335,7 +335,7 @@ export const ProductMockupGenerator = ({
         </div>
 
         {/* Canvas preview */}
-        <div className="dark:bg-spaire-950 relative overflow-hidden rounded-xl bg-gray-100">
+        <div className=" relative overflow-hidden rounded-xl bg-gray-100">
           <canvas
             ref={canvasRef}
             width={CANVAS_W}
@@ -344,7 +344,7 @@ export const ProductMockupGenerator = ({
           />
           {!screenshot && (
             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2">
-              <p className="dark:text-spaire-400 rounded-md bg-black/20 px-3 py-1.5 text-sm text-gray-600 backdrop-blur-sm dark:bg-white/5 dark:text-white/60">
+              <p className=" rounded-md bg-black/20 px-3 py-1.5 text-sm text-gray-600 backdrop-blur-sm ">
                 Upload a screenshot to preview your mockup
               </p>
             </div>

@@ -11,16 +11,16 @@ const buttonVariants = cva(
         default:
           'bg-primary text-white hover:opacity-85 transition-opacity duration-100 border border-white/10',
         destructive:
-          'bg-red-500 dark:bg-red-600 text-white hover:bg-red-400 dark:hover:bg-red-500',
+          'bg-red-500 text-white hover:bg-red-400',
         outline:
-          'text-black dark:text-white hover:bg-gray-200 dark:bg-transparent dark:hover:bg-spaire-700 border-transparent hover:border-gray-200 border dark:border-spaire-700 bg-transparent border-gray-100',
+          'text-black hover:bg-gray-200 border-transparent hover:border-gray-200 border bg-transparent border-gray-100',
         secondary:
-          'text-black dark:text-white hover:bg-gray-200 dark:bg-spaire-700 dark:hover:bg-spaire-600 bg-gray-100 border dark:border-white/5 border-black/4',
+          'text-black hover:bg-gray-200 bg-gray-100 border border-black/4',
         underline:
-          'text-black dark:text-white bg-transparent border-b hover:border-black dark:hover:border-white border-transparent transition-colors duration-300 p-0! hover:bg-transparent rounded-none!',
+          'text-black bg-transparent border-b hover:border-black border-transparent transition-colors duration-300 p-0! hover:bg-transparent rounded-none!',
         link: 'text-blue-400 underline-offset-4 hover:underline bg-transparent hover:bg-transparent',
         ghost:
-          'bg-transparent hover:bg-gray-200 dark:hover:bg-spaire-700 dark:bg-transparent text-black dark:text-white',
+          'bg-transparent hover:bg-gray-200 text-black',
       },
       size: {
         default: 'h-10 px-4 py-2 rounded-xl text-sm',

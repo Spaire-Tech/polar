@@ -19,7 +19,7 @@ export const ProductThumbnail = ({
   return (
     <div
       className={twMerge(
-        'dark:bg-spaire-800 dark:border-spaire-700 hidden aspect-square h-10 shrink-0 grow-0 flex-col items-center justify-center border border-transparent bg-gray-100 text-center md:flex',
+        ' hidden aspect-square h-10 shrink-0 grow-0 flex-col items-center justify-center border border-transparent bg-gray-100 text-center md:flex',
         sizeClassName,
       )}
     >
@@ -33,7 +33,7 @@ export const ProductThumbnail = ({
       ) : (
         <TextureOutlined
           fontSize="medium"
-          className="dark:text-spaire-600 text-gray-300"
+          className=" text-gray-300"
         />
       )}
     </div>

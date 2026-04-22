@@ -11,7 +11,7 @@ import { useEffect, useRef } from 'react'
 const BlockRenderer = ({ block }: { block: ContentBlock }) => {
   if (block.type === 'paragraph') {
     return (
-      <p className="dark:text-spaire-300 text-sm leading-relaxed text-gray-600">
+      <p className=" text-sm leading-relaxed text-gray-600">
         {block.text}
       </p>
     )
@@ -19,8 +19,8 @@ const BlockRenderer = ({ block }: { block: ContentBlock }) => {
 
   if (block.type === 'note') {
     return (
-      <div className="dark:border-spaire-700 dark:bg-spaire-800 rounded-lg border border-amber-100 bg-amber-50 px-4 py-3">
-        <p className="text-xs leading-relaxed text-amber-700 dark:text-amber-400">
+      <div className=" rounded-lg border border-amber-100 bg-amber-50 px-4 py-3">
+        <p className="text-xs leading-relaxed text-amber-700">
           <span className="font-semibold">Important: </span>
           {block.text}
         </p>
@@ -33,7 +33,7 @@ const BlockRenderer = ({ block }: { block: ContentBlock }) => {
     return (
       <div className="flex flex-col gap-y-1.5">
         {block.label && (
-          <p className="dark:text-spaire-400 text-sm text-gray-500">
+          <p className=" text-sm text-gray-500">
             {block.label}
           </p>
         )}
@@ -41,10 +41,10 @@ const BlockRenderer = ({ block }: { block: ContentBlock }) => {
           <ol className="flex flex-col gap-y-1.5 pl-1">
             {block.items.map((item, i) => (
               <li key={i} className="flex items-start gap-x-2.5">
-                <span className="dark:bg-spaire-700 dark:text-spaire-300 mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-medium text-gray-600">
+                <span className=" mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-medium text-gray-600">
                   {i + 1}
                 </span>
-                <span className="dark:text-spaire-300 text-sm leading-relaxed text-gray-700">
+                <span className=" text-sm leading-relaxed text-gray-700">
                   {item}
                 </span>
               </li>
@@ -55,7 +55,7 @@ const BlockRenderer = ({ block }: { block: ContentBlock }) => {
             {block.items.map((item, i) => (
               <li key={i} className="flex items-start gap-x-2.5">
                 <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
-                <span className="dark:text-spaire-300 text-sm leading-relaxed text-gray-700">
+                <span className=" text-sm leading-relaxed text-gray-700">
                   {item}
                 </span>
               </li>
@@ -71,7 +71,7 @@ const BlockRenderer = ({ block }: { block: ContentBlock }) => {
 
 const SectionRenderer = ({ section }: { section: PerkSection }) => (
   <div className="flex flex-col gap-y-3">
-    <h3 className="text-sm font-semibold dark:text-white">{section.heading}</h3>
+    <h3 className="text-sm font-semibold">{section.heading}</h3>
     <div className="flex flex-col gap-y-3">
       {section.blocks.map((block, i) => (
         <BlockRenderer key={i} block={block} />
@@ -119,14 +119,14 @@ const PerkDetailModalContent = ({
 
       <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col gap-y-8 overflow-y-auto px-8 pb-10">
         {/* Hero */}
-        <div className="flex flex-col items-center gap-y-4 rounded-2xl bg-gray-50 px-6 py-8 text-center dark:bg-spaire-800">
+        <div className="flex flex-col items-center gap-y-4 rounded-2xl bg-gray-50 px-6 py-8 text-center">
           <img
             src={perk.logo}
             alt={perk.name}
             className="h-16 w-16 rounded-2xl object-cover shadow-sm"
           />
           <div className="flex flex-col gap-y-1">
-            <h2 className="text-xl font-semibold dark:text-white">
+            <h2 className="text-xl font-semibold">
               {perk.name}
             </h2>
             <span className="text-base font-medium text-emerald-500">
@@ -136,7 +136,7 @@ const PerkDetailModalContent = ({
         </div>
 
         {/* Sections */}
-        <div className="dark:divide-spaire-700 flex flex-col divide-y divide-gray-100">
+        <div className=" flex flex-col divide-y divide-gray-100">
           {perk.details.sections.map((section, i) => (
             <div key={i} className="py-6 first:pt-0 last:pb-0">
               <SectionRenderer section={section} />
@@ -162,7 +162,7 @@ const PerkDetailModalContent = ({
               
               <span>Claim Now</span>
             </Button>
-            <p className="text-center text-xs text-gray-500 dark:text-gray-400">
+            <p className="text-center text-xs text-gray-500">
               Complete your first sale through Spaire to unlock this perk.
             </p>
           </div>

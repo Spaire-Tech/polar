@@ -156,7 +156,7 @@ export default function SubscribersPage({
                 accent="bg-gray-400"
               />
             </div>
-            <div className="dark:border-polar-700 border-t border-gray-200" />
+            <div className=" border-t border-gray-200" />
           </>
         )}
 
@@ -235,11 +235,11 @@ export default function SubscribersPage({
             </div>
 
             {/* Subscriber list — same card style as CustomerListPage */}
-            <div className="dark:border-polar-700 dark:divide-polar-700 flex flex-col divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200">
+            <div className=" flex flex-col divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200">
               {filteredItems.map((sub: any) => (
                 <div
                   key={sub.id}
-                  className="dark:hover:bg-polar-800 flex flex-row items-center gap-4 px-6 py-4 transition-colors hover:bg-gray-50"
+                  className=" flex flex-row items-center gap-4 px-6 py-4 transition-colors hover:bg-gray-50"
                 >
                   <Avatar
                     className="h-9 w-9 shrink-0"
@@ -251,12 +251,12 @@ export default function SubscribersPage({
                       {sub.name || sub.email}
                     </span>
                     {sub.name && (
-                      <span className="dark:text-polar-500 truncate text-xs text-gray-500">
+                      <span className=" truncate text-xs text-gray-500">
                         {sub.email}
                       </span>
                     )}
                   </div>
-                  <div className="dark:text-polar-500 hidden text-sm text-gray-500 md:block">
+                  <div className=" hidden text-sm text-gray-500 md:block">
                     {sub.created_at
                       ? new Date(sub.created_at).toLocaleDateString(undefined, {
                           day: 'numeric',
@@ -321,7 +321,7 @@ export default function SubscribersPage({
             {subscribers?.pagination &&
               subscribers.pagination.total_count > 20 && (
                 <div className="flex flex-row items-center justify-between">
-                  <p className="dark:text-polar-400 text-sm text-gray-500">
+                  <p className=" text-sm text-gray-500">
                     {subscribers.pagination.total_count} subscribers
                   </p>
                   <div className="flex flex-row gap-2">
@@ -364,10 +364,10 @@ export default function SubscribersPage({
               />
             </div>
             <div className="flex max-w-lg flex-col gap-3">
-              <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
+              <h2 className="text-3xl font-bold text-gray-900">
                 Grow your email list
               </h2>
-              <p className="dark:text-polar-400 text-gray-500">
+              <p className=" text-gray-500">
                 Collect subscribers through your Space or add them manually.
                 Send broadcasts and keep your audience engaged.
               </p>
@@ -448,12 +448,12 @@ function MoreIcon() {
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
     active:
-      'bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400',
+      'bg-green-50 text-green-700 ',
     unsubscribed:
-      'bg-gray-100 text-gray-500 dark:bg-polar-700 dark:text-polar-400',
+      'bg-gray-100 text-gray-500 ',
     archived:
-      'bg-gray-100 text-gray-400 dark:bg-polar-700 dark:text-polar-500',
-    invalid: 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400',
+      'bg-gray-100 text-gray-400 ',
+    invalid: 'bg-red-50 text-red-600 ',
   }
 
   return (
@@ -475,14 +475,14 @@ function StatCard({
   accent: string
 }) {
   return (
-    <div className="dark:border-polar-700 dark:bg-polar-800 relative flex flex-col gap-1 rounded-2xl border border-gray-200 bg-white p-5">
+    <div className=" relative flex flex-col gap-1 rounded-2xl border border-gray-200 bg-white p-5">
       <div
         className={`absolute top-5 left-5 h-10 w-1 rounded-full ${accent}`}
       />
-      <span className="pl-4 text-3xl font-bold text-gray-900 dark:text-white">
+      <span className="pl-4 text-3xl font-bold text-gray-900">
         {value.toLocaleString()}
       </span>
-      <span className="dark:text-polar-400 pl-4 text-sm text-gray-500">
+      <span className=" pl-4 text-sm text-gray-500">
         {label}
       </span>
     </div>
@@ -522,7 +522,7 @@ function SubscriberChart({
   }
 
   return (
-    <div className="dark:border-polar-700 dark:bg-polar-800 overflow-hidden rounded-2xl border border-gray-200 bg-white p-4">
+    <div className=" overflow-hidden rounded-2xl border border-gray-200 bg-white p-4">
       <GenericChart
         data={chartData}
         series={[

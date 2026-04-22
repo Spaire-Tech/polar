@@ -134,7 +134,7 @@ export const ProductListItem = ({
               <Tooltip>
                 <TooltipTrigger>
                   <Status
-                    className="bg-red-100 text-red-500 dark:bg-red-950"
+                    className="bg-red-100 text-red-500"
                     status="Archived"
                   />
                 </TooltipTrigger>
@@ -155,22 +155,22 @@ export const ProductListItem = ({
                   </Pill>
                 )}
                 {isFreeProduct && (
-                  <span className="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                  <span className="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700 ">
                     Free
                   </span>
                 )}
                 {isCustomProduct && (
-                  <span className="inline-flex items-center rounded-full bg-purple-100 px-3 py-1 text-xs font-medium text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+                  <span className="inline-flex items-center rounded-full bg-purple-100 px-3 py-1 text-xs font-medium text-purple-700 ">
                     Pay What You Want
                   </span>
                 )}
                 {isFixedRecurring && (
-                  <span className="inline-flex items-center rounded-full bg-violet-100 px-3 py-1 text-xs font-medium text-violet-700 dark:bg-violet-900/30 dark:text-violet-400">
+                  <span className="inline-flex items-center rounded-full bg-violet-100 px-3 py-1 text-xs font-medium text-violet-700 ">
                     Subscription
                   </span>
                 )}
                 {isOneTime && (
-                  <span className="inline-flex items-center rounded-full bg-orange-100 px-3 py-1 text-xs font-medium text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+                  <span className="inline-flex items-center rounded-full bg-orange-100 px-3 py-1 text-xs font-medium text-orange-700 ">
                     One-time
                   </span>
                 )}
@@ -197,7 +197,7 @@ export const ProductListItem = ({
                   <DropdownMenuTrigger className="focus:outline-none" asChild>
                     <Button
                       className={
-                        'border-none bg-transparent text-[16px] opacity-50 transition-opacity hover:opacity-100 dark:bg-transparent'
+                        'border-none bg-transparent text-[16px] opacity-50 transition-opacity hover:opacity-100'
                       }
                       size="icon"
                       variant="secondary"
@@ -207,7 +207,7 @@ export const ProductListItem = ({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
                     align="end"
-                    className="dark:bg-spaire-800 bg-gray-50 shadow-lg"
+                    className=" bg-gray-50 shadow-lg"
                   >
                     <DropdownMenuItem
                       onClick={handleContextMenuCallback(() => {

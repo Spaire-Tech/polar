@@ -39,13 +39,13 @@ const RevenueWidget = ({ className, productId }: RevenueWidgetProps) => {
   return (
     <Card
       className={twMerge(
-        'dark:bg-spaire-800 flex h-full w-full flex-col gap-y-8 bg-gray-50 p-6',
+        ' flex h-full w-full flex-col gap-y-8 bg-gray-50 p-6',
         className,
       )}
     >
       <div className="flex flex-col gap-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="dark:text-spaire-500 text-lg text-gray-500">
+          <h2 className=" text-lg text-gray-500">
             Last 6 Months
           </h2>
         </div>
@@ -76,9 +76,9 @@ const RevenueWidget = ({ className, productId }: RevenueWidgetProps) => {
               className="flex h-full flex-col gap-y-2"
             >
               <Tooltip>
-                <TooltipTrigger className="relative h-full min-h-48 overflow-hidden rounded-2xl bg-[repeating-linear-gradient(-45deg,rgba(0,0,0,0.05),rgba(0,0,0,0.05)_2px,transparent_2px,transparent_8px)] dark:bg-[repeating-linear-gradient(45deg,rgba(255,255,255,0.03),rgba(255,255,255,0.03)_2px,transparent_2px,transparent_8px)]">
+                <TooltipTrigger className="relative h-full min-h-48 overflow-hidden rounded-2xl bg-[repeating-linear-gradient(-45deg,rgba(0,0,0,0.05),rgba(0,0,0,0.05)_2px,transparent_2px,transparent_8px)]">
                   {revenueMetrics.isLoading ? (
-                    <div className="dark:bg-spaire-700 flex h-full w-full items-center justify-center rounded-2xl bg-gray-200">
+                    <div className=" flex h-full w-full items-center justify-center rounded-2xl bg-gray-200">
                       <Spinner />
                     </div>
                   ) : (
@@ -86,8 +86,8 @@ const RevenueWidget = ({ className, productId }: RevenueWidgetProps) => {
                       className={twMerge(
                         'absolute bottom-0 w-full rounded-2xl',
                         index === array.length - 1
-                          ? 'bg-blue-400 dark:bg-indigo-500'
-                          : 'dark:bg-spaire-600 bg-gray-300',
+                          ? 'bg-blue-400'
+                          : ' bg-gray-300',
                       )}
                       style={{
                         height: `${((period.revenue ?? 0) / maxRevenue) * 100}%`,
@@ -107,7 +107,7 @@ const RevenueWidget = ({ className, productId }: RevenueWidgetProps) => {
                   {format(period.timestamp, 'MMMM')}
                 </span>
                 <div className="flex flex-row items-center justify-between gap-x-2">
-                  <span className="dark:text-spaire-500 text-sm text-gray-500">
+                  <span className=" text-sm text-gray-500">
                     {formatCurrency('statistics')(period.revenue ?? 0, 'usd')}
                   </span>
                   {!isTrendFlat ? (
@@ -116,8 +116,8 @@ const RevenueWidget = ({ className, productId }: RevenueWidgetProps) => {
                         className={twMerge(
                           'flex flex-row items-center gap-x-1 rounded-xs p-0.5 text-xs',
                           isTrendingUp
-                            ? 'bg-emerald-100 text-emerald-500 dark:bg-emerald-950'
-                            : 'bg-red-100 text-red-500 dark:bg-red-950',
+                            ? 'bg-emerald-100 text-emerald-500'
+                            : 'bg-red-100 text-red-500',
                         )}
                       >
                         {isTrendingUp ? (

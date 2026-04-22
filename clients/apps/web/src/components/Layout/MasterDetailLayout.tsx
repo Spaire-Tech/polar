@@ -33,13 +33,13 @@ export const MasterDetailLayout = ({
             animate: { opacity: 1, transition: { duration: 0.3 } },
             exit: { opacity: 0, transition: { duration: 0.3 } },
           }}
-          className="dark:bg-spaire-900 dark:border-spaire-800 h-full w-full overflow-y-hidden rounded-2xl border border-gray-200 bg-white md:max-w-[300px] md:shadow-xs xl:max-w-[320px]"
+          className=" h-full w-full overflow-y-hidden rounded-2xl border border-gray-200 bg-white md:max-w-[300px] md:shadow-xs xl:max-w-[320px]"
         >
           {listView}
         </motion.div>
       ) : null}
 
-      <div className="dark:md:bg-spaire-900 dark:border-spaire-800 relative flex w-full flex-col items-center rounded-2xl border-gray-200 px-4 md:overflow-y-auto md:border md:bg-white md:px-8 md:shadow-xs">
+      <div className=" relative flex w-full flex-col items-center rounded-2xl border-gray-200 px-4 md:overflow-y-auto md:border md:bg-white md:px-8 md:shadow-xs">
         <motion.div
           className={twMerge(
             'flex h-full w-full max-w-(--breakpoint-xl) flex-col',

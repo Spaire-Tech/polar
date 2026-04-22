@@ -24,13 +24,13 @@ import { OrderPaymentRetryModal } from './OrderPaymentRetryModal'
 import { SeatManagementTable } from './SeatManagementTable'
 
 const statusColors = {
-  paid: 'bg-emerald-100 text-emerald-500 dark:bg-emerald-950 dark:text-emerald-500',
+  paid: 'bg-emerald-100 text-emerald-500 ',
   pending:
-    'bg-yellow-100 text-yellow-500 dark:bg-yellow-950 dark:text-yellow-500',
+    'bg-yellow-100 text-yellow-500 ',
   refunded:
-    'bg-violet-100 text-violet-500 dark:bg-violet-950 dark:text-violet-400',
+    'bg-violet-100 text-violet-500 ',
   partially_refunded:
-    'bg-violet-100 text-violet-500 dark:bg-violet-950 dark:text-violet-400',
+    'bg-violet-100 text-violet-500 ',
 }
 
 const CustomerPortalOrder = ({
@@ -322,7 +322,7 @@ const CustomerPortalOrder = ({
           <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-y-2">
               <h3 className="text-lg">Seats</h3>
-              <p className="dark:text-spaire-500 text-sm text-gray-500">
+              <p className=" text-sm text-gray-500">
                 {availableSeats} of {totalSeats} seats available
               </p>
             </div>
@@ -345,7 +345,7 @@ const CustomerPortalOrder = ({
                     }}
                   />
                   {error && (
-                    <p className="dark:text-spaire-400 mt-1 text-xs text-gray-500">
+                    <p className=" mt-1 text-xs text-gray-500">
                       {error}
                     </p>
                   )}

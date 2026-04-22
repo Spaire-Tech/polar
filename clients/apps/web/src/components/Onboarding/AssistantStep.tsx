@@ -153,11 +153,11 @@ export const AssistantStep = ({
 
   return (
     <FadeUp className="flex flex-col gap-y-4">
-      <div className="dark:bg-spaire-900 flex flex-col overflow-hidden rounded-3xl">
+      <div className=" flex flex-col overflow-hidden rounded-3xl">
         {messages.length > 0 && (
           <div
             className={twMerge(
-              'dark:border-spaire-700 flex h-full max-h-[640px] flex-1 flex-col gap-y-6 overflow-y-auto rounded-t-3xl border border-gray-200 p-6',
+              ' flex h-full max-h-[640px] flex-1 flex-col gap-y-6 overflow-y-auto rounded-t-3xl border border-gray-200 p-6',
               hasRedirectedToManualSetup || isFinished
                 ? 'rounded-b-3xl border-b'
                 : 'border-b-0',
@@ -171,10 +171,10 @@ export const AssistantStep = ({
                 }`}
               >
                 <div
-                  className={`prose dark:prose-invert text-sm ${
+                  className={`prose text-sm ${
                     message.role === 'user'
-                      ? 'dark:bg-spaire-800 rounded-2xl bg-gray-100 px-4 py-2 dark:text-white'
-                      : 'w-full space-y-4 dark:text-white'
+                      ? ' rounded-2xl bg-gray-100 px-4 py-2'
+                      : 'w-full space-y-4'
                   }`}
                 >
                   {groupMessageParts(message.parts).map((item) => {
@@ -205,7 +205,7 @@ export const AssistantStep = ({
                         return (
                           <p
                             key={`${message.id}-${index}`}
-                            className="dark:text-spaire-500 animate-pulse text-sm text-gray-500 italic"
+                            className=" animate-pulse text-sm text-gray-500 italic"
                           >
                             Thinking…
                           </p>
@@ -229,7 +229,7 @@ export const AssistantStep = ({
                           return (
                             <div
                               key={`${message.id}-${index}`}
-                              className="dark:bg-spaire-800 dark:text-spaire-500 flex flex-col items-center gap-y-4 rounded-2xl bg-gray-100 p-4 text-center text-gray-500"
+                              className=" flex flex-col items-center gap-y-4 rounded-2xl bg-gray-100 p-4 text-center text-gray-500"
                             >
                               {reason === 'unsupported_benefit_type' ? (
                                 'Sorry, but this configuration needs manual input.'
@@ -245,7 +245,7 @@ export const AssistantStep = ({
                               )}
                               <Button
                                 variant="secondary"
-                                className="dark:bg-spaire-700 dark:hover:bg-spaire-600 rounded-full border-transparent bg-white hover:bg-white dark:border-transparent"
+                                className=" rounded-full border-transparent bg-white hover:bg-white "
                                 onClick={() => onEjectToManual()}
                               >
                                 Configure Manually
@@ -272,13 +272,13 @@ export const AssistantStep = ({
                           return (
                             <div
                               key={`${message.id}-${index}`}
-                              className="dark:bg-spaire-800 dark:text-spaire-500 flex flex-col items-center gap-y-4 rounded-2xl bg-gray-100 p-4 text-center text-gray-500"
+                              className=" flex flex-col items-center gap-y-4 rounded-2xl bg-gray-100 p-4 text-center text-gray-500"
                             >
                               You&rsquo;re all set!
                               <br />
                               Now, let&rsquo;s integrate your checkout flow.
                               <Link href={nextStep}>
-                                <Button className="dark:hover:bg-spaire-50 rounded-full bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black">
+                                <Button className=" rounded-full bg-black text-white hover:bg-gray-800 ">
                                   Integrate Checkout
                                 </Button>
                               </Link>
@@ -300,7 +300,7 @@ export const AssistantStep = ({
         )}
 
         {error && (
-          <div className="dark:border-spaire-700 border-t border-gray-200 px-6 py-3 text-xs text-red-500">
+          <div className=" border-t border-gray-200 px-6 py-3 text-xs text-red-500">
             {error.message}
           </div>
         )}
@@ -308,7 +308,7 @@ export const AssistantStep = ({
         {!hasRedirectedToManualSetup && !isFinished && (
           <form
             onSubmit={handleSubmit}
-            className="dark:border-spaire-700 flex shrink-0 flex-col gap-3 overflow-hidden rounded-b-3xl border first:rounded-t-3xl"
+            className=" flex shrink-0 flex-col gap-3 overflow-hidden rounded-b-3xl border first:rounded-t-3xl"
           >
             <TextArea
               ref={textareaRef}
@@ -322,14 +322,14 @@ export const AssistantStep = ({
                   : 'Reply…'
               }
               rows={1}
-              className="max-h-[240px] min-h-[72px] resize-none overflow-y-auto border-none px-6 pt-5 pb-0 text-sm/5 shadow-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none disabled:opacity-50 dark:bg-transparent"
+              className="max-h-[240px] min-h-[72px] resize-none overflow-y-auto border-none px-6 pt-5 pb-0 text-sm/5 shadow-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none disabled:opacity-50"
             />
             <div className="flex items-center justify-end gap-2 px-4 pb-4">
               <Button
                 type="submit"
                 disabled={status !== 'ready' || !input.trim()}
                 loading={status === 'submitted' || status === 'streaming'}
-                className="dark:hover:bg-spaire-50 rounded-full bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black"
+                className=" rounded-full bg-black text-white hover:bg-gray-800 "
               >
                 {messages.length === 0 ? 'Setup' : 'Send'}
                 <ArrowForwardOutlined className="ml-2" fontSize="inherit" />

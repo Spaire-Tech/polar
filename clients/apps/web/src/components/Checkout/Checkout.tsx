@@ -39,7 +39,6 @@ import {
 import { getThemePreset } from '@spaire/ui/hooks/theming'
 import type { Stripe, StripeElements } from '@stripe/stripe-js'
 import Markdown from 'markdown-to-jsx'
-import { useTheme } from 'next-themes'
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Slideshow } from '../Products/Slideshow'
@@ -69,14 +68,14 @@ const TruncatedDescription = ({
       <div className="flex flex-col gap-y-1">
         <div
           ref={textRef}
-          className="prose dark:prose-invert prose-headings:text-xs prose-p:text-xs prose-ul:text-xs prose-ol:text-xs dark:text-spaire-400 line-clamp-2 max-w-none text-left text-xs text-gray-600"
+          className="prose prose-headings:text-xs prose-p:text-xs prose-ul:text-xs prose-ol:text-xs  line-clamp-2 max-w-none text-left text-xs text-gray-600"
         >
           <Markdown options={markdownOptions}>{description}</Markdown>
         </div>
         {isClamped && (
           <button
             onClick={() => setIsModalOpen(true)}
-            className="dark:text-spaire-300 dark:hover:text-spaire-200 cursor-pointer self-start text-xs text-gray-500 hover:text-gray-700"
+            className=" cursor-pointer self-start text-xs text-gray-500 hover:text-gray-700"
           >
             Read more
           </button>
@@ -84,14 +83,14 @@ const TruncatedDescription = ({
       </div>
       {isModalOpen && (
         <Dialog open onOpenChange={(open) => !open && setIsModalOpen(false)}>
-          <DialogContent className="dark:bg-spaire-900 max-h-[80vh] overflow-y-auto">
+          <DialogContent className=" max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{productName}</DialogTitle>
               <DialogDescription className="sr-only">
                 Product description
               </DialogDescription>
             </DialogHeader>
-            <div className="prose dark:prose-invert prose-headings:mt-4 prose-headings:font-medium prose-headings:text-black prose-h1:text-xl prose-h2:text-lg prose-h3:text-md dark:prose-headings:text-white dark:text-spaire-300 p-2 leading-normal text-gray-800">
+            <div className="prose prose-headings:mt-4 prose-headings:font-medium prose-headings:text-black prose-h1:text-xl prose-h2:text-lg prose-h3:text-md   p-2 leading-normal text-gray-800">
               <Markdown options={markdownOptions}>{description}</Markdown>
             </div>
           </DialogContent>
@@ -131,8 +130,7 @@ const Checkout = ({
     isUpdatePending,
   } = useCheckoutForm()
   const embed = _embed === true
-  const { resolvedTheme } = useTheme()
-  const theme = _theme || (resolvedTheme as 'light' | 'dark') || 'dark'
+  const theme = _theme || 'light'
   const posthog = usePostHog()
 
   const openedTrackedRef = useRef(false)
@@ -195,7 +193,7 @@ const Checkout = ({
     const isDenied = paymentStatus?.organization_status === 'denied'
 
     return (
-      <div className="rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm text-violet-700 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-400">
+      <div className="rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm text-violet-700  ">
         <span className="font-medium">Payments are currently unavailable. </span>
         {isDenied
           ? `${checkout.organization.name} doesn't allow payments.`
@@ -267,7 +265,7 @@ const Checkout = ({
 
   if (embed) {
     return (
-      <ShadowBox className="dark:md:bg-spaire-900 flex flex-col gap-y-12 divide-gray-200 overflow-hidden rounded-3xl md:bg-white dark:divide-transparent">
+      <ShadowBox className=" flex flex-col gap-y-12 divide-gray-200 overflow-hidden rounded-3xl md:bg-white">
         <PaymentNotReadyBanner />
         {enrichedCheckout && (
           <>
@@ -317,7 +315,7 @@ const Checkout = ({
       {checkout.returnUrl && (
         <Link
           href={checkout.returnUrl}
-          className="dark:text-spaire-500 text-gray-600"
+          className=" text-gray-600"
         >
           <ArrowBackOutlined fontSize="small" />
         </Link>
@@ -330,7 +328,7 @@ const Checkout = ({
             className="h-6 w-6"
           />
         )}
-        <span className="text-sm dark:text-white">
+        <span className="text-sm">
           {checkout.organization.name}
         </span>
       </div>
@@ -347,7 +345,7 @@ const Checkout = ({
               <>
                 {/* Name + price + all pricing details first */}
                 <div className="flex flex-col gap-y-4">
-                  <span className="text-lg font-semibold text-gray-900 dark:text-white">
+                  <span className="text-lg font-semibold text-gray-900">
                     {enrichedCheckout.product.name}
                   </span>
                   <span className="text-3xl font-medium">
@@ -394,7 +392,7 @@ const Checkout = ({
 
                 {/* Media carousel — just above description */}
                 {hasMedia && (
-                  <div className="overflow-hidden rounded-2xl border border-gray-200 dark:border-spaire-700">
+                  <div className="overflow-hidden rounded-2xl border border-gray-200">
                     <Slideshow
                       images={enrichedCheckout.product.medias.map(
                         (m) => m.publicUrl,
@@ -418,7 +416,7 @@ const Checkout = ({
                   hasMarkdown(enrichedCheckout.product.description) && (
                     <div
                       id="description"
-                      className="prose dark:prose-invert prose-headings:mt-4 prose-headings:font-medium prose-headings:text-black prose-h1:text-xl prose-h2:text-lg prose-h3:text-md dark:prose-headings:text-white dark:text-spaire-300 leading-normal text-gray-800"
+                      className="prose prose-headings:mt-4 prose-headings:font-medium prose-headings:text-black prose-h1:text-xl prose-h2:text-lg prose-h3:text-md   leading-normal text-gray-800"
                     >
                       <Markdown options={markdownOptions}>
                         {enrichedCheckout.product.description}
@@ -430,7 +428,7 @@ const Checkout = ({
           </div>
         </div>
       </div>
-      <div className="dark:md:bg-spaire-900 md:bg-white">
+      <div className=" md:bg-white">
         <div className="mx-auto flex w-full max-w-[480px] flex-col gap-y-8 px-4 py-6 md:mx-0 md:py-12 md:pr-4 md:pl-12">
           <PaymentNotReadyBanner />
           <CheckoutForm

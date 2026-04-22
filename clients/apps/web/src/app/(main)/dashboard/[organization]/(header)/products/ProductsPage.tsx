@@ -231,10 +231,10 @@ export default function ClientPage({
               <div style={{ mixBlendMode: 'multiply' }} className="absolute bottom-0 right-0 h-14 w-14 rounded-2xl bg-emerald-300" />
             </div>
             <div className="flex max-w-lg flex-col gap-3">
-              <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
+              <h2 className="text-3xl font-bold text-gray-900">
                 Create your first product
               </h2>
-              <p className="text-gray-500 dark:text-spaire-400">
+              <p className="text-gray-500">
                 Sell subscriptions, one-time payments, or usage-based plans
                 with checkout built in.
               </p>

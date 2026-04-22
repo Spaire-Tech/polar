@@ -145,10 +145,10 @@ const CheckoutSeatSelector = ({
       {/* Seat row */}
       <div className="flex items-center justify-between">
         <div className="flex flex-col gap-0.5">
-          <span className="text-sm font-medium text-gray-900 dark:text-white">
+          <span className="text-sm font-medium text-gray-900">
             Seats
           </span>
-          <span className="dark:text-spaire-400 text-xs text-gray-500">
+          <span className=" text-xs text-gray-500">
             {formatCurrency('compact')(pricePerSeat, currency)} per seat
           </span>
         </div>
@@ -190,7 +190,7 @@ const CheckoutSeatSelector = ({
               type="button"
               onClick={handleSeatClick}
               disabled={isUpdating}
-              className="dark:hover:bg-spaire-800 w-10 rounded-lg py-0.5 text-center text-sm tabular-nums text-gray-900 transition-all hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:text-white"
+              className=" w-10 rounded-lg py-0.5 text-center text-sm tabular-nums text-gray-900 transition-all hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
               aria-label="Click to edit seat count"
               title="Click to edit"
             >
@@ -227,7 +227,7 @@ const CheckoutSeatSelector = ({
       </div>
 
       {seatLimitText && (
-        <p className="dark:text-spaire-400 text-xs text-gray-500">
+        <p className=" text-xs text-gray-500">
           {seatLimitText}
         </p>
       )}

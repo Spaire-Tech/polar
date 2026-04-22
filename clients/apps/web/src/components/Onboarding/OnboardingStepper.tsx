@@ -46,7 +46,7 @@ export const OnboardingStepper = ({
   showLogo = true,
 }: OnboardingStepperProps) => {
   return (
-    <div className="dark:bg-spaire-900 hidden h-full w-[300px] shrink-0 flex-col justify-between border-r border-gray-100 bg-white p-10 dark:border-none md:flex">
+    <div className=" hidden h-full w-[300px] shrink-0 flex-col justify-between border-r border-gray-100 bg-white p-10 md:flex">
       <div className="flex flex-col gap-y-16">
         {showLogo && (
           organization ? (
@@ -74,9 +74,9 @@ export const OnboardingStepper = ({
                       isCompleted &&
                         'bg-blue-500 text-white',
                       isActive &&
-                        'dark:border-spaire-500 border-2 border-blue-500 text-blue-500 dark:text-blue-400',
+                        ' border-2 border-blue-500 text-blue-500',
                       isPending &&
-                        'dark:border-spaire-700 dark:text-spaire-500 border-2 border-gray-200 text-gray-400',
+                        ' border-2 border-gray-200 text-gray-400',
                     )}
                   >
                     {isCompleted ? (
@@ -91,7 +91,7 @@ export const OnboardingStepper = ({
                         'my-1.5 h-10 w-0.5',
                         isCompleted
                           ? 'bg-blue-500'
-                          : 'dark:bg-spaire-700 bg-gray-200',
+                          : ' bg-gray-200',
                       )}
                     />
                   )}
@@ -102,21 +102,21 @@ export const OnboardingStepper = ({
                       className={twMerge(
                         'text-sm font-medium',
                         isActive
-                          ? 'text-gray-900 dark:text-white'
+                          ? 'text-gray-900'
                           : isCompleted
-                            ? 'text-gray-700 dark:text-gray-300'
-                            : 'dark:text-spaire-400 text-gray-400',
+                            ? 'text-gray-700'
+                            : ' text-gray-400',
                       )}
                     >
                       {step.label}
                     </span>
                     {step.optional && (
-                      <span className="dark:text-spaire-500 text-[10px] font-medium text-gray-400">
+                      <span className=" text-[10px] font-medium text-gray-400">
                         Optional
                       </span>
                     )}
                   </span>
-                  <span className="dark:text-spaire-500 text-xs text-gray-400">
+                  <span className=" text-xs text-gray-400">
                     {step.description}
                   </span>
                 </div>

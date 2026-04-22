@@ -58,7 +58,7 @@ export const LicenseKeysList = ({
             />
             <div className="flex flex-col">
               <span className="text-sm">{licenseKey.customer.name}</span>
-              <span className="dark:text-spaire-500 text-xs text-gray-500">
+              <span className=" text-xs text-gray-500">
                 {licenseKey.customer.email}
               </span>
             </div>
@@ -90,8 +90,8 @@ export const LicenseKeysList = ({
             className={twMerge(
               'w-fit',
               licenseKey.status === 'granted'
-                ? 'bg-emerald-200 text-emerald-500 dark:bg-emerald-950'
-                : 'bg-red-100 text-red-500 dark:bg-red-950',
+                ? 'bg-emerald-200 text-emerald-500'
+                : 'bg-red-100 text-red-500',
             )}
             status={licenseKey.status === 'granted' ? 'Granted' : 'Revoked'}
           />

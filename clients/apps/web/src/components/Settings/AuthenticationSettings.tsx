@@ -32,7 +32,7 @@ const AuthenticationMethod: React.FC<AuthenticationMethodProps> = ({
       <div>{icon}</div>
       <div className="grow">
         <div className="font-medium">{title}</div>
-        <div className="dark:text-spaire-500 text-sm text-gray-500">
+        <div className=" text-sm text-gray-500">
           {subtitle}
         </div>
       </div>
@@ -126,12 +126,12 @@ const AuthenticationSettings = () => {
       />
     ),
     request: (
-      <div className="dark:text-spaire-400 text-center text-sm text-gray-500">
+      <div className=" text-center text-sm text-gray-500">
         A verification email was sent to this address.
       </div>
     ),
     verified: (
-      <div className="text-center text-sm text-green-700 dark:text-green-500">
+      <div className="text-center text-sm text-green-700">
         Your email has been updated!
       </div>
     ),

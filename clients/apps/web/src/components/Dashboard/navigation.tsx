@@ -179,7 +179,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
   },
   {
     id: 'catalog',
-    title: 'Space Card',
+    title: 'Space',
     icon: <HiveOutlined fontSize="inherit" />,
     link: `/dashboard/${org?.slug}/products`,
     checkIsActive: (currentRoute: string): boolean => {
@@ -191,11 +191,11 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
     if: true,
     showSubsInNav: false,
     subs: [
+      { title: 'Spaire Space', link: `/dashboard/${org?.slug}/storefront` },
       { title: 'Products', link: `/dashboard/${org?.slug}/products` },
       { title: 'Payment Links', link: `/dashboard/${org?.slug}/products/checkout-links` },
       { title: 'Discounts', link: `/dashboard/${org?.slug}/products/discounts` },
       { title: 'Files', link: `/dashboard/${org?.slug}/products/benefits` },
-      { title: 'Space Card', link: `/dashboard/${org?.slug}/storefront` },
     ],
   },
   {
@@ -216,7 +216,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/invoices`)
     },
-    if: true,
+    if: false,
   },
   {
     id: 'analytics',

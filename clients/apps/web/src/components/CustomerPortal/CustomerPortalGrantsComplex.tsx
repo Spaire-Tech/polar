@@ -68,7 +68,7 @@ export const CustomerPortalGrantsComplex = ({
       {/* Grants list with loading overlay */}
       <div className="relative">
         {grants.length === 0 && !isLoading ? (
-          <div className="dark:border-spaire-700 dark:text-spaire-500 rounded-xl border border-gray-200 py-8 text-center text-sm text-gray-500">
+          <div className=" rounded-xl border border-gray-200 py-8 text-center text-sm text-gray-500">
             No benefit grants found
           </div>
         ) : (
@@ -77,7 +77,7 @@ export const CustomerPortalGrantsComplex = ({
               {grants.map((benefitGrant) => (
                 <ListItem
                   key={benefitGrant.id}
-                  className="py-6 hover:bg-transparent dark:hover:bg-transparent"
+                  className="py-6 hover:bg-transparent"
                 >
                   <BenefitGrant api={api} benefitGrant={benefitGrant} />
                 </ListItem>
@@ -88,8 +88,8 @@ export const CustomerPortalGrantsComplex = ({
 
         {/* Loading overlay */}
         {(isLoading || isFetching) && (
-          <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/50 dark:bg-black/50">
-            <Loader2 className="dark:text-spaire-500 h-5 w-5 animate-spin text-gray-500" />
+          <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/50">
+            <Loader2 className=" h-5 w-5 animate-spin text-gray-500" />
           </div>
         )}
       </div>

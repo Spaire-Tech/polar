@@ -24,12 +24,12 @@ function AgentPlatformCard({ platform }: { platform: AgentPlatform }) {
 
   return (
     <Link href={`/dashboard/${organization.slug}/integrations/${platform.slug}`}>
-      <div className="group dark:border-spaire-700 dark:hover:border-spaire-600 flex flex-col gap-y-5 rounded-2xl border border-gray-200 p-6 transition-all hover:border-gray-300 hover:shadow-md dark:hover:shadow-none">
+      <div className="group  flex flex-col gap-y-5 rounded-2xl border border-gray-200 p-6 transition-all hover:border-gray-300 hover:shadow-md ">
         <div className="flex flex-row items-start justify-between">
           <div className="flex items-center gap-x-3">
             <div>{icon}</div>
             <div className="flex flex-col gap-y-0.5">
-              <h3 className="text-base font-medium dark:text-white">
+              <h3 className="text-base font-medium">
                 {platform.name}
               </h3>
               <span className={`text-[11px] font-medium ${platform.categoryColor}`}>
@@ -37,10 +37,10 @@ function AgentPlatformCard({ platform }: { platform: AgentPlatform }) {
               </span>
             </div>
           </div>
-          <ArrowOutwardOutlined className="dark:text-spaire-600 dark:group-hover:text-spaire-400 h-4 w-4 text-gray-300 transition-colors group-hover:text-gray-500" />
+          <ArrowOutwardOutlined className=" h-4 w-4 text-gray-300 transition-colors group-hover:text-gray-500" />
         </div>
 
-        <p className="dark:text-spaire-400 text-sm leading-relaxed text-gray-500">
+        <p className=" text-sm leading-relaxed text-gray-500">
           {platform.description}
         </p>
       </div>
@@ -52,7 +52,7 @@ export default function ClaudeCodePage() {
   return (
     <DashboardBody title="Choose your AI coding agent">
       <div className="flex flex-col gap-y-2">
-        <p className="dark:text-spaire-500 text-sm text-gray-500">
+        <p className=" text-sm text-gray-500">
       Each agent can integrate Spaire checkout or usage-based billing directly into your codebase.
         </p>
       </div>

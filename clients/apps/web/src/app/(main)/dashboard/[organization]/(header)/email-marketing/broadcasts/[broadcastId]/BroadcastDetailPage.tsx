@@ -81,7 +81,7 @@ export default function BroadcastDetailPage({
     return (
       <DashboardBody>
         <div className="flex items-center justify-center py-20">
-          <div className="dark:bg-spaire-700 h-8 w-8 animate-pulse rounded-full bg-gray-200" />
+          <div className=" h-8 w-8 animate-pulse rounded-full bg-gray-200" />
         </div>
       </DashboardBody>
     )
@@ -95,13 +95,13 @@ export default function BroadcastDetailPage({
           <div className="flex flex-row items-center gap-4">
             <Link
               href={`/dashboard/${organization.slug}/email-marketing/broadcasts`}
-              className="dark:text-spaire-400 text-gray-500 transition-colors hover:text-gray-700"
+              className=" text-gray-500 transition-colors hover:text-gray-700"
             >
               <ArrowBackOutlined fontSize="small" />
             </Link>
             <div>
               <h1 className="text-2xl font-medium">{broadcast.subject}</h1>
-              <p className="dark:text-spaire-400 text-sm text-gray-500">
+              <p className=" text-sm text-gray-500">
                 {broadcast.status === 'sent'
                   ? `Sent on ${new Date(broadcast.sent_at).toLocaleDateString()}`
                   : `Status: ${broadcast.status}`}
@@ -167,7 +167,7 @@ export default function BroadcastDetailPage({
             </div>
 
             {/* Delivery funnel */}
-            <div className="dark:border-spaire-700 dark:bg-spaire-900 rounded-2xl border border-gray-200 bg-white p-6">
+            <div className=" rounded-2xl border border-gray-200 bg-white p-6">
               <h3 className="mb-4 text-sm font-medium">Delivery Funnel</h3>
               <div className="flex flex-col gap-y-3">
                 <FunnelBar
@@ -201,7 +201,7 @@ export default function BroadcastDetailPage({
 
         {/* Editable form (drafts only) */}
         {isDraft && (
-          <div className="dark:border-spaire-700 dark:bg-spaire-900 flex flex-col gap-y-5 rounded-2xl border border-gray-200 bg-white p-6">
+          <div className=" flex flex-col gap-y-5 rounded-2xl border border-gray-200 bg-white p-6">
             <div className="flex flex-col gap-y-2">
               <Label>Subject line</Label>
               <Input
@@ -230,19 +230,19 @@ export default function BroadcastDetailPage({
         )}
 
         {/* Content */}
-        <div className="dark:border-spaire-700 dark:bg-spaire-900 flex flex-col gap-y-5 rounded-2xl border border-gray-200 bg-white p-6">
+        <div className=" flex flex-col gap-y-5 rounded-2xl border border-gray-200 bg-white p-6">
           <h2 className="text-base font-medium">
             {isDraft ? 'Content' : 'Email Content'}
           </h2>
           {isDraft ? (
             <textarea
-              className="dark:border-spaire-700 dark:bg-spaire-800 dark:text-spaire-200 min-h-[300px] w-full rounded-xl border border-gray-200 bg-white p-4 font-mono text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="  min-h-[300px] w-full rounded-xl border border-gray-200 bg-white p-4 font-mono text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               value={contentHtml}
               onChange={(e) => setContentHtml(e.target.value)}
             />
           ) : (
             <div
-              className="dark:border-spaire-700 rounded-xl border border-gray-100 p-6"
+              className=" rounded-xl border border-gray-100 p-6"
               dangerouslySetInnerHTML={{
                 __html: broadcast.content_html || '<p>No content</p>',
               }}
@@ -270,13 +270,13 @@ function AnalyticsCard({
   const pct = rate !== undefined ? rate : total && total > 0 ? (value / total) * 100 : undefined
 
   return (
-    <div className="dark:border-spaire-700 dark:bg-spaire-900 flex flex-col gap-1 rounded-2xl border border-gray-200 bg-white p-4">
-      <span className="dark:text-spaire-400 text-xs text-gray-500">{label}</span>
+    <div className=" flex flex-col gap-1 rounded-2xl border border-gray-200 bg-white p-4">
+      <span className=" text-xs text-gray-500">{label}</span>
       <span className={`text-2xl font-semibold ${color ?? ''}`}>
         {value.toLocaleString()}
       </span>
       {pct !== undefined && (
-        <span className="dark:text-spaire-400 text-xs text-gray-500">
+        <span className=" text-xs text-gray-500">
           {pct.toFixed(1)}%
         </span>
       )}
@@ -300,7 +300,7 @@ function FunnelBar({
   return (
     <div className="flex flex-row items-center gap-4">
       <div className="w-20 text-right text-xs text-gray-500">{label}</div>
-      <div className="dark:bg-spaire-800 flex-1 rounded-full bg-gray-100">
+      <div className=" flex-1 rounded-full bg-gray-100">
         <div
           className={`h-5 rounded-full ${color} transition-all`}
           style={{ width: `${Math.max(pct, 1)}%` }}

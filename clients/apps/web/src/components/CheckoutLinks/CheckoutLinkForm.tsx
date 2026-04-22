@@ -261,7 +261,7 @@ export const CheckoutLinkForm = ({
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-8">
         {/* Product */}
         <div className="flex flex-col gap-3">
-          <h2 className="text-sm font-semibold dark:text-white">Product</h2>
+          <h2 className="text-sm font-semibold">Product</h2>
           <FormField
             control={control}
             name="products"
@@ -286,7 +286,7 @@ export const CheckoutLinkForm = ({
         </div>
 
         {/* Toggle rows */}
-        <div className="dark:divide-spaire-700 dark:border-spaire-700 flex flex-col divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200">
+        <div className=" flex flex-col divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200">
           <ToggleRow
             label="Show organization logo"
             control={control}
@@ -317,7 +317,7 @@ export const CheckoutLinkForm = ({
         {/* Trial period (conditional) */}
         {hasRecurringProducts && (
           <div className="flex flex-col gap-3">
-            <h2 className="text-sm font-semibold dark:text-white">
+            <h2 className="text-sm font-semibold">
               Trial period
             </h2>
             <TrialConfigurationForm bottomText="Overrides the trial configuration set on individual products." />
@@ -326,7 +326,7 @@ export const CheckoutLinkForm = ({
 
         {/* Redirect URL */}
         <div className="flex flex-col gap-3">
-          <h2 className="text-sm font-semibold dark:text-white">
+          <h2 className="text-sm font-semibold">
             Redirect URL
           </h2>
           <FormField
@@ -350,13 +350,13 @@ export const CheckoutLinkForm = ({
         {/* Custom data */}
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold dark:text-white">
+            <h2 className="text-sm font-semibold">
               Custom data
             </h2>
             <button
               type="button"
               onClick={() => append({ key: '', value: '' })}
-              className="text-xs text-gray-500 transition-opacity hover:opacity-60 dark:text-spaire-400"
+              className="text-xs text-gray-500 transition-opacity hover:opacity-60"
             >
               + Add field
             </button>
@@ -401,7 +401,7 @@ export const CheckoutLinkForm = ({
                     )}
                   />
                   <Button
-                    className="border-none bg-transparent text-[16px] opacity-50 transition-opacity hover:opacity-100 dark:bg-transparent"
+                    className="border-none bg-transparent text-[16px] opacity-50 transition-opacity hover:opacity-100"
                     size="icon"
                     variant="secondary"
                     type="button"
@@ -444,8 +444,8 @@ function ToggleRow({
       name={name as any}
       render={({ field }) => (
         <FormItem>
-          <div className="dark:hover:bg-spaire-700/50 flex items-center justify-between px-4 py-3.5 transition-colors hover:bg-gray-50">
-            <span className="text-sm dark:text-white">{label}</span>
+          <div className=" flex items-center justify-between px-4 py-3.5 transition-colors hover:bg-gray-50">
+            <span className="text-sm">{label}</span>
             <FormControl>
               <Switch
                 checked={!!field.value}

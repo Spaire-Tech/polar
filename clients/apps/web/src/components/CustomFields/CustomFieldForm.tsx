@@ -238,7 +238,7 @@ const CustomFieldSelectProperties = () => {
             />
             <Button
               className={
-                'border-none bg-transparent text-[16px] opacity-50 transition-opacity hover:opacity-100 dark:bg-transparent'
+                'border-none bg-transparent text-[16px] opacity-50 transition-opacity hover:opacity-100'
               }
               size="icon"
               variant="secondary"
@@ -356,7 +356,7 @@ const CustomFieldForm: React.FC<CustomFieldFormBaseProps> = ({ update }) => {
       <Accordion type="single" collapsible className="flex flex-col gap-y-6">
         <AccordionItem
           value="form-input-options"
-          className="dark:border-spaire-700 rounded-xl border border-gray-200 px-4"
+          className=" rounded-xl border border-gray-200 px-4"
         >
           <AccordionTrigger className="hover:no-underline">
             Form input options
@@ -460,7 +460,7 @@ const CustomFieldForm: React.FC<CustomFieldFormBaseProps> = ({ update }) => {
         {(type === 'text' || type === 'number' || type === 'date') && (
           <AccordionItem
             value="validation-constraints"
-            className="dark:border-spaire-700 rounded-xl border border-gray-200 px-4"
+            className=" rounded-xl border border-gray-200 px-4"
           >
             <AccordionTrigger className="hover:no-underline">
               Validation constraints

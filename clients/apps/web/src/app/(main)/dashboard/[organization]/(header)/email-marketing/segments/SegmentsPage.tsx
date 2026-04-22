@@ -67,7 +67,7 @@ export default function SegmentsPage({
       <div className="flex flex-col gap-y-8">
         {/* Create form */}
         {showCreateForm && (
-          <div className="dark:border-spaire-700 dark:bg-spaire-900 flex flex-row items-end gap-3 rounded-2xl border border-gray-200 bg-white p-4">
+          <div className=" flex flex-row items-end gap-3 rounded-2xl border border-gray-200 bg-white p-4">
             <div className="flex flex-1 flex-col gap-1">
               <label className="text-xs text-gray-500">Segment name</label>
               <Input
@@ -105,7 +105,7 @@ export default function SegmentsPage({
           <>
             {/* Controls */}
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <p className="dark:text-spaire-400 text-sm text-gray-500">
+              <p className=" text-sm text-gray-500">
                 Organize subscribers into segments for targeted broadcasts.
               </p>
               <Button onClick={() => setShowCreateForm(true)}>
@@ -115,9 +115,9 @@ export default function SegmentsPage({
             </div>
 
             {/* Segment list */}
-            <div className="dark:border-spaire-700 dark:divide-spaire-700 flex flex-col divide-y divide-gray-100 rounded-2xl border border-gray-200">
+            <div className=" flex flex-col divide-y divide-gray-100 rounded-2xl border border-gray-200">
               {/* Header */}
-              <div className="dark:bg-spaire-900 flex flex-row items-center gap-4 rounded-t-2xl bg-gray-50 px-6 py-3 text-xs font-medium text-gray-500">
+              <div className=" flex flex-row items-center gap-4 rounded-t-2xl bg-gray-50 px-6 py-3 text-xs font-medium text-gray-500">
                 <div className="flex-1">Name</div>
                 <div className="w-28">Type</div>
                 <div className="w-28 text-right">Subscribers</div>
@@ -127,17 +127,17 @@ export default function SegmentsPage({
               {segments.map((segment: any) => (
                 <div
                   key={segment.id}
-                  className="dark:hover:bg-spaire-800 flex flex-row items-center gap-4 px-6 py-4 hover:bg-gray-50"
+                  className=" flex flex-row items-center gap-4 px-6 py-4 hover:bg-gray-50"
                 >
                   <div className="flex flex-1 flex-row items-center gap-3">
                     {segment.is_system ? (
                       <LockOutlined
-                        className="dark:text-spaire-500 text-gray-400"
+                        className=" text-gray-400"
                         fontSize="small"
                       />
                     ) : (
                       <CategoryOutlined
-                        className="dark:text-spaire-500 text-gray-400"
+                        className=" text-gray-400"
                         fontSize="small"
                       />
                     )}
@@ -146,7 +146,7 @@ export default function SegmentsPage({
                   <div className="w-28">
                     <SegmentTypeBadge type={segment.type} />
                   </div>
-                  <div className="dark:text-spaire-300 w-28 text-right text-sm">
+                  <div className=" w-28 text-right text-sm">
                     {segment.subscriber_count.toLocaleString()}
                   </div>
                   <div className="w-16 text-right">
@@ -170,10 +170,10 @@ export default function SegmentsPage({
               <div style={{ mixBlendMode: 'multiply' }} className="absolute bottom-0 right-0 h-14 w-14 rounded-full bg-yellow-300" />
             </div>
             <div className="flex max-w-lg flex-col gap-3">
-              <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
+              <h2 className="text-3xl font-bold text-gray-900">
                 Organize subscribers into segments
               </h2>
-              <p className="dark:text-spaire-400 text-gray-500">
+              <p className=" text-gray-500">
                 Segments let you target specific groups of subscribers for your
                 broadcasts — all subscribers, customers, or custom lists.
               </p>
@@ -191,14 +191,14 @@ export default function SegmentsPage({
 
 function SegmentTypeBadge({ type }: { type: string }) {
   const styles: Record<string, string> = {
-    all: 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400',
+    all: 'bg-blue-50 text-blue-600 ',
     customers:
-      'bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400',
+      'bg-green-50 text-green-700 ',
     product:
-      'bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400',
-    manual: 'bg-gray-100 text-gray-600 dark:bg-spaire-700 dark:text-spaire-300',
+      'bg-purple-50 text-purple-600 ',
+    manual: 'bg-gray-100 text-gray-600 ',
     archived:
-      'bg-gray-100 text-gray-400 dark:bg-spaire-700 dark:text-spaire-500',
+      'bg-gray-100 text-gray-400 ',
   }
 
   const labels: Record<string, string> = {

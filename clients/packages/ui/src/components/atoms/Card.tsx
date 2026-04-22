@@ -18,7 +18,7 @@ const Card = ({
   <CardPrimitive
     ref={ref}
     className={twMerge(
-      'dark:bg-spaire-800 rounded-4xl border-transparent bg-gray-100 text-gray-950 shadow-none dark:border-transparent dark:text-white',
+      ' rounded-4xl border-transparent bg-gray-100 text-gray-950 shadow-none',
       className,
     )}
     {...props}
@@ -55,7 +55,7 @@ const CardDescription = ({
 }: React.ComponentProps<typeof CardDescriptionPrimitive>) => (
   <CardDescriptionPrimitive
     ref={ref}
-    className={twMerge('dark:text-spaire-400 text-sm text-gray-400', className)}
+    className={twMerge(' text-sm text-gray-400', className)}
     {...props}
   />
 )

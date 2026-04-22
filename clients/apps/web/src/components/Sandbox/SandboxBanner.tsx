@@ -5,7 +5,7 @@ const SandboxBanner = () => {
     return null
   }
   return (
-    <div className="sticky top-0 z-50 flex flex-row items-center justify-between bg-blue-100 px-8 py-2 text-sm text-blue-600 dark:bg-blue-950 dark:text-blue-400">
+    <div className="sticky top-0 z-50 flex flex-row items-center justify-between bg-blue-100 px-8 py-2 text-sm text-blue-600 ">
       <div></div>
       <div className="hidden md:block">
         Changes you make here don&apos;t affect your live account • Payments are

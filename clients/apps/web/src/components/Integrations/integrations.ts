@@ -226,7 +226,7 @@ Use "CHECKOUT_LINK_URL" as a placeholder \u2014 I'll replace it with my actual c
    - 2-3 pricing cards in a responsive grid
    - Each card showing the plan name, price, feature list, and CTA button
    - A "Most Popular" badge on the recommended plan
-   - Light/dark mode support using Tailwind's dark: variants`,
+   - Light/dark mode support using Tailwind's variants`,
   promptFileName: 'v0-spaire-prompt.txt',
   footerNote:
     'After creating your product in the Spaire dashboard, you\u2019ll get a checkout link URL to replace the CHECKOUT_LINK_URL placeholder above.',

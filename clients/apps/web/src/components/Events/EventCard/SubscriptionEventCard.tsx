@@ -28,17 +28,17 @@ export const SubscriptionEventCard = ({
       case 'subscription.cycled':
         return [
           'Cycled',
-          'bg-emerald-100 text-emerald-500 dark:bg-emerald-950 dark:text-emerald-500',
+          'bg-emerald-100 text-emerald-500 ',
         ]
       case 'subscription.revoked':
         return [
           'Revoked',
-          'bg-red-100 text-red-500 dark:bg-red-950 dark:text-red-500',
+          'bg-red-100 text-red-500 ',
         ]
       case 'subscription.product_updated':
         return [
           'Product Updated',
-          'bg-blue-100 text-blue-500 dark:bg-blue-950 dark:text-blue-500',
+          'bg-blue-100 text-blue-500 ',
         ]
       default:
         return null
@@ -57,7 +57,7 @@ export const SubscriptionEventCard = ({
               <AllInclusiveOutlined fontSize="inherit" />
               <span className="">{subscription.product.name}</span>
             </div>
-            <span className="dark:text-spaire-500 text-gray-500">
+            <span className=" text-gray-500">
               <ProductPriceLabel product={subscription.product} />
             </span>
           </div>

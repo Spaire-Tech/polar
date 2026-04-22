@@ -223,7 +223,7 @@ const UpdateProduct = ({
         <div className="flex flex-col gap-4">
           {selectedProduct &&
             selectedProduct.id !== subscription.product.id && (
-              <div className="rounded-2xl bg-yellow-50 px-4 py-3 text-sm text-yellow-500 dark:bg-yellow-950">
+              <div className="rounded-2xl bg-yellow-50 px-4 py-3 text-sm text-yellow-500">
                 The customer will get access to {selectedProduct.name} benefits,
                 and lose access to {subscription.product.name} benefits.
               </div>
@@ -490,14 +490,14 @@ const UpdateTrial = ({
     <>
       <div className="flex flex-col gap-4">
         {/* Section 2: Set/Update trial end date */}
-        <div className="dark:bg-spaire-800 flex flex-col gap-y-4 rounded-2xl bg-gray-50 p-6">
+        <div className=" flex flex-col gap-y-4 rounded-2xl bg-gray-50 p-6">
           <div className="flex flex-col gap-y-2">
             <h3 className="text-lg font-medium">
               {subscription.status === 'trialing'
                 ? 'Update Trial'
                 : 'Add Trial Period'}
             </h3>
-            <p className="dark:text-spaire-500 mt-1 text-sm text-gray-500">
+            <p className=" mt-1 text-sm text-gray-500">
               {subscription.status === 'trialing'
                 ? 'Set a new trial end date to extend or reduce the current trial period.'
                 : 'Add a trial period by setting a trial end date in the future.'}
@@ -549,10 +549,10 @@ const UpdateTrial = ({
 
         {/* Section 1: End trial now */}
         {subscription.status === 'trialing' && (
-          <div className="dark:bg-spaire-800 flex flex-col items-start gap-y-4 rounded-2xl bg-gray-50 p-6">
+          <div className=" flex flex-col items-start gap-y-4 rounded-2xl bg-gray-50 p-6">
             <div className="flex flex-col gap-2">
               <h3 className="text-lg font-medium">End Trial</h3>
-              <p className="dark:text-spaire-500 text-sm text-gray-500">
+              <p className=" text-sm text-gray-500">
                 This will immediately end the trial period and charge the
                 customer for a new billing cycle.
               </p>
@@ -638,10 +638,10 @@ const UpdateBillingPeriod = ({
   )
 
   return (
-    <div className="dark:bg-spaire-800 flex flex-col gap-y-4 rounded-2xl bg-gray-50 p-6">
+    <div className=" flex flex-col gap-y-4 rounded-2xl bg-gray-50 p-6">
       <div className="flex flex-col gap-y-2">
         <h3 className="text-lg font-medium">Update Billing Period</h3>
-        <p className="dark:text-spaire-500 mt-1 text-sm text-gray-500">
+        <p className=" mt-1 text-sm text-gray-500">
           Extend the current billing period by setting a new end date in the
           future. This is useful for providing additional free subscription time
           to a customer.

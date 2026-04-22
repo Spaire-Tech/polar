@@ -22,12 +22,12 @@ export default function IdentityStep({
   if (identityVerificationStatus === 'verified') {
     return (
       <div className="flex flex-col items-center gap-4 py-8 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-500/10">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50">
           <CheckCircle className="h-6 w-6 text-emerald-500" />
         </div>
         <div>
-          <h3 className="font-medium dark:text-white">Identity verified</h3>
-          <p className="dark:text-spaire-400 mt-1 text-sm text-gray-500">
+          <h3 className="font-medium">Identity verified</h3>
+          <p className=" mt-1 text-sm text-gray-500">
             Your identity has been successfully verified.
           </p>
         </div>
@@ -38,14 +38,14 @@ export default function IdentityStep({
   if (identityVerificationStatus === 'pending') {
     return (
       <div className="flex flex-col items-center gap-4 py-8 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-50 dark:bg-amber-500/10">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-50">
           <Loader2 className="h-6 w-6 animate-spin text-amber-500" />
         </div>
         <div>
-          <h3 className="font-medium dark:text-white">
+          <h3 className="font-medium">
             Verification in progress
           </h3>
-          <p className="dark:text-spaire-400 mx-auto mt-1 max-w-sm text-sm text-gray-500">
+          <p className=" mx-auto mt-1 max-w-sm text-sm text-gray-500">
             Your identity verification is being processed. This usually takes a
             few minutes but can take up to 24 hours.
           </p>
@@ -57,14 +57,14 @@ export default function IdentityStep({
   if (identityVerificationStatus === 'failed') {
     return (
       <div className="flex flex-col items-center gap-4 py-8 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-50 dark:bg-red-500/10">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
           <XCircle className="h-6 w-6 text-red-500" />
         </div>
         <div>
-          <h3 className="font-medium text-red-600 dark:text-red-400">
+          <h3 className="font-medium text-red-600">
             Verification failed
           </h3>
-          <p className="dark:text-spaire-400 mx-auto mt-1 max-w-sm text-sm text-gray-500">
+          <p className=" mx-auto mt-1 max-w-sm text-sm text-gray-500">
             We were unable to verify your identity. This could be due to
             document quality or information mismatch. Please try again.
           </p>
@@ -80,12 +80,12 @@ export default function IdentityStep({
   // Default: not started
   return (
     <div className="flex flex-col items-center gap-4 py-8 text-center">
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 dark:bg-blue-500/10">
+      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-50">
         <Fingerprint className="h-6 w-6 text-blue-500" />
       </div>
       <div>
-        <h3 className="font-medium dark:text-white">Verify your identity</h3>
-        <p className="dark:text-spaire-400 mx-auto mt-1 max-w-sm text-sm text-gray-500">
+        <h3 className="font-medium">Verify your identity</h3>
+        <p className=" mx-auto mt-1 max-w-sm text-sm text-gray-500">
           As your merchant of record, we&apos;re required to verify account
           holders. This takes less than 2 minutes.
         </p>

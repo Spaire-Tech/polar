@@ -49,7 +49,7 @@ const ProductsCommandGroup = ({
   return (
     <CommandGroup className={className}>
       <CommandItem
-        className="flex flex-row items-center justify-between py-2 text-black dark:text-white"
+        className="flex flex-row items-center justify-between py-2 text-black"
         key={productPriceType}
         value={productPriceType}
         onSelect={() => onSelectProductType(productPriceType)}
@@ -71,7 +71,7 @@ const ProductsCommandGroup = ({
 
         return (
           <CommandItem
-            className="flex flex-row items-center justify-between text-black dark:text-white"
+            className="flex flex-row items-center justify-between text-black"
             key={product.id}
             value={product.id}
             onSelect={() => onSelectProduct(product)}
@@ -219,7 +219,7 @@ const ProductSelect: React.FC<ProductSelectProps> = ({
           role="combobox"
           aria-expanded={open}
           className={twMerge(
-            'ring-offset-background placeholder:text-muted-foreground focus:ring-ring dark:bg-spaire-800 dark:hover:bg-spaire-700 dark:border-spaire-700 dark:hover:border-spaire-700 flex h-10 w-full! flex-row items-center justify-between gap-x-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-normal shadow-xs transition-colors hover:border-gray-300 hover:bg-white focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1',
+            'ring-offset-background placeholder:text-muted-foreground focus:ring-ring    flex h-10 w-full! flex-row items-center justify-between gap-x-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-normal shadow-xs transition-colors hover:border-gray-300 hover:bg-white focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1',
             className,
           )}
           wrapperClassNames="justify-between w-full min-w-[200px]"
