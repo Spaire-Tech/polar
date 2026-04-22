@@ -13,7 +13,7 @@ const PROFILE_TYPES = [
     description: 'Turn what you create into products people can buy.',
     illustration: (
       // eslint-disable-next-line @next/next/no-img-element
-      <img src="/icons/icon-creator.svg" alt="Digital Creator" className="h-full w-full object-contain" />
+      <img src="/icons/icon-creator.png" alt="Digital Creator" className="h-full w-full object-contain" />
     ),
   },
   {
@@ -22,7 +22,7 @@ const PROFILE_TYPES = [
     description: 'Operate and scale your business globally.',
     illustration: (
       // eslint-disable-next-line @next/next/no-img-element
-      <img src="/icons/icon-business.svg" alt="Business" className="h-full w-full object-contain" />
+      <img src="/icons/icon-business.png" alt="Business" className="h-full w-full object-contain" />
     ),
   },
 ] as const

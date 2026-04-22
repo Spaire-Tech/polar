@@ -5,6 +5,7 @@ import YouTube from '@mui/icons-material/YouTube'
 import MusicNoteOutlined from '@mui/icons-material/MusicNoteOutlined'
 import Instagram from '@mui/icons-material/Instagram'
 import LinkOutlined from '@mui/icons-material/LinkOutlined'
+import { useState } from 'react'
 
 export type StorefrontLinkItem = {
   id: string
@@ -63,6 +64,7 @@ const PLATFORM_ICONS: Record<string, React.FC<{ className?: string }>> = {
 }
 
 const StandardCard = ({ link }: { link: StorefrontLinkItem }) => {
+  const [faviconFailed, setFaviconFailed] = useState(false)
   const domain = getDomain(link.url)
   const title = link.title || domain
   const PlatformIcon = link.platform ? PLATFORM_ICONS[link.platform] : null
@@ -76,6 +78,8 @@ const StandardCard = ({ link }: { link: StorefrontLinkItem }) => {
     >
       {PlatformIcon ? (
         <PlatformIcon className="shrink-0 text-gray-500" />
+      ) : faviconFailed ? (
+        <LinkOutlined style={{ fontSize: 18 }} className="shrink-0 text-gray-400" />
       ) : (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -84,18 +88,7 @@ const StandardCard = ({ link }: { link: StorefrontLinkItem }) => {
           width={20}
           height={20}
           className="h-5 w-5 shrink-0 rounded"
-          onError={(e) => {
-            const el = e.target as HTMLImageElement
-            el.style.display = 'none'
-            el.nextElementSibling?.removeAttribute('hidden')
-          }}
-        />
-      )}
-      {!PlatformIcon && (
-        <LinkOutlined
-          hidden
-          style={{ fontSize: 18 }}
-          className="shrink-0 text-gray-400"
+          onError={() => setFaviconFailed(true)}
         />
       )}
       <div className="min-w-0 flex-1">
