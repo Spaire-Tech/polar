@@ -300,7 +300,7 @@ export const OrganizationStep = ({
         ),
       )
     } else {
-      router.push(`/dashboard/${organization.slug}/onboarding/skills`)
+      router.push(`/dashboard/${organization.slug}/onboarding/review`)
     }
   }
 

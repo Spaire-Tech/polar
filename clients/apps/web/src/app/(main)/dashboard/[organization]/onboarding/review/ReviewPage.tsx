@@ -94,7 +94,7 @@ export default function ReviewPage() {
             type="button"
             onClick={() =>
               router.push(
-                `/dashboard/${organization.slug}/onboarding/skills`,
+                `/dashboard/${organization.slug}/onboarding`,
               )
             }
             className="text-[14px] text-gray-500 transition-colors hover:text-gray-700"

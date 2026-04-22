@@ -186,11 +186,6 @@ export const ProductAdditionalDetailsSection = () => {
           </div>
         )}
 
-        {details.length === 0 && !pendingKey && (
-          <p className="dark:text-spaire-500 dark:bg-spaire-800 flex h-10 items-center justify-center rounded-2xl bg-gray-50 text-center text-sm text-gray-500 italic">
-            No details added yet. Use the fields above to add product attributes.
-          </p>
-        )}
       </div>
     </Section>
   )

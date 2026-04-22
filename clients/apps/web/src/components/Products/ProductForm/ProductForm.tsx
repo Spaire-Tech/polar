@@ -1,8 +1,6 @@
 import { Section } from '@/components/Layout/Section'
 import { schemas } from '@spaire/client'
-import { FormLabel } from '@spaire/ui/components/ui/form'
 import Link from 'next/link'
-import { ProductMetadataForm } from '../ProductMetadataForm'
 import { ProductAdditionalDetailsSection } from './ProductAdditionalDetailsSection'
 import { ProductCustomFieldSection } from './ProductCustomFieldSection'
 import { ProductCustomerPortalSection } from './ProductCustomerPortalSection'
@@ -42,13 +40,6 @@ const ProductForm = ({
       {benefitsSlot}
 
       <ProductAdditionalDetailsSection />
-
-      <Section
-        title="Metadata"
-        description="Attach custom key-value data to this product"
-      >
-        <ProductMetadataForm />
-      </Section>
 
       <ProductCustomerPortalSection />
 

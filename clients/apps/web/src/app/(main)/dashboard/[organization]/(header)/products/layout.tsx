@@ -10,7 +10,7 @@ const catalogTabs = [
   { title: 'Payment Links', suffix: '/checkout-links' },
   { title: 'Discounts', suffix: '/discounts' },
   { title: 'Files', suffix: '/benefits' },
-  { title: 'Space Card', suffix: '__storefront__' },
+  { title: 'Spaire Space', suffix: '__storefront__' },
 ]
 
 export default function CatalogLayout({ children }: PropsWithChildren) {

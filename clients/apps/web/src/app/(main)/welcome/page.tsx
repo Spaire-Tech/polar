@@ -2,7 +2,7 @@
 
 import { OnboardingProgressBar } from '@/components/Onboarding/OnboardingProgressBar'
 import { useOnboardingTracking } from '@/hooks/onboarding'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import { twMerge } from 'tailwind-merge'
 
@@ -41,13 +41,22 @@ type ProfileType = (typeof PROFILE_TYPES)[number]['id']
 
 export default function WelcomePage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { updateSurveyAnswers } = useOnboardingTracking()
   const [selected, setSelected] = useState<ProfileType | null>(null)
 
   const handleContinue = () => {
     if (!selected) return
     updateSurveyAnswers({ audience_type: selected })
-    router.push('/dashboard/create')
+    // Forward auto-create params if they were passed (e.g. from landing page CTA)
+    const slug = searchParams.get('slug')
+    const auto = searchParams.get('auto')
+    if (slug && auto === 'true') {
+      const params = new URLSearchParams({ slug, auto: 'true', from_welcome: 'true' })
+      router.push(`/dashboard/create?${params}`)
+    } else {
+      router.push('/dashboard/create')
+    }
   }
 
   return (
