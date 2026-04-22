@@ -12,22 +12,29 @@ const PROFILE_TYPES = [
     label: 'Digital Creator',
     description: 'Turn what you create into products people can buy.',
     illustration: (
-      // Camera / play icon on lime green — clearly "content creation"
       <svg viewBox="0 0 80 80" fill="none" className="h-full w-full">
-        <rect width="80" height="80" rx="16" fill="#c8f135" />
-        {/* Camera body */}
-        <rect x="12" y="28" width="42" height="30" rx="6" fill="#1a1a1a" />
-        {/* Lens ring */}
-        <circle cx="33" cy="43" r="10" fill="#2d2d2d" />
-        <circle cx="33" cy="43" r="6.5" fill="#111" />
-        <circle cx="33" cy="43" r="3.5" fill="#444" />
-        <circle cx="35" cy="41" r="1.2" fill="#888" />
-        {/* Viewfinder bump */}
-        <rect x="36" y="20" width="14" height="10" rx="3" fill="#1a1a1a" />
-        {/* Flash dot */}
-        <circle cx="50" cy="33" r="3" fill="#c8f135" />
-        {/* Play triangle on right */}
-        <polygon points="64,34 64,52 76,43" fill="#1a1a1a" />
+        <defs>
+          <linearGradient id="cr-a" x1="40" y1="8" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#ff6435" />
+            <stop offset="100%" stopColor="#f97316" />
+          </linearGradient>
+          <linearGradient id="cr-b" x1="10" y1="72" x2="36" y2="40" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#fef08a" />
+            <stop offset="100%" stopColor="#fbbf24" />
+          </linearGradient>
+          <linearGradient id="cr-c" x1="70" y1="72" x2="44" y2="40" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#fbbf24" />
+            <stop offset="100%" stopColor="#f97316" />
+          </linearGradient>
+        </defs>
+        {/* Top orange facet */}
+        <polygon points="40,8 55,40 25,40" fill="url(#cr-a)" />
+        {/* Bottom-left yellow facet */}
+        <polygon points="25,40 10,72 40,72" fill="url(#cr-b)" />
+        {/* Bottom-right amber facet */}
+        <polygon points="55,40 70,72 40,72" fill="url(#cr-c)" />
+        {/* Center inverted facet */}
+        <polygon points="25,40 55,40 40,72" fill="#f59e0b" />
       </svg>
     ),
   },
@@ -36,18 +43,21 @@ const PROFILE_TYPES = [
     label: 'Business',
     description: 'Operate and scale your business globally.',
     illustration: (
-      // Briefcase on deep indigo — clearly "professional / corporate"
       <svg viewBox="0 0 80 80" fill="none" className="h-full w-full">
-        <rect width="80" height="80" rx="16" fill="#312e81" />
-        {/* Briefcase body */}
-        <rect x="14" y="34" width="52" height="34" rx="7" fill="#e0e7ff" />
-        {/* Handle */}
-        <path d="M30 34V28a4 4 0 0 1 4-4h12a4 4 0 0 1 4 4v6" stroke="#e0e7ff" strokeWidth="4" strokeLinecap="round" fill="none" />
-        {/* Centre latch bar */}
-        <rect x="14" y="47" width="52" height="5" rx="2.5" fill="#a5b4fc" />
-        {/* Latch circle */}
-        <circle cx="40" cy="49.5" r="4" fill="#312e81" />
-        <circle cx="40" cy="49.5" r="2" fill="#a5b4fc" />
+        <defs>
+          <linearGradient id="biz-a" x1="28" y1="10" x2="68" y2="38" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#c084fc" />
+            <stop offset="100%" stopColor="#7c3aed" />
+          </linearGradient>
+          <linearGradient id="biz-b" x1="8" y1="34" x2="50" y2="66" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#22d3ee" />
+            <stop offset="100%" stopColor="#6366f1" />
+          </linearGradient>
+        </defs>
+        {/* Purple parallelogram — upper area */}
+        <path d="M28 10 L64 10 L70 38 L34 38 Z" fill="url(#biz-a)" />
+        {/* Teal triangle — lower-left, overlaps center */}
+        <path d="M8 34 L50 34 L28 66 Z" fill="url(#biz-b)" />
       </svg>
     ),
   },
