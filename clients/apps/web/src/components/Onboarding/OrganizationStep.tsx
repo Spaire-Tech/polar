@@ -309,7 +309,7 @@ export const OrganizationStep = ({
       {/* Progress bar */}
       {!hasExistingOrg && (
         <div className="mb-12 w-full max-w-lg">
-          <OnboardingProgressBar currentStep={1} totalSteps={3} />
+          <OnboardingProgressBar currentStep={2} totalSteps={3} />
         </div>
       )}
 

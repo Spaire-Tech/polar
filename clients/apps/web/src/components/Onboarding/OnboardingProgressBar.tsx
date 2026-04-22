@@ -20,9 +20,7 @@ export const OnboardingProgressBar = ({
             'h-1 flex-1 rounded-full transition-colors duration-300',
             i < currentStep
               ? 'bg-blue-500'
-              : i === currentStep
-                ? 'bg-blue-500'
-                : 'bg-gray-200 dark:bg-gray-700',
+              : 'bg-gray-200 dark:bg-gray-700',
           )}
         />
       ))}

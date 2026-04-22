@@ -13,9 +13,10 @@ import { useRouter } from 'next/navigation'
 import { useCallback, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { ForceLightMode } from '@/components/Profile/ForceLightMode'
+import { Storefront } from '@/components/Profile/Storefront'
 import { StorefrontEditorForm } from './Storefront/StorefrontSidebar'
 import { StorefrontLivePreview } from './Storefront/StorefrontPreview'
-import { ProfileCard } from '@/components/Profile/ProfileCard'
+import { useStorefront } from '@/hooks/queries/storefront'
 
 export const CustomizationPage = ({
   organization,
@@ -39,6 +40,8 @@ const Customization = ({
   const [publishing, setPublishing] = useState(false)
   const isSpaceEnabled = organization.storefront_settings?.enabled ?? false
   const [isEditing, setIsEditing] = useState(!isSpaceEnabled)
+
+  const { data: storefrontData } = useStorefront(organization.slug)
 
   const form = useForm<schemas['OrganizationUpdate']>({
     defaultValues: {
@@ -144,10 +147,13 @@ const Customization = ({
             </div>
           </div>
 
-          {/* Centered card preview */}
-          <div className="flex flex-1 items-center justify-center overflow-y-auto p-10">
-            <div className="w-full max-w-[460px]">
-              <ProfileCard organization={organization} />
+          {/* Full storefront preview */}
+          <div className="flex flex-1 justify-center overflow-y-auto p-10">
+            <div className="w-full max-w-[600px]">
+              <Storefront
+                organization={organization}
+                products={storefrontData?.products ?? []}
+              />
             </div>
           </div>
         </div>

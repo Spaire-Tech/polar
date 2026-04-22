@@ -12,13 +12,22 @@ const PROFILE_TYPES = [
     label: 'Digital Creator',
     description: 'Turn what you create into products people can buy.',
     illustration: (
+      // Camera / play icon on lime green — clearly "content creation"
       <svg viewBox="0 0 80 80" fill="none" className="h-full w-full">
-        <rect width="80" height="80" rx="14" fill="#b5f23c" />
-        {/* Raised-arm figure silhouette */}
-        <ellipse cx="40" cy="28" rx="13" ry="13" fill="#d946ef" />
-        <path d="M27 70 Q27 50 40 50 Q53 50 53 70Z" fill="#d946ef" />
-        <path d="M40 28 Q52 20 58 14" stroke="#d946ef" strokeWidth="4" strokeLinecap="round" fill="none" />
-        <circle cx="58" cy="12" r="5" fill="#d946ef" />
+        <rect width="80" height="80" rx="16" fill="#c8f135" />
+        {/* Camera body */}
+        <rect x="12" y="28" width="42" height="30" rx="6" fill="#1a1a1a" />
+        {/* Lens ring */}
+        <circle cx="33" cy="43" r="10" fill="#2d2d2d" />
+        <circle cx="33" cy="43" r="6.5" fill="#111" />
+        <circle cx="33" cy="43" r="3.5" fill="#444" />
+        <circle cx="35" cy="41" r="1.2" fill="#888" />
+        {/* Viewfinder bump */}
+        <rect x="36" y="20" width="14" height="10" rx="3" fill="#1a1a1a" />
+        {/* Flash dot */}
+        <circle cx="50" cy="33" r="3" fill="#c8f135" />
+        {/* Play triangle on right */}
+        <polygon points="64,34 64,52 76,43" fill="#1a1a1a" />
       </svg>
     ),
   },
@@ -27,11 +36,18 @@ const PROFILE_TYPES = [
     label: 'Business',
     description: 'Operate and scale your business globally.',
     illustration: (
+      // Briefcase on deep indigo — clearly "professional / corporate"
       <svg viewBox="0 0 80 80" fill="none" className="h-full w-full">
-        <rect width="80" height="80" rx="14" fill="#4c1d95" />
-        {/* Business person silhouette */}
-        <ellipse cx="40" cy="26" rx="12" ry="12" fill="#d1d5db" />
-        <path d="M22 72 Q22 46 40 46 Q58 46 58 72Z" fill="#d1d5db" />
+        <rect width="80" height="80" rx="16" fill="#312e81" />
+        {/* Briefcase body */}
+        <rect x="14" y="34" width="52" height="34" rx="7" fill="#e0e7ff" />
+        {/* Handle */}
+        <path d="M30 34V28a4 4 0 0 1 4-4h12a4 4 0 0 1 4 4v6" stroke="#e0e7ff" strokeWidth="4" strokeLinecap="round" fill="none" />
+        {/* Centre latch bar */}
+        <rect x="14" y="47" width="52" height="5" rx="2.5" fill="#a5b4fc" />
+        {/* Latch circle */}
+        <circle cx="40" cy="49.5" r="4" fill="#312e81" />
+        <circle cx="40" cy="49.5" r="2" fill="#a5b4fc" />
       </svg>
     ),
   },
@@ -70,10 +86,8 @@ export default function WelcomePage() {
       <div className="flex flex-1 items-start justify-center px-4 pt-16 pb-40">
         <div className="flex w-full max-w-lg flex-col gap-8">
           <div className="flex flex-col items-center gap-3 text-center">
-            <h1 className="text-[32px] font-extrabold leading-tight tracking-tight text-gray-900">
-              Which best describes your
-              <br />
-              goal for using Spaire?
+            <h1 className="text-2xl font-bold tracking-tight text-gray-900">
+              Which best describes your goal for using Spaire?
             </h1>
             <p className="text-sm text-gray-400">
               This helps us personalize your experience.
