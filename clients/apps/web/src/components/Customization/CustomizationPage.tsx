@@ -152,7 +152,7 @@ const Customization = ({
           <div className="flex flex-1 overflow-y-auto p-10">
             <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-8 md:flex-row md:gap-12">
               {/* Left — sticky profile card */}
-              <aside className="w-full shrink-0 md:sticky md:top-0 md:w-[380px] md:self-start">
+              <aside className="w-full shrink-0 md:sticky md:top-0 md:w-[460px] md:self-start">
                 <ProfileCard
                   organization={storefrontData?.organization ?? organization}
                   products={storefrontData?.products ?? []}

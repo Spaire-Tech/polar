@@ -12,8 +12,13 @@ export const StorefrontLivePreview = ({
 }) => {
   const { watch } = useFormContext<schemas['OrganizationUpdate']>()
   const organizationUpdate = watch()
+  const storefrontSettings = watch('storefront_settings')
 
-  const organization = { ...org, ...organizationUpdate } as schemas['Organization']
+  const organization = {
+    ...org,
+    ...organizationUpdate,
+    storefront_settings: storefrontSettings ?? org.storefront_settings,
+  } as schemas['Organization']
 
   const allProducts =
     useProducts(organization.id, { is_archived: false }).data?.items ?? []
@@ -24,7 +29,7 @@ export const StorefrontLivePreview = ({
     ? allProducts.filter((p) => featuredIds.includes(p.id))
     : allProducts
 
-  const showCardProducts = (organization.storefront_settings as any)?.show_card_products ?? true
+  const showCardProducts = (storefrontSettings as any)?.show_card_products ?? true
 
   return (
     <ProfileCard organization={organization} products={showCardProducts ? products : []} />

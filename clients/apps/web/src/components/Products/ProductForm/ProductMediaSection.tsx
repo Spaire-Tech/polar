@@ -21,7 +21,7 @@ export const ProductMediaSection = ({
 
   return (
     <Section
-      title="Thumbnail"
+      title="Product Media"
       description="This image appears in Checkouts, your Spaire Space, in emails, social sharing and more."
     >
       <FormField

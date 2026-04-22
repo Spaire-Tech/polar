@@ -466,7 +466,7 @@ export const OrganizationStep = ({
                             size={Math.max(slug?.length || 1, 6)}
                             placeholder="jane-doe"
                             onFocus={() => setEditedSlug(true)}
-                            className="flex-1 bg-white px-3 py-2.5 text-sm outline-none"
+                            className="flex-1 border-0 bg-white px-3 py-2.5 text-sm shadow-none outline-none ring-0 focus:ring-0"
                           />
                         </div>
                       </FormControl>

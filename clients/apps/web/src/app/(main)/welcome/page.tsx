@@ -12,23 +12,8 @@ const PROFILE_TYPES = [
     label: 'Digital Creator',
     description: 'Turn what you create into products people can buy.',
     illustration: (
-      // Glowing purple/pink orb — vibrant creative energy
-      <svg viewBox="0 0 80 80" fill="none" className="h-full w-full">
-        <defs>
-          <radialGradient id="wc-cr-bg" cx="50%" cy="50%" r="70.7%">
-            <stop offset="0%" stopColor="#cc00ff" />
-            <stop offset="55%" stopColor="#7700cc" />
-            <stop offset="100%" stopColor="#38007f" />
-          </radialGradient>
-          <radialGradient id="wc-cr-glow" cx="50%" cy="46%" r="40%">
-            <stop offset="0%" stopColor="#ff8877" stopOpacity="1" />
-            <stop offset="50%" stopColor="#ff3366" stopOpacity="0.55" />
-            <stop offset="100%" stopColor="#ff3366" stopOpacity="0" />
-          </radialGradient>
-        </defs>
-        <rect width="80" height="80" fill="url(#wc-cr-bg)" />
-        <rect width="80" height="80" fill="url(#wc-cr-glow)" />
-      </svg>
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src="/icons/icon-creator.png" alt="Digital Creator" className="h-full w-full object-cover" />
     ),
   },
   {
@@ -36,35 +21,8 @@ const PROFILE_TYPES = [
     label: 'Business',
     description: 'Operate and scale your business globally.',
     illustration: (
-      // Dark app icon with 3D white navigation cursor
-      <svg viewBox="0 0 80 80" fill="none" className="h-full w-full">
-        <defs>
-          <radialGradient id="wc-biz-bg" cx="38%" cy="32%" r="72%">
-            <stop offset="0%" stopColor="#2e2e2e" />
-            <stop offset="100%" stopColor="#0a0a0a" />
-          </radialGradient>
-          <linearGradient id="wc-biz-arrow" x1="24" y1="18" x2="50" y2="58" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="#ffffff" />
-            <stop offset="55%" stopColor="#d4d4d4" />
-            <stop offset="100%" stopColor="#8a8a8a" />
-          </linearGradient>
-          <clipPath id="wc-biz-clip">
-            <rect width="80" height="80" />
-          </clipPath>
-        </defs>
-        <rect width="80" height="80" fill="url(#wc-biz-bg)" />
-        {/* Subtle angular facet reflections */}
-        <g clipPath="url(#wc-biz-clip)">
-          <path d="M0 0 L50 0 L80 30 L80 0 Z" fill="#000" opacity="0.18" />
-          <path d="M0 50 L0 80 L30 80 Z" fill="#000" opacity="0.18" />
-          <path d="M52 80 L80 80 L80 52 Z" fill="#000" opacity="0.12" />
-        </g>
-        {/* 3D navigation/send cursor pointing upper-left */}
-        <path
-          d="M22 20 L22 56 L34 44 L44 62 L52 58 L42 40 L60 32 Z"
-          fill="url(#wc-biz-arrow)"
-        />
-      </svg>
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src="/icons/icon-business.png" alt="Business" className="h-full w-full object-cover" />
     ),
   },
 ] as const

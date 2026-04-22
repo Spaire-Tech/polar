@@ -527,7 +527,7 @@ export const StorefrontEditorForm = ({
                 onValueChange={(v) => updateSetting('profile_title', v || null)}
               >
                 <SelectTrigger className="h-[42px] rounded-xl">
-                  <SelectValue placeholder="eg. Designer" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {PROFILE_TITLE_OPTIONS.map((title) => (
@@ -784,7 +784,13 @@ export const StorefrontEditorForm = ({
             <span className="text-sm text-gray-700">Show product images in card</span>
             <Switch
               checked={((settings as any)?.show_card_products ?? true) as boolean}
-              onCheckedChange={(v) => updateSetting('show_card_products' as any, v)}
+              onCheckedChange={(v) =>
+                setValue(
+                  'storefront_settings',
+                  { ...(settings ?? {}), show_card_products: v } as any,
+                  { shouldDirty: true },
+                )
+              }
             />
           </div>
           <div className="flex items-center justify-between px-4 py-3.5 transition-colors hover:bg-gray-50">
