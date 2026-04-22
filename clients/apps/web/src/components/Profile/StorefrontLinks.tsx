@@ -4,7 +4,7 @@ import ChevronLeftOutlined from '@mui/icons-material/ChevronLeftOutlined'
 import ChevronRightOutlined from '@mui/icons-material/ChevronRightOutlined'
 import LinkOutlined from '@mui/icons-material/LinkOutlined'
 import OpenInNewOutlined from '@mui/icons-material/OpenInNewOutlined'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 export type StorefrontLinkItem = {
   id: string
@@ -76,18 +76,18 @@ function buildEmbedUrl(
 const EmbedFrame = ({
   link,
   autoplay,
-  fullWidth = false,
+  fullHeight = false,
 }: {
   link: StorefrontLinkItem
   autoplay: boolean
-  fullWidth?: boolean
+  fullHeight?: boolean
 }) => {
   const platform = link.platform ?? ''
   const src = buildEmbedUrl(link.url, platform, autoplay)
   if (!src) return null
 
   const heights: Record<string, number> = {
-    youtube: fullWidth ? 380 : 200,
+    youtube: fullHeight ? 280 : 200,
     spotify: 80,
     soundcloud: 116,
   }
@@ -95,7 +95,6 @@ const EmbedFrame = ({
 
   return (
     <iframe
-      // key forces remount (and thus autoplay) when autoplay prop changes
       key={autoplay ? 'play' : 'pause'}
       src={src}
       width="100%"
@@ -127,7 +126,7 @@ const Thumb = ({
     <div
       className={`flex items-center justify-center bg-gray-100 ${className ?? ''}`}
     >
-      <LinkOutlined style={{ fontSize: 24 }} className="text-gray-300" />
+      <LinkOutlined style={{ fontSize: 28 }} className="text-gray-300" />
     </div>
   )
 
@@ -141,7 +140,7 @@ const ClassicLayout = ({ links }: { links: StorefrontLinkItem[] }) => (
         href={link.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center gap-4 rounded-2xl border border-gray-200 bg-white px-4 py-3.5 transition-all hover:shadow-sm"
+        className="flex items-center gap-4 rounded-2xl border border-gray-200 bg-white px-4 py-3.5 shadow-sm transition-all hover:shadow-md"
       >
         <Thumb
           link={link}
@@ -154,6 +153,9 @@ const ClassicLayout = ({ links }: { links: StorefrontLinkItem[] }) => (
           {link.description && (
             <p className="truncate text-xs text-gray-500">{link.description}</p>
           )}
+          <p className="mt-0.5 truncate text-[11px] text-gray-400">
+            {getDomain(link.url)}
+          </p>
         </div>
         <OpenInNewOutlined
           style={{ fontSize: 16 }}
@@ -163,6 +165,107 @@ const ClassicLayout = ({ links }: { links: StorefrontLinkItem[] }) => (
     ))}
   </div>
 )
+
+// ─── Peek carousel (shared between Carousel and Card layouts) ────────────────
+
+interface PeekCarouselProps {
+  links: StorefrontLinkItem[]
+  renderCard: (link: StorefrontLinkItem, isActive: boolean) => React.ReactNode
+  cardRatio?: number
+}
+
+const PeekCarousel = ({
+  links,
+  renderCard,
+  cardRatio = 0.76,
+}: PeekCarouselProps) => {
+  const [current, setCurrent] = useState(0)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [containerWidth, setContainerWidth] = useState(0)
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    setContainerWidth(el.offsetWidth)
+    const ro = new ResizeObserver(([entry]) => {
+      setContainerWidth(entry.contentRect.width)
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  const GAP = 16
+  const cardW = containerWidth > 0 ? containerWidth * cardRatio : 260
+  const peek = containerWidth > 0 ? (containerWidth - cardW) / 2 : 20
+  const offset = peek - current * (cardW + GAP)
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div ref={containerRef} className="relative overflow-hidden">
+        <div
+          className="flex transition-transform duration-300 ease-out"
+          style={{ transform: `translateX(${offset}px)`, gap: `${GAP}px` }}
+        >
+          {links.map((link, i) => {
+            const isActive = i === current
+            return (
+              <div
+                key={link.id}
+                style={{ width: `${cardW}px`, flexShrink: 0 }}
+                className={`cursor-pointer transition-all duration-300 ${
+                  isActive
+                    ? 'opacity-100'
+                    : 'scale-[0.95] opacity-50 hover:opacity-70'
+                }`}
+                onClick={() => {
+                  if (!isActive) setCurrent(i)
+                }}
+              >
+                {renderCard(link, isActive)}
+              </div>
+            )
+          })}
+        </div>
+
+        {current > 0 && (
+          <button
+            type="button"
+            aria-label="Previous"
+            onClick={() => setCurrent((c) => c - 1)}
+            className="absolute left-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 shadow-md backdrop-blur-sm transition hover:bg-white"
+          >
+            <ChevronLeftOutlined style={{ fontSize: 20 }} />
+          </button>
+        )}
+        {current < links.length - 1 && (
+          <button
+            type="button"
+            aria-label="Next"
+            onClick={() => setCurrent((c) => c + 1)}
+            className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 shadow-md backdrop-blur-sm transition hover:bg-white"
+          >
+            <ChevronRightOutlined style={{ fontSize: 20 }} />
+          </button>
+        )}
+      </div>
+
+      {links.length > 1 && (
+        <div className="flex justify-center gap-1.5">
+          {links.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => setCurrent(i)}
+              className={`h-1.5 rounded-full transition-all ${
+                i === current ? 'w-4 bg-gray-900' : 'w-1.5 bg-gray-300'
+              }`}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 // ─── Carousel layout ────────────────────────────────────────────────────────
 
@@ -174,14 +277,16 @@ const CarouselCard = ({
   isActive: boolean
 }) => {
   const hasEmbed =
-    link.type === 'embedded' && link.platform && buildEmbedUrl(link.url, link.platform, false)
+    link.type === 'embedded' &&
+    link.platform &&
+    buildEmbedUrl(link.url, link.platform, false)
 
   return (
-    <div className="flex w-full min-w-full flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white">
+    <div className="flex w-full flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
       {hasEmbed ? (
         <EmbedFrame link={link} autoplay={isActive} />
       ) : (
-        <Thumb link={link} className="h-48 w-full object-cover" />
+        <Thumb link={link} className="aspect-[4/3] w-full object-cover" />
       )}
       <div className="flex flex-col gap-1 p-4">
         <p className="font-semibold text-gray-900">
@@ -209,60 +314,15 @@ const CarouselCard = ({
   )
 }
 
-const CarouselLayout = ({ links }: { links: StorefrontLinkItem[] }) => {
-  const [current, setCurrent] = useState(0)
-
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="relative overflow-hidden">
-        <div
-          className="flex transition-transform duration-300 ease-out"
-          style={{ transform: `translateX(-${current * 100}%)` }}
-        >
-          {links.map((link, i) => (
-            <CarouselCard key={link.id} link={link} isActive={i === current} />
-          ))}
-        </div>
-
-        {current > 0 && (
-          <button
-            type="button"
-            aria-label="Previous"
-            onClick={() => setCurrent((c) => c - 1)}
-            className="absolute left-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 shadow-md backdrop-blur-sm transition hover:bg-white"
-          >
-            <ChevronLeftOutlined style={{ fontSize: 20 }} />
-          </button>
-        )}
-        {current < links.length - 1 && (
-          <button
-            type="button"
-            aria-label="Next"
-            onClick={() => setCurrent((c) => c + 1)}
-            className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 shadow-md backdrop-blur-sm transition hover:bg-white"
-          >
-            <ChevronRightOutlined style={{ fontSize: 20 }} />
-          </button>
-        )}
-      </div>
-
-      {links.length > 1 && (
-        <div className="flex justify-center gap-1.5">
-          {links.map((_, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => setCurrent(i)}
-              className={`h-1.5 rounded-full transition-all ${
-                i === current ? 'w-4 bg-gray-900' : 'w-1.5 bg-gray-300'
-              }`}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
+const CarouselLayout = ({ links }: { links: StorefrontLinkItem[] }) => (
+  <PeekCarousel
+    links={links}
+    cardRatio={0.76}
+    renderCard={(link, isActive) => (
+      <CarouselCard link={link} isActive={isActive} />
+    )}
+  />
+)
 
 // ─── Image grid layout ───────────────────────────────────────────────────────
 
@@ -274,7 +334,7 @@ const ImageGridLayout = ({ links }: { links: StorefrontLinkItem[] }) => (
         href={link.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="group overflow-hidden rounded-2xl border border-gray-200 bg-white transition-shadow hover:shadow-md"
+        className="group overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md"
       >
         <Thumb
           link={link}
@@ -284,6 +344,11 @@ const ImageGridLayout = ({ links }: { links: StorefrontLinkItem[] }) => (
           <p className="line-clamp-2 text-[13px] font-semibold text-gray-900">
             {link.title || getDomain(link.url)}
           </p>
+          {link.description && (
+            <p className="mt-0.5 line-clamp-1 text-[11px] text-gray-400">
+              {link.description}
+            </p>
+          )}
         </div>
       </a>
     ))}
@@ -292,64 +357,48 @@ const ImageGridLayout = ({ links }: { links: StorefrontLinkItem[] }) => (
 
 // ─── Card layout ─────────────────────────────────────────────────────────────
 
-const CardLayout = ({ links }: { links: StorefrontLinkItem[] }) => {
-  const [current, setCurrent] = useState(0)
-  const link = links[current]
-
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
-        {link.type === 'embedded' && link.platform ? (
-          <EmbedFrame link={link} autoplay fullWidth />
-        ) : (
-          <Thumb link={link} className="h-56 w-full object-cover" />
-        )}
-        <div className="flex flex-col gap-2 p-6">
-          <h3 className="text-lg font-bold text-gray-900">
-            {link.title || getDomain(link.url)}
-          </h3>
-          {link.description && (
-            <p className="text-sm text-gray-500">{link.description}</p>
-          )}
-          {link.type === 'standard' && (
-            <a
-              href={link.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-2 inline-flex w-fit items-center gap-1.5 rounded-xl bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
-            >
-              Visit <OpenInNewOutlined style={{ fontSize: 14 }} />
-            </a>
-          )}
-        </div>
-      </div>
-
-      {links.length > 1 && (
-        <div className="flex items-center justify-between">
-          <button
-            type="button"
-            onClick={() => setCurrent((c) => Math.max(0, c - 1))}
-            disabled={current === 0}
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white transition-colors hover:bg-gray-50 disabled:opacity-40"
-          >
-            <ChevronLeftOutlined style={{ fontSize: 18 }} />
-          </button>
-          <span className="text-xs text-gray-400">
-            {current + 1} / {links.length}
-          </span>
-          <button
-            type="button"
-            onClick={() => setCurrent((c) => Math.min(links.length - 1, c + 1))}
-            disabled={current === links.length - 1}
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white transition-colors hover:bg-gray-50 disabled:opacity-40"
-          >
-            <ChevronRightOutlined style={{ fontSize: 18 }} />
-          </button>
-        </div>
+const CardItem = ({
+  link,
+  isActive,
+}: {
+  link: StorefrontLinkItem
+  isActive: boolean
+}) => (
+  <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+    {link.type === 'embedded' && link.platform ? (
+      <EmbedFrame link={link} autoplay={isActive} fullHeight />
+    ) : (
+      <Thumb link={link} className="aspect-[16/9] w-full object-cover" />
+    )}
+    <div className="flex flex-col gap-2 p-5">
+      <h3 className="text-base font-bold text-gray-900">
+        {link.title || getDomain(link.url)}
+      </h3>
+      {link.description && (
+        <p className="text-sm text-gray-500">{link.description}</p>
+      )}
+      {link.type === 'standard' && (
+        <a
+          href={link.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="mt-1 inline-flex w-fit items-center gap-1.5 rounded-xl bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
+        >
+          Visit <OpenInNewOutlined style={{ fontSize: 14 }} />
+        </a>
       )}
     </div>
-  )
-}
+  </div>
+)
+
+const CardLayout = ({ links }: { links: StorefrontLinkItem[] }) => (
+  <PeekCarousel
+    links={links}
+    cardRatio={0.82}
+    renderCard={(link, isActive) => <CardItem link={link} isActive={isActive} />}
+  />
+)
 
 // ─── Main export ─────────────────────────────────────────────────────────────
 
