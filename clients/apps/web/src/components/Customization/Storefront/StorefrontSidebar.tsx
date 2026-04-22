@@ -768,7 +768,6 @@ export const StorefrontEditorForm = ({
             { key: 'show_description' as const, label: 'Show description', def: true },
             { key: 'show_product_details' as const, label: 'Show product details', def: true },
             { key: 'available_for_work' as const, label: 'Available for work', def: false },
-            { key: 'show_card_products' as any, label: 'Show product images in card', def: true },
           ].map(({ key, label, def }) => (
             <div
               key={key}
@@ -781,6 +780,13 @@ export const StorefrontEditorForm = ({
               />
             </div>
           ))}
+          <div className="flex items-center justify-between px-4 py-3.5 transition-colors hover:bg-gray-50">
+            <span className="text-sm text-gray-700">Show product images in card</span>
+            <Switch
+              checked={((settings as any)?.show_card_products ?? true) as boolean}
+              onCheckedChange={(v) => updateSetting('show_card_products' as any, v)}
+            />
+          </div>
           <div className="flex items-center justify-between px-4 py-3.5 transition-colors hover:bg-gray-50">
             <span className="text-sm text-gray-700">Thumbnail size</span>
             <Select
