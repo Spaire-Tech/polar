@@ -73,7 +73,7 @@ export default function ReviewPage() {
       await revalidate(`organizations:${org.slug}`)
       await revalidate(`storefront:${org.slug}`)
 
-      router.push(`/dashboard/${organization.slug}/onboarding/product`)
+      router.push(`/dashboard/${organization.slug}`)
     } catch (err) {
       toast({
         title: 'Publish Failed',

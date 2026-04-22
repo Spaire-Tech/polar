@@ -17,6 +17,8 @@ import { useFormContext } from 'react-hook-form'
 import { twMerge } from 'tailwind-merge'
 import { FileObject, useFileUpload } from '../../FileUpload'
 import { useProducts } from '@/hooks/queries'
+import { InlineModal } from '@/components/Modal/InlineModal'
+import { CreateProductPage } from '@/components/Products/CreateProductPage'
 import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined'
 import OpenInNewOutlined from '@mui/icons-material/OpenInNewOutlined'
 import CheckOutlined from '@mui/icons-material/CheckOutlined'
@@ -422,6 +424,7 @@ export const StorefrontEditorForm = ({
 
   // Drag-to-reposition cover image
   const [isCoverDragging, setIsCoverDragging] = useState(false)
+  const [createProductOpen, setCreateProductOpen] = useState(false)
   const coverDragRef = useRef<{
     startX: number; startY: number; posX: number; posY: number
   } | null>(null)
@@ -692,7 +695,7 @@ export const StorefrontEditorForm = ({
       {/* Products to Display */}
       <div className="flex flex-col gap-y-2">
         <h3 className="text-sm font-semibold text-gray-900">Products to Display</h3>
-        <p className="text-xs text-gray-500">Select which products appear on your storefront. Leave all unchecked to show everything.</p>
+        <p className="text-xs text-gray-500">Select which products appear on your storefront.</p>
         {allProducts.length > 0 ? (
           <div className="flex flex-col divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200">
             {allProducts.map((product) => (
@@ -727,10 +730,32 @@ export const StorefrontEditorForm = ({
               </label>
             ))}
           </div>
-        ) : (
-          <p className="text-sm text-gray-400">No products yet. Create a product to get started.</p>
-        )}
+        ) : null}
+        <button
+          type="button"
+          onClick={() => setCreateProductOpen(true)}
+          className="flex flex-row items-center gap-x-2 rounded-xl border border-dashed border-gray-300 px-4 py-2.5 text-sm text-gray-500 transition-colors hover:border-gray-400 hover:text-gray-700"
+        >
+          <AddOutlined style={{ fontSize: 18 }} />
+          {allProducts.length > 0 ? 'Create another product' : 'Create your first product'}
+        </button>
       </div>
+      <InlineModal
+        isShown={createProductOpen}
+        hide={() => setCreateProductOpen(false)}
+        className="md:w-[720px]"
+        modalContent={
+          createProductOpen ? (
+            <CreateProductPage
+              organization={organization}
+              panelMode
+              onClose={() => setCreateProductOpen(false)}
+            />
+          ) : (
+            <div />
+          )
+        }
+      />
 
       {/* Display Settings — always visible, not collapsible */}
       <div className="flex flex-col gap-y-2">

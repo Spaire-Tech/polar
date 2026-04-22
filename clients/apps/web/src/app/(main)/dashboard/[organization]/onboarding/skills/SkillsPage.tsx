@@ -5,10 +5,23 @@ import { useUpdateOrganization } from '@/hooks/queries'
 import { OrganizationContext } from '@/providers/maintainerOrganization'
 import AddOutlined from '@mui/icons-material/AddOutlined'
 import CloseOutlined from '@mui/icons-material/CloseOutlined'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@spaire/ui/components/atoms/Select'
 import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import { useContext, useState } from 'react'
 import { twMerge } from 'tailwind-merge'
+
+const PROFILE_TITLE_OPTIONS = [
+  'Designer', '3D Artist', 'Illustrator', 'Photographer', 'Animator',
+  'Video Editor', 'Developer', 'Writer', 'Creator', 'Music Producer',
+  'Game Developer', 'UI/UX Designer', 'Graphic Designer', 'Motion Designer',
+]
 
 const SKILL_OPTIONS = [
   '2D Design', '3D Design', '3D Modeling', '2D Animation', '3D Animation',
@@ -68,7 +81,6 @@ function TagPicker({
         <p className="text-xs text-gray-400">{description}</p>
       </div>
 
-      {/* Selected tags */}
       {selected.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {selected.map((tag) => (
@@ -85,7 +97,6 @@ function TagPicker({
         </div>
       )}
 
-      {/* Custom input */}
       <div className="flex gap-2">
         <input
           type="text"
@@ -93,7 +104,7 @@ function TagPicker({
           onChange={(e) => setCustomInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addCustom())}
           placeholder={`Add custom ${label.toLowerCase()}…`}
-          className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400"
+          className="flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm shadow-xs outline-none transition-all focus:z-10 focus:border-blue-300 focus:ring-[3px] focus:ring-blue-100"
         />
         <button
           type="button"
@@ -106,7 +117,6 @@ function TagPicker({
         </button>
       </div>
 
-      {/* Preset options */}
       <div className="flex flex-wrap gap-2">
         {options
           .filter((o) => !selected.includes(o))
@@ -136,6 +146,10 @@ export default function SkillsPage() {
   const router = useRouter()
   const updateOrganization = useUpdateOrganization()
 
+  const [profileTitle, setProfileTitle] = useState<string>(
+    (organization.storefront_settings as { profile_title?: string } | undefined)
+      ?.profile_title ?? '',
+  )
   const [skills, setSkills] = useState<string[]>(
     organization.storefront_settings?.skills ?? [],
   )
@@ -152,9 +166,10 @@ export default function SkillsPage() {
         body: {
           storefront_settings: {
             ...(organization.storefront_settings ?? {}),
+            profile_title: profileTitle || null,
             skills,
             languages,
-          },
+          } as any,
         },
       })
       router.push(`/dashboard/${organization.slug}/onboarding/review`)
@@ -170,7 +185,7 @@ export default function SkillsPage() {
   return (
     <div className="flex h-full w-full flex-col items-center overflow-y-auto bg-white px-4 py-12">
       <div className="mb-12 w-full max-w-lg">
-        <OnboardingProgressBar currentStep={3} totalSteps={4} />
+        <OnboardingProgressBar currentStep={2} totalSteps={3} />
       </div>
 
       <motion.div
@@ -181,35 +196,58 @@ export default function SkillsPage() {
       >
         <div className="flex flex-col items-center gap-2 text-center">
           <h1 className="text-2xl font-bold tracking-tight text-gray-900">
-            Skills & Languages
+            Set up card
           </h1>
           <p className="text-sm text-gray-500">
-            Help people discover your expertise and how you can work together.
+            Tell people what you do and how you work.
           </p>
         </div>
 
-        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-          <div className="flex flex-col gap-6">
-            <TagPicker
-              label="Skills"
-              description="What do you create or specialize in?"
-              options={SKILL_OPTIONS}
-              selected={skills}
-              onChange={setSkills}
-              maxSelected={10}
-            />
-
-            <div className="h-px bg-gray-100" />
-
-            <TagPicker
-              label="Languages"
-              description="Which languages do you speak or work in?"
-              options={LANGUAGE_OPTIONS}
-              selected={languages}
-              onChange={setLanguages}
-              maxSelected={5}
-            />
+        <div className="flex flex-col gap-6 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+          {/* Profile title — dropdown, no default */}
+          <div className="flex flex-col gap-2">
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Profile Title</p>
+              <p className="text-xs text-gray-400">What do people know you as?</p>
+            </div>
+            <Select
+              value={profileTitle || undefined}
+              onValueChange={(v) => setProfileTitle(v)}
+            >
+              <SelectTrigger className="h-[42px] rounded-xl">
+                <SelectValue placeholder="eg. Designer" />
+              </SelectTrigger>
+              <SelectContent>
+                {PROFILE_TITLE_OPTIONS.map((title) => (
+                  <SelectItem key={title} value={title}>
+                    {title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
+
+          <div className="h-px bg-gray-100" />
+
+          <TagPicker
+            label="Skills"
+            description="What do you create or specialize in?"
+            options={SKILL_OPTIONS}
+            selected={skills}
+            onChange={setSkills}
+            maxSelected={10}
+          />
+
+          <div className="h-px bg-gray-100" />
+
+          <TagPicker
+            label="Languages"
+            description="Which languages do you speak or work in?"
+            options={LANGUAGE_OPTIONS}
+            selected={languages}
+            onChange={setLanguages}
+            maxSelected={5}
+          />
         </div>
 
         <div className="flex flex-col gap-3">

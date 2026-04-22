@@ -64,7 +64,7 @@ export const LovableStep = () => {
     if (session) {
       await trackStepCompleted('lovable', organization.id)
     }
-    router.push(`/dashboard/${organization.slug}/onboarding/product`)
+    router.push(`/dashboard/${organization.slug}`)
   }
 
   const handleSkip = async () => {
@@ -72,7 +72,7 @@ export const LovableStep = () => {
     if (session) {
       await trackStepSkipped('lovable', organization.id)
     }
-    router.push(`/dashboard/${organization.slug}/onboarding/product`)
+    router.push(`/dashboard/${organization.slug}`)
   }
 
   const handleCopyPrompt = useCallback(() => {

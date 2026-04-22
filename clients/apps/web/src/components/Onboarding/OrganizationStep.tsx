@@ -300,7 +300,7 @@ export const OrganizationStep = ({
         ),
       )
     } else {
-      router.push(`/dashboard/${organization.slug}/onboarding/socials`)
+      router.push(`/dashboard/${organization.slug}/onboarding/skills`)
     }
   }
 
@@ -309,7 +309,7 @@ export const OrganizationStep = ({
       {/* Progress bar */}
       {!hasExistingOrg && (
         <div className="mb-12 w-full max-w-lg">
-          <OnboardingProgressBar currentStep={1} totalSteps={4} />
+          <OnboardingProgressBar currentStep={1} totalSteps={3} />
         </div>
       )}
 
@@ -329,12 +329,12 @@ export const OrganizationStep = ({
         {/* Heading */}
         <FadeUp className="flex flex-col gap-y-2 text-center">
           <h1 className="text-2xl font-bold tracking-tight text-gray-900">
-            {hasExistingOrg ? 'Add a new organization' : 'Set up your Space Card'}
+            {hasExistingOrg ? 'Add a new organization' : 'Profile basics'}
           </h1>
           <p className="text-sm text-gray-500">
             {hasExistingOrg
               ? 'Set up a new workspace for your team or project.'
-              : 'A few details to get your card looking great.'}
+              : 'Add a photo, name, and bio to get started.'}
           </p>
         </FadeUp>
 
@@ -454,7 +454,7 @@ export const OrganizationStep = ({
                     <FormItem className="w-full">
                       <FormControl className="flex w-full flex-col gap-y-1.5">
                         <Label htmlFor="slug">Username</Label>
-                        <div className="flex items-center overflow-hidden rounded-xl border border-gray-200 focus-within:border-gray-400">
+                        <div className="flex items-center overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xs transition-all focus-within:z-10 focus-within:border-blue-300 focus-within:ring-[3px] focus-within:ring-blue-100">
                           <span className="select-none border-r border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-400">
                             spairehq.com/
                           </span>
@@ -487,7 +487,7 @@ export const OrganizationStep = ({
                           placeholder="A short bio about yourself..."
                           rows={3}
                           maxLength={160}
-                          className="w-full resize-none rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-gray-400"
+                          className="w-full resize-none rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm shadow-xs outline-none transition-all focus:z-10 focus:border-blue-300 focus:ring-[3px] focus:ring-blue-100"
                         />
                         <p className="text-right text-xs text-gray-400">
                           {description.length}/160
