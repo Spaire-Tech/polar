@@ -9,8 +9,8 @@ export const ListItem = (props: {
   const className = twMerge(
     'animate-background duration-10 flex items-center gap-2 py-2 px-2 w-full rounded-full transition-colors',
     props.current
-      ? 'bg-blue-50 dark:bg-spaire-800 text-blue-500 dark:text-blue-50'
-      : 'hover:text-blue-500 dark:hover:text-spaire-50',
+      ? 'bg-blue-50 text-blue-500 '
+      : 'hover:text-blue-500',
     props.className ?? '',
   )
 

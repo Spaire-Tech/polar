@@ -71,8 +71,8 @@ export const BenefitRow = ({
         className={twMerge(
           'flex items-center justify-between px-4 py-3 transition-colors',
           selected
-            ? 'dark:bg-spaire-800/50 bg-blue-50/50'
-            : 'dark:hover:bg-spaire-800/30 hover:bg-gray-50',
+            ? ' bg-blue-50/50'
+            : ' hover:bg-gray-50',
         )}
       >
         <div className="flex items-center gap-3">
@@ -80,8 +80,8 @@ export const BenefitRow = ({
             className={twMerge(
               'flex h-8 w-8 items-center justify-center rounded-lg',
               selected
-                ? 'bg-blue-100 text-blue-500 dark:bg-blue-950 dark:text-blue-400'
-                : 'dark:bg-spaire-700 dark:text-spaire-400 bg-gray-100 text-gray-500',
+                ? 'bg-blue-100 text-blue-500 '
+                : ' bg-gray-100 text-gray-500',
             )}
           >
             {resolveBenefitIcon(benefit.type, 'h-4 w-4')}
@@ -90,7 +90,7 @@ export const BenefitRow = ({
             <span className={twMerge('text-sm', selected ? 'font-medium' : '')}>
               {benefit.description}
             </span>
-            <span className="dark:text-spaire-500 text-xs text-gray-500">
+            <span className=" text-xs text-gray-500">
               {benefitsDisplayNames[benefit.type]}
             </span>
           </div>
@@ -105,7 +105,7 @@ export const BenefitRow = ({
           <DropdownMenu>
             <DropdownMenuTrigger className="focus:outline-none" asChild>
               <Button
-                className="border-none bg-transparent text-[16px] opacity-50 transition-opacity hover:opacity-100 dark:bg-transparent"
+                className="border-none bg-transparent text-[16px] opacity-50 transition-opacity hover:opacity-100"
                 size="icon"
                 variant="secondary"
               >
@@ -114,7 +114,7 @@ export const BenefitRow = ({
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="end"
-              className="dark:bg-spaire-800 bg-gray-50 shadow-lg"
+              className=" bg-gray-50 shadow-lg"
             >
               <DropdownMenuItem onClick={toggleEdit}>Edit</DropdownMenuItem>
               {benefit.deletable && (

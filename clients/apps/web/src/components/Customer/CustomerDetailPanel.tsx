@@ -64,7 +64,7 @@ export const CustomerDetailPanel = ({
           <span>Customer</span>
         </InlineModalHeader>
         <div className="flex flex-1 items-center justify-center">
-          <p className="dark:text-spaire-500 text-gray-500">Customer not found</p>
+          <p className=" text-gray-500">Customer not found</p>
         </div>
       </div>
     )
@@ -180,7 +180,7 @@ const CustomerDetailPanelContent = ({
               {(customer.name?.length ?? 0) > 0 ? customer.name : customer.email}
             </span>
             {(customer.name?.length ?? 0) > 0 && (
-              <span className="dark:text-spaire-500 text-xs text-gray-500">
+              <span className=" text-xs text-gray-500">
                 {customer.email}
               </span>
             )}
@@ -188,7 +188,7 @@ const CustomerDetailPanelContent = ({
         </div>
       </InlineModalHeader>
 
-      <div className="flex flex-row items-center gap-2 border-b border-gray-200 px-8 py-3 dark:border-spaire-700">
+      <div className="flex flex-row items-center gap-2 border-b border-gray-200 px-8 py-3">
         <div className="flex flex-1 flex-row items-center gap-2">
           <IntervalPicker
             interval={interval}
@@ -249,7 +249,7 @@ const CustomerDetailPanelContent = ({
         hide={hideDeleteModal}
         title={`Delete "${customer.email}"?`}
         body={
-          <div className="dark:text-spaire-400 flex flex-col gap-y-2 text-sm leading-relaxed text-gray-500">
+          <div className=" flex flex-col gap-y-2 text-sm leading-relaxed text-gray-500">
             <p>This action cannot be undone and will immediately:</p>
             <ol className="list-inside list-disc pl-4">
               <li>Cancel any active subscriptions</li>

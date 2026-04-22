@@ -79,17 +79,17 @@ export default function ConfirmationButton({
     if (destructive) {
       return {
         container:
-          'border-red-200 bg-red-50 dark:border-red-800/40 dark:bg-red-950/30',
-        icon: 'text-red-500 dark:text-red-400',
-        message: 'text-red-800 dark:text-red-200',
+          'border-red-200 bg-red-50 ',
+        icon: 'text-red-500',
+        message: 'text-red-800',
         confirmButton: 'destructive' as const,
       }
     }
     return {
       container:
-        'border-blue-200 bg-blue-50 dark:border-blue-800/40 dark:bg-blue-950/30',
-      icon: 'text-blue-500 dark:text-blue-400',
-      message: 'text-blue-800 dark:text-blue-200',
+        'border-blue-200 bg-blue-50 ',
+      icon: 'text-blue-500',
+      message: 'text-blue-800',
       confirmButton: 'default' as const,
     }
   }

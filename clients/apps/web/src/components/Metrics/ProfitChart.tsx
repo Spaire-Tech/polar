@@ -16,7 +16,6 @@ import {
   XAxis,
   YAxis,
 } from '@spaire/ui/components/ui/chart'
-import { useTheme } from 'next-themes'
 import { forwardRef } from 'react'
 import { twMerge } from 'tailwind-merge'
 import Spinner from '../Shared/Spinner'
@@ -46,16 +45,14 @@ const ProfitChart = forwardRef<HTMLDivElement, ProfitChartProps>(
     },
     ref,
   ) => {
-    const { resolvedTheme } = useTheme()
-
-    const isDark = resolvedTheme === 'dark'
+    const isDark = false
 
     const timestampFormatter = getTimestampFormatter(interval)
 
     return (
       <ShadowBox
         className={twMerge(
-          'dark:bg-spaire-800 flex w-full flex-col bg-gray-50 p-2 shadow-xs',
+          ' flex w-full flex-col bg-gray-50 p-2 shadow-xs',
           className,
         )}
       >
@@ -70,12 +67,12 @@ const ProfitChart = forwardRef<HTMLDivElement, ProfitChartProps>(
                 'usd',
               )}
             </h3>
-            <p className="dark:text-spaire-500 text-sm text-gray-500">
+            <p className=" text-sm text-gray-500">
               Calculated as Revenue minus Costs
             </p>
           </div>
         </div>
-        <div className="dark:bg-spaire-900 flex w-full flex-col gap-y-2 rounded-3xl bg-white py-4 pr-4">
+        <div className=" flex w-full flex-col gap-y-2 rounded-3xl bg-white py-4 pr-4">
           {loading ? (
             <div
               style={{ height: _height }}
@@ -133,7 +130,7 @@ const ProfitChart = forwardRef<HTMLDivElement, ProfitChartProps>(
                 <ChartTooltip
                   includeHidden
                   content={({ payload }) => (
-                    <div className="dark:bg-spaire-800 flex w-48 flex-col gap-y-2 rounded-md bg-white p-2 text-black shadow-xl dark:text-white">
+                    <div className=" flex w-48 flex-col gap-y-2 rounded-md bg-white p-2 text-black shadow-xl">
                       <span>Revenue vs. Cost</span>
                       <div className="flex flex-col">
                         {payload?.map((item, index, array) => (
@@ -142,7 +139,7 @@ const ProfitChart = forwardRef<HTMLDivElement, ProfitChartProps>(
                             className={twMerge(
                               'flex w-full flex-row justify-between gap-x-2',
                               index === array.length - 1 &&
-                                'dark:border-spaire-600 mt-2 border-t border-gray-200 pt-2',
+                                ' mt-2 border-t border-gray-200 pt-2',
                             )}
                           >
                             <div className="flex flex-row items-center gap-x-2">

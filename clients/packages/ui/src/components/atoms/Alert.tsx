@@ -11,13 +11,13 @@ const Alert: React.FC<React.PropsWithChildren<AlertProps>> = ({
   const colorClasses = useMemo(() => {
     switch (color) {
       case 'blue':
-        return 'bg-blue-50 border border-blue-100 text-blue-500 dark:bg-blue-950 dark:border-blue-900 dark:text-blue-400'
+        return 'bg-blue-50 border border-blue-100 text-blue-500'
       case 'gray':
-        return 'bg-gray-50 border border-gray-200 text-gray-600 dark:bg-spaire-950 dark:border-spaire-700 dark:text-spaire-400'
+        return 'bg-gray-50 border border-gray-200 text-gray-600'
       case 'red':
-        return 'bg-red-50 border border-red-100 text-red-600 dark:bg-red-950 dark:border-red-900 dark:text-red-400'
+        return 'bg-red-50 border border-red-100 text-red-600'
       case 'green':
-        return 'bg-green-50 border border-green-100 text-green-600 dark:bg-green-950 dark:border-green-900 dark:text-green-400'
+        return 'bg-green-50 border border-green-100 text-green-600'
     }
   }, [color])
 

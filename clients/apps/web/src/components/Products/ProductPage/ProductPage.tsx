@@ -29,9 +29,9 @@ import { ProductMetricsView } from './ProductMetricsView'
 import { ProductOverview } from './ProductOverview'
 
 const ProductTypeDisplayColor: Record<string, string> = {
-  subscription: 'bg-emerald-100 text-emerald-500 dark:bg-emerald-950',
+  subscription: 'bg-emerald-100 text-emerald-500',
   one_time:
-    'bg-indigo-100 text-indigo-500 dark:bg-indigo-950 dark:text-indigo-400',
+    'bg-indigo-100 text-indigo-500 ',
 }
 
 export interface ProductPageProps {
@@ -161,7 +161,7 @@ export const ProductPage = ({ organization, product }: ProductPageProps) => {
               {product.is_archived && (
                 <Status
                   status="Archived"
-                  className="bg-red-100 text-red-500 dark:bg-red-950"
+                  className="bg-red-100 text-red-500"
                 />
               )}
             </div>

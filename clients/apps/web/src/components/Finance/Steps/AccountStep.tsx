@@ -32,14 +32,14 @@ export default function AccountStep({
   if (isAccountSetupComplete) {
     return (
       <div className="flex flex-col items-center gap-4 py-8 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-500/10">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50">
           <Building2 className="h-6 w-6 text-emerald-500" />
         </div>
         <div>
-          <h3 className="font-medium dark:text-white">
+          <h3 className="font-medium">
             Payout account connected
           </h3>
-          <p className="dark:text-spaire-400 mt-1 text-sm text-gray-500">
+          <p className=" mt-1 text-sm text-gray-500">
             Your account is configured and ready to receive payouts.
           </p>
         </div>
@@ -50,14 +50,14 @@ export default function AccountStep({
   if (isStripeReviewing) {
     return (
       <div className="flex flex-col items-center gap-4 py-8 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 dark:bg-blue-500/10">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-50">
           <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
         </div>
         <div>
-          <h3 className="font-medium dark:text-white">
+          <h3 className="font-medium">
             Reviewing your information
           </h3>
-          <p className="dark:text-spaire-400 mx-auto mt-1 max-w-sm text-sm text-gray-500">
+          <p className=" mx-auto mt-1 max-w-sm text-sm text-gray-500">
             Stripe is verifying your account details. This can take a few
             minutes to a few hours. You&apos;ll be automatically moved to the
             next step once complete.
@@ -70,12 +70,12 @@ export default function AccountStep({
   if (isNotAdmin) {
     return (
       <div className="flex flex-col items-center gap-4 py-8 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-50 dark:bg-amber-500/10">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-50">
           <ShieldAlert className="h-6 w-6 text-amber-500" />
         </div>
         <div>
-          <h3 className="font-medium dark:text-white">Admin required</h3>
-          <p className="dark:text-spaire-400 mx-auto mt-1 max-w-sm text-sm text-gray-500">
+          <h3 className="font-medium">Admin required</h3>
+          <p className=" mx-auto mt-1 max-w-sm text-sm text-gray-500">
             Only the account admin can connect a payout account. You can skip
             this step and continue with identity verification.
           </p>
@@ -92,14 +92,14 @@ export default function AccountStep({
 
   return (
     <div className="flex flex-col items-center gap-4 py-8 text-center">
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 dark:bg-blue-500/10">
+      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-50">
         <Building2 className="h-6 w-6 text-blue-500" />
       </div>
       <div>
-        <h3 className="font-medium dark:text-white">
+        <h3 className="font-medium">
           Connect your payout account
         </h3>
-        <p className="dark:text-spaire-400 mx-auto mt-1 max-w-sm text-sm text-gray-500">
+        <p className=" mx-auto mt-1 max-w-sm text-sm text-gray-500">
           Connect your bank account so Spaire can send you your earnings.
           You&apos;ll be redirected to Stripe to complete this step.
         </p>

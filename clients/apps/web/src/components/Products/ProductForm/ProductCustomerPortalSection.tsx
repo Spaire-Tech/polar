@@ -47,15 +47,15 @@ export const ProductCustomerPortalSection = ({
                       htmlFor="visibility-public"
                       className={`flex cursor-pointer flex-col gap-3 rounded-2xl border p-5 font-normal transition-colors ${
                         field.value === 'public' || !field.value
-                          ? 'dark:bg-spaire-800 bg-gray-50'
-                          : 'dark:border-spaire-700 dark:hover:border-spaire-700 dark:text-spaire-500 dark:hover:bg-spaire-700 dark:bg-spaire-900 border-gray-100 text-gray-500 hover:border-gray-200'
+                          ? ' bg-gray-50'
+                          : '    border-gray-100 text-gray-500 hover:border-gray-200'
                       }`}
                     >
                       <div className="flex items-center gap-2.5 font-medium">
                         <RadioGroupItem value="public" id="visibility-public" />
                         Public
                       </div>
-                      <p className="dark:text-spaire-500 text-sm text-gray-500">
+                      <p className=" text-sm text-gray-500">
                         Visible in the customer portal.
                       </p>
                     </Label>
@@ -63,8 +63,8 @@ export const ProductCustomerPortalSection = ({
                       htmlFor="visibility-private"
                       className={`flex cursor-pointer flex-col gap-3 rounded-2xl border p-5 font-normal transition-colors ${
                         field.value === 'private'
-                          ? 'dark:bg-spaire-800 bg-gray-50'
-                          : 'dark:border-spaire-700 dark:hover:border-spaire-700 dark:text-spaire-500 dark:hover:bg-spaire-700 dark:bg-spaire-900 border-gray-100 text-gray-500 hover:border-gray-200'
+                          ? ' bg-gray-50'
+                          : '    border-gray-100 text-gray-500 hover:border-gray-200'
                       }`}
                     >
                       <div className="flex items-center gap-2.5 font-medium">
@@ -74,7 +74,7 @@ export const ProductCustomerPortalSection = ({
                         />
                         Private
                       </div>
-                      <p className="dark:text-spaire-500 text-sm text-gray-500">
+                      <p className=" text-sm text-gray-500">
                         Only accessible via a direct checkout link.
                       </p>
                     </Label>

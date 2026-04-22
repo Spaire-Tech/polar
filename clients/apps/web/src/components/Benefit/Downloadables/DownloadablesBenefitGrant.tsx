@@ -34,7 +34,7 @@ export const DownloadableItem = ({
   return (
     <div
       className={twMerge(
-        'dark:bg-spaire-800 flex w-full flex-row items-center justify-between gap-x-6 rounded-2xl bg-gray-50 px-4 py-3',
+        ' flex w-full flex-row items-center justify-between gap-x-6 rounded-2xl bg-gray-50 px-4 py-3',
         className,
       )}
     >
@@ -45,7 +45,7 @@ export const DownloadableItem = ({
             {downloadable.file.name}
           </span>
           <div className="flex flex-row items-center gap-x-2 text-xs">
-            <span className="dark:text-spaire-500 text-gray-500">
+            <span className=" text-gray-500">
               {downloadable.file.size_readable}
             </span>
             {historic && (
@@ -62,7 +62,7 @@ export const DownloadableItem = ({
             <DropdownMenuTrigger className="focus:outline-none" asChild>
               <Button
                 className={
-                  'border-none bg-transparent text-[16px] opacity-50 transition-opacity hover:opacity-100 dark:bg-transparent'
+                  'border-none bg-transparent text-[16px] opacity-50 transition-opacity hover:opacity-100'
                 }
                 size="icon"
                 variant="secondary"
@@ -72,7 +72,7 @@ export const DownloadableItem = ({
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="end"
-              className="dark:bg-spaire-800 bg-gray-50 shadow-lg"
+              className=" bg-gray-50 shadow-lg"
             >
               {downloadable.file.checksum_sha256_hex && (
                 <>

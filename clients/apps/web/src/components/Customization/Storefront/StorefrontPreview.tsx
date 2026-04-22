@@ -24,8 +24,10 @@ export const StorefrontLivePreview = ({
     ? allProducts.filter((p) => featuredIds.includes(p.id))
     : allProducts
 
+  const showCardProducts = (organization.storefront_settings as any)?.show_card_products ?? true
+
   return (
-    <ProfileCard organization={organization} products={products} />
+    <ProfileCard organization={organization} products={showCardProducts ? products : []} />
   )
 }
 

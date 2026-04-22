@@ -97,9 +97,9 @@ export default function CompanyDetailsStep({
         <FadeUp className="flex flex-col gap-y-4">
           <div className="flex flex-col gap-y-1">
             <Label className="text-sm font-medium">Entity type</Label>
-            <p className="dark:text-spaire-500 text-xs text-gray-400">
+            <p className=" text-xs text-gray-400">
               We recommend{' '}
-              <span className="font-medium text-gray-900 dark:text-white">
+              <span className="font-medium text-gray-900">
                 {recommendation.entity_type === 'C_CORP' ? 'C-Corporation' : 'LLC'}
               </span>{' '}
               based on your answers. You can change this.
@@ -112,14 +112,14 @@ export default function CompanyDetailsStep({
                 type="button"
                 onClick={() => form.setValue('entity_type', type.id as 'LLC' | 'C_CORP')}
                 className={twMerge(
-                  'dark:bg-spaire-900 dark:border-spaire-700 flex cursor-pointer flex-col gap-y-1.5 rounded-2xl border border-gray-200 bg-white p-5 text-left transition-all',
+                  ' flex cursor-pointer flex-col gap-y-1.5 rounded-2xl border border-gray-200 bg-white p-5 text-left transition-all',
                   entityType === type.id
-                    ? 'border-blue-500 ring-1 ring-blue-500 dark:border-blue-500'
-                    : 'hover:border-gray-300 dark:hover:border-spaire-600',
+                    ? 'border-blue-500 ring-1 ring-blue-500'
+                    : 'hover:border-gray-300',
                 )}
               >
                 <span className="text-sm font-medium">{type.label}</span>
-                <span className="dark:text-spaire-500 text-xs leading-relaxed text-gray-400">
+                <span className=" text-xs leading-relaxed text-gray-400">
                   {type.description}
                 </span>
               </button>
@@ -131,12 +131,12 @@ export default function CompanyDetailsStep({
         <FadeUp className="flex flex-col gap-y-6">
           <div className="flex flex-col gap-y-1">
             <h2 className="text-base font-medium">Company info</h2>
-            <p className="dark:text-spaire-500 text-sm text-gray-400">
+            <p className=" text-sm text-gray-400">
               The legal details for your new company.
             </p>
           </div>
 
-          <div className="dark:bg-spaire-900 flex flex-col gap-y-5 rounded-2xl border border-gray-200 bg-white p-6 dark:border-none">
+          <div className=" flex flex-col gap-y-5 rounded-2xl border border-gray-200 bg-white p-6">
             <FormField
               control={form.control}
               name="legal_name"
@@ -192,7 +192,7 @@ export default function CompanyDetailsStep({
         <FadeUp className="flex flex-col gap-y-6">
           <div className="flex flex-col gap-y-1">
             <h2 className="text-base font-medium">Founders</h2>
-            <p className="dark:text-spaire-500 text-sm text-gray-400">
+            <p className=" text-sm text-gray-400">
               Add each founder&apos;s name and email.
             </p>
           </div>
@@ -201,7 +201,7 @@ export default function CompanyDetailsStep({
             {fields.map((field, index) => (
               <div
                 key={field.id}
-                className="dark:bg-spaire-900 flex items-start gap-3 rounded-2xl border border-gray-200 bg-white p-4 dark:border-none"
+                className=" flex items-start gap-3 rounded-2xl border border-gray-200 bg-white p-4"
               >
                 <FormField
                   control={form.control}
@@ -231,7 +231,7 @@ export default function CompanyDetailsStep({
                   <button
                     type="button"
                     onClick={() => remove(index)}
-                    className="dark:text-spaire-500 dark:hover:text-spaire-300 mt-2 text-gray-400 hover:text-gray-600"
+                    className=" mt-2 text-gray-400 hover:text-gray-600"
                   >
                     <CloseOutlined style={{ fontSize: 18 }} />
                   </button>

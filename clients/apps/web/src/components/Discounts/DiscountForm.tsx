@@ -151,8 +151,8 @@ const DiscountForm: React.FC<DiscountFormProps> = ({
                 htmlFor={`discount-type-${option.value}`}
                 className={`flex cursor-pointer flex-col gap-3 rounded-2xl border p-5 font-normal transition-colors ${
                   type === option.value
-                    ? 'dark:bg-spaire-800 bg-gray-50'
-                    : 'dark:border-spaire-700 dark:hover:border-spaire-700 dark:text-spaire-500 dark:hover:bg-spaire-700 dark:bg-spaire-900 border-gray-100 text-gray-500 hover:border-gray-200'
+                    ? ' bg-gray-50'
+                    : '    border-gray-100 text-gray-500 hover:border-gray-200'
                 }`}
               >
                 <div className="flex items-center gap-2.5 font-medium">
@@ -162,7 +162,7 @@ const DiscountForm: React.FC<DiscountFormProps> = ({
                   />
                   {option.title}
                 </div>
-                <p className="dark:text-spaire-500 text-sm text-gray-500">
+                <p className=" text-sm text-gray-500">
                   {option.description}
                 </p>
               </Label>
@@ -247,7 +247,7 @@ const DiscountForm: React.FC<DiscountFormProps> = ({
       <Accordion type="single" collapsible className="flex flex-col gap-y-6">
         <AccordionItem
           value="form-input-options"
-          className="dark:border-spaire-700 rounded-xl border border-gray-200 px-4"
+          className=" rounded-xl border border-gray-200 px-4"
         >
           <AccordionTrigger className="hover:no-underline">
             Recurring options
@@ -296,8 +296,8 @@ const DiscountForm: React.FC<DiscountFormProps> = ({
                                 : 'cursor-pointer'
                             } ${
                               field.value === option.value
-                                ? 'dark:bg-spaire-800 bg-gray-50'
-                                : 'dark:border-spaire-700 dark:hover:border-spaire-700 dark:text-spaire-500 dark:hover:bg-spaire-700 dark:bg-spaire-900 border-gray-100 text-gray-500 hover:border-gray-200'
+                                ? ' bg-gray-50'
+                                : '    border-gray-100 text-gray-500 hover:border-gray-200'
                             }`}
                           >
                             <div className="flex items-center gap-2.5 font-medium">
@@ -308,7 +308,7 @@ const DiscountForm: React.FC<DiscountFormProps> = ({
                               />
                               {option.title}
                             </div>
-                            <p className="dark:text-spaire-500 text-sm text-gray-500">
+                            <p className=" text-sm text-gray-500">
                               {option.description}
                             </p>
                           </Label>
@@ -365,7 +365,7 @@ const DiscountForm: React.FC<DiscountFormProps> = ({
       <Accordion type="single" collapsible className="flex flex-col gap-y-6">
         <AccordionItem
           value="form-input-options"
-          className="dark:border-spaire-700 rounded-xl border border-gray-200 px-4"
+          className=" rounded-xl border border-gray-200 px-4"
         >
           <AccordionTrigger className="hover:no-underline">
             Restrictions

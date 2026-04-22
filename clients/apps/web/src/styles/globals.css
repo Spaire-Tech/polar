@@ -8,7 +8,6 @@
 @plugin 'tailwindcss-radix';
 @plugin '@tailwindcss/typography';
 
-@custom-variant dark (.dark &);
 
 @theme {
   --shadow-md: 0 0px 15px rgba(0 0 0 / 0.04), 0 0px 2px rgba(0 0 0 / 0.06);
@@ -135,11 +134,7 @@
     @apply text-gray-900;
   }
 
-  html.dark {
-    @apply text-gray-200;
-  }
-
-  *,
+*,
   ::after,
   ::before,
   ::backdrop,
@@ -161,7 +156,7 @@
 }
 
 /* Light mode: remap blue → purple (Stripe-style, shifted more purple) */
-:root:not(.dark) {
+:root {
   --color-blue-50:  oklch(0.970 0.020 272.0);
   --color-blue-100: oklch(0.940 0.042 272.0);
   --color-blue-200: oklch(0.895 0.080 272.0);
@@ -210,60 +205,14 @@
     --radius: 0.6rem;
   }
 
-  /* Dark mode overrides */
-  .dark {
-    --background: var(--color-spaire-800);
-    --foreground: var(--color-spaire-500);
-    --card: var(--color-spaire-800);
-    --card-foreground: var(--color-spaire-50);
-    --popover: var(--color-spaire-900);
-    --popover-foreground: var(--color-spaire-50);
-    --sidebar-background: #000;
-    --sidebar-foreground: var(--color-spaire-50);
-    --sidebar-primary: var(--color-blue);
-    --sidebar-primary-foreground: var(--color-spaire-50);
-    --sidebar-border: var(--color-spaire-700);
-    --sidebar-accent: var(--color-spaire-700);
-    --sidebar-accent-foreground: var(--color-spaire-50);
-    --sidebar-ring: var(--color-spaire-700);
-    --primary: var(--color-blue);
-    --primary-foreground: var(--color-spaire-50);
-    --secondary: var(--color-spaire-900);
-    --secondary-foreground: var(--color-spaire-50);
-    --muted: var(--color-spaire-700);
-    --muted-foreground: var(--color-spaire-500);
-    --accent: var(--color-blue);
-    --accent-foreground: var(--color-spaire-50);
-    --destructive: var(--color-red-500);
-    --destructive-foreground: var(--color-red-500);
-    --border: var(--color-spaire-700);
-    --input: var(--color-spaire-700);
-    --ring: var(--color-spaire-700);
-    --radius: 0.6rem;
-  }
 }
 
 pre.shiki {
   overflow: auto;
   background-color: transparent !important;
 
-  :not(.dark) .prose-pre\:bg-gray-100 & {
+  .prose-pre\:bg-gray-100 & {
     background-color: var(--color-gray-100) !important;
   }
-
-  .dark .dark\:prose-pre\:bg-spaire-800 & {
-    background-color: var(--color-spaire-800) !important;
-  }
-}
-
-/* Use .dark class so code colors follow the app theme, not the OS preference.
-   Light mode: Shiki's defaultColor:'light' puts inline color on each span — no override needed.
-   Dark mode: override with the --shiki-dark vars Shiki defines on each span. */
-.dark .shiki,
-.dark .shiki span {
-  color: var(--shiki-dark) !important;
-  font-style: var(--shiki-dark-font-style) !important;
-  font-weight: var(--shiki-dark-font-weight) !important;
-  text-decoration: var(--shiki-dark-text-decoration) !important;
 }
 

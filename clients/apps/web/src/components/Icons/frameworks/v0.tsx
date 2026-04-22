@@ -11,12 +11,12 @@ const V0Icon = ({ size = 40 }: { size?: number }) => {
       <path
         d="M14.08 13.5L20 25.5L25.92 13.5H28L20 29L12 13.5H14.08Z"
         fill="white"
-        className="dark:fill-black"
+        className=""
       />
       <path
         d="M29.5 18.5C29.5 22.366 26.366 25.5 22.5 25.5C18.634 25.5 15.5 22.366 15.5 18.5C15.5 14.634 18.634 11.5 22.5 11.5C26.366 11.5 29.5 14.634 29.5 18.5Z"
         stroke="white"
-        className="dark:stroke-black"
+        className=""
         strokeWidth="1.5"
         fill="none"
       />

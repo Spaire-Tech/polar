@@ -88,20 +88,20 @@ export default function BroadcastsPage({
 
         {/* Divider */}
         {hasBroadcasts && (
-          <div className="dark:border-spaire-700 border-t border-gray-200" />
+          <div className=" border-t border-gray-200" />
         )}
 
         {/* Search + Add */}
         {hasBroadcasts && (
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="dark:border-spaire-700 flex flex-1 flex-row items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 dark:bg-transparent">
-              <SearchOutlined className="dark:text-spaire-500 text-gray-400" fontSize="small" />
+            <div className=" flex flex-1 flex-row items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2">
+              <SearchOutlined className=" text-gray-400" fontSize="small" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search broadcasts by name..."
-                className="min-w-0 flex-1 bg-transparent text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none dark:text-white dark:placeholder:text-gray-500"
+                className="min-w-0 flex-1 bg-transparent text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none "
               />
             </div>
             <Link href={`/dashboard/${organization.slug}/email-marketing/broadcasts/new`}>
@@ -114,9 +114,9 @@ export default function BroadcastsPage({
 
         {/* Broadcast table */}
         {hasBroadcasts ? (
-          <div className="dark:border-spaire-700 dark:divide-spaire-700 flex flex-col divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200">
+          <div className=" flex flex-col divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200">
             {/* Header */}
-            <div className="dark:bg-spaire-900 hidden flex-row items-center gap-4 bg-gray-50 px-6 py-3 text-xs font-medium text-gray-500 md:flex">
+            <div className=" hidden flex-row items-center gap-4 bg-gray-50 px-6 py-3 text-xs font-medium text-gray-500 md:flex">
               <div className="flex-1">Name</div>
               <div className="w-40">Status</div>
               <div className="w-24 text-right">Recipients</div>
@@ -130,28 +130,28 @@ export default function BroadcastsPage({
               <Link
                 key={broadcast.id}
                 href={`/dashboard/${organization.slug}/email-marketing/broadcasts/${broadcast.id}`}
-                className="dark:hover:bg-spaire-800 flex flex-row items-center gap-4 px-6 py-3.5 transition-colors hover:bg-gray-50"
+                className=" flex flex-row items-center gap-4 px-6 py-3.5 transition-colors hover:bg-gray-50"
               >
                 <div className="flex flex-1 flex-col gap-0.5">
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">
+                  <span className="text-sm font-medium text-gray-900">
                     {broadcast.subject}
                   </span>
                 </div>
                 <div className="hidden w-40 md:block">
                   <BroadcastStatusCell broadcast={broadcast} />
                 </div>
-                <div className="dark:text-spaire-300 hidden w-24 text-right text-sm md:block">
+                <div className=" hidden w-24 text-right text-sm md:block">
                   {broadcast.total_recipients > 0
                     ? broadcast.total_recipients.toLocaleString()
                     : '—'}
                 </div>
-                <div className="dark:text-spaire-400 hidden w-20 text-right text-sm text-gray-500 md:block">
+                <div className=" hidden w-20 text-right text-sm text-gray-500 md:block">
                   —
                 </div>
-                <div className="dark:text-spaire-400 hidden w-20 text-right text-sm text-gray-500 md:block">
+                <div className=" hidden w-20 text-right text-sm text-gray-500 md:block">
                   —
                 </div>
-                <div className="dark:text-spaire-400 hidden w-20 text-right text-sm text-gray-500 md:block">
+                <div className=" hidden w-20 text-right text-sm text-gray-500 md:block">
                   —
                 </div>
                 <div className="w-8">
@@ -167,10 +167,10 @@ export default function BroadcastsPage({
               <div style={{ mixBlendMode: 'multiply' }} className="absolute top-0 right-0 h-14 w-14 rounded-full bg-pink-300" />
             </div>
             <div className="flex max-w-lg flex-col gap-3">
-              <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
+              <h2 className="text-3xl font-bold text-gray-900">
                 Reach your audience with broadcasts
               </h2>
-              <p className="dark:text-spaire-400 text-gray-500">
+              <p className=" text-gray-500">
                 Send one-off email campaigns to your subscribers. Share updates,
                 announce new products, or keep your audience engaged.
               </p>
@@ -198,12 +198,12 @@ function StatCard({
   accent: string
 }) {
   return (
-    <div className="dark:border-spaire-700 dark:bg-spaire-900 relative flex flex-col gap-1 rounded-2xl border border-gray-200 bg-white p-5">
+    <div className=" relative flex flex-col gap-1 rounded-2xl border border-gray-200 bg-white p-5">
       <div className={`absolute top-5 left-5 h-10 w-1 rounded-full ${accent}`} />
-      <span className="pl-4 text-3xl font-bold text-gray-900 dark:text-white">
+      <span className="pl-4 text-3xl font-bold text-gray-900">
         {value}
       </span>
-      <span className="dark:text-spaire-400 pl-4 text-sm text-gray-500">
+      <span className=" pl-4 text-sm text-gray-500">
         {label}
       </span>
     </div>
@@ -215,7 +215,7 @@ function BroadcastStatusCell({ broadcast }: { broadcast: any }) {
     return (
       <div className="flex flex-row items-center gap-1.5">
         <CheckCircleOutlined className="text-emerald-500" style={{ fontSize: 16 }} />
-        <span className="dark:text-spaire-400 text-sm text-gray-500">
+        <span className=" text-sm text-gray-500">
           Sent{' '}
           {new Date(broadcast.sent_at).toLocaleDateString(undefined, {
             day: 'numeric',
@@ -233,12 +233,12 @@ function BroadcastStatusCell({ broadcast }: { broadcast: any }) {
 
 function BroadcastStatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
-    draft: 'bg-gray-100 text-gray-600 dark:bg-spaire-700 dark:text-spaire-300',
-    sending: 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400',
-    sent: 'bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400',
-    failed: 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400',
-    scheduled: 'bg-yellow-50 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400',
-    pending_approval: 'bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400',
+    draft: 'bg-gray-100 text-gray-600 ',
+    sending: 'bg-blue-50 text-blue-600 ',
+    sent: 'bg-green-50 text-green-700 ',
+    failed: 'bg-red-50 text-red-600 ',
+    scheduled: 'bg-yellow-50 text-yellow-700 ',
+    pending_approval: 'bg-orange-50 text-orange-600 ',
   }
 
   return (

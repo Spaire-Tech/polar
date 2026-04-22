@@ -4,7 +4,6 @@ import CustomerPortalOrder from '@/components/CustomerPortal/CustomerPortalOrder
 import { createClientSideAPI } from '@/utils/client'
 import { schemas } from '@spaire/client'
 import { getThemePreset } from '@spaire/ui/hooks/theming'
-import { useTheme } from 'next-themes'
 
 const ClientPage = ({
   organization,
@@ -15,10 +14,9 @@ const ClientPage = ({
   order: schemas['CustomerOrder']
   customerSessionToken: string
 }) => {
-  const theme = useTheme()
   const themingPreset = getThemePreset(
     organization.slug,
-    theme.resolvedTheme as 'light' | 'dark',
+    'light',
   )
   const api = createClientSideAPI(customerSessionToken)
 

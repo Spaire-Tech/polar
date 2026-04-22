@@ -8,7 +8,6 @@ import { schemas } from '@spaire/client'
 import Avatar from '@spaire/ui/components/atoms/Avatar'
 import CopyToClipboardInput from '@spaire/ui/components/atoms/CopyToClipboardInput'
 import { useQuery } from '@tanstack/react-query'
-import { useTheme } from 'next-themes'
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
 import { twMerge } from 'tailwind-merge'
@@ -24,7 +23,6 @@ export const CheckoutLinkPreviewPage = ({
 }: CheckoutLinkPreviewPageProps) => {
   const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop')
   const [shareTab, setShareTab] = useState<'link' | 'embed'>('link')
-  const { resolvedTheme } = useTheme()
 
   const firstProductId = checkoutLink.products[0]?.id
 
@@ -47,7 +45,7 @@ export const CheckoutLinkPreviewPage = ({
   const iframeSrc = useMemo(() => {
     const secret = previewCheckout?.client_secret
     if (!secret) return null
-    const theme = resolvedTheme === 'dark' ? 'dark' : 'light'
+    const theme = 'light'
     const meta = (checkoutLink.metadata ?? {}) as Record<string, unknown>
     const params = new URLSearchParams({
       theme,
@@ -57,7 +55,7 @@ export const CheckoutLinkPreviewPage = ({
       show_description: String(meta.show_description !== false),
     })
     return `${CONFIG.FRONTEND_BASE_URL}/checkout/${secret}?${params}`
-  }, [previewCheckout, resolvedTheme])
+  }, [previewCheckout])
 
   const embedCode = useMemo(
     () =>
@@ -69,18 +67,18 @@ export const CheckoutLinkPreviewPage = ({
     twMerge(
       'flex-1 rounded-lg py-1.5 text-xs font-medium transition-all',
       active
-        ? 'dark:bg-spaire-600 bg-white text-gray-900 shadow-sm dark:text-white'
-        : 'dark:text-spaire-400 text-gray-500',
+        ? ' bg-white text-gray-900 shadow-sm'
+        : ' text-gray-500',
     )
 
   return (
-    <div className="dark:bg-spaire-900 flex h-screen overflow-hidden bg-gray-100">
+    <div className=" flex h-screen overflow-hidden bg-gray-100">
       {/* ── Left settings panel ── */}
-      <div className="dark:border-spaire-700 dark:bg-spaire-800 flex w-[300px] min-h-0 shrink-0 flex-col gap-6 overflow-y-auto border-r border-gray-200 bg-white p-6 pb-12">
+      <div className=" flex w-[300px] min-h-0 shrink-0 flex-col gap-6 overflow-y-auto border-r border-gray-200 bg-white p-6 pb-12">
         {/* Back */}
         <Link
           href={`/dashboard/${organization.slug}/products/checkout-links/${checkoutLink.id}`}
-          className="dark:text-spaire-300 flex items-center gap-2 text-sm text-gray-500 transition-opacity hover:opacity-60"
+          className=" flex items-center gap-2 text-sm text-gray-500 transition-opacity hover:opacity-60"
         >
           <ArrowBackOutlined fontSize="small" />
           <span>Back</span>
@@ -94,32 +92,32 @@ export const CheckoutLinkPreviewPage = ({
             className="h-9 w-9 rounded-lg"
           />
           <div className="flex flex-col">
-            <span className="text-sm font-medium dark:text-white">
+            <span className="text-sm font-medium">
               {organization.name}
             </span>
             {checkoutLink.label && (
-              <span className="dark:text-spaire-300 text-xs text-gray-500">
+              <span className=" text-xs text-gray-500">
                 {checkoutLink.label}
               </span>
             )}
           </div>
         </div>
 
-        <div className="dark:bg-spaire-700 h-px bg-gray-100" />
+        <div className=" h-px bg-gray-100" />
 
         {/* Device toggle */}
         <div className="flex flex-col gap-2">
-          <span className="dark:text-spaire-300 text-xs font-semibold uppercase tracking-wider text-gray-500">
+          <span className=" text-xs font-semibold uppercase tracking-wider text-gray-500">
             Device
           </span>
-          <div className="dark:bg-spaire-700 flex rounded-xl bg-gray-100 p-1">
+          <div className=" flex rounded-xl bg-gray-100 p-1">
             <button
               onClick={() => setDevice('desktop')}
               className={twMerge(
                 'flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium transition-all',
                 device === 'desktop'
-                  ? 'dark:bg-spaire-600 bg-white text-gray-900 shadow-sm dark:text-white'
-                  : 'dark:text-spaire-400 text-gray-500',
+                  ? ' bg-white text-gray-900 shadow-sm'
+                  : ' text-gray-500',
               )}
             >
               <ComputerOutlined style={{ fontSize: 14 }} />
@@ -130,8 +128,8 @@ export const CheckoutLinkPreviewPage = ({
               className={twMerge(
                 'flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium transition-all',
                 device === 'mobile'
-                  ? 'dark:bg-spaire-600 bg-white text-gray-900 shadow-sm dark:text-white'
-                  : 'dark:text-spaire-400 text-gray-500',
+                  ? ' bg-white text-gray-900 shadow-sm'
+                  : ' text-gray-500',
               )}
             >
               <SmartphoneOutlined style={{ fontSize: 14 }} />
@@ -140,14 +138,14 @@ export const CheckoutLinkPreviewPage = ({
           </div>
         </div>
 
-        <div className="dark:bg-spaire-700 h-px bg-gray-100" />
+        <div className=" h-px bg-gray-100" />
 
         {/* Share */}
         <div className="flex flex-col gap-3">
-          <span className="dark:text-spaire-300 text-xs font-semibold uppercase tracking-wider text-gray-500">
+          <span className=" text-xs font-semibold uppercase tracking-wider text-gray-500">
             Share
           </span>
-          <div className="dark:bg-spaire-700 flex rounded-xl bg-gray-100 p-1">
+          <div className=" flex rounded-xl bg-gray-100 p-1">
             <button
               onClick={() => setShareTab('link')}
               className={segmentBtn(shareTab === 'link')}
@@ -166,7 +164,7 @@ export const CheckoutLinkPreviewPage = ({
           ) : (
             <div className="flex flex-col gap-2">
               <CopyToClipboardInput value={embedCode} buttonLabel="Copy" />
-              <p className="dark:text-spaire-400 text-xs text-gray-400">
+              <p className=" text-xs text-gray-400">
                 Paste into your website. Clicking opens the checkout as an
                 overlay.
               </p>
@@ -176,24 +174,24 @@ export const CheckoutLinkPreviewPage = ({
       </div>
 
       {/* ── Right preview area ── */}
-      <div className="dark:bg-spaire-900 flex flex-1 flex-col overflow-hidden bg-gray-100 p-8">
+      <div className=" flex flex-1 flex-col overflow-hidden bg-gray-100 p-8">
         {isLoadingPreview ? (
-          <div className="dark:bg-spaire-600 h-40 w-full animate-pulse rounded-2xl bg-gray-200" />
+          <div className=" h-40 w-full animate-pulse rounded-2xl bg-gray-200" />
         ) : iframeSrc ? (
           <div
             className={twMerge(
-              'dark:border-spaire-600 flex flex-1 flex-col overflow-hidden rounded-2xl border border-gray-300 shadow-2xl',
+              ' flex flex-1 flex-col overflow-hidden rounded-2xl border border-gray-300 shadow-2xl',
               device === 'mobile' ? 'mx-auto w-[390px]' : 'w-full',
             )}
           >
             {/* Browser chrome */}
-            <div className="dark:border-spaire-600 dark:bg-spaire-700 flex shrink-0 items-center gap-3 border-b border-gray-200 bg-gray-200 px-4 py-3">
+            <div className=" flex shrink-0 items-center gap-3 border-b border-gray-200 bg-gray-200 px-4 py-3">
               <div className="flex items-center gap-1.5">
                 <div className="h-3 w-3 rounded-full bg-[#ff5f57]" />
                 <div className="h-3 w-3 rounded-full bg-[#ffbd2e]" />
                 <div className="h-3 w-3 rounded-full bg-[#28c840]" />
               </div>
-              <div className="dark:border-spaire-500 dark:bg-spaire-600 dark:text-spaire-300 flex flex-1 items-center justify-center rounded-md border border-gray-300 bg-white px-3 py-1 text-xs text-gray-500">
+              <div className="  flex flex-1 items-center justify-center rounded-md border border-gray-300 bg-white px-3 py-1 text-xs text-gray-500">
                 {checkoutLink.url}
               </div>
             </div>
@@ -215,7 +213,7 @@ export const CheckoutLinkPreviewPage = ({
             </div>
           </div>
         ) : (
-          <p className="dark:text-spaire-400 text-sm text-gray-400">
+          <p className=" text-sm text-gray-400">
             Failed to load preview
           </p>
         )}

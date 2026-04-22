@@ -60,7 +60,7 @@ const DetailRow = ({
 }: PropsWithChildren<{ title: string; emphasis?: boolean }>) => {
   return (
     <div
-      className={`flex flex-row items-start justify-between gap-x-8 ${emphasis ? 'font-medium' : 'dark:text-spaire-500 text-gray-500'}`}
+      className={`flex flex-row items-start justify-between gap-x-8 ${emphasis ? 'font-medium' : ' text-gray-500'}`}
     >
       <span>{title}</span>
       {children}
@@ -656,7 +656,7 @@ const BaseCheckoutForm = ({
                         <FormItem>
                           <FormLabel className="flex flex-row items-center justify-between">
                             <div>{t('checkout.form.taxId')}</div>
-                            <div className="dark:text-spaire-500 text-xs text-gray-500">
+                            <div className=" text-xs text-gray-500">
                               {t('checkout.form.optional')}
                             </div>
                           </FormLabel>
@@ -708,7 +708,7 @@ const BaseCheckoutForm = ({
                     <FormItem>
                       <FormLabel className="flex flex-row items-center justify-between">
                         <div>{t('checkout.form.discountCode')}</div>
-                        <div className="dark:text-spaire-500 text-xs font-normal text-gray-500">
+                        <div className=" text-xs font-normal text-gray-500">
                           {t('checkout.form.optional')}
                         </div>
                       </FormLabel>
@@ -848,7 +848,7 @@ const BaseCheckoutForm = ({
                 {(checkout.trialEnd ||
                   (checkout.activeTrialInterval &&
                     checkout.activeTrialIntervalCount)) && (
-                  <div className="dark:border-spaire-700 mt-3 border-t border-gray-300 pt-4">
+                  <div className=" mt-3 border-t border-gray-300 pt-4">
                     {checkout.activeTrialInterval &&
                       checkout.activeTrialIntervalCount && (
                         <DetailRow
@@ -859,7 +859,7 @@ const BaseCheckoutForm = ({
                         </DetailRow>
                       )}
                     {checkout.trialEnd && (
-                      <span className="dark:text-spaire-500 text-gray-500:w text-sm">
+                      <span className=" text-gray-500:w text-sm">
                         Trial ends{' '}
                         <FormattedDateTime
                           datetime={checkout.trialEnd}
@@ -883,12 +883,12 @@ const BaseCheckoutForm = ({
                 {checkoutLabel}
               </Button>
               {loading && loadingLabel && (
-                <p className="dark:text-spaire-500 text-sm text-gray-500">
+                <p className=" text-sm text-gray-500">
                   {loadingLabel}
                 </p>
               )}
               {disabled && !loading && (
-                <p className="text-sm text-red-500 dark:text-red-500">
+                <p className="text-sm text-red-500">
                   {t('checkout.cta.paymentsUnavailable')}
                 </p>
               )}
@@ -900,13 +900,13 @@ const BaseCheckoutForm = ({
             </div>
           </form>
         </Form>
-        <p className="dark:text-spaire-500 text-center text-xs text-gray-500">
+        <p className=" text-center text-xs text-gray-500">
           {t('checkout.footer.merchantOfRecord')}
         </p>
       </div>
       <a
         href="https://www.spairehq.com?utm_source=checkout"
-        className="dark:text-spaire-600 flex w-full flex-row items-center justify-center gap-x-3 text-sm text-gray-400"
+        className=" flex w-full flex-row items-center justify-center gap-x-3 text-sm text-gray-400"
         target="_blank"
       >
         <span>{t('checkout.footer.poweredBy')}</span>

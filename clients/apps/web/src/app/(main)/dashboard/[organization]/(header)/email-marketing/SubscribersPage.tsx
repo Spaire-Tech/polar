@@ -155,30 +155,30 @@ export default function SubscribersPage({
         {/* Analytics stat cards */}
         {hasStats && (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <div className="dark:border-spaire-700 dark:bg-spaire-900 relative flex flex-col gap-1 rounded-2xl border border-gray-200 bg-white p-5">
+            <div className=" relative flex flex-col gap-1 rounded-2xl border border-gray-200 bg-white p-5">
               <div className="absolute top-5 left-5 h-10 w-1 rounded-full bg-blue-500" />
-              <span className="pl-4 text-3xl font-bold text-gray-900 dark:text-white">
+              <span className="pl-4 text-3xl font-bold text-gray-900">
                 {stats.total.toLocaleString()}
               </span>
-              <span className="dark:text-spaire-400 pl-4 text-sm text-gray-500">
+              <span className=" pl-4 text-sm text-gray-500">
                 Total subscribers
               </span>
             </div>
-            <div className="dark:border-spaire-700 dark:bg-spaire-900 relative flex flex-col gap-1 rounded-2xl border border-gray-200 bg-white p-5">
+            <div className=" relative flex flex-col gap-1 rounded-2xl border border-gray-200 bg-white p-5">
               <div className="absolute top-5 left-5 h-10 w-1 rounded-full bg-emerald-500" />
-              <span className="pl-4 text-3xl font-bold text-gray-900 dark:text-white">
+              <span className="pl-4 text-3xl font-bold text-gray-900">
                 {stats.active.toLocaleString()}
               </span>
-              <span className="dark:text-spaire-400 pl-4 text-sm text-gray-500">
+              <span className=" pl-4 text-sm text-gray-500">
                 Active subscribers
               </span>
             </div>
-            <div className="dark:border-spaire-700 dark:bg-spaire-900 relative flex flex-col gap-1 rounded-2xl border border-gray-200 bg-white p-5">
+            <div className=" relative flex flex-col gap-1 rounded-2xl border border-gray-200 bg-white p-5">
               <div className="absolute top-5 left-5 h-10 w-1 rounded-full bg-gray-400" />
-              <span className="pl-4 text-3xl font-bold text-gray-900 dark:text-white">
+              <span className="pl-4 text-3xl font-bold text-gray-900">
                 {stats.unsubscribed.toLocaleString()}
               </span>
-              <span className="dark:text-spaire-400 pl-4 text-sm text-gray-500">
+              <span className=" pl-4 text-sm text-gray-500">
                 Unsubscribes
               </span>
             </div>
@@ -187,20 +187,20 @@ export default function SubscribersPage({
 
         {/* Divider */}
         {hasStats && (
-          <div className="dark:border-spaire-700 border-t border-gray-200" />
+          <div className=" border-t border-gray-200" />
         )}
 
         {/* Search + Filter + Actions bar */}
         {hasSubscribers && (
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="dark:border-spaire-700 flex flex-1 flex-row items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 dark:bg-transparent">
-              <SearchOutlined className="dark:text-spaire-500 text-gray-400" fontSize="small" />
+            <div className=" flex flex-1 flex-row items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2">
+              <SearchOutlined className=" text-gray-400" fontSize="small" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search subscribers by name or email..."
-                className="min-w-0 flex-1 bg-transparent text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none dark:text-white dark:placeholder:text-gray-500"
+                className="min-w-0 flex-1 bg-transparent text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none "
               />
             </div>
             <div className="flex flex-row items-center gap-2">
@@ -256,7 +256,7 @@ export default function SubscribersPage({
 
         {/* Add form */}
         {showAddForm && (
-          <div className="dark:border-spaire-700 dark:bg-spaire-900 flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-4 md:flex-row md:items-end">
+          <div className=" flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-4 md:flex-row md:items-end">
             <div className="flex flex-1 flex-col gap-1">
               <label className="text-xs text-gray-500">Email</label>
               <Input
@@ -285,9 +285,9 @@ export default function SubscribersPage({
         {/* Subscriber table */}
         {hasSubscribers ? (
           <>
-            <div className="dark:border-spaire-700 dark:divide-spaire-700 flex flex-col divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200">
+            <div className=" flex flex-col divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200">
               {/* Header */}
-              <div className="dark:bg-spaire-900 hidden flex-row items-center gap-4 bg-gray-50 px-6 py-3 text-xs font-medium text-gray-500 md:flex">
+              <div className=" hidden flex-row items-center gap-4 bg-gray-50 px-6 py-3 text-xs font-medium text-gray-500 md:flex">
                 <div className="flex-1">Name</div>
                 <div className="w-32">Subscribed</div>
                 <div className="w-24">Source</div>
@@ -298,7 +298,7 @@ export default function SubscribersPage({
               {(filteredItems ?? []).map((sub: any) => (
                 <div
                   key={sub.id}
-                  className="dark:hover:bg-spaire-800 flex flex-row items-center gap-4 px-6 py-3.5 hover:bg-gray-50"
+                  className=" flex flex-row items-center gap-4 px-6 py-3.5 hover:bg-gray-50"
                 >
                   <div className="flex flex-1 flex-row items-center gap-3">
                     <div
@@ -307,17 +307,17 @@ export default function SubscribersPage({
                       {getInitial(sub.name, sub.email)}
                     </div>
                     <div className="flex min-w-0 flex-col">
-                      <span className="truncate text-sm font-medium text-gray-900 dark:text-white">
+                      <span className="truncate text-sm font-medium text-gray-900">
                         {sub.name || sub.email}
                       </span>
                       {sub.name && (
-                        <span className="dark:text-spaire-500 truncate text-xs text-gray-400">
+                        <span className=" truncate text-xs text-gray-400">
                           {sub.email}
                         </span>
                       )}
                     </div>
                   </div>
-                  <div className="dark:text-spaire-400 hidden w-32 text-sm text-gray-500 md:block">
+                  <div className=" hidden w-32 text-sm text-gray-500 md:block">
                     {sub.created_at
                       ? new Date(sub.created_at).toLocaleDateString(undefined, {
                           day: 'numeric',
@@ -337,7 +337,7 @@ export default function SubscribersPage({
                     {sub.status === 'active' && (
                       <button
                         onClick={() => handleArchive(sub.id)}
-                        className="text-gray-400 transition-colors hover:text-gray-600 dark:hover:text-gray-300"
+                        className="text-gray-400 transition-colors hover:text-gray-600"
                       >
                         <MoreHorizOutlined fontSize="small" />
                       </button>
@@ -350,7 +350,7 @@ export default function SubscribersPage({
             {/* Pagination */}
             {subscribers?.pagination && subscribers.pagination.total_count > 20 && (
               <div className="flex flex-row items-center justify-between">
-                <p className="dark:text-spaire-400 text-sm text-gray-500">
+                <p className=" text-sm text-gray-500">
                   {subscribers.pagination.total_count} subscribers
                 </p>
                 <div className="flex flex-row gap-2">
@@ -384,10 +384,10 @@ export default function SubscribersPage({
               <div style={{ mixBlendMode: 'multiply' }} className="absolute bottom-0 right-0 h-14 w-14 rounded-full bg-blue-300" />
             </div>
             <div className="flex max-w-lg flex-col gap-3">
-              <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
+              <h2 className="text-3xl font-bold text-gray-900">
                 Your subscribers, all in one place
               </h2>
-              <p className="dark:text-spaire-400 text-gray-500">
+              <p className=" text-gray-500">
                 Subscribers are added automatically when people subscribe via your
                 Space or make a purchase. You can also add them manually.
               </p>
@@ -423,10 +423,10 @@ export default function SubscribersPage({
 
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
-    active: 'bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400',
-    unsubscribed: 'bg-gray-100 text-gray-500 dark:bg-spaire-700 dark:text-spaire-400',
-    archived: 'bg-gray-100 text-gray-400 dark:bg-spaire-700 dark:text-spaire-500',
-    invalid: 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400',
+    active: 'bg-green-50 text-green-700 ',
+    unsubscribed: 'bg-gray-100 text-gray-500 ',
+    archived: 'bg-gray-100 text-gray-400 ',
+    invalid: 'bg-red-50 text-red-600 ',
   }
 
   return (
@@ -447,7 +447,7 @@ function SourceBadge({ source }: { source: string }) {
   }
 
   return (
-    <span className="dark:text-spaire-400 text-xs text-gray-500">
+    <span className=" text-xs text-gray-500">
       {labels[source] ?? source}
     </span>
   )

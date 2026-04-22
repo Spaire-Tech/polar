@@ -93,7 +93,7 @@ export const BenefitListPage = ({ organization }: BenefitListPageProps) => {
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div className="flex flex-row items-center gap-3">
                 <div className="relative w-full md:max-w-64">
-                  <Search className="dark:text-spaire-500 absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <Search className=" absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                   <Input
                     className="pl-9"
                     placeholder="Search benefits"
@@ -123,22 +123,22 @@ export const BenefitListPage = ({ organization }: BenefitListPageProps) => {
                 <span>Create benefit</span>
               </Button>
             </div>
-            <div className="dark:border-spaire-700 dark:divide-spaire-700 flex flex-col divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200">
+            <div className=" flex flex-col divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200">
             {benefits.map((benefit) => (
               <button
                 key={benefit.id}
                 type="button"
-                className="dark:hover:bg-spaire-800 flex flex-row items-center gap-4 px-6 py-4 text-left transition-colors hover:bg-gray-50"
+                className=" flex flex-row items-center gap-4 px-6 py-4 text-left transition-colors hover:bg-gray-50"
                 onClick={() => setSelectedBenefitId(benefit.id)}
               >
-                <span className="dark:bg-spaire-700 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600 dark:text-gray-300">
+                <span className=" flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600">
                   {resolveBenefitIcon(benefit.type, 'h-4 w-4')}
                 </span>
                 <div className="flex min-w-0 flex-col">
                   <span className="truncate text-sm font-medium">
                     {benefit.description}
                   </span>
-                  <span className="dark:text-spaire-500 truncate text-xs text-gray-500">
+                  <span className=" truncate text-xs text-gray-500">
                     {benefitsDisplayNames[benefit.type]}
                   </span>
                 </div>
@@ -161,10 +161,10 @@ export const BenefitListPage = ({ organization }: BenefitListPageProps) => {
               <div style={{ mixBlendMode: 'multiply' }} className="absolute bottom-0 right-0 h-14 w-14 rounded-full bg-yellow-300" />
             </div>
             <div className="flex max-w-lg flex-col gap-3">
-              <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
+              <h2 className="text-3xl font-bold text-gray-900">
                 Attach files to your products
               </h2>
-              <p className="text-gray-500 dark:text-spaire-400">
+              <p className="text-gray-500">
                 Upload the files your customer will receive after purchase
               </p>
             </div>

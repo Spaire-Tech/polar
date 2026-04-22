@@ -72,7 +72,7 @@ const ManageMetricsContent = ({
 
   return (
     <div className="flex flex-col gap-y-4 p-6">
-      <p className="dark:text-spaire-400 text-sm text-gray-500">
+      <p className=" text-sm text-gray-500">
         Choose which metrics appear on your overview page.
       </p>
       <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
@@ -85,8 +85,8 @@ const ManageMetricsContent = ({
               className={twMerge(
                 'flex items-center justify-between rounded-xl border px-4 py-3 text-left text-sm transition-colors',
                 isSelected
-                  ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-600 dark:bg-blue-950/30 dark:text-blue-400'
-                  : 'dark:border-spaire-700 dark:hover:border-spaire-600 dark:text-spaire-300 border-gray-200 text-gray-700 hover:border-gray-300',
+                  ? 'border-blue-500 bg-blue-50 text-blue-700  '
+                  : '  border-gray-200 text-gray-700 hover:border-gray-300',
               )}
             >
               <span>{metric.display_name}</span>
@@ -114,12 +114,12 @@ const ProfileCompletionBanner = ({
   }
 
   return (
-    <div className="dark:bg-spaire-900 dark:border-spaire-700 flex flex-col gap-4 rounded-2xl border border-blue-100 bg-blue-50/50 p-6 sm:flex-row sm:items-center sm:justify-between">
+    <div className=" flex flex-col gap-4 rounded-2xl border border-blue-100 bg-blue-50/50 p-6 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex flex-col gap-y-1">
-        <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+        <h3 className="text-sm font-medium text-gray-900">
           Complete your profile to start receiving payouts
         </h3>
-        <p className="dark:text-spaire-400 text-sm text-gray-500">
+        <p className=" text-sm text-gray-500">
           Set up your payout account so you can get paid when customers purchase your products.
         </p>
       </div>
@@ -172,7 +172,7 @@ const OverviewMetrics = ({
         </Button>
       </div>
 
-      <div className="dark:border-spaire-700 flex flex-col overflow-hidden rounded-2xl border border-gray-200">
+      <div className=" flex flex-col overflow-hidden rounded-2xl border border-gray-200">
         <div className="[clip-path:inset(1px_1px_1px_1px)]">
           {/* First metric — full width */}
           <MetricChartBox
@@ -182,7 +182,7 @@ const OverviewMetrics = ({
             loading={isLoading}
             height={200}
             chartType="line"
-            className="dark:border-spaire-700 rounded-none! border-t-0 border-r-0 border-b border-l-0 border-gray-200 bg-transparent shadow-none dark:bg-transparent"
+            className=" rounded-none! border-t-0 border-r-0 border-b border-l-0 border-gray-200 bg-transparent shadow-none"
           />
 
           {/* Rest of metrics — responsive grid */}
@@ -198,8 +198,8 @@ const OverviewMetrics = ({
                   height={200}
                   chartType="line"
                   className={twMerge(
-                    'rounded-none! bg-transparent dark:bg-transparent',
-                    'dark:border-spaire-700 border-t-0 border-r border-b border-l-0 border-gray-200 shadow-none',
+                    'rounded-none! bg-transparent',
+                    ' border-t-0 border-r border-b border-l-0 border-gray-200 shadow-none',
                   )}
                 />
               ))}
@@ -261,21 +261,21 @@ const CancellationInsights = ({
         <h2 className="text-lg font-medium">Cancellation Insights</h2>
         <Link
           href={`/dashboard/${organization.slug}/analytics/metrics/cancellations`}
-          className="dark:text-spaire-400 text-sm text-gray-500 hover:underline"
+          className=" text-sm text-gray-500 hover:underline"
         >
           View full analytics
         </Link>
       </div>
-      <div className="dark:border-spaire-700 flex flex-col overflow-hidden rounded-2xl border border-gray-200">
+      <div className=" flex flex-col overflow-hidden rounded-2xl border border-gray-200">
         <div className="grid grid-cols-1 [clip-path:inset(1px_1px_1px_1px)] lg:grid-cols-3">
-          <div className="dark:border-spaire-700 col-span-2 border-t-0 border-r border-b border-l-0 border-gray-200 p-4">
+          <div className=" col-span-2 border-t-0 border-r border-b border-l-0 border-gray-200 p-4">
             <CancellationsStackedChart
               data={data}
               interval={interval}
               height={300}
             />
           </div>
-          <div className="dark:border-spaire-700 border-t-0 border-r border-b border-l-0 border-gray-200 p-4">
+          <div className=" border-t-0 border-r border-b border-l-0 border-gray-200 p-4">
             <CancellationsDistributionChart
               data={data}
               interval={interval}

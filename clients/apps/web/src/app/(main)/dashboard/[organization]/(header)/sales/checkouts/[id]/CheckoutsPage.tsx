@@ -33,13 +33,13 @@ const ClientPage: React.FC<ClientPageProps> = ({ organization, checkout }) => {
           <div className="flex flex-row items-center gap-4">
             <h2 className="text-xl font-normal">Checkout</h2>
           </div>
-          <span className="dark:text-spaire-500 font-mono text-sm text-gray-500">
+          <span className=" font-mono text-sm text-gray-500">
             {checkout.id}
           </span>
         </div>
       }
       className="gap-y-8"
-      contextViewClassName="bg-transparent dark:bg-transparent border-none rounded-none"
+      contextViewClassName="bg-transparent border-none rounded-none"
       contextView={
         customer ? (
           <CustomerContextView

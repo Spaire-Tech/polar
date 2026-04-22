@@ -54,20 +54,20 @@ const INTEGRATION_ICONS: Record<string, React.ReactNode> = {
 
 const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
   'ai-builder': {
-    bg: 'bg-violet-50 dark:bg-violet-500/10',
-    text: 'text-violet-600 dark:text-violet-400',
+    bg: 'bg-violet-50',
+    text: 'text-violet-600',
   },
   backend: {
-    bg: 'bg-emerald-50 dark:bg-emerald-500/10',
-    text: 'text-emerald-600 dark:text-emerald-400',
+    bg: 'bg-emerald-50',
+    text: 'text-emerald-600',
   },
   framework: {
-    bg: 'bg-blue-50 dark:bg-blue-500/10',
-    text: 'text-blue-600 dark:text-blue-400',
+    bg: 'bg-blue-50',
+    text: 'text-blue-600',
   },
   auth: {
-    bg: 'bg-amber-50 dark:bg-amber-500/10',
-    text: 'text-amber-600 dark:text-amber-400',
+    bg: 'bg-amber-50',
+    text: 'text-amber-600',
   },
 }
 
@@ -75,41 +75,41 @@ function IntegrationCard({ integration }: { integration: Integration }) {
   const { organization } = useContext(OrganizationContext)
   const icon = INTEGRATION_ICONS[integration.slug]
   const colors = CATEGORY_COLORS[integration.category] ?? {
-    bg: 'bg-gray-50 dark:bg-spaire-800',
-    text: 'text-gray-600 dark:text-spaire-400',
+    bg: 'bg-gray-50',
+    text: 'text-gray-600',
   }
   const isComingSoon = integration.comingSoon
 
   const content = (
     <div
-      className={`group dark:border-spaire-700 flex flex-col gap-y-5 rounded-2xl border border-gray-200 p-6 transition-all ${
+      className={`group flex flex-col gap-y-5 rounded-2xl border border-gray-200 p-6 transition-all ${
         isComingSoon
           ? 'cursor-default opacity-60'
-          : 'dark:hover:border-spaire-600 hover:border-gray-300 hover:shadow-md dark:hover:shadow-none'
+          : ' hover:border-gray-300 hover:shadow-md'
       }`}
     >
       <div className="flex flex-row items-start justify-between">
         <div className="flex items-center gap-x-3">
           <div className={isComingSoon ? 'grayscale' : ''}>{icon}</div>
           <div className="flex flex-col gap-y-0.5">
-            <h3 className="text-base font-medium dark:text-white">
+            <h3 className="text-base font-medium">
               {integration.name}
             </h3>
-            <span className={`text-[11px] font-medium ${isComingSoon ? 'dark:text-spaire-500 text-gray-400' : colors.text}`}>
+            <span className={`text-[11px] font-medium ${isComingSoon ? ' text-gray-400' : colors.text}`}>
               {integration.categoryLabel}
             </span>
           </div>
         </div>
         {isComingSoon ? (
-          <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-medium text-gray-500 dark:bg-spaire-800 dark:text-spaire-400">
+          <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-medium text-gray-500 ">
             Coming Soon
           </span>
         ) : (
-          <ArrowOutwardOutlined className="h-4 w-4 text-gray-300 transition-colors group-hover:text-gray-500 dark:text-spaire-600 dark:group-hover:text-spaire-400" />
+          <ArrowOutwardOutlined className="h-4 w-4 text-gray-300 transition-colors group-hover:text-gray-500 " />
         )}
       </div>
 
-      <p className="dark:text-spaire-400 text-sm leading-relaxed text-gray-500">
+      <p className=" text-sm leading-relaxed text-gray-500">
         {integration.description}
       </p>
     </div>
@@ -132,7 +132,7 @@ export default function IntegrationsPage() {
   return (
     <DashboardBody title="Integrations">
       <div className="flex flex-col gap-y-2">
-        <p className="dark:text-spaire-500 text-sm text-gray-500">
+        <p className=" text-sm text-gray-500">
           Connect Spaire to your favorite tools. Copy a prompt, paste it into
           your AI builder, or integrate with our SDK — and start accepting
           payments in minutes.

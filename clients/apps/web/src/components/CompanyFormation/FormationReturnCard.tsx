@@ -45,12 +45,12 @@ export default function FormationReturnCard() {
   }
 
   return (
-    <Card className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30">
+    <Card className="border-blue-200 bg-blue-50 ">
       <CardHeader className="pb-2">
-        <h3 className="text-lg font-semibold dark:text-white">
+        <h3 className="text-lg font-semibold">
           Finish Setting Up {formation.companyName}
         </h3>
-        <p className="dark:text-polar-400 text-sm text-gray-600">
+        <p className=" text-sm text-gray-600">
           You&apos;re forming your company with doola. Once completed, come
           back here to:
         </p>
@@ -60,7 +60,7 @@ export default function FormationReturnCard() {
           {NEXT_STEPS.map((item) => (
             <li
               key={item}
-              className="flex items-center gap-2 text-sm dark:text-gray-300"
+              className="flex items-center gap-2 text-sm"
             >
               <CheckCircleOutlined
                 className="text-green-500"

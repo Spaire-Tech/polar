@@ -173,7 +173,7 @@ const InvoiceCustomerSection = ({
                     <div className="flex flex-col">
                       <span className="font-medium">{c.name ?? c.email}</span>
                       {c.name && (
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                        <span className="text-xs text-gray-500">
                           {c.email}
                         </span>
                       )}
@@ -255,7 +255,7 @@ const InvoiceBillingAddressSection = () => {
             <FormItem>
               <FormLabel>
                 Address line 2{' '}
-                <span className="dark:text-spaire-500 text-gray-400 font-normal">
+                <span className=" text-gray-400 font-normal">
                   (optional)
                 </span>
               </FormLabel>
@@ -337,7 +337,7 @@ const InvoiceCurrencySection = () => {
             <FormControl>
               <select
                 {...field}
-                className="dark:bg-spaire-900 dark:border-spaire-700 w-full max-w-xs rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm focus:outline-none"
+                className=" w-full max-w-xs rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm focus:outline-none"
               >
                 {CURRENCIES.map((c) => (
                   <option key={c.value} value={c.value}>
@@ -399,7 +399,7 @@ const InvoiceItemsSection = ({
               renderItem={(p) => (
                 <div className="flex flex-col">
                   <span className="font-medium">{p.name}</span>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                  <span className="text-xs text-gray-500">
                     {(() => {
                       const cents = getPriceForCurrency(p, currency)
                       return cents > 0
@@ -528,7 +528,7 @@ const InvoiceDiscountSection = ({
           renderItem={(d) => (
             <div className="flex flex-col">
               <span className="font-medium">{d.name}</span>
-              <span className="text-xs text-gray-500 dark:text-gray-400">
+              <span className="text-xs text-gray-500">
                 {d.type === 'percentage'
                   ? `${((d as any).basis_points ?? 0) / 100}% off`
                   : `${((d as any).amount ?? 0) / 100} ${(d as any).currency?.toUpperCase() ?? ''} off`}
@@ -619,7 +619,7 @@ const InvoicePaymentLinkSection = ({
           renderItem={(l) => (
             <div className="flex flex-col">
               <span className="font-medium">{l.label ?? 'Unlabeled'}</span>
-              <span className="truncate text-xs text-gray-500 dark:text-gray-400">{l.url}</span>
+              <span className="truncate text-xs text-gray-500">{l.url}</span>
             </div>
           )}
           isLoading={isLoadingLinks}
@@ -629,8 +629,8 @@ const InvoicePaymentLinkSection = ({
         />
 
         {selectedCheckoutLink && (
-          <div className="dark:border-spaire-700 flex items-center gap-x-2 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-2.5 dark:bg-transparent">
-            <span className="flex-1 truncate font-mono text-xs text-gray-500 dark:text-gray-400">
+          <div className=" flex items-center gap-x-2 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-2.5">
+            <span className="flex-1 truncate font-mono text-xs text-gray-500">
               {selectedCheckoutLink.url}
             </span>
             <button
@@ -647,7 +647,7 @@ const InvoicePaymentLinkSection = ({
         )}
 
         {hasCurrencyMismatch && (
-          <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600 dark:bg-red-950/40 dark:text-red-400">
+          <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600 ">
             Currency mismatch: the invoice is in{' '}
             <strong>{invoiceCurrency.toUpperCase()}</strong> but this checkout
             link is in{' '}
@@ -1005,13 +1005,13 @@ const NewInvoicePage = ({
           <span>New Invoice</span>
         </InlineModalHeader>
         <div className="flex flex-col gap-8 overflow-y-auto px-8 pb-8">
-          <div className="dark:border-spaire-700 dark:divide-spaire-700 flex flex-col divide-y divide-gray-200 rounded-4xl border border-gray-200">
+          <div className=" flex flex-col divide-y divide-gray-200 rounded-4xl border border-gray-200">
             <Form {...form}>
               <form
                 onSubmit={handleSubmit(onSubmit)}
                 className="flex flex-col gap-y-6"
               >
-                <div className="dark:divide-spaire-700 flex flex-col divide-y divide-gray-200">
+                <div className=" flex flex-col divide-y divide-gray-200">
                   <InvoiceCustomerSection
                     organization={organization}
                     onNewCustomer={showCustomerModal}
@@ -1062,12 +1062,12 @@ const NewInvoicePage = ({
       className="gap-y-0"
     >
       <Form {...form}>
-        <div className="dark:border-spaire-700 dark:divide-spaire-700 flex flex-col divide-y divide-gray-200 rounded-4xl border border-gray-200">
+        <div className=" flex flex-col divide-y divide-gray-200 rounded-4xl border border-gray-200">
           <form
             onSubmit={handleSubmit(onSubmit)}
             className="flex flex-col gap-y-6"
           >
-            <div className="dark:divide-spaire-700 flex flex-col divide-y divide-gray-200">
+            <div className=" flex flex-col divide-y divide-gray-200">
               <InvoiceCustomerSection
                 organization={organization}
                 onNewCustomer={showCustomerModal}

@@ -40,7 +40,7 @@ export function SpansTitle({
 
   return (
     <div className="flex flex-row items-center justify-between gap-1.5">
-      <h2 className="flex flex-row items-center gap-1.5 text-2xl font-medium whitespace-nowrap dark:text-white">
+      <h2 className="flex flex-row items-center gap-1.5 text-2xl font-medium whitespace-nowrap">
         <Link
           href={`/dashboard/${organization.slug}/analytics/costs${searchString ? `?${searchString}` : ''}`}
         >
@@ -48,14 +48,14 @@ export function SpansTitle({
         </Link>
         {eventType && (
           <>
-            <ChevronRightIcon className="dark:text-spaire-500 size-5 text-gray-400" />
+            <ChevronRightIcon className=" size-5 text-gray-400" />
             <Link href={backLink}>{eventType.label}</Link>
           </>
         )}
       </h2>
       {!eventType && (
         <button
-          className="dark:text-spaire-500 dark:hover:text-spaire-400 flex size-6 cursor-pointer items-center justify-center rounded-full text-gray-500 transition-colors hover:text-gray-600"
+          className=" flex size-6 cursor-pointer items-center justify-center rounded-full text-gray-500 transition-colors hover:text-gray-600"
           onClick={showEventCostCreationGuide}
         >
           <CircleQuestionMarkIcon className="size-4" />

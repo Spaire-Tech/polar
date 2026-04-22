@@ -30,7 +30,7 @@ const ProductForm = ({
   benefitsSlot: React.ReactNode
 }) => {
   return (
-    <div className="flex flex-col divide-y dark:divide-spaire-700">
+    <div className="flex flex-col divide-y">
       <ProductInfoSection />
 
       <ProductPricingSection organization={organization} update={update} />
@@ -49,7 +49,7 @@ const ProductForm = ({
       >
         <div className="flex flex-col gap-2">
           <div className="flex flex-row items-center justify-end">
-            <p className="dark:text-spaire-500 text-sm text-gray-500">
+            <p className=" text-sm text-gray-500">
               <Link
                 className="text-blue-500 hover:underline"
                 href={`/dashboard/${organization.slug}/settings/custom-fields`}

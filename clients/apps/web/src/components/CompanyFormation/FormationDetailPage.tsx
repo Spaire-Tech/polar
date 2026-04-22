@@ -60,7 +60,7 @@ export default function FormationDetailPage() {
           <FadeUp className="flex flex-row justify-start">
             <Link
               href={`/dashboard/${orgSlug}/founder-tools`}
-              className="flex cursor-pointer items-center gap-x-1.5 rounded-full px-3 py-1.5 text-sm text-blue-500 transition-colors duration-100 hover:bg-blue-50 hover:text-blue-600 dark:text-blue-400 dark:hover:bg-blue-500/10 dark:hover:text-blue-300"
+              className="flex cursor-pointer items-center gap-x-1.5 rounded-full px-3 py-1.5 text-sm text-blue-500 transition-colors duration-100 hover:bg-blue-50 hover:text-blue-600  "
             >
               <ArrowBackOutlined sx={{ fontSize: 16 }} />
               Incorporate
@@ -75,14 +75,14 @@ export default function FormationDetailPage() {
                 alt="doola"
                 className="h-10 w-10 rounded-xl object-contain"
               />
-              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
+              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-600 ">
                 Powered by doola
               </span>
             </div>
             <h1 className="mt-1 text-2xl font-medium tracking-tight md:text-3xl">
               Company Formation
             </h1>
-            <p className="dark:text-spaire-400 max-w-lg text-base leading-relaxed text-gray-500">
+            <p className=" max-w-lg text-base leading-relaxed text-gray-500">
               Start a US company in minutes and get everything you need to
               operate your startup legally.
             </p>
@@ -90,14 +90,14 @@ export default function FormationDetailPage() {
 
           {/* Price */}
           <FadeUp className="flex flex-col gap-y-3">
-            <h2 className="text-sm font-medium uppercase tracking-wider text-gray-400 dark:text-spaire-500">
+            <h2 className="text-sm font-medium uppercase tracking-wider text-gray-400">
               Formation price
             </h2>
-            <div className="dark:border-spaire-700 dark:bg-spaire-900 flex items-baseline gap-x-2 rounded-2xl border border-gray-200 bg-white p-6 dark:border-none">
+            <div className=" flex items-baseline gap-x-2 rounded-2xl border border-gray-200 bg-white p-6 ">
               <span className="text-2xl font-semibold tracking-tight">
                 Starting at $297
               </span>
-              <span className="dark:text-spaire-400 text-base text-gray-500">
+              <span className=" text-base text-gray-500">
                 + state fees
               </span>
             </div>
@@ -105,14 +105,14 @@ export default function FormationDetailPage() {
 
           {/* What you get */}
           <FadeUp className="flex flex-col gap-y-5">
-            <h2 className="text-sm font-medium uppercase tracking-wider text-gray-400 dark:text-spaire-500">
+            <h2 className="text-sm font-medium uppercase tracking-wider text-gray-400">
               What you get
             </h2>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {formationFeatures.map((section) => (
                 <div
                   key={section.heading}
-                  className="dark:border-spaire-700 dark:bg-spaire-900 flex flex-col gap-y-4 rounded-2xl border border-gray-200 bg-white p-6 dark:border-none"
+                  className=" flex flex-col gap-y-4 rounded-2xl border border-gray-200 bg-white p-6 "
                 >
                   <h3 className="text-sm font-medium">{section.heading}</h3>
                   <ul className="flex flex-col gap-y-2.5">
@@ -125,7 +125,7 @@ export default function FormationDetailPage() {
                           sx={{ fontSize: 16 }}
                           className="mt-0.5 shrink-0 text-emerald-500"
                         />
-                        <span className="dark:text-spaire-400 text-sm leading-relaxed text-gray-500">
+                        <span className=" text-sm leading-relaxed text-gray-500">
                           {item}
                         </span>
                       </li>
@@ -150,7 +150,7 @@ export default function FormationDetailPage() {
             <div className="flex flex-row items-center justify-center pt-1">
               <Link
                 href={`/dashboard/${orgSlug}/founder-tools`}
-                className="cursor-pointer rounded-full px-3 py-1.5 text-sm text-blue-500 transition-colors duration-100 hover:bg-blue-50 hover:text-blue-600 dark:text-blue-400 dark:hover:bg-blue-500/10 dark:hover:text-blue-300"
+                className="cursor-pointer rounded-full px-3 py-1.5 text-sm text-blue-500 transition-colors duration-100 hover:bg-blue-50 hover:text-blue-600  "
               >
                 Back to Incorporate
               </Link>

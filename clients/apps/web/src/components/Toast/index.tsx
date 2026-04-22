@@ -23,11 +23,11 @@ const toastVariants = cva(
     variants: {
       variant: {
         default:
-          'bg-white dark:bg-spaire-900 border border-transparent dark:border-spaire-700',
+          'bg-white border border-transparent ',
         error:
-          'bg-white dark:bg-spaire-900 border border-transparent dark:border-spaire-700',
+          'bg-white border border-transparent ',
         success:
-          'bg-white dark:bg-spaire-900 border border-transparent dark:border-spaire-700',
+          'bg-white border border-transparent ',
       },
     },
     defaultVariants: {

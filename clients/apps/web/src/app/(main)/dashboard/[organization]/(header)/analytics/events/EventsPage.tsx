@@ -164,7 +164,7 @@ const ClientPage: React.FC<ClientPageProps> = ({ organization }) => {
       header={
         <div className="flex items-center gap-2">
           {events.length > 0 && (
-            <h3 className="dark:text-spaire-500 text-xl text-gray-500">
+            <h3 className=" text-xl text-gray-500">
               {events.length}
               {hasNextPage && '+'} Events
             </h3>
@@ -244,7 +244,7 @@ const ClientPage: React.FC<ClientPageProps> = ({ organization }) => {
                         key={eventType.name}
                         size="small"
                         className="justify-between px-3 font-mono text-xs"
-                        inactiveClassName="text-gray-500 dark:text-spaire-500"
+                        inactiveClassName="text-gray-500"
                         selected={selectedEventTypes?.includes(eventType.name)}
                         onSelect={() =>
                           setSelectedEventTypes((prev) =>
@@ -260,7 +260,7 @@ const ClientPage: React.FC<ClientPageProps> = ({ organization }) => {
                         <span className="w-full truncate">
                           {eventType.label}
                         </span>
-                        <span className="text-xxs dark:text-spaire-500 font-mono text-gray-500">
+                        <span className="text-xxs font-mono text-gray-500">
                           {Number(eventType.occurrences).toLocaleString(
                             'en-US',
                             {
@@ -305,19 +305,19 @@ const ClientPage: React.FC<ClientPageProps> = ({ organization }) => {
         {/* Events list */}
         <div className="flex flex-col gap-y-4">
           {events.length === 0 ? (
-            <div className="dark:border-spaire-700 flex min-h-96 w-full flex-col items-center justify-center gap-4 rounded-4xl border border-gray-200 p-24">
+            <div className=" flex min-h-96 w-full flex-col items-center justify-center gap-4 rounded-4xl border border-gray-200 p-24">
               <h1 className="text-2xl font-normal">No Events Found</h1>
-              <p className="dark:text-spaire-500 text-gray-500">
+              <p className=" text-gray-500">
                 There are no events matching your current filters
               </p>
             </div>
           ) : (
             <>
               <Events events={events} organization={organization} />
-              <div className="dark:border-spaire-700 flex justify-center rounded-xl border border-gray-200">
+              <div className=" flex justify-center rounded-xl border border-gray-200">
                 {hasNextPage ? (
                   <button
-                    className="group dark:text-spaire-500 dark:hover:bg-spaire-700 dark:hover:text-spaire-300 relative flex h-10 w-full cursor-pointer items-center justify-center gap-x-2 rounded-xl py-3 text-sm text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700"
+                    className="group   relative flex h-10 w-full cursor-pointer items-center justify-center gap-x-2 rounded-xl py-3 text-sm text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700"
                     onClick={() => fetchNextPage()}
                   >
                     <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-100 transition-all duration-200 group-hover:opacity-0 group-hover:blur-[2px]">
@@ -328,7 +328,7 @@ const ClientPage: React.FC<ClientPageProps> = ({ organization }) => {
                     </span>
                   </button>
                 ) : (
-                  <span className="dark:text-spaire-500/60 dark:bg-spaire-800 flex h-10 w-full items-center justify-center rounded-xl bg-gray-50 text-sm text-gray-400">
+                  <span className=" flex h-10 w-full items-center justify-center rounded-xl bg-gray-50 text-sm text-gray-400">
                     Showing all {events.length} events
                   </span>
                 )}

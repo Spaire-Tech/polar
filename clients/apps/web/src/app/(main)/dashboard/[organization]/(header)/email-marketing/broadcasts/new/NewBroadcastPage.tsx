@@ -62,7 +62,7 @@ export default function NewBroadcastPage({
         <div className="flex flex-row items-center gap-4">
           <Link
             href={`/dashboard/${organization.slug}/email-marketing/broadcasts`}
-            className="dark:text-spaire-400 text-gray-500 transition-colors hover:text-gray-700"
+            className=" text-gray-500 transition-colors hover:text-gray-700"
           >
             <ArrowBackOutlined fontSize="small" />
           </Link>
@@ -72,7 +72,7 @@ export default function NewBroadcastPage({
         {/* Form */}
         <div className="flex flex-col gap-y-6">
           {/* Info section */}
-          <div className="dark:border-spaire-700 dark:bg-spaire-900 flex flex-col gap-y-5 rounded-2xl border border-gray-200 bg-white p-6">
+          <div className=" flex flex-col gap-y-5 rounded-2xl border border-gray-200 bg-white p-6">
             <h2 className="text-base font-medium">Email Details</h2>
 
             <div className="flex flex-col gap-y-2">
@@ -119,12 +119,12 @@ export default function NewBroadcastPage({
                   ))}
                 </SelectContent>
               </Select>
-              <p className="dark:text-spaire-500 text-xs text-gray-400">
+              <p className=" text-xs text-gray-400">
                 Choose a segment to target specific subscribers, or send to all.
               </p>
             </div>
 
-            <p className="dark:text-spaire-500 text-xs text-gray-400">
+            <p className=" text-xs text-gray-400">
               Emails will be sent from{' '}
               <span className="font-medium">noreply@notifications.spairehq.com</span>.
               Custom sending domains are coming soon.
@@ -132,13 +132,13 @@ export default function NewBroadcastPage({
           </div>
 
           {/* Content section */}
-          <div className="dark:border-spaire-700 dark:bg-spaire-900 flex flex-col gap-y-5 rounded-2xl border border-gray-200 bg-white p-6">
+          <div className=" flex flex-col gap-y-5 rounded-2xl border border-gray-200 bg-white p-6">
             <h2 className="text-base font-medium">Content</h2>
-            <p className="dark:text-spaire-500 text-xs text-gray-400">
+            <p className=" text-xs text-gray-400">
               Write your email content in HTML. A rich editor is coming soon.
             </p>
             <textarea
-              className="dark:border-spaire-700 dark:bg-spaire-800 dark:text-spaire-200 min-h-[300px] w-full rounded-xl border border-gray-200 bg-white p-4 font-mono text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="  min-h-[300px] w-full rounded-xl border border-gray-200 bg-white p-4 font-mono text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               value={contentHtml}
               onChange={(e) => setContentHtml(e.target.value)}
               placeholder="<h1>Hello!</h1>
@@ -148,10 +148,10 @@ export default function NewBroadcastPage({
 
           {/* Preview */}
           {contentHtml && (
-            <div className="dark:border-spaire-700 flex flex-col gap-y-3 rounded-2xl border border-gray-200 bg-white p-6">
+            <div className=" flex flex-col gap-y-3 rounded-2xl border border-gray-200 bg-white p-6">
               <h2 className="text-base font-medium">Preview</h2>
               <div
-                className="dark:border-spaire-700 rounded-xl border border-gray-100 p-6"
+                className=" rounded-xl border border-gray-100 p-6"
                 dangerouslySetInnerHTML={{ __html: contentHtml }}
               />
             </div>

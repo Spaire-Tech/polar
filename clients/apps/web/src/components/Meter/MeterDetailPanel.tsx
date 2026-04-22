@@ -52,7 +52,7 @@ export const MeterDetailPanel = ({
           <span>Meter</span>
         </InlineModalHeader>
         <div className="flex flex-1 items-center justify-center">
-          <p className="dark:text-spaire-500 text-gray-500">Meter not found</p>
+          <p className=" text-gray-500">Meter not found</p>
         </div>
       </div>
     )
@@ -114,12 +114,12 @@ const MeterDetailPanelContent = ({
           <span className="text-sm font-medium">{meter.name}</span>
           <div className="flex flex-row items-center gap-x-2">
             <Status
-              className="bg-emerald-50 text-xs text-emerald-500 capitalize dark:bg-emerald-950 dark:text-emerald-500"
+              className="bg-emerald-50 text-xs text-emerald-500 capitalize "
               status={`${meter.aggregation.func}`}
             />
             {meter.archived_at && (
               <Status
-                className="bg-red-50 text-xs text-red-500 dark:bg-red-950 dark:text-red-500"
+                className="bg-red-50 text-xs text-red-500 "
                 status="Archived"
               />
             )}
@@ -127,7 +127,7 @@ const MeterDetailPanelContent = ({
         </div>
       </InlineModalHeader>
 
-      <div className="flex flex-row items-center justify-end border-b border-gray-200 px-8 py-3 dark:border-spaire-700">
+      <div className="flex flex-row items-center justify-end border-b border-gray-200 px-8 py-3">
         <div className="flex flex-row items-center gap-2">
           <Button size="sm" onClick={showEditMeterModal}>
             Edit
@@ -140,7 +140,7 @@ const MeterDetailPanelContent = ({
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="end"
-              className="dark:bg-spaire-800 bg-gray-50 shadow-lg"
+              className=" bg-gray-50 shadow-lg"
             >
               <DropdownMenuItem
                 destructive={!meter.archived_at}

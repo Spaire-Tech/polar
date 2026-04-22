@@ -98,7 +98,7 @@ export const MeterListPage = ({ organization }: MeterListPageProps) => {
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div className="flex flex-row items-center gap-3">
                 <div className="relative w-full md:max-w-64">
-                  <Search className="dark:text-spaire-500 absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <Search className=" absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                   <Input
                     className="pl-9"
                     placeholder="Search meters"
@@ -164,19 +164,19 @@ export const MeterListPage = ({ organization }: MeterListPageProps) => {
                 <span>Create meter</span>
               </Button>
             </div>
-          <div className="dark:border-spaire-700 dark:divide-spaire-700 flex flex-col divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200">
+          <div className=" flex flex-col divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200">
             {meters.map((meter) => (
               <button
                 key={meter.id}
                 type="button"
-                className="dark:hover:bg-spaire-800 flex flex-row items-center gap-4 px-6 py-4 text-left transition-colors hover:bg-gray-50"
+                className=" flex flex-row items-center gap-4 px-6 py-4 text-left transition-colors hover:bg-gray-50"
                 onClick={() => setSelectedMeterId(meter.id)}
               >
                 <div className="flex min-w-0 flex-1 flex-col">
                   <div className="flex items-center gap-x-2">
                     {meter.archived_at && archivedFilter === 'all' && (
                       <Status
-                        className="bg-red-50 text-xs font-medium text-red-500 dark:bg-red-950 dark:text-red-500"
+                        className="bg-red-50 text-xs font-medium text-red-500 "
                         status="Archived"
                       />
                     )}
@@ -184,7 +184,7 @@ export const MeterListPage = ({ organization }: MeterListPageProps) => {
                       {meter.name}
                     </span>
                   </div>
-                  <span className="dark:text-spaire-500 truncate text-xs capitalize text-gray-500">
+                  <span className=" truncate text-xs capitalize text-gray-500">
                     {meter.aggregation.func}
                   </span>
                 </div>
@@ -202,7 +202,7 @@ export const MeterListPage = ({ organization }: MeterListPageProps) => {
           </>
         ) : (
           <div className="flex flex-col items-center justify-center py-12 text-center">
-            <p className="dark:text-spaire-500 text-gray-500">
+            <p className=" text-gray-500">
               No meters found
             </p>
           </div>

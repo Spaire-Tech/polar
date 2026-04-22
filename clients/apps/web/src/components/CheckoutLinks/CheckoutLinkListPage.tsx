@@ -202,14 +202,14 @@ export const CheckoutLinkListPage = ({
               </Button>
             </div>
 
-            <div className="dark:border-spaire-700 dark:divide-spaire-700 flex flex-col divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200">
+            <div className=" flex flex-col divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200">
               {/* Header row */}
               <div className="flex flex-row items-center gap-3 px-6 py-2">
                 <div className="w-2 shrink-0" />
-                <span className="min-w-0 flex-1 text-xs font-medium text-gray-400 dark:text-spaire-500">Name</span>
-                <span className="hidden w-28 shrink-0 text-right text-xs font-medium text-gray-400 dark:text-spaire-500 sm:block">Price</span>
-                <span className="hidden w-28 shrink-0 text-right text-xs font-medium text-gray-400 dark:text-spaire-500 md:block">Collected</span>
-                <span className="hidden w-32 shrink-0 text-right text-xs font-medium text-gray-400 dark:text-spaire-500 lg:block">Created</span>
+                <span className="min-w-0 flex-1 text-xs font-medium text-gray-400">Name</span>
+                <span className="hidden w-28 shrink-0 text-right text-xs font-medium text-gray-400 sm:block">Price</span>
+                <span className="hidden w-28 shrink-0 text-right text-xs font-medium text-gray-400 md:block">Collected</span>
+                <span className="hidden w-32 shrink-0 text-right text-xs font-medium text-gray-400 lg:block">Created</span>
                 <div className="w-8 shrink-0" />
               </div>
               {checkoutLinks.map((link) => {
@@ -228,11 +228,11 @@ export const CheckoutLinkListPage = ({
                 return (
                   <div
                     key={link.id}
-                    className="dark:hover:bg-spaire-800 flex flex-row items-center gap-3 px-6 py-4 transition-colors hover:bg-gray-50"
+                    className=" flex flex-row items-center gap-3 px-6 py-4 transition-colors hover:bg-gray-50"
                   >
                     {/* Active dot */}
                     <div
-                      className={`h-2 w-2 shrink-0 rounded-full ${active ? 'bg-green-500' : 'bg-gray-300 dark:bg-spaire-600'}`}
+                      className={`h-2 w-2 shrink-0 rounded-full ${active ? 'bg-green-500' : 'bg-gray-300'}`}
                       title={active ? 'Active' : 'Inactive'}
                     />
 
@@ -243,27 +243,27 @@ export const CheckoutLinkListPage = ({
                       onClick={() => setSelectedLinkId(link.id)}
                     >
                       <span
-                        className={`truncate text-sm font-medium ${active ? 'dark:text-white text-gray-900' : 'text-gray-400 dark:text-spaire-500 line-through'}`}
+                        className={`truncate text-sm font-medium ${active ? ' text-gray-900' : 'text-gray-400 line-through'}`}
                       >
                         {name}
                       </span>
-                      <span className="dark:text-spaire-500 truncate text-xs text-gray-500">
+                      <span className=" truncate text-xs text-gray-500">
                         {productLabel}
                       </span>
                     </button>
 
                     {/* Price */}
-                    <span className="hidden w-28 shrink-0 text-right text-sm text-gray-700 dark:text-spaire-300 sm:block">
+                    <span className="hidden w-28 shrink-0 text-right text-sm text-gray-700 sm:block">
                       {priceDisplay}
                     </span>
 
                     {/* Collected fees */}
-                    <span className="hidden w-28 shrink-0 text-right text-sm text-gray-400 dark:text-spaire-500 md:block">
+                    <span className="hidden w-28 shrink-0 text-right text-sm text-gray-400 md:block">
                       —
                     </span>
 
                     {/* Created date */}
-                    <span className="hidden w-32 shrink-0 text-right text-sm text-gray-500 dark:text-spaire-400 lg:block">
+                    <span className="hidden w-32 shrink-0 text-right text-sm text-gray-500 lg:block">
                       {createdAt}
                     </span>
 
@@ -273,7 +273,7 @@ export const CheckoutLinkListPage = ({
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="dark:text-spaire-400 h-8 w-8 shrink-0 text-gray-500"
+                          className=" h-8 w-8 shrink-0 text-gray-500"
                           onClick={(e) => e.stopPropagation()}
                         >
                           <MoreVertOutlined fontSize="small" />
@@ -402,10 +402,10 @@ function StripeStyleEmptyState({ onCreateClick }: { onCreateClick: () => void })
 
       {/* Title + description */}
       <div className="flex max-w-lg flex-col gap-3">
-        <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
+        <h2 className="text-3xl font-bold text-gray-900">
           Create a payment link in a few clicks
         </h2>
-        <p className="text-gray-500 dark:text-spaire-400">
+        <p className="text-gray-500">
           Sell products, offer subscriptions, or accept donations with a
           link—no code required.
         </p>

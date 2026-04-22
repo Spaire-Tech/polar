@@ -70,10 +70,10 @@ const ClientPage = ({
     <ShadowBox className="flex w-full max-w-7xl flex-col items-center gap-12 md:px-32 md:py-24">
       <div className="flex w-full flex-col gap-y-6 md:max-w-sm">
         <div className="flex flex-col gap-4">
-          <h2 className="text-2xl text-black dark:text-white">
+          <h2 className="text-2xl text-black">
             Verification code
           </h2>
-          <p className="dark:text-spaire-500 text-gray-500">
+          <p className=" text-gray-500">
             Enter the verification code sent to your email address.
           </p>
         </div>
@@ -103,7 +103,7 @@ const ClientPage = ({
                             <InputOTPSlot
                               key={index}
                               index={index}
-                              className="dark:border-spaire-600 h-12 w-12 border-gray-300 text-xl md:h-16 md:w-16 md:text-2xl"
+                              className=" h-12 w-12 border-gray-300 text-xl md:h-16 md:w-16 md:text-2xl"
                             />
                           ))}
                         </InputOTPGroup>
@@ -116,7 +116,7 @@ const ClientPage = ({
             />
 
             {form.formState.errors.root && (
-              <p className="text-sm font-medium text-red-500 dark:text-red-400">
+              <p className="text-sm font-medium text-red-500">
                 {form.formState.errors.root.message}
               </p>
             )}
@@ -131,7 +131,7 @@ const ClientPage = ({
               Access my purchases
             </Button>
 
-            <p className="dark:text-spaire-400 text-sm text-gray-500">
+            <p className=" text-sm text-gray-500">
               Don&apos;t have a code?{' '}
               <Link href="request" className="underline hover:no-underline">
                 Request a new one

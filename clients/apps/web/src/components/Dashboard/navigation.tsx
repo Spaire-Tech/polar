@@ -191,11 +191,11 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
     if: true,
     showSubsInNav: false,
     subs: [
+      { title: 'Spaire Space', link: `/dashboard/${org?.slug}/storefront` },
       { title: 'Products', link: `/dashboard/${org?.slug}/products` },
       { title: 'Payment Links', link: `/dashboard/${org?.slug}/products/checkout-links` },
       { title: 'Discounts', link: `/dashboard/${org?.slug}/products/discounts` },
       { title: 'Files', link: `/dashboard/${org?.slug}/products/benefits` },
-      { title: 'Spaire Space', link: `/dashboard/${org?.slug}/storefront` },
     ],
   },
   {

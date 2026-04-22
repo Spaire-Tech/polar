@@ -21,23 +21,23 @@ export default function FormationLandingPage() {
               alt="doola"
               className="h-12 w-12 rounded-xl object-contain"
             />
-            <span className="dark:text-spaire-500 text-2xl text-gray-300">×</span>
+            <span className=" text-2xl text-gray-300">×</span>
             <img
               src="/spaire-logo.png"
               alt="Spaire"
-              className="h-12 w-12 rounded-xl object-contain dark:hidden"
+              className="h-12 w-12 rounded-xl object-contain"
             />
             <img
               src="/spaire-logo.png"
               alt="Spaire"
-              className="hidden h-12 w-12 rounded-xl object-contain dark:block"
+              className="hidden h-12 w-12 rounded-xl object-contain"
             />
           </div>
           <div className="flex flex-col items-center gap-y-2">
             <h3 className="text-xl font-medium">
               Incorporate your Startup
             </h3>
-            <p className="dark:text-spaire-500 text-gray-500">
+            <p className=" text-gray-500">
               Spaire partners with Doola to help you form a US company in
               minutes — no matter where you are in the world. Get the legal
               foundation your startup needs to open a bank account, raise

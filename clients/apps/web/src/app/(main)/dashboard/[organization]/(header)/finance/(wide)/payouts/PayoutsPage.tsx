@@ -239,7 +239,7 @@ export default function ClientPage({
               <DropdownMenuTrigger className="focus:outline-none" asChild>
                 <Button
                   className={
-                    'border-none bg-transparent text-[16px] opacity-50 transition-opacity hover:opacity-100 dark:bg-transparent'
+                    'border-none bg-transparent text-[16px] opacity-50 transition-opacity hover:opacity-100'
                   }
                   size="icon"
                   variant="secondary"
@@ -249,7 +249,7 @@ export default function ClientPage({
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="end"
-                className="dark:bg-spaire-800 bg-gray-50 shadow-lg"
+                className=" bg-gray-50 shadow-lg"
               >
                 {original.status === 'succeeded' && account && (
                   <DownloadInvoice

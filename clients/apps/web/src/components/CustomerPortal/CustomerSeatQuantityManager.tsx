@@ -107,7 +107,7 @@ export const CustomerSeatQuantityManager = ({
             label="Total Seats"
             value={
               <div className="flex w-full flex-row items-center justify-between gap-2">
-                <span className="dark:text-spaire-200 font-medium">{seats}</span>
+                <span className=" font-medium">{seats}</span>
                 <div className="flex flex-row items-center gap-2">
                   <Button
                     type="button"
@@ -136,7 +136,7 @@ export const CustomerSeatQuantityManager = ({
           <DetailRow
             label="Assigned"
             value={
-              <span className="dark:text-spaire-200 font-medium">
+              <span className=" font-medium">
                 {assignedSeats}
               </span>
             }
@@ -144,7 +144,7 @@ export const CustomerSeatQuantityManager = ({
           <DetailRow
             label="Available"
             value={
-              <span className="dark:text-spaire-200 font-medium">
+              <span className=" font-medium">
                 {availableSeats}
               </span>
             }
@@ -161,7 +161,7 @@ export const CustomerSeatQuantityManager = ({
         )}
 
         {!canDecrease && seats !== undefined && seats < assignedSeats && (
-          <p className="text-xs text-red-500 dark:text-red-400">
+          <p className="text-xs text-red-500">
             Cannot decrease below {assignedSeats} assigned seats. Revoke seats
             first.
           </p>

@@ -128,12 +128,12 @@ export const CustomerListPage = ({ organization }: CustomerListPageProps) => {
                 </Button>
               </div>
             </div>
-            <div className="dark:border-spaire-700 dark:divide-spaire-700 flex flex-col divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200">
+            <div className=" flex flex-col divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200">
               {customers.map((customer) => (
                 <button
                   key={customer.id}
                   type="button"
-                  className="dark:hover:bg-spaire-800 flex flex-row items-center gap-4 px-6 py-4 text-left transition-colors hover:bg-gray-50"
+                  className=" flex flex-row items-center gap-4 px-6 py-4 text-left transition-colors hover:bg-gray-50"
                   onClick={() => setSelectedCustomerId(customer.id)}
                 >
                   <Avatar
@@ -146,12 +146,12 @@ export const CustomerListPage = ({ organization }: CustomerListPageProps) => {
                       {customer.name || customer.email}
                     </span>
                     {customer.name && (
-                      <span className="dark:text-spaire-500 truncate text-xs text-gray-500">
+                      <span className=" truncate text-xs text-gray-500">
                         {customer.email}
                       </span>
                     )}
                   </div>
-                  <span className="dark:text-spaire-600 shrink-0 text-xs text-gray-400">
+                  <span className=" shrink-0 text-xs text-gray-400">
                     {new Date(customer.created_at).toLocaleDateString()}
                   </span>
                 </button>
@@ -173,10 +173,10 @@ export const CustomerListPage = ({ organization }: CustomerListPageProps) => {
               <div style={{ mixBlendMode: 'multiply' }} className="absolute bottom-0 right-0 h-14 w-14 rounded-full bg-blue-300" />
             </div>
             <div className="flex max-w-lg flex-col gap-3">
-              <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
+              <h2 className="text-3xl font-bold text-gray-900">
                 Your customers, all in one place
               </h2>
-              <p className="text-gray-500 dark:text-spaire-400">
+              <p className="text-gray-500">
                 Customers are added automatically at checkout, or you can add
                 them manually.
               </p>

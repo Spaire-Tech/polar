@@ -121,7 +121,7 @@ const ClientPage: React.FC<ClientPageProps> = ({
           ) : null}
         </div>
       }
-      contextViewClassName="bg-transparent dark:bg-transparent border-none rounded-none md:block hidden"
+      contextViewClassName="bg-transparent border-none rounded-none md:block hidden"
       contextView={
         <CustomerContextView
           organization={organization}
@@ -133,7 +133,7 @@ const ClientPage: React.FC<ClientPageProps> = ({
         <ProductListItem organization={organization} product={product} />
       </List>
 
-      <ShadowBox className="dark:divide-spaire-700 flex flex-col divide-y divide-gray-200 border-gray-200 bg-transparent p-0 md:rounded-3xl!">
+      <ShadowBox className=" flex flex-col divide-y divide-gray-200 border-gray-200 bg-transparent p-0 md:rounded-3xl!">
         <div className="flex flex-col gap-6 p-8">
           <div className="flex flex-col gap-6">
             <SubscriptionDetails subscription={subscription} />
@@ -186,7 +186,7 @@ const ClientPage: React.FC<ClientPageProps> = ({
           <div className="flex flex-col gap-6 p-8">
             <div className="flex flex-col gap-y-2">
               <h3 className="text-lg">Seats</h3>
-              <p className="dark:text-spaire-500 text-sm text-gray-500">
+              <p className=" text-sm text-gray-500">
                 {availableSeats} of {totalSeats} seats available
               </p>
             </div>
@@ -199,7 +199,7 @@ const ClientPage: React.FC<ClientPageProps> = ({
             )}
 
             {!isLoadingSeats && seats.length === 0 && (
-              <p className="dark:text-spaire-500 text-sm text-gray-500">
+              <p className=" text-sm text-gray-500">
                 No seats have been assigned yet.
               </p>
             )}

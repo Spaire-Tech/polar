@@ -60,35 +60,35 @@ const SetupWithClaudeModalContent = ({
           {/* Header */}
           <div className="flex flex-col gap-y-2">
             <div className="flex items-center gap-x-2">
-              <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-medium text-orange-600 dark:bg-orange-500/10 dark:text-orange-400">
+              <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-medium text-orange-600 ">
                 {command.label}
               </span>
             </div>
             <h2 className="text-xl font-medium tracking-tight">
               {command.tagline}
             </h2>
-            <p className="dark:text-spaire-400 text-sm leading-relaxed text-gray-500">
+            <p className=" text-sm leading-relaxed text-gray-500">
               {command.description}
             </p>
           </div>
 
           {/* How it works */}
           <div className="flex flex-col gap-y-3">
-            <h3 className="dark:text-spaire-500 text-xs font-medium uppercase tracking-wider text-gray-400">
+            <h3 className=" text-xs font-medium uppercase tracking-wider text-gray-400">
               How it works
             </h3>
             <div className="flex flex-col gap-y-2">
               {command.howItWorks.map((step, i) => (
                 <div
                   key={i}
-                  className="dark:bg-spaire-900 flex items-start gap-x-3 rounded-xl border border-gray-100 bg-white p-4 dark:border-none"
+                  className=" flex items-start gap-x-3 rounded-xl border border-gray-100 bg-white p-4"
                 >
-                  <span className="dark:bg-spaire-800 dark:text-spaire-300 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-medium text-gray-600">
+                  <span className=" flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-medium text-gray-600">
                     {i + 1}
                   </span>
                   <div className="flex flex-col gap-y-0.5">
                     <span className="text-sm font-medium">{step.title}</span>
-                    <span className="dark:text-spaire-500 text-xs leading-relaxed text-gray-400">
+                    <span className=" text-xs leading-relaxed text-gray-400">
                       {step.description}
                     </span>
                   </div>
@@ -112,7 +112,7 @@ const SetupWithClaudeModalContent = ({
             <CodeWrapper>
               <SyntaxHighlighterClient lang="bash" code={setupSnippet} />
             </CodeWrapper>
-            <p className="dark:text-spaire-500 text-xs leading-relaxed text-gray-400">
+            <p className=" text-xs leading-relaxed text-gray-400">
               Downloads the agent command into your project. Claude Code loads
               it automatically as a custom slash command.
             </p>
@@ -140,17 +140,17 @@ const SetupWithClaudeModalContent = ({
 
           {/* What the agent does */}
           <div className="flex flex-col gap-y-3">
-            <h3 className="dark:text-spaire-500 text-xs font-medium uppercase tracking-wider text-gray-400">
+            <h3 className=" text-xs font-medium uppercase tracking-wider text-gray-400">
               What the agent does for you
             </h3>
-            <div className="dark:border-spaire-700 dark:bg-spaire-900 flex flex-col divide-y divide-gray-100 rounded-xl border border-gray-200 dark:divide-spaire-700">
+            <div className=" flex flex-col divide-y divide-gray-100 rounded-xl border border-gray-200 ">
               {command.whatTheAgentDoes.map((item, i) => (
                 <div key={i} className="flex items-start gap-x-3 px-4 py-3">
                   <CheckOutlined
                     className="mt-0.5 shrink-0 text-emerald-500"
                     sx={{ fontSize: 14 }}
                   />
-                  <span className="dark:text-spaire-300 text-xs text-gray-700">
+                  <span className=" text-xs text-gray-700">
                     {item}
                   </span>
                 </div>
@@ -170,7 +170,7 @@ const SetupWithClaudeModalContent = ({
               <Link
                 href={`/dashboard/${organization.slug}/integrations/setup-usage-billing`}
                 target="_blank"
-                className="cursor-pointer rounded-full px-3 py-1.5 text-sm text-blue-500 transition-colors duration-100 hover:bg-blue-50 hover:text-blue-600 dark:text-blue-400 dark:hover:bg-blue-500/10 dark:hover:text-blue-300"
+                className="cursor-pointer rounded-full px-3 py-1.5 text-sm text-blue-500 transition-colors duration-100 hover:bg-blue-50 hover:text-blue-600  "
               >
                 Open full page
               </Link>
@@ -183,7 +183,7 @@ const SetupWithClaudeModalContent = ({
 }
 
 const CodeWrapper = ({ children }: { children: React.ReactNode }) => (
-  <div className="dark:border-spaire-700 dark:bg-spaire-800 w-full rounded-xl border border-gray-100 bg-gray-50 p-3 text-sm">
+  <div className=" w-full rounded-xl border border-gray-100 bg-gray-50 p-3 text-sm">
     {children}
   </div>
 )
@@ -203,8 +203,8 @@ const CopyButton = ({
     className={twMerge(
       'flex items-center gap-x-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all',
       copied
-        ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400'
-        : 'dark:bg-spaire-800 dark:text-spaire-200 dark:hover:bg-spaire-700 bg-gray-100 text-gray-600 hover:bg-gray-200',
+        ? 'bg-emerald-50 text-emerald-600 '
+        : '  bg-gray-100 text-gray-600 hover:bg-gray-200',
     )}
   >
     {copied ? (

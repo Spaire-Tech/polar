@@ -74,7 +74,7 @@ export const EventMetadataFilter = ({
             />
             <Button
               className={
-                'size-6 border-none bg-transparent text-[16px] opacity-50 transition-opacity hover:opacity-100 dark:bg-transparent'
+                'size-6 border-none bg-transparent text-[16px] opacity-50 transition-opacity hover:opacity-100'
               }
               size="icon"
               variant="secondary"

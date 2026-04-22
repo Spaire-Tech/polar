@@ -54,14 +54,14 @@ export const SpaireLogotype = ({
     logoVariant === 'logotype' ? (
       <LogoType
         className={twMerge(
-          '-ml-2 text-black md:ml-0 dark:text-white',
+          '-ml-2 text-black md:ml-0',
           logoClassName,
         )}
         width={size ?? 100}
       />
     ) : (
       <LogoIcon
-        className={twMerge('text-black dark:text-white', logoClassName)}
+        className={twMerge('text-black', logoClassName)}
         size={size ?? 42}
       />
     )

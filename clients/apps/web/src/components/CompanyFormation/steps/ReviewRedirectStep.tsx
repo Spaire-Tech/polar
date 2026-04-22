@@ -69,20 +69,20 @@ export default function ReviewRedirectStep({
         <div className="flex flex-col gap-y-1">
           <h2 className="text-base font-medium">Company summary</h2>
         </div>
-        <div className="dark:bg-spaire-900 flex flex-col rounded-2xl border border-gray-200 bg-white dark:border-none">
+        <div className=" flex flex-col rounded-2xl border border-gray-200 bg-white">
           {summaryRows.map((row, i) => (
             <div
               key={row.label}
               className={`flex items-center justify-between px-6 py-4 ${
                 i < summaryRows.length - 1
-                  ? 'dark:border-spaire-800 border-b border-gray-100'
+                  ? ' border-b border-gray-100'
                   : ''
               }`}
             >
-              <span className="dark:text-spaire-400 text-sm text-gray-500">
+              <span className=" text-sm text-gray-500">
                 {row.label}
               </span>
-              <span className="text-sm font-medium dark:text-white">
+              <span className="text-sm font-medium">
                 {row.value}
               </span>
             </div>
@@ -94,17 +94,17 @@ export default function ReviewRedirectStep({
       <FadeUp className="flex flex-col gap-y-4">
         <div className="flex flex-col gap-y-1">
           <h2 className="text-base font-medium">Your discount</h2>
-          <p className="dark:text-spaire-500 text-sm text-gray-400">
+          <p className=" text-sm text-gray-400">
             Apply this code at checkout for 10% off.
           </p>
         </div>
-        <div className="dark:bg-spaire-900 flex items-center justify-between rounded-2xl border border-gray-200 bg-white px-6 py-4 dark:border-none">
-          <span className="font-mono text-lg font-semibold tracking-wider dark:text-white">
+        <div className=" flex items-center justify-between rounded-2xl border border-gray-200 bg-white px-6 py-4">
+          <span className="font-mono text-lg font-semibold tracking-wider">
             {DISCOUNT_CODE}
           </span>
           <button
             onClick={handleCopy}
-            className="dark:bg-spaire-800 dark:hover:bg-spaire-700 dark:text-spaire-300 flex items-center gap-1.5 rounded-lg bg-gray-100 px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-200"
+            className="  flex items-center gap-1.5 rounded-lg bg-gray-100 px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-200"
           >
             {copied ? (
               <>
@@ -127,7 +127,7 @@ export default function ReviewRedirectStep({
           Continue to doola
           <ArrowForwardOutlined className="ml-2" style={{ fontSize: 18 }} />
         </Button>
-        <p className="dark:text-spaire-500 text-center text-xs text-gray-400">
+        <p className=" text-center text-xs text-gray-400">
           You will be redirected to doola.com to complete formation and payment.
         </p>
         <Button variant="secondary" size="lg" onClick={onBack}>

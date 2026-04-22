@@ -104,7 +104,7 @@ export default function FormationWizard() {
             <h1 className="text-2xl font-medium tracking-tight md:text-3xl">
               {title}
             </h1>
-            <p className="dark:text-spaire-400 max-w-md text-base text-gray-500">
+            <p className=" max-w-md text-base text-gray-500">
               {description}
             </p>
           </div>

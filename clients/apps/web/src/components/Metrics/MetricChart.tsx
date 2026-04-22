@@ -1,7 +1,6 @@
 import { ParsedMetricPeriod } from '@/hooks/queries'
 import { getFormattedMetricValue, getTimestampFormatter } from '@/utils/metrics'
 import { schemas } from '@spaire/client'
-import { useTheme } from 'next-themes'
 import { useMemo } from 'react'
 import type { AxisTick } from 'recharts/types/util/types'
 import { GenericChart } from '../Charts/GenericChart'
@@ -35,8 +34,7 @@ const MetricChart = ({
   showYAxis = false,
   chartType = 'line',
 }: MetricChartProps) => {
-  const { resolvedTheme } = useTheme()
-  const isDark = resolvedTheme === 'dark'
+  const isDark = false
 
   const genericData = useMemo(
     () =>

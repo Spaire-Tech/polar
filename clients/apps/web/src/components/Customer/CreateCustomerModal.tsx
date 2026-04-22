@@ -124,7 +124,7 @@ export const CreateCustomerModal = ({
         >
           {/* Customer Information */}
           <div className="flex flex-col gap-4">
-            <h3 className="text-sm font-medium text-gray-500 dark:text-polar-400">
+            <h3 className="text-sm font-medium text-gray-500">
               Customer Information
             </h3>
             <FormField
@@ -236,7 +236,7 @@ export const CreateCustomerModal = ({
 
           {/* Billing Address */}
           <div className="flex flex-col gap-4">
-            <h3 className="text-sm font-medium text-gray-500 dark:text-polar-400">
+            <h3 className="text-sm font-medium text-gray-500">
               Billing Address
             </h3>
             <FormField

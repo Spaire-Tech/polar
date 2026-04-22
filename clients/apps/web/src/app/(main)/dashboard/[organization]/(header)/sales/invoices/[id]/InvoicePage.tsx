@@ -35,11 +35,11 @@ interface InvoicePageProps {
 }
 
 const STATUS_COLOR: Record<string, string> = {
-  draft: 'bg-yellow-100 text-yellow-500 dark:bg-yellow-950',
-  open: 'bg-blue-100 text-blue-500 dark:bg-blue-950',
-  paid: 'bg-emerald-100 text-emerald-500 dark:bg-emerald-950',
-  void: 'bg-gray-100 text-gray-500 dark:bg-gray-800',
-  uncollectible: 'bg-red-100 text-red-500 dark:bg-red-950',
+  draft: 'bg-yellow-100 text-yellow-500',
+  open: 'bg-blue-100 text-blue-500',
+  paid: 'bg-emerald-100 text-emerald-500',
+  void: 'bg-gray-100 text-gray-500',
+  uncollectible: 'bg-red-100 text-red-500',
 }
 
 // Simple customer sidebar — just the essentials for invoice context
@@ -53,7 +53,7 @@ const InvoiceCustomerSidebar = ({
   const addr = customer.billing_address
   return (
     <div className="flex flex-col gap-3">
-      <ShadowBox className="dark:border-spaire-800 flex flex-col gap-4 border-gray-200 bg-white p-6 md:shadow-xs lg:rounded-2xl">
+      <ShadowBox className=" flex flex-col gap-4 border-gray-200 bg-white p-6 md:shadow-xs lg:rounded-2xl">
         <Link
           href={`/dashboard/${organization.slug}/customers/${customer.id}`}
           className="flex items-center gap-3"
@@ -67,7 +67,7 @@ const InvoiceCustomerSidebar = ({
             <p className="truncate font-medium">
               {customer.name || '—'}
             </p>
-            <p className="dark:text-spaire-400 truncate text-sm text-gray-500">
+            <p className=" truncate text-sm text-gray-500">
               {customer.email}
             </p>
           </div>
@@ -75,8 +75,8 @@ const InvoiceCustomerSidebar = ({
       </ShadowBox>
 
       {addr && (
-        <ShadowBox className="dark:border-spaire-800 flex flex-col gap-3 border-gray-200 bg-white p-6 md:shadow-xs lg:rounded-2xl">
-          <p className="dark:text-spaire-400 text-xs font-semibold uppercase tracking-wide text-gray-400">
+        <ShadowBox className=" flex flex-col gap-3 border-gray-200 bg-white p-6 md:shadow-xs lg:rounded-2xl">
+          <p className=" text-xs font-semibold uppercase tracking-wide text-gray-400">
             Billing Address
           </p>
           <div className="flex flex-col gap-0.5 text-sm">
@@ -132,14 +132,14 @@ const InvoicePage: React.FC<InvoicePageProps> = ({
             <span>Invoice</span>
           </InlineModalHeader>
           <div className="p-8">
-            <div className="h-96 animate-pulse rounded-2xl bg-gray-100 dark:bg-gray-800" />
+            <div className="h-96 animate-pulse rounded-2xl bg-gray-100" />
           </div>
         </div>
       )
     }
     return (
       <DashboardBody title="Invoice" wrapperClassName="max-w-(--breakpoint-lg)!">
-        <div className="h-96 animate-pulse rounded-2xl bg-gray-100 dark:bg-gray-800" />
+        <div className="h-96 animate-pulse rounded-2xl bg-gray-100" />
       </DashboardBody>
     )
   }
@@ -230,7 +230,7 @@ const InvoicePage: React.FC<InvoicePageProps> = ({
           variant="secondary"
           loading={markPaid.isPending}
           onClick={handleMarkPaid}
-          className="border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
+          className="border-emerald-300 text-emerald-700 hover:bg-emerald-50  "
         >
           Mark as Paid
         </Button>
@@ -259,8 +259,8 @@ const InvoicePage: React.FC<InvoicePageProps> = ({
           onClick={handleVoid}
           className={
             confirmVoid
-              ? 'border-red-300 text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950/30'
-              : 'dark:text-spaire-400 text-gray-500'
+              ? 'border-red-300 text-red-600 hover:bg-red-50  '
+              : ' text-gray-500'
           }
         >
           {confirmVoid ? 'Confirm void?' : 'Void'}
@@ -283,7 +283,7 @@ const InvoicePage: React.FC<InvoicePageProps> = ({
         </InlineModalHeader>
         <div className="flex flex-col gap-6 overflow-y-auto px-8 pb-8">
           {actionButtons}
-          <ShadowBox className="dark:divide-spaire-700 flex flex-col divide-y divide-gray-200 border-gray-200 bg-transparent p-0 md:rounded-3xl!">
+          <ShadowBox className=" flex flex-col divide-y divide-gray-200 border-gray-200 bg-transparent p-0 md:rounded-3xl!">
             <div className="flex flex-col gap-6 p-4 md:p-8">
               <div className="flex flex-col gap-1">
                 <DetailRow label="Invoice ID" value={invoice.id.slice(0, 8).toUpperCase()} valueClassName="font-mono text-sm" />
@@ -293,7 +293,7 @@ const InvoicePage: React.FC<InvoicePageProps> = ({
                 <DetailRow label="Currency" value={invoice.currency.toUpperCase()} />
                 {invoice.po_number && <DetailRow label="PO number" value={invoice.po_number} />}
                 {invoice.on_behalf_of_label && <DetailRow label="On behalf of" value={invoice.on_behalf_of_label} />}
-                <Separator className="dark:bg-spaire-700 my-4 h-px bg-gray-300" />
+                <Separator className=" my-4 h-px bg-gray-300" />
                 <div className="flex flex-col gap-1 pb-4">
                   {invoice.line_items.map((item) => (
                     <DetailRow
@@ -309,13 +309,13 @@ const InvoicePage: React.FC<InvoicePageProps> = ({
                 <DetailRow label="Total" value={fmt(invoice.total_amount)} />
                 {invoice.memo && (
                   <>
-                    <Separator className="dark:bg-spaire-700 my-4 h-px bg-gray-300" />
+                    <Separator className=" my-4 h-px bg-gray-300" />
                     <DetailRow label="Note" value={invoice.memo} />
                   </>
                 )}
                 {linkedOrder?.invoice_number && (
                   <>
-                    <Separator className="dark:bg-spaire-700 my-4 h-px bg-gray-300" />
+                    <Separator className=" my-4 h-px bg-gray-300" />
                     <DetailRow label="Invoice number" value={linkedOrder.invoice_number} />
                   </>
                 )}
@@ -354,9 +354,9 @@ const InvoicePage: React.FC<InvoicePageProps> = ({
           />
         ) : undefined
       }
-      contextViewClassName="bg-transparent dark:bg-transparent border-none rounded-none md:block hidden md:shadow-none"
+      contextViewClassName="bg-transparent border-none rounded-none md:block hidden md:shadow-none"
     >
-      <ShadowBox className="dark:divide-spaire-700 flex flex-col divide-y divide-gray-200 border-gray-200 bg-transparent p-0 md:rounded-3xl!">
+      <ShadowBox className=" flex flex-col divide-y divide-gray-200 border-gray-200 bg-transparent p-0 md:rounded-3xl!">
         <div className="flex flex-col gap-6 p-4 md:p-8">
           <div className="flex flex-col gap-1">
             <DetailRow
@@ -411,7 +411,7 @@ const InvoicePage: React.FC<InvoicePageProps> = ({
               />
             )}
 
-            <Separator className="dark:bg-spaire-700 my-4 h-px bg-gray-300" />
+            <Separator className=" my-4 h-px bg-gray-300" />
 
             {/* Line items */}
             <div className="flex flex-col gap-1 pb-4">
@@ -442,7 +442,7 @@ const InvoicePage: React.FC<InvoicePageProps> = ({
             {/* Memo */}
             {invoice.memo && (
               <>
-                <Separator className="dark:bg-spaire-700 my-4 h-px bg-gray-300" />
+                <Separator className=" my-4 h-px bg-gray-300" />
                 <DetailRow label="Note" value={invoice.memo} />
               </>
             )}
@@ -450,7 +450,7 @@ const InvoicePage: React.FC<InvoicePageProps> = ({
             {/* Invoice number from linked order (set after payment) */}
             {linkedOrder?.invoice_number && (
               <>
-                <Separator className="dark:bg-spaire-700 my-4 h-px bg-gray-300" />
+                <Separator className=" my-4 h-px bg-gray-300" />
                 <DetailRow
                   label="Invoice number"
                   value={linkedOrder.invoice_number}

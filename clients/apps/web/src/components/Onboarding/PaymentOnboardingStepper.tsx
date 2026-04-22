@@ -68,12 +68,12 @@ export const PaymentOnboardingStepper = ({
   if (isLoading) {
     return (
       <div className={twMerge('animate-pulse space-y-4', className)}>
-        <div className="dark:bg-spaire-700 h-6 rounded-sm bg-gray-200" />
+        <div className=" h-6 rounded-sm bg-gray-200" />
         <div className="space-y-3">
           {[1, 2, 3, 4].map((i) => (
             <div
               key={i}
-              className="dark:bg-spaire-700 h-16 rounded-sm bg-gray-200"
+              className=" h-16 rounded-sm bg-gray-200"
             />
           ))}
         </div>
@@ -89,13 +89,13 @@ export const PaymentOnboardingStepper = ({
     <div className={twMerge('flex flex-col gap-6', className)}>
       {/* Status Warning */}
       {!paymentStatus.payment_ready && (
-        <div className="dark:bg-spaire-800 flex items-start gap-3 rounded-2xl border border-gray-100 bg-gray-100 p-4 dark:border-white/5">
+        <div className=" flex items-start gap-3 rounded-2xl border border-gray-100 bg-gray-100 p-4">
           <AlertCircle className="h-5 w-5 shrink-0" />
           <div className="flex flex-col gap-y-1 text-sm">
             <p className="font-medium">
               Payment processing is not yet available
             </p>
-            <p className="dark:text-spaire-500 text-gray-500">
+            <p className=" text-gray-500">
               Complete all steps below to start accepting payments from
               customers
             </p>
@@ -104,7 +104,7 @@ export const PaymentOnboardingStepper = ({
       )}
       <div className="space-y-4 md:space-y-6">
         {/* Steps */}
-        <div className="dark:bg-spaire-800 relative grid grid-cols-1 divide-x-0 divide-y divide-gray-100 rounded-3xl border border-gray-100 bg-white lg:grid-cols-4 lg:divide-x lg:divide-y-0 dark:divide-white/5 dark:border-white/5">
+        <div className=" relative grid grid-cols-1 divide-x-0 divide-y divide-gray-100 rounded-3xl border border-gray-100 bg-white lg:grid-cols-4 lg:divide-x lg:divide-y-0 ">
           {paymentStatus.steps.map((step) => {
             const action = stepActions[step.id as keyof typeof stepActions]
             const icon = stepIcons[step.id as keyof typeof stepIcons] || (
@@ -122,15 +122,15 @@ export const PaymentOnboardingStepper = ({
                 {/* Step Icon */}
                 <div className="shrink-0">
                   {step.completed ? (
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-950">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100">
                       {React.cloneElement(icon, {
                         className:
-                          'h-4 w-4 md:h-5 md:w-5 dark:text-emerald-400 text-emerald-600',
+                          'h-4 w-4 md:h-5 md:w-5 text-emerald-600',
                       })}
                     </div>
                   ) : (
-                    <div className="dark:bg-spaire-700 flex h-10 w-10 items-center justify-center rounded-full border border-gray-100 bg-gray-100 md:h-12 md:w-12 dark:border-white/5">
-                      <div className="text-black dark:text-white">
+                    <div className=" flex h-10 w-10 items-center justify-center rounded-full border border-gray-100 bg-gray-100 md:h-12 md:w-12">
+                      <div className="text-black">
                         {React.cloneElement(icon, {
                           className: 'h-4 w-4 md:h-5 md:w-5',
                         })}
@@ -143,10 +143,10 @@ export const PaymentOnboardingStepper = ({
                 <div className="flex flex-1 flex-col justify-between gap-6">
                   <div className="flex flex-1 flex-col gap-y-8">
                     <div className="flex flex-col gap-y-2">
-                      <h3 className="text-lg text-gray-900 md:text-xl dark:text-white">
+                      <h3 className="text-lg text-gray-900 md:text-xl">
                         {step.title}
                       </h3>
-                      <p className="dark:text-spaire-400 text-sm text-gray-600 md:text-base">
+                      <p className=" text-sm text-gray-600 md:text-base">
                         {step.description}
                       </p>
                     </div>
@@ -162,11 +162,11 @@ export const PaymentOnboardingStepper = ({
                                 '[organization]',
                                 organization.slug,
                               )}
-                              className="dark:bg-spaire-700 dark:hover:bg-spaire-700 flex items-start gap-3 rounded-xl bg-gray-100 p-4 transition-all hover:bg-gray-50 dark:hover:opacity-50"
+                              className=" flex items-start gap-3 rounded-xl bg-gray-100 p-4 transition-all hover:bg-gray-50 "
                             >
                               <div className="flex min-w-0 flex-1 flex-col gap-y-1">
                                 <div className="flex flex-row items-center">
-                                  <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+                                  <h4 className="text-sm font-medium text-gray-900">
                                     {option.title}
                                   </h4>
 
@@ -175,7 +175,7 @@ export const PaymentOnboardingStepper = ({
                                     fontSize="inherit"
                                   />
                                 </div>
-                                <p className="dark:text-spaire-400 text-sm text-gray-600">
+                                <p className=" text-sm text-gray-600">
                                   {option.description}
                                 </p>
                               </div>

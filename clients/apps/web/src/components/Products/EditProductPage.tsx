@@ -186,7 +186,7 @@ export const EditProductPage = ({
         </Button>
       }
     >
-      <div className="dark:border-spaire-700 dark:divide-spaire-700 flex flex-col divide-y divide-gray-200 rounded-4xl border border-gray-200">
+      <div className=" flex flex-col divide-y divide-gray-200 rounded-4xl border border-gray-200">
         <Form {...form}>
           <form
             onSubmit={handleSubmit(onSubmit)}
@@ -211,7 +211,7 @@ export const EditProductPage = ({
         </Form>
       </div>
       {(benefitsAdded.length > 0 || benefitsRemoved.length > 0) && (
-        <div className="rounded-2xl bg-yellow-50 p-4 text-sm text-yellow-500 dark:bg-yellow-950">
+        <div className="rounded-2xl bg-yellow-50 p-4 text-sm text-yellow-500">
           Existing customers will immediately{' '}
           {benefitsAdded.length > 0 && (
             <>

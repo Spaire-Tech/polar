@@ -16,10 +16,10 @@ export const DisputeStatusDisplayColor: Record<
   schemas['DisputeStatus'],
   string
 > = {
-  prevented: 'bg-emerald-100 text-emerald-500 dark:bg-emerald-950',
-  early_warning: 'bg-yellow-100 text-yellow-500 dark:bg-yellow-950',
-  needs_response: 'bg-yellow-100 text-yellow-500 dark:bg-yellow-950',
-  under_review: 'bg-yellow-100 text-yellow-500 dark:bg-yellow-950',
-  won: 'bg-emerald-100 text-emerald-500 dark:bg-emerald-950',
-  lost: 'bg-red-100 text-red-500 dark:bg-red-950',
+  prevented: 'bg-emerald-100 text-emerald-500',
+  early_warning: 'bg-yellow-100 text-yellow-500',
+  needs_response: 'bg-yellow-100 text-yellow-500',
+  under_review: 'bg-yellow-100 text-yellow-500',
+  won: 'bg-emerald-100 text-emerald-500',
+  lost: 'bg-red-100 text-red-500',
 }

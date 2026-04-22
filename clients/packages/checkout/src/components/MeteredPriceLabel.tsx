@@ -12,7 +12,7 @@ const MeteredPriceLabel: React.FC<MeteredPriceLabelProps> = ({ price }) => {
         Number.parseFloat(price.unitAmount),
         price.priceCurrency,
       )}
-      <span className="dark:text-spaire-400 text-[max(12px,0.5em)] text-gray-500">
+      <span className=" text-[max(12px,0.5em)] text-gray-500">
         / unit
       </span>
     </div>

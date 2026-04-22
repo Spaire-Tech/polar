@@ -12,29 +12,22 @@ const PROFILE_TYPES = [
     label: 'Digital Creator',
     description: 'Turn what you create into products people can buy.',
     illustration: (
+      // Glowing purple/pink orb — vibrant creative energy
       <svg viewBox="0 0 80 80" fill="none" className="h-full w-full">
         <defs>
-          <linearGradient id="cr-a" x1="40" y1="8" x2="40" y2="40" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="#ff6435" />
-            <stop offset="100%" stopColor="#f97316" />
-          </linearGradient>
-          <linearGradient id="cr-b" x1="10" y1="72" x2="36" y2="40" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="#fef08a" />
-            <stop offset="100%" stopColor="#fbbf24" />
-          </linearGradient>
-          <linearGradient id="cr-c" x1="70" y1="72" x2="44" y2="40" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="#fbbf24" />
-            <stop offset="100%" stopColor="#f97316" />
-          </linearGradient>
+          <radialGradient id="wc-cr-bg" cx="50%" cy="50%" r="70.7%">
+            <stop offset="0%" stopColor="#cc00ff" />
+            <stop offset="55%" stopColor="#7700cc" />
+            <stop offset="100%" stopColor="#38007f" />
+          </radialGradient>
+          <radialGradient id="wc-cr-glow" cx="50%" cy="46%" r="40%">
+            <stop offset="0%" stopColor="#ff8877" stopOpacity="1" />
+            <stop offset="50%" stopColor="#ff3366" stopOpacity="0.55" />
+            <stop offset="100%" stopColor="#ff3366" stopOpacity="0" />
+          </radialGradient>
         </defs>
-        {/* Top orange facet */}
-        <polygon points="40,8 55,40 25,40" fill="url(#cr-a)" />
-        {/* Bottom-left yellow facet */}
-        <polygon points="25,40 10,72 40,72" fill="url(#cr-b)" />
-        {/* Bottom-right amber facet */}
-        <polygon points="55,40 70,72 40,72" fill="url(#cr-c)" />
-        {/* Center inverted facet */}
-        <polygon points="25,40 55,40 40,72" fill="#f59e0b" />
+        <rect width="80" height="80" fill="url(#wc-cr-bg)" />
+        <rect width="80" height="80" fill="url(#wc-cr-glow)" />
       </svg>
     ),
   },
@@ -43,21 +36,34 @@ const PROFILE_TYPES = [
     label: 'Business',
     description: 'Operate and scale your business globally.',
     illustration: (
+      // Dark app icon with 3D white navigation cursor
       <svg viewBox="0 0 80 80" fill="none" className="h-full w-full">
         <defs>
-          <linearGradient id="biz-a" x1="28" y1="10" x2="68" y2="38" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="#c084fc" />
-            <stop offset="100%" stopColor="#7c3aed" />
+          <radialGradient id="wc-biz-bg" cx="38%" cy="32%" r="72%">
+            <stop offset="0%" stopColor="#2e2e2e" />
+            <stop offset="100%" stopColor="#0a0a0a" />
+          </radialGradient>
+          <linearGradient id="wc-biz-arrow" x1="24" y1="18" x2="50" y2="58" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#ffffff" />
+            <stop offset="55%" stopColor="#d4d4d4" />
+            <stop offset="100%" stopColor="#8a8a8a" />
           </linearGradient>
-          <linearGradient id="biz-b" x1="8" y1="34" x2="50" y2="66" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="#22d3ee" />
-            <stop offset="100%" stopColor="#6366f1" />
-          </linearGradient>
+          <clipPath id="wc-biz-clip">
+            <rect width="80" height="80" />
+          </clipPath>
         </defs>
-        {/* Purple parallelogram — upper area */}
-        <path d="M28 10 L64 10 L70 38 L34 38 Z" fill="url(#biz-a)" />
-        {/* Teal triangle — lower-left, overlaps center */}
-        <path d="M8 34 L50 34 L28 66 Z" fill="url(#biz-b)" />
+        <rect width="80" height="80" fill="url(#wc-biz-bg)" />
+        {/* Subtle angular facet reflections */}
+        <g clipPath="url(#wc-biz-clip)">
+          <path d="M0 0 L50 0 L80 30 L80 0 Z" fill="#000" opacity="0.18" />
+          <path d="M0 50 L0 80 L30 80 Z" fill="#000" opacity="0.18" />
+          <path d="M52 80 L80 80 L80 52 Z" fill="#000" opacity="0.12" />
+        </g>
+        {/* 3D navigation/send cursor pointing upper-left */}
+        <path
+          d="M22 20 L22 56 L34 44 L44 62 L52 58 L42 40 L60 32 Z"
+          fill="url(#wc-biz-arrow)"
+        />
       </svg>
     ),
   },

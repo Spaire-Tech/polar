@@ -39,14 +39,14 @@ export const SortableBenefitRow = ({
       ref={setNodeRef}
       style={style}
       className={twMerge(
-        'dark:bg-spaire-900 dark:border-spaire-700 flex w-full items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3',
+        ' flex w-full items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3',
         isDragging && 'opacity-50',
       )}
     >
       <div className="flex items-center gap-3">
         <button
           type="button"
-          className="dark:text-spaire-500 dark:hover:text-spaire-300 cursor-grab text-gray-400 hover:text-gray-600 active:cursor-grabbing"
+          className=" cursor-grab text-gray-400 hover:text-gray-600 active:cursor-grabbing"
           {...attributes}
           {...listeners}
         >
@@ -55,14 +55,14 @@ export const SortableBenefitRow = ({
         <div
           className={twMerge(
             'flex h-8 w-8 items-center justify-center rounded-lg',
-            'bg-blue-100 text-blue-500 dark:bg-blue-950 dark:text-blue-400',
+            'bg-blue-100 text-blue-500 ',
           )}
         >
           {resolveBenefitIcon(benefit.type, 'h-4 w-4')}
         </div>
         <div className="flex flex-col">
           <span className="text-sm font-medium">{benefit.description}</span>
-          <span className="dark:text-spaire-500 text-xs text-gray-500">
+          <span className=" text-xs text-gray-500">
             {benefitsDisplayNames[benefit.type]}
           </span>
         </div>

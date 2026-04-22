@@ -40,12 +40,12 @@ import InvoicePage from './[id]/InvoicePage'
 
 const statusColors: Record<string, string> = {
   draft:
-    'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-  open: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-  paid: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-  void: 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400',
+    'bg-yellow-100 text-yellow-800 ',
+  open: 'bg-blue-100 text-blue-800 ',
+  paid: 'bg-green-100 text-green-800 ',
+  void: 'bg-gray-100 text-gray-500 ',
   uncollectible:
-    'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+    'bg-red-100 text-red-800 ',
 }
 
 const StatusBadge = ({ status }: { status: string }) => (
@@ -60,7 +60,7 @@ const CustomerCell = ({ customerId }: { customerId: string }) => {
   const { data: customer } = useCustomer(customerId)
   if (!customer) {
     return (
-      <span className="font-mono text-xs text-gray-400 dark:text-gray-500">
+      <span className="font-mono text-xs text-gray-400">
         {customerId.slice(0, 8)}…
       </span>
     )
@@ -155,7 +155,7 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
         <DataTableColumnHeader column={column} title="Invoice #" />
       ),
       cell: ({ row: { original: invoice } }) => (
-        <span className="font-mono text-xs text-gray-500 dark:text-gray-400">
+        <span className="font-mono text-xs text-gray-500">
           {invoice.number ?? invoice.id}
         </span>
       ),
@@ -202,7 +202,7 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
         invoice.due_date ? (
           <FormattedDateTime datetime={invoice.due_date} />
         ) : (
-          <span className="text-gray-400 dark:text-gray-500">—</span>
+          <span className="text-gray-400">—</span>
         ),
     },
     {
@@ -227,10 +227,10 @@ const InvoicesPage: React.FC<InvoicesPageProps> = ({
               <div style={{ mixBlendMode: 'multiply' }} className="absolute bottom-0 right-0 h-14 w-14 rounded-full bg-emerald-300" />
             </div>
             <div className="flex max-w-lg flex-col gap-3">
-              <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
+              <h2 className="text-3xl font-bold text-gray-900">
                 Create and send invoices in minutes
               </h2>
-              <p className="text-gray-500 dark:text-spaire-400">
+              <p className="text-gray-500">
                 Send invoices with a link to pay online. Accept cards, bank
                 transfers, and more.
               </p>

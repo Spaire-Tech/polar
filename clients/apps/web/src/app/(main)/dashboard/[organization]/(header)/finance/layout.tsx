@@ -44,8 +44,8 @@ export default function BalanceLayout({ children }: PropsWithChildren) {
                 className={cn(
                   'relative mr-6 pb-3 text-sm font-medium transition-colors last:mr-0',
                   isActive
-                    ? 'text-gray-900 dark:text-white after:absolute after:bottom-[-1px] after:left-0 after:right-0 after:h-0.5 after:rounded-full after:bg-blue-500'
-                    : 'text-gray-400 hover:text-gray-600 dark:text-polar-500 dark:hover:text-polar-300',
+                    ? 'text-gray-900 after:absolute after:bottom-[-1px] after:left-0 after:right-0 after:h-0.5 after:rounded-full after:bg-blue-500'
+                    : 'text-gray-400 hover:text-gray-600 ',
                 )}
               >
                 {tab.title}

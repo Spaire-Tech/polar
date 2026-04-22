@@ -124,6 +124,7 @@ export const OrganizationStep = ({
   const createOrganization = useCreateOrganization()
   const updateOrganization = useUpdateOrganization()
   const [editedSlug, setEditedSlug] = useState(false)
+  const [navigating, setNavigating] = useState(false)
   const [currency, setCurrency] = useState<PresentmentCurrency>('usd')
 
   // Avatar / logo upload
@@ -291,6 +292,7 @@ export const OrganizationStep = ({
       await trackStepCompleted('org', organization.id)
     }
 
+    setNavigating(true)
     if (hasExistingOrg) {
       router.push(
         getStatusRedirect(
@@ -544,11 +546,12 @@ export const OrganizationStep = ({
                 disabled={
                   name.length === 0 ||
                   slug.length === 0 ||
-                  createOrganization.isPending
+                  createOrganization.isPending ||
+                  navigating
                 }
                 className="w-full rounded-full bg-blue-600 py-4 text-sm font-semibold text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
               >
-                {createOrganization.isPending ? 'Creating…' : 'Continue'}
+                {createOrganization.isPending || navigating ? 'Creating…' : 'Continue'}
               </button>
               {hasExistingOrg ? (
                 <Link href="/dashboard" className="w-full">

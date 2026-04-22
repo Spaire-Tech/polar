@@ -11,15 +11,15 @@ import { twMerge } from 'tailwind-merge'
 const roleDisplayConfig = {
   owner: [
     'Owner',
-    'bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400',
+    'bg-blue-100 text-blue-600 ',
   ],
   billing_manager: [
     'Billing Manager',
-    'bg-purple-100 text-purple-600 dark:bg-purple-950 dark:text-purple-400',
+    'bg-purple-100 text-purple-600 ',
   ],
   member: [
     'Member',
-    'bg-gray-100 text-gray-600 dark:bg-spaire-700 dark:text-spaire-400',
+    'bg-gray-100 text-gray-600 ',
   ],
 } as const
 
@@ -91,7 +91,7 @@ export const MembersSection = ({
             header: 'External ID',
             accessorKey: 'external_id',
             cell: ({ row: { original } }) => (
-              <span className="dark:text-spaire-500 text-sm text-gray-500">
+              <span className=" text-sm text-gray-500">
                 {original.external_id ?? '—'}
               </span>
             ),
@@ -100,7 +100,7 @@ export const MembersSection = ({
             header: 'Created',
             accessorKey: 'created_at',
             cell: ({ row: { original } }) => (
-              <span className="dark:text-spaire-500 text-sm text-gray-500">
+              <span className=" text-sm text-gray-500">
                 <FormattedDateTime datetime={original.created_at} />
               </span>
             ),

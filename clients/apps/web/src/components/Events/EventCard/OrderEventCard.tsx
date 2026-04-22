@@ -33,14 +33,14 @@ export const OrderEventCard = ({ event }: OrderEventCardProps) => {
       case 'order.paid':
         return [
           'Paid',
-          'bg-emerald-100 text-emerald-500 dark:bg-emerald-950 dark:text-emerald-500',
+          'bg-emerald-100 text-emerald-500 ',
         ]
       case 'order.refunded':
         return [
           order.status === 'partially_refunded'
             ? 'Partially Refunded'
             : 'Refunded',
-          'bg-violet-100 text-violet-500 dark:bg-violet-950 dark:text-violet-400',
+          'bg-violet-100 text-violet-500 ',
         ]
       default:
         return null
@@ -81,13 +81,13 @@ export const OrderEventCard = ({ event }: OrderEventCardProps) => {
               <span className="">{order.product?.name}</span>
             </div>
             {billingReason && (
-              <span className="dark:text-spaire-500 text-gray-500">
+              <span className=" text-gray-500">
                 {billingReason}
               </span>
             )}
           </div>
           <div className="flex flex-row items-center gap-x-4">
-            <span className="dark:text-spaire-500 text-gray-500">
+            <span className=" text-gray-500">
               {contextValue}
             </span>
             {status ? (

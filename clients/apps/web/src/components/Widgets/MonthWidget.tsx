@@ -62,7 +62,7 @@ export const MonthWidget = ({ className }: MonthWidgetProps) => {
   return (
     <div
       className={twMerge(
-        'dark:bg-spaire-800 flex w-full flex-col rounded-4xl bg-gray-50 p-2 text-black dark:text-white',
+        ' flex w-full flex-col rounded-4xl bg-gray-50 p-2 text-black',
         className,
       )}
     >
@@ -105,7 +105,7 @@ export const MonthWidget = ({ className }: MonthWidgetProps) => {
           </span>
         </div>
       </div>
-      <div className="dark:bg-spaire-900 flex min-h-[300px] flex-col gap-y-4 rounded-3xl bg-white px-2 py-4">
+      <div className=" flex min-h-[300px] flex-col gap-y-4 rounded-3xl bg-white px-2 py-4">
         {orderMetrics.isLoading ? (
           <div className="flex h-full w-full items-center justify-center">
             <Spinner />
@@ -116,7 +116,7 @@ export const MonthWidget = ({ className }: MonthWidgetProps) => {
               {weekDays.map((day, index) => (
                 <div
                   key={day + index}
-                  className="dark:text-spaire-600 text-sm text-gray-500"
+                  className=" text-sm text-gray-500"
                 >
                   {day}
                 </div>
@@ -143,9 +143,9 @@ export const MonthWidget = ({ className }: MonthWidgetProps) => {
                         className={twMerge(
                           'relative flex h-8 w-8 items-center justify-center rounded-full text-sm',
                           day.orders > 0 &&
-                            'dark:bg-spaire-700 dark:text-spaire-500 bg-gray-300 text-gray-500',
+                            ' bg-gray-300 text-gray-500',
                           isToday(day.timestamp) &&
-                            'bg-blue dark:bg-blue text-white dark:text-white',
+                            'bg-blue text-white ',
                           isPreviousDay && '',
                         )}
                       >
@@ -160,14 +160,14 @@ export const MonthWidget = ({ className }: MonthWidgetProps) => {
                         ) : (
                           <div
                             className={twMerge(
-                              'dark:text-spaire-700 relative flex h-full w-full items-center justify-center overflow-hidden rounded-full border-2 text-sm text-gray-200',
+                              ' relative flex h-full w-full items-center justify-center overflow-hidden rounded-full border-2 text-sm text-gray-200',
                               isToday(day.timestamp)
                                 ? 'border-blue'
-                                : 'dark:border-spaire-700 border-gray-200',
+                                : ' border-gray-200',
                             )}
                           >
                             {day.orders === 0 && isPreviousDay ? (
-                              <span className="dark:bg-spaire-700 h-1 w-1 rounded-full bg-gray-200" />
+                              <span className=" h-1 w-1 rounded-full bg-gray-200" />
                             ) : isToday(day.timestamp) ? (
                               <span className="text-white">
                                 {day.orders.toLocaleString('en-US', {
@@ -181,7 +181,7 @@ export const MonthWidget = ({ className }: MonthWidgetProps) => {
                         )}
                       </TooltipTrigger>
                       <TooltipContent className="flex flex-col gap-1">
-                        <span className="dark:text-spaire-500 text-sm text-gray-500">
+                        <span className=" text-sm text-gray-500">
                           {new Date(day.timestamp).toLocaleString('default', {
                             day: 'numeric',
                             month: 'short',

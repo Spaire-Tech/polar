@@ -31,22 +31,22 @@ export const BenefitEventCard = ({ event }: BenefitGrantEventCardProps) => {
       case 'benefit.granted':
         return [
           'Granted',
-          'bg-emerald-100 text-emerald-500 dark:bg-emerald-950 dark:text-emerald-500',
+          'bg-emerald-100 text-emerald-500 ',
         ]
       case 'benefit.cycled':
         return [
           'Cycled',
-          'bg-yellow-100 text-yellow-500 dark:bg-yellow-950 dark:text-yellow-500',
+          'bg-yellow-100 text-yellow-500 ',
         ]
       case 'benefit.updated':
         return [
           'Updated',
-          'bg-blue-100 text-blue-500 dark:bg-blue-950 dark:text-blue-500',
+          'bg-blue-100 text-blue-500 ',
         ]
       case 'benefit.revoked':
         return [
           'Revoked',
-          'bg-red-100 text-red-500 dark:bg-red-950 dark:text-red-500',
+          'bg-red-100 text-red-500 ',
         ]
       default:
         return null
@@ -65,7 +65,7 @@ export const BenefitEventCard = ({ event }: BenefitGrantEventCardProps) => {
               {resolveBenefitIcon(benefit.type, 'h-3 w-3')}
               <span className="">{benefit.description ?? '—'}</span>
             </div>
-            <span className="dark:text-spaire-500 text-gray-500">
+            <span className=" text-gray-500">
               {benefitsDisplayNames[benefit.type]}
             </span>
           </div>

@@ -264,7 +264,7 @@ const ClientPage: React.FC<ClientPageProps> = ({
         return discount.ends_at ? (
           <FormattedDateTime datetime={discount.ends_at} resolution="day" />
         ) : (
-          <span className="dark:text-spaire-500 text-gray-500">Never</span>
+          <span className=" text-gray-500">Never</span>
         )
       },
     },
@@ -277,7 +277,7 @@ const ClientPage: React.FC<ClientPageProps> = ({
             <DropdownMenuTrigger className="focus:outline-none" asChild>
               <Button
                 className={
-                  'border-none bg-transparent text-[16px] opacity-50 transition-opacity hover:opacity-100 dark:bg-transparent'
+                  'border-none bg-transparent text-[16px] opacity-50 transition-opacity hover:opacity-100'
                 }
                 size="icon"
                 variant="secondary"
@@ -287,7 +287,7 @@ const ClientPage: React.FC<ClientPageProps> = ({
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="end"
-              className="dark:bg-spaire-800 bg-gray-50 shadow-lg"
+              className=" bg-gray-50 shadow-lg"
             >
               <DropdownMenuItem onClick={() => onDiscountSelected(discount)}>
                 Edit
@@ -334,10 +334,10 @@ const ClientPage: React.FC<ClientPageProps> = ({
               <div style={{ mixBlendMode: 'multiply' }} className="absolute bottom-0 right-0 h-14 w-14 rounded-2xl bg-violet-400" />
             </div>
             <div className="flex max-w-lg flex-col gap-3">
-              <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
+              <h2 className="text-3xl font-bold text-gray-900">
                 Reward customers with discounts
               </h2>
-              <p className="text-gray-500 dark:text-spaire-400">
+              <p className="text-gray-500">
                 Create percentage or fixed-amount discount codes to share with
                 customers at checkout.
               </p>

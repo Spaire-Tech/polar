@@ -15,7 +15,7 @@ const LogoIcon = ({
         alt="Logo"
         width={size}
         height={size}
-        className={twMerge('block dark:hidden', className)}
+        className={twMerge('block', className)}
       />
 
       {/* Dark mode logo */}
@@ -24,7 +24,7 @@ const LogoIcon = ({
         alt="Logo"
         width={size}
         height={size}
-        className={twMerge('hidden dark:block', className)}
+        className={twMerge('hidden', className)}
       />
     </>
   )

@@ -26,7 +26,7 @@ export function DataTableColumnHeader<TData, TValue>({
       <Button
         type="button"
         variant="ghost"
-        className="p-0 hover:bg-transparent dark:hover:bg-transparent"
+        className="p-0 hover:bg-transparent"
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
       >
         <span>{title}</span>

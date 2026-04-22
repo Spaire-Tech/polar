@@ -19,7 +19,7 @@ const FeaturedPerkCard = ({
   onLearnMore: (perk: Perk) => void
 }) => {
   return (
-    <div className="dark:border-spaire-700 dark:hover:border-spaire-600 group flex flex-col gap-y-5 rounded-2xl border border-gray-200 p-6 transition-all hover:border-gray-300 hover:shadow-md dark:hover:shadow-none">
+    <div className=" group flex flex-col gap-y-5 rounded-2xl border border-gray-200 p-6 transition-all hover:border-gray-300 hover:shadow-md ">
       <div className="flex flex-row items-start gap-x-4">
         <img
           src={perk.logo}
@@ -27,14 +27,14 @@ const FeaturedPerkCard = ({
           className="h-14 w-14 shrink-0 rounded-xl object-cover"
         />
         <div className="flex flex-col gap-y-1">
-          <h3 className="text-base font-medium dark:text-white">{perk.name}</h3>
+          <h3 className="text-base font-medium">{perk.name}</h3>
           <span className="text-sm font-medium text-emerald-500">
             {perk.incentive}
           </span>
         </div>
       </div>
 
-      <p className="dark:text-spaire-400 flex-1 text-sm leading-relaxed text-gray-500">
+      <p className=" flex-1 text-sm leading-relaxed text-gray-500">
         {perk.description}
       </p>
 
@@ -71,13 +71,13 @@ export default function StartupStackPage() {
   return (
     <DashboardBody title="Perks">
       <div className="flex flex-col gap-y-2">
-        <p className="dark:text-spaire-500 text-sm text-gray-500">
+        <p className=" text-sm text-gray-500">
           Everything you need to start and scale your company. Access startup
           perks, credits, and discounts from the tools trusted by founders
           around the world.
         </p>
         {!perksUnlocked && (
-          <p className="text-sm text-violet-500 dark:text-violet-400">
+          <p className="text-sm text-violet-500">
             Perks unlock after your first successful sale through Spaire. This
             helps ensure the program supports founders who are actively building
             and launching their products.

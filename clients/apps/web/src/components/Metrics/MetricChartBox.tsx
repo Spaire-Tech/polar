@@ -149,7 +149,7 @@ const MetricChartBox = ({
     <ShadowBox
       ref={ref}
       className={twMerge(
-        'dark:bg-spaire-800 group flex w-full flex-col justify-between bg-gray-50 p-2 shadow-xs',
+        ' group flex w-full flex-col justify-between bg-gray-50 p-2 shadow-xs',
         className,
       )}
     >
@@ -170,10 +170,10 @@ const MetricChartBox = ({
           {onMetricChange ? (
             <div className="flex flex-row items-center gap-x-2">
               <Select value={metric} onValueChange={onMetricChange}>
-                <SelectTrigger className="dark:hover:bg-spaire-700 -mt-2 -ml-3 h-fit w-fit rounded-lg border-0 border-none bg-transparent px-3 py-2 shadow-none ring-0 transition-colors hover:bg-gray-200 focus-visible:ring-0 focus-visible:ring-offset-0">
+                <SelectTrigger className=" -mt-2 -ml-3 h-fit w-fit rounded-lg border-0 border-none bg-transparent px-3 py-2 shadow-none ring-0 transition-colors hover:bg-gray-200 focus-visible:ring-0 focus-visible:ring-offset-0">
                   <SelectValue placeholder="Select a metric" />
                 </SelectTrigger>
-                <SelectContent className="dark:bg-spaire-800 dark:ring-spaire-700 ring-1 ring-gray-200">
+                <SelectContent className=" ring-1 ring-gray-200">
                   {availableMetrics
                     ? availableMetrics.map((m) => (
                         <SelectItem key={m.slug} value={m.slug}>
@@ -199,7 +199,7 @@ const MetricChartBox = ({
                     <span className="inline-flex cursor-help">
                       <Status
                         status="Experimental"
-                        className="bg-blue-100 text-xs text-blue-600 dark:bg-blue-950 dark:text-blue-400"
+                        className="bg-blue-100 text-xs text-blue-600 "
                       />
                     </span>
                   </TooltipTrigger>
@@ -220,7 +220,7 @@ const MetricChartBox = ({
                     <span className="inline-flex cursor-help">
                       <Status
                         status="Experimental"
-                        className="bg-blue-100 text-xs text-blue-600 dark:bg-blue-950 dark:text-blue-400"
+                        className="bg-blue-100 text-xs text-blue-600 "
                       />
                     </span>
                   </TooltipTrigger>
@@ -237,14 +237,14 @@ const MetricChartBox = ({
           {!compact && (
             <div className="flex flex-col gap-x-6 gap-y-2 md:flex-row md:items-center">
               <div className="flex flex-row items-center gap-x-2 text-sm">
-                <span className="h-2.5 w-2.5 rounded-full bg-[#635BFF] dark:bg-[#004664]" />
+                <span className="h-2.5 w-2.5 rounded-full bg-[#635BFF]" />
                 {hoveredPeriod ? (
                   <FormattedDateTime
                     datetime={hoveredPeriod.timestamp}
                     dateStyle="medium"
                   />
                 ) : (
-                  <span className="dark:text-spaire-500 text-gray-500">
+                  <span className=" text-gray-500">
                     Current period
                   </span>
                 )}
@@ -273,7 +273,7 @@ const MetricChartBox = ({
       </div>
       <div
         className={twMerge(
-          'dark:bg-spaire-900 flex w-full flex-col gap-y-2 rounded-3xl bg-white',
+          ' flex w-full flex-col gap-y-2 rounded-3xl bg-white',
           compact ? 'p-2' : 'p-4',
         )}
       >

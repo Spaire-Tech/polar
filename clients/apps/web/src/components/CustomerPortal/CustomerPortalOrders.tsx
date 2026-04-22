@@ -4,7 +4,6 @@ import Button from '@spaire/ui/components/atoms/Button'
 import { DataTable } from '@spaire/ui/components/atoms/DataTable'
 import FormattedDateTime from '@spaire/ui/components/atoms/FormattedDateTime'
 import { getThemePreset } from '@spaire/ui/hooks/theming'
-import { useTheme } from 'next-themes'
 import Link from 'next/link'
 import { useState } from 'react'
 import { InlineModal } from '../Modal/InlineModal'
@@ -29,10 +28,9 @@ export const CustomerPortalOrders = ({
     schemas['CustomerOrder'] | null
   >(null)
 
-  const theme = useTheme()
   const themingPreset = getThemePreset(
     organization.slug,
-    theme.resolvedTheme as 'light' | 'dark',
+    'light',
   )
 
   const {

@@ -97,7 +97,7 @@ const EmailUpdateForm: React.FC<EmailUpdateformProps> = ({
           }}
         />
         {errorMessage && (
-          <div className="text-sm text-red-700 dark:text-red-500">
+          <div className="text-sm text-red-700">
             {errorMessage}
           </div>
         )}

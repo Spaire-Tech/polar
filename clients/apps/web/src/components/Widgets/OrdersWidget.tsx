@@ -17,12 +17,12 @@ import { twMerge } from 'tailwind-merge'
 const orderStatusBadgeClassNames = (order: schemas['Order']) => {
   switch (order.status) {
     case 'paid':
-      return 'bg-emerald-50 text-emerald-500 dark:bg-emerald-950'
+      return 'bg-emerald-50 text-emerald-500'
     case 'pending':
-      return 'bg-yellow-50 text-yellow-500 dark:bg-yellow-950'
+      return 'bg-yellow-50 text-yellow-500'
     case 'refunded':
     case 'partially_refunded':
-      return 'bg-violet-50 text-violet-500 dark:bg-violet-950 dark:text-violet-400'
+      return 'bg-violet-50 text-violet-500 '
   }
 }
 
@@ -46,10 +46,10 @@ const OrderCard = ({ className, order }: OrderCardProps) => {
     <Card
       className={twMerge(
         className,
-        'dark:bg-spaire-700 flex flex-col gap-y-1 rounded-2xl border-none bg-white transition-opacity hover:opacity-60',
+        ' flex flex-col gap-y-1 rounded-2xl border-none bg-white transition-opacity hover:opacity-60',
       )}
     >
-      <CardHeader className="dark:text-spaire-500 flex flex-row items-baseline justify-between bg-transparent p-4 pt-2 pb-0 text-sm text-gray-400">
+      <CardHeader className=" flex flex-row items-baseline justify-between bg-transparent p-4 pt-2 pb-0 text-sm text-gray-400">
         <span>{displayDate}</span>
         <Status
           className={twMerge(
@@ -81,7 +81,7 @@ export const OrdersWidget = ({ className }: OrdersWidgetProps) => {
   return (
     <div
       className={twMerge(
-        'dark:bg-spaire-800 rounded-4xl bg-gray-50 p-2',
+        ' rounded-4xl bg-gray-50 p-2',
         className,
       )}
     >
@@ -111,13 +111,13 @@ export const OrdersWidget = ({ className }: OrdersWidgetProps) => {
           </div>
         </div>
       ) : (
-        <Card className="dark:text-spaire-500 flex h-full flex-col items-center justify-center gap-y-4 bg-gray-50 p-6 text-center text-gray-400">
+        <Card className=" flex h-full flex-col items-center justify-center gap-y-4 bg-gray-50 p-6 text-center text-gray-400">
           <ShoppingCartOutlined
-            className="dark:text-spaire-600 text-gray-300"
+            className=" text-gray-300"
             fontSize="large"
           />
           <div className="flex flex-col gap-y-1">
-            <h3 className="font-medium dark:text-white text-gray-700">No transactions yet</h3>
+            <h3 className="font-medium text-gray-700">No transactions yet</h3>
             <p className="text-sm">Transactions will appear here as customers complete checkouts</p>
           </div>
         </Card>

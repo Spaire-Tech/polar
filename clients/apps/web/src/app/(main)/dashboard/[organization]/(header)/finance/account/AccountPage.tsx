@@ -289,7 +289,7 @@ export default function ClientPage({
   const currentStepIndex = stepIndexMap[step] ?? 0
 
   return (
-    <div className="dark:md:bg-spaire-950 flex h-screen w-full flex-row overflow-hidden">
+    <div className=" flex h-screen w-full flex-row overflow-hidden">
       {/* Left stepper panel — desktop only, hidden once setup is complete */}
       {step !== 'complete' && (
         <OnboardingStepper
@@ -325,7 +325,7 @@ export default function ClientPage({
               <div className="flex flex-row items-center justify-between">
                 <div className="flex flex-col gap-y-2">
                   <h2 className="text-lg font-medium">All payout accounts</h2>
-                  <p className="dark:text-spaire-500 text-sm text-gray-500">
+                  <p className=" text-sm text-gray-500">
                     Payout accounts you manage
                   </p>
                 </div>

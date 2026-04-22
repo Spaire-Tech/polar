@@ -12,7 +12,6 @@ import {
   XAxis,
   YAxis,
 } from '@spaire/ui/components/ui/chart'
-import { useTheme } from 'next-themes'
 import { useMemo } from 'react'
 
 export interface CostsBandedChartProps {
@@ -47,8 +46,7 @@ export const CostsBandedChart = ({
   labelFormatter,
   loading = false,
 }: CostsBandedChartProps) => {
-  const { resolvedTheme } = useTheme()
-  const isDark = resolvedTheme === 'dark'
+  const isDark = false
 
   const chartData = useMemo<ChartDataPoint[]>(
     () =>
@@ -88,7 +86,7 @@ export const CostsBandedChart = ({
   }, [data])
 
   return (
-    <div className="dark:bg-spaire-900 flex w-full flex-col gap-y-2 rounded-2xl bg-white px-4 pt-4">
+    <div className=" flex w-full flex-col gap-y-2 rounded-2xl bg-white px-4 pt-4">
       {loading ? (
         <div
           style={{ height }}

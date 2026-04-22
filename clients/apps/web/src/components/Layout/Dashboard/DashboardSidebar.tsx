@@ -3,9 +3,7 @@ import { useAuth } from '@/hooks'
 import { CONFIG } from '@/utils/config'
 import { isImpersonating } from '@/utils/impersonation'
 import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
-import DarkModeOutlined from '@mui/icons-material/DarkModeOutlined'
 import KeyboardArrowDown from '@mui/icons-material/KeyboardArrowDown'
-import LightModeOutlined from '@mui/icons-material/LightModeOutlined'
 import ScienceOutlined from '@mui/icons-material/ScienceOutlined'
 import { schemas } from '@spaire/client'
 import Avatar from '@spaire/ui/components/atoms/Avatar'
@@ -30,7 +28,6 @@ import {
 import { Separator } from '@spaire/ui/components/ui/separator'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { useTheme } from 'next-themes'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { twMerge } from 'tailwind-merge'
@@ -51,7 +48,6 @@ export const DashboardSidebar = ({
 }) => {
   const router = useRouter()
   const { state } = useSidebar()
-  const { theme, setTheme } = useTheme()
 
   const { currentUser } = useAuth()
 
@@ -83,7 +79,7 @@ export const DashboardSidebar = ({
         {type === 'organization' && organization ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex cursor-pointer items-center gap-2 rounded-lg p-1 transition-colors hover:bg-gray-100 dark:hover:bg-spaire-800">
+              <button className="flex cursor-pointer items-center gap-2 rounded-lg p-1 transition-colors hover:bg-gray-100">
                 <Avatar
                   name={organization.name}
                   avatar_url={organization.avatar_url}
@@ -165,34 +161,13 @@ export const DashboardSidebar = ({
       </SidebarContent>
       <SidebarFooter>
         <Separator />
-        <button
-          type="button"
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          className={twMerge(
-            'mt-2 flex cursor-pointer flex-row items-center rounded-lg border border-transparent px-2 text-sm transition-colors dark:border-transparent',
-            'dark:text-spaire-500 dark:hover:text-spaire-200 text-gray-500 hover:text-black',
-            isCollapsed && '!dark:text-spaire-600',
-          )}
-        >
-          {theme === 'dark' ? (
-            <LightModeOutlined fontSize="inherit" />
-          ) : (
-            <DarkModeOutlined fontSize="inherit" />
-          )}
-          {!isCollapsed && (
-            <span className="ml-4 font-medium">
-              {theme === 'dark' ? 'Light mode' : 'Dark mode'}
-            </span>
-          )}
-        </button>
         {!CONFIG.IS_SANDBOX && (
           <Link
             href="https://sandbox.spairehq.com/start"
             target="_blank"
             className={twMerge(
-              'mt-2 flex cursor-pointer flex-row items-center rounded-lg border border-transparent px-2 text-sm transition-colors dark:border-transparent',
-              'dark:text-spaire-500 dark:hover:text-spaire-200 text-gray-500 hover:text-black',
-              isCollapsed && '!dark:text-spaire-600',
+              'mt-2 flex cursor-pointer flex-row items-center rounded-lg border border-transparent px-2 text-sm transition-colors',
+              ' text-gray-500 hover:text-black',
             )}
           >
             <ScienceOutlined fontSize="inherit" />
@@ -201,9 +176,8 @@ export const DashboardSidebar = ({
         )}
         <Link
           className={twMerge(
-            'flex flex-row items-center rounded-lg border border-transparent text-sm transition-colors dark:border-transparent',
-            'dark:text-spaire-500 dark:hover:text-spaire-200 text-gray-500 hover:text-black',
-            isCollapsed && '!dark:text-spaire-600',
+            'flex flex-row items-center rounded-lg border border-transparent text-sm transition-colors',
+            ' text-gray-500 hover:text-black',
           )}
           href="https://docs.spairehq.com"
           target="_blank"

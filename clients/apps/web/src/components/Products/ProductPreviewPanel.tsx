@@ -194,10 +194,10 @@ export const ProductPreviewPanel = ({
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+        <h2 className="text-lg font-semibold text-gray-900">
           Preview
         </h2>
-        <p className="mt-1 text-sm text-gray-500 dark:text-spaire-400">
+        <p className="mt-1 text-sm text-gray-500">
           Estimate totals based on pricing model, unit quantity, and tax.
         </p>
       </div>
@@ -217,7 +217,7 @@ export const ProductPreviewPanel = ({
 
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+          <label className="text-sm font-medium text-gray-700">
             Unit quantity
           </label>
           <Input
@@ -232,7 +232,7 @@ export const ProductPreviewPanel = ({
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+          <label className="text-sm font-medium text-gray-700">
             Location
           </label>
           <CountryPicker
@@ -244,7 +244,7 @@ export const ProductPreviewPanel = ({
 
         {country === 'US' && (
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label className="text-sm font-medium text-gray-700">
               State
             </label>
             <Select value={state} onValueChange={setState}>
@@ -264,7 +264,7 @@ export const ProductPreviewPanel = ({
 
         {country === 'CA' && (
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label className="text-sm font-medium text-gray-700">
               Province
             </label>
             <Select value={state} onValueChange={setState}>
@@ -284,12 +284,12 @@ export const ProductPreviewPanel = ({
       </div>
 
       {country && (
-        <div className="flex flex-col gap-4 border-t border-gray-200 pt-4 dark:border-spaire-700">
+        <div className="flex flex-col gap-4 border-t border-gray-200 pt-4">
           {loading ? (
-            <div className="h-24 animate-pulse rounded-xl bg-gray-100 dark:bg-spaire-700" />
+            <div className="h-24 animate-pulse rounded-xl bg-gray-100" />
           ) : (
             <>
-              <p className="text-sm font-medium text-gray-900 dark:text-white">
+              <p className="text-sm font-medium text-gray-900">
                 <span className="text-blue-500">{quantity}</span>
                 {' × '}
                 <span className="text-blue-500">
@@ -301,14 +301,14 @@ export const ProductPreviewPanel = ({
                 </span>
               </p>
 
-              <div className="border-t border-gray-200 dark:border-spaire-700" />
+              <div className="border-t border-gray-200" />
 
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">
+                  <span className="text-gray-600">
                     Subtotal
                   </span>
-                  <span className="font-medium text-gray-900 dark:text-white">
+                  <span className="font-medium text-gray-900">
                     {preview
                       ? formatAmount(preview.subtotal, activeCurrency)
                       : formatAmount(effectiveAmount * quantity, activeCurrency)}
@@ -316,35 +316,35 @@ export const ProductPreviewPanel = ({
                 </div>
 
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">
+                  <span className="text-gray-600">
                     {'ⓘ '}
                     {preview && preview.tax_rate
                       ? `${preview.tax_rate.display_name}${preview.tax_rate.percentage !== null ? ` ${preview.tax_rate.percentage}%` : ''}`
                       : 'Tax'}
                   </span>
-                  <span className="font-medium text-gray-900 dark:text-white">
+                  <span className="font-medium text-gray-900">
                     {preview && preview.tax_amount > 0
                       ? formatAmount(preview.tax_amount, activeCurrency)
                       : '—'}
                   </span>
                 </div>
 
-                <div className="border-t border-gray-200 pt-2 dark:border-spaire-700">
+                <div className="border-t border-gray-200 pt-2">
                   <div className="flex items-center justify-between text-sm">
                     <div>
-                      <span className="font-semibold text-gray-900 dark:text-white">
+                      <span className="font-semibold text-gray-900">
                         Total
                         {recurringInterval
                           ? ` ${intervalLabel(recurringInterval, recurringIntervalCount)}`
                           : ''}
                       </span>
                       {recurringInterval && (
-                        <p className="mt-0.5 text-xs text-gray-400 dark:text-spaire-500">
+                        <p className="mt-0.5 text-xs text-gray-400">
                           Billed at the start of the period
                         </p>
                       )}
                     </div>
-                    <span className="text-base font-semibold text-gray-900 dark:text-white">
+                    <span className="text-base font-semibold text-gray-900">
                       {preview
                         ? formatAmount(preview.total, activeCurrency)
                         : formatAmount(effectiveAmount * quantity, activeCurrency)}

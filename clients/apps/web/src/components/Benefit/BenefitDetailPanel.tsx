@@ -59,7 +59,7 @@ export const BenefitDetailPanel = ({
           <span>Benefit</span>
         </InlineModalHeader>
         <div className="flex flex-1 items-center justify-center">
-          <p className="dark:text-spaire-500 text-gray-500">
+          <p className=" text-gray-500">
             Benefit not found
           </p>
         </div>
@@ -137,7 +137,7 @@ const BenefitDetailPanelContent = ({
     <div className="flex h-full flex-col">
       <InlineModalHeader hide={onClose}>
         <div className="flex flex-row items-center gap-3">
-          <span className="dark:bg-spaire-700 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600 dark:text-gray-300">
+          <span className=" flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600">
             {resolveBenefitIcon(benefit.type, 'h-4 w-4')}
           </span>
           <div className="flex flex-col">
@@ -146,14 +146,14 @@ const BenefitDetailPanelContent = ({
                 ? benefit.description
                 : '—'}
             </span>
-            <span className="dark:text-spaire-500 text-xs text-gray-500">
+            <span className=" text-xs text-gray-500">
               {benefitsDisplayNames[benefit.type]}
             </span>
           </div>
         </div>
       </InlineModalHeader>
 
-      <div className="flex flex-row items-center justify-end border-b border-gray-200 px-8 py-3 dark:border-spaire-700">
+      <div className="flex flex-row items-center justify-end border-b border-gray-200 px-8 py-3">
         <div className="flex flex-row items-center gap-2">
           <Button size="sm" onClick={showEdit}>
             Edit
@@ -166,7 +166,7 @@ const BenefitDetailPanelContent = ({
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="end"
-              className="dark:bg-spaire-800 bg-gray-50 shadow-lg"
+              className=" bg-gray-50 shadow-lg"
             >
               <DropdownMenuItem onClick={copyBenefitId}>
                 Copy ID

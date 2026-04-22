@@ -40,7 +40,7 @@ export default function CatalogLayout({ children }: PropsWithChildren) {
     <div className="flex h-full flex-col">
       <div className="overflow-x-auto px-4 pt-6 md:px-8">
         <Tabs value={activeTab.title}>
-          <TabsList className="flex min-w-max flex-row bg-transparent ring-0 dark:bg-transparent dark:ring-0">
+          <TabsList className="flex min-w-max flex-row bg-transparent ring-0 ">
             {catalogTabs.map((tab) => (
               <Link
                 key={tab.title}

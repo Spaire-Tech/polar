@@ -76,21 +76,21 @@ export function CookieConsent({ countryCode }: { countryCode: string | null }) {
 
   return (
     consentGiven === 'undecided' && (
-      <div className="shadow-3xl dark:bg-spaire-950 dark:border-spaire-700 dark:text-spaire-500 fixed right-8 bottom-8 left-8 z-50 flex flex-col gap-y-4 rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-500 md:left-auto md:max-w-96">
+      <div className="shadow-3xl   fixed right-8 bottom-8 left-8 z-50 flex flex-col gap-y-4 rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-500 md:left-auto md:max-w-96">
         <p>
           We use tracking cookies to understand how you use the product and help
           us improve it.
         </p>
         <div className="flex flex-row items-center gap-x-4">
           <button
-            className="cursor-pointer text-blue-500 transition-colors hover:text-blue-600 dark:text-white dark:hover:text-gray-200"
+            className="cursor-pointer text-blue-500 transition-colors hover:text-blue-600 "
             onClick={handleAcceptCookies}
             type="button"
           >
             Accept
           </button>
           <button
-            className="cursor-pointer text-gray-500 transition-colors hover:text-gray-600 dark:hover:text-gray-600"
+            className="cursor-pointer text-gray-500 transition-colors hover:text-gray-600"
             onClick={handleDeclineCookies}
             type="button"
           >

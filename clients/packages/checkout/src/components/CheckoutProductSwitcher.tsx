@@ -87,9 +87,9 @@ const CheckoutProductSwitcher = ({
               <label
                 key={price.id}
                 className={cn(
-                  `dark:divide-spaire-700 dark:md:bg-spaire-950 flex cursor-pointer flex-col divide-y divide-gray-200 rounded-2xl border shadow-xs transition-colors hover:border-blue-500 md:bg-white md:shadow-none dark:hover:border-blue-500`,
+                  ` flex cursor-pointer flex-col divide-y divide-gray-200 rounded-2xl border shadow-xs transition-colors hover:border-blue-500 md:bg-white md:shadow-none`,
                   price.id === selectedProduct.id
-                    ? 'border-blue-500 dark:border-blue-500'
+                    ? 'border-blue-500'
                     : '',
                 )}
                 htmlFor={`product-${price.id}`}
@@ -105,7 +105,7 @@ const CheckoutProductSwitcher = ({
                   </div>
                 </div>
                 <div className="flex grow flex-row items-center justify-between p-4 text-sm">
-                  <p className="dark:text-spaire-500 text-gray-500">
+                  <p className=" text-gray-500">
                     {getDescription(product, price)}
                   </p>
                 </div>
@@ -116,9 +116,9 @@ const CheckoutProductSwitcher = ({
           <label
             key={product.id}
             className={cn(
-              `dark:divide-spaire-700 dark:md:bg-spaire-950 flex cursor-pointer flex-col divide-y divide-gray-200 rounded-2xl border shadow-xs transition-colors hover:border-blue-500 md:bg-white md:shadow-none dark:hover:border-blue-500`,
+              ` flex cursor-pointer flex-col divide-y divide-gray-200 rounded-2xl border shadow-xs transition-colors hover:border-blue-500 md:bg-white md:shadow-none`,
               product.id === selectedProduct.id
-                ? 'border-blue-500 dark:border-blue-500'
+                ? 'border-blue-500'
                 : '',
             )}
             htmlFor={`product-${product.id}`}
@@ -137,7 +137,7 @@ const CheckoutProductSwitcher = ({
               </div>
             </div>
             <div className="flex grow flex-row items-center justify-between p-4 text-sm">
-              <p className="dark:text-spaire-500 text-gray-500">
+              <p className=" text-gray-500">
                 {getDescription(product, prices[product.id][0])}
               </p>
             </div>

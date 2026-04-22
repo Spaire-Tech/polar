@@ -104,7 +104,7 @@ export const ProductCustomFieldSection = ({
                                 'text-sm',
                                 field.value
                                   ? ''
-                                  : 'dark:text-spaire-500 text-gray-500',
+                                  : ' text-gray-500',
                               )}
                             >
                               Required
@@ -121,7 +121,7 @@ export const ProductCustomFieldSection = ({
                     />
                     <Button
                       className={
-                        'border-none bg-transparent text-[16px] opacity-50 transition-opacity hover:opacity-100 dark:bg-transparent'
+                        'border-none bg-transparent text-[16px] opacity-50 transition-opacity hover:opacity-100'
                       }
                       size="icon"
                       variant="secondary"

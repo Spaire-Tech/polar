@@ -39,13 +39,13 @@ const CreateProductSplitPageInner = ({
   })
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-spaire-900">
+    <div className="flex h-screen overflow-hidden bg-gray-50">
       {/* Left panel — product form */}
-      <div className="flex flex-1 min-w-0 flex-col overflow-hidden border-r border-gray-200 bg-white dark:border-spaire-800 dark:bg-spaire-900">
-        <div className="border-b border-gray-200 px-6 py-4 dark:border-spaire-700">
+      <div className="flex flex-1 min-w-0 flex-col overflow-hidden border-r border-gray-200 bg-white ">
+        <div className="border-b border-gray-200 px-6 py-4">
           <Link
             href={`/dashboard/${organization.slug}/products`}
-            className="flex items-center gap-2 text-sm text-gray-500 transition-colors hover:text-black dark:text-spaire-400 dark:hover:text-white"
+            className="flex items-center gap-2 text-sm text-gray-500 transition-colors hover:text-black "
           >
             <ArrowBackOutlined fontSize="small" />
             <span>Back to Products</span>
@@ -86,7 +86,7 @@ export const CreateProductSplitPage = ({
   if (fromProductId && isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <p className="dark:text-spaire-500 text-gray-500">
+        <p className=" text-gray-500">
           Loading product...
         </p>
       </div>

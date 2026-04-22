@@ -24,7 +24,7 @@ const DetailRow = ({
     <div
       className={cn(
         'flex flex-row items-start justify-between gap-x-8',
-        emphasis ? 'font-medium' : 'dark:text-spaire-500 text-gray-500',
+        emphasis ? 'font-medium' : ' text-gray-500',
         className,
       )}
     >
@@ -147,7 +147,7 @@ const CheckoutPricingBreakdown = ({
       {(checkout.trialEnd ||
         (checkout.activeTrialInterval &&
           checkout.activeTrialIntervalCount)) && (
-        <div className="dark:border-spaire-700 mt-3 border-t border-gray-300 pt-4">
+        <div className=" mt-3 border-t border-gray-300 pt-4">
           {checkout.activeTrialInterval &&
             checkout.activeTrialIntervalCount && (
               <DetailRow
@@ -166,7 +166,7 @@ const CheckoutPricingBreakdown = ({
               </DetailRow>
             )}
           {checkout.trialEnd && (
-            <span className="dark:text-spaire-500 text-sm text-gray-500">
+            <span className=" text-sm text-gray-500">
               Trial ends{' '}
               {new Intl.DateTimeFormat('en-US', {
                 month: 'long',

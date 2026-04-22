@@ -99,7 +99,7 @@ export const ShareChartModal = ({
       <div className="flex flex-col items-start gap-8">
         <div
           ref={chartRef}
-          className="dark:bg-spaire-950 flex w-full max-w-4xl flex-col items-center justify-center gap-12 rounded-4xl bg-blue-50 p-12"
+          className=" flex w-full max-w-4xl flex-col items-center justify-center gap-12 rounded-4xl bg-blue-50 p-12"
           style={{
             backgroundImage:
               theme === 'mono'
@@ -110,7 +110,7 @@ export const ShareChartModal = ({
           }}
         >
           <MetricChartBox
-            className="dark:border-spaire-600/50"
+            className=""
             data={data}
             previousData={previousData}
             interval={interval}
@@ -121,7 +121,7 @@ export const ShareChartModal = ({
             simple
             chartType="line"
           />
-          <LogoType className="text-white dark:text-white" height={48} />
+          <LogoType className="text-white" height={48} />
         </div>
         <div className="flex w-full flex-row items-center justify-between gap-6">
           <div className="flex flex-row gap-4">
@@ -176,7 +176,7 @@ const MetricThemeSelector = ({
           }}
           className={twMerge(
             'h-8 w-8 cursor-pointer rounded-full border-2 transition-opacity hover:opacity-50',
-            selected ? 'border-blue-400 dark:border-blue-500' : '',
+            selected ? 'border-blue-400' : '',
           )}
           style={{
             backgroundImage:

@@ -84,7 +84,7 @@ export const FieldClientType = () => {
             or mobile app, select <em>Public Client</em>. Otherwise, choose{' '}
             <em>Confidential Client</em>.{' '}
             <Link
-              className="text-blue-500 hover:text-blue-400 dark:text-blue-400 dark:hover:text-blue-300"
+              className="text-blue-500 hover:text-blue-400 "
               href="https://docs.spairehq.com/documentation/integration-guides/authenticating-with-spaire"
               target="_blank"
               rel="noopener noreferrer"
@@ -131,7 +131,7 @@ export const FieldClientSecret = ({
         This is a sensitive value. Don&apos;t embed it in a public client like a
         SPA or mobile app.{' '}
         <Link
-          className="text-blue-500 hover:text-blue-400 dark:text-blue-400 dark:hover:text-blue-300"
+          className="text-blue-500 hover:text-blue-400 "
           href="https://docs.spairehq.com/documentation/integration-guides/authenticating-with-spaire"
           target="_blank"
           rel="noopener noreferrer"
@@ -231,7 +231,7 @@ export const FieldRedirectURIs = () => {
                       {index !== 0 && (
                         <Button
                           className={
-                            'border-none bg-transparent text-[16px] opacity-50 transition-opacity hover:opacity-100 dark:bg-transparent'
+                            'border-none bg-transparent text-[16px] opacity-50 transition-opacity hover:opacity-100'
                           }
                           size="icon"
                           variant="secondary"

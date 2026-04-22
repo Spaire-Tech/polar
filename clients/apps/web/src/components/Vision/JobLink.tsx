@@ -29,12 +29,12 @@ export const JobLink = ({
         <div className="flex flex-col">
           <p>{location}</p>
           {experience && (
-            <p className="dark:text-spaire-500 group-hover/link:text-spaire-100 text-gray-500">
+            <p className=" group-hover/link:text-spaire-100 text-gray-500">
               {experience}
             </p>
           )}
         </div>
-        <p className="dark:text-spaire-500 group-hover/link:text-spaire-100 text-gray-500">
+        <p className=" group-hover/link:text-spaire-100 text-gray-500">
           {description}
         </p>
       </div>

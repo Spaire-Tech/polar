@@ -268,7 +268,7 @@ export const CreateProductPage = ({
 
   const formContent = (
     <>
-      <div className="dark:border-spaire-700 dark:divide-spaire-700 flex flex-col divide-y divide-gray-200 rounded-4xl border border-gray-200">
+      <div className=" flex flex-col divide-y divide-gray-200 rounded-4xl border border-gray-200">
         <Form {...form}>
           <form
             onSubmit={handleSubmit(onSubmit)}
@@ -320,7 +320,7 @@ export const CreateProductPage = ({
   if (splitMode) {
     return (
       <div className="flex flex-col gap-8 px-8 py-8">
-        <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+        <h1 className="text-xl font-semibold text-gray-900">
           {sourceProduct ? 'Duplicate Product' : 'New Product'}
         </h1>
         {formContent}

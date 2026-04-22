@@ -14,7 +14,6 @@ import {
   XAxis,
   YAxis,
 } from '@spaire/ui/components/ui/chart'
-import { useTheme } from 'next-themes'
 import { useCallback, useId, useMemo, useState } from 'react'
 import type { ExternalMouseEvents } from 'recharts/types/chart/types'
 import type { AxisTick } from 'recharts/types/util/types'
@@ -97,8 +96,7 @@ export const GenericChart = <T extends Record<string, unknown>>({
   simple = false,
   ticks: customTicks,
 }: GenericChartProps<T>) => {
-  const { resolvedTheme } = useTheme()
-  const isDark = resolvedTheme === 'dark'
+  const isDark = false
   const [activeSeries, setActiveSeries] = useState<string | null>(null)
 
   const id = useId()
@@ -282,7 +280,7 @@ export const GenericChart = <T extends Record<string, unknown>>({
         content={(props) => (
           <ChartTooltipContent
             {...props}
-            className="text-black dark:text-white"
+            className="text-black"
             indicator="dot"
             labelKey={primarySeries?.key}
             formatter={formatter}
