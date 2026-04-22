@@ -318,10 +318,9 @@ const CarouselCard = ({
       {hasEmbed ? (
         <EmbedFrame link={link} autoplay={isActive} />
       ) : (
-        // Mobile: natural aspect ratio. Desktop: cap height so cards stay compact.
         <Thumb
           link={link}
-          className="aspect-[4/3] w-full object-cover md:aspect-auto md:h-28"
+          className="aspect-[4/3] w-full object-cover"
         />
       )}
       <div className="flex flex-col gap-1 p-3">
@@ -354,7 +353,7 @@ const CarouselLayout = ({ links }: { links: StorefrontLinkItem[] }) => (
   <PeekCarousel
     links={links}
     cardRatio={0.76}
-    desktopCardRatio={0.52}
+    desktopCardRatio={0.44}
     renderCard={(link, isActive) => (
       <CarouselCard link={link} isActive={isActive} />
     )}
@@ -364,7 +363,7 @@ const CarouselLayout = ({ links }: { links: StorefrontLinkItem[] }) => (
 // ─── Image grid layout ───────────────────────────────────────────────────────
 
 const ImageGridLayout = ({ links }: { links: StorefrontLinkItem[] }) => (
-  <div className="grid grid-cols-2 gap-3">
+  <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
     {links.map((link) => (
       <a
         key={link.id}
@@ -375,7 +374,7 @@ const ImageGridLayout = ({ links }: { links: StorefrontLinkItem[] }) => (
       >
         <Thumb
           link={link}
-          className="aspect-[4/3] w-full object-cover transition-transform duration-300 group-hover:scale-105 md:aspect-auto md:h-24"
+          className="aspect-[4/3] w-full object-cover transition-transform duration-300 group-hover:scale-105"
         />
         <div className="p-2.5">
           <p className="line-clamp-1 text-xs font-semibold text-gray-900">
@@ -407,7 +406,7 @@ const CardItem = ({
     ) : (
       <Thumb
         link={link}
-        className="aspect-[16/9] w-full object-cover md:aspect-auto md:h-32"
+        className="aspect-[16/9] w-full object-cover"
       />
     )}
     <div className="flex flex-col gap-1.5 p-4">
@@ -436,7 +435,7 @@ const CardLayout = ({ links }: { links: StorefrontLinkItem[] }) => (
   <PeekCarousel
     links={links}
     cardRatio={0.82}
-    desktopCardRatio={0.62}
+    desktopCardRatio={0.54}
     renderCard={(link, isActive) => <CardItem link={link} isActive={isActive} />}
   />
 )
