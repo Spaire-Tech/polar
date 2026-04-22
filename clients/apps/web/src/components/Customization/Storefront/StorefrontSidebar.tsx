@@ -11,6 +11,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@spaire/ui/components/atoms/Select'
+import { StorefrontLinkItem } from '@/components/Profile/StorefrontLinks'
+import ViewStreamOutlined from '@mui/icons-material/ViewStreamOutlined'
+import ViewCarouselOutlined from '@mui/icons-material/ViewCarouselOutlined'
+import GridViewOutlined from '@mui/icons-material/GridViewOutlined'
+import WebAssetOutlined from '@mui/icons-material/WebAssetOutlined'
+import ChevronRightOutlined from '@mui/icons-material/ChevronRightOutlined'
 import { useCallback, useRef, useState } from 'react'
 import { FileRejection } from 'react-dropzone'
 import { useFormContext } from 'react-hook-form'
@@ -75,6 +81,7 @@ const SOCIAL_PLATFORMS = [
   { value: 'tiktok', label: 'TikTok', icon: TikTokIcon },
   { value: 'other', label: 'Website', icon: Public },
 ]
+
 
 // --- Focal point helpers ---
 export const focalPointToObjectPosition = (focal: string): string => {
@@ -249,8 +256,10 @@ const SocialLinkRow = ({
 // --- Main editor form ---
 export const StorefrontEditorForm = ({
   organization,
+  onEnterLinksMode,
 }: {
   organization: schemas['Organization']
+  onEnterLinksMode?: () => void
 }) => {
   const { watch, setValue } = useFormContext<schemas['OrganizationUpdate']>()
   const settings = watch('storefront_settings')
@@ -305,6 +314,11 @@ export const StorefrontEditorForm = ({
   const removeSocial = (idx: number) => {
     setValue('socials', socials.filter((_, i) => i !== idx), { shouldDirty: true })
   }
+
+  // Storefront links
+  const storefrontLinks: StorefrontLinkItem[] = ((settings as any)?.storefront_links ?? []) as StorefrontLinkItem[]
+  const linksPosition: string = (settings as any)?.links_position ?? 'after_products'
+  const linksLayout: string = (settings as any)?.links_layout ?? 'carousel'
 
   // Avatar upload
   const avatarUrl = watch('avatar_url') ?? organization.avatar_url
@@ -690,6 +704,90 @@ export const StorefrontEditorForm = ({
             Add social link
           </button>
         </div>
+      </div>
+
+      {/* Links */}
+      <div className="flex flex-col gap-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-gray-900">Links</h3>
+          {storefrontLinks.length > 0 && (
+            <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
+              {storefrontLinks.length}
+            </span>
+          )}
+        </div>
+
+        {/* Manage links button — opens left panel */}
+        <button
+          type="button"
+          onClick={onEnterLinksMode}
+          className="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 transition-colors hover:bg-gray-50"
+        >
+          <span className="font-medium">
+            {storefrontLinks.length === 0
+              ? 'Add links & embeds'
+              : `Manage ${storefrontLinks.length} link${storefrontLinks.length !== 1 ? 's' : ''}`}
+          </span>
+          <ChevronRightOutlined style={{ fontSize: 18 }} className="text-gray-400" />
+        </button>
+
+        {storefrontLinks.length > 0 && (
+          <>
+            {/* Layout selector */}
+            <div className="flex flex-col gap-y-2">
+              <label className="text-xs font-medium text-gray-600">Layout</label>
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  { value: 'classic', label: 'Classic', Icon: ViewStreamOutlined },
+                  { value: 'carousel', label: 'Carousel', Icon: ViewCarouselOutlined },
+                  { value: 'image_grid', label: 'Grid', Icon: GridViewOutlined },
+                  { value: 'card', label: 'Card', Icon: WebAssetOutlined },
+                ].map(({ value, label, Icon }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() =>
+                      setValue(
+                        'storefront_settings',
+                        { ...(settings ?? {}), links_layout: value } as any,
+                        { shouldDirty: true },
+                      )
+                    }
+                    className={twMerge(
+                      'flex flex-col items-center gap-1 rounded-xl border p-2.5 text-center transition-all',
+                      linksLayout === value
+                        ? 'border-gray-900 bg-gray-900 text-white'
+                        : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300',
+                    )}
+                  >
+                    <Icon style={{ fontSize: 18 }} />
+                    <span className="text-[10px] font-medium">{label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Position toggle */}
+            <div className="flex flex-col divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200">
+              <div className="flex items-center justify-between px-4 py-3.5">
+                <div>
+                  <span className="text-sm text-gray-700">Show before products</span>
+                  <p className="text-xs text-gray-400">Off = show after products</p>
+                </div>
+                <Switch
+                  checked={linksPosition === 'before_products'}
+                  onCheckedChange={(v) =>
+                    setValue(
+                      'storefront_settings',
+                      { ...(settings ?? {}), links_position: v ? 'before_products' : 'after_products' } as any,
+                      { shouldDirty: true },
+                    )
+                  }
+                />
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Products to Display */}

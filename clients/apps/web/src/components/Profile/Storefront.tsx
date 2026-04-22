@@ -1,6 +1,7 @@
 'use client'
 
 import { ProductCard } from '@/components/Products/ProductCard'
+import { StorefrontLinks, StorefrontLinkItem } from './StorefrontLinks'
 import HiveOutlined from '@mui/icons-material/HiveOutlined'
 import { schemas } from '@spaire/client'
 import Link from 'next/link'
@@ -52,6 +53,21 @@ export const Storefront = ({
     'storefront_settings' in organization
       ? (organization.storefront_settings?.featured_product_ids ?? [])
       : []
+
+  const storefrontLinks: StorefrontLinkItem[] =
+    'storefront_settings' in organization
+      ? (((organization.storefront_settings as any)?.storefront_links ?? []) as StorefrontLinkItem[])
+      : []
+
+  const linksPosition: 'before_products' | 'after_products' =
+    'storefront_settings' in organization
+      ? (((organization.storefront_settings as any)?.links_position ?? 'after_products') as 'before_products' | 'after_products')
+      : 'after_products'
+
+  const linksLayout =
+    'storefront_settings' in organization
+      ? (((organization.storefront_settings as any)?.links_layout ?? 'carousel') as 'classic' | 'carousel' | 'image_grid' | 'card')
+      : 'carousel'
 
   // Products scoped by featuredIds (creator curation)
   const scopedProducts = useMemo(() => {
@@ -110,6 +126,10 @@ export const Storefront = ({
 
   return (
     <div className="flex w-full flex-col gap-12">
+      {storefrontLinks.length > 0 && linksPosition === 'before_products' && (
+        <StorefrontLinks links={storefrontLinks} layout={linksLayout} />
+      )}
+
       <h2 className="text-lg font-semibold text-gray-900 md:hidden">
         Products
       </h2>
@@ -144,6 +164,10 @@ export const Storefront = ({
           </div>
         </section>
       ))}
+
+      {storefrontLinks.length > 0 && linksPosition === 'after_products' && (
+        <StorefrontLinks links={storefrontLinks} layout={linksLayout} />
+      )}
 
       {/* Reviews section — shown when enabled */}
       {enableReviews && (

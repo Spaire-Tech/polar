@@ -55,6 +55,10 @@ class OrganizationStorefrontSettings(TypedDict, total=False):
     languages: list[str]
     available_for_work: bool
     featured_product_ids: list[str]
+    show_card_products: bool
+    storefront_links: list[dict]  # list of StorefrontLink dicts
+    links_position: str  # "before_products" | "after_products"
+    links_layout: str  # "classic" | "carousel" | "image_grid" | "card"
 
 
 _default_storefront_settings: OrganizationStorefrontSettings = {
@@ -72,6 +76,10 @@ _default_storefront_settings: OrganizationStorefrontSettings = {
     "languages": [],
     "available_for_work": False,
     "featured_product_ids": [],
+    "show_card_products": True,
+    "storefront_links": [],
+    "links_position": "after_products",
+    "links_layout": "carousel",
 }
 
 
