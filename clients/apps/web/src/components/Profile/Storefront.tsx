@@ -126,13 +126,13 @@ export const Storefront = ({
 
   return (
     <div className="flex w-full flex-col gap-12">
-      <h2 className="text-lg font-semibold text-gray-900 md:hidden">
-        Products
-      </h2>
-
       {storefrontLinks.length > 0 && linksPosition === 'before_products' && (
         <StorefrontLinks links={storefrontLinks} layout={linksLayout} />
       )}
+
+      <h2 className="text-lg font-semibold text-gray-900 md:hidden">
+        Products
+      </h2>
 
       {sections.map((section) => (
         <section

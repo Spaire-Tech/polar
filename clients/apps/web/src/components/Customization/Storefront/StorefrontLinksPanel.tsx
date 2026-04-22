@@ -396,8 +396,8 @@ export const StorefrontLinksPanel = ({
 
   return (
     <div className="flex h-full flex-col">
-      {/* Header */}
-      <div className="flex items-center gap-3 border-b border-gray-100 bg-white px-6 py-4">
+      {/* Header — sticky so back button stays reachable when scrolling */}
+      <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-gray-100 bg-white px-6 py-4">
         <button
           type="button"
           onClick={onBack}

@@ -87,11 +87,11 @@ const EmbedFrame = ({
   if (!src) return null
 
   const heights: Record<string, number> = {
-    youtube: fullHeight ? 280 : 200,
+    youtube: fullHeight ? 240 : 180,
     spotify: 80,
     soundcloud: 116,
   }
-  const h = heights[platform] ?? 160
+  const h = heights[platform] ?? 140
 
   return (
     <iframe
@@ -126,7 +126,7 @@ const Thumb = ({
     <div
       className={`flex items-center justify-center bg-gray-100 ${className ?? ''}`}
     >
-      <LinkOutlined style={{ fontSize: 28 }} className="text-gray-300" />
+      <LinkOutlined style={{ fontSize: 24 }} className="text-gray-300" />
     </div>
   )
 
@@ -166,22 +166,29 @@ const ClassicLayout = ({ links }: { links: StorefrontLinkItem[] }) => (
   </div>
 )
 
-// ─── Peek carousel (shared between Carousel and Card layouts) ────────────────
+// ─── Peek carousel ────────────────────────────────────────────────────────────
+// Shows partial adjacent cards on both sides. Touch-swipeable on mobile.
+// cardRatio: fraction of container per card on mobile
+// desktopCardRatio: fraction on desktop (container > 400px), defaults to smaller
 
 interface PeekCarouselProps {
   links: StorefrontLinkItem[]
   renderCard: (link: StorefrontLinkItem, isActive: boolean) => React.ReactNode
   cardRatio?: number
+  desktopCardRatio?: number
 }
 
 const PeekCarousel = ({
   links,
   renderCard,
   cardRatio = 0.76,
+  desktopCardRatio = 0.52,
 }: PeekCarouselProps) => {
   const [current, setCurrent] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
   const [containerWidth, setContainerWidth] = useState(0)
+  const touchStartX = useRef(0)
+  const touchEndX = useRef(0)
 
   useEffect(() => {
     const el = containerRef.current
@@ -194,14 +201,39 @@ const PeekCarousel = ({
     return () => ro.disconnect()
   }, [])
 
-  const GAP = 16
-  const cardW = containerWidth > 0 ? containerWidth * cardRatio : 260
-  const peek = containerWidth > 0 ? (containerWidth - cardW) / 2 : 20
+  const DESKTOP_BP = 400
+  const activeRatio =
+    containerWidth > DESKTOP_BP ? desktopCardRatio : cardRatio
+  const GAP = 12
+  const cardW = containerWidth > 0 ? containerWidth * activeRatio : 240
+  const peek = containerWidth > 0 ? (containerWidth - cardW) / 2 : 16
   const offset = peek - current * (cardW + GAP)
 
+  const prev = () => setCurrent((c) => Math.max(0, c - 1))
+  const next = () => setCurrent((c) => Math.min(links.length - 1, c + 1))
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX
+    touchEndX.current = e.touches[0].clientX
+  }
+  const onTouchMove = (e: React.TouchEvent) => {
+    touchEndX.current = e.touches[0].clientX
+  }
+  const onTouchEnd = () => {
+    const diff = touchStartX.current - touchEndX.current
+    if (diff > 40) next()
+    else if (diff < -40) prev()
+  }
+
   return (
-    <div className="flex flex-col gap-4">
-      <div ref={containerRef} className="relative overflow-hidden">
+    <div className="flex flex-col gap-3">
+      <div
+        ref={containerRef}
+        className="relative overflow-hidden"
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
         <div
           className="flex transition-transform duration-300 ease-out"
           style={{ transform: `translateX(${offset}px)`, gap: `${GAP}px` }}
@@ -215,7 +247,7 @@ const PeekCarousel = ({
                 className={`cursor-pointer transition-all duration-300 ${
                   isActive
                     ? 'opacity-100'
-                    : 'scale-[0.95] opacity-50 hover:opacity-70'
+                    : 'scale-[0.96] opacity-50 hover:opacity-70'
                 }`}
                 onClick={() => {
                   if (!isActive) setCurrent(i)
@@ -231,20 +263,20 @@ const PeekCarousel = ({
           <button
             type="button"
             aria-label="Previous"
-            onClick={() => setCurrent((c) => c - 1)}
-            className="absolute left-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 shadow-md backdrop-blur-sm transition hover:bg-white"
+            onClick={prev}
+            className="absolute left-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 shadow-md backdrop-blur-sm transition hover:bg-white"
           >
-            <ChevronLeftOutlined style={{ fontSize: 20 }} />
+            <ChevronLeftOutlined style={{ fontSize: 18 }} />
           </button>
         )}
         {current < links.length - 1 && (
           <button
             type="button"
             aria-label="Next"
-            onClick={() => setCurrent((c) => c + 1)}
-            className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 shadow-md backdrop-blur-sm transition hover:bg-white"
+            onClick={next}
+            className="absolute right-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 shadow-md backdrop-blur-sm transition hover:bg-white"
           >
-            <ChevronRightOutlined style={{ fontSize: 20 }} />
+            <ChevronRightOutlined style={{ fontSize: 18 }} />
           </button>
         )}
       </div>
@@ -286,14 +318,18 @@ const CarouselCard = ({
       {hasEmbed ? (
         <EmbedFrame link={link} autoplay={isActive} />
       ) : (
-        <Thumb link={link} className="aspect-[4/3] w-full object-cover" />
+        // Mobile: natural aspect ratio. Desktop: cap height so cards stay compact.
+        <Thumb
+          link={link}
+          className="aspect-[4/3] w-full object-cover md:aspect-auto md:h-28"
+        />
       )}
-      <div className="flex flex-col gap-1 p-4">
-        <p className="font-semibold text-gray-900">
+      <div className="flex flex-col gap-1 p-3">
+        <p className="text-sm font-semibold text-gray-900">
           {link.title || getDomain(link.url)}
         </p>
         {link.description && (
-          <p className="line-clamp-2 text-sm text-gray-500">
+          <p className="line-clamp-2 text-xs text-gray-500">
             {link.description}
           </p>
         )}
@@ -303,10 +339,10 @@ const CarouselCard = ({
             target="_blank"
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
-            className="mt-1 inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700"
+            className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-gray-400 hover:text-gray-700"
           >
             {getDomain(link.url)}
-            <OpenInNewOutlined style={{ fontSize: 11 }} />
+            <OpenInNewOutlined style={{ fontSize: 10 }} />
           </a>
         )}
       </div>
@@ -318,6 +354,7 @@ const CarouselLayout = ({ links }: { links: StorefrontLinkItem[] }) => (
   <PeekCarousel
     links={links}
     cardRatio={0.76}
+    desktopCardRatio={0.52}
     renderCard={(link, isActive) => (
       <CarouselCard link={link} isActive={isActive} />
     )}
@@ -338,14 +375,14 @@ const ImageGridLayout = ({ links }: { links: StorefrontLinkItem[] }) => (
       >
         <Thumb
           link={link}
-          className="aspect-[4/3] w-full object-cover transition-transform duration-300 group-hover:scale-105"
+          className="aspect-[4/3] w-full object-cover transition-transform duration-300 group-hover:scale-105 md:aspect-auto md:h-24"
         />
-        <div className="p-3">
-          <p className="line-clamp-2 text-[13px] font-semibold text-gray-900">
+        <div className="p-2.5">
+          <p className="line-clamp-1 text-xs font-semibold text-gray-900">
             {link.title || getDomain(link.url)}
           </p>
           {link.description && (
-            <p className="mt-0.5 line-clamp-1 text-[11px] text-gray-400">
+            <p className="mt-0.5 line-clamp-1 text-[10px] text-gray-400">
               {link.description}
             </p>
           )}
@@ -368,14 +405,17 @@ const CardItem = ({
     {link.type === 'embedded' && link.platform ? (
       <EmbedFrame link={link} autoplay={isActive} fullHeight />
     ) : (
-      <Thumb link={link} className="aspect-[16/9] w-full object-cover" />
+      <Thumb
+        link={link}
+        className="aspect-[16/9] w-full object-cover md:aspect-auto md:h-32"
+      />
     )}
-    <div className="flex flex-col gap-2 p-5">
-      <h3 className="text-base font-bold text-gray-900">
+    <div className="flex flex-col gap-1.5 p-4">
+      <h3 className="text-sm font-bold text-gray-900">
         {link.title || getDomain(link.url)}
       </h3>
       {link.description && (
-        <p className="text-sm text-gray-500">{link.description}</p>
+        <p className="text-xs text-gray-500 line-clamp-2">{link.description}</p>
       )}
       {link.type === 'standard' && (
         <a
@@ -383,9 +423,9 @@ const CardItem = ({
           target="_blank"
           rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}
-          className="mt-1 inline-flex w-fit items-center gap-1.5 rounded-xl bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
+          className="mt-1 inline-flex w-fit items-center gap-1.5 rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-gray-700"
         >
-          Visit <OpenInNewOutlined style={{ fontSize: 14 }} />
+          Visit <OpenInNewOutlined style={{ fontSize: 12 }} />
         </a>
       )}
     </div>
@@ -396,6 +436,7 @@ const CardLayout = ({ links }: { links: StorefrontLinkItem[] }) => (
   <PeekCarousel
     links={links}
     cardRatio={0.82}
+    desktopCardRatio={0.62}
     renderCard={(link, isActive) => <CardItem link={link} isActive={isActive} />}
   />
 )
