@@ -82,7 +82,7 @@ function drawBrowserChrome(
   y: number,
   w: number,
   barH: number,
-  boolean,
+  dark: boolean,
 ) {
   const barBg = dark ? '#1c1c1e' : '#e8e8ed'
   const urlBg = dark ? '#2c2c2e' : '#d1d1d6'
