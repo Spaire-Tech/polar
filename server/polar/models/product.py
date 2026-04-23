@@ -94,6 +94,12 @@ class Product(TrialConfigurationMixin, MetadataMixin, RecordModel):
         nullable=True,
         default=None,
     )
+    product_type: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        default="digital",
+        server_default="digital",
+    )
     recurring_interval: Mapped[SubscriptionRecurringInterval | None] = mapped_column(
         StringEnum(SubscriptionRecurringInterval),
         nullable=True,
