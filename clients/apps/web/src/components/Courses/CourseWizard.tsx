@@ -123,7 +123,7 @@ export default function CourseWizard({
     setGenerateError(null)
 
     try {
-      const res = await fetch('/api/course-outline', {
+      const res = await fetch(`/dashboard/${organization.slug}/courses/outline`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, description, targetAudience }),
