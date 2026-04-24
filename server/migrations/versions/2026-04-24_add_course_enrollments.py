@@ -17,8 +17,16 @@ depends_on: tuple[str] | None = None
 
 
 def upgrade() -> None:
-    # Add course_access to benefittype enum
-    op.execute("ALTER TYPE benefittype ADD VALUE IF NOT EXISTS 'course_access'")
+    # Add course_access to benefittype enum only if the type already exists.
+    # On fresh environments that don't yet have the benefit system, skip this —
+    # the BenefitType.course_access StrEnum value is enough for Python-side validation.
+    op.execute("""
+        DO $$ BEGIN
+            IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'benefittype') THEN
+                ALTER TYPE benefittype ADD VALUE IF NOT EXISTS 'course_access';
+            END IF;
+        END $$;
+    """)
 
     # course_enrollments table
     op.create_table(

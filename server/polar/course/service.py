@@ -80,7 +80,10 @@ class CourseService:
                 )
             course.modules.append(module)
 
-        return await repo.create(course, flush=True)
+        course = await repo.create(course, flush=True)
+        # Refresh to avoid MissingGreenlet when selectin relationships are accessed
+        await session.refresh(course, attribute_names=["modules"])
+        return course
 
     async def update(
         self,
@@ -90,7 +93,7 @@ class CourseService:
     ) -> Course:
         repo = CourseRepository.from_session(session)
         update_dict = update_schema.model_dump(exclude_unset=True, exclude_none=True)
-        return await repo.update(course, update_dict)
+        return await repo.update(course, update_dict=update_dict)
 
     async def add_module(
         self,
@@ -120,7 +123,10 @@ class CourseService:
                 )
             )
 
-        return await module_repo.create(module, flush=True)
+        module = await module_repo.create(module, flush=True)
+        # Refresh lessons so selectin access doesn't trigger MissingGreenlet
+        await session.refresh(module, attribute_names=["lessons"])
+        return module
 
     async def update_module(
         self,
@@ -130,7 +136,7 @@ class CourseService:
     ) -> CourseModule:
         module_repo = CourseModuleRepository.from_session(session)
         update_dict = update_schema.model_dump(exclude_unset=True, exclude_none=True)
-        return await module_repo.update(module, update_dict)
+        return await module_repo.update(module, update_dict=update_dict)
 
     async def get_module_by_id(
         self, session: AsyncSession, module_id: UUID
@@ -142,8 +148,7 @@ class CourseService:
         self, session: AsyncSession, module: CourseModule
     ) -> None:
         module_repo = CourseModuleRepository.from_session(session)
-        module.set_deleted_at()
-        await module_repo.update(module, {"deleted_at": module.deleted_at})
+        await module_repo.soft_delete(module)
 
     async def add_lesson(
         self,
@@ -173,7 +178,7 @@ class CourseService:
     ) -> CourseLesson:
         lesson_repo = CourseLessonRepository.from_session(session)
         update_dict = update_schema.model_dump(exclude_unset=True, exclude_none=True)
-        return await lesson_repo.update(lesson, update_dict)
+        return await lesson_repo.update(lesson, update_dict=update_dict)
 
     async def get_lesson_by_id(
         self, session: AsyncSession, lesson_id: UUID
@@ -185,9 +190,7 @@ class CourseService:
         self, session: AsyncSession, lesson: CourseLesson
     ) -> None:
         lesson_repo = CourseLessonRepository.from_session(session)
-        lesson.set_deleted_at()
-        await lesson_repo.update(lesson, {"deleted_at": lesson.deleted_at})
-
+        await lesson_repo.soft_delete(lesson)
 
     # --- Enrollment ---
 
@@ -200,7 +203,6 @@ class CourseService:
         product_id: UUID | None = None,
     ) -> CourseEnrollment:
         repo = CourseEnrollmentRepository.from_session(session)
-        # Reuse existing active enrollment if present
         statement = repo.get_by_customer_and_course_statement(customer.id, course_id)
         existing = await repo.get_one_or_none(statement)
         if existing is not None:
