@@ -30,6 +30,7 @@ export type CourseRead = {
   id: string
   product_id: string
   organization_id: string
+  title: string | null
   course_type: string
   paywall_enabled: boolean
   paywall_lesson_id: string | null
@@ -56,6 +57,13 @@ async function courseApiFetch<T>(path: string, options?: RequestInit): Promise<T
   return res.json()
 }
 
+export const useCourseById = (courseId: string | undefined) =>
+  useQuery<CourseRead>({
+    queryKey: ['courses', { courseId }],
+    queryFn: () => courseApiFetch<CourseRead>(`/v1/courses/${courseId}`),
+    enabled: !!courseId,
+  })
+
 export const useCourseByProduct = (productId: string | undefined) =>
   useQuery<CourseRead>({
     queryKey: ['courses', { productId }],
@@ -63,11 +71,20 @@ export const useCourseByProduct = (productId: string | undefined) =>
     enabled: !!productId,
   })
 
+export const useOrganizationCourses = (organizationId: string | undefined) =>
+  useQuery<CourseRead[]>({
+    queryKey: ['courses', { organizationId }],
+    queryFn: () =>
+      courseApiFetch<CourseRead[]>(`/v1/courses/organization/${organizationId}`),
+    enabled: !!organizationId,
+  })
+
 export const useCreateCourse = () =>
   useMutation({
     mutationFn: (body: {
       product_id: string
       organization_id: string
+      title?: string | null
       course_type?: string
       ai_generated?: boolean
       modules: {
@@ -90,7 +107,7 @@ export const useUpdateCourse = () =>
       body,
     }: {
       courseId: string
-      body: { course_type?: string; paywall_enabled?: boolean }
+      body: { title?: string | null; course_type?: string; paywall_enabled?: boolean }
     }) =>
       courseApiFetch<CourseRead>(`/v1/courses/${courseId}`, {
         method: 'PATCH',
@@ -98,7 +115,7 @@ export const useUpdateCourse = () =>
       }),
     onSuccess: (data) => {
       getQueryClient().invalidateQueries({
-        queryKey: ['courses', { productId: data.product_id }],
+        queryKey: ['courses', { courseId: data.id }],
       })
     },
   })

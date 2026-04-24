@@ -62,6 +62,7 @@ class CourseModuleRead(TimestampedSchema):
 class CourseCreate(Schema):
     product_id: UUID4
     organization_id: UUID4
+    title: str | None = None
     course_type: Literal["evergreen", "cohort"] = "evergreen"
     paywall_enabled: bool = False
     paywall_lesson_id: UUID4 | None = None
@@ -70,6 +71,7 @@ class CourseCreate(Schema):
 
 
 class CourseUpdate(Schema):
+    title: str | None = None
     course_type: Literal["evergreen", "cohort"] | None = None
     paywall_enabled: bool | None = None
     paywall_lesson_id: UUID4 | None = None
@@ -79,6 +81,7 @@ class CourseRead(TimestampedSchema):
     id: UUID4
     product_id: UUID4
     organization_id: UUID4
+    title: str | None
     course_type: str
     paywall_enabled: bool
     paywall_lesson_id: UUID4 | None

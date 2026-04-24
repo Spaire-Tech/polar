@@ -45,6 +45,7 @@ class CourseService:
         course = Course(
             product_id=create_schema.product_id,
             organization_id=create_schema.organization_id,
+            title=create_schema.title,
             course_type=create_schema.course_type,
             paywall_enabled=create_schema.paywall_enabled,
             paywall_lesson_id=create_schema.paywall_lesson_id,

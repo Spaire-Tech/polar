@@ -199,7 +199,7 @@ export default function ClientPage({
                 onClick={handleCreateProduct}
               >
                 <AddOutlined className="h-4 w-4" />
-                <span>Create product</span>
+                <span>New</span>
               </Button>
             </div>
             <Pagination

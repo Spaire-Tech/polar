@@ -8,7 +8,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function Page(props: {
-  params: Promise<{ organization: string; productId: string }>
+  params: Promise<{ organization: string; courseId: string }>
 }) {
   const params = await props.params
   const api = await getServerSideAPI()
@@ -17,7 +17,7 @@ export default async function Page(props: {
   return (
     <CourseEditorWrapper
       organization={organization}
-      productId={params.productId}
+      courseId={params.courseId}
     />
   )
 }

@@ -1,17 +1,17 @@
 'use client'
 
 import CourseEditor from '@/components/Courses/CourseEditor'
-import { useCourseByProduct } from '@/hooks/queries/courses'
+import { useCourseById } from '@/hooks/queries/courses'
 import { schemas } from '@spaire/client'
 
 export default function CourseEditorWrapper({
   organization,
-  productId,
+  courseId,
 }: {
   organization: schemas['Organization']
-  productId: string
+  courseId: string
 }) {
-  const { data: course, isLoading, error } = useCourseByProduct(productId)
+  const { data: course, isLoading, error } = useCourseById(courseId)
 
   if (isLoading) {
     return (
@@ -32,7 +32,7 @@ export default function CourseEditorWrapper({
   return (
     <CourseEditor
       organization={organization}
-      productId={productId}
+      courseId={courseId}
       initialCourse={course}
     />
   )

@@ -29,6 +29,10 @@ class Course(RecordModel):
         index=True,
     )
 
+    title: Mapped[str | None] = mapped_column(
+        String(500), nullable=True, default=None
+    )
+
     course_type: Mapped[str] = mapped_column(
         String(50),
         nullable=False,

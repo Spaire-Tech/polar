@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from uuid import UUID
 
 from fastapi import Depends, HTTPException
@@ -59,6 +60,7 @@ def _course_read(course) -> CourseRead:
         id=course.id,
         product_id=course.product_id,
         organization_id=course.organization_id,
+        title=course.title,
         course_type=course.course_type,
         paywall_enabled=course.paywall_enabled,
         paywall_lesson_id=course.paywall_lesson_id,
@@ -69,12 +71,32 @@ def _course_read(course) -> CourseRead:
     )
 
 
+@router.get("/organization/{organization_id}", response_model=list[CourseRead])
+async def list_courses_by_organization(
+    organization_id: UUID,
+    session: AsyncSession = Depends(get_db_session),
+) -> list[CourseRead]:
+    courses = await course_service.list_by_organization(session, organization_id)
+    return [_course_read(c) for c in courses]
+
+
 @router.get("/product/{product_id}", response_model=CourseRead)
 async def get_course_by_product(
     product_id: UUID,
     session: AsyncSession = Depends(get_db_session),
 ) -> CourseRead:
     course = await course_service.get_by_product(session, product_id)
+    if course is None:
+        raise HTTPException(status_code=404, detail="Course not found")
+    return _course_read(course)
+
+
+@router.get("/{course_id}", response_model=CourseRead)
+async def get_course(
+    course_id: UUID,
+    session: AsyncSession = Depends(get_db_session),
+) -> CourseRead:
+    course = await course_service.get_by_id(session, course_id)
     if course is None:
         raise HTTPException(status_code=404, detail="Course not found")
     return _course_read(course)

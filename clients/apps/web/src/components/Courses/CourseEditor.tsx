@@ -10,7 +10,7 @@ import {
   useDeleteCourseModule,
   useUpdateCourseLesson,
   useUpdateCourseModule,
-  useCourseByProduct,
+  useCourseById,
 } from '@/hooks/queries/courses'
 import { getQueryClient } from '@/utils/api/query'
 import AddOutlined from '@mui/icons-material/AddOutlined'
@@ -24,7 +24,7 @@ import TextSnippetOutlined from '@mui/icons-material/TextSnippetOutlined'
 import { schemas } from '@spaire/client'
 import { cn } from '@spaire/ui/lib/utils'
 import Link from 'next/link'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { toast } from '../Toast/use-toast'
 
 type LessonEdits = {
@@ -32,7 +32,6 @@ type LessonEdits = {
   content_type: string
   textContent: string
   videoUrl: string
-  is_free_preview: boolean
 }
 
 function LessonEditor({
@@ -49,7 +48,6 @@ function LessonEditor({
     content_type: lesson.content_type,
     textContent: (lesson.content as { text?: string } | null)?.text ?? '',
     videoUrl: lesson.video_asset_id ?? '',
-    is_free_preview: lesson.is_free_preview,
   }))
 
   useEffect(() => {
@@ -58,7 +56,6 @@ function LessonEditor({
       content_type: lesson.content_type,
       textContent: (lesson.content as { text?: string } | null)?.text ?? '',
       videoUrl: lesson.video_asset_id ?? '',
-      is_free_preview: lesson.is_free_preview,
     })
   }, [lesson.id])
 
@@ -99,18 +96,6 @@ function LessonEditor({
             {ct === 'text' ? 'Text' : 'Video'}
           </button>
         ))}
-
-        <label className="ml-auto flex items-center gap-2 text-xs font-medium text-gray-500 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={edits.is_free_preview}
-            onChange={(e) =>
-              setEdits((prev) => ({ ...prev, is_free_preview: e.target.checked }))
-            }
-            className="rounded border-gray-300 text-blue-500 focus:ring-blue-500"
-          />
-          Free preview
-        </label>
       </div>
 
       {edits.content_type === 'video' ? (
@@ -155,14 +140,14 @@ function LessonEditor({
 
 export default function CourseEditor({
   organization,
-  productId,
+  courseId,
   initialCourse,
 }: {
   organization: schemas['Organization']
-  productId: string
+  courseId: string
   initialCourse: CourseRead
 }) {
-  const { data: course = initialCourse } = useCourseByProduct(productId)
+  const { data: course = initialCourse } = useCourseById(courseId)
 
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(
     initialCourse.modules[0]?.lessons[0]?.id ?? null,
@@ -181,9 +166,9 @@ export default function CourseEditor({
 
   const invalidateCourse = useCallback(() => {
     getQueryClient().invalidateQueries({
-      queryKey: ['courses', { productId }],
+      queryKey: ['courses', { courseId }],
     })
-  }, [productId])
+  }, [courseId])
 
   const selectedLesson = course.modules
     .flatMap((m) => m.lessons)
@@ -250,7 +235,6 @@ export default function CourseEditor({
           content_type: edits.content_type,
           content: edits.content_type === 'text' ? { text: edits.textContent } : null,
           video_asset_id: edits.content_type === 'video' ? edits.videoUrl || null : null,
-          is_free_preview: edits.is_free_preview,
         },
       })
       invalidateCourse()
@@ -265,22 +249,22 @@ export default function CourseEditor({
   const toggleModule = (id: string) =>
     setExpandedModules((prev) => ({ ...prev, [id]: !prev[id] }))
 
+  const courseTitle = course.title ?? initialCourse.title ?? 'Course Editor'
+
   return (
     <div className="flex h-screen flex-col">
       {/* Top bar */}
       <div className="flex items-center gap-4 border-b border-gray-200 bg-white px-6 py-3">
         <Link
-          href={`/dashboard/${organization.slug}/products`}
+          href={`/dashboard/${organization.slug}/courses`}
           className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors"
         >
           <ArrowBackOutlined fontSize="small" />
-          Products
+          Courses
         </Link>
         <span className="text-gray-300">/</span>
-        <span className="text-sm font-medium text-gray-900">
-          {initialCourse.modules.length > 0
-            ? `${initialCourse.modules.length} modules`
-            : 'No modules yet'}
+        <span className="text-sm font-medium text-gray-900 truncate max-w-xs">
+          {courseTitle}
         </span>
       </div>
 

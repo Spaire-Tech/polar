@@ -72,7 +72,7 @@ export const ProductTypeDialog = ({
   const handleSelect = (tile: TileType) => {
     if (tile.comingSoon) return
     if (tile.id === 'digital') {
-      router.push(`/dashboard/${organization.slug}/products/new`)
+      router.push(`/dashboard/${organization.slug}/products/new?type=digital`)
     } else if (tile.id === 'course') {
       router.push(`/dashboard/${organization.slug}/products/new?type=course`)
     }

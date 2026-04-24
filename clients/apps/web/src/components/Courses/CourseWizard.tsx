@@ -181,9 +181,10 @@ export default function CourseWizard({
       const product = productResult.data
 
       // Create course with outline
-      await createCourse.mutateAsync({
+      const course = await createCourse.mutateAsync({
         product_id: product.id,
         organization_id: organization.id,
+        title,
         ai_generated: true,
         modules: outline.modules.map((mod, i) => ({
           title: mod.title,
@@ -202,7 +203,7 @@ export default function CourseWizard({
         description: `"${title}" is ready to edit`,
       })
 
-      router.push(`/dashboard/${organization.slug}/courses/${product.id}`)
+      router.push(`/dashboard/${organization.slug}/courses/${course.id}`)
     } catch (err) {
       console.error('[CourseWizard] create error:', err)
       toast({

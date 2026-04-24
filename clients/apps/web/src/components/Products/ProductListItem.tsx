@@ -114,14 +114,24 @@ export const ProductListItem = ({
     !isCustomProduct &&
     (product.recurring_interval === null || product.recurring_interval === undefined)
 
+  const isCourseProduct = (product as any).product_type === 'course'
+  const itemHref = isCourseProduct
+    ? `/dashboard/${organization.slug}/courses/via-product/${product.id}`
+    : `/dashboard/${organization.slug}/products/${product.id}`
+
   return (
     <>
-      <Link href={`/dashboard/${organization.slug}/products/${product.id}`}>
+      <Link href={itemHref}>
         <ListItem className="flex flex-row items-center justify-between gap-x-6">
           <div className="flex min-w-0 grow flex-row items-center gap-x-4 text-sm">
             <ProductThumbnail product={product} />
             <div className="flex min-w-0 flex-row items-center gap-x-2">
               <span className="truncate">{product.name}</span>
+              {isCourseProduct && (
+                <Pill color="blue" className="shrink-0 px-2 py-0.5 text-xs">
+                  Course
+                </Pill>
+              )}
               {product.visibility === 'private' && (
                 <Pill color="gray" className="shrink-0 px-2 py-0.5 text-xs">
                   Private
