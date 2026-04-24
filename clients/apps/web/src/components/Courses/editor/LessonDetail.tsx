@@ -27,6 +27,7 @@ import StopOutlined from '@mui/icons-material/StopOutlined'
 import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined'
 import { cn } from '@spaire/ui/lib/utils'
 import { useEffect, useRef, useState } from 'react'
+import { useCreateMuxUpload } from '@/hooks/queries/courses'
 
 type Media = 'none' | 'video' | 'audio'
 
@@ -66,6 +67,9 @@ export function LessonDetail({
   const [edits, setEdits] = useState<LessonEdits>(() => initEdits(lesson, module))
   const [moduleSelectOpen, setModuleSelectOpen] = useState(false)
   const moduleSelectRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null)
+  const createMuxUpload = useCreateMuxUpload()
 
   useEffect(() => {
     setEdits(initEdits(lesson, module))
@@ -95,6 +99,31 @@ export function LessonDetail({
     await onGenerateAI(edits, (chunk) =>
       setEdits((prev) => ({ ...prev, textContent: prev.textContent + chunk })),
     )
+  }
+
+  const handleVideoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const { upload_url } = await createMuxUpload.mutateAsync(lesson.id)
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest()
+        xhr.upload.onprogress = (ev) => {
+          if (ev.lengthComputable)
+            setUploadProgress(Math.round((ev.loaded / ev.total) * 100))
+        }
+        xhr.onload = () => {
+          setUploadProgress(null)
+          resolve()
+        }
+        xhr.onerror = () => reject(new Error('Upload failed'))
+        xhr.open('PUT', upload_url)
+        xhr.send(file)
+      })
+    } catch {
+      setUploadProgress(null)
+    }
+    e.target.value = ''
   }
 
   return (
@@ -213,15 +242,65 @@ export function LessonDetail({
             </div>
 
             {edits.media === 'video' && (
-              <Field label="Video URL">
+              <div className="mb-5">
+                <label className="mb-2 block text-sm font-bold text-gray-900">
+                  Video
+                </label>
                 <input
-                  type="url"
-                  value={edits.videoUrl}
-                  onChange={(e) => update('videoUrl', e.target.value)}
-                  placeholder="https://..."
-                  className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-100"
+                  ref={fileInputRef}
+                  type="file"
+                  accept="video/*"
+                  className="hidden"
+                  onChange={handleVideoFileChange}
                 />
-              </Field>
+                {lesson.mux_playback_id && lesson.mux_status === 'ready' ? (
+                  <div className="flex flex-col gap-3">
+                    <div className="aspect-video overflow-hidden rounded-xl bg-black">
+                      <video
+                        controls
+                        className="h-full w-full"
+                        src={`https://stream.mux.com/${lesson.mux_playback_id}.m3u8`}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-fit rounded-full border border-gray-300 px-4 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      Replace video
+                    </button>
+                  </div>
+                ) : lesson.mux_status && lesson.mux_status !== 'errored' ? (
+                  <div className="flex items-center gap-3 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-700">
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
+                    {uploadProgress !== null
+                      ? `Uploading… ${uploadProgress}%`
+                      : 'Processing video…'}
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    {lesson.mux_status === 'errored' && (
+                      <p className="text-xs text-red-600">Upload failed — try again.</p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={createMuxUpload.isPending || uploadProgress !== null}
+                      className="flex items-center gap-2 rounded-xl border-2 border-dashed border-gray-300 px-6 py-8 text-sm font-medium text-gray-500 hover:border-gray-400 hover:text-gray-700 disabled:opacity-50 transition-colors"
+                    >
+                      <OndemandVideoOutlined fontSize="small" />
+                      {uploadProgress !== null
+                        ? `Uploading… ${uploadProgress}%`
+                        : createMuxUpload.isPending
+                        ? 'Preparing…'
+                        : 'Upload video file'}
+                    </button>
+                    <p className="text-xs text-gray-400">
+                      MP4, MOV, or WebM. Mux will transcode and deliver via HLS.
+                    </p>
+                  </div>
+                )}
+              </div>
             )}
 
             {/* Rich text editor */}

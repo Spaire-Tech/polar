@@ -28,6 +28,11 @@ class CourseLessonUpdate(Schema):
     published: bool | None = None
 
 
+class MuxUploadRead(Schema):
+    upload_id: str
+    upload_url: str
+
+
 class CourseLessonRead(TimestampedSchema):
     id: UUID4
     module_id: UUID4
@@ -39,6 +44,10 @@ class CourseLessonRead(TimestampedSchema):
     position: int
     is_free_preview: bool
     published: bool
+    mux_upload_id: str | None = None
+    mux_asset_id: str | None = None
+    mux_playback_id: str | None = None
+    mux_status: str | None = None
 
 
 class CourseModuleCreate(Schema):

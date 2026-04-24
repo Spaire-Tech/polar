@@ -12,8 +12,17 @@ export type CourseLessonRead = {
   position: number
   is_free_preview: boolean
   published: boolean
+  mux_upload_id: string | null
+  mux_asset_id: string | null
+  mux_playback_id: string | null
+  mux_status: string | null
   created_at: string
   modified_at: string | null
+}
+
+export type MuxUploadRead = {
+  upload_id: string
+  upload_url: string
 }
 
 export type CourseModuleRead = {
@@ -327,6 +336,14 @@ export const useCustomerCourse = (
         token!,
       ),
     enabled: !!token && !!courseId,
+  })
+
+export const useCreateMuxUpload = () =>
+  useMutation({
+    mutationFn: (lessonId: string) =>
+      courseApiFetch<MuxUploadRead>(`/v1/courses/lessons/${lessonId}/mux-upload`, {
+        method: 'POST',
+      }),
   })
 
 export const useMarkLessonComplete = (

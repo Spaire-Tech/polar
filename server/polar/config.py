@@ -228,6 +228,11 @@ class Settings(BaseSettings):
     STRIPE_V2_WEBHOOK_SECRET: str = ""
     STRIPE_STATEMENT_DESCRIPTOR: str = "SPAIRE"
 
+    # Mux video
+    MUX_TOKEN_ID: str = ""
+    MUX_TOKEN_SECRET: str = ""
+    MUX_WEBHOOK_SECRET: str = ""
+
     # Numeral
     NUMERAL_API_KEY: str | None = None
 

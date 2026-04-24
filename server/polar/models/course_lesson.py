@@ -49,6 +49,20 @@ class CourseLesson(RecordModel):
         Boolean, nullable=False, default=False
     )
 
+    # Mux video fields
+    mux_upload_id: Mapped[str | None] = mapped_column(
+        String(255), nullable=True, default=None, index=True
+    )
+    mux_asset_id: Mapped[str | None] = mapped_column(
+        String(255), nullable=True, default=None
+    )
+    mux_playback_id: Mapped[str | None] = mapped_column(
+        String(255), nullable=True, default=None
+    )
+    mux_status: Mapped[str | None] = mapped_column(
+        String(20), nullable=True, default=None
+    )
+
     @declared_attr
     def module(cls) -> Mapped["CourseModule"]:
         return relationship("CourseModule", lazy="raise", back_populates="lessons")
