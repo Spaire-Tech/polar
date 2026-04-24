@@ -1,9 +1,26 @@
 'use client'
 
-import { schemas } from '@spaire/client'
-import { CONFIG } from '@/utils/config'
+import { InlineModal } from '@/components/Modal/InlineModal'
+import { CreateProductPage } from '@/components/Products/CreateProductPage'
+import { StorefrontLinkItem } from '@/components/Profile/StorefrontLinks'
 import { toast } from '@/components/Toast/use-toast'
-import Switch from '@spaire/ui/components/atoms/Switch'
+import { useProducts } from '@/hooks/queries'
+import { CONFIG } from '@/utils/config'
+import AddOutlined from '@mui/icons-material/AddOutlined'
+import AddPhotoAlternateOutlined from '@mui/icons-material/AddPhotoAlternateOutlined'
+import CheckOutlined from '@mui/icons-material/CheckOutlined'
+import ChevronRightOutlined from '@mui/icons-material/ChevronRightOutlined'
+import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined'
+import DeleteOutlined from '@mui/icons-material/DeleteOutlined'
+import Facebook from '@mui/icons-material/Facebook'
+import GitHub from '@mui/icons-material/GitHub'
+import Instagram from '@mui/icons-material/Instagram'
+import LinkedIn from '@mui/icons-material/LinkedIn'
+import OpenInNewOutlined from '@mui/icons-material/OpenInNewOutlined'
+import Public from '@mui/icons-material/Public'
+import X from '@mui/icons-material/X'
+import YouTube from '@mui/icons-material/YouTube'
+import { schemas } from '@spaire/client'
 import {
   Select,
   SelectContent,
@@ -11,64 +28,121 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@spaire/ui/components/atoms/Select'
-import { StorefrontLinkItem } from '@/components/Profile/StorefrontLinks'
-import ViewStreamOutlined from '@mui/icons-material/ViewStreamOutlined'
-import ViewCarouselOutlined from '@mui/icons-material/ViewCarouselOutlined'
-import GridViewOutlined from '@mui/icons-material/GridViewOutlined'
-import WebAssetOutlined from '@mui/icons-material/WebAssetOutlined'
-import ChevronRightOutlined from '@mui/icons-material/ChevronRightOutlined'
+import Switch from '@spaire/ui/components/atoms/Switch'
 import { useCallback, useRef, useState } from 'react'
 import { FileRejection } from 'react-dropzone'
 import { useFormContext } from 'react-hook-form'
 import { twMerge } from 'tailwind-merge'
 import { FileObject, useFileUpload } from '../../FileUpload'
-import { useProducts } from '@/hooks/queries'
-import { InlineModal } from '@/components/Modal/InlineModal'
-import { CreateProductPage } from '@/components/Products/CreateProductPage'
-import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined'
-import OpenInNewOutlined from '@mui/icons-material/OpenInNewOutlined'
-import CheckOutlined from '@mui/icons-material/CheckOutlined'
-import AddOutlined from '@mui/icons-material/AddOutlined'
-import DeleteOutlined from '@mui/icons-material/DeleteOutlined'
-import Instagram from '@mui/icons-material/Instagram'
-import Facebook from '@mui/icons-material/Facebook'
-import LinkedIn from '@mui/icons-material/LinkedIn'
-import YouTube from '@mui/icons-material/YouTube'
-import GitHub from '@mui/icons-material/GitHub'
-import X from '@mui/icons-material/X'
-import Public from '@mui/icons-material/Public'
-import AddPhotoAlternateOutlined from '@mui/icons-material/AddPhotoAlternateOutlined'
 
 // TikTok SVG icon (not available in MUI)
-const TikTokIcon = ({ className, style }: { className?: string; style?: React.CSSProperties }) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={className} style={style} width="1em" height="1em">
+const TikTokIcon = ({
+  className,
+  style,
+}: {
+  className?: string
+  style?: React.CSSProperties
+}) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    className={className}
+    style={style}
+    width="1em"
+    height="1em"
+  >
     <path d="M16.6 5.82s.51.5 0 0A4.278 4.278 0 0 1 15.54 3h-3.09v12.4a2.592 2.592 0 0 1-2.59 2.5c-1.42 0-2.6-1.16-2.6-2.6 0-1.72 1.66-3.01 3.37-2.48V9.66c-3.45-.46-6.47 2.22-6.47 5.64 0 3.33 2.76 5.7 5.69 5.7 3.14 0 5.69-2.55 5.69-5.7V9.01a7.35 7.35 0 0 0 4.3 1.38V7.3s-1.88.09-3.24-1.48z" />
   </svg>
 )
 
 // Predefined options
 const SKILL_OPTIONS = [
-  '2D Design', '3D Design', '3D Modeling', '2D Animation', '3D Animation',
-  'Game Art', 'Illustration', 'Digital Art', 'Graphic Design', 'UI/UX Design',
-  'Motion Graphics', 'Video Editing', 'Photography', 'Ebook', 'Templates',
-  'Fonts', 'Icons', 'Mockups', 'Textures', 'Audio', 'Music', 'Sound Effects',
-  'Presets', 'LUTs', 'Brushes', 'Plugins', 'WordPress Themes', 'Notion Templates',
-  'Figma', 'Adobe Photoshop', 'Adobe Illustrator', 'After Effects',
-  'Blender', 'Cinema 4D', 'Unity', 'Unreal Engine',
+  '2D Design',
+  '3D Design',
+  '3D Modeling',
+  '2D Animation',
+  '3D Animation',
+  'Game Art',
+  'Illustration',
+  'Digital Art',
+  'Graphic Design',
+  'UI/UX Design',
+  'Motion Graphics',
+  'Video Editing',
+  'Photography',
+  'Ebook',
+  'Templates',
+  'Fonts',
+  'Icons',
+  'Mockups',
+  'Textures',
+  'Audio',
+  'Music',
+  'Sound Effects',
+  'Presets',
+  'LUTs',
+  'Brushes',
+  'Plugins',
+  'WordPress Themes',
+  'Notion Templates',
+  'Figma',
+  'Adobe Photoshop',
+  'Adobe Illustrator',
+  'After Effects',
+  'Blender',
+  'Cinema 4D',
+  'Unity',
+  'Unreal Engine',
 ]
 
 const LANGUAGE_OPTIONS = [
-  'English', 'French', 'Spanish', 'German', 'Portuguese', 'Italian',
-  'Dutch', 'Russian', 'Arabic', 'Chinese', 'Japanese', 'Korean',
-  'Hindi', 'Turkish', 'Polish', 'Swedish', 'Norwegian', 'Danish',
-  'Finnish', 'Greek', 'Czech', 'Romanian', 'Hungarian', 'Thai',
-  'Vietnamese', 'Indonesian', 'Malay', 'Filipino', 'Hebrew', 'Ukrainian',
+  'English',
+  'French',
+  'Spanish',
+  'German',
+  'Portuguese',
+  'Italian',
+  'Dutch',
+  'Russian',
+  'Arabic',
+  'Chinese',
+  'Japanese',
+  'Korean',
+  'Hindi',
+  'Turkish',
+  'Polish',
+  'Swedish',
+  'Norwegian',
+  'Danish',
+  'Finnish',
+  'Greek',
+  'Czech',
+  'Romanian',
+  'Hungarian',
+  'Thai',
+  'Vietnamese',
+  'Indonesian',
+  'Malay',
+  'Filipino',
+  'Hebrew',
+  'Ukrainian',
 ]
 
 const PROFILE_TITLE_OPTIONS = [
-  'Designer', '3D Artist', 'Illustrator', 'Photographer', 'Animator',
-  'Video Editor', 'Developer', 'Writer', 'Creator', 'Music Producer',
-  'Game Developer', 'UI/UX Designer', 'Graphic Designer', 'Motion Designer',
+  'Designer',
+  '3D Artist',
+  'Illustrator',
+  'Photographer',
+  'Animator',
+  'Video Editor',
+  'Developer',
+  'Writer',
+  'Creator',
+  'Music Producer',
+  'Game Developer',
+  'UI/UX Designer',
+  'Graphic Designer',
+  'Motion Designer',
 ]
 
 const SOCIAL_PLATFORMS = [
@@ -82,16 +156,21 @@ const SOCIAL_PLATFORMS = [
   { value: 'other', label: 'Website', icon: Public },
 ]
 
-
 // --- Focal point helpers ---
 export const focalPointToObjectPosition = (focal: string): string => {
   // "X% Y%" is stored directly as CSS object-position
   if (focal.includes('%')) return focal
   // Legacy named values
   const map: Record<string, string> = {
-    'top-left': 'left top', top: 'center top', 'top-right': 'right top',
-    left: 'left center', center: 'center center', right: 'right center',
-    'bottom-left': 'left bottom', bottom: 'center bottom', 'bottom-right': 'right bottom',
+    'top-left': 'left top',
+    top: 'center top',
+    'top-right': 'right top',
+    left: 'left center',
+    center: 'center center',
+    right: 'right center',
+    'bottom-left': 'left bottom',
+    bottom: 'center bottom',
+    'bottom-right': 'right bottom',
   }
   return map[focal] ?? 'center center'
 }
@@ -102,9 +181,15 @@ const parseFocalPosition = (raw: string): { x: number; y: number } => {
     return { x: parseFloat(px), y: parseFloat(py) }
   }
   const named: Record<string, { x: number; y: number }> = {
-    'top-left': { x: 0, y: 0 }, top: { x: 50, y: 0 }, 'top-right': { x: 100, y: 0 },
-    left: { x: 0, y: 50 }, center: { x: 50, y: 50 }, right: { x: 100, y: 50 },
-    'bottom-left': { x: 0, y: 100 }, bottom: { x: 50, y: 100 }, 'bottom-right': { x: 100, y: 100 },
+    'top-left': { x: 0, y: 0 },
+    top: { x: 50, y: 0 },
+    'top-right': { x: 100, y: 0 },
+    left: { x: 0, y: 50 },
+    center: { x: 50, y: 50 },
+    right: { x: 100, y: 50 },
+    'bottom-left': { x: 0, y: 100 },
+    bottom: { x: 50, y: 100 },
+    'bottom-right': { x: 100, y: 100 },
   }
   return named[raw] ?? { x: 50, y: 50 }
 }
@@ -185,7 +270,10 @@ const TagInput = ({
               key={option}
               type="button"
               onMouseDown={(e) => e.preventDefault()}
-              onClick={() => { onChange([...value, option]); setSearch('') }}
+              onClick={() => {
+                onChange([...value, option])
+                setSearch('')
+              }}
               className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
             >
               {option}
@@ -209,14 +297,18 @@ const SocialLinkRow = ({
   onUpdate: (social: SocialLink) => void
   onRemove: () => void
 }) => {
-  const currentPlatform = SOCIAL_PLATFORMS.find((p) => p.value === social.platform)
+  const currentPlatform = SOCIAL_PLATFORMS.find(
+    (p) => p.value === social.platform,
+  )
   const Icon = currentPlatform?.icon ?? Public
 
   return (
     <div className="flex flex-row items-center gap-2">
       <Select
         value={social.platform}
-        onValueChange={(v) => onUpdate({ ...social, platform: v as SocialLink['platform'] })}
+        onValueChange={(v) =>
+          onUpdate({ ...social, platform: v as SocialLink['platform'] })
+        }
       >
         <SelectTrigger className="h-10 w-[120px] shrink-0">
           <div className="flex items-center gap-x-2">
@@ -289,22 +381,36 @@ export const StorefrontEditorForm = ({
 
   const [copiedShare, setCopiedShare] = useState(false)
   const copyShareMessage = useCallback(() => {
-    navigator.clipboard.writeText(`I just launched my Spaire Space\n\nAll my work is up here now!\n${spaceUrl}`)
+    navigator.clipboard.writeText(
+      `I just launched my Spaire Space\n\nAll my work is up here now!\n${spaceUrl}`,
+    )
     setCopiedShare(true)
     setTimeout(() => setCopiedShare(false), 2000)
   }, [spaceUrl])
   const shareOnTwitter = useCallback(() => {
     const msg = 'I just launched my Spaire Space\n\nAll my work is up here now!'
-    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(msg)}&url=${encodeURIComponent(spaceUrl)}`, '_blank')
+    window.open(
+      `https://twitter.com/intent/tweet?text=${encodeURIComponent(msg)}&url=${encodeURIComponent(spaceUrl)}`,
+      '_blank',
+    )
   }, [spaceUrl])
   const shareOnLinkedIn = useCallback(() => {
-    window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(spaceUrl)}`, '_blank')
+    window.open(
+      `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(spaceUrl)}`,
+      '_blank',
+    )
   }, [spaceUrl])
 
   // Socials — read from organization, write to form
-  const socials: SocialLink[] = (watch('socials') ?? organization.socials ?? []) as SocialLink[]
+  const socials: SocialLink[] = (watch('socials') ??
+    organization.socials ??
+    []) as SocialLink[]
   const addSocial = () => {
-    setValue('socials', [...socials, { platform: 'instagram', url: '' } as SocialLink], { shouldDirty: true })
+    setValue(
+      'socials',
+      [...socials, { platform: 'instagram', url: '' } as SocialLink],
+      { shouldDirty: true },
+    )
   }
   const updateSocial = (idx: number, social: SocialLink) => {
     const updated = [...socials]
@@ -312,13 +418,18 @@ export const StorefrontEditorForm = ({
     setValue('socials', updated, { shouldDirty: true })
   }
   const removeSocial = (idx: number) => {
-    setValue('socials', socials.filter((_, i) => i !== idx), { shouldDirty: true })
+    setValue(
+      'socials',
+      socials.filter((_, i) => i !== idx),
+      { shouldDirty: true },
+    )
   }
 
   // Storefront links
-  const storefrontLinks: StorefrontLinkItem[] = ((settings as any)?.storefront_links ?? []) as StorefrontLinkItem[]
-  const linksPosition: string = (settings as any)?.links_position ?? 'after_products'
-  const linksLayout: string = (settings as any)?.links_layout ?? 'carousel'
+  const storefrontLinks: StorefrontLinkItem[] = ((settings as any)
+    ?.storefront_links ?? []) as StorefrontLinkItem[]
+  const linksPosition: string =
+    (settings as any)?.links_position ?? 'after_products'
 
   // Avatar upload
   const avatarUrl = watch('avatar_url') ?? organization.avatar_url
@@ -331,17 +442,14 @@ export const StorefrontEditorForm = ({
     [setValue],
   )
 
-  const onAvatarFilesRejected = useCallback(
-    (rejections: FileRejection[]) => {
-      if (rejections.length > 0) {
-        toast({
-          title: 'Upload failed',
-          description: rejections[0].errors[0].message,
-        })
-      }
-    },
-    [],
-  )
+  const onAvatarFilesRejected = useCallback((rejections: FileRejection[]) => {
+    if (rejections.length > 0) {
+      toast({
+        title: 'Upload failed',
+        description: rejections[0].errors[0].message,
+      })
+    }
+  }, [])
 
   const {
     getRootProps: getAvatarRootProps,
@@ -373,17 +481,14 @@ export const StorefrontEditorForm = ({
     [updateSetting],
   )
 
-  const onBannerFilesRejected = useCallback(
-    (rejections: FileRejection[]) => {
-      if (rejections.length > 0) {
-        toast({
-          title: 'Upload failed',
-          description: rejections[0].errors[0].message,
-        })
-      }
-    },
-    [],
-  )
+  const onBannerFilesRejected = useCallback((rejections: FileRejection[]) => {
+    if (rejections.length > 0) {
+      toast({
+        title: 'Upload failed',
+        description: rejections[0].errors[0].message,
+      })
+    }
+  }, [])
 
   const {
     getRootProps: getBannerRootProps,
@@ -406,7 +511,8 @@ export const StorefrontEditorForm = ({
   })
 
   // Products — for featured selection
-  const allProducts = useProducts(organization.id, { is_archived: false }).data?.items ?? []
+  const allProducts =
+    useProducts(organization.id, { is_archived: false }).data?.items ?? []
   const featuredIds: string[] = settings?.featured_product_ids ?? []
 
   const toggleProduct = (productId: string) => {
@@ -420,7 +526,10 @@ export const StorefrontEditorForm = ({
     } else if (featuredIds.includes(productId)) {
       const remaining = featuredIds.filter((id) => id !== productId)
       // If removing the last one, clear the list (show all)
-      updateSetting('featured_product_ids', remaining.length === 0 ? [] : remaining)
+      updateSetting(
+        'featured_product_ids',
+        remaining.length === 0 ? [] : remaining,
+      )
     } else {
       // Check if adding this would select all — if so, clear the list
       const updated = [...featuredIds, productId]
@@ -440,21 +549,35 @@ export const StorefrontEditorForm = ({
   const [isCoverDragging, setIsCoverDragging] = useState(false)
   const [createProductOpen, setCreateProductOpen] = useState(false)
   const coverDragRef = useRef<{
-    startX: number; startY: number; posX: number; posY: number
+    startX: number
+    startY: number
+    posX: number
+    posY: number
   } | null>(null)
 
   const startCoverDrag = (clientX: number, clientY: number) => {
     setIsCoverDragging(true)
-    coverDragRef.current = { startX: clientX, startY: clientY, posX: coverPos.x, posY: coverPos.y }
+    coverDragRef.current = {
+      startX: clientX,
+      startY: clientY,
+      posX: coverPos.x,
+      posY: coverPos.y,
+    }
   }
   const moveCoverDrag = (clientX: number, clientY: number) => {
     if (!coverDragRef.current) return
     const { startX, startY, posX, posY } = coverDragRef.current
     const newX = Math.max(0, Math.min(100, posX - (clientX - startX) * 0.5))
     const newY = Math.max(0, Math.min(100, posY - (clientY - startY) * 1.5))
-    updateSetting('header_focal_point' as any, `${newX.toFixed(1)}% ${newY.toFixed(1)}%`)
+    updateSetting(
+      'header_focal_point' as any,
+      `${newX.toFixed(1)}% ${newY.toFixed(1)}%`,
+    )
   }
-  const endCoverDrag = () => { setIsCoverDragging(false); coverDragRef.current = null }
+  const endCoverDrag = () => {
+    setIsCoverDragging(false)
+    coverDragRef.current = null
+  }
 
   return (
     <div className="flex flex-col gap-y-8 px-8 py-8">
@@ -463,8 +586,12 @@ export const StorefrontEditorForm = ({
         <div className="flex flex-col divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200">
           <div className="flex items-center justify-between px-4 py-3.5 transition-colors hover:bg-gray-50">
             <div>
-              <span className="text-sm font-medium text-gray-900">Enable Your Space</span>
-              <p className="text-xs text-gray-500">Make your storefront visible to the public.</p>
+              <span className="text-sm font-medium text-gray-900">
+                Enable Your Space
+              </span>
+              <p className="text-xs text-gray-500">
+                Make your storefront visible to the public.
+              </p>
             </div>
             <Switch
               checked={isEnabled}
@@ -476,7 +603,9 @@ export const StorefrontEditorForm = ({
           <>
             <div className="flex flex-row items-center gap-2">
               <div className="flex min-w-0 flex-1 items-center rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5">
-                <span className="truncate text-xs text-gray-600">{spaceUrl}</span>
+                <span className="truncate text-xs text-gray-600">
+                  {spaceUrl}
+                </span>
               </div>
               <button
                 type="button"
@@ -501,15 +630,29 @@ export const StorefrontEditorForm = ({
               </a>
             </div>
             <div className="flex flex-col gap-2 pt-2">
-              <span className="text-xs font-medium text-gray-500">Share your Space</span>
+              <span className="text-xs font-medium text-gray-500">
+                Share your Space
+              </span>
               <div className="flex flex-row items-center gap-2">
-                <button type="button" onClick={shareOnTwitter} className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                <button
+                  type="button"
+                  onClick={shareOnTwitter}
+                  className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                >
                   Post on X
                 </button>
-                <button type="button" onClick={shareOnLinkedIn} className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                <button
+                  type="button"
+                  onClick={shareOnLinkedIn}
+                  className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                >
                   LinkedIn
                 </button>
-                <button type="button" onClick={copyShareMessage} className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                <button
+                  type="button"
+                  onClick={copyShareMessage}
+                  className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                >
                   {copiedShare ? 'Copied!' : 'Copy message'}
                 </button>
               </div>
@@ -520,22 +663,30 @@ export const StorefrontEditorForm = ({
 
       {/* Profile Information */}
       <div className="flex flex-col gap-y-2">
-        <h3 className="text-sm font-semibold text-gray-900">Profile Information</h3>
+        <h3 className="text-sm font-semibold text-gray-900">
+          Profile Information
+        </h3>
         <div className="flex flex-col gap-y-5">
           {/* Display Name + Profile Title */}
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-y-1.5">
-              <label className="text-sm font-medium text-gray-700">Display Name</label>
+              <label className="text-sm font-medium text-gray-700">
+                Display Name
+              </label>
               <input
                 type="text"
                 value={watch('name') ?? organization.name}
-                onChange={(e) => setValue('name', e.target.value, { shouldDirty: true })}
+                onChange={(e) =>
+                  setValue('name', e.target.value, { shouldDirty: true })
+                }
                 className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-gray-300 focus:outline-none"
                 placeholder="Your display name"
               />
             </div>
             <div className="flex flex-col gap-y-1.5">
-              <label className="text-sm font-medium text-gray-700">Profile Title</label>
+              <label className="text-sm font-medium text-gray-700">
+                Profile Title
+              </label>
               <Select
                 value={settings?.profile_title ?? ''}
                 onValueChange={(v) => updateSetting('profile_title', v || null)}
@@ -557,7 +708,9 @@ export const StorefrontEditorForm = ({
           {/* Profile Photo + Cover Image */}
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-y-1.5">
-              <label className="text-sm font-medium text-gray-700">Profile Photo</label>
+              <label className="text-sm font-medium text-gray-700">
+                Profile Photo
+              </label>
               <div
                 {...getAvatarRootProps()}
                 className={twMerge(
@@ -583,24 +736,39 @@ export const StorefrontEditorForm = ({
                   </>
                 )}
               </div>
-              <span className="text-xs text-gray-400">Square image, 400x400px. Max 1MB.</span>
+              <span className="text-xs text-gray-400">
+                Square image, 400x400px. Max 1MB.
+              </span>
             </div>
             <div className="flex flex-col gap-y-1.5">
-              <label className="text-sm font-medium text-gray-700">Cover Image</label>
+              <label className="text-sm font-medium text-gray-700">
+                Cover Image
+              </label>
               {settings?.header_image_url ? (
                 <>
                   {/* Drag-to-reposition when image is set */}
                   <div
                     className={twMerge(
-                      'group relative h-[120px] select-none overflow-hidden rounded-xl',
+                      'group relative h-[120px] overflow-hidden rounded-xl select-none',
                       isCoverDragging ? 'cursor-grabbing' : 'cursor-grab',
                     )}
-                    onMouseDown={(e) => { e.preventDefault(); startCoverDrag(e.clientX, e.clientY) }}
-                    onMouseMove={(e) => isCoverDragging && moveCoverDrag(e.clientX, e.clientY)}
+                    onMouseDown={(e) => {
+                      e.preventDefault()
+                      startCoverDrag(e.clientX, e.clientY)
+                    }}
+                    onMouseMove={(e) =>
+                      isCoverDragging && moveCoverDrag(e.clientX, e.clientY)
+                    }
                     onMouseUp={endCoverDrag}
                     onMouseLeave={endCoverDrag}
-                    onTouchStart={(e) => { const t = e.touches[0]; startCoverDrag(t.clientX, t.clientY) }}
-                    onTouchMove={(e) => { const t = e.touches[0]; moveCoverDrag(t.clientX, t.clientY) }}
+                    onTouchStart={(e) => {
+                      const t = e.touches[0]
+                      startCoverDrag(t.clientX, t.clientY)
+                    }}
+                    onTouchMove={(e) => {
+                      const t = e.touches[0]
+                      moveCoverDrag(t.clientX, t.clientY)
+                    }}
                     onTouchEnd={endCoverDrag}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -608,17 +776,23 @@ export const StorefrontEditorForm = ({
                       src={settings.header_image_url}
                       alt="Cover preview"
                       className="pointer-events-none h-full w-full object-cover"
-                      style={{ objectPosition: `${coverPos.x.toFixed(1)}% ${coverPos.y.toFixed(1)}%` }}
+                      style={{
+                        objectPosition: `${coverPos.x.toFixed(1)}% ${coverPos.y.toFixed(1)}%`,
+                      }}
                       draggable={false}
                     />
                     <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/25 opacity-0 transition-opacity group-hover:opacity-100">
-                      <span className="rounded-full bg-black/50 px-3 py-1 text-xs text-white">Drag to reposition</span>
+                      <span className="rounded-full bg-black/50 px-3 py-1 text-xs text-white">
+                        Drag to reposition
+                      </span>
                     </div>
                   </div>
                   {/* Replace button */}
                   <div {...getBannerRootProps()} className="cursor-pointer">
                     <input {...getBannerInputProps()} />
-                    <span className="text-xs text-blue-500 hover:underline">Replace image</span>
+                    <span className="text-xs text-blue-500 hover:underline">
+                      Replace image
+                    </span>
                   </div>
                 </>
               ) : (
@@ -636,13 +810,17 @@ export const StorefrontEditorForm = ({
                   </span>
                 </div>
               )}
-              <span className="text-xs text-gray-400">1600 x 300 recommended. Max 10MB.</span>
+              <span className="text-xs text-gray-400">
+                1600 x 300 recommended. Max 10MB.
+              </span>
             </div>
           </div>
 
           {/* Profile Description */}
           <div className="flex flex-col gap-y-1.5">
-            <label className="text-sm font-medium text-gray-700">Profile Description</label>
+            <label className="text-sm font-medium text-gray-700">
+              Profile Description
+            </label>
             <div className="relative">
               <textarea
                 value={settings?.description ?? ''}
@@ -652,7 +830,7 @@ export const StorefrontEditorForm = ({
                 rows={3}
                 className="w-full resize-none rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-gray-300 focus:outline-none"
               />
-              <span className="absolute bottom-2 right-3 text-[11px] text-gray-400">
+              <span className="absolute right-3 bottom-2 text-[11px] text-gray-400">
                 {(settings?.description ?? '').length}/160
               </span>
             </div>
@@ -672,7 +850,9 @@ export const StorefrontEditorForm = ({
 
           {/* Languages */}
           <div className="flex flex-col gap-y-1.5">
-            <label className="text-sm font-medium text-gray-700">Languages</label>
+            <label className="text-sm font-medium text-gray-700">
+              Languages
+            </label>
             <TagInput
               value={settings?.languages ?? []}
               onChange={(tags) => updateSetting('languages', tags)}
@@ -728,58 +908,42 @@ export const StorefrontEditorForm = ({
               ? 'Add links & embeds'
               : `Manage ${storefrontLinks.length} link${storefrontLinks.length !== 1 ? 's' : ''}`}
           </span>
-          <ChevronRightOutlined style={{ fontSize: 18 }} className="text-gray-400" />
+          <ChevronRightOutlined
+            style={{ fontSize: 18 }}
+            className="text-gray-400"
+          />
         </button>
 
         {storefrontLinks.length > 0 && (
           <>
-            {/* Layout selector */}
-            <div className="flex flex-col gap-y-2">
-              <label className="text-xs font-medium text-gray-600">Layout</label>
-              <div className="grid grid-cols-4 gap-2">
-                {[
-                  { value: 'classic', label: 'Classic', Icon: ViewStreamOutlined },
-                  { value: 'carousel', label: 'Carousel', Icon: ViewCarouselOutlined },
-                  { value: 'image_grid', label: 'Grid', Icon: GridViewOutlined },
-                  { value: 'card', label: 'Card', Icon: WebAssetOutlined },
-                ].map(({ value, label, Icon }) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() =>
-                      setValue(
-                        'storefront_settings',
-                        { ...(settings ?? {}), links_layout: value } as any,
-                        { shouldDirty: true },
-                      )
-                    }
-                    className={twMerge(
-                      'flex flex-col items-center gap-1 rounded-xl border p-2.5 text-center transition-all',
-                      linksLayout === value
-                        ? 'border-gray-900 bg-gray-900 text-white'
-                        : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300',
-                    )}
-                  >
-                    <Icon style={{ fontSize: 18 }} />
-                    <span className="text-[10px] font-medium">{label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
+            {/* Layout hint — layout is now auto-chosen per link type */}
+            <p className="text-xs text-gray-400">
+              URL links render as a clean list. Embeds render as full-width
+              cards.
+            </p>
 
             {/* Position toggle */}
             <div className="flex flex-col divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200">
               <div className="flex items-center justify-between px-4 py-3.5">
                 <div>
-                  <span className="text-sm text-gray-700">Show before products</span>
-                  <p className="text-xs text-gray-400">Off = show after products</p>
+                  <span className="text-sm text-gray-700">
+                    Show before products
+                  </span>
+                  <p className="text-xs text-gray-400">
+                    Off = show after products
+                  </p>
                 </div>
                 <Switch
                   checked={linksPosition === 'before_products'}
                   onCheckedChange={(v) =>
                     setValue(
                       'storefront_settings',
-                      { ...(settings ?? {}), links_position: v ? 'before_products' : 'after_products' } as any,
+                      {
+                        ...(settings ?? {}),
+                        links_position: v
+                          ? 'before_products'
+                          : 'after_products',
+                      } as any,
                       { shouldDirty: true },
                     )
                   }
@@ -792,8 +956,12 @@ export const StorefrontEditorForm = ({
 
       {/* Products to Display */}
       <div className="flex flex-col gap-y-2">
-        <h3 className="text-sm font-semibold text-gray-900">Products to Display</h3>
-        <p className="text-xs text-gray-500">Select which products appear on your storefront.</p>
+        <h3 className="text-sm font-semibold text-gray-900">
+          Products to Display
+        </h3>
+        <p className="text-xs text-gray-500">
+          Select which products appear on your storefront.
+        </p>
         {allProducts.length > 0 ? (
           <div className="flex flex-col divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200">
             {allProducts.map((product) => (
@@ -803,7 +971,9 @@ export const StorefrontEditorForm = ({
               >
                 <input
                   type="checkbox"
-                  checked={featuredIds.length === 0 || featuredIds.includes(product.id)}
+                  checked={
+                    featuredIds.length === 0 || featuredIds.includes(product.id)
+                  }
                   onChange={() => toggleProduct(product.id)}
                   className="h-4 w-4 rounded border-gray-300 text-blue-600 accent-blue-600 focus:ring-blue-500"
                 />
@@ -817,12 +987,19 @@ export const StorefrontEditorForm = ({
                     />
                   )}
                   <div className="min-w-0">
-                    <span className="block truncate text-sm font-medium text-gray-900">{product.name}</span>
-                    {product.prices?.[0] && 'price_amount' in product.prices[0] && (
-                      <span className="text-xs text-gray-500">
-                        ${((product.prices[0] as { price_amount: number }).price_amount / 100).toFixed(2)}
-                      </span>
-                    )}
+                    <span className="block truncate text-sm font-medium text-gray-900">
+                      {product.name}
+                    </span>
+                    {product.prices?.[0] &&
+                      'price_amount' in product.prices[0] && (
+                        <span className="text-xs text-gray-500">
+                          $
+                          {(
+                            (product.prices[0] as { price_amount: number })
+                              .price_amount / 100
+                          ).toFixed(2)}
+                        </span>
+                      )}
                   </div>
                 </div>
               </label>
@@ -835,7 +1012,9 @@ export const StorefrontEditorForm = ({
           className="flex flex-row items-center gap-x-2 rounded-xl border border-dashed border-gray-300 px-4 py-2.5 text-sm text-gray-500 transition-colors hover:border-gray-400 hover:text-gray-700"
         >
           <AddOutlined style={{ fontSize: 18 }} />
-          {allProducts.length > 0 ? 'Create another product' : 'Create your first product'}
+          {allProducts.length > 0
+            ? 'Create another product'
+            : 'Create your first product'}
         </button>
       </div>
       <InlineModal
@@ -857,15 +1036,37 @@ export const StorefrontEditorForm = ({
 
       {/* Display Settings — always visible, not collapsible */}
       <div className="flex flex-col gap-y-2">
-        <h3 className="text-sm font-semibold text-gray-900">Display Settings</h3>
+        <h3 className="text-sm font-semibold text-gray-900">
+          Display Settings
+        </h3>
         <div className="flex flex-col divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200">
           {[
-            { key: 'show_header' as const, label: 'Show cover image', def: true },
-            { key: 'show_logo' as const, label: 'Show profile photo', def: true },
+            {
+              key: 'show_header' as const,
+              label: 'Show cover image',
+              def: true,
+            },
+            {
+              key: 'show_logo' as const,
+              label: 'Show profile photo',
+              def: true,
+            },
             { key: 'show_name' as const, label: 'Show name', def: true },
-            { key: 'show_description' as const, label: 'Show description', def: true },
-            { key: 'show_product_details' as const, label: 'Show product details', def: true },
-            { key: 'available_for_work' as const, label: 'Available for work', def: false },
+            {
+              key: 'show_description' as const,
+              label: 'Show description',
+              def: true,
+            },
+            {
+              key: 'show_product_details' as const,
+              label: 'Show product details',
+              def: true,
+            },
+            {
+              key: 'available_for_work' as const,
+              label: 'Available for work',
+              def: false,
+            },
           ].map(({ key, label, def }) => (
             <div
               key={key}
@@ -879,9 +1080,13 @@ export const StorefrontEditorForm = ({
             </div>
           ))}
           <div className="flex items-center justify-between px-4 py-3.5 transition-colors hover:bg-gray-50">
-            <span className="text-sm text-gray-700">Show product images in card</span>
+            <span className="text-sm text-gray-700">
+              Show product images in card
+            </span>
             <Switch
-              checked={((settings as any)?.show_card_products ?? true) as boolean}
+              checked={
+                ((settings as any)?.show_card_products ?? true) as boolean
+              }
               onCheckedChange={(v) =>
                 setValue(
                   'storefront_settings',
@@ -896,7 +1101,10 @@ export const StorefrontEditorForm = ({
             <Select
               value={settings?.thumbnail_size ?? 'medium'}
               onValueChange={(v) =>
-                updateSetting('thumbnail_size', v as 'small' | 'medium' | 'large')
+                updateSetting(
+                  'thumbnail_size',
+                  v as 'small' | 'medium' | 'large',
+                )
               }
             >
               <SelectTrigger className="w-[100px]">
@@ -918,8 +1126,12 @@ export const StorefrontEditorForm = ({
         <div className="flex flex-col divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200">
           <div className="flex items-center justify-between px-4 py-3.5 transition-colors hover:bg-gray-50">
             <div>
-              <span className="text-sm font-medium text-gray-900">Enable Reviews</span>
-              <p className="text-xs text-gray-500">Allow customers to leave reviews on your products.</p>
+              <span className="text-sm font-medium text-gray-900">
+                Enable Reviews
+              </span>
+              <p className="text-xs text-gray-500">
+                Allow customers to leave reviews on your products.
+              </p>
             </div>
             <Switch
               checked={(settings as any)?.enable_reviews ?? false}

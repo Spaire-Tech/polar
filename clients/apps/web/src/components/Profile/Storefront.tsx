@@ -1,11 +1,11 @@
 'use client'
 
 import { ProductCard } from '@/components/Products/ProductCard'
-import { StorefrontLinks, StorefrontLinkItem } from './StorefrontLinks'
 import HiveOutlined from '@mui/icons-material/HiveOutlined'
 import { schemas } from '@spaire/client'
 import Link from 'next/link'
 import { useMemo } from 'react'
+import { StorefrontLinkItem, StorefrontLinks } from './StorefrontLinks'
 
 const CATEGORY_LABELS: Record<string, string> = {
   ebook: 'eBooks',
@@ -56,18 +56,15 @@ export const Storefront = ({
 
   const storefrontLinks: StorefrontLinkItem[] =
     'storefront_settings' in organization
-      ? (((organization.storefront_settings as any)?.storefront_links ?? []) as StorefrontLinkItem[])
+      ? (((organization.storefront_settings as any)?.storefront_links ??
+          []) as StorefrontLinkItem[])
       : []
 
   const linksPosition: 'before_products' | 'after_products' =
     'storefront_settings' in organization
-      ? (((organization.storefront_settings as any)?.links_position ?? 'after_products') as 'before_products' | 'after_products')
+      ? (((organization.storefront_settings as any)?.links_position ??
+          'after_products') as 'before_products' | 'after_products')
       : 'after_products'
-
-  const linksLayout =
-    'storefront_settings' in organization
-      ? (((organization.storefront_settings as any)?.links_layout ?? 'carousel') as 'classic' | 'carousel' | 'image_grid' | 'card')
-      : 'carousel'
 
   // Products scoped by featuredIds (creator curation)
   const scopedProducts = useMemo(() => {
@@ -127,7 +124,7 @@ export const Storefront = ({
   return (
     <div className="flex w-full flex-col gap-12">
       {storefrontLinks.length > 0 && linksPosition === 'before_products' && (
-        <StorefrontLinks links={storefrontLinks} layout={linksLayout} />
+        <StorefrontLinks links={storefrontLinks} />
       )}
 
       <h2 className="text-lg font-semibold text-gray-900 md:hidden">
@@ -141,10 +138,10 @@ export const Storefront = ({
           className="flex scroll-mt-24 flex-col gap-6"
         >
           <div className="inline-flex items-center gap-2 self-start rounded-full border border-white/60 bg-white/40 px-3.5 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_2px_rgba(0,0,0,0.04)] backdrop-blur-xl">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-700">
+            <span className="text-[11px] font-semibold tracking-[0.14em] text-gray-700 uppercase">
               {section.label}
             </span>
-            <span className="text-[11px] font-medium tabular-nums text-gray-400">
+            <span className="text-[11px] font-medium text-gray-400 tabular-nums">
               {section.items.length}
             </span>
           </div>
@@ -166,21 +163,25 @@ export const Storefront = ({
       ))}
 
       {storefrontLinks.length > 0 && linksPosition === 'after_products' && (
-        <StorefrontLinks links={storefrontLinks} layout={linksLayout} />
+        <StorefrontLinks links={storefrontLinks} />
       )}
 
       {/* Reviews section — shown when enabled */}
       {enableReviews && (
         <section className="flex flex-col gap-6">
           <div className="inline-flex items-center gap-2 self-start rounded-full border border-white/60 bg-white/40 px-3.5 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_2px_rgba(0,0,0,0.04)] backdrop-blur-xl">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-700">
+            <span className="text-[11px] font-semibold tracking-[0.14em] text-gray-700 uppercase">
               Reviews
             </span>
           </div>
           <div className="flex flex-col items-center justify-center rounded-2xl border border-gray-100 bg-white/60 py-10 text-center">
             <span className="text-2xl">★★★★★</span>
-            <p className="mt-3 text-sm font-medium text-gray-700">Reviews from your customers will appear here</p>
-            <p className="mt-1 text-xs text-gray-400">Share your products to start collecting reviews</p>
+            <p className="mt-3 text-sm font-medium text-gray-700">
+              Reviews from your customers will appear here
+            </p>
+            <p className="mt-1 text-xs text-gray-400">
+              Share your products to start collecting reviews
+            </p>
           </div>
         </section>
       )}
