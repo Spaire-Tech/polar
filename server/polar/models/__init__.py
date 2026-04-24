@@ -64,6 +64,7 @@ from .course_enrollment import CourseEnrollment
 from .course_lesson import CourseLesson
 from .course_lesson_progress import CourseLessonProgress
 from .course_module import CourseModule
+from .lesson_comment import LessonComment
 from .product import Product, ProductVisibility
 from .product_benefit import ProductBenefit
 from .product_custom_field import ProductCustomField
