@@ -2,6 +2,7 @@
 
 import { useCreateCourse } from '@/hooks/queries/courses'
 import { useCreateProduct } from '@/hooks/queries/products'
+import { experimental_useObject as useObject } from '@ai-sdk/react'
 import AutoStoriesOutlined from '@mui/icons-material/AutoStoriesOutlined'
 import AutorenewOutlined from '@mui/icons-material/AutorenewOutlined'
 import CheckCircleOutlined from '@mui/icons-material/CheckCircleOutlined'
@@ -14,84 +15,108 @@ import { cn } from '@spaire/ui/lib/utils'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { toast } from '../Toast/use-toast'
+import { outlineSchema } from './schemas'
 
 type PriceOption = 'free' | 'onetime' | 'monthly'
 
-type OutlineModule = {
-  title: string
+type PartialModule = {
+  title?: string
   description?: string
-  lessons: { title: string; content_type: 'text' | 'video' }[]
+  lessons?: { title?: string; content_type?: 'text' | 'video' }[]
 }
 
-type Outline = {
-  modules: OutlineModule[]
+type PartialOutline = {
+  modules?: PartialModule[]
 }
 
-function LoadingDots() {
-  return (
-    <span className="inline-flex gap-1">
-      {[0, 1, 2].map((i) => (
-        <span
-          key={i}
-          className="h-2 w-2 animate-pulse rounded-full bg-blue-500"
-          style={{ animationDelay: `${i * 150}ms` }}
-        />
-      ))}
-    </span>
-  )
-}
-
-function OutlinePreview({ outline }: { outline: Outline }) {
+function StreamingOutline({
+  outline,
+  isStreaming,
+}: {
+  outline: PartialOutline
+  isStreaming: boolean
+}) {
   const [expanded, setExpanded] = useState<Record<number, boolean>>({})
 
   const toggle = (i: number) =>
     setExpanded((prev) => ({ ...prev, [i]: !prev[i] }))
 
+  const modules = outline.modules ?? []
+
   return (
     <div className="flex flex-col gap-2">
-      {outline.modules.map((mod, i) => (
-        <div key={i} className="rounded-xl border border-gray-200 bg-white overflow-hidden">
-          <button
-            onClick={() => toggle(i)}
-            className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+      {modules.map((mod, i) => {
+        const lessons = mod.lessons ?? []
+        const isLastModule = i === modules.length - 1
+        return (
+          <div
+            key={i}
+            className={cn(
+              'rounded-xl border bg-white overflow-hidden transition-colors',
+              isStreaming && isLastModule
+                ? 'border-blue-300 shadow-sm'
+                : 'border-gray-200',
+            )}
           >
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-700 shrink-0">
-              {i + 1}
-            </span>
-            <span className="flex-1 font-medium text-gray-900 text-sm">{mod.title}</span>
-            <span className="text-xs text-gray-400 shrink-0">
-              {mod.lessons.length} lesson{mod.lessons.length !== 1 ? 's' : ''}
-            </span>
-            <ExpandMoreOutlined
-              className={cn(
-                'text-gray-400 transition-transform shrink-0',
-                expanded[i] && 'rotate-180',
-              )}
-              fontSize="small"
-            />
-          </button>
-          {expanded[i] && (
-            <div className="border-t border-gray-100 divide-y divide-gray-100">
-              {mod.lessons.map((lesson, j) => (
-                <div key={j} className="flex items-center gap-3 px-4 py-2.5 pl-14">
-                  {lesson.content_type === 'video' ? (
-                    <OndemandVideoOutlined
-                      fontSize="small"
-                      className="text-purple-500 shrink-0"
-                    />
-                  ) : (
-                    <TextSnippetOutlined
-                      fontSize="small"
-                      className="text-blue-400 shrink-0"
-                    />
-                  )}
-                  <span className="text-sm text-gray-700">{lesson.title}</span>
-                </div>
-              ))}
-            </div>
-          )}
+            <button
+              onClick={() => toggle(i)}
+              className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+            >
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-700 shrink-0">
+                {i + 1}
+              </span>
+              <span className="flex-1 font-medium text-gray-900 text-sm">
+                {mod.title || (
+                  <span className="inline-block h-4 w-48 animate-pulse rounded bg-gray-100" />
+                )}
+              </span>
+              <span className="text-xs text-gray-400 shrink-0">
+                {lessons.length} lesson{lessons.length !== 1 ? 's' : ''}
+              </span>
+              <ExpandMoreOutlined
+                className={cn(
+                  'text-gray-400 transition-transform shrink-0',
+                  expanded[i] && 'rotate-180',
+                )}
+                fontSize="small"
+              />
+            </button>
+            {expanded[i] && lessons.length > 0 && (
+              <div className="border-t border-gray-100 divide-y divide-gray-100">
+                {lessons.map((lesson, j) => (
+                  <div
+                    key={j}
+                    className="flex items-center gap-3 px-4 py-2.5 pl-14"
+                  >
+                    {lesson.content_type === 'video' ? (
+                      <OndemandVideoOutlined
+                        fontSize="small"
+                        className="text-purple-500 shrink-0"
+                      />
+                    ) : (
+                      <TextSnippetOutlined
+                        fontSize="small"
+                        className="text-blue-400 shrink-0"
+                      />
+                    )}
+                    <span className="text-sm text-gray-700">
+                      {lesson.title || (
+                        <span className="inline-block h-3 w-40 animate-pulse rounded bg-gray-100" />
+                      )}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      })}
+      {isStreaming && (
+        <div className="flex items-center gap-2 px-4 py-3 text-xs text-gray-400">
+          <span className="flex h-2 w-2 animate-pulse rounded-full bg-blue-500" />
+          Writing{modules.length > 0 ? ` module ${modules.length + 1}` : ''}…
         </div>
-      ))}
+      )}
     </div>
   )
 }
@@ -112,34 +137,43 @@ export default function CourseWizard({
   const [priceOption, setPriceOption] = useState<PriceOption>('free')
   const [priceAmount, setPriceAmount] = useState('')
 
-  // Step 2 outline
-  const [step, setStep] = useState<'form' | 'generating' | 'outline' | 'creating'>('form')
-  const [outline, setOutline] = useState<Outline | null>(null)
+  // Wizard state
+  const [step, setStep] = useState<
+    'form' | 'generating' | 'outline' | 'creating'
+  >('form')
   const [generateError, setGenerateError] = useState<string | null>(null)
 
-  const generateOutline = async () => {
-    if (!title.trim()) return
-    setStep('generating')
-    setGenerateError(null)
-
-    try {
-      const res = await fetch(`/dashboard/${organization.slug}/courses/outline`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, description, targetAudience }),
-      })
-      if (!res.ok) throw new Error('Generation failed')
-      const data = await res.json()
-      setOutline(data)
-      setStep('outline')
-    } catch {
+  const {
+    object: partialOutline,
+    submit: submitOutline,
+    isLoading: isOutlineStreaming,
+    error: outlineError,
+    stop: stopOutline,
+  } = useObject({
+    api: `/dashboard/${organization.slug}/courses/outline`,
+    schema: outlineSchema,
+    onFinish: () => setStep('outline'),
+    onError: () => {
       setGenerateError('Failed to generate outline. Please try again.')
       setStep('form')
-    }
+    },
+  })
+
+  const generateOutline = () => {
+    if (!title.trim()) return
+    setGenerateError(null)
+    setStep('generating')
+    submitOutline({ title, description, targetAudience })
+  }
+
+  const regenerateOutline = () => {
+    stopOutline()
+    setStep('form')
   }
 
   const createCourseWithProduct = async () => {
-    if (!outline) return
+    const outline = partialOutline
+    if (!outline?.modules?.length) return
     setStep('creating')
 
     try {
@@ -156,14 +190,26 @@ export default function CourseWizard({
         priceOption === 'monthly'
           ? {
               ...baseProductFields,
-              prices: [{ amount_type: 'fixed', price_currency: 'usd', price_amount: priceAmountCents }],
+              prices: [
+                {
+                  amount_type: 'fixed',
+                  price_currency: 'usd',
+                  price_amount: priceAmountCents,
+                },
+              ],
               recurring_interval: 'month',
               recurring_interval_count: 1,
             }
           : priceOption === 'onetime'
             ? {
                 ...baseProductFields,
-                prices: [{ amount_type: 'fixed', price_currency: 'usd', price_amount: priceAmountCents }],
+                prices: [
+                  {
+                    amount_type: 'fixed',
+                    price_currency: 'usd',
+                    price_amount: priceAmountCents,
+                  },
+                ],
                 recurring_interval: null,
               }
             : {
@@ -180,22 +226,30 @@ export default function CourseWizard({
 
       const product = productResult.data
 
-      // Create course with outline
       const course = await createCourse.mutateAsync({
         product_id: product.id,
         organization_id: organization.id,
         title,
         ai_generated: true,
-        modules: outline.modules.map((mod, i) => ({
-          title: mod.title,
-          description: mod.description ?? null,
-          position: i,
-          lessons: mod.lessons.map((lesson, j) => ({
-            title: lesson.title,
-            content_type: lesson.content_type,
-            position: j,
+        modules: outline.modules
+          .filter((m): m is { title: string; description?: string; lessons?: { title?: string; content_type?: 'text' | 'video' }[] } =>
+            Boolean(m?.title),
+          )
+          .map((mod, i) => ({
+            title: mod.title!,
+            description: mod.description ?? null,
+            position: i,
+            lessons: (mod.lessons ?? [])
+              .filter(
+                (l): l is { title: string; content_type: 'text' | 'video' } =>
+                  Boolean(l?.title && l?.content_type),
+              )
+              .map((lesson, j) => ({
+                title: lesson.title,
+                content_type: lesson.content_type,
+                position: j,
+              })),
           })),
-        })),
       })
 
       toast({
@@ -214,17 +268,53 @@ export default function CourseWizard({
     }
   }
 
-  if (step === 'generating') {
+  const modulesCount = partialOutline?.modules?.length ?? 0
+  const lessonsCount =
+    partialOutline?.modules?.reduce(
+      (acc, m) => acc + (m?.lessons?.length ?? 0),
+      0,
+    ) ?? 0
+
+  if (step === 'generating' || step === 'outline') {
+    const ready = step === 'outline'
     return (
-      <div className="flex flex-col items-center justify-center gap-6 py-24">
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50">
-          <AutoStoriesOutlined className="text-blue-500" sx={{ fontSize: 32 }} />
+      <div className="mx-auto max-w-2xl px-4 py-10">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
+          <p className="mt-1 text-sm text-gray-500">
+            {modulesCount} modules · {lessonsCount} lessons
+            {!ready && isOutlineStreaming && ' · generating…'}
+          </p>
         </div>
-        <div className="text-center">
-          <p className="text-lg font-semibold text-gray-900">Designing your course</p>
-          <p className="mt-1 text-sm text-gray-500">Claude is building your curriculum…</p>
-        </div>
-        <LoadingDots />
+
+        {outlineError && (
+          <div className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
+            Something went wrong. Please try again.
+          </div>
+        )}
+
+        <StreamingOutline
+          outline={(partialOutline as PartialOutline) ?? { modules: [] }}
+          isStreaming={!ready}
+        />
+
+        {ready && (
+          <div className="mt-8 flex items-center justify-between gap-3">
+            <button
+              onClick={regenerateOutline}
+              className="flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+            >
+              <AutorenewOutlined fontSize="small" />
+              Regenerate
+            </button>
+            <button
+              onClick={createCourseWithProduct}
+              className="flex items-center gap-2 rounded-xl bg-blue-500 px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue-600 transition-colors"
+            >
+              Create Course
+            </button>
+          </div>
+        )}
       </div>
     )
   }
@@ -233,47 +323,16 @@ export default function CourseWizard({
     return (
       <div className="flex flex-col items-center justify-center gap-6 py-24">
         <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-green-50">
-          <CheckCircleOutlined className="text-green-500" sx={{ fontSize: 32 }} />
+          <CheckCircleOutlined
+            className="text-green-500"
+            sx={{ fontSize: 32 }}
+          />
         </div>
         <div className="text-center">
-          <p className="text-lg font-semibold text-gray-900">Creating your course</p>
-          <p className="mt-1 text-sm text-gray-500">Setting everything up…</p>
-        </div>
-        <LoadingDots />
-      </div>
-    )
-  }
-
-  if (step === 'outline' && outline) {
-    return (
-      <div className="mx-auto max-w-2xl px-4 py-10">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            {outline.modules.length} modules ·{' '}
-            {outline.modules.reduce((acc, m) => acc + m.lessons.length, 0)} lessons
+          <p className="text-lg font-semibold text-gray-900">
+            Creating your course
           </p>
-        </div>
-
-        <OutlinePreview outline={outline} />
-
-        <div className="mt-8 flex items-center justify-between gap-3">
-          <button
-            onClick={() => {
-              setStep('form')
-              setOutline(null)
-            }}
-            className="flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
-          >
-            <AutorenewOutlined fontSize="small" />
-            Regenerate
-          </button>
-          <button
-            onClick={createCourseWithProduct}
-            className="flex items-center gap-2 rounded-xl bg-blue-500 px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue-600 transition-colors"
-          >
-            Create Course
-          </button>
+          <p className="mt-1 text-sm text-gray-500">Setting everything up…</p>
         </div>
       </div>
     )
@@ -341,7 +400,9 @@ export default function CourseWizard({
         </div>
 
         <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700">Pricing</label>
+          <label className="mb-2 block text-sm font-medium text-gray-700">
+            Pricing
+          </label>
           <div className="flex gap-2">
             {(['free', 'onetime', 'monthly'] as const).map((opt) => (
               <button

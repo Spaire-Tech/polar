@@ -1,26 +1,9 @@
 'use server'
 
+import { outlineSchema } from '@/components/Courses/schemas'
 import { getAuthenticatedUser } from '@/utils/user'
 import { anthropic } from '@ai-sdk/anthropic'
-import { generateObject } from 'ai'
-import { z } from 'zod'
-
-const outlineSchema = z.object({
-  modules: z.array(
-    z.object({
-      title: z.string(),
-      description: z.string().optional(),
-      lessons: z.array(
-        z.object({
-          title: z.string(),
-          content_type: z.enum(['text', 'video']),
-        }),
-      ),
-    }),
-  ),
-})
-
-export type CourseOutline = z.infer<typeof outlineSchema>
+import { streamObject } from 'ai'
 
 const systemPrompt = `You are an expert instructional designer. Create well-structured, comprehensive course outlines.
 Guidelines:
@@ -43,21 +26,13 @@ export async function POST(req: Request) {
     return new Response('Title is required', { status: 400 })
   }
 
-  try {
-    const { object } = await generateObject({
-      model: anthropic('claude-opus-4-7'),
-      schema: outlineSchema,
-      system: systemPrompt,
-      prompt: `Create a course outline for:
+  const result = streamObject({
+    model: anthropic('claude-opus-4-7'),
+    schema: outlineSchema,
+    system: systemPrompt,
+    prompt: `Create a course outline for:
 Title: ${title}${description ? `\nDescription: ${description}` : ''}${targetAudience ? `\nTarget Audience: ${targetAudience}` : ''}`,
-    })
+  })
 
-    return Response.json(object)
-  } catch (err) {
-    console.error('[course-outline] generation error:', err)
-    return new Response(JSON.stringify({ error: 'Failed to generate outline' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    })
-  }
+  return result.toTextStreamResponse()
 }
