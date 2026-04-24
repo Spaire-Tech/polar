@@ -204,3 +204,93 @@ export const useDeleteCourseLesson = () =>
     mutationFn: (lessonId: string) =>
       courseApiFetch<void>(`/v1/courses/lessons/${lessonId}`, { method: 'DELETE' }),
   })
+
+// --- Customer portal (learner side) ---
+
+export type CustomerCourseEnrollment = {
+  enrollment_id: string
+  enrolled_at: string
+  course: {
+    id: string
+    title: string | null
+    course_type: string
+    module_count: number
+    lesson_count: number
+  }
+}
+
+export type CustomerLessonRead = {
+  id: string
+  title: string
+  content_type: string
+  content: { text?: string } | null
+  position: number
+  duration_seconds: number | null
+  is_free_preview: boolean
+}
+
+export type CustomerModuleRead = {
+  id: string
+  title: string
+  description: string | null
+  position: number
+  lessons: CustomerLessonRead[]
+}
+
+export type CustomerCourseDetail = {
+  enrollment_id: string
+  enrolled_at: string
+  course: {
+    id: string
+    title: string | null
+    course_type: string
+    paywall_enabled: boolean
+    paywall_lesson_id: string | null
+    modules: CustomerModuleRead[]
+  }
+}
+
+async function portalApiFetch<T>(
+  path: string,
+  token: string,
+  options?: RequestInit,
+): Promise<T> {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+      ...(options?.headers ?? {}),
+    },
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`API ${res.status}: ${text}`)
+  }
+  return res.json()
+}
+
+export const useCustomerCourses = (token: string | null | undefined) =>
+  useQuery<CustomerCourseEnrollment[]>({
+    queryKey: ['customer-courses', token],
+    queryFn: () =>
+      portalApiFetch<CustomerCourseEnrollment[]>(
+        '/v1/customer-portal/courses/',
+        token!,
+      ),
+    enabled: !!token,
+  })
+
+export const useCustomerCourse = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+) =>
+  useQuery<CustomerCourseDetail>({
+    queryKey: ['customer-courses', token, courseId],
+    queryFn: () =>
+      portalApiFetch<CustomerCourseDetail>(
+        `/v1/customer-portal/courses/${courseId}`,
+        token!,
+      ),
+    enabled: !!token && !!courseId,
+  })

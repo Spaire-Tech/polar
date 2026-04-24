@@ -1,9 +1,11 @@
+from collections.abc import Sequence
 from uuid import UUID
 
 from sqlalchemy import select
 
-from polar.kit.repository import RepositoryBase
+from polar.kit.repository import RepositoryBase, RepositorySoftDeletionMixin
 from polar.models.course import Course
+from polar.models.course_enrollment import CourseEnrollment
 from polar.models.course_lesson import CourseLesson
 from polar.models.course_module import CourseModule
 
@@ -32,3 +34,23 @@ class CourseLessonRepository(RepositoryBase[CourseLesson]):
 
     def get_by_module_statement(self, module_id: UUID):
         return self.get_base_statement().where(CourseLesson.module_id == module_id)
+
+
+class CourseEnrollmentRepository(
+    RepositorySoftDeletionMixin[CourseEnrollment],
+    RepositoryBase[CourseEnrollment],
+):
+    model = CourseEnrollment
+
+    def get_by_customer_statement(self, customer_id: UUID):
+        return self.get_base_statement().where(
+            CourseEnrollment.customer_id == customer_id
+        )
+
+    def get_by_customer_and_course_statement(
+        self, customer_id: UUID, course_id: UUID
+    ):
+        return self.get_base_statement().where(
+            CourseEnrollment.customer_id == customer_id,
+            CourseEnrollment.course_id == course_id,
+        )

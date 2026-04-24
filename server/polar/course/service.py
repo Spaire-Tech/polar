@@ -1,13 +1,21 @@
 from collections.abc import Sequence
+from datetime import datetime, timezone
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from polar.models.course import Course
+from polar.models.course_enrollment import CourseEnrollment
 from polar.models.course_lesson import CourseLesson
 from polar.models.course_module import CourseModule
+from polar.models.customer import Customer
 
-from .repository import CourseLessonRepository, CourseModuleRepository, CourseRepository
+from .repository import (
+    CourseLessonRepository,
+    CourseEnrollmentRepository,
+    CourseModuleRepository,
+    CourseRepository,
+)
 from .schemas import (
     CourseCreate,
     CourseLessonCreate,
@@ -179,6 +187,61 @@ class CourseService:
         lesson_repo = CourseLessonRepository.from_session(session)
         lesson.set_deleted_at()
         await lesson_repo.update(lesson, {"deleted_at": lesson.deleted_at})
+
+
+    # --- Enrollment ---
+
+    async def enroll_customer(
+        self,
+        session: AsyncSession,
+        *,
+        course_id: UUID,
+        customer: Customer,
+        product_id: UUID | None = None,
+    ) -> CourseEnrollment:
+        repo = CourseEnrollmentRepository.from_session(session)
+        # Reuse existing active enrollment if present
+        statement = repo.get_by_customer_and_course_statement(customer.id, course_id)
+        existing = await repo.get_one_or_none(statement)
+        if existing is not None:
+            return existing
+
+        enrollment = CourseEnrollment(
+            customer_id=customer.id,
+            course_id=course_id,
+            product_id=product_id,
+            enrolled_at=datetime.now(tz=timezone.utc),
+        )
+        return await repo.create(enrollment, flush=True)
+
+    async def revoke_enrollment(
+        self,
+        session: AsyncSession,
+        enrollment_id: UUID,
+    ) -> None:
+        repo = CourseEnrollmentRepository.from_session(session)
+        enrollment = await repo.get_by_id(enrollment_id)
+        if enrollment is not None:
+            await repo.soft_delete(enrollment)
+
+    async def list_enrollments_for_customer(
+        self,
+        session: AsyncSession,
+        customer_id: UUID,
+    ) -> Sequence[CourseEnrollment]:
+        repo = CourseEnrollmentRepository.from_session(session)
+        statement = repo.get_by_customer_statement(customer_id)
+        return await repo.get_all(statement)
+
+    async def get_enrollment_for_customer(
+        self,
+        session: AsyncSession,
+        customer_id: UUID,
+        course_id: UUID,
+    ) -> CourseEnrollment | None:
+        repo = CourseEnrollmentRepository.from_session(session)
+        statement = repo.get_by_customer_and_course_statement(customer_id, course_id)
+        return await repo.get_one_or_none(statement)
 
 
 course_service = CourseService()
