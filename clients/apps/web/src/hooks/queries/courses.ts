@@ -92,6 +92,7 @@ export const useCreateCourse = () =>
       organization_id: string
       title?: string | null
       course_type?: string
+      paywall_enabled?: boolean
       ai_generated?: boolean
       modules: {
         title: string
