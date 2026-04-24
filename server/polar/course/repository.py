@@ -1,16 +1,21 @@
-from collections.abc import Sequence
 from uuid import UUID
 
-from sqlalchemy import select
-
-from polar.kit.repository import RepositoryBase, RepositorySoftDeletionMixin
+from polar.kit.repository import (
+    RepositoryBase,
+    RepositorySoftDeletionIDMixin,
+    RepositorySoftDeletionMixin,
+)
 from polar.models.course import Course
 from polar.models.course_enrollment import CourseEnrollment
 from polar.models.course_lesson import CourseLesson
 from polar.models.course_module import CourseModule
 
 
-class CourseRepository(RepositoryBase[Course]):
+class CourseRepository(
+    RepositorySoftDeletionIDMixin[Course, UUID],
+    RepositorySoftDeletionMixin[Course],
+    RepositoryBase[Course],
+):
     model = Course
 
     def get_by_product_statement(self, product_id: UUID):
@@ -22,14 +27,22 @@ class CourseRepository(RepositoryBase[Course]):
         )
 
 
-class CourseModuleRepository(RepositoryBase[CourseModule]):
+class CourseModuleRepository(
+    RepositorySoftDeletionIDMixin[CourseModule, UUID],
+    RepositorySoftDeletionMixin[CourseModule],
+    RepositoryBase[CourseModule],
+):
     model = CourseModule
 
     def get_by_course_statement(self, course_id: UUID):
         return self.get_base_statement().where(CourseModule.course_id == course_id)
 
 
-class CourseLessonRepository(RepositoryBase[CourseLesson]):
+class CourseLessonRepository(
+    RepositorySoftDeletionIDMixin[CourseLesson, UUID],
+    RepositorySoftDeletionMixin[CourseLesson],
+    RepositoryBase[CourseLesson],
+):
     model = CourseLesson
 
     def get_by_module_statement(self, module_id: UUID):
@@ -37,6 +50,7 @@ class CourseLessonRepository(RepositoryBase[CourseLesson]):
 
 
 class CourseEnrollmentRepository(
+    RepositorySoftDeletionIDMixin[CourseEnrollment, UUID],
     RepositorySoftDeletionMixin[CourseEnrollment],
     RepositoryBase[CourseEnrollment],
 ):
