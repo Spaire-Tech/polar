@@ -37,6 +37,7 @@ def _lesson_read(lesson) -> CourseLessonRead:
         duration_seconds=lesson.duration_seconds,
         position=lesson.position,
         is_free_preview=lesson.is_free_preview,
+        published=lesson.published,
         created_at=lesson.created_at,
         modified_at=lesson.modified_at,
     )

@@ -45,6 +45,10 @@ class CourseLesson(RecordModel):
         Boolean, nullable=False, default=False
     )
 
+    published: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
+
     @declared_attr
     def module(cls) -> Mapped["CourseModule"]:
         return relationship("CourseModule", lazy="raise", back_populates="lessons")

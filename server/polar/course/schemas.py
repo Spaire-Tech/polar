@@ -13,6 +13,7 @@ class CourseLessonCreate(Schema):
     duration_seconds: int | None = None
     position: int = 0
     is_free_preview: bool = False
+    published: bool = False
 
 
 class CourseLessonUpdate(Schema):
@@ -23,6 +24,7 @@ class CourseLessonUpdate(Schema):
     duration_seconds: int | None = None
     position: int | None = None
     is_free_preview: bool | None = None
+    published: bool | None = None
 
 
 class CourseLessonRead(TimestampedSchema):
@@ -35,6 +37,7 @@ class CourseLessonRead(TimestampedSchema):
     duration_seconds: int | None
     position: int
     is_free_preview: bool
+    published: bool
 
 
 class CourseModuleCreate(Schema):

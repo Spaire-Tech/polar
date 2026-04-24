@@ -11,6 +11,7 @@ export type CourseLessonRead = {
   duration_seconds: number | null
   position: number
   is_free_preview: boolean
+  published: boolean
   created_at: string
   modified_at: string | null
 }
@@ -191,6 +192,7 @@ export const useUpdateCourseLesson = () =>
         duration_seconds?: number | null
         position?: number
         is_free_preview?: boolean
+        published?: boolean
       }
     }) =>
       courseApiFetch<CourseLessonRead>(`/v1/courses/lessons/${lessonId}`, {
