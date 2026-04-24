@@ -22,6 +22,9 @@ export type CourseModuleRead = {
   title: string
   description: string | null
   position: number
+  status: string
+  release_at: string | null
+  drip_days: number | null
   lessons: CourseLessonRead[]
   created_at: string
   modified_at: string | null
@@ -32,9 +35,11 @@ export type CourseRead = {
   product_id: string
   organization_id: string
   title: string | null
+  slug: string | null
   course_type: string
   paywall_enabled: boolean
   paywall_lesson_id: string | null
+  paywall_position: number | null
   ai_generated: boolean
   modules: CourseModuleRead[]
   created_at: string
@@ -108,7 +113,13 @@ export const useUpdateCourse = () =>
       body,
     }: {
       courseId: string
-      body: { title?: string | null; course_type?: string; paywall_enabled?: boolean }
+      body: {
+        title?: string | null
+        slug?: string | null
+        course_type?: string
+        paywall_enabled?: boolean
+        paywall_position?: number | null
+      }
     }) =>
       courseApiFetch<CourseRead>(`/v1/courses/${courseId}`, {
         method: 'PATCH',
@@ -143,7 +154,14 @@ export const useUpdateCourseModule = () =>
       body,
     }: {
       moduleId: string
-      body: { title?: string; description?: string | null; position?: number }
+      body: {
+        title?: string
+        description?: string | null
+        position?: number
+        status?: string
+        release_at?: string | null
+        drip_days?: number | null
+      }
     }) =>
       courseApiFetch<CourseModuleRead>(`/v1/courses/modules/${moduleId}`, {
         method: 'PATCH',

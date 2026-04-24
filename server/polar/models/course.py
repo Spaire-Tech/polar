@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import Boolean, ForeignKey, String, Text, Uuid
+from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, Uuid
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
 
 from polar.kit.db.models import RecordModel
@@ -33,6 +33,10 @@ class Course(RecordModel):
         String(500), nullable=True, default=None
     )
 
+    slug: Mapped[str | None] = mapped_column(
+        String(200), nullable=True, default=None, index=True
+    )
+
     course_type: Mapped[str] = mapped_column(
         String(50),
         nullable=False,
@@ -45,6 +49,10 @@ class Course(RecordModel):
 
     paywall_lesson_id: Mapped[UUID | None] = mapped_column(
         Uuid, nullable=True, default=None
+    )
+
+    paywall_position: Mapped[int | None] = mapped_column(
+        Integer, nullable=True, default=None
     )
 
     ai_generated: Mapped[bool] = mapped_column(

@@ -3,21 +3,30 @@
 import { useCreateCourse } from '@/hooks/queries/courses'
 import { useCreateProduct } from '@/hooks/queries/products'
 import { experimental_useObject as useObject } from '@ai-sdk/react'
-import AutoStoriesOutlined from '@mui/icons-material/AutoStoriesOutlined'
 import AutorenewOutlined from '@mui/icons-material/AutorenewOutlined'
+import CertificateOutlined from '@mui/icons-material/WorkspacePremiumOutlined'
 import CheckCircleOutlined from '@mui/icons-material/CheckCircleOutlined'
+import CommunityOutlined from '@mui/icons-material/PeopleOutlined'
+import DownloadOutlined from '@mui/icons-material/DownloadOutlined'
 import ExpandMoreOutlined from '@mui/icons-material/ExpandMoreOutlined'
+import GiftOutlined from '@mui/icons-material/CardGiftcardOutlined'
+import GroupOutlined from '@mui/icons-material/GroupOutlined'
+import LiveOutlined from '@mui/icons-material/VideocamOutlined'
+import MoneyOutlined from '@mui/icons-material/MonetizationOnOutlined'
 import OndemandVideoOutlined from '@mui/icons-material/OndemandVideoOutlined'
+import QuizOutlined from '@mui/icons-material/QuizOutlined'
+import SelfPacedOutlined from '@mui/icons-material/PersonOutlined'
+import SyncOutlined from '@mui/icons-material/SyncOutlined'
 import TextSnippetOutlined from '@mui/icons-material/TextSnippetOutlined'
 import { schemas } from '@spaire/client'
 import { cn } from '@spaire/ui/lib/utils'
-
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { toast } from '../Toast/use-toast'
 import { outlineSchema } from './schemas'
 
-type PriceOption = 'free' | 'onetime' | 'monthly'
+type CourseType = 'evergreen' | 'cohort'
+type PriceOption = 'free' | 'paid'
 
 type PartialModule = {
   title?: string
@@ -29,6 +38,25 @@ type PartialOutline = {
   modules?: PartialModule[]
 }
 
+const EVERGREEN_FEATURES = [
+  { icon: SelfPacedOutlined, label: 'Self-paced learning' },
+  { icon: CommunityOutlined, label: 'Community integration' },
+  { icon: LiveOutlined, label: 'Live room' },
+  { icon: DownloadOutlined, label: 'Downloads' },
+  { icon: OndemandVideoOutlined, label: 'Video content' },
+  { icon: CertificateOutlined, label: 'Certificates' },
+  { icon: QuizOutlined, label: 'Quizzes' },
+]
+
+const COHORT_FEATURES = [
+  { icon: GroupOutlined, label: 'Cohort scheduling' },
+  { icon: CommunityOutlined, label: 'Community integration' },
+  { icon: LiveOutlined, label: 'Live sessions' },
+  { icon: DownloadOutlined, label: 'Downloads' },
+  { icon: OndemandVideoOutlined, label: 'Video content' },
+  { icon: CertificateOutlined, label: 'Certificates' },
+]
+
 function StreamingOutline({
   outline,
   isStreaming,
@@ -37,10 +65,8 @@ function StreamingOutline({
   isStreaming: boolean
 }) {
   const [expanded, setExpanded] = useState<Record<number, boolean>>({})
-
   const toggle = (i: number) =>
     setExpanded((prev) => ({ ...prev, [i]: !prev[i] }))
-
   const modules = outline.modules ?? []
 
   return (
@@ -52,7 +78,7 @@ function StreamingOutline({
           <div
             key={i}
             className={cn(
-              'rounded-xl border bg-white overflow-hidden transition-colors',
+              'overflow-hidden rounded-xl border bg-white transition-colors',
               isStreaming && isLastModule
                 ? 'border-blue-300 shadow-sm'
                 : 'border-gray-200',
@@ -60,29 +86,29 @@ function StreamingOutline({
           >
             <button
               onClick={() => toggle(i)}
-              className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+              className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50"
             >
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-700 shrink-0">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-700">
                 {i + 1}
               </span>
-              <span className="flex-1 font-medium text-gray-900 text-sm">
+              <span className="flex-1 text-sm font-medium text-gray-900">
                 {mod.title || (
                   <span className="inline-block h-4 w-48 animate-pulse rounded bg-gray-100" />
                 )}
               </span>
-              <span className="text-xs text-gray-400 shrink-0">
+              <span className="shrink-0 text-xs text-gray-400">
                 {lessons.length} lesson{lessons.length !== 1 ? 's' : ''}
               </span>
               <ExpandMoreOutlined
                 className={cn(
-                  'text-gray-400 transition-transform shrink-0',
+                  'shrink-0 text-gray-400 transition-transform',
                   expanded[i] && 'rotate-180',
                 )}
                 fontSize="small"
               />
             </button>
             {expanded[i] && lessons.length > 0 && (
-              <div className="border-t border-gray-100 divide-y divide-gray-100">
+              <div className="divide-y divide-gray-100 border-t border-gray-100">
                 {lessons.map((lesson, j) => (
                   <div
                     key={j}
@@ -91,12 +117,12 @@ function StreamingOutline({
                     {lesson.content_type === 'video' ? (
                       <OndemandVideoOutlined
                         fontSize="small"
-                        className="text-purple-500 shrink-0"
+                        className="shrink-0 text-purple-500"
                       />
                     ) : (
                       <TextSnippetOutlined
                         fontSize="small"
-                        className="text-blue-400 shrink-0"
+                        className="shrink-0 text-blue-400"
                       />
                     )}
                     <span className="text-sm text-gray-700">
@@ -121,6 +147,312 @@ function StreamingOutline({
   )
 }
 
+// ─── Step 1 ─────────────────────────────────────────────────────────────────
+
+function StepType({
+  courseType,
+  onSelect,
+  onNext,
+}: {
+  courseType: CourseType
+  onSelect: (t: CourseType) => void
+  onNext: () => void
+}) {
+  const features = courseType === 'evergreen' ? EVERGREEN_FEATURES : COHORT_FEATURES
+  const desc =
+    courseType === 'evergreen'
+      ? 'A self-paced, continuously accessible educational program that provides learners with perpetual access to its content, allowing them to start and complete the course at their own convenience.'
+      : 'A structured program delivered to a group of learners simultaneously. Everyone starts and progresses together, with scheduled sessions and community activities.'
+
+  return (
+    <div className="mx-auto max-w-lg px-4 py-10">
+      <h1 className="mb-8 text-3xl font-bold text-gray-900">
+        What type of course
+      </h1>
+
+      <div className="mb-8 grid grid-cols-2 gap-3">
+        {([['evergreen', SyncOutlined, 'Evergreen'], ['cohort', GroupOutlined, 'Cohorts']] as const).map(
+          ([type, Icon, label]) => (
+            <button
+              key={type}
+              onClick={() => onSelect(type)}
+              className={cn(
+                'flex items-center justify-center gap-2.5 rounded-2xl border-2 px-6 py-7 text-base font-medium transition-all',
+                courseType === type
+                  ? 'border-gray-900 bg-white text-gray-900 shadow-sm'
+                  : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300',
+              )}
+            >
+              <Icon fontSize="small" />
+              {label}
+            </button>
+          ),
+        )}
+      </div>
+
+      <div className="mb-6">
+        <h2 className="mb-1.5 text-lg font-bold text-gray-900">
+          {courseType === 'evergreen' ? 'Evergreen course' : 'Cohort course'}
+        </h2>
+        <p className="text-sm leading-relaxed text-gray-500">{desc}</p>
+      </div>
+
+      <div className="mb-8">
+        <h3 className="mb-3 text-base font-bold text-gray-900">Features</h3>
+        <div className="grid grid-cols-2 gap-y-2.5">
+          {features.map(({ icon: Icon, label }) => (
+            <div key={label} className="flex items-center gap-2 text-sm text-gray-700">
+              <Icon fontSize="small" className="text-gray-400" />
+              {label}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex justify-end">
+        <button
+          onClick={onNext}
+          className="rounded-full bg-gray-900 px-7 py-3 text-sm font-semibold text-white hover:bg-gray-800 transition-colors"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Step 2 ─────────────────────────────────────────────────────────────────
+
+function StepDetails({
+  title,
+  description,
+  useAI,
+  onChangeTitle,
+  onChangeDescription,
+  onToggleAI,
+  onBack,
+  onNext,
+}: {
+  title: string
+  description: string
+  useAI: boolean
+  onChangeTitle: (v: string) => void
+  onChangeDescription: (v: string) => void
+  onToggleAI: () => void
+  onBack: () => void
+  onNext: () => void
+}) {
+  return (
+    <div className="mx-auto max-w-lg px-4 py-10">
+      <h1 className="mb-1 text-3xl font-bold text-gray-900">Course Details</h1>
+      <p className="mb-8 text-sm text-gray-500">
+        We&apos;ll use your title and description to generate a sample course
+        outline:
+      </p>
+
+      <div className="mb-5">
+        <label className="mb-1.5 block text-sm font-bold text-gray-900">
+          Title
+        </label>
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => onChangeTitle(e.target.value)}
+          placeholder="Examples: Public Speaking 101, Learning piano, ..."
+          className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-100"
+        />
+      </div>
+
+      <div className="mb-6">
+        <label className="mb-1.5 block text-sm font-bold text-gray-900">
+          Brief description
+        </label>
+        <textarea
+          value={description}
+          onChange={(e) => onChangeDescription(e.target.value)}
+          placeholder="Example: Learn the skills required to ..."
+          rows={5}
+          className="w-full resize-none rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-100"
+        />
+      </div>
+
+      <div className="mb-8 flex items-start gap-3">
+        <button
+          onClick={onToggleAI}
+          className={cn(
+            'relative mt-0.5 flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors duration-200',
+            useAI ? 'bg-blue-600' : 'bg-gray-200',
+          )}
+        >
+          <span
+            className={cn(
+              'absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200',
+              useAI ? 'translate-x-5' : 'translate-x-0.5',
+            )}
+          />
+        </button>
+        <div>
+          <p className="text-sm font-medium text-gray-900">
+            Use this info to generate content and additional resources
+          </p>
+          <a
+            href="#"
+            className="mt-0.5 inline-flex items-center gap-1 text-xs font-semibold text-gray-900 underline"
+          >
+            Learn more
+          </a>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between">
+        <button
+          onClick={onBack}
+          className="rounded-full border border-gray-300 px-7 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+        >
+          Back
+        </button>
+        <button
+          onClick={onNext}
+          disabled={!title.trim()}
+          className="rounded-full bg-gray-900 px-7 py-3 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-40 transition-colors"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Step 3 ─────────────────────────────────────────────────────────────────
+
+function StepPricing({
+  priceOption,
+  paywallEnabled,
+  priceAmount,
+  onSelectPrice,
+  onTogglePaywall,
+  onChangeAmount,
+  onBack,
+  onNext,
+}: {
+  priceOption: PriceOption
+  paywallEnabled: boolean
+  priceAmount: string
+  onSelectPrice: (p: PriceOption) => void
+  onTogglePaywall: () => void
+  onChangeAmount: (v: string) => void
+  onBack: () => void
+  onNext: () => void
+}) {
+  return (
+    <div className="mx-auto max-w-lg px-4 py-10">
+      <h1 className="mb-1 text-3xl font-bold text-gray-900">
+        Price your Course
+      </h1>
+      <p className="mb-8 text-sm text-gray-500">
+        Choose whether this Course is paid or free. If it&apos;s paid, set its
+        price and payment options. Don&apos;t worry, you can change this later!
+      </p>
+
+      <div className="mb-6 grid grid-cols-2 gap-3">
+        {([
+          ['free', GiftOutlined, 'Free'],
+          ['paid', MoneyOutlined, 'Paid'],
+        ] as const).map(([opt, Icon, label]) => (
+          <button
+            key={opt}
+            onClick={() => onSelectPrice(opt)}
+            className={cn(
+              'flex items-center justify-center gap-2.5 rounded-2xl border-2 px-6 py-7 text-base font-medium transition-all',
+              priceOption === opt
+                ? 'border-gray-900 bg-white text-gray-900 shadow-sm'
+                : 'border-gray-200 bg-gray-100 text-gray-500 hover:border-gray-300',
+            )}
+          >
+            <Icon fontSize="small" />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {priceOption === 'paid' && (
+        <div className="mb-5 flex items-center gap-2">
+          <span className="text-sm font-medium text-gray-500">$</span>
+          <input
+            type="number"
+            value={priceAmount}
+            onChange={(e) => onChangeAmount(e.target.value)}
+            placeholder="0.00"
+            min="0"
+            step="0.01"
+            className="w-32 rounded-xl border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-100"
+          />
+        </div>
+      )}
+
+      <div className="mb-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-bold text-gray-900 underline">
+              Use a paywall for this course
+            </span>
+            <span className="rounded-full border border-blue-300 bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-600">
+              New
+            </span>
+          </div>
+          <button
+            onClick={onTogglePaywall}
+            className={cn(
+              'relative flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors duration-200',
+              paywallEnabled ? 'bg-blue-600' : 'bg-gray-200',
+            )}
+          >
+            <span
+              className={cn(
+                'absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200',
+                paywallEnabled ? 'translate-x-5' : 'translate-x-0.5',
+              )}
+            />
+          </button>
+        </div>
+        <p className="mt-1.5 text-sm text-gray-500">
+          Enable limited course access to let your members experience the value
+          before purchasing the full course.
+        </p>
+      </div>
+
+      <div className="mb-8 mt-4 text-center">
+        <button
+          onClick={() => {
+            if (paywallEnabled) onTogglePaywall()
+            onNext()
+          }}
+          className="text-sm font-semibold text-gray-500 hover:text-gray-700"
+        >
+          Skip for now
+        </button>
+      </div>
+
+      <div className="flex items-center justify-between">
+        <button
+          onClick={onBack}
+          className="rounded-full border border-gray-300 px-7 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+        >
+          Back
+        </button>
+        <button
+          onClick={onNext}
+          className="rounded-full bg-gray-900 px-7 py-3 text-sm font-semibold text-white hover:bg-gray-800 transition-colors"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Main wizard ─────────────────────────────────────────────────────────────
+
 export default function CourseWizard({
   organization,
 }: {
@@ -130,17 +462,19 @@ export default function CourseWizard({
   const createProduct = useCreateProduct(organization)
   const createCourse = useCreateCourse()
 
-  // Step 1 form
+  // Wizard step state
+  const [wizardStep, setWizardStep] = useState<
+    'type' | 'details' | 'pricing' | 'generating' | 'outline' | 'creating'
+  >('type')
+
+  // Form values
+  const [courseType, setCourseType] = useState<CourseType>('evergreen')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [targetAudience, setTargetAudience] = useState('')
+  const [useAI, setUseAI] = useState(true)
   const [priceOption, setPriceOption] = useState<PriceOption>('free')
   const [priceAmount, setPriceAmount] = useState('')
-
-  // Wizard state
-  const [step, setStep] = useState<
-    'form' | 'generating' | 'outline' | 'creating'
-  >('form')
+  const [paywallEnabled, setPaywallEnabled] = useState(true)
   const [generateError, setGenerateError] = useState<string | null>(null)
 
   const {
@@ -152,44 +486,41 @@ export default function CourseWizard({
   } = useObject({
     api: `/dashboard/${organization.slug}/courses/outline`,
     schema: outlineSchema,
-    onFinish: () => setStep('outline'),
+    onFinish: () => setWizardStep('outline'),
     onError: () => {
       setGenerateError('Failed to generate outline. Please try again.')
-      setStep('form')
+      setWizardStep('pricing')
     },
   })
 
-  const generateOutline = () => {
-    if (!title.trim()) return
+  const startGeneration = () => {
     setGenerateError(null)
-    setStep('generating')
-    submitOutline({ title, description, targetAudience })
+    setWizardStep('generating')
+    submitOutline({ title, description, targetAudience: '' })
   }
 
   const regenerateOutline = () => {
     stopOutline()
-    setStep('form')
+    setWizardStep('pricing')
   }
 
   const createCourseWithProduct = async () => {
     const outline = partialOutline
     if (!outline?.modules?.length) return
-    setStep('creating')
+    setWizardStep('creating')
 
     try {
       const priceAmountCents = Math.round(parseFloat(priceAmount || '0') * 100)
-
-      const baseProductFields = {
+      const baseFields = {
         name: title,
         description: description || null,
         visibility: 'public',
         organization_id: organization.id,
       }
-
       const productBody =
-        priceOption === 'monthly'
+        priceOption === 'paid'
           ? {
-              ...baseProductFields,
+              ...baseFields,
               prices: [
                 {
                   amount_type: 'fixed',
@@ -197,43 +528,30 @@ export default function CourseWizard({
                   price_amount: priceAmountCents,
                 },
               ],
-              recurring_interval: 'month',
-              recurring_interval_count: 1,
+              recurring_interval: null,
             }
-          : priceOption === 'onetime'
-            ? {
-                ...baseProductFields,
-                prices: [
-                  {
-                    amount_type: 'fixed',
-                    price_currency: 'usd',
-                    price_amount: priceAmountCents,
-                  },
-                ],
-                recurring_interval: null,
-              }
-            : {
-                ...baseProductFields,
-                prices: [{ amount_type: 'free', price_currency: 'usd' }],
-                recurring_interval: null,
-              }
+          : {
+              ...baseFields,
+              prices: [{ amount_type: 'free', price_currency: 'usd' }],
+              recurring_interval: null,
+            }
 
       const productResult = await createProduct.mutateAsync(productBody as never)
-
       if (productResult.error || !productResult.data) {
         throw new Error('Product creation failed')
       }
 
-      const product = productResult.data
-
       const course = await createCourse.mutateAsync({
-        product_id: product.id,
+        product_id: productResult.data.id,
         organization_id: organization.id,
         title,
+        course_type: courseType,
+        paywall_enabled: paywallEnabled,
         ai_generated: true,
         modules: outline.modules
-          .filter((m): m is { title: string; description?: string; lessons?: { title?: string; content_type?: 'text' | 'video' }[] } =>
-            Boolean(m?.title),
+          .filter(
+            (m): m is { title: string; description?: string; lessons?: { title?: string; content_type?: 'text' | 'video' }[] } =>
+              Boolean(m?.title),
           )
           .map((mod, i) => ({
             title: mod.title!,
@@ -256,15 +574,16 @@ export default function CourseWizard({
         title: 'Course Created',
         description: `"${title}" is ready to edit`,
       })
-
-      router.push(`/dashboard/${organization.slug}/courses/${course.id}`)
+      router.push(
+        `/dashboard/${organization.slug}/courses/${course.id}?new=1`,
+      )
     } catch (err) {
       console.error('[CourseWizard] create error:', err)
       toast({
         title: 'Something went wrong',
         description: 'Could not create the course. Please try again.',
       })
-      setStep('outline')
+      setWizardStep('outline')
     }
   }
 
@@ -275,8 +594,50 @@ export default function CourseWizard({
       0,
     ) ?? 0
 
-  if (step === 'generating' || step === 'outline') {
-    const ready = step === 'outline'
+  // ── Render ────────────────────────────────────────────────────────────────
+
+  if (wizardStep === 'type') {
+    return (
+      <StepType
+        courseType={courseType}
+        onSelect={setCourseType}
+        onNext={() => setWizardStep('details')}
+      />
+    )
+  }
+
+  if (wizardStep === 'details') {
+    return (
+      <StepDetails
+        title={title}
+        description={description}
+        useAI={useAI}
+        onChangeTitle={setTitle}
+        onChangeDescription={setDescription}
+        onToggleAI={() => setUseAI((v) => !v)}
+        onBack={() => setWizardStep('type')}
+        onNext={() => setWizardStep('pricing')}
+      />
+    )
+  }
+
+  if (wizardStep === 'pricing') {
+    return (
+      <StepPricing
+        priceOption={priceOption}
+        paywallEnabled={paywallEnabled}
+        priceAmount={priceAmount}
+        onSelectPrice={setPriceOption}
+        onTogglePaywall={() => setPaywallEnabled((v) => !v)}
+        onChangeAmount={setPriceAmount}
+        onBack={() => setWizardStep('details')}
+        onNext={startGeneration}
+      />
+    )
+  }
+
+  if (wizardStep === 'generating' || wizardStep === 'outline') {
+    const ready = wizardStep === 'outline'
     return (
       <div className="mx-auto max-w-2xl px-4 py-10">
         <div className="mb-8">
@@ -287,7 +648,7 @@ export default function CourseWizard({
           </p>
         </div>
 
-        {outlineError && (
+        {(outlineError || generateError) && (
           <div className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
             Something went wrong. Please try again.
           </div>
@@ -302,14 +663,14 @@ export default function CourseWizard({
           <div className="mt-8 flex items-center justify-between gap-3">
             <button
               onClick={regenerateOutline}
-              className="flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-2 rounded-full border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
             >
               <AutorenewOutlined fontSize="small" />
               Regenerate
             </button>
             <button
               onClick={createCourseWithProduct}
-              className="flex items-center gap-2 rounded-xl bg-blue-500 px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue-600 transition-colors"
+              className="rounded-full bg-gray-900 px-7 py-2.5 text-sm font-semibold text-white hover:bg-gray-800 transition-colors"
             >
               Create Course
             </button>
@@ -319,132 +680,17 @@ export default function CourseWizard({
     )
   }
 
-  if (step === 'creating') {
-    return (
-      <div className="flex flex-col items-center justify-center gap-6 py-24">
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-green-50">
-          <CheckCircleOutlined
-            className="text-green-500"
-            sx={{ fontSize: 32 }}
-          />
-        </div>
-        <div className="text-center">
-          <p className="text-lg font-semibold text-gray-900">
-            Creating your course
-          </p>
-          <p className="mt-1 text-sm text-gray-500">Setting everything up…</p>
-        </div>
-      </div>
-    )
-  }
-
-  // Step 1: form
+  // creating state
   return (
-    <div className="mx-auto max-w-xl px-4 py-10">
-      <div className="mb-8 flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
-          <AutoStoriesOutlined className="text-blue-500" />
-        </div>
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Create a Course</h1>
-          <p className="text-sm text-gray-500">
-            Tell us about your course and Claude will design the curriculum.
-          </p>
-        </div>
+    <div className="flex flex-col items-center justify-center gap-6 py-24">
+      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-green-50">
+        <CheckCircleOutlined className="text-green-500" sx={{ fontSize: 32 }} />
       </div>
-
-      {generateError && (
-        <div className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
-          {generateError}
-        </div>
-      )}
-
-      <div className="flex flex-col gap-5">
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">
-            Course title <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="e.g. The Complete React Course"
-            className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-          />
-        </div>
-
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">
-            Description
-          </label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="What will students learn? What problem does this course solve?"
-            rows={3}
-            className="w-full resize-none rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-          />
-        </div>
-
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">
-            Target audience
-          </label>
-          <input
-            type="text"
-            value={targetAudience}
-            onChange={(e) => setTargetAudience(e.target.value)}
-            placeholder="e.g. Beginner web developers who know HTML/CSS"
-            className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-          />
-        </div>
-
-        <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700">
-            Pricing
-          </label>
-          <div className="flex gap-2">
-            {(['free', 'onetime', 'monthly'] as const).map((opt) => (
-              <button
-                key={opt}
-                onClick={() => setPriceOption(opt)}
-                className={cn(
-                  'flex-1 rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors',
-                  priceOption === opt
-                    ? 'border-blue-500 bg-blue-50 text-blue-700'
-                    : 'border-gray-200 text-gray-600 hover:bg-gray-50',
-                )}
-              >
-                {opt === 'free' ? 'Free' : opt === 'onetime' ? 'One-time' : 'Monthly'}
-              </button>
-            ))}
-          </div>
-          {priceOption !== 'free' && (
-            <div className="mt-3 flex items-center gap-2">
-              <span className="text-sm font-medium text-gray-500">$</span>
-              <input
-                type="number"
-                value={priceAmount}
-                onChange={(e) => setPriceAmount(e.target.value)}
-                placeholder="0.00"
-                min="0"
-                step="0.01"
-                className="w-32 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-              />
-              {priceOption === 'monthly' && (
-                <span className="text-sm text-gray-400">/ month</span>
-              )}
-            </div>
-          )}
-        </div>
-
-        <button
-          onClick={generateOutline}
-          disabled={!title.trim()}
-          className="mt-2 w-full rounded-xl bg-blue-500 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Generate Outline with AI
-        </button>
+      <div className="text-center">
+        <p className="text-lg font-semibold text-gray-900">
+          Creating your course
+        </p>
+        <p className="mt-1 text-sm text-gray-500">Setting everything up…</p>
       </div>
     </div>
   )

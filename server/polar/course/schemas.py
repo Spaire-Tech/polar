@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Literal
 
 from pydantic import UUID4, Field
@@ -44,6 +45,7 @@ class CourseModuleCreate(Schema):
     title: str = Field(max_length=500)
     description: str | None = None
     position: int = 0
+    status: str = "draft"
     lessons: list[CourseLessonCreate] = Field(default_factory=list)
 
 
@@ -51,6 +53,9 @@ class CourseModuleUpdate(Schema):
     title: str | None = Field(None, max_length=500)
     description: str | None = None
     position: int | None = None
+    status: str | None = None
+    release_at: datetime | None = None
+    drip_days: int | None = None
 
 
 class CourseModuleRead(TimestampedSchema):
@@ -59,6 +64,9 @@ class CourseModuleRead(TimestampedSchema):
     title: str
     description: str | None
     position: int
+    status: str
+    release_at: datetime | None
+    drip_days: int | None
     lessons: list[CourseLessonRead]
 
 
@@ -66,18 +74,22 @@ class CourseCreate(Schema):
     product_id: UUID4
     organization_id: UUID4
     title: str | None = None
+    slug: str | None = None
     course_type: Literal["evergreen", "cohort"] = "evergreen"
     paywall_enabled: bool = False
     paywall_lesson_id: UUID4 | None = None
+    paywall_position: int | None = None
     ai_generated: bool = False
     modules: list[CourseModuleCreate] = Field(default_factory=list)
 
 
 class CourseUpdate(Schema):
     title: str | None = None
+    slug: str | None = None
     course_type: Literal["evergreen", "cohort"] | None = None
     paywall_enabled: bool | None = None
     paywall_lesson_id: UUID4 | None = None
+    paywall_position: int | None = None
 
 
 class CourseRead(TimestampedSchema):
@@ -85,8 +97,10 @@ class CourseRead(TimestampedSchema):
     product_id: UUID4
     organization_id: UUID4
     title: str | None
+    slug: str | None
     course_type: str
     paywall_enabled: bool
     paywall_lesson_id: UUID4 | None
+    paywall_position: int | None
     ai_generated: bool
     modules: list[CourseModuleRead]
