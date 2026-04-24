@@ -1,10 +1,12 @@
 'use client'
 
-import {
-  CustomizationProvider,
-} from '@/components/Customization/CustomizationProvider'
+import { CustomizationProvider } from '@/components/Customization/CustomizationProvider'
+import { ForceLightMode } from '@/components/Profile/ForceLightMode'
+import { ProfileCard } from '@/components/Profile/ProfileCard'
+import { Storefront } from '@/components/Profile/Storefront'
 import { toast } from '@/components/Toast/use-toast'
 import { useUpdateOrganization } from '@/hooks/queries'
+import { useStorefront } from '@/hooks/queries/storefront'
 import { setValidationErrors } from '@/utils/api/errors'
 import { isValidationError, schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
@@ -12,13 +14,9 @@ import { Form } from '@spaire/ui/components/ui/form'
 import { useRouter } from 'next/navigation'
 import { useCallback, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { ForceLightMode } from '@/components/Profile/ForceLightMode'
-import { ProfileCard } from '@/components/Profile/ProfileCard'
-import { Storefront } from '@/components/Profile/Storefront'
-import { StorefrontEditorForm } from './Storefront/StorefrontSidebar'
-import { StorefrontLivePreview } from './Storefront/StorefrontPreview'
 import { StorefrontLinksPanel } from './Storefront/StorefrontLinksPanel'
-import { useStorefront } from '@/hooks/queries/storefront'
+import { StorefrontLivePreview } from './Storefront/StorefrontPreview'
+import { StorefrontEditorForm } from './Storefront/StorefrontSidebar'
 
 export const CustomizationPage = ({
   organization,
@@ -63,8 +61,9 @@ const Customization = ({
       const values = form.getValues()
 
       // Filter out social links with empty URLs before sending
-      const cleanSocials = (values.socials ?? [])
-        .filter((s: { url?: string }) => s?.url?.trim())
+      const cleanSocials = (values.socials ?? []).filter(
+        (s: { url?: string }) => s?.url?.trim(),
+      )
 
       const body: schemas['OrganizationUpdate'] = {
         name: values.name ?? organization.name,
@@ -192,7 +191,9 @@ const Customization = ({
             }}
             className="text-[14px] text-gray-500 transition-colors hover:text-gray-700"
           >
-            {isSpaceEnabled ? '\u2190 Back to preview' : '\u2190 Back to dashboard'}
+            {isSpaceEnabled
+              ? '\u2190 Back to preview'
+              : '\u2190 Back to dashboard'}
           </button>
           <Button
             className="rounded-full px-6"
@@ -209,14 +210,26 @@ const Customization = ({
           {/* Left — heading + live card preview (hidden on mobile) */}
           <div className="hidden flex-1 flex-col items-center justify-center overflow-y-auto p-10 md:flex">
             <div className="flex w-full max-w-[500px] flex-col items-center">
-              <h1 className="text-center text-[28px] font-bold text-gray-950">
-                {isSpaceEnabled ? 'Edit your Space Card' : 'Let\u2019s Create your Space Card'}
-              </h1>
-              <p className="mt-1 text-center text-[15px] text-gray-500">
-                Introduce yourself and design your personal Space ID card.
-              </p>
+              {!linksMode && (
+                <>
+                  <h1 className="text-center text-[28px] font-bold text-gray-950">
+                    {isSpaceEnabled
+                      ? 'Edit your Space Card'
+                      : 'Let\u2019s Create your Space Card'}
+                  </h1>
+                  <p className="mt-1 text-center text-[15px] text-gray-500">
+                    Introduce yourself and design your personal Space ID card.
+                  </p>
+                </>
+              )}
 
-              <div className="mt-8 w-full max-w-[460px]">
+              <div
+                className={
+                  linksMode
+                    ? 'w-full max-w-[460px]'
+                    : 'mt-8 w-full max-w-[460px]'
+                }
+              >
                 {linksMode ? (
                   <StorefrontLinksPanel
                     organization={organization}
