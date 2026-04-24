@@ -27,7 +27,6 @@ import StopOutlined from '@mui/icons-material/StopOutlined'
 import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined'
 import { cn } from '@spaire/ui/lib/utils'
 import { useEffect, useRef, useState } from 'react'
-import { toast } from '../Toast/use-toast'
 
 type Media = 'none' | 'video' | 'audio'
 
@@ -99,9 +98,9 @@ export function LessonDetail({
   }
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden">
-      {/* Top bar - sticky */}
-      <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-gray-200 bg-white px-8 py-4 shadow-sm">
+    <div className="flex flex-1 flex-col bg-gray-50">
+      {/* Top bar */}
+      <div className="flex items-center gap-3 border-b border-gray-200 bg-gray-50 px-8 py-4">
         <button
           onClick={onBack}
           className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors"
@@ -113,7 +112,7 @@ export function LessonDetail({
           <HelpOutlineOutlined className="text-gray-300" sx={{ fontSize: 16 }} />
         </h2>
         <div className="ml-auto flex items-center gap-2">
-          <button onClick={() => toast({ title: 'Preview coming soon' })} className="flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+          <button className="flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
             <VisibilityOutlined sx={{ fontSize: 16 }} />
             Preview
           </button>
@@ -127,8 +126,7 @@ export function LessonDetail({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto grid w-full max-w-6xl grid-cols-[1fr_320px] gap-6 px-8 py-6">
+      <div className="mx-auto grid w-full max-w-6xl grid-cols-[1fr_320px] gap-6 px-8 py-6">
         {/* Main column */}
         <div className="flex flex-col gap-6">
           <Card>
@@ -230,37 +228,37 @@ export function LessonDetail({
             <div className="overflow-hidden rounded-xl border border-gray-300">
               <div className="flex items-center gap-1 border-b border-gray-200 bg-gray-50 px-3 py-2 text-gray-500">
                 <ToolbarBtn>{'<>'}</ToolbarBtn>
-                <ToolbarBtn onClick={() => toast({ title: 'Undo coming soon' })}>↶</ToolbarBtn>
-                <ToolbarBtn onClick={() => toast({ title: 'Redo coming soon' })}>↷</ToolbarBtn>
+                <ToolbarBtn>↶</ToolbarBtn>
+                <ToolbarBtn>↷</ToolbarBtn>
                 <ToolbarDivider />
-                <ToolbarBtn wide onClick={() => toast({ title: 'Text formatting coming soon' })}>
+                <ToolbarBtn wide>
                   Formats <KeyboardArrowDownOutlined sx={{ fontSize: 14 }} />
                 </ToolbarBtn>
                 <ToolbarDivider />
-                <ToolbarBtn onClick={() => toast({ title: 'Text formatting coming soon' })}>
+                <ToolbarBtn>
                   <FormatBoldOutlined sx={{ fontSize: 16 }} />
                 </ToolbarBtn>
-                <ToolbarBtn onClick={() => toast({ title: 'Text formatting coming soon' })}>
+                <ToolbarBtn>
                   <FormatItalicOutlined sx={{ fontSize: 16 }} />
                 </ToolbarBtn>
-                <ToolbarBtn onClick={() => toast({ title: 'Text formatting coming soon' })}>T</ToolbarBtn>
-                <ToolbarBtn onClick={() => toast({ title: 'Text formatting coming soon' })}>A</ToolbarBtn>
-                <ToolbarBtn onClick={() => toast({ title: 'Text formatting coming soon' })}>
+                <ToolbarBtn>T</ToolbarBtn>
+                <ToolbarBtn>A</ToolbarBtn>
+                <ToolbarBtn>
                   <RemoveOutlined sx={{ fontSize: 16 }} />
                 </ToolbarBtn>
-                <ToolbarBtn onClick={() => toast({ title: 'Text formatting coming soon' })}>
+                <ToolbarBtn>
                   <FormatListBulletedOutlined sx={{ fontSize: 16 }} />
                 </ToolbarBtn>
-                <ToolbarBtn onClick={() => toast({ title: 'Text formatting coming soon' })}>
+                <ToolbarBtn>
                   <FormatListNumberedOutlined sx={{ fontSize: 16 }} />
                 </ToolbarBtn>
-                <ToolbarBtn onClick={() => toast({ title: 'Add links coming soon' })}>
+                <ToolbarBtn>
                   <InsertLinkOutlined sx={{ fontSize: 16 }} />
                 </ToolbarBtn>
-                <ToolbarBtn onClick={() => toast({ title: 'Add images coming soon' })}>
+                <ToolbarBtn>
                   <ImageOutlined sx={{ fontSize: 16 }} />
                 </ToolbarBtn>
-                <ToolbarBtn onClick={() => toast({ title: 'Fullscreen coming soon' })}>
+                <ToolbarBtn>
                   <FullscreenOutlined sx={{ fontSize: 16 }} />
                 </ToolbarBtn>
                 <div className="ml-auto flex items-center gap-1">
@@ -296,7 +294,7 @@ export function LessonDetail({
               <h3 className="mb-2 text-base font-bold text-gray-900">
                 Downloads
               </h3>
-              <button onClick={() => toast({ title: 'File uploads coming soon' })} className="flex items-center gap-1.5 rounded-full border border-gray-300 px-3.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+              <button className="flex items-center gap-1.5 rounded-full border border-gray-300 px-3.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors">
                 <AddOutlined sx={{ fontSize: 16 }} />
                 Add Files
               </button>
@@ -306,7 +304,7 @@ export function LessonDetail({
           <Card>
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold text-gray-900">Automations</h3>
-              <button onClick={() => toast({ title: 'Automations coming soon' })} className="flex items-center gap-1.5 rounded-full bg-gray-900 px-3.5 py-2 text-xs font-semibold text-white hover:bg-gray-800 transition-colors">
+              <button className="flex items-center gap-1.5 rounded-full bg-gray-900 px-3.5 py-2 text-xs font-semibold text-white hover:bg-gray-800 transition-colors">
                 <AddOutlined sx={{ fontSize: 16 }} />
                 New automation
               </button>
@@ -355,7 +353,7 @@ export function LessonDetail({
             <p className="mb-3 mt-1 text-xs text-gray-500">
               Recommended dimensions of 1280×720
             </p>
-            <button onClick={() => toast({ title: 'File uploads coming soon' })} className="rounded-full bg-gray-900 px-4 py-2 text-xs font-semibold text-white hover:bg-gray-800 transition-colors">
+            <button className="rounded-full bg-gray-900 px-4 py-2 text-xs font-semibold text-white hover:bg-gray-800 transition-colors">
               Pick File
             </button>
           </Card>
@@ -377,13 +375,13 @@ export function LessonDetail({
               onSelect={() => update('commentsMode', 'locked')}
               label="Locked"
             />
-            <button
-              onClick={() => toast({ title: 'Comments settings coming soon' })}
+            <a
+              href="#"
               className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-gray-900"
             >
               Comments settings
               <OpenInNewOutlined sx={{ fontSize: 12 }} />
-            </button>
+            </a>
           </Card>
 
           <button
@@ -393,7 +391,6 @@ export function LessonDetail({
             <DeleteOutlineOutlined sx={{ fontSize: 16 }} />
             Delete Lesson
           </button>
-        </div>
         </div>
       </div>
     </div>
@@ -518,21 +515,16 @@ function RadioRow({
 function ToolbarBtn({
   children,
   wide,
-  onClick,
 }: {
   children: React.ReactNode
   wide?: boolean
-  onClick?: () => void
 }) {
   return (
     <button
       type="button"
-      onClick={onClick}
-      title={!onClick ? 'Coming soon' : undefined}
       className={cn(
         'flex items-center gap-1 rounded-md text-xs font-medium text-gray-600 hover:bg-gray-100',
         wide ? 'px-2 py-1' : 'h-7 w-7 justify-center',
-        !onClick && 'opacity-50 cursor-not-allowed',
       )}
     >
       {children}
