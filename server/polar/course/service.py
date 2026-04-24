@@ -7,10 +7,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from polar.models.course import Course
 from polar.models.course_enrollment import CourseEnrollment
 from polar.models.course_lesson import CourseLesson
+from polar.models.course_lesson_progress import CourseLessonProgress
 from polar.models.course_module import CourseModule
 from polar.models.customer import Customer
 
 from .repository import (
+    CourseLessonProgressRepository,
     CourseLessonRepository,
     CourseEnrollmentRepository,
     CourseModuleRepository,
@@ -244,6 +246,37 @@ class CourseService:
         repo = CourseEnrollmentRepository.from_session(session)
         statement = repo.get_by_customer_and_course_statement(customer_id, course_id)
         return await repo.get_one_or_none(statement)
+
+    # --- Progress ---
+
+    async def mark_lesson_complete(
+        self,
+        session: AsyncSession,
+        *,
+        enrollment_id: UUID,
+        lesson_id: UUID,
+    ) -> CourseLessonProgress:
+        repo = CourseLessonProgressRepository.from_session(session)
+        existing = await repo.get_one_or_none(
+            repo.get_by_enrollment_and_lesson_statement(enrollment_id, lesson_id)
+        )
+        if existing is not None:
+            return existing
+        progress = CourseLessonProgress(
+            enrollment_id=enrollment_id,
+            lesson_id=lesson_id,
+            completed_at=datetime.now(tz=timezone.utc),
+        )
+        return await repo.create(progress, flush=True)
+
+    async def get_progress_for_enrollment(
+        self,
+        session: AsyncSession,
+        *,
+        enrollment_id: UUID,
+    ) -> Sequence[CourseLessonProgress]:
+        repo = CourseLessonProgressRepository.from_session(session)
+        return await repo.get_all(repo.get_by_enrollment_statement(enrollment_id))
 
 
 course_service = CourseService()

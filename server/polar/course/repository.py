@@ -8,6 +8,7 @@ from polar.kit.repository import (
 from polar.models.course import Course
 from polar.models.course_enrollment import CourseEnrollment
 from polar.models.course_lesson import CourseLesson
+from polar.models.course_lesson_progress import CourseLessonProgress
 from polar.models.course_module import CourseModule
 
 
@@ -67,4 +68,25 @@ class CourseEnrollmentRepository(
         return self.get_base_statement().where(
             CourseEnrollment.customer_id == customer_id,
             CourseEnrollment.course_id == course_id,
+        )
+
+
+class CourseLessonProgressRepository(
+    RepositorySoftDeletionIDMixin[CourseLessonProgress, UUID],
+    RepositorySoftDeletionMixin[CourseLessonProgress],
+    RepositoryBase[CourseLessonProgress],
+):
+    model = CourseLessonProgress
+
+    def get_by_enrollment_statement(self, enrollment_id: UUID):
+        return self.get_base_statement().where(
+            CourseLessonProgress.enrollment_id == enrollment_id
+        )
+
+    def get_by_enrollment_and_lesson_statement(
+        self, enrollment_id: UUID, lesson_id: UUID
+    ):
+        return self.get_base_statement().where(
+            CourseLessonProgress.enrollment_id == enrollment_id,
+            CourseLessonProgress.lesson_id == lesson_id,
         )

@@ -92,6 +92,13 @@ class CourseUpdate(Schema):
     paywall_position: int | None = None
 
 
+class CourseProgressRead(Schema):
+    total_lessons: int
+    completed_lessons: int
+    completion_percent: float
+    completed: dict[str, str]  # lesson_id -> completed_at ISO string
+
+
 class CourseRead(TimestampedSchema):
     id: UUID4
     product_id: UUID4

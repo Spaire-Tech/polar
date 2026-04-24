@@ -248,6 +248,9 @@ export type CustomerLessonRead = {
   position: number
   duration_seconds: number | null
   is_free_preview: boolean
+  mux_playback_id: string | null
+  mux_status: string | null
+  completed: boolean
 }
 
 export type CustomerModuleRead = {
@@ -255,18 +258,28 @@ export type CustomerModuleRead = {
   title: string
   description: string | null
   position: number
+  locked: boolean
+  locked_until: string | null
   lessons: CustomerLessonRead[]
+}
+
+export type CustomerCourseProgress = {
+  total_lessons: number
+  completed_lessons: number
+  completion_percent: number
+  completed: Record<string, string>
 }
 
 export type CustomerCourseDetail = {
   enrollment_id: string
   enrolled_at: string
+  progress: CustomerCourseProgress
   course: {
     id: string
     title: string | null
     course_type: string
     paywall_enabled: boolean
-    paywall_lesson_id: string | null
+    paywall_position: number | null
     modules: CustomerModuleRead[]
   }
 }
@@ -314,4 +327,22 @@ export const useCustomerCourse = (
         token!,
       ),
     enabled: !!token && !!courseId,
+  })
+
+export const useMarkLessonComplete = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+) =>
+  useMutation({
+    mutationFn: (lessonId: string) =>
+      portalApiFetch<void>(
+        `/v1/customer-portal/courses/${courseId}/lessons/${lessonId}/complete`,
+        token!,
+        { method: 'POST' },
+      ),
+    onSuccess: () => {
+      getQueryClient().invalidateQueries({
+        queryKey: ['customer-courses', token, courseId],
+      })
+    },
   })
