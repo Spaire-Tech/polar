@@ -1,10 +1,7 @@
 'use client'
 
-import ChevronLeftOutlined from '@mui/icons-material/ChevronLeftOutlined'
-import ChevronRightOutlined from '@mui/icons-material/ChevronRightOutlined'
 import LinkOutlined from '@mui/icons-material/LinkOutlined'
 import OpenInNewOutlined from '@mui/icons-material/OpenInNewOutlined'
-import { useEffect, useRef, useState } from 'react'
 
 export type StorefrontLinkItem = {
   id: string
@@ -75,23 +72,41 @@ function buildEmbedUrl(
 
 const EmbedFrame = ({
   link,
-  autoplay,
+  autoplay = false,
   fullHeight = false,
 }: {
   link: StorefrontLinkItem
-  autoplay: boolean
+  autoplay?: boolean
   fullHeight?: boolean
 }) => {
   const platform = link.platform ?? ''
   const src = buildEmbedUrl(link.url, platform, autoplay)
   if (!src) return null
 
+  // Embeds render at full container width. YouTube keeps a 16:9 aspect ratio,
+  // Spotify/SoundCloud have native fixed heights.
+  if (platform === 'youtube') {
+    return (
+      <div className="relative w-full overflow-hidden pt-[56.25%]">
+        <iframe
+          key={autoplay ? 'play' : 'pause'}
+          src={src}
+          frameBorder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+          allowFullScreen
+          loading="lazy"
+          className="absolute inset-0 block h-full w-full"
+          title={link.title ?? platform}
+        />
+      </div>
+    )
+  }
+
   const heights: Record<string, number> = {
-    youtube: fullHeight ? 240 : 180,
     spotify: 80,
     soundcloud: 116,
   }
-  const h = heights[platform] ?? 140
+  const h = heights[platform] ?? (fullHeight ? 240 : 180)
 
   return (
     <iframe
@@ -130,339 +145,123 @@ const Thumb = ({
     </div>
   )
 
-// ─── Classic layout ─────────────────────────────────────────────────────────
+// ─── URL row (classic) ───────────────────────────────────────────────────────
 
-const ClassicLayout = ({ links }: { links: StorefrontLinkItem[] }) => (
+const UrlRow = ({ link }: { link: StorefrontLinkItem }) => (
+  <a
+    href={link.url}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="flex items-center gap-4 rounded-2xl border border-gray-200 bg-white px-4 py-3.5 shadow-sm transition-all hover:shadow-md"
+  >
+    <Thumb link={link} className="h-12 w-12 shrink-0 rounded-xl object-cover" />
+    <div className="min-w-0 flex-1">
+      <p className="truncate text-sm font-semibold text-gray-900">
+        {link.title || getDomain(link.url)}
+      </p>
+      {link.description && (
+        <p className="truncate text-xs text-gray-500">{link.description}</p>
+      )}
+      <p className="mt-0.5 truncate text-[11px] text-gray-400">
+        {getDomain(link.url)}
+      </p>
+    </div>
+    <OpenInNewOutlined
+      style={{ fontSize: 16 }}
+      className="shrink-0 text-gray-300"
+    />
+  </a>
+)
+
+const UrlList = ({ links }: { links: StorefrontLinkItem[] }) => (
   <div className="flex flex-col gap-3">
     {links.map((link) => (
-      <a
-        key={link.id}
-        href={link.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex items-center gap-4 rounded-2xl border border-gray-200 bg-white px-4 py-3.5 shadow-sm transition-all hover:shadow-md"
-      >
-        <Thumb
-          link={link}
-          className="h-12 w-12 shrink-0 rounded-xl object-cover"
-        />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-gray-900">
-            {link.title || getDomain(link.url)}
-          </p>
-          {link.description && (
-            <p className="truncate text-xs text-gray-500">{link.description}</p>
-          )}
-          <p className="mt-0.5 truncate text-[11px] text-gray-400">
-            {getDomain(link.url)}
-          </p>
-        </div>
-        <OpenInNewOutlined
-          style={{ fontSize: 16 }}
-          className="shrink-0 text-gray-300"
-        />
-      </a>
+      <UrlRow key={link.id} link={link} />
     ))}
   </div>
 )
 
-// ─── Peek carousel ────────────────────────────────────────────────────────────
-// Shows partial adjacent cards on both sides. Touch-swipeable on mobile.
-// cardRatio: fraction of container per card on mobile
-// desktopCardRatio: fraction on desktop (container > 400px), defaults to smaller
+// ─── Embed card (full-width) ─────────────────────────────────────────────────
+// Embeds always take the full container width so they make full use of the
+// right-side space column.
 
-interface PeekCarouselProps {
-  links: StorefrontLinkItem[]
-  renderCard: (link: StorefrontLinkItem, isActive: boolean) => React.ReactNode
-  cardRatio?: number
-  desktopCardRatio?: number
-}
-
-const PeekCarousel = ({
-  links,
-  renderCard,
-  cardRatio = 0.76,
-  desktopCardRatio = 0.52,
-}: PeekCarouselProps) => {
-  const [current, setCurrent] = useState(0)
-  const containerRef = useRef<HTMLDivElement>(null)
-  const [containerWidth, setContainerWidth] = useState(0)
-  const touchStartX = useRef(0)
-  const touchEndX = useRef(0)
-
-  useEffect(() => {
-    const el = containerRef.current
-    if (!el) return
-    setContainerWidth(el.offsetWidth)
-    const ro = new ResizeObserver(([entry]) => {
-      setContainerWidth(entry.contentRect.width)
-    })
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
-
-  const DESKTOP_BP = 400
-  const activeRatio =
-    containerWidth > DESKTOP_BP ? desktopCardRatio : cardRatio
-  const GAP = 12
-  const cardW = containerWidth > 0 ? containerWidth * activeRatio : 240
-  const peek = containerWidth > 0 ? (containerWidth - cardW) / 2 : 16
-  const offset = peek - current * (cardW + GAP)
-
-  const prev = () => setCurrent((c) => Math.max(0, c - 1))
-  const next = () => setCurrent((c) => Math.min(links.length - 1, c + 1))
-
-  const onTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX
-    touchEndX.current = e.touches[0].clientX
-  }
-  const onTouchMove = (e: React.TouchEvent) => {
-    touchEndX.current = e.touches[0].clientX
-  }
-  const onTouchEnd = () => {
-    const diff = touchStartX.current - touchEndX.current
-    if (diff > 40) next()
-    else if (diff < -40) prev()
-  }
-
-  return (
-    <div className="flex flex-col gap-3">
-      <div
-        ref={containerRef}
-        className="relative overflow-hidden"
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-      >
-        <div
-          className="flex transition-transform duration-300 ease-out"
-          style={{ transform: `translateX(${offset}px)`, gap: `${GAP}px` }}
-        >
-          {links.map((link, i) => {
-            const isActive = i === current
-            return (
-              <div
-                key={link.id}
-                style={{ width: `${cardW}px`, flexShrink: 0 }}
-                className={`cursor-pointer transition-all duration-300 ${
-                  isActive
-                    ? 'opacity-100'
-                    : 'scale-[0.96] opacity-50 hover:opacity-70'
-                }`}
-                onClick={() => {
-                  if (!isActive) setCurrent(i)
-                }}
-              >
-                {renderCard(link, isActive)}
-              </div>
-            )
-          })}
-        </div>
-
-        {current > 0 && (
-          <button
-            type="button"
-            aria-label="Previous"
-            onClick={prev}
-            className="absolute left-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 shadow-md backdrop-blur-sm transition hover:bg-white"
-          >
-            <ChevronLeftOutlined style={{ fontSize: 18 }} />
-          </button>
-        )}
-        {current < links.length - 1 && (
-          <button
-            type="button"
-            aria-label="Next"
-            onClick={next}
-            className="absolute right-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 shadow-md backdrop-blur-sm transition hover:bg-white"
-          >
-            <ChevronRightOutlined style={{ fontSize: 18 }} />
-          </button>
-        )}
-      </div>
-
-      {links.length > 1 && (
-        <div className="flex justify-center gap-1.5">
-          {links.map((_, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => setCurrent(i)}
-              className={`h-1.5 rounded-full transition-all ${
-                i === current ? 'w-4 bg-gray-900' : 'w-1.5 bg-gray-300'
-              }`}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ─── Carousel layout ────────────────────────────────────────────────────────
-
-const CarouselCard = ({
-  link,
-  isActive,
-}: {
-  link: StorefrontLinkItem
-  isActive: boolean
-}) => {
-  const hasEmbed =
+const EmbedCard = ({ link }: { link: StorefrontLinkItem }) => {
+  const canEmbed =
     link.type === 'embedded' &&
     link.platform &&
     buildEmbedUrl(link.url, link.platform, false)
 
   return (
-    <div className="flex w-full flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-      {hasEmbed ? (
-        <EmbedFrame link={link} autoplay={isActive} />
+    <div className="w-full overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+      {canEmbed ? (
+        <EmbedFrame link={link} />
       ) : (
-        <Thumb
-          link={link}
-          className="aspect-[4/3] w-full object-cover"
-        />
+        <Thumb link={link} className="aspect-[16/9] w-full object-cover" />
       )}
-      <div className="flex flex-col gap-1 p-3">
-        <p className="text-sm font-semibold text-gray-900">
-          {link.title || getDomain(link.url)}
-        </p>
-        {link.description && (
-          <p className="line-clamp-2 text-xs text-gray-500">
-            {link.description}
-          </p>
-        )}
-        {link.type === 'standard' && (
-          <a
-            href={link.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-gray-400 hover:text-gray-700"
-          >
-            {getDomain(link.url)}
-            <OpenInNewOutlined style={{ fontSize: 10 }} />
-          </a>
-        )}
-      </div>
-    </div>
-  )
-}
-
-const CarouselLayout = ({ links }: { links: StorefrontLinkItem[] }) => (
-  <PeekCarousel
-    links={links}
-    cardRatio={0.76}
-    desktopCardRatio={0.44}
-    renderCard={(link, isActive) => (
-      <CarouselCard link={link} isActive={isActive} />
-    )}
-  />
-)
-
-// ─── Image grid layout ───────────────────────────────────────────────────────
-
-const ImageGridLayout = ({ links }: { links: StorefrontLinkItem[] }) => (
-  <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-    {links.map((link) => (
-      <a
-        key={link.id}
-        href={link.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="group overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md"
-      >
-        <Thumb
-          link={link}
-          className="aspect-[4/3] w-full object-cover transition-transform duration-300 group-hover:scale-105"
-        />
-        <div className="p-2.5">
-          <p className="line-clamp-1 text-xs font-semibold text-gray-900">
-            {link.title || getDomain(link.url)}
-          </p>
+      {(link.title || link.description) && (
+        <div className="flex flex-col gap-1.5 p-4">
+          {link.title && (
+            <h3 className="text-base font-bold text-gray-900">{link.title}</h3>
+          )}
           {link.description && (
-            <p className="mt-0.5 line-clamp-1 text-[10px] text-gray-400">
+            <p className="line-clamp-2 text-sm text-gray-500">
               {link.description}
             </p>
           )}
         </div>
-      </a>
+      )}
+    </div>
+  )
+}
+
+const EmbedList = ({ links }: { links: StorefrontLinkItem[] }) => (
+  <div className="flex w-full flex-col gap-5">
+    {links.map((link) => (
+      <EmbedCard key={link.id} link={link} />
     ))}
   </div>
 )
 
-// ─── Card layout ─────────────────────────────────────────────────────────────
+// ─── Section label ───────────────────────────────────────────────────────────
 
-const CardItem = ({
-  link,
-  isActive,
-}: {
-  link: StorefrontLinkItem
-  isActive: boolean
-}) => (
-  <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-    {link.type === 'embedded' && link.platform ? (
-      <EmbedFrame link={link} autoplay={isActive} fullHeight />
-    ) : (
-      <Thumb
-        link={link}
-        className="aspect-[16/9] w-full object-cover"
-      />
-    )}
-    <div className="flex flex-col gap-1.5 p-4">
-      <h3 className="text-sm font-bold text-gray-900">
-        {link.title || getDomain(link.url)}
-      </h3>
-      {link.description && (
-        <p className="text-xs text-gray-500 line-clamp-2">{link.description}</p>
-      )}
-      {link.type === 'standard' && (
-        <a
-          href={link.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(e) => e.stopPropagation()}
-          className="mt-1 inline-flex w-fit items-center gap-1.5 rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-gray-700"
-        >
-          Visit <OpenInNewOutlined style={{ fontSize: 12 }} />
-        </a>
-      )}
-    </div>
+const SectionLabel = ({ children }: { children: React.ReactNode }) => (
+  <div className="inline-flex items-center gap-2 self-start rounded-full border border-white/60 bg-white/40 px-3.5 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_2px_rgba(0,0,0,0.04)] backdrop-blur-xl">
+    <span className="text-[11px] font-semibold tracking-[0.14em] text-gray-700 uppercase">
+      {children}
+    </span>
   </div>
 )
 
-const CardLayout = ({ links }: { links: StorefrontLinkItem[] }) => (
-  <PeekCarousel
-    links={links}
-    cardRatio={0.82}
-    desktopCardRatio={0.54}
-    renderCard={(link, isActive) => <CardItem link={link} isActive={isActive} />}
-  />
-)
-
 // ─── Main export ─────────────────────────────────────────────────────────────
+// Each link's rendering is derived from its type: URLs render as classic
+// rows, embeds as full-width cards. The legacy `layout` prop is accepted for
+// backwards compatibility but ignored.
 
 export const StorefrontLinks = ({
   links,
-  layout = 'carousel',
 }: {
   links: StorefrontLinkItem[]
   layout?: LinksLayout
 }) => {
   if (links.length === 0) return null
 
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="inline-flex items-center gap-2 self-start rounded-full border border-white/60 bg-white/40 px-3.5 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_2px_rgba(0,0,0,0.04)] backdrop-blur-xl">
-        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-700">
-          Links
-        </span>
-      </div>
+  const urlLinks = links.filter((l) => l.type !== 'embedded')
+  const embedLinks = links.filter((l) => l.type === 'embedded')
 
-      {layout === 'classic' && <ClassicLayout links={links} />}
-      {layout === 'carousel' && <CarouselLayout links={links} />}
-      {layout === 'image_grid' && <ImageGridLayout links={links} />}
-      {layout === 'card' && <CardLayout links={links} />}
+  return (
+    <div className="flex w-full flex-col gap-8">
+      {embedLinks.length > 0 && (
+        <div className="flex flex-col gap-4">
+          <SectionLabel>Featured</SectionLabel>
+          <EmbedList links={embedLinks} />
+        </div>
+      )}
+      {urlLinks.length > 0 && (
+        <div className="flex flex-col gap-4">
+          <SectionLabel>Links</SectionLabel>
+          <UrlList links={urlLinks} />
+        </div>
+      )}
     </div>
   )
 }

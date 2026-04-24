@@ -1,20 +1,30 @@
 'use client'
 
-import { StorefrontLinkItem, StorefrontLinks } from '@/components/Profile/StorefrontLinks'
 import { Upload } from '@/components/FileUpload/Upload'
-import ArrowBackOutlined from '@mui/icons-material/ArrowBackOutlined'
+import { StorefrontLinkItem } from '@/components/Profile/StorefrontLinks'
 import AddOutlined from '@mui/icons-material/AddOutlined'
-import DeleteOutlined from '@mui/icons-material/DeleteOutlined'
-import LinkOutlined from '@mui/icons-material/LinkOutlined'
 import AddPhotoAlternateOutlined from '@mui/icons-material/AddPhotoAlternateOutlined'
-import YouTube from '@mui/icons-material/YouTube'
-import MusicNoteOutlined from '@mui/icons-material/MusicNoteOutlined'
-import Instagram from '@mui/icons-material/Instagram'
-import ExpandMoreOutlined from '@mui/icons-material/ExpandMoreOutlined'
+import ArrowBackOutlined from '@mui/icons-material/ArrowBackOutlined'
+import ArticleOutlined from '@mui/icons-material/ArticleOutlined'
+import CodeOutlined from '@mui/icons-material/CodeOutlined'
+import DeleteOutlined from '@mui/icons-material/DeleteOutlined'
 import ExpandLessOutlined from '@mui/icons-material/ExpandLessOutlined'
+import ExpandMoreOutlined from '@mui/icons-material/ExpandMoreOutlined'
+import GraphicEqOutlined from '@mui/icons-material/GraphicEqOutlined'
+import Instagram from '@mui/icons-material/Instagram'
+import LanguageOutlined from '@mui/icons-material/LanguageOutlined'
+import LinkOutlined from '@mui/icons-material/LinkOutlined'
+import MusicNoteOutlined from '@mui/icons-material/MusicNoteOutlined'
+import PlayArrowOutlined from '@mui/icons-material/PlayArrowOutlined'
+import PlayCircleOutlined from '@mui/icons-material/PlayCircleOutlined'
+import ShareOutlined from '@mui/icons-material/ShareOutlined'
+import StorefrontOutlined from '@mui/icons-material/StorefrontOutlined'
+import WorkOutlineOutlined from '@mui/icons-material/WorkOutlineOutlined'
+import YouTube from '@mui/icons-material/YouTube'
 import { schemas } from '@spaire/client'
 import { useCallback, useRef, useState } from 'react'
 import { useFormContext } from 'react-hook-form'
+import { twMerge } from 'tailwind-merge'
 
 // ─── Platform helpers ────────────────────────────────────────────────────────
 
@@ -100,15 +110,15 @@ const LinkEditCard = ({
   onRemove: () => void
 }) => {
   const domain = getDomain(link.url)
-  const icon = link.platform
-    ? PLATFORM_ICONS[link.platform]
-    : <LinkOutlined style={{ fontSize: 16 }} />
+  const icon = link.platform ? (
+    PLATFORM_ICONS[link.platform]
+  ) : (
+    <LinkOutlined style={{ fontSize: 16 }} />
+  )
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploadingImage, setUploadingImage] = useState(false)
 
-  const handleImageUpload = async (
-    e: React.ChangeEvent<HTMLInputElement>,
-  ) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     setUploadingImage(true)
@@ -180,10 +190,10 @@ const LinkEditCard = ({
 
       {/* Expanded edit form */}
       {isExpanded && (
-        <div className="flex flex-col gap-5 border-t border-gray-100 px-4 pb-5 pt-4">
+        <div className="flex flex-col gap-5 border-t border-gray-100 px-4 pt-4 pb-5">
           {/* Cover image */}
           <div className="flex flex-col gap-2">
-            <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+            <label className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
               Cover Image
             </label>
             <div className="flex items-center gap-3">
@@ -241,7 +251,7 @@ const LinkEditCard = ({
 
           {/* Title */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+            <label className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
               Title
             </label>
             <input
@@ -257,7 +267,7 @@ const LinkEditCard = ({
 
           {/* Description */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+            <label className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
               Description
             </label>
             <textarea
@@ -276,6 +286,55 @@ const LinkEditCard = ({
   )
 }
 
+// ─── Link-type metadata ──────────────────────────────────────────────────────
+
+type LinkMode = 'url' | 'embed'
+
+type ModeCopy = {
+  label: string
+  Icon: React.ComponentType<{ style?: React.CSSProperties }>
+  heading: string
+  description: string
+  placeholder: string
+  bestFor: {
+    label: string
+    Icon: React.ComponentType<{ style?: React.CSSProperties }>
+  }[]
+}
+
+const MODE_COPY: Record<LinkMode, ModeCopy> = {
+  url: {
+    label: 'URL',
+    Icon: LinkOutlined,
+    heading: 'URL link',
+    description:
+      'Share any web destination — a website, affiliate link, portfolio, article, or store. Visitors open the link in a new tab.',
+    placeholder: 'https://your-website.com',
+    bestFor: [
+      { label: 'Website', Icon: LanguageOutlined },
+      { label: 'Affiliate link', Icon: ShareOutlined },
+      { label: 'Portfolio', Icon: WorkOutlineOutlined },
+      { label: 'Article', Icon: ArticleOutlined },
+      { label: 'Store', Icon: StorefrontOutlined },
+      { label: 'Other URL', Icon: CodeOutlined },
+    ],
+  },
+  embed: {
+    label: 'Embed',
+    Icon: PlayCircleOutlined,
+    heading: 'Embedded content',
+    description:
+      'Embed rich media that plays inline on your space — perfect for showcasing videos, tracks, and audio without sending visitors away.',
+    placeholder: 'https://youtube.com/watch?v=…',
+    bestFor: [
+      { label: 'YouTube', Icon: YouTube },
+      { label: 'Spotify', Icon: MusicNoteOutlined },
+      { label: 'SoundCloud', Icon: GraphicEqOutlined },
+      { label: 'YouTube Shorts', Icon: PlayArrowOutlined },
+    ],
+  },
+}
+
 // ─── Panel ────────────────────────────────────────────────────────────────────
 
 export const StorefrontLinksPanel = ({
@@ -288,13 +347,16 @@ export const StorefrontLinksPanel = ({
   const { watch, setValue, getValues } =
     useFormContext<schemas['OrganizationUpdate']>()
   const settings = watch('storefront_settings')
-  const storefrontLinks: StorefrontLinkItem[] =
-    ((settings as any)?.storefront_links ?? []) as StorefrontLinkItem[]
-  const linksLayout = (settings as any)?.links_layout ?? 'carousel'
+  const storefrontLinks: StorefrontLinkItem[] = ((settings as any)
+    ?.storefront_links ?? []) as StorefrontLinkItem[]
 
+  const [mode, setMode] = useState<LinkMode>('url')
   const [newUrl, setNewUrl] = useState('')
+  const [addError, setAddError] = useState<string | null>(null)
   const [fetchingId, setFetchingId] = useState<string | null>(null)
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
+
+  const copy = MODE_COPY[mode]
 
   const setLinks = useCallback(
     (links: StorefrontLinkItem[]) => {
@@ -308,11 +370,39 @@ export const StorefrontLinksPanel = ({
     [getValues, setValue],
   )
 
+  const switchMode = (next: LinkMode) => {
+    setMode(next)
+    setAddError(null)
+  }
+
   const addLink = useCallback(async () => {
     const url = newUrl.trim()
     if (!url) return
+
+    // Basic URL validation up-front.
+    let parsed: URL
+    try {
+      parsed = new URL(url)
+    } catch {
+      setAddError('Please enter a valid URL (including https://).')
+      return
+    }
+    if (!/^https?:$/.test(parsed.protocol)) {
+      setAddError('URL must start with http:// or https://')
+      return
+    }
+
     const platform = detectPlatform(url)
-    const type = platform && EMBEDDABLE.has(platform) ? 'embedded' : 'standard'
+    const isEmbeddable = Boolean(platform && EMBEDDABLE.has(platform))
+
+    if (mode === 'embed' && !isEmbeddable) {
+      setAddError(
+        'Only YouTube, Spotify, and SoundCloud links can be embedded. Switch to URL to add this link.',
+      )
+      return
+    }
+
+    const type = mode === 'embed' ? 'embedded' : 'standard'
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
     const newLink: StorefrontLinkItem = {
       id,
@@ -325,6 +415,7 @@ export const StorefrontLinksPanel = ({
     }
 
     setNewUrl('')
+    setAddError(null)
     setFetchingId(id)
     setExpandedIds((prev) => new Set([...prev, id]))
 
@@ -356,7 +447,7 @@ export const StorefrontLinksPanel = ({
     } catch {}
 
     setFetchingId(null)
-  }, [newUrl, getValues, setLinks])
+  }, [newUrl, mode, getValues, setLinks])
 
   const updateLink = useCallback(
     (updated: StorefrontLinkItem) => {
@@ -394,6 +485,10 @@ export const StorefrontLinksPanel = ({
     })
   }
 
+  const urlLinks = storefrontLinks.filter((l) => l.type === 'standard')
+  const embedLinks = storefrontLinks.filter((l) => l.type === 'embedded')
+  const activeList = mode === 'embed' ? embedLinks : urlLinks
+
   return (
     <div className="flex h-full flex-col">
       {/* Header — sticky so back button stays reachable when scrolling */}
@@ -415,60 +510,137 @@ export const StorefrontLinksPanel = ({
 
       {/* Scrollable body */}
       <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-6 py-6">
+        {/* Type picker */}
+        <div className="flex flex-col gap-3">
+          <h3 className="text-base font-semibold text-gray-900">
+            What type of link
+          </h3>
+          <div className="grid grid-cols-2 gap-3">
+            {(Object.keys(MODE_COPY) as LinkMode[]).map((key) => {
+              const { Icon, label } = MODE_COPY[key]
+              const isActive = mode === key
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => switchMode(key)}
+                  className={twMerge(
+                    'flex items-center justify-center gap-2 rounded-2xl border px-4 py-4 text-sm font-medium transition-all',
+                    isActive
+                      ? 'border-gray-900 bg-white text-gray-900 shadow-[0_0_0_1px_rgba(17,24,39,1)]'
+                      : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:text-gray-700',
+                  )}
+                >
+                  <Icon style={{ fontSize: 18 }} />
+                  {label}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Description */}
+          <div className="flex flex-col gap-1">
+            <p className="text-sm font-semibold text-gray-900">
+              {copy.heading}
+            </p>
+            <p className="text-sm leading-relaxed text-gray-500">
+              {copy.description}
+            </p>
+          </div>
+
+          {/* Best for */}
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
+              Best for
+            </p>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+              {copy.bestFor.map(({ label, Icon }) => (
+                <div
+                  key={label}
+                  className="flex items-center gap-2 text-sm text-gray-700"
+                >
+                  <Icon style={{ fontSize: 18 }} />
+                  <span>{label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
         {/* Add link input */}
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-            Add Link
+        <div className="flex flex-col gap-2 border-t border-gray-100 pt-6">
+          <label className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
+            Add {copy.label} link
           </label>
           <div className="flex gap-2">
             <input
               type="url"
               value={newUrl}
-              onChange={(e) => setNewUrl(e.target.value)}
+              onChange={(e) => {
+                setNewUrl(e.target.value)
+                if (addError) setAddError(null)
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault()
                   void addLink()
                 }
               }}
-              placeholder="https://youtube.com/watch?v=…"
-              className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-gray-400 focus:outline-none"
+              placeholder={copy.placeholder}
+              className={twMerge(
+                'min-w-0 flex-1 rounded-xl border bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none',
+                addError
+                  ? 'border-red-300 focus:border-red-400'
+                  : 'border-gray-200 focus:border-gray-400',
+              )}
             />
             <button
               type="button"
               onClick={() => void addLink()}
               disabled={!newUrl.trim()}
-              className="flex h-[42px] shrink-0 items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-default disabled:opacity-40"
+              className="flex h-[42px] shrink-0 items-center gap-1.5 rounded-xl bg-gray-900 px-4 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:cursor-default disabled:opacity-40"
             >
               <AddOutlined style={{ fontSize: 16 }} />
               Add
             </button>
           </div>
-          <p className="text-[11px] text-gray-400">
-            YouTube, Spotify, SoundCloud links will be embedded automatically.
-          </p>
+          {addError ? (
+            <p className="text-[11px] text-red-500">{addError}</p>
+          ) : (
+            <p className="text-[11px] text-gray-400">
+              {mode === 'embed'
+                ? 'Paste a YouTube, Spotify, or SoundCloud link to embed it inline.'
+                : 'Paste any https:// link — we’ll fetch its title, description, and cover automatically.'}
+            </p>
+          )}
         </div>
 
-        {/* Links list */}
-        {storefrontLinks.length === 0 ? (
+        {/* Links list — scoped to current mode */}
+        {activeList.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-gray-200 py-12 text-center">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100">
-              <LinkOutlined style={{ fontSize: 22 }} className="text-gray-400" />
+              <LinkOutlined
+                style={{ fontSize: 22 }}
+                className="text-gray-400"
+              />
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-700">No links yet</p>
+              <p className="text-sm font-medium text-gray-700">
+                No {copy.label.toLowerCase()} links yet
+              </p>
               <p className="mt-0.5 text-xs text-gray-400">
-                Paste a URL above to add your first link
+                Paste a URL above to add your first{' '}
+                {mode === 'embed' ? 'embed' : 'link'}
               </p>
             </div>
           </div>
         ) : (
           <div className="flex flex-col gap-2">
-            <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-              Your Links
+            <label className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
+              Your {copy.label} links
             </label>
             <div className="flex flex-col gap-2">
-              {storefrontLinks.map((link) => (
+              {activeList.map((link) => (
                 <LinkEditCard
                   key={link.id}
                   link={link}
@@ -484,16 +656,32 @@ export const StorefrontLinksPanel = ({
           </div>
         )}
 
-        {/* Live preview */}
-        {storefrontLinks.length > 0 && (
-          <div className="flex flex-col gap-3">
-            <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-              Preview
-            </label>
-            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-              <StorefrontLinks links={storefrontLinks} layout={linksLayout} />
-            </div>
-          </div>
+        {/* Counter for the other mode — small hint so users don’t lose their work */}
+        {mode === 'url' && embedLinks.length > 0 && (
+          <button
+            type="button"
+            onClick={() => switchMode('embed')}
+            className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3 text-left text-xs text-gray-500 transition-colors hover:bg-gray-100"
+          >
+            <span>
+              You also have {embedLinks.length} embed
+              {embedLinks.length !== 1 ? 's' : ''}
+            </span>
+            <span className="font-medium text-gray-700">Switch to Embed →</span>
+          </button>
+        )}
+        {mode === 'embed' && urlLinks.length > 0 && (
+          <button
+            type="button"
+            onClick={() => switchMode('url')}
+            className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3 text-left text-xs text-gray-500 transition-colors hover:bg-gray-100"
+          >
+            <span>
+              You also have {urlLinks.length} URL link
+              {urlLinks.length !== 1 ? 's' : ''}
+            </span>
+            <span className="font-medium text-gray-700">Switch to URL →</span>
+          </button>
         )}
       </div>
     </div>
