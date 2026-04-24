@@ -1,8 +1,9 @@
 'use client'
 
 import revalidate from '@/app/actions'
-import { StorefrontEditorForm } from '@/components/Customization/Storefront/StorefrontSidebar'
+import { StorefrontLinksPanel } from '@/components/Customization/Storefront/StorefrontLinksPanel'
 import { StorefrontLivePreview } from '@/components/Customization/Storefront/StorefrontPreview'
+import { StorefrontEditorForm } from '@/components/Customization/Storefront/StorefrontSidebar'
 import { ForceLightMode } from '@/components/Profile/ForceLightMode'
 import { toast } from '@/components/Toast/use-toast'
 import { useUpdateOrganization } from '@/hooks/queries'
@@ -19,6 +20,7 @@ export default function ReviewPage() {
   const router = useRouter()
   const updateOrganization = useUpdateOrganization()
   const [publishing, setPublishing] = useState(false)
+  const [linksMode, setLinksMode] = useState(false)
 
   const form = useForm<schemas['OrganizationUpdate']>({
     defaultValues: {
@@ -93,9 +95,7 @@ export default function ReviewPage() {
           <button
             type="button"
             onClick={() =>
-              router.push(
-                `/dashboard/${organization.slug}/onboarding`,
-              )
+              router.push(`/dashboard/${organization.slug}/onboarding`)
             }
             className="text-[14px] text-gray-500 transition-colors hover:text-gray-700"
           >
@@ -114,23 +114,47 @@ export default function ReviewPage() {
         {/* Two-column layout: preview left, form right */}
         <div className="flex min-h-0 grow flex-row overflow-hidden">
           {/* Left — live card preview */}
-          <div className="hidden flex-1 flex-col items-center justify-center overflow-y-auto p-10 md:flex">
+          <div
+            className={`hidden flex-1 flex-col items-center overflow-y-auto p-10 md:flex ${
+              linksMode ? 'justify-start' : 'justify-center'
+            }`}
+          >
             <div className="flex w-full max-w-[500px] flex-col items-center">
-              <h1 className="text-center text-[28px] font-bold text-gray-950">
-                Let&apos;s Create your Space Card
-              </h1>
-              <p className="mt-1 text-center text-[15px] text-gray-500">
-                Introduce yourself and design your personal Space ID card.
-              </p>
-              <div className="mt-8 w-full max-w-[460px]">
-                <StorefrontLivePreview organization={organization} />
+              {!linksMode && (
+                <>
+                  <h1 className="text-center text-[28px] font-bold text-gray-950">
+                    Let&apos;s Create your Space Card
+                  </h1>
+                  <p className="mt-1 text-center text-[15px] text-gray-500">
+                    Introduce yourself and design your personal Space ID card.
+                  </p>
+                </>
+              )}
+              <div
+                className={
+                  linksMode
+                    ? 'w-full max-w-[460px]'
+                    : 'mt-8 w-full max-w-[460px]'
+                }
+              >
+                {linksMode ? (
+                  <StorefrontLinksPanel
+                    organization={organization}
+                    onBack={() => setLinksMode(false)}
+                  />
+                ) : (
+                  <StorefrontLivePreview organization={organization} />
+                )}
               </div>
             </div>
           </div>
 
           {/* Right — the exact same form as the dashboard */}
           <div className="w-full shrink-0 overflow-y-auto border-l border-gray-200 bg-white shadow-sm md:w-[700px]">
-            <StorefrontEditorForm organization={organization} />
+            <StorefrontEditorForm
+              organization={organization}
+              onEnterLinksMode={() => setLinksMode(true)}
+            />
           </div>
         </div>
       </div>

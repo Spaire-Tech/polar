@@ -208,7 +208,11 @@ const Customization = ({
         {/* Two-column: preview left, form right */}
         <div className="flex min-h-0 grow flex-row overflow-hidden">
           {/* Left — heading + live card preview (hidden on mobile) */}
-          <div className="hidden flex-1 flex-col items-center justify-center overflow-y-auto p-10 md:flex">
+          <div
+            className={`hidden flex-1 flex-col items-center overflow-y-auto p-10 md:flex ${
+              linksMode ? 'justify-start' : 'justify-center'
+            }`}
+          >
             <div className="flex w-full max-w-[500px] flex-col items-center">
               {!linksMode && (
                 <>
