@@ -41,35 +41,25 @@ class CourseService:
         self, session: AsyncSession, create_schema: CourseCreate
     ) -> Course:
         repo = CourseRepository.from_session(session)
-        module_repo = CourseModuleRepository.from_session(session)
-        lesson_repo = CourseLessonRepository.from_session(session)
 
-        course = await repo.create(
-            Course(
-                product_id=create_schema.product_id,
-                organization_id=create_schema.organization_id,
-                course_type=create_schema.course_type,
-                paywall_enabled=create_schema.paywall_enabled,
-                paywall_lesson_id=create_schema.paywall_lesson_id,
-                ai_generated=create_schema.ai_generated,
-            ),
-            flush=True,
+        course = Course(
+            product_id=create_schema.product_id,
+            organization_id=create_schema.organization_id,
+            course_type=create_schema.course_type,
+            paywall_enabled=create_schema.paywall_enabled,
+            paywall_lesson_id=create_schema.paywall_lesson_id,
+            ai_generated=create_schema.ai_generated,
         )
 
         for mod_schema in create_schema.modules:
-            module = await module_repo.create(
-                CourseModule(
-                    course_id=course.id,
-                    title=mod_schema.title,
-                    description=mod_schema.description,
-                    position=mod_schema.position,
-                ),
-                flush=True,
+            module = CourseModule(
+                title=mod_schema.title,
+                description=mod_schema.description,
+                position=mod_schema.position,
             )
             for lesson_schema in mod_schema.lessons:
-                await lesson_repo.create(
+                module.lessons.append(
                     CourseLesson(
-                        module_id=module.id,
                         title=lesson_schema.title,
                         content_type=lesson_schema.content_type,
                         content=lesson_schema.content,
@@ -79,8 +69,9 @@ class CourseService:
                         is_free_preview=lesson_schema.is_free_preview,
                     )
                 )
+            course.modules.append(module)
 
-        return course
+        return await repo.create(course, flush=True)
 
     async def update(
         self,
@@ -99,22 +90,17 @@ class CourseService:
         create_schema: CourseModuleCreate,
     ) -> CourseModule:
         module_repo = CourseModuleRepository.from_session(session)
-        lesson_repo = CourseLessonRepository.from_session(session)
 
-        module = await module_repo.create(
-            CourseModule(
-                course_id=course.id,
-                title=create_schema.title,
-                description=create_schema.description,
-                position=create_schema.position,
-            ),
-            flush=True,
+        module = CourseModule(
+            course_id=course.id,
+            title=create_schema.title,
+            description=create_schema.description,
+            position=create_schema.position,
         )
 
         for lesson_schema in create_schema.lessons:
-            await lesson_repo.create(
+            module.lessons.append(
                 CourseLesson(
-                    module_id=module.id,
                     title=lesson_schema.title,
                     content_type=lesson_schema.content_type,
                     content=lesson_schema.content,
@@ -125,7 +111,7 @@ class CourseService:
                 )
             )
 
-        return module
+        return await module_repo.create(module, flush=True)
 
     async def update_module(
         self,
