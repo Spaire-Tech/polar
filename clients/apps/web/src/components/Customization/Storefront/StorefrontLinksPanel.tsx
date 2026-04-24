@@ -162,7 +162,7 @@ const LinkEditCard = ({
         </div>
 
         {link.type === 'embedded' && (
-          <span className="shrink-0 rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-medium text-violet-600">
+          <span className="bg-primary/10 text-primary shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium">
             Embed
           </span>
         )}
@@ -261,7 +261,7 @@ const LinkEditCard = ({
                 onUpdate({ ...link, title: e.target.value || null })
               }
               placeholder={domain}
-              className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-gray-400 focus:outline-none"
+              className="focus:border-primary w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
             />
           </div>
 
@@ -277,7 +277,7 @@ const LinkEditCard = ({
               }
               placeholder="Short description…"
               rows={2}
-              className="w-full resize-none rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-gray-400 focus:outline-none"
+              className="focus:border-primary w-full resize-none rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
             />
           </div>
         </div>
@@ -490,200 +490,197 @@ export const StorefrontLinksPanel = ({
   const activeList = mode === 'embed' ? embedLinks : urlLinks
 
   return (
-    <div className="flex h-full flex-col">
-      {/* Header — sticky so back button stays reachable when scrolling */}
-      <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-gray-100 bg-white px-6 py-4">
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex h-8 w-8 items-center justify-center rounded-xl border border-gray-200 text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700"
-        >
-          <ArrowBackOutlined style={{ fontSize: 16 }} />
-        </button>
-        <h2 className="text-sm font-semibold text-gray-900">Manage Links</h2>
-        {storefrontLinks.length > 0 && (
-          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
-            {storefrontLinks.length}
-          </span>
-        )}
-      </div>
+    <>
+      {/* Fixed back arrow — always reachable, pinned to viewport top-left */}
+      <button
+        type="button"
+        onClick={onBack}
+        aria-label="Back"
+        className="fixed top-20 left-6 z-40 hidden h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 shadow-sm transition-colors hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900 md:flex"
+      >
+        <ArrowBackOutlined style={{ fontSize: 20 }} />
+      </button>
 
-      {/* Scrollable body */}
-      <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-6 py-6">
-        {/* Type picker */}
-        <div className="flex flex-col gap-3">
-          <h3 className="text-base font-semibold text-gray-900">
-            What type of link
-          </h3>
-          <div className="grid grid-cols-2 gap-3">
-            {(Object.keys(MODE_COPY) as LinkMode[]).map((key) => {
-              const { Icon, label } = MODE_COPY[key]
-              const isActive = mode === key
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => switchMode(key)}
-                  className={twMerge(
-                    'flex items-center justify-center gap-2 rounded-2xl border px-4 py-4 text-sm font-medium transition-all',
-                    isActive
-                      ? 'border-gray-900 bg-white text-gray-900 shadow-[0_0_0_1px_rgba(17,24,39,1)]'
-                      : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:text-gray-700',
-                  )}
-                >
-                  <Icon style={{ fontSize: 18 }} />
-                  {label}
-                </button>
-              )
-            })}
-          </div>
+      <div className="flex h-full flex-col">
+        {/* Scrollable body — roomy padding, generous gaps */}
+        <div className="flex flex-1 flex-col gap-10 overflow-y-auto px-2 pt-2 pb-6">
+          {/* Type picker */}
+          <div className="flex flex-col gap-5">
+            <h3 className="text-lg font-semibold text-gray-900">
+              What type of link
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              {(Object.keys(MODE_COPY) as LinkMode[]).map((key) => {
+                const { Icon, label } = MODE_COPY[key]
+                const isActive = mode === key
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => switchMode(key)}
+                    className={twMerge(
+                      'flex items-center justify-center gap-2.5 rounded-2xl border-2 px-4 py-5 text-sm font-medium transition-all',
+                      isActive
+                        ? 'border-primary bg-primary/5 text-primary'
+                        : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:text-gray-700',
+                    )}
+                  >
+                    <Icon style={{ fontSize: 20 }} />
+                    {label}
+                  </button>
+                )
+              })}
+            </div>
 
-          {/* Description */}
-          <div className="flex flex-col gap-1">
-            <p className="text-sm font-semibold text-gray-900">
-              {copy.heading}
-            </p>
-            <p className="text-sm leading-relaxed text-gray-500">
-              {copy.description}
-            </p>
-          </div>
+            {/* Description */}
+            <div className="flex flex-col gap-1.5">
+              <p className="text-base font-semibold text-gray-900">
+                {copy.heading}
+              </p>
+              <p className="text-sm leading-relaxed text-gray-500">
+                {copy.description}
+              </p>
+            </div>
 
-          {/* Best for */}
-          <div className="flex flex-col gap-2">
-            <p className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
-              Best for
-            </p>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-              {copy.bestFor.map(({ label, Icon }) => (
-                <div
-                  key={label}
-                  className="flex items-center gap-2 text-sm text-gray-700"
-                >
-                  <Icon style={{ fontSize: 18 }} />
-                  <span>{label}</span>
-                </div>
-              ))}
+            {/* Best for */}
+            <div className="flex flex-col gap-3">
+              <p className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
+                Best for
+              </p>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                {copy.bestFor.map(({ label, Icon }) => (
+                  <div
+                    key={label}
+                    className="flex items-center gap-2.5 text-sm text-gray-700"
+                  >
+                    <Icon style={{ fontSize: 18 }} />
+                    <span>{label}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Add link input */}
-        <div className="flex flex-col gap-2 border-t border-gray-100 pt-6">
-          <label className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
-            Add {copy.label} link
-          </label>
-          <div className="flex gap-2">
-            <input
-              type="url"
-              value={newUrl}
-              onChange={(e) => {
-                setNewUrl(e.target.value)
-                if (addError) setAddError(null)
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  void addLink()
-                }
-              }}
-              placeholder={copy.placeholder}
-              className={twMerge(
-                'min-w-0 flex-1 rounded-xl border bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none',
-                addError
-                  ? 'border-red-300 focus:border-red-400'
-                  : 'border-gray-200 focus:border-gray-400',
-              )}
-            />
+          {/* Add link input */}
+          <div className="flex flex-col gap-3 border-t border-gray-100 pt-8">
+            <label className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
+              Add {copy.label} link
+            </label>
+            <div className="flex gap-2.5">
+              <input
+                type="url"
+                value={newUrl}
+                onChange={(e) => {
+                  setNewUrl(e.target.value)
+                  if (addError) setAddError(null)
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    void addLink()
+                  }
+                }}
+                placeholder={copy.placeholder}
+                className={twMerge(
+                  'min-w-0 flex-1 rounded-xl border bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none',
+                  addError
+                    ? 'border-red-300 focus:border-red-400'
+                    : 'focus:border-primary border-gray-200',
+                )}
+              />
+              <button
+                type="button"
+                onClick={() => void addLink()}
+                disabled={!newUrl.trim()}
+                className="bg-primary flex h-[46px] shrink-0 items-center gap-1.5 rounded-xl px-5 text-sm font-medium text-white transition-opacity hover:opacity-85 disabled:cursor-default disabled:opacity-40"
+              >
+                <AddOutlined style={{ fontSize: 16 }} />
+                Add
+              </button>
+            </div>
+            {addError ? (
+              <p className="text-xs text-red-500">{addError}</p>
+            ) : (
+              <p className="text-xs text-gray-400">
+                {mode === 'embed'
+                  ? 'Paste a YouTube, Spotify, or SoundCloud link to embed it inline.'
+                  : 'Paste any https:// link — we’ll fetch its title, description, and cover automatically.'}
+              </p>
+            )}
+          </div>
+
+          {/* Links list — scoped to current mode */}
+          {activeList.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-gray-200 py-16 text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100">
+                <LinkOutlined
+                  style={{ fontSize: 24 }}
+                  className="text-gray-400"
+                />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-700">
+                  No {copy.label.toLowerCase()} links yet
+                </p>
+                <p className="mt-1 text-xs text-gray-400">
+                  Paste a URL above to add your first{' '}
+                  {mode === 'embed' ? 'embed' : 'link'}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              <label className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
+                Your {copy.label} links
+              </label>
+              <div className="flex flex-col gap-3">
+                {activeList.map((link) => (
+                  <LinkEditCard
+                    key={link.id}
+                    link={link}
+                    organization={organization}
+                    isLoading={fetchingId === link.id}
+                    isExpanded={expandedIds.has(link.id)}
+                    onToggle={() => toggleExpanded(link.id)}
+                    onUpdate={updateLink}
+                    onRemove={() => removeLink(link.id)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Hint when the other mode has items */}
+          {mode === 'url' && embedLinks.length > 0 && (
             <button
               type="button"
-              onClick={() => void addLink()}
-              disabled={!newUrl.trim()}
-              className="flex h-[42px] shrink-0 items-center gap-1.5 rounded-xl bg-gray-900 px-4 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:cursor-default disabled:opacity-40"
+              onClick={() => switchMode('embed')}
+              className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3.5 text-left text-xs text-gray-500 transition-colors hover:bg-gray-100"
             >
-              <AddOutlined style={{ fontSize: 16 }} />
-              Add
+              <span>
+                You also have {embedLinks.length} embed
+                {embedLinks.length !== 1 ? 's' : ''}
+              </span>
+              <span className="text-primary font-medium">
+                Switch to Embed →
+              </span>
             </button>
-          </div>
-          {addError ? (
-            <p className="text-[11px] text-red-500">{addError}</p>
-          ) : (
-            <p className="text-[11px] text-gray-400">
-              {mode === 'embed'
-                ? 'Paste a YouTube, Spotify, or SoundCloud link to embed it inline.'
-                : 'Paste any https:// link — we’ll fetch its title, description, and cover automatically.'}
-            </p>
+          )}
+          {mode === 'embed' && urlLinks.length > 0 && (
+            <button
+              type="button"
+              onClick={() => switchMode('url')}
+              className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3.5 text-left text-xs text-gray-500 transition-colors hover:bg-gray-100"
+            >
+              <span>
+                You also have {urlLinks.length} URL link
+                {urlLinks.length !== 1 ? 's' : ''}
+              </span>
+              <span className="text-primary font-medium">Switch to URL →</span>
+            </button>
           )}
         </div>
-
-        {/* Links list — scoped to current mode */}
-        {activeList.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-gray-200 py-12 text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100">
-              <LinkOutlined
-                style={{ fontSize: 22 }}
-                className="text-gray-400"
-              />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-700">
-                No {copy.label.toLowerCase()} links yet
-              </p>
-              <p className="mt-0.5 text-xs text-gray-400">
-                Paste a URL above to add your first{' '}
-                {mode === 'embed' ? 'embed' : 'link'}
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
-              Your {copy.label} links
-            </label>
-            <div className="flex flex-col gap-2">
-              {activeList.map((link) => (
-                <LinkEditCard
-                  key={link.id}
-                  link={link}
-                  organization={organization}
-                  isLoading={fetchingId === link.id}
-                  isExpanded={expandedIds.has(link.id)}
-                  onToggle={() => toggleExpanded(link.id)}
-                  onUpdate={updateLink}
-                  onRemove={() => removeLink(link.id)}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Counter for the other mode — small hint so users don’t lose their work */}
-        {mode === 'url' && embedLinks.length > 0 && (
-          <button
-            type="button"
-            onClick={() => switchMode('embed')}
-            className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3 text-left text-xs text-gray-500 transition-colors hover:bg-gray-100"
-          >
-            <span>
-              You also have {embedLinks.length} embed
-              {embedLinks.length !== 1 ? 's' : ''}
-            </span>
-            <span className="font-medium text-gray-700">Switch to Embed →</span>
-          </button>
-        )}
-        {mode === 'embed' && urlLinks.length > 0 && (
-          <button
-            type="button"
-            onClick={() => switchMode('url')}
-            className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3 text-left text-xs text-gray-500 transition-colors hover:bg-gray-100"
-          >
-            <span>
-              You also have {urlLinks.length} URL link
-              {urlLinks.length !== 1 ? 's' : ''}
-            </span>
-            <span className="font-medium text-gray-700">Switch to URL →</span>
-          </button>
-        )}
       </div>
-    </div>
+    </>
   )
 }
