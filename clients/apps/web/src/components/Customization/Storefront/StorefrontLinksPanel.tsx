@@ -100,6 +100,7 @@ const LinkEditCard = ({
   onToggle,
   onUpdate,
   onRemove,
+  registerRef,
 }: {
   link: StorefrontLinkItem
   organization: schemas['Organization']
@@ -108,6 +109,7 @@ const LinkEditCard = ({
   onToggle: () => void
   onUpdate: (link: StorefrontLinkItem) => void
   onRemove: () => void
+  registerRef?: (el: HTMLDivElement | null) => void
 }) => {
   const domain = getDomain(link.url)
   const icon = link.platform ? (
@@ -129,7 +131,10 @@ const LinkEditCard = ({
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+    <div
+      ref={registerRef}
+      className="scroll-mt-24 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm"
+    >
       {/* Header row */}
       <div
         className="flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors hover:bg-gray-50"
@@ -356,6 +361,15 @@ export const StorefrontLinksPanel = ({
   const [fetchingId, setFetchingId] = useState<string | null>(null)
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
 
+  const topRef = useRef<HTMLDivElement>(null)
+  const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+
+  const scrollToTop = () => {
+    requestAnimationFrame(() => {
+      topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }
+
   const copy = MODE_COPY[mode]
 
   const setLinks = useCallback(
@@ -373,6 +387,7 @@ export const StorefrontLinksPanel = ({
   const switchMode = (next: LinkMode) => {
     setMode(next)
     setAddError(null)
+    scrollToTop()
   }
 
   const addLink = useCallback(async () => {
@@ -422,6 +437,10 @@ export const StorefrontLinksPanel = ({
     const current =
       (getValues('storefront_settings') as any)?.storefront_links ?? []
     setLinks([...current, newLink])
+
+    // Scroll the panel back to the top so the user sees the full flow
+    // and the fresh entry sliding into the list below.
+    scrollToTop()
 
     try {
       const res = await fetch(
@@ -477,12 +496,27 @@ export const StorefrontLinksPanel = ({
   )
 
   const toggleExpanded = (id: string) => {
+    let opening = false
     setExpandedIds((prev) => {
       const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+        opening = true
+      }
       return next
     })
+    if (opening) {
+      // Wait two frames so the expanded content is in the DOM before measuring.
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          cardRefs.current
+            .get(id)
+            ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }),
+      )
+    }
   }
 
   const urlLinks = storefrontLinks.filter((l) => l.type === 'standard')
@@ -504,6 +538,9 @@ export const StorefrontLinksPanel = ({
       <div className="flex h-full flex-col">
         {/* Scrollable body — roomy padding, generous gaps */}
         <div className="flex flex-1 flex-col gap-10 overflow-y-auto px-2 pt-2 pb-6">
+          {/* Anchor used to scroll the panel back to the top. */}
+          <div ref={topRef} aria-hidden className="-mb-10 h-0 scroll-mt-24" />
+
           {/* Type picker */}
           <div className="flex flex-col gap-5">
             <h3 className="text-lg font-semibold text-gray-900">
@@ -644,6 +681,10 @@ export const StorefrontLinksPanel = ({
                     onToggle={() => toggleExpanded(link.id)}
                     onUpdate={updateLink}
                     onRemove={() => removeLink(link.id)}
+                    registerRef={(el) => {
+                      if (el) cardRefs.current.set(link.id, el)
+                      else cardRefs.current.delete(link.id)
+                    }}
                   />
                 ))}
               </div>
