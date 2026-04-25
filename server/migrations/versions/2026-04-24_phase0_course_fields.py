@@ -1,6 +1,6 @@
 """Phase 0: add slug/paywall_position to courses; status/release_at/drip_days to modules
 
-Revision ID: a1b2c3d4e5f6
+Revision ID: a1b2c3d4e5f7
 Revises: f4g8h2i6j0k3
 Create Date: 2026-04-24 15:00:00.000000
 
@@ -9,7 +9,7 @@ Create Date: 2026-04-24 15:00:00.000000
 import sqlalchemy as sa
 from alembic import op
 
-revision = "a1b2c3d4e5f6"
+revision = "a1b2c3d4e5f7"
 down_revision = "f4g8h2i6j0k3"
 branch_labels: tuple[str] | None = None
 depends_on: tuple[str] | None = None

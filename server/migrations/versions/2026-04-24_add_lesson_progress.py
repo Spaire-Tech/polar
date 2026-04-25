@@ -1,7 +1,7 @@
 """Add course_lesson_progress table
 
 Revision ID: b2c3d4e5f6g7
-Revises: a1b2c3d4e5f6
+Revises: a1b2c3d4e5f7
 Create Date: 2026-04-24 16:00:00.000000
 
 """
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "b2c3d4e5f6g7"
-down_revision = "a1b2c3d4e5f6"
+down_revision = "a1b2c3d4e5f7"
 branch_labels: tuple[str] | None = None
 depends_on: tuple[str] | None = None
 
