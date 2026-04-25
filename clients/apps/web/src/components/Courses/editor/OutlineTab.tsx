@@ -22,7 +22,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { useMemo, useState } from 'react'
-import { ModuleCard } from './ModuleCard'
+import { ModuleCard, LessonContentType } from './ModuleCard'
 import { PaywallRow } from './PaywallRow'
 import { ScheduleEdits } from './ScheduleMenu'
 import { ModuleStatus } from './StatusDropdown'
@@ -50,7 +50,7 @@ export function OutlineTab({
   selectedLessonId: string | null
   onSelectLesson: (lessonId: string) => void
   onAddModule: () => void
-  onAddLesson: (module: CourseModuleRead) => void
+  onAddLesson: (module: CourseModuleRead, contentType: LessonContentType) => void
   onDeleteLesson: (lesson: CourseLessonRead) => void
   onUpdateStatus: (module: CourseModuleRead, next: ModuleStatus) => void
   onUpdateSchedule: (module: CourseModuleRead, edits: ScheduleEdits) => void
@@ -190,7 +190,7 @@ export function OutlineTab({
                     onToggleExpand={() => toggleOne(mod.id)}
                     selectedLessonId={selectedLessonId}
                     onSelectLesson={onSelectLesson}
-                    onAddLesson={() => onAddLesson(mod)}
+                    onAddLesson={(ct) => onAddLesson(mod, ct)}
                     onDeleteLesson={onDeleteLesson}
                     onUpdateStatus={(next) => onUpdateStatus(mod, next)}
                     onUpdateSchedule={(edits) => onUpdateSchedule(mod, edits)}

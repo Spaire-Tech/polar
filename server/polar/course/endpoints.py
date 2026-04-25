@@ -2,7 +2,7 @@ import json
 import logging
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, Request
+from fastapi import Depends, File, HTTPException, Request, UploadFile
 from sqlalchemy import select
 
 from polar.auth.models import is_organization, is_user
@@ -58,6 +58,7 @@ def _lesson_read(lesson) -> CourseLessonRead:
         mux_asset_id=lesson.mux_asset_id,
         mux_playback_id=lesson.mux_playback_id,
         mux_status=lesson.mux_status,
+        thumbnail_url=lesson.thumbnail_url,
         created_at=lesson.created_at,
         modified_at=lesson.modified_at,
     )
@@ -359,6 +360,46 @@ async def create_mux_upload(
         upload_id=result["upload_id"],
         upload_url=result["upload_url"],
     )
+
+
+@router.post(
+    "/lessons/{lesson_id}/thumbnail",
+    response_model=CourseLessonRead,
+    summary="Upload Lesson Thumbnail",
+)
+async def upload_lesson_thumbnail(
+    lesson_id: UUID,
+    auth_subject: auth.CoursesWrite,
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_db_session),
+) -> CourseLessonRead:
+    from polar.config import settings
+    from polar.integrations.aws.s3 import S3Service
+
+    lesson_repo = CourseLessonRepository.from_session(session)
+    lesson = await lesson_repo.get_readable_by_id(lesson_id, auth_subject)
+    if lesson is None:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+
+    content_type = file.content_type or "image/jpeg"
+    if not content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+
+    data = await file.read()
+    if len(data) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Image must be under 10 MB")
+
+    ext = (file.filename or "thumbnail.jpg").rsplit(".", 1)[-1].lower()
+    if ext not in {"jpg", "jpeg", "png", "webp", "gif"}:
+        ext = "jpg"
+
+    path = f"course-thumbnails/{lesson_id}.{ext}"
+    s3 = S3Service(bucket=settings.S3_FILES_PUBLIC_BUCKET_NAME)
+    s3.upload(data, path, content_type)
+    thumbnail_url = s3.get_public_url(path)
+
+    lesson = await lesson_repo.update(lesson, update_dict={"thumbnail_url": thumbnail_url})
+    return _lesson_read(lesson)
 
 
 @router.post(

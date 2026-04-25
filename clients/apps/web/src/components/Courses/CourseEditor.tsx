@@ -23,6 +23,7 @@ import { toast } from '../Toast/use-toast'
 import { CourseHeader, TabId } from './editor/CourseHeader'
 import { EmptyTab } from './editor/EmptyTab'
 import { LessonDetail, LessonEdits } from './editor/LessonDetail'
+import { LessonContentType } from './editor/ModuleCard'
 import { OutlineTab } from './editor/OutlineTab'
 import { ScheduleEdits } from './editor/ScheduleMenu'
 import { CourseSettingsEdits, SettingsTab } from './editor/SettingsTab'
@@ -114,11 +115,18 @@ export default function CourseEditor({
     }
   }
 
-  const handleAddLesson = async (mod: CourseModuleRead) => {
+  const handleAddLesson = async (
+    mod: CourseModuleRead,
+    contentType: LessonContentType = 'text',
+  ) => {
     try {
       const lesson = await addLesson.mutateAsync({
         moduleId: mod.id,
-        body: { title: 'New Lesson', content_type: 'text', position: mod.lessons.length },
+        body: {
+          title: contentType === 'video' ? 'New Video Lesson' : 'New Lesson',
+          content_type: contentType,
+          position: mod.lessons.length,
+        },
       })
       invalidateCourse()
       setSelectedLessonId(lesson.id)
@@ -322,7 +330,7 @@ export default function CourseEditor({
           selectedLessonId={selectedLessonId}
           onSelectLesson={setSelectedLessonId}
           onAddModule={handleAddModule}
-          onAddLesson={handleAddLesson}
+          onAddLesson={(mod, ct) => handleAddLesson(mod, ct)}
           onDeleteLesson={handleDeleteLesson}
           onUpdateStatus={handleUpdateStatus}
           onUpdateSchedule={handleUpdateSchedule}

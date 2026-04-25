@@ -63,6 +63,10 @@ class CourseLesson(RecordModel):
         String(20), nullable=True, default=None
     )
 
+    thumbnail_url: Mapped[str | None] = mapped_column(
+        String(2048), nullable=True, default=None
+    )
+
     @declared_attr
     def module(cls) -> Mapped["CourseModule"]:
         return relationship("CourseModule", lazy="raise", back_populates="lessons")

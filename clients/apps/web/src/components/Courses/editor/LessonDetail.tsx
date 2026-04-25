@@ -18,7 +18,7 @@ import OpenInNewOutlined from '@mui/icons-material/OpenInNewOutlined'
 import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined'
 import { cn } from '@spaire/ui/lib/utils'
 import { useEffect, useRef, useState } from 'react'
-import { useCreateMuxUpload } from '@/hooks/queries/courses'
+import { useCreateMuxUpload, useUploadLessonThumbnail } from '@/hooks/queries/courses'
 import { RichTextEditor } from './RichTextEditor'
 
 type Media = 'none' | 'video' | 'audio'
@@ -60,12 +60,28 @@ export function LessonDetail({
   const [moduleSelectOpen, setModuleSelectOpen] = useState(false)
   const moduleSelectRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const thumbnailInputRef = useRef<HTMLInputElement>(null)
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
+  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(lesson.thumbnail_url ?? null)
   const createMuxUpload = useCreateMuxUpload()
+  const uploadThumbnail = useUploadLessonThumbnail()
 
   useEffect(() => {
     setEdits(initEdits(lesson, module))
+    setThumbnailUrl(lesson.thumbnail_url ?? null)
   }, [lesson.id, module.id])
+
+  const handleThumbnailFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const updated = await uploadThumbnail.mutateAsync({ lessonId: lesson.id, file })
+      setThumbnailUrl(updated.thumbnail_url ?? null)
+    } catch {
+      // error feedback handled by mutation
+    }
+    e.target.value = ''
+  }
 
   useEffect(() => {
     if (!moduleSelectOpen) return
@@ -354,20 +370,36 @@ export function LessonDetail({
 
           <Card compact>
             <CardHeader title="Lesson Thumbnail" info />
-            <div className="mb-3 flex h-32 items-center justify-center rounded-xl border border-gray-200 bg-gray-50">
-              <ImageOutlined
-                className="text-gray-300"
-                sx={{ fontSize: 36 }}
-              />
+            <input
+              ref={thumbnailInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              className="hidden"
+              onChange={handleThumbnailFileChange}
+            />
+            <div
+              className="mb-3 flex h-32 cursor-pointer items-center justify-center overflow-hidden rounded-xl border border-gray-200 bg-gray-50 hover:border-gray-300 transition-colors"
+              onClick={() => thumbnailInputRef.current?.click()}
+            >
+              {thumbnailUrl ? (
+                <img
+                  src={thumbnailUrl}
+                  alt="Lesson thumbnail"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <ImageOutlined className="text-gray-300" sx={{ fontSize: 36 }} />
+              )}
             </div>
             <p className="text-xs text-gray-500">
-              Please use .jpg or .png with non-transparent background.
+              JPG, PNG, or WebP. Recommended 1280×720.
             </p>
-            <p className="mb-3 mt-1 text-xs text-gray-500">
-              Recommended dimensions of 1280×720
-            </p>
-            <button className="rounded-full bg-gray-900 px-4 py-2 text-xs font-semibold text-white hover:bg-gray-800 transition-colors">
-              Pick File
+            <button
+              className="mt-3 rounded-full bg-gray-900 px-4 py-2 text-xs font-semibold text-white hover:bg-gray-800 disabled:opacity-50 transition-colors"
+              onClick={() => thumbnailInputRef.current?.click()}
+              disabled={uploadThumbnail.isPending}
+            >
+              {uploadThumbnail.isPending ? 'Uploading…' : thumbnailUrl ? 'Replace' : 'Pick File'}
             </button>
           </Card>
 

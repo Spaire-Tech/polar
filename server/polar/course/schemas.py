@@ -26,6 +26,7 @@ class CourseLessonUpdate(Schema):
     position: int | None = None
     is_free_preview: bool | None = None
     published: bool | None = None
+    thumbnail_url: str | None = None
 
 
 class MuxUploadRead(Schema):
@@ -48,6 +49,7 @@ class CourseLessonRead(TimestampedSchema):
     mux_asset_id: str | None = None
     mux_playback_id: str | None = None
     mux_status: str | None = None
+    thumbnail_url: str | None = None
 
 
 class CourseModuleCreate(Schema):

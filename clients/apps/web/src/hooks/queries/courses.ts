@@ -16,6 +16,7 @@ export type CourseLessonRead = {
   mux_asset_id: string | null
   mux_playback_id: string | null
   mux_status: string | null
+  thumbnail_url: string | null
   created_at: string
   modified_at: string | null
 }
@@ -378,6 +379,23 @@ export const useCreateMuxUpload = () =>
       courseApiFetch<MuxUploadRead>(`/v1/courses/lessons/${lessonId}/mux-upload`, {
         method: 'POST',
       }),
+  })
+
+export const useUploadLessonThumbnail = () =>
+  useMutation({
+    mutationFn: async ({ lessonId, file }: { lessonId: string; file: File }) => {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/v1/courses/lessons/${lessonId}/thumbnail`,
+        { method: 'POST', body: form, credentials: 'include' },
+      )
+      if (!res.ok) {
+        const text = await res.text().catch(() => '')
+        throw new Error(`API ${res.status}: ${text}`)
+      }
+      return res.json() as Promise<CourseLessonRead>
+    },
   })
 
 export const useMarkLessonComplete = (

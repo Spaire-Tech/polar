@@ -1,7 +1,6 @@
 'use client'
 
 import { CourseLessonRead, CourseModuleRead } from '@/hooks/queries/courses'
-import AddOutlined from '@mui/icons-material/AddOutlined'
 import ArticleOutlined from '@mui/icons-material/ArticleOutlined'
 import CheckCircleOutlined from '@mui/icons-material/CheckCircleOutlined'
 import DeleteOutlined from '@mui/icons-material/DeleteOutlined'
@@ -11,8 +10,8 @@ import EditOutlined from '@mui/icons-material/EditOutlined'
 import ExpandLessOutlined from '@mui/icons-material/ExpandLessOutlined'
 import ExpandMoreOutlined from '@mui/icons-material/ExpandMoreOutlined'
 import FolderOutlined from '@mui/icons-material/FolderOutlined'
+import MoreVertOutlined from '@mui/icons-material/MoreVertOutlined'
 import OndemandVideoOutlined from '@mui/icons-material/OndemandVideoOutlined'
-import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined'
 import {
   DndContext,
   DragEndEvent,
@@ -29,9 +28,11 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { cn } from '@spaire/ui/lib/utils'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ScheduleEdits, ScheduleMenu } from './ScheduleMenu'
 import { ModuleStatus, StatusDropdown } from './StatusDropdown'
+
+export type LessonContentType = 'text' | 'video'
 
 export function ModuleCard({
   module,
@@ -52,7 +53,7 @@ export function ModuleCard({
   onToggleExpand: () => void
   selectedLessonId: string | null
   onSelectLesson: (lessonId: string) => void
-  onAddLesson: () => void
+  onAddLesson: (contentType: LessonContentType) => void
   onDeleteLesson: (lesson: CourseLessonRead) => void
   onUpdateStatus: (next: ModuleStatus) => void
   onUpdateSchedule: (edits: ScheduleEdits) => void
@@ -62,6 +63,11 @@ export function ModuleCard({
 }) {
   const [isEditing, setIsEditing] = useState(false)
   const [draftTitle, setDraftTitle] = useState(module.title)
+  const [addMenuOpen, setAddMenuOpen] = useState(false)
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false)
+  const addMenuRef = useRef<HTMLDivElement>(null)
+  const moreMenuRef = useRef<HTMLDivElement>(null)
+
   const {
     attributes,
     listeners,
@@ -70,6 +76,7 @@ export function ModuleCard({
     transition,
     isDragging,
   } = useSortable({ id: module.id })
+
   const lessonSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   )
@@ -77,6 +84,24 @@ export function ModuleCard({
   useEffect(() => {
     setDraftTitle(module.title)
   }, [module.title])
+
+  useEffect(() => {
+    if (!addMenuOpen) return
+    const onClick = (e: MouseEvent) => {
+      if (!addMenuRef.current?.contains(e.target as Node)) setAddMenuOpen(false)
+    }
+    document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [addMenuOpen])
+
+  useEffect(() => {
+    if (!moreMenuOpen) return
+    const onClick = (e: MouseEvent) => {
+      if (!moreMenuRef.current?.contains(e.target as Node)) setMoreMenuOpen(false)
+    }
+    document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [moreMenuOpen])
 
   const commitRename = () => {
     const next = draftTitle.trim()
@@ -95,6 +120,9 @@ export function ModuleCard({
     onReorderLessons(module.id, arrayMove(ids, from, to))
   }
 
+  const lessonCount = module.lessons.length
+  const publishedCount = module.lessons.filter((l) => l.published).length
+
   return (
     <div
       ref={setNodeRef}
@@ -105,17 +133,21 @@ export function ModuleCard({
       }}
       className="overflow-hidden rounded-xl border border-gray-200 bg-white"
     >
-      <div className="group flex items-center gap-3 px-4 py-3">
+      {/* Module header */}
+      <div className="flex items-center gap-2 px-3 py-3">
+        {/* Drag handle */}
         <button
           {...attributes}
           {...listeners}
           className="shrink-0 cursor-grab text-gray-300 hover:text-gray-500 active:cursor-grabbing"
           aria-label="Drag to reorder module"
         >
-          <DragIndicatorOutlined fontSize="small" />
+          <DragIndicatorOutlined sx={{ fontSize: 18 }} />
         </button>
-        <FolderOutlined className="shrink-0 text-gray-400" fontSize="small" />
 
+        <FolderOutlined className="shrink-0 text-gray-400" sx={{ fontSize: 18 }} />
+
+        {/* Title / inline edit */}
         {isEditing ? (
           <input
             autoFocus
@@ -132,50 +164,116 @@ export function ModuleCard({
             className="flex-1 rounded-lg border border-gray-300 px-2 py-1 text-sm font-semibold text-gray-900 focus:border-gray-900 focus:outline-none"
           />
         ) : (
-          <span className="flex-1 truncate text-sm font-semibold text-gray-900">
-            {module.title}
+          <button
+            onClick={() => setIsEditing(true)}
+            className="flex flex-1 items-center gap-2 truncate text-left"
+            title="Click to rename"
+          >
+            <span className="truncate text-sm font-semibold text-gray-900">
+              {module.title}
+            </span>
+            <EditOutlined
+              className="shrink-0 text-gray-300 opacity-0 transition-opacity group-hover:opacity-100"
+              sx={{ fontSize: 13 }}
+            />
+          </button>
+        )}
+
+        {/* Lesson count badge */}
+        {lessonCount > 0 && (
+          <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500">
+            {publishedCount}/{lessonCount}
           </span>
         )}
 
-        <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-          <IconBtn title="Edit" onClick={() => setIsEditing(true)}>
-            <EditOutlined sx={{ fontSize: 16 }} />
-          </IconBtn>
-          <IconBtn title="Preview">
-            <VisibilityOutlined sx={{ fontSize: 16 }} />
-          </IconBtn>
-          <IconBtn title="Delete" onClick={onDeleteModule} danger>
-            <DeleteOutlined sx={{ fontSize: 16 }} />
-          </IconBtn>
-        </div>
-
-        <button
-          onClick={onAddLesson}
-          className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 transition-colors"
-        >
-          <AddOutlined sx={{ fontSize: 14 }} />
-          Add Content
-        </button>
-
+        {/* Schedule */}
         <ScheduleMenu module={module} onSave={onUpdateSchedule} />
 
-        <StatusDropdown
-          status={module.status}
-          onChange={onUpdateStatus}
-        />
+        {/* Status */}
+        <StatusDropdown status={module.status} onChange={onUpdateStatus} />
 
+        {/* Add Content dropdown */}
+        <div ref={addMenuRef} className="relative shrink-0">
+          <button
+            onClick={() => setAddMenuOpen((v) => !v)}
+            className="flex items-center gap-1 rounded-full bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-gray-700 transition-colors"
+          >
+            + Add
+          </button>
+          {addMenuOpen && (
+            <div className="absolute right-0 top-full z-30 mt-1 w-44 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
+              <button
+                onClick={() => {
+                  onAddLesson('text')
+                  setAddMenuOpen(false)
+                }}
+                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
+              >
+                <ArticleOutlined sx={{ fontSize: 16 }} className="text-gray-400" />
+                Text Lesson
+              </button>
+              <button
+                onClick={() => {
+                  onAddLesson('video')
+                  setAddMenuOpen(false)
+                }}
+                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
+              >
+                <OndemandVideoOutlined sx={{ fontSize: 16 }} className="text-purple-400" />
+                Video Lesson
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* More menu (edit/delete) */}
+        <div ref={moreMenuRef} className="relative shrink-0">
+          <button
+            onClick={() => setMoreMenuOpen((v) => !v)}
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+          >
+            <MoreVertOutlined sx={{ fontSize: 18 }} />
+          </button>
+          {moreMenuOpen && (
+            <div className="absolute right-0 top-full z-30 mt-1 w-40 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
+              <button
+                onClick={() => {
+                  setIsEditing(true)
+                  setMoreMenuOpen(false)
+                }}
+                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
+              >
+                <EditOutlined sx={{ fontSize: 15 }} />
+                Rename
+              </button>
+              <button
+                onClick={() => {
+                  onDeleteModule()
+                  setMoreMenuOpen(false)
+                }}
+                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm text-red-600 hover:bg-red-50"
+              >
+                <DeleteOutlined sx={{ fontSize: 15 }} />
+                Delete module
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Expand toggle */}
         <button
           onClick={onToggleExpand}
-          className="ml-1 text-gray-400 hover:text-gray-600"
+          className="shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
         >
           {expanded ? (
-            <ExpandLessOutlined fontSize="small" />
+            <ExpandLessOutlined sx={{ fontSize: 18 }} />
           ) : (
-            <ExpandMoreOutlined fontSize="small" />
+            <ExpandMoreOutlined sx={{ fontSize: 18 }} />
           )}
         </button>
       </div>
 
+      {/* Lesson list */}
       {expanded && module.lessons.length > 0 && (
         <DndContext
           sensors={lessonSensors}
@@ -203,7 +301,21 @@ export function ModuleCard({
 
       {expanded && module.lessons.length === 0 && (
         <div className="border-t border-gray-100 px-4 py-6 text-center text-xs text-gray-400">
-          No lessons yet. Click “Add Content” to create one.
+          No lessons yet.{' '}
+          <button
+            className="underline hover:text-gray-600"
+            onClick={() => onAddLesson('text')}
+          >
+            Add a text lesson
+          </button>{' '}
+          or{' '}
+          <button
+            className="underline hover:text-gray-600"
+            onClick={() => onAddLesson('video')}
+          >
+            video lesson
+          </button>
+          .
         </div>
       )}
     </div>
@@ -221,8 +333,8 @@ function LessonRow({
   onSelect: () => void
   onDelete: () => void
 }) {
-  const Icon =
-    lesson.content_type === 'video' ? OndemandVideoOutlined : ArticleOutlined
+  const isVideo = lesson.content_type === 'video'
+  const Icon = isVideo ? OndemandVideoOutlined : ArticleOutlined
   const {
     attributes,
     listeners,
@@ -241,28 +353,29 @@ function LessonRow({
         opacity: isDragging ? 0.5 : 1,
       }}
       className={cn(
-        'group flex items-center gap-3 px-4 py-2.5 transition-colors',
+        'group flex items-center gap-2.5 px-3 py-2.5 transition-colors',
         selected ? 'bg-gray-50' : 'hover:bg-gray-50',
       )}
     >
       <button
         {...attributes}
         {...listeners}
-        className="shrink-0 cursor-grab text-gray-300 hover:text-gray-500 active:cursor-grabbing"
+        className="shrink-0 cursor-grab text-gray-200 hover:text-gray-400 active:cursor-grabbing"
         aria-label="Drag to reorder lesson"
       >
-        <DragIndicatorOutlined fontSize="small" />
+        <DragIndicatorOutlined sx={{ fontSize: 16 }} />
       </button>
+
       <button
         onClick={onSelect}
-        className="flex flex-1 items-center gap-3 text-left"
+        className="flex flex-1 items-center gap-2.5 text-left"
       >
         <Icon
           className={cn(
             'shrink-0',
-            lesson.content_type === 'video' ? 'text-purple-400' : 'text-gray-400',
+            isVideo ? 'text-purple-400' : 'text-gray-400',
           )}
-          sx={{ fontSize: 16 }}
+          sx={{ fontSize: 15 }}
         />
         <span
           className={cn(
@@ -273,48 +386,21 @@ function LessonRow({
           {lesson.title}
         </span>
       </button>
+
+      {/* Published indicator */}
       {lesson.published ? (
-        <CheckCircleOutlined
-          className="shrink-0 text-green-500"
-          sx={{ fontSize: 14 }}
-        />
+        <CheckCircleOutlined className="shrink-0 text-green-500" sx={{ fontSize: 14 }} />
       ) : (
-        <DescriptionOutlined
-          className="shrink-0 text-gray-300"
-          sx={{ fontSize: 14 }}
-        />
+        <DescriptionOutlined className="shrink-0 text-gray-300" sx={{ fontSize: 14 }} />
       )}
+
+      {/* Delete */}
       <button
         onClick={onDelete}
-        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-gray-300 opacity-0 transition-all hover:bg-red-50 hover:text-red-500 group-hover:opacity-100"
+        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-gray-300 opacity-0 transition-all hover:bg-red-50 hover:text-red-500 group-hover:opacity-100"
       >
-        <DeleteOutlined sx={{ fontSize: 14 }} />
+        <DeleteOutlined sx={{ fontSize: 13 }} />
       </button>
     </div>
-  )
-}
-
-function IconBtn({
-  children,
-  title,
-  onClick,
-  danger,
-}: {
-  children: React.ReactNode
-  title?: string
-  onClick?: () => void
-  danger?: boolean
-}) {
-  return (
-    <button
-      title={title}
-      onClick={onClick}
-      className={cn(
-        'flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 transition-colors',
-        danger ? 'hover:bg-red-50 hover:text-red-500' : 'hover:bg-gray-100 hover:text-gray-700',
-      )}
-    >
-      {children}
-    </button>
   )
 }

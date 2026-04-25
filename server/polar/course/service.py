@@ -187,7 +187,8 @@ class CourseService:
                 duration_seconds=create_schema.duration_seconds,
                 position=create_schema.position,
                 is_free_preview=create_schema.is_free_preview,
-            )
+            ),
+            flush=True,
         )
 
     async def update_lesson(
