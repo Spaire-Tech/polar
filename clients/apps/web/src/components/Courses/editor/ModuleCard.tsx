@@ -13,6 +13,21 @@ import ExpandMoreOutlined from '@mui/icons-material/ExpandMoreOutlined'
 import FolderOutlined from '@mui/icons-material/FolderOutlined'
 import OndemandVideoOutlined from '@mui/icons-material/OndemandVideoOutlined'
 import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined'
+import {
+  DndContext,
+  DragEndEvent,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { cn } from '@spaire/ui/lib/utils'
 import { useEffect, useState } from 'react'
 import { ScheduleEdits, ScheduleMenu } from './ScheduleMenu'
@@ -28,6 +43,7 @@ export function ModuleCard({
   onDeleteLesson,
   onUpdateStatus,
   onUpdateSchedule,
+  onReorderLessons,
   onRenameModule,
   onDeleteModule,
 }: {
@@ -40,11 +56,23 @@ export function ModuleCard({
   onDeleteLesson: (lesson: CourseLessonRead) => void
   onUpdateStatus: (next: ModuleStatus) => void
   onUpdateSchedule: (edits: ScheduleEdits) => void
+  onReorderLessons: (moduleId: string, orderedIds: string[]) => void
   onRenameModule: (title: string) => void
   onDeleteModule: () => void
 }) {
   const [isEditing, setIsEditing] = useState(false)
   const [draftTitle, setDraftTitle] = useState(module.title)
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: module.id })
+  const lessonSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  )
 
   useEffect(() => {
     setDraftTitle(module.title)
@@ -57,13 +85,35 @@ export function ModuleCard({
     setIsEditing(false)
   }
 
+  const handleLessonDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e
+    if (!over || active.id === over.id) return
+    const ids = module.lessons.map((l) => l.id)
+    const from = ids.indexOf(String(active.id))
+    const to = ids.indexOf(String(over.id))
+    if (from < 0 || to < 0) return
+    onReorderLessons(module.id, arrayMove(ids, from, to))
+  }
+
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+      }}
+      className="overflow-hidden rounded-xl border border-gray-200 bg-white"
+    >
       <div className="group flex items-center gap-3 px-4 py-3">
-        <DragIndicatorOutlined
-          className="shrink-0 text-gray-300"
-          fontSize="small"
-        />
+        <button
+          {...attributes}
+          {...listeners}
+          className="shrink-0 cursor-grab text-gray-300 hover:text-gray-500 active:cursor-grabbing"
+          aria-label="Drag to reorder module"
+        >
+          <DragIndicatorOutlined fontSize="small" />
+        </button>
         <FolderOutlined className="shrink-0 text-gray-400" fontSize="small" />
 
         {isEditing ? (
@@ -127,17 +177,28 @@ export function ModuleCard({
       </div>
 
       {expanded && module.lessons.length > 0 && (
-        <div className="divide-y divide-gray-100 border-t border-gray-100">
-          {module.lessons.map((lesson) => (
-            <LessonRow
-              key={lesson.id}
-              lesson={lesson}
-              selected={selectedLessonId === lesson.id}
-              onSelect={() => onSelectLesson(lesson.id)}
-              onDelete={() => onDeleteLesson(lesson)}
-            />
-          ))}
-        </div>
+        <DndContext
+          sensors={lessonSensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleLessonDragEnd}
+        >
+          <SortableContext
+            items={module.lessons.map((l) => l.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="divide-y divide-gray-100 border-t border-gray-100">
+              {module.lessons.map((lesson) => (
+                <LessonRow
+                  key={lesson.id}
+                  lesson={lesson}
+                  selected={selectedLessonId === lesson.id}
+                  onSelect={() => onSelectLesson(lesson.id)}
+                  onDelete={() => onDeleteLesson(lesson)}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
 
       {expanded && module.lessons.length === 0 && (
@@ -162,17 +223,36 @@ function LessonRow({
 }) {
   const Icon =
     lesson.content_type === 'video' ? OndemandVideoOutlined : ArticleOutlined
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: lesson.id })
+
   return (
     <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+      }}
       className={cn(
         'group flex items-center gap-3 px-4 py-2.5 transition-colors',
         selected ? 'bg-gray-50' : 'hover:bg-gray-50',
       )}
     >
-      <DragIndicatorOutlined
-        className="shrink-0 text-gray-300"
-        fontSize="small"
-      />
+      <button
+        {...attributes}
+        {...listeners}
+        className="shrink-0 cursor-grab text-gray-300 hover:text-gray-500 active:cursor-grabbing"
+        aria-label="Drag to reorder lesson"
+      >
+        <DragIndicatorOutlined fontSize="small" />
+      </button>
       <button
         onClick={onSelect}
         className="flex flex-1 items-center gap-3 text-left"

@@ -30,6 +30,7 @@ from .schemas import (
     CourseRead,
     CourseUpdate,
     MuxUploadRead,
+    ReorderRequest,
 )
 from .service import course_service
 
@@ -269,6 +270,44 @@ async def delete_lesson(
     if lesson is None:
         raise HTTPException(status_code=404, detail="Lesson not found")
     await course_service.delete_lesson(session, lesson)
+
+
+@router.post("/{course_id}/modules/reorder", response_model=CourseRead)
+async def reorder_modules(
+    course_id: UUID,
+    payload: ReorderRequest,
+    auth_subject: auth.CoursesWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> CourseRead:
+    repo = CourseRepository.from_session(session)
+    course = await repo.get_readable_by_id(course_id, auth_subject)
+    if course is None:
+        raise HTTPException(status_code=404, detail="Course not found")
+    try:
+        await course_service.reorder_modules(session, course, payload.ordered_ids)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    await session.refresh(course, attribute_names=["modules"])
+    return _course_read(course)
+
+
+@router.post("/modules/{module_id}/lessons/reorder", response_model=CourseModuleRead)
+async def reorder_lessons(
+    module_id: UUID,
+    payload: ReorderRequest,
+    auth_subject: auth.CoursesWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> CourseModuleRead:
+    module_repo = CourseModuleRepository.from_session(session)
+    module = await module_repo.get_readable_by_id(module_id, auth_subject)
+    if module is None:
+        raise HTTPException(status_code=404, detail="Module not found")
+    try:
+        await course_service.reorder_lessons(session, module, payload.ordered_ids)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    await session.refresh(module, attribute_names=["lessons"])
+    return _module_read(module)
 
 
 # --- Mux video endpoints ---

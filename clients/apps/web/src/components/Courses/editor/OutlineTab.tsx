@@ -8,6 +8,19 @@ import ListOutlined from '@mui/icons-material/ListOutlined'
 import SearchOutlined from '@mui/icons-material/SearchOutlined'
 import ThumbDownOutlined from '@mui/icons-material/ThumbDownOutlined'
 import ThumbUpOutlined from '@mui/icons-material/ThumbUpOutlined'
+import {
+  DndContext,
+  DragEndEvent,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  arrayMove,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
 import { useMemo, useState } from 'react'
 import { ModuleCard } from './ModuleCard'
 import { PaywallRow } from './PaywallRow'
@@ -25,6 +38,8 @@ export function OutlineTab({
   onDeleteLesson,
   onUpdateStatus,
   onUpdateSchedule,
+  onReorderModules,
+  onReorderLessons,
   onRenameModule,
   onDeleteModule,
   onEditPaywall,
@@ -39,10 +54,25 @@ export function OutlineTab({
   onDeleteLesson: (lesson: CourseLessonRead) => void
   onUpdateStatus: (module: CourseModuleRead, next: ModuleStatus) => void
   onUpdateSchedule: (module: CourseModuleRead, edits: ScheduleEdits) => void
+  onReorderModules: (orderedIds: string[]) => void
+  onReorderLessons: (moduleId: string, orderedIds: string[]) => void
   onRenameModule: (module: CourseModuleRead, title: string) => void
   onDeleteModule: (module: CourseModuleRead) => void
   onEditPaywall?: () => void
 }) {
+  const moduleSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  )
+
+  const handleModuleDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e
+    if (!over || active.id === over.id) return
+    const ids = course.modules.map((m) => m.id)
+    const from = ids.indexOf(String(active.id))
+    const to = ids.indexOf(String(over.id))
+    if (from < 0 || to < 0) return
+    onReorderModules(arrayMove(ids, from, to))
+  }
   const [query, setQuery] = useState('')
   const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>(
     () => Object.fromEntries(course.modules.map((m) => [m.id, true])),
@@ -138,30 +168,44 @@ export function OutlineTab({
       )}
 
       <div className="flex flex-col gap-3">
-        {filteredModules.map((mod, idx) => {
-          const showPaywallAfter =
-            paywallPos !== null && paywallPos !== undefined && idx + 1 === paywallPos
-          return (
-            <div key={mod.id} className="flex flex-col gap-3">
-              <ModuleCard
-                module={mod}
-                expanded={expandedModules[mod.id] ?? false}
-                onToggleExpand={() => toggleOne(mod.id)}
-                selectedLessonId={selectedLessonId}
-                onSelectLesson={onSelectLesson}
-                onAddLesson={() => onAddLesson(mod)}
-                onDeleteLesson={onDeleteLesson}
-                onUpdateStatus={(next) => onUpdateStatus(mod, next)}
-                onUpdateSchedule={(edits) => onUpdateSchedule(mod, edits)}
-                onRenameModule={(title) => onRenameModule(mod, title)}
-                onDeleteModule={() => onDeleteModule(mod)}
-              />
-              {showPaywallAfter && (
-                <PaywallRow onEditSettings={onEditPaywall} />
-              )}
-            </div>
-          )
-        })}
+        <DndContext
+          sensors={moduleSensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleModuleDragEnd}
+        >
+          <SortableContext
+            items={filteredModules.map((m) => m.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            {filteredModules.map((mod, idx) => {
+              const showPaywallAfter =
+                paywallPos !== null &&
+                paywallPos !== undefined &&
+                idx + 1 === paywallPos
+              return (
+                <div key={mod.id} className="flex flex-col gap-3">
+                  <ModuleCard
+                    module={mod}
+                    expanded={expandedModules[mod.id] ?? false}
+                    onToggleExpand={() => toggleOne(mod.id)}
+                    selectedLessonId={selectedLessonId}
+                    onSelectLesson={onSelectLesson}
+                    onAddLesson={() => onAddLesson(mod)}
+                    onDeleteLesson={onDeleteLesson}
+                    onUpdateStatus={(next) => onUpdateStatus(mod, next)}
+                    onUpdateSchedule={(edits) => onUpdateSchedule(mod, edits)}
+                    onReorderLessons={onReorderLessons}
+                    onRenameModule={(title) => onRenameModule(mod, title)}
+                    onDeleteModule={() => onDeleteModule(mod)}
+                  />
+                  {showPaywallAfter && (
+                    <PaywallRow onEditSettings={onEditPaywall} />
+                  )}
+                </div>
+              )
+            })}
+          </SortableContext>
+        </DndContext>
 
         {paywallPos !== null &&
           paywallPos !== undefined &&

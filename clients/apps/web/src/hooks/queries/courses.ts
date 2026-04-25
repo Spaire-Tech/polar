@@ -235,6 +235,39 @@ export const useDeleteCourseLesson = () =>
       courseApiFetch<void>(`/v1/courses/lessons/${lessonId}`, { method: 'DELETE' }),
   })
 
+export const useReorderModules = () =>
+  useMutation({
+    mutationFn: ({
+      courseId,
+      orderedIds,
+    }: {
+      courseId: string
+      orderedIds: string[]
+    }) =>
+      courseApiFetch<CourseRead>(`/v1/courses/${courseId}/modules/reorder`, {
+        method: 'POST',
+        body: JSON.stringify({ ordered_ids: orderedIds }),
+      }),
+  })
+
+export const useReorderLessons = () =>
+  useMutation({
+    mutationFn: ({
+      moduleId,
+      orderedIds,
+    }: {
+      moduleId: string
+      orderedIds: string[]
+    }) =>
+      courseApiFetch<CourseModuleRead>(
+        `/v1/courses/modules/${moduleId}/lessons/reorder`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ ordered_ids: orderedIds }),
+        },
+      ),
+  })
+
 // --- Customer portal (learner side) ---
 
 export type CustomerCourseEnrollment = {

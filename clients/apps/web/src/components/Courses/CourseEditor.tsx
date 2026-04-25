@@ -9,6 +9,8 @@ import {
   useCourseById,
   useDeleteCourseLesson,
   useDeleteCourseModule,
+  useReorderLessons,
+  useReorderModules,
   useUpdateCourse,
   useUpdateCourseLesson,
   useUpdateCourseModule,
@@ -85,6 +87,8 @@ export default function CourseEditor({
   const updateLesson = useUpdateCourseLesson()
   const deleteLesson = useDeleteCourseLesson()
   const updateCourse = useUpdateCourse()
+  const reorderModules = useReorderModules()
+  const reorderLessons = useReorderLessons()
 
   const invalidateCourse = useCallback(() => {
     getQueryClient().invalidateQueries({ queryKey: ['courses', { courseId }] })
@@ -169,6 +173,27 @@ export default function CourseEditor({
       toast({ title: 'Schedule updated' })
     } catch {
       toast({ title: 'Failed to update schedule' })
+    }
+  }
+
+  const handleReorderModules = async (orderedIds: string[]) => {
+    try {
+      await reorderModules.mutateAsync({ courseId: course.id, orderedIds })
+      invalidateCourse()
+    } catch {
+      toast({ title: 'Failed to reorder modules' })
+    }
+  }
+
+  const handleReorderLessons = async (
+    moduleId: string,
+    orderedIds: string[],
+  ) => {
+    try {
+      await reorderLessons.mutateAsync({ moduleId, orderedIds })
+      invalidateCourse()
+    } catch {
+      toast({ title: 'Failed to reorder lessons' })
     }
   }
 
@@ -301,6 +326,8 @@ export default function CourseEditor({
           onDeleteLesson={handleDeleteLesson}
           onUpdateStatus={handleUpdateStatus}
           onUpdateSchedule={handleUpdateSchedule}
+          onReorderModules={handleReorderModules}
+          onReorderLessons={handleReorderLessons}
           onRenameModule={handleRenameModule}
           onDeleteModule={handleDeleteModule}
           onEditPaywall={() => setActiveTab('settings')}

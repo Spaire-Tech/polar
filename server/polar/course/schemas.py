@@ -101,6 +101,10 @@ class CourseUpdate(Schema):
     paywall_position: int | None = None
 
 
+class ReorderRequest(Schema):
+    ordered_ids: list[UUID4] = Field(min_length=0)
+
+
 class CourseProgressRead(Schema):
     total_lessons: int
     completed_lessons: int

@@ -152,6 +152,22 @@ class CourseService:
         module_repo = CourseModuleRepository.from_session(session)
         await module_repo.soft_delete(module)
 
+    async def reorder_modules(
+        self,
+        session: AsyncSession,
+        course: Course,
+        ordered_ids: Sequence[UUID],
+    ) -> Sequence[CourseModule]:
+        """Reorder modules within a course by setting position to list index."""
+        module_repo = CourseModuleRepository.from_session(session)
+        existing_ids = {m.id for m in course.modules}
+        if set(ordered_ids) != existing_ids:
+            raise ValueError("ordered_ids must contain exactly the course's modules")
+        by_id = {m.id: m for m in course.modules}
+        for index, module_id in enumerate(ordered_ids):
+            await module_repo.update(by_id[module_id], update_dict={"position": index})
+        return [by_id[mid] for mid in ordered_ids]
+
     async def add_lesson(
         self,
         session: AsyncSession,
@@ -193,6 +209,22 @@ class CourseService:
     ) -> None:
         lesson_repo = CourseLessonRepository.from_session(session)
         await lesson_repo.soft_delete(lesson)
+
+    async def reorder_lessons(
+        self,
+        session: AsyncSession,
+        module: CourseModule,
+        ordered_ids: Sequence[UUID],
+    ) -> Sequence[CourseLesson]:
+        """Reorder lessons within a module by setting position to list index."""
+        lesson_repo = CourseLessonRepository.from_session(session)
+        existing_ids = {lesson.id for lesson in module.lessons}
+        if set(ordered_ids) != existing_ids:
+            raise ValueError("ordered_ids must contain exactly the module's lessons")
+        by_id = {lesson.id: lesson for lesson in module.lessons}
+        for index, lesson_id in enumerate(ordered_ids):
+            await lesson_repo.update(by_id[lesson_id], update_dict={"position": index})
+        return [by_id[lid] for lid in ordered_ids]
 
     # --- Enrollment ---
 
