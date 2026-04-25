@@ -343,6 +343,7 @@ async function portalApiFetch<T>(
     const text = await res.text().catch(() => '')
     throw new Error(`API ${res.status}: ${text}`)
   }
+  if (res.status === 204) return undefined as T
   return res.json()
 }
 
@@ -393,6 +394,71 @@ export const useMarkLessonComplete = (
     onSuccess: () => {
       getQueryClient().invalidateQueries({
         queryKey: ['customer-courses', token, courseId],
+      })
+    },
+  })
+
+// --- Lesson comments (customer portal) ---
+
+export type LessonCommentRead = {
+  id: string
+  lesson_id: string
+  parent_id: string | null
+  content: string
+  created_at: string
+  is_own: boolean
+  author: { enrollment_id: string; name: string | null }
+}
+
+export const useLessonComments = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+  lessonId: string | null | undefined,
+) =>
+  useQuery<LessonCommentRead[]>({
+    queryKey: ['lesson-comments', token, courseId, lessonId],
+    queryFn: () =>
+      portalApiFetch<LessonCommentRead[]>(
+        `/v1/customer-portal/courses/${courseId}/lessons/${lessonId}/comments`,
+        token!,
+      ),
+    enabled: !!token && !!courseId && !!lessonId,
+  })
+
+export const useCreateLessonComment = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+  lessonId: string | null | undefined,
+) =>
+  useMutation({
+    mutationFn: (body: { content: string; parent_id?: string | null }) =>
+      portalApiFetch<LessonCommentRead>(
+        `/v1/customer-portal/courses/${courseId}/lessons/${lessonId}/comments`,
+        token!,
+        { method: 'POST', body: JSON.stringify(body) },
+      ),
+    onSuccess: () => {
+      getQueryClient().invalidateQueries({
+        queryKey: ['lesson-comments', token, courseId, lessonId],
+      })
+    },
+  })
+
+export const useDeleteLessonComment = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+  lessonId: string | null | undefined,
+) =>
+  useMutation({
+    mutationFn: (commentId: string) =>
+      portalApiFetch<void>(
+        `/v1/customer-portal/courses/${courseId}/lessons/${lessonId}/comments/${commentId}`,
+        token!,
+        { method: 'DELETE' },
+      ),
+    onSuccess: () => {
+      getQueryClient().invalidateQueries({
+        queryKey: ['lesson-comments', token, courseId, lessonId],
       })
     },
   })

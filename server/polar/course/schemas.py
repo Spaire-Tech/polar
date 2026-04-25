@@ -112,6 +112,26 @@ class CourseProgressRead(Schema):
     completed: dict[str, str]  # lesson_id -> completed_at ISO string
 
 
+class LessonCommentCreate(Schema):
+    content: str = Field(min_length=1, max_length=5000)
+    parent_id: UUID4 | None = None
+
+
+class LessonCommentAuthor(Schema):
+    enrollment_id: UUID4
+    name: str | None = None
+
+
+class LessonCommentRead(Schema):
+    id: UUID4
+    lesson_id: UUID4
+    parent_id: UUID4 | None
+    content: str
+    created_at: datetime
+    is_own: bool
+    author: LessonCommentAuthor
+
+
 class CourseRead(TimestampedSchema):
     id: UUID4
     product_id: UUID4

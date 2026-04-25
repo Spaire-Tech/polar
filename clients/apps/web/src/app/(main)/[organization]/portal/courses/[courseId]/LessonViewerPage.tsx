@@ -7,6 +7,7 @@ import {
   type CustomerModuleRead,
 } from '@/hooks/queries/courses'
 import { MemoizedMarkdown } from '@/components/Markdown/MemoizedMarkdown'
+import { CommentThread } from './CommentThread'
 import ArrowBackOutlined from '@mui/icons-material/ArrowBackOutlined'
 import CheckCircleOutlined from '@mui/icons-material/CheckCircleOutlined'
 import CheckCircle from '@mui/icons-material/CheckCircle'
@@ -302,6 +303,11 @@ const LessonViewerPage = ({
                 </button>
               </div>
               <LessonContent lesson={currentLesson} />
+              <CommentThread
+                token={customerSessionToken}
+                courseId={courseId}
+                lessonId={currentLesson.id}
+              />
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-20 text-center text-gray-400">

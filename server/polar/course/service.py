@@ -10,6 +10,7 @@ from polar.models.course_lesson import CourseLesson
 from polar.models.course_lesson_progress import CourseLessonProgress
 from polar.models.course_module import CourseModule
 from polar.models.customer import Customer
+from polar.models.lesson_comment import LessonComment
 
 from .repository import (
     CourseEnrollmentRepository,
@@ -17,6 +18,7 @@ from .repository import (
     CourseLessonRepository,
     CourseModuleRepository,
     CourseRepository,
+    LessonCommentRepository,
 )
 from .schemas import (
     CourseCreate,
@@ -309,6 +311,56 @@ class CourseService:
     ) -> Sequence[CourseLessonProgress]:
         repo = CourseLessonProgressRepository.from_session(session)
         return await repo.get_all(repo.get_by_enrollment_statement(enrollment_id))
+
+    # --- Lesson comments ---
+
+    async def list_lesson_comments(
+        self,
+        session: AsyncSession,
+        *,
+        lesson_id: UUID,
+    ) -> Sequence[LessonComment]:
+        repo = LessonCommentRepository.from_session(session)
+        statement = repo.get_by_lesson_statement(lesson_id).order_by(
+            LessonComment.created_at.asc()
+        )
+        return await repo.get_all(statement)
+
+    async def create_lesson_comment(
+        self,
+        session: AsyncSession,
+        *,
+        enrollment_id: UUID,
+        lesson_id: UUID,
+        content: str,
+        parent_id: UUID | None = None,
+    ) -> LessonComment:
+        repo = LessonCommentRepository.from_session(session)
+        if parent_id is not None:
+            parent = await repo.get_by_id(parent_id)
+            if parent is None or parent.lesson_id != lesson_id:
+                raise ValueError("Invalid parent comment")
+        comment = LessonComment(
+            lesson_id=lesson_id,
+            enrollment_id=enrollment_id,
+            parent_id=parent_id,
+            content=content,
+        )
+        return await repo.create(comment, flush=True)
+
+    async def get_lesson_comment(
+        self, session: AsyncSession, comment_id: UUID
+    ) -> LessonComment | None:
+        repo = LessonCommentRepository.from_session(session)
+        return await repo.get_by_id(comment_id)
+
+    async def delete_lesson_comment(
+        self,
+        session: AsyncSession,
+        comment: LessonComment,
+    ) -> None:
+        repo = LessonCommentRepository.from_session(session)
+        await repo.soft_delete(comment)
 
 
 course_service = CourseService()

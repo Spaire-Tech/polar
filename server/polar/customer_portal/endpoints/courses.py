@@ -2,10 +2,18 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from fastapi import Depends, HTTPException
+from sqlalchemy import select
 
 from polar.course.repository import CourseLessonRepository
-from polar.course.schemas import CourseProgressRead
+from polar.course.schemas import (
+    CourseProgressRead,
+    LessonCommentAuthor,
+    LessonCommentCreate,
+    LessonCommentRead,
+)
 from polar.course.service import course_service
+from polar.models import Customer
+from polar.models.course_enrollment import CourseEnrollment
 from polar.openapi import APITag
 from polar.postgres import AsyncSession, get_db_session
 from polar.routing import APIRouter
@@ -251,3 +259,156 @@ async def get_course_progress(
             str(p.lesson_id): p.completed_at.isoformat() for p in progress_items
         },
     )
+
+
+# --- Lesson comments ---
+
+
+async def _verify_lesson_in_enrolled_course(
+    session: AsyncSession,
+    customer_id: UUID,
+    course_id: UUID,
+    lesson_id: UUID,
+):
+    """Return (enrollment, lesson) or raise 404. Also rejects unpublished lessons
+    and lessons that aren't in modules currently accessible to the student
+    (paywall/drip)."""
+    enrollment = await course_service.get_enrollment_for_customer(
+        session, customer_id, course_id
+    )
+    if enrollment is None:
+        raise HTTPException(status_code=404, detail="Course not found or not enrolled")
+
+    lesson_repo = CourseLessonRepository.from_session(session)
+    lesson = await lesson_repo.get_by_id(lesson_id)
+    if lesson is None or not lesson.published:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+
+    # Walk the course tree to confirm the lesson is in this course AND accessible.
+    course = enrollment.course
+    now = datetime.now(tz=UTC)
+    _, accessible_ids = _build_module_list(
+        course, course.paywall_position, enrollment.enrolled_at, now, set()
+    )
+    if str(lesson.id) not in accessible_ids:
+        raise HTTPException(status_code=403, detail="Lesson is not accessible")
+
+    return enrollment, lesson
+
+
+async def _load_authors(
+    session: AsyncSession, enrollment_ids: set[UUID]
+) -> dict[UUID, LessonCommentAuthor]:
+    if not enrollment_ids:
+        return {}
+    stmt = select(CourseEnrollment.id, Customer.name).join(
+        Customer, Customer.id == CourseEnrollment.customer_id
+    ).where(CourseEnrollment.id.in_(enrollment_ids))
+    result = await session.execute(stmt)
+    return {
+        row.id: LessonCommentAuthor(enrollment_id=row.id, name=row.name)
+        for row in result
+    }
+
+
+@router.get(
+    "/{course_id}/lessons/{lesson_id}/comments",
+    response_model=list[LessonCommentRead],
+    summary="List Lesson Comments",
+)
+async def list_lesson_comments(
+    course_id: UUID,
+    lesson_id: UUID,
+    auth_subject: auth.CustomerPortalUnionRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> list[LessonCommentRead]:
+    customer_id = get_customer_id(auth_subject)
+    enrollment, _ = await _verify_lesson_in_enrolled_course(
+        session, customer_id, course_id, lesson_id
+    )
+    comments = await course_service.list_lesson_comments(
+        session, lesson_id=lesson_id
+    )
+    authors = await _load_authors(session, {c.enrollment_id for c in comments})
+    return [
+        LessonCommentRead(
+            id=c.id,
+            lesson_id=c.lesson_id,
+            parent_id=c.parent_id,
+            content=c.content,
+            created_at=c.created_at,
+            is_own=c.enrollment_id == enrollment.id,
+            author=authors.get(
+                c.enrollment_id,
+                LessonCommentAuthor(enrollment_id=c.enrollment_id, name=None),
+            ),
+        )
+        for c in comments
+    ]
+
+
+@router.post(
+    "/{course_id}/lessons/{lesson_id}/comments",
+    response_model=LessonCommentRead,
+    status_code=201,
+    summary="Create Lesson Comment",
+)
+async def create_lesson_comment(
+    course_id: UUID,
+    lesson_id: UUID,
+    payload: LessonCommentCreate,
+    auth_subject: auth.CustomerPortalUnionRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> LessonCommentRead:
+    customer_id = get_customer_id(auth_subject)
+    enrollment, _ = await _verify_lesson_in_enrolled_course(
+        session, customer_id, course_id, lesson_id
+    )
+    try:
+        comment = await course_service.create_lesson_comment(
+            session,
+            enrollment_id=enrollment.id,
+            lesson_id=lesson_id,
+            content=payload.content,
+            parent_id=payload.parent_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    authors = await _load_authors(session, {enrollment.id})
+    return LessonCommentRead(
+        id=comment.id,
+        lesson_id=comment.lesson_id,
+        parent_id=comment.parent_id,
+        content=comment.content,
+        created_at=comment.created_at,
+        is_own=True,
+        author=authors.get(
+            enrollment.id,
+            LessonCommentAuthor(enrollment_id=enrollment.id, name=None),
+        ),
+    )
+
+
+@router.delete(
+    "/{course_id}/lessons/{lesson_id}/comments/{comment_id}",
+    status_code=204,
+    summary="Delete Lesson Comment",
+)
+async def delete_lesson_comment(
+    course_id: UUID,
+    lesson_id: UUID,
+    comment_id: UUID,
+    auth_subject: auth.CustomerPortalUnionRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> None:
+    customer_id = get_customer_id(auth_subject)
+    enrollment, _ = await _verify_lesson_in_enrolled_course(
+        session, customer_id, course_id, lesson_id
+    )
+    comment = await course_service.get_lesson_comment(session, comment_id)
+    if comment is None or comment.lesson_id != lesson_id:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    if comment.enrollment_id != enrollment.id:
+        raise HTTPException(status_code=403, detail="Not your comment")
+    await course_service.delete_lesson_comment(session, comment)
