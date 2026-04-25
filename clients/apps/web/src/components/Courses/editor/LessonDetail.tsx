@@ -8,26 +8,18 @@ import {
 import AddOutlined from '@mui/icons-material/AddOutlined'
 import ArrowBackOutlined from '@mui/icons-material/ArrowBackOutlined'
 import AudiotrackOutlined from '@mui/icons-material/AudiotrackOutlined'
-import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined'
 import CloseOutlined from '@mui/icons-material/CloseOutlined'
 import DeleteOutlineOutlined from '@mui/icons-material/DeleteOutlineOutlined'
-import FormatBoldOutlined from '@mui/icons-material/FormatBoldOutlined'
-import FormatItalicOutlined from '@mui/icons-material/FormatItalicOutlined'
-import FormatListBulletedOutlined from '@mui/icons-material/FormatListBulletedOutlined'
-import FormatListNumberedOutlined from '@mui/icons-material/FormatListNumberedOutlined'
-import FullscreenOutlined from '@mui/icons-material/FullscreenOutlined'
 import HelpOutlineOutlined from '@mui/icons-material/HelpOutlineOutlined'
 import ImageOutlined from '@mui/icons-material/ImageOutlined'
-import InsertLinkOutlined from '@mui/icons-material/InsertLinkOutlined'
 import KeyboardArrowDownOutlined from '@mui/icons-material/KeyboardArrowDownOutlined'
 import OndemandVideoOutlined from '@mui/icons-material/OndemandVideoOutlined'
 import OpenInNewOutlined from '@mui/icons-material/OpenInNewOutlined'
-import RemoveOutlined from '@mui/icons-material/RemoveOutlined'
-import StopOutlined from '@mui/icons-material/StopOutlined'
 import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined'
 import { cn } from '@spaire/ui/lib/utils'
 import { useEffect, useRef, useState } from 'react'
 import { useCreateMuxUpload } from '@/hooks/queries/courses'
+import { RichTextEditor } from './RichTextEditor'
 
 type Media = 'none' | 'video' | 'audio'
 
@@ -303,71 +295,13 @@ export function LessonDetail({
               </div>
             )}
 
-            {/* Rich text editor */}
-            <div className="overflow-hidden rounded-xl border border-gray-300">
-              <div className="flex items-center gap-1 border-b border-gray-200 bg-gray-50 px-3 py-2 text-gray-500">
-                <ToolbarBtn>{'<>'}</ToolbarBtn>
-                <ToolbarBtn>↶</ToolbarBtn>
-                <ToolbarBtn>↷</ToolbarBtn>
-                <ToolbarDivider />
-                <ToolbarBtn wide>
-                  Formats <KeyboardArrowDownOutlined sx={{ fontSize: 14 }} />
-                </ToolbarBtn>
-                <ToolbarDivider />
-                <ToolbarBtn>
-                  <FormatBoldOutlined sx={{ fontSize: 16 }} />
-                </ToolbarBtn>
-                <ToolbarBtn>
-                  <FormatItalicOutlined sx={{ fontSize: 16 }} />
-                </ToolbarBtn>
-                <ToolbarBtn>T</ToolbarBtn>
-                <ToolbarBtn>A</ToolbarBtn>
-                <ToolbarBtn>
-                  <RemoveOutlined sx={{ fontSize: 16 }} />
-                </ToolbarBtn>
-                <ToolbarBtn>
-                  <FormatListBulletedOutlined sx={{ fontSize: 16 }} />
-                </ToolbarBtn>
-                <ToolbarBtn>
-                  <FormatListNumberedOutlined sx={{ fontSize: 16 }} />
-                </ToolbarBtn>
-                <ToolbarBtn>
-                  <InsertLinkOutlined sx={{ fontSize: 16 }} />
-                </ToolbarBtn>
-                <ToolbarBtn>
-                  <ImageOutlined sx={{ fontSize: 16 }} />
-                </ToolbarBtn>
-                <ToolbarBtn>
-                  <FullscreenOutlined sx={{ fontSize: 16 }} />
-                </ToolbarBtn>
-                <div className="ml-auto flex items-center gap-1">
-                  {isGenerating ? (
-                    <button
-                      onClick={onStopAI}
-                      className="flex items-center gap-1 rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-100"
-                    >
-                      <StopOutlined sx={{ fontSize: 14 }} />
-                      Stop
-                    </button>
-                  ) : onGenerateAI ? (
-                    <button
-                      onClick={handleGenerate}
-                      className="flex items-center gap-1 rounded-md border border-indigo-200 bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
-                    >
-                      <AutoAwesomeOutlined sx={{ fontSize: 14 }} />
-                      {edits.textContent.trim() ? 'Regenerate' : 'Generate'}
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-              <textarea
-                value={edits.textContent}
-                onChange={(e) => update('textContent', e.target.value)}
-                placeholder="Write your lesson content here…"
-                rows={16}
-                className="w-full resize-y px-4 py-4 text-sm leading-relaxed text-gray-800 placeholder:text-gray-400 focus:outline-none"
-              />
-            </div>
+            <RichTextEditor
+              value={edits.textContent}
+              onChange={(md) => update('textContent', md)}
+              isGenerating={isGenerating}
+              onGenerate={onGenerateAI ? handleGenerate : undefined}
+              onStop={onStopAI}
+            />
 
             <div className="mt-6">
               <h3 className="mb-2 text-base font-bold text-gray-900">
@@ -591,26 +525,3 @@ function RadioRow({
   )
 }
 
-function ToolbarBtn({
-  children,
-  wide,
-}: {
-  children: React.ReactNode
-  wide?: boolean
-}) {
-  return (
-    <button
-      type="button"
-      className={cn(
-        'flex items-center gap-1 rounded-md text-xs font-medium text-gray-600 hover:bg-gray-100',
-        wide ? 'px-2 py-1' : 'h-7 w-7 justify-center',
-      )}
-    >
-      {children}
-    </button>
-  )
-}
-
-function ToolbarDivider() {
-  return <span className="mx-1 h-5 w-px bg-gray-200" />
-}
