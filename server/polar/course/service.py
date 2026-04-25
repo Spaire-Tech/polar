@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,9 +12,9 @@ from polar.models.course_module import CourseModule
 from polar.models.customer import Customer
 
 from .repository import (
+    CourseEnrollmentRepository,
     CourseLessonProgressRepository,
     CourseLessonRepository,
-    CourseEnrollmentRepository,
     CourseModuleRepository,
     CourseRepository,
 )
@@ -214,7 +214,7 @@ class CourseService:
             customer_id=customer.id,
             course_id=course_id,
             product_id=product_id,
-            enrolled_at=datetime.now(tz=timezone.utc),
+            enrolled_at=datetime.now(tz=UTC),
         )
         return await repo.create(enrollment, flush=True)
 
@@ -265,7 +265,7 @@ class CourseService:
         progress = CourseLessonProgress(
             enrollment_id=enrollment_id,
             lesson_id=lesson_id,
-            completed_at=datetime.now(tz=timezone.utc),
+            completed_at=datetime.now(tz=UTC),
         )
         return await repo.create(progress, flush=True)
 

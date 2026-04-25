@@ -1,18 +1,24 @@
 import json
 import logging
-from collections.abc import Sequence
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy import select
 
+from polar.auth.models import is_organization, is_user
+from polar.models import UserOrganization
 from polar.models.course_lesson import CourseLesson
 from polar.openapi import APITag
 from polar.postgres import AsyncSession, get_db_session
 from polar.routing import APIRouter
 
+from . import auth
 from . import mux as mux_client
-from .repository import CourseLessonRepository
+from .repository import (
+    CourseLessonRepository,
+    CourseModuleRepository,
+    CourseRepository,
+)
 from .schemas import (
     CourseCreate,
     CourseLessonCreate,
@@ -66,7 +72,7 @@ def _module_read(module) -> CourseModuleRead:
         status=module.status,
         release_at=module.release_at,
         drip_days=module.drip_days,
-        lessons=[_lesson_read(l) for l in module.lessons],
+        lessons=[_lesson_read(lesson) for lesson in module.lessons],
         created_at=module.created_at,
         modified_at=module.modified_at,
     )
@@ -90,11 +96,28 @@ def _course_read(course) -> CourseRead:
     )
 
 
+async def _user_in_org(session: AsyncSession, user_id: UUID, organization_id: UUID) -> bool:
+    stmt = select(UserOrganization).where(
+        UserOrganization.user_id == user_id,
+        UserOrganization.organization_id == organization_id,
+        UserOrganization.deleted_at.is_(None),
+    )
+    res = await session.execute(stmt)
+    return res.first() is not None
+
+
 @router.get("/organization/{organization_id}", response_model=list[CourseRead])
 async def list_courses_by_organization(
     organization_id: UUID,
+    auth_subject: auth.CoursesRead,
     session: AsyncSession = Depends(get_db_session),
 ) -> list[CourseRead]:
+    if is_organization(auth_subject):
+        if auth_subject.subject.id != organization_id:
+            raise HTTPException(status_code=403, detail="Forbidden")
+    elif is_user(auth_subject):
+        if not await _user_in_org(session, auth_subject.subject.id, organization_id):
+            raise HTTPException(status_code=403, detail="Forbidden")
     courses = await course_service.list_by_organization(session, organization_id)
     return [_course_read(c) for c in courses]
 
@@ -102,10 +125,14 @@ async def list_courses_by_organization(
 @router.get("/product/{product_id}", response_model=CourseRead)
 async def get_course_by_product(
     product_id: UUID,
+    auth_subject: auth.CoursesRead,
     session: AsyncSession = Depends(get_db_session),
 ) -> CourseRead:
     course = await course_service.get_by_product(session, product_id)
     if course is None:
+        raise HTTPException(status_code=404, detail="Course not found")
+    repo = CourseRepository.from_session(session)
+    if await repo.get_readable_by_id(course.id, auth_subject) is None:
         raise HTTPException(status_code=404, detail="Course not found")
     return _course_read(course)
 
@@ -113,9 +140,11 @@ async def get_course_by_product(
 @router.get("/{course_id}", response_model=CourseRead)
 async def get_course(
     course_id: UUID,
+    auth_subject: auth.CoursesRead,
     session: AsyncSession = Depends(get_db_session),
 ) -> CourseRead:
-    course = await course_service.get_by_id(session, course_id)
+    repo = CourseRepository.from_session(session)
+    course = await repo.get_readable_by_id(course_id, auth_subject)
     if course is None:
         raise HTTPException(status_code=404, detail="Course not found")
     return _course_read(course)
@@ -124,8 +153,17 @@ async def get_course(
 @router.post("/", response_model=CourseRead, status_code=201)
 async def create_course(
     course_create: CourseCreate,
+    auth_subject: auth.CoursesWrite,
     session: AsyncSession = Depends(get_db_session),
 ) -> CourseRead:
+    if is_organization(auth_subject):
+        if auth_subject.subject.id != course_create.organization_id:
+            raise HTTPException(status_code=403, detail="Forbidden")
+    elif is_user(auth_subject):
+        if not await _user_in_org(
+            session, auth_subject.subject.id, course_create.organization_id
+        ):
+            raise HTTPException(status_code=403, detail="Forbidden")
     course = await course_service.create(session, course_create)
     return _course_read(course)
 
@@ -134,9 +172,11 @@ async def create_course(
 async def update_course(
     course_id: UUID,
     course_update: CourseUpdate,
+    auth_subject: auth.CoursesWrite,
     session: AsyncSession = Depends(get_db_session),
 ) -> CourseRead:
-    course = await course_service.get_by_id(session, course_id)
+    repo = CourseRepository.from_session(session)
+    course = await repo.get_readable_by_id(course_id, auth_subject)
     if course is None:
         raise HTTPException(status_code=404, detail="Course not found")
     course = await course_service.update(session, course, course_update)
@@ -147,9 +187,11 @@ async def update_course(
 async def add_module(
     course_id: UUID,
     module_create: CourseModuleCreate,
+    auth_subject: auth.CoursesWrite,
     session: AsyncSession = Depends(get_db_session),
 ) -> CourseModuleRead:
-    course = await course_service.get_by_id(session, course_id)
+    repo = CourseRepository.from_session(session)
+    course = await repo.get_readable_by_id(course_id, auth_subject)
     if course is None:
         raise HTTPException(status_code=404, detail="Course not found")
     module = await course_service.add_module(session, course, module_create)
@@ -160,9 +202,11 @@ async def add_module(
 async def update_module(
     module_id: UUID,
     module_update: CourseModuleUpdate,
+    auth_subject: auth.CoursesWrite,
     session: AsyncSession = Depends(get_db_session),
 ) -> CourseModuleRead:
-    module = await course_service.get_module_by_id(session, module_id)
+    module_repo = CourseModuleRepository.from_session(session)
+    module = await module_repo.get_readable_by_id(module_id, auth_subject)
     if module is None:
         raise HTTPException(status_code=404, detail="Module not found")
     module = await course_service.update_module(session, module, module_update)
@@ -172,9 +216,11 @@ async def update_module(
 @router.delete("/modules/{module_id}", status_code=204)
 async def delete_module(
     module_id: UUID,
+    auth_subject: auth.CoursesWrite,
     session: AsyncSession = Depends(get_db_session),
 ) -> None:
-    module = await course_service.get_module_by_id(session, module_id)
+    module_repo = CourseModuleRepository.from_session(session)
+    module = await module_repo.get_readable_by_id(module_id, auth_subject)
     if module is None:
         raise HTTPException(status_code=404, detail="Module not found")
     await course_service.delete_module(session, module)
@@ -186,9 +232,11 @@ async def delete_module(
 async def add_lesson(
     module_id: UUID,
     lesson_create: CourseLessonCreate,
+    auth_subject: auth.CoursesWrite,
     session: AsyncSession = Depends(get_db_session),
 ) -> CourseLessonRead:
-    module = await course_service.get_module_by_id(session, module_id)
+    module_repo = CourseModuleRepository.from_session(session)
+    module = await module_repo.get_readable_by_id(module_id, auth_subject)
     if module is None:
         raise HTTPException(status_code=404, detail="Module not found")
     lesson = await course_service.add_lesson(session, module, lesson_create)
@@ -199,9 +247,11 @@ async def add_lesson(
 async def update_lesson(
     lesson_id: UUID,
     lesson_update: CourseLessonUpdate,
+    auth_subject: auth.CoursesWrite,
     session: AsyncSession = Depends(get_db_session),
 ) -> CourseLessonRead:
-    lesson = await course_service.get_lesson_by_id(session, lesson_id)
+    lesson_repo = CourseLessonRepository.from_session(session)
+    lesson = await lesson_repo.get_readable_by_id(lesson_id, auth_subject)
     if lesson is None:
         raise HTTPException(status_code=404, detail="Lesson not found")
     lesson = await course_service.update_lesson(session, lesson, lesson_update)
@@ -211,9 +261,11 @@ async def update_lesson(
 @router.delete("/lessons/{lesson_id}", status_code=204)
 async def delete_lesson(
     lesson_id: UUID,
+    auth_subject: auth.CoursesWrite,
     session: AsyncSession = Depends(get_db_session),
 ) -> None:
-    lesson = await course_service.get_lesson_by_id(session, lesson_id)
+    lesson_repo = CourseLessonRepository.from_session(session)
+    lesson = await lesson_repo.get_readable_by_id(lesson_id, auth_subject)
     if lesson is None:
         raise HTTPException(status_code=404, detail="Lesson not found")
     await course_service.delete_lesson(session, lesson)
@@ -230,6 +282,7 @@ async def delete_lesson(
 )
 async def create_mux_upload(
     lesson_id: UUID,
+    auth_subject: auth.CoursesWrite,
     session: AsyncSession = Depends(get_db_session),
 ) -> MuxUploadRead:
     """Create a Mux direct upload URL for a lesson video.
@@ -242,7 +295,8 @@ async def create_mux_upload(
     if not settings.MUX_TOKEN_ID or not settings.MUX_TOKEN_SECRET:
         raise HTTPException(status_code=503, detail="Mux not configured")
 
-    lesson = await course_service.get_lesson_by_id(session, lesson_id)
+    lesson_repo = CourseLessonRepository.from_session(session)
+    lesson = await lesson_repo.get_readable_by_id(lesson_id, auth_subject)
     if lesson is None:
         raise HTTPException(status_code=404, detail="Lesson not found")
 

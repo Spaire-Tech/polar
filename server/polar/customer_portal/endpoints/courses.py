@@ -1,8 +1,9 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from fastapi import Depends, HTTPException
 
+from polar.course.repository import CourseLessonRepository
 from polar.course.schemas import CourseProgressRead
 from polar.course.service import course_service
 from polar.openapi import APITag
@@ -15,17 +16,38 @@ from ..utils import get_customer_id
 router = APIRouter(prefix="/courses", tags=["customer_portal_courses", APITag.public])
 
 
+def _serialize_lesson(lesson, completed_ids: set[str]) -> dict:
+    return {
+        "id": str(lesson.id),
+        "title": lesson.title,
+        "content_type": lesson.content_type,
+        "content": lesson.content,
+        "position": lesson.position,
+        "duration_seconds": lesson.duration_seconds,
+        "is_free_preview": lesson.is_free_preview,
+        "mux_playback_id": getattr(lesson, "mux_playback_id", None),
+        "mux_status": getattr(lesson, "mux_status", None),
+        "completed": str(lesson.id) in completed_ids,
+    }
+
+
 def _build_module_list(course, paywall_position, enrolled_at, now, completed_ids):
+    """Build module list with paywall/drip locks and only published lessons.
+
+    Returns (modules, accessible_lesson_ids) where accessible_lesson_ids is the
+    set of lesson IDs included in the response (used as the progress denominator).
+    """
     modules = []
+    accessible_ids: set[str] = set()
     for idx, m in enumerate(course.modules):
-        # Paywall: modules at index >= paywall_position are locked (0-based idx, 1-based position)
+        # Paywall: modules at index >= paywall_position are locked.
         paywall_locked = (
             course.paywall_enabled
             and paywall_position is not None
             and idx >= paywall_position
         )
 
-        # Drip: unlock based on release_at or drip_days since enrollment
+        # Drip: unlock based on release_at or drip_days since enrollment.
         drip_locked = False
         locked_until = None
         if not paywall_locked:
@@ -40,41 +62,18 @@ def _build_module_list(course, paywall_position, enrolled_at, now, completed_ids
 
         locked = paywall_locked or drip_locked
 
-        lessons = []
+        # Only published lessons are visible to students.
+        published_lessons = [lesson for lesson in m.lessons if lesson.published]
+
         if not locked:
-            for l in m.lessons:
-                lessons.append(
-                    {
-                        "id": str(l.id),
-                        "title": l.title,
-                        "content_type": l.content_type,
-                        "content": l.content,
-                        "position": l.position,
-                        "duration_seconds": l.duration_seconds,
-                        "is_free_preview": l.is_free_preview,
-                        "mux_playback_id": getattr(l, "mux_playback_id", None),
-                        "mux_status": getattr(l, "mux_status", None),
-                        "completed": str(l.id) in completed_ids,
-                    }
-                )
+            visible = published_lessons
         else:
-            # For preview lessons, still surface them even past paywall
-            for l in m.lessons:
-                if l.is_free_preview:
-                    lessons.append(
-                        {
-                            "id": str(l.id),
-                            "title": l.title,
-                            "content_type": l.content_type,
-                            "content": l.content,
-                            "position": l.position,
-                            "duration_seconds": l.duration_seconds,
-                            "is_free_preview": True,
-                            "mux_playback_id": getattr(l, "mux_playback_id", None),
-                            "mux_status": getattr(l, "mux_status", None),
-                            "completed": str(l.id) in completed_ids,
-                        }
-                    )
+            # Locked module: surface free-preview lessons only.
+            visible = [lesson for lesson in published_lessons if lesson.is_free_preview]
+
+        lessons = [_serialize_lesson(lesson, completed_ids) for lesson in visible]
+        for lesson in visible:
+            accessible_ids.add(str(lesson.id))
 
         modules.append(
             {
@@ -87,7 +86,7 @@ def _build_module_list(course, paywall_position, enrolled_at, now, completed_ids
                 "lessons": lessons,
             }
         )
-    return modules
+    return modules, accessible_ids
 
 
 @router.get(
@@ -105,6 +104,10 @@ async def list_enrolled_courses(
     result = []
     for enrollment in enrollments:
         course = enrollment.course
+        published_lesson_count = sum(
+            sum(1 for lesson in m.lessons if lesson.published)
+            for m in course.modules
+        )
         result.append(
             {
                 "enrollment_id": str(enrollment.id),
@@ -114,7 +117,7 @@ async def list_enrolled_courses(
                     "title": course.title,
                     "course_type": course.course_type,
                     "module_count": len(course.modules),
-                    "lesson_count": sum(len(m.lessons) for m in course.modules),
+                    "lesson_count": published_lesson_count,
                 },
             }
         )
@@ -143,15 +146,16 @@ async def get_enrolled_course(
     completed_ids = {str(p.lesson_id) for p in progress_items}
 
     course = enrollment.course
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=UTC)
     enrolled_at = enrollment.enrolled_at
 
-    modules = _build_module_list(
+    modules, accessible_ids = _build_module_list(
         course, course.paywall_position, enrolled_at, now, completed_ids
     )
 
-    total_lessons = sum(len(m.lessons) for m in course.modules)
-    completed_count = len(completed_ids)
+    # Progress only counts lessons the student can actually access.
+    total_lessons = len(accessible_ids)
+    completed_count = len(completed_ids & accessible_ids)
 
     return {
         "enrollment_id": str(enrollment.id),
@@ -193,6 +197,13 @@ async def mark_lesson_complete(
     )
     if enrollment is None:
         raise HTTPException(status_code=404, detail="Course not found or not enrolled")
+
+    # Verify the lesson is published and belongs to this course before recording progress.
+    lesson_repo = CourseLessonRepository.from_session(session)
+    lesson = await lesson_repo.get_by_id(lesson_id)
+    if lesson is None or not lesson.published:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+
     await course_service.mark_lesson_complete(
         session, enrollment_id=enrollment.id, lesson_id=lesson_id
     )
@@ -218,8 +229,19 @@ async def get_course_progress(
         session, enrollment_id=enrollment.id
     )
     course = enrollment.course
-    total = sum(len(m.lessons) for m in course.modules)
-    completed = len(progress_items)
+    now = datetime.now(tz=UTC)
+    completed_ids = {str(p.lesson_id) for p in progress_items}
+
+    # Use the same accessible-set logic so progress matches the lesson list.
+    _, accessible_ids = _build_module_list(
+        course,
+        course.paywall_position,
+        enrollment.enrolled_at,
+        now,
+        completed_ids,
+    )
+    total = len(accessible_ids)
+    completed = len(completed_ids & accessible_ids)
 
     return CourseProgressRead(
         total_lessons=total,
