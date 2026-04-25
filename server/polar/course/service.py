@@ -94,7 +94,7 @@ class CourseService:
         update_schema: CourseUpdate,
     ) -> Course:
         repo = CourseRepository.from_session(session)
-        update_dict = update_schema.model_dump(exclude_unset=True, exclude_none=True)
+        update_dict = update_schema.model_dump(exclude_unset=True)
         return await repo.update(course, update_dict=update_dict)
 
     async def add_module(
@@ -137,7 +137,7 @@ class CourseService:
         update_schema: CourseModuleUpdate,
     ) -> CourseModule:
         module_repo = CourseModuleRepository.from_session(session)
-        update_dict = update_schema.model_dump(exclude_unset=True, exclude_none=True)
+        update_dict = update_schema.model_dump(exclude_unset=True)
         return await module_repo.update(module, update_dict=update_dict)
 
     async def get_module_by_id(
@@ -179,7 +179,7 @@ class CourseService:
         update_schema: CourseLessonUpdate,
     ) -> CourseLesson:
         lesson_repo = CourseLessonRepository.from_session(session)
-        update_dict = update_schema.model_dump(exclude_unset=True, exclude_none=True)
+        update_dict = update_schema.model_dump(exclude_unset=True)
         return await lesson_repo.update(lesson, update_dict=update_dict)
 
     async def get_lesson_by_id(

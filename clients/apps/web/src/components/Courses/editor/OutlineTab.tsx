@@ -11,6 +11,7 @@ import ThumbUpOutlined from '@mui/icons-material/ThumbUpOutlined'
 import { useMemo, useState } from 'react'
 import { ModuleCard } from './ModuleCard'
 import { PaywallRow } from './PaywallRow'
+import { ScheduleEdits } from './ScheduleMenu'
 import { ModuleStatus } from './StatusDropdown'
 
 export function OutlineTab({
@@ -23,6 +24,7 @@ export function OutlineTab({
   onAddLesson,
   onDeleteLesson,
   onUpdateStatus,
+  onUpdateSchedule,
   onRenameModule,
   onDeleteModule,
   onEditPaywall,
@@ -36,6 +38,7 @@ export function OutlineTab({
   onAddLesson: (module: CourseModuleRead) => void
   onDeleteLesson: (lesson: CourseLessonRead) => void
   onUpdateStatus: (module: CourseModuleRead, next: ModuleStatus) => void
+  onUpdateSchedule: (module: CourseModuleRead, edits: ScheduleEdits) => void
   onRenameModule: (module: CourseModuleRead, title: string) => void
   onDeleteModule: (module: CourseModuleRead) => void
   onEditPaywall?: () => void
@@ -149,6 +152,7 @@ export function OutlineTab({
                 onAddLesson={() => onAddLesson(mod)}
                 onDeleteLesson={onDeleteLesson}
                 onUpdateStatus={(next) => onUpdateStatus(mod, next)}
+                onUpdateSchedule={(edits) => onUpdateSchedule(mod, edits)}
                 onRenameModule={(title) => onRenameModule(mod, title)}
                 onDeleteModule={() => onDeleteModule(mod)}
               />

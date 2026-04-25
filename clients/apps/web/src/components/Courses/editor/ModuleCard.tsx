@@ -15,6 +15,7 @@ import OndemandVideoOutlined from '@mui/icons-material/OndemandVideoOutlined'
 import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined'
 import { cn } from '@spaire/ui/lib/utils'
 import { useEffect, useState } from 'react'
+import { ScheduleEdits, ScheduleMenu } from './ScheduleMenu'
 import { ModuleStatus, StatusDropdown } from './StatusDropdown'
 
 export function ModuleCard({
@@ -26,6 +27,7 @@ export function ModuleCard({
   onAddLesson,
   onDeleteLesson,
   onUpdateStatus,
+  onUpdateSchedule,
   onRenameModule,
   onDeleteModule,
 }: {
@@ -37,6 +39,7 @@ export function ModuleCard({
   onAddLesson: () => void
   onDeleteLesson: (lesson: CourseLessonRead) => void
   onUpdateStatus: (next: ModuleStatus) => void
+  onUpdateSchedule: (edits: ScheduleEdits) => void
   onRenameModule: (title: string) => void
   onDeleteModule: () => void
 }) {
@@ -103,6 +106,8 @@ export function ModuleCard({
           <AddOutlined sx={{ fontSize: 14 }} />
           Add Content
         </button>
+
+        <ScheduleMenu module={module} onSave={onUpdateSchedule} />
 
         <StatusDropdown
           status={module.status}

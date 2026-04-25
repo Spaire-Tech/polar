@@ -9,6 +9,7 @@ import {
   useCourseById,
   useDeleteCourseLesson,
   useDeleteCourseModule,
+  useUpdateCourse,
   useUpdateCourseLesson,
   useUpdateCourseModule,
 } from '@/hooks/queries/courses'
@@ -21,6 +22,8 @@ import { CourseHeader, TabId } from './editor/CourseHeader'
 import { EmptyTab } from './editor/EmptyTab'
 import { LessonDetail, LessonEdits } from './editor/LessonDetail'
 import { OutlineTab } from './editor/OutlineTab'
+import { ScheduleEdits } from './editor/ScheduleMenu'
+import { CourseSettingsEdits, SettingsTab } from './editor/SettingsTab'
 import { ModuleStatus } from './editor/StatusDropdown'
 
 async function streamLessonContent(
@@ -81,6 +84,7 @@ export default function CourseEditor({
   const addLesson = useAddCourseLesson()
   const updateLesson = useUpdateCourseLesson()
   const deleteLesson = useDeleteCourseLesson()
+  const updateCourse = useUpdateCourse()
 
   const invalidateCourse = useCallback(() => {
     getQueryClient().invalidateQueries({ queryKey: ['courses', { courseId }] })
@@ -146,6 +150,41 @@ export default function CourseEditor({
       invalidateCourse()
     } catch {
       toast({ title: 'Failed to update status' })
+    }
+  }
+
+  const handleUpdateSchedule = async (
+    mod: CourseModuleRead,
+    edits: ScheduleEdits,
+  ) => {
+    try {
+      await updateModule.mutateAsync({
+        moduleId: mod.id,
+        body: {
+          drip_days: edits.drip_days,
+          release_at: edits.release_at,
+        },
+      })
+      invalidateCourse()
+      toast({ title: 'Schedule updated' })
+    } catch {
+      toast({ title: 'Failed to update schedule' })
+    }
+  }
+
+  const handleSaveSettings = async (edits: CourseSettingsEdits) => {
+    try {
+      await updateCourse.mutateAsync({
+        courseId: course.id,
+        body: {
+          paywall_enabled: edits.paywall_enabled,
+          paywall_position: edits.paywall_position,
+        },
+      })
+      invalidateCourse()
+      toast({ title: 'Settings saved' })
+    } catch {
+      toast({ title: 'Failed to save settings' })
     }
   }
 
@@ -261,8 +300,10 @@ export default function CourseEditor({
           onAddLesson={handleAddLesson}
           onDeleteLesson={handleDeleteLesson}
           onUpdateStatus={handleUpdateStatus}
+          onUpdateSchedule={handleUpdateSchedule}
           onRenameModule={handleRenameModule}
           onDeleteModule={handleDeleteModule}
+          onEditPaywall={() => setActiveTab('settings')}
         />
       )
     }
@@ -296,9 +337,10 @@ export default function CourseEditor({
     )
   } else {
     mainContent = (
-      <EmptyTab
-        title="Settings"
-        description="Course configuration and advanced options coming soon."
+      <SettingsTab
+        course={course}
+        onSave={handleSaveSettings}
+        isSaving={updateCourse.isPending}
       />
     )
   }
