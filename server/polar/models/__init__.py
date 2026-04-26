@@ -59,6 +59,12 @@ from .personal_access_token import PersonalAccessToken
 from .pledge import Pledge
 from .pledge_transaction import PledgeTransaction
 from .processor_transaction import ProcessorTransaction
+from .course import Course
+from .course_enrollment import CourseEnrollment
+from .course_lesson import CourseLesson
+from .course_lesson_progress import CourseLessonProgress
+from .course_module import CourseModule
+from .lesson_comment import LessonComment
 from .product import Product, ProductVisibility
 from .product_benefit import ProductBenefit
 from .product_custom_field import ProductCustomField
@@ -106,6 +112,10 @@ __all__ = [
     "CheckoutLinkProduct",
     "CheckoutProduct",
     "CustomField",
+    "Course",
+    "CourseEnrollment",
+    "CourseLesson",
+    "CourseModule",
     "Customer",
     "CustomerMeter",
     "CustomerSeat",

@@ -787,6 +787,10 @@ class ProductBase(TrialConfigurationOutputMixin, TimestampedSchema, IDSchema):
     is_archived: bool = Field(
         description="Whether the product is archived and no longer available."
     )
+    product_type: str = Field(
+        default="digital",
+        description="The type of product (e.g. 'digital', 'course').",
+    )
     organization_id: UUID4 = Field(
         description="The ID of the organization owning the product."
     )

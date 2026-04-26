@@ -14,7 +14,6 @@ import MoreVertOutlined from '@mui/icons-material/MoreVertOutlined'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import { ListItem } from '@spaire/ui/components/atoms/List'
-import Pill from '@spaire/ui/components/atoms/Pill'
 import { Status } from '@spaire/ui/components/atoms/Status'
 import {
   DropdownMenu,
@@ -23,6 +22,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@spaire/ui/components/ui/dropdown-menu'
+import Pill from '@spaire/ui/components/atoms/Pill'
 import {
   Tooltip,
   TooltipContent,
@@ -114,9 +114,32 @@ export const ProductListItem = ({
     !isCustomProduct &&
     (product.recurring_interval === null || product.recurring_interval === undefined)
 
+  const isCourseProduct = (product as any).product_type === 'course'
+  const itemHref = isCourseProduct
+    ? `/dashboard/${organization.slug}/courses/via-product/${product.id}`
+    : `/dashboard/${organization.slug}/products/${product.id}`
+
+  // Category color — courses share a distinct tag color, recurring/one-time/PWYW/free use their own.
+  // Variations are intentional and may repeat — they highlight the type at a glance.
+  const categoryTag = isCourseProduct
+    ? { label: 'Course', className: 'bg-sky-100 text-sky-700' }
+    : isUsageBasedProduct
+      ? { label: 'Metered', className: 'bg-green-100 text-green-700' }
+      : isSeatBasedProduct
+        ? { label: 'Per seat', className: 'bg-blue-100 text-blue-700' }
+        : isFreeProduct
+          ? { label: 'Free', className: 'bg-emerald-100 text-emerald-700' }
+          : isCustomProduct
+            ? { label: 'Pay what you want', className: 'bg-purple-100 text-purple-700' }
+            : isFixedRecurring
+              ? { label: 'Subscription', className: 'bg-violet-100 text-violet-700' }
+              : isOneTime
+                ? { label: 'One-time', className: 'bg-orange-100 text-orange-700' }
+                : null
+
   return (
     <>
-      <Link href={`/dashboard/${organization.slug}/products/${product.id}`}>
+      <Link href={itemHref}>
         <ListItem className="flex flex-row items-center justify-between gap-x-6">
           <div className="flex min-w-0 grow flex-row items-center gap-x-4 text-sm">
             <ProductThumbnail product={product} />
@@ -144,34 +167,11 @@ export const ProductListItem = ({
               </Tooltip>
             ) : (
               <>
-                {isUsageBasedProduct && (
-                  <Pill color="green" className="px-3 py-1 text-xs">
-                    Metered Pricing
-                  </Pill>
-                )}
-                {isSeatBasedProduct && (
-                  <Pill color="blue" className="px-3 py-1 text-xs">
-                    Seat Pricing
-                  </Pill>
-                )}
-                {isFreeProduct && (
-                  <span className="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700 ">
-                    Free
-                  </span>
-                )}
-                {isCustomProduct && (
-                  <span className="inline-flex items-center rounded-full bg-purple-100 px-3 py-1 text-xs font-medium text-purple-700 ">
-                    Pay What You Want
-                  </span>
-                )}
-                {isFixedRecurring && (
-                  <span className="inline-flex items-center rounded-full bg-violet-100 px-3 py-1 text-xs font-medium text-violet-700 ">
-                    Subscription
-                  </span>
-                )}
-                {isOneTime && (
-                  <span className="inline-flex items-center rounded-full bg-orange-100 px-3 py-1 text-xs font-medium text-orange-700 ">
-                    One-time
+                {categoryTag && (
+                  <span
+                    className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${categoryTag.className}`}
+                  >
+                    {categoryTag.label}
                   </span>
                 )}
                 <span className="text-sm leading-snug">

@@ -35,6 +35,11 @@ const links = (
       label: 'Overview',
       isActive: (path: string) => path.includes('/overview'),
     },
+    {
+      href: `/${organization.slug}/portal/courses`,
+      label: 'Courses',
+      isActive: (path: string) => path.includes('/portal/courses'),
+    },
     ...(canAccessBilling
       ? [
           {
