@@ -1,8 +1,9 @@
 'use client'
 
-import { CourseRead } from '@/hooks/queries/courses'
+import { CourseRead, useUploadCourseThumbnail } from '@/hooks/queries/courses'
+import ImageOutlined from '@mui/icons-material/ImageOutlined'
 import LockOutlined from '@mui/icons-material/LockOutlined'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 export type CourseSettingsEdits = {
   paywall_enabled: boolean
@@ -22,11 +23,34 @@ export function SettingsTab({
   const [position, setPosition] = useState<number | null>(
     course.paywall_position ?? (course.modules.length > 1 ? 1 : null),
   )
+  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(
+    course.thumbnail_url ?? null,
+  )
+  const thumbnailInputRef = useRef<HTMLInputElement>(null)
+  const uploadThumbnail = useUploadCourseThumbnail()
 
   useEffect(() => {
     setEnabled(course.paywall_enabled)
     setPosition(course.paywall_position)
-  }, [course.id, course.paywall_enabled, course.paywall_position])
+    setThumbnailUrl(course.thumbnail_url ?? null)
+  }, [course.id, course.paywall_enabled, course.paywall_position, course.thumbnail_url])
+
+  const handleThumbnailChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const updated = await uploadThumbnail.mutateAsync({
+        courseId: course.id,
+        file,
+      })
+      setThumbnailUrl(updated.thumbnail_url ?? null)
+    } catch {
+      // mutation surfaces error
+    }
+    e.target.value = ''
+  }
 
   const dirty =
     enabled !== course.paywall_enabled || position !== course.paywall_position
@@ -43,6 +67,71 @@ export function SettingsTab({
           Control how students access content in this course.
         </p>
       </div>
+
+      <section className="mb-6 rounded-2xl border border-gray-200 bg-white p-6">
+        <div className="mb-4 flex items-start gap-3">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+            <ImageOutlined sx={{ fontSize: 18 }} />
+          </span>
+          <div className="flex-1">
+            <h2 className="text-base font-bold text-gray-900">
+              Course thumbnail
+            </h2>
+            <p className="mt-0.5 text-sm text-gray-500">
+              Shown on the course card and the student portal. JPG or PNG with a
+              non-transparent background. Recommended dimensions{' '}
+              <span className="font-semibold text-gray-700">1280×720</span>.
+            </p>
+          </div>
+        </div>
+
+        <input
+          ref={thumbnailInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="hidden"
+          onChange={handleThumbnailChange}
+        />
+        <div
+          className="flex items-center gap-4 rounded-xl border border-gray-200 bg-gray-50 p-4 hover:border-gray-300 cursor-pointer transition-colors"
+          onClick={() => thumbnailInputRef.current?.click()}
+        >
+          <div className="flex h-20 w-32 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white border border-gray-200">
+            {thumbnailUrl ? (
+              <img
+                src={thumbnailUrl}
+                alt="Course thumbnail"
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <ImageOutlined className="text-gray-300" sx={{ fontSize: 32 }} />
+            )}
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-gray-900">
+              {thumbnailUrl ? 'Replace image' : 'Upload an image'}
+            </p>
+            <p className="mt-0.5 text-xs text-gray-500">
+              {uploadThumbnail.isPending
+                ? 'Uploading…'
+                : thumbnailUrl
+                ? 'Click to upload a new thumbnail'
+                : 'Click to select a file'}
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={uploadThumbnail.isPending}
+            className="rounded-full bg-gray-900 px-4 py-2 text-xs font-semibold text-white hover:bg-gray-800 disabled:opacity-50 transition-colors"
+          >
+            {uploadThumbnail.isPending
+              ? 'Uploading…'
+              : thumbnailUrl
+              ? 'Replace'
+              : 'Select image'}
+          </button>
+        </div>
+      </section>
 
       <section className="rounded-2xl border border-gray-200 bg-white p-6">
         <div className="mb-4 flex items-start gap-3">

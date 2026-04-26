@@ -12,6 +12,7 @@ import ExpandMoreOutlined from '@mui/icons-material/ExpandMoreOutlined'
 import FolderOutlined from '@mui/icons-material/FolderOutlined'
 import MoreVertOutlined from '@mui/icons-material/MoreVertOutlined'
 import OndemandVideoOutlined from '@mui/icons-material/OndemandVideoOutlined'
+import VerifiedOutlined from '@mui/icons-material/VerifiedOutlined'
 import {
   DndContext,
   DragEndEvent,
@@ -32,7 +33,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ScheduleEdits, ScheduleMenu } from './ScheduleMenu'
 import { ModuleStatus, StatusDropdown } from './StatusDropdown'
 
-export type LessonContentType = 'text' | 'video'
+export type LessonContentType = 'text' | 'video' | 'quiz'
 
 export function ModuleCard({
   module,
@@ -222,6 +223,16 @@ export function ModuleCard({
                 <OndemandVideoOutlined sx={{ fontSize: 16 }} className="text-purple-400" />
                 Video Lesson
               </button>
+              <button
+                onClick={() => {
+                  onAddLesson('quiz')
+                  setAddMenuOpen(false)
+                }}
+                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
+              >
+                <VerifiedOutlined sx={{ fontSize: 16 }} className="text-emerald-500" />
+                Quiz
+              </button>
             </div>
           )}
         </div>
@@ -334,7 +345,12 @@ function LessonRow({
   onDelete: () => void
 }) {
   const isVideo = lesson.content_type === 'video'
-  const Icon = isVideo ? OndemandVideoOutlined : ArticleOutlined
+  const isQuiz = lesson.content_type === 'quiz'
+  const Icon = isQuiz
+    ? VerifiedOutlined
+    : isVideo
+    ? OndemandVideoOutlined
+    : ArticleOutlined
   const {
     attributes,
     listeners,
@@ -373,7 +389,11 @@ function LessonRow({
         <Icon
           className={cn(
             'shrink-0',
-            isVideo ? 'text-purple-400' : 'text-gray-400',
+            isQuiz
+              ? 'text-emerald-500'
+              : isVideo
+              ? 'text-purple-400'
+              : 'text-gray-400',
           )}
           sx={{ fontSize: 15 }}
         />

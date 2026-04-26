@@ -25,6 +25,7 @@ import { EmptyTab } from './editor/EmptyTab'
 import { LessonDetail, LessonEdits } from './editor/LessonDetail'
 import { LessonContentType } from './editor/ModuleCard'
 import { OutlineTab } from './editor/OutlineTab'
+import { QuizDetail, QuizSaveBody } from './editor/QuizDetail'
 import { ScheduleEdits } from './editor/ScheduleMenu'
 import { CourseSettingsEdits, SettingsTab } from './editor/SettingsTab'
 import { ModuleStatus } from './editor/StatusDropdown'
@@ -120,10 +121,15 @@ export default function CourseEditor({
     contentType: LessonContentType = 'text',
   ) => {
     try {
+      const titleByType: Record<LessonContentType, string> = {
+        text: 'New Lesson',
+        video: 'New Video Lesson',
+        quiz: 'Untitled quiz',
+      }
       const lesson = await addLesson.mutateAsync({
         moduleId: mod.id,
         body: {
-          title: contentType === 'video' ? 'New Video Lesson' : 'New Lesson',
+          title: titleByType[contentType],
           content_type: contentType,
           position: mod.lessons.length,
         },
@@ -234,13 +240,26 @@ export default function CourseEditor({
     if (!selectedLessonInfo) return
     setIsSaving(true)
     try {
-      const contentType = edits.media === 'video' ? 'video' : edits.media === 'audio' ? 'audio' : 'text'
+      const isQuiz = selectedLessonInfo.lesson.content_type === 'quiz'
+      const contentType = isQuiz
+        ? 'quiz'
+        : edits.media === 'video'
+        ? 'video'
+        : edits.media === 'audio'
+        ? 'audio'
+        : 'text'
+      const existingContent = (selectedLessonInfo.lesson.content ?? {}) as Record<string, unknown>
+      const nextContent: Record<string, unknown> = { ...existingContent }
+      if (!isQuiz) {
+        if (edits.textContent) nextContent.text = edits.textContent
+        else delete nextContent.text
+      }
       await updateLesson.mutateAsync({
         lessonId: selectedLessonInfo.lesson.id,
         body: {
           title: edits.title,
           content_type: contentType,
-          content: edits.textContent ? { text: edits.textContent } : null,
+          content: Object.keys(nextContent).length > 0 ? nextContent : null,
           video_asset_id: edits.media === 'video' ? edits.videoUrl || null : null,
           published: edits.published,
         },
@@ -249,6 +268,28 @@ export default function CourseEditor({
       toast({ title: 'Lesson saved' })
     } catch {
       toast({ title: 'Failed to save lesson' })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleSaveQuiz = async (body: QuizSaveBody) => {
+    if (!selectedLessonInfo) return
+    setIsSaving(true)
+    try {
+      await updateLesson.mutateAsync({
+        lessonId: selectedLessonInfo.lesson.id,
+        body: {
+          title: body.title,
+          content_type: 'quiz',
+          content: body.content as unknown as Record<string, unknown>,
+          published: body.published,
+        },
+      })
+      invalidateCourse()
+      toast({ title: 'Quiz saved' })
+    } catch {
+      toast({ title: 'Failed to save quiz' })
     } finally {
       setIsSaving(false)
     }
@@ -306,22 +347,35 @@ export default function CourseEditor({
 
   if (activeTab === 'outline') {
     if (selectedLessonId && selectedLessonInfo) {
-      mainContent = (
-        <LessonDetail
-          key={selectedLessonInfo.lesson.id}
-          lesson={selectedLessonInfo.lesson}
-          module={selectedLessonInfo.module}
-          course={course}
-          organizationSlug={organization.slug}
-          onBack={() => setSelectedLessonId(null)}
-          onSave={handleSaveLesson}
-          onDelete={() => handleDeleteLesson(selectedLessonInfo.lesson)}
-          isSaving={isSaving}
-          onGenerateAI={handleGenerateAI}
-          isGenerating={isGenerating}
-          onStopAI={handleStopAI}
-        />
-      )
+      mainContent =
+        selectedLessonInfo.lesson.content_type === 'quiz' ? (
+          <QuizDetail
+            key={selectedLessonInfo.lesson.id}
+            lesson={selectedLessonInfo.lesson}
+            module={selectedLessonInfo.module}
+            course={course}
+            organizationSlug={organization.slug}
+            onBack={() => setSelectedLessonId(null)}
+            onSave={handleSaveQuiz}
+            onDelete={() => handleDeleteLesson(selectedLessonInfo.lesson)}
+            isSaving={isSaving}
+          />
+        ) : (
+          <LessonDetail
+            key={selectedLessonInfo.lesson.id}
+            lesson={selectedLessonInfo.lesson}
+            module={selectedLessonInfo.module}
+            course={course}
+            organizationSlug={organization.slug}
+            onBack={() => setSelectedLessonId(null)}
+            onSave={handleSaveLesson}
+            onDelete={() => handleDeleteLesson(selectedLessonInfo.lesson)}
+            isSaving={isSaving}
+            onGenerateAI={handleGenerateAI}
+            isGenerating={isGenerating}
+            onStopAI={handleStopAI}
+          />
+        )
     } else {
       mainContent = (
         <OutlineTab

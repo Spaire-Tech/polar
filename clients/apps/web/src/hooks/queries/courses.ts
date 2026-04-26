@@ -1,12 +1,58 @@
 import { getQueryClient } from '@/utils/api/query'
 import { useMutation, useQuery } from '@tanstack/react-query'
 
+export type LessonAttachment = {
+  id: string
+  filename: string
+  url: string
+  size: number
+  content_type: string
+  path?: string
+}
+
+export type QuizOption = {
+  id: string
+  text: string
+  image_url?: string | null
+  is_correct: boolean
+  explanation?: string | null
+}
+
+export type QuizQuestion = {
+  id: string
+  text: string
+  type: 'multiple_choice' | 'multiple_select' | 'short_answer'
+  graded: boolean
+  image_url?: string | null
+  options: QuizOption[]
+}
+
+export type QuizSettings = {
+  title?: string
+  description?: string | null
+  thumbnail_url?: string | null
+  passing_grade: number
+  send_email_results: boolean
+  prevent_complete_without_passing: boolean
+  hide_answers_on_results: boolean
+}
+
+export type QuizContent = QuizSettings & {
+  questions: QuizQuestion[]
+  attachments?: LessonAttachment[]
+}
+
 export type CourseLessonRead = {
   id: string
   module_id: string
   title: string
   content_type: string
-  content: Record<string, unknown> | null
+  content:
+    | (Record<string, unknown> & {
+        text?: string
+        attachments?: LessonAttachment[]
+      })
+    | null
   video_asset_id: string | null
   duration_seconds: number | null
   position: number
@@ -51,6 +97,8 @@ export type CourseRead = {
   paywall_lesson_id: string | null
   paywall_position: number | null
   ai_generated: boolean
+  description: string | null
+  thumbnail_url: string | null
   modules: CourseModuleRead[]
   created_at: string
   modified_at: string | null
@@ -299,7 +347,15 @@ export type CustomerLessonRead = {
   id: string
   title: string
   content_type: string
-  content: { text?: string } | null
+  content:
+    | (Record<string, unknown> & {
+        text?: string
+        attachments?: LessonAttachment[]
+        questions?: QuizQuestion[]
+        passing_grade?: number
+        hide_answers_on_results?: boolean
+      })
+    | null
   position: number
   duration_seconds: number | null
   is_free_preview: boolean
@@ -418,6 +474,104 @@ export const useUploadLessonThumbnail = () =>
         throw new Error(`API ${res.status}: ${text}`)
       }
       return res.json() as Promise<CourseLessonRead>
+    },
+  })
+
+export const useUploadCourseThumbnail = () =>
+  useMutation({
+    mutationFn: async ({ courseId, file }: { courseId: string; file: File }) => {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/v1/courses/${courseId}/thumbnail`,
+        { method: 'POST', body: form, credentials: 'include' },
+      )
+      if (!res.ok) {
+        const text = await res.text().catch(() => '')
+        throw new Error(`API ${res.status}: ${text}`)
+      }
+      return res.json() as Promise<CourseRead>
+    },
+    onSuccess: (data) => {
+      getQueryClient().invalidateQueries({
+        queryKey: ['courses', { courseId: data.id }],
+      })
+    },
+  })
+
+const invalidateCourseQueries = () => {
+  getQueryClient().invalidateQueries({ queryKey: ['courses'] })
+}
+
+export const useUploadLessonAttachment = () =>
+  useMutation({
+    mutationFn: async ({ lessonId, file }: { lessonId: string; file: File }) => {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/v1/courses/lessons/${lessonId}/attachments`,
+        { method: 'POST', body: form, credentials: 'include' },
+      )
+      if (!res.ok) {
+        const text = await res.text().catch(() => '')
+        throw new Error(`API ${res.status}: ${text}`)
+      }
+      return res.json() as Promise<CourseLessonRead>
+    },
+    onSuccess: invalidateCourseQueries,
+  })
+
+export const useDeleteLessonAttachment = () =>
+  useMutation({
+    mutationFn: ({
+      lessonId,
+      attachmentId,
+    }: {
+      lessonId: string
+      attachmentId: string
+    }) =>
+      courseApiFetch<CourseLessonRead>(
+        `/v1/courses/lessons/${lessonId}/attachments/${attachmentId}`,
+        { method: 'DELETE' },
+      ),
+    onSuccess: invalidateCourseQueries,
+  })
+
+export type QuizAttemptResult = {
+  score: number
+  passed: boolean
+  passing_grade: number
+  total_questions: number
+  correct_count: number
+  answers: {
+    question_id: string
+    correct: boolean
+    correct_option_ids: string[]
+    explanations: Record<string, string>
+  }[]
+}
+
+export const useSubmitQuizAttempt = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+) =>
+  useMutation({
+    mutationFn: ({
+      lessonId,
+      answers,
+    }: {
+      lessonId: string
+      answers: { question_id: string; selected_option_ids: string[] }[]
+    }) =>
+      portalApiFetch<QuizAttemptResult>(
+        `/v1/customer-portal/courses/${courseId}/lessons/${lessonId}/quiz-attempt`,
+        token!,
+        { method: 'POST', body: JSON.stringify({ answers }) },
+      ),
+    onSuccess: () => {
+      getQueryClient().invalidateQueries({
+        queryKey: ['customer-courses', token, courseId],
+      })
     },
   })
 

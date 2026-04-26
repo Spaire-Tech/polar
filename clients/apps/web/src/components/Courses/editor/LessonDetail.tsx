@@ -7,6 +7,7 @@ import {
 } from '@/hooks/queries/courses'
 import AddOutlined from '@mui/icons-material/AddOutlined'
 import ArrowBackOutlined from '@mui/icons-material/ArrowBackOutlined'
+import AttachFileOutlined from '@mui/icons-material/AttachFileOutlined'
 import AudiotrackOutlined from '@mui/icons-material/AudiotrackOutlined'
 import CloseOutlined from '@mui/icons-material/CloseOutlined'
 import DeleteOutlineOutlined from '@mui/icons-material/DeleteOutlineOutlined'
@@ -18,7 +19,14 @@ import OpenInNewOutlined from '@mui/icons-material/OpenInNewOutlined'
 import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined'
 import { cn } from '@spaire/ui/lib/utils'
 import { useEffect, useRef, useState } from 'react'
-import { useCreateMuxUpload, usePreviewAccess, useUploadLessonThumbnail } from '@/hooks/queries/courses'
+import {
+  LessonAttachment,
+  useCreateMuxUpload,
+  useDeleteLessonAttachment,
+  usePreviewAccess,
+  useUploadLessonAttachment,
+  useUploadLessonThumbnail,
+} from '@/hooks/queries/courses'
 import { HlsVideo } from '../HlsVideo'
 import { RichTextEditor } from './RichTextEditor'
 
@@ -78,13 +86,43 @@ export function LessonDetail({
   const thumbnailInputRef = useRef<HTMLInputElement>(null)
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(lesson.thumbnail_url ?? null)
+  const attachmentInputRef = useRef<HTMLInputElement>(null)
+  const initialAttachments = ((lesson.content?.attachments as LessonAttachment[] | undefined) ?? [])
+  const [attachments, setAttachments] = useState<LessonAttachment[]>(initialAttachments)
   const createMuxUpload = useCreateMuxUpload()
   const uploadThumbnail = useUploadLessonThumbnail()
+  const uploadAttachment = useUploadLessonAttachment()
+  const deleteAttachment = useDeleteLessonAttachment()
 
   useEffect(() => {
     setEdits(initEdits(lesson, module))
     setThumbnailUrl(lesson.thumbnail_url ?? null)
+    setAttachments(((lesson.content?.attachments as LessonAttachment[] | undefined) ?? []))
   }, [lesson.id, module.id])
+
+  const handleAttachmentFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const updated = await uploadAttachment.mutateAsync({ lessonId: lesson.id, file })
+      setAttachments((updated.content?.attachments as LessonAttachment[] | undefined) ?? [])
+    } catch {
+      // mutation surfaces error
+    }
+    e.target.value = ''
+  }
+
+  const handleAttachmentDelete = async (attachmentId: string) => {
+    try {
+      const updated = await deleteAttachment.mutateAsync({
+        lessonId: lesson.id,
+        attachmentId,
+      })
+      setAttachments((updated.content?.attachments as LessonAttachment[] | undefined) ?? [])
+    } catch {
+      // mutation surfaces error
+    }
+  }
 
   const handleThumbnailFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -338,9 +376,57 @@ export function LessonDetail({
               <h3 className="mb-2 text-base font-bold text-gray-900">
                 Downloads
               </h3>
-              <button className="flex items-center gap-1.5 rounded-full border border-gray-300 px-3.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+              <input
+                ref={attachmentInputRef}
+                type="file"
+                className="hidden"
+                onChange={handleAttachmentFileChange}
+              />
+              {attachments.length > 0 && (
+                <div className="mb-3 flex flex-col gap-2">
+                  {attachments.map((a) => (
+                    <div
+                      key={a.id}
+                      className="flex items-center gap-3 rounded-xl border border-gray-200 px-3 py-2.5"
+                    >
+                      <AttachFileOutlined
+                        sx={{ fontSize: 16 }}
+                        className="text-gray-400"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <a
+                          href={a.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block truncate text-sm font-medium text-gray-900 hover:underline"
+                        >
+                          {a.filename}
+                        </a>
+                        <p className="text-xs text-gray-400">
+                          {formatBytes(a.size)}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleAttachmentDelete(a.id)}
+                        disabled={deleteAttachment.isPending}
+                        className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-300 hover:bg-red-50 hover:text-red-500 disabled:opacity-50 transition-colors"
+                        title="Remove file"
+                      >
+                        <DeleteOutlineOutlined sx={{ fontSize: 14 }} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => attachmentInputRef.current?.click()}
+                disabled={uploadAttachment.isPending}
+                className="flex items-center gap-1.5 rounded-full border border-gray-300 px-3.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+              >
                 <AddOutlined sx={{ fontSize: 16 }} />
-                Add Files
+                {uploadAttachment.isPending ? 'Uploading…' : 'Add Files'}
               </button>
             </div>
           </Card>
@@ -458,6 +544,13 @@ export function LessonDetail({
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
+}
 
 function initEdits(
   lesson: CourseLessonRead,

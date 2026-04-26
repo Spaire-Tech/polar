@@ -1,6 +1,6 @@
 import json
 import logging
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import Depends, File, HTTPException, Request, UploadFile
 from sqlalchemy import select
@@ -95,6 +95,8 @@ def _course_read(course) -> CourseRead:
         paywall_lesson_id=course.paywall_lesson_id,
         paywall_position=course.paywall_position,
         ai_generated=course.ai_generated,
+        description=course.description,
+        thumbnail_url=course.thumbnail_url,
         modules=[_module_read(m) for m in course.modules],
         created_at=course.created_at,
         modified_at=course.modified_at,
@@ -402,6 +404,134 @@ async def upload_lesson_thumbnail(
     thumbnail_url = s3.get_public_url(path)
 
     lesson = await lesson_repo.update(lesson, update_dict={"thumbnail_url": thumbnail_url})
+    return _lesson_read(lesson)
+
+
+@router.post(
+    "/{course_id}/thumbnail",
+    response_model=CourseRead,
+    summary="Upload Course Thumbnail",
+)
+async def upload_course_thumbnail(
+    course_id: UUID,
+    auth_subject: auth.CoursesWrite,
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_db_session),
+) -> CourseRead:
+    from polar.config import settings
+    from polar.integrations.aws.s3 import S3Service
+
+    repo = CourseRepository.from_session(session)
+    course = await repo.get_readable_by_id(course_id, auth_subject)
+    if course is None:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    content_type = file.content_type or "image/jpeg"
+    if not content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+
+    data = await file.read()
+    if len(data) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Image must be under 10 MB")
+
+    ext = (file.filename or "thumbnail.jpg").rsplit(".", 1)[-1].lower()
+    if ext not in {"jpg", "jpeg", "png", "webp", "gif"}:
+        ext = "jpg"
+
+    path = f"course-thumbnails/courses/{course_id}.{ext}"
+    s3 = S3Service(bucket=settings.S3_FILES_PUBLIC_BUCKET_NAME)
+    s3.upload(data, path, content_type)
+    thumbnail_url = s3.get_public_url(path)
+
+    course = await repo.update(course, update_dict={"thumbnail_url": thumbnail_url})
+    return _course_read(course)
+
+
+@router.post(
+    "/lessons/{lesson_id}/attachments",
+    response_model=CourseLessonRead,
+    summary="Upload Lesson Attachment",
+)
+async def upload_lesson_attachment(
+    lesson_id: UUID,
+    auth_subject: auth.CoursesWrite,
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_db_session),
+) -> CourseLessonRead:
+    from polar.config import settings
+    from polar.integrations.aws.s3 import S3Service
+
+    lesson_repo = CourseLessonRepository.from_session(session)
+    lesson = await lesson_repo.get_readable_by_id(lesson_id, auth_subject)
+    if lesson is None:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+
+    data = await file.read()
+    if len(data) > 100 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="File must be under 100 MB")
+
+    attachment_id = str(uuid4())
+    filename = file.filename or "attachment"
+    safe_name = filename.replace("/", "_").replace("\\", "_")
+    path = f"course-attachments/{lesson_id}/{attachment_id}/{safe_name}"
+    content_type = file.content_type or "application/octet-stream"
+
+    s3 = S3Service(bucket=settings.S3_FILES_PUBLIC_BUCKET_NAME)
+    s3.upload(data, path, content_type)
+    url = s3.get_public_url(path)
+
+    attachment = {
+        "id": attachment_id,
+        "filename": safe_name,
+        "url": url,
+        "size": len(data),
+        "content_type": content_type,
+        "path": path,
+    }
+
+    content = dict(lesson.content or {})
+    attachments = list(content.get("attachments") or [])
+    attachments.append(attachment)
+    content["attachments"] = attachments
+
+    lesson = await lesson_repo.update(lesson, update_dict={"content": content})
+    return _lesson_read(lesson)
+
+
+@router.delete(
+    "/lessons/{lesson_id}/attachments/{attachment_id}",
+    response_model=CourseLessonRead,
+    summary="Delete Lesson Attachment",
+)
+async def delete_lesson_attachment(
+    lesson_id: UUID,
+    attachment_id: str,
+    auth_subject: auth.CoursesWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> CourseLessonRead:
+    from polar.config import settings
+    from polar.integrations.aws.s3 import S3Service
+
+    lesson_repo = CourseLessonRepository.from_session(session)
+    lesson = await lesson_repo.get_readable_by_id(lesson_id, auth_subject)
+    if lesson is None:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+
+    content = dict(lesson.content or {})
+    attachments = list(content.get("attachments") or [])
+    target = next((a for a in attachments if a.get("id") == attachment_id), None)
+    if target is None:
+        raise HTTPException(status_code=404, detail="Attachment not found")
+
+    if target.get("path"):
+        try:
+            s3 = S3Service(bucket=settings.S3_FILES_PUBLIC_BUCKET_NAME)
+            s3.delete_file(target["path"])
+        except Exception as e:
+            log.warning("Failed to delete attachment from S3: %s", e)
+
+    content["attachments"] = [a for a in attachments if a.get("id") != attachment_id]
+    lesson = await lesson_repo.update(lesson, update_dict={"content": content})
     return _lesson_read(lesson)
 
 

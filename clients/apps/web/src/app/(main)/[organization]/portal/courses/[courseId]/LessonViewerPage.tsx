@@ -6,14 +6,18 @@ import {
   type CustomerCourseDetail,
   type CustomerLessonRead,
   type CustomerModuleRead,
+  type LessonAttachment,
 } from '@/hooks/queries/courses'
 import { MemoizedMarkdown } from '@/components/Markdown/MemoizedMarkdown'
 import { HlsVideo } from '@/components/Courses/HlsVideo'
+import { QuizPlayer } from '@/components/Courses/QuizPlayer'
 import { CommentThread } from './CommentThread'
 import ArrowBackOutlined from '@mui/icons-material/ArrowBackOutlined'
 import ArrowForwardOutlined from '@mui/icons-material/ArrowForwardOutlined'
+import AttachFileOutlined from '@mui/icons-material/AttachFileOutlined'
 import CheckCircle from '@mui/icons-material/CheckCircle'
 import CheckCircleOutlined from '@mui/icons-material/CheckCircleOutlined'
+import DownloadOutlined from '@mui/icons-material/DownloadOutlined'
 import EmojiEventsOutlined from '@mui/icons-material/EmojiEventsOutlined'
 import ExpandMoreOutlined from '@mui/icons-material/ExpandMoreOutlined'
 import LockOutlined from '@mui/icons-material/LockOutlined'
@@ -347,9 +351,11 @@ const LessonViewer = ({
   courseId: string
   token: string
 }) => {
+  const isQuiz = lesson.content_type === 'quiz'
   const hasThumbnailOrVideo =
-    lesson.thumbnail_url !== null || lesson.mux_playback_id !== null
-  const textContent = lesson.content?.text ?? ''
+    !isQuiz && (lesson.thumbnail_url !== null || lesson.mux_playback_id !== null)
+  const textContent = isQuiz ? '' : lesson.content?.text ?? ''
+  const attachments = (lesson.content?.attachments as LessonAttachment[] | undefined) ?? []
 
   return (
     <div className="mx-auto max-w-3xl py-6 sm:py-8">
@@ -424,6 +430,53 @@ const LessonViewer = ({
       {textContent.trim() && (
         <div className="mb-8 prose prose-sm max-w-none prose-headings:font-semibold prose-headings:text-gray-900 prose-p:text-gray-700 prose-a:text-blue-600 prose-code:rounded prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:text-sm prose-pre:rounded-xl prose-pre:bg-gray-900 prose-pre:text-gray-100">
           <MemoizedMarkdown content={textContent} />
+        </div>
+      )}
+
+      {/* Quiz */}
+      {isQuiz && (
+        <div className="mb-8">
+          <QuizPlayer
+            lesson={lesson}
+            token={token}
+            courseId={courseId}
+            onPassed={onMarkComplete}
+          />
+        </div>
+      )}
+
+      {/* Attachments */}
+      {attachments.length > 0 && (
+        <div className="mb-8">
+          <h3 className="mb-3 text-sm font-semibold text-gray-900">
+            Downloads
+          </h3>
+          <div className="flex flex-col gap-2">
+            {attachments.map((a) => (
+              <a
+                key={a.id}
+                href={a.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 hover:border-gray-300 hover:bg-gray-50 transition-colors"
+              >
+                <AttachFileOutlined
+                  sx={{ fontSize: 18 }}
+                  className="text-gray-400"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="truncate text-sm font-medium text-gray-900">
+                    {a.filename}
+                  </p>
+                  <p className="text-xs text-gray-400">{formatBytes(a.size)}</p>
+                </div>
+                <DownloadOutlined
+                  sx={{ fontSize: 18 }}
+                  className="text-gray-400 group-hover:text-gray-700"
+                />
+              </a>
+            ))}
+          </div>
         </div>
       )}
 
@@ -561,6 +614,14 @@ const LessonViewerPage = ({
       onStartLesson={handleSelectLesson}
     />
   )
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  if (bytes < 1024 * 1024 * 1024)
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
 }
 
 export default LessonViewerPage

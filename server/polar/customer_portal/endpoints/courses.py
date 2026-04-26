@@ -10,6 +10,9 @@ from polar.course.schemas import (
     LessonCommentAuthor,
     LessonCommentCreate,
     LessonCommentRead,
+    QuizAnswerResult,
+    QuizAttemptResult,
+    QuizAttemptSubmission,
 )
 from polar.course.service import course_service
 from polar.models import Customer
@@ -191,6 +194,86 @@ async def get_enrolled_course(
             "modules": modules,
         },
     }
+
+
+@router.post(
+    "/{course_id}/lessons/{lesson_id}/quiz-attempt",
+    response_model=QuizAttemptResult,
+    summary="Submit Quiz Attempt",
+)
+async def submit_quiz_attempt(
+    course_id: UUID,
+    lesson_id: UUID,
+    submission: QuizAttemptSubmission,
+    auth_subject: auth.CustomerPortalUnionRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> QuizAttemptResult:
+    customer_id = get_customer_id(auth_subject)
+    enrollment, lesson = await _verify_lesson_in_enrolled_course(
+        session, customer_id, course_id, lesson_id
+    )
+
+    if lesson.content_type != "quiz":
+        raise HTTPException(status_code=400, detail="Lesson is not a quiz")
+
+    config = lesson.content or {}
+    questions = list(config.get("questions") or [])
+    if not questions:
+        raise HTTPException(status_code=400, detail="Quiz has no questions")
+
+    passing_grade = int(config.get("passing_grade", 70))
+    prevent_complete_without_passing = bool(
+        config.get("prevent_complete_without_passing", False)
+    )
+
+    submitted_by_qid = {a.question_id: set(a.selected_option_ids) for a in submission.answers}
+
+    answer_results: list[QuizAnswerResult] = []
+    graded_count = 0
+    correct_count = 0
+    for question in questions:
+        qid = question.get("id")
+        if not qid:
+            continue
+        graded = bool(question.get("graded", True))
+        options = question.get("options") or []
+        correct_ids = {o["id"] for o in options if o.get("is_correct") and o.get("id")}
+        explanations = {
+            o["id"]: o["explanation"]
+            for o in options
+            if o.get("id") and o.get("explanation")
+        }
+        selected = submitted_by_qid.get(qid, set())
+        is_correct = bool(graded) and selected == correct_ids and len(correct_ids) > 0
+        if graded:
+            graded_count += 1
+            if is_correct:
+                correct_count += 1
+        answer_results.append(
+            QuizAnswerResult(
+                question_id=qid,
+                correct=is_correct,
+                correct_option_ids=list(correct_ids),
+                explanations=explanations,
+            )
+        )
+
+    score = (correct_count / graded_count * 100) if graded_count else 100.0
+    passed = score >= passing_grade if graded_count else True
+
+    if passed or not prevent_complete_without_passing:
+        await course_service.mark_lesson_complete(
+            session, enrollment_id=enrollment.id, lesson_id=lesson_id
+        )
+
+    return QuizAttemptResult(
+        score=round(score, 1),
+        passed=passed,
+        passing_grade=passing_grade,
+        total_questions=graded_count,
+        correct_count=correct_count,
+        answers=answer_results,
+    )
 
 
 @router.post(

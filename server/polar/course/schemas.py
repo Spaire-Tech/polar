@@ -101,6 +101,33 @@ class CourseUpdate(Schema):
     paywall_enabled: bool | None = None
     paywall_lesson_id: UUID4 | None = None
     paywall_position: int | None = None
+    description: str | None = None
+    thumbnail_url: str | None = None
+
+
+class QuizAnswerSubmission(Schema):
+    question_id: str
+    selected_option_ids: list[str] = Field(default_factory=list)
+
+
+class QuizAttemptSubmission(Schema):
+    answers: list[QuizAnswerSubmission]
+
+
+class QuizAnswerResult(Schema):
+    question_id: str
+    correct: bool
+    correct_option_ids: list[str]
+    explanations: dict[str, str]
+
+
+class QuizAttemptResult(Schema):
+    score: float
+    passed: bool
+    passing_grade: int
+    total_questions: int
+    correct_count: int
+    answers: list[QuizAnswerResult]
 
 
 class ReorderRequest(Schema):
@@ -145,4 +172,6 @@ class CourseRead(TimestampedSchema):
     paywall_lesson_id: UUID4 | None
     paywall_position: int | None
     ai_generated: bool
+    description: str | None = None
+    thumbnail_url: str | None = None
     modules: list[CourseModuleRead]
