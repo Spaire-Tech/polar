@@ -139,8 +139,8 @@ export default function ClientPage({
   })
 
   const courses = useOrganizationCourses(org.id)
-  const courseProductIds = new Set(
-    (courses.data ?? []).map((c) => c.product_id),
+  const courseIdByProductId = new Map(
+    (courses.data ?? []).map((c) => [c.product_id, c.id] as const),
   )
 
   return (
@@ -230,7 +230,7 @@ export default function ClientPage({
                       key={product.id}
                       organization={org}
                       product={product}
-                      isCourse={courseProductIds.has(product.id)}
+                      courseId={courseIdByProductId.get(product.id)}
                     />
                   ))}
               </List>
