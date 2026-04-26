@@ -1,7 +1,6 @@
 import { useOrganizationAccount } from '@/hooks/queries'
 import { PolarHog, usePostHog } from '@/hooks/posthog'
 import AttachMoneyOutlined from '@mui/icons-material/AttachMoneyOutlined'
-import AutoStoriesOutlined from '@mui/icons-material/AutoStoriesOutlined'
 import CodeOutlined from '@mui/icons-material/CodeOutlined'
 import ExtensionOutlined from '@mui/icons-material/ExtensionOutlined'
 import HiveOutlined from '@mui/icons-material/HiveOutlined'
@@ -198,16 +197,6 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
       { title: 'Discounts', link: `/dashboard/${org?.slug}/products/discounts` },
       { title: 'Files', link: `/dashboard/${org?.slug}/products/benefits` },
     ],
-  },
-  {
-    id: 'courses',
-    title: 'Courses',
-    icon: <AutoStoriesOutlined fontSize="inherit" />,
-    link: `/dashboard/${org?.slug}/courses`,
-    checkIsActive: (currentRoute: string): boolean => {
-      return currentRoute.startsWith(`/dashboard/${org?.slug}/courses`)
-    },
-    if: true,
   },
   {
     id: 'customers',
