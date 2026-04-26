@@ -17,17 +17,19 @@ import {
 } from '@/hooks/queries/courses'
 import { getQueryClient } from '@/utils/api/query'
 import { schemas } from '@spaire/client'
-import { useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { useCallback, useRef, useState } from 'react'
 import { toast } from '../Toast/use-toast'
 import { CourseHeader, TabId } from './editor/CourseHeader'
+import { CustomersTab } from './editor/CustomersTab'
 import { EmptyTab } from './editor/EmptyTab'
 import { LessonDetail, LessonEdits } from './editor/LessonDetail'
 import { LessonContentType } from './editor/ModuleCard'
 import { OutlineTab } from './editor/OutlineTab'
+import { PricingTab } from './editor/PricingTab'
 import { QuizDetail, QuizSaveBody } from './editor/QuizDetail'
 import { ScheduleEdits } from './editor/ScheduleMenu'
-import { CourseSettingsEdits, SettingsTab } from './editor/SettingsTab'
+import { CourseSettingsEdits } from './editor/SettingsTab'
 import { ModuleStatus } from './editor/StatusDropdown'
 
 async function streamLessonContent(
@@ -70,17 +72,13 @@ export default function CourseEditor({
   initialCourse: CourseRead
 }) {
   const { data: course = initialCourse } = useCourseById(courseId)
-  const searchParams = useSearchParams()
+  const router = useRouter()
 
   const [activeTab, setActiveTab] = useState<TabId>('outline')
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null)
-  const [aiBannerDismissed, setAiBannerDismissed] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
-
-  const showAIBanner =
-    searchParams?.get('new') === '1' && !aiBannerDismissed
 
   const addModule = useAddCourseModule()
   const updateModule = useUpdateCourseModule()
@@ -162,9 +160,15 @@ export default function CourseEditor({
     }
   }
 
-  const handleUpdateStatus = async (mod: CourseModuleRead, next: ModuleStatus) => {
+  const handleUpdateStatus = async (
+    mod: CourseModuleRead,
+    next: ModuleStatus,
+  ) => {
     try {
-      await updateModule.mutateAsync({ moduleId: mod.id, body: { status: next } })
+      await updateModule.mutateAsync({
+        moduleId: mod.id,
+        body: { status: next },
+      })
       invalidateCourse()
     } catch {
       toast({ title: 'Failed to update status' })
@@ -244,11 +248,12 @@ export default function CourseEditor({
       const contentType = isQuiz
         ? 'quiz'
         : edits.media === 'video'
-        ? 'video'
-        : edits.media === 'audio'
-        ? 'audio'
-        : 'text'
-      const existingContent = (selectedLessonInfo.lesson.content ?? {}) as Record<string, unknown>
+          ? 'video'
+          : edits.media === 'audio'
+            ? 'audio'
+            : 'text'
+      const existingContent = (selectedLessonInfo.lesson.content ??
+        {}) as Record<string, unknown>
       const nextContent: Record<string, unknown> = { ...existingContent }
       if (!isQuiz) {
         if (edits.textContent) nextContent.text = edits.textContent
@@ -260,7 +265,8 @@ export default function CourseEditor({
           title: edits.title,
           content_type: contentType,
           content: Object.keys(nextContent).length > 0 ? nextContent : null,
-          video_asset_id: edits.media === 'video' ? edits.videoUrl || null : null,
+          video_asset_id:
+            edits.media === 'video' ? edits.videoUrl || null : null,
           published: edits.published,
         },
       })
@@ -380,8 +386,6 @@ export default function CourseEditor({
       mainContent = (
         <OutlineTab
           course={course}
-          showAIBanner={showAIBanner}
-          onDismissAIBanner={() => setAiBannerDismissed(true)}
           selectedLessonId={selectedLessonId}
           onSelectLesson={setSelectedLessonId}
           onAddModule={handleAddModule}
@@ -393,7 +397,7 @@ export default function CourseEditor({
           onReorderLessons={handleReorderLessons}
           onRenameModule={handleRenameModule}
           onDeleteModule={handleDeleteModule}
-          onEditPaywall={() => setActiveTab('settings')}
+          onEditPaywall={() => setActiveTab('pricing')}
         />
       )
     }
@@ -404,36 +408,22 @@ export default function CourseEditor({
         description="Branding and appearance settings coming soon."
       />
     )
-  } else if (activeTab === 'offers') {
+  } else if (activeTab === 'pricing') {
     mainContent = (
-      <EmptyTab
-        title="Offers"
-        description="Pricing and offer management coming soon."
-      />
-    )
-  } else if (activeTab === 'customers') {
-    mainContent = (
-      <EmptyTab
-        title="Customers"
-        description="Student enrollment and progress coming soon."
-      />
-    )
-  } else if (activeTab === 'certificates') {
-    mainContent = (
-      <EmptyTab
-        title="Certificates"
-        description="Certificate templates and issuance coming soon."
-      />
-    )
-  } else {
-    mainContent = (
-      <SettingsTab
+      <PricingTab
+        organization={organization}
         course={course}
         onSave={handleSaveSettings}
         isSaving={updateCourse.isPending}
       />
     )
+  } else {
+    mainContent = <CustomersTab organization={organization} />
   }
+
+  const handleClose = () =>
+    router.push(`/dashboard/${organization.slug}/products`)
+  const handleBack = () => router.back()
 
   return (
     <div className="flex h-screen flex-col bg-gray-50">
@@ -443,6 +433,8 @@ export default function CourseEditor({
         activeTab={activeTab}
         onTabChange={handleTabChange}
         onAddContent={handleAddContent}
+        onBack={handleBack}
+        onClose={handleClose}
       />
       <div className="flex-1 overflow-y-auto">{mainContent}</div>
     </div>

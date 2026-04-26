@@ -1,32 +1,65 @@
 'use client'
 
+import { Upload } from '@/components/FileUpload/Upload'
 import { useCreateCourse } from '@/hooks/queries/courses'
 import { useCreateProduct } from '@/hooks/queries/products'
+import { ProductEditOrCreateForm } from '@/utils/product'
 import { experimental_useObject as useObject } from '@ai-sdk/react'
+import AddPhotoAlternateOutlined from '@mui/icons-material/AddPhotoAlternateOutlined'
 import AutorenewOutlined from '@mui/icons-material/AutorenewOutlined'
-import CertificateOutlined from '@mui/icons-material/WorkspacePremiumOutlined'
 import CheckCircleOutlined from '@mui/icons-material/CheckCircleOutlined'
-import CommunityOutlined from '@mui/icons-material/PeopleOutlined'
-import DownloadOutlined from '@mui/icons-material/DownloadOutlined'
+import CloseOutlined from '@mui/icons-material/CloseOutlined'
 import ExpandMoreOutlined from '@mui/icons-material/ExpandMoreOutlined'
-import GiftOutlined from '@mui/icons-material/CardGiftcardOutlined'
-import GroupOutlined from '@mui/icons-material/GroupOutlined'
-import LiveOutlined from '@mui/icons-material/VideocamOutlined'
-import MoneyOutlined from '@mui/icons-material/MonetizationOnOutlined'
 import OndemandVideoOutlined from '@mui/icons-material/OndemandVideoOutlined'
-import QuizOutlined from '@mui/icons-material/QuizOutlined'
-import SelfPacedOutlined from '@mui/icons-material/PersonOutlined'
-import SyncOutlined from '@mui/icons-material/SyncOutlined'
 import TextSnippetOutlined from '@mui/icons-material/TextSnippetOutlined'
 import { schemas } from '@spaire/client'
+import { Form } from '@spaire/ui/components/ui/form'
 import { cn } from '@spaire/ui/lib/utils'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { useForm, useFormContext } from 'react-hook-form'
+import { ProductMediaSection } from '../Products/ProductForm/ProductMediaSection'
+import { ProductPricingSection } from '../Products/ProductForm/ProductPricingSection'
 import { toast } from '../Toast/use-toast'
 import { outlineSchema } from './schemas'
 
-type CourseType = 'evergreen' | 'cohort'
-type PriceOption = 'free' | 'paid'
+type WizardStep = 'details' | 'pricing' | 'generating' | 'outline' | 'creating'
+
+const STEPS: { id: WizardStep; label: string }[] = [
+  { id: 'details', label: 'Course Details' },
+  { id: 'pricing', label: 'Pricing & Media' },
+  { id: 'outline', label: 'Course Outline' },
+]
+
+function getStepIndex(step: WizardStep): number {
+  if (step === 'details') return 0
+  if (step === 'pricing') return 1
+  return 2 // generating, outline, creating
+}
+
+function uploadCourseThumbnail(
+  organization: schemas['Organization'],
+  file: File,
+): Promise<string | null> {
+  return new Promise((resolve) => {
+    const upload = new Upload({
+      organization,
+      service: 'organization_avatar',
+      file,
+      onFileProcessing: () => {},
+      onFileCreate: () => {},
+      onFileUploadProgress: () => {},
+      onFileUploaded: (response) => {
+        resolve(
+          (response as schemas['OrganizationAvatarFileRead']).public_url ??
+            null,
+        )
+      },
+      onFileError: () => resolve(null),
+    })
+    upload.run()
+  })
+}
 
 type PartialModule = {
   title?: string
@@ -38,24 +71,40 @@ type PartialOutline = {
   modules?: PartialModule[]
 }
 
-const EVERGREEN_FEATURES = [
-  { icon: SelfPacedOutlined, label: 'Self-paced learning' },
-  { icon: CommunityOutlined, label: 'Community integration' },
-  { icon: LiveOutlined, label: 'Live room' },
-  { icon: DownloadOutlined, label: 'Downloads' },
-  { icon: OndemandVideoOutlined, label: 'Video content' },
-  { icon: CertificateOutlined, label: 'Certificates' },
-  { icon: QuizOutlined, label: 'Quizzes' },
-]
+// ─── Persistent header with progress ─────────────────────────────────────────
 
-const COHORT_FEATURES = [
-  { icon: GroupOutlined, label: 'Cohort scheduling' },
-  { icon: CommunityOutlined, label: 'Community integration' },
-  { icon: LiveOutlined, label: 'Live sessions' },
-  { icon: DownloadOutlined, label: 'Downloads' },
-  { icon: OndemandVideoOutlined, label: 'Video content' },
-  { icon: CertificateOutlined, label: 'Certificates' },
-]
+function CourseWizardHeader({
+  step,
+  onClose,
+}: {
+  step: WizardStep
+  onClose: () => void
+}) {
+  const totalSteps = STEPS.length
+  const currentIdx = getStepIndex(step)
+  const progressPct = ((currentIdx + 1) / totalSteps) * 100
+
+  return (
+    <div className="sticky top-0 z-20 border-b border-gray-200 bg-white">
+      <div className="flex items-center justify-between px-6 py-4">
+        <h1 className="text-base font-bold text-gray-900">New course</h1>
+        <button
+          onClick={onClose}
+          aria-label="Close"
+          className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+        >
+          <CloseOutlined fontSize="small" />
+        </button>
+      </div>
+      <div className="relative h-1 w-full bg-gray-100">
+        <div
+          className="bg-primary absolute inset-y-0 left-0 transition-all duration-500 ease-out"
+          style={{ width: `${progressPct}%` }}
+        />
+      </div>
+    </div>
+  )
+}
 
 function StreamingOutline({
   outline,
@@ -80,7 +129,7 @@ function StreamingOutline({
             className={cn(
               'overflow-hidden rounded-xl border bg-white transition-colors',
               isStreaming && isLastModule
-                ? 'border-blue-300 shadow-sm'
+                ? 'border-primary shadow-sm'
                 : 'border-gray-200',
             )}
           >
@@ -88,7 +137,7 @@ function StreamingOutline({
               onClick={() => toggle(i)}
               className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50"
             >
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-700">
+              <span className="bg-primary/10 text-primary flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold">
                 {i + 1}
               </span>
               <span className="flex-1 text-sm font-medium text-gray-900">
@@ -122,7 +171,7 @@ function StreamingOutline({
                     ) : (
                       <TextSnippetOutlined
                         fontSize="small"
-                        className="shrink-0 text-blue-400"
+                        className="text-primary shrink-0"
                       />
                     )}
                     <span className="text-sm text-gray-700">
@@ -139,7 +188,7 @@ function StreamingOutline({
       })}
       {isStreaming && (
         <div className="flex items-center gap-2 px-4 py-3 text-xs text-gray-400">
-          <span className="flex h-2 w-2 animate-pulse rounded-full bg-blue-500" />
+          <span className="bg-primary flex h-2 w-2 animate-pulse rounded-full" />
           Writing{modules.length > 0 ? ` module ${modules.length + 1}` : ''}…
         </div>
       )}
@@ -147,174 +196,149 @@ function StreamingOutline({
   )
 }
 
-// ─── Step 1 ─────────────────────────────────────────────────────────────────
-
-function StepType({
-  courseType,
-  onSelect,
-  onNext,
-}: {
-  courseType: CourseType
-  onSelect: (t: CourseType) => void
-  onNext: () => void
-}) {
-  const features = courseType === 'evergreen' ? EVERGREEN_FEATURES : COHORT_FEATURES
-  const desc =
-    courseType === 'evergreen'
-      ? 'A self-paced, continuously accessible educational program that provides learners with perpetual access to its content, allowing them to start and complete the course at their own convenience.'
-      : 'A structured program delivered to a group of learners simultaneously. Everyone starts and progresses together, with scheduled sessions and community activities.'
-
-  return (
-    <div className="mx-auto max-w-lg px-4 py-10">
-      <h1 className="mb-8 text-3xl font-bold text-gray-900">
-        What type of course
-      </h1>
-
-      <div className="mb-8 grid grid-cols-2 gap-3">
-        {([['evergreen', SyncOutlined, 'Evergreen'], ['cohort', GroupOutlined, 'Cohorts']] as const).map(
-          ([type, Icon, label]) => (
-            <button
-              key={type}
-              onClick={() => onSelect(type)}
-              className={cn(
-                'flex items-center justify-center gap-2.5 rounded-2xl border-2 px-6 py-7 text-base font-medium transition-all',
-                courseType === type
-                  ? 'border-gray-900 bg-white text-gray-900 shadow-sm'
-                  : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300',
-              )}
-            >
-              <Icon fontSize="small" />
-              {label}
-            </button>
-          ),
-        )}
-      </div>
-
-      <div className="mb-6">
-        <h2 className="mb-1.5 text-lg font-bold text-gray-900">
-          {courseType === 'evergreen' ? 'Evergreen course' : 'Cohort course'}
-        </h2>
-        <p className="text-sm leading-relaxed text-gray-500">{desc}</p>
-      </div>
-
-      <div className="mb-8">
-        <h3 className="mb-3 text-base font-bold text-gray-900">Features</h3>
-        <div className="grid grid-cols-2 gap-y-2.5">
-          {features.map(({ icon: Icon, label }) => (
-            <div key={label} className="flex items-center gap-2 text-sm text-gray-700">
-              <Icon fontSize="small" className="text-gray-400" />
-              {label}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="flex justify-end">
-        <button
-          onClick={onNext}
-          className="rounded-full bg-gray-900 px-7 py-3 text-sm font-semibold text-white hover:bg-gray-800 transition-colors"
-        >
-          Next
-        </button>
-      </div>
-    </div>
-  )
-}
-
-// ─── Step 2 ─────────────────────────────────────────────────────────────────
+// ─── Step 1 — Course Details ────────────────────────────────────────────────
 
 function StepDetails({
-  title,
-  description,
-  useAI,
-  onChangeTitle,
-  onChangeDescription,
-  onToggleAI,
-  onBack,
+  organization,
+  thumbnailUrl,
+  onChangeThumbnail,
   onNext,
 }: {
-  title: string
-  description: string
-  useAI: boolean
-  onChangeTitle: (v: string) => void
-  onChangeDescription: (v: string) => void
-  onToggleAI: () => void
-  onBack: () => void
+  organization: schemas['Organization']
+  thumbnailUrl: string | null
+  onChangeThumbnail: (url: string | null) => void
   onNext: () => void
 }) {
+  const { register, watch } = useFormContext<ProductEditOrCreateForm>()
+  const title = watch('name') ?? ''
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    const url = await uploadCourseThumbnail(organization, file)
+    if (url) onChangeThumbnail(url)
+    setUploading(false)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
   return (
-    <div className="mx-auto max-w-lg px-4 py-10">
+    <div className="mx-auto max-w-2xl px-6 py-10">
       <h1 className="mb-1 text-3xl font-bold text-gray-900">Course Details</h1>
       <p className="mb-8 text-sm text-gray-500">
         We&apos;ll use your title and description to generate a sample course
-        outline:
+        outline.
       </p>
 
-      <div className="mb-5">
-        <label className="mb-1.5 block text-sm font-bold text-gray-900">
-          Title
-        </label>
-        <input
-          type="text"
-          value={title}
-          onChange={(e) => onChangeTitle(e.target.value)}
-          placeholder="Examples: Public Speaking 101, Learning piano, ..."
-          className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-100"
-        />
-      </div>
+      <div className="flex flex-col gap-5">
+        {/* Details box */}
+        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+          <div className="flex flex-col gap-5 px-5 py-5">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
+                Title
+              </label>
+              <input
+                type="text"
+                {...register('name', { required: true })}
+                placeholder="Examples: Public Speaking 101, Learning piano, …"
+                className="focus:border-primary w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
+              />
+            </div>
 
-      <div className="mb-6">
-        <label className="mb-1.5 block text-sm font-bold text-gray-900">
-          Brief description
-        </label>
-        <textarea
-          value={description}
-          onChange={(e) => onChangeDescription(e.target.value)}
-          placeholder="Example: Learn the skills required to ..."
-          rows={5}
-          className="w-full resize-none rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-100"
-        />
-      </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
+                Brief description
+              </label>
+              <textarea
+                {...register('description')}
+                placeholder="Example: Learn the skills required to …"
+                rows={5}
+                className="focus:border-primary w-full resize-none rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
+              />
+            </div>
+          </div>
+        </div>
 
-      <div className="mb-8 flex items-start gap-3">
-        <button
-          onClick={onToggleAI}
-          className={cn(
-            'relative mt-0.5 flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors duration-200',
-            useAI ? 'bg-blue-600' : 'bg-gray-200',
-          )}
-        >
-          <span
-            className={cn(
-              'absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200',
-              useAI ? 'translate-x-5' : 'translate-x-0.5',
-            )}
-          />
-        </button>
-        <div>
-          <p className="text-sm font-medium text-gray-900">
-            Use this info to generate content and additional resources
-          </p>
-          <a
-            href="#"
-            className="mt-0.5 inline-flex items-center gap-1 text-xs font-semibold text-gray-900 underline"
-          >
-            Learn more
-          </a>
+        {/* Thumbnail box */}
+        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+          <div className="flex flex-col gap-3 px-5 py-5">
+            <div className="flex flex-col gap-0.5">
+              <h3 className="text-sm font-bold text-gray-900">
+                Thumbnail image
+              </h3>
+              <p className="text-xs text-gray-500">
+                This image appears in Checkouts, your Spaire Space, in emails,
+                social sharing and more.
+              </p>
+            </div>
+
+            <div className="flex items-start gap-4">
+              <div className="relative aspect-video w-48 shrink-0 overflow-hidden rounded-xl border border-gray-200 bg-gray-50">
+                {thumbnailUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={thumbnailUrl}
+                    alt="Course thumbnail preview"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full flex-col items-center justify-center text-gray-300">
+                    <AddPhotoAlternateOutlined style={{ fontSize: 28 }} />
+                    <span className="mt-1 text-[11px] text-gray-400">
+                      Preview
+                    </span>
+                  </div>
+                )}
+                {uploading && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-white/80">
+                    <div className="border-t-primary h-5 w-5 animate-spin rounded-full border-2 border-gray-200" />
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  className="hidden"
+                  onChange={(e) => void handleFile(e)}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <AddPhotoAlternateOutlined style={{ fontSize: 14 }} />
+                  {thumbnailUrl ? 'Change image' : 'Select image'}
+                </button>
+                {thumbnailUrl && (
+                  <button
+                    type="button"
+                    onClick={() => onChangeThumbnail(null)}
+                    className="text-left text-xs text-gray-400 hover:text-gray-600"
+                  >
+                    Remove
+                  </button>
+                )}
+                <p className="mt-1 text-[11px] text-gray-400">
+                  Recommended dimensions of 1280x720
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="flex items-center justify-between">
-        <button
-          onClick={onBack}
-          className="rounded-full border border-gray-300 px-7 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
-        >
-          Back
-        </button>
+      <div className="mt-8 flex items-center justify-end">
         <button
           onClick={onNext}
           disabled={!title.trim()}
-          className="rounded-full bg-gray-900 px-7 py-3 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-40 transition-colors"
+          className="rounded-full bg-gray-900 px-7 py-3 text-sm font-semibold text-white transition-colors hover:bg-gray-800 disabled:opacity-40"
         >
           Next
         </button>
@@ -323,129 +347,113 @@ function StepDetails({
   )
 }
 
-// ─── Step 3 ─────────────────────────────────────────────────────────────────
+// ─── Step 2 — Pricing & Media ───────────────────────────────────────────────
 
 function StepPricing({
-  priceOption,
+  organization,
   paywallEnabled,
-  priceAmount,
-  onSelectPrice,
   onTogglePaywall,
-  onChangeAmount,
   onBack,
   onNext,
 }: {
-  priceOption: PriceOption
+  organization: schemas['Organization']
   paywallEnabled: boolean
-  priceAmount: string
-  onSelectPrice: (p: PriceOption) => void
   onTogglePaywall: () => void
-  onChangeAmount: (v: string) => void
   onBack: () => void
   onNext: () => void
 }) {
   return (
-    <div className="mx-auto max-w-lg px-4 py-10">
-      <h1 className="mb-1 text-3xl font-bold text-gray-900">
-        Price your Course
-      </h1>
-      <p className="mb-8 text-sm text-gray-500">
-        Choose whether this Course is paid or free. If it&apos;s paid, set its
-        price and payment options. Don&apos;t worry, you can change this later!
-      </p>
-
-      <div className="mb-6 grid grid-cols-2 gap-3">
-        {([
-          ['free', GiftOutlined, 'Free'],
-          ['paid', MoneyOutlined, 'Paid'],
-        ] as const).map(([opt, Icon, label]) => (
-          <button
-            key={opt}
-            onClick={() => onSelectPrice(opt)}
-            className={cn(
-              'flex items-center justify-center gap-2.5 rounded-2xl border-2 px-6 py-7 text-base font-medium transition-all',
-              priceOption === opt
-                ? 'border-gray-900 bg-white text-gray-900 shadow-sm'
-                : 'border-gray-200 bg-gray-100 text-gray-500 hover:border-gray-300',
-            )}
-          >
-            <Icon fontSize="small" />
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {priceOption === 'paid' && (
-        <div className="mb-5 flex items-center gap-2">
-          <span className="text-sm font-medium text-gray-500">$</span>
-          <input
-            type="number"
-            value={priceAmount}
-            onChange={(e) => onChangeAmount(e.target.value)}
-            placeholder="0.00"
-            min="0"
-            step="0.01"
-            className="w-32 rounded-xl border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-100"
-          />
-        </div>
-      )}
-
-      <div className="mb-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-bold text-gray-900 underline">
-              Use a paywall for this course
-            </span>
-            <span className="rounded-full border border-blue-300 bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-600">
-              New
-            </span>
+    <div className="mx-auto max-w-2xl px-6 py-10">
+      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div className="divide-y divide-gray-200">
+          <ProductPricingSection organization={organization} compact />
+          <ProductMediaSection organization={organization} />
+          {/* Paywall */}
+          <div className="flex flex-col gap-2 p-6">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-gray-900">
+                  Use a paywall for this course
+                </span>
+                <span className="bg-primary/10 text-primary rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase">
+                  New
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={onTogglePaywall}
+                aria-pressed={paywallEnabled}
+                className={cn(
+                  'relative flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors duration-200',
+                  paywallEnabled ? 'bg-primary' : 'bg-gray-200',
+                )}
+              >
+                <span
+                  className={cn(
+                    'absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200',
+                    paywallEnabled ? 'translate-x-5' : 'translate-x-0.5',
+                  )}
+                />
+              </button>
+            </div>
+            <p className="text-xs text-gray-500">
+              Enable limited course access to let your members experience the
+              value before purchasing the full course.
+            </p>
           </div>
-          <button
-            onClick={onTogglePaywall}
-            className={cn(
-              'relative flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors duration-200',
-              paywallEnabled ? 'bg-blue-600' : 'bg-gray-200',
-            )}
-          >
-            <span
-              className={cn(
-                'absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200',
-                paywallEnabled ? 'translate-x-5' : 'translate-x-0.5',
-              )}
-            />
-          </button>
         </div>
-        <p className="mt-1.5 text-sm text-gray-500">
-          Enable limited course access to let your members experience the value
-          before purchasing the full course.
-        </p>
       </div>
 
-      <div className="mb-8 mt-4 text-center">
-        <button
-          onClick={() => {
-            if (paywallEnabled) onTogglePaywall()
-            onNext()
-          }}
-          className="text-sm font-semibold text-gray-500 hover:text-gray-700"
-        >
-          Skip for now
-        </button>
-      </div>
-
-      <div className="flex items-center justify-between">
+      <div className="mt-8 flex items-center justify-between">
         <button
           onClick={onBack}
-          className="rounded-full border border-gray-300 px-7 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+          className="rounded-full border border-gray-300 px-7 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
         >
           Back
         </button>
         <button
           onClick={onNext}
-          className="rounded-full bg-gray-900 px-7 py-3 text-sm font-semibold text-white hover:bg-gray-800 transition-colors"
+          className="rounded-full bg-gray-900 px-7 py-3 text-sm font-semibold text-white transition-colors hover:bg-gray-800"
         >
-          Next
+          Generate outline
         </button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Generation animation (centered, premium) ────────────────────────────────
+
+function GeneratingScreen({
+  title,
+  modulesCount,
+  lessonsCount,
+}: {
+  title: string
+  modulesCount: number
+  lessonsCount: number
+}) {
+  return (
+    <div className="flex min-h-[70vh] flex-col items-center justify-center px-6">
+      <div className="relative flex h-28 w-28 items-center justify-center">
+        <span className="bg-primary/5 absolute inset-0 animate-ping rounded-full" />
+        <span
+          className="bg-primary/10 absolute inset-2 animate-ping rounded-full"
+          style={{ animationDelay: '300ms' }}
+        />
+        <div className="relative flex h-20 w-20 items-center justify-center rounded-full border border-gray-200 bg-white shadow-sm">
+          <div className="border-t-primary h-10 w-10 animate-spin rounded-full border-2 border-gray-100" />
+        </div>
+      </div>
+      <div className="mt-8 flex flex-col items-center text-center">
+        <h2 className="text-xl font-semibold text-gray-900">
+          Crafting your outline
+        </h2>
+        <p className="mt-1.5 max-w-sm text-sm text-gray-500">
+          {title ? `“${title}” — ` : ''}
+          {modulesCount} module{modulesCount === 1 ? '' : 's'} · {lessonsCount}{' '}
+          lesson{lessonsCount === 1 ? '' : 's'} · generating…
+        </p>
       </div>
     </div>
   )
@@ -462,20 +470,36 @@ export default function CourseWizard({
   const createProduct = useCreateProduct(organization)
   const createCourse = useCreateCourse()
 
-  // Wizard step state
-  const [wizardStep, setWizardStep] = useState<
-    'type' | 'details' | 'pricing' | 'generating' | 'outline' | 'creating'
-  >('type')
+  const [wizardStep, setWizardStep] = useState<WizardStep>('details')
 
-  // Form values
-  const [courseType, setCourseType] = useState<CourseType>('evergreen')
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [useAI, setUseAI] = useState(true)
-  const [priceOption, setPriceOption] = useState<PriceOption>('free')
-  const [priceAmount, setPriceAmount] = useState('')
-  const [paywallEnabled, setPaywallEnabled] = useState(true)
+  // Course-specific (non-product) state
+  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null)
+  const [paywallEnabled, setPaywallEnabled] = useState(false)
   const [generateError, setGenerateError] = useState<string | null>(null)
+
+  const form = useForm<ProductEditOrCreateForm>({
+    defaultValues: {
+      name: '',
+      description: '',
+      recurring_interval: null,
+      visibility: 'public',
+      prices: [
+        {
+          amount_type: 'fixed',
+          price_amount: 0,
+          price_currency: organization.default_presentment_currency,
+        },
+      ],
+      medias: [],
+      full_medias: [],
+      organization_id: organization.id,
+      metadata: [],
+    },
+  })
+
+  const { handleSubmit, getValues, watch } = form
+  const title = watch('name') ?? ''
+  const description = watch('description') ?? ''
 
   const {
     object: partialOutline,
@@ -493,10 +517,19 @@ export default function CourseWizard({
     },
   })
 
+  const handleClose = () => {
+    stopOutline()
+    router.push(`/dashboard/${organization.slug}/products`)
+  }
+
   const startGeneration = () => {
     setGenerateError(null)
     setWizardStep('generating')
-    submitOutline({ title, description, targetAudience: '' })
+    submitOutline({
+      title,
+      description: description || '',
+      targetAudience: '',
+    })
   }
 
   const regenerateOutline = () => {
@@ -504,39 +537,24 @@ export default function CourseWizard({
     setWizardStep('pricing')
   }
 
-  const createCourseWithProduct = async () => {
+  const finalizeCourse = async (formValues: ProductEditOrCreateForm) => {
     const outline = partialOutline
     if (!outline?.modules?.length) return
     setWizardStep('creating')
 
     try {
-      const priceAmountCents = Math.round(parseFloat(priceAmount || '0') * 100)
-      const baseFields = {
-        name: title,
-        description: description || null,
-        visibility: 'public',
-        organization_id: organization.id,
-      }
-      const productBody =
-        priceOption === 'paid'
-          ? {
-              ...baseFields,
-              prices: [
-                {
-                  amount_type: 'fixed',
-                  price_currency: 'usd',
-                  price_amount: priceAmountCents,
-                },
-              ],
-              recurring_interval: null,
-            }
-          : {
-              ...baseFields,
-              prices: [{ amount_type: 'free', price_currency: 'usd' }],
-              recurring_interval: null,
-            }
+      const { full_medias, metadata, ...rest } = formValues
+      const mediaIds = full_medias.map((m) => m.id)
 
-      const productResult = await createProduct.mutateAsync(productBody as never)
+      const productResult = await createProduct.mutateAsync({
+        ...rest,
+        medias: mediaIds,
+        metadata: metadata.reduce(
+          (acc, { key, value }) => ({ ...acc, [key]: value }),
+          {},
+        ),
+      } as schemas['ProductCreate'])
+
       if (productResult.error || !productResult.data) {
         throw new Error('Product creation failed')
       }
@@ -544,14 +562,19 @@ export default function CourseWizard({
       const course = await createCourse.mutateAsync({
         product_id: productResult.data.id,
         organization_id: organization.id,
-        title,
-        course_type: courseType,
+        title: formValues.name ?? '',
+        course_type: 'evergreen',
         paywall_enabled: paywallEnabled,
         ai_generated: true,
         modules: outline.modules
           .filter(
-            (m): m is { title: string; description?: string; lessons?: { title?: string; content_type?: 'text' | 'video' }[] } =>
-              Boolean(m?.title),
+            (
+              m,
+            ): m is {
+              title: string
+              description?: string
+              lessons?: { title?: string; content_type?: 'text' | 'video' }[]
+            } => Boolean(m?.title),
           )
           .map((mod, i) => ({
             title: mod.title!,
@@ -572,11 +595,9 @@ export default function CourseWizard({
 
       toast({
         title: 'Course Created',
-        description: `"${title}" is ready to edit`,
+        description: `"${formValues.name}" is ready to edit`,
       })
-      router.push(
-        `/dashboard/${organization.slug}/courses/${course.id}?new=1`,
-      )
+      router.push(`/dashboard/${organization.slug}/courses/${course.id}`)
     } catch (err) {
       console.error('[CourseWizard] create error:', err)
       toast({
@@ -594,104 +615,119 @@ export default function CourseWizard({
       0,
     ) ?? 0
 
-  // ── Render ────────────────────────────────────────────────────────────────
-
-  if (wizardStep === 'type') {
-    return (
-      <StepType
-        courseType={courseType}
-        onSelect={setCourseType}
-        onNext={() => setWizardStep('details')}
-      />
-    )
+  const handleNextFromDetails = () => {
+    if (!getValues('name')?.trim()) return
+    setWizardStep('pricing')
   }
 
-  if (wizardStep === 'details') {
-    return (
-      <StepDetails
-        title={title}
-        description={description}
-        useAI={useAI}
-        onChangeTitle={setTitle}
-        onChangeDescription={setDescription}
-        onToggleAI={() => setUseAI((v) => !v)}
-        onBack={() => setWizardStep('type')}
-        onNext={() => setWizardStep('pricing')}
-      />
-    )
-  }
-
-  if (wizardStep === 'pricing') {
-    return (
-      <StepPricing
-        priceOption={priceOption}
-        paywallEnabled={paywallEnabled}
-        priceAmount={priceAmount}
-        onSelectPrice={setPriceOption}
-        onTogglePaywall={() => setPaywallEnabled((v) => !v)}
-        onChangeAmount={setPriceAmount}
-        onBack={() => setWizardStep('details')}
-        onNext={startGeneration}
-      />
-    )
-  }
-
-  if (wizardStep === 'generating' || wizardStep === 'outline') {
-    const ready = wizardStep === 'outline'
-    return (
-      <div className="mx-auto max-w-2xl px-4 py-10">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            {modulesCount} modules · {lessonsCount} lessons
-            {!ready && isOutlineStreaming && ' · generating…'}
-          </p>
-        </div>
-
-        {(outlineError || generateError) && (
-          <div className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
-            Something went wrong. Please try again.
-          </div>
-        )}
-
-        <StreamingOutline
-          outline={(partialOutline as PartialOutline) ?? { modules: [] }}
-          isStreaming={!ready}
+  const renderStep = () => {
+    if (wizardStep === 'details') {
+      return (
+        <StepDetails
+          organization={organization}
+          thumbnailUrl={thumbnailUrl}
+          onChangeThumbnail={setThumbnailUrl}
+          onNext={handleNextFromDetails}
         />
+      )
+    }
 
-        {ready && (
-          <div className="mt-8 flex items-center justify-between gap-3">
+    if (wizardStep === 'pricing') {
+      return (
+        <StepPricing
+          organization={organization}
+          paywallEnabled={paywallEnabled}
+          onTogglePaywall={() => setPaywallEnabled((v) => !v)}
+          onBack={() => setWizardStep('details')}
+          onNext={startGeneration}
+        />
+      )
+    }
+
+    if (wizardStep === 'generating') {
+      return (
+        <GeneratingScreen
+          title={title}
+          modulesCount={modulesCount}
+          lessonsCount={lessonsCount}
+        />
+      )
+    }
+
+    if (wizardStep === 'outline') {
+      return (
+        <div className="mx-auto max-w-2xl px-6 py-10">
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
+            <p className="mt-1 text-sm text-gray-500">
+              {modulesCount} modules · {lessonsCount} lessons
+              {isOutlineStreaming && ' · generating…'}
+            </p>
+          </div>
+
+          {(outlineError || generateError) && (
+            <div className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
+              Something went wrong. Please try again.
+            </div>
+          )}
+
+          <StreamingOutline
+            outline={(partialOutline as PartialOutline) ?? { modules: [] }}
+            isStreaming={false}
+          />
+
+          <div className="mt-6 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-500">
+            This outline is just a starting point — you can edit modules,
+            lessons, and content after creating the course.
+          </div>
+
+          <div className="mt-6 flex items-center justify-between gap-3">
             <button
               onClick={regenerateOutline}
-              className="flex items-center gap-2 rounded-full border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-2 rounded-full border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50"
             >
               <AutorenewOutlined fontSize="small" />
               Regenerate
             </button>
             <button
-              onClick={createCourseWithProduct}
-              className="rounded-full bg-gray-900 px-7 py-2.5 text-sm font-semibold text-white hover:bg-gray-800 transition-colors"
+              onClick={handleSubmit(finalizeCourse)}
+              className="rounded-full bg-gray-900 px-7 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gray-800"
             >
               Create Course
             </button>
           </div>
-        )}
+        </div>
+      )
+    }
+
+    // creating
+    return (
+      <div className="flex min-h-[70vh] flex-col items-center justify-center gap-6 px-6">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-green-50">
+          <CheckCircleOutlined
+            className="text-green-500"
+            sx={{ fontSize: 32 }}
+          />
+        </div>
+        <div className="text-center">
+          <p className="text-lg font-semibold text-gray-900">
+            Creating your course
+          </p>
+          <p className="mt-1 text-sm text-gray-500">Setting everything up…</p>
+        </div>
       </div>
     )
   }
 
-  // creating state
   return (
-    <div className="flex flex-col items-center justify-center gap-6 py-24">
-      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-green-50">
-        <CheckCircleOutlined className="text-green-500" sx={{ fontSize: 32 }} />
-      </div>
-      <div className="text-center">
-        <p className="text-lg font-semibold text-gray-900">
-          Creating your course
-        </p>
-        <p className="mt-1 text-sm text-gray-500">Setting everything up…</p>
-      </div>
-    </div>
+    <Form {...form}>
+      <form
+        onSubmit={(e) => e.preventDefault()}
+        className="flex min-h-screen flex-col bg-white"
+      >
+        <CourseWizardHeader step={wizardStep} onClose={handleClose} />
+        <div className="flex-1">{renderStep()}</div>
+      </form>
+    </Form>
   )
 }

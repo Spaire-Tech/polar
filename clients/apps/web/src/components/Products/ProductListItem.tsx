@@ -5,15 +5,12 @@ import ProductPriceLabel from '@/components/Products/ProductPriceLabel'
 import { ProductThumbnail } from '@/components/Products/ProductThumbnail'
 import { toast } from '@/components/Toast/use-toast'
 import { useUpdateProduct } from '@/hooks/queries/products'
-import {
-  hasLegacyRecurringPrices,
-  isMeteredPrice,
-  isSeatBasedPrice,
-} from '@/utils/product'
+import { hasLegacyRecurringPrices } from '@/utils/product'
 import MoreVertOutlined from '@mui/icons-material/MoreVertOutlined'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import { ListItem } from '@spaire/ui/components/atoms/List'
+import Pill from '@spaire/ui/components/atoms/Pill'
 import { Status } from '@spaire/ui/components/atoms/Status'
 import {
   DropdownMenu,
@@ -22,7 +19,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@spaire/ui/components/ui/dropdown-menu'
-import Pill from '@spaire/ui/components/atoms/Pill'
 import {
   Tooltip,
   TooltipContent,
@@ -35,11 +31,49 @@ import { useCallback } from 'react'
 interface ProductListItemProps {
   product: schemas['Product'] | schemas['CheckoutProduct']
   organization: schemas['Organization']
+  /** When set, the row links straight to the course editor for this courseId. */
+  courseId?: string
+}
+
+type CategoryKey =
+  | 'ebook'
+  | 'template'
+  | 'assets'
+  | 'course'
+  | 'guide'
+  | 'music'
+  | 'video'
+  | 'photo'
+  | 'software'
+  | 'coaching'
+  | 'membership'
+  | 'other'
+
+const CATEGORY_PILLS: Record<
+  CategoryKey,
+  { label: string; className: string }
+> = {
+  ebook: { label: 'eBook', className: 'bg-amber-100 text-amber-700' },
+  template: { label: 'Template', className: 'bg-violet-100 text-violet-700' },
+  assets: { label: 'Assets', className: 'bg-pink-100 text-pink-700' },
+  course: { label: 'Course', className: 'bg-sky-100 text-sky-700' },
+  guide: { label: 'Guide', className: 'bg-emerald-100 text-emerald-700' },
+  music: { label: 'Music', className: 'bg-fuchsia-100 text-fuchsia-700' },
+  video: { label: 'Video', className: 'bg-red-100 text-red-700' },
+  photo: { label: 'Photo', className: 'bg-orange-100 text-orange-700' },
+  software: { label: 'Software', className: 'bg-blue-100 text-blue-700' },
+  coaching: { label: 'Coaching', className: 'bg-purple-100 text-purple-700' },
+  membership: {
+    label: 'Membership',
+    className: 'bg-teal-100 text-teal-700',
+  },
+  other: { label: 'Other', className: 'bg-gray-100 text-gray-700' },
 }
 
 export const ProductListItem = ({
   product,
   organization,
+  courseId,
 }: ProductListItemProps) => {
   const router = useRouter()
   const {
@@ -80,62 +114,19 @@ export const ProductListItem = ({
     }
   }, [updateProduct, product])
 
-  const isUsageBasedProduct = product.prices.some((price) =>
-    isMeteredPrice(price),
-  )
-
-  const isSeatBasedProduct = product.prices.some((price) =>
-    isSeatBasedPrice(price),
-  )
-
-  // Determine primary pricing type for the badge
-  const primaryPrice = product.prices.find(
-    (p) => !isMeteredPrice(p) && !isSeatBasedPrice(p),
-  )
-  const isFreeProduct =
-    !isUsageBasedProduct &&
-    !isSeatBasedProduct &&
-    primaryPrice?.amount_type === 'free'
-  const isCustomProduct =
-    !isUsageBasedProduct &&
-    !isSeatBasedProduct &&
-    primaryPrice?.amount_type === 'custom'
-  const isFixedRecurring =
-    !isUsageBasedProduct &&
-    !isSeatBasedProduct &&
-    !isFreeProduct &&
-    !isCustomProduct &&
-    product.recurring_interval !== null &&
-    product.recurring_interval !== undefined
-  const isOneTime =
-    !isUsageBasedProduct &&
-    !isSeatBasedProduct &&
-    !isFreeProduct &&
-    !isCustomProduct &&
-    (product.recurring_interval === null || product.recurring_interval === undefined)
-
-  const isCourseProduct = (product as any).product_type === 'course'
-  const itemHref = isCourseProduct
-    ? `/dashboard/${organization.slug}/courses/via-product/${product.id}`
+  const isCourseProduct = !!courseId
+  const itemHref = courseId
+    ? `/dashboard/${organization.slug}/courses/${courseId}`
     : `/dashboard/${organization.slug}/products/${product.id}`
 
-  // Category color — courses share a distinct tag color, recurring/one-time/PWYW/free use their own.
-  // Variations are intentional and may repeat — they highlight the type at a glance.
-  const categoryTag = isCourseProduct
-    ? { label: 'Course', className: 'bg-sky-100 text-sky-700' }
-    : isUsageBasedProduct
-      ? { label: 'Metered', className: 'bg-green-100 text-green-700' }
-      : isSeatBasedProduct
-        ? { label: 'Per seat', className: 'bg-blue-100 text-blue-700' }
-        : isFreeProduct
-          ? { label: 'Free', className: 'bg-emerald-100 text-emerald-700' }
-          : isCustomProduct
-            ? { label: 'Pay what you want', className: 'bg-purple-100 text-purple-700' }
-            : isFixedRecurring
-              ? { label: 'Subscription', className: 'bg-violet-100 text-violet-700' }
-              : isOneTime
-                ? { label: 'One-time', className: 'bg-orange-100 text-orange-700' }
-                : null
+  // Category pill — uses the same category options shown in product creation.
+  // Courses always render the Course pill (overrides whatever category the
+  // backing product was created with).
+  const rawCategory = (product as { category?: CategoryKey | null }).category
+  const categoryKey: CategoryKey | null = isCourseProduct
+    ? 'course'
+    : (rawCategory ?? null)
+  const categoryTag = categoryKey ? CATEGORY_PILLS[categoryKey] : null
 
   return (
     <>
@@ -207,7 +198,7 @@ export const ProductListItem = ({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
                     align="end"
-                    className=" bg-gray-50 shadow-lg"
+                    className="bg-gray-50 shadow-lg"
                   >
                     <DropdownMenuItem
                       onClick={handleContextMenuCallback(() => {

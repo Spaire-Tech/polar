@@ -4,6 +4,7 @@ import { DashboardBody } from '@/components/Layout/DashboardLayout'
 import Pagination from '@/components/Pagination/Pagination'
 import { ProductListItem } from '@/components/Products/ProductListItem'
 import { ProductTypeDialog } from '@/components/Products/ProductTypeDialog'
+import { useOrganizationCourses } from '@/hooks/queries/courses'
 import { useProducts } from '@/hooks/queries/products'
 import { useDebouncedCallback } from '@/hooks/utils'
 import {
@@ -25,7 +26,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@spaire/ui/components/atoms/Select'
-import { ShadowBoxOnMd } from '@spaire/ui/components/atoms/ShadowBox'
 import { usePathname, useRouter } from 'next/navigation'
 import { useQueryState } from 'nuqs'
 import { useCallback, useState } from 'react'
@@ -138,6 +138,11 @@ export default function ClientPage({
     is_archived: show === 'all' ? null : show === 'active' ? false : true,
   })
 
+  const courses = useOrganizationCourses(org.id)
+  const courseIdByProductId = new Map(
+    (courses.data ?? []).map((c) => [c.product_id, c.id] as const),
+  )
+
   return (
     <DashboardBody>
       <div className="flex flex-col gap-y-8">
@@ -162,7 +167,10 @@ export default function ClientPage({
                     <SelectItem value="archived">Archived</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select value={currentSortingValue} onValueChange={onSortingChange}>
+                <Select
+                  value={currentSortingValue}
+                  onValueChange={onSortingChange}
+                >
                   <SelectTrigger className="w-full md:max-w-fit">
                     <SelectValue />
                   </SelectTrigger>
@@ -171,7 +179,9 @@ export default function ClientPage({
                     <SelectItem value="-name">Name Z-A</SelectItem>
                     <SelectItem value="-created_at">Newest</SelectItem>
                     <SelectItem value="created_at">Oldest</SelectItem>
-                    <SelectItem value="price_amount">Price: Low to High</SelectItem>
+                    <SelectItem value="price_amount">
+                      Price: Low to High
+                    </SelectItem>
                     <SelectItem value="-price_amount">
                       Price: High to Low
                     </SelectItem>
@@ -220,6 +230,7 @@ export default function ClientPage({
                       key={product.id}
                       organization={org}
                       product={product}
+                      courseId={courseIdByProductId.get(product.id)}
                     />
                   ))}
               </List>
