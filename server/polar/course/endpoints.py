@@ -7,7 +7,7 @@ from sqlalchemy import select
 
 from polar.auth.models import is_organization, is_user
 from polar.customer.repository import CustomerRepository
-from polar.customer_session.service import customer_session_service
+from polar.customer_session.service import customer_session
 from polar.models import Organization, UserOrganization
 from polar.models.course_lesson import CourseLesson
 from polar.models.customer import Customer
@@ -454,7 +454,7 @@ async def get_preview_access(
         session, course_id=course_id, customer=customer
     )
 
-    token, _ = await customer_session_service.create_customer_session(
+    token, _ = await customer_session.create_customer_session(
         session, customer
     )
 
