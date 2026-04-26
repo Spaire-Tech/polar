@@ -9,9 +9,8 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          'bg-primary text-white hover:opacity-85 transition-opacity duration-100 border border-white/10',
-        destructive:
-          'bg-red-500 text-white hover:bg-red-400',
+          'bg-gray-900 text-white hover:bg-gray-800 transition-colors duration-100 border border-white/10',
+        destructive: 'bg-red-500 text-white hover:bg-red-400',
         outline:
           'text-black hover:bg-gray-200 border-transparent hover:border-gray-200 border bg-transparent border-gray-100',
         secondary:
@@ -19,8 +18,7 @@ const buttonVariants = cva(
         underline:
           'text-black bg-transparent border-b hover:border-black border-transparent transition-colors duration-300 p-0! hover:bg-transparent rounded-none!',
         link: 'text-blue-400 underline-offset-4 hover:underline bg-transparent hover:bg-transparent',
-        ghost:
-          'bg-transparent hover:bg-gray-200 text-black',
+        ghost: 'bg-transparent hover:bg-gray-200 text-black',
       },
       size: {
         default: 'h-10 px-4 py-2 rounded-xl text-sm',
