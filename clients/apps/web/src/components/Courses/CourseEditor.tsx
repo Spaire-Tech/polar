@@ -312,6 +312,7 @@ export default function CourseEditor({
           lesson={selectedLessonInfo.lesson}
           module={selectedLessonInfo.module}
           course={course}
+          organizationSlug={organization.slug}
           onBack={() => setSelectedLessonId(null)}
           onSave={handleSaveLesson}
           onDelete={() => handleDeleteLesson(selectedLessonInfo.lesson)}
@@ -384,6 +385,7 @@ export default function CourseEditor({
     <div className="flex h-screen flex-col bg-gray-50">
       <CourseHeader
         course={course}
+        organizationSlug={organization.slug}
         activeTab={activeTab}
         onTabChange={handleTabChange}
         onAddContent={handleAddContent}

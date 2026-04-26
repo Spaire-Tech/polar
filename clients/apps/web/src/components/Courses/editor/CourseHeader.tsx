@@ -28,6 +28,7 @@ const TABS: { id: TabId; label: string }[] = [
 
 export function CourseHeader({
   course,
+  organizationSlug,
   activeTab,
   onTabChange,
   customersCount = 0,
@@ -35,12 +36,14 @@ export function CourseHeader({
   onAddContent,
 }: {
   course: CourseRead
+  organizationSlug: string
   activeTab: TabId
   onTabChange: (tab: TabId) => void
   customersCount?: number
   offersCount?: number
   onAddContent?: () => void
 }) {
+  const previewHref = `/${organizationSlug}/portal/courses/${course.id}`
   const counts: Partial<Record<TabId, number>> = {
     offers: offersCount,
     customers: customersCount,
@@ -68,9 +71,15 @@ export function CourseHeader({
               <IconBtn>
                 <MoreHorizOutlined fontSize="small" />
               </IconBtn>
-              <IconBtn>
+              <a
+                href={previewHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Preview as student"
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 transition-colors"
+              >
                 <VisibilityOutlined fontSize="small" />
-              </IconBtn>
+              </a>
               <button className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 hover:bg-indigo-200 transition-colors">
                 <AutoAwesomeOutlined fontSize="small" />
               </button>

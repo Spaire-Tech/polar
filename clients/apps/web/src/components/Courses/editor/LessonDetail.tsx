@@ -37,6 +37,7 @@ export function LessonDetail({
   lesson,
   module,
   course,
+  organizationSlug,
   onBack,
   onSave,
   onDelete,
@@ -48,6 +49,7 @@ export function LessonDetail({
   lesson: CourseLessonRead
   module: CourseModuleRead
   course: CourseRead
+  organizationSlug: string
   onBack: () => void
   onSave: (edits: LessonEdits) => void
   onDelete: () => void
@@ -56,6 +58,7 @@ export function LessonDetail({
   isGenerating?: boolean
   onStopAI?: () => void
 }) {
+  const previewHref = `/${organizationSlug}/portal/courses/${course.id}?lesson=${lesson.id}`
   const [edits, setEdits] = useState<LessonEdits>(() => initEdits(lesson, module))
   const [moduleSelectOpen, setModuleSelectOpen] = useState(false)
   const moduleSelectRef = useRef<HTMLDivElement>(null)
@@ -149,10 +152,15 @@ export function LessonDetail({
           <HelpOutlineOutlined className="text-gray-300" sx={{ fontSize: 16 }} />
         </h2>
         <div className="ml-auto flex items-center gap-2">
-          <button className="flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+          <a
+            href={previewHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+          >
             <VisibilityOutlined sx={{ fontSize: 16 }} />
             Preview
-          </button>
+          </a>
           <button
             onClick={() => onSave(edits)}
             disabled={isSaving}
