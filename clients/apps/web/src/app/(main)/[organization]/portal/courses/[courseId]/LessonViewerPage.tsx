@@ -8,18 +8,20 @@ import {
   type CustomerModuleRead,
 } from '@/hooks/queries/courses'
 import { MemoizedMarkdown } from '@/components/Markdown/MemoizedMarkdown'
+import { HlsVideo } from '@/components/Courses/HlsVideo'
 import { CommentThread } from './CommentThread'
 import ArrowBackOutlined from '@mui/icons-material/ArrowBackOutlined'
 import ArrowForwardOutlined from '@mui/icons-material/ArrowForwardOutlined'
 import CheckCircle from '@mui/icons-material/CheckCircle'
 import CheckCircleOutlined from '@mui/icons-material/CheckCircleOutlined'
+import EmojiEventsOutlined from '@mui/icons-material/EmojiEventsOutlined'
 import ExpandMoreOutlined from '@mui/icons-material/ExpandMoreOutlined'
 import LockOutlined from '@mui/icons-material/LockOutlined'
 import PlayArrow from '@mui/icons-material/PlayArrow'
 import { schemas } from '@spaire/client'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { twMerge } from 'tailwind-merge'
 
 // --- Course overview ---
@@ -115,13 +117,14 @@ const CourseOverview = ({
   const firstIncomplete = allLessons.find((l) => !l.completed) ?? allLessons[0]
   const progress = data.progress
   const hasStarted = progress.completed_lessons > 0
+  const isComplete = progress.total_lessons > 0 && progress.completion_percent === 100
 
   const firstName = data.customer_name
     ? data.customer_name.split(' ')[0]
     : null
 
   return (
-    <div className="mx-auto max-w-2xl py-10 px-4">
+    <div className="mx-auto max-w-2xl py-6 sm:py-10">
       <Link
         href={backHref}
         className="mb-8 inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-700"
@@ -129,6 +132,21 @@ const CourseOverview = ({
         <ArrowBackOutlined fontSize="small" />
         My Courses
       </Link>
+
+      {/* Completion celebration */}
+      {isComplete && (
+        <div className="mb-8 flex items-center gap-4 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-5 border border-blue-100">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-100">
+            <EmojiEventsOutlined className="text-blue-600" />
+          </div>
+          <div>
+            <p className="font-semibold text-gray-900">Course complete!</p>
+            <p className="text-sm text-gray-500">
+              You've finished every lesson. Great work.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="mb-2">
         <h1 className="text-3xl font-semibold text-gray-900">
@@ -150,20 +168,32 @@ const CourseOverview = ({
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-gray-100">
             <div
-              className="h-full rounded-full bg-blue-500 transition-all duration-500"
+              className={twMerge(
+                'h-full rounded-full transition-all duration-500',
+                isComplete ? 'bg-green-500' : 'bg-blue-500',
+              )}
               style={{ width: `${progress.completion_percent}%` }}
             />
           </div>
         </div>
       )}
 
-      {firstIncomplete && (
+      {firstIncomplete && !isComplete && (
         <button
           onClick={() => onStartLesson(firstIncomplete)}
           className="mb-10 inline-flex items-center gap-x-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-medium text-white hover:bg-blue-700 active:bg-blue-800 transition-colors"
         >
           {hasStarted ? 'Continue' : 'Start course'}
           <ArrowForwardOutlined fontSize="small" />
+        </button>
+      )}
+
+      {isComplete && allLessons.length > 0 && (
+        <button
+          onClick={() => onStartLesson(allLessons[0])}
+          className="mb-10 inline-flex items-center gap-x-2 rounded-xl border border-gray-200 bg-white px-6 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+        >
+          Review course
         </button>
       )}
 
@@ -188,6 +218,10 @@ const CourseOverview = ({
 const VideoArea = ({ lesson }: { lesson: CustomerLessonRead }) => {
   const [playing, setPlaying] = useState(false)
 
+  useEffect(() => {
+    setPlaying(false)
+  }, [lesson.id])
+
   const thumbnailSrc =
     lesson.thumbnail_url ??
     (lesson.mux_playback_id
@@ -198,11 +232,10 @@ const VideoArea = ({ lesson }: { lesson: CustomerLessonRead }) => {
     if (playing) {
       return (
         <div className="aspect-video w-full overflow-hidden rounded-2xl bg-black">
-          <video
+          <HlsVideo
+            playbackId={lesson.mux_playback_id}
+            poster={thumbnailSrc}
             autoPlay
-            controls
-            className="h-full w-full"
-            src={`https://stream.mux.com/${lesson.mux_playback_id}.m3u8`}
           />
         </div>
       )
@@ -228,21 +261,32 @@ const VideoArea = ({ lesson }: { lesson: CustomerLessonRead }) => {
     )
   }
 
+  if (lesson.content_type === 'video' && lesson.mux_playback_id) {
+    return (
+      <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-gray-100">
+        {thumbnailSrc && (
+          <img
+            src={thumbnailSrc}
+            alt={lesson.title}
+            className="h-full w-full object-cover opacity-50"
+          />
+        )}
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+          <span className="text-sm text-gray-500">Video processing…</span>
+        </div>
+      </div>
+    )
+  }
+
   if (thumbnailSrc) {
     return (
       <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-gray-900">
         <img
           src={thumbnailSrc}
           alt={lesson.title}
-          className="h-full w-full object-cover opacity-70"
+          className="h-full w-full object-cover"
         />
-        {lesson.content_type === 'video' && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="rounded-full bg-black/60 px-4 py-2 text-sm text-white">
-              Video processing…
-            </span>
-          </div>
-        )}
       </div>
     )
   }
@@ -250,11 +294,39 @@ const VideoArea = ({ lesson }: { lesson: CustomerLessonRead }) => {
   return null
 }
 
+const NextLessonPrompt = ({
+  nextLesson,
+  onNext,
+}: {
+  nextLesson: CustomerLessonRead
+  onNext: () => void
+}) => (
+  <div className="flex items-center justify-between rounded-2xl border border-gray-100 bg-gray-50 px-5 py-4">
+    <div>
+      <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
+        Up next
+      </p>
+      <p className="mt-0.5 text-sm font-medium text-gray-900">
+        {nextLesson.title}
+      </p>
+    </div>
+    <button
+      onClick={onNext}
+      className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
+    >
+      Next lesson
+      <ArrowForwardOutlined fontSize="small" />
+    </button>
+  </div>
+)
+
 const LessonViewer = ({
   lesson,
   lessonIndex,
   totalLessons,
+  nextLesson,
   isPending,
+  justCompleted,
   onBack,
   onPrev,
   onNext,
@@ -265,7 +337,9 @@ const LessonViewer = ({
   lesson: CustomerLessonRead
   lessonIndex: number
   totalLessons: number
+  nextLesson: CustomerLessonRead | null
   isPending: boolean
+  justCompleted: boolean
   onBack: () => void
   onPrev: () => void
   onNext: () => void
@@ -274,12 +348,11 @@ const LessonViewer = ({
   token: string
 }) => {
   const hasThumbnailOrVideo =
-    lesson.thumbnail_url ||
-    (lesson.mux_playback_id !== null)
+    lesson.thumbnail_url !== null || lesson.mux_playback_id !== null
   const textContent = lesson.content?.text ?? ''
 
   return (
-    <div className="mx-auto max-w-3xl py-8 px-4">
+    <div className="mx-auto max-w-3xl py-6 sm:py-8">
       {/* Top nav */}
       <div className="mb-6 flex items-center justify-between">
         <button
@@ -287,12 +360,14 @@ const LessonViewer = ({
           className="flex items-center gap-x-1.5 text-sm text-gray-400 hover:text-gray-900 transition-colors"
         >
           <ArrowBackOutlined fontSize="small" />
-          Back to course
+          <span className="hidden sm:inline">Back to course</span>
+          <span className="sm:hidden">Back</span>
         </button>
 
         <div className="flex items-center gap-x-2">
           <span className="text-sm text-gray-400">
-            Lesson {lessonIndex + 1} of {totalLessons}
+            <span className="hidden sm:inline">Lesson </span>
+            {lessonIndex + 1} / {totalLessons}
           </span>
           <button
             onClick={onPrev}
@@ -319,13 +394,13 @@ const LessonViewer = ({
       )}
 
       {/* Lesson header */}
-      <div className="mb-6 flex items-start justify-between gap-4">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <h1 className="text-2xl font-semibold text-gray-900">{lesson.title}</h1>
         <button
           onClick={onMarkComplete}
           disabled={lesson.completed || isPending}
           className={twMerge(
-            'flex shrink-0 items-center gap-x-1.5 rounded-xl px-4 py-2 text-sm font-medium transition-colors',
+            'flex shrink-0 items-center gap-x-1.5 self-start rounded-xl px-4 py-2 text-sm font-medium transition-colors',
             lesson.completed
               ? 'bg-green-50 text-green-700 cursor-default'
               : 'bg-gray-900 text-white hover:bg-gray-700 disabled:opacity-50',
@@ -347,13 +422,20 @@ const LessonViewer = ({
 
       {/* Text content */}
       {textContent.trim() && (
-        <div className="mb-10 prose prose-sm max-w-none prose-headings:font-semibold prose-headings:text-gray-900 prose-p:text-gray-700 prose-a:text-blue-600 prose-code:rounded prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:text-sm prose-pre:rounded-xl prose-pre:bg-gray-900 prose-pre:text-gray-100">
+        <div className="mb-8 prose prose-sm max-w-none prose-headings:font-semibold prose-headings:text-gray-900 prose-p:text-gray-700 prose-a:text-blue-600 prose-code:rounded prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:text-sm prose-pre:rounded-xl prose-pre:bg-gray-900 prose-pre:text-gray-100">
           <MemoizedMarkdown content={textContent} />
         </div>
       )}
 
+      {/* Next lesson prompt (shows after marking complete) */}
+      {justCompleted && nextLesson && (
+        <div className="mb-8">
+          <NextLessonPrompt nextLesson={nextLesson} onNext={onNext} />
+        </div>
+      )}
+
       {/* Comment thread */}
-      <div className="mt-10 border-t border-gray-100 pt-8">
+      <div className="mt-6 border-t border-gray-100 pt-8">
         <CommentThread
           token={token}
           courseId={courseId}
@@ -388,6 +470,7 @@ const LessonViewerPage = ({
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(
     initialLessonId ?? null,
   )
+  const [justCompletedId, setJustCompletedId] = useState<string | null>(null)
 
   const allLessons =
     data?.course.modules.flatMap((m) => (m.locked ? [] : m.lessons)) ?? []
@@ -397,9 +480,14 @@ const LessonViewerPage = ({
   const lessonIndex = currentLesson
     ? allLessons.findIndex((l) => l.id === currentLesson.id)
     : -1
+  const nextLesson =
+    lessonIndex >= 0 && lessonIndex < allLessons.length - 1
+      ? allLessons[lessonIndex + 1]
+      : null
 
   const handleSelectLesson = (lesson: CustomerLessonRead) => {
     setSelectedLessonId(lesson.id)
+    setJustCompletedId(null)
     const params = new URLSearchParams(searchParams.toString())
     params.set('lesson', lesson.id)
     router.replace(`?${params.toString()}`, { scroll: false })
@@ -407,6 +495,7 @@ const LessonViewerPage = ({
 
   const handleBack = () => {
     setSelectedLessonId(null)
+    setJustCompletedId(null)
     const params = new URLSearchParams(searchParams.toString())
     params.delete('lesson')
     router.replace(`?${params.toString()}`, { scroll: false })
@@ -422,7 +511,10 @@ const LessonViewerPage = ({
   }
 
   const handleMarkComplete = () => {
-    if (currentLesson) markComplete.mutate(currentLesson.id)
+    if (!currentLesson || currentLesson.completed) return
+    markComplete.mutate(currentLesson.id, {
+      onSuccess: () => setJustCompletedId(currentLesson.id),
+    })
   }
 
   const backHref = `/${organization.slug}/portal/courses?${searchParams.toString()}`
@@ -449,7 +541,9 @@ const LessonViewerPage = ({
         lesson={currentLesson}
         lessonIndex={lessonIndex}
         totalLessons={allLessons.length}
+        nextLesson={nextLesson}
         isPending={markComplete.isPending}
+        justCompleted={justCompletedId === currentLesson.id}
         onBack={handleBack}
         onPrev={handlePrev}
         onNext={handleNext}

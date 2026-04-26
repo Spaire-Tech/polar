@@ -6,8 +6,11 @@ from fastapi import Depends, File, HTTPException, Request, UploadFile
 from sqlalchemy import select
 
 from polar.auth.models import is_organization, is_user
-from polar.models import UserOrganization
+from polar.customer.repository import CustomerRepository
+from polar.customer_session.service import customer_session_service
+from polar.models import Organization, UserOrganization
 from polar.models.course_lesson import CourseLesson
+from polar.models.customer import Customer
 from polar.openapi import APITag
 from polar.postgres import AsyncSession, get_db_session
 from polar.routing import APIRouter
@@ -400,6 +403,63 @@ async def upload_lesson_thumbnail(
 
     lesson = await lesson_repo.update(lesson, update_dict={"thumbnail_url": thumbnail_url})
     return _lesson_read(lesson)
+
+
+@router.post(
+    "/{course_id}/preview-access",
+    summary="Get Preview Access Token",
+    response_model=dict[str, str],
+)
+async def get_preview_access(
+    course_id: UUID,
+    auth_subject: auth.CoursesWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> dict[str, str]:
+    """Create a customer session for an org member to preview a course as a student."""
+    if not is_user(auth_subject):
+        raise HTTPException(status_code=400, detail="Preview requires user authentication")
+
+    user = auth_subject.subject
+
+    course_repo = CourseRepository.from_session(session)
+    stmt = course_repo.get_base_statement().where(
+        course_repo.model.id == course_id
+    )
+    course = await course_repo.get_one_or_none(stmt)
+    if course is None:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    if not await _user_in_org(session, user.id, course.organization_id):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    org = await session.get(Organization, course.organization_id)
+    if org is None:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    customer_repo = CustomerRepository.from_session(session)
+    customer = await customer_repo.get_by_email_and_organization(
+        user.email, course.organization_id
+    )
+    if customer is None:
+        customer = await customer_repo.create(
+            Customer(
+                email=user.email,
+                name=user.email.split("@")[0],
+                organization_id=course.organization_id,
+            ),
+            flush=True,
+        )
+
+    await course_service.enroll_customer(
+        session, course_id=course_id, customer=customer
+    )
+
+    token, _ = await customer_session_service.create_customer_session(
+        session, customer
+    )
+
+    portal_url = f"/{org.slug}/portal/courses/{course_id}?customer_session_token={token}"
+    return {"token": token, "portal_url": portal_url}
 
 
 @router.post(

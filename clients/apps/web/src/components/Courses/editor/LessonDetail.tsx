@@ -18,7 +18,8 @@ import OpenInNewOutlined from '@mui/icons-material/OpenInNewOutlined'
 import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined'
 import { cn } from '@spaire/ui/lib/utils'
 import { useEffect, useRef, useState } from 'react'
-import { useCreateMuxUpload, useUploadLessonThumbnail } from '@/hooks/queries/courses'
+import { useCreateMuxUpload, usePreviewAccess, useUploadLessonThumbnail } from '@/hooks/queries/courses'
+import { HlsVideo } from '../HlsVideo'
 import { RichTextEditor } from './RichTextEditor'
 
 type Media = 'none' | 'video' | 'audio'
@@ -58,7 +59,18 @@ export function LessonDetail({
   isGenerating?: boolean
   onStopAI?: () => void
 }) {
-  const previewHref = `/${organizationSlug}/portal/courses/${course.id}?lesson=${lesson.id}`
+  const previewAccess = usePreviewAccess()
+
+  const handlePreview = async () => {
+    try {
+      const { portal_url } = await previewAccess.mutateAsync(course.id)
+      const url = new URL(portal_url, window.location.origin)
+      url.searchParams.set('lesson', lesson.id)
+      window.open(url.toString(), '_blank', 'noopener,noreferrer')
+    } catch {
+      window.open(`/${organizationSlug}/portal/courses/${course.id}?lesson=${lesson.id}`, '_blank', 'noopener,noreferrer')
+    }
+  }
   const [edits, setEdits] = useState<LessonEdits>(() => initEdits(lesson, module))
   const [moduleSelectOpen, setModuleSelectOpen] = useState(false)
   const moduleSelectRef = useRef<HTMLDivElement>(null)
@@ -152,15 +164,14 @@ export function LessonDetail({
           <HelpOutlineOutlined className="text-gray-300" sx={{ fontSize: 16 }} />
         </h2>
         <div className="ml-auto flex items-center gap-2">
-          <a
-            href={previewHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+          <button
+            onClick={handlePreview}
+            disabled={previewAccess.isPending}
+            className="flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
           >
             <VisibilityOutlined sx={{ fontSize: 16 }} />
-            Preview
-          </a>
+            {previewAccess.isPending ? 'Opening…' : 'Preview'}
+          </button>
           <button
             onClick={() => onSave(edits)}
             disabled={isSaving}
@@ -272,11 +283,7 @@ export function LessonDetail({
                 {lesson.mux_playback_id && lesson.mux_status === 'ready' ? (
                   <div className="flex flex-col gap-3">
                     <div className="aspect-video overflow-hidden rounded-xl bg-black">
-                      <video
-                        controls
-                        className="h-full w-full"
-                        src={`https://stream.mux.com/${lesson.mux_playback_id}.m3u8`}
-                      />
+                      <HlsVideo playbackId={lesson.mux_playback_id} />
                     </div>
                     <button
                       type="button"

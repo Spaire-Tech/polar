@@ -78,6 +78,18 @@ export const useCourseById = (courseId: string | undefined) =>
     queryKey: ['courses', { courseId }],
     queryFn: () => courseApiFetch<CourseRead>(`/v1/courses/${courseId}`),
     enabled: !!courseId,
+    refetchInterval: (query) => {
+      const data = query.state.data
+      if (!data) return false
+      const hasPendingMux = data.modules.some((m) =>
+        m.lessons.some(
+          (l) =>
+            l.mux_upload_id &&
+            (!l.mux_playback_id || l.mux_status !== 'ready'),
+        ),
+      )
+      return hasPendingMux ? 5000 : false
+    },
   })
 
 export const useCourseByProduct = (productId: string | undefined) =>
@@ -381,6 +393,15 @@ export const useCreateMuxUpload = () =>
       courseApiFetch<MuxUploadRead>(`/v1/courses/lessons/${lessonId}/mux-upload`, {
         method: 'POST',
       }),
+  })
+
+export const usePreviewAccess = () =>
+  useMutation({
+    mutationFn: (courseId: string) =>
+      courseApiFetch<{ token: string; portal_url: string }>(
+        `/v1/courses/${courseId}/preview-access`,
+        { method: 'POST' },
+      ),
   })
 
 export const useUploadLessonThumbnail = () =>

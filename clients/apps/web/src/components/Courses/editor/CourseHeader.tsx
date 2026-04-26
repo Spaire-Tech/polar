@@ -1,6 +1,6 @@
 'use client'
 
-import { CourseRead } from '@/hooks/queries/courses'
+import { CourseRead, usePreviewAccess } from '@/hooks/queries/courses'
 import AddOutlined from '@mui/icons-material/AddOutlined'
 import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined'
 import HelpOutlineOutlined from '@mui/icons-material/HelpOutlineOutlined'
@@ -43,7 +43,17 @@ export function CourseHeader({
   offersCount?: number
   onAddContent?: () => void
 }) {
-  const previewHref = `/${organizationSlug}/portal/courses/${course.id}`
+  const previewAccess = usePreviewAccess()
+
+  const handlePreview = async () => {
+    try {
+      const { portal_url } = await previewAccess.mutateAsync(course.id)
+      window.open(portal_url, '_blank', 'noopener,noreferrer')
+    } catch {
+      // fallback: open portal without session (will redirect to request page)
+      window.open(`/${organizationSlug}/portal/courses/${course.id}`, '_blank', 'noopener,noreferrer')
+    }
+  }
   const counts: Partial<Record<TabId, number>> = {
     offers: offersCount,
     customers: customersCount,
@@ -71,15 +81,14 @@ export function CourseHeader({
               <IconBtn>
                 <MoreHorizOutlined fontSize="small" />
               </IconBtn>
-              <a
-                href={previewHref}
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                onClick={handlePreview}
+                disabled={previewAccess.isPending}
                 title="Preview as student"
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 transition-colors"
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 disabled:opacity-50 transition-colors"
               >
                 <VisibilityOutlined fontSize="small" />
-              </a>
+              </button>
               <button className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 hover:bg-indigo-200 transition-colors">
                 <AutoAwesomeOutlined fontSize="small" />
               </button>
