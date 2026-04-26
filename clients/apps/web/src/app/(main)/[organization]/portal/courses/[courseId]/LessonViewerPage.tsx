@@ -3,42 +3,36 @@
 import {
   useCustomerCourse,
   useMarkLessonComplete,
+  type CustomerCourseDetail,
   type CustomerLessonRead,
   type CustomerModuleRead,
 } from '@/hooks/queries/courses'
 import { MemoizedMarkdown } from '@/components/Markdown/MemoizedMarkdown'
 import { CommentThread } from './CommentThread'
 import ArrowBackOutlined from '@mui/icons-material/ArrowBackOutlined'
-import CheckCircleOutlined from '@mui/icons-material/CheckCircleOutlined'
+import ArrowForwardOutlined from '@mui/icons-material/ArrowForwardOutlined'
 import CheckCircle from '@mui/icons-material/CheckCircle'
+import CheckCircleOutlined from '@mui/icons-material/CheckCircleOutlined'
 import ExpandMoreOutlined from '@mui/icons-material/ExpandMoreOutlined'
 import LockOutlined from '@mui/icons-material/LockOutlined'
-import OndemandVideoOutlined from '@mui/icons-material/OndemandVideoOutlined'
-import TextSnippetOutlined from '@mui/icons-material/TextSnippetOutlined'
+import PlayArrow from '@mui/icons-material/PlayArrow'
 import { schemas } from '@spaire/client'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import { twMerge } from 'tailwind-merge'
 
-const LessonIcon = ({ contentType }: { contentType: string }) =>
-  contentType === 'video' ? (
-    <OndemandVideoOutlined fontSize="small" className="text-gray-400" />
-  ) : (
-    <TextSnippetOutlined fontSize="small" className="text-gray-400" />
-  )
+// --- Course overview ---
 
-const ModuleAccordion = ({
+const ModuleRowOverview = ({
   module,
-  currentLessonId,
   onSelectLesson,
 }: {
   module: CustomerModuleRead
-  currentLessonId: string | null
   onSelectLesson: (lesson: CustomerLessonRead) => void
 }) => {
-  const isActive = module.lessons.some((l) => l.id === currentLessonId)
-  const [open, setOpen] = useState(isActive || !module.locked)
+  const completedCount = module.lessons.filter((l) => l.completed).length
+  const [open, setOpen] = useState(false)
 
   if (module.locked) {
     const label = module.locked_until
@@ -46,12 +40,12 @@ const ModuleAccordion = ({
       : 'Locked'
     return (
       <div className="border-b border-gray-100 last:border-b-0">
-        <div className="flex items-center justify-between px-4 py-3 text-sm text-gray-400">
-          <span className="font-medium">{module.title}</span>
-          <div className="flex items-center gap-1.5 text-xs">
-            <LockOutlined sx={{ fontSize: 14 }} />
-            {label}
+        <div className="flex items-center justify-between px-5 py-4 text-sm">
+          <div className="flex items-center gap-x-3 text-gray-400">
+            <LockOutlined sx={{ fontSize: 16 }} />
+            <span className="font-medium">{module.title}</span>
           </div>
+          <span className="text-xs text-gray-400">{label}</span>
         </div>
       </div>
     )
@@ -61,41 +55,42 @@ const ModuleAccordion = ({
     <div className="border-b border-gray-100 last:border-b-0">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium text-gray-800 hover:bg-gray-50"
+        className="flex w-full items-center justify-between px-5 py-4 text-left hover:bg-gray-50"
       >
-        <span>{module.title}</span>
-        <ExpandMoreOutlined
-          fontSize="small"
-          className={twMerge(
-            'flex-none text-gray-400 transition-transform',
-            open && 'rotate-180',
-          )}
-        />
+        <div className="flex items-center gap-x-3">
+          <ExpandMoreOutlined
+            fontSize="small"
+            className={twMerge(
+              'flex-none text-gray-400 transition-transform',
+              open && 'rotate-180',
+            )}
+          />
+          <div>
+            <p className="text-sm font-medium text-gray-900">{module.title}</p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {completedCount}/{module.lessons.length} completed
+            </p>
+          </div>
+        </div>
       </button>
       {open && (
-        <div className="flex flex-col pb-2">
+        <div className="pb-2">
           {module.lessons.map((lesson) => (
             <button
               key={lesson.id}
               onClick={() => onSelectLesson(lesson)}
-              className={twMerge(
-                'flex items-center gap-x-3 px-4 py-2 text-left text-sm transition-colors hover:bg-gray-50',
-                lesson.id === currentLessonId
-                  ? 'bg-blue-50 text-blue-700'
-                  : 'text-gray-600',
-              )}
+              className="flex w-full items-center gap-x-3 px-5 py-2.5 text-left text-sm hover:bg-gray-50"
             >
-              <LessonIcon contentType={lesson.content_type} />
-              <span className="flex-1">{lesson.title}</span>
+              {lesson.completed ? (
+                <CheckCircle sx={{ fontSize: 18 }} className="flex-none text-blue-500" />
+              ) : (
+                <CheckCircleOutlined sx={{ fontSize: 18 }} className="flex-none text-gray-300" />
+              )}
+              <span className="flex-1 text-gray-700">{lesson.title}</span>
               {lesson.duration_seconds && (
                 <span className="text-xs text-gray-400">
                   {Math.ceil(lesson.duration_seconds / 60)}m
                 </span>
-              )}
-              {lesson.completed ? (
-                <CheckCircle sx={{ fontSize: 16 }} className="flex-none text-green-500" />
-              ) : (
-                <CheckCircleOutlined sx={{ fontSize: 16 }} className="flex-none text-gray-200" />
               )}
             </button>
           ))}
@@ -105,55 +100,271 @@ const ModuleAccordion = ({
   )
 }
 
-const LessonContent = ({ lesson }: { lesson: CustomerLessonRead }) => {
+const CourseOverview = ({
+  data,
+  backHref,
+  onStartLesson,
+}: {
+  data: CustomerCourseDetail
+  backHref: string
+  onStartLesson: (lesson: CustomerLessonRead) => void
+}) => {
+  const allLessons = data.course.modules.flatMap((m) =>
+    m.locked ? [] : m.lessons,
+  )
+  const firstIncomplete = allLessons.find((l) => !l.completed) ?? allLessons[0]
+  const progress = data.progress
+  const hasStarted = progress.completed_lessons > 0
+
+  const firstName = data.customer_name
+    ? data.customer_name.split(' ')[0]
+    : null
+
+  return (
+    <div className="mx-auto max-w-2xl py-10 px-4">
+      <Link
+        href={backHref}
+        className="mb-8 inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-700"
+      >
+        <ArrowBackOutlined fontSize="small" />
+        My Courses
+      </Link>
+
+      <div className="mb-2">
+        <h1 className="text-3xl font-semibold text-gray-900">
+          Welcome{firstName ? `, ${firstName}` : ''}.
+        </h1>
+        <p className="mt-1.5 text-gray-500">{data.course.title}</p>
+      </div>
+
+      {progress.total_lessons > 0 && (
+        <div className="mt-6 mb-8">
+          <div className="mb-2 flex items-center justify-between text-sm text-gray-500">
+            <span>
+              {progress.completed_lessons} of {progress.total_lessons} lessons
+              completed
+            </span>
+            <span className="font-medium text-gray-700">
+              {progress.completion_percent}%
+            </span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+            <div
+              className="h-full rounded-full bg-blue-500 transition-all duration-500"
+              style={{ width: `${progress.completion_percent}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {firstIncomplete && (
+        <button
+          onClick={() => onStartLesson(firstIncomplete)}
+          className="mb-10 inline-flex items-center gap-x-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-medium text-white hover:bg-blue-700 active:bg-blue-800 transition-colors"
+        >
+          {hasStarted ? 'Continue' : 'Start course'}
+          <ArrowForwardOutlined fontSize="small" />
+        </button>
+      )}
+
+      <h2 className="mb-3 text-base font-semibold text-gray-900">
+        Course content
+      </h2>
+      <div className="overflow-hidden rounded-2xl border border-gray-200">
+        {data.course.modules.map((module) => (
+          <ModuleRowOverview
+            key={module.id}
+            module={module}
+            onSelectLesson={onStartLesson}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// --- Lesson viewer ---
+
+const VideoArea = ({ lesson }: { lesson: CustomerLessonRead }) => {
+  const [playing, setPlaying] = useState(false)
+
+  const thumbnailSrc =
+    lesson.thumbnail_url ??
+    (lesson.mux_playback_id
+      ? `https://image.mux.com/${lesson.mux_playback_id}/thumbnail.jpg?time=0`
+      : null)
+
   if (lesson.mux_playback_id && lesson.mux_status === 'ready') {
-    return (
-      <div className="flex flex-col gap-y-6">
-        <div className="aspect-video w-full overflow-hidden rounded-xl bg-black">
+    if (playing) {
+      return (
+        <div className="aspect-video w-full overflow-hidden rounded-2xl bg-black">
           <video
+            autoPlay
             controls
             className="h-full w-full"
             src={`https://stream.mux.com/${lesson.mux_playback_id}.m3u8`}
           />
         </div>
-        {lesson.content?.text?.trim() && (
-          <div className="prose prose-sm max-w-none">
-            <MemoizedMarkdown content={lesson.content.text} />
+      )
+    }
+    return (
+      <button
+        onClick={() => setPlaying(true)}
+        className="group relative aspect-video w-full overflow-hidden rounded-2xl bg-gray-900"
+      >
+        {thumbnailSrc && (
+          <img
+            src={thumbnailSrc}
+            alt={lesson.title}
+            className="h-full w-full object-cover opacity-80 group-hover:opacity-90 transition-opacity"
+          />
+        )}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/90 shadow-lg transition-transform group-hover:scale-105">
+            <PlayArrow sx={{ fontSize: 36 }} className="ml-1 text-blue-600" />
+          </div>
+        </div>
+      </button>
+    )
+  }
+
+  if (thumbnailSrc) {
+    return (
+      <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-gray-900">
+        <img
+          src={thumbnailSrc}
+          alt={lesson.title}
+          className="h-full w-full object-cover opacity-70"
+        />
+        {lesson.content_type === 'video' && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="rounded-full bg-black/60 px-4 py-2 text-sm text-white">
+              Video processing…
+            </span>
           </div>
         )}
       </div>
     )
   }
 
-  const text = lesson.content?.text ?? ''
+  return null
+}
 
-  if (!text.trim()) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 text-center text-gray-400">
-        <p>No content yet for this lesson.</p>
-      </div>
-    )
-  }
-
-  if (lesson.content_type === 'video') {
-    return (
-      <div className="flex flex-col gap-y-6">
-        <div className="rounded-xl border border-amber-100 bg-amber-50 p-4 text-sm text-amber-700">
-          Video coming soon — upload in progress.
-        </div>
-        <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-gray-700">
-          {text}
-        </pre>
-      </div>
-    )
-  }
+const LessonViewer = ({
+  lesson,
+  lessonIndex,
+  totalLessons,
+  isPending,
+  onBack,
+  onPrev,
+  onNext,
+  onMarkComplete,
+  courseId,
+  token,
+}: {
+  lesson: CustomerLessonRead
+  lessonIndex: number
+  totalLessons: number
+  isPending: boolean
+  onBack: () => void
+  onPrev: () => void
+  onNext: () => void
+  onMarkComplete: () => void
+  courseId: string
+  token: string
+}) => {
+  const hasThumbnailOrVideo =
+    lesson.thumbnail_url ||
+    (lesson.mux_playback_id !== null)
+  const textContent = lesson.content?.text ?? ''
 
   return (
-    <div className="prose prose-sm max-w-none prose-headings:font-semibold prose-headings:text-gray-900 prose-p:text-gray-700 prose-a:text-blue-600 prose-code:rounded prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:text-sm prose-pre:rounded-xl prose-pre:bg-gray-900 prose-pre:text-gray-100">
-      <MemoizedMarkdown content={text} />
+    <div className="mx-auto max-w-3xl py-8 px-4">
+      {/* Top nav */}
+      <div className="mb-6 flex items-center justify-between">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-x-1.5 text-sm text-gray-400 hover:text-gray-900 transition-colors"
+        >
+          <ArrowBackOutlined fontSize="small" />
+          Back to course
+        </button>
+
+        <div className="flex items-center gap-x-2">
+          <span className="text-sm text-gray-400">
+            Lesson {lessonIndex + 1} of {totalLessons}
+          </span>
+          <button
+            onClick={onPrev}
+            disabled={lessonIndex === 0}
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-30 transition-colors"
+          >
+            <ArrowBackOutlined fontSize="small" />
+          </button>
+          <button
+            onClick={onNext}
+            disabled={lessonIndex === totalLessons - 1}
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-30 transition-colors"
+          >
+            <ArrowForwardOutlined fontSize="small" />
+          </button>
+        </div>
+      </div>
+
+      {/* Video / thumbnail */}
+      {hasThumbnailOrVideo && (
+        <div className="mb-8">
+          <VideoArea lesson={lesson} />
+        </div>
+      )}
+
+      {/* Lesson header */}
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <h1 className="text-2xl font-semibold text-gray-900">{lesson.title}</h1>
+        <button
+          onClick={onMarkComplete}
+          disabled={lesson.completed || isPending}
+          className={twMerge(
+            'flex shrink-0 items-center gap-x-1.5 rounded-xl px-4 py-2 text-sm font-medium transition-colors',
+            lesson.completed
+              ? 'bg-green-50 text-green-700 cursor-default'
+              : 'bg-gray-900 text-white hover:bg-gray-700 disabled:opacity-50',
+          )}
+        >
+          {lesson.completed ? (
+            <>
+              <CheckCircle sx={{ fontSize: 16 }} />
+              Completed
+            </>
+          ) : (
+            <>
+              <CheckCircleOutlined sx={{ fontSize: 16 }} />
+              {isPending ? 'Saving…' : 'Mark complete'}
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Text content */}
+      {textContent.trim() && (
+        <div className="mb-10 prose prose-sm max-w-none prose-headings:font-semibold prose-headings:text-gray-900 prose-p:text-gray-700 prose-a:text-blue-600 prose-code:rounded prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:text-sm prose-pre:rounded-xl prose-pre:bg-gray-900 prose-pre:text-gray-100">
+          <MemoizedMarkdown content={textContent} />
+        </div>
+      )}
+
+      {/* Comment thread */}
+      <div className="mt-10 border-t border-gray-100 pt-8">
+        <CommentThread
+          token={token}
+          courseId={courseId}
+          lessonId={lesson.id}
+        />
+      </div>
     </div>
   )
 }
+
+// --- Page orchestrator ---
 
 const LessonViewerPage = ({
   organization,
@@ -174,15 +385,18 @@ const LessonViewerPage = ({
   )
   const markComplete = useMarkLessonComplete(customerSessionToken, courseId)
 
-  const allLessons =
-    data?.course.modules.flatMap((m) => m.locked ? [] : m.lessons) ?? []
-
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(
     initialLessonId ?? null,
   )
 
-  const currentLessonId = selectedLessonId ?? allLessons[0]?.id ?? null
-  const currentLesson = allLessons.find((l) => l.id === currentLessonId) ?? null
+  const allLessons =
+    data?.course.modules.flatMap((m) => (m.locked ? [] : m.lessons)) ?? []
+
+  const currentLesson =
+    allLessons.find((l) => l.id === selectedLessonId) ?? null
+  const lessonIndex = currentLesson
+    ? allLessons.findIndex((l) => l.id === currentLesson.id)
+    : -1
 
   const handleSelectLesson = (lesson: CustomerLessonRead) => {
     setSelectedLessonId(lesson.id)
@@ -191,12 +405,27 @@ const LessonViewerPage = ({
     router.replace(`?${params.toString()}`, { scroll: false })
   }
 
+  const handleBack = () => {
+    setSelectedLessonId(null)
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete('lesson')
+    router.replace(`?${params.toString()}`, { scroll: false })
+  }
+
+  const handlePrev = () => {
+    if (lessonIndex > 0) handleSelectLesson(allLessons[lessonIndex - 1])
+  }
+
+  const handleNext = () => {
+    if (lessonIndex < allLessons.length - 1)
+      handleSelectLesson(allLessons[lessonIndex + 1])
+  }
+
   const handleMarkComplete = () => {
-    if (currentLessonId) markComplete.mutate(currentLessonId)
+    if (currentLesson) markComplete.mutate(currentLesson.id)
   }
 
   const backHref = `/${organization.slug}/portal/courses?${searchParams.toString()}`
-  const progress = data?.progress
 
   if (isLoading) {
     return (
@@ -214,109 +443,29 @@ const LessonViewerPage = ({
     )
   }
 
+  if (currentLesson) {
+    return (
+      <LessonViewer
+        lesson={currentLesson}
+        lessonIndex={lessonIndex}
+        totalLessons={allLessons.length}
+        isPending={markComplete.isPending}
+        onBack={handleBack}
+        onPrev={handlePrev}
+        onNext={handleNext}
+        onMarkComplete={handleMarkComplete}
+        courseId={courseId}
+        token={customerSessionToken}
+      />
+    )
+  }
+
   return (
-    <div className="-mx-4 flex min-h-screen flex-col md:-mx-0">
-      {/* Header */}
-      <div className="flex items-center gap-x-4 border-b border-gray-100 px-4 py-3 md:px-0">
-        <Link
-          href={backHref}
-          className="flex items-center gap-x-2 text-sm text-gray-500 hover:text-gray-900"
-        >
-          <ArrowBackOutlined fontSize="small" />
-          <span>My Courses</span>
-        </Link>
-        <span className="text-gray-300">/</span>
-        <h1 className="flex-1 truncate text-sm font-medium text-gray-900">
-          {data.course.title ?? 'Course'}
-        </h1>
-        {progress && (
-          <div className="hidden items-center gap-x-3 md:flex">
-            <div className="h-1.5 w-32 overflow-hidden rounded-full bg-gray-200">
-              <div
-                className="h-full rounded-full bg-green-500 transition-all"
-                style={{ width: `${progress.completion_percent}%` }}
-              />
-            </div>
-            <span className="text-xs text-gray-500">
-              {progress.completed_lessons}/{progress.total_lessons} lessons
-            </span>
-          </div>
-        )}
-      </div>
-
-      <div className="flex flex-1 flex-col md:flex-row">
-        {/* Sidebar */}
-        <aside className="w-full flex-none border-b border-gray-100 md:w-72 md:border-b-0 md:border-r">
-          <div className="px-2 py-4">
-            <p className="mb-2 px-2 text-xs font-medium uppercase tracking-wider text-gray-400">
-              Contents
-            </p>
-            {data.course.modules.map((module) => (
-              <ModuleAccordion
-                key={module.id}
-                module={module}
-                currentLessonId={currentLessonId}
-                onSelectLesson={handleSelectLesson}
-              />
-            ))}
-          </div>
-        </aside>
-
-        {/* Main content */}
-        <main className="flex-1 px-4 py-8 md:px-10 md:py-12">
-          {currentLesson ? (
-            <div className="flex flex-col gap-y-6">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex flex-col gap-y-1">
-                  <div className="flex items-center gap-x-2 text-xs text-gray-400">
-                    <LessonIcon contentType={currentLesson.content_type} />
-                    <span>
-                      {currentLesson.content_type === 'video'
-                        ? 'Video Lesson'
-                        : 'Text Lesson'}
-                    </span>
-                    {currentLesson.duration_seconds && (
-                      <>
-                        <span>·</span>
-                        <span>
-                          {Math.ceil(currentLesson.duration_seconds / 60)} min
-                        </span>
-                      </>
-                    )}
-                  </div>
-                  <h2 className="text-2xl font-semibold text-gray-900">
-                    {currentLesson.title}
-                  </h2>
-                </div>
-                <button
-                  onClick={handleMarkComplete}
-                  disabled={currentLesson.completed || markComplete.isPending}
-                  className={twMerge(
-                    'flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-colors',
-                    currentLesson.completed
-                      ? 'bg-green-100 text-green-700 cursor-default'
-                      : 'bg-gray-900 text-white hover:bg-gray-700 disabled:opacity-50',
-                  )}
-                >
-                  <CheckCircleOutlined fontSize="small" />
-                  {currentLesson.completed ? 'Completed' : markComplete.isPending ? 'Saving…' : 'Mark Complete'}
-                </button>
-              </div>
-              <LessonContent lesson={currentLesson} />
-              <CommentThread
-                token={customerSessionToken}
-                courseId={courseId}
-                lessonId={currentLesson.id}
-              />
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-20 text-center text-gray-400">
-              <p>Select a lesson from the sidebar to get started.</p>
-            </div>
-          )}
-        </main>
-      </div>
-    </div>
+    <CourseOverview
+      data={data}
+      backHref={backHref}
+      onStartLesson={handleSelectLesson}
+    />
   )
 }
 

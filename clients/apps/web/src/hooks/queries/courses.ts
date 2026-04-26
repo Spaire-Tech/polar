@@ -293,6 +293,7 @@ export type CustomerLessonRead = {
   is_free_preview: boolean
   mux_playback_id: string | null
   mux_status: string | null
+  thumbnail_url: string | null
   completed: boolean
 }
 
@@ -316,6 +317,7 @@ export type CustomerCourseProgress = {
 export type CustomerCourseDetail = {
   enrollment_id: string
   enrolled_at: string
+  customer_name: string | null
   progress: CustomerCourseProgress
   course: {
     id: string

@@ -35,6 +35,7 @@ def _serialize_lesson(lesson, completed_ids: set[str]) -> dict:
         "is_free_preview": lesson.is_free_preview,
         "mux_playback_id": getattr(lesson, "mux_playback_id", None),
         "mux_status": getattr(lesson, "mux_status", None),
+        "thumbnail_url": getattr(lesson, "thumbnail_url", None),
         "completed": str(lesson.id) in completed_ids,
     }
 
@@ -157,6 +158,9 @@ async def get_enrolled_course(
     now = datetime.now(tz=UTC)
     enrolled_at = enrollment.enrolled_at
 
+    customer = await session.get(Customer, customer_id)
+    customer_name = customer.name if customer else None
+
     modules, accessible_ids = _build_module_list(
         course, course.paywall_position, enrolled_at, now, completed_ids
     )
@@ -168,6 +172,7 @@ async def get_enrolled_course(
     return {
         "enrollment_id": str(enrollment.id),
         "enrolled_at": enrolled_at.isoformat(),
+        "customer_name": customer_name,
         "progress": {
             "total_lessons": total_lessons,
             "completed_lessons": completed_count,
