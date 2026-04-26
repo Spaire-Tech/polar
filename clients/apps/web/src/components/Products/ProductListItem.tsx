@@ -14,6 +14,7 @@ import MoreVertOutlined from '@mui/icons-material/MoreVertOutlined'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import { ListItem } from '@spaire/ui/components/atoms/List'
+import Pill from '@spaire/ui/components/atoms/Pill'
 import { Status } from '@spaire/ui/components/atoms/Status'
 import {
   DropdownMenu,
@@ -22,7 +23,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@spaire/ui/components/ui/dropdown-menu'
-import Pill from '@spaire/ui/components/atoms/Pill'
 import {
   Tooltip,
   TooltipContent,
@@ -35,11 +35,14 @@ import { useCallback } from 'react'
 interface ProductListItemProps {
   product: schemas['Product'] | schemas['CheckoutProduct']
   organization: schemas['Organization']
+  /** When true, route the row to the course editor instead of the product detail page. */
+  isCourse?: boolean
 }
 
 export const ProductListItem = ({
   product,
   organization,
+  isCourse = false,
 }: ProductListItemProps) => {
   const router = useRouter()
   const {
@@ -112,9 +115,10 @@ export const ProductListItem = ({
     !isSeatBasedProduct &&
     !isFreeProduct &&
     !isCustomProduct &&
-    (product.recurring_interval === null || product.recurring_interval === undefined)
+    (product.recurring_interval === null ||
+      product.recurring_interval === undefined)
 
-  const isCourseProduct = (product as any).product_type === 'course'
+  const isCourseProduct = isCourse || (product as any).product_type === 'course'
   const itemHref = isCourseProduct
     ? `/dashboard/${organization.slug}/courses/via-product/${product.id}`
     : `/dashboard/${organization.slug}/products/${product.id}`
@@ -130,11 +134,20 @@ export const ProductListItem = ({
         : isFreeProduct
           ? { label: 'Free', className: 'bg-emerald-100 text-emerald-700' }
           : isCustomProduct
-            ? { label: 'Pay what you want', className: 'bg-purple-100 text-purple-700' }
+            ? {
+                label: 'Pay what you want',
+                className: 'bg-purple-100 text-purple-700',
+              }
             : isFixedRecurring
-              ? { label: 'Subscription', className: 'bg-violet-100 text-violet-700' }
+              ? {
+                  label: 'Subscription',
+                  className: 'bg-violet-100 text-violet-700',
+                }
               : isOneTime
-                ? { label: 'One-time', className: 'bg-orange-100 text-orange-700' }
+                ? {
+                    label: 'One-time',
+                    className: 'bg-orange-100 text-orange-700',
+                  }
                 : null
 
   return (
@@ -207,7 +220,7 @@ export const ProductListItem = ({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
                     align="end"
-                    className=" bg-gray-50 shadow-lg"
+                    className="bg-gray-50 shadow-lg"
                   >
                     <DropdownMenuItem
                       onClick={handleContextMenuCallback(() => {

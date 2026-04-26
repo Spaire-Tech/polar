@@ -597,7 +597,7 @@ export default function CourseWizard({
         title: 'Course Created',
         description: `"${formValues.name}" is ready to edit`,
       })
-      router.push(`/dashboard/${organization.slug}/courses/${course.id}?new=1`)
+      router.push(`/dashboard/${organization.slug}/courses/${course.id}`)
     } catch (err) {
       console.error('[CourseWizard] create error:', err)
       toast({

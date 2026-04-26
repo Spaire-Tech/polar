@@ -1,39 +1,28 @@
 'use client'
 
-import { CourseRead, usePreviewAccess } from '@/hooks/queries/courses'
+import { CourseRead } from '@/hooks/queries/courses'
 import AddOutlined from '@mui/icons-material/AddOutlined'
-import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined'
-import HelpOutlineOutlined from '@mui/icons-material/HelpOutlineOutlined'
-import ImageOutlined from '@mui/icons-material/ImageOutlined'
-import MoreHorizOutlined from '@mui/icons-material/MoreHorizOutlined'
-import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined'
+import ArrowBackOutlined from '@mui/icons-material/ArrowBackOutlined'
+import CloseOutlined from '@mui/icons-material/CloseOutlined'
 import { cn } from '@spaire/ui/lib/utils'
 
-export type TabId =
-  | 'outline'
-  | 'customize'
-  | 'offers'
-  | 'customers'
-  | 'certificates'
-  | 'settings'
+export type TabId = 'outline' | 'customize' | 'pricing' | 'customers'
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'outline', label: 'Outline' },
   { id: 'customize', label: 'Customize' },
-  { id: 'offers', label: 'Offers' },
+  { id: 'pricing', label: 'Pricing' },
   { id: 'customers', label: 'Customers' },
-  { id: 'certificates', label: 'Certificates' },
-  { id: 'settings', label: 'Settings' },
 ]
 
 export function CourseHeader({
   course,
-  organizationSlug,
   activeTab,
   onTabChange,
   customersCount = 0,
-  offersCount = 0,
   onAddContent,
+  onBack,
+  onClose,
 }: {
   course: CourseRead
   organizationSlug: string
@@ -42,102 +31,89 @@ export function CourseHeader({
   customersCount?: number
   offersCount?: number
   onAddContent?: () => void
+  onBack?: () => void
+  onClose?: () => void
 }) {
-  const previewAccess = usePreviewAccess()
-
-  const handlePreview = async () => {
-    try {
-      const { portal_url } = await previewAccess.mutateAsync(course.id)
-      window.open(portal_url, '_blank', 'noopener,noreferrer')
-    } catch {
-      // fallback: open portal without session (will redirect to request page)
-      window.open(`/${organizationSlug}/portal/courses/${course.id}`, '_blank', 'noopener,noreferrer')
-    }
-  }
   const counts: Partial<Record<TabId, number>> = {
-    offers: offersCount,
     customers: customersCount,
   }
 
+  const moduleCount = course.modules.length
+  const lessonCount = course.modules.reduce(
+    (acc, m) => acc + m.lessons.length,
+    0,
+  )
+
   return (
     <div className="border-b border-gray-200 bg-white">
-      <div className="mx-auto flex max-w-6xl items-start gap-5 px-8 pt-6">
-        <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-2xl bg-gray-100">
-          <ImageOutlined className="text-gray-300" sx={{ fontSize: 36 }} />
+      {/* Top bar — back + title + close */}
+      <div className="flex items-center justify-between px-6 py-3">
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900"
+        >
+          <ArrowBackOutlined sx={{ fontSize: 16 }} />
+          Back
+        </button>
+        <h1 className="truncate text-sm font-semibold text-gray-900">
+          {course.title ?? 'Untitled Course'}
+        </h1>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close editor"
+          className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+        >
+          <CloseOutlined fontSize="small" />
+        </button>
+      </div>
+
+      {/* Tabs row */}
+      <div className="mx-auto flex max-w-6xl items-end justify-between gap-6 px-8">
+        <div className="-mb-px flex items-center gap-8">
+          {TABS.map((tab) => {
+            const active = tab.id === activeTab
+            const count = counts[tab.id]
+            return (
+              <button
+                key={tab.id}
+                onClick={() => onTabChange(tab.id)}
+                className={cn(
+                  'relative pt-2 pb-3 text-sm transition-colors',
+                  active
+                    ? 'text-primary font-semibold'
+                    : 'text-gray-500 hover:text-gray-700',
+                )}
+              >
+                {tab.label}
+                {count !== undefined && count > 0 && (
+                  <span className="ml-1 text-gray-400">({count})</span>
+                )}
+                {active && (
+                  <span className="bg-primary absolute inset-x-0 bottom-0 h-0.5 rounded-full" />
+                )}
+              </button>
+            )
+          })}
         </div>
 
-        <div className="flex flex-1 flex-col">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-1.5">
-              <h1 className="text-2xl font-bold text-gray-900">
-                {course.title ?? 'Untitled Course'}
-              </h1>
-              <HelpOutlineOutlined
-                className="text-gray-300"
-                sx={{ fontSize: 18 }}
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <IconBtn>
-                <MoreHorizOutlined fontSize="small" />
-              </IconBtn>
-              <button
-                onClick={handlePreview}
-                disabled={previewAccess.isPending}
-                title="Preview as student"
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 disabled:opacity-50 transition-colors"
-              >
-                <VisibilityOutlined fontSize="small" />
-              </button>
-              <button className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 hover:bg-indigo-200 transition-colors">
-                <AutoAwesomeOutlined fontSize="small" />
-              </button>
-              <button
-                onClick={onAddContent}
-                className="flex items-center gap-1.5 rounded-full bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 transition-colors"
-              >
-                <AddOutlined sx={{ fontSize: 18 }} />
-                Add content
-              </button>
-            </div>
+        {activeTab === 'outline' && (
+          <div className="flex items-center gap-3 pb-2">
+            <span className="text-xs text-gray-500">
+              {moduleCount} module{moduleCount === 1 ? '' : 's'} · {lessonCount}{' '}
+              lesson{lessonCount === 1 ? '' : 's'}
+            </span>
+            <button
+              onClick={onAddContent}
+              className="flex items-center gap-1.5 rounded-full bg-gray-900 px-4 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-gray-800"
+            >
+              <AddOutlined sx={{ fontSize: 14 }} />
+              Add section
+            </button>
           </div>
-
-          <div className="-mb-px mt-5 flex items-center gap-6">
-            {TABS.map((tab) => {
-              const active = tab.id === activeTab
-              const count = counts[tab.id]
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => onTabChange(tab.id)}
-                  className={cn(
-                    'relative pb-3 text-sm transition-colors',
-                    active
-                      ? 'font-semibold text-gray-900'
-                      : 'text-gray-500 hover:text-gray-700',
-                  )}
-                >
-                  {tab.label}
-                  {count !== undefined && (
-                    <span className="ml-1 text-gray-400">({count})</span>
-                  )}
-                  {active && (
-                    <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-gray-900" />
-                  )}
-                </button>
-              )
-            })}
-          </div>
-        </div>
+        )}
       </div>
     </div>
-  )
-}
-
-function IconBtn({ children }: { children: React.ReactNode }) {
-  return (
-    <button className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 transition-colors">
-      {children}
-    </button>
   )
 }
