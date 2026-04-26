@@ -1,18 +1,6 @@
 'use client'
 
 import { CourseLessonRead, CourseModuleRead } from '@/hooks/queries/courses'
-import ArticleOutlined from '@mui/icons-material/ArticleOutlined'
-import CheckCircleOutlined from '@mui/icons-material/CheckCircleOutlined'
-import DeleteOutlined from '@mui/icons-material/DeleteOutlined'
-import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined'
-import DragIndicatorOutlined from '@mui/icons-material/DragIndicatorOutlined'
-import EditOutlined from '@mui/icons-material/EditOutlined'
-import ExpandLessOutlined from '@mui/icons-material/ExpandLessOutlined'
-import ExpandMoreOutlined from '@mui/icons-material/ExpandMoreOutlined'
-import FolderOutlined from '@mui/icons-material/FolderOutlined'
-import MoreVertOutlined from '@mui/icons-material/MoreVertOutlined'
-import OndemandVideoOutlined from '@mui/icons-material/OndemandVideoOutlined'
-import VerifiedOutlined from '@mui/icons-material/VerifiedOutlined'
 import {
   DndContext,
   DragEndEvent,
@@ -28,6 +16,18 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import ArticleOutlined from '@mui/icons-material/ArticleOutlined'
+import CheckCircleOutlined from '@mui/icons-material/CheckCircleOutlined'
+import DeleteOutlined from '@mui/icons-material/DeleteOutlined'
+import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined'
+import DragIndicatorOutlined from '@mui/icons-material/DragIndicatorOutlined'
+import EditOutlined from '@mui/icons-material/EditOutlined'
+import ExpandLessOutlined from '@mui/icons-material/ExpandLessOutlined'
+import ExpandMoreOutlined from '@mui/icons-material/ExpandMoreOutlined'
+import FolderOutlined from '@mui/icons-material/FolderOutlined'
+import MoreVertOutlined from '@mui/icons-material/MoreVertOutlined'
+import OndemandVideoOutlined from '@mui/icons-material/OndemandVideoOutlined'
+import VerifiedOutlined from '@mui/icons-material/VerifiedOutlined'
 import { cn } from '@spaire/ui/lib/utils'
 import { useEffect, useRef, useState } from 'react'
 import { ScheduleEdits, ScheduleMenu } from './ScheduleMenu'
@@ -98,7 +98,8 @@ export function ModuleCard({
   useEffect(() => {
     if (!moreMenuOpen) return
     const onClick = (e: MouseEvent) => {
-      if (!moreMenuRef.current?.contains(e.target as Node)) setMoreMenuOpen(false)
+      if (!moreMenuRef.current?.contains(e.target as Node))
+        setMoreMenuOpen(false)
     }
     document.addEventListener('mousedown', onClick)
     return () => document.removeEventListener('mousedown', onClick)
@@ -132,7 +133,7 @@ export function ModuleCard({
         transition,
         opacity: isDragging ? 0.5 : 1,
       }}
-      className="overflow-hidden rounded-xl border border-gray-200 bg-white"
+      className="rounded-xl border border-gray-200 bg-white"
     >
       {/* Module header */}
       <div className="flex items-center gap-2 px-3 py-3">
@@ -146,7 +147,10 @@ export function ModuleCard({
           <DragIndicatorOutlined sx={{ fontSize: 18 }} />
         </button>
 
-        <FolderOutlined className="shrink-0 text-gray-400" sx={{ fontSize: 18 }} />
+        <FolderOutlined
+          className="shrink-0 text-gray-400"
+          sx={{ fontSize: 18 }}
+        />
 
         {/* Title / inline edit */}
         {isEditing ? (
@@ -197,12 +201,12 @@ export function ModuleCard({
         <div ref={addMenuRef} className="relative shrink-0">
           <button
             onClick={() => setAddMenuOpen((v) => !v)}
-            className="flex items-center gap-1 rounded-full bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-gray-700 transition-colors"
+            className="flex items-center gap-1 rounded-full bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-gray-700"
           >
             + Add
           </button>
           {addMenuOpen && (
-            <div className="absolute right-0 top-full z-30 mt-1 w-44 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
+            <div className="absolute top-full right-0 z-30 mt-1 w-44 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
               <button
                 onClick={() => {
                   onAddLesson('text')
@@ -210,7 +214,10 @@ export function ModuleCard({
                 }}
                 className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
               >
-                <ArticleOutlined sx={{ fontSize: 16 }} className="text-gray-400" />
+                <ArticleOutlined
+                  sx={{ fontSize: 16 }}
+                  className="text-gray-400"
+                />
                 Text Lesson
               </button>
               <button
@@ -220,7 +227,10 @@ export function ModuleCard({
                 }}
                 className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
               >
-                <OndemandVideoOutlined sx={{ fontSize: 16 }} className="text-purple-400" />
+                <OndemandVideoOutlined
+                  sx={{ fontSize: 16 }}
+                  className="text-purple-400"
+                />
                 Video Lesson
               </button>
               <button
@@ -230,7 +240,10 @@ export function ModuleCard({
                 }}
                 className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
               >
-                <VerifiedOutlined sx={{ fontSize: 16 }} className="text-emerald-500" />
+                <VerifiedOutlined
+                  sx={{ fontSize: 16 }}
+                  className="text-emerald-500"
+                />
                 Quiz
               </button>
             </div>
@@ -241,12 +254,12 @@ export function ModuleCard({
         <div ref={moreMenuRef} className="relative shrink-0">
           <button
             onClick={() => setMoreMenuOpen((v) => !v)}
-            className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
           >
             <MoreVertOutlined sx={{ fontSize: 18 }} />
           </button>
           {moreMenuOpen && (
-            <div className="absolute right-0 top-full z-30 mt-1 w-40 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
+            <div className="absolute top-full right-0 z-30 mt-1 w-40 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
               <button
                 onClick={() => {
                   setIsEditing(true)
@@ -274,7 +287,7 @@ export function ModuleCard({
         {/* Expand toggle */}
         <button
           onClick={onToggleExpand}
-          className="shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
+          className="shrink-0 text-gray-400 transition-colors hover:text-gray-600"
         >
           {expanded ? (
             <ExpandLessOutlined sx={{ fontSize: 18 }} />
@@ -349,8 +362,8 @@ function LessonRow({
   const Icon = isQuiz
     ? VerifiedOutlined
     : isVideo
-    ? OndemandVideoOutlined
-    : ArticleOutlined
+      ? OndemandVideoOutlined
+      : ArticleOutlined
   const {
     attributes,
     listeners,
@@ -369,7 +382,7 @@ function LessonRow({
         opacity: isDragging ? 0.5 : 1,
       }}
       className={cn(
-        'group flex items-center gap-2.5 px-3 py-2.5 transition-colors',
+        'group flex items-center gap-2.5 py-2.5 pr-3 pl-12 transition-colors',
         selected ? 'bg-gray-50' : 'hover:bg-gray-50',
       )}
     >
@@ -392,8 +405,8 @@ function LessonRow({
             isQuiz
               ? 'text-emerald-500'
               : isVideo
-              ? 'text-purple-400'
-              : 'text-gray-400',
+                ? 'text-purple-400'
+                : 'text-gray-400',
           )}
           sx={{ fontSize: 15 }}
         />
@@ -409,15 +422,21 @@ function LessonRow({
 
       {/* Published indicator */}
       {lesson.published ? (
-        <CheckCircleOutlined className="shrink-0 text-green-500" sx={{ fontSize: 14 }} />
+        <CheckCircleOutlined
+          className="shrink-0 text-green-500"
+          sx={{ fontSize: 14 }}
+        />
       ) : (
-        <DescriptionOutlined className="shrink-0 text-gray-300" sx={{ fontSize: 14 }} />
+        <DescriptionOutlined
+          className="shrink-0 text-gray-300"
+          sx={{ fontSize: 14 }}
+        />
       )}
 
       {/* Delete */}
       <button
         onClick={onDelete}
-        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-gray-300 opacity-0 transition-all hover:bg-red-50 hover:text-red-500 group-hover:opacity-100"
+        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-gray-300 opacity-0 transition-all group-hover:opacity-100 hover:bg-red-50 hover:text-red-500"
       >
         <DeleteOutlined sx={{ fontSize: 13 }} />
       </button>

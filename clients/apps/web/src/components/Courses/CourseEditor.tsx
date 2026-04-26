@@ -361,7 +361,6 @@ export default function CourseEditor({
             module={selectedLessonInfo.module}
             course={course}
             organizationSlug={organization.slug}
-            onBack={() => setSelectedLessonId(null)}
             onSave={handleSaveQuiz}
             onDelete={() => handleDeleteLesson(selectedLessonInfo.lesson)}
             isSaving={isSaving}
@@ -373,7 +372,6 @@ export default function CourseEditor({
             module={selectedLessonInfo.module}
             course={course}
             organizationSlug={organization.slug}
-            onBack={() => setSelectedLessonId(null)}
             onSave={handleSaveLesson}
             onDelete={() => handleDeleteLesson(selectedLessonInfo.lesson)}
             isSaving={isSaving}
@@ -423,7 +421,16 @@ export default function CourseEditor({
 
   const handleClose = () =>
     router.push(`/dashboard/${organization.slug}/products`)
-  const handleBack = () => router.back()
+  const handleBack = () => {
+    // Within the editor, "back" first returns from a lesson to the outline.
+    if (selectedLessonId) {
+      setSelectedLessonId(null)
+      return
+    }
+    // Otherwise return to the previous page (typically the products list).
+    // The wizard uses router.replace after creation so it never sits in history.
+    router.back()
+  }
 
   return (
     <div className="flex h-screen flex-col bg-gray-50">
