@@ -1,64 +1,41 @@
 'use client'
 
+import ArrowBackOutlined from '@mui/icons-material/ArrowBackOutlined'
+import ArrowForwardOutlined from '@mui/icons-material/ArrowForwardOutlined'
+import AutoStoriesOutlined from '@mui/icons-material/AutoStoriesOutlined'
+import WidgetsOutlined from '@mui/icons-material/WidgetsOutlined'
 import { schemas } from '@spaire/client'
 import { cn } from '@spaire/ui/lib/utils'
-import AutoStoriesOutlined from '@mui/icons-material/AutoStoriesOutlined'
-import GroupsOutlined from '@mui/icons-material/GroupsOutlined'
-import HeadphonesOutlined from '@mui/icons-material/HeadphonesOutlined'
-import MailOutlined from '@mui/icons-material/MailOutlined'
-import RecordVoiceOverOutlined from '@mui/icons-material/RecordVoiceOverOutlined'
-import WidgetsOutlined from '@mui/icons-material/WidgetsOutlined'
 import { useRouter } from 'next/navigation'
 import { ElementType } from 'react'
 
 type TileType = {
-  id: string
+  id: 'digital' | 'course'
   label: string
   description: string
   Icon: ElementType
-  comingSoon?: boolean
+  accent: string
+  iconBg: string
 }
 
 const PRODUCT_TYPES: TileType[] = [
   {
     id: 'digital',
     label: 'Digital Product',
-    description: 'eBooks, templates, assets, software and more',
+    description:
+      'Sell eBooks, templates, presets, software licenses, downloadable assets, and any one-off file your audience pays for.',
     Icon: WidgetsOutlined,
+    accent: 'from-orange-50 via-white to-white',
+    iconBg: 'bg-orange-100 text-orange-600',
   },
   {
     id: 'course',
     label: 'Course',
-    description: 'Structured lessons with video, text, and quizzes',
+    description:
+      'Build a structured learning experience with modules, video lessons, downloadable resources, and quizzes.',
     Icon: AutoStoriesOutlined,
-  },
-  {
-    id: 'coaching',
-    label: 'Coaching',
-    description: '1-on-1 sessions, group workshops, or programs',
-    Icon: RecordVoiceOverOutlined,
-    comingSoon: true,
-  },
-  {
-    id: 'community',
-    label: 'Community',
-    description: 'Paid community membership with exclusive access',
-    Icon: GroupsOutlined,
-    comingSoon: true,
-  },
-  {
-    id: 'podcast',
-    label: 'Podcast',
-    description: 'Premium audio content and exclusive episodes',
-    Icon: HeadphonesOutlined,
-    comingSoon: true,
-  },
-  {
-    id: 'newsletter',
-    label: 'Newsletter',
-    description: 'Email-first content with paid subscriber tiers',
-    Icon: MailOutlined,
-    comingSoon: true,
+    accent: 'from-sky-50 via-white to-white',
+    iconBg: 'bg-sky-100 text-sky-600',
   },
 ]
 
@@ -70,66 +47,91 @@ export const ProductTypeDialog = ({
   const router = useRouter()
 
   const handleSelect = (tile: TileType) => {
-    if (tile.comingSoon) return
-    if (tile.id === 'digital') {
-      router.push(`/dashboard/${organization.slug}/products/new?type=digital`)
-    } else if (tile.id === 'course') {
-      router.push(`/dashboard/${organization.slug}/products/new?type=course`)
-    }
+    router.push(`/dashboard/${organization.slug}/products/new?type=${tile.id}`)
   }
 
+  const handleBack = () => router.back()
+
   return (
-    <div className="flex min-h-[60vh] flex-col items-center justify-center gap-10 py-12">
-      <div className="flex flex-col items-center gap-3 text-center">
-        <h2 className="text-3xl font-bold text-gray-900">
+    <div className="mx-auto flex min-h-[80vh] w-full max-w-5xl flex-col px-6 py-8">
+      <div className="mb-12 flex items-center justify-between">
+        <button
+          onClick={handleBack}
+          className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900"
+        >
+          <ArrowBackOutlined sx={{ fontSize: 18 }} />
+          Back
+        </button>
+      </div>
+
+      <div className="mb-12 flex flex-col items-center gap-3 text-center">
+        <h2 className="text-4xl font-bold tracking-tight text-gray-900">
           What are you creating?
         </h2>
         <p className="max-w-md text-gray-500">
-          Choose the type of product you want to sell on your storefront
+          Pick the format that fits what you sell. You can always add more later.
         </p>
       </div>
 
-      <div className="grid w-full max-w-2xl grid-cols-2 gap-4 md:grid-cols-3">
-        {PRODUCT_TYPES.map((tile) => (
-          <button
-            key={tile.id}
-            onClick={() => handleSelect(tile)}
-            disabled={tile.comingSoon}
-            className={cn(
-              'group relative flex flex-col items-start gap-4 rounded-2xl border p-5 text-left transition-all',
-              tile.comingSoon
-                ? 'cursor-not-allowed border-gray-100 bg-gray-50 opacity-60'
-                : 'cursor-pointer border-gray-200 bg-white hover:border-blue-300 hover:shadow-md active:scale-[0.99]',
-            )}
-          >
-            {tile.comingSoon && (
-              <span className="absolute right-3 top-3 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
-                Soon
-              </span>
-            )}
-            <div
-              className={cn(
-                'flex h-10 w-10 items-center justify-center rounded-xl',
-                tile.comingSoon ? 'bg-gray-100' : 'bg-blue-50',
-              )}
-            >
-              <tile.Icon
-                className={cn(
-                  'h-5 w-5',
-                  tile.comingSoon ? 'text-gray-400' : 'text-blue-500',
-                )}
-                fontSize="small"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <span className="font-semibold text-gray-900">{tile.label}</span>
-              <span className="text-xs leading-relaxed text-gray-500">
-                {tile.description}
-              </span>
-            </div>
-          </button>
-        ))}
+      <div className="relative mx-auto grid w-full max-w-4xl grid-cols-1 items-stretch gap-6 md:grid-cols-[1fr_auto_1fr]">
+        {/* Left tile */}
+        <Tile tile={PRODUCT_TYPES[0]} onSelect={handleSelect} />
+
+        {/* Modern divider — vertical line with central pill on desktop, hidden on mobile */}
+        <div className="relative hidden items-center justify-center md:flex">
+          <div className="absolute inset-y-8 left-1/2 w-px -translate-x-1/2 bg-gradient-to-b from-transparent via-gray-200 to-transparent" />
+          <div className="relative flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white text-[11px] font-semibold uppercase tracking-wider text-gray-400 shadow-sm">
+            or
+          </div>
+        </div>
+
+        {/* Right tile */}
+        <Tile tile={PRODUCT_TYPES[1]} onSelect={handleSelect} />
       </div>
     </div>
+  )
+}
+
+function Tile({
+  tile,
+  onSelect,
+}: {
+  tile: TileType
+  onSelect: (tile: TileType) => void
+}) {
+  return (
+    <button
+      onClick={() => onSelect(tile)}
+      className={cn(
+        'group relative flex h-full flex-col items-start gap-6 overflow-hidden rounded-3xl border border-gray-200 bg-white p-8 text-left transition-all hover:border-gray-300 hover:shadow-lg active:scale-[0.995]',
+      )}
+    >
+      <div
+        className={cn(
+          'pointer-events-none absolute inset-0 bg-gradient-to-br opacity-70 transition-opacity group-hover:opacity-100',
+          tile.accent,
+        )}
+      />
+      <div className="relative flex flex-col gap-6">
+        <div
+          className={cn(
+            'flex h-14 w-14 items-center justify-center rounded-2xl',
+            tile.iconBg,
+          )}
+        >
+          <tile.Icon sx={{ fontSize: 28 }} />
+        </div>
+        <div className="flex flex-col gap-2">
+          <span className="text-xl font-bold text-gray-900">{tile.label}</span>
+          <span className="max-w-md text-sm leading-relaxed text-gray-500">
+            {tile.description}
+          </span>
+        </div>
+        <span className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-gray-900 transition-transform group-hover:translate-x-0.5">
+          Get started
+          <ArrowForwardOutlined sx={{ fontSize: 16 }} />
+        </span>
+      </div>
+    </button>
   )
 }
