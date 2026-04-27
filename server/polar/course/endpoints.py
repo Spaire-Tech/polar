@@ -50,6 +50,7 @@ def _lesson_read(lesson) -> CourseLessonRead:
         id=lesson.id,
         module_id=lesson.module_id,
         title=lesson.title,
+        description=lesson.description,
         content_type=lesson.content_type,
         content=lesson.content,
         video_asset_id=lesson.video_asset_id,

@@ -263,6 +263,7 @@ export default function CourseEditor({
         lessonId: selectedLessonInfo.lesson.id,
         body: {
           title: edits.title,
+          description: edits.description || null,
           content_type: contentType,
           content: Object.keys(nextContent).length > 0 ? nextContent : null,
           video_asset_id:
