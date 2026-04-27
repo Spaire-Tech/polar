@@ -11,7 +11,6 @@ import {
   usePreviewAccess,
 } from '@/hooks/queries/courses'
 import AddOutlined from '@mui/icons-material/AddOutlined'
-import ArrowBackOutlined from '@mui/icons-material/ArrowBackOutlined'
 import AttachFileOutlined from '@mui/icons-material/AttachFileOutlined'
 import CheckCircle from '@mui/icons-material/CheckCircle'
 import DeleteOutlineOutlined from '@mui/icons-material/DeleteOutlineOutlined'
@@ -80,7 +79,10 @@ function loadQuiz(lesson: CourseLessonRead): QuizContent {
       DEFAULT_SETTINGS.prevent_complete_without_passing,
     hide_answers_on_results:
       raw.hide_answers_on_results ?? DEFAULT_SETTINGS.hide_answers_on_results,
-    questions: raw.questions && raw.questions.length > 0 ? raw.questions : [newQuestion()],
+    questions:
+      raw.questions && raw.questions.length > 0
+        ? raw.questions
+        : [newQuestion()],
   }
 }
 
@@ -89,7 +91,6 @@ export function QuizDetail({
   module,
   course,
   organizationSlug,
-  onBack,
   onSave,
   onDelete,
   isSaving,
@@ -98,7 +99,6 @@ export function QuizDetail({
   module: CourseModuleRead
   course: CourseRead
   organizationSlug: string
-  onBack: () => void
   onSave: (body: QuizSaveBody) => void
   onDelete: () => void
   isSaving: boolean
@@ -144,8 +144,8 @@ export function QuizDetail({
         ...(quiz.questions.find((q) => q.id === questionId)?.options ?? []),
         newOption(
           `Option ${
-            (quiz.questions.find((q) => q.id === questionId)?.options.length ?? 0) +
-            1
+            (quiz.questions.find((q) => q.id === questionId)?.options.length ??
+              0) + 1
           }`,
         ),
       ],
@@ -181,7 +181,8 @@ export function QuizDetail({
       })
     } else {
       updateOption(questionId, optionId, {
-        is_correct: !question.options.find((o) => o.id === optionId)?.is_correct,
+        is_correct: !question.options.find((o) => o.id === optionId)
+          ?.is_correct,
       })
     }
   }
@@ -224,17 +225,11 @@ export function QuizDetail({
   return (
     <div className="flex flex-1 flex-col bg-gray-50">
       <div className="flex items-center gap-3 border-b border-gray-200 bg-gray-50 px-8 py-4">
-        <button
-          onClick={onBack}
-          className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors"
-        >
-          <ArrowBackOutlined fontSize="small" />
-        </button>
         <input
           value={quiz.title ?? ''}
           onChange={(e) => updateQuiz({ title: e.target.value })}
           placeholder="Untitled quiz"
-          className="flex-1 max-w-md bg-transparent text-xl font-bold text-gray-900 focus:outline-none"
+          className="max-w-md flex-1 bg-transparent text-xl font-bold text-gray-900 focus:outline-none"
         />
         <div className="ml-auto flex items-center gap-2">
           <span
@@ -257,7 +252,7 @@ export function QuizDetail({
           <button
             onClick={handlePreview}
             disabled={previewAccess.isPending}
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 transition-colors hover:bg-gray-50 disabled:opacity-50"
             title="Preview"
           >
             <VisibilityOutlined fontSize="small" />
@@ -265,7 +260,7 @@ export function QuizDetail({
           <button
             onClick={handleSave}
             disabled={isSaving || !isAnyGradedAnswerable}
-            className="rounded-full bg-gray-900 px-5 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-50 transition-colors"
+            className="rounded-full bg-gray-900 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
           >
             {isSaving ? 'Saving…' : 'Save'}
           </button>
@@ -287,7 +282,7 @@ export function QuizDetail({
                 key={t.id}
                 onClick={() => setTab(t.id)}
                 className={cn(
-                  'relative pb-3 pt-2 text-sm transition-colors',
+                  'relative pt-2 pb-3 text-sm transition-colors',
                   active
                     ? 'font-semibold text-gray-900'
                     : 'text-gray-500 hover:text-gray-700',
@@ -317,7 +312,9 @@ export function QuizDetail({
                 onUpdateOption={(optionId, patch) =>
                   updateOption(question.id, optionId, patch)
                 }
-                onRemoveOption={(optionId) => removeOption(question.id, optionId)}
+                onRemoveOption={(optionId) =>
+                  removeOption(question.id, optionId)
+                }
                 onSetCorrect={(optionId) =>
                   setCorrect(question.id, optionId, question.type)
                 }
@@ -326,7 +323,7 @@ export function QuizDetail({
             ))}
             <button
               onClick={addQuestion}
-              className="flex items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-gray-200 px-4 py-4 text-sm font-medium text-gray-400 hover:border-gray-300 hover:text-gray-600 transition-colors"
+              className="flex items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-gray-200 px-4 py-4 text-sm font-medium text-gray-400 transition-colors hover:border-gray-300 hover:text-gray-600"
             >
               <AddOutlined sx={{ fontSize: 18 }} />
               Add question
@@ -339,7 +336,9 @@ export function QuizDetail({
         {tab === 'results' && (
           <div className="flex h-64 items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-white px-6 text-center">
             <div>
-              <p className="text-sm font-medium text-gray-700">No results yet</p>
+              <p className="text-sm font-medium text-gray-700">
+                No results yet
+              </p>
               <p className="mt-1 text-xs text-gray-500">
                 Once students take this quiz, attempts and grades will show up
                 here.
@@ -390,20 +389,25 @@ function QuestionCard({
   return (
     <div className="rounded-2xl border border-gray-200 bg-white">
       <div className="flex items-center justify-center pt-2">
-        <DragIndicatorOutlined className="text-gray-300" sx={{ fontSize: 18 }} />
+        <DragIndicatorOutlined
+          className="text-gray-300"
+          sx={{ fontSize: 18 }}
+        />
       </div>
-      <div className="px-6 pb-6 pt-2">
+      <div className="px-6 pt-2 pb-6">
         <div className="mb-3 flex items-center justify-between">
-          <p className="text-sm font-bold text-gray-900">Question {index + 1}</p>
+          <p className="text-sm font-bold text-gray-900">
+            Question {index + 1}
+          </p>
           <div className="relative">
             <button
               onClick={() => setMoreOpen((v) => !v)}
-              className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
             >
               <MoreHorizOutlined sx={{ fontSize: 18 }} />
             </button>
             {moreOpen && (
-              <div className="absolute right-0 top-full z-30 mt-1 w-40 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
+              <div className="absolute top-full right-0 z-30 mt-1 w-40 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
                 <button
                   onClick={() => {
                     setMoreOpen(false)
@@ -430,9 +434,7 @@ function QuestionCard({
 
         <select
           value={question.type}
-          onChange={(e) =>
-            onChange({ type: e.target.value as QuestionType })
-          }
+          onChange={(e) => onChange({ type: e.target.value as QuestionType })}
           className="mb-5 w-full appearance-none rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:border-gray-900 focus:outline-none"
         >
           {QUESTION_TYPES.map((qt) => (
@@ -480,11 +482,11 @@ function QuestionCard({
                         ? 'bg-emerald-500 text-white'
                         : 'border-2 border-gray-300 text-transparent hover:border-gray-400',
                     )}
-                    title={option.is_correct ? 'Correct answer' : 'Mark correct'}
+                    title={
+                      option.is_correct ? 'Correct answer' : 'Mark correct'
+                    }
                   >
-                    {option.is_correct && (
-                      <CheckCircle sx={{ fontSize: 14 }} />
-                    )}
+                    {option.is_correct && <CheckCircle sx={{ fontSize: 14 }} />}
                   </button>
                   <div className="flex flex-1 flex-col gap-1.5">
                     <input
@@ -508,7 +510,7 @@ function QuestionCard({
                   </div>
                   <button
                     type="button"
-                    className="mt-1.5 flex h-9 w-9 items-center justify-center rounded-lg text-gray-300 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+                    className="mt-1.5 flex h-9 w-9 items-center justify-center rounded-lg text-gray-300 transition-colors hover:bg-gray-100 hover:text-gray-600"
                     title="Attach image"
                   >
                     <ImageOutlined sx={{ fontSize: 16 }} />
@@ -517,7 +519,7 @@ function QuestionCard({
                     <button
                       type="button"
                       onClick={() => onRemoveOption(option.id)}
-                      className="mt-1.5 flex h-9 w-9 items-center justify-center rounded-lg text-gray-300 hover:bg-red-50 hover:text-red-500 transition-colors"
+                      className="mt-1.5 flex h-9 w-9 items-center justify-center rounded-lg text-gray-300 transition-colors hover:bg-red-50 hover:text-red-500"
                       title="Remove option"
                     >
                       <DeleteOutlineOutlined sx={{ fontSize: 16 }} />
@@ -537,7 +539,8 @@ function QuestionCard({
         )}
         {isShort && (
           <p className="rounded-xl bg-gray-50 px-4 py-3 text-xs text-gray-500">
-            Short answer responses are collected from students but not auto-graded.
+            Short answer responses are collected from students but not
+            auto-graded.
           </p>
         )}
       </div>
@@ -570,22 +573,27 @@ function SettingsPanel({
           <Field label="Description">
             <textarea
               value={quiz.description ?? ''}
-              onChange={(e) => onChange({ description: e.target.value || null })}
+              onChange={(e) =>
+                onChange({ description: e.target.value || null })
+              }
               placeholder="Describe your quiz"
               rows={3}
               className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:border-gray-900 focus:outline-none"
             />
           </Field>
           <div className="flex items-center gap-4 rounded-xl border border-gray-200 bg-gray-50 p-3">
-            <div className="flex h-16 w-24 shrink-0 items-center justify-center rounded-lg bg-white border border-gray-200">
+            <div className="flex h-16 w-24 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white">
               {quiz.thumbnail_url ? (
                 <img
                   src={quiz.thumbnail_url}
                   alt="Quiz thumbnail"
-                  className="h-full w-full object-cover rounded-lg"
+                  className="h-full w-full rounded-lg object-cover"
                 />
               ) : (
-                <ImageOutlined className="text-gray-300" sx={{ fontSize: 28 }} />
+                <ImageOutlined
+                  className="text-gray-300"
+                  sx={{ fontSize: 28 }}
+                />
               )}
             </div>
             <div className="flex-1">
@@ -595,8 +603,8 @@ function SettingsPanel({
                 <span className="font-semibold">1280×720</span>.
               </p>
               <p className="mt-1 text-xs text-gray-400">
-                Image upload coming soon — set thumbnail at the lesson level
-                for now.
+                Image upload coming soon — set thumbnail at the lesson level for
+                now.
               </p>
             </div>
           </div>
@@ -654,9 +662,7 @@ function SettingsPanel({
           />
           <Checkbox
             checked={quiz.prevent_complete_without_passing}
-            onChange={(v) =>
-              onChange({ prevent_complete_without_passing: v })
-            }
+            onChange={(v) => onChange({ prevent_complete_without_passing: v })}
             label="Prevent member from marking quiz as complete without a passing grade."
           />
 
@@ -670,8 +676,8 @@ function SettingsPanel({
                 Hide answers on results page
               </p>
               <p className="mt-0.5 text-xs text-gray-500">
-                Members will not be able to view correct answers when they choose
-                an incorrect response.
+                Members will not be able to view correct answers when they
+                choose an incorrect response.
               </p>
             </div>
           </div>
@@ -745,8 +751,7 @@ function Checkbox({
         {checked && <CheckCircle sx={{ fontSize: 11 }} />}
       </span>
       <span className="text-sm text-gray-700">
-        {label}{' '}
-        {helper && <span className="text-gray-400">{helper}</span>}
+        {label} {helper && <span className="text-gray-400">{helper}</span>}
       </span>
     </button>
   )
@@ -779,4 +784,3 @@ function Toggle({
     </button>
   )
 }
-

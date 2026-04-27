@@ -74,19 +74,18 @@ export function PricingTab({
         </div>
       )}
 
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Pricing</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Set your offer and the paywall that controls free preview access.
-        </p>
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <h2 className="text-base font-bold text-gray-900">Pricing</h2>
       </div>
 
       {/* Current offer */}
-      <section className="mb-6 overflow-hidden rounded-2xl border border-gray-200 bg-white">
-        <div className="flex items-start justify-between gap-3 border-b border-gray-100 px-6 py-5">
+      <section className="mb-4 overflow-hidden rounded-2xl border border-gray-200 bg-white">
+        <div className="flex items-start justify-between gap-3 border-b border-gray-100 px-5 py-4">
           <div>
-            <h2 className="text-base font-bold text-gray-900">Current offer</h2>
-            <p className="mt-0.5 text-sm text-gray-500">
+            <h3 className="text-sm font-semibold text-gray-900">
+              Current offer
+            </h3>
+            <p className="mt-0.5 text-xs text-gray-500">
               The price your students see at checkout for this course.
             </p>
           </div>
@@ -101,10 +100,10 @@ export function PricingTab({
             </Link>
           )}
         </div>
-        <div className="px-6 py-5">
+        <div className="px-5 py-4">
           {product ? (
             <div className="flex items-baseline gap-3">
-              <span className="text-2xl font-semibold text-gray-900">
+              <span className="text-lg font-semibold text-gray-900">
                 {hasLegacyRecurringPrices(product) ? (
                   <LegacyRecurringProductPrices product={product} />
                 ) : (
@@ -113,20 +112,20 @@ export function PricingTab({
               </span>
             </div>
           ) : (
-            <div className="h-7 w-32 animate-pulse rounded bg-gray-100" />
+            <div className="h-6 w-28 animate-pulse rounded bg-gray-100" />
           )}
         </div>
       </section>
 
       {/* Paywall */}
       <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
-        <div className="flex items-start gap-3 px-6 py-5">
-          <span className="bg-primary/10 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl">
-            <PaywallIcon size={20} />
+        <div className="flex items-start gap-3 px-5 py-4">
+          <span className="bg-primary/10 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg">
+            <PaywallIcon size={18} />
           </span>
           <div className="flex-1">
-            <h2 className="text-base font-bold text-gray-900">Paywall</h2>
-            <p className="mt-0.5 text-sm text-gray-500">
+            <h3 className="text-sm font-semibold text-gray-900">Paywall</h3>
+            <p className="mt-0.5 text-xs text-gray-500">
               Place a paywall between modules. Modules above are free preview;
               everything after is locked until purchase.
             </p>
@@ -135,8 +134,8 @@ export function PricingTab({
         </div>
 
         {enabled && (
-          <div className="border-t border-gray-100 px-6 py-5">
-            <label className="block text-sm font-bold text-gray-900">
+          <div className="border-t border-gray-100 px-5 py-4">
+            <label className="block text-xs font-semibold text-gray-900">
               Paywall position
             </label>
             <p className="mt-0.5 text-xs text-gray-500">
@@ -199,7 +198,7 @@ export function PricingTab({
           </div>
         )}
 
-        <div className="flex items-center justify-end gap-2 border-t border-gray-100 px-6 py-3">
+        <div className="flex items-center justify-end gap-2 border-t border-gray-100 px-5 py-3">
           <button
             disabled={!dirty || isSaving}
             onClick={() => {
