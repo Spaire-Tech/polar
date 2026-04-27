@@ -74,6 +74,7 @@ class CourseService:
                 module.lessons.append(
                     CourseLesson(
                         title=lesson_schema.title,
+                        description=lesson_schema.description,
                         content_type=lesson_schema.content_type,
                         content=lesson_schema.content,
                         video_asset_id=lesson_schema.video_asset_id,
@@ -118,6 +119,7 @@ class CourseService:
             module.lessons.append(
                 CourseLesson(
                     title=lesson_schema.title,
+                    description=lesson_schema.description,
                     content_type=lesson_schema.content_type,
                     content=lesson_schema.content,
                     video_asset_id=lesson_schema.video_asset_id,
@@ -181,6 +183,7 @@ class CourseService:
             CourseLesson(
                 module_id=module.id,
                 title=create_schema.title,
+                description=create_schema.description,
                 content_type=create_schema.content_type,
                 content=create_schema.content,
                 video_asset_id=create_schema.video_asset_id,

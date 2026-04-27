@@ -1,7 +1,7 @@
 import { getServerSideAPI } from '@/utils/client/serverside'
 import { getOrganizationOrNotFound } from '@/utils/customerPortal'
 import { redirect } from 'next/navigation'
-import LessonViewerPage from './LessonViewerPage'
+import CourseLandingPage from './CourseLandingPage'
 
 export default async function Page(props: {
   params: Promise<{ organization: string; courseId: string }>
@@ -27,7 +27,7 @@ export default async function Page(props: {
   }
 
   return (
-    <LessonViewerPage
+    <CourseLandingPage
       organization={organization}
       courseId={params.courseId}
       customerSessionToken={token}

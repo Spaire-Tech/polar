@@ -31,6 +31,7 @@ def _serialize_lesson(lesson, completed_ids: set[str]) -> dict:
     return {
         "id": str(lesson.id),
         "title": lesson.title,
+        "description": lesson.description,
         "content_type": lesson.content_type,
         "content": lesson.content,
         "position": lesson.position,
@@ -189,6 +190,7 @@ async def get_enrolled_course(
             "id": str(course.id),
             "title": course.title,
             "course_type": course.course_type,
+            "has_access": True,
             "paywall_enabled": course.paywall_enabled,
             "paywall_position": course.paywall_position,
             "modules": modules,

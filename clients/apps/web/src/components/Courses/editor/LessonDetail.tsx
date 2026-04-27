@@ -31,6 +31,7 @@ type Media = 'none' | 'video' | 'audio'
 
 export type LessonEdits = {
   title: string
+  description: string
   moduleId: string
   media: Media
   textContent: string
@@ -253,6 +254,15 @@ export function LessonDetail({
                 value={edits.title}
                 onChange={(e) => update('title', e.target.value)}
                 className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:border-gray-900 focus:ring-2 focus:ring-gray-100 focus:outline-none"
+              />
+            </Field>
+
+            <Field label="Description">
+              <textarea
+                value={edits.description}
+                onChange={(e) => update('description', e.target.value)}
+                rows={3}
+                className="w-full resize-y rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:border-gray-900 focus:ring-2 focus:ring-gray-100 focus:outline-none"
               />
             </Field>
 
@@ -602,6 +612,7 @@ function initEdits(
         : 'none'
   return {
     title: lesson.title,
+    description: lesson.description ?? '',
     moduleId: module.id,
     media,
     textContent: text,

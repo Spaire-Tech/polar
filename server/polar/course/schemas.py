@@ -8,6 +8,7 @@ from polar.kit.schemas import Schema, TimestampedSchema
 
 class CourseLessonCreate(Schema):
     title: str = Field(max_length=500)
+    description: str | None = None
     content_type: Literal["video", "text", "download", "quiz"] = "text"
     content: dict | None = None
     video_asset_id: str | None = None
@@ -19,6 +20,7 @@ class CourseLessonCreate(Schema):
 
 class CourseLessonUpdate(Schema):
     title: str | None = Field(None, max_length=500)
+    description: str | None = None
     content_type: Literal["video", "text", "download", "quiz"] | None = None
     content: dict | None = None
     video_asset_id: str | None = None
@@ -38,6 +40,7 @@ class CourseLessonRead(TimestampedSchema):
     id: UUID4
     module_id: UUID4
     title: str
+    description: str | None
     content_type: str
     content: dict | None
     video_asset_id: str | None

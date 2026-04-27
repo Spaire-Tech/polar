@@ -46,6 +46,7 @@ export type CourseLessonRead = {
   id: string
   module_id: string
   title: string
+  description: string | null
   content_type: string
   content:
     | (Record<string, unknown> & {
@@ -255,6 +256,7 @@ export const useAddCourseLesson = () =>
       moduleId: string
       body: {
         title: string
+        description?: string | null
         content_type: string
         position: number
         is_free_preview?: boolean
@@ -275,6 +277,7 @@ export const useUpdateCourseLesson = () =>
       lessonId: string
       body: {
         title?: string
+        description?: string | null
         content_type?: string
         content?: Record<string, unknown> | null
         video_asset_id?: string | null
@@ -346,6 +349,7 @@ export type CustomerCourseEnrollment = {
 export type CustomerLessonRead = {
   id: string
   title: string
+  description: string | null
   content_type: string
   content:
     | (Record<string, unknown> & {
@@ -391,6 +395,7 @@ export type CustomerCourseDetail = {
     id: string
     title: string | null
     course_type: string
+    has_access: boolean
     paywall_enabled: boolean
     paywall_position: number | null
     modules: CustomerModuleRead[]
