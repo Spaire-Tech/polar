@@ -12,7 +12,8 @@ Guidelines:
 - Modules should have clear, descriptive titles that communicate the learning objective
 - Lessons should have specific, actionable titles (e.g. "Setting Up Your Development Environment" not just "Setup")
 - Mix content types: use "video" for demonstrations and walkthroughs, "text" for conceptual explanations and references
-- Start with foundational concepts and progress toward advanced application`
+- Start with foundational concepts and progress toward advanced application
+- The very first lesson of the very first module MUST be a free preview titled exactly "Trailer". Its content_type MUST be "video". Its purpose is to introduce the course to prospective students before purchase — keep it short and inviting.`
 
 export async function POST(req: Request) {
   const user = await getAuthenticatedUser()

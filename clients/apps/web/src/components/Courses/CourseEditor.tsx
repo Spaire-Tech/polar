@@ -269,6 +269,8 @@ export default function CourseEditor({
       const existingContent = (selectedLessonInfo.lesson.content ??
         {}) as Record<string, unknown>
       const nextContent: Record<string, unknown> = { ...existingContent }
+      if (edits.description) nextContent.description = edits.description
+      else delete nextContent.description
       if (!isQuiz) {
         if (edits.textContent) nextContent.text = edits.textContent
         else delete nextContent.text

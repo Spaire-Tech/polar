@@ -32,6 +32,7 @@ type Media = 'none' | 'video' | 'audio'
 
 export type LessonEdits = {
   title: string
+  description: string
   moduleId: string
   media: Media
   textContent: string
@@ -255,6 +256,16 @@ export function LessonDetail({
                 value={edits.title}
                 onChange={(e) => update('title', e.target.value)}
                 className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:border-gray-900 focus:ring-2 focus:ring-gray-100 focus:outline-none"
+              />
+            </Field>
+
+            <Field label="Description">
+              <textarea
+                value={edits.description}
+                onChange={(e) => update('description', e.target.value)}
+                placeholder="Short summary shown to students on the course landing page."
+                rows={3}
+                className="focus:border-primary w-full resize-none rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
               />
             </Field>
 
@@ -629,7 +640,10 @@ function initEdits(
   lesson: CourseLessonRead,
   module: CourseModuleRead,
 ): LessonEdits {
-  const text = (lesson.content as { text?: string } | null)?.text ?? ''
+  const content = (lesson.content ?? {}) as {
+    text?: string
+    description?: string
+  }
   const media: Media =
     lesson.content_type === 'video'
       ? 'video'
@@ -638,9 +652,10 @@ function initEdits(
         : 'none'
   return {
     title: lesson.title,
+    description: content.description ?? '',
     moduleId: module.id,
     media,
-    textContent: text,
+    textContent: content.text ?? '',
     videoUrl: lesson.video_asset_id ?? '',
     published: lesson.published,
     commentsMode: 'visible',

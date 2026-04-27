@@ -4,6 +4,7 @@ import {
   useUpdateProduct,
   useUpdateProductBenefits,
 } from '@/hooks/queries'
+import { useCourseByProduct } from '@/hooks/queries/courses'
 import { setProductValidationErrors } from '@/utils/api/errors'
 import { ProductEditOrCreateForm } from '@/utils/product'
 import { isValidationError, schemas } from '@spaire/client'
@@ -29,6 +30,8 @@ export const EditProductPage = ({
   product,
 }: EditProductPageProps) => {
   const router = useRouter()
+  const { data: course } = useCourseByProduct(product.id)
+  const isCourse = !!course
   const benefitsQuery = useBenefits(organization.id, {
     limit: 200,
   })
@@ -186,7 +189,7 @@ export const EditProductPage = ({
         </Button>
       }
     >
-      <div className=" flex flex-col divide-y divide-gray-200 rounded-4xl border border-gray-200">
+      <div className="flex flex-col divide-y divide-gray-200 rounded-4xl border border-gray-200">
         <Form {...form}>
           <form
             onSubmit={handleSubmit(onSubmit)}
@@ -196,15 +199,17 @@ export const EditProductPage = ({
               organization={organization}
               update={true}
               benefitsSlot={
-                <Benefits
-                  organization={organization}
-                  benefits={organizationBenefits}
-                  totalBenefitCount={totalBenefitCount}
-                  selectedBenefits={enabledBenefits}
-                  onSelectBenefit={onSelectBenefit}
-                  onRemoveBenefit={onRemoveBenefit}
-                  onReorderBenefits={onReorderBenefits}
-                />
+                isCourse ? null : (
+                  <Benefits
+                    organization={organization}
+                    benefits={organizationBenefits}
+                    totalBenefitCount={totalBenefitCount}
+                    selectedBenefits={enabledBenefits}
+                    onSelectBenefit={onSelectBenefit}
+                    onRemoveBenefit={onRemoveBenefit}
+                    onReorderBenefits={onReorderBenefits}
+                  />
+                )
               }
             />
           </form>

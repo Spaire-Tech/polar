@@ -4,6 +4,7 @@ import {
   useCreateProduct,
   useUpdateProductBenefits,
 } from '@/hooks/queries'
+import { useCourseByProduct } from '@/hooks/queries/courses'
 import { setProductValidationErrors } from '@/utils/api/errors'
 import { ProductEditOrCreateForm, productToCreateForm } from '@/utils/product'
 import { schemas } from '@spaire/client'
@@ -68,6 +69,8 @@ export const CreateProductPage = ({
 }: CreateProductPageProps) => {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const { data: sourceCourse } = useCourseByProduct(sourceProduct?.id)
+  const isCourse = !!sourceCourse
   const benefitsQuery = useBenefits(organization.id, {
     limit: 200,
   })
@@ -126,7 +129,10 @@ export const CreateProductPage = ({
     if (!onPriceChange) return
 
     // Build per-currency price map (fixed + seat_based)
-    const currencyMap = new Map<string, { amount: number | null; amountType: string }>()
+    const currencyMap = new Map<
+      string,
+      { amount: number | null; amountType: string }
+    >()
     for (const p of watchedPrices ?? []) {
       if (!('price_currency' in p)) continue
       const cur = (p as any).price_currency as string
@@ -144,11 +150,13 @@ export const CreateProductPage = ({
       }
     }
 
-    const allPrices = Array.from(currencyMap.entries()).map(([currency, v]) => ({
-      currency,
-      amount: v.amount,
-      amountType: v.amountType,
-    }))
+    const allPrices = Array.from(currencyMap.entries()).map(
+      ([currency, v]) => ({
+        currency,
+        amount: v.amount,
+        amountType: v.amountType,
+      }),
+    )
     const first = allPrices[0]
     onPriceChange({
       amount: first?.amount ?? null,
@@ -185,12 +193,14 @@ export const CreateProductPage = ({
 
         // Validate all prices (including unmounted currency tabs not checked by react-hook-form)
         const invalidFixedPrice = productCreateRest.prices.some(
-          (price: any) => price.amount_type === 'fixed' && (price.price_amount ?? 0) < 50,
+          (price: any) =>
+            price.amount_type === 'fixed' && (price.price_amount ?? 0) < 50,
         )
         if (invalidFixedPrice) {
           toast({
             title: 'Invalid price',
-            description: 'All prices must be at least $0.50. Check all currency tabs.',
+            description:
+              'All prices must be at least $0.50. Check all currency tabs.',
           })
           return
         }
@@ -208,9 +218,10 @@ export const CreateProductPage = ({
           if (error.detail) {
             setProductValidationErrors(error.detail, setError)
           }
-          const msg = Array.isArray(error.detail) && error.detail.length > 0
-            ? error.detail[0].msg
-            : 'Failed to create product. Please check the form for errors.'
+          const msg =
+            Array.isArray(error.detail) && error.detail.length > 0
+              ? error.detail[0].msg
+              : 'Failed to create product. Please check the form for errors.'
           toast({ title: 'Error', description: msg })
           return
         }
@@ -268,7 +279,7 @@ export const CreateProductPage = ({
 
   const formContent = (
     <>
-      <div className=" flex flex-col divide-y divide-gray-200 rounded-4xl border border-gray-200">
+      <div className="flex flex-col divide-y divide-gray-200 rounded-4xl border border-gray-200">
         <Form {...form}>
           <form
             onSubmit={handleSubmit(onSubmit)}
@@ -278,15 +289,17 @@ export const CreateProductPage = ({
               organization={organization}
               update={false}
               benefitsSlot={
-                <Benefits
-                  organization={organization}
-                  benefits={organizationBenefits}
-                  totalBenefitCount={totalBenefitCount}
-                  selectedBenefits={enabledBenefits}
-                  onSelectBenefit={onSelectBenefit}
-                  onRemoveBenefit={onRemoveBenefit}
-                  onReorderBenefits={onReorderBenefits}
-                />
+                isCourse ? null : (
+                  <Benefits
+                    organization={organization}
+                    benefits={organizationBenefits}
+                    totalBenefitCount={totalBenefitCount}
+                    selectedBenefits={enabledBenefits}
+                    onSelectBenefit={onSelectBenefit}
+                    onRemoveBenefit={onRemoveBenefit}
+                    onReorderBenefits={onReorderBenefits}
+                  />
+                )
               }
             />
           </form>
