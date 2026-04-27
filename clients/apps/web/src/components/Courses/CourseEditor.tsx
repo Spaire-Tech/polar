@@ -18,7 +18,7 @@ import {
 import { getQueryClient } from '@/utils/api/query'
 import { schemas } from '@spaire/client'
 import { useRouter } from 'next/navigation'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from '../Toast/use-toast'
 import { CourseHeader, TabId } from './editor/CourseHeader'
 import { CustomersTab } from './editor/CustomersTab'
@@ -79,6 +79,20 @@ export default function CourseEditor({
   const [isSaving, setIsSaving] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
+
+  // Browser back / system back: route to the products list instead of
+  // popping out of the app (or worse, into the wizard). We push a sentinel
+  // history entry on mount; when the user hits browser-back, popstate fires
+  // and we redirect to /products.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.history.pushState({ courseEditor: true }, '')
+    const onPop = () => {
+      router.push(`/dashboard/${organization.slug}/products`)
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [organization.slug, router])
 
   const addModule = useAddCourseModule()
   const updateModule = useUpdateCourseModule()

@@ -26,6 +26,7 @@ import { cn } from '@spaire/ui/lib/utils'
 import { useEffect, useRef, useState } from 'react'
 import { HlsVideo } from '../HlsVideo'
 import { RichTextEditor } from './RichTextEditor'
+import { ThumbnailRepositioner } from './ThumbnailRepositioner'
 
 type Media = 'none' | 'video' | 'audio'
 
@@ -92,6 +93,7 @@ export function LessonDetail({
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(
     lesson.thumbnail_url ?? null,
   )
+  const [showReposition, setShowReposition] = useState(false)
   const attachmentInputRef = useRef<HTMLInputElement>(null)
   const initialAttachments =
     (lesson.content?.attachments as LessonAttachment[] | undefined) ?? []
@@ -527,17 +529,28 @@ export function LessonDetail({
             <p className="text-xs text-gray-500">
               JPG, PNG, or WebP. Recommended 1280×720.
             </p>
-            <button
-              className="mt-3 rounded-full bg-gray-900 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
-              onClick={() => thumbnailInputRef.current?.click()}
-              disabled={uploadThumbnail.isPending}
-            >
-              {uploadThumbnail.isPending
-                ? 'Uploading…'
-                : thumbnailUrl
-                  ? 'Replace'
-                  : 'Pick File'}
-            </button>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button
+                className="rounded-full bg-gray-900 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
+                onClick={() => thumbnailInputRef.current?.click()}
+                disabled={uploadThumbnail.isPending}
+              >
+                {uploadThumbnail.isPending
+                  ? 'Uploading…'
+                  : thumbnailUrl
+                    ? 'Replace'
+                    : 'Pick File'}
+              </button>
+              {thumbnailUrl && (
+                <button
+                  className="rounded-full border border-gray-300 px-4 py-2 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
+                  onClick={() => setShowReposition(true)}
+                  disabled={uploadThumbnail.isPending}
+                >
+                  Reposition
+                </button>
+              )}
+            </div>
           </Card>
 
           <Card compact>
@@ -575,6 +588,29 @@ export function LessonDetail({
           </button>
         </div>
       </div>
+
+      {showReposition && thumbnailUrl && (
+        <ThumbnailRepositioner
+          imageUrl={thumbnailUrl}
+          isSaving={uploadThumbnail.isPending}
+          onCancel={() => setShowReposition(false)}
+          onSave={async (blob) => {
+            const file = new File([blob], 'thumbnail.jpg', {
+              type: 'image/jpeg',
+            })
+            try {
+              const updated = await uploadThumbnail.mutateAsync({
+                lessonId: lesson.id,
+                file,
+              })
+              setThumbnailUrl(updated.thumbnail_url ?? null)
+              setShowReposition(false)
+            } catch {
+              // mutation surfaces error
+            }
+          }}
+        />
+      )}
     </div>
   )
 }
