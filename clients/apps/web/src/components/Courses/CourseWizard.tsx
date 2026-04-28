@@ -11,6 +11,7 @@ import CheckCircleOutlined from '@mui/icons-material/CheckCircleOutlined'
 import CloseOutlined from '@mui/icons-material/CloseOutlined'
 import ExpandMoreOutlined from '@mui/icons-material/ExpandMoreOutlined'
 import OndemandVideoOutlined from '@mui/icons-material/OndemandVideoOutlined'
+import PlayArrow from '@mui/icons-material/PlayArrow'
 import TextSnippetOutlined from '@mui/icons-material/TextSnippetOutlined'
 import { schemas } from '@spaire/client'
 import { Form } from '@spaire/ui/components/ui/form'
@@ -211,6 +212,7 @@ function StepDetails({
 }) {
   const { register, watch } = useFormContext<ProductEditOrCreateForm>()
   const title = watch('name') ?? ''
+  const description = watch('description') ?? ''
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
 
@@ -224,124 +226,183 @@ function StepDetails({
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  return (
-    <div className="mx-auto max-w-2xl px-6 py-10">
-      <h1 className="mb-1 text-3xl font-bold text-gray-900">Course Details</h1>
-      <p className="mb-8 text-sm text-gray-500">
-        We&apos;ll use your title and description to generate a sample course
-        outline.
-      </p>
+  const backgroundImage = thumbnailUrl
+    ? `url('${thumbnailUrl}')`
+    : 'linear-gradient(135deg, #1a1a1a 0%, #000 100%)'
 
-      <div className="flex flex-col gap-5">
-        {/* Details box */}
-        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-          <div className="flex flex-col gap-5 px-5 py-5">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
-                Title
-              </label>
-              <input
-                type="text"
-                {...register('name', { required: true })}
-                placeholder="Examples: Public Speaking 101, Learning piano, …"
-                className="focus:border-primary w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
-              />
+  return (
+    <div className="flex min-h-screen flex-col lg:flex-row">
+      {/* Left side - Form inputs */}
+      <div className="flex flex-1 flex-col bg-white px-6 py-10">
+        <div className="mx-auto w-full max-w-md">
+          <h1 className="mb-1 text-3xl font-bold text-gray-900">Course Details</h1>
+          <p className="mb-8 text-sm text-gray-500">
+            We&apos;ll use your title and description to generate a sample course
+            outline.
+          </p>
+
+          <div className="flex flex-col gap-5">
+            {/* Details box */}
+            <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+              <div className="flex flex-col gap-5 px-5 py-5">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
+                    Title
+                  </label>
+                  <input
+                    type="text"
+                    {...register('name', { required: true })}
+                    placeholder="Examples: Public Speaking 101, Learning piano, …"
+                    className="focus:border-primary w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
+                    Brief description
+                  </label>
+                  <textarea
+                    {...register('description')}
+                    placeholder="Example: Learn the skills required to …"
+                    rows={5}
+                    className="focus:border-primary w-full resize-none rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
+                  />
+                </div>
+              </div>
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
-                Brief description
-              </label>
-              <textarea
-                {...register('description')}
-                placeholder="Example: Learn the skills required to …"
-                rows={5}
-                className="focus:border-primary w-full resize-none rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
-              />
+            {/* Thumbnail box */}
+            <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+              <div className="flex flex-col gap-3 px-5 py-5">
+                <div className="flex flex-col gap-0.5">
+                  <h3 className="text-sm font-bold text-gray-900">
+                    Thumbnail image
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    This image appears in Checkouts, your Spaire Space, in emails,
+                    social sharing and more.
+                  </p>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <div className="relative aspect-video w-48 shrink-0 overflow-hidden rounded-xl border border-gray-200 bg-gray-50">
+                    {thumbnailUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={thumbnailUrl}
+                        alt="Course thumbnail preview"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full flex-col items-center justify-center text-gray-300">
+                        <AddPhotoAlternateOutlined style={{ fontSize: 28 }} />
+                        <span className="mt-1 text-[11px] text-gray-400">
+                          Preview
+                        </span>
+                      </div>
+                    )}
+                    {uploading && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-white/80">
+                        <div className="border-t-primary h-5 w-5 animate-spin rounded-full border-2 border-gray-200" />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      className="hidden"
+                      onChange={(e) => void handleFile(e)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
+                      className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <AddPhotoAlternateOutlined style={{ fontSize: 14 }} />
+                      {thumbnailUrl ? 'Change image' : 'Select image'}
+                    </button>
+                    {thumbnailUrl && (
+                      <button
+                        type="button"
+                        onClick={() => onChangeThumbnail(null)}
+                        className="text-left text-xs text-gray-400 hover:text-gray-600"
+                      >
+                        Remove
+                      </button>
+                    )}
+                    <p className="mt-1 text-[11px] text-gray-400">
+                      Recommended dimensions of 1280x720
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Thumbnail box */}
-        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-          <div className="flex flex-col gap-3 px-5 py-5">
-            <div className="flex flex-col gap-0.5">
-              <h3 className="text-sm font-bold text-gray-900">
-                Thumbnail image
-              </h3>
-              <p className="text-xs text-gray-500">
-                This image appears in Checkouts, your Spaire Space, in emails,
-                social sharing and more.
-              </p>
-            </div>
-
-            <div className="flex items-start gap-4">
-              <div className="relative aspect-video w-48 shrink-0 overflow-hidden rounded-xl border border-gray-200 bg-gray-50">
-                {thumbnailUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={thumbnailUrl}
-                    alt="Course thumbnail preview"
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full w-full flex-col items-center justify-center text-gray-300">
-                    <AddPhotoAlternateOutlined style={{ fontSize: 28 }} />
-                    <span className="mt-1 text-[11px] text-gray-400">
-                      Preview
-                    </span>
-                  </div>
-                )}
-                {uploading && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-white/80">
-                    <div className="border-t-primary h-5 w-5 animate-spin rounded-full border-2 border-gray-200" />
-                  </div>
-                )}
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  className="hidden"
-                  onChange={(e) => void handleFile(e)}
-                />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
-                  className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <AddPhotoAlternateOutlined style={{ fontSize: 14 }} />
-                  {thumbnailUrl ? 'Change image' : 'Select image'}
-                </button>
-                {thumbnailUrl && (
-                  <button
-                    type="button"
-                    onClick={() => onChangeThumbnail(null)}
-                    className="text-left text-xs text-gray-400 hover:text-gray-600"
-                  >
-                    Remove
-                  </button>
-                )}
-                <p className="mt-1 text-[11px] text-gray-400">
-                  Recommended dimensions of 1280x720
-                </p>
-              </div>
-            </div>
+          <div className="mt-8 flex items-center justify-end">
+            <button
+              onClick={onNext}
+              disabled={!title.trim()}
+              className="rounded-full bg-gray-900 px-7 py-3 text-sm font-semibold text-white transition-colors hover:bg-gray-800 disabled:opacity-40"
+            >
+              Next
+            </button>
           </div>
         </div>
       </div>
 
-      <div className="mt-8 flex items-center justify-end">
-        <button
-          onClick={onNext}
-          disabled={!title.trim()}
-          className="rounded-full bg-gray-900 px-7 py-3 text-sm font-semibold text-white transition-colors hover:bg-gray-800 disabled:opacity-40"
+      {/* Right side - Live preview (hidden on mobile/tablet) */}
+      <div className="hidden lg:flex flex-1 flex-col bg-black">
+        <div
+          className="relative flex flex-1 items-center justify-center bg-cover bg-center bg-fixed overflow-hidden"
+          style={{
+            backgroundImage,
+          }}
         >
-          Next
-        </button>
+          {/* Dark overlay gradient */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/50 to-black/80" />
+
+          {/* Preview content */}
+          <div className="relative z-10 flex flex-col items-center text-center text-white max-w-lg px-6">
+            {/* Organization name in serif */}
+            <h2 className="text-3xl font-serif font-bold mb-4">
+              {organization.name}
+            </h2>
+
+            {/* Thin divider */}
+            {title && <div className="w-12 h-px bg-white/40 mb-6" />}
+
+            {/* Course title */}
+            {title && (
+              <h1 className="text-3xl font-bold mb-4 leading-tight">
+                {title}
+              </h1>
+            )}
+
+            {/* Description */}
+            {description && (
+              <p className="text-base text-white/80 mb-8 leading-relaxed">
+                {description}
+              </p>
+            )}
+
+            {/* CTA Buttons */}
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+              <button className="flex items-center gap-2 px-6 py-3 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-colors">
+                <PlayArrow sx={{ fontSize: 20 }} />
+                Start Class
+              </button>
+
+              <button className="px-6 py-3 border border-white/40 text-white font-semibold rounded-lg hover:border-white/60 hover:bg-white/5 transition-colors">
+                Trailer
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )
