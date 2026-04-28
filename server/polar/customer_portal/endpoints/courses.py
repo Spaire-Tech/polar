@@ -234,6 +234,8 @@ async def get_enrolled_course(
         "course": {
             "id": str(course.id),
             "title": course.title,
+            "description": course.description,
+            "thumbnail_url": course.thumbnail_url,
             "course_type": course.course_type,
             "paywall_enabled": course.paywall_enabled,
             "paywall_position": course.paywall_position,

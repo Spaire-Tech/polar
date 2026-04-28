@@ -3,12 +3,10 @@
 import {
   useCustomerCourse,
   useMarkLessonComplete,
-  type CustomerCourseDetail,
-  type CustomerLessonRead,
 } from '@/hooks/queries/courses'
 import { schemas } from '@spaire/client'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { MasterClassHero } from './MasterClassHero'
 import { MasterClassLessonList, type FlatLesson } from './MasterClassLessonList'
 import { MasterClassLessonViewer } from './MasterClassLessonViewer'
@@ -38,31 +36,35 @@ const LessonViewerPage = ({
     initialLessonId ?? null,
   )
 
-  // Flatten lessons from modules into a single array
-  const flatLessons: FlatLesson[] = (data?.course.lessons ??
-    data?.course.modules.flatMap((m) =>
-      m.lessons.map((l) => ({
-        ...l,
-        locked: m.locked,
-        locked_until: m.locked_until,
-      }))
-    ) ??
-   data?.course.modules.flatMap((m) =>
-      m.lessons.map((l) => ({
-        ...l,
-        content_type: l.content_type ?? "text",
-        content: l.content ?? null,
-        locked: m.locked,
-        locked_until: m.locked_until,
-      }))
-    )) ?? []
+  // Flatten lessons from modules into a single array (or use flat lessons if available)
+  const flatLessons: FlatLesson[] = data
+    ? (data.course.lessons as FlatLesson[] | undefined) ??
+      data.course.modules.flatMap((m) =>
+        m.lessons.map((l) => ({
+          id: l.id,
+          title: l.title,
+          description: (l as any).description ?? null,
+          position: l.position,
+          duration_seconds: l.duration_seconds,
+          thumbnail_url: l.thumbnail_url,
+          mux_playback_id: l.mux_playback_id,
+          mux_status: l.mux_status,
+          completed: l.completed,
+          is_free_preview: l.is_free_preview,
+          locked: m.locked,
+          locked_until: m.locked_until,
+          content_type: l.content_type ?? 'text',
+          content: l.content ?? null,
+        }))
+      )
+    : []
 
-  const currentLesson = flatLessons.find((l) => l.id === selectedLessonId) ?? null
-  const firstIncomplete = flatLessons.find((l) => !l.completed) ?? flatLessons[0]
+  const currentLesson =
+    flatLessons.find((l) => l.id === selectedLessonId) ?? null
+  const firstIncomplete =
+    flatLessons.find((l) => !l.completed) ?? flatLessons[0]
   const progress = data?.progress
-  const hasStarted = progress && progress.completed_lessons > 0
-  const isComplete =
-    progress && progress.total_lessons > 0 && progress.completion_percent === 100
+  const hasStarted = !!(progress && progress.completed_lessons > 0)
 
   const handleSelectLesson = (lesson: FlatLesson) => {
     setSelectedLessonId(lesson.id)
@@ -160,9 +162,9 @@ const LessonViewerPage = ({
       <MasterClassHero
         courseTitle={data.course.title}
         organizationName={organization.name}
-        description={data.course.title ? 'Course description' : null}
-        thumbnailUrl={data.course.title ? undefined : null}
-        isStarted={hasStarted ?? false}
+        description={data.course.description}
+        thumbnailUrl={data.course.thumbnail_url}
+        isStarted={hasStarted}
         totalLessons={progress?.total_lessons ?? flatLessons.length}
         completionPercent={progress?.completion_percent ?? 0}
         onStart={handleStartClass}

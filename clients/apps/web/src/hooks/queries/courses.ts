@@ -393,6 +393,8 @@ export type CustomerCourseDetail = {
   course: {
     id: string
     title: string | null
+    description: string | null
+    thumbnail_url: string | null
     course_type: string
     paywall_enabled: boolean
     paywall_position: number | null
