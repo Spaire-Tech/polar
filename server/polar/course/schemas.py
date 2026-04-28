@@ -30,6 +30,7 @@ class CourseLessonUpdate(Schema):
     is_free_preview: bool | None = None
     published: bool | None = None
     thumbnail_url: str | None = None
+    thumbnail_object_position: str | None = Field(None, max_length=32)
     description: str | None = None
     release_at: datetime | None = None
     drip_days: int | None = None
@@ -56,6 +57,7 @@ class CourseLessonRead(TimestampedSchema):
     mux_playback_id: str | None = None
     mux_status: str | None = None
     thumbnail_url: str | None = None
+    thumbnail_object_position: str | None = None
     description: str | None = None
     release_at: datetime | None = None
     drip_days: int | None = None
@@ -76,6 +78,7 @@ class CourseLessonFlatRead(TimestampedSchema):
     mux_playback_id: str | None = None
     mux_status: str | None = None
     thumbnail_url: str | None = None
+    thumbnail_object_position: str | None = None
     description: str | None = None
     release_at: datetime | None = None
     drip_days: int | None = None
@@ -93,6 +96,7 @@ class CourseLessonPublicRead(Schema):
     is_free_preview: bool
     duration_seconds: int | None
     thumbnail_url: str | None
+    thumbnail_object_position: str | None = None
 
 
 class CourseModuleCreate(Schema):
@@ -136,6 +140,7 @@ class CourseCreate(Schema):
     ai_generated: bool = False
     description: str | None = None
     thumbnail_url: str | None = None
+    thumbnail_object_position: str | None = Field(None, max_length=32)
     modules: list[CourseModuleCreate] = Field(default_factory=list)
 
 
@@ -148,6 +153,7 @@ class CourseUpdate(Schema):
     paywall_position: int | None = None
     description: str | None = None
     thumbnail_url: str | None = None
+    thumbnail_object_position: str | None = Field(None, max_length=32)
 
 
 class QuizAnswerSubmission(Schema):
@@ -219,6 +225,7 @@ class CourseRead(TimestampedSchema):
     ai_generated: bool
     description: str | None = None
     thumbnail_url: str | None = None
+    thumbnail_object_position: str | None = None
     modules: list[CourseModuleRead]
 
 
@@ -227,6 +234,7 @@ class CourseLandingPageRead(TimestampedSchema):
     title: str | None
     description: str | None
     thumbnail_url: str | None
+    thumbnail_object_position: str | None = None
     course_type: str
     lesson_count: int
     total_duration_seconds: int

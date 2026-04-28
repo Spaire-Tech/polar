@@ -21,6 +21,7 @@ export interface MasterClassLessonViewerProps {
     content_type: string
     duration_seconds?: number | null
     thumbnail_url?: string | null
+    thumbnail_object_position?: string | null
     mux_playback_id?: string | null
     mux_status?: string | null
     completed: boolean
@@ -35,6 +36,7 @@ export interface MasterClassLessonViewerProps {
     completed: boolean
     duration_seconds?: number | null
     thumbnail_url?: string | null
+    thumbnail_object_position?: string | null
     mux_playback_id?: string | null
   }>
   courseTitle: string | null
@@ -99,6 +101,10 @@ export const MasterClassLessonViewer = ({
               src={thumbnailSrc}
               alt={lesson.title}
               className="h-full w-full object-cover opacity-80 group-hover:opacity-90 transition-opacity"
+              style={{
+                objectPosition:
+                  lesson.thumbnail_object_position ?? '50% 50%',
+              }}
             />
           )}
           <div className="absolute inset-0 flex items-center justify-center">
@@ -117,6 +123,10 @@ export const MasterClassLessonViewer = ({
             src={thumbnailSrc}
             alt={lesson.title}
             className="h-full w-full object-cover"
+            style={{
+              objectPosition:
+                lesson.thumbnail_object_position ?? '50% 50%',
+            }}
           />
         </div>
       )

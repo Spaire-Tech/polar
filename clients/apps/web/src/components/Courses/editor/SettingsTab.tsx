@@ -4,10 +4,12 @@ import { CourseRead, useUploadCourseThumbnail } from '@/hooks/queries/courses'
 import ImageOutlined from '@mui/icons-material/ImageOutlined'
 import LockOutlined from '@mui/icons-material/LockOutlined'
 import { useEffect, useRef, useState } from 'react'
+import { ThumbnailPositioner } from './ThumbnailPositioner'
 
 export type CourseSettingsEdits = {
   paywall_enabled: boolean
   paywall_position: number | null
+  thumbnail_object_position?: string | null
 }
 
 export function SettingsTab({
@@ -26,6 +28,9 @@ export function SettingsTab({
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(
     course.thumbnail_url ?? null,
   )
+  const [thumbnailPosition, setThumbnailPosition] = useState<string | null>(
+    course.thumbnail_object_position ?? null,
+  )
   const thumbnailInputRef = useRef<HTMLInputElement>(null)
   const uploadThumbnail = useUploadCourseThumbnail()
 
@@ -33,7 +38,14 @@ export function SettingsTab({
     setEnabled(course.paywall_enabled)
     setPosition(course.paywall_position)
     setThumbnailUrl(course.thumbnail_url ?? null)
-  }, [course.id, course.paywall_enabled, course.paywall_position, course.thumbnail_url])
+    setThumbnailPosition(course.thumbnail_object_position ?? null)
+  }, [
+    course.id,
+    course.paywall_enabled,
+    course.paywall_position,
+    course.thumbnail_url,
+    course.thumbnail_object_position,
+  ])
 
   const handleThumbnailChange = async (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -53,7 +65,9 @@ export function SettingsTab({
   }
 
   const dirty =
-    enabled !== course.paywall_enabled || position !== course.paywall_position
+    enabled !== course.paywall_enabled ||
+    position !== course.paywall_position ||
+    (thumbnailPosition ?? null) !== (course.thumbnail_object_position ?? null)
 
   const lockedCount = enabled && position != null
     ? Math.max(0, course.modules.length - position)
@@ -92,45 +106,56 @@ export function SettingsTab({
           className="hidden"
           onChange={handleThumbnailChange}
         />
-        <div
-          className="flex items-center gap-4 rounded-xl border border-gray-200 bg-gray-50 p-4 hover:border-gray-300 cursor-pointer transition-colors"
-          onClick={() => thumbnailInputRef.current?.click()}
-        >
-          <div className="flex h-20 w-32 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white border border-gray-200">
-            {thumbnailUrl ? (
-              <img
-                src={thumbnailUrl}
-                alt="Course thumbnail"
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <ImageOutlined className="text-gray-300" sx={{ fontSize: 32 }} />
-            )}
-          </div>
-          <div className="flex-1">
-            <p className="text-sm font-medium text-gray-900">
-              {thumbnailUrl ? 'Replace image' : 'Upload an image'}
+
+        {thumbnailUrl ? (
+          <div className="flex flex-col gap-3">
+            <ThumbnailPositioner
+              src={thumbnailUrl}
+              value={thumbnailPosition}
+              onChange={setThumbnailPosition}
+            />
+            <p className="text-xs text-gray-500">
+              Drag the image to choose the focal point shown on the landing
+              page hero.
             </p>
-            <p className="mt-0.5 text-xs text-gray-500">
-              {uploadThumbnail.isPending
-                ? 'Uploading…'
-                : thumbnailUrl
-                ? 'Click to upload a new thumbnail'
-                : 'Click to select a file'}
-            </p>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                disabled={uploadThumbnail.isPending}
+                onClick={() => thumbnailInputRef.current?.click()}
+                className="rounded-full bg-gray-900 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
+              >
+                {uploadThumbnail.isPending ? 'Uploading…' : 'Replace image'}
+              </button>
+            </div>
           </div>
-          <button
-            type="button"
-            disabled={uploadThumbnail.isPending}
-            className="rounded-full bg-gray-900 px-4 py-2 text-xs font-semibold text-white hover:bg-gray-800 disabled:opacity-50 transition-colors"
+        ) : (
+          <div
+            className="flex cursor-pointer items-center gap-4 rounded-xl border border-gray-200 bg-gray-50 p-4 transition-colors hover:border-gray-300"
+            onClick={() => thumbnailInputRef.current?.click()}
           >
-            {uploadThumbnail.isPending
-              ? 'Uploading…'
-              : thumbnailUrl
-              ? 'Replace'
-              : 'Select image'}
-          </button>
-        </div>
+            <div className="flex h-20 w-32 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-white">
+              <ImageOutlined className="text-gray-300" sx={{ fontSize: 32 }} />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-900">
+                Upload an image
+              </p>
+              <p className="mt-0.5 text-xs text-gray-500">
+                {uploadThumbnail.isPending
+                  ? 'Uploading…'
+                  : 'Click to select a file'}
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled={uploadThumbnail.isPending}
+              className="rounded-full bg-gray-900 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
+            >
+              {uploadThumbnail.isPending ? 'Uploading…' : 'Select image'}
+            </button>
+          </div>
+        )}
       </section>
 
       <section className="rounded-2xl border border-gray-200 bg-white p-6">
@@ -221,6 +246,7 @@ export function SettingsTab({
             onClick={() => {
               setEnabled(course.paywall_enabled)
               setPosition(course.paywall_position)
+              setThumbnailPosition(course.thumbnail_object_position ?? null)
             }}
             className="rounded-full border border-gray-300 px-4 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
           >
@@ -232,6 +258,7 @@ export function SettingsTab({
               onSave({
                 paywall_enabled: enabled,
                 paywall_position: enabled ? position : null,
+                thumbnail_object_position: thumbnailPosition,
               })
             }
             className="rounded-full bg-gray-900 px-4 py-2 text-xs font-semibold text-white hover:bg-gray-800 disabled:opacity-50"

@@ -26,6 +26,7 @@ import { cn } from '@spaire/ui/lib/utils'
 import { useEffect, useRef, useState } from 'react'
 import { HlsVideo } from '../HlsVideo'
 import { RichTextEditor } from './RichTextEditor'
+import { ThumbnailPositioner } from './ThumbnailPositioner'
 
 type Media = 'none' | 'video' | 'audio'
 
@@ -38,6 +39,7 @@ export type LessonEdits = {
   videoUrl: string
   published: boolean
   commentsMode: 'visible' | 'hidden' | 'locked'
+  thumbnailObjectPosition: string | null
 }
 
 export function LessonDetail({
@@ -478,37 +480,49 @@ export function LessonDetail({
               className="hidden"
               onChange={handleThumbnailFileChange}
             />
-            <div
-              className="mb-3 flex h-32 cursor-pointer items-center justify-center overflow-hidden rounded-xl border border-gray-200 bg-gray-50 transition-colors hover:border-gray-300"
-              onClick={() => thumbnailInputRef.current?.click()}
-            >
-              {thumbnailUrl ? (
-                <img
+            {thumbnailUrl ? (
+              <div className="flex flex-col gap-3">
+                <ThumbnailPositioner
                   src={thumbnailUrl}
-                  alt="Lesson thumbnail"
-                  className="h-full w-full object-cover"
+                  value={edits.thumbnailObjectPosition}
+                  onChange={(next) =>
+                    update('thumbnailObjectPosition', next)
+                  }
                 />
-              ) : (
-                <ImageOutlined
-                  className="text-gray-300"
-                  sx={{ fontSize: 36 }}
-                />
-              )}
-            </div>
-            <p className="text-xs text-gray-500">
-              JPG, PNG, or WebP. Recommended 1280×720.
-            </p>
-            <button
-              className="mt-3 rounded-full bg-gray-900 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
-              onClick={() => thumbnailInputRef.current?.click()}
-              disabled={uploadThumbnail.isPending}
-            >
-              {uploadThumbnail.isPending
-                ? 'Uploading…'
-                : thumbnailUrl
-                  ? 'Replace'
-                  : 'Pick File'}
-            </button>
+                <p className="text-xs text-gray-500">
+                  Drag the image to reposition it inside the card.
+                </p>
+                <button
+                  className="rounded-full bg-gray-900 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
+                  onClick={() => thumbnailInputRef.current?.click()}
+                  disabled={uploadThumbnail.isPending}
+                >
+                  {uploadThumbnail.isPending ? 'Uploading…' : 'Replace'}
+                </button>
+              </div>
+            ) : (
+              <>
+                <div
+                  className="mb-3 flex h-32 cursor-pointer items-center justify-center overflow-hidden rounded-xl border border-gray-200 bg-gray-50 transition-colors hover:border-gray-300"
+                  onClick={() => thumbnailInputRef.current?.click()}
+                >
+                  <ImageOutlined
+                    className="text-gray-300"
+                    sx={{ fontSize: 36 }}
+                  />
+                </div>
+                <p className="text-xs text-gray-500">
+                  JPG, PNG, or WebP. Recommended 1280×720.
+                </p>
+                <button
+                  className="mt-3 rounded-full bg-gray-900 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
+                  onClick={() => thumbnailInputRef.current?.click()}
+                  disabled={uploadThumbnail.isPending}
+                >
+                  {uploadThumbnail.isPending ? 'Uploading…' : 'Pick File'}
+                </button>
+              </>
+            )}
           </Card>
 
           <Card compact>
@@ -580,6 +594,7 @@ function initEdits(
     videoUrl: lesson.video_asset_id ?? '',
     published: lesson.published,
     commentsMode: 'visible',
+    thumbnailObjectPosition: lesson.thumbnail_object_position ?? null,
   }
 }
 

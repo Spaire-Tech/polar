@@ -41,6 +41,9 @@ def _serialize_lesson(lesson, completed_ids: set[str]) -> dict:
         "mux_playback_id": getattr(lesson, "mux_playback_id", None),
         "mux_status": getattr(lesson, "mux_status", None),
         "thumbnail_url": getattr(lesson, "thumbnail_url", None),
+        "thumbnail_object_position": getattr(
+            lesson, "thumbnail_object_position", None
+        ),
         "completed": str(lesson.id) in completed_ids,
     }
 
@@ -236,6 +239,7 @@ async def get_enrolled_course(
             "title": course.title,
             "description": course.description,
             "thumbnail_url": course.thumbnail_url,
+            "thumbnail_object_position": course.thumbnail_object_position,
             "course_type": course.course_type,
             "paywall_enabled": course.paywall_enabled,
             "paywall_position": course.paywall_position,

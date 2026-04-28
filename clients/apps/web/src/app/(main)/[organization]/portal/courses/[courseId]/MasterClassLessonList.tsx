@@ -12,6 +12,7 @@ export interface FlatLesson {
   position: number
   duration_seconds?: number | null
   thumbnail_url?: string | null
+  thumbnail_object_position?: string | null
   mux_playback_id?: string | null
   mux_status?: string | null
   completed: boolean
@@ -47,8 +48,8 @@ export const MasterClassLessonList = ({
   hasAccess,
 }: MasterClassLessonListProps) => {
   return (
-    <div className="w-full bg-black">
-      <div className="mx-auto max-w-3xl px-6 md:px-8">
+    <div className="w-full bg-black pb-16 md:pb-24">
+      <div className="mx-auto max-w-5xl px-6 md:px-8">
         <div className="flex flex-col">
           {lessons.map((lesson, index) => {
             const thumbnailSrc =
@@ -89,6 +90,10 @@ export const MasterClassLessonList = ({
                         src={thumbnailSrc}
                         alt={lesson.title}
                         className="h-full w-full object-cover transition-all group-hover:brightness-110"
+                        style={{
+                          objectPosition:
+                            lesson.thumbnail_object_position ?? '50% 50%',
+                        }}
                       />
                     ) : (
                       <div className="h-full w-full bg-gradient-to-br from-gray-800 to-gray-900" />
