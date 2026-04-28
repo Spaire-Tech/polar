@@ -64,11 +64,22 @@ class CourseService:
             ai_generated=create_schema.ai_generated,
         )
 
-        for mod_schema in create_schema.modules:
+        # Use provided modules or create implicit "Lessons" module
+        modules_to_add = create_schema.modules
+        if not modules_to_add:
+            # Create implicit module for flat lesson structure
+            modules_to_add = [CourseModuleCreate(
+                title='Lessons',
+                description=None,
+                position=0,
+                lessons=[],
+            )]
+
+        for idx, mod_schema in enumerate(modules_to_add):
             module = CourseModule(
                 title=mod_schema.title,
                 description=mod_schema.description,
-                position=mod_schema.position,
+                position=idx,
             )
             for lesson_schema in mod_schema.lessons:
                 module.lessons.append(
