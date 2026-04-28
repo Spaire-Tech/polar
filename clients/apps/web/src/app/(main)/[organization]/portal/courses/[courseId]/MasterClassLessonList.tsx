@@ -20,6 +20,8 @@ export interface FlatLesson {
   is_free_preview: boolean
   locked?: boolean
   locked_until?: string | null
+  content_type?: string
+  content?: Record<string, unknown> | null
 }
 
 interface MasterClassLessonListProps {
