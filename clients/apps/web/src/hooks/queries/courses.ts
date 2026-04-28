@@ -363,6 +363,9 @@ export type CustomerLessonRead = {
   mux_status: string | null
   thumbnail_url: string | null
   completed: boolean
+  description?: string | null
+  locked?: boolean
+  locked_until?: string | null
 }
 
 export type CustomerModuleRead = {
@@ -394,7 +397,36 @@ export type CustomerCourseDetail = {
     paywall_enabled: boolean
     paywall_position: number | null
     modules: CustomerModuleRead[]
+    lessons?: CustomerLessonRead[]
   }
+}
+
+export type CourseLandingLesson = {
+  id: string
+  title: string
+  description: string | null
+  content_type: string
+  position: number
+  is_free_preview: boolean
+  duration_seconds: number | null
+  thumbnail_url: string | null
+  mux_playback_id?: string | null
+  mux_status?: string | null
+  locked?: boolean
+  locked_until?: string | null
+  completed?: boolean
+}
+
+export type CourseLandingPageData = {
+  id: string
+  title: string | null
+  description: string | null
+  thumbnail_url: string | null
+  course_type: string
+  lesson_count: number
+  total_duration_seconds: number
+  lessons: CourseLandingLesson[]
+  has_access: boolean
 }
 
 async function portalApiFetch<T>(
