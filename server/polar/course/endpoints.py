@@ -62,6 +62,9 @@ def _lesson_read(lesson) -> CourseLessonRead:
         mux_playback_id=lesson.mux_playback_id,
         mux_status=lesson.mux_status,
         thumbnail_url=lesson.thumbnail_url,
+        description=getattr(lesson, "description", None),
+        release_at=getattr(lesson, "release_at", None),
+        drip_days=getattr(lesson, "drip_days", None),
         created_at=lesson.created_at,
         modified_at=lesson.modified_at,
     )
