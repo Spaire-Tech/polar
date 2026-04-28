@@ -8,6 +8,7 @@ import { schemas } from '@spaire/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import { MasterClassHero } from './MasterClassHero'
+import { MasterClassInstructors } from './MasterClassInstructors'
 import { MasterClassLessonList, type FlatLesson } from './MasterClassLessonList'
 import { MasterClassLessonViewer } from './MasterClassLessonViewer'
 
@@ -171,8 +172,19 @@ const LessonViewerPage = ({
         onTrailer={handleTrailer}
       />
 
+      <MasterClassInstructors
+        instructors={[
+          {
+            name: organization.name,
+            avatarUrl: organization.avatar_url,
+            bio: data.course.instructor_bio ?? null,
+          },
+        ]}
+      />
+
       <MasterClassLessonList
         lessons={flatLessons}
+        instructorName={organization.name}
         onSelectLesson={handleSelectLesson}
         hasAccess={true}
       />

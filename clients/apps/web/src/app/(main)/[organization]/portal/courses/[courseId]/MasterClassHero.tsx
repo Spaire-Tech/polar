@@ -1,8 +1,6 @@
 'use client'
 
 import PlayArrow from '@mui/icons-material/PlayArrow'
-import { useState } from 'react'
-import { twMerge } from 'tailwind-merge'
 
 interface MasterClassHeroProps {
   courseTitle: string | null
@@ -41,13 +39,6 @@ export const MasterClassHero = ({
     >
       {/* Dark overlay gradient */}
       <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/50 to-black/80" />
-
-      {/* Floating Class TA button (top-right) - stub for now */}
-      <div className="absolute top-6 right-6 z-20 hidden sm:block">
-        <button className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-sm font-medium rounded-full hover:shadow-lg transition-shadow">
-          Class TA
-        </button>
-      </div>
 
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center text-center text-white max-w-2xl px-6">
