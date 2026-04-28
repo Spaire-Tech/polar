@@ -363,5 +363,64 @@ class CourseService:
         repo = LessonCommentRepository.from_session(session)
         await repo.soft_delete(comment)
 
+    # --- Flat lesson gating logic ---
+
+    async def get_all_lessons_for_course(
+        self, session: AsyncSession, course_id: UUID
+    ) -> Sequence[CourseLesson]:
+        """Get all lessons for a course, flattened across modules, ordered by position."""
+        lesson_repo = CourseLessonRepository.from_session(session)
+        statement = lesson_repo.get_by_course_statement(course_id)
+        return await lesson_repo.get_all(statement)
+
+    async def get_first_free_lesson(
+        self, session: AsyncSession, course_id: UUID
+    ) -> CourseLesson | None:
+        """Get the first lesson marked as free preview (trailer) for a course."""
+        lesson_repo = CourseLessonRepository.from_session(session)
+        statement = (
+            lesson_repo.get_by_course_statement(course_id)
+            .where(CourseLesson.is_free_preview == True)
+            .limit(1)
+        )
+        return await lesson_repo.get_one_or_none(statement)
+
+    def calculate_lesson_accessibility(
+        self,
+        lesson: CourseLesson,
+        paywall_position: int | None,
+        enrolled_at: datetime,
+        now: datetime,
+    ) -> tuple[bool, datetime | None]:
+        """Calculate if a lesson is accessible given paywall/drip settings.
+
+        Returns (is_accessible, locked_until_timestamp).
+        Accessibility rules:
+        - Trailer (is_free_preview=true): always accessible
+        - Non-trailer + enrolled: check paywall position and drip schedule
+        - Non-trailer + not enrolled: only accessible if is_free_preview=true
+
+        Note: Enrollment status is handled by caller (this assumes enrolled=True).
+        """
+        # Free previews (trailers) are always accessible
+        if lesson.is_free_preview:
+            return True, None
+
+        # Check paywall: lesson at position >= paywall_position is locked
+        if paywall_position is not None and lesson.position >= paywall_position:
+            return False, None
+
+        # Check drip: release_at or drip_days
+        locked_until = None
+        if lesson.release_at and now < lesson.release_at:
+            return False, lesson.release_at
+        if lesson.drip_days is not None:
+            from datetime import timedelta
+            unlock_at = enrolled_at + timedelta(days=lesson.drip_days)
+            if now < unlock_at:
+                return False, unlock_at
+
+        return True, None
+
 
 course_service = CourseService()

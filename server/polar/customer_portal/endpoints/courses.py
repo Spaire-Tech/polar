@@ -6,6 +6,8 @@ from sqlalchemy import select
 
 from polar.course.repository import CourseLessonRepository
 from polar.course.schemas import (
+    CourseLessonFlatRead,
+    CourseLandingPageRead,
     CourseProgressRead,
     LessonCommentAuthor,
     LessonCommentCreate,
@@ -101,6 +103,47 @@ def _build_module_list(course, paywall_position, enrolled_at, now, completed_ids
     return modules, accessible_ids
 
 
+def _build_flat_lesson_list(course, paywall_position, enrolled_at, now, completed_ids):
+    """Build flat lesson list with paywall/drip locks and only published lessons.
+
+    Returns (lessons, accessible_lesson_ids) where accessible_lesson_ids is the
+    set of lesson IDs included in the response (used as the progress denominator).
+    """
+    flat_lessons = []
+    accessible_ids: set[str] = set()
+
+    # Flatten all lessons from all modules into one ordered list
+    all_lessons = []
+    for module in course.modules:
+        all_lessons.extend(module.lessons)
+    all_lessons.sort(key=lambda l: l.position)
+
+    for lesson in all_lessons:
+        # Only published lessons are visible
+        if not lesson.published:
+            continue
+
+        # Calculate accessibility
+        is_accessible, locked_until = course_service.calculate_lesson_accessibility(
+            lesson, paywall_position, enrolled_at, now
+        )
+
+        locked = not is_accessible
+        locked_until_str = locked_until.isoformat() if locked_until else None
+
+        lesson_data = _serialize_lesson(lesson, completed_ids)
+        lesson_data["locked"] = locked
+        lesson_data["locked_until"] = locked_until_str
+        lesson_data["description"] = lesson.description
+
+        flat_lessons.append(lesson_data)
+
+        if is_accessible:
+            accessible_ids.add(str(lesson.id))
+
+    return flat_lessons, accessible_ids
+
+
 @router.get(
     "/",
     summary="List Enrolled Courses",
@@ -167,10 +210,13 @@ async def get_enrolled_course(
     modules, accessible_ids = _build_module_list(
         course, course.paywall_position, enrolled_at, now, completed_ids
     )
+    flat_lessons, flat_accessible_ids = _build_flat_lesson_list(
+        course, course.paywall_position, enrolled_at, now, completed_ids
+    )
 
     # Progress only counts lessons the student can actually access.
-    total_lessons = len(accessible_ids)
-    completed_count = len(completed_ids & accessible_ids)
+    total_lessons = len(flat_accessible_ids)
+    completed_count = len(completed_ids & flat_accessible_ids)
 
     return {
         "enrollment_id": str(enrollment.id),
@@ -192,6 +238,7 @@ async def get_enrolled_course(
             "paywall_enabled": course.paywall_enabled,
             "paywall_position": course.paywall_position,
             "modules": modules,
+            "lessons": flat_lessons,
         },
     }
 
@@ -328,8 +375,8 @@ async def get_course_progress(
     now = datetime.now(tz=UTC)
     completed_ids = {str(p.lesson_id) for p in progress_items}
 
-    # Use the same accessible-set logic so progress matches the lesson list.
-    _, accessible_ids = _build_module_list(
+    # Use the flat lesson list logic so progress matches the flat lesson list response
+    _, accessible_ids = _build_flat_lesson_list(
         course,
         course.paywall_position,
         enrollment.enrolled_at,
@@ -347,6 +394,145 @@ async def get_course_progress(
             str(p.lesson_id): p.completed_at.isoformat() for p in progress_items
         },
     )
+
+
+@router.get(
+    "/{course_id}/landing",
+    summary="Get Course Landing Page",
+)
+async def get_course_landing(
+    course_id: UUID,
+    auth_subject: auth.CustomerPortalUnionRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """Get course landing page data with public lesson list.
+
+    This endpoint is used for both authenticated and unauthenticated users.
+    For enrolled users, includes all lessons (with gating status).
+    For non-enrolled users, includes only free preview lessons.
+    """
+    customer_id = get_customer_id(auth_subject)
+    now = datetime.now(tz=UTC)
+
+    # Load the course
+    course = await course_service.get_by_id(session, course_id)
+    if course is None:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    # Check if customer is enrolled
+    enrollment = None
+    if customer_id:
+        enrollment = await course_service.get_enrollment_for_customer(
+            session, customer_id, course_id
+        )
+
+    # Build lesson list based on enrollment
+    if enrollment:
+        # Enrolled: show all accessible lessons with gating info
+        progress_items = await course_service.get_progress_for_enrollment(
+            session, enrollment_id=enrollment.id
+        )
+        completed_ids = {str(p.lesson_id) for p in progress_items}
+        flat_lessons, _ = _build_flat_lesson_list(
+            course, course.paywall_position, enrollment.enrolled_at, now, completed_ids
+        )
+        has_access = True
+    else:
+        # Not enrolled: show only free preview lessons
+        flat_lessons = []
+        for module in course.modules:
+            for lesson in module.lessons:
+                if lesson.published and lesson.is_free_preview:
+                    lesson_data = _serialize_lesson(lesson, set())
+                    lesson_data["locked"] = False
+                    lesson_data["locked_until"] = None
+                    lesson_data["description"] = lesson.description
+                    flat_lessons.append(lesson_data)
+        flat_lessons.sort(key=lambda l: l["position"])
+        has_access = False
+
+    # Calculate total duration
+    total_duration = sum(l.get("duration_seconds") or 0 for l in flat_lessons)
+
+    return {
+        "id": str(course.id),
+        "title": course.title,
+        "description": course.description,
+        "thumbnail_url": course.thumbnail_url,
+        "course_type": course.course_type,
+        "lesson_count": len(flat_lessons),
+        "total_duration_seconds": total_duration,
+        "lessons": flat_lessons,
+        "has_access": has_access,
+    }
+
+
+@router.post(
+    "/{course_id}/lessons/{lesson_id}/can-access",
+    summary="Check Lesson Access",
+)
+async def check_lesson_access(
+    course_id: UUID,
+    lesson_id: UUID,
+    auth_subject: auth.CustomerPortalUnionRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """Check if the current user can access a lesson.
+
+    Returns { "can_access": bool, "reason": str, "locked_until": timestamp | null }
+    Reasons: "free" (is_free_preview), "enrolled" (has product), "paywall", "drip", "unpublished"
+    """
+    customer_id = get_customer_id(auth_subject)
+    now = datetime.now(tz=UTC)
+
+    # Load lesson
+    lesson_repo = CourseLessonRepository.from_session(session)
+    lesson = await lesson_repo.get_by_id(lesson_id)
+    if lesson is None:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+
+    # Verify lesson is in this course
+    course = await course_service.get_by_id(session, course_id)
+    if course is None:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    # Check if lesson is published
+    if not lesson.published:
+        return {"can_access": False, "reason": "unpublished", "locked_until": None}
+
+    # Check if free preview
+    if lesson.is_free_preview:
+        return {"can_access": True, "reason": "free", "locked_until": None}
+
+    # Check enrollment
+    enrollment = None
+    if customer_id:
+        enrollment = await course_service.get_enrollment_for_customer(
+            session, customer_id, course_id
+        )
+
+    if not enrollment:
+        return {"can_access": False, "reason": "paywall", "locked_until": None}
+
+    # User is enrolled, check drip/paywall gating
+    is_accessible, locked_until = course_service.calculate_lesson_accessibility(
+        lesson, course.paywall_position, enrollment.enrolled_at, now
+    )
+
+    if is_accessible:
+        return {"can_access": True, "reason": "enrolled", "locked_until": None}
+    elif locked_until:
+        if lesson.drip_days is not None:
+            reason = "drip"
+        else:
+            reason = "paywall"
+        return {
+            "can_access": False,
+            "reason": reason,
+            "locked_until": locked_until.isoformat(),
+        }
+    else:
+        return {"can_access": False, "reason": "paywall", "locked_until": None}
 
 
 # --- Lesson comments ---
