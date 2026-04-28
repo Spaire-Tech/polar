@@ -15,6 +15,9 @@ class CourseLessonCreate(Schema):
     position: int = 0
     is_free_preview: bool = False
     published: bool = False
+    description: str | None = None
+    release_at: datetime | None = None
+    drip_days: int | None = None
 
 
 class CourseLessonUpdate(Schema):
@@ -27,6 +30,9 @@ class CourseLessonUpdate(Schema):
     is_free_preview: bool | None = None
     published: bool | None = None
     thumbnail_url: str | None = None
+    description: str | None = None
+    release_at: datetime | None = None
+    drip_days: int | None = None
 
 
 class MuxUploadRead(Schema):
@@ -50,6 +56,43 @@ class CourseLessonRead(TimestampedSchema):
     mux_playback_id: str | None = None
     mux_status: str | None = None
     thumbnail_url: str | None = None
+    description: str | None = None
+    release_at: datetime | None = None
+    drip_days: int | None = None
+
+
+class CourseLessonFlatRead(TimestampedSchema):
+    id: UUID4
+    title: str
+    content_type: str
+    content: dict | None
+    video_asset_id: str | None
+    duration_seconds: int | None
+    position: int
+    is_free_preview: bool
+    published: bool
+    mux_upload_id: str | None = None
+    mux_asset_id: str | None = None
+    mux_playback_id: str | None = None
+    mux_status: str | None = None
+    thumbnail_url: str | None = None
+    description: str | None = None
+    release_at: datetime | None = None
+    drip_days: int | None = None
+    locked: bool = False
+    locked_until: datetime | None = None
+    completed: bool = False
+
+
+class CourseLessonPublicRead(Schema):
+    id: UUID4
+    title: str
+    description: str | None
+    content_type: str
+    position: int
+    is_free_preview: bool
+    duration_seconds: int | None
+    thumbnail_url: str | None
 
 
 class CourseModuleCreate(Schema):
@@ -175,3 +218,15 @@ class CourseRead(TimestampedSchema):
     description: str | None = None
     thumbnail_url: str | None = None
     modules: list[CourseModuleRead]
+
+
+class CourseLandingPageRead(TimestampedSchema):
+    id: UUID4
+    title: str | None
+    description: str | None
+    thumbnail_url: str | None
+    course_type: str
+    lesson_count: int
+    total_duration_seconds: int
+    lessons: list[CourseLessonPublicRead]
+    has_access: bool = False
