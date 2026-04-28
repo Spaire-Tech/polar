@@ -75,11 +75,11 @@ class CourseService:
                 lessons=[],
             )]
 
-        for idx, mod_schema in enumerate(modules_to_add):
+        for mod_schema in modules_to_add:
             module = CourseModule(
                 title=mod_schema.title,
                 description=mod_schema.description,
-                position=idx,
+                position=mod_schema.position,
             )
             for lesson_schema in mod_schema.lessons:
                 module.lessons.append(

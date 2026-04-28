@@ -174,8 +174,19 @@ async def create_course(
             session, auth_subject.subject.id, course_create.organization_id
         ):
             raise HTTPException(status_code=403, detail="Forbidden")
-    course = await course_service.create(session, course_create)
-    return _course_read(course)
+    try:
+        course = await course_service.create(session, course_create)
+        return _course_read(course)
+    except Exception:
+        log.exception(
+            "course.create failed",
+            extra={
+                "product_id": str(course_create.product_id),
+                "organization_id": str(course_create.organization_id),
+                "module_count": len(course_create.modules),
+            },
+        )
+        raise
 
 
 @router.patch("/{course_id}", response_model=CourseRead)
