@@ -129,7 +129,18 @@ async def list_courses_by_organization(
         if not await _user_in_org(session, auth_subject.subject.id, organization_id):
             raise HTTPException(status_code=403, detail="Forbidden")
     courses = await course_service.list_by_organization(session, organization_id)
-    return [_course_read(c) for c in courses]
+    result = []
+    for c in courses:
+        try:
+            result.append(_course_read(c))
+        except Exception:
+            log.exception(
+                "course.list serialize failed",
+                extra={"course_id": str(c.id)},
+            )
+            # Skip this course rather than 500 the entire list
+            continue
+    return result
 
 
 @router.get("/product/{product_id}", response_model=CourseRead)
