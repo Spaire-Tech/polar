@@ -39,7 +39,7 @@ const LessonViewerPage = ({
   )
 
   // Flatten lessons from modules into a single array
-  const flatLessons: FlatLesson[] = data?.course.lessons ??
+  const flatLessons: FlatLesson[] = (data?.course.lessons ??
     data?.course.modules.flatMap((m) =>
       m.lessons.map((l) => ({
         ...l,
@@ -47,7 +47,15 @@ const LessonViewerPage = ({
         locked_until: m.locked_until,
       }))
     ) ??
-    []
+   data?.course.modules.flatMap((m) =>
+      m.lessons.map((l) => ({
+        ...l,
+        content_type: l.content_type ?? "text",
+        content: l.content ?? null,
+        locked: m.locked,
+        locked_until: m.locked_until,
+      }))
+    )) ?? []
 
   const currentLesson = flatLessons.find((l) => l.id === selectedLessonId) ?? null
   const firstIncomplete = flatLessons.find((l) => !l.completed) ?? flatLessons[0]
