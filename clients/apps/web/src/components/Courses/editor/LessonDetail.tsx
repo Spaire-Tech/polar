@@ -32,6 +32,7 @@ type Media = 'none' | 'video' | 'audio'
 export type LessonEdits = {
   title: string
   moduleId: string
+  description: string
   media: Media
   textContent: string
   videoUrl: string
@@ -256,44 +257,14 @@ export function LessonDetail({
               />
             </Field>
 
-            <Field label="Select module">
-              <div ref={moduleSelectRef} className="relative">
-                <button
-                  type="button"
-                  onClick={() => setModuleSelectOpen((v) => !v)}
-                  className="flex w-full items-center gap-2 rounded-xl border border-gray-300 px-3 py-2.5 text-sm text-gray-900 hover:bg-gray-50"
-                >
-                  <span className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-2 py-0.5 text-xs font-medium text-gray-700">
-                    {currentModule.title}
-                    <CloseOutlined
-                      sx={{ fontSize: 12 }}
-                      className="text-gray-400"
-                    />
-                  </span>
-                  <span className="ml-auto text-gray-400">
-                    <KeyboardArrowDownOutlined fontSize="small" />
-                  </span>
-                </button>
-                {moduleSelectOpen && (
-                  <div className="absolute top-full right-0 left-0 z-20 mt-1 max-h-64 overflow-y-auto rounded-xl border border-gray-200 bg-white p-1 shadow-lg">
-                    {course.modules.map((m) => (
-                      <button
-                        key={m.id}
-                        onClick={() => {
-                          update('moduleId', m.id)
-                          setModuleSelectOpen(false)
-                        }}
-                        className={cn(
-                          'flex w-full items-center rounded-lg px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50',
-                          m.id === edits.moduleId && 'bg-gray-50 font-medium',
-                        )}
-                      >
-                        {m.title}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+            <Field label="Description">
+              <textarea
+                value={edits.description}
+                onChange={(e) => update('description', e.target.value)}
+                placeholder="Brief overview of this lesson (optional)"
+                className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:border-gray-900 focus:ring-2 focus:ring-gray-100 focus:outline-none"
+                rows={3}
+              />
             </Field>
 
             <div className="mb-5">
@@ -603,6 +574,7 @@ function initEdits(
   return {
     title: lesson.title,
     moduleId: module.id,
+    description: (lesson as any).description ?? '',
     media,
     textContent: text,
     videoUrl: lesson.video_asset_id ?? '',

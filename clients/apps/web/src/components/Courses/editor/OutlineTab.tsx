@@ -1,10 +1,6 @@
 'use client'
 
-import {
-  CourseLessonRead,
-  CourseModuleRead,
-  CourseRead,
-} from '@/hooks/queries/courses'
+import { CourseLessonRead, CourseRead } from '@/hooks/queries/courses'
 import {
   DndContext,
   DragEndEvent,
@@ -16,97 +12,144 @@ import {
 import {
   SortableContext,
   arrayMove,
+  useSortable,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import AddOutlined from '@mui/icons-material/AddOutlined'
-import ListOutlined from '@mui/icons-material/ListOutlined'
+import DeleteOutlined from '@mui/icons-material/DeleteOutlined'
+import DragIndicatorOutlined from '@mui/icons-material/DragIndicatorOutlined'
+import OndemandVideoOutlined from '@mui/icons-material/OndemandVideoOutlined'
 import SearchOutlined from '@mui/icons-material/SearchOutlined'
+import { cn } from '@spaire/ui/lib/utils'
 import { useMemo, useState } from 'react'
-import { LessonContentType, ModuleCard } from './ModuleCard'
+import { LessonContentType } from './ModuleCard'
 import { PaywallRow } from './PaywallRow'
-import { ScheduleEdits } from './ScheduleMenu'
-import { ModuleStatus } from './StatusDropdown'
+
+function FlatLessonRow({
+  lesson,
+  position,
+  isSelected,
+  onSelect,
+  onDelete,
+}: {
+  lesson: CourseLessonRead
+  position: number
+  isSelected: boolean
+  onSelect: () => void
+  onDelete: () => void
+}) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } =
+    useSortable({ id: lesson.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'group rounded-xl border transition-colors',
+        isSelected
+          ? 'border-blue-500 bg-blue-50'
+          : 'border-gray-200 bg-white hover:border-gray-300',
+      )}
+    >
+      <div className="flex items-center gap-3 p-4">
+        <button
+          {...listeners}
+          {...attributes}
+          className="cursor-grab rounded p-1 text-gray-400 hover:bg-gray-100 active:cursor-grabbing"
+        >
+          <DragIndicatorOutlined sx={{ fontSize: 20 }} />
+        </button>
+
+        <button onClick={onSelect} className="flex-1 text-left">
+          <div className="flex items-center gap-2">
+            {lesson.content_type === 'video' && (
+              <OndemandVideoOutlined sx={{ fontSize: 16 }} />
+            )}
+            <span className="text-sm font-medium text-gray-900">
+              Lesson {position}
+            </span>
+          </div>
+          <p className="mt-1 text-sm text-gray-600">{lesson.title}</p>
+          {(lesson as any).description && (
+            <p className="mt-1 line-clamp-1 text-xs text-gray-500">
+              {(lesson as any).description}
+            </p>
+          )}
+        </button>
+
+        <button
+          onClick={onDelete}
+          className="rounded p-1 text-gray-400 opacity-0 transition-opacity hover:bg-red-50 hover:text-red-600 group-hover:opacity-100"
+        >
+          <DeleteOutlined sx={{ fontSize: 18 }} />
+        </button>
+      </div>
+    </div>
+  )
+}
 
 export function OutlineTab({
   course,
   selectedLessonId,
   onSelectLesson,
-  onAddModule,
   onAddLesson,
   onDeleteLesson,
-  onUpdateStatus,
-  onUpdateSchedule,
-  onReorderModules,
   onReorderLessons,
-  onRenameModule,
-  onDeleteModule,
   onEditPaywall,
 }: {
   course: CourseRead
   selectedLessonId: string | null
   onSelectLesson: (lessonId: string) => void
-  onAddModule: () => void
-  onAddLesson: (
-    module: CourseModuleRead,
-    contentType: LessonContentType,
-  ) => void
+  onAddLesson: (module: any, contentType: LessonContentType) => void
   onDeleteLesson: (lesson: CourseLessonRead) => void
-  onUpdateStatus: (module: CourseModuleRead, next: ModuleStatus) => void
-  onUpdateSchedule: (module: CourseModuleRead, edits: ScheduleEdits) => void
-  onReorderModules: (orderedIds: string[]) => void
   onReorderLessons: (moduleId: string, orderedIds: string[]) => void
-  onRenameModule: (module: CourseModuleRead, title: string) => void
-  onDeleteModule: (module: CourseModuleRead) => void
   onEditPaywall?: () => void
 }) {
-  const moduleSensors = useSensors(
+  const [query, setQuery] = useState('')
+
+  // Flatten all lessons from all modules
+  const allLessons = useMemo(() => {
+    return course.modules.flatMap((m) =>
+      m.lessons.map((l) => ({ lesson: l, moduleId: m.id })),
+    )
+  }, [course.modules])
+
+  const filteredLessons = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return allLessons
+    return allLessons.filter((item) =>
+      item.lesson.title.toLowerCase().includes(q),
+    )
+  }, [allLessons, query])
+
+  const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   )
 
-  const handleModuleDragEnd = (e: DragEndEvent) => {
+  const handleDragEnd = (e: DragEndEvent) => {
     const { active, over } = e
     if (!over || active.id === over.id) return
-    const ids = course.modules.map((m) => m.id)
+
+    const ids = filteredLessons.map((item) => item.lesson.id)
     const from = ids.indexOf(String(active.id))
     const to = ids.indexOf(String(over.id))
     if (from < 0 || to < 0) return
-    onReorderModules(arrayMove(ids, from, to))
+
+    const reorderedIds = arrayMove(ids, from, to)
+    if (allLessons.length > 0) {
+      onReorderLessons(allLessons[0].moduleId, reorderedIds)
+    }
   }
-  const [query, setQuery] = useState('')
-  const [expandedModules, setExpandedModules] = useState<
-    Record<string, boolean>
-  >(() => Object.fromEntries(course.modules.map((m) => [m.id, true])))
-  const [allExpanded, setAllExpanded] = useState(true)
-
-  const filteredModules = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return course.modules
-    return course.modules
-      .map((m) => {
-        const moduleMatch = m.title.toLowerCase().includes(q)
-        const matchingLessons = m.lessons.filter((l) =>
-          l.title.toLowerCase().includes(q),
-        )
-        if (moduleMatch) return m
-        if (matchingLessons.length > 0)
-          return { ...m, lessons: matchingLessons }
-        return null
-      })
-      .filter((m): m is CourseModuleRead => m !== null)
-  }, [course.modules, query])
-
-  const toggleAll = () => {
-    const next = !allExpanded
-    setAllExpanded(next)
-    setExpandedModules(
-      Object.fromEntries(course.modules.map((m) => [m.id, next])),
-    )
-  }
-
-  const toggleOne = (id: string) =>
-    setExpandedModules((prev) => ({ ...prev, [id]: !prev[id] }))
 
   const paywallPos = course.paywall_position
+  const firstModule = course.modules[0]
 
   return (
     <div className="mx-auto w-full max-w-6xl px-8 py-8">
@@ -119,7 +162,7 @@ export function OutlineTab({
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Find module or lesson..."
+          placeholder="Find lesson..."
           className="focus:border-primary w-full rounded-xl border border-gray-200 bg-white py-3 pr-4 pl-11 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
         />
       </div>
@@ -127,51 +170,37 @@ export function OutlineTab({
       <div className="mb-6 flex items-center justify-between">
         <div className="text-sm">
           <span className="font-semibold text-gray-900">
-            {course.modules.length}
+            {allLessons.length}
           </span>{' '}
           <span className="text-gray-600">
-            Module{course.modules.length !== 1 ? 's' : ''}
+            Lesson{allLessons.length !== 1 ? 's' : ''}
           </span>
         </div>
-        <button
-          onClick={toggleAll}
-          className="flex items-center gap-1.5 rounded-full border border-gray-200 px-3.5 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
-        >
-          <ListOutlined sx={{ fontSize: 14 }} />
-          {allExpanded ? 'Collapse All' : 'Expand All'}
-        </button>
       </div>
 
       <div className="flex flex-col gap-3">
         <DndContext
-          sensors={moduleSensors}
+          sensors={sensors}
           collisionDetection={closestCenter}
-          onDragEnd={handleModuleDragEnd}
+          onDragEnd={handleDragEnd}
         >
           <SortableContext
-            items={filteredModules.map((m) => m.id)}
+            items={filteredLessons.map((item) => item.lesson.id)}
             strategy={verticalListSortingStrategy}
           >
-            {filteredModules.map((mod, idx) => {
+            {filteredLessons.map((item, idx) => {
               const showPaywallAfter =
                 paywallPos !== null &&
                 paywallPos !== undefined &&
                 idx + 1 === paywallPos
               return (
-                <div key={mod.id} className="flex flex-col gap-3">
-                  <ModuleCard
-                    module={mod}
-                    expanded={expandedModules[mod.id] ?? false}
-                    onToggleExpand={() => toggleOne(mod.id)}
-                    selectedLessonId={selectedLessonId}
-                    onSelectLesson={onSelectLesson}
-                    onAddLesson={(ct) => onAddLesson(mod, ct)}
-                    onDeleteLesson={onDeleteLesson}
-                    onUpdateStatus={(next) => onUpdateStatus(mod, next)}
-                    onUpdateSchedule={(edits) => onUpdateSchedule(mod, edits)}
-                    onReorderLessons={onReorderLessons}
-                    onRenameModule={(title) => onRenameModule(mod, title)}
-                    onDeleteModule={() => onDeleteModule(mod)}
+                <div key={item.lesson.id}>
+                  <FlatLessonRow
+                    lesson={item.lesson}
+                    position={idx + 1}
+                    isSelected={selectedLessonId === item.lesson.id}
+                    onSelect={() => onSelectLesson(item.lesson.id)}
+                    onDelete={() => onDeleteLesson(item.lesson)}
                   />
                   {showPaywallAfter && (
                     <PaywallRow onEditSettings={onEditPaywall} />
@@ -184,28 +213,32 @@ export function OutlineTab({
 
         {paywallPos !== null &&
           paywallPos !== undefined &&
-          paywallPos >= course.modules.length && (
+          paywallPos >= allLessons.length && (
             <PaywallRow onEditSettings={onEditPaywall} />
           )}
 
-        {filteredModules.length === 0 && course.modules.length > 0 && (
+        {filteredLessons.length === 0 && allLessons.length > 0 && (
           <div className="rounded-xl border border-dashed border-gray-200 py-10 text-center text-sm text-gray-400">
-            No modules or lessons match “{query}”.
+            No lessons match "{query}".
           </div>
         )}
 
-        {course.modules.length === 0 && (
+        {allLessons.length === 0 && (
           <div className="rounded-xl border border-dashed border-gray-200 py-16 text-center text-sm text-gray-400">
-            No modules yet. Click “Add Module” to build your curriculum.
+            No lessons yet. Click "Add Lesson" to build your curriculum.
           </div>
         )}
 
         <button
-          onClick={onAddModule}
+          onClick={() => {
+            if (firstModule) {
+              onAddLesson(firstModule, 'text')
+            }
+          }}
           className="mt-1 flex items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 bg-white py-4 text-sm font-medium text-gray-600 transition-colors hover:border-gray-400 hover:text-gray-900"
         >
           <AddOutlined sx={{ fontSize: 18 }} />
-          Add Module
+          Add Lesson
         </button>
       </div>
     </div>

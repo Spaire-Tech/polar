@@ -62,6 +62,9 @@ def _lesson_read(lesson) -> CourseLessonRead:
         mux_playback_id=lesson.mux_playback_id,
         mux_status=lesson.mux_status,
         thumbnail_url=lesson.thumbnail_url,
+        description=getattr(lesson, "description", None),
+        release_at=getattr(lesson, "release_at", None),
+        drip_days=getattr(lesson, "drip_days", None),
         created_at=lesson.created_at,
         modified_at=lesson.modified_at,
     )
@@ -126,7 +129,18 @@ async def list_courses_by_organization(
         if not await _user_in_org(session, auth_subject.subject.id, organization_id):
             raise HTTPException(status_code=403, detail="Forbidden")
     courses = await course_service.list_by_organization(session, organization_id)
-    return [_course_read(c) for c in courses]
+    result = []
+    for c in courses:
+        try:
+            result.append(_course_read(c))
+        except Exception:
+            log.exception(
+                "course.list serialize failed",
+                extra={"course_id": str(c.id)},
+            )
+            # Skip this course rather than 500 the entire list
+            continue
+    return result
 
 
 @router.get("/product/{product_id}", response_model=CourseRead)
@@ -171,8 +185,19 @@ async def create_course(
             session, auth_subject.subject.id, course_create.organization_id
         ):
             raise HTTPException(status_code=403, detail="Forbidden")
-    course = await course_service.create(session, course_create)
-    return _course_read(course)
+    try:
+        course = await course_service.create(session, course_create)
+        return _course_read(course)
+    except Exception:
+        log.exception(
+            "course.create failed",
+            extra={
+                "product_id": str(course_create.product_id),
+                "organization_id": str(course_create.organization_id),
+                "module_count": len(course_create.modules),
+            },
+        )
+        raise
 
 
 @router.patch("/{course_id}", response_model=CourseRead)

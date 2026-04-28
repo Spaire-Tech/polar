@@ -5,15 +5,11 @@ import {
   CourseModuleRead,
   CourseRead,
   useAddCourseLesson,
-  useAddCourseModule,
   useCourseById,
   useDeleteCourseLesson,
-  useDeleteCourseModule,
   useReorderLessons,
-  useReorderModules,
   useUpdateCourse,
   useUpdateCourseLesson,
-  useUpdateCourseModule,
 } from '@/hooks/queries/courses'
 import { getQueryClient } from '@/utils/api/query'
 import { schemas } from '@spaire/client'
@@ -28,9 +24,7 @@ import { LessonContentType } from './editor/ModuleCard'
 import { OutlineTab } from './editor/OutlineTab'
 import { PricingTab } from './editor/PricingTab'
 import { QuizDetail, QuizSaveBody } from './editor/QuizDetail'
-import { ScheduleEdits } from './editor/ScheduleMenu'
 import { CourseSettingsEdits } from './editor/SettingsTab'
-import { ModuleStatus } from './editor/StatusDropdown'
 
 async function streamLessonContent(
   organizationSlug: string,
@@ -80,14 +74,10 @@ export default function CourseEditor({
   const [isGenerating, setIsGenerating] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
 
-  const addModule = useAddCourseModule()
-  const updateModule = useUpdateCourseModule()
-  const deleteModule = useDeleteCourseModule()
   const addLesson = useAddCourseLesson()
   const updateLesson = useUpdateCourseLesson()
   const deleteLesson = useDeleteCourseLesson()
   const updateCourse = useUpdateCourse()
-  const reorderModules = useReorderModules()
   const reorderLessons = useReorderLessons()
 
   const invalidateCourse = useCallback(() => {
@@ -101,18 +91,6 @@ export default function CourseEditor({
     }
     return null
   })()
-
-  const handleAddModule = async () => {
-    try {
-      await addModule.mutateAsync({
-        courseId: course.id,
-        body: { title: 'New Module', position: course.modules.length },
-      })
-      invalidateCourse()
-    } catch {
-      toast({ title: 'Failed to add module' })
-    }
-  }
 
   const handleAddLesson = async (
     mod: CourseModuleRead,
@@ -149,59 +127,6 @@ export default function CourseEditor({
     }
   }
 
-  const handleDeleteModule = async (mod: CourseModuleRead) => {
-    try {
-      await deleteModule.mutateAsync(mod.id)
-      if (mod.lessons.some((l) => l.id === selectedLessonId))
-        setSelectedLessonId(null)
-      invalidateCourse()
-    } catch {
-      toast({ title: 'Failed to delete module' })
-    }
-  }
-
-  const handleUpdateStatus = async (
-    mod: CourseModuleRead,
-    next: ModuleStatus,
-  ) => {
-    try {
-      await updateModule.mutateAsync({
-        moduleId: mod.id,
-        body: { status: next },
-      })
-      invalidateCourse()
-    } catch {
-      toast({ title: 'Failed to update status' })
-    }
-  }
-
-  const handleUpdateSchedule = async (
-    mod: CourseModuleRead,
-    edits: ScheduleEdits,
-  ) => {
-    try {
-      await updateModule.mutateAsync({
-        moduleId: mod.id,
-        body: {
-          drip_days: edits.drip_days,
-          release_at: edits.release_at,
-        },
-      })
-      invalidateCourse()
-      toast({ title: 'Schedule updated' })
-    } catch {
-      toast({ title: 'Failed to update schedule' })
-    }
-  }
-
-  const handleReorderModules = async (orderedIds: string[]) => {
-    try {
-      await reorderModules.mutateAsync({ courseId: course.id, orderedIds })
-      invalidateCourse()
-    } catch {
-      toast({ title: 'Failed to reorder modules' })
-    }
-  }
 
   const handleReorderLessons = async (
     moduleId: string,
@@ -231,14 +156,6 @@ export default function CourseEditor({
     }
   }
 
-  const handleRenameModule = async (mod: CourseModuleRead, title: string) => {
-    try {
-      await updateModule.mutateAsync({ moduleId: mod.id, body: { title } })
-      invalidateCourse()
-    } catch {
-      toast({ title: 'Failed to rename module' })
-    }
-  }
 
   const handleSaveLesson = async (edits: LessonEdits) => {
     if (!selectedLessonInfo) return
@@ -263,6 +180,7 @@ export default function CourseEditor({
         lessonId: selectedLessonInfo.lesson.id,
         body: {
           title: edits.title,
+          description: edits.description || null,
           content_type: contentType,
           content: Object.keys(nextContent).length > 0 ? nextContent : null,
           video_asset_id:
@@ -344,8 +262,6 @@ export default function CourseEditor({
   const handleAddContent = () => {
     if (course.modules.length > 0) {
       handleAddLesson(course.modules[0])
-    } else {
-      handleAddModule()
     }
   }
 
@@ -386,15 +302,9 @@ export default function CourseEditor({
           course={course}
           selectedLessonId={selectedLessonId}
           onSelectLesson={setSelectedLessonId}
-          onAddModule={handleAddModule}
           onAddLesson={(mod, ct) => handleAddLesson(mod, ct)}
           onDeleteLesson={handleDeleteLesson}
-          onUpdateStatus={handleUpdateStatus}
-          onUpdateSchedule={handleUpdateSchedule}
-          onReorderModules={handleReorderModules}
           onReorderLessons={handleReorderLessons}
-          onRenameModule={handleRenameModule}
-          onDeleteModule={handleDeleteModule}
           onEditPaywall={() => setActiveTab('pricing')}
         />
       )

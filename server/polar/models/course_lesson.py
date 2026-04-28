@@ -1,7 +1,8 @@
+from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, Uuid
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, Uuid
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
 
@@ -65,6 +66,18 @@ class CourseLesson(RecordModel):
 
     thumbnail_url: Mapped[str | None] = mapped_column(
         String(2048), nullable=True, default=None
+    )
+
+    description: Mapped[str | None] = mapped_column(
+        Text, nullable=True, default=None
+    )
+
+    release_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
+
+    drip_days: Mapped[int | None] = mapped_column(
+        Integer, nullable=True, default=None
     )
 
     @declared_attr

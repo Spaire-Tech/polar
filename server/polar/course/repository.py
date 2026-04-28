@@ -96,6 +96,15 @@ class CourseLessonRepository(
     def get_by_module_statement(self, module_id: UUID):
         return self.get_base_statement().where(CourseLesson.module_id == module_id)
 
+    def get_by_course_statement(self, course_id: UUID):
+        """Get all lessons for a course (across all modules), ordered by position."""
+        return (
+            self.get_base_statement()
+            .join(CourseModule)
+            .where(CourseModule.course_id == course_id)
+            .order_by(CourseLesson.position)
+        )
+
     async def get_readable_by_id(
         self,
         lesson_id: UUID,
