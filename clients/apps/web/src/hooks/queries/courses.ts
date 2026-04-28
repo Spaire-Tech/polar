@@ -164,6 +164,8 @@ export const useCreateCourse = () =>
       course_type?: string
       paywall_enabled?: boolean
       ai_generated?: boolean
+      description?: string | null
+      thumbnail_url?: string | null
       modules: {
         title: string
         description?: string | null
@@ -190,6 +192,8 @@ export const useUpdateCourse = () =>
         course_type?: string
         paywall_enabled?: boolean
         paywall_position?: number | null
+        description?: string | null
+        thumbnail_url?: string | null
       }
     }) =>
       courseApiFetch<CourseRead>(`/v1/courses/${courseId}`, {

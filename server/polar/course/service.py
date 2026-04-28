@@ -62,6 +62,8 @@ class CourseService:
             paywall_enabled=create_schema.paywall_enabled,
             paywall_lesson_id=create_schema.paywall_lesson_id,
             ai_generated=create_schema.ai_generated,
+            description=create_schema.description,
+            thumbnail_url=create_schema.thumbnail_url,
         )
 
         # Use provided modules or create implicit "Lessons" module

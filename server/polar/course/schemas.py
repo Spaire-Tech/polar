@@ -134,6 +134,8 @@ class CourseCreate(Schema):
     paywall_lesson_id: UUID4 | None = None
     paywall_position: int | None = None
     ai_generated: bool = False
+    description: str | None = None
+    thumbnail_url: str | None = None
     modules: list[CourseModuleCreate] = Field(default_factory=list)
 
 
