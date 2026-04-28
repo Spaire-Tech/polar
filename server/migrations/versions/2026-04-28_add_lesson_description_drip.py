@@ -16,21 +16,24 @@ depends_on: tuple[str] | None = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "course_lessons",
-        sa.Column("description", sa.Text, nullable=True),
+    # Use IF NOT EXISTS so this can be safely re-run on environments
+    # where the migration was previously recorded as applied but the
+    # actual columns are missing (e.g. partial run, restore from backup).
+    op.execute(
+        "ALTER TABLE course_lessons "
+        "ADD COLUMN IF NOT EXISTS description TEXT"
     )
-    op.add_column(
-        "course_lessons",
-        sa.Column("release_at", sa.DateTime(timezone=True), nullable=True),
+    op.execute(
+        "ALTER TABLE course_lessons "
+        "ADD COLUMN IF NOT EXISTS release_at TIMESTAMP WITH TIME ZONE"
     )
-    op.add_column(
-        "course_lessons",
-        sa.Column("drip_days", sa.Integer, nullable=True),
+    op.execute(
+        "ALTER TABLE course_lessons "
+        "ADD COLUMN IF NOT EXISTS drip_days INTEGER"
     )
 
 
 def downgrade() -> None:
-    op.drop_column("course_lessons", "drip_days")
-    op.drop_column("course_lessons", "release_at")
-    op.drop_column("course_lessons", "description")
+    op.execute("ALTER TABLE course_lessons DROP COLUMN IF EXISTS drip_days")
+    op.execute("ALTER TABLE course_lessons DROP COLUMN IF EXISTS release_at")
+    op.execute("ALTER TABLE course_lessons DROP COLUMN IF EXISTS description")
