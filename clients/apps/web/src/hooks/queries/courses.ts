@@ -275,6 +275,7 @@ export const useUpdateCourseLesson = () =>
       lessonId: string
       body: {
         title?: string
+        description?: string | null
         content_type?: string
         content?: Record<string, unknown> | null
         video_asset_id?: string | null
@@ -282,6 +283,8 @@ export const useUpdateCourseLesson = () =>
         position?: number
         is_free_preview?: boolean
         published?: boolean
+        release_at?: string | null
+        drip_days?: number | null
       }
     }) =>
       courseApiFetch<CourseLessonRead>(`/v1/courses/lessons/${lessonId}`, {
