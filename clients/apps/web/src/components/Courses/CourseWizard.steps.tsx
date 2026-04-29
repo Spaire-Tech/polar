@@ -279,9 +279,6 @@ export function SpaireOnboardingStyles() {
         opacity: 0;
         transform: translateY(22px);
       }
-      .so-intro-period {
-        color: var(--so-orange);
-      }
       @keyframes soLetterUp {
         from {
           opacity: 0;
@@ -443,7 +440,7 @@ function ProgressBar({ pct }: { pct: number }) {
 // ─── Intro screen ─────────────────────────────────────────────────────────────
 
 const INTRO_WORDS = ['Sell', 'your', 'expertise']
-const STAGGER_MS = 42
+const STAGGER_MS = 68
 
 export function Intro({
   onNext,
@@ -454,16 +451,15 @@ export function Intro({
 }) {
   const [started, setStarted] = useState(false)
 
-  // Build letter list with delays
-  const chars: { ch: string; delay: number; isPeriod: boolean }[] = []
+  // Build letter list with delays (no period)
+  const chars: { ch: string; delay: number }[] = []
   let idx = 0
   INTRO_WORDS.forEach((word) => {
     word.split('').forEach((ch) => {
-      chars.push({ ch, delay: idx * STAGGER_MS, isPeriod: false })
+      chars.push({ ch, delay: idx * STAGGER_MS })
       idx++
     })
   })
-  chars.push({ ch: '.', delay: idx * STAGGER_MS, isPeriod: true })
   const lastDelay = chars[chars.length - 1].delay
 
   useEffect(() => {
@@ -486,7 +482,6 @@ export function Intro({
     wordGroups.push(chars.slice(ci, ci + word.length))
     ci += word.length
   })
-  const periodChar = chars[chars.length - 1]
 
   return (
     <>
@@ -512,20 +507,6 @@ export function Intro({
               ))}
             </span>
           ))}
-          <span className="so-intro-word" style={{ marginLeft: 0, gap: 0 }}>
-            <span
-              className="so-intro-letter so-intro-period"
-              style={
-                started
-                  ? {
-                      animation: `soLetterUp 0.52s cubic-bezier(0.22,1,0.36,1) ${periodChar.delay}ms forwards`,
-                    }
-                  : {}
-              }
-            >
-              .
-            </span>
-          </span>
         </h1>
       </div>
     </>
