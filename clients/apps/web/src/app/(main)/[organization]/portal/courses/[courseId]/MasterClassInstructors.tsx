@@ -16,30 +16,30 @@ export const MasterClassInstructors = ({
   if (instructors.length === 0) return null
 
   return (
-    <div className="w-full bg-black" style={{ paddingTop: 48, paddingBottom: 40 }}>
-      <div style={{ paddingLeft: 88, paddingRight: 88 }}>
+    <div className="w-full bg-black" style={{ paddingTop: 64, paddingBottom: 56 }}>
+      <div style={{ paddingLeft: 88, paddingRight: 88, maxWidth: 1080 }}>
         <p
           style={{
-            fontSize: 17,
-            fontWeight: 600,
+            fontSize: 22,
+            fontWeight: 700,
             color: '#fff',
             letterSpacing: '-0.01em',
-            marginBottom: 20,
+            marginBottom: 28,
           }}
         >
           Class Instructors
         </p>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           {instructors.map((instructor) => (
             <div
               key={instructor.name}
-              style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}
+              style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}
             >
               <div
                 style={{
-                  width: 40,
-                  height: 40,
+                  width: 48,
+                  height: 48,
                   borderRadius: '50%',
                   overflow: 'hidden',
                   flexShrink: 0,
@@ -59,7 +59,7 @@ export const MasterClassInstructors = ({
                 ) : (
                   <span
                     style={{
-                      fontSize: 15,
+                      fontSize: 17,
                       fontWeight: 600,
                       color: '#fff',
                     }}
@@ -68,10 +68,10 @@ export const MasterClassInstructors = ({
                   </span>
                 )}
               </div>
-              <div style={{ paddingTop: 2 }}>
+              <div style={{ paddingTop: 4 }}>
                 <p
                   style={{
-                    fontSize: 14,
+                    fontSize: 15,
                     fontWeight: 700,
                     color: '#fff',
                     lineHeight: 1.2,
@@ -82,12 +82,12 @@ export const MasterClassInstructors = ({
                 {instructor.bio && (
                   <p
                     style={{
-                      marginTop: 3,
-                      fontSize: 13,
+                      marginTop: 4,
+                      fontSize: 14,
                       fontWeight: 400,
-                      color: 'rgba(255,255,255,0.55)',
-                      lineHeight: 1.45,
-                      maxWidth: 460,
+                      color: 'rgba(255,255,255,0.6)',
+                      lineHeight: 1.5,
+                      maxWidth: 560,
                     }}
                   >
                     {instructor.bio}

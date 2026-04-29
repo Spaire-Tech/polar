@@ -48,9 +48,9 @@ export const MasterClassLessonList = ({
   hasAccess,
 }: MasterClassLessonListProps) => {
   return (
-    <div className="w-full bg-black pb-16 md:pb-24">
-      <div className="mx-auto max-w-5xl px-6 md:px-8">
-        <div className="flex flex-col">
+    <div className="w-full bg-black" style={{ paddingBottom: 96 }}>
+      <div style={{ paddingLeft: 88, paddingRight: 88, maxWidth: 1080 }}>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
           {lessons.map((lesson, index) => {
             const thumbnailSrc =
               lesson.thumbnail_url ||
@@ -68,23 +68,30 @@ export const MasterClassLessonList = ({
             return (
               <div
                 key={lesson.id}
-                className={twMerge(
-                  'border-t border-white/10',
-                  index === 0 && 'border-t-0',
-                )}
+                style={{
+                  borderTop: index === 0 ? 'none' : '1px solid rgba(255,255,255,0.08)',
+                }}
               >
                 <button
                   onClick={() => !isLocked && onSelectLesson(lesson)}
                   disabled={isLocked}
                   className={twMerge(
-                    'group flex w-full items-start gap-6 py-8 text-left',
+                    'group flex w-full items-start text-left',
                     isLocked
                       ? 'cursor-not-allowed opacity-60'
                       : 'cursor-pointer',
                   )}
+                  style={{ gap: 28, paddingTop: 28, paddingBottom: 28 }}
                 >
                   {/* Thumbnail */}
-                  <div className="relative aspect-video w-56 flex-shrink-0 overflow-hidden rounded-md bg-gray-900">
+                  <div
+                    className="relative flex-shrink-0 overflow-hidden bg-gray-900"
+                    style={{
+                      width: 304,
+                      aspectRatio: '16 / 9',
+                      borderRadius: 6,
+                    }}
+                  >
                     {thumbnailSrc ? (
                       <img
                         src={thumbnailSrc}
@@ -99,19 +106,66 @@ export const MasterClassLessonList = ({
                       <div className="h-full w-full bg-gradient-to-br from-gray-800 to-gray-900" />
                     )}
 
-                    {/* Watched badge (top-left) */}
+                    {/* Watched pill (top-left) */}
                     {lesson.completed && !isLocked && (
-                      <div className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-black/85 px-2 py-1 text-xs font-medium text-white">
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: 10,
+                          left: 10,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          background: '#fff',
+                          color: '#000',
+                          paddingLeft: 10,
+                          paddingRight: 12,
+                          paddingTop: 5,
+                          paddingBottom: 5,
+                          borderRadius: 999,
+                          fontSize: 12,
+                          fontWeight: 600,
+                        }}
+                      >
                         <CheckOutlined sx={{ fontSize: 14 }} />
                         Watched
                       </div>
                     )}
 
-                    {/* Duration overlay (bottom-right) */}
+                    {/* Duration (bottom-right) */}
                     {lesson.duration_seconds && !isLocked && (
-                      <div className="absolute bottom-2 right-2 rounded bg-black/80 px-1.5 py-0.5 text-xs font-medium text-white">
+                      <div
+                        style={{
+                          position: 'absolute',
+                          bottom: 10,
+                          right: 10,
+                          background: 'rgba(0,0,0,0.85)',
+                          color: '#fff',
+                          paddingLeft: 6,
+                          paddingRight: 6,
+                          paddingTop: 2,
+                          paddingBottom: 2,
+                          borderRadius: 3,
+                          fontSize: 12,
+                          fontWeight: 500,
+                        }}
+                      >
                         {formatDuration(lesson.duration_seconds)}
                       </div>
+                    )}
+
+                    {/* Red progress bar at the bottom for completed lessons */}
+                    {lesson.completed && !isLocked && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          height: 3,
+                          background: '#e63946',
+                        }}
+                      />
                     )}
 
                     {/* Play button overlay */}
@@ -138,22 +192,58 @@ export const MasterClassLessonList = ({
                   </div>
 
                   {/* Content */}
-                  <div className="flex min-w-0 flex-1 flex-col">
-                    <h3 className="text-lg font-bold leading-snug text-white md:text-xl">
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      flex: 1,
+                      minWidth: 0,
+                      paddingTop: 4,
+                    }}
+                  >
+                    <h3
+                      style={{
+                        fontSize: 22,
+                        fontWeight: 700,
+                        lineHeight: 1.25,
+                        color: '#fff',
+                        letterSpacing: '-0.01em',
+                      }}
+                    >
                       {lesson.title}
                     </h3>
                     {instructorName && (
-                      <p className="mt-1 text-sm font-medium text-white">
+                      <p
+                        style={{
+                          marginTop: 8,
+                          fontSize: 14,
+                          fontWeight: 500,
+                          color: '#fff',
+                        }}
+                      >
                         {instructorName}
                       </p>
                     )}
                     {lesson.description && (
-                      <p className="mt-3 text-sm leading-relaxed text-white/70">
+                      <p
+                        style={{
+                          marginTop: 12,
+                          fontSize: 14,
+                          lineHeight: 1.55,
+                          color: 'rgba(255,255,255,0.7)',
+                        }}
+                      >
                         {lesson.description}
                       </p>
                     )}
                     {isLocked && (
-                      <p className="mt-3 text-sm text-orange-400">
+                      <p
+                        style={{
+                          marginTop: 12,
+                          fontSize: 13,
+                          color: '#fb923c',
+                        }}
+                      >
                         {lesson.locked_until
                           ? `Unlocks ${new Date(
                               lesson.locked_until,
