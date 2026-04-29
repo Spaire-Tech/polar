@@ -3,26 +3,32 @@
 import CloseIcon from '@mui/icons-material/Close'
 import { useEffect, useRef, useState } from 'react'
 
-// ─── Shared style block (CSS-in-JSX) ─────────────────────────────────────────
+// ─── Shared style block ───────────────────────────────────────────────────────
 
 export function SpaireOnboardingStyles() {
   return (
     <style jsx global>{`
       .spaire-onboarding {
-        --so-bg: #080808;
-        --so-surface: rgba(255, 255, 255, 0.055);
-        --so-border: rgba(255, 255, 255, 0.11);
-        --so-border-focus: rgba(255, 255, 255, 0.38);
-        --so-glass-blur: blur(24px) saturate(160%);
-        --so-ink: #f2f1ee;
-        --so-ink2: rgba(242, 241, 238, 0.5);
-        --so-ink3: rgba(242, 241, 238, 0.28);
+        --so-orange: #ff5c00;
+        --so-black: #0a0a0a;
+        --so-white: #ffffff;
+        --so-gray1: #f4f4f4;
+        --so-gray2: #e8e8e8;
+        --so-gray3: #a0a0a0;
+        --so-gray4: #6a6a6a;
+        --so-bg: var(--so-white);
+        --so-ink: var(--so-black);
+        --so-ink2: var(--so-gray4);
+        --so-ink3: var(--so-gray3);
+        --so-surface: var(--so-gray1);
+        --so-border: var(--so-gray2);
+        --so-border-focus: var(--so-black);
         background: var(--so-bg);
         color: var(--so-ink);
-        font-family: var(--font-dm-sans), system-ui, sans-serif;
+        font-family: var(--font-poppins), system-ui, sans-serif;
         position: fixed;
         inset: 0;
-        overflow: hidden;
+        overflow-y: auto;
         z-index: 50;
       }
       .spaire-onboarding *,
@@ -37,6 +43,8 @@ export function SpaireOnboardingStyles() {
         display: flex;
         flex-direction: column;
       }
+
+      /* Top bar */
       .so-topbar {
         position: fixed;
         top: 0;
@@ -50,20 +58,22 @@ export function SpaireOnboardingStyles() {
         z-index: 200;
       }
       .so-logo {
-        font-family: var(--font-instrument-serif), Georgia, serif;
-        font-size: 17px;
+        font-family: var(--font-poppins), system-ui, sans-serif;
+        font-size: 15px;
+        font-weight: 600;
         letter-spacing: -0.02em;
-        color: var(--so-ink);
+        color: var(--so-black);
       }
       .so-step-counter {
         font-size: 12px;
-        color: var(--so-ink3);
-        letter-spacing: 0.04em;
+        font-weight: 400;
+        color: var(--so-gray3);
+        letter-spacing: 0.02em;
       }
       .so-close {
         background: none;
         border: none;
-        color: var(--so-ink3);
+        color: var(--so-gray3);
         cursor: pointer;
         display: flex;
         align-items: center;
@@ -71,106 +81,106 @@ export function SpaireOnboardingStyles() {
         width: 28px;
         height: 28px;
         border-radius: 8px;
-        transition:
-          color 0.15s,
-          background 0.15s;
+        transition: color 0.15s, background 0.15s;
       }
       .so-close:hover {
-        color: var(--so-ink);
-        background: rgba(255, 255, 255, 0.08);
+        color: var(--so-black);
+        background: rgba(10, 10, 10, 0.06);
       }
+
+      /* Progress bar */
       .so-progress-track {
         position: fixed;
         top: 0;
         left: 0;
         right: 0;
-        height: 1px;
-        background: var(--so-border);
+        height: 2px;
+        background: var(--so-gray2);
         z-index: 201;
       }
       .so-progress-fill {
         height: 100%;
-        background: rgba(255, 255, 255, 0.4);
+        background: var(--so-black);
         transition: width 0.7s cubic-bezier(0.4, 0, 0.2, 1);
       }
+
+      /* Step stage */
       .so-stage {
         flex: 1;
         display: flex;
         align-items: center;
         justify-content: center;
         padding: 80px 24px 100px;
+        background: var(--so-white);
       }
       .so-screen {
         width: 100%;
-        max-width: 480px;
-        animation: soScreenIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+        max-width: 440px;
+        animation: soScreenIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
       }
       @keyframes soScreenIn {
         from {
           opacity: 0;
-          transform: translateY(28px);
+          transform: translateY(24px);
         }
         to {
           opacity: 1;
           transform: translateY(0);
         }
       }
+
+      /* Typography */
       .so-eyebrow {
         font-size: 11px;
         font-weight: 500;
         letter-spacing: 0.1em;
         text-transform: uppercase;
-        color: var(--so-ink3);
-        margin-bottom: 20px;
+        color: var(--so-gray3);
+        margin-bottom: 14px;
       }
       .so-title {
-        font-family: var(--font-instrument-serif), Georgia, serif;
-        font-size: clamp(34px, 5vw, 52px);
+        font-family: var(--font-poppins), system-ui, sans-serif;
+        font-weight: 700;
+        font-size: clamp(28px, 4vw, 40px);
         line-height: 1.1;
         letter-spacing: -0.025em;
-        color: var(--so-ink);
-        margin-bottom: 40px;
+        color: var(--so-black);
+        margin-bottom: 36px;
       }
+
+      /* Fields */
       .so-fields {
         display: flex;
         flex-direction: column;
-        gap: 16px;
-        margin-bottom: 36px;
+        gap: 14px;
+        margin-bottom: 32px;
       }
       .so-field {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 6px;
       }
       .so-label {
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 500;
-        letter-spacing: 0.04em;
-        color: var(--so-ink3);
+        letter-spacing: 0.07em;
+        color: var(--so-gray4);
         text-transform: uppercase;
       }
       .so-input,
       .so-textarea {
         width: 100%;
-        padding: 14px 18px;
-        background: var(--so-surface);
-        -webkit-backdrop-filter: var(--so-glass-blur);
-        backdrop-filter: var(--so-glass-blur);
-        border: 1px solid var(--so-border);
-        border-radius: 14px;
-        font-family: inherit;
+        padding: 13px 16px;
+        background: var(--so-gray1);
+        border: 1.5px solid var(--so-gray2);
+        border-radius: 10px;
+        font-family: var(--font-poppins), system-ui, sans-serif;
         font-size: 15px;
-        font-weight: 300;
-        color: var(--so-ink);
+        font-weight: 400;
+        color: var(--so-black);
         outline: none;
-        transition:
-          border-color 0.25s,
-          background 0.25s,
-          box-shadow 0.25s;
+        transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
         -webkit-appearance: none;
-        box-shadow:
-          inset 0 1px 0 rgba(255, 255, 255, 0.1),
-          0 2px 16px rgba(0, 0, 0, 0.25);
       }
       .so-textarea {
         resize: none;
@@ -178,22 +188,21 @@ export function SpaireOnboardingStyles() {
       }
       .so-input::placeholder,
       .so-textarea::placeholder {
-        color: var(--so-ink3);
+        color: var(--so-gray3);
       }
       .so-input:focus,
       .so-textarea:focus {
-        border-color: var(--so-border-focus);
-        background: rgba(255, 255, 255, 0.08);
-        box-shadow:
-          inset 0 1px 0 rgba(255, 255, 255, 0.15),
-          0 0 0 1px rgba(255, 255, 255, 0.12),
-          0 4px 24px rgba(0, 0, 0, 0.3);
+        border-color: var(--so-black);
+        background: var(--so-white);
+        box-shadow: 0 0 0 3px rgba(10, 10, 10, 0.07);
       }
       .so-hint {
         font-size: 12px;
-        color: var(--so-ink3);
+        color: var(--so-gray3);
         line-height: 1.5;
       }
+
+      /* Buttons */
       .so-btn-row {
         display: flex;
         align-items: center;
@@ -204,43 +213,41 @@ export function SpaireOnboardingStyles() {
         align-items: center;
         justify-content: center;
         gap: 8px;
-        padding: 14px 28px;
-        background: var(--so-ink);
-        color: var(--so-bg);
+        padding: 13px 26px;
+        background: var(--so-black);
+        color: var(--so-white);
         border: none;
         border-radius: 100px;
-        font-family: inherit;
+        font-family: var(--font-poppins), system-ui, sans-serif;
         font-size: 14px;
         font-weight: 500;
         cursor: pointer;
         letter-spacing: -0.01em;
-        transition:
-          opacity 0.18s,
-          transform 0.15s;
+        transition: opacity 0.18s, transform 0.15s;
       }
       .so-btn-cta:hover {
-        opacity: 0.88;
+        opacity: 0.82;
         transform: translateY(-1px);
       }
       .so-btn-cta:active {
         transform: translateY(0);
       }
       .so-btn-cta:disabled {
-        opacity: 0.2;
+        opacity: 0.25;
         pointer-events: none;
       }
       .so-btn-back {
         background: none;
         border: none;
-        font-family: inherit;
+        font-family: var(--font-poppins), system-ui, sans-serif;
         font-size: 13px;
-        color: var(--so-ink3);
+        color: var(--so-gray3);
         cursor: pointer;
         padding: 8px 0;
         transition: color 0.15s;
       }
       .so-btn-back:hover {
-        color: var(--so-ink2);
+        color: var(--so-black);
       }
 
       /* Intro */
@@ -249,20 +256,20 @@ export function SpaireOnboardingStyles() {
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 80px 24px 100px;
+        background: var(--so-white);
+        padding: 80px 40px;
       }
       .so-intro-headline {
-        font-family: var(--font-instrument-serif), Georgia, serif;
-        font-size: clamp(52px, 8vw, 96px);
-        line-height: 1.06;
+        font-family: var(--font-poppins), system-ui, sans-serif;
+        font-weight: 700;
+        font-size: clamp(48px, 7vw, 88px);
+        line-height: 1.08;
         letter-spacing: -0.03em;
-        color: var(--so-ink);
-        max-width: 720px;
+        color: var(--so-black);
         display: flex;
         flex-wrap: wrap;
-        justify-content: center;
-        gap: 0 0.2em;
-        text-align: center;
+        gap: 0 0.22em;
+        max-width: 800px;
       }
       .so-intro-word {
         display: inline-flex;
@@ -270,26 +277,17 @@ export function SpaireOnboardingStyles() {
       .so-intro-letter {
         display: inline-block;
         opacity: 0;
-        transform: translateY(16px);
-        transition:
-          opacity 0.38s ease,
-          transform 0.48s cubic-bezier(0.22, 1, 0.36, 1);
+        transform: translateY(22px);
       }
-      .so-intro-letter.v {
-        opacity: 1;
-        transform: translateY(0);
-      }
-      .so-intro-cta {
-        margin-top: 44px;
-        opacity: 0;
-        transform: translateY(10px);
-        transition:
-          opacity 0.5s ease,
-          transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
-      }
-      .so-intro-cta.v {
-        opacity: 1;
-        transform: translateY(0);
+      @keyframes soLetterUp {
+        from {
+          opacity: 0;
+          transform: translateY(22px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
       }
 
       /* Media cards */
@@ -297,51 +295,49 @@ export function SpaireOnboardingStyles() {
         display: flex;
         flex-direction: column;
         gap: 10px;
-        margin-bottom: 36px;
+        margin-bottom: 32px;
       }
       .so-media-card {
         display: flex;
         align-items: center;
-        gap: 16px;
-        padding: 18px 20px;
-        background: var(--so-surface);
-        -webkit-backdrop-filter: var(--so-glass-blur);
-        backdrop-filter: var(--so-glass-blur);
-        border: 1px solid var(--so-border);
-        border-radius: 16px;
+        gap: 14px;
+        padding: 16px 18px;
+        background: var(--so-gray1);
+        border: 1.5px solid var(--so-gray2);
+        border-radius: 12px;
         cursor: pointer;
-        transition:
-          border-color 0.25s,
-          background 0.25s,
-          box-shadow 0.25s;
+        transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
         text-align: left;
         -webkit-appearance: none;
         appearance: none;
         width: 100%;
         position: relative;
-        font-family: inherit;
-        color: var(--so-ink);
-        box-shadow:
-          inset 0 1px 0 rgba(255, 255, 255, 0.1),
-          0 2px 16px rgba(0, 0, 0, 0.2);
+        font-family: var(--font-poppins), system-ui, sans-serif;
+        color: var(--so-black);
       }
       .so-media-card:hover {
-        border-color: rgba(255, 255, 255, 0.2);
-        background: rgba(255, 255, 255, 0.075);
+        border-color: #c8c8c8;
+        background: #f0f0f0;
       }
       .so-media-card.selected {
-        border-color: rgba(255, 255, 255, 0.38);
-        background: rgba(255, 255, 255, 0.09);
+        border-color: var(--so-black);
+        background: var(--so-white);
+        box-shadow: 0 0 0 3px rgba(10, 10, 10, 0.07);
       }
       .so-media-icon {
-        width: 40px;
-        height: 40px;
-        border-radius: 10px;
-        background: rgba(255, 255, 255, 0.07);
+        width: 38px;
+        height: 38px;
+        border-radius: 8px;
+        background: var(--so-gray2);
         display: flex;
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
+        color: var(--so-gray4);
+      }
+      .so-media-icon svg {
+        width: 18px;
+        height: 18px;
       }
       .so-media-text {
         flex: 1;
@@ -349,29 +345,27 @@ export function SpaireOnboardingStyles() {
       .so-media-title {
         font-size: 14px;
         font-weight: 500;
-        color: var(--so-ink);
+        color: var(--so-black);
         margin-bottom: 2px;
       }
       .so-media-sub {
         font-size: 12px;
-        color: var(--so-ink3);
+        color: var(--so-gray3);
       }
       .so-media-check {
         width: 20px;
         height: 20px;
         border-radius: 50%;
-        border: 1.5px solid var(--so-border);
+        border: 1.5px solid var(--so-gray2);
         display: flex;
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
-        transition:
-          border-color 0.2s,
-          background 0.2s;
+        transition: border-color 0.2s, background 0.2s;
       }
       .so-media-card.selected .so-media-check {
-        border-color: var(--so-ink);
-        background: var(--so-ink);
+        border-color: var(--so-black);
+        background: var(--so-black);
       }
       .so-media-check svg {
         display: none;
@@ -384,25 +378,25 @@ export function SpaireOnboardingStyles() {
         align-items: center;
         justify-content: center;
         gap: 10px;
-        padding: 18px 20px;
-        background: rgba(255, 255, 255, 0.04);
-        backdrop-filter: var(--so-glass-blur);
-        -webkit-backdrop-filter: var(--so-glass-blur);
-        border: 1px dashed rgba(255, 255, 255, 0.14);
-        border-radius: 16px;
+        padding: 16px 20px;
+        background: var(--so-white);
+        border: 1.5px dashed var(--so-gray2);
+        border-radius: 12px;
         cursor: pointer;
         font-size: 13px;
-        color: var(--so-ink2);
+        color: var(--so-gray4);
+        font-family: var(--font-poppins), system-ui, sans-serif;
+        transition: border-color 0.2s, background 0.2s;
       }
       .so-upload-zone:hover {
-        border-color: rgba(255, 255, 255, 0.3);
-        background: rgba(255, 255, 255, 0.06);
+        border-color: #b0b0b0;
+        background: var(--so-gray1);
       }
     `}</style>
   )
 }
 
-// ─── Top bar (logo + close + step counter) ──────────────────────────────────
+// ─── Top bar ──────────────────────────────────────────────────────────────────
 
 function TopBar({
   step,
@@ -443,9 +437,10 @@ function ProgressBar({ pct }: { pct: number }) {
   )
 }
 
-// ─── Intro screen ────────────────────────────────────────────────────────────
+// ─── Intro screen ─────────────────────────────────────────────────────────────
 
-const INTRO_HEADLINE = 'Sell your expertise'
+const INTRO_WORDS = ['Sell', 'your', 'expertise']
+const STAGGER_MS = 68
 
 export function Intro({
   onNext,
@@ -454,81 +449,71 @@ export function Intro({
   onNext: () => void
   onClose: () => void
 }) {
-  const words = INTRO_HEADLINE.trim().split(' ')
-  const total = words.reduce((s, w) => s + w.length, 0)
-  const [vis, setVis] = useState(0)
-  const [ctaVis, setCtaVis] = useState(false)
+  const [started, setStarted] = useState(false)
+
+  // Build letter list with delays (no period)
+  const chars: { ch: string; delay: number }[] = []
+  let idx = 0
+  INTRO_WORDS.forEach((word) => {
+    word.split('').forEach((ch) => {
+      chars.push({ ch, delay: idx * STAGGER_MS })
+      idx++
+    })
+  })
+  const lastDelay = chars[chars.length - 1].delay
 
   useEffect(() => {
-    setVis(0)
-    setCtaVis(false)
-    let i = 0
-    const iv = setInterval(() => {
-      i++
-      setVis(i)
-      if (i >= total) clearInterval(iv)
-    }, 52)
-    return () => clearInterval(iv)
-  }, [total])
+    const t = setTimeout(() => setStarted(true), 60)
+    return () => clearTimeout(t)
+  }, [])
 
+  // Auto-advance after all letters land + pause
   useEffect(() => {
-    if (vis >= total && total > 0) {
-      const t = setTimeout(() => setCtaVis(true), 280)
-      return () => clearTimeout(t)
-    }
-  }, [vis, total])
+    if (!started) return
+    const total = lastDelay + 520 + 700
+    const t = setTimeout(() => onNext(), total)
+    return () => clearTimeout(t)
+  }, [started, lastDelay, onNext])
 
-  let gi = -1
+  // Rebuild word groups from chars
+  const wordGroups: (typeof chars)[] = []
+  let ci = 0
+  INTRO_WORDS.forEach((word) => {
+    wordGroups.push(chars.slice(ci, ci + word.length))
+    ci += word.length
+  })
+
   return (
     <>
       <TopBar onClose={onClose} />
       <div className="so-intro-stage">
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-          }}
-        >
-          <h1 className="so-intro-headline">
-            {words.map((word, wi) => (
-              <span key={wi} className="so-intro-word">
-                {word.split('').map((ch, ci) => {
-                  gi++
-                  const idx = gi
-                  return (
-                    <span
-                      key={ci}
-                      className={`so-intro-letter${idx < vis ? 'v' : ''}`}
-                    >
-                      {ch}
-                    </span>
-                  )
-                })}
-              </span>
-            ))}
-          </h1>
-          <div className={`so-intro-cta${ctaVis ? 'v' : ''}`}>
-            <button type="button" className="so-btn-cta" onClick={onNext}>
-              Get started
-              <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
-                <path
-                  d="M2.5 6.5h8M7 3l3.5 3.5L7 10"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-          </div>
-        </div>
+        <h1 className="so-intro-headline">
+          {wordGroups.map((group, wi) => (
+            <span key={wi} className="so-intro-word">
+              {group.map((c, li) => (
+                <span
+                  key={li}
+                  className="so-intro-letter"
+                  style={
+                    started
+                      ? {
+                          animation: `soLetterUp 0.52s cubic-bezier(0.22,1,0.36,1) ${c.delay}ms forwards`,
+                        }
+                      : {}
+                  }
+                >
+                  {c.ch}
+                </span>
+              ))}
+            </span>
+          ))}
+        </h1>
       </div>
     </>
   )
 }
 
-// ─── Step shell ──────────────────────────────────────────────────────────────
+// ─── Step shell ───────────────────────────────────────────────────────────────
 
 function StepShell({
   step,
@@ -551,16 +536,13 @@ function StepShell({
   nextLabel?: string
   nextDisabled?: boolean
 }) {
-  const pct = (step / total) * 100
   return (
     <>
-      <ProgressBar pct={pct} />
+      <ProgressBar pct={(step / total) * 100} />
       <TopBar step={step} total={total} onClose={onClose} />
       <div className="so-stage">
         <div className="so-screen">
-          <div className="so-eyebrow">
-            Step {step} of {total}
-          </div>
+          <div className="so-eyebrow">Step {step} of {total}</div>
           <h2 className="so-title">{title}</h2>
           {children}
           <div className="so-btn-row">
@@ -593,7 +575,7 @@ function StepShell({
   )
 }
 
-// ─── Step 1: Instructor ─────────────────────────────────────────────────────
+// ─── Step 1: Instructor ───────────────────────────────────────────────────────
 
 export function StepInstructor({
   data,
@@ -612,7 +594,7 @@ export function StepInstructor({
     <StepShell
       step={1}
       total={3}
-      title="Instructor details."
+      title="Instructor details"
       onNext={onNext}
       onBack={onBack}
       onClose={onClose}
@@ -649,7 +631,7 @@ export function StepInstructor({
   )
 }
 
-// ─── Step 2: Course ─────────────────────────────────────────────────────────
+// ─── Step 2: Course ───────────────────────────────────────────────────────────
 
 export function StepCourse({
   data,
@@ -668,7 +650,7 @@ export function StepCourse({
     <StepShell
       step={2}
       total={3}
-      title="Course details."
+      title="Course details"
       onNext={onNext}
       onBack={onBack}
       onClose={onClose}
@@ -698,16 +680,13 @@ export function StepCourse({
             value={data.desc}
             onChange={(e) => onChange({ ...data, desc: e.target.value })}
           />
-          <span className="so-hint">
-            Summarize what students will learn in one sentence.
-          </span>
         </div>
       </div>
     </StepShell>
   )
 }
 
-// ─── Step 3: Hero media ─────────────────────────────────────────────────────
+// ─── Step 3: Hero media ───────────────────────────────────────────────────────
 
 type MediaState = {
   format: 'thumbnail' | 'trailer' | null
@@ -754,7 +733,7 @@ export function StepMedia({
       label: 'Thumbnail image',
       sub: 'JPG or PNG · 16:9 recommended',
       icon: (
-        <svg viewBox="0 0 18 18" fill="none" width="18" height="18">
+        <svg viewBox="0 0 18 18" fill="none">
           <rect
             x="1.5"
             y="3"
@@ -786,7 +765,7 @@ export function StepMedia({
       label: 'Trailer video',
       sub: 'MP4 or MOV · 60s max',
       icon: (
-        <svg viewBox="0 0 18 18" fill="none" width="18" height="18">
+        <svg viewBox="0 0 18 18" fill="none">
           <rect
             x="1.5"
             y="3"
@@ -811,7 +790,7 @@ export function StepMedia({
     <StepShell
       step={3}
       total={3}
-      title="Hero media."
+      title="Hero media"
       onNext={onNext}
       onBack={onBack}
       onClose={onClose}
@@ -827,7 +806,7 @@ export function StepMedia({
             <button
               key={opt.id}
               type="button"
-              className={`so-media-card${isSelected ? 'selected' : ''}`}
+              className={`so-media-card${isSelected ? ' selected' : ''}`}
               onClick={() => onChange({ ...data, format: opt.id })}
             >
               <div className="so-media-icon">{opt.icon}</div>
@@ -838,9 +817,8 @@ export function StepMedia({
                   <div
                     style={{
                       fontSize: 12,
-                      color: 'rgba(242,241,238,0.6)',
-                      marginTop: 4,
-                      fontStyle: 'italic',
+                      color: '#6a6a6a',
+                      marginTop: 3,
                     }}
                   >
                     {filename}
@@ -851,7 +829,7 @@ export function StepMedia({
                 <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
                   <path
                     d="M1 4l3 3 5-6"
-                    stroke="#080808"
+                    stroke="#fff"
                     strokeWidth="1.6"
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -867,14 +845,14 @@ export function StepMedia({
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
               <path
                 d="M8 11V3M5 6l3-3 3 3"
-                stroke="rgba(242,241,238,0.5)"
+                stroke="#a0a0a0"
                 strokeWidth="1.4"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
               <path
                 d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2"
-                stroke="rgba(242,241,238,0.28)"
+                stroke="#c8c8c8"
                 strokeWidth="1.4"
                 strokeLinecap="round"
               />

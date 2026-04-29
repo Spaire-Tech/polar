@@ -126,9 +126,7 @@ export default function CourseWizard({
       visibility: 'public',
       prices: [
         {
-          amount_type: 'fixed',
-          price_amount: 0,
-          price_currency: organization.default_presentment_currency,
+          amount_type: 'free',
         },
       ],
       medias: [],
@@ -206,7 +204,8 @@ export default function CourseWizard({
       } as schemas['ProductCreate'])
 
       if (productResult.error || !productResult.data) {
-        throw new Error('Product creation failed')
+        console.error('[CourseWizard] product creation error:', JSON.stringify(productResult.error))
+        throw new Error(`Product creation failed: ${JSON.stringify(productResult.error)}`)
       }
 
       const created = await createCourse.mutateAsync({

@@ -13,7 +13,12 @@ import { schemas } from '@spaire/client'
 import { GeistMono } from 'geist/font/mono'
 import { GeistSans } from 'geist/font/sans'
 import { PHASE_PRODUCTION_BUILD } from 'next/constants'
-import { Barlow_Condensed, DM_Sans, Instrument_Serif } from 'next/font/google'
+import {
+  Barlow_Condensed,
+  DM_Sans,
+  Instrument_Serif,
+  Poppins,
+} from 'next/font/google'
 import { Metadata } from 'next/types'
 import {
   NavigationHistoryProvider,
@@ -42,6 +47,13 @@ const barlowCondensed = Barlow_Condensed({
   weight: ['700', '800'],
   style: ['normal', 'italic'],
   variable: '--font-barlow-condensed',
+  display: 'swap',
+})
+
+const poppins = Poppins({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-poppins',
   display: 'swap',
 })
 
@@ -138,7 +150,7 @@ export default async function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`antialiased ${GeistSans.variable} ${GeistMono.variable} ${instrumentSerif.variable} ${dmSans.variable} ${barlowCondensed.variable}`}
+      className={`antialiased ${GeistSans.variable} ${GeistMono.variable} ${instrumentSerif.variable} ${dmSans.variable} ${barlowCondensed.variable} ${poppins.variable}`}
     >
       <head>
         {CONFIG.ENVIRONMENT === 'development' ? (

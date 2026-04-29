@@ -117,7 +117,9 @@ function EditPanel({
             />
             <StyleToggle
               active={draft.nameBold}
-              onClick={() => setDraft((d) => ({ ...d, nameBold: !d.nameBold }))}
+              onClick={() =>
+                setDraft((d) => ({ ...d, nameBold: !d.nameBold }))
+              }
               label="Bold"
               bold
             />
@@ -341,7 +343,15 @@ export function LandingPreview({
   const displayDesc = draft.desc || course.desc || instructor.bio || ''
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: '#000' }}>
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: '#000',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Background media */}
       {bgUrl ? (
         isVideo ? (
           <video
@@ -383,6 +393,26 @@ export function LandingPreview({
         />
       )}
 
+      {/* Left gradient vignette */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background:
+            'linear-gradient(to right, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.80) 22%, rgba(0,0,0,0.5) 42%, rgba(0,0,0,0.15) 60%, rgba(0,0,0,0) 100%)',
+        }}
+      />
+
+      {/* Bottom vignette */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background:
+            'linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 40%)',
+        }}
+      />
+
       {/* Class TA badge */}
       <div
         style={{
@@ -405,19 +435,16 @@ export function LandingPreview({
           zIndex: 30,
         }}
       >
-        <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
           <path
-            d="M2 6.5h9M6.5 2l4.5 4.5L6.5 11"
-            stroke="white"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+            d="M6 1l1.2 3.6H11L8.1 6.9 9.3 11 6 8.7 2.7 11l1.2-4.1L1 4.6h3.8z"
+            fill="white"
           />
         </svg>
         Class TA
       </div>
 
-      {/* Top-left close + back */}
+      {/* Top-left: back + close */}
       <div
         style={{
           position: 'absolute',
@@ -470,24 +497,14 @@ export function LandingPreview({
         </button>
       </div>
 
-      {/* Gradient overlay */}
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background:
-            'linear-gradient(to right, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.75) 20%, rgba(0,0,0,0.45) 40%, rgba(0,0,0,0.1) 65%, rgba(0,0,0,0.0) 100%)',
-        }}
-      />
-
-      {/* Content block */}
+      {/* ── Centered content column (positioned bottom-left) ── */}
       <div
         style={{
           position: 'absolute',
           bottom: 0,
           left: 0,
-          padding: '0 64px 60px',
-          width: 460,
+          padding: '0 64px 72px',
+          width: 'min(620px, 50vw)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -495,6 +512,7 @@ export function LandingPreview({
           zIndex: 20,
         }}
       >
+        {/* Instructor name */}
         <div
           onClick={() => setEditOpen(true)}
           title="Click to edit"
@@ -502,57 +520,62 @@ export function LandingPreview({
             fontFamily: 'var(--font-barlow-condensed), Impact, sans-serif',
             fontWeight: draft.nameBold ? 800 : 700,
             fontStyle: draft.nameItalic ? 'italic' : 'normal',
-            fontSize: 'clamp(48px, 5.5vw, 76px)',
-            lineHeight: 0.95,
+            fontSize: 'clamp(64px, 7.5vw, 112px)',
+            lineHeight: 0.92,
             letterSpacing: '0.01em',
             color: '#fff',
             textTransform: draft.nameUppercase ? 'uppercase' : 'none',
             cursor: 'pointer',
-            width: '100%',
-            textAlign: 'center',
             whiteSpace: 'nowrap',
+            textAlign: 'center',
+            width: '100%',
           }}
         >
           {displayName}
         </div>
 
+        {/* Separator — centered */}
         <div
           style={{
-            width: 28,
-            height: 2,
+            width: 30,
+            height: 2.5,
             background: '#fff',
-            margin: '12px auto 10px',
+            margin: '22px auto 18px',
+            flexShrink: 0,
           }}
         />
 
+        {/* Course title */}
         <div
           onClick={() => setEditOpen(true)}
           title="Click to edit"
           style={{
             fontFamily: 'var(--font-dm-sans), system-ui, sans-serif',
-            fontSize: 15,
-            fontWeight: 500,
-            color: 'rgba(255,255,255,0.95)',
-            letterSpacing: '0.01em',
-            marginBottom: 18,
+            fontSize: 17,
+            fontWeight: 600,
+            color: 'rgba(255,255,255,0.96)',
+            letterSpacing: '0.005em',
+            marginBottom: 32,
             cursor: 'pointer',
+            textAlign: 'center',
           }}
         >
           {displayCourse}
         </div>
 
+        {/* Description */}
         {displayDesc && (
           <div
             onClick={() => setEditOpen(true)}
             title="Click to edit"
             style={{
               fontFamily: 'var(--font-dm-sans), system-ui, sans-serif',
-              fontSize: 12.5,
+              fontSize: 13.5,
               fontWeight: 400,
-              color: 'rgba(255,255,255,0.62)',
+              color: 'rgba(255,255,255,0.65)',
               lineHeight: 1.65,
-              maxWidth: 220,
-              marginBottom: 22,
+              maxWidth: 340,
+              marginBottom: 40,
               cursor: 'pointer',
               textAlign: 'center',
             }}
@@ -574,6 +597,7 @@ export function LandingPreview({
           </div>
         )}
 
+        {/* Buttons — centered */}
         <div
           style={{
             display: 'flex',
@@ -589,13 +613,13 @@ export function LandingPreview({
               display: 'inline-flex',
               alignItems: 'center',
               gap: 7,
-              padding: '10px 20px',
+              padding: '11px 22px',
               background: '#fff',
               color: '#000',
               border: 'none',
               borderRadius: 100,
               fontFamily: 'var(--font-dm-sans), system-ui, sans-serif',
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: 500,
               cursor: 'pointer',
               letterSpacing: '-0.01em',
@@ -613,13 +637,13 @@ export function LandingPreview({
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
-              padding: '9px 18px',
+              padding: '10px 20px',
               background: 'rgba(30,30,30,0.85)',
               color: '#fff',
               border: 'none',
               borderRadius: 100,
               fontFamily: 'var(--font-dm-sans), system-ui, sans-serif',
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: 500,
               cursor: 'pointer',
               backdropFilter: 'blur(12px)',
@@ -632,15 +656,18 @@ export function LandingPreview({
             type="button"
             aria-label="Add"
             style={{
-              width: 36,
-              height: 36,
+              width: 38,
+              height: 38,
               borderRadius: '50%',
               border: '1.5px solid rgba(255,255,255,0.45)',
               background: 'transparent',
               color: '#fff',
-              fontSize: 18,
+              fontSize: 20,
               fontWeight: 300,
               cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
             +
