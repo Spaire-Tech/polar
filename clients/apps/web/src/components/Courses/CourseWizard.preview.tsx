@@ -487,13 +487,16 @@ export function LandingPreview({
           }}
         />
 
-        {/* Bottom vignette */}
+        {/* Bottom fade to black */}
         <div
           style={{
             position: 'absolute',
-            inset: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: '35%',
             background:
-              'linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 40%)',
+              'linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 40%, rgba(0,0,0,0) 100%)',
           }}
         />
 

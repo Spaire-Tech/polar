@@ -16,34 +16,80 @@ export const MasterClassInstructors = ({
   if (instructors.length === 0) return null
 
   return (
-    <div className="w-full bg-black pt-24 md:pt-32">
-      <div className="mx-auto max-w-5xl px-6 md:px-8">
-        <h2 className="mb-12 text-3xl font-bold text-white md:text-5xl">
+    <div className="w-full bg-black" style={{ paddingTop: 48, paddingBottom: 40 }}>
+      <div style={{ paddingLeft: 88, paddingRight: 88 }}>
+        <p
+          style={{
+            fontSize: 17,
+            fontWeight: 600,
+            color: '#fff',
+            letterSpacing: '-0.01em',
+            marginBottom: 20,
+          }}
+        >
           Class Instructors
-        </h2>
+        </p>
 
-        <div className="flex flex-col gap-10 pb-12">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {instructors.map((instructor) => (
-            <div key={instructor.name} className="flex items-start gap-5">
-              <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-full bg-gray-800 md:h-16 md:w-16">
+            <div
+              key={instructor.name}
+              style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}
+            >
+              <div
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: '50%',
+                  overflow: 'hidden',
+                  flexShrink: 0,
+                  background: '#1a1a1a',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
                 {instructor.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={instructor.avatarUrl}
                     alt={instructor.name}
-                    className="h-full w-full object-cover"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center text-base font-semibold text-white">
+                  <span
+                    style={{
+                      fontSize: 15,
+                      fontWeight: 600,
+                      color: '#fff',
+                    }}
+                  >
                     {instructor.name.charAt(0).toUpperCase()}
-                  </div>
+                  </span>
                 )}
               </div>
-              <div className="flex flex-col pt-1">
-                <p className="text-lg font-bold text-white md:text-xl">
+              <div style={{ paddingTop: 2 }}>
+                <p
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 700,
+                    color: '#fff',
+                    lineHeight: 1.2,
+                  }}
+                >
                   {instructor.name}
                 </p>
                 {instructor.bio && (
-                  <p className="mt-1 text-sm leading-relaxed text-white/70 md:text-base">
+                  <p
+                    style={{
+                      marginTop: 3,
+                      fontSize: 13,
+                      fontWeight: 400,
+                      color: 'rgba(255,255,255,0.55)',
+                      lineHeight: 1.45,
+                      maxWidth: 460,
+                    }}
+                  >
                     {instructor.bio}
                   </p>
                 )}

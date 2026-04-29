@@ -94,6 +94,16 @@ export const MasterClassHero = ({
           }}
         />
 
+        {/* Bottom fade to black */}
+        <div
+          className="absolute inset-x-0 bottom-0"
+          style={{
+            height: '35%',
+            background:
+              'linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 40%, rgba(0,0,0,0) 100%)',
+          }}
+        />
+
         {/* Content block: bottom-left column, contents centered */}
         <div
           className="absolute bottom-0 left-0 z-10 flex flex-col items-center text-center text-white"
