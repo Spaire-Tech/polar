@@ -1,14 +1,13 @@
 'use client'
 
 import PlayArrow from '@mui/icons-material/PlayArrow'
-import { useState } from 'react'
-import { twMerge } from 'tailwind-merge'
 
 interface MasterClassHeroProps {
   courseTitle: string | null
   organizationName: string | null
   description: string | null
   thumbnailUrl: string | null
+  thumbnailObjectPosition?: string | null
   isStarted: boolean
   totalLessons: number
   completionPercent: number
@@ -21,6 +20,7 @@ export const MasterClassHero = ({
   organizationName,
   description,
   thumbnailUrl,
+  thumbnailObjectPosition,
   isStarted,
   totalLessons,
   completionPercent,
@@ -33,60 +33,57 @@ export const MasterClassHero = ({
 
   return (
     <div
-      className="relative w-screen min-h-screen flex flex-col items-center justify-center bg-black bg-cover bg-center overflow-hidden -ml-[50vw] left-[50%]"
+      className="relative w-screen min-h-screen flex flex-col items-center justify-center bg-black bg-cover overflow-hidden -ml-[50vw] left-[50%]"
       style={{
         backgroundImage,
         backgroundAttachment: 'fixed',
+        backgroundPosition: thumbnailObjectPosition ?? 'center',
       }}
     >
       {/* Dark overlay gradient */}
       <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/50 to-black/80" />
 
-      {/* Floating Class TA button (top-right) - stub for now */}
-      <div className="absolute top-6 right-6 z-20 hidden sm:block">
-        <button className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-sm font-medium rounded-full hover:shadow-lg transition-shadow">
-          Class TA
-        </button>
-      </div>
-
       {/* Content */}
-      <div className="relative z-10 flex flex-col items-center text-center text-white max-w-2xl px-6">
+      <div className="relative z-10 flex w-full max-w-3xl flex-col items-center px-6 text-center text-white">
         {/* Organization/Instructor name in serif */}
         {organizationName && (
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif font-bold mb-4">
+          <h2 className="font-serif text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl md:text-7xl lg:text-8xl">
             {organizationName}
           </h2>
         )}
 
         {/* Thin divider */}
         {organizationName && courseTitle && (
-          <div className="w-12 h-px bg-white/40 mb-6" />
+          <div className="mt-8 h-px w-12 bg-white/50" />
         )}
 
         {/* Course title */}
         {courseTitle && (
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-4 leading-tight">
+          <h1 className="mt-8 text-3xl font-bold leading-tight sm:text-4xl md:text-5xl">
             {courseTitle}
           </h1>
         )}
 
         {/* Description */}
         {description && (
-          <p className="text-base sm:text-lg text-white/80 mb-8 max-w-xl leading-relaxed">
+          <p className="mt-6 max-w-xl text-base leading-relaxed text-white/85 sm:text-lg">
             {description}
           </p>
         )}
 
         {/* Progress bar if started */}
         {isStarted && totalLessons > 0 && (
-          <div className="w-full max-w-xs mb-8">
+          <div className="mt-10 w-full max-w-xs">
             <div className="mb-2 flex items-center justify-between text-sm text-white/70">
               <span>
                 {Math.round(
-                  (completionPercent / 100) * totalLessons
-                )} of {totalLessons} lessons
+                  (completionPercent / 100) * totalLessons,
+                )}{' '}
+                of {totalLessons} lessons
               </span>
-              <span className="font-medium">{Math.round(completionPercent)}%</span>
+              <span className="font-medium">
+                {Math.round(completionPercent)}%
+              </span>
             </div>
             <div className="h-1 overflow-hidden rounded-full bg-white/20">
               <div
@@ -98,10 +95,10 @@ export const MasterClassHero = ({
         )}
 
         {/* CTA Buttons */}
-        <div className="flex flex-col sm:flex-row items-center gap-3">
+        <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row">
           <button
             onClick={onStart}
-            className="flex items-center gap-2 px-6 py-3 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-colors"
+            className="flex items-center gap-2 rounded-md bg-white px-7 py-3 text-base font-semibold text-black transition-colors hover:bg-gray-100"
           >
             <PlayArrow sx={{ fontSize: 20 }} />
             {isStarted ? 'Continue Class' : 'Start Class'}
@@ -109,12 +106,12 @@ export const MasterClassHero = ({
 
           <button
             onClick={onTrailer}
-            className="px-6 py-3 border border-white/40 text-white font-semibold rounded-lg hover:border-white/60 hover:bg-white/5 transition-colors"
+            className="rounded-md border border-white/40 bg-black/30 px-7 py-3 text-base font-semibold text-white backdrop-blur-sm transition-colors hover:border-white/60 hover:bg-black/40"
           >
             Trailer
           </button>
 
-          <button className="flex items-center justify-center h-11 w-11 border border-white/40 text-white rounded-lg hover:border-white/60 hover:bg-white/5 transition-colors">
+          <button className="flex h-12 w-12 items-center justify-center rounded-md border border-white/40 bg-black/30 text-2xl font-light text-white backdrop-blur-sm transition-colors hover:border-white/60 hover:bg-black/40">
             +
           </button>
         </div>

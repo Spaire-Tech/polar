@@ -67,6 +67,10 @@ class Course(RecordModel):
         String(500), nullable=True, default=None
     )
 
+    thumbnail_object_position: Mapped[str | None] = mapped_column(
+        String(32), nullable=True, default=None
+    )
+
     @declared_attr
     def product(cls) -> Mapped["Product"]:
         return relationship("Product", lazy="raise")

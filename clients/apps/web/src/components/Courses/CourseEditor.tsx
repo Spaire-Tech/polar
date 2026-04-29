@@ -147,6 +147,7 @@ export default function CourseEditor({
         body: {
           paywall_enabled: edits.paywall_enabled,
           paywall_position: edits.paywall_position,
+          thumbnail_object_position: edits.thumbnail_object_position,
         },
       })
       invalidateCourse()
@@ -186,6 +187,7 @@ export default function CourseEditor({
           video_asset_id:
             edits.media === 'video' ? edits.videoUrl || null : null,
           published: edits.published,
+          thumbnail_object_position: edits.thumbnailObjectPosition,
         },
       })
       invalidateCourse()

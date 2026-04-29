@@ -68,6 +68,10 @@ class CourseLesson(RecordModel):
         String(2048), nullable=True, default=None
     )
 
+    thumbnail_object_position: Mapped[str | None] = mapped_column(
+        String(32), nullable=True, default=None
+    )
+
     description: Mapped[str | None] = mapped_column(
         Text, nullable=True, default=None
     )

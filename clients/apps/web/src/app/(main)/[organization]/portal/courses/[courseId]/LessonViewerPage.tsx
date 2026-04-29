@@ -8,6 +8,7 @@ import { schemas } from '@spaire/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import { MasterClassHero } from './MasterClassHero'
+import { MasterClassInstructors } from './MasterClassInstructors'
 import { MasterClassLessonList, type FlatLesson } from './MasterClassLessonList'
 import { MasterClassLessonViewer } from './MasterClassLessonViewer'
 
@@ -47,6 +48,7 @@ const LessonViewerPage = ({
           position: l.position,
           duration_seconds: l.duration_seconds,
           thumbnail_url: l.thumbnail_url,
+          thumbnail_object_position: l.thumbnail_object_position ?? null,
           mux_playback_id: l.mux_playback_id,
           mux_status: l.mux_status,
           completed: l.completed,
@@ -126,6 +128,7 @@ const LessonViewerPage = ({
           content_type: currentLesson.content_type,
           duration_seconds: currentLesson.duration_seconds,
           thumbnail_url: currentLesson.thumbnail_url,
+          thumbnail_object_position: currentLesson.thumbnail_object_position,
           mux_playback_id: currentLesson.mux_playback_id,
           mux_status: currentLesson.mux_status,
           completed: currentLesson.completed,
@@ -140,6 +143,7 @@ const LessonViewerPage = ({
           completed: l.completed,
           duration_seconds: l.duration_seconds,
           thumbnail_url: l.thumbnail_url,
+          thumbnail_object_position: l.thumbnail_object_position,
           mux_playback_id: l.mux_playback_id,
         }))}
         courseTitle={data.course.title}
@@ -164,6 +168,7 @@ const LessonViewerPage = ({
         organizationName={organization.name}
         description={data.course.description}
         thumbnailUrl={data.course.thumbnail_url}
+        thumbnailObjectPosition={data.course.thumbnail_object_position ?? null}
         isStarted={hasStarted}
         totalLessons={progress?.total_lessons ?? flatLessons.length}
         completionPercent={progress?.completion_percent ?? 0}
@@ -171,8 +176,19 @@ const LessonViewerPage = ({
         onTrailer={handleTrailer}
       />
 
+      <MasterClassInstructors
+        instructors={[
+          {
+            name: organization.name,
+            avatarUrl: organization.avatar_url,
+            bio: data.course.instructor_bio ?? null,
+          },
+        ]}
+      />
+
       <MasterClassLessonList
         lessons={flatLessons}
+        instructorName={organization.name}
         onSelectLesson={handleSelectLesson}
         hasAccess={true}
       />

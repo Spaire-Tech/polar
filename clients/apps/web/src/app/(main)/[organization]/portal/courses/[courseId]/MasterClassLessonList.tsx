@@ -1,10 +1,8 @@
 'use client'
 
-import CheckCircle from '@mui/icons-material/CheckCircle'
-import CheckCircleOutlined from '@mui/icons-material/CheckCircleOutlined'
+import CheckOutlined from '@mui/icons-material/CheckOutlined'
 import LockOutlined from '@mui/icons-material/LockOutlined'
 import PlayArrow from '@mui/icons-material/PlayArrow'
-import { useState } from 'react'
 import { twMerge } from 'tailwind-merge'
 
 export interface FlatLesson {
@@ -14,6 +12,7 @@ export interface FlatLesson {
   position: number
   duration_seconds?: number | null
   thumbnail_url?: string | null
+  thumbnail_object_position?: string | null
   mux_playback_id?: string | null
   mux_status?: string | null
   completed: boolean
@@ -26,34 +25,33 @@ export interface FlatLesson {
 
 interface MasterClassLessonListProps {
   lessons: FlatLesson[]
+  instructorName: string | null
   onSelectLesson: (lesson: FlatLesson) => void
   hasAccess: boolean
 }
 
 const formatDuration = (seconds: number | null | undefined): string => {
   if (!seconds) return ''
-  const mins = Math.ceil(seconds / 60)
-  return `${mins}m`
+  const totalSeconds = Math.floor(seconds)
+  const h = Math.floor(totalSeconds / 3600)
+  const m = Math.floor((totalSeconds % 3600) / 60)
+  const s = totalSeconds % 60
+  const pad = (n: number) => n.toString().padStart(2, '0')
+  if (h > 0) return `${pad(h)}:${pad(m)}:${pad(s)}`
+  return `${pad(m)}:${pad(s)}`
 }
 
 export const MasterClassLessonList = ({
   lessons,
+  instructorName,
   onSelectLesson,
   hasAccess,
 }: MasterClassLessonListProps) => {
-  const [expandedDescription, setExpandedDescription] = useState<string | null>(
-    null
-  )
-
   return (
-    <div className="w-full bg-black py-16 md:py-24">
-      <div className="mx-auto max-w-3xl px-6 md:px-8">
-        <h2 className="text-2xl md:text-3xl font-bold text-white mb-12">
-          Lessons
-        </h2>
-
-        <div className="space-y-4">
-          {lessons.map((lesson) => {
+    <div className="w-full bg-black pb-16 md:pb-24">
+      <div className="mx-auto max-w-5xl px-6 md:px-8">
+        <div className="flex flex-col">
+          {lessons.map((lesson, index) => {
             const thumbnailSrc =
               lesson.thumbnail_url ||
               (lesson.mux_playback_id
@@ -68,94 +66,104 @@ export const MasterClassLessonList = ({
                 lesson.is_free_preview)
 
             return (
-              <button
+              <div
                 key={lesson.id}
-                onClick={() => !isLocked && onSelectLesson(lesson)}
-                disabled={isLocked}
                 className={twMerge(
-                  'group w-full flex gap-4 p-4 rounded-lg transition-colors',
-                  isLocked
-                    ? 'cursor-not-allowed opacity-60'
-                    : 'hover:bg-white/5 active:bg-white/10 cursor-pointer'
+                  'border-t border-white/10',
+                  index === 0 && 'border-t-0',
                 )}
               >
-                {/* Thumbnail */}
-                <div className="flex-shrink-0 relative w-40 aspect-video rounded overflow-hidden bg-gray-900">
-                  {thumbnailSrc ? (
-                    <img
-                      src={thumbnailSrc}
-                      alt={lesson.title}
-                      className="w-full h-full object-cover group-hover:brightness-110 transition-all"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900" />
+                <button
+                  onClick={() => !isLocked && onSelectLesson(lesson)}
+                  disabled={isLocked}
+                  className={twMerge(
+                    'group flex w-full items-start gap-6 py-8 text-left',
+                    isLocked
+                      ? 'cursor-not-allowed opacity-60'
+                      : 'cursor-pointer',
                   )}
-
-                  {/* Duration overlay (bottom-right) */}
-                  {lesson.duration_seconds && !isLocked && (
-                    <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs font-medium px-2 py-1 rounded">
-                      {formatDuration(lesson.duration_seconds)}
-                    </div>
-                  )}
-
-                  {/* Play button overlay */}
-                  {isPlayable && !isLocked && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/90">
-                        <PlayArrow sx={{ fontSize: 28 }} className="ml-1 text-blue-600" />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Lock overlay */}
-                  {isLocked && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-                      <LockOutlined sx={{ fontSize: 32 }} className="text-white" />
-                    </div>
-                  )}
-
-                  {/* Completion indicator */}
-                  {lesson.completed && !isLocked && (
-                    <div className="absolute top-2 left-2">
-                      <CheckCircle sx={{ fontSize: 24 }} className="text-green-500" />
-                    </div>
-                  )}
-                </div>
-
-                {/* Content */}
-                <div className="flex-1 flex flex-col items-start text-left min-w-0">
-                  {/* Lesson number + title */}
-                  <div className="flex items-center gap-3 mb-2 w-full">
-                    {!lesson.completed && !isLocked && (
-                      <CheckCircleOutlined
-                        sx={{ fontSize: 20 }}
-                        className="flex-shrink-0 text-gray-500"
+                >
+                  {/* Thumbnail */}
+                  <div className="relative aspect-video w-56 flex-shrink-0 overflow-hidden rounded-md bg-gray-900">
+                    {thumbnailSrc ? (
+                      <img
+                        src={thumbnailSrc}
+                        alt={lesson.title}
+                        className="h-full w-full object-cover transition-all group-hover:brightness-110"
+                        style={{
+                          objectPosition:
+                            lesson.thumbnail_object_position ?? '50% 50%',
+                        }}
                       />
+                    ) : (
+                      <div className="h-full w-full bg-gradient-to-br from-gray-800 to-gray-900" />
                     )}
-                    <h3 className="text-base md:text-lg font-semibold text-white">
-                      {lesson.position + 1}. {lesson.title}
-                    </h3>
+
+                    {/* Watched badge (top-left) */}
+                    {lesson.completed && !isLocked && (
+                      <div className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-black/85 px-2 py-1 text-xs font-medium text-white">
+                        <CheckOutlined sx={{ fontSize: 14 }} />
+                        Watched
+                      </div>
+                    )}
+
+                    {/* Duration overlay (bottom-right) */}
+                    {lesson.duration_seconds && !isLocked && (
+                      <div className="absolute bottom-2 right-2 rounded bg-black/80 px-1.5 py-0.5 text-xs font-medium text-white">
+                        {formatDuration(lesson.duration_seconds)}
+                      </div>
+                    )}
+
+                    {/* Play button overlay */}
+                    {isPlayable && !isLocked && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 transition-opacity group-hover:opacity-100">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/90">
+                          <PlayArrow
+                            sx={{ fontSize: 28 }}
+                            className="ml-1 text-black"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Lock overlay */}
+                    {isLocked && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                        <LockOutlined
+                          sx={{ fontSize: 32 }}
+                          className="text-white"
+                        />
+                      </div>
+                    )}
                   </div>
 
-                  {/* Description - line clamp to 2 lines */}
-                  {lesson.description && (
-                    <p className="text-sm text-gray-400 line-clamp-2">
-                      {lesson.description}
-                    </p>
-                  )}
-
-                  {/* Locked message */}
-                  {isLocked && (
-                    <p className="text-sm text-orange-400 mt-2">
-                      {lesson.locked_until
-                        ? `Unlocks ${new Date(
-                            lesson.locked_until
-                          ).toLocaleDateString()}`
-                        : 'Locked — Unlock to watch'}
-                    </p>
-                  )}
-                </div>
-              </button>
+                  {/* Content */}
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <h3 className="text-lg font-bold leading-snug text-white md:text-xl">
+                      {lesson.title}
+                    </h3>
+                    {instructorName && (
+                      <p className="mt-1 text-sm font-medium text-white">
+                        {instructorName}
+                      </p>
+                    )}
+                    {lesson.description && (
+                      <p className="mt-3 text-sm leading-relaxed text-white/70">
+                        {lesson.description}
+                      </p>
+                    )}
+                    {isLocked && (
+                      <p className="mt-3 text-sm text-orange-400">
+                        {lesson.locked_until
+                          ? `Unlocks ${new Date(
+                              lesson.locked_until,
+                            ).toLocaleDateString()}`
+                          : 'Locked — Unlock to watch'}
+                      </p>
+                    )}
+                  </div>
+                </button>
+              </div>
             )
           })}
         </div>

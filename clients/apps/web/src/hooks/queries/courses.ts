@@ -63,6 +63,7 @@ export type CourseLessonRead = {
   mux_playback_id: string | null
   mux_status: string | null
   thumbnail_url: string | null
+  thumbnail_object_position: string | null
   created_at: string
   modified_at: string | null
 }
@@ -99,6 +100,7 @@ export type CourseRead = {
   ai_generated: boolean
   description: string | null
   thumbnail_url: string | null
+  thumbnail_object_position: string | null
   modules: CourseModuleRead[]
   created_at: string
   modified_at: string | null
@@ -164,6 +166,9 @@ export const useCreateCourse = () =>
       course_type?: string
       paywall_enabled?: boolean
       ai_generated?: boolean
+      description?: string | null
+      thumbnail_url?: string | null
+      thumbnail_object_position?: string | null
       modules: {
         title: string
         description?: string | null
@@ -190,6 +195,9 @@ export const useUpdateCourse = () =>
         course_type?: string
         paywall_enabled?: boolean
         paywall_position?: number | null
+        description?: string | null
+        thumbnail_url?: string | null
+        thumbnail_object_position?: string | null
       }
     }) =>
       courseApiFetch<CourseRead>(`/v1/courses/${courseId}`, {
@@ -285,6 +293,7 @@ export const useUpdateCourseLesson = () =>
         published?: boolean
         release_at?: string | null
         drip_days?: number | null
+        thumbnail_object_position?: string | null
       }
     }) =>
       courseApiFetch<CourseLessonRead>(`/v1/courses/lessons/${lessonId}`, {
@@ -365,6 +374,7 @@ export type CustomerLessonRead = {
   mux_playback_id: string | null
   mux_status: string | null
   thumbnail_url: string | null
+  thumbnail_object_position?: string | null
   completed: boolean
   description?: string | null
   locked?: boolean
@@ -398,6 +408,8 @@ export type CustomerCourseDetail = {
     title: string | null
     description: string | null
     thumbnail_url: string | null
+    thumbnail_object_position?: string | null
+    instructor_bio?: string | null
     course_type: string
     paywall_enabled: boolean
     paywall_position: number | null

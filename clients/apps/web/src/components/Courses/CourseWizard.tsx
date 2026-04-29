@@ -627,6 +627,8 @@ export default function CourseWizard({
         course_type: 'evergreen',
         paywall_enabled: paywallEnabled,
         ai_generated: true,
+        description: formValues.description ?? null,
+        thumbnail_url: thumbnailUrl,
         modules: outline.modules
           .filter(
             (
