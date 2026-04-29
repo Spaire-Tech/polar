@@ -31,20 +31,16 @@ function StreamingOutline({
       {modules.map((mod, i) => {
         const lessons = mod.lessons ?? []
         const isLast = i === modules.length - 1
-        const ringColor =
-          isStreaming && isLast
-            ? 'rgba(255,255,255,0.45)'
-            : 'rgba(255,255,255,0.12)'
+        const borderColor =
+          isStreaming && isLast ? '#0a0a0a' : '#e8e8e8'
         return (
           <div
             key={i}
             style={{
               overflow: 'hidden',
-              borderRadius: 14,
-              border: `1px solid ${ringColor}`,
-              background: 'rgba(255,255,255,0.04)',
-              backdropFilter: 'blur(24px) saturate(160%)',
-              WebkitBackdropFilter: 'blur(24px) saturate(160%)',
+              borderRadius: 12,
+              border: `1.5px solid ${borderColor}`,
+              background: '#f4f4f4',
               transition: 'border-color 0.25s',
             }}
           >
@@ -59,10 +55,10 @@ function StreamingOutline({
                 padding: '12px 16px',
                 background: 'transparent',
                 border: 'none',
-                color: 'var(--so-ink)',
+                color: '#0a0a0a',
                 cursor: 'pointer',
                 textAlign: 'left',
-                fontFamily: 'inherit',
+                fontFamily: 'var(--font-poppins), system-ui, sans-serif',
               }}
             >
               <span
@@ -70,13 +66,14 @@ function StreamingOutline({
                   width: 24,
                   height: 24,
                   borderRadius: '50%',
-                  background: 'rgba(255,255,255,0.12)',
+                  background: '#e8e8e8',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: 600,
                   flexShrink: 0,
+                  color: '#6a6a6a',
                 }}
               >
                 {i + 1}
@@ -86,7 +83,7 @@ function StreamingOutline({
                   flex: 1,
                   fontSize: 14,
                   fontWeight: 500,
-                  color: 'var(--so-ink)',
+                  color: '#0a0a0a',
                 }}
               >
                 {mod.title || (
@@ -95,7 +92,7 @@ function StreamingOutline({
                       display: 'inline-block',
                       height: 14,
                       width: 192,
-                      background: 'rgba(255,255,255,0.08)',
+                      background: '#e8e8e8',
                       borderRadius: 4,
                       animation: 'soPulseBg 1.4s ease-in-out infinite',
                     }}
@@ -106,7 +103,7 @@ function StreamingOutline({
                 style={{
                   flexShrink: 0,
                   fontSize: 12,
-                  color: 'var(--so-ink3)',
+                  color: '#a0a0a0',
                 }}
               >
                 {lessons.length} lesson{lessons.length !== 1 ? 's' : ''}
@@ -114,7 +111,7 @@ function StreamingOutline({
               <ExpandMoreOutlined
                 style={{
                   fontSize: 18,
-                  color: 'var(--so-ink3)',
+                  color: '#a0a0a0',
                   transform: expanded[i] ? 'rotate(180deg)' : 'rotate(0deg)',
                   transition: 'transform 0.2s',
                 }}
@@ -123,7 +120,8 @@ function StreamingOutline({
             {expanded[i] && lessons.length > 0 && (
               <div
                 style={{
-                  borderTop: '1px solid rgba(255,255,255,0.08)',
+                  borderTop: '1px solid #e8e8e8',
+                  background: '#fff',
                 }}
               >
                 {lessons.map((lesson, j) => (
@@ -134,15 +132,14 @@ function StreamingOutline({
                       alignItems: 'center',
                       gap: 12,
                       padding: '10px 16px 10px 52px',
-                      borderTop:
-                        j > 0 ? '1px solid rgba(255,255,255,0.06)' : 'none',
+                      borderTop: j > 0 ? '1px solid #f4f4f4' : 'none',
                     }}
                   >
                     {lesson.content_type === 'video' ? (
                       <OndemandVideoOutlined
                         style={{
                           fontSize: 16,
-                          color: 'rgba(167, 139, 250, 0.95)',
+                          color: '#7c3aed',
                           flexShrink: 0,
                         }}
                       />
@@ -150,19 +147,26 @@ function StreamingOutline({
                       <TextSnippetOutlined
                         style={{
                           fontSize: 16,
-                          color: 'var(--so-ink2)',
+                          color: '#a0a0a0',
                           flexShrink: 0,
                         }}
                       />
                     )}
-                    <span style={{ fontSize: 14, color: 'var(--so-ink2)' }}>
+                    <span
+                      style={{
+                        fontSize: 14,
+                        color: '#6a6a6a',
+                        fontFamily:
+                          'var(--font-poppins), system-ui, sans-serif',
+                      }}
+                    >
                       {lesson.title || (
                         <span
                           style={{
                             display: 'inline-block',
                             height: 12,
                             width: 160,
-                            background: 'rgba(255,255,255,0.06)',
+                            background: '#e8e8e8',
                             borderRadius: 4,
                             animation: 'soPulseBg 1.4s ease-in-out infinite',
                           }}
@@ -184,7 +188,8 @@ function StreamingOutline({
             gap: 8,
             padding: '12px 16px',
             fontSize: 12,
-            color: 'var(--so-ink3)',
+            color: '#a0a0a0',
+            fontFamily: 'var(--font-poppins), system-ui, sans-serif',
           }}
         >
           <span
@@ -192,7 +197,7 @@ function StreamingOutline({
               width: 6,
               height: 6,
               borderRadius: '50%',
-              background: 'rgba(255,255,255,0.9)',
+              background: '#0a0a0a',
               animation: 'soPulseBg 1s ease-in-out infinite',
             }}
           />
@@ -204,7 +209,7 @@ function StreamingOutline({
         @keyframes soPulseBg {
           0%,
           100% {
-            opacity: 0.5;
+            opacity: 0.4;
           }
           50% {
             opacity: 1;
@@ -259,15 +264,17 @@ export function OutlineScreen({
           maxWidth: 640,
           margin: '0 auto',
           padding: '96px 24px 64px',
+          background: '#fff',
         }}
       >
-        <div style={{ marginBottom: 32 }}>
+        <div style={{ marginBottom: 28 }}>
           <h1
             style={{
-              fontFamily: 'var(--font-instrument-serif), Georgia, serif',
-              fontSize: 'clamp(28px, 4vw, 40px)',
-              letterSpacing: '-0.02em',
-              color: 'var(--so-ink)',
+              fontFamily: 'var(--font-poppins), system-ui, sans-serif',
+              fontSize: 'clamp(24px, 3.5vw, 36px)',
+              fontWeight: 700,
+              letterSpacing: '-0.025em',
+              color: '#0a0a0a',
               margin: 0,
             }}
           >
@@ -275,9 +282,10 @@ export function OutlineScreen({
           </h1>
           <p
             style={{
-              marginTop: 8,
+              marginTop: 6,
               fontSize: 13,
-              color: 'var(--so-ink3)',
+              color: '#a0a0a0',
+              fontFamily: 'var(--font-poppins), system-ui, sans-serif',
             }}
           >
             {modulesCount} modules · {lessonsCount} lessons
@@ -290,11 +298,12 @@ export function OutlineScreen({
             style={{
               marginBottom: 16,
               padding: '12px 16px',
-              borderRadius: 12,
-              background: 'rgba(239, 68, 68, 0.08)',
-              border: '1px solid rgba(239, 68, 68, 0.2)',
-              color: 'rgb(252, 165, 165)',
+              borderRadius: 10,
+              background: '#fff5f5',
+              border: '1.5px solid #fecaca',
+              color: '#dc2626',
               fontSize: 13,
+              fontFamily: 'var(--font-poppins), system-ui, sans-serif',
             }}
           >
             {error}
@@ -305,13 +314,14 @@ export function OutlineScreen({
 
         <div
           style={{
-            marginTop: 24,
+            marginTop: 20,
             padding: '12px 16px',
-            borderRadius: 14,
-            border: '1px solid rgba(255,255,255,0.08)',
-            background: 'rgba(255,255,255,0.03)',
+            borderRadius: 10,
+            border: '1.5px solid #e8e8e8',
+            background: '#f4f4f4',
             fontSize: 12,
-            color: 'var(--so-ink3)',
+            color: '#a0a0a0',
+            fontFamily: 'var(--font-poppins), system-ui, sans-serif',
           }}
         >
           This outline is just a starting point — you can edit modules, lessons,
@@ -336,13 +346,14 @@ export function OutlineScreen({
               gap: 8,
               padding: '10px 20px',
               borderRadius: 100,
-              border: '1px solid rgba(255,255,255,0.18)',
-              background: 'transparent',
-              color: 'var(--so-ink)',
-              fontFamily: 'inherit',
+              border: '1.5px solid #e8e8e8',
+              background: '#fff',
+              color: '#6a6a6a',
+              fontFamily: 'var(--font-poppins), system-ui, sans-serif',
               fontSize: 13,
               fontWeight: 500,
               cursor: 'pointer',
+              transition: 'border-color 0.15s, color 0.15s',
             }}
           >
             <AutorenewOutlined style={{ fontSize: 16 }} />

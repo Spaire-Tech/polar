@@ -1,6 +1,5 @@
 'use client'
 
-import CheckCircleOutlined from '@mui/icons-material/CheckCircleOutlined'
 import CloseIcon from '@mui/icons-material/Close'
 
 function MinimalTopBar({ onClose }: { onClose: () => void }) {
@@ -42,14 +41,16 @@ export function GeneratingScreen({
           justifyContent: 'center',
           padding: '0 24px',
           textAlign: 'center',
+          background: '#fff',
         }}
       >
+        {/* Spinner ring */}
         <div
           style={{
             width: 88,
             height: 88,
             borderRadius: '50%',
-            border: '1px solid rgba(255,255,255,0.18)',
+            border: '1.5px solid #e8e8e8',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -62,7 +63,7 @@ export function GeneratingScreen({
               position: 'absolute',
               inset: 0,
               borderRadius: '50%',
-              border: '1px solid rgba(255,255,255,0.25)',
+              border: '1.5px solid #c8c8c8',
               animation: 'soPulse 1.6s ease-out infinite',
             }}
           />
@@ -71,19 +72,19 @@ export function GeneratingScreen({
               width: 36,
               height: 36,
               borderRadius: '50%',
-              border: '2px solid rgba(255,255,255,0.15)',
-              borderTopColor: 'rgba(255,255,255,0.9)',
+              border: '2px solid #e8e8e8',
+              borderTopColor: '#0a0a0a',
               animation: 'soSpin 0.9s linear infinite',
             }}
           />
         </div>
         <h2
           style={{
-            fontFamily: 'var(--font-instrument-serif), Georgia, serif',
-            fontSize: 'clamp(28px, 4vw, 40px)',
-            fontWeight: 400,
-            letterSpacing: '-0.02em',
-            color: 'var(--so-ink)',
+            fontFamily: 'var(--font-poppins), system-ui, sans-serif',
+            fontSize: 'clamp(22px, 3vw, 32px)',
+            fontWeight: 700,
+            letterSpacing: '-0.025em',
+            color: '#0a0a0a',
             margin: 0,
           }}
         >
@@ -91,15 +92,16 @@ export function GeneratingScreen({
         </h2>
         <p
           style={{
-            marginTop: 12,
+            marginTop: 10,
             fontSize: 14,
-            color: 'var(--so-ink2)',
+            color: '#a0a0a0',
             maxWidth: 420,
+            fontFamily: 'var(--font-poppins), system-ui, sans-serif',
           }}
         >
-          {title ? `“${title}” — ` : ''}
-          {modulesCount} module{modulesCount === 1 ? '' : 's'} · {lessonsCount}{' '}
-          lesson{lessonsCount === 1 ? '' : 's'} · generating…
+          {title ? `"${title}" — ` : ''}
+          {modulesCount} module{modulesCount === 1 ? '' : 's'} ·{' '}
+          {lessonsCount} lesson{lessonsCount === 1 ? '' : 's'} · generating…
         </p>
       </div>
       <style jsx global>{`
@@ -111,7 +113,7 @@ export function GeneratingScreen({
         @keyframes soPulse {
           0% {
             transform: scale(1);
-            opacity: 0.6;
+            opacity: 0.5;
           }
           100% {
             transform: scale(1.4);
@@ -136,6 +138,7 @@ export function CreatingScreen({ onClose }: { onClose: () => void }) {
           justifyContent: 'center',
           padding: '0 24px',
           textAlign: 'center',
+          background: '#fff',
         }}
       >
         <div
@@ -143,28 +146,45 @@ export function CreatingScreen({ onClose }: { onClose: () => void }) {
             width: 64,
             height: 64,
             borderRadius: 18,
-            background: 'rgba(255,255,255,0.08)',
+            background: '#f4f4f4',
+            border: '1.5px solid #e8e8e8',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             marginBottom: 24,
           }}
         >
-          <CheckCircleOutlined
-            style={{ color: 'var(--so-ink)', fontSize: 32 }}
-          />
+          {/* Checkmark */}
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <path
+              d="M6 14l6 6 10-12"
+              stroke="#0a0a0a"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </div>
         <p
           style={{
-            fontFamily: 'var(--font-instrument-serif), Georgia, serif',
-            fontSize: 28,
+            fontFamily: 'var(--font-poppins), system-ui, sans-serif',
+            fontSize: 26,
+            fontWeight: 700,
+            letterSpacing: '-0.025em',
             margin: 0,
-            color: 'var(--so-ink)',
+            color: '#0a0a0a',
           }}
         >
           Creating your course
         </p>
-        <p style={{ marginTop: 8, fontSize: 14, color: 'var(--so-ink2)' }}>
+        <p
+          style={{
+            marginTop: 8,
+            fontSize: 14,
+            color: '#a0a0a0',
+            fontFamily: 'var(--font-poppins), system-ui, sans-serif',
+          }}
+        >
           Setting everything up…
         </p>
       </div>
