@@ -126,9 +126,7 @@ export default function CourseWizard({
       visibility: 'public',
       prices: [
         {
-          amount_type: 'fixed',
-          price_amount: 0,
-          price_currency: organization.default_presentment_currency,
+          amount_type: 'free',
         },
       ],
       medias: [],
