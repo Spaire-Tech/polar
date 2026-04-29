@@ -206,7 +206,8 @@ export default function CourseWizard({
       } as schemas['ProductCreate'])
 
       if (productResult.error || !productResult.data) {
-        throw new Error('Product creation failed')
+        console.error('[CourseWizard] product creation error:', JSON.stringify(productResult.error))
+        throw new Error(`Product creation failed: ${JSON.stringify(productResult.error)}`)
       }
 
       const created = await createCourse.mutateAsync({

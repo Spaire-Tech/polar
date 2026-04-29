@@ -28,7 +28,7 @@ export function SpaireOnboardingStyles() {
         font-family: var(--font-poppins), system-ui, sans-serif;
         position: fixed;
         inset: 0;
-        overflow: hidden;
+        overflow-y: auto;
         z-index: 50;
       }
       .spaire-onboarding *,
