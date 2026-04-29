@@ -141,6 +141,12 @@ class CourseCreate(Schema):
     description: str | None = None
     thumbnail_url: str | None = None
     thumbnail_object_position: str | None = Field(None, max_length=32)
+    instructor_name: str | None = Field(None, max_length=200)
+    instructor_bio: str | None = None
+    trailer_url: str | None = Field(None, max_length=500)
+    instructor_name_italic: bool = True
+    instructor_name_bold: bool = True
+    instructor_name_uppercase: bool = True
     modules: list[CourseModuleCreate] = Field(default_factory=list)
 
 
@@ -154,6 +160,12 @@ class CourseUpdate(Schema):
     description: str | None = None
     thumbnail_url: str | None = None
     thumbnail_object_position: str | None = Field(None, max_length=32)
+    instructor_name: str | None = Field(None, max_length=200)
+    instructor_bio: str | None = None
+    trailer_url: str | None = Field(None, max_length=500)
+    instructor_name_italic: bool | None = None
+    instructor_name_bold: bool | None = None
+    instructor_name_uppercase: bool | None = None
 
 
 class QuizAnswerSubmission(Schema):
@@ -226,6 +238,12 @@ class CourseRead(TimestampedSchema):
     description: str | None = None
     thumbnail_url: str | None = None
     thumbnail_object_position: str | None = None
+    instructor_name: str | None = None
+    instructor_bio: str | None = None
+    trailer_url: str | None = None
+    instructor_name_italic: bool = True
+    instructor_name_bold: bool = True
+    instructor_name_uppercase: bool = True
     modules: list[CourseModuleRead]
 
 
@@ -235,6 +253,12 @@ class CourseLandingPageRead(TimestampedSchema):
     description: str | None
     thumbnail_url: str | None
     thumbnail_object_position: str | None = None
+    instructor_name: str | None = None
+    instructor_bio: str | None = None
+    trailer_url: str | None = None
+    instructor_name_italic: bool = True
+    instructor_name_bold: bool = True
+    instructor_name_uppercase: bool = True
     course_type: str
     lesson_count: int
     total_duration_seconds: int

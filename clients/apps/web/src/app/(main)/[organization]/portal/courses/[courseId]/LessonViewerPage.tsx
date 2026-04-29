@@ -39,7 +39,7 @@ const LessonViewerPage = ({
 
   // Flatten lessons from modules into a single array (or use flat lessons if available)
   const flatLessons: FlatLesson[] = data
-    ? (data.course.lessons as FlatLesson[] | undefined) ??
+    ? ((data.course.lessons as FlatLesson[] | undefined) ??
       data.course.modules.flatMap((m) =>
         m.lessons.map((l) => ({
           id: l.id,
@@ -57,8 +57,8 @@ const LessonViewerPage = ({
           locked_until: m.locked_until,
           content_type: l.content_type ?? 'text',
           content: l.content ?? null,
-        }))
-      )
+        })),
+      ))
     : []
 
   const currentLesson =
@@ -110,8 +110,8 @@ const LessonViewerPage = ({
 
   if (error || !data) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center p-6">
-        <div className="rounded-xl bg-red-900/30 p-6 text-red-400 max-w-md">
+      <div className="flex min-h-screen items-center justify-center bg-black p-6">
+        <div className="max-w-md rounded-xl bg-red-900/30 p-6 text-red-400">
           Could not load course. You may not have access.
         </div>
       </div>
@@ -169,6 +169,11 @@ const LessonViewerPage = ({
         description={data.course.description}
         thumbnailUrl={data.course.thumbnail_url}
         thumbnailObjectPosition={data.course.thumbnail_object_position ?? null}
+        trailerUrl={data.course.trailer_url ?? null}
+        instructorName={data.course.instructor_name ?? null}
+        instructorNameItalic={data.course.instructor_name_italic ?? true}
+        instructorNameBold={data.course.instructor_name_bold ?? true}
+        instructorNameUppercase={data.course.instructor_name_uppercase ?? true}
         isStarted={hasStarted}
         totalLessons={progress?.total_lessons ?? flatLessons.length}
         completionPercent={progress?.completion_percent ?? 0}
@@ -179,7 +184,7 @@ const LessonViewerPage = ({
       <MasterClassInstructors
         instructors={[
           {
-            name: organization.name,
+            name: data.course.instructor_name ?? organization.name,
             avatarUrl: organization.avatar_url,
             bio: data.course.instructor_bio ?? null,
           },

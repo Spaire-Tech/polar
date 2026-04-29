@@ -13,6 +13,7 @@ import { schemas } from '@spaire/client'
 import { GeistMono } from 'geist/font/mono'
 import { GeistSans } from 'geist/font/sans'
 import { PHASE_PRODUCTION_BUILD } from 'next/constants'
+import { Barlow_Condensed, DM_Sans, Instrument_Serif } from 'next/font/google'
 import { Metadata } from 'next/types'
 import {
   NavigationHistoryProvider,
@@ -20,6 +21,29 @@ import {
   PolarPostHogProvider,
   PolarQueryClientProvider,
 } from './providers'
+
+const instrumentSerif = Instrument_Serif({
+  subsets: ['latin'],
+  weight: '400',
+  style: ['normal', 'italic'],
+  variable: '--font-instrument-serif',
+  display: 'swap',
+})
+
+const dmSans = DM_Sans({
+  subsets: ['latin'],
+  weight: ['300', '400', '500'],
+  variable: '--font-dm-sans',
+  display: 'swap',
+})
+
+const barlowCondensed = Barlow_Condensed({
+  subsets: ['latin'],
+  weight: ['700', '800'],
+  style: ['normal', 'italic'],
+  variable: '--font-barlow-condensed',
+  display: 'swap',
+})
 
 export async function generateMetadata(): Promise<Metadata> {
   const baseMetadata: Metadata = {
@@ -114,7 +138,7 @@ export default async function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`antialiased ${GeistSans.variable} ${GeistMono.variable}`}
+      className={`antialiased ${GeistSans.variable} ${GeistMono.variable} ${instrumentSerif.variable} ${dmSans.variable} ${barlowCondensed.variable}`}
     >
       <head>
         {CONFIG.ENVIRONMENT === 'development' ? (
