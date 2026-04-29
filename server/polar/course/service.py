@@ -10,6 +10,7 @@ from polar.models.course_lesson import CourseLesson
 from polar.models.course_lesson_progress import CourseLessonProgress
 from polar.models.course_module import CourseModule
 from polar.models.customer import Customer
+from polar.models.course_note import CourseNote
 from polar.models.lesson_comment import LessonComment
 
 from .repository import (
@@ -17,6 +18,7 @@ from .repository import (
     CourseLessonProgressRepository,
     CourseLessonRepository,
     CourseModuleRepository,
+    CourseNoteRepository,
     CourseRepository,
     LessonCommentRepository,
 )
@@ -441,6 +443,56 @@ class CourseService:
                 return False, unlock_at
 
         return True, None
+
+
+    # ── Notes ────────────────────────────────────────────────────────────────
+
+    async def get_lesson_note(
+        self,
+        session: AsyncSession,
+        enrollment_id: UUID,
+        lesson_id: UUID,
+    ) -> CourseNote | None:
+        repo = CourseNoteRepository.from_session(session)
+        stmt = repo.get_by_enrollment_and_lesson_statement(enrollment_id, lesson_id)
+        return await repo.get_one_or_none(stmt)
+
+    async def list_course_notes(
+        self,
+        session: AsyncSession,
+        enrollment_id: UUID,
+    ) -> Sequence[CourseNote]:
+        repo = CourseNoteRepository.from_session(session)
+        stmt = repo.get_by_enrollment_statement(enrollment_id)
+        return await repo.get_all(stmt)
+
+    async def upsert_lesson_note(
+        self,
+        session: AsyncSession,
+        enrollment_id: UUID,
+        lesson_id: UUID,
+        content: str,
+    ) -> CourseNote:
+        repo = CourseNoteRepository.from_session(session)
+        stmt = repo.get_by_enrollment_and_lesson_statement(enrollment_id, lesson_id)
+        existing = await repo.get_one_or_none(stmt)
+        if existing is not None:
+            return await repo.update(existing, {"content": content})
+        return await repo.create(
+            CourseNote(
+                enrollment_id=enrollment_id,
+                lesson_id=lesson_id,
+                content=content,
+            )
+        )
+
+    async def delete_lesson_note(
+        self,
+        session: AsyncSession,
+        note: CourseNote,
+    ) -> None:
+        repo = CourseNoteRepository.from_session(session)
+        await repo.soft_delete(note)
 
 
 course_service = CourseService()

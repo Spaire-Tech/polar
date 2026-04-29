@@ -147,6 +147,10 @@ const LessonViewerPage = ({
           mux_playback_id: l.mux_playback_id,
         }))}
         courseTitle={data.course.title}
+        courseDescription={data.course.description}
+        instructorName={data.course.instructor_name ?? organization.name}
+        instructorAvatarUrl={organization.avatar_url ?? null}
+        totalDurationSeconds={flatLessons.reduce((s, l) => s + (l.duration_seconds ?? 0), 0)}
         isPending={markComplete.isPending}
         onBack={handleBack}
         onSelectLesson={(lessonId) => {
