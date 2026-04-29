@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spaire — Onboarding</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&family=Barlow+Condensed:ital,wght@0,700;0,800;1,700;1,800&display=swap" rel="stylesheet" />
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #080808;
+      --surface: rgba(255,255,255,0.055);
+      --surface-hover: rgba(255,255,255,0.085);
+      --border: rgba(255,255,255,0.11);
+      --border-focus: rgba(255,255,255,0.38);
+      --glass-blur: blur(24px) saturate(160%);
+      --glass-highlight: linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.03) 50%, rgba(255,255,255,0.0) 100%);
+      --ink: #f2f1ee;
+      --ink2: rgba(242,241,238,0.5);
+      --ink3: rgba(242,241,238,0.28);
+      --accent: #3a4ad4;
+      --font-serif: 'Instrument Serif', Georgia, serif;
+      --font-sans: 'DM Sans', system-ui, sans-serif;
+    }
+
+    html, body, #root {
+      height: 100%; width: 100%;
+      background: var(--bg);
+      font-family: var(--font-sans);
+      color: var(--ink);
+      overflow: hidden;
+    }
+
+    /* ── Layout ── */
+    .shell {
+      position: relative;
+      height: 100%; width: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Top bar ── */
+    .topbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 32px;
+      z-index: 200;
+    }
+
+    .logo {
+      font-family: var(--font-serif);
+      font-size: 17px;
+      letter-spacing: -0.02em;
+      color: var(--ink);
+      opacity: 0;
+      animation: fadeIn 0.5s ease 0.2s forwards;
+    }
+
+    .step-counter {
+      font-size: 12px;
+      font-weight: 400;
+      color: var(--ink3);
+      letter-spacing: 0.04em;
+      opacity: 0;
+      animation: fadeIn 0.5s ease 0.4s forwards;
+    }
+
+    /* ── Progress ── */
+    .progress-track {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: var(--border);
+      z-index: 201;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: rgba(255,255,255,0.4);
+      transition: width 0.7s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    /* ── Stage ── */
+    .stage {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 80px 24px 100px;
+    }
+
+    /* ── Screens ── */
+    .screen {
+      width: 100%;
+      max-width: 480px;
+    }
+
+    .screen-enter {
+      animation: screenIn 0.55s cubic-bezier(0.22,1,0.36,1) forwards;
+    }
+
+    .screen-exit {
+      animation: screenOut 0.35s cubic-bezier(0.4,0,1,1) forwards;
+    }
+
+    @keyframes screenIn {
+      from { opacity: 0; transform: translateY(28px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes screenOut {
+      from { opacity: 1; transform: translateY(0); }
+      to   { opacity: 0; transform: translateY(-16px); }
+    }
+
+    /* ── Intro headline animation ── */
+    .intro-stage {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 80px 24px 100px;
+    }
+
+    .intro-wrap { display: flex; flex-direction: column; align-items: center; }
+
+    .intro-headline {
+      font-family: var(--font-serif);
+      font-size: clamp(52px, 8vw, 96px);
+      line-height: 1.06;
+      letter-spacing: -0.03em;
+      color: var(--ink);
+      max-width: 720px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0 0.2em;
+    }
+
+    .intro-word { display: inline-flex; }
+
+    .intro-letter {
+      display: inline-block;
+      opacity: 0;
+      transform: translateY(16px);
+      transition: opacity 0.38s ease, transform 0.48s cubic-bezier(0.22,1,0.36,1);
+    }
+
+    .intro-letter.v { opacity: 1; transform: translateY(0); }
+
+    .intro-cta {
+      margin-top: 44px;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.22,1,0.36,1);
+    }
+
+    .intro-cta.v { opacity: 1; transform: translateY(0); }
+
+    /* ── Typography ── */
+    .eyebrow {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink3);
+      margin-bottom: 20px;
+    }
+
+    .step-title {
+      font-family: var(--font-serif);
+      font-size: clamp(34px, 5vw, 52px);
+      line-height: 1.1;
+      letter-spacing: -0.025em;
+      color: var(--ink);
+      margin-bottom: 40px;
+    }
+
+    .step-title em { font-style: normal; }
+
+    /* ── Fields ── */
+    .fields { display: flex; flex-direction: column; gap: 16px; margin-bottom: 36px; }
+
+    .field { display: flex; flex-direction: column; gap: 8px; }
+
+    .field-label {
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      color: var(--ink3);
+      text-transform: uppercase;
+    }
+
+    .field-input,
+    .field-textarea {
+      width: 100%;
+      padding: 14px 18px;
+      background: var(--surface);
+      -webkit-backdrop-filter: var(--glass-blur);
+      backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      font-family: var(--font-sans);
+      font-size: 15px;
+      font-weight: 300;
+      color: var(--ink);
+      outline: none;
+      transition: border-color 0.25s, background 0.25s, box-shadow 0.25s;
+      -webkit-appearance: none;
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.1),
+        0 2px 16px rgba(0,0,0,0.25);
+    }
+
+    .field-textarea {
+      resize: none;
+      line-height: 1.6;
+    }
+
+    .field-input::placeholder,
+    .field-textarea::placeholder { color: var(--ink3); }
+
+    .field-input:focus,
+    .field-textarea:focus {
+      border-color: var(--border-focus);
+      background: rgba(255,255,255,0.08);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.15),
+        0 0 0 1px rgba(255,255,255,0.12),
+        0 4px 24px rgba(0,0,0,0.3);
+    }
+
+    .field-hint {
+      font-size: 12px;
+      color: var(--ink3);
+      line-height: 1.5;
+    }
+
+    /* ── Media picker ── */
+    .media-options {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 36px;
+    }
+
+    .media-card {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 18px 20px;
+      background: var(--surface);
+      -webkit-backdrop-filter: var(--glass-blur);
+      backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      cursor: pointer;
+      transition: border-color 0.25s, background 0.25s, box-shadow 0.25s;
+      text-align: left;
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      position: relative;
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.1),
+        0 2px 16px rgba(0,0,0,0.2);
+    }
+
+    .media-card:hover {
+      border-color: rgba(255,255,255,0.2);
+      background: rgba(255,255,255,0.075);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.14),
+        0 4px 24px rgba(0,0,0,0.28);
+    }
+
+    .media-card.selected {
+      border-color: rgba(255,255,255,0.38);
+      background: rgba(255,255,255,0.09);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.18),
+        0 0 0 1px rgba(255,255,255,0.1),
+        0 6px 28px rgba(0,0,0,0.3);
+    }
+
+    .media-card input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+
+    .media-icon {
+      width: 40px; height: 40px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.07);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .media-icon svg { width: 18px; height: 18px; }
+
+    .media-text { flex: 1; }
+
+    .media-title {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--ink);
+      margin-bottom: 2px;
+    }
+
+    .media-sub { font-size: 12px; color: var(--ink3); }
+
+    .media-check {
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      border: 1.5px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .media-card.selected .media-check {
+      border-color: var(--ink);
+      background: var(--ink);
+    }
+
+    .media-check svg { display: none; }
+    .media-card.selected .media-check svg { display: block; }
+
+    .upload-preview {
+      font-size: 12px;
+      color: rgba(242,241,238,0.6);
+      margin-top: 4px;
+      font-style: italic;
+    }
+
+    /* ── Buttons ── */
+    .btn-row { display: flex; align-items: center; gap: 16px; }
+
+    .btn-cta {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 14px 28px;
+      background: var(--ink);
+      color: var(--bg);
+      border: none;
+      border-radius: 100px;
+      font-family: var(--font-sans);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      letter-spacing: -0.01em;
+      transition: opacity 0.18s, transform 0.15s;
+    }
+
+    .btn-cta:hover { opacity: 0.88; transform: translateY(-1px); }
+    .btn-cta:active { transform: translateY(0); }
+    .btn-cta:disabled { opacity: 0.2; pointer-events: none; }
+
+    .btn-back {
+      background: none;
+      border: none;
+      font-family: var(--font-sans);
+      font-size: 13px;
+      color: var(--ink3);
+      cursor: pointer;
+      padding: 8px 0;
+      letter-spacing: 0.01em;
+      transition: color 0.15s;
+    }
+
+    .btn-back:hover { color: var(--ink2); }
+
+    /* ── Landing Preview ── */
+    .lp-shell {
+      position: fixed;
+      inset: 0;
+      background: #000;
+      overflow: hidden;
+      animation: fadeIn 0.6s ease forwards;
+    }
+
+    .lp-bg {
+      position: absolute;
+      inset: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+      object-position: center;
+    }
+
+    .lp-gradient {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        to right,
+        rgba(0,0,0,0.88) 0%,
+        rgba(0,0,0,0.75) 20%,
+        rgba(0,0,0,0.45) 40%,
+        rgba(0,0,0,0.1) 65%,
+        rgba(0,0,0,0.0) 100%
+      );
+    }
+
+    .lp-content {
+      position: absolute;
+      bottom: 0; left: 0;
+      padding: 0 64px 60px;
+      width: 420px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    .lp-name {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800;
+      font-style: italic;
+      font-size: clamp(48px, 5.5vw, 76px);
+      line-height: 0.95;
+      letter-spacing: 0.01em;
+      color: #fff;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: opacity 0.15s;
+      width: 100%;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    .lp-name:hover { opacity: 0.85; }
+
+    .lp-rule {
+      width: 28px;
+      height: 2px;
+      background: #fff;
+      margin: 12px auto 10px;
+      flex-shrink: 0;
+    }
+
+    .lp-course {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.95);
+      letter-spacing: 0.01em;
+      margin-bottom: 18px;
+      cursor: pointer;
+      transition: opacity 0.15s;
+      text-align: center;
+    }
+
+    .lp-course:hover { opacity: 0.75; }
+
+    .lp-desc {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12.5px;
+      font-weight: 400;
+      color: rgba(255,255,255,0.62);
+      line-height: 1.65;
+      max-width: 220px;
+      margin-bottom: 22px;
+      cursor: pointer;
+      transition: opacity 0.15s;
+      text-align: center;
+    }
+
+    .lp-desc:hover { opacity: 0.8; }
+
+    .lp-buttons {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .lp-btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 10px 20px;
+      background: #fff;
+      color: #000;
+      border: none;
+      border-radius: 100px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity 0.18s, transform 0.15s;
+      letter-spacing: -0.01em;
+    }
+
+    .lp-btn-primary:hover { opacity: 0.88; transform: translateY(-1px); }
+
+    .lp-btn-outline {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 18px;
+      background: rgba(30,30,30,0.85);
+      color: #fff;
+      border: none;
+      border-radius: 100px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.18s, transform 0.15s;
+      letter-spacing: -0.005em;
+    }
+
+    .lp-btn-outline:hover {
+      background: rgba(50,50,50,0.95);
+      transform: translateY(-1px);
+    }
+
+    .lp-btn-plus {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(255,255,255,0.45);
+      background: transparent;
+      color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      font-size: 18px; font-weight: 300;
+      transition: border-color 0.18s, background 0.18s;
+    }
+
+    .lp-btn-plus:hover {
+      border-color: rgba(255,255,255,0.9);
+      background: rgba(255,255,255,0.1);
+    }
+
+    /* ── Edit Panel ── */
+    .edit-panel {
+      position: fixed;
+      top: 0; right: 0; bottom: 0;
+      width: 340px;
+      background: rgba(12,12,12,0.92);
+      -webkit-backdrop-filter: blur(32px) saturate(160%);
+      backdrop-filter: blur(32px) saturate(160%);
+      border-left: 1px solid rgba(255,255,255,0.1);
+      display: flex;
+      flex-direction: column;
+      z-index: 300;
+      transform: translateX(100%);
+      transition: transform 0.4s cubic-bezier(0.22,1,0.36,1);
+      box-shadow: -12px 0 48px rgba(0,0,0,0.5);
+    }
+
+    .edit-panel.open { transform: translateX(0); }
+
+    .edit-panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 22px 24px 18px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .edit-panel-title {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      color: rgba(242,241,238,0.7);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .edit-close {
+      background: none; border: none;
+      color: rgba(242,241,238,0.4);
+      font-size: 20px; cursor: pointer;
+      width: 28px; height: 28px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 6px;
+      transition: color 0.15s, background 0.15s;
+    }
+
+    .edit-close:hover { color: #fff; background: rgba(255,255,255,0.08); }
+
+    .edit-panel-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .edit-section { display: flex; flex-direction: column; gap: 8px; }
+
+    .edit-label {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      color: rgba(242,241,238,0.35);
+    }
+
+    .edit-input, .edit-textarea {
+      width: 100%;
+      padding: 11px 14px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 300;
+      color: #f2f1ee;
+      outline: none;
+      transition: border-color 0.2s, background 0.2s;
+      -webkit-appearance: none;
+    }
+
+    .edit-textarea { resize: none; line-height: 1.6; }
+
+    .edit-input::placeholder, .edit-textarea::placeholder { color: rgba(242,241,238,0.22); }
+
+    .edit-input:focus, .edit-textarea:focus {
+      border-color: rgba(255,255,255,0.3);
+      background: rgba(255,255,255,0.09);
+    }
+
+    .edit-style-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .style-toggle {
+      flex: 1;
+      padding: 8px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      color: rgba(242,241,238,0.5);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.18s;
+      text-align: center;
+    }
+
+    .style-toggle.active {
+      background: rgba(255,255,255,0.14);
+      border-color: rgba(255,255,255,0.3);
+      color: #fff;
+    }
+
+    .edit-panel-footer {
+      padding: 20px 24px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .edit-save {
+      width: 100%;
+      padding: 13px;
+      background: #fff;
+      color: #080808;
+      border: none;
+      border-radius: 100px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity 0.18s;
+    }
+
+    .edit-save:hover { opacity: 0.85; }
+
+    /* placeholder bg */
+    .lp-placeholder {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%);
+    }
+
+    /* ── Animations ── */
+    @keyframes fadeIn {
+      from { opacity: 0; } to { opacity: 1; }
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+
+  <template id="__bundler_thumbnail">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 56">
+      <rect width="80" height="56" fill="#080808"/>
+      <text x="40" y="33" text-anchor="middle" font-family="Georgia,serif" font-size="14" fill="#f2f1ee">S</text>
+    </svg>
+  </template>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel">
+
+const { useState, useEffect, useRef, useCallback } = React;
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "accentColor": "#3a4ad4",
+  "animSpeed": 0.7,
+  "headline": "Sell your expertise"
+} /*EDITMODE-END*/;
+
+// ── Helpers ────────────────────────────────────────────────
+const STEPS = ['intro', 'instructor', 'course', 'media', 'done'];
+
+function useTransition(screen) {
+  const [displayed, setDisplayed] = useState(screen);
+  const [cls, setCls] = useState('screen-enter');
+  const timer = useRef(null);
+
+  useEffect(() => {
+    if (screen === displayed) return;
+    setCls('screen-exit');
+    timer.current = setTimeout(() => {
+      setDisplayed(screen);
+      setCls('screen-enter');
+    }, 340);
+    return () => clearTimeout(timer.current);
+  }, [screen]);
+
+  return [displayed, cls];
+}
+
+// ── Intro ──────────────────────────────────────────────────
+function Intro({ tweaks, onNext }) {
+  const headline = tweaks.headline || "Sell your expertise";
+  const words = headline.trim().split(" ");
+  const total = words.reduce((s, w) => s + w.length, 0);
+  const intervalMs = Math.max(18, Math.round(52 / (tweaks.animSpeed || 1)));
+
+  const [vis, setVis] = useState(0);
+  const [ctaVis, setCtaVis] = useState(false);
+
+  useEffect(() => {
+    setVis(0);setCtaVis(false);
+    let i = 0;
+    const iv = setInterval(() => {i++;setVis(i);if (i >= total) clearInterval(iv);}, intervalMs);
+    return () => clearInterval(iv);
+  }, [tweaks.headline, tweaks.animSpeed]);
+
+  useEffect(() => {
+    if (vis >= total && total > 0) {
+      const t = setTimeout(() => setCtaVis(true), 280);
+      return () => clearTimeout(t);
+    }
+  }, [vis, total]);
+
+  let gi = -1;
+  return (
+    <div className="intro-stage">
+      <div className="intro-wrap">
+        <h1 className="intro-headline">
+          {words.map((word, wi) =>
+          <span key={wi} className="intro-word">
+              {word.split("").map((ch, ci) => {
+              gi++;
+              const idx = gi;
+              return (
+                <span key={ci} className={`intro-letter${idx < vis ? " v" : ""}`}>
+                    {ch}
+                  </span>);
+
+            })}
+            </span>
+          )}
+        </h1>
+        <div className={`intro-cta${ctaVis ? " v" : ""}`}>
+          <button className="btn-cta" onClick={onNext}>
+            Get started
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+              <path d="M2.5 6.5h8M7 3l3.5 3.5L7 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>);
+
+}
+
+// ── Step shell ─────────────────────────────────────────────
+function Step({ step, total, title, children, onNext, onBack, nextLabel = "Continue", nextDisabled = false }) {
+  const pct = step / total * 100;
+  return (
+    <>
+      <div className="progress-track">
+        <div className="progress-fill" style={{ width: `${pct}%` }} />
+      </div>
+      <div className="stage">
+        <div className="screen screen-enter">
+          <div className="eyebrow">Step {step} of {total}</div>
+          <h2 className="step-title">{title}</h2>
+          {children}
+          <div className="btn-row">
+            <button className="btn-cta" disabled={nextDisabled} onClick={onNext}>
+              {nextLabel}
+              {nextLabel === "Continue" &&
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                  <path d="M2.5 6.5h8M7 3l3.5 3.5L7 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              }
+            </button>
+            {onBack && <button className="btn-back" onClick={onBack}>← Back</button>}
+          </div>
+        </div>
+      </div>
+    </>);
+
+}
+
+// ── Step 1: Instructor ─────────────────────────────────────
+function StepInstructor({ data, onChange, onNext, onBack }) {
+  return (
+    <Step step={1} total={3} title="Instructor details."
+    onNext={onNext} onBack={onBack} nextDisabled={!data.name.trim()}>
+      <div className="fields">
+        <div className="field">
+          <label className="field-label">Instructor name</label>
+          <input className="field-input" type="text" placeholder="e.g. Alex Rivera" autoFocus
+          value={data.name} onChange={(e) => onChange({ ...data, name: e.target.value })}
+          onKeyDown={(e) => e.key === "Enter" && data.name.trim() && onNext()} />
+        </div>
+        <div className="field">
+          <label className="field-label">Short bio</label>
+          <textarea className="field-textarea" rows={2}
+          placeholder="e.g. Designer & educator helping 50K+ creators build their brand."
+          value={data.bio} onChange={(e) => onChange({ ...data, bio: e.target.value })} />
+          <span className="field-hint">One sentence max.</span>
+        </div>
+      </div>
+    </Step>);
+
+}
+
+// ── Step 2: Course ─────────────────────────────────────────
+function StepCourse({ data, onChange, onNext, onBack }) {
+  return (
+    <Step step={2} total={3} title="Course details."
+    onNext={onNext} onBack={onBack} nextDisabled={!data.title.trim()}>
+      <div className="fields">
+        <div className="field">
+          <label className="field-label">Course title</label>
+          <input className="field-input" type="text" placeholder="e.g. The YouTube Growth Blueprint" autoFocus
+          value={data.title} onChange={(e) => onChange({ ...data, title: e.target.value })}
+          onKeyDown={(e) => e.key === "Enter" && data.title.trim() && onNext()} />
+        </div>
+        <div className="field">
+          <label className="field-label">Short description</label>
+          <textarea className="field-textarea" rows={3}
+          placeholder="Summarize what students will learn in one sentence."
+          value={data.desc} onChange={(e) => onChange({ ...data, desc: e.target.value })} />
+          <span className="field-hint">Summarize what students will learn in one sentence.</span>
+        </div>
+      </div>
+    </Step>);
+
+}
+
+// ── Step 3: Hero media ─────────────────────────────────────
+function StepMedia({ data, onChange, onNext, onBack }) {
+  const thumbRef = useRef();
+  const videoRef = useRef();
+
+  const handleThumbChange = (e) => {
+    const f = e.target.files[0];
+    if (f) onChange({ ...data, thumbFile: f, thumbName: f.name });
+  };
+
+  const handleVideoChange = (e) => {
+    const f = e.target.files[0];
+    if (f) onChange({ ...data, videoFile: f, videoName: f.name });
+  };
+
+  return (
+    <Step step={3} total={3} title="Hero media."
+    onNext={onNext} onBack={onBack} nextLabel="Publish course"
+    nextDisabled={!data.format}>
+      <div className="media-options">
+        {/* Format selector */}
+        {[
+        { id: 'thumbnail', label: 'Thumbnail image', sub: 'JPG or PNG · 16:9 recommended',
+          icon: <svg viewBox="0 0 18 18" fill="none"><rect x="1.5" y="3" width="15" height="12" rx="2" stroke="currentColor" strokeWidth="1.4" /><circle cx="6.5" cy="7.5" r="1.5" stroke="currentColor" strokeWidth="1.2" /><path d="M1.5 12l4-3.5 3 2.5 2.5-2 5 4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg> },
+        { id: 'trailer', label: 'Trailer video', sub: 'MP4 or MOV · 60s max',
+          icon: <svg viewBox="0 0 18 18" fill="none"><rect x="1.5" y="3" width="15" height="12" rx="2" stroke="currentColor" strokeWidth="1.4" /><path d="M7 6.5l5 2.5-5 2.5V6.5z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" /></svg> }].
+        map((opt) =>
+        <button key={opt.id}
+        className={`media-card${data.format === opt.id ? " selected" : ""}`}
+        onClick={() => onChange({ ...data, format: opt.id })}>
+            <div className="media-icon">{opt.icon}</div>
+            <div className="media-text">
+              <div className="media-title">{opt.label}</div>
+              <div className="media-sub">{opt.sub}</div>
+              {data.format === opt.id &&
+            <div className="upload-preview">
+                  {opt.id === 'thumbnail' && (data.thumbName || "No file chosen")}
+                  {opt.id === 'trailer' && (data.videoName || "No file chosen")}
+                </div>
+            }
+            </div>
+            <div className="media-check">
+              <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                <path d="M1 4l3 3 5-6" stroke="#080808" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+          </button>
+        )}
+
+        {/* Upload area — shows when a format is selected */}
+        {data.format &&
+        <label style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          gap: 10, padding: '18px 20px',
+          background: 'rgba(255,255,255,0.04)',
+          backdropFilter: 'blur(24px) saturate(160%)',
+          WebkitBackdropFilter: 'blur(24px) saturate(160%)',
+          border: '1px dashed rgba(255,255,255,0.14)',
+          borderRadius: 16, cursor: 'pointer',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)',
+          transition: 'border-color 0.2s, background 0.2s',
+          animation: 'fadeUp 0.35s ease forwards'
+        }}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M8 11V3M5 6l3-3 3 3" stroke="var(--ink2)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2" stroke="var(--ink3)" strokeWidth="1.4" strokeLinecap="round" />
+            </svg>
+            <span style={{ fontSize: 13, color: 'var(--ink2)' }}>
+              {data.format === 'thumbnail' ?
+            data.thumbName ? `✓ ${data.thumbName}` : "Upload thumbnail" :
+            data.videoName ? `✓ ${data.videoName}` : "Upload trailer video"}
+            </span>
+            <input type="file" style={{ display: 'none' }}
+          accept={data.format === 'thumbnail' ? "image/*" : "video/*"}
+          onChange={data.format === 'thumbnail' ? handleThumbChange : handleVideoChange} />
+          </label>
+        }
+      </div>
+    </Step>);
+
+}
+
+// ── Landing Preview (Done) ─────────────────────────────────
+function LandingPreview({ instructor, course, media }) {
+  const [editOpen, setEditOpen] = useState(false);
+  const [draft, setDraft] = useState({
+    name: instructor.name || 'Your Name',
+    courseTitle: course.title || 'Your Course Title',
+    desc: course.desc || instructor.bio || '',
+    nameItalic: true,
+    nameBold: true,
+    nameUppercase: true
+  });
+
+  const bgUrl = media.thumbFile ? URL.createObjectURL(media.thumbFile) :
+  media.videoFile ? URL.createObjectURL(media.videoFile) :
+  null;
+  const isVideo = media.format === 'trailer' && media.videoFile;
+
+  return (
+    <div className="lp-shell">
+      {/* Background */}
+      {bgUrl ?
+      isVideo ?
+      <video className="lp-bg" src={bgUrl} autoPlay muted loop playsInline /> :
+      <img className="lp-bg" src={bgUrl} alt="" /> :
+
+      <div className="lp-placeholder" />
+      }
+
+      {/* Class TA badge */}
+      <div style={{
+        position: 'absolute', top: 14, right: 16,
+        display: 'flex', alignItems: 'center', gap: 6,
+        padding: '7px 14px',
+        background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
+        borderRadius: 100,
+        fontFamily: 'DM Sans, sans-serif',
+        fontSize: 13, fontWeight: 500, color: '#fff',
+        letterSpacing: '-0.01em',
+        boxShadow: '0 2px 12px rgba(109,40,217,0.5)',
+        userSelect: 'none',
+      }}>
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+          <path d="M2 6.5h9M6.5 2l4.5 4.5L6.5 11" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path d="M6 1l1.2 3.6H11L8.1 6.9 9.3 11 6 8.7 2.7 11l1.2-4.1L1 4.6h3.8z" fill="white"/>
+        </svg>
+        Class TA
+      </div>
+
+      {/* Gradient overlay */}
+      <div className="lp-gradient" />
+
+      {/* Content */}
+      <div className="lp-content" style={{ textAlign: "center" }}>
+        <div
+          className="lp-name"
+          style={{
+            fontStyle: draft.nameItalic ? 'italic' : 'normal',
+            fontWeight: draft.nameBold ? 800 : 700,
+            textTransform: draft.nameUppercase ? 'uppercase' : 'none', textAlign: "center", margin: "28px"
+          }}
+          onClick={() => setEditOpen(true)}
+          title="Click to edit">
+          
+          {draft.name || 'Your Name'}
+        </div>
+
+        <div className="lp-rule" style={{ margin: "2px" }} />
+
+        <div className="lp-course" onClick={() => setEditOpen(true)} title="Click to edit" style={{ margin: "28px" }}>
+          {draft.courseTitle || 'Course Title'}
+        </div>
+
+        {draft.desc &&
+        <div className="lp-desc" onClick={() => setEditOpen(true)} title="Click to edit">
+            {draft.desc}
+          </div>
+        }
+
+        <div className="lp-buttons">
+          <button className="lp-btn-primary">
+            <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+              <path d="M3 1.5l6 4-6 4V1.5z" fill="currentColor" />
+            </svg>
+            Generate Course
+          </button>
+          <button className="lp-btn-outline" onClick={() => setEditOpen(true)}>
+            Edit
+          </button>
+          <button className="lp-btn-plus">+</button>
+        </div>
+      </div>
+
+      {/* Edit Panel */}
+      <div className={`edit-panel${editOpen ? ' open' : ''}`}>
+        <div className="edit-panel-header">
+          <span className="edit-panel-title">Edit page</span>
+          <button className="edit-close" onClick={() => setEditOpen(false)}>×</button>
+        </div>
+        <div className="edit-panel-body">
+          <div className="edit-section">
+            <label className="edit-label">Instructor name</label>
+            <input className="edit-input" value={draft.name}
+            onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))} />
+            <div className="edit-style-row">
+              <button className={`style-toggle${draft.nameItalic ? ' active' : ''}`}
+              onClick={() => setDraft((d) => ({ ...d, nameItalic: !d.nameItalic }))}>
+                <em>Italic</em>
+              </button>
+              <button className={`style-toggle${draft.nameBold ? ' active' : ''}`}
+              onClick={() => setDraft((d) => ({ ...d, nameBold: !d.nameBold }))}>
+                <strong>Bold</strong>
+              </button>
+              <button className={`style-toggle${draft.nameUppercase ? ' active' : ''}`}
+              onClick={() => setDraft((d) => ({ ...d, nameUppercase: !d.nameUppercase }))}>
+                ALL CAPS
+              </button>
+            </div>
+          </div>
+
+          <div className="edit-section">
+            <label className="edit-label">Course title</label>
+            <input className="edit-input" value={draft.courseTitle}
+            onChange={(e) => setDraft((d) => ({ ...d, courseTitle: e.target.value }))} />
+          </div>
+
+          <div className="edit-section">
+            <label className="edit-label">Description</label>
+            <textarea className="edit-textarea" rows={4} value={draft.desc}
+            onChange={(e) => setDraft((d) => ({ ...d, desc: e.target.value }))} />
+          </div>
+        </div>
+        <div className="edit-panel-footer">
+          <button className="edit-save" onClick={() => setEditOpen(false)}>Save changes</button>
+        </div>
+      </div>
+    </div>);
+
+}
+
+// ── App ────────────────────────────────────────────────────
+function App() {
+  const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const [screen, setScreen] = useState('intro');
+  const [instructor, setInstructor] = useState({ name: '', bio: '' });
+  const [course, setCourse] = useState({ title: '', desc: '' });
+  const [media, setMedia] = useState({ format: null, thumbFile: null, thumbName: '', videoFile: null, videoName: '' });
+
+  const [displayed, transCls] = useTransition(screen);
+
+  const stepIdx = { intro: 0, instructor: 1, course: 2, media: 3, done: 4 };
+  const pct = stepIdx[screen] / 3 * 100;
+
+  const go = (s) => setScreen(s);
+
+  return (
+    <div className="shell">
+      {/* Progress bar — hidden on intro */}
+      {screen !== 'intro' && screen !== 'done' &&
+      <div className="progress-track">
+          <div className="progress-fill" style={{ width: `${stepIdx[screen] / 3 * 100}%` }} />
+        </div>
+      }
+
+      {/* Top bar */}
+      <div className="topbar">
+        <div className="logo">
+</div>
+        {screen !== 'intro' && screen !== 'done' && <div className="step-counter">{stepIdx[screen]} / 3</div>
+        }
+      </div>
+
+      {/* Screens */}
+      {displayed === 'intro' &&
+      <Intro tweaks={tweaks} onNext={() => go('instructor')} />
+      }
+      {displayed === 'instructor' &&
+      <StepInstructor data={instructor} onChange={setInstructor}
+      onNext={() => go('course')} onBack={() => go('intro')} />
+      }
+      {displayed === 'course' &&
+      <StepCourse data={course} onChange={setCourse}
+      onNext={() => go('media')} onBack={() => go('instructor')} />
+      }
+      {displayed === 'media' &&
+      <StepMedia data={media} onChange={setMedia}
+      onNext={() => go('done')} onBack={() => go('course')} />
+      }
+      {displayed === 'done' &&
+      <LandingPreview instructor={instructor} course={course} media={media} />
+      }
+
+      {/* Tweaks */}
+      <TweaksPanel>
+        <TweakText label="Headline" value={tweaks.headline} onChange={(v) => setTweak('headline', v)} />
+        <TweakSlider label="Anim speed" value={tweaks.animSpeed} min={0.3} max={3} step={0.1} onChange={(v) => setTweak('animSpeed', v)} />
+      </TweaksPanel>
+    </div>);
+
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
