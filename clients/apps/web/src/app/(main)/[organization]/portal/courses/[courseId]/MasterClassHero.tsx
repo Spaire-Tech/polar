@@ -81,12 +81,12 @@ export const MasterClassHero = ({
         }}
       />
 
-      {/* Content block: bottom-left, narrow column */}
+      {/* Content block: bottom-left column, contents centered */}
       <div
         className="relative z-10 mt-auto flex flex-col items-center text-center text-white"
         style={{
           padding: '0 64px 72px',
-          width: 'min(560px, 92vw)',
+          width: 'min(620px, 50vw)',
         }}
       >
         {displayName && (
@@ -95,8 +95,8 @@ export const MasterClassHero = ({
               fontFamily: 'var(--font-barlow-condensed), Impact, sans-serif',
               fontWeight: instructorNameBold ? 800 : 700,
               fontStyle: instructorNameItalic ? 'italic' : 'normal',
-              fontSize: 'clamp(48px, 6vw, 88px)',
-              lineHeight: 0.95,
+              fontSize: 'clamp(64px, 7.5vw, 112px)',
+              lineHeight: 0.92,
               letterSpacing: '0.01em',
               textTransform: instructorNameUppercase ? 'uppercase' : 'none',
               width: '100%',
@@ -111,10 +111,10 @@ export const MasterClassHero = ({
         {displayName && courseTitle && (
           <div
             style={{
-              width: 28,
-              height: 2,
+              width: 30,
+              height: 2.5,
               background: '#fff',
-              margin: '14px auto 12px',
+              margin: '22px auto 18px',
             }}
           />
         )}
@@ -122,11 +122,11 @@ export const MasterClassHero = ({
         {courseTitle && (
           <div
             style={{
-              fontSize: 15,
-              fontWeight: 500,
-              color: 'rgba(255,255,255,0.95)',
-              letterSpacing: '0.01em',
-              marginBottom: 18,
+              fontSize: 17,
+              fontWeight: 600,
+              color: 'rgba(255,255,255,0.96)',
+              letterSpacing: '0.005em',
+              marginBottom: 32,
             }}
           >
             {courseTitle}
@@ -136,12 +136,12 @@ export const MasterClassHero = ({
         {description && (
           <p
             style={{
-              fontSize: 12.5,
+              fontSize: 13.5,
               fontWeight: 400,
-              color: 'rgba(255,255,255,0.62)',
+              color: 'rgba(255,255,255,0.65)',
               lineHeight: 1.65,
-              maxWidth: 240,
-              marginBottom: 22,
+              maxWidth: 340,
+              marginBottom: 40,
             }}
           >
             {description}

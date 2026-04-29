@@ -497,17 +497,18 @@ export function LandingPreview({
         </button>
       </div>
 
-      {/* ── Left-aligned content column ── */}
+      {/* ── Centered content column (positioned bottom-left) ── */}
       <div
         style={{
           position: 'absolute',
           bottom: 0,
           left: 0,
-          padding: '0 64px 64px',
-          width: 'min(600px, 50vw)',
+          padding: '0 64px 72px',
+          width: 'min(620px, 50vw)',
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'flex-start',
+          alignItems: 'center',
+          textAlign: 'center',
           zIndex: 20,
         }}
       >
@@ -526,19 +527,20 @@ export function LandingPreview({
             textTransform: draft.nameUppercase ? 'uppercase' : 'none',
             cursor: 'pointer',
             whiteSpace: 'nowrap',
-            marginBottom: 0,
+            textAlign: 'center',
+            width: '100%',
           }}
         >
           {displayName}
         </div>
 
-        {/* Separator */}
+        {/* Separator — centered */}
         <div
           style={{
-            width: 32,
+            width: 30,
             height: 2.5,
             background: '#fff',
-            margin: '16px 0 14px',
+            margin: '22px auto 18px',
             flexShrink: 0,
           }}
         />
@@ -553,8 +555,9 @@ export function LandingPreview({
             fontWeight: 600,
             color: 'rgba(255,255,255,0.96)',
             letterSpacing: '0.005em',
-            marginBottom: 16,
+            marginBottom: 32,
             cursor: 'pointer',
+            textAlign: 'center',
           }}
         >
           {displayCourse}
@@ -571,9 +574,10 @@ export function LandingPreview({
               fontWeight: 400,
               color: 'rgba(255,255,255,0.65)',
               lineHeight: 1.65,
-              maxWidth: 380,
-              marginBottom: 28,
+              maxWidth: 340,
+              marginBottom: 40,
               cursor: 'pointer',
+              textAlign: 'center',
             }}
           >
             {displayDesc}
@@ -586,14 +590,22 @@ export function LandingPreview({
               marginBottom: 14,
               fontSize: 12,
               color: 'rgba(252,165,165,0.95)',
+              textAlign: 'center',
             }}
           >
             {error}
           </div>
         )}
 
-        {/* Buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {/* Buttons — centered */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+          }}
+        >
           <button
             type="button"
             onClick={onGenerate}
