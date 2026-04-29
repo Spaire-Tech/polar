@@ -380,12 +380,11 @@ export function LandingPreview({
       {/* Nav bar */}
       <div
         style={{
-          height: 56,
+          height: 52,
           background: '#000',
           borderBottom: '1px solid rgba(255,255,255,0.07)',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
           paddingLeft: 20,
           paddingRight: 20,
           flexShrink: 0,
@@ -393,7 +392,7 @@ export function LandingPreview({
           zIndex: 100,
         }}
       >
-        {/* Left: back + close */}
+        {/* Back + close */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button
             type="button"
@@ -430,48 +429,6 @@ export function LandingPreview({
           >
             <CloseIcon style={{ fontSize: 16 }} />
           </button>
-        </div>
-
-        {/* Center: logotype */}
-        <span
-          style={{
-            fontFamily: 'var(--font-poppins), system-ui, sans-serif',
-            fontWeight: 700,
-            fontSize: 17,
-            letterSpacing: '-0.02em',
-            color: '#fff',
-            position: 'absolute',
-            left: '50%',
-            transform: 'translateX(-50%)',
-          }}
-        >
-          Spaire
-        </span>
-
-        {/* Right: Class TA badge */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            padding: '6px 14px',
-            background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
-            borderRadius: 100,
-            fontSize: 13,
-            fontWeight: 500,
-            color: '#fff',
-            letterSpacing: '-0.01em',
-            boxShadow: '0 2px 12px rgba(109,40,217,0.5)',
-            userSelect: 'none',
-          }}
-        >
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-            <path
-              d="M6 1l1.2 3.6H11L8.1 6.9 9.3 11 6 8.7 2.7 11l1.2-4.1L1 4.6h3.8z"
-              fill="white"
-            />
-          </svg>
-          Class TA
         </div>
       </div>
 
@@ -540,14 +497,14 @@ export function LandingPreview({
           }}
         />
 
-        {/* Content column: bottom-left, center-aligned */}
+        {/* Content column: lower-left, left-aligned (like MasterClass) */}
         <div
           style={{
             position: 'absolute',
             bottom: 0,
             left: 0,
-            padding: '0 64px 72px',
-            width: 'min(620px, 50vw)',
+            padding: '0 88px 110px',
+            width: 'min(560px, 44vw)',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
@@ -563,7 +520,7 @@ export function LandingPreview({
               fontFamily: 'var(--font-barlow-condensed), Impact, sans-serif',
               fontWeight: draft.nameBold ? 800 : 700,
               fontStyle: draft.nameItalic ? 'italic' : 'normal',
-              fontSize: 'clamp(64px, 7.5vw, 112px)',
+              fontSize: 'clamp(48px, 4.6vw, 76px)',
               lineHeight: 0.92,
               letterSpacing: '0.01em',
               color: '#fff',
@@ -581,9 +538,9 @@ export function LandingPreview({
           <div
             style={{
               width: 30,
-              height: 2.5,
+              height: 2,
               background: '#fff',
-              margin: '22px auto 18px',
+              margin: '26px auto 22px',
               flexShrink: 0,
             }}
           />
@@ -594,11 +551,11 @@ export function LandingPreview({
             title="Click to edit"
             style={{
               fontFamily: 'var(--font-dm-sans), system-ui, sans-serif',
-              fontSize: 17,
+              fontSize: 22,
               fontWeight: 600,
-              color: 'rgba(255,255,255,0.96)',
-              letterSpacing: '0.005em',
-              marginBottom: 32,
+              color: 'rgba(255,255,255,0.98)',
+              letterSpacing: '-0.005em',
+              marginBottom: 26,
               cursor: 'pointer',
               textAlign: 'center',
             }}
@@ -613,12 +570,12 @@ export function LandingPreview({
               title="Click to edit"
               style={{
                 fontFamily: 'var(--font-dm-sans), system-ui, sans-serif',
-                fontSize: 13.5,
+                fontSize: 15.5,
                 fontWeight: 400,
-                color: 'rgba(255,255,255,0.65)',
-                lineHeight: 1.65,
-                maxWidth: 340,
-                marginBottom: 40,
+                color: 'rgba(255,255,255,0.78)',
+                lineHeight: 1.55,
+                maxWidth: 420,
+                marginBottom: 36,
                 cursor: 'pointer',
                 textAlign: 'center',
               }}
@@ -655,20 +612,20 @@ export function LandingPreview({
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: 7,
-                padding: '11px 22px',
+                gap: 8,
+                padding: '13px 26px',
                 background: '#fff',
                 color: '#000',
                 border: 'none',
                 borderRadius: 100,
                 fontFamily: 'var(--font-dm-sans), system-ui, sans-serif',
-                fontSize: 14,
+                fontSize: 15,
                 fontWeight: 500,
                 cursor: 'pointer',
                 letterSpacing: '-0.01em',
               }}
             >
-              <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+              <svg width="12" height="12" viewBox="0 0 11 11" fill="none">
                 <path d="M3 1.5l6 4-6 4V1.5z" fill="currentColor" />
               </svg>
               Generate Course
@@ -680,13 +637,13 @@ export function LandingPreview({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
-                padding: '10px 20px',
+                padding: '12px 24px',
                 background: 'rgba(30,30,30,0.85)',
                 color: '#fff',
                 border: 'none',
                 borderRadius: 100,
                 fontFamily: 'var(--font-dm-sans), system-ui, sans-serif',
-                fontSize: 14,
+                fontSize: 15,
                 fontWeight: 500,
                 cursor: 'pointer',
                 backdropFilter: 'blur(12px)',
@@ -699,13 +656,13 @@ export function LandingPreview({
               type="button"
               aria-label="Add"
               style={{
-                width: 38,
-                height: 38,
+                width: 42,
+                height: 42,
                 borderRadius: '50%',
                 border: '1.5px solid rgba(255,255,255,0.45)',
                 background: 'transparent',
                 color: '#fff',
-                fontSize: 20,
+                fontSize: 22,
                 fontWeight: 300,
                 cursor: 'pointer',
                 display: 'flex',

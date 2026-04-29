@@ -47,28 +47,13 @@ export const MasterClassHero = ({
       {/* Nav bar */}
       <div
         style={{
-          height: 56,
+          height: 52,
           background: '#000',
-          display: 'flex',
-          alignItems: 'center',
-          paddingLeft: 40,
           flexShrink: 0,
           position: 'relative',
           zIndex: 20,
         }}
-      >
-        <span
-          style={{
-            fontFamily: 'var(--font-poppins), system-ui, sans-serif',
-            fontWeight: 700,
-            fontSize: 17,
-            letterSpacing: '-0.02em',
-            color: '#fff',
-          }}
-        >
-          Spaire
-        </span>
-      </div>
+      />
 
       {/* Hero body */}
       <div className="relative flex-1 overflow-hidden">
@@ -113,8 +98,8 @@ export const MasterClassHero = ({
         <div
           className="absolute bottom-0 left-0 z-10 flex flex-col items-center text-center text-white"
           style={{
-            padding: '0 64px 72px',
-            width: 'min(620px, 50vw)',
+            padding: '0 88px 110px',
+            width: 'min(560px, 44vw)',
           }}
         >
           {displayName && (
@@ -123,7 +108,7 @@ export const MasterClassHero = ({
                 fontFamily: 'var(--font-barlow-condensed), Impact, sans-serif',
                 fontWeight: instructorNameBold ? 800 : 700,
                 fontStyle: instructorNameItalic ? 'italic' : 'normal',
-                fontSize: 'clamp(64px, 7.5vw, 112px)',
+                fontSize: 'clamp(48px, 4.6vw, 76px)',
                 lineHeight: 0.92,
                 letterSpacing: '0.01em',
                 textTransform: instructorNameUppercase ? 'uppercase' : 'none',
@@ -140,9 +125,9 @@ export const MasterClassHero = ({
             <div
               style={{
                 width: 30,
-                height: 2.5,
+                height: 2,
                 background: '#fff',
-                margin: '22px auto 18px',
+                margin: '26px auto 22px',
               }}
             />
           )}
@@ -150,11 +135,11 @@ export const MasterClassHero = ({
           {courseTitle && (
             <div
               style={{
-                fontSize: 17,
+                fontSize: 22,
                 fontWeight: 600,
-                color: 'rgba(255,255,255,0.96)',
-                letterSpacing: '0.005em',
-                marginBottom: 32,
+                color: 'rgba(255,255,255,0.98)',
+                letterSpacing: '-0.005em',
+                marginBottom: 26,
               }}
             >
               {courseTitle}
@@ -164,12 +149,12 @@ export const MasterClassHero = ({
           {description && (
             <p
               style={{
-                fontSize: 13.5,
+                fontSize: 15.5,
                 fontWeight: 400,
-                color: 'rgba(255,255,255,0.65)',
-                lineHeight: 1.65,
-                maxWidth: 340,
-                marginBottom: 40,
+                color: 'rgba(255,255,255,0.78)',
+                lineHeight: 1.55,
+                maxWidth: 420,
+                marginBottom: 36,
               }}
             >
               {description}
@@ -202,15 +187,15 @@ export const MasterClassHero = ({
             <button
               type="button"
               onClick={onStart}
-              className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-medium text-black transition-opacity hover:opacity-90"
+              className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-[15px] font-medium text-black transition-opacity hover:opacity-90"
             >
-              <PlayArrow sx={{ fontSize: 16 }} />
+              <PlayArrow sx={{ fontSize: 18 }} />
               {isStarted ? 'Continue Class' : 'Start Class'}
             </button>
             <button
               type="button"
               onClick={onTrailer}
-              className="inline-flex items-center rounded-full px-5 py-2.5 text-sm font-medium text-white backdrop-blur-md transition-colors"
+              className="inline-flex items-center rounded-full px-6 py-3 text-[15px] font-medium text-white backdrop-blur-md transition-colors"
               style={{ background: 'rgba(30,30,30,0.85)' }}
             >
               Trailer
@@ -218,7 +203,7 @@ export const MasterClassHero = ({
             <button
               type="button"
               aria-label="Add"
-              className="flex h-9 w-9 items-center justify-center rounded-full text-lg font-light text-white transition-colors hover:bg-white/10"
+              className="flex h-[42px] w-[42px] items-center justify-center rounded-full text-xl font-light text-white transition-colors hover:bg-white/10"
               style={{ border: '1.5px solid rgba(255,255,255,0.45)' }}
             >
               +
