@@ -2,6 +2,7 @@
 
 import CloseIcon from '@mui/icons-material/Close'
 import { useEffect, useState } from 'react'
+import { ThumbnailPositioner } from './editor/ThumbnailPositioner'
 
 type DraftState = {
   name: string
@@ -24,11 +25,17 @@ function EditPanel({
   open,
   draft,
   setDraft,
+  thumbBlobUrl,
+  thumbPosition,
+  onThumbPositionChange,
   onClose,
 }: {
   open: boolean
   draft: DraftState
   setDraft: (updater: (prev: DraftState) => DraftState) => void
+  thumbBlobUrl: string | null
+  thumbPosition: string | null
+  onThumbPositionChange: (v: string | null) => void
   onClose: () => void
 }) {
   return (
@@ -101,6 +108,16 @@ function EditPanel({
           gap: 20,
         }}
       >
+        {thumbBlobUrl && (
+          <PanelSection label="Thumbnail position">
+            <ThumbnailPositioner
+              src={thumbBlobUrl}
+              value={thumbPosition}
+              onChange={onThumbPositionChange}
+            />
+          </PanelSection>
+        )}
+
         <PanelSection label="Instructor name">
           <PanelInput
             value={draft.name}
@@ -305,6 +322,8 @@ export function LandingPreview({
   media,
   draft,
   setDraft,
+  thumbPosition,
+  onThumbPositionChange,
   editOpen,
   setEditOpen,
   onGenerate,
@@ -317,6 +336,8 @@ export function LandingPreview({
   media: MediaState
   draft: DraftState
   setDraft: (updater: (prev: DraftState) => DraftState) => void
+  thumbPosition: string | null
+  onThumbPositionChange: (v: string | null) => void
   editOpen: boolean
   setEditOpen: (open: boolean) => void
   onGenerate: () => void
@@ -338,6 +359,8 @@ export function LandingPreview({
     return () => URL.revokeObjectURL(url)
   }, [file])
 
+  const thumbBlobUrl = media.format === 'thumbnail' && media.thumbFile ? bgUrl : null
+
   const displayName = draft.name || instructor.name || 'Your Name'
   const displayCourse = draft.courseTitle || course.title || 'Your Course Title'
   const displayDesc = draft.desc || course.desc || instructor.bio || ''
@@ -349,329 +372,350 @@ export function LandingPreview({
         inset: 0,
         background: '#000',
         overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+        fontFamily: 'var(--font-dm-sans), system-ui, sans-serif',
       }}
     >
-      {/* Background media */}
-      {bgUrl ? (
-        isVideo ? (
-          <video
-            src={bgUrl}
-            autoPlay
-            muted
-            loop
-            playsInline
-            style={{
-              position: 'absolute',
-              inset: 0,
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-            }}
-          />
-        ) : (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={bgUrl}
-            alt=""
-            style={{
-              position: 'absolute',
-              inset: 0,
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-            }}
-          />
-        )
-      ) : (
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            background:
-              'linear-gradient(135deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%)',
-          }}
-        />
-      )}
-
-      {/* Left gradient vignette */}
+      {/* Nav bar */}
       <div
         style={{
-          position: 'absolute',
-          inset: 0,
-          background:
-            'linear-gradient(to right, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.80) 22%, rgba(0,0,0,0.5) 42%, rgba(0,0,0,0.15) 60%, rgba(0,0,0,0) 100%)',
-        }}
-      />
-
-      {/* Bottom vignette */}
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background:
-            'linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 40%)',
-        }}
-      />
-
-      {/* Class TA badge */}
-      <div
-        style={{
-          position: 'absolute',
-          top: 14,
-          right: 16,
+          height: 56,
+          background: '#000',
+          borderBottom: '1px solid rgba(255,255,255,0.07)',
           display: 'flex',
           alignItems: 'center',
-          gap: 6,
-          padding: '7px 14px',
-          background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
-          borderRadius: 100,
-          fontFamily: 'var(--font-dm-sans), system-ui, sans-serif',
-          fontSize: 13,
-          fontWeight: 500,
-          color: '#fff',
-          letterSpacing: '-0.01em',
-          boxShadow: '0 2px 12px rgba(109,40,217,0.5)',
-          userSelect: 'none',
-          zIndex: 30,
+          justifyContent: 'space-between',
+          paddingLeft: 20,
+          paddingRight: 20,
+          flexShrink: 0,
+          position: 'relative',
+          zIndex: 100,
         }}
       >
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-          <path
-            d="M6 1l1.2 3.6H11L8.1 6.9 9.3 11 6 8.7 2.7 11l1.2-4.1L1 4.6h3.8z"
-            fill="white"
-          />
-        </svg>
-        Class TA
-      </div>
-
-      {/* Top-left: back + close */}
-      <div
-        style={{
-          position: 'absolute',
-          top: 14,
-          left: 16,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          zIndex: 30,
-        }}
-      >
-        <button
-          type="button"
-          onClick={onBack}
-          style={{
-            padding: '7px 14px',
-            borderRadius: 100,
-            border: '1px solid rgba(255,255,255,0.25)',
-            background: 'rgba(0,0,0,0.4)',
-            color: '#fff',
-            fontFamily: 'inherit',
-            fontSize: 13,
-            cursor: 'pointer',
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
-          }}
-        >
-          ← Back
-        </button>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close"
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: '50%',
-            border: '1px solid rgba(255,255,255,0.25)',
-            background: 'rgba(0,0,0,0.4)',
-            color: '#fff',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
-          }}
-        >
-          <CloseIcon style={{ fontSize: 18 }} />
-        </button>
-      </div>
-
-      {/* ── Centered content column (positioned bottom-left) ── */}
-      <div
-        style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          padding: '0 64px 72px',
-          width: 'min(620px, 50vw)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          textAlign: 'center',
-          zIndex: 20,
-        }}
-      >
-        {/* Instructor name */}
-        <div
-          onClick={() => setEditOpen(true)}
-          title="Click to edit"
-          style={{
-            fontFamily: 'var(--font-barlow-condensed), Impact, sans-serif',
-            fontWeight: draft.nameBold ? 800 : 700,
-            fontStyle: draft.nameItalic ? 'italic' : 'normal',
-            fontSize: 'clamp(64px, 7.5vw, 112px)',
-            lineHeight: 0.92,
-            letterSpacing: '0.01em',
-            color: '#fff',
-            textTransform: draft.nameUppercase ? 'uppercase' : 'none',
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-            textAlign: 'center',
-            width: '100%',
-          }}
-        >
-          {displayName}
-        </div>
-
-        {/* Separator — centered */}
-        <div
-          style={{
-            width: 30,
-            height: 2.5,
-            background: '#fff',
-            margin: '22px auto 18px',
-            flexShrink: 0,
-          }}
-        />
-
-        {/* Course title */}
-        <div
-          onClick={() => setEditOpen(true)}
-          title="Click to edit"
-          style={{
-            fontFamily: 'var(--font-dm-sans), system-ui, sans-serif',
-            fontSize: 17,
-            fontWeight: 600,
-            color: 'rgba(255,255,255,0.96)',
-            letterSpacing: '0.005em',
-            marginBottom: 32,
-            cursor: 'pointer',
-            textAlign: 'center',
-          }}
-        >
-          {displayCourse}
-        </div>
-
-        {/* Description */}
-        {displayDesc && (
-          <div
-            onClick={() => setEditOpen(true)}
-            title="Click to edit"
-            style={{
-              fontFamily: 'var(--font-dm-sans), system-ui, sans-serif',
-              fontSize: 13.5,
-              fontWeight: 400,
-              color: 'rgba(255,255,255,0.65)',
-              lineHeight: 1.65,
-              maxWidth: 340,
-              marginBottom: 40,
-              cursor: 'pointer',
-              textAlign: 'center',
-            }}
-          >
-            {displayDesc}
-          </div>
-        )}
-
-        {error && (
-          <div
-            style={{
-              marginBottom: 14,
-              fontSize: 12,
-              color: 'rgba(252,165,165,0.95)',
-              textAlign: 'center',
-            }}
-          >
-            {error}
-          </div>
-        )}
-
-        {/* Buttons — centered */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-          }}
-        >
+        {/* Left: back + close */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button
             type="button"
-            onClick={onGenerate}
+            onClick={onBack}
             style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 7,
-              padding: '11px 22px',
-              background: '#fff',
-              color: '#000',
-              border: 'none',
+              padding: '6px 14px',
               borderRadius: 100,
-              fontFamily: 'var(--font-dm-sans), system-ui, sans-serif',
-              fontSize: 14,
-              fontWeight: 500,
-              cursor: 'pointer',
-              letterSpacing: '-0.01em',
-            }}
-          >
-            <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
-              <path d="M3 1.5l6 4-6 4V1.5z" fill="currentColor" />
-            </svg>
-            Generate Course
-          </button>
-          <button
-            type="button"
-            onClick={() => setEditOpen(true)}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '10px 20px',
-              background: 'rgba(30,30,30,0.85)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              background: 'rgba(255,255,255,0.06)',
               color: '#fff',
-              border: 'none',
-              borderRadius: 100,
-              fontFamily: 'var(--font-dm-sans), system-ui, sans-serif',
-              fontSize: 14,
-              fontWeight: 500,
+              fontFamily: 'inherit',
+              fontSize: 13,
               cursor: 'pointer',
-              backdropFilter: 'blur(12px)',
-              WebkitBackdropFilter: 'blur(12px)',
             }}
           >
-            Edit
+            ← Back
           </button>
           <button
             type="button"
-            aria-label="Add"
+            onClick={onClose}
+            aria-label="Close"
             style={{
-              width: 38,
-              height: 38,
+              width: 30,
+              height: 30,
               borderRadius: '50%',
-              border: '1.5px solid rgba(255,255,255,0.45)',
-              background: 'transparent',
+              border: '1px solid rgba(255,255,255,0.2)',
+              background: 'rgba(255,255,255,0.06)',
               color: '#fff',
-              fontSize: 20,
-              fontWeight: 300,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            +
+            <CloseIcon style={{ fontSize: 16 }} />
           </button>
+        </div>
+
+        {/* Center: logotype */}
+        <span
+          style={{
+            fontFamily: 'var(--font-poppins), system-ui, sans-serif',
+            fontWeight: 700,
+            fontSize: 17,
+            letterSpacing: '-0.02em',
+            color: '#fff',
+            position: 'absolute',
+            left: '50%',
+            transform: 'translateX(-50%)',
+          }}
+        >
+          Spaire
+        </span>
+
+        {/* Right: Class TA badge */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '6px 14px',
+            background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
+            borderRadius: 100,
+            fontSize: 13,
+            fontWeight: 500,
+            color: '#fff',
+            letterSpacing: '-0.01em',
+            boxShadow: '0 2px 12px rgba(109,40,217,0.5)',
+            userSelect: 'none',
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path
+              d="M6 1l1.2 3.6H11L8.1 6.9 9.3 11 6 8.7 2.7 11l1.2-4.1L1 4.6h3.8z"
+              fill="white"
+            />
+          </svg>
+          Class TA
+        </div>
+      </div>
+
+      {/* Hero body */}
+      <div style={{ position: 'relative', flex: 1, overflow: 'hidden' }}>
+        {/* Background media */}
+        {bgUrl ? (
+          isVideo ? (
+            <video
+              src={bgUrl}
+              autoPlay
+              muted
+              loop
+              playsInline
+              style={{
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+              }}
+            />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={bgUrl}
+              alt=""
+              style={{
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                objectPosition: thumbPosition ?? 'center',
+              }}
+            />
+          )
+        ) : (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background:
+                'linear-gradient(135deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%)',
+            }}
+          />
+        )}
+
+        {/* Left gradient vignette */}
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background:
+              'linear-gradient(to right, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.80) 22%, rgba(0,0,0,0.5) 42%, rgba(0,0,0,0.15) 60%, rgba(0,0,0,0) 100%)',
+          }}
+        />
+
+        {/* Bottom vignette */}
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background:
+              'linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 40%)',
+          }}
+        />
+
+        {/* Content column: bottom-left, center-aligned */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            padding: '0 64px 72px',
+            width: 'min(620px, 50vw)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            textAlign: 'center',
+            zIndex: 20,
+          }}
+        >
+          {/* Instructor name */}
+          <div
+            onClick={() => setEditOpen(true)}
+            title="Click to edit"
+            style={{
+              fontFamily: 'var(--font-barlow-condensed), Impact, sans-serif',
+              fontWeight: draft.nameBold ? 800 : 700,
+              fontStyle: draft.nameItalic ? 'italic' : 'normal',
+              fontSize: 'clamp(64px, 7.5vw, 112px)',
+              lineHeight: 0.92,
+              letterSpacing: '0.01em',
+              color: '#fff',
+              textTransform: draft.nameUppercase ? 'uppercase' : 'none',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              textAlign: 'center',
+              width: '100%',
+            }}
+          >
+            {displayName}
+          </div>
+
+          {/* Separator */}
+          <div
+            style={{
+              width: 30,
+              height: 2.5,
+              background: '#fff',
+              margin: '22px auto 18px',
+              flexShrink: 0,
+            }}
+          />
+
+          {/* Course title */}
+          <div
+            onClick={() => setEditOpen(true)}
+            title="Click to edit"
+            style={{
+              fontFamily: 'var(--font-dm-sans), system-ui, sans-serif',
+              fontSize: 17,
+              fontWeight: 600,
+              color: 'rgba(255,255,255,0.96)',
+              letterSpacing: '0.005em',
+              marginBottom: 32,
+              cursor: 'pointer',
+              textAlign: 'center',
+            }}
+          >
+            {displayCourse}
+          </div>
+
+          {/* Description */}
+          {displayDesc && (
+            <div
+              onClick={() => setEditOpen(true)}
+              title="Click to edit"
+              style={{
+                fontFamily: 'var(--font-dm-sans), system-ui, sans-serif',
+                fontSize: 13.5,
+                fontWeight: 400,
+                color: 'rgba(255,255,255,0.65)',
+                lineHeight: 1.65,
+                maxWidth: 340,
+                marginBottom: 40,
+                cursor: 'pointer',
+                textAlign: 'center',
+              }}
+            >
+              {displayDesc}
+            </div>
+          )}
+
+          {error && (
+            <div
+              style={{
+                marginBottom: 14,
+                fontSize: 12,
+                color: 'rgba(252,165,165,0.95)',
+                textAlign: 'center',
+              }}
+            >
+              {error}
+            </div>
+          )}
+
+          {/* Buttons */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+            }}
+          >
+            <button
+              type="button"
+              onClick={onGenerate}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 7,
+                padding: '11px 22px',
+                background: '#fff',
+                color: '#000',
+                border: 'none',
+                borderRadius: 100,
+                fontFamily: 'var(--font-dm-sans), system-ui, sans-serif',
+                fontSize: 14,
+                fontWeight: 500,
+                cursor: 'pointer',
+                letterSpacing: '-0.01em',
+              }}
+            >
+              <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                <path d="M3 1.5l6 4-6 4V1.5z" fill="currentColor" />
+              </svg>
+              Generate Course
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditOpen(true)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '10px 20px',
+                background: 'rgba(30,30,30,0.85)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 100,
+                fontFamily: 'var(--font-dm-sans), system-ui, sans-serif',
+                fontSize: 14,
+                fontWeight: 500,
+                cursor: 'pointer',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+              }}
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              aria-label="Add"
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: '50%',
+                border: '1.5px solid rgba(255,255,255,0.45)',
+                background: 'transparent',
+                color: '#fff',
+                fontSize: 20,
+                fontWeight: 300,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              +
+            </button>
+          </div>
         </div>
       </div>
 
@@ -679,6 +723,9 @@ export function LandingPreview({
         open={editOpen}
         draft={draft}
         setDraft={setDraft}
+        thumbBlobUrl={thumbBlobUrl}
+        thumbPosition={thumbPosition}
+        onThumbPositionChange={onThumbPositionChange}
         onClose={() => setEditOpen(false)}
       />
     </div>
