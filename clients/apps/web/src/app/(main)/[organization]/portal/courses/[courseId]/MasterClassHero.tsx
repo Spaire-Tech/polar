@@ -8,6 +8,11 @@ interface MasterClassHeroProps {
   description: string | null
   thumbnailUrl: string | null
   thumbnailObjectPosition?: string | null
+  trailerUrl?: string | null
+  instructorName?: string | null
+  instructorNameItalic?: boolean
+  instructorNameBold?: boolean
+  instructorNameUppercase?: boolean
   isStarted: boolean
   totalLessons: number
   completionPercent: number
@@ -21,65 +26,135 @@ export const MasterClassHero = ({
   description,
   thumbnailUrl,
   thumbnailObjectPosition,
+  trailerUrl,
+  instructorName,
+  instructorNameItalic = true,
+  instructorNameBold = true,
+  instructorNameUppercase = true,
   isStarted,
   totalLessons,
   completionPercent,
   onStart,
   onTrailer,
 }: MasterClassHeroProps) => {
-  const backgroundImage = thumbnailUrl
-    ? `url('${thumbnailUrl}')`
-    : 'linear-gradient(135deg, #1a1a1a 0%, #000 100%)'
+  const displayName = instructorName ?? organizationName
 
   return (
     <div
-      className="relative w-screen min-h-screen flex flex-col items-center justify-center bg-black bg-cover overflow-hidden -ml-[50vw] left-[50%]"
-      style={{
-        backgroundImage,
-        backgroundAttachment: 'fixed',
-        backgroundPosition: thumbnailObjectPosition ?? 'center',
-      }}
+      className="relative left-[50%] -ml-[50vw] flex min-h-screen w-screen flex-col overflow-hidden bg-black"
+      style={{ fontFamily: 'var(--font-dm-sans), system-ui, sans-serif' }}
     >
-      {/* Dark overlay gradient */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/50 to-black/80" />
+      {/* Background: trailer video > thumbnail image > gradient fallback */}
+      {trailerUrl ? (
+        <video
+          src={trailerUrl}
+          autoPlay
+          muted
+          loop
+          playsInline
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      ) : thumbnailUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={thumbnailUrl}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover"
+          style={{ objectPosition: thumbnailObjectPosition ?? 'center' }}
+        />
+      ) : (
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              'linear-gradient(135deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%)',
+          }}
+        />
+      )}
 
-      {/* Content */}
-      <div className="relative z-10 flex w-full max-w-3xl flex-col items-center px-6 text-center text-white">
-        {/* Organization/Instructor name in serif */}
-        {organizationName && (
-          <h2 className="font-serif text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl md:text-7xl lg:text-8xl">
-            {organizationName}
-          </h2>
+      {/* Side-vignette gradient (matches wizard preview) */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            'linear-gradient(to right, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.75) 20%, rgba(0,0,0,0.45) 40%, rgba(0,0,0,0.1) 65%, rgba(0,0,0,0.0) 100%)',
+        }}
+      />
+
+      {/* Content block: bottom-left, narrow column */}
+      <div
+        className="relative z-10 mt-auto flex flex-col items-center text-center text-white"
+        style={{
+          padding: '0 64px 72px',
+          width: 'min(560px, 92vw)',
+        }}
+      >
+        {displayName && (
+          <div
+            style={{
+              fontFamily: 'var(--font-barlow-condensed), Impact, sans-serif',
+              fontWeight: instructorNameBold ? 800 : 700,
+              fontStyle: instructorNameItalic ? 'italic' : 'normal',
+              fontSize: 'clamp(48px, 6vw, 88px)',
+              lineHeight: 0.95,
+              letterSpacing: '0.01em',
+              textTransform: instructorNameUppercase ? 'uppercase' : 'none',
+              width: '100%',
+              textAlign: 'center',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {displayName}
+          </div>
         )}
 
-        {/* Thin divider */}
-        {organizationName && courseTitle && (
-          <div className="mt-8 h-px w-12 bg-white/50" />
+        {displayName && courseTitle && (
+          <div
+            style={{
+              width: 28,
+              height: 2,
+              background: '#fff',
+              margin: '14px auto 12px',
+            }}
+          />
         )}
 
-        {/* Course title */}
         {courseTitle && (
-          <h1 className="mt-8 text-3xl font-bold leading-tight sm:text-4xl md:text-5xl">
+          <div
+            style={{
+              fontSize: 15,
+              fontWeight: 500,
+              color: 'rgba(255,255,255,0.95)',
+              letterSpacing: '0.01em',
+              marginBottom: 18,
+            }}
+          >
             {courseTitle}
-          </h1>
+          </div>
         )}
 
-        {/* Description */}
         {description && (
-          <p className="mt-6 max-w-xl text-base leading-relaxed text-white/85 sm:text-lg">
+          <p
+            style={{
+              fontSize: 12.5,
+              fontWeight: 400,
+              color: 'rgba(255,255,255,0.62)',
+              lineHeight: 1.65,
+              maxWidth: 240,
+              marginBottom: 22,
+            }}
+          >
             {description}
           </p>
         )}
 
-        {/* Progress bar if started */}
+        {/* Progress (kept from previous design) */}
         {isStarted && totalLessons > 0 && (
-          <div className="mt-10 w-full max-w-xs">
-            <div className="mb-2 flex items-center justify-between text-sm text-white/70">
+          <div className="mb-5 w-full max-w-xs">
+            <div className="mb-2 flex items-center justify-between text-xs text-white/70">
               <span>
-                {Math.round(
-                  (completionPercent / 100) * totalLessons,
-                )}{' '}
-                of {totalLessons} lessons
+                {Math.round((completionPercent / 100) * totalLessons)} of{' '}
+                {totalLessons} lessons
               </span>
               <span className="font-medium">
                 {Math.round(completionPercent)}%
@@ -94,24 +169,30 @@ export const MasterClassHero = ({
           </div>
         )}
 
-        {/* CTA Buttons */}
-        <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row">
+        {/* CTA buttons (white pill + dark pill + outline circle) */}
+        <div className="flex items-center justify-center gap-2">
           <button
+            type="button"
             onClick={onStart}
-            className="flex items-center gap-2 rounded-md bg-white px-7 py-3 text-base font-semibold text-black transition-colors hover:bg-gray-100"
+            className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-medium text-black transition-opacity hover:opacity-90"
           >
-            <PlayArrow sx={{ fontSize: 20 }} />
+            <PlayArrow sx={{ fontSize: 16 }} />
             {isStarted ? 'Continue Class' : 'Start Class'}
           </button>
-
           <button
+            type="button"
             onClick={onTrailer}
-            className="rounded-md border border-white/40 bg-black/30 px-7 py-3 text-base font-semibold text-white backdrop-blur-sm transition-colors hover:border-white/60 hover:bg-black/40"
+            className="inline-flex items-center rounded-full px-5 py-2.5 text-sm font-medium text-white backdrop-blur-md transition-colors"
+            style={{ background: 'rgba(30,30,30,0.85)' }}
           >
             Trailer
           </button>
-
-          <button className="flex h-12 w-12 items-center justify-center rounded-md border border-white/40 bg-black/30 text-2xl font-light text-white backdrop-blur-sm transition-colors hover:border-white/60 hover:bg-black/40">
+          <button
+            type="button"
+            aria-label="Add"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-lg font-light text-white transition-colors hover:bg-white/10"
+            style={{ border: '1.5px solid rgba(255,255,255,0.45)' }}
+          >
             +
           </button>
         </div>

@@ -101,12 +101,21 @@ export type CourseRead = {
   description: string | null
   thumbnail_url: string | null
   thumbnail_object_position: string | null
+  instructor_name: string | null
+  instructor_bio: string | null
+  trailer_url: string | null
+  instructor_name_italic: boolean
+  instructor_name_bold: boolean
+  instructor_name_uppercase: boolean
   modules: CourseModuleRead[]
   created_at: string
   modified_at: string | null
 }
 
-async function courseApiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+async function courseApiFetch<T>(
+  path: string,
+  options?: RequestInit,
+): Promise<T> {
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${path}`, {
     ...options,
     credentials: 'include',
@@ -134,8 +143,7 @@ export const useCourseById = (courseId: string | undefined) =>
       const hasPendingMux = data.modules.some((m) =>
         m.lessons.some(
           (l) =>
-            l.mux_upload_id &&
-            (!l.mux_playback_id || l.mux_status !== 'ready'),
+            l.mux_upload_id && (!l.mux_playback_id || l.mux_status !== 'ready'),
         ),
       )
       return hasPendingMux ? 5000 : false
@@ -145,7 +153,8 @@ export const useCourseById = (courseId: string | undefined) =>
 export const useCourseByProduct = (productId: string | undefined) =>
   useQuery<CourseRead>({
     queryKey: ['courses', { productId }],
-    queryFn: () => courseApiFetch<CourseRead>(`/v1/courses/product/${productId}`),
+    queryFn: () =>
+      courseApiFetch<CourseRead>(`/v1/courses/product/${productId}`),
     enabled: !!productId,
   })
 
@@ -153,7 +162,9 @@ export const useOrganizationCourses = (organizationId: string | undefined) =>
   useQuery<CourseRead[]>({
     queryKey: ['courses', { organizationId }],
     queryFn: () =>
-      courseApiFetch<CourseRead[]>(`/v1/courses/organization/${organizationId}`),
+      courseApiFetch<CourseRead[]>(
+        `/v1/courses/organization/${organizationId}`,
+      ),
     enabled: !!organizationId,
   })
 
@@ -169,6 +180,12 @@ export const useCreateCourse = () =>
       description?: string | null
       thumbnail_url?: string | null
       thumbnail_object_position?: string | null
+      instructor_name?: string | null
+      instructor_bio?: string | null
+      trailer_url?: string | null
+      instructor_name_italic?: boolean
+      instructor_name_bold?: boolean
+      instructor_name_uppercase?: boolean
       modules: {
         title: string
         description?: string | null
@@ -179,7 +196,11 @@ export const useCreateCourse = () =>
           position: number
         }[]
       }[]
-    }) => courseApiFetch<CourseRead>('/v1/courses/', { method: 'POST', body: JSON.stringify(body) }),
+    }) =>
+      courseApiFetch<CourseRead>('/v1/courses/', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
   })
 
 export const useUpdateCourse = () =>
@@ -198,6 +219,12 @@ export const useUpdateCourse = () =>
         description?: string | null
         thumbnail_url?: string | null
         thumbnail_object_position?: string | null
+        instructor_name?: string | null
+        instructor_bio?: string | null
+        trailer_url?: string | null
+        instructor_name_italic?: boolean
+        instructor_name_bold?: boolean
+        instructor_name_uppercase?: boolean
       }
     }) =>
       courseApiFetch<CourseRead>(`/v1/courses/${courseId}`, {
@@ -251,7 +278,9 @@ export const useUpdateCourseModule = () =>
 export const useDeleteCourseModule = () =>
   useMutation({
     mutationFn: (moduleId: string) =>
-      courseApiFetch<void>(`/v1/courses/modules/${moduleId}`, { method: 'DELETE' }),
+      courseApiFetch<void>(`/v1/courses/modules/${moduleId}`, {
+        method: 'DELETE',
+      }),
   })
 
 export const useAddCourseLesson = () =>
@@ -268,10 +297,13 @@ export const useAddCourseLesson = () =>
         is_free_preview?: boolean
       }
     }) =>
-      courseApiFetch<CourseLessonRead>(`/v1/courses/modules/${moduleId}/lessons`, {
-        method: 'POST',
-        body: JSON.stringify(body),
-      }),
+      courseApiFetch<CourseLessonRead>(
+        `/v1/courses/modules/${moduleId}/lessons`,
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        },
+      ),
   })
 
 export const useUpdateCourseLesson = () =>
@@ -305,7 +337,9 @@ export const useUpdateCourseLesson = () =>
 export const useDeleteCourseLesson = () =>
   useMutation({
     mutationFn: (lessonId: string) =>
-      courseApiFetch<void>(`/v1/courses/lessons/${lessonId}`, { method: 'DELETE' }),
+      courseApiFetch<void>(`/v1/courses/lessons/${lessonId}`, {
+        method: 'DELETE',
+      }),
   })
 
 export const useReorderModules = () =>
@@ -409,7 +443,12 @@ export type CustomerCourseDetail = {
     description: string | null
     thumbnail_url: string | null
     thumbnail_object_position?: string | null
+    instructor_name?: string | null
     instructor_bio?: string | null
+    trailer_url?: string | null
+    instructor_name_italic?: boolean
+    instructor_name_bold?: boolean
+    instructor_name_uppercase?: boolean
     course_type: string
     paywall_enabled: boolean
     paywall_position: number | null
@@ -439,6 +478,13 @@ export type CourseLandingPageData = {
   title: string | null
   description: string | null
   thumbnail_url: string | null
+  thumbnail_object_position?: string | null
+  instructor_name?: string | null
+  instructor_bio?: string | null
+  trailer_url?: string | null
+  instructor_name_italic?: boolean
+  instructor_name_bold?: boolean
+  instructor_name_uppercase?: boolean
   course_type: string
   lesson_count: number
   total_duration_seconds: number
@@ -495,9 +541,12 @@ export const useCustomerCourse = (
 export const useCreateMuxUpload = () =>
   useMutation({
     mutationFn: (lessonId: string) =>
-      courseApiFetch<MuxUploadRead>(`/v1/courses/lessons/${lessonId}/mux-upload`, {
-        method: 'POST',
-      }),
+      courseApiFetch<MuxUploadRead>(
+        `/v1/courses/lessons/${lessonId}/mux-upload`,
+        {
+          method: 'POST',
+        },
+      ),
   })
 
 export const usePreviewAccess = () =>
@@ -511,7 +560,13 @@ export const usePreviewAccess = () =>
 
 export const useUploadLessonThumbnail = () =>
   useMutation({
-    mutationFn: async ({ lessonId, file }: { lessonId: string; file: File }) => {
+    mutationFn: async ({
+      lessonId,
+      file,
+    }: {
+      lessonId: string
+      file: File
+    }) => {
       const form = new FormData()
       form.append('file', file)
       const res = await fetch(
@@ -528,7 +583,13 @@ export const useUploadLessonThumbnail = () =>
 
 export const useUploadCourseThumbnail = () =>
   useMutation({
-    mutationFn: async ({ courseId, file }: { courseId: string; file: File }) => {
+    mutationFn: async ({
+      courseId,
+      file,
+    }: {
+      courseId: string
+      file: File
+    }) => {
       const form = new FormData()
       form.append('file', file)
       const res = await fetch(
@@ -554,7 +615,13 @@ const invalidateCourseQueries = () => {
 
 export const useUploadLessonAttachment = () =>
   useMutation({
-    mutationFn: async ({ lessonId, file }: { lessonId: string; file: File }) => {
+    mutationFn: async ({
+      lessonId,
+      file,
+    }: {
+      lessonId: string
+      file: File
+    }) => {
       const form = new FormData()
       form.append('file', file)
       const res = await fetch(

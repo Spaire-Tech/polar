@@ -65,6 +65,12 @@ class CourseService:
             description=create_schema.description,
             thumbnail_url=create_schema.thumbnail_url,
             thumbnail_object_position=create_schema.thumbnail_object_position,
+            instructor_name=create_schema.instructor_name,
+            instructor_bio=create_schema.instructor_bio,
+            trailer_url=create_schema.trailer_url,
+            instructor_name_italic=create_schema.instructor_name_italic,
+            instructor_name_bold=create_schema.instructor_name_bold,
+            instructor_name_uppercase=create_schema.instructor_name_uppercase,
         )
 
         # Use provided modules or create implicit "Lessons" module

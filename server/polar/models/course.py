@@ -71,6 +71,30 @@ class Course(RecordModel):
         String(32), nullable=True, default=None
     )
 
+    instructor_name: Mapped[str | None] = mapped_column(
+        String(200), nullable=True, default=None
+    )
+
+    instructor_bio: Mapped[str | None] = mapped_column(
+        Text, nullable=True, default=None
+    )
+
+    trailer_url: Mapped[str | None] = mapped_column(
+        String(500), nullable=True, default=None
+    )
+
+    instructor_name_italic: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True
+    )
+
+    instructor_name_bold: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True
+    )
+
+    instructor_name_uppercase: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True
+    )
+
     @declared_attr
     def product(cls) -> Mapped["Product"]:
         return relationship("Product", lazy="raise")
