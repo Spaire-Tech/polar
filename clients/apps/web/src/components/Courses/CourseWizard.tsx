@@ -124,7 +124,7 @@ export default function CourseWizard({
 
     // Set product prices based on pricing step
     if (pricing.isFree) {
-      form.setValue('prices', [{ amount_type: 'free' }])
+      form.setValue('prices', [{ amount_type: 'free' } as any])
     } else {
       form.setValue('prices', [
         {

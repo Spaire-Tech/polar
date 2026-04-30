@@ -24,7 +24,7 @@ export type CourseCustomizeEdits = {
 
 // ─── Hero preview (mirrors real landing page) ─────────────────────────────────
 
-function HeroPreview({
+export function HeroPreview({
   title,
   description,
   instructorName,
