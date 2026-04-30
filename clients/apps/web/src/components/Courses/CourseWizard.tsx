@@ -294,10 +294,10 @@ export default function CourseWizard({
       const { full_medias, metadata, ...rest } = formValues
       const mediaIds = full_medias.map((m) => m.id)
 
-      // Persist the AI-generated landing payload onto product metadata so the
-      // public/portal landing page can render it without a separate API call.
-      // Stored under a versioned key so future schema bumps stay backwards
-      // compatible.
+      // The AI-generated landing payload is persisted onto the COURSE's
+      // description field via a sentinel marker (see `joinLanding` below).
+      // Product metadata can't carry it because each metadata value is capped
+      // at 500 chars by the backend.
       const landingForStorage = {
         ...(partialLanding as object | null | undefined),
         // Snapshot the editable surface bits the user might have changed in
@@ -309,21 +309,16 @@ export default function CourseWizard({
           description: draft.desc || course.desc || null,
         },
       }
-      const landingJson = JSON.stringify(landingForStorage)
-
-      const baseMetadata = metadata.reduce<
-        Record<string, string | number | boolean>
-      >((acc, { key, value }) => ({ ...acc, [key]: value }), {})
 
       const productResult = await createProduct.mutateAsync({
         ...rest,
         name: draft.courseTitle || course.title || 'Untitled Course',
         description: draft.desc || course.desc || null,
         medias: mediaIds,
-        metadata: {
-          ...baseMetadata,
-          spaire_landing_v1: landingJson,
-        },
+        metadata: metadata.reduce<Record<string, string | number | boolean>>(
+          (acc, { key, value }) => ({ ...acc, [key]: value }),
+          {},
+        ),
       } as schemas['ProductCreate'])
 
       if (productResult.error || !productResult.data) {
