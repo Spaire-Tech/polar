@@ -117,6 +117,7 @@ export default function CourseWizard({
   })
   const [editOpen, setEditOpen] = useState(false)
   const [generateError, setGenerateError] = useState<string | null>(null)
+  const [thumbPosition, setThumbPosition] = useState<string | null>(null)
 
   const form = useForm<ProductEditOrCreateForm>({
     defaultValues: {
@@ -217,6 +218,7 @@ export default function CourseWizard({
         ai_generated: true,
         description: draft.desc || course.desc || null,
         thumbnail_url: uploadedThumbnailUrl,
+        thumbnail_object_position: thumbPosition,
         instructor_name: draft.name || instructor.name || null,
         instructor_bio: instructor.bio || null,
         instructor_name_italic: draft.nameItalic,
@@ -323,6 +325,8 @@ export default function CourseWizard({
               media={media}
               draft={draft}
               setDraft={setDraft}
+              thumbPosition={thumbPosition}
+              onThumbPositionChange={setThumbPosition}
               editOpen={editOpen}
               setEditOpen={setEditOpen}
               onGenerate={startGeneration}

@@ -64,6 +64,7 @@ from .course_enrollment import CourseEnrollment
 from .course_lesson import CourseLesson
 from .course_lesson_progress import CourseLessonProgress
 from .course_module import CourseModule
+from .course_note import CourseNote
 from .lesson_comment import LessonComment
 from .product import Product, ProductVisibility
 from .product_benefit import ProductBenefit
@@ -116,6 +117,7 @@ __all__ = [
     "CourseEnrollment",
     "CourseLesson",
     "CourseModule",
+    "CourseNote",
     "Customer",
     "CustomerMeter",
     "CustomerSeat",

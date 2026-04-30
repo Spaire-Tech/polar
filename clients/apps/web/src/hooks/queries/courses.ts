@@ -773,3 +773,49 @@ export const useDeleteLessonComment = (
       })
     },
   })
+
+// ── Notes ────────────────────────────────────────────────────────────────
+
+export interface CourseNoteRead {
+  id: string
+  lesson_id: string
+  content: string
+  created_at: string
+  modified_at: string | null
+}
+
+export const useLessonNote = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+  lessonId: string | null | undefined,
+) =>
+  useQuery<CourseNoteRead | null>({
+    queryKey: ['lesson-note', token, courseId, lessonId],
+    queryFn: async () => {
+      const notes = await portalApiFetch<CourseNoteRead[]>(
+        `/v1/customer-portal/courses/${courseId}/notes`,
+        token!,
+      )
+      return notes.find((n) => n.lesson_id === lessonId) ?? null
+    },
+    enabled: !!token && !!courseId && !!lessonId,
+  })
+
+export const useUpsertLessonNote = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+  lessonId: string | null | undefined,
+) =>
+  useMutation({
+    mutationFn: (content: string) =>
+      portalApiFetch<CourseNoteRead>(
+        `/v1/customer-portal/courses/${courseId}/lessons/${lessonId}/notes`,
+        token!,
+        { method: 'PUT', body: JSON.stringify({ content }) },
+      ),
+    onSuccess: () => {
+      getQueryClient().invalidateQueries({
+        queryKey: ['lesson-note', token, courseId, lessonId],
+      })
+    },
+  })

@@ -8,6 +8,8 @@ from polar.course.repository import CourseLessonRepository
 from polar.course.schemas import (
     CourseLessonFlatRead,
     CourseLandingPageRead,
+    CourseNoteRead,
+    CourseNoteUpsert,
     CourseProgressRead,
     LessonCommentAuthor,
     LessonCommentCreate,
@@ -705,3 +707,73 @@ async def delete_lesson_comment(
     if comment.enrollment_id != enrollment.id:
         raise HTTPException(status_code=403, detail="Not your comment")
     await course_service.delete_lesson_comment(session, comment)
+
+
+# ── Notes ──────────────────────────────────────────────────────────────────
+
+
+@router.get(
+    "/{course_id}/notes",
+    response_model=list[CourseNoteRead],
+    summary="List All Notes for Course",
+)
+async def list_course_notes(
+    course_id: UUID,
+    auth_subject: auth.CustomerPortalUnionRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> list[CourseNoteRead]:
+    customer_id = get_customer_id(auth_subject)
+    enrollment = await course_service.get_enrollment_for_customer(session, customer_id, course_id)
+    if enrollment is None:
+        raise HTTPException(status_code=404, detail="Course not found or not enrolled")
+    notes = await course_service.list_course_notes(session, enrollment.id)
+    return [
+        CourseNoteRead(id=n.id, lesson_id=n.lesson_id, content=n.content, created_at=n.created_at, modified_at=n.modified_at)
+        for n in notes
+    ]
+
+
+@router.put(
+    "/{course_id}/lessons/{lesson_id}/notes",
+    response_model=CourseNoteRead,
+    summary="Upsert Lesson Note",
+)
+async def upsert_lesson_note(
+    course_id: UUID,
+    lesson_id: UUID,
+    payload: CourseNoteUpsert,
+    auth_subject: auth.CustomerPortalUnionRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> CourseNoteRead:
+    customer_id = get_customer_id(auth_subject)
+    enrollment, _ = await _verify_lesson_in_enrolled_course(
+        session, customer_id, course_id, lesson_id
+    )
+    note = await course_service.upsert_lesson_note(
+        session,
+        enrollment_id=enrollment.id,
+        lesson_id=lesson_id,
+        content=payload.content,
+    )
+    return CourseNoteRead(id=note.id, lesson_id=note.lesson_id, content=note.content, created_at=note.created_at, modified_at=note.modified_at)
+
+
+@router.delete(
+    "/{course_id}/lessons/{lesson_id}/notes",
+    status_code=204,
+    summary="Delete Lesson Note",
+)
+async def delete_lesson_note(
+    course_id: UUID,
+    lesson_id: UUID,
+    auth_subject: auth.CustomerPortalUnionRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> None:
+    customer_id = get_customer_id(auth_subject)
+    enrollment, _ = await _verify_lesson_in_enrolled_course(
+        session, customer_id, course_id, lesson_id
+    )
+    note = await course_service.get_lesson_note(session, enrollment.id, lesson_id)
+    if note is None:
+        return
+    await course_service.delete_lesson_note(session, note)

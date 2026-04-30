@@ -264,3 +264,13 @@ class CourseLandingPageRead(TimestampedSchema):
     total_duration_seconds: int
     lessons: list[CourseLessonPublicRead]
     has_access: bool = False
+
+
+class CourseNoteUpsert(Schema):
+    content: str
+
+
+class CourseNoteRead(TimestampedSchema):
+    id: UUID4
+    lesson_id: UUID4
+    content: str
