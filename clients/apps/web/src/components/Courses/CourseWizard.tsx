@@ -115,6 +115,9 @@ export default function CourseWizard({
   })
   const [pricing, setPricing] = useState<PricingState>({
     paywallEnabled: false,
+    billingType: 'one_time',
+    recurringInterval: 'month',
+    currency: 'usd',
     priceCents: 0,
     freePreviewLessons: 3,
   })
@@ -240,9 +243,11 @@ export default function CourseWizard({
       freePreviewLessons: pricing.paywallEnabled
         ? pricing.freePreviewLessons
         : null,
-      priceLabel: pricing.paywallEnabled
-        ? `$${(pricing.priceCents / 100).toFixed(0)}`
-        : 'free',
+      billingType: pricing.paywallEnabled ? pricing.billingType : null,
+      recurringInterval:
+        pricing.paywallEnabled && pricing.billingType === 'subscription'
+          ? pricing.recurringInterval
+          : null,
     })
   }
 
@@ -268,13 +273,20 @@ export default function CourseWizard({
           {
             amount_type: 'fixed',
             price_amount: pricing.priceCents,
-            price_currency: 'usd',
+            price_currency: pricing.currency,
           } as schemas['ProductCreate']['prices'][number],
         ])
+        form.setValue(
+          'recurring_interval',
+          pricing.billingType === 'subscription'
+            ? pricing.recurringInterval
+            : null,
+        )
       } else {
         form.setValue('prices', [
-          { amount_type: 'free', price_currency: 'usd' },
+          { amount_type: 'free', price_currency: pricing.currency },
         ] as schemas['ProductCreate']['prices'])
+        form.setValue('recurring_interval', null)
       }
 
       const formValues = form.getValues()
@@ -484,6 +496,7 @@ export default function CourseWizard({
                 ) ?? 0
               }
               onClose={handleClose}
+              phase="landing"
             />
           )}
           {screen === 'preview' && (

@@ -659,9 +659,10 @@ function ValueStrip({ landing }: { landing: PartialLanding }) {
           color: C.fg3,
           marginBottom: 32,
           textAlign: 'center',
+          textTransform: 'uppercase',
         }}
       >
-        WHAT&rsquo;S INCLUDED
+        {landing.value_props_label || <Skeleton width={140} height={11} />}
       </div>
       <div
         style={{
@@ -758,10 +759,9 @@ function CurriculumTimeline({
   landing: PartialLanding
 }) {
   const modules = (outline.modules ?? []).filter((m): m is PartialModule => !!m)
-  const heading = landing.curriculum_heading ?? 'The full curriculum.'
-  const sub =
-    landing.curriculum_subheading ??
-    'Modules build on each other. Watch in order or skip ahead — every lesson unlocks the moment you enroll.'
+  const heading = landing.curriculum_heading ?? ''
+  const sub = landing.curriculum_subheading ?? ''
+  const eyebrow = landing.curriculum_label ?? 'CURRICULUM'
 
   // Stable hue per module index
   const huesByIdx = useMemo(() => [35, 195, 285, 145, 25, 320, 95, 215], [])
@@ -777,7 +777,7 @@ function CurriculumTimeline({
     >
       <div style={{ marginBottom: 48, maxWidth: 720 }}>
         <div style={{ marginBottom: 24 }}>
-          <NumberLabel n="02" label="CURRICULUM" />
+          <NumberLabel n="02" label={eyebrow.toUpperCase()} />
         </div>
         <h2
           style={{
@@ -789,7 +789,7 @@ function CurriculumTimeline({
             color: C.fg0,
           }}
         >
-          {heading}
+          {heading || <Skeleton width="80%" height={36} />}
         </h2>
         <p
           style={{
@@ -798,9 +798,16 @@ function CurriculumTimeline({
             margin: '20px 0 0',
             lineHeight: 1.55,
             maxWidth: 560,
+            minHeight: 24,
           }}
         >
-          {sub}
+          {sub || (
+            <>
+              <Skeleton width="100%" height={14} />
+              <br />
+              <Skeleton width="70%" height={14} />
+            </>
+          )}
         </p>
       </div>
 
@@ -909,9 +916,11 @@ function CurriculumTimeline({
 function FullLessonList({
   outline,
   pricing,
+  landing,
 }: {
   outline: PartialOutline
   pricing: PricingState
+  landing: PartialLanding
 }) {
   const [openIdx, setOpenIdx] = useState(0)
   const modules = (outline.modules ?? []).filter((m): m is PartialModule => !!m)
@@ -940,7 +949,10 @@ function FullLessonList({
     >
       <div style={{ marginBottom: 40, maxWidth: 640 }}>
         <div style={{ marginBottom: 24 }}>
-          <NumberLabel n="03" label="EVERY LESSON" />
+          <NumberLabel
+            n="03"
+            label={(landing.lessons_label ?? 'EVERY LESSON').toUpperCase()}
+          />
         </div>
         <h2
           style={{
@@ -950,9 +962,10 @@ function FullLessonList({
             lineHeight: 1.05,
             margin: 0,
             color: C.fg0,
+            minHeight: 56,
           }}
         >
-          The full arc.
+          {landing.lessons_heading || <Skeleton width="60%" height={36} />}
         </h2>
         <p
           style={{
@@ -961,11 +974,16 @@ function FullLessonList({
             margin: '20px 0 0',
             lineHeight: 1.55,
             maxWidth: 520,
+            minHeight: 24,
           }}
         >
-          {pricing.paywallEnabled
-            ? `The first ${free} lesson${free === 1 ? '' : 's'} ${free === 1 ? 'is' : 'are'} free to preview. Enroll to unlock the remaining ${Math.max(0, total - free)}.`
-            : 'Every lesson is open. Watch in any order.'}
+          {landing.lessons_subheading || (
+            <>
+              <Skeleton width="100%" height={14} />
+              <br />
+              <Skeleton width="70%" height={14} />
+            </>
+          )}
         </p>
       </div>
 
@@ -1308,7 +1326,10 @@ function InstructorBlock({
       }}
     >
       <div style={{ marginBottom: 36 }}>
-        <NumberLabel n="04" label="YOUR INSTRUCTOR" />
+        <NumberLabel
+          n="04"
+          label={(landing.instructor_label ?? 'YOUR INSTRUCTOR').toUpperCase()}
+        />
       </div>
       <div
         style={{
@@ -1472,7 +1493,10 @@ function Reviews({ landing }: { landing: PartialLanding }) {
       }}
     >
       <div style={{ marginBottom: 32 }}>
-        <NumberLabel n="05" label="FROM STUDENTS" />
+        <NumberLabel
+          n="05"
+          label={(landing.reviews_label ?? 'FROM STUDENTS').toUpperCase()}
+        />
       </div>
       <div
         style={{
@@ -1567,15 +1591,14 @@ function FinalCta({
   onCreate: () => void
 }) {
   const label = landing.final_cta_label ?? 'READY WHEN YOU ARE'
-  const titleRaw = landing.final_cta_title ?? 'Start now.'
-  const subtitle =
-    landing.final_cta_subtitle ??
-    (pricing.paywallEnabled
-      ? 'Preview the first few lessons free. No card required.'
-      : 'Every lesson is open. Jump in.')
+  const titleRaw = landing.final_cta_title ?? ''
+  const subtitle = landing.final_cta_subtitle ?? ''
+  const primaryLabel =
+    landing.final_cta_primary ??
+    (pricing.paywallEnabled ? 'Enroll' : 'Start watching')
 
   // Render \n as a real line break.
-  const titleLines = titleRaw.split(/\\n|\n/)
+  const titleLines = titleRaw ? titleRaw.split(/\\n|\n/) : []
 
   return (
     <section
@@ -1656,20 +1679,29 @@ function FinalCta({
             color: 'white',
           }}
         >
-          {titleLines.map((line, i) => (
-            <span key={i} style={{ display: 'block' }}>
-              {line}
-            </span>
-          ))}
+          {titleLines.length > 0 ? (
+            titleLines.map((line, i) => (
+              <span key={i} style={{ display: 'block' }}>
+                {line}
+              </span>
+            ))
+          ) : (
+            <Skeleton width="60%" height={48} />
+          )}
         </h2>
         <p
           style={{
             fontSize: 16,
             color: 'rgba(255,255,255,0.7)',
             margin: '0 0 36px',
+            minHeight: 22,
           }}
         >
-          {subtitle}
+          {subtitle || (
+            <span style={{ opacity: 0.5 }}>
+              <Skeleton width="60%" height={14} />
+            </span>
+          )}
         </p>
         <button
           type="button"
@@ -1690,7 +1722,7 @@ function FinalCta({
             fontFamily: FONT,
           }}
         >
-          Create course →
+          {primaryLabel} →
         </button>
       </div>
     </section>
@@ -2194,7 +2226,7 @@ export function LandingPreview({
       <div id="preview-curriculum">
         <CurriculumTimeline outline={outline} landing={landing} />
       </div>
-      <FullLessonList outline={outline} pricing={pricing} />
+      <FullLessonList outline={outline} pricing={pricing} landing={landing} />
       <InstructorBlock
         instructor={instructor}
         draft={draft}

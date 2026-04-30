@@ -17,16 +17,19 @@ export const outlineSchema = z.object({
 
 export type CourseOutline = z.infer<typeof outlineSchema>
 
-// Landing page content generated from full course/instructor context.
-// Drives the cinematic course landing preview.
+// The full landing page is AI-generated. The UI only renders structure
+// (layout, colors, typography) — every string below comes from the model so
+// section labels, headings, and copy can all be tailored to the course.
 export const landingSchema = z.object({
-  // Hero
+  // ── Hero ────────────────────────────────────────────────────────────────
   eyebrow: z.string(), // e.g. "SPAIRE ORIGINAL"
-  series_label: z.string(), // e.g. "NEW SERIES" or "MASTERCLASS"
-  tagline: z.string(), // short hero subtitle, one sentence
-  description: z.string(), // longer paragraph for above-the-fold body
-  level: z.string(), // "All levels" / "Beginner" / "Advanced"
-  // Value props — what's included
+  series_label: z.string(), // e.g. "NEW SERIES" / "MASTERCLASS" / "INTENSIVE"
+  tagline: z.string(), // hero subtitle, no period
+  description: z.string(), // longer paragraph, body copy
+  level: z.string(), // "All levels" / "Beginner" / "Intermediate" / "Advanced"
+
+  // ── Value strip ─────────────────────────────────────────────────────────
+  value_props_label: z.string(), // section eyebrow, e.g. "WHAT'S INCLUDED"
   value_props: z
     .array(
       z.object({
@@ -36,10 +39,19 @@ export const landingSchema = z.object({
     )
     .min(3)
     .max(4),
-  // Curriculum framing
-  curriculum_heading: z.string(),
+
+  // ── Curriculum timeline ─────────────────────────────────────────────────
+  curriculum_label: z.string(), // e.g. "CURRICULUM"
+  curriculum_heading: z.string(), // e.g. "Six chapters, built to compound."
   curriculum_subheading: z.string(),
-  // Instructor block
+
+  // ── Full lesson list ────────────────────────────────────────────────────
+  lessons_label: z.string(), // e.g. "EVERY LESSON"
+  lessons_heading: z.string(), // e.g. "The full arc."
+  lessons_subheading: z.string(),
+
+  // ── Instructor block ────────────────────────────────────────────────────
+  instructor_label: z.string(), // e.g. "YOUR INSTRUCTOR"
   instructor_pull_quote: z.string(),
   instructor_credentials: z
     .array(
@@ -50,7 +62,9 @@ export const landingSchema = z.object({
     )
     .min(2)
     .max(3),
-  // Reviews — synthetic; clearly framed in the UI as illustrative
+
+  // ── Reviews ─────────────────────────────────────────────────────────────
+  reviews_label: z.string(), // e.g. "FROM STUDENTS"
   reviews: z
     .array(
       z.object({
@@ -61,10 +75,13 @@ export const landingSchema = z.object({
     )
     .min(2)
     .max(3),
-  // Final CTA panel
-  final_cta_label: z.string(),
-  final_cta_title: z.string(),
+
+  // ── Final CTA ───────────────────────────────────────────────────────────
+  final_cta_label: z.string(), // e.g. "READY WHEN YOU ARE"
+  final_cta_title: z.string(), // 1–2 line headline (use \n to break)
   final_cta_subtitle: z.string(),
+  final_cta_primary: z.string(), // primary button label, e.g. "Enroll"
+  final_cta_secondary: z.string(), // secondary button label
 })
 
 export type CourseLanding = z.infer<typeof landingSchema>
