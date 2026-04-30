@@ -23,6 +23,7 @@ import {
   StepPricing,
   type PricingState,
 } from './CourseWizard.steps'
+import { joinLanding } from './landingStorage'
 import { landingSchema, outlineSchema } from './schemas'
 
 type WizardStep =
@@ -293,15 +294,36 @@ export default function CourseWizard({
       const { full_medias, metadata, ...rest } = formValues
       const mediaIds = full_medias.map((m) => m.id)
 
+      // Persist the AI-generated landing payload onto product metadata so the
+      // public/portal landing page can render it without a separate API call.
+      // Stored under a versioned key so future schema bumps stay backwards
+      // compatible.
+      const landingForStorage = {
+        ...(partialLanding as object | null | undefined),
+        // Snapshot the editable surface bits the user might have changed in
+        // the preview (instructor name, course title, description) so the
+        // saved landing matches what they saw.
+        editable: {
+          instructorName: draft.name || instructor.name || null,
+          courseTitle: draft.courseTitle || course.title || null,
+          description: draft.desc || course.desc || null,
+        },
+      }
+      const landingJson = JSON.stringify(landingForStorage)
+
+      const baseMetadata = metadata.reduce<
+        Record<string, string | number | boolean>
+      >((acc, { key, value }) => ({ ...acc, [key]: value }), {})
+
       const productResult = await createProduct.mutateAsync({
         ...rest,
         name: draft.courseTitle || course.title || 'Untitled Course',
         description: draft.desc || course.desc || null,
         medias: mediaIds,
-        metadata: metadata.reduce(
-          (acc, { key, value }) => ({ ...acc, [key]: value }),
-          {},
-        ),
+        metadata: {
+          ...baseMetadata,
+          spaire_landing_v1: landingJson,
+        },
       } as schemas['ProductCreate'])
 
       if (productResult.error || !productResult.data) {
@@ -323,6 +345,12 @@ export default function CourseWizard({
         ? Math.max(0, Math.min(totalLessons, pricing.freePreviewLessons))
         : null
 
+      const humanDescription = draft.desc || course.desc || null
+      const courseDescriptionWithLanding = joinLanding(
+        humanDescription,
+        landingForStorage,
+      )
+
       const created = await createCourse.mutateAsync({
         product_id: productResult.data.id,
         organization_id: organization.id,
@@ -330,7 +358,7 @@ export default function CourseWizard({
         course_type: 'evergreen',
         paywall_enabled: pricing.paywallEnabled,
         ai_generated: true,
-        description: draft.desc || course.desc || null,
+        description: courseDescriptionWithLanding,
         thumbnail_url: thumbnailUrl,
         thumbnail_object_position: thumbPosition,
         instructor_name: draft.name || instructor.name || null,

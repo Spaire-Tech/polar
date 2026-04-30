@@ -54,7 +54,8 @@ export async function POST(req: Request) {
     model: anthropic('claude-opus-4-7'),
     schema: outlineSchema,
     system: systemPrompt,
-    prompt: `Create a course outline for:\n${lines.join('\n')}`,
+    maxOutputTokens: 2400,
+    prompt: `Create a course outline for:\n${lines.join('\n')}\n\nReturn the JSON object now and stop.`,
   })
 
   return result.toTextStreamResponse()

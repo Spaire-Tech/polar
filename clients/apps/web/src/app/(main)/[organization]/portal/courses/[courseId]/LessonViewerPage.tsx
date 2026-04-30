@@ -1,5 +1,6 @@
 'use client'
 
+import { splitLanding } from '@/components/Courses/landingStorage'
 import {
   useCustomerCourse,
   useMarkLessonComplete,
@@ -7,6 +8,7 @@ import {
 import { schemas } from '@spaire/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
+import { CourseLandingView } from './CourseLandingView'
 import { MasterClassHero } from './MasterClassHero'
 import { MasterClassInstructors } from './MasterClassInstructors'
 import { MasterClassLessonList, type FlatLesson } from './MasterClassLessonList'
@@ -150,7 +152,10 @@ const LessonViewerPage = ({
         courseDescription={data.course.description}
         instructorName={data.course.instructor_name ?? organization.name}
         instructorAvatarUrl={organization.avatar_url ?? null}
-        totalDurationSeconds={flatLessons.reduce((s, l) => s + (l.duration_seconds ?? 0), 0)}
+        totalDurationSeconds={flatLessons.reduce(
+          (s, l) => s + (l.duration_seconds ?? 0),
+          0,
+        )}
         isPending={markComplete.isPending}
         onBack={handleBack}
         onSelectLesson={(lessonId) => {
@@ -164,13 +169,48 @@ const LessonViewerPage = ({
     )
   }
 
-  // Show landing page (hero + lesson list)
+  // Show landing page (hero + lesson list).
+  // The course description may carry an AI-generated landing payload appended
+  // by the wizard (joinLanding). When present, render the cinematic landing.
+  // Otherwise fall back to the legacy MasterClass hero + list.
+  const { humanDescription, landing } = splitLanding(data.course.description)
+
+  if (landing) {
+    return (
+      <CourseLandingView
+        organizationName={organization.name}
+        instructorName={
+          landing.editable?.instructorName ??
+          data.course.instructor_name ??
+          null
+        }
+        instructorBio={data.course.instructor_bio ?? null}
+        courseTitle={
+          landing.editable?.courseTitle ?? data.course.title ?? 'Course'
+        }
+        courseDescription={
+          landing.editable?.description ?? humanDescription ?? null
+        }
+        thumbnailUrl={data.course.thumbnail_url}
+        thumbnailObjectPosition={data.course.thumbnail_object_position ?? null}
+        trailerUrl={data.course.trailer_url ?? null}
+        isStarted={hasStarted}
+        paywallEnabled={data.course.paywall_enabled}
+        paywallPosition={data.course.paywall_position}
+        flatLessons={flatLessons}
+        landing={landing}
+        onStart={handleStartClass}
+        onTrailer={handleTrailer}
+      />
+    )
+  }
+
   return (
     <div className="w-full bg-black">
       <MasterClassHero
         courseTitle={data.course.title}
         organizationName={organization.name}
-        description={data.course.description}
+        description={humanDescription}
         thumbnailUrl={data.course.thumbnail_url}
         thumbnailObjectPosition={data.course.thumbnail_object_position ?? null}
         trailerUrl={data.course.trailer_url ?? null}

@@ -126,7 +126,8 @@ export async function POST(req: Request) {
     model: anthropic('claude-opus-4-7'),
     schema: landingSchema,
     system: systemPrompt,
-    prompt: `Write the entire landing page for this course. Every section label, heading, subheading, and body string must be original — do not echo my examples verbatim. Match the tone of the subject matter.\n\n${lines.join('\n')}`,
+    maxOutputTokens: 2400,
+    prompt: `Write the entire landing page for this course. Every section label, heading, subheading, and body string must be original — do not echo my examples verbatim. Match the tone of the subject matter.\n\n${lines.join('\n')}\n\nReturn the JSON object now and stop. Do not add any prose after the JSON.`,
   })
 
   return result.toTextStreamResponse()

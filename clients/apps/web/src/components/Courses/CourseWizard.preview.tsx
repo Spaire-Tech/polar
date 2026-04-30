@@ -633,9 +633,170 @@ function PlaceholderBackdrop() {
   )
 }
 
+// ─── Trailer block (separate full-bleed video player) ────────────────────────
+
+export function TrailerBlock({
+  trailerUrl,
+  thumbnailUrl,
+  thumbPosition,
+  onReplaceTrailer,
+}: {
+  trailerUrl: string | null
+  thumbnailUrl: string | null
+  thumbPosition: string | null
+  onReplaceTrailer: () => void
+}) {
+  const [playing, setPlaying] = useState(false)
+  return (
+    <section
+      id="preview-trailer"
+      style={{
+        padding: '64px 32px 24px',
+        maxWidth: 1180,
+        margin: '0 auto',
+        fontFamily: FONT,
+      }}
+    >
+      <div style={{ marginBottom: 24 }}>
+        <NumberLabel n="01" label="OFFICIAL TRAILER" />
+      </div>
+      <div
+        style={{
+          position: 'relative',
+          aspectRatio: '21 / 9',
+          background: '#000',
+          borderRadius: 24,
+          overflow: 'hidden',
+          boxShadow: '0 1px 2px rgba(0,0,0,0.05), 0 24px 48px rgba(0,0,0,0.18)',
+        }}
+      >
+        {trailerUrl ? (
+          playing ? (
+            <video
+              src={trailerUrl}
+              autoPlay
+              controls
+              playsInline
+              style={{
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                background: '#000',
+              }}
+            />
+          ) : (
+            <>
+              <video
+                src={trailerUrl}
+                muted
+                playsInline
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setPlaying(true)}
+                style={{
+                  position: 'absolute',
+                  left: '50%',
+                  top: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  width: 88,
+                  height: 88,
+                  borderRadius: '50%',
+                  background: 'rgba(255,255,255,0.95)',
+                  color: C.fg0,
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingLeft: 4,
+                  boxShadow: '0 12px 40px rgba(0,0,0,0.5)',
+                }}
+              >
+                <svg width="28" height="28" viewBox="0 0 11 11" fill="none">
+                  <path d="M3 1.5l6 4-6 4V1.5z" fill="currentColor" />
+                </svg>
+              </button>
+            </>
+          )
+        ) : thumbnailUrl ? (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={thumbnailUrl}
+              alt=""
+              style={{
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                objectPosition: thumbPosition ?? 'center',
+                filter: 'brightness(0.55)',
+              }}
+            />
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'white',
+                fontSize: 13,
+                letterSpacing: '0.04em',
+                opacity: 0.8,
+                fontFamily: FONT,
+              }}
+            >
+              Trailer placeholder — upload a trailer to play it here
+            </div>
+          </>
+        ) : (
+          <PlaceholderBackdrop />
+        )}
+        <button
+          type="button"
+          onClick={onReplaceTrailer}
+          style={{
+            position: 'absolute',
+            right: 16,
+            top: 16,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '8px 14px',
+            background: 'rgba(0,0,0,0.55)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            borderRadius: 999,
+            color: 'white',
+            fontSize: 12,
+            fontWeight: 500,
+            cursor: 'pointer',
+            fontFamily: FONT,
+          }}
+        >
+          {trailerUrl ? 'Replace trailer' : 'Upload trailer'}
+        </button>
+      </div>
+    </section>
+  )
+}
+
 // ─── Value strip ──────────────────────────────────────────────────────────────
 
-function ValueStrip({ landing }: { landing: PartialLanding }) {
+export function ValueStrip({ landing }: { landing: PartialLanding }) {
   const items = landing.value_props ?? []
   // Render placeholders while streaming so layout doesn't reflow.
   const renderItems =
@@ -751,7 +912,7 @@ function ValueStrip({ landing }: { landing: PartialLanding }) {
 
 // ─── Curriculum timeline ─────────────────────────────────────────────────────
 
-function CurriculumTimeline({
+export function CurriculumTimeline({
   outline,
   landing,
 }: {
@@ -913,7 +1074,7 @@ function CurriculumTimeline({
 
 // ─── Full lesson list + paywall callout ──────────────────────────────────────
 
-function FullLessonList({
+export function FullLessonList({
   outline,
   pricing,
   landing,
@@ -1302,7 +1463,7 @@ function FullLessonList({
 
 // ─── Instructor pull-quote block ─────────────────────────────────────────────
 
-function InstructorBlock({
+export function InstructorBlock({
   instructor,
   draft,
   landing,
@@ -1480,7 +1641,7 @@ function InstructorBlock({
 
 // ─── Reviews ──────────────────────────────────────────────────────────────────
 
-function Reviews({ landing }: { landing: PartialLanding }) {
+export function Reviews({ landing }: { landing: PartialLanding }) {
   const reviews = landing.reviews ?? []
   if (reviews.length === 0) return null
   return (
@@ -1581,7 +1742,7 @@ function Reviews({ landing }: { landing: PartialLanding }) {
 
 // ─── Final CTA ────────────────────────────────────────────────────────────────
 
-function FinalCta({
+export function FinalCta({
   landing,
   pricing,
   onCreate,
@@ -2169,7 +2330,7 @@ export function LandingPreview({
   const onWatchTrailer = () => {
     if (typeof document === 'undefined') return
     document
-      .getElementById('preview-curriculum')
+      .getElementById('preview-trailer')
       ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
@@ -2221,6 +2382,12 @@ export function LandingPreview({
         totalDurationSeconds={totalDurationSeconds}
         onWatchTrailer={onWatchTrailer}
         onReplaceMedia={() => setEditOpen(true)}
+      />
+      <TrailerBlock
+        trailerUrl={isVideo ? bgUrl : null}
+        thumbnailUrl={!isVideo ? bgUrl : null}
+        thumbPosition={thumbPosition}
+        onReplaceTrailer={() => setEditOpen(true)}
       />
       <ValueStrip landing={landing} />
       <div id="preview-curriculum">
