@@ -1,8 +1,6 @@
 'use client'
 
 import CloseIcon from '@mui/icons-material/Close'
-import { useEffect, useState } from 'react'
-import { ThumbnailPositioner } from './editor/ThumbnailPositioner'
 
 type DraftState = {
   name: string
@@ -13,29 +11,20 @@ type DraftState = {
   nameUppercase: boolean
 }
 
-type MediaState = {
-  format: 'thumbnail' | 'trailer' | null
-  thumbFile: File | null
-  videoFile: File | null
-  thumbName: string
-  videoName: string
+type PricingState = {
+  isFree: boolean
+  amount: number
 }
 
 function EditPanel({
   open,
   draft,
   setDraft,
-  thumbBlobUrl,
-  thumbPosition,
-  onThumbPositionChange,
   onClose,
 }: {
   open: boolean
   draft: DraftState
   setDraft: (updater: (prev: DraftState) => DraftState) => void
-  thumbBlobUrl: string | null
-  thumbPosition: string | null
-  onThumbPositionChange: (v: string | null) => void
   onClose: () => void
 }) {
   return (
@@ -108,16 +97,6 @@ function EditPanel({
           gap: 20,
         }}
       >
-        {thumbBlobUrl && (
-          <PanelSection label="Thumbnail position">
-            <ThumbnailPositioner
-              src={thumbBlobUrl}
-              value={thumbPosition}
-              onChange={onThumbPositionChange}
-            />
-          </PanelSection>
-        )}
-
         <PanelSection label="Instructor name">
           <PanelInput
             value={draft.name}
@@ -316,14 +295,49 @@ function StyleToggle({
   )
 }
 
+function PriceBadge({ pricing }: { pricing: PricingState }) {
+  const label = pricing.isFree
+    ? 'Free'
+    : `$${pricing.amount % 1 === 0 ? pricing.amount.toFixed(0) : pricing.amount.toFixed(2)}`
+
+  return (
+    <div
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        padding: '6px 14px',
+        background: pricing.isFree
+          ? 'rgba(255,255,255,0.12)'
+          : 'rgba(255,255,255,0.92)',
+        borderRadius: 100,
+        fontSize: 13,
+        fontWeight: 600,
+        color: pricing.isFree ? 'rgba(255,255,255,0.9)' : '#080808',
+        letterSpacing: '-0.01em',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+        border: pricing.isFree
+          ? '1px solid rgba(255,255,255,0.2)'
+          : '1px solid rgba(255,255,255,0.8)',
+      }}
+    >
+      {!pricing.isFree && (
+        <span style={{ fontSize: 11, opacity: 0.6, fontWeight: 500 }}>
+          One-time
+        </span>
+      )}
+      {label}
+    </div>
+  )
+}
+
 export function LandingPreview({
   instructor,
   course,
-  media,
+  pricing,
   draft,
   setDraft,
-  thumbPosition,
-  onThumbPositionChange,
   editOpen,
   setEditOpen,
   onGenerate,
@@ -333,11 +347,9 @@ export function LandingPreview({
 }: {
   instructor: { name: string; bio: string }
   course: { title: string; desc: string }
-  media: MediaState
+  pricing: PricingState
   draft: DraftState
   setDraft: (updater: (prev: DraftState) => DraftState) => void
-  thumbPosition: string | null
-  onThumbPositionChange: (v: string | null) => void
   editOpen: boolean
   setEditOpen: (open: boolean) => void
   onGenerate: () => void
@@ -345,22 +357,6 @@ export function LandingPreview({
   onClose: () => void
   error: string | null
 }) {
-  const [bgUrl, setBgUrl] = useState<string | null>(null)
-  const isVideo = media.format === 'trailer' && !!media.videoFile
-  const file = media.format === 'trailer' ? media.videoFile : media.thumbFile
-
-  useEffect(() => {
-    if (!file) {
-      setBgUrl(null)
-      return
-    }
-    const url = URL.createObjectURL(file)
-    setBgUrl(url)
-    return () => URL.revokeObjectURL(url)
-  }, [file])
-
-  const thumbBlobUrl = media.format === 'thumbnail' && media.thumbFile ? bgUrl : null
-
   const displayName = draft.name || instructor.name || 'Your Name'
   const displayCourse = draft.courseTitle || course.title || 'Your Course Title'
   const displayDesc = draft.desc || course.desc || instructor.bio || ''
@@ -392,7 +388,6 @@ export function LandingPreview({
           zIndex: 100,
         }}
       >
-        {/* Back + close */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button
             type="button"
@@ -434,48 +429,15 @@ export function LandingPreview({
 
       {/* Hero body */}
       <div style={{ position: 'relative', flex: 1, overflow: 'hidden' }}>
-        {/* Background media */}
-        {bgUrl ? (
-          isVideo ? (
-            <video
-              src={bgUrl}
-              autoPlay
-              muted
-              loop
-              playsInline
-              style={{
-                position: 'absolute',
-                inset: 0,
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-              }}
-            />
-          ) : (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={bgUrl}
-              alt=""
-              style={{
-                position: 'absolute',
-                inset: 0,
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                objectPosition: thumbPosition ?? 'center',
-              }}
-            />
-          )
-        ) : (
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              background:
-                'linear-gradient(135deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%)',
-            }}
-          />
-        )}
+        {/* Gradient background */}
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background:
+              'linear-gradient(135deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%)',
+          }}
+        />
 
         {/* Left gradient vignette */}
         <div
@@ -483,11 +445,11 @@ export function LandingPreview({
             position: 'absolute',
             inset: 0,
             background:
-              'linear-gradient(to right, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.80) 22%, rgba(0,0,0,0.5) 42%, rgba(0,0,0,0.15) 60%, rgba(0,0,0,0) 100%)',
+              'linear-gradient(to right, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.65) 25%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0) 100%)',
           }}
         />
 
-        {/* Bottom fade to black */}
+        {/* Bottom fade */}
         <div
           style={{
             position: 'absolute',
@@ -500,7 +462,7 @@ export function LandingPreview({
           }}
         />
 
-        {/* Content column: lower-left, left-aligned (like MasterClass) */}
+        {/* Content column: lower-left, left-aligned */}
         <div
           style={{
             position: 'absolute',
@@ -558,12 +520,17 @@ export function LandingPreview({
               fontWeight: 600,
               color: 'rgba(255,255,255,0.98)',
               letterSpacing: '-0.005em',
-              marginBottom: 26,
+              marginBottom: 16,
               cursor: 'pointer',
               textAlign: 'center',
             }}
           >
             {displayCourse}
+          </div>
+
+          {/* Price badge */}
+          <div style={{ marginBottom: 20 }}>
+            <PriceBadge pricing={pricing} />
           </div>
 
           {/* Description */}
@@ -655,26 +622,6 @@ export function LandingPreview({
             >
               Edit
             </button>
-            <button
-              type="button"
-              aria-label="Add"
-              style={{
-                width: 42,
-                height: 42,
-                borderRadius: '50%',
-                border: '1.5px solid rgba(255,255,255,0.45)',
-                background: 'transparent',
-                color: '#fff',
-                fontSize: 22,
-                fontWeight: 300,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              +
-            </button>
           </div>
         </div>
       </div>
@@ -683,9 +630,6 @@ export function LandingPreview({
         open={editOpen}
         draft={draft}
         setDraft={setDraft}
-        thumbBlobUrl={thumbBlobUrl}
-        thumbPosition={thumbPosition}
-        onThumbPositionChange={onThumbPositionChange}
         onClose={() => setEditOpen(false)}
       />
     </div>

@@ -178,6 +178,7 @@ const LessonViewerPage = ({
         instructorNameItalic={data.course.instructor_name_italic ?? true}
         instructorNameBold={data.course.instructor_name_bold ?? true}
         instructorNameUppercase={data.course.instructor_name_uppercase ?? true}
+        price={data.course.price ?? null}
         isStarted={hasStarted}
         totalLessons={progress?.total_lessons ?? flatLessons.length}
         completionPercent={progress?.completion_percent ?? 0}

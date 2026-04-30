@@ -1,7 +1,7 @@
 'use client'
 
 import CloseIcon from '@mui/icons-material/Close'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 
 // ─── Shared style block ───────────────────────────────────────────────────────
 
@@ -686,74 +686,43 @@ export function StepCourse({
   )
 }
 
-// ─── Step 3: Hero media ───────────────────────────────────────────────────────
+// ─── Step 3: Pricing ──────────────────────────────────────────────────────────
 
-type MediaState = {
-  format: 'thumbnail' | 'trailer' | null
-  thumbFile: File | null
-  thumbName: string
-  videoFile: File | null
-  videoName: string
+export type PricingState = {
+  isFree: boolean
+  amount: number // in dollars
 }
 
-export function StepMedia({
+export function StepPricing({
   data,
   onChange,
   onNext,
   onBack,
   onClose,
 }: {
-  data: MediaState
-  onChange: (next: MediaState) => void
+  data: PricingState
+  onChange: (next: PricingState) => void
   onNext: () => void
   onBack: () => void
   onClose: () => void
 }) {
-  const fileRef = useRef<HTMLInputElement>(null)
-
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0]
-    if (!f) return
-    if (data.format === 'thumbnail') {
-      onChange({ ...data, thumbFile: f, thumbName: f.name })
-    } else if (data.format === 'trailer') {
-      onChange({ ...data, videoFile: f, videoName: f.name })
-    }
-    if (fileRef.current) fileRef.current.value = ''
-  }
-
   const options: {
-    id: 'thumbnail' | 'trailer'
+    id: 'free' | 'paid'
     label: string
     sub: string
     icon: React.ReactNode
   }[] = [
     {
-      id: 'thumbnail',
-      label: 'Thumbnail image',
-      sub: 'JPG or PNG · 16:9 recommended',
+      id: 'free',
+      label: 'Free',
+      sub: 'Anyone can enroll and access this course',
       icon: (
         <svg viewBox="0 0 18 18" fill="none">
-          <rect
-            x="1.5"
-            y="3"
-            width="15"
-            height="12"
-            rx="2"
+          <circle cx="9" cy="9" r="7" stroke="currentColor" strokeWidth="1.4" />
+          <path
+            d="M6 9l2 2 4-4"
             stroke="currentColor"
             strokeWidth="1.4"
-          />
-          <circle
-            cx="6.5"
-            cy="7.5"
-            r="1.5"
-            stroke="currentColor"
-            strokeWidth="1.2"
-          />
-          <path
-            d="M1.5 12l4-3.5 3 2.5 2.5-2 5 4"
-            stroke="currentColor"
-            strokeWidth="1.2"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
@@ -761,69 +730,52 @@ export function StepMedia({
       ),
     },
     {
-      id: 'trailer',
-      label: 'Trailer video',
-      sub: 'MP4 or MOV · 60s max',
+      id: 'paid',
+      label: 'Paid',
+      sub: 'Set a one-time price students pay at checkout',
       icon: (
         <svg viewBox="0 0 18 18" fill="none">
-          <rect
-            x="1.5"
-            y="3"
-            width="15"
-            height="12"
-            rx="2"
-            stroke="currentColor"
-            strokeWidth="1.4"
-          />
+          <circle cx="9" cy="9" r="7" stroke="currentColor" strokeWidth="1.4" />
           <path
-            d="M7 6.5l5 2.5-5 2.5V6.5z"
+            d="M9 5.5v7M7 7.5c0-.83.9-1.5 2-1.5s2 .67 2 1.5-1 1.5-2 1.5-2 .67-2 1.5.9 1.5 2 1.5 2-.67 2-1.5"
             stroke="currentColor"
-            strokeWidth="1.2"
-            strokeLinejoin="round"
+            strokeWidth="1.3"
+            strokeLinecap="round"
           />
         </svg>
       ),
     },
   ]
 
+  const selected = data.isFree ? 'free' : 'paid'
+
   return (
     <StepShell
       step={3}
       total={3}
-      title="Hero media"
+      title="Set your price"
       onNext={onNext}
       onBack={onBack}
       onClose={onClose}
-      nextLabel="Publish course"
-      nextDisabled={!data.format}
+      nextLabel="Continue"
+      nextDisabled={!data.isFree && data.amount <= 0}
     >
       <div className="so-media-options">
         {options.map((opt) => {
-          const isSelected = data.format === opt.id
-          const filename =
-            opt.id === 'thumbnail' ? data.thumbName : data.videoName
+          const isSelected = selected === opt.id
           return (
             <button
               key={opt.id}
               type="button"
               className={`so-media-card${isSelected ? ' selected' : ''}`}
-              onClick={() => onChange({ ...data, format: opt.id })}
+              onClick={() =>
+                onChange({ ...data, isFree: opt.id === 'free' })
+              }
             >
               <div className="so-media-icon">{opt.icon}</div>
               <div className="so-media-text">
                 <div className="so-media-title">{opt.label}</div>
                 <div className="so-media-sub">{opt.sub}</div>
-                {isSelected && filename && (
-                  <div
-                    style={{
-                      fontSize: 12,
-                      color: '#6a6a6a',
-                      marginTop: 3,
-                    }}
-                  >
-                    {filename}
-                  </div>
-                )}
               </div>
               <div className="so-media-check">
                 <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
@@ -839,43 +791,49 @@ export function StepMedia({
             </button>
           )
         })}
-
-        {data.format && (
-          <label className="so-upload-zone">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path
-                d="M8 11V3M5 6l3-3 3 3"
-                stroke="#a0a0a0"
-                strokeWidth="1.4"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <path
-                d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2"
-                stroke="#c8c8c8"
-                strokeWidth="1.4"
-                strokeLinecap="round"
-              />
-            </svg>
-            <span>
-              {data.format === 'thumbnail'
-                ? data.thumbName
-                  ? `✓ ${data.thumbName}`
-                  : 'Upload thumbnail'
-                : data.videoName
-                  ? `✓ ${data.videoName}`
-                  : 'Upload trailer video'}
-            </span>
-            <input
-              ref={fileRef}
-              type="file"
-              style={{ display: 'none' }}
-              accept={data.format === 'thumbnail' ? 'image/*' : 'video/*'}
-              onChange={handleFile}
-            />
-          </label>
-        )}
       </div>
+
+      {!data.isFree && (
+        <div className="so-fields">
+          <div className="so-field">
+            <label className="so-label">Price (USD)</label>
+            <div style={{ position: 'relative' }}>
+              <span
+                style={{
+                  position: 'absolute',
+                  left: 16,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  fontSize: 15,
+                  color: 'var(--so-gray4)',
+                  pointerEvents: 'none',
+                }}
+              >
+                $
+              </span>
+              <input
+                className="so-input"
+                type="number"
+                min={1}
+                step={1}
+                placeholder="49"
+                value={data.amount || ''}
+                onChange={(e) =>
+                  onChange({
+                    ...data,
+                    amount: parseFloat(e.target.value) || 0,
+                  })
+                }
+                style={{ paddingLeft: 28 }}
+                autoFocus
+              />
+            </div>
+            <span className="so-hint">
+              Students pay this once to get full access.
+            </span>
+          </div>
+        </div>
+      )}
     </StepShell>
   )
 }
