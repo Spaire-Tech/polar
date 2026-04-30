@@ -145,9 +145,15 @@ export function LandingPreview({
   const description = draft.desc || course.desc || instructor.bio
   const instructorName = draft.name || instructor.name
 
-  const pricingLabel = pricing.isFree
+  const pricingLabel = pricing.model === 'free'
     ? 'Free'
-    : `$${pricing.amount % 1 === 0 ? pricing.amount.toFixed(0) : pricing.amount.toFixed(2)}`
+    : pricing.amount
+    ? `$${pricing.amount}`
+    : 'Paid'
+
+  const pricingSubLabel = pricing.model !== 'free' && pricing.billing === 'recurring'
+    ? `Billed every ${pricing.intervalCount > 1 ? `${pricing.intervalCount} ` : ''}${pricing.interval}${pricing.intervalCount > 1 ? 's' : ''}`
+    : pricing.model === 'free' ? 'Free access' : 'One-time payment'
 
   return (
     <div className="flex h-screen flex-col bg-gray-50" style={{ fontFamily: 'var(--font-dm-sans), system-ui, sans-serif' }}>
@@ -274,7 +280,10 @@ export function LandingPreview({
               subtitle="Set in the previous step."
             >
               <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
-                <span className="text-sm text-gray-600">Price</span>
+                <div>
+                  <span className="text-sm text-gray-600">Price</span>
+                  <div className="text-xs text-gray-400">{pricingSubLabel}</div>
+                </div>
                 <span className="rounded-full bg-gray-900 px-3 py-1 text-xs font-semibold text-white">
                   {pricingLabel}
                 </span>

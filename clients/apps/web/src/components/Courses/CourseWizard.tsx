@@ -68,7 +68,16 @@ export default function CourseWizard({
     bio: '',
   })
   const [course, setCourse] = useState<CourseState>({ title: '', desc: '' })
-  const [pricing, setPricing] = useState<PricingState>({ isFree: true, amount: 0 })
+  const [pricing, setPricing] = useState<PricingState>({
+    billing: 'one-time',
+    model: 'fixed',
+    amount: '',
+    interval: 'month',
+    intervalCount: 1,
+    paywallOn: false,
+    paywallPos: 0,
+    totalLessons: 20,
+  })
   const [draft, setDraft] = useState<DraftState>({
     name: '',
     courseTitle: '',
@@ -123,16 +132,17 @@ export default function CourseWizard({
     setGenerateError(null)
 
     // Set product prices based on pricing step
-    if (pricing.isFree) {
+    if (pricing.model === 'free') {
       form.setValue('prices', [{ amount_type: 'free' } as any])
+      form.setValue('recurring_interval', null)
     } else {
-      form.setValue('prices', [
-        {
-          amount_type: 'fixed',
-          price_amount: Math.round(pricing.amount * 100),
-          price_currency: 'usd',
-        } as any,
-      ])
+      const priceAmount = Math.round(parseFloat(pricing.amount || '0') * 100)
+      form.setValue('prices', [{
+        amount_type: 'fixed',
+        price_amount: priceAmount,
+        price_currency: 'usd',
+      } as any])
+      form.setValue('recurring_interval', pricing.billing === 'recurring' ? pricing.interval as any : null)
     }
 
     form.setValue('name', draft.courseTitle || course.title)
@@ -177,7 +187,8 @@ export default function CourseWizard({
         organization_id: organization.id,
         title: draft.courseTitle || course.title || 'Untitled Course',
         course_type: 'evergreen',
-        paywall_enabled: !pricing.isFree,
+        paywall_enabled: pricing.paywallOn,
+        paywall_position: pricing.paywallOn ? pricing.paywallPos : null,
         ai_generated: true,
         description: draft.desc || course.desc || null,
         thumbnail_url: null,

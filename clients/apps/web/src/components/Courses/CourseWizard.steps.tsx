@@ -108,10 +108,11 @@ export function SpaireOnboardingStyles() {
       .so-stage {
         flex: 1;
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         justify-content: center;
-        padding: 80px 24px 100px;
+        padding: 88px 24px 72px;
         background: var(--so-white);
+        overflow-y: auto;
       }
       .so-screen {
         width: 100%;
@@ -451,7 +452,7 @@ export function Intro({
 }) {
   const [started, setStarted] = useState(false)
 
-  // Build letter list with delays (no period)
+  // Build letter list with delays
   const chars: { ch: string; delay: number }[] = []
   let idx = 0
   INTRO_WORDS.forEach((word) => {
@@ -460,20 +461,20 @@ export function Intro({
       idx++
     })
   })
-  const lastDelay = chars[chars.length - 1].delay
+  const periodDelay = idx * STAGGER_MS
 
   useEffect(() => {
     const t = setTimeout(() => setStarted(true), 60)
     return () => clearTimeout(t)
   }, [])
 
-  // Auto-advance after all letters land + pause
+  // Auto-advance after period lands + settle + pause
   useEffect(() => {
     if (!started) return
-    const total = lastDelay + 520 + 700
+    const total = periodDelay + 520 + 700
     const t = setTimeout(() => onNext(), total)
     return () => clearTimeout(t)
-  }, [started, lastDelay, onNext])
+  }, [started, periodDelay, onNext])
 
   // Rebuild word groups from chars
   const wordGroups: (typeof chars)[] = []
@@ -483,6 +484,11 @@ export function Intro({
     ci += word.length
   })
 
+  const animStyle = (delay: number) =>
+    started
+      ? { animation: `soLetterUp 0.52s cubic-bezier(0.22,1,0.36,1) ${delay}ms forwards` }
+      : {}
+
   return (
     <>
       <TopBar onClose={onClose} />
@@ -491,22 +497,21 @@ export function Intro({
           {wordGroups.map((group, wi) => (
             <span key={wi} className="so-intro-word">
               {group.map((c, li) => (
-                <span
-                  key={li}
-                  className="so-intro-letter"
-                  style={
-                    started
-                      ? {
-                          animation: `soLetterUp 0.52s cubic-bezier(0.22,1,0.36,1) ${c.delay}ms forwards`,
-                        }
-                      : {}
-                  }
-                >
+                <span key={li} className="so-intro-letter" style={animStyle(c.delay)}>
                   {c.ch}
                 </span>
               ))}
             </span>
           ))}
+          {/* Orange period */}
+          <span className="so-intro-word" style={{ marginLeft: 0, gap: 0 }}>
+            <span
+              className="so-intro-letter"
+              style={{ color: 'var(--so-orange)', ...animStyle(periodDelay) }}
+            >
+              .
+            </span>
+          </span>
         </h1>
       </div>
     </>
@@ -689,9 +694,45 @@ export function StepCourse({
 // ─── Step 3: Pricing ──────────────────────────────────────────────────────────
 
 export type PricingState = {
-  isFree: boolean
-  amount: number // in dollars
+  billing: 'one-time' | 'recurring'
+  model: 'fixed' | 'free'
+  amount: string
+  interval: 'month' | 'year'
+  intervalCount: number
+  paywallOn: boolean
+  paywallPos: number
+  totalLessons: number
 }
+
+const radioCard = (selected: boolean) => ({
+  display: 'flex' as const,
+  alignItems: 'center' as const,
+  gap: 14,
+  padding: '13px 16px',
+  background: selected ? '#ffffff' : '#f4f4f4',
+  border: `1.5px solid ${selected ? '#0a0a0a' : '#e8e8e8'}`,
+  borderRadius: 12,
+  cursor: 'pointer' as const,
+  transition: 'all 0.18s',
+  textAlign: 'left' as const,
+  width: '100%',
+  boxShadow: selected ? '0 0 0 3px rgba(10,10,10,0.06)' : 'none',
+  fontFamily: 'inherit',
+})
+
+const pillBtn = (active: boolean) => ({
+  flex: 1,
+  padding: '10px 0',
+  background: active ? 'var(--so-black)' : 'var(--so-gray1)',
+  border: `1.5px solid ${active ? 'var(--so-black)' : 'var(--so-gray2)'}`,
+  borderRadius: 100,
+  color: active ? 'var(--so-white)' : 'var(--so-gray4)',
+  fontFamily: 'inherit',
+  fontSize: 13,
+  fontWeight: 500,
+  cursor: 'pointer' as const,
+  transition: 'all 0.18s',
+})
 
 export function StepPricing({
   data,
@@ -706,131 +747,205 @@ export function StepPricing({
   onBack: () => void
   onClose: () => void
 }) {
-  const options: {
-    id: 'free' | 'paid'
-    label: string
-    sub: string
-    icon: React.ReactNode
-  }[] = [
-    {
-      id: 'free',
-      label: 'Free',
-      sub: 'Anyone can enroll and access this course',
-      icon: (
-        <svg viewBox="0 0 18 18" fill="none">
-          <circle cx="9" cy="9" r="7" stroke="currentColor" strokeWidth="1.4" />
-          <path
-            d="M6 9l2 2 4-4"
-            stroke="currentColor"
-            strokeWidth="1.4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      ),
-    },
-    {
-      id: 'paid',
-      label: 'Paid',
-      sub: 'Set a one-time price students pay at checkout',
-      icon: (
-        <svg viewBox="0 0 18 18" fill="none">
-          <circle cx="9" cy="9" r="7" stroke="currentColor" strokeWidth="1.4" />
-          <path
-            d="M9 5.5v7M7 7.5c0-.83.9-1.5 2-1.5s2 .67 2 1.5-1 1.5-2 1.5-2 .67-2 1.5.9 1.5 2 1.5 2-.67 2-1.5"
-            stroke="currentColor"
-            strokeWidth="1.3"
-            strokeLinecap="round"
-          />
-        </svg>
-      ),
-    },
-  ]
-
-  const selected = data.isFree ? 'free' : 'paid'
+  const set = (patch: Partial<PricingState>) => onChange({ ...data, ...patch })
+  const canContinue = data.model === 'free' || data.amount.trim() !== ''
 
   return (
     <StepShell
       step={3}
       total={3}
-      title="Set your price"
+      title="Pricing"
       onNext={onNext}
       onBack={onBack}
       onClose={onClose}
-      nextLabel="Continue"
-      nextDisabled={!data.isFree && data.amount <= 0}
+      nextLabel="Publish course"
+      nextDisabled={!canContinue}
     >
-      <div className="so-media-options">
-        {options.map((opt) => {
-          const isSelected = selected === opt.id
-          return (
-            <button
-              key={opt.id}
-              type="button"
-              className={`so-media-card${isSelected ? ' selected' : ''}`}
-              onClick={() =>
-                onChange({ ...data, isFree: opt.id === 'free' })
-              }
-            >
-              <div className="so-media-icon">{opt.icon}</div>
-              <div className="so-media-text">
-                <div className="so-media-title">{opt.label}</div>
-                <div className="so-media-sub">{opt.sub}</div>
-              </div>
-              <div className="so-media-check">
-                <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                  <path
-                    d="M1 4l3 3 5-6"
-                    stroke="#fff"
-                    strokeWidth="1.6"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </div>
-            </button>
-          )
-        })}
+      <p style={{ fontSize: 13, color: 'var(--so-gray4)', marginBottom: 24, lineHeight: 1.55, marginTop: -14 }}>
+        Set your billing cycle and pricing model
+      </p>
+
+      {/* Billing cycle */}
+      <div className="so-label" style={{ marginBottom: 10 }}>Billing cycle</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+        {([
+          { id: 'one-time', label: 'One-time purchase', sub: 'Single payment, lifetime access' },
+          { id: 'recurring', label: 'Recurring subscription', sub: 'Charge on a repeating schedule' },
+        ] as const).map((opt) => (
+          <button key={opt.id} type="button"
+            onClick={() => set({ billing: opt.id })}
+            style={radioCard(data.billing === opt.id)}>
+            <div style={{
+              width: 17, height: 17, borderRadius: '50%', flexShrink: 0,
+              border: `2px solid ${data.billing === opt.id ? 'var(--so-black)' : 'var(--so-gray3)'}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              {data.billing === opt.id && (
+                <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--so-black)' }} />
+              )}
+            </div>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--so-black)', marginBottom: 1 }}>{opt.label}</div>
+              <div style={{ fontSize: 11, color: 'var(--so-gray3)' }}>{opt.sub}</div>
+            </div>
+          </button>
+        ))}
       </div>
 
-      {!data.isFree && (
-        <div className="so-fields">
-          <div className="so-field">
-            <label className="so-label">Price (USD)</label>
-            <div style={{ position: 'relative' }}>
-              <span
-                style={{
-                  position: 'absolute',
-                  left: 16,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  fontSize: 15,
-                  color: 'var(--so-gray4)',
-                  pointerEvents: 'none',
-                }}
-              >
-                $
-              </span>
-              <input
-                className="so-input"
-                type="number"
-                min={1}
-                step={1}
-                placeholder="49"
-                value={data.amount || ''}
-                onChange={(e) =>
-                  onChange({
-                    ...data,
-                    amount: parseFloat(e.target.value) || 0,
-                  })
-                }
-                style={{ paddingLeft: 28 }}
-                autoFocus
-              />
+      {/* Billing frequency (recurring only) */}
+      {data.billing === 'recurring' && (
+        <div style={{ marginBottom: 20, animation: 'soScreenIn 0.28s cubic-bezier(0.22,1,0.36,1) forwards' }}>
+          <div className="so-label" style={{ marginBottom: 8 }}>Billing frequency</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 13, color: 'var(--so-gray4)', whiteSpace: 'nowrap' }}>Every</span>
+            <input
+              className="so-input"
+              type="number" min={1} max={12} step={1}
+              value={data.intervalCount}
+              onChange={(e) => set({ intervalCount: Math.max(1, parseInt(e.target.value) || 1) })}
+              style={{ width: 72, textAlign: 'center', padding: '11px 12px' }}
+            />
+            <div style={{ display: 'flex', gap: 6, flex: 1 }}>
+              {(['month', 'year'] as const).map((iv) => (
+                <button key={iv} type="button"
+                  onClick={() => set({ interval: iv })}
+                  style={pillBtn(data.interval === iv)}>
+                  {iv === 'month' ? 'Month' : 'Year'}
+                </button>
+              ))}
             </div>
-            <span className="so-hint">
-              Students pay this once to get full access.
-            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Pricing model */}
+      <div className="so-label" style={{ marginBottom: 8 }}>Pricing model</div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: data.model === 'fixed' ? 14 : 24 }}>
+        {([{ id: 'fixed', label: 'Fixed price' }, { id: 'free', label: 'Free' }] as const).map((opt) => (
+          <button key={opt.id} type="button"
+            onClick={() => set({ model: opt.id })}
+            style={pillBtn(data.model === opt.id)}>
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Price input (fixed only) */}
+      {data.model === 'fixed' && (
+        <div style={{ marginBottom: 24, animation: 'soScreenIn 0.28s cubic-bezier(0.22,1,0.36,1) forwards' }}>
+          <div style={{ position: 'relative' }}>
+            <span style={{
+              position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)',
+              fontSize: 15, fontWeight: 500, color: 'var(--so-gray4)', pointerEvents: 'none',
+            }}>$</span>
+            <input
+              className="so-input"
+              type="number" min={0} step={1} placeholder="0"
+              value={data.amount}
+              onChange={(e) => set({ amount: e.target.value })}
+              style={{ paddingLeft: 30 }}
+              autoFocus
+            />
+          </div>
+          {data.billing === 'recurring' && data.amount && (
+            <div style={{ marginTop: 6, fontSize: 11, color: 'var(--so-gray3)' }}>
+              Charged every {data.intervalCount > 1 ? `${data.intervalCount} ` : ''}{data.interval}{data.intervalCount > 1 ? 's' : ''}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Divider */}
+      <div style={{ height: 1, background: 'var(--so-gray2)', margin: '0 0 24px' }} />
+
+      {/* Paywall toggle */}
+      <div style={{ marginBottom: data.paywallOn ? 20 : 8 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--so-black)', marginBottom: 4 }}>Paywall</div>
+            <div style={{ fontSize: 12, color: 'var(--so-gray3)', lineHeight: 1.55, maxWidth: 290 }}>
+              Place a paywall between lessons. Lessons above are free preview; everything after is locked until purchase.
+            </div>
+          </div>
+          <button type="button"
+            onClick={() => set({ paywallOn: !data.paywallOn })}
+            style={{
+              width: 44, height: 26, borderRadius: 100,
+              background: data.paywallOn ? '#7c3aed' : 'var(--so-gray2)',
+              border: 'none', cursor: 'pointer', flexShrink: 0,
+              position: 'relative', transition: 'background 0.22s', marginTop: 2,
+            }}>
+            <div style={{
+              position: 'absolute', top: 3,
+              left: data.paywallOn ? 21 : 3,
+              width: 20, height: 20, borderRadius: '50%',
+              background: '#ffffff',
+              transition: 'left 0.22s cubic-bezier(0.22,1,0.36,1)',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
+            }} />
+          </button>
+        </div>
+      </div>
+
+      {/* Paywall position */}
+      {data.paywallOn && (
+        <div style={{ animation: 'soScreenIn 0.32s cubic-bezier(0.22,1,0.36,1) forwards', marginBottom: 8 }}>
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--so-black)', marginBottom: 3 }}>Paywall position</div>
+            <div style={{ fontSize: 12, color: 'var(--so-gray3)', lineHeight: 1.5 }}>
+              Number of lessons visible before the paywall.
+            </div>
+          </div>
+          <div style={{
+            display: 'flex', alignItems: 'center',
+            background: 'var(--so-gray1)', border: '1.5px solid var(--so-gray2)',
+            borderRadius: 12, overflow: 'hidden',
+          }}>
+            <button type="button"
+              onClick={() => set({ paywallPos: Math.max(0, data.paywallPos - 1) })}
+              style={{
+                width: 48, height: 52, border: 'none', background: 'transparent',
+                cursor: 'pointer', fontSize: 22, fontWeight: 300, color: 'var(--so-gray4)',
+                transition: 'background 0.15s, color 0.15s', flexShrink: 0, lineHeight: 1, fontFamily: 'inherit',
+              }}>−</button>
+            <div style={{
+              flex: 1, display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center',
+              padding: '10px 0', borderLeft: '1px solid var(--so-gray2)', borderRight: '1px solid var(--so-gray2)',
+            }}>
+              <span style={{ fontSize: 26, fontWeight: 700, color: 'var(--so-black)', lineHeight: 1 }}>
+                {data.paywallPos}
+              </span>
+              <span style={{ fontSize: 11, color: 'var(--so-gray3)', marginTop: 3 }}>
+                of {data.totalLessons} lessons visible
+              </span>
+            </div>
+            <button type="button"
+              onClick={() => set({ paywallPos: Math.min(data.totalLessons, data.paywallPos + 1) })}
+              style={{
+                width: 48, height: 52, border: 'none', background: 'transparent',
+                cursor: 'pointer', fontSize: 22, fontWeight: 300, color: 'var(--so-gray4)',
+                transition: 'background 0.15s, color 0.15s', flexShrink: 0, lineHeight: 1, fontFamily: 'inherit',
+              }}>+</button>
+          </div>
+          {/* Dot strip */}
+          <div style={{ marginTop: 12, display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+            {Array.from({ length: data.totalLessons }).map((_, i) => (
+              <div key={i}
+                onClick={() => set({ paywallPos: i + 1 })}
+                style={{
+                  width: 10, height: 10, borderRadius: 3,
+                  background: i < data.paywallPos ? '#7c3aed' : 'var(--so-gray2)',
+                  transition: 'background 0.12s', cursor: 'pointer',
+                }} />
+            ))}
+          </div>
+          <div style={{ marginTop: 7, fontSize: 11, color: 'var(--so-gray3)' }}>
+            {data.paywallPos === 0
+              ? 'All lessons locked — no free preview.'
+              : data.paywallPos === data.totalLessons
+              ? 'All lessons free — no paywall.'
+              : `${data.totalLessons - data.paywallPos} lesson${data.totalLessons - data.paywallPos === 1 ? '' : 's'} locked.`}
           </div>
         </div>
       )}
