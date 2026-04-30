@@ -1,7 +1,7 @@
 'use client'
 
 import { Upload } from '@/components/FileUpload/Upload'
-import { useCreateCourse } from '@/hooks/queries/courses'
+import { useCreateCourse, useUpdateCourse } from '@/hooks/queries/courses'
 import { useCreateProduct } from '@/hooks/queries/products'
 import { ProductEditOrCreateForm } from '@/utils/product'
 import { experimental_useObject as useObject } from '@ai-sdk/react'
@@ -20,17 +20,21 @@ import {
   StepCourse,
   StepInstructor,
   StepMedia,
+  StepPricing,
+  type PricingState,
 } from './CourseWizard.steps'
-import { outlineSchema } from './schemas'
+import { landingSchema, outlineSchema } from './schemas'
 
 type WizardStep =
   | 'intro'
   | 'instructor'
   | 'course'
   | 'media'
-  | 'preview'
-  | 'generating'
+  | 'pricing'
+  | 'generating-outline'
   | 'outline'
+  | 'generating-landing'
+  | 'preview'
   | 'creating'
 
 type InstructorState = { name: string; bio: string }
@@ -47,6 +51,7 @@ type DraftState = {
   name: string
   courseTitle: string
   desc: string
+  // Italic is permanently off — kept on the type for the create payload only.
   nameItalic: boolean
   nameBold: boolean
   nameUppercase: boolean
@@ -93,6 +98,7 @@ export default function CourseWizard({
   const router = useRouter()
   const createProduct = useCreateProduct(organization)
   const createCourse = useCreateCourse()
+  const updateCourse = useUpdateCourse()
 
   const [screen, setScreen] = useState<WizardStep>('intro')
   const [instructor, setInstructor] = useState<InstructorState>({
@@ -107,17 +113,26 @@ export default function CourseWizard({
     videoFile: null,
     videoName: '',
   })
+  const [pricing, setPricing] = useState<PricingState>({
+    paywallEnabled: false,
+    priceCents: 0,
+    freePreviewLessons: 3,
+  })
   const [draft, setDraft] = useState<DraftState>({
     name: '',
     courseTitle: '',
     desc: '',
-    nameItalic: true,
+    // Italics removed from the design entirely.
+    nameItalic: false,
     nameBold: true,
     nameUppercase: true,
   })
   const [editOpen, setEditOpen] = useState(false)
   const [generateError, setGenerateError] = useState<string | null>(null)
   const [thumbPosition, setThumbPosition] = useState<string | null>(null)
+  const [uploadedThumbnailUrl, setUploadedThumbnailUrl] = useState<
+    string | null
+  >(null)
 
   const form = useForm<ProductEditOrCreateForm>({
     defaultValues: {
@@ -137,6 +152,7 @@ export default function CourseWizard({
     },
   })
 
+  // ── Outline streaming ─────────────────────────────────────────────────────
   const {
     object: partialOutline,
     submit: submitOutline,
@@ -149,39 +165,86 @@ export default function CourseWizard({
     onFinish: () => setScreen('outline'),
     onError: () => {
       setGenerateError('Failed to generate outline. Please try again.')
+      setScreen('pricing')
+    },
+  })
+
+  // ── Landing-page streaming ────────────────────────────────────────────────
+  const {
+    object: partialLanding,
+    submit: submitLanding,
+    isLoading: isLandingStreaming,
+    error: landingError,
+    stop: stopLanding,
+  } = useObject({
+    api: `/dashboard/${organization.slug}/courses/landing`,
+    schema: landingSchema,
+    onFinish: () => setScreen('preview'),
+    onError: () => {
+      // Non-fatal — drop the user into the preview anyway with placeholders.
       setScreen('preview')
     },
   })
 
   const handleClose = () => {
     stopOutline()
+    stopLanding()
     router.push(`/dashboard/${organization.slug}/products`)
   }
 
-  const startGeneration = async () => {
+  // Outline submission — happens after pricing step.
+  const startOutlineGeneration = async () => {
     setGenerateError(null)
 
-    // Upload thumbnail before generation if needed
-    let thumbnailUrl: string | null = null
+    // Upload thumbnail in the background while the outline streams.
     if (media.thumbFile) {
-      thumbnailUrl = await uploadCourseThumbnail(organization, media.thumbFile)
+      uploadCourseThumbnail(organization, media.thumbFile).then((url) => {
+        if (url) setUploadedThumbnailUrl(url)
+      })
     }
+
     form.setValue('name', draft.courseTitle || course.title)
     form.setValue('description', draft.desc || course.desc)
 
-    setScreen('generating')
+    setScreen('generating-outline')
     submitOutline({
       title: draft.courseTitle || course.title,
       description: draft.desc || course.desc || '',
       targetAudience: '',
+      instructorName: instructor.name || null,
+      instructorBio: instructor.bio || null,
+      paywallEnabled: pricing.paywallEnabled,
+      freePreviewLessons: pricing.paywallEnabled
+        ? pricing.freePreviewLessons
+        : null,
     })
-    // Stash thumbnail URL via state for finalize
-    setUploadedThumbnailUrl(thumbnailUrl)
   }
 
-  const [uploadedThumbnailUrl, setUploadedThumbnailUrl] = useState<
-    string | null
-  >(null)
+  // Landing submission — kicked off from the outline screen.
+  const startLandingGeneration = () => {
+    const outline = partialOutline as PartialOutline | undefined
+    const lessonCount =
+      outline?.modules?.reduce(
+        (acc, m) => acc + (m?.lessons?.length ?? 0),
+        0,
+      ) ?? 0
+    setScreen('generating-landing')
+    submitLanding({
+      title: draft.courseTitle || course.title,
+      description: draft.desc || course.desc || '',
+      instructorName: instructor.name || null,
+      instructorBio: instructor.bio || null,
+      moduleCount: outline?.modules?.length ?? 0,
+      lessonCount,
+      paywallEnabled: pricing.paywallEnabled,
+      freePreviewLessons: pricing.paywallEnabled
+        ? pricing.freePreviewLessons
+        : null,
+      priceLabel: pricing.paywallEnabled
+        ? `$${(pricing.priceCents / 100).toFixed(0)}`
+        : 'free',
+    })
+  }
 
   const finalizeCourse = async () => {
     const outline = partialOutline as PartialOutline | undefined
@@ -189,6 +252,31 @@ export default function CourseWizard({
     setScreen('creating')
 
     try {
+      // If the thumbnail wasn't uploaded yet (small image, but slow link),
+      // wait on it now.
+      let thumbnailUrl = uploadedThumbnailUrl
+      if (!thumbnailUrl && media.thumbFile) {
+        thumbnailUrl = await uploadCourseThumbnail(
+          organization,
+          media.thumbFile,
+        )
+      }
+
+      // Wire pricing into the product before creation.
+      if (pricing.paywallEnabled && pricing.priceCents > 0) {
+        form.setValue('prices', [
+          {
+            amount_type: 'fixed',
+            price_amount: pricing.priceCents,
+            price_currency: 'usd',
+          } as schemas['ProductCreate']['prices'][number],
+        ])
+      } else {
+        form.setValue('prices', [
+          { amount_type: 'free', price_currency: 'usd' },
+        ] as schemas['ProductCreate']['prices'])
+      }
+
       const formValues = form.getValues()
       const { full_medias, metadata, ...rest } = formValues
       const mediaIds = full_medias.map((m) => m.id)
@@ -205,23 +293,37 @@ export default function CourseWizard({
       } as schemas['ProductCreate'])
 
       if (productResult.error || !productResult.data) {
-        console.error('[CourseWizard] product creation error:', JSON.stringify(productResult.error))
-        throw new Error(`Product creation failed: ${JSON.stringify(productResult.error)}`)
+        console.error(
+          '[CourseWizard] product creation error:',
+          JSON.stringify(productResult.error),
+        )
+        throw new Error(
+          `Product creation failed: ${JSON.stringify(productResult.error)}`,
+        )
       }
+
+      const totalLessons =
+        outline.modules?.reduce(
+          (acc, m) => acc + (m?.lessons?.length ?? 0),
+          0,
+        ) ?? 0
+      const paywallPosition = pricing.paywallEnabled
+        ? Math.max(0, Math.min(totalLessons, pricing.freePreviewLessons))
+        : null
 
       const created = await createCourse.mutateAsync({
         product_id: productResult.data.id,
         organization_id: organization.id,
         title: draft.courseTitle || course.title || 'Untitled Course',
         course_type: 'evergreen',
-        paywall_enabled: false,
+        paywall_enabled: pricing.paywallEnabled,
         ai_generated: true,
         description: draft.desc || course.desc || null,
-        thumbnail_url: uploadedThumbnailUrl,
+        thumbnail_url: thumbnailUrl,
         thumbnail_object_position: thumbPosition,
         instructor_name: draft.name || instructor.name || null,
         instructor_bio: instructor.bio || null,
-        instructor_name_italic: draft.nameItalic,
+        instructor_name_italic: false,
         instructor_name_bold: draft.nameBold,
         instructor_name_uppercase: draft.nameUppercase,
         modules: outline.modules
@@ -251,6 +353,19 @@ export default function CourseWizard({
           })),
       })
 
+      // The create endpoint doesn't accept paywall_position; patch it in
+      // immediately after if the wizard collected one.
+      if (pricing.paywallEnabled && paywallPosition !== null) {
+        try {
+          await updateCourse.mutateAsync({
+            courseId: created.id,
+            body: { paywall_position: paywallPosition },
+          })
+        } catch (e) {
+          console.warn('[CourseWizard] paywall_position patch failed:', e)
+        }
+      }
+
       toast({
         title: 'Course Created',
         description: `"${draft.courseTitle || course.title}" is ready to edit`,
@@ -262,18 +377,22 @@ export default function CourseWizard({
         title: 'Something went wrong',
         description: 'Could not create the course. Please try again.',
       })
-      setScreen('outline')
+      setScreen('preview')
     }
   }
 
-  const goPreview = () => {
+  const goPricing = () => {
     setDraft((d) => ({
       ...d,
       name: d.name || instructor.name,
       courseTitle: d.courseTitle || course.title,
       desc: d.desc || course.desc || instructor.bio,
     }))
-    setScreen('preview')
+    setScreen('pricing')
+  }
+
+  const partialOutlineSafe = (partialOutline as PartialOutline) ?? {
+    modules: [],
   }
 
   return (
@@ -313,36 +432,26 @@ export default function CourseWizard({
             <StepMedia
               data={media}
               onChange={setMedia}
-              onNext={goPreview}
+              onNext={goPricing}
               onBack={() => setScreen('course')}
               onClose={handleClose}
             />
           )}
-          {screen === 'preview' && (
-            <LandingPreview
-              instructor={instructor}
-              course={course}
-              media={media}
-              draft={draft}
-              setDraft={setDraft}
-              thumbPosition={thumbPosition}
-              onThumbPositionChange={setThumbPosition}
-              editOpen={editOpen}
-              setEditOpen={setEditOpen}
-              onGenerate={startGeneration}
+          {screen === 'pricing' && (
+            <StepPricing
+              data={pricing}
+              onChange={setPricing}
+              onNext={startOutlineGeneration}
               onBack={() => setScreen('media')}
               onClose={handleClose}
-              error={generateError}
             />
           )}
-          {screen === 'generating' && (
+          {screen === 'generating-outline' && (
             <GeneratingScreen
               title={draft.courseTitle || course.title}
-              modulesCount={
-                (partialOutline as PartialOutline)?.modules?.length ?? 0
-              }
+              modulesCount={partialOutlineSafe.modules?.length ?? 0}
               lessonsCount={
-                (partialOutline as PartialOutline)?.modules?.reduce(
+                partialOutlineSafe.modules?.reduce(
                   (acc, m) => acc + (m?.lessons?.length ?? 0),
                   0,
                 ) ?? 0
@@ -353,17 +462,54 @@ export default function CourseWizard({
           {screen === 'outline' && (
             <OutlineScreen
               title={draft.courseTitle || course.title}
-              partialOutline={
-                (partialOutline as PartialOutline) ?? { modules: [] }
-              }
+              partialOutline={partialOutlineSafe}
               isStreaming={isOutlineStreaming}
               error={outlineError ? 'Failed to generate outline.' : null}
               onRegenerate={() => {
                 stopOutline()
-                setScreen('preview')
+                setScreen('pricing')
               }}
-              onCreate={finalizeCourse}
+              onCreate={startLandingGeneration}
               onClose={handleClose}
+            />
+          )}
+          {screen === 'generating-landing' && (
+            <GeneratingScreen
+              title={draft.courseTitle || course.title}
+              modulesCount={partialOutlineSafe.modules?.length ?? 0}
+              lessonsCount={
+                partialOutlineSafe.modules?.reduce(
+                  (acc, m) => acc + (m?.lessons?.length ?? 0),
+                  0,
+                ) ?? 0
+              }
+              onClose={handleClose}
+            />
+          )}
+          {screen === 'preview' && (
+            <LandingPreview
+              instructor={instructor}
+              course={course}
+              media={media}
+              draft={draft}
+              setDraft={setDraft}
+              pricing={pricing}
+              thumbPosition={thumbPosition}
+              onThumbPositionChange={setThumbPosition}
+              onMediaChange={setMedia}
+              outline={partialOutlineSafe}
+              landing={(partialLanding as Record<string, unknown>) ?? {}}
+              isLandingStreaming={isLandingStreaming}
+              totalDurationSeconds={0}
+              editOpen={editOpen}
+              setEditOpen={setEditOpen}
+              onCreate={finalizeCourse}
+              onBack={() => setScreen('outline')}
+              onClose={handleClose}
+              error={
+                generateError ??
+                (landingError ? 'Landing generation failed.' : null)
+              }
             />
           )}
           {screen === 'creating' && <CreatingScreen onClose={handleClose} />}

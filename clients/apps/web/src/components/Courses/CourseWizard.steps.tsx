@@ -81,7 +81,9 @@ export function SpaireOnboardingStyles() {
         width: 28px;
         height: 28px;
         border-radius: 8px;
-        transition: color 0.15s, background 0.15s;
+        transition:
+          color 0.15s,
+          background 0.15s;
       }
       .so-close:hover {
         color: var(--so-black);
@@ -179,7 +181,10 @@ export function SpaireOnboardingStyles() {
         font-weight: 400;
         color: var(--so-black);
         outline: none;
-        transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+        transition:
+          border-color 0.2s,
+          background 0.2s,
+          box-shadow 0.2s;
         -webkit-appearance: none;
       }
       .so-textarea {
@@ -223,7 +228,9 @@ export function SpaireOnboardingStyles() {
         font-weight: 500;
         cursor: pointer;
         letter-spacing: -0.01em;
-        transition: opacity 0.18s, transform 0.15s;
+        transition:
+          opacity 0.18s,
+          transform 0.15s;
       }
       .so-btn-cta:hover {
         opacity: 0.82;
@@ -306,7 +313,10 @@ export function SpaireOnboardingStyles() {
         border: 1.5px solid var(--so-gray2);
         border-radius: 12px;
         cursor: pointer;
-        transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+        transition:
+          border-color 0.2s,
+          background 0.2s,
+          box-shadow 0.2s;
         text-align: left;
         -webkit-appearance: none;
         appearance: none;
@@ -361,7 +371,9 @@ export function SpaireOnboardingStyles() {
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
-        transition: border-color 0.2s, background 0.2s;
+        transition:
+          border-color 0.2s,
+          background 0.2s;
       }
       .so-media-card.selected .so-media-check {
         border-color: var(--so-black);
@@ -386,7 +398,9 @@ export function SpaireOnboardingStyles() {
         font-size: 13px;
         color: var(--so-gray4);
         font-family: var(--font-poppins), system-ui, sans-serif;
-        transition: border-color 0.2s, background 0.2s;
+        transition:
+          border-color 0.2s,
+          background 0.2s;
       }
       .so-upload-zone:hover {
         border-color: #b0b0b0;
@@ -519,6 +533,7 @@ function StepShell({
   step,
   total,
   title,
+  eyebrow,
   children,
   onNext,
   onBack,
@@ -529,6 +544,7 @@ function StepShell({
   step: number
   total: number
   title: string
+  eyebrow?: string
   children: React.ReactNode
   onNext: () => void
   onBack: () => void
@@ -542,7 +558,9 @@ function StepShell({
       <TopBar step={step} total={total} onClose={onClose} />
       <div className="so-stage">
         <div className="so-screen">
-          <div className="so-eyebrow">Step {step} of {total}</div>
+          <div className="so-eyebrow">
+            {eyebrow ?? `Step ${step} of ${total}`}
+          </div>
           <h2 className="so-title">{title}</h2>
           {children}
           <div className="so-btn-row">
@@ -593,7 +611,7 @@ export function StepInstructor({
   return (
     <StepShell
       step={1}
-      total={3}
+      total={4}
       title="Instructor details"
       onNext={onNext}
       onBack={onBack}
@@ -649,7 +667,7 @@ export function StepCourse({
   return (
     <StepShell
       step={2}
-      total={3}
+      total={4}
       title="Course details"
       onNext={onNext}
       onBack={onBack}
@@ -789,14 +807,27 @@ export function StepMedia({
   return (
     <StepShell
       step={3}
-      total={3}
+      total={4}
       title="Hero media"
+      eyebrow="Step 3 of 4 · Recommended"
       onNext={onNext}
       onBack={onBack}
       onClose={onClose}
-      nextLabel="Publish course"
-      nextDisabled={!data.format}
+      nextLabel="Continue"
     >
+      <p
+        style={{
+          fontSize: 14,
+          color: '#6a6a6a',
+          margin: '-20px 0 24px',
+          lineHeight: 1.6,
+          fontFamily: 'var(--font-poppins), system-ui, sans-serif',
+        }}
+      >
+        A hero image or short trailer makes the landing page sell harder. You
+        can skip this and add either later — Spaire will use a stylized
+        placeholder for now.
+      </p>
       <div className="so-media-options">
         {options.map((opt) => {
           const isSelected = data.format === opt.id
@@ -806,8 +837,13 @@ export function StepMedia({
             <button
               key={opt.id}
               type="button"
-              className={`so-media-card${isSelected ? ' selected' : ''}`}
-              onClick={() => onChange({ ...data, format: opt.id })}
+              className={`so-media-card${isSelected ? 'selected' : ''}`}
+              onClick={() =>
+                onChange({
+                  ...data,
+                  format: isSelected ? null : opt.id,
+                })
+              }
             >
               <div className="so-media-icon">{opt.icon}</div>
               <div className="so-media-text">
@@ -860,10 +896,10 @@ export function StepMedia({
             <span>
               {data.format === 'thumbnail'
                 ? data.thumbName
-                  ? `✓ ${data.thumbName}`
+                  ? `Replace · ${data.thumbName}`
                   : 'Upload thumbnail'
                 : data.videoName
-                  ? `✓ ${data.videoName}`
+                  ? `Replace · ${data.videoName}`
                   : 'Upload trailer video'}
             </span>
             <input
@@ -876,6 +912,188 @@ export function StepMedia({
           </label>
         )}
       </div>
+    </StepShell>
+  )
+}
+
+// ─── Step 4: Pricing & paywall ────────────────────────────────────────────────
+
+export type PricingState = {
+  paywallEnabled: boolean
+  priceCents: number
+  freePreviewLessons: number
+}
+
+export function StepPricing({
+  data,
+  onChange,
+  onNext,
+  onBack,
+  onClose,
+}: {
+  data: PricingState
+  onChange: (next: PricingState) => void
+  onNext: () => void
+  onBack: () => void
+  onClose: () => void
+}) {
+  const [priceText, setPriceText] = useState(
+    data.paywallEnabled ? (data.priceCents / 100).toFixed(0) : '',
+  )
+
+  const validPrice =
+    !data.paywallEnabled ||
+    (data.priceCents > 0 && Number.isFinite(data.priceCents))
+
+  return (
+    <StepShell
+      step={4}
+      total={4}
+      title="Pricing & access"
+      onNext={onNext}
+      onBack={onBack}
+      onClose={onClose}
+      nextLabel="Generate outline"
+      nextDisabled={!validPrice}
+    >
+      <div className="so-fields">
+        <div className="so-pricing-toggle-row">
+          <button
+            type="button"
+            className={`so-pricing-card${!data.paywallEnabled ? 'selected' : ''}`}
+            onClick={() =>
+              onChange({ ...data, paywallEnabled: false, priceCents: 0 })
+            }
+          >
+            <div className="so-pricing-card-title">Free</div>
+            <div className="so-pricing-card-sub">
+              Anyone can watch every lesson.
+            </div>
+          </button>
+          <button
+            type="button"
+            className={`so-pricing-card${data.paywallEnabled ? 'selected' : ''}`}
+            onClick={() => onChange({ ...data, paywallEnabled: true })}
+          >
+            <div className="so-pricing-card-title">Paid</div>
+            <div className="so-pricing-card-sub">
+              First few lessons free, rest unlocks on purchase.
+            </div>
+          </button>
+        </div>
+
+        {data.paywallEnabled && (
+          <>
+            <div className="so-field">
+              <label className="so-label">Course price (USD)</label>
+              <div style={{ position: 'relative' }}>
+                <span
+                  style={{
+                    position: 'absolute',
+                    left: 16,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: '#6a6a6a',
+                    fontSize: 15,
+                    pointerEvents: 'none',
+                  }}
+                >
+                  $
+                </span>
+                <input
+                  className="so-input"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="79"
+                  value={priceText}
+                  style={{ paddingLeft: 28 }}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/[^0-9.]/g, '')
+                    setPriceText(raw)
+                    const dollars = parseFloat(raw)
+                    onChange({
+                      ...data,
+                      priceCents: Number.isFinite(dollars)
+                        ? Math.round(dollars * 100)
+                        : 0,
+                    })
+                  }}
+                />
+              </div>
+              <span className="so-hint">
+                What students pay once to enroll. You can change this later.
+              </span>
+            </div>
+
+            <div className="so-field">
+              <label className="so-label">Free preview lessons</label>
+              <input
+                className="so-input"
+                type="number"
+                min={0}
+                max={20}
+                value={data.freePreviewLessons}
+                onChange={(e) =>
+                  onChange({
+                    ...data,
+                    freePreviewLessons: Math.max(
+                      0,
+                      Math.min(20, parseInt(e.target.value || '0', 10)),
+                    ),
+                  })
+                }
+              />
+              <span className="so-hint">
+                Number of lessons visible before the paywall. The rest unlock
+                after purchase.
+              </span>
+            </div>
+          </>
+        )}
+      </div>
+      <style jsx global>{`
+        .so-pricing-toggle-row {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+          margin-bottom: 8px;
+        }
+        .so-pricing-card {
+          padding: 16px 18px;
+          background: var(--so-gray1);
+          border: 1.5px solid var(--so-gray2);
+          border-radius: 12px;
+          cursor: pointer;
+          transition:
+            border-color 0.2s,
+            background 0.2s,
+            box-shadow 0.2s;
+          text-align: left;
+          font-family: var(--font-poppins), system-ui, sans-serif;
+          color: var(--so-black);
+          -webkit-appearance: none;
+        }
+        .so-pricing-card:hover {
+          border-color: #c8c8c8;
+          background: #f0f0f0;
+        }
+        .so-pricing-card.selected {
+          border-color: var(--so-black);
+          background: var(--so-white);
+          box-shadow: 0 0 0 3px rgba(10, 10, 10, 0.07);
+        }
+        .so-pricing-card-title {
+          font-size: 14px;
+          font-weight: 600;
+          color: var(--so-black);
+          margin-bottom: 4px;
+        }
+        .so-pricing-card-sub {
+          font-size: 12px;
+          color: var(--so-gray3);
+          line-height: 1.5;
+        }
+      `}</style>
     </StepShell>
   )
 }
