@@ -81,7 +81,9 @@ export function SpaireOnboardingStyles() {
         width: 28px;
         height: 28px;
         border-radius: 8px;
-        transition: color 0.15s, background 0.15s;
+        transition:
+          color 0.15s,
+          background 0.15s;
       }
       .so-close:hover {
         color: var(--so-black);
@@ -180,7 +182,10 @@ export function SpaireOnboardingStyles() {
         font-weight: 400;
         color: var(--so-black);
         outline: none;
-        transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+        transition:
+          border-color 0.2s,
+          background 0.2s,
+          box-shadow 0.2s;
         -webkit-appearance: none;
       }
       .so-textarea {
@@ -224,7 +229,9 @@ export function SpaireOnboardingStyles() {
         font-weight: 500;
         cursor: pointer;
         letter-spacing: -0.01em;
-        transition: opacity 0.18s, transform 0.15s;
+        transition:
+          opacity 0.18s,
+          transform 0.15s;
       }
       .so-btn-cta:hover {
         opacity: 0.82;
@@ -307,7 +314,10 @@ export function SpaireOnboardingStyles() {
         border: 1.5px solid var(--so-gray2);
         border-radius: 12px;
         cursor: pointer;
-        transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+        transition:
+          border-color 0.2s,
+          background 0.2s,
+          box-shadow 0.2s;
         text-align: left;
         -webkit-appearance: none;
         appearance: none;
@@ -362,7 +372,9 @@ export function SpaireOnboardingStyles() {
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
-        transition: border-color 0.2s, background 0.2s;
+        transition:
+          border-color 0.2s,
+          background 0.2s;
       }
       .so-media-card.selected .so-media-check {
         border-color: var(--so-black);
@@ -387,7 +399,9 @@ export function SpaireOnboardingStyles() {
         font-size: 13px;
         color: var(--so-gray4);
         font-family: var(--font-poppins), system-ui, sans-serif;
-        transition: border-color 0.2s, background 0.2s;
+        transition:
+          border-color 0.2s,
+          background 0.2s;
       }
       .so-upload-zone:hover {
         border-color: #b0b0b0;
@@ -524,6 +538,7 @@ function StepShell({
   step,
   total,
   title,
+  eyebrow,
   children,
   onNext,
   onBack,
@@ -534,6 +549,7 @@ function StepShell({
   step: number
   total: number
   title: string
+  eyebrow?: string
   children: React.ReactNode
   onNext: () => void
   onBack: () => void
@@ -547,7 +563,9 @@ function StepShell({
       <TopBar step={step} total={total} onClose={onClose} />
       <div className="so-stage">
         <div className="so-screen">
-          <div className="so-eyebrow">Step {step} of {total}</div>
+          <div className="so-eyebrow">
+            {eyebrow ?? `Step ${step} of ${total}`}
+          </div>
           <h2 className="so-title">{title}</h2>
           {children}
           <div className="so-btn-row">
@@ -598,7 +616,7 @@ export function StepInstructor({
   return (
     <StepShell
       step={1}
-      total={3}
+      total={4}
       title="Instructor details"
       onNext={onNext}
       onBack={onBack}
@@ -654,7 +672,7 @@ export function StepCourse({
   return (
     <StepShell
       step={2}
-      total={3}
+      total={4}
       title="Course details"
       onNext={onNext}
       onBack={onBack}
@@ -753,51 +771,101 @@ export function StepPricing({
   return (
     <StepShell
       step={3}
-      total={3}
-      title="Pricing"
+      total={4}
+      title="Hero media"
+      eyebrow="Step 3 of 4 · Recommended"
       onNext={onNext}
       onBack={onBack}
       onClose={onClose}
-      nextLabel="Publish course"
-      nextDisabled={!canContinue}
+      nextLabel="Continue"
     >
-      <p style={{ fontSize: 13, color: 'var(--so-gray4)', marginBottom: 24, lineHeight: 1.55, marginTop: -14 }}>
-        Set your billing cycle and pricing model
+      <p
+        style={{
+          fontSize: 14,
+          color: '#6a6a6a',
+          margin: '-20px 0 24px',
+          lineHeight: 1.6,
+          fontFamily: 'var(--font-poppins), system-ui, sans-serif',
+        }}
+      >
+        A hero image or short trailer makes the landing page sell harder. You
+        can skip this and add either later — Spaire will use a stylized
+        placeholder for now.
       </p>
+      <div className="so-media-options">
+        {options.map((opt) => {
+          const isSelected = data.format === opt.id
+          const filename =
+            opt.id === 'thumbnail' ? data.thumbName : data.videoName
+          return (
+            <button
+              key={opt.id}
+              type="button"
+              className={`so-media-card${isSelected ? 'selected' : ''}`}
+              onClick={() =>
+                onChange({
+                  ...data,
+                  format: isSelected ? null : opt.id,
+                })
+              }
+            >
+              <div className="so-media-icon">{opt.icon}</div>
+              <div className="so-media-text">
+                <div className="so-media-title">{opt.label}</div>
+                <div className="so-media-sub">{opt.sub}</div>
+                {isSelected && filename && (
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: '#6a6a6a',
+                      marginTop: 3,
+                    }}
+                  >
+                    {filename}
+                  </div>
+                )}
+              </div>
+              <div className="so-media-check">
+                <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                  <path
+                    d="M1 4l3 3 5-6"
+                    stroke="#fff"
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+            </button>
+          )
+        })}
 
-      {/* Billing cycle */}
-      <div className="so-label" style={{ marginBottom: 10 }}>Billing cycle</div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
-        {([
-          { id: 'one-time', label: 'One-time purchase', sub: 'Single payment, lifetime access' },
-          { id: 'recurring', label: 'Recurring subscription', sub: 'Charge on a repeating schedule' },
-        ] as const).map((opt) => (
-          <button key={opt.id} type="button"
-            onClick={() => set({ billing: opt.id })}
-            style={radioCard(data.billing === opt.id)}>
-            <div style={{
-              width: 17, height: 17, borderRadius: '50%', flexShrink: 0,
-              border: `2px solid ${data.billing === opt.id ? 'var(--so-black)' : 'var(--so-gray3)'}`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              {data.billing === opt.id && (
-                <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--so-black)' }} />
-              )}
-            </div>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--so-black)', marginBottom: 1 }}>{opt.label}</div>
-              <div style={{ fontSize: 11, color: 'var(--so-gray3)' }}>{opt.sub}</div>
-            </div>
-          </button>
-        ))}
-      </div>
-
-      {/* Billing frequency (recurring only) */}
-      {data.billing === 'recurring' && (
-        <div style={{ marginBottom: 20, animation: 'soScreenIn 0.28s cubic-bezier(0.22,1,0.36,1) forwards' }}>
-          <div className="so-label" style={{ marginBottom: 8 }}>Billing frequency</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 13, color: 'var(--so-gray4)', whiteSpace: 'nowrap' }}>Every</span>
+        {data.format && (
+          <label className="so-upload-zone">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path
+                d="M8 11V3M5 6l3-3 3 3"
+                stroke="#a0a0a0"
+                strokeWidth="1.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2"
+                stroke="#c8c8c8"
+                strokeWidth="1.4"
+                strokeLinecap="round"
+              />
+            </svg>
+            <span>
+              {data.format === 'thumbnail'
+                ? data.thumbName
+                  ? `Replace · ${data.thumbName}`
+                  : 'Upload thumbnail'
+                : data.videoName
+                  ? `Replace · ${data.videoName}`
+                  : 'Upload trailer video'}
+            </span>
             <input
               className="so-input"
               type="number" min={1} max={12} step={1}
@@ -949,6 +1017,334 @@ export function StepPricing({
           </div>
         </div>
       )}
+    </StepShell>
+  )
+}
+
+// ─── Step 4: Pricing & access ────────────────────────────────────────────────
+
+export type BillingType = 'one_time' | 'subscription'
+export type RecurringInterval = 'month' | 'year'
+
+export type PricingState = {
+  paywallEnabled: boolean
+  billingType: BillingType
+  recurringInterval: RecurringInterval
+  currency: string
+  priceCents: number
+  freePreviewLessons: number
+}
+
+const CURRENCY_OPTIONS: { code: string; label: string; symbol: string }[] = [
+  { code: 'usd', label: 'USD', symbol: '$' },
+  { code: 'eur', label: 'EUR', symbol: '€' },
+  { code: 'gbp', label: 'GBP', symbol: '£' },
+  { code: 'cad', label: 'CAD', symbol: 'CA$' },
+  { code: 'aud', label: 'AUD', symbol: 'A$' },
+  { code: 'jpy', label: 'JPY', symbol: '¥' },
+  { code: 'chf', label: 'CHF', symbol: 'Fr' },
+  { code: 'sek', label: 'SEK', symbol: 'kr' },
+]
+
+function symbolFor(code: string): string {
+  return CURRENCY_OPTIONS.find((c) => c.code === code)?.symbol ?? '$'
+}
+
+export function StepPricing({
+  data,
+  onChange,
+  onNext,
+  onBack,
+  onClose,
+}: {
+  data: PricingState
+  onChange: (next: PricingState) => void
+  onNext: () => void
+  onBack: () => void
+  onClose: () => void
+}) {
+  const [priceText, setPriceText] = useState(
+    data.paywallEnabled && data.priceCents > 0
+      ? (data.priceCents / 100).toFixed(0)
+      : '',
+  )
+
+  const validPrice =
+    !data.paywallEnabled ||
+    (data.priceCents > 0 && Number.isFinite(data.priceCents))
+
+  return (
+    <StepShell
+      step={4}
+      total={4}
+      title="Pricing & access"
+      onNext={onNext}
+      onBack={onBack}
+      onClose={onClose}
+      nextLabel="Generate outline"
+      nextDisabled={!validPrice}
+    >
+      <div className="so-fields">
+        {/* ── Access ────────────────────────────────────────── */}
+        <div className="so-field">
+          <label className="so-label">Access</label>
+          <div className="so-pricing-toggle-row">
+            <button
+              type="button"
+              className={`so-pricing-card${!data.paywallEnabled ? 'selected' : ''}`}
+              onClick={() =>
+                onChange({ ...data, paywallEnabled: false, priceCents: 0 })
+              }
+            >
+              <div className="so-pricing-card-title">Free</div>
+              <div className="so-pricing-card-sub">
+                Anyone can watch every lesson.
+              </div>
+            </button>
+            <button
+              type="button"
+              className={`so-pricing-card${data.paywallEnabled ? 'selected' : ''}`}
+              onClick={() => onChange({ ...data, paywallEnabled: true })}
+            >
+              <div className="so-pricing-card-title">Paid</div>
+              <div className="so-pricing-card-sub">
+                First few lessons free, rest unlocks on purchase.
+              </div>
+            </button>
+          </div>
+        </div>
+
+        {data.paywallEnabled && (
+          <>
+            {/* ── Billing model ─────────────────────────────── */}
+            <div className="so-field">
+              <label className="so-label">Billing model</label>
+              <div className="so-pricing-toggle-row">
+                <button
+                  type="button"
+                  className={`so-pricing-card${data.billingType === 'one_time' ? 'selected' : ''}`}
+                  onClick={() => onChange({ ...data, billingType: 'one_time' })}
+                >
+                  <div className="so-pricing-card-title">One-time</div>
+                  <div className="so-pricing-card-sub">
+                    Pay once, watch forever.
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  className={`so-pricing-card${data.billingType === 'subscription' ? 'selected' : ''}`}
+                  onClick={() =>
+                    onChange({ ...data, billingType: 'subscription' })
+                  }
+                >
+                  <div className="so-pricing-card-title">Subscription</div>
+                  <div className="so-pricing-card-sub">
+                    Recurring access, monthly or yearly.
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* ── Recurring interval (subscription only) ────── */}
+            {data.billingType === 'subscription' && (
+              <div className="so-field">
+                <label className="so-label">Renews</label>
+                <div className="so-segment-row">
+                  {(['month', 'year'] as const).map((iv) => (
+                    <button
+                      key={iv}
+                      type="button"
+                      className={`so-segment${data.recurringInterval === iv ? 'selected' : ''}`}
+                      onClick={() =>
+                        onChange({ ...data, recurringInterval: iv })
+                      }
+                    >
+                      {iv === 'month' ? 'Monthly' : 'Yearly'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── Currency + price ──────────────────────────── */}
+            <div className="so-field">
+              <label className="so-label">Price</label>
+              <div className="so-price-row">
+                <select
+                  className="so-currency"
+                  value={data.currency}
+                  onChange={(e) =>
+                    onChange({ ...data, currency: e.target.value })
+                  }
+                >
+                  {CURRENCY_OPTIONS.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+                <div style={{ position: 'relative', flex: 1 }}>
+                  <span
+                    style={{
+                      position: 'absolute',
+                      left: 16,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: '#6a6a6a',
+                      fontSize: 15,
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    {symbolFor(data.currency)}
+                  </span>
+                  <input
+                    className="so-input"
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="79"
+                    value={priceText}
+                    style={{
+                      paddingLeft:
+                        symbolFor(data.currency).length > 1 ? 44 : 28,
+                    }}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/[^0-9.]/g, '')
+                      setPriceText(raw)
+                      const amount = parseFloat(raw)
+                      // Most currencies use 2 minor units; JPY uses 0.
+                      const minorUnits = data.currency === 'jpy' ? 1 : 100
+                      onChange({
+                        ...data,
+                        priceCents: Number.isFinite(amount)
+                          ? Math.round(amount * minorUnits)
+                          : 0,
+                      })
+                    }}
+                  />
+                </div>
+              </div>
+              <span className="so-hint">
+                {data.billingType === 'subscription'
+                  ? `What students pay every ${data.recurringInterval}.`
+                  : 'What students pay once to enroll. You can change this later.'}
+              </span>
+            </div>
+
+            {/* ── Free preview lessons ──────────────────────── */}
+            <div className="so-field">
+              <label className="so-label">Free preview lessons</label>
+              <input
+                className="so-input"
+                type="number"
+                min={0}
+                max={20}
+                value={data.freePreviewLessons}
+                onChange={(e) =>
+                  onChange({
+                    ...data,
+                    freePreviewLessons: Math.max(
+                      0,
+                      Math.min(20, parseInt(e.target.value || '0', 10)),
+                    ),
+                  })
+                }
+              />
+              <span className="so-hint">
+                Lessons visible before the paywall. The rest unlock after
+                purchase.
+              </span>
+            </div>
+          </>
+        )}
+      </div>
+      <style jsx global>{`
+        .so-pricing-toggle-row {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+        }
+        .so-pricing-card {
+          padding: 16px 18px;
+          background: var(--so-gray1);
+          border: 1.5px solid var(--so-gray2);
+          border-radius: 12px;
+          cursor: pointer;
+          transition:
+            border-color 0.2s,
+            background 0.2s,
+            box-shadow 0.2s;
+          text-align: left;
+          font-family: var(--font-poppins), system-ui, sans-serif;
+          color: var(--so-black);
+          -webkit-appearance: none;
+        }
+        .so-pricing-card:hover {
+          border-color: #c8c8c8;
+          background: #f0f0f0;
+        }
+        .so-pricing-card.selected {
+          border-color: var(--so-black);
+          background: var(--so-white);
+          box-shadow: 0 0 0 3px rgba(10, 10, 10, 0.07);
+        }
+        .so-pricing-card-title {
+          font-size: 14px;
+          font-weight: 600;
+          color: var(--so-black);
+          margin-bottom: 4px;
+        }
+        .so-pricing-card-sub {
+          font-size: 12px;
+          color: var(--so-gray3);
+          line-height: 1.5;
+        }
+        .so-segment-row {
+          display: inline-flex;
+          padding: 4px;
+          background: var(--so-gray1);
+          border: 1.5px solid var(--so-gray2);
+          border-radius: 12px;
+        }
+        .so-segment {
+          padding: 8px 16px;
+          background: transparent;
+          border: none;
+          border-radius: 8px;
+          font-family: var(--font-poppins), system-ui, sans-serif;
+          font-size: 13px;
+          font-weight: 500;
+          color: var(--so-gray4);
+          cursor: pointer;
+          transition:
+            background 0.15s,
+            color 0.15s;
+        }
+        .so-segment.selected {
+          background: var(--so-white);
+          color: var(--so-black);
+          box-shadow: 0 1px 2px rgba(10, 10, 10, 0.08);
+        }
+        .so-price-row {
+          display: flex;
+          gap: 10px;
+        }
+        .so-currency {
+          padding: 13px 14px;
+          background: var(--so-gray1);
+          border: 1.5px solid var(--so-gray2);
+          border-radius: 10px;
+          font-family: var(--font-poppins), system-ui, sans-serif;
+          font-size: 14px;
+          font-weight: 500;
+          color: var(--so-black);
+          outline: none;
+          cursor: pointer;
+        }
+        .so-currency:focus {
+          border-color: var(--so-black);
+          box-shadow: 0 0 0 3px rgba(10, 10, 10, 0.07);
+        }
+      `}</style>
     </StepShell>
   )
 }
