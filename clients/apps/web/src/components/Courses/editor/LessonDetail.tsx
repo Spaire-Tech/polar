@@ -20,7 +20,6 @@ import HelpOutlineOutlined from '@mui/icons-material/HelpOutlineOutlined'
 import ImageOutlined from '@mui/icons-material/ImageOutlined'
 import KeyboardArrowDownOutlined from '@mui/icons-material/KeyboardArrowDownOutlined'
 import OndemandVideoOutlined from '@mui/icons-material/OndemandVideoOutlined'
-import OpenInNewOutlined from '@mui/icons-material/OpenInNewOutlined'
 import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined'
 import { cn } from '@spaire/ui/lib/utils'
 import { useEffect, useRef, useState } from 'react'
@@ -216,37 +215,41 @@ export function LessonDetail({
 
   return (
     <div className="flex flex-1 flex-col bg-gray-50">
-      {/* Top bar */}
-      <div className="flex items-center gap-3 border-b border-gray-200 bg-gray-50 px-8 py-4">
-        <h2 className="flex items-center gap-1.5 text-xl font-bold text-gray-900">
-          {edits.title || 'Untitled Lesson'}
-          <HelpOutlineOutlined
-            className="text-gray-300"
-            sx={{ fontSize: 16 }}
-          />
-        </h2>
-        <div className="ml-auto flex items-center gap-2">
+      {/* Editor bar — lesson name on left, Preview/Save/status on right */}
+      <div className="flex h-11 flex-shrink-0 items-center justify-between border-b border-gray-200 bg-white px-5">
+        <div className="text-[13px] font-medium tracking-tight text-gray-900">
+          {edits.title || 'Untitled lesson'}
+        </div>
+        <div className="flex items-center gap-2">
           <button
             onClick={handlePreview}
             disabled={previewAccess.isPending}
-            className="flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
+            className="flex items-center gap-1 rounded-md px-2.5 py-[5px] text-[12px] font-medium tracking-tight text-gray-700 transition-colors hover:bg-gray-100 disabled:opacity-50"
           >
-            <VisibilityOutlined sx={{ fontSize: 16 }} />
+            <VisibilityOutlined sx={{ fontSize: 13 }} />
             {previewAccess.isPending ? 'Opening…' : 'Preview'}
           </button>
           <button
             onClick={() => onSave(edits)}
             disabled={isSaving}
-            className="rounded-full bg-gray-900 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
+            className="px-1 py-[5px] text-[12px] font-medium tracking-tight text-blue-600 transition-opacity hover:opacity-70 disabled:opacity-50"
           >
             {isSaving ? 'Saving…' : 'Save'}
           </button>
+          <span className="ml-1 text-[11px] tracking-tight">
+            {edits.published ? (
+              <span className="text-green-700">● Live</span>
+            ) : (
+              <span className="text-gray-400">Draft</span>
+            )}
+          </span>
         </div>
       </div>
 
-      <div className="mx-auto grid w-full max-w-6xl grid-cols-[1fr_320px] gap-6 px-8 py-6">
-        {/* Main column */}
-        <div className="flex flex-col gap-6">
+      <div className="flex flex-1 overflow-hidden">
+        {/* Main column — centered 560px max */}
+        <div className="flex-1 overflow-y-auto">
+        <div className="mx-auto flex w-full max-w-[560px] flex-col gap-2.5 px-0 pt-6 pb-20">
           <Card>
             <CardHeader title="Lesson Details" />
 
@@ -452,27 +455,43 @@ export function LessonDetail({
             </p>
           </Card>
         </div>
+        </div>
 
-        {/* Right sidebar */}
-        <div className="flex flex-col gap-4">
-          <Card compact>
-            <CardHeader title="Status" info />
-            <RadioRow
-              selected={!edits.published}
-              onSelect={() => update('published', false)}
-              label="Draft"
-              tone="gray"
-            />
-            <RadioRow
-              selected={edits.published}
-              onSelect={() => update('published', true)}
-              label="Published"
-              tone="green"
-            />
-          </Card>
+        {/* Right sidebar — flush right, fixed 240px */}
+        <div className="flex w-60 flex-shrink-0 flex-col gap-6 overflow-y-auto border-l border-gray-200 bg-white px-4 pt-4 pb-10">
+          <SbSection label="Status">
+            <div className="overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
+              <StatusOpt
+                selected={!edits.published}
+                onSelect={() => update('published', false)}
+                label="Draft"
+                badge={
+                  <span className="rounded-full bg-gray-200 px-1.5 py-[2px] text-[10px] font-semibold tracking-wide text-gray-500">
+                    Draft
+                  </span>
+                }
+              />
+              <StatusOpt
+                selected={edits.published}
+                onSelect={() => update('published', true)}
+                label="Published"
+                isLast
+                badge={
+                  <span className="rounded-full bg-green-100 px-1.5 py-[2px] text-[10px] font-semibold tracking-wide text-green-700">
+                    Live
+                  </span>
+                }
+              />
+            </div>
+            {edits.published && (
+              <div className="flex items-center gap-1.5 rounded-lg border border-green-500/20 bg-green-500/5 px-2.5 py-2 text-[11.5px] font-medium text-green-700">
+                <span className="h-1.5 w-1.5 rounded-full bg-green-500 ring-2 ring-green-500/25" />
+                Visible to members
+              </div>
+            )}
+          </SbSection>
 
-          <Card compact>
-            <CardHeader title="Lesson Thumbnail" info />
+          <SbSection label="Thumbnail">
             <input
               ref={thumbnailInputRef}
               type="file"
@@ -523,43 +542,126 @@ export function LessonDetail({
                 </button>
               </>
             )}
-          </Card>
+          </SbSection>
 
-          <Card compact>
-            <CardHeader title="Comments" />
-            <RadioRow
-              selected={edits.commentsMode === 'visible'}
-              onSelect={() => update('commentsMode', 'visible')}
-              label="Visible"
-            />
-            <RadioRow
-              selected={edits.commentsMode === 'hidden'}
-              onSelect={() => update('commentsMode', 'hidden')}
-              label="Hidden"
-            />
-            <RadioRow
-              selected={edits.commentsMode === 'locked'}
-              onSelect={() => update('commentsMode', 'locked')}
-              label="Locked"
-            />
-            <a
-              href="#"
-              className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-gray-900"
+          <SbSection label="Comments">
+            <div className="overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
+              <CommentOpt
+                selected={edits.commentsMode === 'visible'}
+                onSelect={() => update('commentsMode', 'visible')}
+                label="Visible"
+              />
+              <CommentOpt
+                selected={edits.commentsMode === 'hidden'}
+                onSelect={() => update('commentsMode', 'hidden')}
+                label="Hidden"
+              />
+              <CommentOpt
+                selected={edits.commentsMode === 'locked'}
+                onSelect={() => update('commentsMode', 'locked')}
+                label="Locked"
+                isLast
+              />
+            </div>
+          </SbSection>
+
+          <div>
+            <button
+              onClick={onDelete}
+              className="flex items-center gap-1.5 self-start text-[12px] text-red-500 opacity-85 transition-opacity hover:opacity-100"
             >
-              Comments settings
-              <OpenInNewOutlined sx={{ fontSize: 12 }} />
-            </a>
-          </Card>
-
-          <button
-            onClick={onDelete}
-            className="flex items-center gap-1.5 self-start text-sm font-medium text-red-600 hover:text-red-700"
-          >
-            <DeleteOutlineOutlined sx={{ fontSize: 16 }} />
-            Delete Lesson
-          </button>
+              <DeleteOutlineOutlined sx={{ fontSize: 13 }} />
+              Delete lesson
+            </button>
+          </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+function SbSection({
+  label,
+  children,
+}: {
+  label: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="flex flex-col gap-2.5">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.05em] text-gray-500">
+        {label}
+      </div>
+      {children}
+    </div>
+  )
+}
+
+function StatusOpt({
+  selected,
+  onSelect,
+  label,
+  badge,
+  isLast,
+}: {
+  selected: boolean
+  onSelect: () => void
+  label: string
+  badge?: React.ReactNode
+  isLast?: boolean
+}) {
+  return (
+    <div
+      className={cn(
+        'flex cursor-pointer items-center gap-2.5 px-3 py-2.5 transition-colors hover:bg-white',
+        !isLast && 'border-b border-gray-200',
+      )}
+      onClick={onSelect}
+    >
+      <span
+        className={cn(
+          'flex h-[15px] w-[15px] flex-shrink-0 items-center justify-center rounded-full border-[1.5px] transition-colors',
+          selected ? 'border-gray-900' : 'border-gray-400',
+        )}
+      >
+        {selected && <span className="h-[7px] w-[7px] rounded-full bg-gray-900" />}
+      </span>
+      <span className="flex-1 text-[12.5px] tracking-tight text-gray-900">
+        {label}
+      </span>
+      {selected && badge}
+    </div>
+  )
+}
+
+function CommentOpt({
+  selected,
+  onSelect,
+  label,
+  isLast,
+}: {
+  selected: boolean
+  onSelect: () => void
+  label: string
+  isLast?: boolean
+}) {
+  return (
+    <div
+      className={cn(
+        'flex cursor-pointer items-center gap-2.5 px-3 py-2 transition-colors hover:bg-white',
+        !isLast && 'border-b border-gray-200',
+      )}
+      onClick={onSelect}
+    >
+      <span
+        className={cn(
+          'flex h-[14px] w-[14px] flex-shrink-0 items-center justify-center rounded-full border-[1.5px] transition-colors',
+          selected ? 'border-gray-900' : 'border-gray-400',
+        )}
+      >
+        {selected && <span className="h-1.5 w-1.5 rounded-full bg-gray-900" />}
+      </span>
+      <span className="text-[12.5px] tracking-tight text-gray-900">{label}</span>
     </div>
   )
 }
@@ -593,7 +695,10 @@ function initEdits(
     textContent: text,
     videoUrl: lesson.video_asset_id ?? '',
     published: lesson.published,
-    commentsMode: 'visible',
+    commentsMode: ((lesson as any).comments_mode ?? 'visible') as
+      | 'visible'
+      | 'hidden'
+      | 'locked',
     thumbnailObjectPosition: lesson.thumbnail_object_position ?? null,
   }
 }
@@ -645,44 +750,3 @@ function Field({
   )
 }
 
-function RadioRow({
-  selected,
-  onSelect,
-  label,
-  tone,
-}: {
-  selected: boolean
-  onSelect: () => void
-  label: string
-  tone?: 'gray' | 'green'
-}) {
-  return (
-    <button
-      onClick={onSelect}
-      className="mb-2 flex w-full items-center gap-3 text-left last:mb-0"
-    >
-      <span
-        className={cn(
-          'flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 transition-colors',
-          selected ? 'border-indigo-600' : 'border-gray-300',
-        )}
-      >
-        {selected && <span className="h-2 w-2 rounded-full bg-indigo-600" />}
-      </span>
-      {tone ? (
-        <span
-          className={cn(
-            'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
-            tone === 'green'
-              ? 'bg-green-100 text-green-700'
-              : 'bg-gray-100 text-gray-700',
-          )}
-        >
-          {tone === 'green' ? '✓' : '📝'} {label}
-        </span>
-      ) : (
-        <span className="text-sm text-gray-700">{label}</span>
-      )}
-    </button>
-  )
-}

@@ -2,8 +2,7 @@
 
 import { CourseRead } from '@/hooks/queries/courses'
 import AddOutlined from '@mui/icons-material/AddOutlined'
-import ArrowBackOutlined from '@mui/icons-material/ArrowBackOutlined'
-import CloseOutlined from '@mui/icons-material/CloseOutlined'
+import ChevronLeftOutlined from '@mui/icons-material/ChevronLeftOutlined'
 import { cn } from '@spaire/ui/lib/utils'
 
 export type TabId = 'outline' | 'customize' | 'pricing' | 'customers'
@@ -19,10 +18,8 @@ export function CourseHeader({
   course,
   activeTab,
   onTabChange,
-  customersCount = 0,
   onAddContent,
   onBack,
-  onClose,
 }: {
   course: CourseRead
   organizationSlug: string
@@ -34,10 +31,6 @@ export function CourseHeader({
   onBack?: () => void
   onClose?: () => void
 }) {
-  const counts: Partial<Record<TabId, number>> = {
-    customers: customersCount,
-  }
-
   const moduleCount = course.modules.length
   const lessonCount = course.modules.reduce(
     (acc, m) => acc + m.lessons.length,
@@ -45,74 +38,60 @@ export function CourseHeader({
   )
 
   return (
-    <div className="border-b border-gray-200 bg-white">
-      {/* Top bar — back + title + close */}
-      <div className="flex items-center justify-between px-6 py-3">
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900"
-        >
-          <ArrowBackOutlined sx={{ fontSize: 16 }} />
-          Back
-        </button>
-        <h1 className="truncate text-sm font-semibold text-gray-900">
-          {course.title ?? 'Untitled Course'}
-        </h1>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close editor"
-          className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
-        >
-          <CloseOutlined fontSize="small" />
-        </button>
-      </div>
-
-      {/* Tabs row */}
-      <div className="mx-auto flex max-w-6xl items-end justify-between gap-6 px-8">
-        <div className="-mb-px flex items-center gap-8">
-          {TABS.map((tab) => {
-            const active = tab.id === activeTab
-            const count = counts[tab.id]
-            return (
-              <button
-                key={tab.id}
-                onClick={() => onTabChange(tab.id)}
-                className={cn(
-                  'relative pt-2 pb-3 text-sm transition-colors',
-                  active
-                    ? 'text-primary font-semibold'
-                    : 'text-gray-500 hover:text-gray-700',
-                )}
-              >
-                {tab.label}
-                {count !== undefined && count > 0 && (
-                  <span className="ml-1 text-gray-400">({count})</span>
-                )}
-                {active && (
-                  <span className="bg-primary absolute inset-x-0 bottom-0 h-0.5 rounded-full" />
-                )}
-              </button>
-            )
-          })}
+    <div className="flex flex-shrink-0 flex-col">
+      {/* Topbar — back · centered title · CTA */}
+      <div className="relative z-10 grid h-12 grid-cols-[1fr_auto_1fr] items-center border-b border-gray-200 bg-gray-50/85 px-5 backdrop-blur">
+        <div className="flex items-center">
+          <button
+            type="button"
+            onClick={onBack}
+            className="flex items-center gap-0.5 py-1 text-[13px] tracking-tight text-blue-600 transition-opacity hover:opacity-70"
+          >
+            <ChevronLeftOutlined sx={{ fontSize: 16 }} />
+            Courses
+          </button>
         </div>
-
-        {activeTab === 'outline' && (
-          <div className="flex items-center gap-3 pb-2">
-            <span className="text-xs text-gray-500">
-              {moduleCount} module{moduleCount === 1 ? '' : 's'} · {lessonCount}{' '}
-              lesson{lessonCount === 1 ? '' : 's'}
-            </span>
+        <div className="flex flex-col items-center">
+          <div className="text-[13px] font-semibold tracking-tight text-gray-900">
+            {course.title ?? 'Untitled Course'}
+          </div>
+          <div className="text-[11px] text-gray-500">
+            {moduleCount} module{moduleCount === 1 ? '' : 's'} · {lessonCount}{' '}
+            lesson{lessonCount === 1 ? '' : 's'}
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-2">
+          {activeTab === 'outline' && (
             <button
               onClick={onAddContent}
-              className="flex items-center gap-1.5 rounded-full bg-gray-900 px-4 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-gray-800"
+              className="flex items-center gap-1 rounded-full bg-blue-600 px-3.5 py-[5px] text-xs font-medium tracking-tight text-white transition-[filter] hover:brightness-110"
             >
-              <AddOutlined sx={{ fontSize: 14 }} />
-              Add section
+              <AddOutlined sx={{ fontSize: 12 }} />
+              Add lesson
             </button>
-          </div>
-        )}
+          )}
+        </div>
+      </div>
+
+      {/* Tabs row — centered */}
+      <div className="flex flex-shrink-0 items-center justify-center border-b border-gray-200 bg-white">
+        {TABS.map((tab) => {
+          const active = tab.id === activeTab
+          return (
+            <button
+              key={tab.id}
+              onClick={() => onTabChange(tab.id)}
+              className={cn(
+                '-mb-px border-b-2 px-4 py-2.5 text-[13px] tracking-tight transition-colors',
+                active
+                  ? 'border-gray-900 font-medium text-gray-900'
+                  : 'border-transparent text-gray-500 hover:text-gray-900',
+              )}
+            >
+              {tab.label}
+            </button>
+          )
+        })}
       </div>
     </div>
   )
