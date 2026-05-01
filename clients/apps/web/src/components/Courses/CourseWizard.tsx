@@ -16,7 +16,6 @@ import { LandingPreview } from './CourseWizard.preview'
 import { CreatingScreen, GeneratingScreen } from './CourseWizard.status'
 import {
   Intro,
-  PricingState,
   SpaireOnboardingStyles,
   StepCourse,
   StepInstructor,
@@ -41,6 +40,14 @@ type WizardStep =
 
 type InstructorState = { name: string; bio: string }
 type CourseState = { title: string; desc: string }
+type MediaFormat = 'thumbnail' | 'trailer' | null
+type MediaState = {
+  format: MediaFormat
+  thumbFile: File | null
+  thumbName: string
+  videoFile: File | null
+  videoName: string
+}
 type DraftState = {
   name: string
   courseTitle: string
@@ -57,6 +64,30 @@ type PartialModule = {
   lessons?: { title?: string; content_type?: 'text' | 'video' }[]
 }
 type PartialOutline = { modules?: PartialModule[] }
+
+function uploadCourseThumbnail(
+  organization: schemas['Organization'],
+  file: File,
+): Promise<string | null> {
+  return new Promise((resolve) => {
+    const upload = new Upload({
+      organization,
+      service: 'organization_avatar',
+      file,
+      onFileProcessing: () => {},
+      onFileCreate: () => {},
+      onFileUploadProgress: () => {},
+      onFileUploaded: (response) => {
+        resolve(
+          (response as schemas['OrganizationAvatarFileRead']).public_url ??
+            null,
+        )
+      },
+      onFileError: () => resolve(null),
+    })
+    upload.run()
+  })
+}
 
 // ─── Main wizard ─────────────────────────────────────────────────────────────
 
@@ -76,15 +107,12 @@ export default function CourseWizard({
     bio: '',
   })
   const [course, setCourse] = useState<CourseState>({ title: '', desc: '' })
-  const [pricing, setPricing] = useState<PricingState>({
-    billing: 'one-time',
-    model: 'fixed',
-    amount: '',
-    interval: 'month',
-    intervalCount: 1,
-    paywallOn: false,
-    paywallPos: 0,
-    totalLessons: 20,
+  const [media, setMedia] = useState<MediaState>({
+    format: null,
+    thumbFile: null,
+    thumbName: '',
+    videoFile: null,
+    videoName: '',
   })
   const [pricing, setPricing] = useState<PricingState>({
     paywallEnabled: false,
@@ -430,7 +458,7 @@ export default function CourseWizard({
             <StepCourse
               data={course}
               onChange={setCourse}
-              onNext={() => setScreen('pricing')}
+              onNext={() => setScreen('media')}
               onBack={() => setScreen('instructor')}
               onClose={handleClose}
             />

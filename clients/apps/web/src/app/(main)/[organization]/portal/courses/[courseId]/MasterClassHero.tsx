@@ -1,7 +1,6 @@
 'use client'
 
 import PlayArrow from '@mui/icons-material/PlayArrow'
-import { CoursePrice } from '@/hooks/queries/courses'
 
 interface MasterClassHeroProps {
   courseTitle: string | null
@@ -14,21 +13,11 @@ interface MasterClassHeroProps {
   instructorNameItalic?: boolean
   instructorNameBold?: boolean
   instructorNameUppercase?: boolean
-  price?: CoursePrice | null
   isStarted: boolean
   totalLessons: number
   completionPercent: number
   onStart: () => void
   onTrailer: () => void
-}
-
-function formatPrice(price: CoursePrice): string {
-  if (price.amount_type === 'free') return 'Free'
-  if (price.price_amount != null) {
-    const dollars = price.price_amount / 100
-    return `$${dollars % 1 === 0 ? dollars.toFixed(0) : dollars.toFixed(2)}`
-  }
-  return 'Paid'
 }
 
 export const MasterClassHero = ({
@@ -42,7 +31,6 @@ export const MasterClassHero = ({
   instructorNameItalic = true,
   instructorNameBold = true,
   instructorNameUppercase = true,
-  price,
   isStarted,
   totalLessons,
   completionPercent,
@@ -181,32 +169,6 @@ export const MasterClassHero = ({
             >
               {description}
             </p>
-          )}
-
-          {/* Price badge */}
-          {price && !isStarted && (
-            <div
-              className="mb-5 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold"
-              style={{
-                background:
-                  price.amount_type === 'free'
-                    ? 'rgba(255,255,255,0.12)'
-                    : 'rgba(255,255,255,0.92)',
-                color:
-                  price.amount_type === 'free'
-                    ? 'rgba(255,255,255,0.9)'
-                    : '#080808',
-                border:
-                  price.amount_type === 'free'
-                    ? '1px solid rgba(255,255,255,0.2)'
-                    : '1px solid rgba(255,255,255,0.8)',
-              }}
-            >
-              {price.amount_type !== 'free' && (
-                <span className="text-xs font-medium opacity-60">One-time</span>
-              )}
-              {formatPrice(price)}
-            </div>
           )}
 
           {/* Progress */}
