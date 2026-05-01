@@ -1,7 +1,6 @@
 'use client'
 
-import { Upload } from '@/components/FileUpload/Upload'
-import { useCreateCourse, useUpdateCourse } from '@/hooks/queries/courses'
+import { useCreateCourse } from '@/hooks/queries/courses'
 import { useCreateProduct } from '@/hooks/queries/products'
 import { ProductEditOrCreateForm } from '@/utils/product'
 import { experimental_useObject as useObject } from '@ai-sdk/react'
@@ -16,12 +15,11 @@ import { LandingPreview } from './CourseWizard.preview'
 import { CreatingScreen, GeneratingScreen } from './CourseWizard.status'
 import {
   Intro,
+  PricingState,
   SpaireOnboardingStyles,
   StepCourse,
   StepInstructor,
-  StepMedia,
   StepPricing,
-  type PricingState,
 } from './CourseWizard.steps'
 import { joinLanding } from './landingStorage'
 import { landingSchema, outlineSchema } from './schemas'
@@ -30,9 +28,9 @@ type WizardStep =
   | 'intro'
   | 'instructor'
   | 'course'
-  | 'media'
   | 'pricing'
-  | 'generating-outline'
+  | 'preview'
+  | 'generating'
   | 'outline'
   | 'generating-landing'
   | 'preview'
@@ -40,14 +38,6 @@ type WizardStep =
 
 type InstructorState = { name: string; bio: string }
 type CourseState = { title: string; desc: string }
-type MediaFormat = 'thumbnail' | 'trailer' | null
-type MediaState = {
-  format: MediaFormat
-  thumbFile: File | null
-  thumbName: string
-  videoFile: File | null
-  videoName: string
-}
 type DraftState = {
   name: string
   courseTitle: string
@@ -64,30 +54,6 @@ type PartialModule = {
   lessons?: { title?: string; content_type?: 'text' | 'video' }[]
 }
 type PartialOutline = { modules?: PartialModule[] }
-
-function uploadCourseThumbnail(
-  organization: schemas['Organization'],
-  file: File,
-): Promise<string | null> {
-  return new Promise((resolve) => {
-    const upload = new Upload({
-      organization,
-      service: 'organization_avatar',
-      file,
-      onFileProcessing: () => {},
-      onFileCreate: () => {},
-      onFileUploadProgress: () => {},
-      onFileUploaded: (response) => {
-        resolve(
-          (response as schemas['OrganizationAvatarFileRead']).public_url ??
-            null,
-        )
-      },
-      onFileError: () => resolve(null),
-    })
-    upload.run()
-  })
-}
 
 // ─── Main wizard ─────────────────────────────────────────────────────────────
 
@@ -107,12 +73,15 @@ export default function CourseWizard({
     bio: '',
   })
   const [course, setCourse] = useState<CourseState>({ title: '', desc: '' })
-  const [media, setMedia] = useState<MediaState>({
-    format: null,
-    thumbFile: null,
-    thumbName: '',
-    videoFile: null,
-    videoName: '',
+  const [pricing, setPricing] = useState<PricingState>({
+    billing: 'one-time',
+    model: 'fixed',
+    amount: '',
+    interval: 'month',
+    intervalCount: 1,
+    paywallOn: false,
+    paywallPos: 0,
+    totalLessons: 20,
   })
   const [pricing, setPricing] = useState<PricingState>({
     paywallEnabled: false,
@@ -133,10 +102,6 @@ export default function CourseWizard({
   })
   const [editOpen, setEditOpen] = useState(false)
   const [generateError, setGenerateError] = useState<string | null>(null)
-  const [thumbPosition, setThumbPosition] = useState<string | null>(null)
-  const [uploadedThumbnailUrl, setUploadedThumbnailUrl] = useState<
-    string | null
-  >(null)
 
   const form = useForm<ProductEditOrCreateForm>({
     defaultValues: {
@@ -200,11 +165,18 @@ export default function CourseWizard({
   const startOutlineGeneration = async () => {
     setGenerateError(null)
 
-    // Upload thumbnail in the background while the outline streams.
-    if (media.thumbFile) {
-      uploadCourseThumbnail(organization, media.thumbFile).then((url) => {
-        if (url) setUploadedThumbnailUrl(url)
-      })
+    // Set product prices based on pricing step
+    if (pricing.model === 'free') {
+      form.setValue('prices', [{ amount_type: 'free' } as any])
+      form.setValue('recurring_interval', null)
+    } else {
+      const priceAmount = Math.round(parseFloat(pricing.amount || '0') * 100)
+      form.setValue('prices', [{
+        amount_type: 'fixed',
+        price_amount: priceAmount,
+        price_currency: 'usd',
+      } as any])
+      form.setValue('recurring_interval', pricing.billing === 'recurring' ? pricing.interval as any : null)
     }
 
     form.setValue('name', draft.courseTitle || course.title)
@@ -221,34 +193,6 @@ export default function CourseWizard({
       freePreviewLessons: pricing.paywallEnabled
         ? pricing.freePreviewLessons
         : null,
-    })
-  }
-
-  // Landing submission — kicked off from the outline screen.
-  const startLandingGeneration = () => {
-    const outline = partialOutline as PartialOutline | undefined
-    const lessonCount =
-      outline?.modules?.reduce(
-        (acc, m) => acc + (m?.lessons?.length ?? 0),
-        0,
-      ) ?? 0
-    setScreen('generating-landing')
-    submitLanding({
-      title: draft.courseTitle || course.title,
-      description: draft.desc || course.desc || '',
-      instructorName: instructor.name || null,
-      instructorBio: instructor.bio || null,
-      moduleCount: outline?.modules?.length ?? 0,
-      lessonCount,
-      paywallEnabled: pricing.paywallEnabled,
-      freePreviewLessons: pricing.paywallEnabled
-        ? pricing.freePreviewLessons
-        : null,
-      billingType: pricing.paywallEnabled ? pricing.billingType : null,
-      recurringInterval:
-        pricing.paywallEnabled && pricing.billingType === 'subscription'
-          ? pricing.recurringInterval
-          : null,
     })
   }
 
@@ -351,11 +295,12 @@ export default function CourseWizard({
         organization_id: organization.id,
         title: draft.courseTitle || course.title || 'Untitled Course',
         course_type: 'evergreen',
-        paywall_enabled: pricing.paywallEnabled,
+        paywall_enabled: pricing.paywallOn,
+        paywall_position: pricing.paywallOn ? pricing.paywallPos : null,
         ai_generated: true,
-        description: courseDescriptionWithLanding,
-        thumbnail_url: thumbnailUrl,
-        thumbnail_object_position: thumbPosition,
+        description: draft.desc || course.desc || null,
+        thumbnail_url: null,
+        thumbnail_object_position: null,
         instructor_name: draft.name || instructor.name || null,
         instructor_bio: instructor.bio || null,
         instructor_name_italic: false,
@@ -458,17 +403,8 @@ export default function CourseWizard({
             <StepCourse
               data={course}
               onChange={setCourse}
-              onNext={() => setScreen('media')}
+              onNext={() => setScreen('pricing')}
               onBack={() => setScreen('instructor')}
-              onClose={handleClose}
-            />
-          )}
-          {screen === 'media' && (
-            <StepMedia
-              data={media}
-              onChange={setMedia}
-              onNext={goPricing}
-              onBack={() => setScreen('course')}
               onClose={handleClose}
             />
           )}
@@ -476,8 +412,22 @@ export default function CourseWizard({
             <StepPricing
               data={pricing}
               onChange={setPricing}
-              onNext={startOutlineGeneration}
-              onBack={() => setScreen('media')}
+              onNext={goPreview}
+              onBack={() => setScreen('course')}
+              onClose={handleClose}
+            />
+          )}
+          {screen === 'preview' && (
+            <LandingPreview
+              instructor={instructor}
+              course={course}
+              pricing={pricing}
+              draft={draft}
+              setDraft={setDraft}
+              editOpen={editOpen}
+              setEditOpen={setEditOpen}
+              onGenerate={startGeneration}
+              onBack={() => setScreen('pricing')}
               onClose={handleClose}
             />
           )}

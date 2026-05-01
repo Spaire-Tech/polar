@@ -6,8 +6,6 @@ from sqlalchemy import select
 
 from polar.course.repository import CourseLessonRepository
 from polar.course.schemas import (
-    CourseLessonFlatRead,
-    CourseLandingPageRead,
     CourseNoteRead,
     CourseNoteUpsert,
     CourseProgressRead,
@@ -21,6 +19,7 @@ from polar.course.schemas import (
 from polar.course.service import course_service
 from polar.models import Customer
 from polar.models.course_enrollment import CourseEnrollment
+from polar.models.product import Product
 from polar.openapi import APITag
 from polar.postgres import AsyncSession, get_db_session
 from polar.routing import APIRouter
@@ -29,6 +28,25 @@ from .. import auth
 from ..utils import get_customer_id
 
 router = APIRouter(prefix="/courses", tags=["customer_portal_courses", APITag.public])
+
+
+async def _get_course_price(session: AsyncSession, product_id: UUID) -> dict | None:
+    """Return a simplified price dict for the course's product."""
+    from sqlalchemy.orm import selectinload
+    result = await session.execute(
+        select(Product)
+        .options(selectinload(Product.prices))
+        .where(Product.id == product_id)
+    )
+    product = result.scalar_one_or_none()
+    if product is None or not product.prices:
+        return None
+    price = product.prices[0]
+    return {
+        "amount_type": price.amount_type.value,
+        "price_amount": getattr(price, "price_amount", None),
+        "price_currency": getattr(price, "price_currency", None),
+    }
 
 
 def _serialize_lesson(lesson, completed_ids: set[str]) -> dict:
@@ -223,6 +241,8 @@ async def get_enrolled_course(
     total_lessons = len(flat_accessible_ids)
     completed_count = len(completed_ids & flat_accessible_ids)
 
+    price = await _get_course_price(session, course.product_id)
+
     return {
         "enrollment_id": str(enrollment.id),
         "enrolled_at": enrolled_at.isoformat(),
@@ -251,6 +271,7 @@ async def get_enrolled_course(
             "course_type": course.course_type,
             "paywall_enabled": course.paywall_enabled,
             "paywall_position": course.paywall_position,
+            "price": price,
             "modules": modules,
             "lessons": flat_lessons,
         },
