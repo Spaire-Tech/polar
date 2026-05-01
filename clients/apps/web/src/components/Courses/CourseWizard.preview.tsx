@@ -7,6 +7,8 @@ type DraftState = {
   name: string
   courseTitle: string
   desc: string
+  // styling flags kept for backwards-compat on save; the preview no longer
+  // exposes italic and never renders italic text.
   nameItalic: boolean
   nameBold: boolean
   nameUppercase: boolean
@@ -23,6 +25,27 @@ function SectionCard({
   subtitle?: string
   children: React.ReactNode
 }) {
+  const handleHero = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]
+    if (!f) return
+    onMediaChange({
+      ...media,
+      format: 'thumbnail',
+      thumbFile: f,
+      thumbName: f.name,
+    })
+  }
+  const handleTrailer = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]
+    if (!f) return
+    onMediaChange({
+      ...media,
+      format: 'trailer',
+      videoFile: f,
+      videoName: f.name,
+    })
+  }
+
   return (
     <section className="rounded-2xl border border-gray-200 bg-white p-5">
       <div className="mb-4">
@@ -88,13 +111,11 @@ function StyleToggle({
   active,
   onClick,
   label,
-  italic,
   bold,
 }: {
   active: boolean
   onClick: () => void
   label: string
-  italic?: boolean
   bold?: boolean
 }) {
   return (
@@ -293,6 +314,9 @@ export function LandingPreview({
               </p>
             </SectionCard>
           </div>
+          <span style={{ fontSize: 12, color: C.fg3 }}>
+            Premium courses, sold by creators.
+          </span>
         </div>
 
         {/* Right: live preview */}
@@ -320,3 +344,27 @@ export function LandingPreview({
     </div>
   )
 }
+
+export type LandingPreviewProps = {
+  instructor: { name: string; bio: string }
+  course: { title: string; desc: string }
+  media: MediaState
+  draft: DraftState
+  setDraft: (updater: (prev: DraftState) => DraftState) => void
+  pricing: PricingState
+  thumbPosition: string | null
+  onThumbPositionChange: (v: string | null) => void
+  onMediaChange: (next: MediaState) => void
+  outline: PartialOutline
+  landing: PartialLanding
+  isLandingStreaming: boolean
+  totalDurationSeconds: number
+  editOpen: boolean
+  setEditOpen: (open: boolean) => void
+  onCreate: () => void
+  onBack: () => void
+  onClose: () => void
+  error: string | null
+}
+
+/* SECTION_ANCHOR */

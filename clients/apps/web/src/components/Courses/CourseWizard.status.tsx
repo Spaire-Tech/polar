@@ -23,12 +23,20 @@ export function GeneratingScreen({
   modulesCount,
   lessonsCount,
   onClose,
+  phase = 'outline',
 }: {
   title: string
   modulesCount: number
   lessonsCount: number
   onClose: () => void
+  phase?: 'outline' | 'landing'
 }) {
+  const heading =
+    phase === 'landing' ? 'Writing your landing page' : 'Crafting your outline'
+  const sub =
+    phase === 'landing'
+      ? `${title ? `"${title}" — ` : ''}building hero, curriculum, instructor block, reviews…`
+      : `${title ? `"${title}" — ` : ''}${modulesCount} module${modulesCount === 1 ? '' : 's'} · ${lessonsCount} lesson${lessonsCount === 1 ? '' : 's'} · generating…`
   return (
     <>
       <MinimalTopBar onClose={onClose} />
@@ -88,7 +96,7 @@ export function GeneratingScreen({
             margin: 0,
           }}
         >
-          Crafting your outline
+          {heading}
         </h2>
         <p
           style={{
@@ -99,9 +107,7 @@ export function GeneratingScreen({
             fontFamily: 'var(--font-poppins), system-ui, sans-serif',
           }}
         >
-          {title ? `"${title}" — ` : ''}
-          {modulesCount} module{modulesCount === 1 ? '' : 's'} ·{' '}
-          {lessonsCount} lesson{lessonsCount === 1 ? '' : 's'} · generating…
+          {sub}
         </p>
       </div>
       <style jsx global>{`
