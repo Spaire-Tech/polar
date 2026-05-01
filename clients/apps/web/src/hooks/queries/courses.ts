@@ -138,6 +138,7 @@ export type LandingOverrides = {
   text?: Record<string, string>
   media?: Record<string, LandingMedia | null>
   visible?: Record<string, boolean>
+  order?: string[]
   theme?: Partial<LandingTheme>
 }
 

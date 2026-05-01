@@ -241,6 +241,8 @@ export function WizardLandingEditor({
         }
         saving={publishing}
         dirty
+        hideSave
+        publishLabel="Create course"
       >
         <EditableCourseLandingView
           course={fakeCourse}

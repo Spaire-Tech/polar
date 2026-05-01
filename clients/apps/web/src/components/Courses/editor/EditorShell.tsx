@@ -12,6 +12,21 @@ import {
   type EditorPanel,
 } from './EditorContext'
 import type { LandingMedia } from '@/hooks/queries/courses'
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { useRef, useState, type ReactNode } from 'react'
 
 const RAIL_ITEMS: { id: EditorPanel; label: string; icon: string }[] = [
@@ -32,6 +47,9 @@ export function EditorShell({
   saving,
   dirty,
   canPublish = true,
+  saveLabel,
+  publishLabel,
+  hideSave = false,
   children,
 }: {
   brandLabel?: string
@@ -43,6 +61,9 @@ export function EditorShell({
   saving?: boolean
   dirty?: boolean
   canPublish?: boolean
+  saveLabel?: string
+  publishLabel?: string
+  hideSave?: boolean
   children: ReactNode
 }) {
   return (
@@ -56,6 +77,9 @@ export function EditorShell({
         saving={saving}
         dirty={dirty}
         canPublish={canPublish}
+        saveLabel={saveLabel}
+        publishLabel={publishLabel}
+        hideSave={hideSave}
       />
       <div className="flex flex-1 overflow-hidden">
         <LeftRail />
@@ -77,6 +101,9 @@ function Toolbar({
   saving,
   dirty,
   canPublish,
+  saveLabel = 'Save draft',
+  publishLabel = 'Publish',
+  hideSave = false,
 }: {
   brandLabel?: string
   breadcrumb: { course: string }
@@ -86,6 +113,9 @@ function Toolbar({
   saving?: boolean
   dirty?: boolean
   canPublish?: boolean
+  saveLabel?: string
+  publishLabel?: string
+  hideSave?: boolean
 }) {
   const ed = useEditor()
   return (
@@ -178,14 +208,16 @@ function Toolbar({
             Reset
           </button>
         )}
-        <button
-          type="button"
-          onClick={onSave}
-          disabled={saving || !dirty}
-          className="flex items-center gap-1.5 rounded-md bg-white/10 px-3 py-[7px] text-[12px] font-medium text-white transition-colors hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {saving ? '…' : '⤓'} {saving ? 'Saving' : 'Save draft'}
-        </button>
+        {!hideSave && (
+          <button
+            type="button"
+            onClick={onSave}
+            disabled={saving || !dirty}
+            className="flex items-center gap-1.5 rounded-md bg-white/10 px-3 py-[7px] text-[12px] font-medium text-white transition-colors hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {saving ? '…' : '⤓'} {saving ? 'Saving' : saveLabel}
+          </button>
+        )}
         {onPublish && (
           <button
             type="button"
@@ -193,7 +225,7 @@ function Toolbar({
             disabled={!canPublish || saving}
             className="flex items-center gap-1.5 rounded-md bg-[oklch(0.78_0.16_285)] px-3.5 py-[7px] text-[12px] font-semibold text-[oklch(0.18_0.01_280)] transition-[filter] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Publish →
+            {publishLabel} →
           </button>
         )}
       </div>
@@ -803,43 +835,96 @@ const SECTIONS_PANEL: { id: string; label: string; hint: string }[] = [
 
 function SectionsPanel() {
   const ed = useEditor()
+  const meta = new Map(SECTIONS_PANEL.map((s) => [s.id, s]))
+  const ids = ed.overrides.order.filter((id) => meta.has(id))
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+  )
+
+  const onDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e
+    if (!over || active.id === over.id) return
+    const from = ids.indexOf(String(active.id))
+    const to = ids.indexOf(String(over.id))
+    if (from < 0 || to < 0) return
+    ed.setOrder(arrayMove(ids, from, to))
+  }
+
   return (
     <div className="px-2.5">
       <div className="px-1 pb-3 text-[12px] text-gray-500">
-        Toggle to hide a section from the published landing.
+        Drag to reorder · toggle to hide a section.
       </div>
-      {SECTIONS_PANEL.map((s) => {
-        const visible = ed.isVisible(s.id)
-        return (
-          <div
-            key={s.id}
-            className="flex items-center gap-2.5 rounded-lg px-2 py-2.5 hover:bg-gray-50"
-          >
-            <span className="select-none text-gray-300">⋮⋮</span>
-            <div className="flex-1">
-              <div className="text-[12.5px] font-medium text-gray-900">
-                {s.label}
-              </div>
-              <div className="mt-0.5 text-[11px] text-gray-500">{s.hint}</div>
-            </div>
-            <button
-              type="button"
-              onClick={() => ed.setVisible(s.id, !visible)}
-              className={`relative h-[18px] w-[34px] rounded-full transition-colors ${
-                visible ? 'bg-[oklch(0.55_0.20_265)]' : 'bg-gray-200'
-              }`}
-              aria-label={visible ? 'Hide section' : 'Show section'}
-            >
-              <span
-                className="absolute top-[2px] h-[14px] w-[14px] rounded-full bg-white shadow-sm transition-transform"
-                style={{
-                  transform: visible ? 'translateX(18px)' : 'translateX(2px)',
-                }}
-              />
-            </button>
-          </div>
-        )
-      })}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={onDragEnd}
+      >
+        <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+          {ids.map((id) => {
+            const s = meta.get(id)
+            if (!s) return null
+            return <SectionRow key={id} id={id} label={s.label} hint={s.hint} />
+          })}
+        </SortableContext>
+      </DndContext>
+    </div>
+  )
+}
+
+function SectionRow({
+  id,
+  label,
+  hint,
+}: {
+  id: string
+  label: string
+  hint: string
+}) {
+  const ed = useEditor()
+  const visible = ed.isVisible(id)
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id })
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-2.5 rounded-lg px-2 py-2.5 hover:bg-gray-50"
+    >
+      <button
+        {...attributes}
+        {...listeners}
+        type="button"
+        className="cursor-grab select-none text-[14px] text-gray-300 hover:text-gray-500 active:cursor-grabbing"
+        title="Drag to reorder"
+        aria-label="Drag to reorder"
+      >
+        ⋮⋮
+      </button>
+      <div className="flex-1">
+        <div className="text-[12.5px] font-medium text-gray-900">{label}</div>
+        <div className="mt-0.5 text-[11px] text-gray-500">{hint}</div>
+      </div>
+      <button
+        type="button"
+        onClick={() => ed.setVisible(id, !visible)}
+        className={`relative h-[18px] w-[34px] rounded-full transition-colors ${
+          visible ? 'bg-[oklch(0.55_0.20_265)]' : 'bg-gray-200'
+        }`}
+        aria-label={visible ? 'Hide section' : 'Show section'}
+      >
+        <span
+          className="absolute top-[2px] h-[14px] w-[14px] rounded-full bg-white shadow-sm transition-transform"
+          style={{
+            transform: visible ? 'translateX(18px)' : 'translateX(2px)',
+          }}
+        />
+      </button>
     </div>
   )
 }

@@ -12,6 +12,7 @@
 import type { CourseLessonRead, CourseRead } from '@/hooks/queries/courses'
 import { useEditor } from './EditorContext'
 import { EditBlock, EditMedia, EditText } from './EditPrimitives'
+import type React from 'react'
 
 const FONT_VAR = 'var(--font-body, "Poppins", system-ui, sans-serif)'
 
@@ -81,6 +82,22 @@ export function EditableCourseLandingView({
   organizationName,
   flatLessons,
 }: EditableLandingProps) {
+  const ed = useEditor()
+
+  const sectionMap: Record<string, { label: string; node: React.ReactNode }> = {
+    hero: { label: 'Hero', node: <Hero course={course} flatLessons={flatLessons} /> },
+    value: { label: "What's included", node: <ValueStrip /> },
+    trailer: { label: 'Trailer', node: <TrailerBlock course={course} /> },
+    curriculum: { label: 'Curriculum', node: <CurriculumTimeline /> },
+    lessons: {
+      label: 'All lessons',
+      node: <FullLessonList course={course} flatLessons={flatLessons} />,
+    },
+    instructor: { label: 'Instructor', node: <Instructor course={course} /> },
+    reviews: { label: 'Reviews', node: <Reviews /> },
+    finalCta: { label: 'Final CTA', node: <FinalCta /> },
+  }
+
   return (
     <div
       data-spaire-editor
@@ -91,38 +108,15 @@ export function EditableCourseLandingView({
         minHeight: '100%',
       }}
     >
-      <EditBlock id="hero" label="Hero">
-        <Hero course={course} flatLessons={flatLessons} />
-      </EditBlock>
-
-      <EditBlock id="value" label="What's included">
-        <ValueStrip />
-      </EditBlock>
-
-      <EditBlock id="trailer" label="Trailer">
-        <TrailerBlock course={course} />
-      </EditBlock>
-
-      <EditBlock id="curriculum" label="Curriculum">
-        <CurriculumTimeline />
-      </EditBlock>
-
-      <EditBlock id="lessons" label="All lessons">
-        <FullLessonList course={course} flatLessons={flatLessons} />
-      </EditBlock>
-
-      <EditBlock id="instructor" label="Instructor">
-        <Instructor course={course} />
-      </EditBlock>
-
-      <EditBlock id="reviews" label="Reviews">
-        <Reviews />
-      </EditBlock>
-
-      <EditBlock id="finalCta" label="Final CTA">
-        <FinalCta />
-      </EditBlock>
-
+      {ed.overrides.order.map((id) => {
+        const s = sectionMap[id]
+        if (!s) return null
+        return (
+          <EditBlock key={id} id={id} label={s.label}>
+            {s.node}
+          </EditBlock>
+        )
+      })}
       <Footer organizationName={organizationName} />
     </div>
   )

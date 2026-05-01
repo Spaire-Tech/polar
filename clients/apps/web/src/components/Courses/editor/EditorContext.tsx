@@ -162,10 +162,22 @@ export const DEFAULT_THEME: LandingTheme = {
   cornerStyle: 'rounded',
 }
 
+export const SECTION_ORDER_DEFAULT = [
+  'hero',
+  'value',
+  'trailer',
+  'curriculum',
+  'lessons',
+  'instructor',
+  'reviews',
+  'finalCta',
+] as const
+
 export type ResolvedOverrides = {
   text: Record<string, string>
   media: Record<string, NonNullable<LandingOverrides['media']>[string]>
   visible: Record<string, boolean>
+  order: string[]
   theme: LandingTheme
 }
 
@@ -182,16 +194,33 @@ export const DEFAULT_OVERRIDES: ResolvedOverrides = {
     reviews: true,
     finalCta: true,
   },
+  order: [...SECTION_ORDER_DEFAULT],
   theme: { ...DEFAULT_THEME },
 }
 
 export function mergeOverrides(
   ov: LandingOverrides | null | undefined,
 ): ResolvedOverrides {
+  // Sanitize the saved order: keep only known section ids, drop dupes,
+  // append any missing ones at the end so old data still renders the new
+  // sections we add later.
+  const knownIds = new Set<string>(SECTION_ORDER_DEFAULT)
+  const seen = new Set<string>()
+  const cleaned: string[] = []
+  for (const id of ov?.order ?? []) {
+    if (knownIds.has(id) && !seen.has(id)) {
+      cleaned.push(id)
+      seen.add(id)
+    }
+  }
+  for (const id of SECTION_ORDER_DEFAULT) {
+    if (!seen.has(id)) cleaned.push(id)
+  }
   return {
     text: { ...DEFAULT_OVERRIDES.text, ...(ov?.text ?? {}) },
     media: { ...DEFAULT_OVERRIDES.media, ...(ov?.media ?? {}) },
     visible: { ...DEFAULT_OVERRIDES.visible, ...(ov?.visible ?? {}) },
+    order: cleaned,
     theme: { ...DEFAULT_THEME, ...(ov?.theme ?? {}) },
   }
 }
@@ -214,6 +243,7 @@ type EditorContextValue = {
   setMedia: (id: string, value: LandingMedia | null) => void
   isVisible: (id: string) => boolean
   setVisible: (id: string, visible: boolean) => void
+  setOrder: (order: string[]) => void
   setTheme: (patch: Partial<LandingTheme>) => void
   uploadMedia: Uploader
   /** Per-slot override (lets host map specific slots to different endpoints). */
@@ -340,6 +370,13 @@ export function EditorProvider({
         ...overrides,
         visible: { ...overrides.visible, [id]: visible },
       })
+    },
+    [apply, overrides],
+  )
+
+  const setOrder = useCallback(
+    (order: string[]) => {
+      apply({ ...overrides, order })
     },
     [apply, overrides],
   )
@@ -488,6 +525,7 @@ export function EditorProvider({
       setMedia,
       isVisible,
       setVisible,
+      setOrder,
       setTheme,
       uploadMedia,
       uploaderForSlot,
@@ -509,6 +547,7 @@ export function EditorProvider({
       setMedia,
       isVisible,
       setVisible,
+      setOrder,
       setTheme,
       uploadMedia,
       uploaderForSlot,
