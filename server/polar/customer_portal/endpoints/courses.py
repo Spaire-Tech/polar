@@ -251,6 +251,7 @@ async def get_enrolled_course(
             "course_type": course.course_type,
             "paywall_enabled": course.paywall_enabled,
             "paywall_position": course.paywall_position,
+            "landing_overrides": course.landing_overrides,
             "modules": modules,
             "lessons": flat_lessons,
         },
@@ -483,6 +484,7 @@ async def get_course_landing(
         "course_type": course.course_type,
         "lesson_count": len(flat_lessons),
         "total_duration_seconds": total_duration,
+        "landing_overrides": course.landing_overrides,
         "lessons": flat_lessons,
         "has_access": has_access,
     }

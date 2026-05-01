@@ -13,7 +13,7 @@ import { experimental_useObject as useObject } from '@ai-sdk/react'
 import { schemas } from '@spaire/client'
 import { Form } from '@spaire/ui/components/ui/form'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from '../Toast/use-toast'
 import { OutlineScreen } from './CourseWizard.outline'
@@ -30,7 +30,6 @@ import {
   StepPricing,
   type PricingState,
 } from './CourseWizard.steps'
-import { joinLanding } from './landingStorage'
 import { landingSchema, outlineSchema } from './schemas'
 
 type WizardStep =
@@ -77,23 +76,26 @@ type PartialModule = {
 }
 type PartialOutline = { modules?: PartialModule[] }
 
+// Upload a hero/thumbnail file as a *product media*. Going through the
+// canonical product-media pipeline (rather than organization_avatar) means
+// the file lands on the product's `medias` list and is surfaced in checkout,
+// emails, and social previews — same as a media uploaded from the regular
+// product create/edit form. The course thumbnail_url is sourced from the same
+// response so the cinematic hero keeps the same image.
 function uploadCourseThumbnail(
   organization: schemas['Organization'],
   file: File,
-): Promise<string | null> {
+): Promise<schemas['ProductMediaFileRead'] | null> {
   return new Promise((resolve) => {
     const upload = new Upload({
       organization,
-      service: 'organization_avatar',
+      service: 'product_media',
       file,
       onFileProcessing: () => {},
       onFileCreate: () => {},
       onFileUploadProgress: () => {},
       onFileUploaded: (response) => {
-        resolve(
-          (response as schemas['OrganizationAvatarFileRead']).public_url ??
-            null,
-        )
+        resolve(response as schemas['ProductMediaFileRead'])
       },
       onFileError: () => resolve(null),
     })
@@ -146,9 +148,16 @@ export default function CourseWizard({
   const [editOpen, setEditOpen] = useState(false)
   const [generateError, setGenerateError] = useState<string | null>(null)
   const [thumbPosition, setThumbPosition] = useState<string | null>(null)
-  const [uploadedThumbnailUrl, setUploadedThumbnailUrl] = useState<
-    string | null
+  const [uploadedThumbnail, setUploadedThumbnail] = useState<
+    schemas['ProductMediaFileRead'] | null
   >(null)
+
+  // ── Pricing → ProductCreate sync ──────────────────────────────────────────
+  // The wizard's PricingState is just a friendlier UI layer over the canonical
+  // ProductCreate primitives. Mirror every change into `form.prices` and
+  // `form.recurring_interval` so finalizeCourse doesn't need its own mapper —
+  // we hand `form.getValues()` straight to useCreateProduct.
+  // (declared below `form`; see useEffect after the form definition)
 
   const form = useForm<ProductEditOrCreateForm>({
     defaultValues: {
@@ -167,6 +176,36 @@ export default function CourseWizard({
       metadata: [],
     },
   })
+
+  useEffect(() => {
+    if (pricing.paywallEnabled && pricing.priceCents > 0) {
+      form.setValue('prices', [
+        {
+          amount_type: 'fixed',
+          price_amount: pricing.priceCents,
+          price_currency: pricing.currency,
+        } as schemas['ProductCreate']['prices'][number],
+      ])
+      form.setValue(
+        'recurring_interval',
+        pricing.billingType === 'subscription'
+          ? pricing.recurringInterval
+          : null,
+      )
+    } else {
+      form.setValue('prices', [
+        { amount_type: 'free', price_currency: pricing.currency },
+      ] as schemas['ProductCreate']['prices'])
+      form.setValue('recurring_interval', null)
+    }
+  }, [
+    pricing.paywallEnabled,
+    pricing.billingType,
+    pricing.recurringInterval,
+    pricing.currency,
+    pricing.priceCents,
+    form,
+  ])
 
   // ── Outline streaming ─────────────────────────────────────────────────────
   const {
@@ -212,10 +251,12 @@ export default function CourseWizard({
   const startOutlineGeneration = async () => {
     setGenerateError(null)
 
-    // Upload thumbnail in the background while the outline streams.
+    // Upload thumbnail in the background while the outline streams. The
+    // resulting product-media record is stashed for finalizeCourse to push
+    // into form.full_medias.
     if (media.thumbFile) {
-      uploadCourseThumbnail(organization, media.thumbFile).then((url) => {
-        if (url) setUploadedThumbnailUrl(url)
+      uploadCourseThumbnail(organization, media.thumbFile).then((media) => {
+        if (media) setUploadedThumbnail(media)
       })
     }
 
@@ -277,41 +318,31 @@ export default function CourseWizard({
       // wait on it now. The wizard editor may have replaced the file inline.
       const heroFile =
         wizardData?.pendingHeroFile ?? media.thumbFile ?? null
-      let thumbnailUrl = uploadedThumbnailUrl
+      let heroMedia = uploadedThumbnail
       if (heroFile) {
-        thumbnailUrl = await uploadCourseThumbnail(organization, heroFile)
+        heroMedia = await uploadCourseThumbnail(organization, heroFile)
+      }
+      const thumbnailUrl = heroMedia?.public_url ?? null
+
+      // Push the hero into the canonical product media list so it shows up in
+      // checkout/emails/social — same pipeline as a regular product create.
+      if (heroMedia) {
+        const existing = form.getValues('full_medias') ?? []
+        if (!existing.some((m) => m.id === heroMedia!.id)) {
+          form.setValue('full_medias', [heroMedia, ...existing])
+        }
       }
 
-      // Wire pricing into the product before creation.
-      if (pricing.paywallEnabled && pricing.priceCents > 0) {
-        form.setValue('prices', [
-          {
-            amount_type: 'fixed',
-            price_amount: pricing.priceCents,
-            price_currency: pricing.currency,
-          } as schemas['ProductCreate']['prices'][number],
-        ])
-        form.setValue(
-          'recurring_interval',
-          pricing.billingType === 'subscription'
-            ? pricing.recurringInterval
-            : null,
-        )
-      } else {
-        form.setValue('prices', [
-          { amount_type: 'free', price_currency: pricing.currency },
-        ] as schemas['ProductCreate']['prices'])
-        form.setValue('recurring_interval', null)
-      }
-
+      // Pricing is already synced into `form` (see useEffect above) — no
+      // wizard-specific mapping needed here. Whatever the user chose in
+      // StepPricing is sitting on form.prices / form.recurring_interval in
+      // exactly the shape ProductCreate expects.
       const formValues = form.getValues()
       const { full_medias, metadata, ...rest } = formValues
       const mediaIds = full_medias.map((m) => m.id)
 
-      // The AI-generated landing payload is persisted onto the COURSE's
-      // description field via a sentinel marker (see `joinLanding` below).
-      // Product metadata can't carry it because each metadata value is capped
-      // at 500 chars by the backend.
+      // The AI-generated landing payload is persisted in the course's
+      // landing_overrides.ai_landing field. The human description stays clean.
       const landingForStorage = {
         ...(partialLanding as object | null | undefined),
         // Snapshot the editable surface bits the user might have changed in
@@ -355,10 +386,6 @@ export default function CourseWizard({
         : null
 
       const humanDescription = draft.desc || course.desc || null
-      const courseDescriptionWithLanding = joinLanding(
-        humanDescription,
-        landingForStorage,
-      )
 
       const created = await createCourse.mutateAsync({
         product_id: productResult.data.id,
@@ -367,7 +394,7 @@ export default function CourseWizard({
         course_type: 'evergreen',
         paywall_enabled: pricing.paywallEnabled,
         ai_generated: true,
-        description: courseDescriptionWithLanding,
+        description: humanDescription,
         thumbnail_url: thumbnailUrl,
         thumbnail_object_position: thumbPosition,
         instructor_name: draft.name || instructor.name || null,
@@ -412,6 +439,7 @@ export default function CourseWizard({
 
       // Apply landing overrides + upload buffered media now that the course
       // exists. Hero is already uploaded above; trailer + slot media follow.
+      // The full AI landing JSON also rides along on landing_overrides.
       if (wizardData) {
         const ov = { ...wizardData.overrides }
         ov.media = { ...ov.media }
@@ -450,7 +478,9 @@ export default function CourseWizard({
         try {
           await updateCourse.mutateAsync({
             courseId: created.id,
-            body: { landing_overrides: ov },
+            body: {
+              landing_overrides: { ...ov, ai_landing: landingForStorage },
+            },
           })
         } catch (e) {
           console.warn('[CourseWizard] landing_overrides patch failed:', e)
