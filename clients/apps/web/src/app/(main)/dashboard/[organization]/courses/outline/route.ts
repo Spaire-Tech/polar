@@ -12,7 +12,7 @@ Guidelines:
 - Modules should have clear, descriptive titles that communicate the learning objective
 - Lessons should have specific, actionable titles (e.g. "Setting Up Your Development Environment" not just "Setup")
 - Every lesson MUST set "content_type": "video" — Spaire courses are video-first, no exceptions.
-- For each lesson, emit a short "description" (one sentence, ≤ 140 chars summarising what the learner walks away with) and a short "content" (2-4 sentences, written as the lesson's opening voiceover / on-screen body — concrete, not generic).
+- For each lesson, emit a short "description" — one sentence, ≤ 140 chars, concrete, summarising what the learner walks away with.
 - Start with foundational concepts and progress toward advanced application
 - Tailor the depth and pacing to the instructor's voice when an instructor bio is provided
 - When a paywall is enabled, the first module should land hard so free-preview lessons earn the upsell. When the course is free (no paywall), pace evenly and treat every lesson as core curriculum`
@@ -55,7 +55,10 @@ export async function POST(req: Request) {
     model: anthropic('claude-opus-4-7'),
     schema: outlineSchema,
     system: systemPrompt,
-    maxOutputTokens: 2400,
+    // Bumped from 2400 — adding a short per-lesson description pushes a
+    // 5–7 module / 30+ lesson outline past the old cap, which would cut the
+    // stream off mid-JSON and prevent useObject from ever validating.
+    maxOutputTokens: 4000,
     prompt: `Create a course outline for:\n${lines.join('\n')}\n\nReturn the JSON object now and stop.`,
   })
 

@@ -12,10 +12,10 @@ export const outlineSchema = z.object({
           // wizard create payload coerces to 'video' regardless. Using
           // z.literal here breaks streaming partials inside useObject.
           content_type: z.enum(['text', 'video']),
-          // Short summary shown in lesson lists and headers.
+          // Short summary shown in lesson lists and headers. Lesson body /
+          // script copy is generated separately by the lesson-content route
+          // — including it here blows past the streaming token budget.
           description: z.string().optional(),
-          // Short body / script copy used to seed the lesson editor.
-          content: z.string().optional(),
         }),
       ),
     }),
