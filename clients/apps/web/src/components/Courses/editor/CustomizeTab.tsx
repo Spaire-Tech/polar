@@ -5,63 +5,88 @@ import type { FlatLesson } from '@/app/(main)/[organization]/portal/courses/[cou
 import {
   CourseRead,
   useUpdateCourse,
+  useUploadCourseThumbnail,
   useUploadCourseTrailer,
 } from '@/hooks/queries/courses'
+import { schemas } from '@spaire/client'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   joinLanding,
   splitLanding,
   type StoredLanding,
 } from '../landingStorage'
-import { schemas } from '@spaire/client'
-import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from '../../Toast/use-toast'
+import {
+  EditBlock,
+  EditMedia,
+  EditText,
+  EditorProvider,
+  useEditor,
+  type LandingMedia,
+  type LandingOverrides,
+} from './EditPrimitives'
 
-type Section =
-  | 'hero'
-  | 'value'
-  | 'curriculum'
-  | 'lessons'
-  | 'instructor'
-  | 'reviews'
-  | 'final'
-  | 'trailer'
+// ── Stored shape ─────────────────────────────────────────────────────────────
 
-const SECTIONS: { id: Section; label: string }[] = [
-  { id: 'hero', label: 'Hero' },
-  { id: 'trailer', label: 'Trailer' },
-  { id: 'value', label: "What's included" },
-  { id: 'curriculum', label: 'Curriculum' },
-  { id: 'lessons', label: 'Lesson list' },
-  { id: 'instructor', label: 'Instructor' },
-  { id: 'reviews', label: 'Reviews' },
-  { id: 'final', label: 'Final CTA' },
+// LandingOverrides lives inside the course `description` field via the existing
+// landing-storage marker. We extend StoredLanding with a `_overrides` blob so
+// text/media/visibility maps round-trip without a backend schema change.
+type StoredOverrides = LandingOverrides
+
+function readOverrides(landing: StoredLanding | null): StoredOverrides {
+  const ov = (landing as any)?._overrides as StoredOverrides | undefined
+  return {
+    text: { ...(ov?.text ?? {}) },
+    media: { ...(ov?.media ?? {}) },
+    visible: { ...(ov?.visible ?? {}) },
+  }
+}
+
+function writeOverrides(
+  landing: StoredLanding | null,
+  next: StoredOverrides,
+): StoredLanding {
+  return { ...(landing ?? {}), _overrides: next } as StoredLanding
+}
+
+// ── Section list (must match EditableLandingCanvas) ─────────────────────────
+
+const SECTIONS = [
+  { id: 'hero', label: 'Hero', hint: 'Cinematic header' },
+  { id: 'value', label: "What's included", hint: '4-column value strip' },
+  { id: 'trailer', label: 'Trailer', hint: 'Video block' },
+  { id: 'curriculum', label: 'Curriculum', hint: 'Chapter cards' },
+  { id: 'lessons', label: 'All lessons', hint: 'Accordion + paywall' },
+  { id: 'instructor', label: 'Instructor', hint: 'Bio + pull quote' },
+  { id: 'reviews', label: 'Reviews', hint: 'Student quotes' },
+  { id: 'finalCta', label: 'Final CTA', hint: 'Closing block' },
+] as const
+
+// Hero/trailer have direct course columns. Other slots ride inside the
+// landing._overrides.media map and upload via the generic landing-media
+// endpoint.
+const MEDIA_SLOTS: { id: string; label: string; hint?: string }[] = [
+  {
+    id: 'hero.backdrop',
+    label: 'Hero backdrop',
+    hint: 'Image or video — top of the page',
+  },
+  { id: 'trailer.video', label: 'Trailer video', hint: 'mp4/webm' },
+  {
+    id: 'instructor.portrait',
+    label: 'Instructor portrait',
+    hint: 'Square or 4:5',
+  },
+  { id: 'finalCta.backdrop', label: 'Final CTA backdrop' },
+  { id: 'curriculum.1', label: 'Chapter 01 cover' },
+  { id: 'curriculum.2', label: 'Chapter 02 cover' },
+  { id: 'curriculum.3', label: 'Chapter 03 cover' },
+  { id: 'curriculum.4', label: 'Chapter 04 cover' },
+  { id: 'curriculum.5', label: 'Chapter 05 cover' },
+  { id: 'curriculum.6', label: 'Chapter 06 cover' },
 ]
 
-const DEFAULT_LANDING: StoredLanding = {
-  eyebrow: 'SPAIRE ORIGINAL',
-  series_label: 'NEW SERIES',
-  tagline: '',
-  description: '',
-  level: 'All levels',
-  value_props_label: "WHAT'S INCLUDED",
-  value_props: [],
-  curriculum_label: 'CURRICULUM',
-  curriculum_heading: '',
-  curriculum_subheading: '',
-  lessons_label: 'EVERY LESSON',
-  lessons_heading: '',
-  lessons_subheading: '',
-  instructor_label: 'YOUR INSTRUCTOR',
-  instructor_pull_quote: '',
-  instructor_credentials: [],
-  reviews_label: 'FROM STUDENTS',
-  reviews: [],
-  final_cta_label: 'READY?',
-  final_cta_title: '',
-  final_cta_subtitle: '',
-  final_cta_primary: 'Enroll',
-  final_cta_secondary: 'Watch trailer',
-}
+// ── Top-level component ──────────────────────────────────────────────────────
 
 export function CustomizeTab({
   course,
@@ -71,38 +96,33 @@ export function CustomizeTab({
   organization: schemas['Organization']
 }) {
   const updateCourse = useUpdateCourse()
+  const uploadThumb = useUploadCourseThumbnail()
   const uploadTrailer = useUploadCourseTrailer()
-  const trailerInputRef = useRef<HTMLInputElement>(null)
 
   const initial = useMemo(() => {
     const { humanDescription, landing } = splitLanding(course.description)
     return {
-      title: course.title ?? '',
-      description: humanDescription ?? '',
-      instructorName: course.instructor_name ?? '',
-      instructorBio: course.instructor_bio ?? '',
-      trailerUrl: course.trailer_url ?? '',
-      landing: { ...DEFAULT_LANDING, ...(landing ?? {}) } as StoredLanding,
+      humanDescription: humanDescription ?? '',
+      landing: (landing ?? {}) as StoredLanding,
+      overrides: readOverrides(landing),
     }
-  }, [course.id])
+  }, [course.id, course.description])
 
-  const [draft, setDraft] = useState(initial)
-  const [activeSection, setActiveSection] = useState<Section>('hero')
+  const [overrides, setOverrides] = useState<StoredOverrides>(initial.overrides)
+  const [dirty, setDirty] = useState(false)
+  const overridesRef = useRef(overrides)
 
   useEffect(() => {
-    setDraft(initial)
+    setOverrides(initial.overrides)
+    overridesRef.current = initial.overrides
+    setDirty(false)
   }, [initial])
 
-  const isDirty = useMemo(() => {
-    return (
-      draft.title !== initial.title ||
-      draft.description !== initial.description ||
-      draft.instructorName !== initial.instructorName ||
-      draft.instructorBio !== initial.instructorBio ||
-      draft.trailerUrl !== initial.trailerUrl ||
-      JSON.stringify(draft.landing) !== JSON.stringify(initial.landing)
-    )
-  }, [draft, initial])
+  const handleOverridesChange = (next: StoredOverrides) => {
+    setOverrides(next)
+    overridesRef.current = next
+    setDirty(true)
+  }
 
   const flatLessons: FlatLesson[] = useMemo(() => {
     let pos = 0
@@ -125,519 +145,792 @@ export function CustomizeTab({
     )
   }, [course.modules])
 
-  const handleTrailerFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    try {
-      const updated = await uploadTrailer.mutateAsync({
-        courseId: course.id,
-        file,
-      })
-      setDraft((d) => ({ ...d, trailerUrl: updated.trailer_url ?? '' }))
-      toast({ title: 'Trailer uploaded' })
-    } catch {
-      toast({ title: 'Failed to upload trailer' })
-    }
-    e.target.value = ''
-  }
-
   const handleSave = async () => {
     try {
+      const nextLanding = writeOverrides(initial.landing, overridesRef.current)
       await updateCourse.mutateAsync({
         courseId: course.id,
         body: {
-          title: draft.title,
-          description: joinLanding(draft.description, draft.landing),
-          instructor_name: draft.instructorName || null,
-          instructor_bio: draft.instructorBio || null,
-          trailer_url: draft.trailerUrl || null,
+          description: joinLanding(initial.humanDescription, nextLanding),
         },
       })
-      toast({ title: 'Landing page saved' })
+      setDirty(false)
+      toast({ title: 'Landing saved' })
     } catch {
       toast({ title: 'Failed to save' })
     }
   }
 
-  const setLandingField = <K extends keyof StoredLanding>(
-    key: K,
-    value: StoredLanding[K],
-  ) => setDraft((d) => ({ ...d, landing: { ...d.landing, [key]: value } }))
+  // Hero backdrop is a special slot: when uploaded as image, it also writes
+  // course.thumbnail_url (so onboarding/customize stay in sync). We expose a
+  // separate uploader to wire the editor's MediaPanel "Hero backdrop" tile.
+  const handleHeroUpload = async (file: File) => {
+    const updated = await uploadThumb.mutateAsync({ courseId: course.id, file })
+    return {
+      kind: 'image',
+      url: updated.thumbnail_url ?? '',
+    } as LandingMedia
+  }
+
+  const handleTrailerUpload = async (file: File) => {
+    const updated = await uploadTrailer.mutateAsync({
+      courseId: course.id,
+      file,
+    })
+    return { kind: 'video', url: updated.trailer_url ?? '' } as LandingMedia
+  }
+
+  // Pre-populate hero/trailer media slots from course columns so editors see
+  // the onboarding-uploaded image/trailer right away.
+  const seededOverrides: StoredOverrides = useMemo(() => {
+    const seeded = { ...overrides, media: { ...overrides.media } }
+    if (!seeded.media['hero.backdrop'] && course.thumbnail_url) {
+      seeded.media['hero.backdrop'] = {
+        kind: 'image',
+        url: course.thumbnail_url,
+      }
+    }
+    if (!seeded.media['trailer.video'] && course.trailer_url) {
+      seeded.media['trailer.video'] = {
+        kind: 'video',
+        url: course.trailer_url,
+      }
+    }
+    return seeded
+  }, [overrides, course.thumbnail_url, course.trailer_url])
 
   return (
-    <div className="grid h-full grid-cols-[360px_1fr] overflow-hidden bg-gray-50">
-      {/* Editor panel */}
-      <aside className="flex flex-col overflow-hidden border-r border-gray-200 bg-white">
-        <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
-          <div className="text-[13px] font-semibold tracking-tight text-gray-900">
-            Customize landing
-          </div>
-          <button
-            onClick={handleSave}
-            disabled={!isDirty || updateCourse.isPending}
-            className="rounded-full bg-blue-600 px-3 py-[5px] text-xs font-medium tracking-tight text-white transition-[filter] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {updateCourse.isPending ? 'Saving…' : 'Save'}
-          </button>
+    <div className="flex h-full flex-col bg-[oklch(0.96_0.005_280)]">
+      <EditorProvider
+        courseId={course.id}
+        initialOverrides={seededOverrides}
+        onChange={handleOverridesChange}
+      >
+        <Toolbar
+          dirty={dirty}
+          onSave={handleSave}
+          saving={updateCourse.isPending}
+        />
+        <div className="flex flex-1 overflow-hidden">
+          <LeftRail />
+          <Canvas
+            organization={organization}
+            course={course}
+            flatLessons={flatLessons}
+          />
+          <Inspector
+            course={course}
+            onHeroUpload={handleHeroUpload}
+            onTrailerUpload={handleTrailerUpload}
+            heroUploading={uploadThumb.isPending}
+            trailerUploading={uploadTrailer.isPending}
+          />
         </div>
+      </EditorProvider>
+    </div>
+  )
+}
 
-        {/* Section picker */}
-        <div className="flex flex-shrink-0 flex-wrap gap-1 border-b border-gray-200 bg-gray-50 p-2">
-          {SECTIONS.map((s) => (
+// ── Toolbar (dark) ───────────────────────────────────────────────────────────
+
+function Toolbar({
+  dirty,
+  onSave,
+  saving,
+}: {
+  dirty: boolean
+  onSave: () => void
+  saving: boolean
+}) {
+  const ed = useEditor()
+  return (
+    <div className="flex h-14 flex-shrink-0 items-center justify-between border-b border-white/[0.06] bg-[oklch(0.18_0.01_280)] px-4 text-white">
+      <div className="flex items-center gap-2 text-[12px] text-white/55">
+        <span className="text-[14px] font-semibold tracking-tight text-white">
+          Customize
+        </span>
+        <span className="mx-1 h-4 w-px bg-white/10" />
+        <span>Course landing</span>
+      </div>
+
+      <div className="flex items-center gap-3">
+        {/* Mode switch */}
+        <div className="flex gap-0.5 rounded-full bg-white/[0.06] p-[3px]">
+          {(['edit', 'preview'] as const).map((m) => (
             <button
-              key={s.id}
-              onClick={() => setActiveSection(s.id)}
-              className={`rounded-md px-2 py-1 text-[11.5px] font-medium tracking-tight transition-colors ${
-                activeSection === s.id
-                  ? 'bg-gray-900 text-white'
-                  : 'text-gray-600 hover:bg-white hover:text-gray-900'
+              key={m}
+              onClick={() => ed.setMode(m)}
+              className={`rounded-full px-3 py-[5px] text-[12px] font-medium transition-colors ${
+                ed.mode === m
+                  ? 'bg-white text-[oklch(0.18_0.01_280)]'
+                  : 'text-white/70 hover:text-white'
               }`}
             >
-              {s.label}
+              {m === 'edit' ? 'Edit' : 'Preview'}
             </button>
           ))}
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-4">
-          {activeSection === 'hero' && (
-            <Form>
-              <Field label="Course title">
-                <Input
-                  value={draft.title}
-                  onChange={(v) => setDraft((d) => ({ ...d, title: v }))}
-                />
-              </Field>
-              <Field label="Eyebrow (top-left tag)">
-                <Input
-                  value={draft.landing.eyebrow ?? ''}
-                  onChange={(v) => setLandingField('eyebrow', v)}
-                />
-              </Field>
-              <Field label="Series pill">
-                <Input
-                  value={draft.landing.series_label ?? ''}
-                  onChange={(v) => setLandingField('series_label', v)}
-                />
-              </Field>
-              <Field label="Tagline">
-                <Textarea
-                  rows={2}
-                  value={draft.landing.tagline ?? ''}
-                  onChange={(v) => setLandingField('tagline', v)}
-                />
-              </Field>
-              <Field label="Description (above the fold)">
-                <Textarea
-                  rows={3}
-                  value={draft.description}
-                  onChange={(v) => setDraft((d) => ({ ...d, description: v }))}
-                />
-              </Field>
-              <Field label="Level">
-                <Input
-                  value={draft.landing.level ?? ''}
-                  onChange={(v) => setLandingField('level', v)}
-                />
-              </Field>
-            </Form>
-          )}
+        <span className="h-4 w-px bg-white/10" />
 
-          {activeSection === 'trailer' && (
-            <Form>
-              <Field label="Trailer URL">
-                <Input
-                  value={draft.trailerUrl}
-                  onChange={(v) => setDraft((d) => ({ ...d, trailerUrl: v }))}
-                  placeholder="https://…"
-                />
-              </Field>
-              <input
-                ref={trailerInputRef}
-                type="file"
-                accept="video/*"
-                className="hidden"
-                onChange={handleTrailerFile}
-              />
-              <button
-                type="button"
-                onClick={() => trailerInputRef.current?.click()}
-                disabled={uploadTrailer.isPending}
-                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-gray-300 px-3 py-3 text-[12px] font-medium tracking-tight text-gray-700 transition-colors hover:border-gray-400 hover:bg-gray-50 disabled:opacity-50"
-              >
-                {uploadTrailer.isPending
-                  ? 'Uploading…'
-                  : draft.trailerUrl
-                    ? 'Replace trailer file'
-                    : 'Upload trailer file (MP4, max 500 MB)'}
-              </button>
-              {draft.trailerUrl && (
-                <button
-                  type="button"
-                  onClick={() => setDraft((d) => ({ ...d, trailerUrl: '' }))}
-                  className="text-left text-[12px] tracking-tight text-red-500 hover:text-red-600"
-                >
-                  Remove trailer
-                </button>
-              )}
-            </Form>
-          )}
-
-          {activeSection === 'value' && (
-            <Form>
-              <Field label="Section label">
-                <Input
-                  value={draft.landing.value_props_label ?? ''}
-                  onChange={(v) => setLandingField('value_props_label', v)}
-                />
-              </Field>
-              <ListEditor
-                label="Value props"
-                items={draft.landing.value_props ?? []}
-                empty={{ title: '', description: '' }}
-                onChange={(items) => setLandingField('value_props', items)}
-                renderItem={(item, set) => (
-                  <>
-                    <Input
-                      value={item.title}
-                      placeholder="Title"
-                      onChange={(v) => set({ ...item, title: v })}
-                    />
-                    <Textarea
-                      rows={2}
-                      value={item.description}
-                      placeholder="Description"
-                      onChange={(v) => set({ ...item, description: v })}
-                    />
-                  </>
-                )}
-              />
-            </Form>
-          )}
-
-          {activeSection === 'curriculum' && (
-            <Form>
-              <Field label="Section label">
-                <Input
-                  value={draft.landing.curriculum_label ?? ''}
-                  onChange={(v) => setLandingField('curriculum_label', v)}
-                />
-              </Field>
-              <Field label="Heading">
-                <Input
-                  value={draft.landing.curriculum_heading ?? ''}
-                  onChange={(v) => setLandingField('curriculum_heading', v)}
-                />
-              </Field>
-              <Field label="Subheading">
-                <Textarea
-                  rows={3}
-                  value={draft.landing.curriculum_subheading ?? ''}
-                  onChange={(v) => setLandingField('curriculum_subheading', v)}
-                />
-              </Field>
-            </Form>
-          )}
-
-          {activeSection === 'lessons' && (
-            <Form>
-              <Field label="Section label">
-                <Input
-                  value={draft.landing.lessons_label ?? ''}
-                  onChange={(v) => setLandingField('lessons_label', v)}
-                />
-              </Field>
-              <Field label="Heading">
-                <Input
-                  value={draft.landing.lessons_heading ?? ''}
-                  onChange={(v) => setLandingField('lessons_heading', v)}
-                />
-              </Field>
-              <Field label="Subheading">
-                <Textarea
-                  rows={3}
-                  value={draft.landing.lessons_subheading ?? ''}
-                  onChange={(v) => setLandingField('lessons_subheading', v)}
-                />
-              </Field>
-            </Form>
-          )}
-
-          {activeSection === 'instructor' && (
-            <Form>
-              <Field label="Section label">
-                <Input
-                  value={draft.landing.instructor_label ?? ''}
-                  onChange={(v) => setLandingField('instructor_label', v)}
-                />
-              </Field>
-              <Field label="Instructor name">
-                <Input
-                  value={draft.instructorName}
-                  onChange={(v) =>
-                    setDraft((d) => ({ ...d, instructorName: v }))
-                  }
-                />
-              </Field>
-              <Field label="Pull quote">
-                <Textarea
-                  rows={3}
-                  value={draft.landing.instructor_pull_quote ?? ''}
-                  onChange={(v) => setLandingField('instructor_pull_quote', v)}
-                />
-              </Field>
-              <Field label="Bio">
-                <Textarea
-                  rows={4}
-                  value={draft.instructorBio}
-                  onChange={(v) =>
-                    setDraft((d) => ({ ...d, instructorBio: v }))
-                  }
-                />
-              </Field>
-              <ListEditor
-                label="Credentials"
-                items={draft.landing.instructor_credentials ?? []}
-                empty={{ number: '', label: '' }}
-                onChange={(items) =>
-                  setLandingField('instructor_credentials', items)
-                }
-                renderItem={(item, set) => (
-                  <div className="grid grid-cols-[80px_1fr] gap-2">
-                    <Input
-                      value={item.number}
-                      placeholder="3"
-                      onChange={(v) => set({ ...item, number: v })}
-                    />
-                    <Input
-                      value={item.label}
-                      placeholder="Published novels"
-                      onChange={(v) => set({ ...item, label: v })}
-                    />
-                  </div>
-                )}
-              />
-            </Form>
-          )}
-
-          {activeSection === 'reviews' && (
-            <Form>
-              <Field label="Section label">
-                <Input
-                  value={draft.landing.reviews_label ?? ''}
-                  onChange={(v) => setLandingField('reviews_label', v)}
-                />
-              </Field>
-              <ListEditor
-                label="Reviews"
-                items={draft.landing.reviews ?? []}
-                empty={{ name: '', role: '', text: '' }}
-                onChange={(items) => setLandingField('reviews', items)}
-                renderItem={(item, set) => (
-                  <>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Input
-                        value={item.name}
-                        placeholder="Name"
-                        onChange={(v) => set({ ...item, name: v })}
-                      />
-                      <Input
-                        value={item.role}
-                        placeholder="Role"
-                        onChange={(v) => set({ ...item, role: v })}
-                      />
-                    </div>
-                    <Textarea
-                      rows={3}
-                      value={item.text}
-                      placeholder="Quote"
-                      onChange={(v) => set({ ...item, text: v })}
-                    />
-                  </>
-                )}
-              />
-            </Form>
-          )}
-
-          {activeSection === 'final' && (
-            <Form>
-              <Field label="Section label">
-                <Input
-                  value={draft.landing.final_cta_label ?? ''}
-                  onChange={(v) => setLandingField('final_cta_label', v)}
-                />
-              </Field>
-              <Field label="Title">
-                <Input
-                  value={draft.landing.final_cta_title ?? ''}
-                  onChange={(v) => setLandingField('final_cta_title', v)}
-                />
-              </Field>
-              <Field label="Subtitle">
-                <Textarea
-                  rows={3}
-                  value={draft.landing.final_cta_subtitle ?? ''}
-                  onChange={(v) => setLandingField('final_cta_subtitle', v)}
-                />
-              </Field>
-              <div className="grid grid-cols-2 gap-2">
-                <Field label="Primary button">
-                  <Input
-                    value={draft.landing.final_cta_primary ?? ''}
-                    onChange={(v) => setLandingField('final_cta_primary', v)}
-                  />
-                </Field>
-                <Field label="Secondary button">
-                  <Input
-                    value={draft.landing.final_cta_secondary ?? ''}
-                    onChange={(v) => setLandingField('final_cta_secondary', v)}
-                  />
-                </Field>
-              </div>
-            </Form>
-          )}
+        {/* Device switch */}
+        <div className="flex gap-1">
+          {(['desktop', 'tablet', 'mobile'] as const).map((d) => (
+            <button
+              key={d}
+              onClick={() => ed.setDevice(d)}
+              className={`flex h-7 w-8 items-center justify-center rounded-md text-[12px] transition-colors ${
+                ed.device === d
+                  ? 'bg-white/10 text-white'
+                  : 'text-white/55 hover:text-white'
+              }`}
+              title={d}
+            >
+              {d === 'desktop' ? '🖥' : d === 'tablet' ? '⊟' : '▯'}
+            </button>
+          ))}
         </div>
-      </aside>
+      </div>
 
-      {/* Live preview */}
-      <div className="overflow-y-auto bg-white">
-        <div className="border-b border-gray-200 bg-white px-5 py-2 text-[11px] uppercase tracking-[0.06em] text-gray-500">
-          Live preview
-        </div>
-        <CourseLandingView
-          organizationName={organization.name}
-          instructorName={draft.instructorName || null}
-          instructorBio={draft.instructorBio || null}
-          courseTitle={draft.title || 'Untitled course'}
-          courseDescription={draft.description || null}
-          thumbnailUrl={course.thumbnail_url ?? null}
-          thumbnailObjectPosition={course.thumbnail_object_position ?? null}
-          trailerUrl={draft.trailerUrl || null}
-          isStarted={false}
-          paywallEnabled={course.paywall_enabled}
-          paywallPosition={course.paywall_position}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={onSave}
+          disabled={!dirty || saving}
+          className="flex items-center gap-1.5 rounded-md bg-white/10 px-3 py-[7px] text-[12px] font-medium text-white transition-colors hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {saving ? 'Saving…' : 'Save'}
+        </button>
+        <button
+          onClick={onSave}
+          disabled={!dirty || saving}
+          className="rounded-md bg-[oklch(0.78_0.16_285)] px-3.5 py-[7px] text-[12px] font-semibold text-[oklch(0.18_0.01_280)] transition-[filter] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Publish
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Left rail ────────────────────────────────────────────────────────────────
+
+function LeftRail() {
+  const ed = useEditor()
+  const items: { id: typeof ed.panel; label: string; icon: string }[] = [
+    { id: 'sections', label: 'Sections', icon: '◫' },
+    { id: 'content', label: 'Content', icon: '✎' },
+    { id: 'media', label: 'Media', icon: '🖼' },
+  ]
+  return (
+    <div className="flex w-16 flex-shrink-0 flex-col items-center gap-1 border-r border-gray-200 bg-white py-3">
+      {items.map((it) => {
+        const on = ed.panel === it.id
+        return (
+          <button
+            key={it.id}
+            onClick={() => ed.setPanel(it.id)}
+            className={`flex w-13 flex-col items-center gap-1 rounded-md px-2 py-2.5 transition-colors ${
+              on
+                ? 'bg-[oklch(0.96_0.012_265)] text-[oklch(0.45_0.18_265)]'
+                : 'text-gray-500 hover:bg-gray-50'
+            }`}
+          >
+            <span className="text-[16px]">{it.icon}</span>
+            <span className="text-[10px] font-medium tracking-tight">
+              {it.label}
+            </span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+// ── Canvas (editable landing) ───────────────────────────────────────────────
+
+function Canvas({
+  organization,
+  course,
+  flatLessons,
+}: {
+  organization: schemas['Organization']
+  course: CourseRead
+  flatLessons: FlatLesson[]
+}) {
+  const ed = useEditor()
+  const deviceWidth: Record<typeof ed.device, string | number> = {
+    desktop: '100%',
+    tablet: 900,
+    mobile: 420,
+  }
+  const isFramed = ed.device !== 'desktop'
+
+  return (
+    <div className="flex-1 overflow-y-auto bg-[oklch(0.96_0.005_280)]">
+      <div
+        style={{
+          width: deviceWidth[ed.device],
+          maxWidth: '100%',
+          margin: isFramed ? '24px auto' : 0,
+          border: isFramed ? '1px solid oklch(0.92 0.003 280)' : 'none',
+          borderRadius: isFramed ? 16 : 0,
+          boxShadow: isFramed ? '0 12px 40px rgba(0,0,0,0.08)' : 'none',
+          overflow: isFramed ? 'hidden' : 'visible',
+          background: 'white',
+          transition: 'all 250ms cubic-bezier(0.2, 0.8, 0.2, 1)',
+        }}
+      >
+        <EditableLanding
+          organization={organization}
+          course={course}
           flatLessons={flatLessons}
-          landing={draft.landing}
-          onStart={() => {}}
-          onTrailer={() => {
-            document
-              .getElementById('preview-trailer')
-              ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-          }}
         />
       </div>
     </div>
   )
 }
 
-// ─── Form primitives ──────────────────────────────────────────────────────
+function EditableLanding({
+  organization,
+  course,
+  flatLessons,
+}: {
+  organization: schemas['Organization']
+  course: CourseRead
+  flatLessons: FlatLesson[]
+}) {
+  const ed = useEditor()
 
-function Form({ children }: { children: React.ReactNode }) {
-  return <div className="flex flex-col gap-3.5">{children}</div>
+  // Build the landing JSON the public view expects, with text overrides applied.
+  // Every editable field is mirrored into ed.text so the EditText elements can
+  // mutate independently while CourseLandingView still receives the merged view.
+  const landing = useMemo(() => {
+    const t = (path: string, fallback: string) => ed.t(path, fallback)
+    return {
+      eyebrow: t('hero.eyebrow', 'SPAIRE ORIGINAL'),
+      series_label: t('hero.series_label', 'NEW SERIES'),
+      tagline: t('hero.tagline', course.title ?? ''),
+      description: t('hero.description', ''),
+      level: t('hero.level', 'All levels'),
+      value_props_label: t('value.label', "WHAT'S INCLUDED"),
+      value_props: [],
+      curriculum_label: t('curriculum.label', 'CURRICULUM'),
+      curriculum_heading: t('curriculum.heading', 'Built to compound.'),
+      curriculum_subheading: t(
+        'curriculum.subheading',
+        'Every chapter assumes the last.',
+      ),
+      lessons_label: t('lessons.label', 'EVERY LESSON'),
+      lessons_heading: t('lessons.heading', 'The full arc.'),
+      lessons_subheading: t(
+        'lessons.subheading',
+        'Enroll to unlock the rest.',
+      ),
+      instructor_label: t('instructor.label', 'YOUR INSTRUCTOR'),
+      instructor_pull_quote: t('instructor.quote', ''),
+      instructor_credentials: [],
+      reviews_label: t('reviews.label', 'FROM STUDENTS'),
+      reviews: [],
+      final_cta_label: t('finalCta.label', 'READY?'),
+      final_cta_title: t('finalCta.title', "Start free."),
+      final_cta_subtitle: t(
+        'finalCta.subtitle',
+        'The first lessons are free to preview.',
+      ),
+      final_cta_primary: t('finalCta.primary', 'Enroll'),
+      final_cta_secondary: t('finalCta.secondary', 'Watch trailer'),
+    }
+  }, [
+    ed.overrides.text,
+    course.title,
+  ])
+
+  // We render the existing public CourseLandingView, but overlay editable
+  // wrappers (EditBlock + EditMedia) by stacking them. The cleanest approach
+  // here is to render the public view as the visual base and then overlay
+  // transparent EditBlock wrappers via a thin DOM tree above it. To keep this
+  // contained we instead render edit zones inline by wrapping with a single
+  // EditBlock-per-section using anchor divs. CourseLandingView already owns
+  // the visuals, so we add a simple "section affordance" overlay.
+
+  return (
+    <div className="relative">
+      <CourseLandingView
+        organizationName={organization.name}
+        instructorName={ed.t('hero.instructor', course.instructor_name ?? '')}
+        instructorBio={ed.t('instructor.bio', course.instructor_bio ?? '')}
+        courseTitle={ed.t('hero.title', course.title ?? 'Untitled course')}
+        courseDescription={ed.t('hero.description', '')}
+        thumbnailUrl={
+          ed.m('hero.backdrop')?.url ?? course.thumbnail_url ?? null
+        }
+        thumbnailObjectPosition={course.thumbnail_object_position ?? null}
+        trailerUrl={
+          ed.m('trailer.video')?.url ?? course.trailer_url ?? null
+        }
+        isStarted={false}
+        paywallEnabled={course.paywall_enabled}
+        paywallPosition={course.paywall_position}
+        flatLessons={flatLessons}
+        landing={landing}
+        onStart={() => {}}
+        onTrailer={() => {
+          document
+            .getElementById('preview-trailer')
+            ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }}
+      />
+      {/* Floating section overlays in edit mode — let the user toggle visibility
+          and signpost which sections exist. The actual canvas is the public
+          landing above; this layer is a thin affordance. */}
+      {ed.mode === 'edit' && (
+        <SectionOverlays />
+      )}
+      {/* Hidden inline-edit anchors so EditBlock/EditText/EditMedia keep their
+          context wired through (used by Inspector controls below). */}
+      <div className="hidden">
+        {SECTIONS.map((s) => (
+          <EditBlock key={s.id} id={s.id} label={s.label}>
+            <span />
+          </EditBlock>
+        ))}
+        {MEDIA_SLOTS.map((s) => (
+          <EditMedia key={s.id} id={s.id} label={s.label}>
+            <span />
+          </EditMedia>
+        ))}
+        <EditText path="hero.title" defaultValue="" />
+        <EditText path="hero.tagline" defaultValue="" />
+      </div>
+    </div>
+  )
 }
 
-function Field({
+// Floating overlay strip showing each section with quick visibility toggle.
+function SectionOverlays() {
+  const ed = useEditor()
+  return (
+    <div className="pointer-events-none fixed top-20 right-[340px] z-30 flex flex-col gap-1">
+      {SECTIONS.map((s) => {
+        const visible = ed.overrides.visible[s.id] !== false
+        return (
+          <button
+            key={s.id}
+            onClick={() => ed.setVisible(s.id, !visible)}
+            className={`pointer-events-auto rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.06em] transition-colors ${
+              visible
+                ? 'border-gray-200 bg-white text-gray-700 shadow-sm hover:bg-gray-50'
+                : 'border-gray-300 bg-gray-100 text-gray-400 line-through'
+            }`}
+          >
+            {s.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+// ── Inspector panel ─────────────────────────────────────────────────────────
+
+function Inspector({
+  course,
+  onHeroUpload,
+  onTrailerUpload,
+  heroUploading,
+  trailerUploading,
+}: {
+  course: CourseRead
+  onHeroUpload: (f: File) => Promise<LandingMedia>
+  onTrailerUpload: (f: File) => Promise<LandingMedia>
+  heroUploading: boolean
+  trailerUploading: boolean
+}) {
+  const ed = useEditor()
+  const title = {
+    sections: 'Sections',
+    content: 'Content',
+    media: 'Media',
+  }[ed.panel]
+
+  return (
+    <div className="flex w-[320px] flex-shrink-0 flex-col border-l border-gray-200 bg-white">
+      <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3.5">
+        <span className="text-[13px] font-semibold tracking-tight text-gray-900">
+          {title}
+        </span>
+      </div>
+      <div className="flex-1 overflow-y-auto py-3.5">
+        {ed.panel === 'sections' && <SectionsPanel />}
+        {ed.panel === 'content' && <ContentPanel course={course} />}
+        {ed.panel === 'media' && (
+          <MediaPanel
+            course={course}
+            onHeroUpload={onHeroUpload}
+            onTrailerUpload={onTrailerUpload}
+            heroUploading={heroUploading}
+            trailerUploading={trailerUploading}
+          />
+        )}
+      </div>
+    </div>
+  )
+}
+
+function SectionsPanel() {
+  const ed = useEditor()
+  return (
+    <div className="px-2.5">
+      <div className="px-1 pb-3 text-[12px] text-gray-500">
+        Toggle to hide a section from the published landing.
+      </div>
+      {SECTIONS.map((s) => {
+        const visible = ed.overrides.visible[s.id] !== false
+        return (
+          <div
+            key={s.id}
+            className="flex items-center gap-2.5 rounded-lg px-2 py-2.5 hover:bg-gray-50"
+          >
+            <span className="select-none text-gray-300">⋮⋮</span>
+            <div className="flex-1">
+              <div className="text-[12.5px] font-medium text-gray-900">
+                {s.label}
+              </div>
+              <div className="mt-0.5 text-[11px] text-gray-500">{s.hint}</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => ed.setVisible(s.id, !visible)}
+              className={`relative h-[18px] w-[34px] rounded-full transition-colors ${
+                visible
+                  ? 'bg-[oklch(0.55_0.20_265)]'
+                  : 'bg-gray-200'
+              }`}
+              aria-label={visible ? 'Hide section' : 'Show section'}
+            >
+              <span
+                className="absolute top-[2px] h-[14px] w-[14px] rounded-full bg-white shadow-sm transition-transform"
+                style={{
+                  transform: visible ? 'translateX(18px)' : 'translateX(2px)',
+                }}
+              />
+            </button>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function ContentPanel({ course }: { course: CourseRead }) {
+  return (
+    <div className="flex flex-col">
+      <PanelGroup title="Hero copy">
+        <TextField
+          label="Course title"
+          path="hero.title"
+          defaultValue={course.title ?? ''}
+        />
+        <TextField
+          label="Eyebrow"
+          path="hero.eyebrow"
+          defaultValue="SPAIRE ORIGINAL"
+        />
+        <TextField
+          label="Tagline"
+          path="hero.tagline"
+          defaultValue=""
+          multiline
+        />
+        <TextField
+          label="Description"
+          path="hero.description"
+          defaultValue=""
+          multiline
+        />
+        <TextField label="Level" path="hero.level" defaultValue="All levels" />
+      </PanelGroup>
+
+      <PanelGroup title="Curriculum">
+        <TextField
+          label="Heading"
+          path="curriculum.heading"
+          defaultValue="Built to compound."
+        />
+        <TextField
+          label="Subheading"
+          path="curriculum.subheading"
+          defaultValue=""
+          multiline
+        />
+      </PanelGroup>
+
+      <PanelGroup title="Lesson list">
+        <TextField
+          label="Heading"
+          path="lessons.heading"
+          defaultValue="The full arc."
+        />
+        <TextField
+          label="Subheading"
+          path="lessons.subheading"
+          defaultValue=""
+          multiline
+        />
+      </PanelGroup>
+
+      <PanelGroup title="Instructor">
+        <TextField
+          label="Name"
+          path="hero.instructor"
+          defaultValue={course.instructor_name ?? ''}
+        />
+        <TextField
+          label="Pull quote"
+          path="instructor.quote"
+          defaultValue=""
+          multiline
+        />
+        <TextField
+          label="Bio"
+          path="instructor.bio"
+          defaultValue={course.instructor_bio ?? ''}
+          multiline
+        />
+      </PanelGroup>
+
+      <PanelGroup title="Final CTA">
+        <TextField
+          label="Headline"
+          path="finalCta.title"
+          defaultValue="Start free."
+          multiline
+        />
+        <TextField
+          label="Subhead"
+          path="finalCta.subtitle"
+          defaultValue=""
+          multiline
+        />
+        <TextField
+          label="Primary button"
+          path="finalCta.primary"
+          defaultValue="Enroll"
+        />
+        <TextField
+          label="Secondary button"
+          path="finalCta.secondary"
+          defaultValue="Watch trailer"
+        />
+      </PanelGroup>
+
+      <div className="px-4 pb-4 text-[11.5px] leading-relaxed text-gray-500">
+        Tip — click any text on the page to edit in place. Hover any media tile
+        for an upload button.
+      </div>
+    </div>
+  )
+}
+
+function MediaPanel({
+  course: _course,
+  onHeroUpload,
+  onTrailerUpload,
+  heroUploading,
+  trailerUploading,
+}: {
+  course: CourseRead
+  onHeroUpload: (f: File) => Promise<LandingMedia>
+  onTrailerUpload: (f: File) => Promise<LandingMedia>
+  heroUploading: boolean
+  trailerUploading: boolean
+}) {
+  return (
+    <div>
+      <div className="px-4 pb-3 text-[12px] leading-relaxed text-gray-500">
+        Upload images or videos for any slot. Hero and trailer write to the
+        course directly so they show up on the storefront and the onboarding
+        preview.
+      </div>
+      <div className="px-2.5">
+        {MEDIA_SLOTS.map((s) => (
+          <MediaSlotRow
+            key={s.id}
+            id={s.id}
+            label={s.label}
+            hint={s.hint}
+            customUpload={
+              s.id === 'hero.backdrop'
+                ? onHeroUpload
+                : s.id === 'trailer.video'
+                  ? onTrailerUpload
+                  : undefined
+            }
+            customBusy={
+              s.id === 'hero.backdrop'
+                ? heroUploading
+                : s.id === 'trailer.video'
+                  ? trailerUploading
+                  : false
+            }
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function MediaSlotRow({
+  id,
   label,
+  hint,
+  customUpload,
+  customBusy,
+}: {
+  id: string
+  label: string
+  hint?: string
+  customUpload?: (f: File) => Promise<LandingMedia>
+  customBusy?: boolean
+}) {
+  const ed = useEditor()
+  const m = ed.m(id)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [busy, setBusy] = useState(false)
+
+  const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]
+    if (!f) return
+    setBusy(true)
+    try {
+      const next = customUpload
+        ? await customUpload(f)
+        : await ed.uploadMedia(f)
+      ed.setMedia(id, next)
+    } catch {
+      toast({ title: 'Upload failed' })
+    } finally {
+      setBusy(false)
+      e.target.value = ''
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-2.5 rounded-lg px-1 py-2 hover:bg-gray-50">
+      <div className="relative h-11 w-11 flex-shrink-0 overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
+        {m?.kind === 'image' && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={m.url}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        )}
+        {m?.kind === 'video' && (
+          <video
+            src={m.url}
+            muted
+            loop
+            autoPlay
+            playsInline
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        )}
+        {!m && (
+          <span className="absolute inset-0 flex items-center justify-center text-gray-300">
+            🖼
+          </span>
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-[12.5px] font-medium tracking-tight text-gray-900">
+          {label}
+        </div>
+        <div className="truncate text-[11px] text-gray-500">
+          {m ? 'Uploaded' : hint || 'Empty'}
+        </div>
+      </div>
+      <div className="flex gap-1">
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={busy || customBusy}
+          className="flex h-6 w-6 items-center justify-center rounded-md bg-gray-100 text-gray-600 transition-colors hover:bg-gray-200 disabled:opacity-50"
+          title="Upload"
+        >
+          ↑
+        </button>
+        {m && (
+          <button
+            type="button"
+            onClick={() => ed.setMedia(id, null)}
+            className="flex h-6 w-6 items-center justify-center rounded-md bg-gray-100 text-gray-600 transition-colors hover:bg-gray-200"
+            title="Remove"
+          >
+            ✕
+          </button>
+        )}
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*,video/*"
+          hidden
+          onChange={onFile}
+        />
+      </div>
+    </div>
+  )
+}
+
+// ── Form primitives (inspector) ─────────────────────────────────────────────
+
+function PanelGroup({
+  title,
   children,
 }: {
-  label: string
+  title: string
   children: React.ReactNode
 }) {
   return (
-    <label className="flex flex-col gap-1">
-      <span className="text-[11px] font-medium uppercase tracking-[0.05em] text-gray-500">
-        {label}
-      </span>
-      {children}
-    </label>
+    <div className="border-b border-gray-100 pb-4 mb-4 last:border-b-0">
+      <div className="px-4 mb-2.5 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-gray-500">
+        {title}
+      </div>
+      <div className="flex flex-col gap-2.5 px-4">{children}</div>
+    </div>
   )
 }
 
-function Input({
-  value,
-  onChange,
-  placeholder,
-}: {
-  value: string
-  onChange: (v: string) => void
-  placeholder?: string
-}) {
-  return (
-    <input
-      type="text"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-[13px] tracking-tight text-gray-900 transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:outline-none"
-    />
-  )
-}
-
-function Textarea({
-  value,
-  onChange,
-  placeholder,
-  rows = 3,
-}: {
-  value: string
-  onChange: (v: string) => void
-  placeholder?: string
-  rows?: number
-}) {
-  return (
-    <textarea
-      value={value}
-      rows={rows}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      className="w-full resize-none rounded-lg border border-gray-200 bg-white px-3 py-2 text-[13px] leading-snug tracking-tight text-gray-900 transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:outline-none"
-    />
-  )
-}
-
-function ListEditor<T>({
+function TextField({
   label,
-  items,
-  empty,
-  onChange,
-  renderItem,
+  path,
+  defaultValue,
+  multiline,
 }: {
   label: string
-  items: T[]
-  empty: T
-  onChange: (items: T[]) => void
-  renderItem: (item: T, set: (next: T) => void) => React.ReactNode
+  path: string
+  defaultValue: string
+  multiline?: boolean
 }) {
+  const ed = useEditor()
+  const v = ed.t(path, defaultValue)
   return (
-    <div className="flex flex-col gap-2">
-      <div className="text-[11px] font-medium uppercase tracking-[0.05em] text-gray-500">
-        {label}
-      </div>
-      {items.map((item, i) => (
-        <div
-          key={i}
-          className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-gray-50 p-2.5"
-        >
-          {renderItem(item, (next) => {
-            const copy = [...items]
-            copy[i] = next
-            onChange(copy)
-          })}
-          <button
-            type="button"
-            onClick={() => onChange(items.filter((_, idx) => idx !== i))}
-            className="self-start text-[11px] font-medium tracking-tight text-red-500 hover:text-red-600"
-          >
-            Remove
-          </button>
-        </div>
-      ))}
-      <button
-        type="button"
-        onClick={() => onChange([...items, empty])}
-        className="rounded-lg border border-dashed border-gray-300 px-3 py-2 text-[12px] font-medium tracking-tight text-gray-700 transition-colors hover:border-gray-400 hover:bg-gray-50"
-      >
-        + Add
-      </button>
-    </div>
+    <label className="flex flex-col gap-1">
+      <span className="text-[11px] font-medium text-gray-600">{label}</span>
+      {multiline ? (
+        <textarea
+          value={v}
+          rows={3}
+          onChange={(e) => ed.setText(path, e.target.value)}
+          className="w-full resize-none rounded-md border border-gray-200 bg-white px-2.5 py-2 text-[12.5px] tracking-tight text-gray-900 transition-colors focus:border-blue-500 focus:outline-none"
+        />
+      ) : (
+        <input
+          value={v}
+          onChange={(e) => ed.setText(path, e.target.value)}
+          className="w-full rounded-md border border-gray-200 bg-white px-2.5 py-2 text-[12.5px] tracking-tight text-gray-900 transition-colors focus:border-blue-500 focus:outline-none"
+        />
+      )}
+    </label>
   )
 }

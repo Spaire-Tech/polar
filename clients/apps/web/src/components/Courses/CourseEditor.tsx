@@ -13,7 +13,7 @@ import {
 } from '@/hooks/queries/courses'
 import { getQueryClient } from '@/utils/api/query'
 import { schemas } from '@spaire/client'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useRef, useState } from 'react'
 import { toast } from '../Toast/use-toast'
 import { CourseHeader, TabId } from './editor/CourseHeader'
@@ -67,8 +67,17 @@ export default function CourseEditor({
 }) {
   const { data: course = initialCourse } = useCourseById(courseId)
   const router = useRouter()
+  const searchParams = useSearchParams()
 
-  const [activeTab, setActiveTab] = useState<TabId>('outline')
+  const initialTab: TabId =
+    (searchParams.get('tab') as TabId) === 'customize'
+      ? 'customize'
+      : (searchParams.get('tab') as TabId) === 'pricing'
+        ? 'pricing'
+        : (searchParams.get('tab') as TabId) === 'customers'
+          ? 'customers'
+          : 'outline'
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab)
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)

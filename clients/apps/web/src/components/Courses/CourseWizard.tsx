@@ -405,7 +405,9 @@ export default function CourseWizard({
         title: 'Course Created',
         description: `"${draft.courseTitle || course.title}" is ready to edit`,
       })
-      router.replace(`/dashboard/${organization.slug}/courses/${created.id}`)
+      router.replace(
+        `/dashboard/${organization.slug}/courses/${created.id}?tab=customize`,
+      )
     } catch (err) {
       console.error('[CourseWizard] create error:', err)
       toast({
