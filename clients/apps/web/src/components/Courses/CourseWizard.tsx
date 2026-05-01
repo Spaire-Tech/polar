@@ -65,7 +65,7 @@ type DraftState = {
 
 type PartialLesson = {
   title?: string
-  content_type?: 'video'
+  content_type?: 'text' | 'video'
   description?: string
   content?: string
 }

@@ -8,9 +8,10 @@ export const outlineSchema = z.object({
       lessons: z.array(
         z.object({
           title: z.string(),
-          // Lessons in AI-generated outlines are always video. Keep the field
-          // for forward compatibility but constrain to a single value.
-          content_type: z.literal('video'),
+          // Permissive on the wire — the prompt enforces video-only and the
+          // wizard create payload coerces to 'video' regardless. Using
+          // z.literal here breaks streaming partials inside useObject.
+          content_type: z.enum(['text', 'video']),
           // Short summary shown in lesson lists and headers.
           description: z.string().optional(),
           // Short body / script copy used to seed the lesson editor.
