@@ -2113,7 +2113,13 @@ function EditPanel({
   )
 }
 
-function FieldLabel({ children }: { children: React.ReactNode }) {
+function PanelSection({
+  label,
+  children,
+}: {
+  label: string
+  children: React.ReactNode
+}) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <label
@@ -2128,22 +2134,19 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
         {label}
       </label>
       {children}
-    </label>
+    </div>
   )
 }
 
-function TextInput({
+function PanelInput({
   value,
   onChange,
-  placeholder,
 }: {
   value: string
   onChange: (v: string) => void
-  placeholder?: string
 }) {
   return (
     <input
-      type="text"
       value={value}
       onChange={(e) => onChange(e.target.value)}
       style={{
@@ -2162,20 +2165,16 @@ function TextInput({
   )
 }
 
-function TextArea({
+function PanelTextarea({
   value,
   onChange,
-  placeholder,
-  rows = 3,
 }: {
   value: string
   onChange: (v: string) => void
-  placeholder?: string
-  rows?: number
 }) {
   return (
     <textarea
-      rows={rows}
+      rows={4}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       style={{
@@ -2211,11 +2210,6 @@ function StyleToggle({
     <button
       type="button"
       onClick={onClick}
-      className={`flex-1 rounded-lg border py-1.5 text-xs transition-all ${
-        active
-          ? 'border-gray-900 bg-gray-900 text-white'
-          : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
-      }`}
       style={{
         flex: 1,
         padding: 8,
@@ -2301,7 +2295,7 @@ function UploadControl({
 export function LandingPreview({
   instructor,
   course,
-  pricing,
+  media,
   draft,
   setDraft,
   pricing,
@@ -2323,11 +2317,15 @@ export function LandingPreview({
   const isVideo = media.format === 'trailer' && !!media.videoFile
   const file = media.format === 'trailer' ? media.videoFile : media.thumbFile
 
-  const pricingLabel = pricing.model === 'free'
-    ? 'Free'
-    : pricing.amount
-    ? `$${pricing.amount}`
-    : 'Paid'
+  useEffect(() => {
+    if (!file) {
+      setBgUrl(null)
+      return
+    }
+    const url = URL.createObjectURL(file)
+    setBgUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [file])
 
   const onWatchTrailer = () => {
     if (typeof document === 'undefined') return
