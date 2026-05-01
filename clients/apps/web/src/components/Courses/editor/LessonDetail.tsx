@@ -11,18 +11,10 @@ import {
   useUploadLessonAttachment,
   useUploadLessonThumbnail,
 } from '@/hooks/queries/courses'
-import AddOutlined from '@mui/icons-material/AddOutlined'
 import AttachFileOutlined from '@mui/icons-material/AttachFileOutlined'
-import AudiotrackOutlined from '@mui/icons-material/AudiotrackOutlined'
 import CloseOutlined from '@mui/icons-material/CloseOutlined'
-import DeleteOutlineOutlined from '@mui/icons-material/DeleteOutlineOutlined'
-import HelpOutlineOutlined from '@mui/icons-material/HelpOutlineOutlined'
 import ImageOutlined from '@mui/icons-material/ImageOutlined'
-import KeyboardArrowDownOutlined from '@mui/icons-material/KeyboardArrowDownOutlined'
-import OndemandVideoOutlined from '@mui/icons-material/OndemandVideoOutlined'
-import OpenInNewOutlined from '@mui/icons-material/OpenInNewOutlined'
 import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined'
-import { cn } from '@spaire/ui/lib/utils'
 import { useEffect, useRef, useState } from 'react'
 import { HlsVideo } from '../HlsVideo'
 import { RichTextEditor } from './RichTextEditor'
@@ -214,349 +206,351 @@ export function LessonDetail({
     e.target.value = ''
   }
 
+  const isPublished = edits.published
+
   return (
-    <div className="flex flex-1 flex-col bg-gray-50">
-      {/* Top bar */}
-      <div className="flex items-center gap-3 border-b border-gray-200 bg-gray-50 px-8 py-4">
-        <h2 className="flex items-center gap-1.5 text-xl font-bold text-gray-900">
-          {edits.title || 'Untitled Lesson'}
-          <HelpOutlineOutlined
-            className="text-gray-300"
-            sx={{ fontSize: 16 }}
-          />
-        </h2>
-        <div className="ml-auto flex items-center gap-2">
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, background: '#f5f5f7', overflow: 'hidden' }}>
+      {/* Lesson title bar */}
+      <div style={{
+        padding: '14px 24px 13px', borderBottom: '1px solid #e8e8ed',
+        background: '#ffffff', display: 'flex', alignItems: 'center',
+        justifyContent: 'space-between', flexShrink: 0,
+      }}>
+        <div style={{ fontSize: 15, fontWeight: 600, color: '#0a0a0a', letterSpacing: '-0.015em' }}>
+          {edits.title || 'Untitled lesson'}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button
+            type="button"
             onClick={handlePreview}
             disabled={previewAccess.isPending}
-            className="flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              background: 'none', border: '1.5px solid #e8e8ed', borderRadius: 100,
+              padding: '6px 14px', fontSize: 12, fontWeight: 500, color: '#48484a',
+              cursor: 'pointer', transition: 'border-color 0.15s, color 0.15s', fontFamily: 'inherit',
+            }}
           >
-            <VisibilityOutlined sx={{ fontSize: 16 }} />
+            <VisibilityOutlined sx={{ fontSize: 13 }} />
             {previewAccess.isPending ? 'Opening…' : 'Preview'}
           </button>
           <button
+            type="button"
             onClick={() => onSave(edits)}
             disabled={isSaving}
-            className="rounded-full bg-gray-900 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
+            style={{
+              background: '#0a0a0a', color: '#fff', border: 'none', borderRadius: 100,
+              padding: '7px 18px', fontSize: 12, fontWeight: 500,
+              cursor: 'pointer', transition: 'opacity 0.15s', fontFamily: 'inherit',
+              opacity: isSaving ? 0.6 : 1,
+            }}
           >
             {isSaving ? 'Saving…' : 'Save'}
           </button>
         </div>
       </div>
 
-      <div className="mx-auto grid w-full max-w-6xl grid-cols-[1fr_320px] gap-6 px-8 py-6">
-        {/* Main column */}
-        <div className="flex flex-col gap-6">
-          <Card>
-            <CardHeader title="Lesson Details" />
+      {/* Two-column body */}
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
-            <Field label="Title">
+        {/* Main */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+          {/* Lesson details card */}
+          <EdCard>
+            <EdCardTitle>Lesson details</EdCardTitle>
+            <EdField label="Title">
               <input
                 type="text"
                 value={edits.title}
                 onChange={(e) => update('title', e.target.value)}
-                className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:border-gray-900 focus:ring-2 focus:ring-gray-100 focus:outline-none"
+                style={inputStyle}
               />
-            </Field>
-
-            <Field label="Description">
+            </EdField>
+            <EdField label="Description">
               <textarea
                 value={edits.description}
                 onChange={(e) => update('description', e.target.value)}
-                placeholder="Brief overview of this lesson (optional)"
-                className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:border-gray-900 focus:ring-2 focus:ring-gray-100 focus:outline-none"
+                placeholder="Brief overview of this lesson"
                 rows={3}
+                style={{ ...inputStyle, resize: 'none', lineHeight: 1.6 }}
               />
-            </Field>
+            </EdField>
+          </EdCard>
 
-            <div className="mb-5">
-              <h3 className="mb-2 text-base font-bold text-gray-900">Media</h3>
-              <div className="grid grid-cols-3 gap-3">
-                {(['none', 'video', 'audio'] as const).map((m) => {
-                  const active = edits.media === m
-                  const label = m[0].toUpperCase() + m.slice(1)
-                  const Icon =
-                    m === 'video'
-                      ? OndemandVideoOutlined
-                      : m === 'audio'
-                        ? AudiotrackOutlined
-                        : null
-                  return (
-                    <button
-                      key={m}
-                      onClick={() => update('media', m)}
-                      className={cn(
-                        'flex items-center justify-center gap-2 rounded-2xl border-2 py-4 text-sm font-medium transition-colors',
-                        active
-                          ? 'border-gray-900 bg-white text-gray-900'
-                          : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300',
-                      )}
-                    >
-                      {Icon && <Icon fontSize="small" />}
-                      {label}
-                    </button>
-                  )
-                })}
-              </div>
+          {/* Media card */}
+          <EdCard>
+            <EdCardTitle>Media</EdCardTitle>
+
+            {/* Segmented media tabs */}
+            <div style={{
+              display: 'flex', background: '#f5f5f7', borderRadius: 10,
+              padding: 3, marginBottom: 14, gap: 2,
+            }}>
+              {([
+                { id: 'none', label: 'None', icon: <IconNone /> },
+                { id: 'video', label: 'Video', icon: <IconVideo /> },
+                { id: 'audio', label: 'Audio', icon: <IconAudio /> },
+              ] as const).map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => update('media', m.id)}
+                  style={{
+                    flex: 1, padding: '7px 0', border: 'none', borderRadius: 8,
+                    fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                    transition: 'background 0.15s, color 0.15s, box-shadow 0.15s',
+                    fontFamily: 'inherit',
+                    background: edits.media === m.id ? '#fff' : 'transparent',
+                    color: edits.media === m.id ? '#0a0a0a' : '#8e8e93',
+                    boxShadow: edits.media === m.id ? '0 1px 4px rgba(0,0,0,0.1)' : 'none',
+                  }}
+                >
+                  {m.icon} {m.label}
+                </button>
+              ))}
             </div>
 
+            {/* Video upload */}
             {edits.media === 'video' && (
-              <div className="mb-5">
-                <label className="mb-2 block text-sm font-bold text-gray-900">
-                  Video
-                </label>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="video/*"
-                  className="hidden"
-                  onChange={handleVideoFileChange}
-                />
+              <>
+                <input ref={fileInputRef} type="file" accept="video/*" style={{ display: 'none' }} onChange={handleVideoFileChange} />
                 {lesson.mux_playback_id && lesson.mux_status === 'ready' ? (
-                  <div className="flex flex-col gap-3">
-                    <div className="aspect-video overflow-hidden rounded-xl bg-black">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div style={{ aspectRatio: '16/9', overflow: 'hidden', borderRadius: 10, background: '#000' }}>
                       <HlsVideo playbackId={lesson.mux_playback_id} />
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="w-fit rounded-full border border-gray-300 px-4 py-2 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
-                    >
-                      Replace video
-                    </button>
+                    <button type="button" onClick={() => fileInputRef.current?.click()} style={ghostBtnStyle}>Replace video</button>
                   </div>
                 ) : lesson.mux_status && lesson.mux_status !== 'errored' ? (
-                  <div className="flex items-center gap-3 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-700">
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
-                    {uploadProgress !== null
-                      ? `Uploading… ${uploadProgress}%`
-                      : 'Processing video…'}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '10px 14px', fontSize: 12, color: '#1d4ed8' }}>
+                    <div style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid #3b82f6', borderTopColor: 'transparent', animation: 'spin 0.7s linear infinite' }} />
+                    {uploadProgress !== null ? `Uploading… ${uploadProgress}%` : 'Processing video…'}
                   </div>
                 ) : (
-                  <div className="flex flex-col gap-3">
-                    {lesson.mux_status === 'errored' && (
-                      <p className="text-xs text-red-600">
-                        Upload failed — try again.
-                      </p>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={
-                        createMuxUpload.isPending || uploadProgress !== null
-                      }
-                      className="flex items-center gap-2 rounded-xl border-2 border-dashed border-gray-300 px-6 py-8 text-sm font-medium text-gray-500 transition-colors hover:border-gray-400 hover:text-gray-700 disabled:opacity-50"
-                    >
-                      <OndemandVideoOutlined fontSize="small" />
-                      {uploadProgress !== null
-                        ? `Uploading… ${uploadProgress}%`
-                        : createMuxUpload.isPending
-                          ? 'Preparing…'
-                          : 'Upload video file'}
-                    </button>
-                    <p className="text-xs text-gray-400">
-                      MP4, MOV, or WebM. Mux will transcode and deliver via HLS.
-                    </p>
-                  </div>
+                  <>
+                    {lesson.mux_status === 'errored' && <p style={{ fontSize: 11, color: '#ff3b30', marginBottom: 8 }}>Upload failed — try again.</p>}
+                    <label style={uploadZoneStyle}>
+                      <UploadIcon />
+                      <div style={{ fontSize: 12, color: '#0a0a0a', fontWeight: 600 }}>Upload video file</div>
+                      <div style={{ fontSize: 11, color: '#c7c7cc' }}>MP4, MOV or WebM · max 10GB</div>
+                      <input type="file" accept="video/*" style={{ display: 'none' }} onChange={handleVideoFileChange} />
+                    </label>
+                  </>
                 )}
-              </div>
-            )}
-
-            <RichTextEditor
-              value={edits.textContent}
-              onChange={(md) => update('textContent', md)}
-              isGenerating={isGenerating}
-              onGenerate={
-                onGenerateAI && edits.media === 'none'
-                  ? handleGenerate
-                  : undefined
-              }
-              onStop={onStopAI}
-            />
-
-            <div className="mt-6">
-              <h3 className="mb-2 text-base font-bold text-gray-900">
-                Downloads
-              </h3>
-              <input
-                ref={attachmentInputRef}
-                type="file"
-                className="hidden"
-                onChange={handleAttachmentFileChange}
-              />
-              {attachments.length > 0 && (
-                <div className="mb-3 flex flex-col gap-2">
-                  {attachments.map((a) => (
-                    <div
-                      key={a.id}
-                      className="flex items-center gap-3 rounded-xl border border-gray-200 px-3 py-2.5"
-                    >
-                      <AttachFileOutlined
-                        sx={{ fontSize: 16 }}
-                        className="text-gray-400"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <a
-                          href={a.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="block truncate text-sm font-medium text-gray-900 hover:underline"
-                        >
-                          {a.filename}
-                        </a>
-                        <p className="text-xs text-gray-400">
-                          {formatBytes(a.size)}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleAttachmentDelete(a.id)}
-                        disabled={deleteAttachment.isPending}
-                        className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-300 transition-colors hover:bg-red-50 hover:text-red-500 disabled:opacity-50"
-                        title="Remove file"
-                      >
-                        <DeleteOutlineOutlined sx={{ fontSize: 14 }} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <button
-                type="button"
-                onClick={() => attachmentInputRef.current?.click()}
-                disabled={uploadAttachment.isPending}
-                className="flex items-center gap-1.5 rounded-full border border-gray-300 px-3.5 py-2 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
-              >
-                <AddOutlined sx={{ fontSize: 16 }} />
-                {uploadAttachment.isPending ? 'Uploading…' : 'Add Files'}
-              </button>
-            </div>
-          </Card>
-
-          <Card>
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-gray-900">Automations</h3>
-              <button className="flex items-center gap-1.5 rounded-full bg-gray-900 px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:bg-gray-800">
-                <AddOutlined sx={{ fontSize: 16 }} />
-                New automation
-              </button>
-            </div>
-            <p className="mt-4 text-sm text-gray-500">
-              Automations using this{' '}
-              <span className="font-semibold text-gray-900">{edits.title}</span>{' '}
-              will appear here.
-            </p>
-            <p className="mt-12 text-center text-sm text-gray-400">
-              This resource is not used as a trigger or action within any
-              workflow.
-            </p>
-          </Card>
-        </div>
-
-        {/* Right sidebar */}
-        <div className="flex flex-col gap-4">
-          <Card compact>
-            <CardHeader title="Status" info />
-            <RadioRow
-              selected={!edits.published}
-              onSelect={() => update('published', false)}
-              label="Draft"
-              tone="gray"
-            />
-            <RadioRow
-              selected={edits.published}
-              onSelect={() => update('published', true)}
-              label="Published"
-              tone="green"
-            />
-          </Card>
-
-          <Card compact>
-            <CardHeader title="Lesson Thumbnail" info />
-            <input
-              ref={thumbnailInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              className="hidden"
-              onChange={handleThumbnailFileChange}
-            />
-            {thumbnailUrl ? (
-              <div className="flex flex-col gap-3">
-                <ThumbnailPositioner
-                  src={thumbnailUrl}
-                  value={edits.thumbnailObjectPosition}
-                  onChange={(next) =>
-                    update('thumbnailObjectPosition', next)
-                  }
-                />
-                <p className="text-xs text-gray-500">
-                  Drag the image to reposition it inside the card.
-                </p>
-                <button
-                  className="rounded-full bg-gray-900 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
-                  onClick={() => thumbnailInputRef.current?.click()}
-                  disabled={uploadThumbnail.isPending}
-                >
-                  {uploadThumbnail.isPending ? 'Uploading…' : 'Replace'}
-                </button>
-              </div>
-            ) : (
-              <>
-                <div
-                  className="mb-3 flex h-32 cursor-pointer items-center justify-center overflow-hidden rounded-xl border border-gray-200 bg-gray-50 transition-colors hover:border-gray-300"
-                  onClick={() => thumbnailInputRef.current?.click()}
-                >
-                  <ImageOutlined
-                    className="text-gray-300"
-                    sx={{ fontSize: 36 }}
-                  />
-                </div>
-                <p className="text-xs text-gray-500">
-                  JPG, PNG, or WebP. Recommended 1280×720.
-                </p>
-                <button
-                  className="mt-3 rounded-full bg-gray-900 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
-                  onClick={() => thumbnailInputRef.current?.click()}
-                  disabled={uploadThumbnail.isPending}
-                >
-                  {uploadThumbnail.isPending ? 'Uploading…' : 'Pick File'}
-                </button>
               </>
             )}
-          </Card>
 
-          <Card compact>
-            <CardHeader title="Comments" />
-            <RadioRow
-              selected={edits.commentsMode === 'visible'}
-              onSelect={() => update('commentsMode', 'visible')}
-              label="Visible"
-            />
-            <RadioRow
-              selected={edits.commentsMode === 'hidden'}
-              onSelect={() => update('commentsMode', 'hidden')}
-              label="Hidden"
-            />
-            <RadioRow
-              selected={edits.commentsMode === 'locked'}
-              onSelect={() => update('commentsMode', 'locked')}
-              label="Locked"
-            />
-            <a
-              href="#"
-              className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-gray-900"
+            {/* Audio upload */}
+            {edits.media === 'audio' && (
+              <label style={uploadZoneStyle}>
+                <UploadIcon />
+                <div style={{ fontSize: 12, color: '#0a0a0a', fontWeight: 600 }}>Upload audio file</div>
+                <div style={{ fontSize: 11, color: '#c7c7cc' }}>MP3, M4A or WAV · max 500MB</div>
+                <input type="file" accept="audio/*" style={{ display: 'none' }} onChange={() => {}} />
+              </label>
+            )}
+
+            {edits.media === 'none' && (
+              <div style={{ padding: '14px 0', fontSize: 12, color: '#8e8e93', textAlign: 'center' }}>
+                No media attached to this lesson.
+              </div>
+            )}
+
+            {/* Notes / Rich text */}
+            <div style={{ marginTop: 16 }}>
+              <div style={{ fontSize: 11, fontWeight: 500, color: '#48484a', marginBottom: 8 }}>Notes</div>
+              <RichTextEditor
+                value={edits.textContent}
+                onChange={(md) => update('textContent', md)}
+                isGenerating={isGenerating}
+                onGenerate={onGenerateAI && edits.media === 'none' ? handleGenerate : undefined}
+                onStop={onStopAI}
+              />
+            </div>
+          </EdCard>
+
+          {/* Downloads card */}
+          <EdCard>
+            <EdCardTitle>Downloads</EdCardTitle>
+            <input ref={attachmentInputRef} type="file" style={{ display: 'none' }} onChange={handleAttachmentFileChange} />
+            {attachments.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
+                {attachments.map((a) => (
+                  <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 10, border: '1px solid #e8e8ed', borderRadius: 10, padding: '8px 12px' }}>
+                    <AttachFileOutlined sx={{ fontSize: 14 }} style={{ color: '#8e8e93', flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <a href={a.url} target="_blank" rel="noopener noreferrer" style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#0a0a0a', textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {a.filename}
+                      </a>
+                      <span style={{ fontSize: 11, color: '#8e8e93' }}>{formatBytes(a.size)}</span>
+                    </div>
+                    <button type="button" onClick={() => handleAttachmentDelete(a.id)} disabled={deleteAttachment.isPending}
+                      style={{ background: 'none', border: 'none', color: '#c7c7cc', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}>
+                      <CloseOutlined sx={{ fontSize: 14 }} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => attachmentInputRef.current?.click()}
+              disabled={uploadAttachment.isPending}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                background: '#f5f5f7', border: '1.5px dashed #c7c7cc', borderRadius: 10,
+                padding: '9px 14px', fontSize: 12, fontWeight: 500, color: '#8e8e93',
+                width: '100%', cursor: 'pointer', transition: 'border-color 0.15s, color 0.15s, background 0.15s',
+                fontFamily: 'inherit',
+              }}
             >
-              Comments settings
-              <OpenInNewOutlined sx={{ fontSize: 12 }} />
-            </a>
-          </Card>
+              <PlusIcon />
+              {uploadAttachment.isPending ? 'Uploading…' : 'Add file'}
+            </button>
+          </EdCard>
 
+          {/* Automations card */}
+          <EdCard>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <EdCardTitle style={{ margin: 0 }}>Automations</EdCardTitle>
+              <button type="button" style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                background: '#0a0a0a', color: '#fff', border: 'none', borderRadius: 100,
+                padding: '5px 12px', fontSize: 11, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
+              }}>
+                <PlusIcon /> New automation
+              </button>
+            </div>
+            <div style={{ padding: '20px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                <path d="M18 4l-4 10h8L14 28l4-11H10L18 4z" stroke="#c7c7cc" strokeWidth="1.5" strokeLinejoin="round" fill="none" />
+              </svg>
+              <div style={{ fontSize: 12, color: '#8e8e93', textAlign: 'center', lineHeight: 1.5 }}>
+                Automations using this lesson will appear here
+              </div>
+            </div>
+          </EdCard>
+        </div>
+
+        {/* Sidebar */}
+        <div style={{
+          width: 268, flexShrink: 0, overflowY: 'auto',
+          padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: 14,
+          borderLeft: '1px solid #e8e8ed', background: '#fff',
+        }}>
+
+          {/* Status */}
+          <SbCard>
+            <SbCardTitle>Status</SbCardTitle>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {([
+                { id: false, label: 'Draft', badge: <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 100, background: '#e8e8ed', color: '#48484a', letterSpacing: '0.04em' }}>Draft</span> },
+                { id: true, label: 'Published', badge: <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 100, background: '#dcfce7', color: '#15803d', letterSpacing: '0.04em' }}>Live</span> },
+              ] as const).map((opt) => (
+                <div key={String(opt.id)} style={{ display: 'flex', alignItems: 'center', gap: 9, cursor: 'pointer' }} onClick={() => update('published', opt.id)}>
+                  <div style={{
+                    width: 16, height: 16, borderRadius: '50%', flexShrink: 0,
+                    border: `2px solid ${edits.published === opt.id ? '#0a0a0a' : '#c7c7cc'}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'border-color 0.15s',
+                  }}>
+                    {edits.published === opt.id && <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#0a0a0a' }} />}
+                  </div>
+                  <div style={{ fontSize: 12, color: '#0a0a0a' }}>{opt.label}</div>
+                  {edits.published === opt.id && opt.badge}
+                </div>
+              ))}
+            </div>
+            {isPublished && (
+              <div style={{
+                marginTop: 10, padding: '9px 12px', background: '#f0fdf4',
+                border: '1px solid #bbf7d0', borderRadius: 10,
+                display: 'flex', alignItems: 'center', gap: 7,
+                fontSize: 11, fontWeight: 500, color: '#15803d',
+              }}>
+                <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', flexShrink: 0, boxShadow: '0 0 0 2px rgba(34,197,94,0.25)' }} />
+                Live — visible to members
+              </div>
+            )}
+          </SbCard>
+
+          {/* Lesson Thumbnail */}
+          <SbCard>
+            <SbCardTitle>Lesson thumbnail</SbCardTitle>
+            <input ref={thumbnailInputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }} onChange={handleThumbnailFileChange} />
+            <div
+              onClick={() => thumbnailInputRef.current?.click()}
+              style={{
+                aspectRatio: '16/9', background: '#e8e8ed', borderRadius: 10,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', position: 'relative', overflow: 'hidden',
+                border: '1.5px dashed #c7c7cc', marginBottom: 10,
+                transition: 'border-color 0.18s',
+              }}
+            >
+              {thumbnailUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={thumbnailUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }} />
+              ) : (
+                <ImageOutlined sx={{ fontSize: 28 }} style={{ color: '#c7c7cc' }} />
+              )}
+              {!thumbnailUrl && (
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.24)' }}>
+                  <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.8)', fontWeight: 500 }}>Upload</span>
+                </div>
+              )}
+            </div>
+            {thumbnailUrl && (
+              <div style={{ marginBottom: 10 }}>
+                <ThumbnailPositioner src={thumbnailUrl} value={edits.thumbnailObjectPosition} onChange={(v) => update('thumbnailObjectPosition', v)} />
+              </div>
+            )}
+            <div style={{ fontSize: 10, color: '#8e8e93', lineHeight: 1.5, marginBottom: 8 }}>JPG, PNG, or WebP. Recommended 1920×1080.</div>
+            <button
+              type="button"
+              onClick={() => thumbnailInputRef.current?.click()}
+              disabled={uploadThumbnail.isPending}
+              style={{ width: '100%', padding: 8, background: '#0a0a0a', color: '#fff', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer', transition: 'opacity 0.15s', fontFamily: 'inherit', opacity: uploadThumbnail.isPending ? 0.6 : 1 }}
+            >
+              {uploadThumbnail.isPending ? 'Uploading…' : 'Pick file'}
+            </button>
+          </SbCard>
+
+          {/* Comments */}
+          <SbCard>
+            <SbCardTitle>Comments</SbCardTitle>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              {(['visible', 'hidden', 'locked'] as const).map((opt) => (
+                <div key={opt} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={() => update('commentsMode', opt)}>
+                  <div style={{
+                    width: 15, height: 15, borderRadius: '50%', flexShrink: 0,
+                    border: `2px solid ${edits.commentsMode === opt ? '#0a0a0a' : '#c7c7cc'}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'border-color 0.15s',
+                  }}>
+                    {edits.commentsMode === opt && <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#0a0a0a' }} />}
+                  </div>
+                  <span style={{ fontSize: 12, color: '#0a0a0a', textTransform: 'capitalize' }}>{opt}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: 10, fontSize: 11, color: '#8e8e93' }}>Comments enabled</div>
+          </SbCard>
+
+          {/* Delete */}
           <button
+            type="button"
             onClick={onDelete}
-            className="flex items-center gap-1.5 self-start text-sm font-medium text-red-600 hover:text-red-700"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              background: 'none', border: 'none', color: '#ff3b30',
+              fontSize: 12, fontWeight: 500, padding: '8px 0',
+              cursor: 'pointer', fontFamily: 'inherit', transition: 'opacity 0.15s',
+            }}
           >
-            <DeleteOutlineOutlined sx={{ fontSize: 16 }} />
-            Delete Lesson
+            <TrashIcon /> Delete lesson
           </button>
         </div>
       </div>
@@ -598,91 +592,141 @@ function initEdits(
   }
 }
 
-function Card({
-  children,
-  compact,
-}: {
-  children: React.ReactNode
-  compact?: boolean
-}) {
+// ── Layout primitives ──────────────────────────────────────────────────────
+
+function EdCard({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      className={cn(
-        'rounded-2xl border border-gray-200 bg-white',
-        compact ? 'p-5' : 'p-6',
-      )}
-    >
+    <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e8e8ed', padding: '18px 20px' }}>
       {children}
     </div>
   )
 }
 
-function CardHeader({ title, info }: { title: string; info?: boolean }) {
+function EdCardTitle({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return (
-    <div className="mb-5 flex items-center justify-between">
-      <h3 className="text-lg font-bold text-gray-900">{title}</h3>
-      {info && (
-        <HelpOutlineOutlined className="text-gray-300" sx={{ fontSize: 16 }} />
-      )}
-    </div>
-  )
-}
-
-function Field({
-  label,
-  children,
-}: {
-  label: string
-  children: React.ReactNode
-}) {
-  return (
-    <div className="mb-5">
-      <label className="mb-1.5 block text-sm font-bold text-gray-900">
-        {label}
-      </label>
+    <div style={{ fontSize: 12, fontWeight: 600, color: '#48484a', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 14, ...style }}>
       {children}
     </div>
   )
 }
 
-function RadioRow({
-  selected,
-  onSelect,
-  label,
-  tone,
-}: {
-  selected: boolean
-  onSelect: () => void
-  label: string
-  tone?: 'gray' | 'green'
-}) {
+function EdField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <button
-      onClick={onSelect}
-      className="mb-2 flex w-full items-center gap-3 text-left last:mb-0"
-    >
-      <span
-        className={cn(
-          'flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 transition-colors',
-          selected ? 'border-indigo-600' : 'border-gray-300',
-        )}
-      >
-        {selected && <span className="h-2 w-2 rounded-full bg-indigo-600" />}
-      </span>
-      {tone ? (
-        <span
-          className={cn(
-            'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
-            tone === 'green'
-              ? 'bg-green-100 text-green-700'
-              : 'bg-gray-100 text-gray-700',
-          )}
-        >
-          {tone === 'green' ? '✓' : '📝'} {label}
-        </span>
-      ) : (
-        <span className="text-sm text-gray-700">{label}</span>
-      )}
-    </button>
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ fontSize: 11, fontWeight: 500, color: '#48484a', marginBottom: 6 }}>{label}</div>
+      {children}
+    </div>
+  )
+}
+
+function SbCard({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e8e8ed', padding: '14px 16px' }}>
+      {children}
+    </div>
+  )
+}
+
+function SbCardTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ fontSize: 11, fontWeight: 600, color: '#48484a', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 12 }}>
+      {children}
+    </div>
+  )
+}
+
+// ── Shared styles ──────────────────────────────────────────────────────────
+
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  background: '#f5f5f7',
+  border: '1px solid #e8e8ed',
+  borderRadius: 8,
+  padding: '8px 10px',
+  fontSize: 13,
+  color: '#0a0a0a',
+  outline: 'none',
+  fontFamily: 'inherit',
+  boxSizing: 'border-box',
+}
+
+const uploadZoneStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  gap: 8,
+  border: '1.5px dashed #c7c7cc',
+  borderRadius: 12,
+  padding: '28px 20px',
+  cursor: 'pointer',
+  background: '#fafafa',
+  textAlign: 'center',
+}
+
+const ghostBtnStyle: React.CSSProperties = {
+  background: 'none',
+  border: '1.5px solid #e8e8ed',
+  borderRadius: 8,
+  padding: '7px 14px',
+  fontSize: 12,
+  fontWeight: 500,
+  color: '#48484a',
+  cursor: 'pointer',
+  fontFamily: 'inherit',
+  width: '100%',
+}
+
+// ── SVG icons ──────────────────────────────────────────────────────────────
+
+function IconNone() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+      <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.4" />
+      <line x1="3" y1="3" x2="9" y2="9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function IconVideo() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+      <rect x="1" y="2.5" width="7.5" height="7" rx="1.2" stroke="currentColor" strokeWidth="1.4" />
+      <path d="M8.5 4.5l2.5-1.5v6l-2.5-1.5V4.5z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function IconAudio() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+      <path d="M4 2.5h4v6.5a2 2 0 01-4 0V2.5z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+      <path d="M2 6a4 4 0 008 0" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <line x1="6" y1="10" x2="6" y2="11.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function UploadIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{ color: '#c7c7cc' }}>
+      <path d="M12 16V8m0 0l-3 3m3-3l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M5 20h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function PlusIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+      <path d="M5.5 1v9M1 5.5h9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function TrashIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+      <path d="M2 3.5h9M5 3.5V2h3v1.5M4 3.5l.5 7h4l.5-7H4z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   )
 }
