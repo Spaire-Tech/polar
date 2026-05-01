@@ -1,7 +1,12 @@
 'use client'
 
 import { Upload } from '@/components/FileUpload/Upload'
-import { useCreateCourse, useUpdateCourse } from '@/hooks/queries/courses'
+import {
+  useCreateCourse,
+  useUpdateCourse,
+  useUploadCourseTrailer,
+  useUploadLandingMedia,
+} from '@/hooks/queries/courses'
 import { useCreateProduct } from '@/hooks/queries/products'
 import { ProductEditOrCreateForm } from '@/utils/product'
 import { experimental_useObject as useObject } from '@ai-sdk/react'
@@ -12,8 +17,11 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from '../Toast/use-toast'
 import { OutlineScreen } from './CourseWizard.outline'
-import { LandingPreview } from './CourseWizard.preview'
 import { CreatingScreen, GeneratingScreen } from './CourseWizard.status'
+import {
+  WizardLandingEditor,
+  type WizardFinalizationData,
+} from './editor/WizardLandingEditor'
 import {
   Intro,
   SpaireOnboardingStyles,
@@ -252,20 +260,22 @@ export default function CourseWizard({
     })
   }
 
-  const finalizeCourse = async () => {
+  const uploadTrailerMutation = useUploadCourseTrailer()
+  const uploadLandingMediaMutation = useUploadLandingMedia()
+
+  const finalizeCourse = async (wizardData?: WizardFinalizationData) => {
     const outline = partialOutline as PartialOutline | undefined
     if (!outline?.modules?.length) return
     setScreen('creating')
 
     try {
       // If the thumbnail wasn't uploaded yet (small image, but slow link),
-      // wait on it now.
+      // wait on it now. The wizard editor may have replaced the file inline.
+      const heroFile =
+        wizardData?.pendingHeroFile ?? media.thumbFile ?? null
       let thumbnailUrl = uploadedThumbnailUrl
-      if (!thumbnailUrl && media.thumbFile) {
-        thumbnailUrl = await uploadCourseThumbnail(
-          organization,
-          media.thumbFile,
-        )
+      if (heroFile) {
+        thumbnailUrl = await uploadCourseThumbnail(organization, heroFile)
       }
 
       // Wire pricing into the product before creation.
@@ -401,11 +411,60 @@ export default function CourseWizard({
         }
       }
 
+      // Apply landing overrides + upload buffered media now that the course
+      // exists. Hero is already uploaded above; trailer + slot media follow.
+      if (wizardData) {
+        const ov = { ...wizardData.overrides }
+        ov.media = { ...ov.media }
+        // Drop the hero blob URL — the canonical hero lives on
+        // course.thumbnail_url which we just set.
+        delete ov.media['hero.backdrop']
+        // Trailer upload
+        if (wizardData.pendingTrailerFile) {
+          try {
+            await uploadTrailerMutation.mutateAsync({
+              courseId: created.id,
+              file: wizardData.pendingTrailerFile,
+            })
+          } catch (e) {
+            console.warn('[CourseWizard] trailer upload failed:', e)
+          }
+          delete ov.media['trailer.video']
+        }
+        // Other media slots
+        for (const [slotId, file] of wizardData.pendingFiles.entries()) {
+          if (slotId === 'hero.backdrop' || slotId === 'trailer.video') continue
+          try {
+            const res = await uploadLandingMediaMutation.mutateAsync({
+              courseId: created.id,
+              file,
+            })
+            ov.media[slotId] = { kind: res.kind, url: res.url, name: file.name }
+          } catch (e) {
+            console.warn(
+              '[CourseWizard] landing-media upload failed for',
+              slotId,
+              e,
+            )
+          }
+        }
+        try {
+          await updateCourse.mutateAsync({
+            courseId: created.id,
+            body: { landing_overrides: ov },
+          })
+        } catch (e) {
+          console.warn('[CourseWizard] landing_overrides patch failed:', e)
+        }
+      }
+
       toast({
         title: 'Course Created',
         description: `"${draft.courseTitle || course.title}" is ready to edit`,
       })
-      router.replace(`/dashboard/${organization.slug}/courses/${created.id}`)
+      router.replace(
+        `/dashboard/${organization.slug}/courses/${created.id}?tab=customize`,
+      )
     } catch (err) {
       console.error('[CourseWizard] create error:', err)
       toast({
@@ -523,29 +582,21 @@ export default function CourseWizard({
             />
           )}
           {screen === 'preview' && (
-            <LandingPreview
-              instructor={instructor}
-              course={course}
-              media={media}
-              draft={draft}
-              setDraft={setDraft}
-              pricing={pricing}
-              thumbPosition={thumbPosition}
-              onThumbPositionChange={setThumbPosition}
-              onMediaChange={setMedia}
+            <WizardLandingEditor
+              organization={organization}
+              draft={{
+                name: draft.name || instructor.name,
+                courseTitle: draft.courseTitle || course.title,
+                desc: draft.desc || course.desc,
+              }}
               outline={partialOutlineSafe}
-              landing={(partialLanding as Record<string, unknown>) ?? {}}
-              isLandingStreaming={isLandingStreaming}
-              totalDurationSeconds={0}
-              editOpen={editOpen}
-              setEditOpen={setEditOpen}
-              onCreate={finalizeCourse}
-              onBack={() => setScreen('outline')}
-              onClose={handleClose}
-              error={
-                generateError ??
-                (landingError ? 'Landing generation failed.' : null)
+              initialLanding={
+                (partialLanding as Record<string, unknown> | null) ?? null
               }
+              initialThumbFile={media.thumbFile}
+              initialThumbName={media.thumbName}
+              onPublish={finalizeCourse}
+              onBack={() => setScreen('outline')}
             />
           )}
           {screen === 'creating' && <CreatingScreen onClose={handleClose} />}

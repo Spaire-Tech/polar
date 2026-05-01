@@ -109,9 +109,37 @@ export type CourseRead = {
   instructor_name_italic: boolean
   instructor_name_bold: boolean
   instructor_name_uppercase: boolean
+  landing_overrides: LandingOverrides | null
   modules: CourseModuleRead[]
   created_at: string
   modified_at: string | null
+}
+
+export type LandingMediaKind = 'image' | 'video'
+export type LandingMedia = { kind: LandingMediaKind; url: string; name?: string }
+
+export type LandingTheme = {
+  fontHeading: string
+  fontBody: string
+  accentId: string
+  surfaceId: string
+  typeScale: number
+  headingWeight: number
+  bodyWeight: number
+  headingItalic: boolean
+  headingAlign: 'left' | 'center' | 'right'
+  headingTracking: number
+  headingLeading: number
+  density: 'compact' | 'comfortable' | 'spacious'
+  cornerStyle: 'sharp' | 'rounded' | 'pill'
+}
+
+export type LandingOverrides = {
+  text?: Record<string, string>
+  media?: Record<string, LandingMedia | null>
+  visible?: Record<string, boolean>
+  order?: string[]
+  theme?: Partial<LandingTheme>
 }
 
 async function courseApiFetch<T>(
@@ -227,6 +255,7 @@ export const useUpdateCourse = () =>
         instructor_name_italic?: boolean
         instructor_name_bold?: boolean
         instructor_name_uppercase?: boolean
+        landing_overrides?: LandingOverrides | null
       }
     }) =>
       courseApiFetch<CourseRead>(`/v1/courses/${courseId}`, {
@@ -597,6 +626,57 @@ export const useUploadCourseThumbnail = () =>
       form.append('file', file)
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/v1/courses/${courseId}/thumbnail`,
+        { method: 'POST', body: form, credentials: 'include' },
+      )
+      if (!res.ok) {
+        const text = await res.text().catch(() => '')
+        throw new Error(`API ${res.status}: ${text}`)
+      }
+      return res.json() as Promise<CourseRead>
+    },
+    onSuccess: (data) => {
+      getQueryClient().invalidateQueries({
+        queryKey: ['courses', { courseId: data.id }],
+      })
+    },
+  })
+
+export const useUploadLandingMedia = () =>
+  useMutation({
+    mutationFn: async ({
+      courseId,
+      file,
+    }: {
+      courseId: string
+      file: File
+    }) => {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/v1/courses/${courseId}/landing-media`,
+        { method: 'POST', body: form, credentials: 'include' },
+      )
+      if (!res.ok) {
+        const text = await res.text().catch(() => '')
+        throw new Error(`API ${res.status}: ${text}`)
+      }
+      return res.json() as Promise<{ url: string; kind: 'image' | 'video' }>
+    },
+  })
+
+export const useUploadCourseTrailer = () =>
+  useMutation({
+    mutationFn: async ({
+      courseId,
+      file,
+    }: {
+      courseId: string
+      file: File
+    }) => {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/v1/courses/${courseId}/trailer`,
         { method: 'POST', body: form, credentials: 'include' },
       )
       if (!res.ok) {

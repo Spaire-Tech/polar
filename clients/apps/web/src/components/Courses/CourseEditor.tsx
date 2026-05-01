@@ -13,12 +13,12 @@ import {
 } from '@/hooks/queries/courses'
 import { getQueryClient } from '@/utils/api/query'
 import { schemas } from '@spaire/client'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useRef, useState } from 'react'
 import { toast } from '../Toast/use-toast'
 import { CourseHeader, TabId } from './editor/CourseHeader'
 import { CustomersTab } from './editor/CustomersTab'
-import { EmptyTab } from './editor/EmptyTab'
+import { CustomizeTab } from './editor/CustomizeTab'
 import { LessonDetail, LessonEdits } from './editor/LessonDetail'
 import { LessonContentType } from './editor/ModuleCard'
 import { OutlineTab } from './editor/OutlineTab'
@@ -67,8 +67,17 @@ export default function CourseEditor({
 }) {
   const { data: course = initialCourse } = useCourseById(courseId)
   const router = useRouter()
+  const searchParams = useSearchParams()
 
-  const [activeTab, setActiveTab] = useState<TabId>('outline')
+  const initialTab: TabId =
+    (searchParams.get('tab') as TabId) === 'customize'
+      ? 'customize'
+      : (searchParams.get('tab') as TabId) === 'pricing'
+        ? 'pricing'
+        : (searchParams.get('tab') as TabId) === 'customers'
+          ? 'customers'
+          : 'outline'
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab)
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
@@ -313,12 +322,7 @@ export default function CourseEditor({
       )
     }
   } else if (activeTab === 'customize') {
-    mainContent = (
-      <EmptyTab
-        title="Customize"
-        description="Branding and appearance settings coming soon."
-      />
-    )
+    mainContent = <CustomizeTab course={course} organization={organization} />
   } else if (activeTab === 'pricing') {
     mainContent = (
       <PricingTab

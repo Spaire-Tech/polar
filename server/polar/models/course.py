@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, Uuid
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
 
 from polar.kit.db.models import RecordModel
@@ -80,7 +81,7 @@ class Course(RecordModel):
     )
 
     trailer_url: Mapped[str | None] = mapped_column(
-        String(500), nullable=True, default=None
+        String(2048), nullable=True, default=None
     )
 
     instructor_name_italic: Mapped[bool] = mapped_column(
@@ -93,6 +94,10 @@ class Course(RecordModel):
 
     instructor_name_uppercase: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True
+    )
+
+    landing_overrides: Mapped[dict | None] = mapped_column(
+        JSONB, nullable=True, default=None
     )
 
     @declared_attr
