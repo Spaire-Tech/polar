@@ -1,107 +1,157 @@
 'use client'
 
 import { CourseLessonRead, CourseRead } from '@/hooks/queries/courses'
-import {
-  DndContext,
-  DragEndEvent,
-  PointerSensor,
-  closestCenter,
-  useSensor,
-  useSensors,
-} from '@dnd-kit/core'
-import {
-  SortableContext,
-  arrayMove,
-  useSortable,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
-import AddOutlined from '@mui/icons-material/AddOutlined'
-import DeleteOutlined from '@mui/icons-material/DeleteOutlined'
-import DragIndicatorOutlined from '@mui/icons-material/DragIndicatorOutlined'
-import OndemandVideoOutlined from '@mui/icons-material/OndemandVideoOutlined'
+import LockOutlined from '@mui/icons-material/LockOutlined'
+import MoreHorizOutlined from '@mui/icons-material/MoreHorizOutlined'
+import PlayArrowRounded from '@mui/icons-material/PlayArrowRounded'
+import ScheduleOutlined from '@mui/icons-material/ScheduleOutlined'
 import SearchOutlined from '@mui/icons-material/SearchOutlined'
-import { cn } from '@spaire/ui/lib/utils'
 import { useMemo, useState } from 'react'
 import { LessonContentType } from './ModuleCard'
 import { PaywallRow } from './PaywallRow'
 
-function FlatLessonRow({
+const THUMB_GRADIENTS: [string, string][] = [
+  ['#1c1c2e', '#2d1b69'],
+  ['#0f2027', '#2c5364'],
+  ['#1a1a1a', '#3d3d3d'],
+  ['#16213e', '#533483'],
+  ['#0d0d0d', '#1a1a2e'],
+  ['#1e3a2f', '#2d5a40'],
+  ['#2c1810', '#8b3a1a'],
+]
+
+function ThumbArt({
+  thumbnailUrl,
+  position,
+}: {
+  thumbnailUrl: string | null
+  position: number
+}) {
+  if (thumbnailUrl) {
+    return (
+      <img
+        src={thumbnailUrl}
+        alt=""
+        className="absolute inset-0 h-full w-full object-cover"
+      />
+    )
+  }
+  const [c1, c2] = THUMB_GRADIENTS[(position - 1) % THUMB_GRADIENTS.length]
+  return (
+    <svg
+      width="100%"
+      height="100%"
+      viewBox="0 0 160 90"
+      preserveAspectRatio="xMidYMid slice"
+      className="absolute inset-0 h-full w-full"
+    >
+      <defs>
+        <linearGradient id={`g${position}`} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor={c1} />
+          <stop offset="100%" stopColor={c2} />
+        </linearGradient>
+      </defs>
+      <rect width="160" height="90" fill={`url(#g${position})`} />
+      <line
+        x1="0"
+        y1="90"
+        x2="160"
+        y2="0"
+        stroke="rgba(255,255,255,0.04)"
+        strokeWidth="40"
+      />
+      <circle cx="138" cy="20" r="40" fill="rgba(255,255,255,0.03)" />
+    </svg>
+  )
+}
+
+function formatDuration(seconds: number | null): string {
+  if (!seconds) return '—'
+  if (seconds < 60) return `${seconds}s`
+  const m = Math.round(seconds / 60)
+  return `${m}m`
+}
+
+function LessonCard({
   lesson,
   position,
+  locked,
   isSelected,
   onSelect,
   onDelete,
 }: {
   lesson: CourseLessonRead
   position: number
+  locked: boolean
   isSelected: boolean
   onSelect: () => void
   onDelete: () => void
 }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } =
-    useSortable({ id: lesson.id })
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    opacity: isDragging ? 0.5 : 1,
-  }
-
   return (
     <div
-      ref={setNodeRef}
-      style={style}
-      className={cn(
-        'group rounded-xl border transition-colors',
-        isSelected
-          ? 'border-blue-500 bg-blue-50'
-          : 'border-gray-200 bg-white hover:border-gray-300',
-      )}
+      onClick={onSelect}
+      className={cardWrapperClass(isSelected)}
     >
-      <div className="flex items-center gap-3 p-4">
-        <button
-          {...listeners}
-          {...attributes}
-          className="cursor-grab rounded p-1 text-gray-400 hover:bg-gray-100 active:cursor-grabbing"
-        >
-          <DragIndicatorOutlined sx={{ fontSize: 20 }} />
-        </button>
-
-        <button onClick={onSelect} className="flex-1 text-left">
-          <div className="flex items-center gap-2">
-            {lesson.content_type === 'video' && (
-              <OndemandVideoOutlined sx={{ fontSize: 16 }} />
-            )}
-            <span className="text-sm font-medium text-gray-900">
-              Lesson {position}
-            </span>
+      <div className="relative aspect-video w-full overflow-hidden">
+        <ThumbArt
+          thumbnailUrl={lesson.thumbnail_url ?? null}
+          position={position}
+        />
+        <div className="absolute top-[7px] left-2 text-[9px] font-semibold uppercase tracking-[0.07em] text-white/75 [text-shadow:0_1px_3px_rgba(0,0,0,0.5)]">
+          Ep {position}
+        </div>
+        {locked && (
+          <div className="absolute top-[7px] right-2 flex h-[18px] w-[18px] items-center justify-center rounded-full bg-black/45 backdrop-blur-sm">
+            <LockOutlined sx={{ fontSize: 10 }} className="text-white" />
           </div>
-          <p className="mt-1 text-sm text-gray-600">{lesson.title}</p>
-          {(lesson as any).description && (
-            <p className="mt-1 line-clamp-1 text-xs text-gray-500">
-              {(lesson as any).description}
-            </p>
-          )}
-        </button>
-
-        <button
-          onClick={onDelete}
-          className="rounded p-1 text-gray-400 opacity-0 transition-opacity hover:bg-red-50 hover:text-red-600 group-hover:opacity-100"
-        >
-          <DeleteOutlined sx={{ fontSize: 18 }} />
-        </button>
+        )}
+        <div className="absolute inset-0 flex items-center justify-center bg-transparent transition-colors group-hover:bg-black/15">
+          <div className="flex h-8 w-8 scale-75 items-center justify-center rounded-full bg-white/90 opacity-0 shadow-md transition-all group-hover:scale-100 group-hover:opacity-100">
+            <PlayArrowRounded sx={{ fontSize: 16 }} className="text-gray-900" />
+          </div>
+        </div>
+      </div>
+      <div className="px-[11px] pt-[9px] pb-[11px]">
+        <div className="mb-[5px] line-clamp-2 text-[11.5px] font-semibold leading-[1.35] tracking-tight text-gray-900">
+          {lesson.title}
+        </div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-[3px] text-[10.5px] text-gray-400">
+            <ScheduleOutlined sx={{ fontSize: 10 }} />
+            {formatDuration(lesson.duration_seconds)}
+          </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onDelete()
+            }}
+            className="flex items-center rounded-md p-[2px_3px] text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+            aria-label="Lesson actions"
+          >
+            <MoreHorizOutlined sx={{ fontSize: 14 }} />
+          </button>
+        </div>
       </div>
     </div>
   )
+}
+
+function cardWrapperClass(selected: boolean): string {
+  return [
+    'group relative cursor-pointer overflow-hidden rounded-2xl border bg-white transition-all',
+    'shadow-[0_1px_4px_rgba(0,0,0,0.05),0_2px_10px_rgba(0,0,0,0.03)]',
+    'hover:-translate-y-0.5 hover:shadow-[0_6px_24px_rgba(0,0,0,0.10),0_1px_4px_rgba(0,0,0,0.06)]',
+    selected
+      ? 'border-gray-900'
+      : 'border-gray-200 hover:border-gray-300',
+  ].join(' ')
 }
 
 export function OutlineTab({
   course,
   selectedLessonId,
   onSelectLesson,
-  onAddLesson,
   onDeleteLesson,
-  onReorderLessons,
   onEditPaywall,
 }: {
   course: CourseRead
@@ -114,133 +164,112 @@ export function OutlineTab({
 }) {
   const [query, setQuery] = useState('')
 
-  // Flatten all lessons from all modules
-  const allLessons = useMemo(() => {
-    return course.modules.flatMap((m) =>
-      m.lessons.map((l) => ({ lesson: l, moduleId: m.id })),
-    )
-  }, [course.modules])
-
-  const filteredLessons = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return allLessons
-    return allLessons.filter((item) =>
-      item.lesson.title.toLowerCase().includes(q),
-    )
-  }, [allLessons, query])
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  const allLessons = useMemo(
+    () => course.modules.flatMap((m) => m.lessons),
+    [course.modules],
   )
 
-  const handleDragEnd = (e: DragEndEvent) => {
-    const { active, over } = e
-    if (!over || active.id === over.id) return
+  const trimmed = query.trim().toLowerCase()
+  const filtered = trimmed
+    ? allLessons.filter((l) => l.title.toLowerCase().includes(trimmed))
+    : allLessons
 
-    const ids = filteredLessons.map((item) => item.lesson.id)
-    const from = ids.indexOf(String(active.id))
-    const to = ids.indexOf(String(over.id))
-    if (from < 0 || to < 0) return
+  const showPaywall =
+    !trimmed &&
+    course.paywall_position !== null &&
+    course.paywall_position !== undefined &&
+    course.paywall_position >= 0
 
-    const reorderedIds = arrayMove(ids, from, to)
-    if (allLessons.length > 0) {
-      onReorderLessons(allLessons[0].moduleId, reorderedIds)
-    }
-  }
-
-  const paywallPos = course.paywall_position
-  const firstModule = course.modules[0]
+  const paywallAt = showPaywall ? Math.min(course.paywall_position!, filtered.length) : 0
+  const freeLessons = showPaywall ? filtered.slice(0, paywallAt) : filtered
+  const paidLessons = showPaywall ? filtered.slice(paywallAt) : []
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-8 py-8">
-      <div className="relative mb-6">
-        <SearchOutlined
-          className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-gray-400"
-          fontSize="small"
-        />
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Find lesson..."
-          className="focus:border-primary w-full rounded-xl border border-gray-200 bg-white py-3 pr-4 pl-11 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
-        />
-      </div>
-
-      <div className="mb-6 flex items-center justify-between">
-        <div className="text-sm">
-          <span className="font-semibold text-gray-900">
-            {allLessons.length}
-          </span>{' '}
-          <span className="text-gray-600">
-            Lesson{allLessons.length !== 1 ? 's' : ''}
-          </span>
+    <div className="mx-auto w-full max-w-[960px] px-6 pt-7 pb-20">
+      {/* Search */}
+      <div className="pb-5">
+        <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-[9px] shadow-sm">
+          <SearchOutlined sx={{ fontSize: 14 }} className="text-gray-400" />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Find lesson…"
+            className="flex-1 border-0 bg-transparent text-[13px] tracking-tight text-gray-900 placeholder:text-gray-400 focus:outline-none"
+          />
         </div>
       </div>
 
-      <div className="flex flex-col gap-3">
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext
-            items={filteredLessons.map((item) => item.lesson.id)}
-            strategy={verticalListSortingStrategy}
-          >
-            {filteredLessons.map((item, idx) => {
-              const showPaywallAfter =
-                paywallPos !== null &&
-                paywallPos !== undefined &&
-                idx + 1 === paywallPos
-              return (
-                <div key={item.lesson.id}>
-                  <FlatLessonRow
-                    lesson={item.lesson}
-                    position={idx + 1}
-                    isSelected={selectedLessonId === item.lesson.id}
-                    onSelect={() => onSelectLesson(item.lesson.id)}
-                    onDelete={() => onDeleteLesson(item.lesson)}
-                  />
-                  {showPaywallAfter && (
-                    <PaywallRow onEditSettings={onEditPaywall} />
-                  )}
-                </div>
-              )
-            })}
-          </SortableContext>
-        </DndContext>
+      {/* Section: Free preview (or All when searching) */}
+      <SectionLabel
+        text={showPaywall ? 'Free preview' : 'Lessons'}
+        count={freeLessons.length}
+      />
+      <LessonGrid>
+        {freeLessons.map((lesson, idx) => (
+          <LessonCard
+            key={lesson.id}
+            lesson={lesson}
+            position={idx + 1}
+            locked={false}
+            isSelected={selectedLessonId === lesson.id}
+            onSelect={() => onSelectLesson(lesson.id)}
+            onDelete={() => onDeleteLesson(lesson)}
+          />
+        ))}
+      </LessonGrid>
 
-        {paywallPos !== null &&
-          paywallPos !== undefined &&
-          paywallPos >= allLessons.length && (
-            <PaywallRow onEditSettings={onEditPaywall} />
-          )}
+      {showPaywall && <PaywallRow onEditSettings={onEditPaywall} />}
 
-        {filteredLessons.length === 0 && allLessons.length > 0 && (
-          <div className="rounded-xl border border-dashed border-gray-200 py-10 text-center text-sm text-gray-400">
-            No lessons match "{query}".
-          </div>
-        )}
+      {showPaywall && paidLessons.length > 0 && (
+        <>
+          <SectionLabel text="Members only" count={paidLessons.length} />
+          <LessonGrid>
+            {paidLessons.map((lesson, idx) => (
+              <LessonCard
+                key={lesson.id}
+                lesson={lesson}
+                position={paywallAt + idx + 1}
+                locked
+                isSelected={selectedLessonId === lesson.id}
+                onSelect={() => onSelectLesson(lesson.id)}
+                onDelete={() => onDeleteLesson(lesson)}
+              />
+            ))}
+          </LessonGrid>
+        </>
+      )}
 
-        {allLessons.length === 0 && (
-          <div className="rounded-xl border border-dashed border-gray-200 py-16 text-center text-sm text-gray-400">
-            No lessons yet. Click "Add Lesson" to build your curriculum.
-          </div>
-        )}
+      {trimmed && filtered.length === 0 && (
+        <div className="flex flex-col items-center gap-2 py-12 text-[13px] text-gray-500">
+          No lessons match "{query}"
+        </div>
+      )}
 
-        <button
-          onClick={() => {
-            if (firstModule) {
-              onAddLesson(firstModule, 'text')
-            }
-          }}
-          className="mt-1 flex items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 bg-white py-4 text-sm font-medium text-gray-600 transition-colors hover:border-gray-400 hover:text-gray-900"
-        >
-          <AddOutlined sx={{ fontSize: 18 }} />
-          Add Lesson
-        </button>
-      </div>
+      {!trimmed && allLessons.length === 0 && (
+        <div className="flex flex-col items-center gap-2 py-12 text-[13px] text-gray-500">
+          No lessons yet. Use "Add lesson" to start building.
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SectionLabel({ text, count }: { text: string; count: number }) {
+  return (
+    <div className="mb-2.5 flex items-baseline gap-1.5 px-0.5">
+      <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">
+        {text}
+      </span>
+      <span className="text-[11px] text-gray-400">{count}</span>
+    </div>
+  )
+}
+
+function LessonGrid({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mb-1 grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3.5">
+      {children}
     </div>
   )
 }

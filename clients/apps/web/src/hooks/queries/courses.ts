@@ -64,6 +64,8 @@ export type CourseLessonRead = {
   mux_status: string | null
   thumbnail_url: string | null
   thumbnail_object_position: string | null
+  description?: string | null
+  comments_mode?: 'visible' | 'hidden' | 'locked'
   created_at: string
   modified_at: string | null
 }
@@ -326,6 +328,7 @@ export const useUpdateCourseLesson = () =>
         release_at?: string | null
         drip_days?: number | null
         thumbnail_object_position?: string | null
+        comments_mode?: 'visible' | 'hidden' | 'locked'
       }
     }) =>
       courseApiFetch<CourseLessonRead>(`/v1/courses/lessons/${lessonId}`, {

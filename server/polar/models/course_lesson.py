@@ -84,6 +84,10 @@ class CourseLesson(RecordModel):
         Integer, nullable=True, default=None
     )
 
+    comments_mode: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="visible"
+    )
+
     @declared_attr
     def module(cls) -> Mapped["CourseModule"]:
         return relationship("CourseModule", lazy="raise", back_populates="lessons")

@@ -188,6 +188,7 @@ export default function CourseEditor({
             edits.media === 'video' ? edits.videoUrl || null : null,
           published: edits.published,
           thumbnail_object_position: edits.thumbnailObjectPosition,
+          comments_mode: edits.commentsMode,
         },
       })
       invalidateCourse()

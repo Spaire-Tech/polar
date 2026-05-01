@@ -18,6 +18,7 @@ class CourseLessonCreate(Schema):
     description: str | None = None
     release_at: datetime | None = None
     drip_days: int | None = None
+    comments_mode: Literal["visible", "hidden", "locked"] = "visible"
 
 
 class CourseLessonUpdate(Schema):
@@ -34,6 +35,7 @@ class CourseLessonUpdate(Schema):
     description: str | None = None
     release_at: datetime | None = None
     drip_days: int | None = None
+    comments_mode: Literal["visible", "hidden", "locked"] | None = None
 
 
 class MuxUploadRead(Schema):
@@ -61,6 +63,7 @@ class CourseLessonRead(TimestampedSchema):
     description: str | None = None
     release_at: datetime | None = None
     drip_days: int | None = None
+    comments_mode: str = "visible"
 
 
 class CourseLessonFlatRead(TimestampedSchema):
@@ -82,6 +85,7 @@ class CourseLessonFlatRead(TimestampedSchema):
     description: str | None = None
     release_at: datetime | None = None
     drip_days: int | None = None
+    comments_mode: str = "visible"
     locked: bool = False
     locked_until: datetime | None = None
     completed: bool = False
