@@ -155,6 +155,7 @@ export default function CourseEditor({
           instructor_name_uppercase: edits.instructor_name_uppercase,
           trailer_url: edits.trailer_url ?? undefined,
           thumbnail_object_position: edits.thumbnail_object_position ?? undefined,
+          landing_config: edits.landing_config ?? undefined,
         },
       })
       invalidateCourse()

@@ -41,6 +41,10 @@ export const landingSchema = z.object({
     }),
   ),
 
+  // Trailer
+  trailer_label: z.string().optional(),
+  trailer_heading: z.string().optional(),
+
   // Curriculum
   curriculum_label: z.string(),
   curriculum_heading: z.string(),

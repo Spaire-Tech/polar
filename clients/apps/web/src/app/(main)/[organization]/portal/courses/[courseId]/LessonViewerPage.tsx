@@ -199,6 +199,7 @@ const LessonViewerPage = ({
         paywallPosition={data.course.paywall_position}
         flatLessons={flatLessons}
         landing={landing}
+        landingConfig={data.course.landing_config ?? null}
         onStart={handleStartClass}
         onTrailer={handleTrailer}
       />

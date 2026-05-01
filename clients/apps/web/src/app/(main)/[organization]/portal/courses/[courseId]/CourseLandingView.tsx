@@ -10,6 +10,15 @@ import {
   ValueStrip,
 } from '@/components/Courses/CourseWizard.preview'
 import type { StoredLanding } from '@/components/Courses/landingStorage'
+import {
+  ensureGoogleFonts,
+  isSectionVisible,
+  mediaValue,
+  textValue,
+  themeStyle,
+  type LandingConfig,
+} from '@/components/Courses/landingConfig'
+import { useEffect, useMemo } from 'react'
 import type { FlatLesson } from './MasterClassLessonList'
 
 const FONT = "'Poppins', var(--font-poppins), system-ui, sans-serif"
@@ -36,13 +45,17 @@ interface CourseLandingViewProps {
   paywallPosition: number | null
   flatLessons: FlatLesson[]
   landing: StoredLanding
+  landingConfig?: LandingConfig | null
   onStart: () => void
   onTrailer: () => void
 }
 
-// Renders the AI-generated landing page on the portal/storefront. Reuses the
-// section components from the wizard preview so the wizard preview and the
-// real landing page stay visually identical.
+// Renders the AI-generated landing page on the portal/storefront.
+//
+// `landingConfig` carries the design overrides set in the customize editor:
+// theme tokens (font/colour/typography), section visibility, plus per-slot
+// text and media overrides. We apply theme + visibility + media here; text
+// overrides on the AI-generated copy still live inside `landing` (StoredLanding).
 export function CourseLandingView({
   organizationName,
   instructorName,
@@ -57,9 +70,35 @@ export function CourseLandingView({
   paywallPosition,
   flatLessons,
   landing,
+  landingConfig,
   onStart,
   onTrailer,
 }: CourseLandingViewProps) {
+  // Ensure heading/body fonts referenced by the theme are loaded.
+  useEffect(() => {
+    ensureGoogleFonts(landingConfig)
+  }, [landingConfig])
+
+  // Apply per-slot media overrides on top of the saved fields. The customize
+  // editor lets the creator swap the hero/trailer/instructor portrait media
+  // without having to upload via the legacy thumbnail/trailer flow.
+  const heroMedia = mediaValue(landingConfig, 'hero.backdrop')
+  const trailerMedia = mediaValue(landingConfig, 'trailer.video')
+  const finalCtaMedia = mediaValue(landingConfig, 'finalCta.backdrop')
+
+  const effectiveHeroImage = heroMedia?.kind === 'image' ? heroMedia.url : thumbnailUrl
+  const effectiveHeroVideo = heroMedia?.kind === 'video' ? heroMedia.url : null
+  const effectiveTrailerUrl = trailerMedia?.url ?? trailerUrl
+
+  const themeWrapperStyle = useMemo(
+    () => ({
+      ...themeStyle(landingConfig),
+      minHeight: '100vh',
+      fontFamily: FONT,
+    }),
+    [landingConfig],
+  )
+
   // Adapt portal types to the wizard preview's prop shapes.
   const draft = {
     name: instructorName ?? '',
@@ -73,20 +112,13 @@ export function CourseLandingView({
     name: instructorName ?? organizationName,
     bio: instructorBio ?? '',
   }
-  const course = { title: courseTitle, desc: courseDescription ?? '' }
 
-  // Pricing surface used by FullLessonList + FinalCta. Only paywall_enabled
-  // and the free preview count drive UI; price is rendered by the storefront
-  // checkout, not here.
   const pricing = {
     paywallEnabled,
     priceCents: 0,
     freePreviewLessons: paywallPosition ?? 0,
   }
 
-  // Outline shape expected by CurriculumTimeline + FullLessonList. We don't
-  // have modules at the portal layer (everything is flat lessons), so wrap
-  // them into a single synthetic module for now.
   const outline = {
     modules: [
       {
@@ -106,45 +138,85 @@ export function CourseLandingView({
     0,
   )
 
+  const visible = (id:
+    | 'hero'
+    | 'value'
+    | 'trailer'
+    | 'curriculum'
+    | 'lessons'
+    | 'instructor'
+    | 'reviews'
+    | 'finalCta',
+  ) => isSectionVisible(landingConfig, id)
+
   return (
-    <div
-      style={{
-        background: C.bg0,
-        color: C.fg0,
-        fontFamily: FONT,
-        minHeight: '100vh',
-      }}
-    >
-      <Hero
-        thumbnailUrl={thumbnailUrl}
-        thumbnailObjectPosition={thumbnailObjectPosition}
-        trailerUrl={trailerUrl}
-        title={courseTitle}
-        instructorName={instructorName ?? organizationName}
-        landing={landing}
-        paywallEnabled={paywallEnabled}
-        isStarted={isStarted}
-        totalDurationSeconds={totalDurationSeconds}
-        lessonCount={flatLessons.length}
-        onStart={onStart}
-        onTrailer={onTrailer}
-      />
-      <TrailerBlock
-        trailerUrl={trailerUrl}
-        thumbnailUrl={thumbnailUrl}
-        thumbPosition={thumbnailObjectPosition ?? null}
-        onReplaceTrailer={() => {}}
-      />
-      <ValueStrip landing={landing} />
-      <CurriculumTimeline outline={outline} landing={landing} />
-      <FullLessonList outline={outline} pricing={pricing} landing={landing} />
-      <InstructorBlock
-        instructor={instructor}
-        draft={draft}
-        landing={landing}
-      />
-      <Reviews landing={landing} />
-      <FinalCta landing={landing} pricing={pricing} onCreate={onStart} />
+    <div style={themeWrapperStyle}>
+      {visible('hero') && (
+        <Hero
+          thumbnailUrl={effectiveHeroImage}
+          thumbnailObjectPosition={thumbnailObjectPosition}
+          heroVideoUrl={effectiveHeroVideo}
+          trailerUrl={effectiveTrailerUrl}
+          title={textValue(landingConfig, 'hero.title', courseTitle)}
+          tagline={textValue(landingConfig, 'hero.tagline', landing.tagline ?? '')}
+          eyebrow={textValue(
+            landingConfig,
+            'hero.eyebrow',
+            landing.eyebrow ?? 'SPAIRE ORIGINAL',
+          )}
+          seriesLabel={textValue(
+            landingConfig,
+            'hero.series_label',
+            landing.series_label ?? 'NEW SERIES',
+          )}
+          level={textValue(
+            landingConfig,
+            'hero.level',
+            landing.level ?? 'All levels',
+          )}
+          instructorName={instructorName ?? organizationName}
+          paywallEnabled={paywallEnabled}
+          isStarted={isStarted}
+          totalDurationSeconds={totalDurationSeconds}
+          lessonCount={flatLessons.length}
+          onStart={onStart}
+          onTrailer={onTrailer}
+        />
+      )}
+      {visible('trailer') && effectiveTrailerUrl && (
+        <TrailerBlock
+          trailerUrl={effectiveTrailerUrl}
+          thumbnailUrl={effectiveHeroImage}
+          thumbPosition={thumbnailObjectPosition ?? null}
+          onReplaceTrailer={() => {}}
+        />
+      )}
+      {visible('value') && <ValueStrip landing={landing} />}
+      {visible('curriculum') && (
+        <CurriculumTimeline outline={outline} landing={landing} />
+      )}
+      {visible('lessons') && (
+        <FullLessonList outline={outline} pricing={pricing} landing={landing} />
+      )}
+      {visible('instructor') && (
+        <InstructorBlock
+          instructor={instructor}
+          draft={draft}
+          landing={landing}
+          portraitUrl={
+            mediaValue(landingConfig, 'instructor.portrait')?.url ?? null
+          }
+        />
+      )}
+      {visible('reviews') && <Reviews landing={landing} />}
+      {visible('finalCta') && (
+        <FinalCta
+          landing={landing}
+          pricing={pricing}
+          onCreate={onStart}
+          backdropUrl={finalCtaMedia?.url ?? null}
+        />
+      )}
 
       <footer
         style={{
@@ -192,10 +264,14 @@ export function CourseLandingView({
 function Hero({
   thumbnailUrl,
   thumbnailObjectPosition,
+  heroVideoUrl,
   trailerUrl,
   title,
+  tagline,
+  eyebrow,
+  seriesLabel,
+  level,
   instructorName,
-  landing,
   paywallEnabled,
   isStarted,
   totalDurationSeconds,
@@ -205,10 +281,14 @@ function Hero({
 }: {
   thumbnailUrl: string | null
   thumbnailObjectPosition?: string | null
+  heroVideoUrl: string | null
   trailerUrl: string | null
   title: string
+  tagline: string
+  eyebrow: string
+  seriesLabel: string
+  level: string
   instructorName: string
-  landing: StoredLanding
   paywallEnabled: boolean
   isStarted: boolean
   totalDurationSeconds: number
@@ -216,10 +296,7 @@ function Hero({
   onStart: () => void
   onTrailer: () => void
 }) {
-  const eyebrow = landing.eyebrow ?? 'SPAIRE ORIGINAL'
-  const series = landing.series_label ?? 'NEW SERIES'
-  const tagline = landing.tagline ?? ''
-  const level = landing.level ?? 'All levels'
+  const series = seriesLabel
 
   const fmtDuration = (s: number) => {
     const h = Math.floor(s / 3600)
@@ -247,7 +324,23 @@ function Hero({
       }}
     >
       <div style={{ position: 'absolute', inset: 0 }}>
-        {thumbnailUrl ? (
+        {heroVideoUrl ? (
+          <video
+            key={heroVideoUrl}
+            src={heroVideoUrl}
+            autoPlay
+            muted
+            loop
+            playsInline
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+            }}
+          />
+        ) : thumbnailUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={thumbnailUrl}

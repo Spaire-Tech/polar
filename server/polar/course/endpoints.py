@@ -107,6 +107,7 @@ def _course_read(course) -> CourseRead:
         instructor_name_italic=course.instructor_name_italic,
         instructor_name_bold=course.instructor_name_bold,
         instructor_name_uppercase=course.instructor_name_uppercase,
+        landing_config=course.landing_config,
         modules=[_module_read(m) for m in course.modules],
         created_at=course.created_at,
         modified_at=course.modified_at,

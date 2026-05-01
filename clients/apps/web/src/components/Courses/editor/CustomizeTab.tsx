@@ -1,12 +1,56 @@
 'use client'
 
-import { CourseRead, useUploadCourseThumbnail } from '@/hooks/queries/courses'
+// New customize editor for the course landing page.
+//
+// Layout: top sub-toolbar (mode + device + save) → left rail (Design / Content
+// / Media / Sections / AI) → live canvas → right inspector. Sits inside the
+// CourseHeader-driven nav, so the dashboard top nav stays as-is.
+//
+// Edits are accumulated locally in `draft` (LandingConfig) and persisted via
+// the parent's onSave handler, which writes them to course.landing_config.
+
+import {
+  ensureGoogleFonts,
+  isSectionVisible,
+  mediaValue,
+  setMedia as configSetMedia,
+  setText as configSetText,
+  setTheme as configSetTheme,
+  setVisible as configSetVisible,
+  textValue,
+  themeStyle,
+  type LandingConfig,
+  type LandingMedia,
+  type LandingSectionId,
+  type LandingTheme,
+  LandingEditorProvider,
+} from '../landingConfig'
+import {
+  CourseRead,
+  useUploadCourseThumbnail,
+} from '@/hooks/queries/courses'
+import {
+  CurriculumTimeline,
+  FinalCta,
+  FullLessonList,
+  InstructorBlock,
+  Reviews,
+  TrailerBlock,
+  ValueStrip,
+} from '../CourseWizard.preview'
+import { splitLanding, type StoredLanding } from '../landingStorage'
+import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined'
+import DesktopWindowsOutlined from '@mui/icons-material/DesktopWindowsOutlined'
+import EditOutlined from '@mui/icons-material/EditOutlined'
 import ImageOutlined from '@mui/icons-material/ImageOutlined'
-import MovieOutlined from '@mui/icons-material/MovieOutlined'
-import PersonOutlined from '@mui/icons-material/PersonOutlined'
+import PhoneIphoneOutlined from '@mui/icons-material/PhoneIphoneOutlined'
+import RestartAltOutlined from '@mui/icons-material/RestartAltOutlined'
+import TabletMacOutlined from '@mui/icons-material/TabletMacOutlined'
 import TextFieldsOutlined from '@mui/icons-material/TextFieldsOutlined'
-import { useEffect, useRef, useState } from 'react'
-import { ThumbnailPositioner } from './ThumbnailPositioner'
+import ViewQuiltOutlined from '@mui/icons-material/ViewQuiltOutlined'
+import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Inspector } from './CustomizeTab.inspector'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -20,307 +64,12 @@ export type CourseCustomizeEdits = {
   instructor_name_uppercase: boolean
   trailer_url: string | null
   thumbnail_object_position: string | null
+  landing_config: LandingConfig | null
 }
 
-// ─── Hero preview (mirrors real landing page) ─────────────────────────────────
-
-export function HeroPreview({
-  title,
-  description,
-  instructorName,
-  instructorNameItalic,
-  instructorNameBold,
-  instructorNameUppercase,
-  thumbnailUrl,
-  thumbnailObjectPosition,
-  trailerUrl,
-}: {
-  title: string | null
-  description: string | null
-  instructorName: string | null
-  instructorNameItalic: boolean
-  instructorNameBold: boolean
-  instructorNameUppercase: boolean
-  thumbnailUrl: string | null
-  thumbnailObjectPosition: string | null
-  trailerUrl: string | null
-}) {
-  const displayName = instructorName || 'Instructor Name'
-  const displayTitle = title || 'Course Title'
-  const displayDesc = description || ''
-
-  return (
-    <div
-      className="relative flex h-full w-full flex-col overflow-hidden bg-black"
-      style={{ fontFamily: 'var(--font-dm-sans), system-ui, sans-serif' }}
-    >
-      {/* Background: trailer → thumbnail → gradient */}
-      {trailerUrl ? (
-        <video
-          key={trailerUrl}
-          src={trailerUrl}
-          autoPlay
-          muted
-          loop
-          playsInline
-          className="absolute inset-0 h-full w-full object-cover"
-        />
-      ) : thumbnailUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={thumbnailUrl}
-          alt=""
-          className="absolute inset-0 h-full w-full object-cover"
-          style={{ objectPosition: thumbnailObjectPosition ?? 'center' }}
-        />
-      ) : (
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              'linear-gradient(135deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%)',
-          }}
-        />
-      )}
-
-      {/* Gradients */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            'linear-gradient(to right, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.7) 25%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0) 100%)',
-        }}
-      />
-      <div
-        className="absolute inset-x-0 bottom-0"
-        style={{
-          height: '40%',
-          background:
-            'linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0.6) 50%, rgba(0,0,0,0) 100%)',
-        }}
-      />
-
-      {/* Content */}
-      <div
-        className="absolute bottom-0 left-0 z-10 flex flex-col items-center text-center text-white"
-        style={{ padding: '0 10% 12%', width: 'min(55%, 280px)' }}
-      >
-        {/* Instructor name */}
-        <div
-          style={{
-            fontFamily: 'var(--font-barlow-condensed), Impact, sans-serif',
-            fontWeight: instructorNameBold ? 800 : 700,
-            fontStyle: instructorNameItalic ? 'italic' : 'normal',
-            fontSize: 'clamp(22px, 4vw, 32px)',
-            lineHeight: 0.95,
-            letterSpacing: '0.01em',
-            textTransform: instructorNameUppercase ? 'uppercase' : 'none',
-            whiteSpace: 'nowrap',
-            width: '100%',
-          }}
-        >
-          {displayName}
-        </div>
-
-        {/* Separator */}
-        <div
-          style={{
-            width: 20,
-            height: 1.5,
-            background: '#fff',
-            margin: '10px auto 8px',
-          }}
-        />
-
-        {/* Course title */}
-        <div
-          style={{
-            fontSize: 'clamp(11px, 1.6vw, 14px)',
-            fontWeight: 600,
-            color: 'rgba(255,255,255,0.98)',
-            letterSpacing: '-0.005em',
-            marginBottom: 8,
-          }}
-        >
-          {displayTitle}
-        </div>
-
-        {/* Description */}
-        {displayDesc && (
-          <p
-            style={{
-              fontSize: 'clamp(9px, 1.2vw, 11px)',
-              fontWeight: 400,
-              color: 'rgba(255,255,255,0.72)',
-              lineHeight: 1.5,
-              marginBottom: 14,
-              overflow: 'hidden',
-              display: '-webkit-box',
-              WebkitLineClamp: 3,
-              WebkitBoxOrient: 'vertical',
-            }}
-          >
-            {displayDesc}
-          </p>
-        )}
-
-        {/* CTA */}
-        <div className="flex items-center gap-2">
-          <div
-            style={{
-              padding: '6px 14px',
-              background: '#fff',
-              color: '#000',
-              borderRadius: 100,
-              fontSize: 'clamp(9px, 1.1vw, 11px)',
-              fontWeight: 500,
-            }}
-          >
-            Start Class
-          </div>
-          {trailerUrl && (
-            <div
-              style={{
-                padding: '6px 12px',
-                background: 'rgba(30,30,30,0.85)',
-                color: '#fff',
-                borderRadius: 100,
-                fontSize: 'clamp(9px, 1.1vw, 11px)',
-                fontWeight: 500,
-              }}
-            >
-              Trailer
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* "PREVIEW" watermark */}
-      <div
-        className="absolute right-3 top-3 z-20 rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-white/50"
-        style={{ background: 'rgba(255,255,255,0.08)' }}
-      >
-        Preview
-      </div>
-    </div>
-  )
-}
-
-// ─── Field components ─────────────────────────────────────────────────────────
-
-function SectionCard({
-  icon,
-  title,
-  subtitle,
-  children,
-}: {
-  icon: React.ReactNode
-  title: string
-  subtitle?: string
-  children: React.ReactNode
-}) {
-  return (
-    <section className="rounded-2xl border border-gray-200 bg-white p-5">
-      <div className="mb-4 flex items-start gap-3">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gray-50 text-gray-500">
-          {icon}
-        </span>
-        <div>
-          <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
-          {subtitle && (
-            <p className="mt-0.5 text-xs text-gray-500">{subtitle}</p>
-          )}
-        </div>
-      </div>
-      {children}
-    </section>
-  )
-}
-
-function FieldLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">
-      {children}
-    </label>
-  )
-}
-
-function TextInput({
-  value,
-  onChange,
-  placeholder,
-  autoFocus,
-}: {
-  value: string
-  onChange: (v: string) => void
-  placeholder?: string
-  autoFocus?: boolean
-}) {
-  return (
-    <input
-      type="text"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      autoFocus={autoFocus}
-      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-gray-900 focus:bg-white focus:ring-2 focus:ring-gray-900/8"
-    />
-  )
-}
-
-function TextArea({
-  value,
-  onChange,
-  placeholder,
-  rows = 3,
-}: {
-  value: string
-  onChange: (v: string) => void
-  placeholder?: string
-  rows?: number
-}) {
-  return (
-    <textarea
-      rows={rows}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm leading-relaxed text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-gray-900 focus:bg-white focus:ring-2 focus:ring-gray-900/8"
-    />
-  )
-}
-
-function StyleToggle({
-  active,
-  onClick,
-  label,
-  italic,
-  bold,
-}: {
-  active: boolean
-  onClick: () => void
-  label: string
-  italic?: boolean
-  bold?: boolean
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex-1 rounded-lg border py-1.5 text-xs transition-all ${
-        active
-          ? 'border-gray-900 bg-gray-900 text-white'
-          : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
-      }`}
-      style={{
-        fontStyle: italic ? 'italic' : 'normal',
-        fontWeight: bold ? 700 : 400,
-      }}
-    >
-      {label}
-    </button>
-  )
-}
+type DeviceMode = 'desktop' | 'tablet' | 'mobile'
+type EditorMode = 'edit' | 'preview'
+type PanelId = 'design' | 'content' | 'media' | 'sections' | 'ai'
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
@@ -336,7 +85,7 @@ export function CustomizeTab({
   const uploadThumbnail = useUploadCourseThumbnail()
   const thumbnailInputRef = useRef<HTMLInputElement>(null)
 
-  // Local draft state (reflects course props, editable in real-time)
+  // Course-level fields (editable directly on the course row).
   const [title, setTitle] = useState(course.title ?? '')
   const [description, setDescription] = useState(course.description ?? '')
   const [instructorName, setInstructorName] = useState(
@@ -344,11 +93,6 @@ export function CustomizeTab({
   )
   const [instructorBio, setInstructorBio] = useState(
     course.instructor_bio ?? '',
-  )
-  const [nameItalic, setNameItalic] = useState(course.instructor_name_italic)
-  const [nameBold, setNameBold] = useState(course.instructor_name_bold)
-  const [nameUppercase, setNameUppercase] = useState(
-    course.instructor_name_uppercase,
   )
   const [trailerUrl, setTrailerUrl] = useState(course.trailer_url ?? '')
   const [thumbnailUrl, setThumbnailUrl] = useState(
@@ -358,30 +102,41 @@ export function CustomizeTab({
     course.thumbnail_object_position ?? null,
   )
 
-  // Sync if course changes from outside (e.g. refetch)
+  // Landing config draft — drives the live canvas.
+  const [draft, setDraft] = useState<LandingConfig>(
+    course.landing_config ?? {},
+  )
+
+  // Editor UI state
+  const [mode, setMode] = useState<EditorMode>('edit')
+  const [device, setDevice] = useState<DeviceMode>('desktop')
+  const [panel, setPanel] = useState<PanelId>('design')
+
+  // Reset when navigating to a different course.
   useEffect(() => {
     setTitle(course.title ?? '')
     setDescription(course.description ?? '')
     setInstructorName(course.instructor_name ?? '')
     setInstructorBio(course.instructor_bio ?? '')
-    setNameItalic(course.instructor_name_italic)
-    setNameBold(course.instructor_name_bold)
-    setNameUppercase(course.instructor_name_uppercase)
     setTrailerUrl(course.trailer_url ?? '')
     setThumbnailUrl(course.thumbnail_url ?? null)
     setThumbnailPosition(course.thumbnail_object_position ?? null)
-  }, [course.id]) // reset only when course changes
+    setDraft(course.landing_config ?? {})
+  }, [course.id])
+
+  useEffect(() => {
+    ensureGoogleFonts(draft)
+  }, [draft])
 
   const dirty =
     title !== (course.title ?? '') ||
     description !== (course.description ?? '') ||
     instructorName !== (course.instructor_name ?? '') ||
     instructorBio !== (course.instructor_bio ?? '') ||
-    nameItalic !== course.instructor_name_italic ||
-    nameBold !== course.instructor_name_bold ||
-    nameUppercase !== course.instructor_name_uppercase ||
     trailerUrl !== (course.trailer_url ?? '') ||
-    (thumbnailPosition ?? null) !== (course.thumbnail_object_position ?? null)
+    (thumbnailPosition ?? null) !==
+      (course.thumbnail_object_position ?? null) ||
+    JSON.stringify(draft) !== JSON.stringify(course.landing_config ?? {})
 
   const handleThumbnailUpload = async (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -394,9 +149,7 @@ export function CustomizeTab({
         file,
       })
       setThumbnailUrl(updated.thumbnail_url ?? null)
-    } catch {
-      // handled by mutation
-    }
+    } catch {}
     e.target.value = ''
   }
 
@@ -406,11 +159,14 @@ export function CustomizeTab({
       description: description.trim() || null,
       instructor_name: instructorName.trim() || null,
       instructor_bio: instructorBio.trim() || null,
-      instructor_name_italic: nameItalic,
-      instructor_name_bold: nameBold,
-      instructor_name_uppercase: nameUppercase,
+      // styling toggles kept unchanged from course; the redesigned editor
+      // controls these via the theme typography knobs instead.
+      instructor_name_italic: course.instructor_name_italic,
+      instructor_name_bold: course.instructor_name_bold,
+      instructor_name_uppercase: course.instructor_name_uppercase,
       trailer_url: trailerUrl.trim() || null,
       thumbnail_object_position: thumbnailPosition,
+      landing_config: draft,
     })
   }
 
@@ -419,225 +175,731 @@ export function CustomizeTab({
     setDescription(course.description ?? '')
     setInstructorName(course.instructor_name ?? '')
     setInstructorBio(course.instructor_bio ?? '')
-    setNameItalic(course.instructor_name_italic)
-    setNameBold(course.instructor_name_bold)
-    setNameUppercase(course.instructor_name_uppercase)
     setTrailerUrl(course.trailer_url ?? '')
     setThumbnailUrl(course.thumbnail_url ?? null)
     setThumbnailPosition(course.thumbnail_object_position ?? null)
+    setDraft(course.landing_config ?? {})
   }
 
+  // Mutators wired through the LandingEditorProvider so primitives in the
+  // canvas (EditText / EditMedia / EditSection) can write back.
+  const editorCtx = useMemo(
+    () => ({
+      config: draft,
+      mode,
+      setText: (path: string, value: string | null) =>
+        setDraft((d) => configSetText(d, path, value)),
+      setMedia: (id: string, value: LandingMedia) =>
+        setDraft((d) => configSetMedia(d, id, value)),
+      setTheme: (patch: LandingTheme) =>
+        setDraft((d) => configSetTheme(d, patch)),
+      setVisible: (id: LandingSectionId, value: boolean) =>
+        setDraft((d) => configSetVisible(d, id, value)),
+    }),
+    [draft, mode],
+  )
+
+  const deviceWidth: number | string = {
+    desktop: '100%',
+    tablet: 900,
+    mobile: 420,
+  }[device]
+
   return (
-    <div className="flex h-full min-h-0 overflow-hidden">
-      {/* ── Left: editor panel ────────────────────────────────────── */}
-      <div className="flex w-[380px] shrink-0 flex-col overflow-y-auto border-r border-gray-100 bg-gray-50/50">
-        <div className="flex flex-col gap-4 p-6 pb-4">
-          {/* Course info */}
-          <SectionCard
-            icon={<TextFieldsOutlined sx={{ fontSize: 17 }} />}
-            title="Course info"
-            subtitle="Title and description shown on the landing page."
-          >
-            <div className="flex flex-col gap-3">
-              <div>
-                <FieldLabel>Title</FieldLabel>
-                <TextInput
-                  value={title}
-                  onChange={setTitle}
-                  placeholder="e.g. The YouTube Growth Blueprint"
-                />
-              </div>
-              <div>
-                <FieldLabel>Description</FieldLabel>
-                <TextArea
-                  value={description}
-                  onChange={setDescription}
-                  placeholder="Summarize what students will learn."
-                  rows={3}
-                />
-              </div>
-            </div>
-          </SectionCard>
+    <LandingEditorProvider value={editorCtx}>
+      <div className="flex h-full min-h-0 overflow-hidden">
+        {/* LEFT RAIL — panel selector */}
+        <LeftRail panel={panel} onPanel={setPanel} mode={mode} />
 
-          {/* Instructor */}
-          <SectionCard
-            icon={<PersonOutlined sx={{ fontSize: 17 }} />}
-            title="Instructor"
-            subtitle="How your name appears on the course hero."
-          >
-            <div className="flex flex-col gap-3">
-              <div>
-                <FieldLabel>Name</FieldLabel>
-                <TextInput
-                  value={instructorName}
-                  onChange={setInstructorName}
-                  placeholder="e.g. Alex Rivera"
-                />
-              </div>
-              <div>
-                <FieldLabel>Name style</FieldLabel>
-                <div className="flex gap-2">
-                  <StyleToggle
-                    active={nameItalic}
-                    onClick={() => setNameItalic((v) => !v)}
-                    label="Italic"
-                    italic
-                  />
-                  <StyleToggle
-                    active={nameBold}
-                    onClick={() => setNameBold((v) => !v)}
-                    label="Bold"
-                    bold
-                  />
-                  <StyleToggle
-                    active={nameUppercase}
-                    onClick={() => setNameUppercase((v) => !v)}
-                    label="ALL CAPS"
-                  />
-                </div>
-              </div>
-              <div>
-                <FieldLabel>Bio</FieldLabel>
-                <TextArea
-                  value={instructorBio}
-                  onChange={setInstructorBio}
-                  placeholder="One sentence about you."
-                  rows={2}
-                />
-              </div>
-            </div>
-          </SectionCard>
-
-          {/* Thumbnail */}
-          <SectionCard
-            icon={<ImageOutlined sx={{ fontSize: 17 }} />}
-            title="Thumbnail"
-            subtitle="Hero background image. JPG, PNG or WebP · 1280×720 recommended."
-          >
-            <input
-              ref={thumbnailInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              className="hidden"
-              onChange={handleThumbnailUpload}
-            />
-            {thumbnailUrl ? (
-              <div className="flex flex-col gap-3">
-                <ThumbnailPositioner
-                  src={thumbnailUrl}
-                  value={thumbnailPosition}
-                  onChange={setThumbnailPosition}
-                />
-                <p className="text-xs text-gray-500">
-                  Drag to set the focal point shown in the hero.
-                </p>
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    disabled={uploadThumbnail.isPending}
-                    onClick={() => thumbnailInputRef.current?.click()}
-                    className="rounded-full bg-gray-900 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
-                  >
-                    {uploadThumbnail.isPending ? 'Uploading…' : 'Replace image'}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <button
-                type="button"
-                disabled={uploadThumbnail.isPending}
-                onClick={() => thumbnailInputRef.current?.click()}
-                className="flex w-full cursor-pointer items-center gap-3 rounded-xl border border-dashed border-gray-300 bg-white p-4 transition-colors hover:border-gray-400 hover:bg-gray-50"
-              >
-                <div className="flex h-14 w-20 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-gray-100">
-                  <ImageOutlined className="text-gray-300" sx={{ fontSize: 24 }} />
-                </div>
-                <div className="flex-1 text-left">
-                  <p className="text-sm font-medium text-gray-700">
-                    {uploadThumbnail.isPending ? 'Uploading…' : 'Upload image'}
-                  </p>
-                  <p className="text-xs text-gray-400">Click to select a file</p>
-                </div>
-              </button>
-            )}
-          </SectionCard>
-
-          {/* Trailer */}
-          <SectionCard
-            icon={<MovieOutlined sx={{ fontSize: 17 }} />}
-            title="Trailer"
-            subtitle="Optional video URL (MP4/HLS). Plays as the hero background when set."
-          >
-            <div>
-              <FieldLabel>Video URL</FieldLabel>
-              <TextInput
-                value={trailerUrl}
-                onChange={setTrailerUrl}
-                placeholder="https://example.com/trailer.mp4"
+        {/* CANVAS COLUMN — sub-toolbar + live preview */}
+        <div className="flex flex-1 flex-col overflow-hidden bg-gray-100">
+          <SubToolbar
+            mode={mode}
+            onMode={setMode}
+            device={device}
+            onDevice={setDevice}
+            dirty={dirty}
+            isSaving={isSaving}
+            onSave={handleSave}
+            onReset={handleReset}
+          />
+          <div className="flex-1 overflow-auto p-6">
+            <div
+              className="mx-auto bg-white"
+              style={{
+                width: deviceWidth,
+                maxWidth: '100%',
+                borderRadius: device === 'desktop' ? 16 : 22,
+                border:
+                  device === 'desktop'
+                    ? '1px solid rgb(229,229,232)'
+                    : '1px solid rgb(229,229,232)',
+                boxShadow:
+                  device === 'desktop'
+                    ? '0 1px 2px rgba(0,0,0,0.04), 0 12px 32px rgba(0,0,0,0.06)'
+                    : '0 12px 40px rgba(0,0,0,0.10)',
+                overflow: 'hidden',
+              }}
+            >
+              <CanvasPreview
+                course={course}
+                draft={draft}
+                title={title}
+                description={description}
+                instructorName={instructorName}
+                instructorBio={instructorBio}
+                trailerUrl={trailerUrl}
+                thumbnailUrl={thumbnailUrl}
+                thumbnailPosition={thumbnailPosition}
+                device={device}
               />
-              {trailerUrl && (
-                <p className="mt-1.5 text-xs text-green-600">
-                  ✓ Trailer URL set — shown in preview
-                </p>
-              )}
-              {trailerUrl && (
-                <button
-                  type="button"
-                  onClick={() => setTrailerUrl('')}
-                  className="mt-2 text-xs text-gray-400 underline hover:text-gray-600"
-                >
-                  Remove trailer
-                </button>
-              )}
             </div>
-          </SectionCard>
+          </div>
         </div>
 
-        {/* Save / Reset bar */}
-        <div className="sticky bottom-0 flex items-center justify-end gap-2 border-t border-gray-200 bg-white/95 px-6 py-3 backdrop-blur">
-          <button
-            type="button"
-            disabled={!dirty || isSaving}
-            onClick={handleReset}
-            className="rounded-full border border-gray-300 px-4 py-2 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-40"
-          >
-            Reset
-          </button>
-          <button
-            type="button"
-            disabled={!dirty || isSaving}
-            onClick={handleSave}
-            className="rounded-full bg-gray-900 px-5 py-2 text-xs font-semibold text-white transition-colors hover:bg-gray-800 disabled:opacity-40"
-          >
-            {isSaving ? 'Saving…' : 'Save changes'}
-          </button>
-        </div>
+        {/* RIGHT INSPECTOR */}
+        <Inspector
+          panel={panel}
+          draft={draft}
+          setDraft={setDraft}
+          // course-level fields proxied for Content panel
+          title={title}
+          setTitle={setTitle}
+          description={description}
+          setDescription={setDescription}
+          instructorName={instructorName}
+          setInstructorName={setInstructorName}
+          instructorBio={instructorBio}
+          setInstructorBio={setInstructorBio}
+          trailerUrl={trailerUrl}
+          setTrailerUrl={setTrailerUrl}
+          thumbnailUrl={thumbnailUrl}
+          thumbnailPosition={thumbnailPosition}
+          setThumbnailPosition={setThumbnailPosition}
+          uploading={uploadThumbnail.isPending}
+          onPickThumbnail={() => thumbnailInputRef.current?.click()}
+        />
+        <input
+          ref={thumbnailInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="hidden"
+          onChange={handleThumbnailUpload}
+        />
+      </div>
+    </LandingEditorProvider>
+  )
+}
+
+// ─── Sub-toolbar (mode / device / save) ─────────────────────────────────────
+
+function SubToolbar({
+  mode,
+  onMode,
+  device,
+  onDevice,
+  dirty,
+  isSaving,
+  onSave,
+  onReset,
+}: {
+  mode: EditorMode
+  onMode: (m: EditorMode) => void
+  device: DeviceMode
+  onDevice: (d: DeviceMode) => void
+  dirty: boolean
+  isSaving: boolean
+  onSave: () => void
+  onReset: () => void
+}) {
+  return (
+    <div className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-gray-200 bg-white px-4">
+      {/* Left: mode toggle */}
+      <div className="flex items-center gap-1 rounded-full bg-gray-100 p-0.5">
+        <button
+          type="button"
+          onClick={() => onMode('edit')}
+          className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+            mode === 'edit'
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <EditOutlined sx={{ fontSize: 13 }} />
+          Edit
+        </button>
+        <button
+          type="button"
+          onClick={() => onMode('preview')}
+          className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+            mode === 'preview'
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <VisibilityOutlined sx={{ fontSize: 13 }} />
+          Preview
+        </button>
       </div>
 
-      {/* ── Right: live preview ───────────────────────────────────── */}
-      <div className="flex flex-1 flex-col bg-gray-950">
-        {/* Preview header */}
-        <div className="flex h-10 shrink-0 items-center border-b border-white/8 px-5">
-          <span className="text-xs font-medium text-white/40 tracking-wide uppercase">
-            Landing page preview
-          </span>
-        </div>
+      {/* Center: device toggle */}
+      <div className="flex items-center gap-0.5 rounded-lg border border-gray-200 bg-white p-0.5">
+        {(
+          [
+            ['desktop', DesktopWindowsOutlined],
+            ['tablet', TabletMacOutlined],
+            ['mobile', PhoneIphoneOutlined],
+          ] as const
+        ).map(([id, Icon]) => (
+          <button
+            type="button"
+            key={id}
+            onClick={() => onDevice(id)}
+            title={id}
+            className={`flex h-7 w-8 items-center justify-center rounded-md transition-colors ${
+              device === id
+                ? 'bg-gray-900 text-white'
+                : 'text-gray-500 hover:bg-gray-100'
+            }`}
+          >
+            <Icon sx={{ fontSize: 15 }} />
+          </button>
+        ))}
+      </div>
 
-        {/* Hero preview fills remaining space */}
-        <div className="relative flex-1 overflow-hidden">
-          <HeroPreview
-            title={title}
-            description={description}
-            instructorName={instructorName}
-            instructorNameItalic={nameItalic}
-            instructorNameBold={nameBold}
-            instructorNameUppercase={nameUppercase}
-            thumbnailUrl={thumbnailUrl}
-            thumbnailObjectPosition={thumbnailPosition}
-            trailerUrl={trailerUrl.trim() || null}
-          />
-        </div>
+      {/* Right: save / reset */}
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={onReset}
+          disabled={!dirty || isSaving}
+          className="flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium text-gray-500 transition-colors hover:bg-gray-100 disabled:opacity-40"
+        >
+          <RestartAltOutlined sx={{ fontSize: 14 }} />
+          Reset
+        </button>
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={!dirty || isSaving}
+          className="rounded-full bg-gray-900 px-4 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-gray-800 disabled:opacity-40"
+        >
+          {isSaving ? 'Saving…' : 'Save changes'}
+        </button>
       </div>
     </div>
   )
 }
+
+// ─── Left rail ──────────────────────────────────────────────────────────────
+
+function LeftRail({
+  panel,
+  onPanel,
+  mode,
+}: {
+  panel: PanelId
+  onPanel: (p: PanelId) => void
+  mode: EditorMode
+}) {
+  if (mode === 'preview') {
+    return (
+      <div className="flex w-14 shrink-0 flex-col items-center gap-2 border-r border-gray-200 bg-white py-3">
+        <div
+          className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-400"
+          title="Preview mode — switch to Edit to use panels"
+        >
+          <VisibilityOutlined sx={{ fontSize: 16 }} />
+        </div>
+      </div>
+    )
+  }
+  const items: {
+    id: PanelId
+    label: string
+    Icon: typeof EditOutlined
+  }[] = [
+    { id: 'design', label: 'Design', Icon: AutoAwesomeOutlined },
+    { id: 'content', label: 'Content', Icon: TextFieldsOutlined },
+    { id: 'media', label: 'Media', Icon: ImageOutlined },
+    { id: 'sections', label: 'Sections', Icon: ViewQuiltOutlined },
+    { id: 'ai', label: 'AI', Icon: AutoAwesomeOutlined },
+  ]
+  return (
+    <div className="flex w-16 shrink-0 flex-col items-center gap-1 border-r border-gray-200 bg-white py-3">
+      {items.map(({ id, label, Icon }) => {
+        const on = panel === id
+        return (
+          <button
+            type="button"
+            key={id}
+            onClick={() => onPanel(id)}
+            className={`flex w-12 flex-col items-center gap-1 rounded-lg py-2 transition-colors ${
+              on
+                ? 'bg-blue-50 text-blue-600'
+                : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+            }`}
+          >
+            <Icon sx={{ fontSize: 18 }} />
+            <span className="text-[10px] font-medium tracking-wide">
+              {label}
+            </span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+// ─── Live canvas: re-uses public landing components with the draft applied ──
+
+function CanvasPreview({
+  course,
+  draft,
+  title,
+  description,
+  instructorName,
+  instructorBio,
+  trailerUrl,
+  thumbnailUrl,
+  thumbnailPosition,
+  device,
+}: {
+  course: CourseRead
+  draft: LandingConfig
+  title: string
+  description: string
+  instructorName: string
+  instructorBio: string
+  trailerUrl: string
+  thumbnailUrl: string | null
+  thumbnailPosition: string | null
+  device: DeviceMode
+}) {
+  const { humanDescription, landing } = useMemo(
+    () => splitLanding(description),
+    [description],
+  )
+
+  // If there's no AI landing payload yet, fall back to a minimal shape so the
+  // sections still render (they all guard against empty fields).
+  const landingPayload: StoredLanding = landing ?? {
+    eyebrow: 'SPAIRE ORIGINAL',
+    series_label: 'NEW SERIES',
+    tagline: '',
+    description: humanDescription ?? '',
+    level: 'All levels',
+  }
+
+  const flatLessons = useMemo(
+    () =>
+      course.modules.flatMap((m) =>
+        m.lessons.map((l) => ({
+          id: l.id,
+          title: l.title,
+          content_type: l.content_type,
+          duration_seconds: l.duration_seconds,
+          is_free_preview: l.is_free_preview,
+          published: l.published,
+          thumbnail_url: l.thumbnail_url,
+          mux_playback_id: l.mux_playback_id ?? null,
+          locked: false,
+          completed: false,
+        })),
+      ),
+    [course.modules],
+  )
+
+  const heroMedia = mediaValue(draft, 'hero.backdrop')
+  const trailerMedia = mediaValue(draft, 'trailer.video')
+  const finalCtaMedia = mediaValue(draft, 'finalCta.backdrop')
+
+  const effectiveHeroImage =
+    heroMedia?.kind === 'image' ? heroMedia.url : thumbnailUrl
+  const effectiveHeroVideo =
+    heroMedia?.kind === 'video' ? heroMedia.url : null
+  const effectiveTrailer = trailerMedia?.url ?? trailerUrl
+
+  const totalDurationSeconds = flatLessons.reduce(
+    (acc, l) => acc + (l.duration_seconds ?? 0),
+    0,
+  )
+
+  const pricing = {
+    paywallEnabled: course.paywall_enabled,
+    priceCents: 0,
+    freePreviewLessons: course.paywall_position ?? 0,
+  }
+
+  const outline = {
+    modules: [
+      {
+        title: title || 'Course',
+        lessons: flatLessons.map((l) => ({
+          title: l.title,
+          content_type:
+            l.content_type === 'video' ? ('video' as const) : ('text' as const),
+        })),
+      },
+    ],
+  }
+
+  const visible = (id: LandingSectionId) => isSectionVisible(draft, id)
+
+  const wrapperStyle: React.CSSProperties = {
+    ...themeStyle(draft),
+    fontFamily: "'Poppins', system-ui, sans-serif",
+    // Hint to responsive rules in our preview when shrunk to tablet/mobile.
+    minHeight: 600,
+  }
+
+  return (
+    <div style={wrapperStyle} data-device={device}>
+      {visible('hero') && (
+        <CanvasHero
+          title={textValue(draft, 'hero.title', title || 'Course title')}
+          tagline={textValue(
+            draft,
+            'hero.tagline',
+            landingPayload.tagline ?? '',
+          )}
+          eyebrow={textValue(
+            draft,
+            'hero.eyebrow',
+            landingPayload.eyebrow ?? 'SPAIRE ORIGINAL',
+          )}
+          seriesLabel={textValue(
+            draft,
+            'hero.series_label',
+            landingPayload.series_label ?? 'NEW SERIES',
+          )}
+          level={textValue(
+            draft,
+            'hero.level',
+            landingPayload.level ?? 'All levels',
+          )}
+          instructorName={instructorName || 'Instructor'}
+          thumbnailUrl={effectiveHeroImage}
+          thumbnailPosition={thumbnailPosition}
+          heroVideoUrl={effectiveHeroVideo}
+          totalDurationSeconds={totalDurationSeconds}
+          lessonCount={flatLessons.length}
+          paywallEnabled={course.paywall_enabled}
+          hasTrailer={!!effectiveTrailer}
+        />
+      )}
+      {visible('trailer') && effectiveTrailer && (
+        <TrailerBlock
+          trailerUrl={effectiveTrailer}
+          thumbnailUrl={effectiveHeroImage}
+          thumbPosition={thumbnailPosition}
+          onReplaceTrailer={() => {}}
+        />
+      )}
+      {visible('value') && <ValueStrip landing={landingPayload} />}
+      {visible('curriculum') && (
+        <CurriculumTimeline outline={outline} landing={landingPayload} />
+      )}
+      {visible('lessons') && (
+        <FullLessonList
+          outline={outline}
+          pricing={pricing}
+          landing={landingPayload}
+        />
+      )}
+      {visible('instructor') && (
+        <InstructorBlock
+          instructor={{
+            name: instructorName || 'Instructor',
+            bio: instructorBio,
+          }}
+          draft={{
+            name: instructorName,
+            courseTitle: title,
+            desc: humanDescription ?? '',
+            nameItalic: false,
+            nameBold: true,
+            nameUppercase: true,
+          }}
+          landing={landingPayload}
+          portraitUrl={mediaValue(draft, 'instructor.portrait')?.url ?? null}
+        />
+      )}
+      {visible('reviews') && <Reviews landing={landingPayload} />}
+      {visible('finalCta') && (
+        <FinalCta
+          landing={landingPayload}
+          pricing={pricing}
+          onCreate={() => {}}
+          backdropUrl={finalCtaMedia?.url ?? null}
+        />
+      )}
+    </div>
+  )
+}
+
+function CanvasHero({
+  title,
+  tagline,
+  eyebrow,
+  seriesLabel,
+  level,
+  instructorName,
+  thumbnailUrl,
+  thumbnailPosition,
+  heroVideoUrl,
+  totalDurationSeconds,
+  lessonCount,
+  paywallEnabled,
+  hasTrailer,
+}: {
+  title: string
+  tagline: string
+  eyebrow: string
+  seriesLabel: string
+  level: string
+  instructorName: string
+  thumbnailUrl: string | null
+  thumbnailPosition: string | null
+  heroVideoUrl: string | null
+  totalDurationSeconds: number
+  lessonCount: number
+  paywallEnabled: boolean
+  hasTrailer: boolean
+}) {
+  const fmtDuration = (s: number) => {
+    const h = Math.floor(s / 3600)
+    const m = Math.floor((s % 3600) / 60)
+    return h > 0 ? `${h} hr ${m} min` : `${m} min`
+  }
+  const FONT = "'Poppins', system-ui, sans-serif"
+  return (
+    <section
+      style={{
+        position: 'relative',
+        height: 'min(82vh, 680px)',
+        minHeight: 520,
+        margin: '20px 20px 0',
+        borderRadius: 24,
+        overflow: 'hidden',
+        background: '#000',
+        isolation: 'isolate',
+        fontFamily: FONT,
+      }}
+    >
+      <div style={{ position: 'absolute', inset: 0 }}>
+        {heroVideoUrl ? (
+          <video
+            key={heroVideoUrl}
+            src={heroVideoUrl}
+            autoPlay
+            muted
+            loop
+            playsInline
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+            }}
+          />
+        ) : thumbnailUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={thumbnailUrl}
+            alt=""
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              objectPosition: thumbnailPosition ?? 'center',
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background:
+                'radial-gradient(ellipse at 25% 35%, oklch(0.42 0.12 35) 0%, oklch(0.18 0.05 280) 55%, oklch(0.08 0.02 280) 100%)',
+            }}
+          />
+        )}
+      </div>
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background:
+            'linear-gradient(180deg, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,0) 50%, rgba(0,0,0,0.6) 80%, rgba(0,0,0,0.88) 100%)',
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          left: 32,
+          top: 28,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          fontSize: 11,
+          letterSpacing: '0.18em',
+          fontWeight: 600,
+          color: 'rgba(255,255,255,0.85)',
+        }}
+      >
+        <span
+          style={{
+            width: 6,
+            height: 6,
+            borderRadius: '50%',
+            background: 'oklch(0.78 0.16 25)',
+            boxShadow: '0 0 12px oklch(0.78 0.16 25)',
+          }}
+        />
+        {eyebrow}
+      </div>
+      <div
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          padding: '40px 48px 44px',
+          color: 'white',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            marginBottom: 18,
+            fontSize: 12,
+            color: 'rgba(255,255,255,0.7)',
+            fontWeight: 500,
+          }}
+        >
+          <span
+            style={{
+              padding: '4px 10px',
+              background: 'rgba(255,255,255,0.15)',
+              borderRadius: 999,
+              border: '1px solid rgba(255,255,255,0.2)',
+              fontSize: 10,
+              letterSpacing: '0.12em',
+              fontWeight: 600,
+              color: 'white',
+            }}
+          >
+            {seriesLabel}
+          </span>
+          <span style={{ color: 'rgba(255,255,255,0.65)' }}>
+            {lessonCount} lessons
+          </span>
+          <span style={{ color: 'rgba(255,255,255,0.5)' }}>·</span>
+          <span style={{ color: 'rgba(255,255,255,0.65)' }}>
+            {totalDurationSeconds > 0
+              ? fmtDuration(totalDurationSeconds)
+              : '—'}
+          </span>
+          <span style={{ color: 'rgba(255,255,255,0.5)' }}>·</span>
+          <span style={{ color: 'rgba(255,255,255,0.65)' }}>{level}</span>
+        </div>
+        <h1
+          style={{
+            fontSize: 'clamp(38px, 6vw, 76px)',
+            fontWeight: 700,
+            letterSpacing: '-0.04em',
+            lineHeight: 0.96,
+            margin: '0 0 18px',
+            color: 'white',
+            maxWidth: '14ch',
+            textShadow: '0 2px 30px rgba(0,0,0,0.4)',
+          }}
+        >
+          {title}
+        </h1>
+        {(tagline || instructorName) && (
+          <div
+            style={{
+              fontSize: 'clamp(14px, 1.3vw, 17px)',
+              fontWeight: 400,
+              color: 'rgba(255,255,255,0.92)',
+              maxWidth: 600,
+              marginBottom: 28,
+              lineHeight: 1.4,
+            }}
+          >
+            {tagline}{' '}
+            {instructorName && (
+              <span style={{ color: 'rgba(255,255,255,0.55)' }}>
+                — with {instructorName}
+              </span>
+            )}
+          </div>
+        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button
+            type="button"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              padding: '12px 22px 12px 14px',
+              background: 'white',
+              color: 'oklch(0.18 0.008 280)',
+              borderRadius: 999,
+              border: 'none',
+              cursor: 'pointer',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+            }}
+          >
+            <span
+              style={{
+                width: 26,
+                height: 26,
+                borderRadius: '50%',
+                background: 'oklch(0.18 0.008 280)',
+                color: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                paddingLeft: 2,
+              }}
+            >
+              ▶
+            </span>
+            <span style={{ fontSize: 14, fontWeight: 600 }}>
+              {paywallEnabled ? 'Enroll' : 'Start free'}
+            </span>
+          </button>
+          {hasTrailer && (
+            <button
+              type="button"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '13px 20px',
+                background: 'rgba(255,255,255,0.10)',
+                border: '1px solid rgba(255,255,255,0.18)',
+                color: 'white',
+                borderRadius: 999,
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              Watch trailer
+            </button>
+          )}
+        </div>
+      </div>
+    </section>
+  )
+}
+

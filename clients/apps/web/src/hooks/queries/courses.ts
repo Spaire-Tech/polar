@@ -107,9 +107,54 @@ export type CourseRead = {
   instructor_name_italic: boolean
   instructor_name_bold: boolean
   instructor_name_uppercase: boolean
+  landing_config: LandingConfig | null
   modules: CourseModuleRead[]
   created_at: string
   modified_at: string | null
+}
+
+// ── Landing customization config ─────────────────────────────────────────
+//
+// Persisted as JSONB on the course. Drives the design/content/media/sections
+// overrides used by the dashboard editor and the public landing page.
+
+export type LandingTheme = {
+  fontHeading?: string
+  fontBody?: string
+  accentId?: string
+  surfaceId?: string
+  typeScale?: number
+  headingWeight?: number
+  bodyWeight?: number
+  headingItalic?: boolean
+  headingAlign?: 'left' | 'center' | 'right'
+  headingTracking?: number
+  headingLeading?: number
+  density?: 'compact' | 'comfortable' | 'spacious'
+  cornerStyle?: 'sharp' | 'rounded' | 'pill'
+}
+
+export type LandingMedia = {
+  kind: 'image' | 'video'
+  url: string
+  name?: string | null
+} | null
+
+export type LandingSectionId =
+  | 'hero'
+  | 'value'
+  | 'trailer'
+  | 'curriculum'
+  | 'lessons'
+  | 'instructor'
+  | 'reviews'
+  | 'finalCta'
+
+export type LandingConfig = {
+  theme?: LandingTheme | null
+  text?: Record<string, string> | null
+  media?: Record<string, LandingMedia> | null
+  visible?: Partial<Record<LandingSectionId, boolean>> | null
 }
 
 async function courseApiFetch<T>(
@@ -187,6 +232,7 @@ export const useCreateCourse = () =>
       instructor_name_italic?: boolean
       instructor_name_bold?: boolean
       instructor_name_uppercase?: boolean
+      landing_config?: LandingConfig | null
       modules: {
         title: string
         description?: string | null
@@ -226,6 +272,7 @@ export const useUpdateCourse = () =>
         instructor_name_italic?: boolean
         instructor_name_bold?: boolean
         instructor_name_uppercase?: boolean
+        landing_config?: LandingConfig | null
       }
     }) =>
       courseApiFetch<CourseRead>(`/v1/courses/${courseId}`, {
@@ -456,6 +503,7 @@ export type CustomerCourseDetail = {
     instructor_name_italic?: boolean
     instructor_name_bold?: boolean
     instructor_name_uppercase?: boolean
+    landing_config?: LandingConfig | null
     course_type: string
     paywall_enabled: boolean
     paywall_position: number | null
@@ -493,6 +541,7 @@ export type CourseLandingPageData = {
   instructor_name_italic?: boolean
   instructor_name_bold?: boolean
   instructor_name_uppercase?: boolean
+  landing_config?: LandingConfig | null
   course_type: string
   lesson_count: number
   total_duration_seconds: number

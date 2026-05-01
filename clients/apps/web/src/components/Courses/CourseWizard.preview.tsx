@@ -1467,10 +1467,12 @@ export function InstructorBlock({
   instructor,
   draft,
   landing,
+  portraitUrl = null,
 }: {
   instructor: { name: string; bio: string }
   draft: DraftState
   landing: PartialLanding
+  portraitUrl?: string | null
 }) {
   const name = draft.name || instructor.name || 'Your name'
   const bio = instructor.bio
@@ -1513,6 +1515,21 @@ export function InstructorBlock({
                 'linear-gradient(160deg, oklch(0.45 0.10 35), oklch(0.20 0.05 65))',
             }}
           >
+            {portraitUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={portraitUrl}
+                alt={name}
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  zIndex: 1,
+                }}
+              />
+            )}
             <div
               style={{
                 position: 'absolute',
@@ -1746,10 +1763,12 @@ export function FinalCta({
   landing,
   pricing,
   onCreate,
+  backdropUrl = null,
 }: {
   landing: PartialLanding
   pricing: PricingState
   onCreate: () => void
+  backdropUrl?: string | null
 }) {
   const label = landing.final_cta_label ?? 'READY WHEN YOU ARE'
   const titleRaw = landing.final_cta_title ?? ''
@@ -1774,6 +1793,33 @@ export function FinalCta({
         fontFamily: FONT,
       }}
     >
+      {backdropUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={backdropUrl}
+          alt=""
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            zIndex: 0,
+            opacity: 0.85,
+          }}
+        />
+      ) : null}
+      {backdropUrl && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background:
+              'linear-gradient(180deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.55) 100%)',
+            zIndex: 0,
+          }}
+        />
+      )}
       <div
         style={{
           position: 'absolute',

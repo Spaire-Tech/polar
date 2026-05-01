@@ -73,6 +73,7 @@ class CourseService:
             instructor_name_italic=create_schema.instructor_name_italic,
             instructor_name_bold=create_schema.instructor_name_bold,
             instructor_name_uppercase=create_schema.instructor_name_uppercase,
+            landing_config=create_schema.landing_config,
         )
 
         # Use provided modules or create implicit "Lessons" module
