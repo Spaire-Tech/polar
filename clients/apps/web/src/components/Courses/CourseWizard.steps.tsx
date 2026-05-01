@@ -629,7 +629,7 @@ export function StepInstructor({
   return (
     <StepShell
       step={1}
-      total={4}
+      total={3}
       title="Instructor details"
       onNext={onNext}
       onBack={onBack}
@@ -685,7 +685,7 @@ export function StepCourse({
   return (
     <StepShell
       step={2}
-      total={4}
+      total={3}
       title="Course details"
       onNext={onNext}
       onBack={onBack}
@@ -935,44 +935,16 @@ export function StepMedia({
 }
 
 
-// ─── Step 4: Product Media (canonical) ───────────────────────────────────────
+// ─── Step 3: Pricing & access (canonical) ────────────────────────────────────
 //
-// Mounts the same ProductMediaSection used by the regular product create/edit
-// flow. Files land on form.full_medias and become real product_media records,
-// surfaced in checkout / emails / social — same backend pipeline as products.
-
-export function StepProductMediaWizard({
-  organization,
-  onNext,
-  onBack,
-  onClose,
-}: {
-  organization: schemas['Organization']
-  onNext: () => void
-  onBack: () => void
-  onClose: () => void
-}) {
-  return (
-    <StepShell
-      step={3}
-      total={4}
-      onNext={onNext}
-      onBack={onBack}
-      onClose={onClose}
-      wide
-    >
-      <ProductMediaSection organization={organization} />
-    </StepShell>
-  )
-}
-
-// ─── Step 5: Pricing & access (canonical) ────────────────────────────────────
-//
-// The pricing controls themselves are the canonical ProductPricingSection used
-// in the regular product create/edit flow — same UI, same currency tabs, same
-// validation. We hide "Pay what you want" and "Per seat" via allowedAmountTypes
-// since they don't make sense for a course. Below the section we keep the
-// course-specific paywall toggle + free preview lessons count.
+// Mounts the same ProductMediaSection and ProductPricingSection used by the
+// regular product create/edit form. Media uploads land on form.full_medias
+// (real product_media records — surfaced in checkout / emails / social).
+// Pricing controls match the canonical UI, including currency tabs +
+// "Add Currency". We hide "Pay what you want" and "Per seat" via
+// allowedAmountTypes since they don't make sense for a course. Below the
+// section we keep the course-specific paywall toggle + free preview lessons
+// count.
 
 export type WizardPaywallState = {
   paywallEnabled: boolean
@@ -996,14 +968,15 @@ export function StepPricingWizard({
 }) {
   return (
     <StepShell
-      step={4}
-      total={4}
+      step={3}
+      total={3}
       nextLabel="Generate outline"
       onNext={onNext}
       onBack={onBack}
       onClose={onClose}
       wide
     >
+      <ProductMediaSection organization={organization} />
       <ProductPricingSection
         organization={organization}
         compact

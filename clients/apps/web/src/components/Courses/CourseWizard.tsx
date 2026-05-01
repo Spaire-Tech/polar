@@ -28,7 +28,6 @@ import {
   StepCourse,
   StepInstructor,
   StepPricingWizard,
-  StepProductMediaWizard,
   type WizardPaywallState,
 } from './CourseWizard.steps'
 import { landingSchema, outlineSchema } from './schemas'
@@ -37,7 +36,6 @@ type WizardStep =
   | 'intro'
   | 'instructor'
   | 'course'
-  | 'media'
   | 'pricing'
   | 'generating-outline'
   | 'outline'
@@ -497,17 +495,9 @@ export default function CourseWizard({
               onChange={setCourse}
               onNext={() => {
                 seedDraftFromInputs()
-                setScreen('media')
+                setScreen('pricing')
               }}
               onBack={() => setScreen('instructor')}
-              onClose={handleClose}
-            />
-          )}
-          {screen === 'media' && (
-            <StepProductMediaWizard
-              organization={organization}
-              onNext={() => setScreen('pricing')}
-              onBack={() => setScreen('course')}
               onClose={handleClose}
             />
           )}
@@ -517,7 +507,7 @@ export default function CourseWizard({
               paywall={paywall}
               onPaywallChange={setPaywall}
               onNext={startOutlineGeneration}
-              onBack={() => setScreen('media')}
+              onBack={() => setScreen('course')}
               onClose={handleClose}
             />
           )}
