@@ -866,25 +866,9 @@ export function StepPricing({
                   ? `Replace · ${data.videoName}`
                   : 'Upload trailer video'}
             </span>
-            <input
-              className="so-input"
-              type="number" min={1} max={12} step={1}
-              value={data.intervalCount}
-              onChange={(e) => set({ intervalCount: Math.max(1, parseInt(e.target.value) || 1) })}
-              style={{ width: 72, textAlign: 'center', padding: '11px 12px' }}
-            />
-            <div style={{ display: 'flex', gap: 6, flex: 1 }}>
-              {(['month', 'year'] as const).map((iv) => (
-                <button key={iv} type="button"
-                  onClick={() => set({ interval: iv })}
-                  style={pillBtn(data.interval === iv)}>
-                  {iv === 'month' ? 'Month' : 'Year'}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+          </label>
+        )}
+      </div>
 
       {/* Pricing model */}
       <div className="so-label" style={{ marginBottom: 8 }}>Pricing model</div>
