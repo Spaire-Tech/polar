@@ -176,6 +176,7 @@ export const useCreateCourse = () =>
       title?: string | null
       course_type?: string
       paywall_enabled?: boolean
+      paywall_position?: number | null
       ai_generated?: boolean
       description?: string | null
       thumbnail_url?: string | null
@@ -432,6 +433,12 @@ export type CustomerCourseProgress = {
   completed: Record<string, string>
 }
 
+export type CoursePrice = {
+  amount_type: 'free' | 'fixed' | 'custom' | string
+  price_amount: number | null
+  price_currency: string | null
+}
+
 export type CustomerCourseDetail = {
   enrollment_id: string
   enrolled_at: string
@@ -452,6 +459,7 @@ export type CustomerCourseDetail = {
     course_type: string
     paywall_enabled: boolean
     paywall_position: number | null
+    price?: CoursePrice | null
     modules: CustomerModuleRead[]
     lessons?: CustomerLessonRead[]
   }

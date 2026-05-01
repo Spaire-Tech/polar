@@ -1,6 +1,5 @@
 'use client'
 
-import { Upload } from '@/components/FileUpload/Upload'
 import { useCreateCourse } from '@/hooks/queries/courses'
 import { useCreateProduct } from '@/hooks/queries/products'
 import { ProductEditOrCreateForm } from '@/utils/product'
@@ -16,10 +15,11 @@ import { LandingPreview } from './CourseWizard.preview'
 import { CreatingScreen, GeneratingScreen } from './CourseWizard.status'
 import {
   Intro,
+  PricingState,
   SpaireOnboardingStyles,
   StepCourse,
   StepInstructor,
-  StepMedia,
+  StepPricing,
 } from './CourseWizard.steps'
 import { outlineSchema } from './schemas'
 
@@ -27,7 +27,7 @@ type WizardStep =
   | 'intro'
   | 'instructor'
   | 'course'
-  | 'media'
+  | 'pricing'
   | 'preview'
   | 'generating'
   | 'outline'
@@ -35,14 +35,6 @@ type WizardStep =
 
 type InstructorState = { name: string; bio: string }
 type CourseState = { title: string; desc: string }
-type MediaFormat = 'thumbnail' | 'trailer' | null
-type MediaState = {
-  format: MediaFormat
-  thumbFile: File | null
-  thumbName: string
-  videoFile: File | null
-  videoName: string
-}
 type DraftState = {
   name: string
   courseTitle: string
@@ -58,30 +50,6 @@ type PartialModule = {
   lessons?: { title?: string; content_type?: 'text' | 'video' }[]
 }
 type PartialOutline = { modules?: PartialModule[] }
-
-function uploadCourseThumbnail(
-  organization: schemas['Organization'],
-  file: File,
-): Promise<string | null> {
-  return new Promise((resolve) => {
-    const upload = new Upload({
-      organization,
-      service: 'organization_avatar',
-      file,
-      onFileProcessing: () => {},
-      onFileCreate: () => {},
-      onFileUploadProgress: () => {},
-      onFileUploaded: (response) => {
-        resolve(
-          (response as schemas['OrganizationAvatarFileRead']).public_url ??
-            null,
-        )
-      },
-      onFileError: () => resolve(null),
-    })
-    upload.run()
-  })
-}
 
 // ─── Main wizard ─────────────────────────────────────────────────────────────
 
@@ -100,12 +68,15 @@ export default function CourseWizard({
     bio: '',
   })
   const [course, setCourse] = useState<CourseState>({ title: '', desc: '' })
-  const [media, setMedia] = useState<MediaState>({
-    format: null,
-    thumbFile: null,
-    thumbName: '',
-    videoFile: null,
-    videoName: '',
+  const [pricing, setPricing] = useState<PricingState>({
+    billing: 'one-time',
+    model: 'fixed',
+    amount: '',
+    interval: 'month',
+    intervalCount: 1,
+    paywallOn: false,
+    paywallPos: 0,
+    totalLessons: 20,
   })
   const [draft, setDraft] = useState<DraftState>({
     name: '',
@@ -117,7 +88,6 @@ export default function CourseWizard({
   })
   const [editOpen, setEditOpen] = useState(false)
   const [generateError, setGenerateError] = useState<string | null>(null)
-  const [thumbPosition, setThumbPosition] = useState<string | null>(null)
 
   const form = useForm<ProductEditOrCreateForm>({
     defaultValues: {
@@ -161,11 +131,20 @@ export default function CourseWizard({
   const startGeneration = async () => {
     setGenerateError(null)
 
-    // Upload thumbnail before generation if needed
-    let thumbnailUrl: string | null = null
-    if (media.thumbFile) {
-      thumbnailUrl = await uploadCourseThumbnail(organization, media.thumbFile)
+    // Set product prices based on pricing step
+    if (pricing.model === 'free') {
+      form.setValue('prices', [{ amount_type: 'free' } as any])
+      form.setValue('recurring_interval', null)
+    } else {
+      const priceAmount = Math.round(parseFloat(pricing.amount || '0') * 100)
+      form.setValue('prices', [{
+        amount_type: 'fixed',
+        price_amount: priceAmount,
+        price_currency: 'usd',
+      } as any])
+      form.setValue('recurring_interval', pricing.billing === 'recurring' ? pricing.interval as any : null)
     }
+
     form.setValue('name', draft.courseTitle || course.title)
     form.setValue('description', draft.desc || course.desc)
 
@@ -175,13 +154,7 @@ export default function CourseWizard({
       description: draft.desc || course.desc || '',
       targetAudience: '',
     })
-    // Stash thumbnail URL via state for finalize
-    setUploadedThumbnailUrl(thumbnailUrl)
   }
-
-  const [uploadedThumbnailUrl, setUploadedThumbnailUrl] = useState<
-    string | null
-  >(null)
 
   const finalizeCourse = async () => {
     const outline = partialOutline as PartialOutline | undefined
@@ -214,11 +187,12 @@ export default function CourseWizard({
         organization_id: organization.id,
         title: draft.courseTitle || course.title || 'Untitled Course',
         course_type: 'evergreen',
-        paywall_enabled: false,
+        paywall_enabled: pricing.paywallOn,
+        paywall_position: pricing.paywallOn ? pricing.paywallPos : null,
         ai_generated: true,
         description: draft.desc || course.desc || null,
-        thumbnail_url: uploadedThumbnailUrl,
-        thumbnail_object_position: thumbPosition,
+        thumbnail_url: null,
+        thumbnail_object_position: null,
         instructor_name: draft.name || instructor.name || null,
         instructor_bio: instructor.bio || null,
         instructor_name_italic: draft.nameItalic,
@@ -304,15 +278,15 @@ export default function CourseWizard({
             <StepCourse
               data={course}
               onChange={setCourse}
-              onNext={() => setScreen('media')}
+              onNext={() => setScreen('pricing')}
               onBack={() => setScreen('instructor')}
               onClose={handleClose}
             />
           )}
-          {screen === 'media' && (
-            <StepMedia
-              data={media}
-              onChange={setMedia}
+          {screen === 'pricing' && (
+            <StepPricing
+              data={pricing}
+              onChange={setPricing}
               onNext={goPreview}
               onBack={() => setScreen('course')}
               onClose={handleClose}
@@ -322,15 +296,13 @@ export default function CourseWizard({
             <LandingPreview
               instructor={instructor}
               course={course}
-              media={media}
+              pricing={pricing}
               draft={draft}
               setDraft={setDraft}
-              thumbPosition={thumbPosition}
-              onThumbPositionChange={setThumbPosition}
               editOpen={editOpen}
               setEditOpen={setEditOpen}
               onGenerate={startGeneration}
-              onBack={() => setScreen('media')}
+              onBack={() => setScreen('pricing')}
               onClose={handleClose}
               error={generateError}
             />

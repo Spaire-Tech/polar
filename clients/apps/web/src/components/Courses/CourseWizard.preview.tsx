@@ -1,8 +1,7 @@
 'use client'
 
-import CloseIcon from '@mui/icons-material/Close'
-import { useEffect, useState } from 'react'
-import { ThumbnailPositioner } from './editor/ThumbnailPositioner'
+import { HeroPreview } from './editor/CustomizeTab'
+import { PricingState } from './CourseWizard.steps'
 
 type DraftState = {
   name: string
@@ -13,267 +12,74 @@ type DraftState = {
   nameUppercase: boolean
 }
 
-type MediaState = {
-  format: 'thumbnail' | 'trailer' | null
-  thumbFile: File | null
-  videoFile: File | null
-  thumbName: string
-  videoName: string
-}
+// ─── Field primitives ─────────────────────────────────────────────────────────
 
-function EditPanel({
-  open,
-  draft,
-  setDraft,
-  thumbBlobUrl,
-  thumbPosition,
-  onThumbPositionChange,
-  onClose,
-}: {
-  open: boolean
-  draft: DraftState
-  setDraft: (updater: (prev: DraftState) => DraftState) => void
-  thumbBlobUrl: string | null
-  thumbPosition: string | null
-  onThumbPositionChange: (v: string | null) => void
-  onClose: () => void
-}) {
-  return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        right: 0,
-        bottom: 0,
-        width: 340,
-        background: 'rgba(12,12,12,0.92)',
-        backdropFilter: 'blur(32px) saturate(160%)',
-        WebkitBackdropFilter: 'blur(32px) saturate(160%)',
-        borderLeft: '1px solid rgba(255,255,255,0.1)',
-        display: 'flex',
-        flexDirection: 'column',
-        zIndex: 300,
-        transform: open ? 'translateX(0)' : 'translateX(100%)',
-        transition: 'transform 0.4s cubic-bezier(0.22,1,0.36,1)',
-        boxShadow: '-12px 0 48px rgba(0,0,0,0.5)',
-      }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '22px 24px 18px',
-          borderBottom: '1px solid rgba(255,255,255,0.08)',
-        }}
-      >
-        <span
-          style={{
-            fontSize: 13,
-            fontWeight: 500,
-            color: 'rgba(242,241,238,0.7)',
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-          }}
-        >
-          Edit page
-        </span>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close edit panel"
-          style={{
-            background: 'none',
-            border: 'none',
-            color: 'rgba(242,241,238,0.4)',
-            width: 28,
-            height: 28,
-            borderRadius: 6,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-          }}
-        >
-          <CloseIcon style={{ fontSize: 18 }} />
-        </button>
-      </div>
-      <div
-        style={{
-          flex: 1,
-          overflowY: 'auto',
-          padding: 24,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 20,
-        }}
-      >
-        {thumbBlobUrl && (
-          <PanelSection label="Thumbnail position">
-            <ThumbnailPositioner
-              src={thumbBlobUrl}
-              value={thumbPosition}
-              onChange={onThumbPositionChange}
-            />
-          </PanelSection>
-        )}
-
-        <PanelSection label="Instructor name">
-          <PanelInput
-            value={draft.name}
-            onChange={(v) => setDraft((d) => ({ ...d, name: v }))}
-          />
-          <div style={{ display: 'flex', gap: 8 }}>
-            <StyleToggle
-              active={draft.nameItalic}
-              onClick={() =>
-                setDraft((d) => ({ ...d, nameItalic: !d.nameItalic }))
-              }
-              label="Italic"
-              italic
-            />
-            <StyleToggle
-              active={draft.nameBold}
-              onClick={() =>
-                setDraft((d) => ({ ...d, nameBold: !d.nameBold }))
-              }
-              label="Bold"
-              bold
-            />
-            <StyleToggle
-              active={draft.nameUppercase}
-              onClick={() =>
-                setDraft((d) => ({
-                  ...d,
-                  nameUppercase: !d.nameUppercase,
-                }))
-              }
-              label="ALL CAPS"
-            />
-          </div>
-        </PanelSection>
-
-        <PanelSection label="Course title">
-          <PanelInput
-            value={draft.courseTitle}
-            onChange={(v) => setDraft((d) => ({ ...d, courseTitle: v }))}
-          />
-        </PanelSection>
-
-        <PanelSection label="Description">
-          <PanelTextarea
-            value={draft.desc}
-            onChange={(v) => setDraft((d) => ({ ...d, desc: v }))}
-          />
-        </PanelSection>
-      </div>
-      <div
-        style={{
-          padding: '20px 24px',
-          borderTop: '1px solid rgba(255,255,255,0.08)',
-        }}
-      >
-        <button
-          type="button"
-          onClick={onClose}
-          style={{
-            width: '100%',
-            padding: 13,
-            background: '#fff',
-            color: '#080808',
-            border: 'none',
-            borderRadius: 100,
-            fontFamily: 'inherit',
-            fontSize: 14,
-            fontWeight: 500,
-            cursor: 'pointer',
-          }}
-        >
-          Save changes
-        </button>
-      </div>
-    </div>
-  )
-}
-
-function PanelSection({
-  label,
+function SectionCard({
+  title,
+  subtitle,
   children,
 }: {
-  label: string
+  title: string
+  subtitle?: string
   children: React.ReactNode
 }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <label
-        style={{
-          fontSize: 11,
-          fontWeight: 500,
-          letterSpacing: '0.09em',
-          textTransform: 'uppercase',
-          color: 'rgba(242,241,238,0.35)',
-        }}
-      >
-        {label}
-      </label>
+    <section className="rounded-2xl border border-gray-200 bg-white p-5">
+      <div className="mb-4">
+        <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
+        {subtitle && <p className="mt-0.5 text-xs text-gray-500">{subtitle}</p>}
+      </div>
       {children}
-    </div>
+    </section>
   )
 }
 
-function PanelInput({
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">
+      {children}
+    </label>
+  )
+}
+
+function TextInput({
   value,
   onChange,
+  placeholder,
 }: {
   value: string
   onChange: (v: string) => void
+  placeholder?: string
 }) {
   return (
     <input
+      type="text"
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      style={{
-        width: '100%',
-        padding: '11px 14px',
-        background: 'rgba(255,255,255,0.06)',
-        border: '1px solid rgba(255,255,255,0.1)',
-        borderRadius: 10,
-        fontFamily: 'inherit',
-        fontSize: 14,
-        fontWeight: 300,
-        color: '#f2f1ee',
-        outline: 'none',
-      }}
+      placeholder={placeholder}
+      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-gray-900 focus:bg-white focus:ring-2 focus:ring-gray-900/8"
     />
   )
 }
 
-function PanelTextarea({
+function TextArea({
   value,
   onChange,
+  placeholder,
+  rows = 3,
 }: {
   value: string
   onChange: (v: string) => void
+  placeholder?: string
+  rows?: number
 }) {
   return (
     <textarea
-      rows={4}
+      rows={rows}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      style={{
-        width: '100%',
-        padding: '11px 14px',
-        background: 'rgba(255,255,255,0.06)',
-        border: '1px solid rgba(255,255,255,0.1)',
-        borderRadius: 10,
-        fontFamily: 'inherit',
-        fontSize: 14,
-        fontWeight: 300,
-        color: '#f2f1ee',
-        outline: 'none',
-        resize: 'none',
-        lineHeight: 1.6,
-      }}
+      placeholder={placeholder}
+      className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm leading-relaxed text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-gray-900 focus:bg-white focus:ring-2 focus:ring-gray-900/8"
     />
   )
 }
@@ -295,18 +101,12 @@ function StyleToggle({
     <button
       type="button"
       onClick={onClick}
+      className={`flex-1 rounded-lg border py-1.5 text-xs transition-all ${
+        active
+          ? 'border-gray-900 bg-gray-900 text-white'
+          : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
+      }`}
       style={{
-        flex: 1,
-        padding: 8,
-        background: active
-          ? 'rgba(255,255,255,0.14)'
-          : 'rgba(255,255,255,0.05)',
-        border: `1px solid ${active ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)'}`,
-        borderRadius: 8,
-        color: active ? '#fff' : 'rgba(242,241,238,0.5)',
-        fontFamily: 'inherit',
-        fontSize: 12,
-        cursor: 'pointer',
         fontStyle: italic ? 'italic' : 'normal',
         fontWeight: bold ? 700 : 400,
       }}
@@ -316,16 +116,14 @@ function StyleToggle({
   )
 }
 
+// ─── Main export ──────────────────────────────────────────────────────────────
+
 export function LandingPreview({
   instructor,
   course,
-  media,
+  pricing,
   draft,
   setDraft,
-  thumbPosition,
-  onThumbPositionChange,
-  editOpen,
-  setEditOpen,
   onGenerate,
   onBack,
   onClose,
@@ -333,11 +131,9 @@ export function LandingPreview({
 }: {
   instructor: { name: string; bio: string }
   course: { title: string; desc: string }
-  media: MediaState
+  pricing: PricingState
   draft: DraftState
   setDraft: (updater: (prev: DraftState) => DraftState) => void
-  thumbPosition: string | null
-  onThumbPositionChange: (v: string | null) => void
   editOpen: boolean
   setEditOpen: (open: boolean) => void
   onGenerate: () => void
@@ -345,349 +141,182 @@ export function LandingPreview({
   onClose: () => void
   error: string | null
 }) {
-  const [bgUrl, setBgUrl] = useState<string | null>(null)
-  const isVideo = media.format === 'trailer' && !!media.videoFile
-  const file = media.format === 'trailer' ? media.videoFile : media.thumbFile
+  const title = draft.courseTitle || course.title
+  const description = draft.desc || course.desc || instructor.bio
+  const instructorName = draft.name || instructor.name
 
-  useEffect(() => {
-    if (!file) {
-      setBgUrl(null)
-      return
-    }
-    const url = URL.createObjectURL(file)
-    setBgUrl(url)
-    return () => URL.revokeObjectURL(url)
-  }, [file])
+  const pricingLabel = pricing.model === 'free'
+    ? 'Free'
+    : pricing.amount
+    ? `$${pricing.amount}`
+    : 'Paid'
 
-  const thumbBlobUrl = media.format === 'thumbnail' && media.thumbFile ? bgUrl : null
-
-  const displayName = draft.name || instructor.name || 'Your Name'
-  const displayCourse = draft.courseTitle || course.title || 'Your Course Title'
-  const displayDesc = draft.desc || course.desc || instructor.bio || ''
+  const pricingSubLabel = pricing.model !== 'free' && pricing.billing === 'recurring'
+    ? `Billed every ${pricing.intervalCount > 1 ? `${pricing.intervalCount} ` : ''}${pricing.interval}${pricing.intervalCount > 1 ? 's' : ''}`
+    : pricing.model === 'free' ? 'Free access' : 'One-time payment'
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: '#000',
-        overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
-        fontFamily: 'var(--font-dm-sans), system-ui, sans-serif',
-      }}
-    >
-      {/* Nav bar */}
-      <div
-        style={{
-          height: 52,
-          background: '#000',
-          borderBottom: '1px solid rgba(255,255,255,0.07)',
-          display: 'flex',
-          alignItems: 'center',
-          paddingLeft: 20,
-          paddingRight: 20,
-          flexShrink: 0,
-          position: 'relative',
-          zIndex: 100,
-        }}
-      >
-        {/* Back + close */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+    <div className="flex h-screen flex-col bg-gray-50" style={{ fontFamily: 'var(--font-dm-sans), system-ui, sans-serif' }}>
+      {/* Top nav */}
+      <div className="flex h-14 shrink-0 items-center justify-between border-b border-gray-200 bg-white px-6">
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={onBack}
-            style={{
-              padding: '6px 14px',
-              borderRadius: 100,
-              border: '1px solid rgba(255,255,255,0.2)',
-              background: 'rgba(255,255,255,0.06)',
-              color: '#fff',
-              fontFamily: 'inherit',
-              fontSize: 13,
-              cursor: 'pointer',
-            }}
+            className="rounded-full border border-gray-200 px-4 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
           >
             ← Back
           </button>
           <button
             type="button"
             onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 text-gray-500 transition-colors hover:bg-gray-50"
             aria-label="Close"
-            style={{
-              width: 30,
-              height: 30,
-              borderRadius: '50%',
-              border: '1px solid rgba(255,255,255,0.2)',
-              background: 'rgba(255,255,255,0.06)',
-              color: '#fff',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
           >
-            <CloseIcon style={{ fontSize: 16 }} />
+            ✕
+          </button>
+        </div>
+        <span className="text-sm font-medium text-gray-500">Preview your landing page</span>
+        <div className="flex items-center gap-2">
+          {error && (
+            <span className="text-xs text-red-500">{error}</span>
+          )}
+          <button
+            type="button"
+            onClick={onGenerate}
+            className="flex items-center gap-2 rounded-full bg-gray-900 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-gray-800"
+          >
+            <svg width="10" height="10" viewBox="0 0 11 11" fill="none">
+              <path d="M3 1.5l6 4-6 4V1.5z" fill="currentColor" />
+            </svg>
+            Generate Course
           </button>
         </div>
       </div>
 
-      {/* Hero body */}
-      <div style={{ position: 'relative', flex: 1, overflow: 'hidden' }}>
-        {/* Background media */}
-        {bgUrl ? (
-          isVideo ? (
-            <video
-              src={bgUrl}
-              autoPlay
-              muted
-              loop
-              playsInline
-              style={{
-                position: 'absolute',
-                inset: 0,
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-              }}
-            />
-          ) : (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={bgUrl}
-              alt=""
-              style={{
-                position: 'absolute',
-                inset: 0,
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                objectPosition: thumbPosition ?? 'center',
-              }}
-            />
-          )
-        ) : (
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              background:
-                'linear-gradient(135deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%)',
-            }}
-          />
-        )}
+      {/* Split panel */}
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        {/* Left: editor */}
+        <div className="flex w-[380px] shrink-0 flex-col overflow-y-auto border-r border-gray-100 bg-gray-50/50">
+          <div className="flex flex-col gap-4 p-6">
+            {/* Course info */}
+            <SectionCard
+              title="Course info"
+              subtitle="Title and description shown on the landing page."
+            >
+              <div className="flex flex-col gap-3">
+                <div>
+                  <FieldLabel>Title</FieldLabel>
+                  <TextInput
+                    value={draft.courseTitle || course.title}
+                    onChange={(v) => setDraft((d) => ({ ...d, courseTitle: v }))}
+                    placeholder="e.g. The YouTube Growth Blueprint"
+                  />
+                </div>
+                <div>
+                  <FieldLabel>Description</FieldLabel>
+                  <TextArea
+                    value={draft.desc || course.desc}
+                    onChange={(v) => setDraft((d) => ({ ...d, desc: v }))}
+                    placeholder="Summarize what students will learn."
+                    rows={3}
+                  />
+                </div>
+              </div>
+            </SectionCard>
 
-        {/* Left gradient vignette */}
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            background:
-              'linear-gradient(to right, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.80) 22%, rgba(0,0,0,0.5) 42%, rgba(0,0,0,0.15) 60%, rgba(0,0,0,0) 100%)',
-          }}
-        />
+            {/* Instructor */}
+            <SectionCard
+              title="Instructor"
+              subtitle="How your name appears on the course hero."
+            >
+              <div className="flex flex-col gap-3">
+                <div>
+                  <FieldLabel>Name</FieldLabel>
+                  <TextInput
+                    value={draft.name || instructor.name}
+                    onChange={(v) => setDraft((d) => ({ ...d, name: v }))}
+                    placeholder="e.g. Alex Rivera"
+                  />
+                </div>
+                <div>
+                  <FieldLabel>Name style</FieldLabel>
+                  <div className="flex gap-2">
+                    <StyleToggle
+                      active={draft.nameItalic}
+                      onClick={() => setDraft((d) => ({ ...d, nameItalic: !d.nameItalic }))}
+                      label="Italic"
+                      italic
+                    />
+                    <StyleToggle
+                      active={draft.nameBold}
+                      onClick={() => setDraft((d) => ({ ...d, nameBold: !d.nameBold }))}
+                      label="Bold"
+                      bold
+                    />
+                    <StyleToggle
+                      active={draft.nameUppercase}
+                      onClick={() => setDraft((d) => ({ ...d, nameUppercase: !d.nameUppercase }))}
+                      label="ALL CAPS"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <FieldLabel>Bio</FieldLabel>
+                  <TextArea
+                    value={instructor.bio}
+                    onChange={() => {}}
+                    placeholder="Your bio from the previous step."
+                    rows={2}
+                  />
+                  <p className="mt-1 text-xs text-gray-400">Edit bio in the Instructor step.</p>
+                </div>
+              </div>
+            </SectionCard>
 
-        {/* Bottom fade to black */}
-        <div
-          style={{
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: '35%',
-            background:
-              'linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 40%, rgba(0,0,0,0) 100%)',
-          }}
-        />
-
-        {/* Content column: lower-left, left-aligned (like MasterClass) */}
-        <div
-          style={{
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            padding: '0 88px 110px',
-            width: 'min(560px, 44vw)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            textAlign: 'center',
-            zIndex: 20,
-          }}
-        >
-          {/* Instructor name */}
-          <div
-            onClick={() => setEditOpen(true)}
-            title="Click to edit"
-            style={{
-              fontFamily: 'var(--font-barlow-condensed), Impact, sans-serif',
-              fontWeight: draft.nameBold ? 800 : 700,
-              fontStyle: draft.nameItalic ? 'italic' : 'normal',
-              fontSize: 'clamp(48px, 4.6vw, 76px)',
-              lineHeight: 0.92,
-              letterSpacing: '0.01em',
-              color: '#fff',
-              textTransform: draft.nameUppercase ? 'uppercase' : 'none',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              textAlign: 'center',
-              width: '100%',
-            }}
-          >
-            {displayName}
+            {/* Pricing (read-only) */}
+            <SectionCard
+              title="Pricing"
+              subtitle="Set in the previous step."
+            >
+              <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+                <div>
+                  <span className="text-sm text-gray-600">Price</span>
+                  <div className="text-xs text-gray-400">{pricingSubLabel}</div>
+                </div>
+                <span className="rounded-full bg-gray-900 px-3 py-1 text-xs font-semibold text-white">
+                  {pricingLabel}
+                </span>
+              </div>
+              <p className="mt-2 text-xs text-gray-400">
+                Go back to change pricing.
+              </p>
+            </SectionCard>
           </div>
+        </div>
 
-          {/* Separator */}
-          <div
-            style={{
-              width: 30,
-              height: 2,
-              background: '#fff',
-              margin: '26px auto 22px',
-              flexShrink: 0,
-            }}
-          />
-
-          {/* Course title */}
-          <div
-            onClick={() => setEditOpen(true)}
-            title="Click to edit"
-            style={{
-              fontFamily: 'var(--font-dm-sans), system-ui, sans-serif',
-              fontSize: 22,
-              fontWeight: 600,
-              color: 'rgba(255,255,255,0.98)',
-              letterSpacing: '-0.005em',
-              marginBottom: 26,
-              cursor: 'pointer',
-              textAlign: 'center',
-            }}
-          >
-            {displayCourse}
+        {/* Right: live preview */}
+        <div className="flex flex-1 flex-col bg-gray-950">
+          <div className="flex h-10 shrink-0 items-center border-b border-white/8 px-5">
+            <span className="text-xs font-medium uppercase tracking-wide text-white/40">
+              Landing page preview
+            </span>
           </div>
-
-          {/* Description */}
-          {displayDesc && (
-            <div
-              onClick={() => setEditOpen(true)}
-              title="Click to edit"
-              style={{
-                fontFamily: 'var(--font-dm-sans), system-ui, sans-serif',
-                fontSize: 15.5,
-                fontWeight: 400,
-                color: 'rgba(255,255,255,0.78)',
-                lineHeight: 1.55,
-                maxWidth: 420,
-                marginBottom: 36,
-                cursor: 'pointer',
-                textAlign: 'center',
-              }}
-            >
-              {displayDesc}
-            </div>
-          )}
-
-          {error && (
-            <div
-              style={{
-                marginBottom: 14,
-                fontSize: 12,
-                color: 'rgba(252,165,165,0.95)',
-                textAlign: 'center',
-              }}
-            >
-              {error}
-            </div>
-          )}
-
-          {/* Buttons */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 8,
-            }}
-          >
-            <button
-              type="button"
-              onClick={onGenerate}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '13px 26px',
-                background: '#fff',
-                color: '#000',
-                border: 'none',
-                borderRadius: 100,
-                fontFamily: 'var(--font-dm-sans), system-ui, sans-serif',
-                fontSize: 15,
-                fontWeight: 500,
-                cursor: 'pointer',
-                letterSpacing: '-0.01em',
-              }}
-            >
-              <svg width="12" height="12" viewBox="0 0 11 11" fill="none">
-                <path d="M3 1.5l6 4-6 4V1.5z" fill="currentColor" />
-              </svg>
-              Generate Course
-            </button>
-            <button
-              type="button"
-              onClick={() => setEditOpen(true)}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '12px 24px',
-                background: 'rgba(30,30,30,0.85)',
-                color: '#fff',
-                border: 'none',
-                borderRadius: 100,
-                fontFamily: 'var(--font-dm-sans), system-ui, sans-serif',
-                fontSize: 15,
-                fontWeight: 500,
-                cursor: 'pointer',
-                backdropFilter: 'blur(12px)',
-                WebkitBackdropFilter: 'blur(12px)',
-              }}
-            >
-              Edit
-            </button>
-            <button
-              type="button"
-              aria-label="Add"
-              style={{
-                width: 42,
-                height: 42,
-                borderRadius: '50%',
-                border: '1.5px solid rgba(255,255,255,0.45)',
-                background: 'transparent',
-                color: '#fff',
-                fontSize: 22,
-                fontWeight: 300,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              +
-            </button>
+          <div className="relative flex-1 overflow-hidden">
+            <HeroPreview
+              title={title}
+              description={description}
+              instructorName={instructorName}
+              instructorNameItalic={draft.nameItalic}
+              instructorNameBold={draft.nameBold}
+              instructorNameUppercase={draft.nameUppercase}
+              thumbnailUrl={null}
+              thumbnailObjectPosition={null}
+              trailerUrl={null}
+            />
           </div>
         </div>
       </div>
-
-      <EditPanel
-        open={editOpen}
-        draft={draft}
-        setDraft={setDraft}
-        thumbBlobUrl={thumbBlobUrl}
-        thumbPosition={thumbPosition}
-        onThumbPositionChange={onThumbPositionChange}
-        onClose={() => setEditOpen(false)}
-      />
     </div>
   )
 }
