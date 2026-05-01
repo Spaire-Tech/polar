@@ -176,6 +176,7 @@ export const useCreateCourse = () =>
       title?: string | null
       course_type?: string
       paywall_enabled?: boolean
+      paywall_position?: number | null
       ai_generated?: boolean
       description?: string | null
       thumbnail_url?: string | null
