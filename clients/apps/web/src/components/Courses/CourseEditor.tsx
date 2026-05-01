@@ -18,7 +18,7 @@ import { useCallback, useRef, useState } from 'react'
 import { toast } from '../Toast/use-toast'
 import { CourseHeader, TabId } from './editor/CourseHeader'
 import { CustomersTab } from './editor/CustomersTab'
-import { EmptyTab } from './editor/EmptyTab'
+import { CourseCustomizeEdits, CustomizeTab } from './editor/CustomizeTab'
 import { LessonDetail, LessonEdits } from './editor/LessonDetail'
 import { LessonContentType } from './editor/ModuleCard'
 import { OutlineTab } from './editor/OutlineTab'
@@ -137,6 +137,32 @@ export default function CourseEditor({
       invalidateCourse()
     } catch {
       toast({ title: 'Failed to reorder lessons' })
+    }
+  }
+
+  const handleSaveCustomize = async (edits: CourseCustomizeEdits) => {
+    setIsSaving(true)
+    try {
+      await updateCourse.mutateAsync({
+        courseId: course.id,
+        body: {
+          title: edits.title ?? undefined,
+          description: edits.description ?? undefined,
+          instructor_name: edits.instructor_name ?? undefined,
+          instructor_bio: edits.instructor_bio ?? undefined,
+          instructor_name_italic: edits.instructor_name_italic,
+          instructor_name_bold: edits.instructor_name_bold,
+          instructor_name_uppercase: edits.instructor_name_uppercase,
+          trailer_url: edits.trailer_url ?? undefined,
+          thumbnail_object_position: edits.thumbnail_object_position ?? undefined,
+        },
+      })
+      invalidateCourse()
+      toast({ title: 'Changes saved' })
+    } catch {
+      toast({ title: 'Failed to save changes' })
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -313,9 +339,10 @@ export default function CourseEditor({
     }
   } else if (activeTab === 'customize') {
     mainContent = (
-      <EmptyTab
-        title="Customize"
-        description="Branding and appearance settings coming soon."
+      <CustomizeTab
+        course={course}
+        onSave={handleSaveCustomize}
+        isSaving={isSaving}
       />
     )
   } else if (activeTab === 'pricing') {
