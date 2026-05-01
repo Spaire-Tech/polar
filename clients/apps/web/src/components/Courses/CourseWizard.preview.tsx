@@ -2159,25 +2159,6 @@ function EditPanel({
   )
 }
 
-function FieldLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <label
-        style={{
-          fontSize: 11,
-          fontWeight: 500,
-          letterSpacing: '0.09em',
-          textTransform: 'uppercase',
-          color: 'rgba(255,255,255,0.4)',
-        }}
-      >
-        {label}
-      </label>
-      {children}
-    </label>
-  )
-}
-
 function TextInput({
   value,
   onChange,
