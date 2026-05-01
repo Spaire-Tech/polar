@@ -80,7 +80,7 @@ class Course(RecordModel):
     )
 
     trailer_url: Mapped[str | None] = mapped_column(
-        String(500), nullable=True, default=None
+        String(2048), nullable=True, default=None
     )
 
     instructor_name_italic: Mapped[bool] = mapped_column(

@@ -473,6 +473,46 @@ async def upload_course_thumbnail(
 
 
 @router.post(
+    "/{course_id}/trailer",
+    response_model=CourseRead,
+    summary="Upload Course Trailer",
+)
+async def upload_course_trailer(
+    course_id: UUID,
+    auth_subject: auth.CoursesWrite,
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_db_session),
+) -> CourseRead:
+    from polar.config import settings
+    from polar.integrations.aws.s3 import S3Service
+
+    repo = CourseRepository.from_session(session)
+    course = await repo.get_readable_by_id(course_id, auth_subject)
+    if course is None:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    content_type = file.content_type or "video/mp4"
+    if not content_type.startswith("video/"):
+        raise HTTPException(status_code=400, detail="File must be a video")
+
+    data = await file.read()
+    if len(data) > 500 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Trailer must be under 500 MB")
+
+    ext = (file.filename or "trailer.mp4").rsplit(".", 1)[-1].lower()
+    if ext not in {"mp4", "mov", "webm", "m4v"}:
+        ext = "mp4"
+
+    path = f"course-trailers/{course_id}.{ext}"
+    s3 = S3Service(bucket=settings.S3_FILES_PUBLIC_BUCKET_NAME)
+    s3.upload(data, path, content_type)
+    trailer_url = s3.get_public_url(path)
+
+    course = await repo.update(course, update_dict={"trailer_url": trailer_url})
+    return _course_read(course)
+
+
+@router.post(
     "/lessons/{lesson_id}/attachments",
     response_model=CourseLessonRead,
     summary="Upload Lesson Attachment",

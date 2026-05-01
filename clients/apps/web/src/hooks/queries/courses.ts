@@ -612,6 +612,34 @@ export const useUploadCourseThumbnail = () =>
     },
   })
 
+export const useUploadCourseTrailer = () =>
+  useMutation({
+    mutationFn: async ({
+      courseId,
+      file,
+    }: {
+      courseId: string
+      file: File
+    }) => {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/v1/courses/${courseId}/trailer`,
+        { method: 'POST', body: form, credentials: 'include' },
+      )
+      if (!res.ok) {
+        const text = await res.text().catch(() => '')
+        throw new Error(`API ${res.status}: ${text}`)
+      }
+      return res.json() as Promise<CourseRead>
+    },
+    onSuccess: (data) => {
+      getQueryClient().invalidateQueries({
+        queryKey: ['courses', { courseId: data.id }],
+      })
+    },
+  })
+
 const invalidateCourseQueries = () => {
   getQueryClient().invalidateQueries({ queryKey: ['courses'] })
 }

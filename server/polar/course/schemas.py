@@ -147,7 +147,7 @@ class CourseCreate(Schema):
     thumbnail_object_position: str | None = Field(None, max_length=32)
     instructor_name: str | None = Field(None, max_length=200)
     instructor_bio: str | None = None
-    trailer_url: str | None = Field(None, max_length=500)
+    trailer_url: str | None = Field(None, max_length=2048)
     instructor_name_italic: bool = True
     instructor_name_bold: bool = True
     instructor_name_uppercase: bool = True
@@ -166,7 +166,7 @@ class CourseUpdate(Schema):
     thumbnail_object_position: str | None = Field(None, max_length=32)
     instructor_name: str | None = Field(None, max_length=200)
     instructor_bio: str | None = None
-    trailer_url: str | None = Field(None, max_length=500)
+    trailer_url: str | None = Field(None, max_length=2048)
     instructor_name_italic: bool | None = None
     instructor_name_bold: bool | None = None
     instructor_name_uppercase: bool | None = None

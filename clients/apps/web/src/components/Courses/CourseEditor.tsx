@@ -18,7 +18,7 @@ import { useCallback, useRef, useState } from 'react'
 import { toast } from '../Toast/use-toast'
 import { CourseHeader, TabId } from './editor/CourseHeader'
 import { CustomersTab } from './editor/CustomersTab'
-import { EmptyTab } from './editor/EmptyTab'
+import { CustomizeTab } from './editor/CustomizeTab'
 import { LessonDetail, LessonEdits } from './editor/LessonDetail'
 import { LessonContentType } from './editor/ModuleCard'
 import { OutlineTab } from './editor/OutlineTab'
@@ -313,12 +313,7 @@ export default function CourseEditor({
       )
     }
   } else if (activeTab === 'customize') {
-    mainContent = (
-      <EmptyTab
-        title="Customize"
-        description="Branding and appearance settings coming soon."
-      />
-    )
+    mainContent = <CustomizeTab course={course} organization={organization} />
   } else if (activeTab === 'pricing') {
     mainContent = (
       <PricingTab
