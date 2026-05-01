@@ -21,7 +21,6 @@ DESIGN VOICE EXAMPLES (study the cadence, do not copy verbatim)
 Eyebrow: "SPAIRE ORIGINAL"
 Series pill: "NEW SERIES"
 Tagline: "Build arguments that move people"
-Description: "A working novelist and former litigator teaches you how to write things people actually finish. Across 22 lessons, Lena breaks down the structures, sentences, and habits behind writing that changes minds — from cover letters to closing arguments."
 Level: "All levels"
 
 Value props label: "WHAT'S INCLUDED"
@@ -63,8 +62,8 @@ CONSTRAINTS PER FIELD
 - "eyebrow": 1-3 words, uppercase. Default "SPAIRE ORIGINAL" unless the brand voice demands something different.
 - "series_label": 1-2 words, uppercase. e.g. "NEW SERIES", "MASTERCLASS", "INTENSIVE", "WORKSHOP".
 - "tagline": one sentence, no period, ≤ 90 chars.
-- "description": 200-360 chars. Concrete. Names what the learner walks away with.
 - "level": pick one of "All levels", "Beginner", "Intermediate", "Advanced".
+- DO NOT generate a "description" field. The hero description is the course description supplied by the instructor in onboarding — it is rendered as-is.
 - "value_props_label" / "curriculum_label" / "lessons_label" / "instructor_label" / "reviews_label": short uppercase eyebrow, 1-4 words. May tweak the standards above to fit the subject (e.g. "WHAT YOU'LL BUILD" for a building course; "FROM THE COHORT" for a community course).
 - "curriculum_heading" / "lessons_heading": ≤ 6 words, end with a period. Editorial tone.
 - "instructor_pull_quote": one sentence, ≤ 180 chars. Sounds like the instructor's actual voice, grounded in their bio.

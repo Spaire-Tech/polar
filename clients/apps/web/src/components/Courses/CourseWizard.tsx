@@ -27,7 +27,6 @@ import {
   SpaireOnboardingStyles,
   StepCourse,
   StepInstructor,
-  StepMedia,
   StepPricing,
   type PricingState,
 } from './CourseWizard.steps'
@@ -38,7 +37,6 @@ type WizardStep =
   | 'intro'
   | 'instructor'
   | 'course'
-  | 'media'
   | 'pricing'
   | 'generating-outline'
   | 'outline'
@@ -66,10 +64,16 @@ type DraftState = {
   nameUppercase: boolean
 }
 
+type PartialLesson = {
+  title?: string
+  content_type?: 'video'
+  description?: string
+  content?: string
+}
 type PartialModule = {
   title?: string
   description?: string
-  lessons?: { title?: string; content_type?: 'text' | 'video' }[]
+  lessons?: PartialLesson[]
 }
 type PartialOutline = { modules?: PartialModule[] }
 
@@ -111,7 +115,7 @@ export default function CourseWizard({
 
   const [screen, setScreen] = useState<WizardStep>('intro')
   const [instructor, setInstructor] = useState<InstructorState>({
-    name: '',
+    name: organization.name ?? '',
     bio: '',
   })
   const [course, setCourse] = useState<CourseState>({ title: '', desc: '' })
@@ -373,26 +377,21 @@ export default function CourseWizard({
         instructor_name_uppercase: draft.nameUppercase,
         modules: outline.modules
           .filter(
-            (
-              m,
-            ): m is {
-              title: string
-              description?: string
-              lessons?: { title?: string; content_type?: 'text' | 'video' }[]
-            } => Boolean(m?.title),
+            (m): m is { title: string } & PartialModule => Boolean(m?.title),
           )
           .map((mod, i) => ({
             title: mod.title!,
             description: mod.description ?? null,
             position: i,
             lessons: (mod.lessons ?? [])
-              .filter(
-                (l): l is { title: string; content_type: 'text' | 'video' } =>
-                  Boolean(l?.title && l?.content_type),
+              .filter((l): l is PartialLesson & { title: string } =>
+                Boolean(l?.title),
               )
               .map((lesson, j) => ({
                 title: lesson.title,
-                content_type: lesson.content_type,
+                // AI outlines are always video lessons.
+                content_type: 'video',
+                description: lesson.description ?? null,
                 position: j,
               })),
           })),
@@ -463,7 +462,7 @@ export default function CourseWizard({
         description: `"${draft.courseTitle || course.title}" is ready to edit`,
       })
       router.replace(
-        `/dashboard/${organization.slug}/courses/${created.id}?tab=customize`,
+        `/dashboard/${organization.slug}/courses/${created.id}?tab=outline`,
       )
     } catch (err) {
       console.error('[CourseWizard] create error:', err)
@@ -517,17 +516,8 @@ export default function CourseWizard({
             <StepCourse
               data={course}
               onChange={setCourse}
-              onNext={() => setScreen('media')}
-              onBack={() => setScreen('instructor')}
-              onClose={handleClose}
-            />
-          )}
-          {screen === 'media' && (
-            <StepMedia
-              data={media}
-              onChange={setMedia}
               onNext={goPricing}
-              onBack={() => setScreen('course')}
+              onBack={() => setScreen('instructor')}
               onClose={handleClose}
             />
           )}
@@ -536,7 +526,7 @@ export default function CourseWizard({
               data={pricing}
               onChange={setPricing}
               onNext={startOutlineGeneration}
-              onBack={() => setScreen('media')}
+              onBack={() => setScreen('course')}
               onClose={handleClose}
             />
           )}
