@@ -63,16 +63,10 @@ type DraftState = {
   nameUppercase: boolean
 }
 
-type PartialLesson = {
-  title?: string
-  content_type?: 'text' | 'video'
-  description?: string
-  content?: string
-}
 type PartialModule = {
   title?: string
   description?: string
-  lessons?: PartialLesson[]
+  lessons?: { title?: string; content_type?: 'text' | 'video' }[]
 }
 type PartialOutline = { modules?: PartialModule[] }
 
@@ -404,21 +398,26 @@ export default function CourseWizard({
         instructor_name_uppercase: draft.nameUppercase,
         modules: outline.modules
           .filter(
-            (m): m is { title: string } & PartialModule => Boolean(m?.title),
+            (
+              m,
+            ): m is {
+              title: string
+              description?: string
+              lessons?: { title?: string; content_type?: 'text' | 'video' }[]
+            } => Boolean(m?.title),
           )
           .map((mod, i) => ({
             title: mod.title!,
             description: mod.description ?? null,
             position: i,
             lessons: (mod.lessons ?? [])
-              .filter((l): l is PartialLesson & { title: string } =>
-                Boolean(l?.title),
+              .filter(
+                (l): l is { title: string; content_type: 'text' | 'video' } =>
+                  Boolean(l?.title && l?.content_type),
               )
               .map((lesson, j) => ({
                 title: lesson.title,
-                // AI outlines are always video lessons.
-                content_type: 'video',
-                description: lesson.description ?? null,
+                content_type: lesson.content_type,
                 position: j,
               })),
           })),

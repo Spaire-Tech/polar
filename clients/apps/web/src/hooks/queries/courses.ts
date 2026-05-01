@@ -228,7 +228,6 @@ export const useCreateCourse = () =>
           title: string
           content_type: string
           position: number
-          description?: string | null
         }[]
       }[]
     }) =>
