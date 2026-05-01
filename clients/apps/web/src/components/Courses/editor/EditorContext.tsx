@@ -162,7 +162,14 @@ export const DEFAULT_THEME: LandingTheme = {
   cornerStyle: 'rounded',
 }
 
-export const DEFAULT_OVERRIDES: Required<LandingOverrides> = {
+export type ResolvedOverrides = {
+  text: Record<string, string>
+  media: Record<string, NonNullable<LandingOverrides['media']>[string]>
+  visible: Record<string, boolean>
+  theme: LandingTheme
+}
+
+export const DEFAULT_OVERRIDES: ResolvedOverrides = {
   text: {},
   media: {},
   visible: {
@@ -180,12 +187,12 @@ export const DEFAULT_OVERRIDES: Required<LandingOverrides> = {
 
 export function mergeOverrides(
   ov: LandingOverrides | null | undefined,
-): Required<LandingOverrides> {
+): ResolvedOverrides {
   return {
     text: { ...DEFAULT_OVERRIDES.text, ...(ov?.text ?? {}) },
     media: { ...DEFAULT_OVERRIDES.media, ...(ov?.media ?? {}) },
     visible: { ...DEFAULT_OVERRIDES.visible, ...(ov?.visible ?? {}) },
-    theme: { ...DEFAULT_THEME, ...(ov?.theme ?? {}) } as LandingTheme,
+    theme: { ...DEFAULT_THEME, ...(ov?.theme ?? {}) },
   }
 }
 
@@ -200,7 +207,7 @@ type EditorContextValue = {
   setDevice: (d: EditorDevice) => void
   panel: EditorPanel
   setPanel: (p: EditorPanel) => void
-  overrides: Required<LandingOverrides>
+  overrides: ResolvedOverrides
   t: (path: string, fallback: string) => string
   setText: (path: string, value: string) => void
   m: (id: string) => LandingMedia | null
@@ -239,7 +246,7 @@ export function EditorProvider({
   children,
 }: {
   initialOverrides: LandingOverrides | null | undefined
-  onChange: (next: Required<LandingOverrides>) => void
+  onChange: (next: ResolvedOverrides) => void
   uploadMedia: Uploader
   uploaderForSlot?: (slotId: string) => Uploader
   isUploading?: boolean
@@ -252,7 +259,7 @@ export function EditorProvider({
 
   // Stable seed: only re-seed when course changes (we don't want to clobber
   // local edits because of an unrelated re-render).
-  const [overrides, setOverridesState] = useState<Required<LandingOverrides>>(
+  const [overrides, setOverridesState] = useState<ResolvedOverrides>(
     () => mergeOverrides(initialOverrides),
   )
 
@@ -274,7 +281,7 @@ export function EditorProvider({
   })
 
   const apply = useCallback(
-    (next: Required<LandingOverrides>) => {
+    (next: ResolvedOverrides) => {
       const h = history.current
       h.stack = h.stack.slice(0, h.idx + 1)
       h.stack.push(JSON.stringify(next))
@@ -355,7 +362,7 @@ export function EditorProvider({
     const h = history.current
     if (h.idx <= 0) return
     h.idx -= 1
-    const next = JSON.parse(h.stack[h.idx]) as Required<LandingOverrides>
+    const next = JSON.parse(h.stack[h.idx]) as ResolvedOverrides
     setOverridesState(next)
     onChange(next)
   }, [onChange])
@@ -364,7 +371,7 @@ export function EditorProvider({
     const h = history.current
     if (h.idx >= h.stack.length - 1) return
     h.idx += 1
-    const next = JSON.parse(h.stack[h.idx]) as Required<LandingOverrides>
+    const next = JSON.parse(h.stack[h.idx]) as ResolvedOverrides
     setOverridesState(next)
     onChange(next)
   }, [onChange])

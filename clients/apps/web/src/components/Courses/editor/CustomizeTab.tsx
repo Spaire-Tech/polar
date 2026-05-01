@@ -8,7 +8,6 @@
 import {
   CourseRead,
   LandingMedia,
-  LandingOverrides,
   useUpdateCourse,
   useUploadCourseThumbnail,
   useUploadCourseTrailer,
@@ -18,7 +17,11 @@ import { schemas } from '@spaire/client'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from '../../Toast/use-toast'
 import { EditableCourseLandingView } from './EditableCourseLandingView'
-import { EditorProvider, mergeOverrides } from './EditorContext'
+import {
+  EditorProvider,
+  mergeOverrides,
+  type ResolvedOverrides,
+} from './EditorContext'
 import { EditorShell } from './EditorShell'
 
 export function CustomizeTab({
@@ -61,7 +64,7 @@ export function CustomizeTab({
     setDirty(false)
   }, [initial])
 
-  const handleChange = (next: Required<LandingOverrides>) => {
+  const handleChange = (next: ResolvedOverrides) => {
     setOverrides(next)
     overridesRef.current = next
     setDirty(true)
@@ -134,6 +137,7 @@ export function CustomizeTab({
     >
       <EditorShell
         breadcrumb={{ course: course.title ?? 'Untitled course' }}
+        organizationSlug={organization.slug}
         onSave={handleSave}
         onPublish={handleSave}
         saving={updateCourse.isPending}

@@ -12,7 +12,7 @@ import {
   type EditorPanel,
 } from './EditorContext'
 import type { LandingMedia } from '@/hooks/queries/courses'
-import { useRef, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 
 const RAIL_ITEMS: { id: EditorPanel; label: string; icon: string }[] = [
   { id: 'design', label: 'Design', icon: '✨' },
@@ -25,6 +25,7 @@ const RAIL_ITEMS: { id: EditorPanel; label: string; icon: string }[] = [
 export function EditorShell({
   brandLabel,
   breadcrumb,
+  organizationSlug,
   onSave,
   onPublish,
   onReset,
@@ -35,6 +36,7 @@ export function EditorShell({
 }: {
   brandLabel?: string
   breadcrumb: { course: string }
+  organizationSlug?: string
   onSave: () => void
   onPublish?: () => void
   onReset?: () => void
@@ -58,7 +60,7 @@ export function EditorShell({
       <div className="flex flex-1 overflow-hidden">
         <LeftRail />
         <Canvas>{children}</Canvas>
-        <Inspector />
+        <Inspector organizationSlug={organizationSlug} />
       </div>
     </div>
   )
@@ -258,7 +260,7 @@ function Canvas({ children }: { children: ReactNode }) {
 
 // ── Inspector ──────────────────────────────────────────────────────────────
 
-function Inspector() {
+function Inspector({ organizationSlug }: { organizationSlug?: string }) {
   const ed = useEditor()
   const titles: Record<EditorPanel, string> = {
     design: 'Design',
@@ -279,21 +281,170 @@ function Inspector() {
         {ed.panel === 'content' && <ContentPanel />}
         {ed.panel === 'media' && <MediaPanel />}
         {ed.panel === 'sections' && <SectionsPanel />}
-        {ed.panel === 'ai' && <AIPanel />}
+        {ed.panel === 'ai' && <AIPanel organizationSlug={organizationSlug} />}
       </div>
     </div>
   )
 }
 
-// ── Design panel (stub for Phase 1 — full controls land in Phase 3) ────────
+// ── Design panel ───────────────────────────────────────────────────────────
 
 function DesignPanel() {
   const ed = useEditor()
   const t = ed.overrides.theme
   return (
     <div>
-      <PanelGroup title="Quick theme">
-        <Field label="Surface">
+      <PanelGroup title="Type families">
+        <Field label="Heading font">
+          <select
+            value={t.fontHeading}
+            onChange={(e) => ed.setTheme({ fontHeading: e.target.value })}
+            className="w-full rounded-md border border-gray-200 bg-white px-2.5 py-2 text-[12.5px] focus:border-blue-500 focus:outline-none"
+          >
+            {FONT_PAIRS.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Body font">
+          <select
+            value={t.fontBody}
+            onChange={(e) => ed.setTheme({ fontBody: e.target.value })}
+            className="w-full rounded-md border border-gray-200 bg-white px-2.5 py-2 text-[12.5px] focus:border-blue-500 focus:outline-none"
+          >
+            {FONT_PAIRS.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+      </PanelGroup>
+
+      <PanelGroup title="Heading style">
+        <Field label="Weight">
+          <SegControl
+            value={t.headingWeight}
+            options={[
+              { v: 300, label: 'Light' },
+              { v: 400, label: 'Reg' },
+              { v: 600, label: 'Semi' },
+              { v: 700, label: 'Bold' },
+              { v: 800, label: 'Black' },
+            ]}
+            onChange={(v) => ed.setTheme({ headingWeight: v as number })}
+          />
+        </Field>
+        <Field label="Style">
+          <div className="flex gap-1.5">
+            <ToggleBtn
+              on={!t.headingItalic}
+              onClick={() => ed.setTheme({ headingItalic: false })}
+              title="Roman"
+            >
+              <span className="font-semibold">Aa</span>
+            </ToggleBtn>
+            <ToggleBtn
+              on={t.headingItalic}
+              onClick={() => ed.setTheme({ headingItalic: true })}
+              title="Italic"
+            >
+              <span className="italic font-semibold">Aa</span>
+            </ToggleBtn>
+          </div>
+        </Field>
+        <Field label="Alignment">
+          <div className="flex gap-1.5">
+            {(['left', 'center', 'right'] as const).map((a) => (
+              <ToggleBtn
+                key={a}
+                on={t.headingAlign === a}
+                onClick={() => ed.setTheme({ headingAlign: a })}
+                title={a}
+              >
+                <AlignIcon dir={a} />
+              </ToggleBtn>
+            ))}
+          </div>
+        </Field>
+        <SliderField
+          label="Size scale"
+          value={t.typeScale}
+          min={0.85}
+          max={1.25}
+          step={0.05}
+          suffix="×"
+          onChange={(v) => ed.setTheme({ typeScale: v })}
+        />
+        <SliderField
+          label="Letter spacing"
+          value={t.headingTracking}
+          min={-0.06}
+          max={0.06}
+          step={0.005}
+          suffix="em"
+          precise
+          onChange={(v) => ed.setTheme({ headingTracking: v })}
+        />
+        <SliderField
+          label="Line height"
+          value={t.headingLeading}
+          min={0.85}
+          max={1.4}
+          step={0.02}
+          suffix="×"
+          onChange={(v) => ed.setTheme({ headingLeading: v })}
+        />
+      </PanelGroup>
+
+      <PanelGroup title="Body style">
+        <Field label="Weight">
+          <SegControl
+            value={t.bodyWeight}
+            options={[
+              { v: 300, label: 'Light' },
+              { v: 400, label: 'Reg' },
+              { v: 500, label: 'Med' },
+              { v: 600, label: 'Semi' },
+            ]}
+            onChange={(v) => ed.setTheme({ bodyWeight: v as number })}
+          />
+        </Field>
+      </PanelGroup>
+
+      <PanelGroup title="Layout">
+        <Field label="Density">
+          <SegControl
+            value={t.density}
+            options={[
+              { v: 'compact', label: 'Compact' },
+              { v: 'comfortable', label: 'Comfy' },
+              { v: 'spacious', label: 'Spacious' },
+            ]}
+            onChange={(v) =>
+              ed.setTheme({ density: v as typeof t.density })
+            }
+          />
+        </Field>
+        <Field label="Corners">
+          <SegControl
+            value={t.cornerStyle}
+            options={[
+              { v: 'sharp', label: 'Sharp' },
+              { v: 'rounded', label: 'Rounded' },
+              { v: 'pill', label: 'Pill' },
+            ]}
+            onChange={(v) =>
+              ed.setTheme({ cornerStyle: v as typeof t.cornerStyle })
+            }
+          />
+        </Field>
+      </PanelGroup>
+
+      <PanelGroup title="Surface">
+        <Field label="Background">
           <div className="flex flex-wrap gap-1.5">
             {SURFACE_MODES.map((s) => (
               <button
@@ -336,38 +487,137 @@ function DesignPanel() {
             ))}
           </div>
         </Field>
-        <Field label="Heading font">
-          <select
-            value={t.fontHeading}
-            onChange={(e) => ed.setTheme({ fontHeading: e.target.value })}
-            className="w-full rounded-md border border-gray-200 bg-white px-2.5 py-2 text-[12.5px] focus:border-blue-500 focus:outline-none"
-          >
-            {FONT_PAIRS.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.label}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Body font">
-          <select
-            value={t.fontBody}
-            onChange={(e) => ed.setTheme({ fontBody: e.target.value })}
-            className="w-full rounded-md border border-gray-200 bg-white px-2.5 py-2 text-[12.5px] focus:border-blue-500 focus:outline-none"
-          >
-            {FONT_PAIRS.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.label}
-              </option>
-            ))}
-          </select>
-        </Field>
       </PanelGroup>
-      <div className="px-4 py-3 text-[11.5px] leading-relaxed text-gray-500">
-        Full typography controls (weights, italic, alignment, scale, tracking,
-        leading, density, corners) ship in the next update.
-      </div>
     </div>
+  )
+}
+
+function SegControl<T extends string | number>({
+  value,
+  options,
+  onChange,
+}: {
+  value: T
+  options: { v: T; label: string }[]
+  onChange: (v: T) => void
+}) {
+  return (
+    <div className="flex gap-0.5 rounded-md bg-gray-100 p-[3px]">
+      {options.map((o) => (
+        <button
+          key={String(o.v)}
+          type="button"
+          onClick={() => onChange(o.v)}
+          className={`flex-1 rounded-[6px] px-2 py-[6px] text-[11.5px] font-medium transition-colors ${
+            value === o.v
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function ToggleBtn({
+  on,
+  onClick,
+  children,
+  title,
+}: {
+  on: boolean
+  onClick: () => void
+  children: ReactNode
+  title?: string
+}) {
+  return (
+    <button
+      type="button"
+      title={title}
+      onClick={onClick}
+      className={`flex h-8 w-9 items-center justify-center rounded-md border text-[12px] transition-colors ${
+        on
+          ? 'border-gray-900 bg-gray-900 text-white'
+          : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+      }`}
+    >
+      {children}
+    </button>
+  )
+}
+
+function AlignIcon({ dir }: { dir: 'left' | 'center' | 'right' }) {
+  const widths = [14, 10, 12]
+  const align =
+    dir === 'center' ? 'center' : dir === 'right' ? 'flex-end' : 'flex-start'
+  return (
+    <span
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 2,
+        alignItems: align,
+      }}
+    >
+      {widths.map((w, i) => (
+        <span
+          key={i}
+          style={{
+            width: w,
+            height: 2,
+            background: 'currentColor',
+            borderRadius: 1,
+          }}
+        />
+      ))}
+    </span>
+  )
+}
+
+function SliderField({
+  label,
+  value,
+  min,
+  max,
+  step,
+  suffix,
+  precise,
+  onChange,
+}: {
+  label: string
+  value: number
+  min: number
+  max: number
+  step: number
+  suffix?: string
+  precise?: boolean
+  onChange: (v: number) => void
+}) {
+  const display = precise ? value.toFixed(3) : value.toFixed(2)
+  return (
+    <Field
+      label={
+        <span className="flex justify-between">
+          <span>{label}</span>
+          <span className="font-mono text-gray-400 tabular-nums">
+            {display}
+            {suffix}
+          </span>
+        </span>
+      }
+    >
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(+e.target.value)}
+        className="w-full"
+      />
+    </Field>
   )
 }
 
@@ -594,9 +844,86 @@ function SectionsPanel() {
   )
 }
 
-// ── AI panel (stub for Phase 1 — full prompt-driven rewrites in Phase 4) ───
+// ── AI panel ───────────────────────────────────────────────────────────────
 
-function AIPanel() {
+const AI_TARGETS: { path: string; label: string }[] = [
+  { path: 'hero.title', label: 'Hero title' },
+  { path: 'hero.tagline', label: 'Hero tagline' },
+  { path: 'hero.eyebrow', label: 'Hero eyebrow' },
+  { path: 'curriculum.heading', label: 'Curriculum heading' },
+  { path: 'curriculum.subheading', label: 'Curriculum subheading' },
+  { path: 'lessons.heading', label: 'Lesson list heading' },
+  { path: 'instructor.quote', label: 'Instructor pull quote' },
+  { path: 'finalCta.title', label: 'Final CTA headline' },
+  { path: 'finalCta.subtitle', label: 'Final CTA subhead' },
+]
+
+function AIPanel({ organizationSlug }: { organizationSlug?: string }) {
+  const ed = useEditor()
+  const [target, setTarget] = useState<string>(AI_TARGETS[1].path)
+  const [intent, setIntent] = useState('Make it punchier — 5-9 words.')
+  const [busy, setBusy] = useState(false)
+  const [result, setResult] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const targetMeta = AI_TARGETS.find((t) => t.path === target)
+  const current = ed.t(target, '')
+
+  const run = async () => {
+    if (!organizationSlug) {
+      setError(
+        'AI rewrites need an organization context — open the dashboard customize tab.',
+      )
+      return
+    }
+    if (!current) {
+      setError('Nothing to rewrite — set a value on the canvas first.')
+      return
+    }
+    setBusy(true)
+    setError(null)
+    setResult('')
+    try {
+      const res = await fetch(
+        `/dashboard/${organizationSlug}/courses/landing-rewrite`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            intent,
+            current,
+            hint: targetMeta?.label,
+          }),
+        },
+      )
+      if (!res.ok || !res.body) {
+        setError(`Generation failed (${res.status}).`)
+        setBusy(false)
+        return
+      }
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let acc = ''
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        acc += decoder.decode(value, { stream: true })
+        setResult(acc)
+      }
+    } catch (e) {
+      setError((e as Error).message ?? 'Generation failed.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const apply = () => {
+    if (!result) return
+    ed.setText(target, result.trim().replace(/^["']|["']$/g, ''))
+    setResult(null)
+  }
+
   return (
     <div className="px-4">
       <div
@@ -609,14 +936,89 @@ function AIPanel() {
           marginBottom: 14,
         }}
       >
-        <div className="flex items-center gap-2 text-[12px] font-semibold text-[oklch(0.35_0.18_280)]">
+        <div className="mb-2 flex items-center gap-2 text-[12px] font-semibold text-[oklch(0.35_0.18_280)]">
           ✦ Rewrite with AI
         </div>
-        <div className="mt-2 text-[11.5px] leading-relaxed text-[oklch(0.40_0.10_280)]">
-          AI-driven copy rewrites and theme suggestions are coming in the next
-          update.
+
+        <Field label="Field">
+          <select
+            value={target}
+            onChange={(e) => {
+              setTarget(e.target.value)
+              setResult(null)
+            }}
+            className="w-full rounded-md border border-gray-200 bg-white px-2.5 py-2 text-[12.5px] focus:border-blue-500 focus:outline-none"
+          >
+            {AI_TARGETS.map((t) => (
+              <option key={t.path} value={t.path}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        <div className="mt-2 rounded-md border border-gray-200 bg-white px-2.5 py-2 text-[11.5px] leading-relaxed text-gray-600">
+          <div className="mb-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-gray-400">
+            Current
+          </div>
+          {current ? current : <span className="text-gray-400">(empty)</span>}
         </div>
+
+        <div className="mt-3">
+          <Field label="What should the AI do?">
+            <textarea
+              value={intent}
+              onChange={(e) => setIntent(e.target.value)}
+              rows={3}
+              className="w-full resize-none rounded-md border border-gray-200 bg-white px-2.5 py-2 text-[12.5px] tracking-tight text-gray-900 transition-colors focus:border-blue-500 focus:outline-none"
+              placeholder="Make it punchier, add urgency, etc."
+            />
+          </Field>
+        </div>
+
+        <button
+          type="button"
+          onClick={run}
+          disabled={busy || !current}
+          className="mt-3 inline-flex items-center gap-1.5 rounded-md bg-[oklch(0.45_0.20_280)] px-3 py-2 text-[12px] font-semibold text-white transition-[filter] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {busy ? 'Thinking…' : '✦ Generate'}
+        </button>
+
+        {error && (
+          <div className="mt-3 rounded-md bg-red-50 px-2.5 py-2 text-[11.5px] text-red-600">
+            {error}
+          </div>
+        )}
       </div>
+
+      {result !== null && (
+        <div className="rounded-xl border border-gray-200 bg-white p-3.5">
+          <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-gray-400">
+            Suggestion
+          </div>
+          <div className="mb-3 whitespace-pre-wrap text-[13px] leading-relaxed text-gray-900">
+            {result || (busy ? '…' : '(no output)')}
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={apply}
+              disabled={!result || busy}
+              className="flex-1 rounded-md bg-gray-900 px-3 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
+            >
+              Apply
+            </button>
+            <button
+              type="button"
+              onClick={() => setResult(null)}
+              className="rounded-md border border-gray-200 bg-white px-3 py-2 text-[12px] font-medium text-gray-600 transition-colors hover:bg-gray-50"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

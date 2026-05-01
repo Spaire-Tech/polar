@@ -621,7 +621,7 @@ function CurriculumTimeline() {
           defaultValue="Six chapters, built to compound."
           multiline
           style={{
-            fontSize: 'clamp(36px, 5vw, 56px)',
+            fontSize: 'calc(clamp(36px, 5vw, 56px) * var(--type-scale, 1))',
             fontWeight: 'var(--h-weight, 600)',
             letterSpacing: 'calc(var(--h-tracking, 0em) - 0.035em)',
             lineHeight: 'calc(var(--h-leading, 1) * 1.05)',
@@ -763,7 +763,7 @@ function FullLessonList({
           path="lessons.heading"
           defaultValue="The full arc."
           style={{
-            fontSize: 'clamp(36px, 5vw, 56px)',
+            fontSize: 'calc(clamp(36px, 5vw, 56px) * var(--type-scale, 1))',
             fontWeight: 'var(--h-weight, 600)',
             letterSpacing: 'calc(var(--h-tracking, 0em) - 0.035em)',
             lineHeight: 1.05,
@@ -1106,7 +1106,7 @@ function Instructor({ course }: { course: CourseRead }) {
             defaultValue={'"Persuasion isn’t convincing. It’s giving someone a way to change their mind without losing face."'}
             multiline
             style={{
-              fontSize: 'clamp(28px, 3.4vw, 42px)',
+              fontSize: 'calc(clamp(28px, 3.4vw, 42px) * var(--type-scale, 1))',
               fontWeight: 'var(--h-weight, 500)',
               letterSpacing: 'calc(var(--h-tracking, 0em) - 0.025em)',
               lineHeight: 1.15,
@@ -1225,7 +1225,7 @@ function Reviews() {
       >
         <h2
           style={{
-            fontSize: 'clamp(48px, 7vw, 88px)',
+            fontSize: 'calc(clamp(48px, 7vw, 88px) * var(--type-scale, 1))',
             fontWeight: 'var(--h-weight, 600)',
             letterSpacing: 'calc(var(--h-tracking, 0em) - 0.04em)',
             lineHeight: 0.95,
@@ -1429,7 +1429,7 @@ function FinalCta() {
           defaultValue="Start free. Continue when you're ready."
           multiline
           style={{
-            fontSize: 'clamp(40px, 6vw, 72px)',
+            fontSize: 'calc(clamp(40px, 6vw, 72px) * var(--type-scale, 1))',
             fontWeight: 'var(--h-weight, 600)',
             letterSpacing: 'calc(var(--h-tracking, 0em) - 0.04em)',
             lineHeight: 1.02,

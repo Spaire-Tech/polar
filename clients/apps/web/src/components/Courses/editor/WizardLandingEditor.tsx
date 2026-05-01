@@ -16,12 +16,15 @@ import {
   CourseLessonRead,
   CourseRead,
   LandingMedia,
-  LandingOverrides,
 } from '@/hooks/queries/courses'
 import { schemas } from '@spaire/client'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { EditableCourseLandingView } from './EditableCourseLandingView'
-import { EditorProvider, mergeOverrides } from './EditorContext'
+import {
+  EditorProvider,
+  mergeOverrides,
+  type ResolvedOverrides,
+} from './EditorContext'
 import { EditorShell } from './EditorShell'
 
 export type WizardEditorOutline = {
@@ -46,7 +49,7 @@ export type WizardEditorDraft = {
 }
 
 export type WizardFinalizationData = {
-  overrides: Required<LandingOverrides>
+  overrides: ResolvedOverrides
   /** Files keyed by slot id that need to be uploaded after course creation. */
   pendingFiles: Map<string, File>
   /** New thumbnail file the user picked inline (replaces media.thumbFile). */
@@ -123,7 +126,7 @@ export function WizardLandingEditor({
     objectUrlsRef.current.forEach((u) => URL.revokeObjectURL(u))
   }, [])
 
-  const handleChange = (next: Required<LandingOverrides>) => {
+  const handleChange = (next: ResolvedOverrides) => {
     setOverrides(next)
     overridesRef.current = next
   }
@@ -226,6 +229,7 @@ export function WizardLandingEditor({
     >
       <EditorShell
         breadcrumb={{ course: draft.courseTitle || 'Untitled course' }}
+        organizationSlug={organization.slug}
         onSave={() => {}}
         onPublish={() =>
           onPublish({
