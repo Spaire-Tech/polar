@@ -1,147 +1,23 @@
 'use client'
 
-// Webflow-style inline edit primitives for the Customize tab.
-// EditText: click any text to edit in place.
-// EditMedia: hover any media tile to upload/replace/remove.
-// EditBlock: hover any section to see its label + visibility toggle.
+// Inline edit primitives. Wrap text with EditText to make it click-to-edit.
+// Wrap media tiles with EditMedia to get a hover dashed-border + Replace
+// popover. Wrap a section with EditBlock to get the section affordance pill.
+//
+// In `preview` mode the wrappers fall through to plain rendering with no
+// affordances. So the same component tree is used for both modes.
 
-import { useUploadLandingMedia } from '@/hooks/queries/courses'
+import type { LandingMedia } from '@/hooks/queries/courses'
+import { useEditor } from './EditorContext'
 import {
-  createContext,
-  useContext,
+  forwardRef,
+  useEffect,
   useRef,
   useState,
+  type CSSProperties,
   type ElementType,
+  type ReactNode,
 } from 'react'
-
-// ── Editor context ──────────────────────────────────────────────────────────
-
-export type EditorMode = 'edit' | 'preview'
-export type EditorDevice = 'desktop' | 'tablet' | 'mobile'
-export type EditorPanel = 'sections' | 'content' | 'media'
-
-export type LandingMediaKind = 'image' | 'video'
-export type LandingMedia = { kind: LandingMediaKind; url: string }
-
-export type LandingOverrides = {
-  text: Record<string, string>
-  media: Record<string, LandingMedia | null>
-  visible: Record<string, boolean>
-}
-
-type EditorContextValue = {
-  mode: EditorMode
-  setMode: (m: EditorMode) => void
-  device: EditorDevice
-  setDevice: (d: EditorDevice) => void
-  panel: EditorPanel
-  setPanel: (p: EditorPanel) => void
-  overrides: LandingOverrides
-  t: (path: string, fallback: string) => string
-  setText: (path: string, value: string) => void
-  m: (id: string) => LandingMedia | null
-  setMedia: (id: string, value: LandingMedia | null) => void
-  setVisible: (id: string, visible: boolean) => void
-  uploadMedia: (file: File) => Promise<LandingMedia>
-  isUploading: boolean
-}
-
-const EditorContext = createContext<EditorContextValue | null>(null)
-export const useEditor = () => {
-  const ctx = useContext(EditorContext)
-  if (!ctx) throw new Error('useEditor must be used inside EditorProvider')
-  return ctx
-}
-
-export function EditorProvider({
-  courseId,
-  initialOverrides,
-  onChange,
-  children,
-}: {
-  courseId: string
-  initialOverrides: LandingOverrides
-  onChange: (next: LandingOverrides) => void
-  children: React.ReactNode
-}) {
-  const [mode, setMode] = useState<EditorMode>('edit')
-  const [device, setDevice] = useState<EditorDevice>('desktop')
-  const [panel, setPanel] = useState<EditorPanel>('sections')
-  const overridesRef = useRef(initialOverrides)
-  const upload = useUploadLandingMedia()
-
-  // Use a ref so we don't refetch initialOverrides on every render but still
-  // commit changes immediately — onChange owns persistence.
-  const setOverrides = (next: LandingOverrides) => {
-    overridesRef.current = next
-    onChange(next)
-  }
-
-  const t = (path: string, fallback: string) =>
-    overridesRef.current.text[path] ?? fallback
-
-  const setText = (path: string, value: string) => {
-    setOverrides({
-      ...overridesRef.current,
-      text: { ...overridesRef.current.text, [path]: value },
-    })
-  }
-
-  const m = (id: string) => overridesRef.current.media[id] ?? null
-
-  const setMedia = (id: string, value: LandingMedia | null) => {
-    setOverrides({
-      ...overridesRef.current,
-      media: { ...overridesRef.current.media, [id]: value },
-    })
-  }
-
-  const setVisible = (id: string, visible: boolean) => {
-    setOverrides({
-      ...overridesRef.current,
-      visible: { ...overridesRef.current.visible, [id]: visible },
-    })
-  }
-
-  const uploadMedia = async (file: File): Promise<LandingMedia> => {
-    const res = await upload.mutateAsync({ courseId, file })
-    return { kind: res.kind, url: res.url }
-  }
-
-  // Note: re-render uses the snapshot in initialOverrides via React state if
-  // parent passes a fresh prop. Children that read via t/m use the ref so
-  // they always see latest. To trigger re-renders, force one on changes:
-  const [, forceTick] = useState(0)
-  const wrapped: EditorContextValue = {
-    mode,
-    setMode,
-    device,
-    setDevice,
-    panel,
-    setPanel,
-    overrides: overridesRef.current,
-    t,
-    setText: (path, value) => {
-      setText(path, value)
-      forceTick((n) => n + 1)
-    },
-    m,
-    setMedia: (id, value) => {
-      setMedia(id, value)
-      forceTick((n) => n + 1)
-    },
-    setVisible: (id, visible) => {
-      setVisible(id, visible)
-      forceTick((n) => n + 1)
-    },
-    uploadMedia,
-    isUploading: upload.isPending,
-  }
-
-  return (
-    <EditorContext.Provider value={wrapped}>{children}</EditorContext.Provider>
-  )
-}
 
 // ── EditText ────────────────────────────────────────────────────────────────
 
@@ -156,15 +32,24 @@ export function EditText({
   path: string
   defaultValue: string
   as?: ElementType
-  style?: React.CSSProperties
+  style?: CSSProperties
   className?: string
   multiline?: boolean
 }) {
-  const Tag = as as ElementType
   const ed = useEditor()
-  const [editing, setEditing] = useState(false)
   const ref = useRef<HTMLElement>(null)
+  const [editing, setEditing] = useState(false)
   const value = ed.t(path, defaultValue)
+  const Tag = as as ElementType
+
+  // Keep DOM in sync with value when not editing (avoids React tripping over
+  // contentEditable).
+  useEffect(() => {
+    if (editing) return
+    if (ref.current && ref.current.innerText !== value) {
+      ref.current.innerText = value
+    }
+  }, [value, editing])
 
   if (ed.mode !== 'edit') {
     return (
@@ -176,8 +61,8 @@ export function EditText({
 
   const onBlur = () => {
     setEditing(false)
-    const v = (ref.current?.innerText ?? '').replace(/\n+$/, '')
-    if (v !== value) ed.setText(path, v)
+    const next = (ref.current?.innerText ?? '').replace(/\n+$/, '')
+    if (next !== value) ed.setText(path, next)
   }
 
   return (
@@ -194,12 +79,21 @@ export function EditText({
       className={className}
       contentEditable={editing}
       suppressContentEditableWarning
-      data-edit-text=""
-      onClick={() => {
-        if (!editing) {
-          setEditing(true)
-          setTimeout(() => ref.current?.focus(), 0)
-        }
+      data-spaire-edit-text=""
+      onClick={(e: React.MouseEvent<HTMLElement>) => {
+        if (editing) return
+        e.stopPropagation()
+        setEditing(true)
+        setTimeout(() => {
+          ref.current?.focus()
+          // Place caret at end
+          const range = document.createRange()
+          range.selectNodeContents(ref.current!)
+          range.collapse(false)
+          const sel = window.getSelection()
+          sel?.removeAllRanges()
+          sel?.addRange(range)
+        }, 0)
       }}
       onBlur={onBlur}
       onKeyDown={(e: React.KeyboardEvent) => {
@@ -220,41 +114,58 @@ export function EditText({
 
 // ── EditMedia ───────────────────────────────────────────────────────────────
 
-export function EditMedia({
-  id,
-  label,
-  style,
-  className,
-  fit = 'cover',
-  children,
-}: {
-  id: string
-  label: string
-  style?: React.CSSProperties
-  className?: string
-  fit?: 'cover' | 'contain'
-  children?: React.ReactNode
-}) {
+export const EditMedia = forwardRef<
+  HTMLDivElement,
+  {
+    id: string
+    label: string
+    style?: CSSProperties
+    className?: string
+    fit?: 'cover' | 'contain'
+    /** Default visual when no media is uploaded. */
+    children?: ReactNode
+    /** When the host wants to render the uploaded media itself
+     *  (e.g. the hero section that already has its own object-position),
+     *  pass `renderMedia` and we'll skip the default <img>/<video> overlay.
+     */
+    renderMedia?: (media: LandingMedia) => ReactNode
+  }
+>(function EditMedia(
+  { id, label, style, className, fit = 'cover', children, renderMedia },
+  ref,
+) {
   const ed = useEditor()
   const m = ed.m(id)
   const [hover, setHover] = useState(false)
+  const [popoverOpen, setPopoverOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  const upload = ed.uploaderForSlot?.(id) ?? ed.uploadMedia
 
   const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
     if (!f) return
     setBusy(true)
+    setPopoverOpen(false)
     try {
-      const next = await ed.uploadMedia(f)
-      ed.setMedia(id, next)
+      const next = await upload(f)
+      ed.setMedia(id, { ...next, name: f.name })
     } finally {
       setBusy(false)
       e.target.value = ''
     }
   }
 
-  const cover: React.CSSProperties = {
+  const onPasteUrl = () => {
+    setPopoverOpen(false)
+    const url = window.prompt('Paste an image or video URL:')
+    if (!url) return
+    const isVideo = /\.(mp4|webm|mov|m4v)(\?|$)/i.test(url)
+    ed.setMedia(id, { kind: isVideo ? 'video' : 'image', url, name: 'remote' })
+  }
+
+  const cover: CSSProperties = {
     position: 'absolute',
     inset: 0,
     width: '100%',
@@ -265,20 +176,25 @@ export function EditMedia({
 
   return (
     <div
+      ref={ref}
       style={{ ...style, position: 'relative', isolation: 'isolate' }}
       className={className}
-      data-edit-media={id}
+      data-spaire-edit-media={id}
       onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
+      onMouseLeave={() => {
+        setHover(false)
+        setPopoverOpen(false)
+      }}
     >
+      {/* Default placeholder */}
       {children}
-      {m?.kind === 'image' && (
+      {/* Uploaded media — host can render its own */}
+      {m && (renderMedia ? renderMedia(m) : m.kind === 'image' ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={m.url} alt="" style={cover} />
-      )}
-      {m?.kind === 'video' && (
+      ) : (
         <video src={m.url} autoPlay muted loop playsInline style={cover} />
-      )}
+      ))}
       {ed.mode === 'edit' && (
         <>
           <div
@@ -328,7 +244,10 @@ export function EditMedia({
             >
               <button
                 type="button"
-                onClick={() => fileRef.current?.click()}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setPopoverOpen((p) => !p)
+                }}
                 disabled={busy}
                 style={pillBtn}
               >
@@ -337,12 +256,52 @@ export function EditMedia({
               {m && (
                 <button
                   type="button"
-                  onClick={() => ed.setMedia(id, null)}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    ed.setMedia(id, null)
+                  }}
                   style={{ ...pillBtn, background: 'rgba(255,80,80,0.92)' }}
                 >
                   Remove
                 </button>
               )}
+            </div>
+          )}
+          {popoverOpen && (
+            <div
+              style={{
+                position: 'absolute',
+                right: 12,
+                top: 52,
+                zIndex: 7,
+                width: 240,
+                background: 'white',
+                color: '#111',
+                border: '1px solid rgba(0,0,0,0.08)',
+                borderRadius: 12,
+                padding: 10,
+                boxShadow:
+                  '0 16px 40px rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.08)',
+                fontFamily: 'Inter, system-ui, sans-serif',
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  marginBottom: 6,
+                  padding: '0 4px',
+                }}
+              >
+                Replace {label}
+              </div>
+              <button
+                type="button"
+                style={popoverBtn}
+                onClick={() => fileRef.current?.click()}
+              >
+                ⬆ Upload from device
+              </button>
               <input
                 ref={fileRef}
                 type="file"
@@ -350,15 +309,45 @@ export function EditMedia({
                 hidden
                 onChange={onFile}
               />
+              <button type="button" style={popoverBtn} onClick={onPasteUrl}>
+                🔗 Paste URL
+              </button>
+              <button
+                type="button"
+                style={popoverBtn}
+                onClick={() => {
+                  ed.setMedia(id, null)
+                  setPopoverOpen(false)
+                }}
+              >
+                ↺ Use placeholder
+              </button>
+              {m?.name && (
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: '#666',
+                    marginTop: 6,
+                    padding: '6px 8px',
+                    background: '#f4f4f5',
+                    borderRadius: 6,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {m.name}
+                </div>
+              )}
             </div>
           )}
         </>
       )}
     </div>
   )
-}
+})
 
-const pillBtn: React.CSSProperties = {
+const pillBtn: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   gap: 6,
@@ -373,6 +362,22 @@ const pillBtn: React.CSSProperties = {
   fontFamily: 'Inter, system-ui, sans-serif',
 }
 
+const popoverBtn: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  width: '100%',
+  padding: '8px 10px',
+  borderRadius: 8,
+  background: 'transparent',
+  color: '#111',
+  fontSize: 12.5,
+  fontWeight: 500,
+  textAlign: 'left',
+  cursor: 'pointer',
+  border: 'none',
+}
+
 // ── EditBlock ───────────────────────────────────────────────────────────────
 
 export function EditBlock({
@@ -382,11 +387,11 @@ export function EditBlock({
 }: {
   id: string
   label: string
-  children: React.ReactNode
+  children: ReactNode
 }) {
   const ed = useEditor()
   const [hover, setHover] = useState(false)
-  const visible = ed.overrides.visible[id] !== false
+  const visible = ed.isVisible(id)
 
   if (!visible && ed.mode === 'preview') return null
   if (ed.mode !== 'edit') return <>{children}</>
@@ -404,7 +409,7 @@ export function EditBlock({
       }}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      data-edit-block={id}
+      data-spaire-edit-block={id}
     >
       {hover && (
         <div
@@ -419,7 +424,7 @@ export function EditBlock({
             background: 'rgba(20,20,22,0.9)',
             color: 'white',
             borderRadius: 999,
-            padding: '5px 6px 5px 12px',
+            padding: '5px 8px 5px 12px',
             boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
             fontFamily: 'Inter, system-ui, sans-serif',
           }}
@@ -437,7 +442,10 @@ export function EditBlock({
           </span>
           <button
             type="button"
-            onClick={() => ed.setVisible(id, !visible)}
+            onClick={(e) => {
+              e.stopPropagation()
+              ed.setVisible(id, !visible)
+            }}
             style={{
               width: 26,
               height: 26,

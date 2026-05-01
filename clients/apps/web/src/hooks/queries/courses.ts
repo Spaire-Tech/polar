@@ -109,9 +109,36 @@ export type CourseRead = {
   instructor_name_italic: boolean
   instructor_name_bold: boolean
   instructor_name_uppercase: boolean
+  landing_overrides: LandingOverrides | null
   modules: CourseModuleRead[]
   created_at: string
   modified_at: string | null
+}
+
+export type LandingMediaKind = 'image' | 'video'
+export type LandingMedia = { kind: LandingMediaKind; url: string; name?: string }
+
+export type LandingTheme = {
+  fontHeading: string
+  fontBody: string
+  accentId: string
+  surfaceId: string
+  typeScale: number
+  headingWeight: number
+  bodyWeight: number
+  headingItalic: boolean
+  headingAlign: 'left' | 'center' | 'right'
+  headingTracking: number
+  headingLeading: number
+  density: 'compact' | 'comfortable' | 'spacious'
+  cornerStyle: 'sharp' | 'rounded' | 'pill'
+}
+
+export type LandingOverrides = {
+  text?: Record<string, string>
+  media?: Record<string, LandingMedia | null>
+  visible?: Record<string, boolean>
+  theme?: Partial<LandingTheme>
 }
 
 async function courseApiFetch<T>(
@@ -227,6 +254,7 @@ export const useUpdateCourse = () =>
         instructor_name_italic?: boolean
         instructor_name_bold?: boolean
         instructor_name_uppercase?: boolean
+        landing_overrides?: LandingOverrides | null
       }
     }) =>
       courseApiFetch<CourseRead>(`/v1/courses/${courseId}`, {

@@ -151,6 +151,7 @@ class CourseCreate(Schema):
     instructor_name_italic: bool = True
     instructor_name_bold: bool = True
     instructor_name_uppercase: bool = True
+    landing_overrides: dict | None = None
     modules: list[CourseModuleCreate] = Field(default_factory=list)
 
 
@@ -170,6 +171,7 @@ class CourseUpdate(Schema):
     instructor_name_italic: bool | None = None
     instructor_name_bold: bool | None = None
     instructor_name_uppercase: bool | None = None
+    landing_overrides: dict | None = None
 
 
 class QuizAnswerSubmission(Schema):
@@ -248,6 +250,7 @@ class CourseRead(TimestampedSchema):
     instructor_name_italic: bool = True
     instructor_name_bold: bool = True
     instructor_name_uppercase: bool = True
+    landing_overrides: dict | None = None
     modules: list[CourseModuleRead]
 
 
