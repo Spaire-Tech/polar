@@ -1199,10 +1199,18 @@ function PFPriceRow({
     return () => document.removeEventListener('mousedown', close)
   }, [])
 
+  // Local draft string is the source of truth for what the user is typing —
+  // we only resync from the form when the *currency* changes (decimal factor
+  // shifts), not when the amount changes (since that comes from our own
+  // setValue and would clobber the keystroke mid-type with "1.00").
   const [draft, setDraft] = useState<string>(fromMinor(amount, currency))
+  const lastCurrencyRef = useRef(currency)
   useEffect(() => {
-    setDraft(fromMinor(amount, currency))
-  }, [amount, currency])
+    if (lastCurrencyRef.current !== currency) {
+      setDraft(fromMinor(amount, currency))
+      lastCurrencyRef.current = currency
+    }
+  }, [currency, amount])
 
   return (
     <div className="pf-price-row" ref={ref}>
@@ -2036,6 +2044,11 @@ export function StepPricingWizard({
         }
         .pf-num:focus {
           border-color: var(--accent);
+          box-shadow: 0 0 0 3px var(--accent-ring);
+        }
+        .pf-select:focus {
+          border-color: var(--accent);
+          box-shadow: 0 0 0 3px var(--accent-ring);
         }
         .pf-select-wrap {
           position: relative;
@@ -2113,6 +2126,13 @@ export function StepPricingWizard({
           border-radius: 12px;
           background: #fff;
           position: relative;
+          transition:
+            border-color 0.15s,
+            box-shadow 0.15s;
+        }
+        .pf-price-row:focus-within {
+          border-color: var(--accent);
+          box-shadow: 0 0 0 4px var(--accent-ring);
         }
         .pf-price-cur {
           display: inline-flex;
