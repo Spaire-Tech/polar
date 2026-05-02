@@ -1078,7 +1078,7 @@ function PFSegmented<T extends string>({
         <button
           key={o.value}
           type="button"
-          className={`pf-seg-btn${value === o.value ? 'active' : ''}`}
+          className={`pf-seg-btn${value === o.value ? ' active' : ''}`}
           onClick={() => onChange(o.value)}
         >
           {o.label}
@@ -1103,7 +1103,7 @@ function PFChoiceCard({
   return (
     <button
       type="button"
-      className={`pf-choice${active ? 'active' : ''}`}
+      className={`pf-choice${active ? ' active' : ''}`}
       onClick={onClick}
     >
       <span className="pf-choice-title">{title}</span>
@@ -1130,7 +1130,7 @@ function PFToggle({
         type="button"
         role="switch"
         aria-checked={checked}
-        className={`pf-toggle${checked ? 'on' : ''}`}
+        className={`pf-toggle${checked ? ' on' : ''}`}
         onClick={() => onChange(!checked)}
       >
         <span className="pf-toggle-knob" />
@@ -1308,8 +1308,8 @@ function PFMediaDrop({
   value: schemas['ProductMediaFileRead'] | null
   onChange: (v: schemas['ProductMediaFileRead'] | null) => void
 }) {
-  const [hover, setHover] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const onFile = async (file?: File | null) => {
@@ -1350,18 +1350,16 @@ function PFMediaDrop({
 
   return (
     <div
-      className={`pf-media-drop${hover ? 'hover' : ''}`}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
+      className={`pf-media-drop${dragOver ? ' drag-over' : ''}`}
       onClick={() => inputRef.current?.click()}
       onDragOver={(e) => {
         e.preventDefault()
-        setHover(true)
+        setDragOver(true)
       }}
-      onDragLeave={() => setHover(false)}
+      onDragLeave={() => setDragOver(false)}
       onDrop={(e) => {
         e.preventDefault()
-        setHover(false)
+        setDragOver(false)
         onFile(e.dataTransfer.files?.[0])
       }}
     >
@@ -2413,11 +2411,12 @@ export function StepPricingWizard({
           border-radius: 14px;
           background: var(--surface-2);
           cursor: pointer;
-          transition: all 0.15s;
+          transition: border-color 0.15s, background 0.15s;
           aspect-ratio: 16 / 9;
           text-align: center;
         }
-        .pf-media-drop.hover {
+        .pf-media-drop:hover,
+        .pf-media-drop.drag-over {
           border-color: var(--accent);
           background: var(--accent-soft);
         }
