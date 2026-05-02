@@ -36,49 +36,11 @@ import slugify from 'slugify'
 import { Upload } from '../FileUpload/Upload'
 import { FadeUp } from '../Animated/FadeUp'
 import LogoIcon from '../Brand/LogoIcon'
+import { CURRENCIES } from '../Settings/currencies'
 import { getStatusRedirect } from '../Toast/utils'
 import { OnboardingProgressBar } from './OnboardingProgressBar'
 
 type PresentmentCurrency = schemas['PresentmentCurrency']
-
-const CURRENCIES: { code: PresentmentCurrency; flag: string }[] = [
-  { code: 'usd', flag: '🇺🇸' },
-  { code: 'eur', flag: '🇪🇺' },
-  { code: 'gbp', flag: '🇬🇧' },
-  { code: 'cad', flag: '🇨🇦' },
-  { code: 'aud', flag: '🇦🇺' },
-  { code: 'chf', flag: '🇨🇭' },
-  { code: 'jpy', flag: '🇯🇵' },
-  { code: 'sek', flag: '🇸🇪' },
-  { code: 'inr', flag: '🇮🇳' },
-  { code: 'brl', flag: '🇧🇷' },
-  { code: 'aed', flag: '🇦🇪' },
-  { code: 'ars', flag: '🇦🇷' },
-  { code: 'clp', flag: '🇨🇱' },
-  { code: 'cny', flag: '🇨🇳' },
-  { code: 'cop', flag: '🇨🇴' },
-  { code: 'czk', flag: '🇨🇿' },
-  { code: 'dkk', flag: '🇩🇰' },
-  { code: 'hkd', flag: '🇭🇰' },
-  { code: 'huf', flag: '🇭🇺' },
-  { code: 'idr', flag: '🇮🇩' },
-  { code: 'ils', flag: '🇮🇱' },
-  { code: 'krw', flag: '🇰🇷' },
-  { code: 'mxn', flag: '🇲🇽' },
-  { code: 'myr', flag: '🇲🇾' },
-  { code: 'nok', flag: '🇳🇴' },
-  { code: 'nzd', flag: '🇳🇿' },
-  { code: 'pen', flag: '🇵🇪' },
-  { code: 'php', flag: '🇵🇭' },
-  { code: 'pln', flag: '🇵🇱' },
-  { code: 'ron', flag: '🇷🇴' },
-  { code: 'sar', flag: '🇸🇦' },
-  { code: 'sgd', flag: '🇸🇬' },
-  { code: 'thb', flag: '🇹🇭' },
-  { code: 'try', flag: '🇹🇷' },
-  { code: 'twd', flag: '🇹🇼' },
-  { code: 'zar', flag: '🇿🇦' },
-]
 
 export interface OrganizationStepProps {
   slug?: string
