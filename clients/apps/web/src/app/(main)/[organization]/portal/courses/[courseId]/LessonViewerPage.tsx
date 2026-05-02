@@ -1,6 +1,6 @@
 'use client'
 
-import { splitLanding } from '@/components/Courses/landingStorage'
+import { splitLanding, type StoredLanding } from '@/components/Courses/landingStorage'
 import {
   useCustomerCourse,
   useMarkLessonComplete,
@@ -170,10 +170,20 @@ const LessonViewerPage = ({
   }
 
   // Show landing page (hero + lesson list).
-  // The course description may carry an AI-generated landing payload appended
-  // by the wizard (joinLanding). When present, render the cinematic landing.
-  // Otherwise fall back to the legacy MasterClass hero + list.
-  const { humanDescription, landing } = splitLanding(data.course.description)
+  // Newer courses persist the AI landing payload on landing_overrides.ai_landing
+  // and keep course.description clean. Older courses still embed the JSON in
+  // the description via splitLanding's sentinel marker — keep that as a
+  // legacy fallback so existing data renders.
+  const aiLandingFromOverrides = data.course.landing_overrides?.ai_landing as
+    | StoredLanding
+    | null
+    | undefined
+  const splitFromDescription = splitLanding(data.course.description)
+  const landing: StoredLanding | null =
+    aiLandingFromOverrides ?? splitFromDescription.landing
+  const humanDescription = landing
+    ? data.course.description
+    : splitFromDescription.humanDescription
 
   if (landing) {
     return (

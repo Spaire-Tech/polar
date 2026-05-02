@@ -27,18 +27,15 @@ import {
   SpaireOnboardingStyles,
   StepCourse,
   StepInstructor,
-  StepMedia,
-  StepPricing,
-  type PricingState,
+  StepPricingWizard,
+  type WizardPaywallState,
 } from './CourseWizard.steps'
-import { joinLanding } from './landingStorage'
 import { landingSchema, outlineSchema } from './schemas'
 
 type WizardStep =
   | 'intro'
   | 'instructor'
   | 'course'
-  | 'media'
   | 'pricing'
   | 'generating-outline'
   | 'outline'
@@ -48,14 +45,6 @@ type WizardStep =
 
 type InstructorState = { name: string; bio: string }
 type CourseState = { title: string; desc: string }
-type MediaFormat = 'thumbnail' | 'trailer' | null
-type MediaState = {
-  format: MediaFormat
-  thumbFile: File | null
-  thumbName: string
-  videoFile: File | null
-  videoName: string
-}
 type DraftState = {
   name: string
   courseTitle: string
@@ -73,23 +62,26 @@ type PartialModule = {
 }
 type PartialOutline = { modules?: PartialModule[] }
 
+// Upload a hero/thumbnail file as a *product media*. Going through the
+// canonical product-media pipeline (rather than organization_avatar) means
+// the file lands on the product's `medias` list and is surfaced in checkout,
+// emails, and social previews — same as a media uploaded from the regular
+// product create/edit form. The course thumbnail_url is sourced from the same
+// response so the cinematic hero keeps the same image.
 function uploadCourseThumbnail(
   organization: schemas['Organization'],
   file: File,
-): Promise<string | null> {
+): Promise<schemas['ProductMediaFileRead'] | null> {
   return new Promise((resolve) => {
     const upload = new Upload({
       organization,
-      service: 'organization_avatar',
+      service: 'product_media',
       file,
       onFileProcessing: () => {},
       onFileCreate: () => {},
       onFileUploadProgress: () => {},
       onFileUploaded: (response) => {
-        resolve(
-          (response as schemas['OrganizationAvatarFileRead']).public_url ??
-            null,
-        )
+        resolve(response as schemas['ProductMediaFileRead'])
       },
       onFileError: () => resolve(null),
     })
@@ -111,23 +103,15 @@ export default function CourseWizard({
 
   const [screen, setScreen] = useState<WizardStep>('intro')
   const [instructor, setInstructor] = useState<InstructorState>({
-    name: '',
+    name: organization.name ?? '',
     bio: '',
   })
   const [course, setCourse] = useState<CourseState>({ title: '', desc: '' })
-  const [media, setMedia] = useState<MediaState>({
-    format: null,
-    thumbFile: null,
-    thumbName: '',
-    videoFile: null,
-    videoName: '',
-  })
-  const [pricing, setPricing] = useState<PricingState>({
+  // Pricing/currency/billing-cycle live exclusively on the form below — same
+  // primitives as the regular product create flow. The wizard tracks only the
+  // course-specific paywall toggle + free preview lesson count.
+  const [paywall, setPaywall] = useState<WizardPaywallState>({
     paywallEnabled: false,
-    billingType: 'one_time',
-    recurringInterval: 'month',
-    currency: 'usd',
-    priceCents: 0,
     freePreviewLessons: 3,
   })
   const [draft, setDraft] = useState<DraftState>({
@@ -141,11 +125,15 @@ export default function CourseWizard({
   })
   const [editOpen, setEditOpen] = useState(false)
   const [generateError, setGenerateError] = useState<string | null>(null)
-  const [thumbPosition, setThumbPosition] = useState<string | null>(null)
-  const [uploadedThumbnailUrl, setUploadedThumbnailUrl] = useState<
-    string | null
-  >(null)
+  const thumbPosition: string | null = null
 
+  // The wizard hosts the same react-hook-form instance that ProductPricing
+  // Section + ProductMediaSection bind to — every choice the user makes there
+  // (one-time / recurring, fixed / free, currency tabs, media uploads) lands
+  // straight on form values, so finalizeCourse just hands form.getValues() to
+  // useCreateProduct. No bespoke mappers.
+  const defaultCurrency =
+    organization.default_presentment_currency ?? 'usd'
   const form = useForm<ProductEditOrCreateForm>({
     defaultValues: {
       name: '',
@@ -154,8 +142,10 @@ export default function CourseWizard({
       visibility: 'public',
       prices: [
         {
-          amount_type: 'free',
-        },
+          amount_type: 'fixed',
+          price_amount: 0,
+          price_currency: defaultCurrency,
+        } as schemas['ProductCreate']['prices'][number],
       ],
       medias: [],
       full_medias: [],
@@ -208,13 +198,6 @@ export default function CourseWizard({
   const startOutlineGeneration = async () => {
     setGenerateError(null)
 
-    // Upload thumbnail in the background while the outline streams.
-    if (media.thumbFile) {
-      uploadCourseThumbnail(organization, media.thumbFile).then((url) => {
-        if (url) setUploadedThumbnailUrl(url)
-      })
-    }
-
     form.setValue('name', draft.courseTitle || course.title)
     form.setValue('description', draft.desc || course.desc)
 
@@ -225,9 +208,9 @@ export default function CourseWizard({
       targetAudience: '',
       instructorName: instructor.name || null,
       instructorBio: instructor.bio || null,
-      paywallEnabled: pricing.paywallEnabled,
-      freePreviewLessons: pricing.paywallEnabled
-        ? pricing.freePreviewLessons
+      paywallEnabled: paywall.paywallEnabled,
+      freePreviewLessons: paywall.paywallEnabled
+        ? paywall.freePreviewLessons
         : null,
     })
   }
@@ -240,6 +223,9 @@ export default function CourseWizard({
         (acc, m) => acc + (m?.lessons?.length ?? 0),
         0,
       ) ?? 0
+    const recurringInterval = form.getValues('recurring_interval')
+    const billingType: 'one_time' | 'subscription' =
+      recurringInterval ? 'subscription' : 'one_time'
     setScreen('generating-landing')
     submitLanding({
       title: draft.courseTitle || course.title,
@@ -248,14 +234,14 @@ export default function CourseWizard({
       instructorBio: instructor.bio || null,
       moduleCount: outline?.modules?.length ?? 0,
       lessonCount,
-      paywallEnabled: pricing.paywallEnabled,
-      freePreviewLessons: pricing.paywallEnabled
-        ? pricing.freePreviewLessons
+      paywallEnabled: paywall.paywallEnabled,
+      freePreviewLessons: paywall.paywallEnabled
+        ? paywall.freePreviewLessons
         : null,
-      billingType: pricing.paywallEnabled ? pricing.billingType : null,
+      billingType: paywall.paywallEnabled ? billingType : null,
       recurringInterval:
-        pricing.paywallEnabled && pricing.billingType === 'subscription'
-          ? pricing.recurringInterval
+        paywall.paywallEnabled && billingType === 'subscription'
+          ? recurringInterval
           : null,
     })
   }
@@ -269,45 +255,35 @@ export default function CourseWizard({
     setScreen('creating')
 
     try {
-      // If the thumbnail wasn't uploaded yet (small image, but slow link),
-      // wait on it now. The wizard editor may have replaced the file inline.
-      const heroFile =
-        wizardData?.pendingHeroFile ?? media.thumbFile ?? null
-      let thumbnailUrl = uploadedThumbnailUrl
-      if (heroFile) {
-        thumbnailUrl = await uploadCourseThumbnail(organization, heroFile)
-      }
-
-      // Wire pricing into the product before creation.
-      if (pricing.paywallEnabled && pricing.priceCents > 0) {
-        form.setValue('prices', [
-          {
-            amount_type: 'fixed',
-            price_amount: pricing.priceCents,
-            price_currency: pricing.currency,
-          } as schemas['ProductCreate']['prices'][number],
-        ])
-        form.setValue(
-          'recurring_interval',
-          pricing.billingType === 'subscription'
-            ? pricing.recurringInterval
-            : null,
+      // Hero source for course.thumbnail_url:
+      // 1) inline upload from the wizard landing preview (pendingHeroFile)
+      // 2) otherwise the first media the user added in StepProductMedia
+      let heroMedia: schemas['ProductMediaFileRead'] | null = null
+      if (wizardData?.pendingHeroFile) {
+        heroMedia = await uploadCourseThumbnail(
+          organization,
+          wizardData.pendingHeroFile,
         )
+        if (heroMedia) {
+          const existing = form.getValues('full_medias') ?? []
+          if (!existing.some((m) => m.id === heroMedia!.id)) {
+            form.setValue('full_medias', [heroMedia, ...existing])
+          }
+        }
       } else {
-        form.setValue('prices', [
-          { amount_type: 'free', price_currency: pricing.currency },
-        ] as schemas['ProductCreate']['prices'])
-        form.setValue('recurring_interval', null)
+        heroMedia = (form.getValues('full_medias') ?? [])[0] ?? null
       }
+      const thumbnailUrl = heroMedia?.public_url ?? null
 
+      // Pricing + medias are already on `form` — ProductPricingSection and
+      // ProductMediaSection bound to it directly. Hand it straight to
+      // useCreateProduct without any wizard-specific mapping.
       const formValues = form.getValues()
       const { full_medias, metadata, ...rest } = formValues
       const mediaIds = full_medias.map((m) => m.id)
 
-      // The AI-generated landing payload is persisted onto the COURSE's
-      // description field via a sentinel marker (see `joinLanding` below).
-      // Product metadata can't carry it because each metadata value is capped
-      // at 500 chars by the backend.
+      // The AI-generated landing payload is persisted in the course's
+      // landing_overrides.ai_landing field. The human description stays clean.
       const landingForStorage = {
         ...(partialLanding as object | null | undefined),
         // Snapshot the editable surface bits the user might have changed in
@@ -346,24 +322,20 @@ export default function CourseWizard({
           (acc, m) => acc + (m?.lessons?.length ?? 0),
           0,
         ) ?? 0
-      const paywallPosition = pricing.paywallEnabled
-        ? Math.max(0, Math.min(totalLessons, pricing.freePreviewLessons))
+      const paywallPosition = paywall.paywallEnabled
+        ? Math.max(0, Math.min(totalLessons, paywall.freePreviewLessons))
         : null
 
       const humanDescription = draft.desc || course.desc || null
-      const courseDescriptionWithLanding = joinLanding(
-        humanDescription,
-        landingForStorage,
-      )
 
       const created = await createCourse.mutateAsync({
         product_id: productResult.data.id,
         organization_id: organization.id,
         title: draft.courseTitle || course.title || 'Untitled Course',
         course_type: 'evergreen',
-        paywall_enabled: pricing.paywallEnabled,
+        paywall_enabled: paywall.paywallEnabled,
         ai_generated: true,
-        description: courseDescriptionWithLanding,
+        description: humanDescription,
         thumbnail_url: thumbnailUrl,
         thumbnail_object_position: thumbPosition,
         instructor_name: draft.name || instructor.name || null,
@@ -400,7 +372,7 @@ export default function CourseWizard({
 
       // The create endpoint doesn't accept paywall_position; patch it in
       // immediately after if the wizard collected one.
-      if (pricing.paywallEnabled && paywallPosition !== null) {
+      if (paywall.paywallEnabled && paywallPosition !== null) {
         try {
           await updateCourse.mutateAsync({
             courseId: created.id,
@@ -413,6 +385,7 @@ export default function CourseWizard({
 
       // Apply landing overrides + upload buffered media now that the course
       // exists. Hero is already uploaded above; trailer + slot media follow.
+      // The full AI landing JSON also rides along on landing_overrides.
       if (wizardData) {
         const ov = { ...wizardData.overrides }
         ov.media = { ...ov.media }
@@ -451,7 +424,9 @@ export default function CourseWizard({
         try {
           await updateCourse.mutateAsync({
             courseId: created.id,
-            body: { landing_overrides: ov },
+            body: {
+              landing_overrides: { ...ov, ai_landing: landingForStorage },
+            },
           })
         } catch (e) {
           console.warn('[CourseWizard] landing_overrides patch failed:', e)
@@ -463,7 +438,7 @@ export default function CourseWizard({
         description: `"${draft.courseTitle || course.title}" is ready to edit`,
       })
       router.replace(
-        `/dashboard/${organization.slug}/courses/${created.id}?tab=customize`,
+        `/dashboard/${organization.slug}/courses/${created.id}?tab=outline`,
       )
     } catch (err) {
       console.error('[CourseWizard] create error:', err)
@@ -475,14 +450,15 @@ export default function CourseWizard({
     }
   }
 
-  const goPricing = () => {
+  // Promote step-1/2 inputs into the editable draft snapshot used by the
+  // landing preview. Called as the user leaves the Course step.
+  const seedDraftFromInputs = () => {
     setDraft((d) => ({
       ...d,
       name: d.name || instructor.name,
       courseTitle: d.courseTitle || course.title,
       desc: d.desc || course.desc || instructor.bio,
     }))
-    setScreen('pricing')
   }
 
   const partialOutlineSafe = (partialOutline as PartialOutline) ?? {
@@ -517,26 +493,21 @@ export default function CourseWizard({
             <StepCourse
               data={course}
               onChange={setCourse}
-              onNext={() => setScreen('media')}
+              onNext={() => {
+                seedDraftFromInputs()
+                setScreen('pricing')
+              }}
               onBack={() => setScreen('instructor')}
               onClose={handleClose}
             />
           )}
-          {screen === 'media' && (
-            <StepMedia
-              data={media}
-              onChange={setMedia}
-              onNext={goPricing}
-              onBack={() => setScreen('course')}
-              onClose={handleClose}
-            />
-          )}
           {screen === 'pricing' && (
-            <StepPricing
-              data={pricing}
-              onChange={setPricing}
+            <StepPricingWizard
+              organization={organization}
+              paywall={paywall}
+              onPaywallChange={setPaywall}
               onNext={startOutlineGeneration}
-              onBack={() => setScreen('media')}
+              onBack={() => setScreen('course')}
               onClose={handleClose}
             />
           )}
@@ -593,8 +564,8 @@ export default function CourseWizard({
               initialLanding={
                 (partialLanding as Record<string, unknown> | null) ?? null
               }
-              initialThumbFile={media.thumbFile}
-              initialThumbName={media.thumbName}
+              initialThumbFile={null}
+              initialThumbName=""
               onPublish={finalizeCourse}
               onBack={() => setScreen('outline')}
             />

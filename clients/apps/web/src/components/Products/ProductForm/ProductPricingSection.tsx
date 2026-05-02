@@ -757,6 +757,9 @@ interface ProductPriceItemProps {
   ) => void
   canRemove: boolean
   currencyControl?: React.ReactNode
+  // Optional whitelist of price amount types to render as radio options.
+  // Used by the course wizard to hide "Pay what you want" and "Per seat".
+  allowedAmountTypes?: ProductPriceCreate['amount_type'][]
 }
 
 const ProductPriceItem: React.FC<ProductPriceItemProps> = ({
@@ -767,6 +770,7 @@ const ProductPriceItem: React.FC<ProductPriceItemProps> = ({
   onAmountTypeChange,
   canRemove,
   currencyControl,
+  allowedAmountTypes,
 }) => {
   const { register, control, watch } = useFormContext<ProductFormType>()
   const amountType = watch(`prices.${index}.amount_type`)
@@ -785,37 +789,45 @@ const ProductPriceItem: React.FC<ProductPriceItemProps> = ({
     currentPrice && isStaticPrice(currentPrice as ProductPrice)
   const hasOtherStaticPrice = staticPriceForCurrency && !isCurrentPriceStatic
 
-  const priceTypeOptions = [
-    {
-      value: 'fixed',
-      title: 'Fixed price',
-      description: 'Charge a set amount',
-    },
-    {
-      value: 'free',
-      title: 'Free',
-      description: 'No charge. Give it away.',
-    },
-    {
-      value: 'custom',
-      title: 'Pay what you want',
-      description: 'Let buyers choose their price',
-    },
-    {
-      value: 'seat_based',
-      title: 'Per seat',
-      description: 'Price scales with seats or licenses',
-    },
-    ...(recurringInterval !== null
-      ? [
-          {
-            value: 'metered_unit',
-            title: 'Usage-based',
-            description: 'Charge based on consumption',
-          },
-        ]
-      : []),
-  ]
+  const priceTypeOptions = (
+    [
+      {
+        value: 'fixed',
+        title: 'Fixed price',
+        description: 'Charge a set amount',
+      },
+      {
+        value: 'free',
+        title: 'Free',
+        description: 'No charge. Give it away.',
+      },
+      {
+        value: 'custom',
+        title: 'Pay what you want',
+        description: 'Let buyers choose their price',
+      },
+      {
+        value: 'seat_based',
+        title: 'Per seat',
+        description: 'Price scales with seats or licenses',
+      },
+      ...(recurringInterval !== null
+        ? [
+            {
+              value: 'metered_unit',
+              title: 'Usage-based',
+              description: 'Charge based on consumption',
+            },
+          ]
+        : []),
+    ] as const
+  ).filter((opt) =>
+    allowedAmountTypes
+      ? allowedAmountTypes.includes(
+          opt.value as ProductPriceCreate['amount_type'],
+        )
+      : true,
+  )
 
   return (
     <div className="flex flex-col gap-6">
@@ -999,6 +1011,10 @@ export interface ProductPricingSectionProps {
   className?: string
   update?: boolean
   compact?: boolean
+  // Optional whitelist of price amount types to render. Defaults to all of
+  // them (fixed / free / custom / seat_based / metered_unit). The course
+  // wizard passes ['fixed', 'free'] to hide PWYW and Per-seat.
+  allowedAmountTypes?: ProductPriceCreate['amount_type'][]
 }
 
 export const ProductPricingSection = ({
@@ -1006,6 +1022,7 @@ export const ProductPricingSection = ({
   className,
   update,
   compact,
+  allowedAmountTypes,
 }: ProductPricingSectionProps) => {
   const { control, setValue, watch, getValues } =
     useFormContext<ProductFormType>()
@@ -1472,6 +1489,7 @@ export const ProductPricingSection = ({
             currency={validatedSelectedCurrency}
             onRemove={handleRemovePrice}
             onAmountTypeChange={handleAmountTypeChange}
+            allowedAmountTypes={allowedAmountTypes}
             canRemove={
               isMeteredPrice(price as ProductPrice) &&
               pricesForSelectedCurrency.some(

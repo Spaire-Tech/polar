@@ -140,6 +140,10 @@ export type LandingOverrides = {
   visible?: Record<string, boolean>
   order?: string[]
   theme?: Partial<LandingTheme>
+  // The full AI-generated landing payload. Stored here (rather than appended
+  // onto course.description with a sentinel marker) so the human description
+  // stays clean. See `StoredLanding` in landingStorage.ts for the shape.
+  ai_landing?: Record<string, unknown> | null
 }
 
 async function courseApiFetch<T>(
@@ -484,6 +488,7 @@ export type CustomerCourseDetail = {
     course_type: string
     paywall_enabled: boolean
     paywall_position: number | null
+    landing_overrides?: LandingOverrides | null
     modules: CustomerModuleRead[]
     lessons?: CustomerLessonRead[]
   }

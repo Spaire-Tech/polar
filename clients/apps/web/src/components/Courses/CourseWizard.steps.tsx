@@ -1,6 +1,9 @@
 'use client'
 
+import { ProductMediaSection } from '@/components/Products/ProductForm/ProductMediaSection'
+import { ProductPricingSection } from '@/components/Products/ProductForm/ProductPricingSection'
 import CloseIcon from '@mui/icons-material/Close'
+import { schemas } from '@spaire/client'
 import { useEffect, useRef, useState } from 'react'
 
 // ─── Shared style block ───────────────────────────────────────────────────────
@@ -529,7 +532,7 @@ export function Intro({
 
 // ─── Step shell ───────────────────────────────────────────────────────────────
 
-function StepShell({
+export function StepShell({
   step,
   total,
   title,
@@ -540,10 +543,11 @@ function StepShell({
   onClose,
   nextLabel = 'Continue',
   nextDisabled = false,
+  wide = false,
 }: {
   step: number
   total: number
-  title: string
+  title?: string
   eyebrow?: string
   children: React.ReactNode
   onNext: () => void
@@ -551,19 +555,33 @@ function StepShell({
   onClose: () => void
   nextLabel?: string
   nextDisabled?: boolean
+  // When true, drops the wizard eyebrow + so-title (the embedded section
+  // renders its own heading) and widens the content container so canonical
+  // product form sections fit naturally.
+  wide?: boolean
 }) {
   return (
     <>
       <ProgressBar pct={(step / total) * 100} />
       <TopBar step={step} total={total} onClose={onClose} />
       <div className="so-stage">
-        <div className="so-screen">
-          <div className="so-eyebrow">
-            {eyebrow ?? `Step ${step} of ${total}`}
-          </div>
-          <h2 className="so-title">{title}</h2>
+        <div
+          className="so-screen"
+          style={wide ? { maxWidth: 720 } : undefined}
+        >
+          {!wide && (
+            <>
+              <div className="so-eyebrow">
+                {eyebrow ?? `Step ${step} of ${total}`}
+              </div>
+              {title && <h2 className="so-title">{title}</h2>}
+            </>
+          )}
           {children}
-          <div className="so-btn-row">
+          <div
+            className="so-btn-row"
+            style={wide ? { marginTop: 32 } : undefined}
+          >
             <button
               type="button"
               className="so-btn-cta"
@@ -611,7 +629,7 @@ export function StepInstructor({
   return (
     <StepShell
       step={1}
-      total={4}
+      total={3}
       title="Instructor details"
       onNext={onNext}
       onBack={onBack}
@@ -667,7 +685,7 @@ export function StepCourse({
   return (
     <StepShell
       step={2}
-      total={4}
+      total={3}
       title="Course details"
       onNext={onNext}
       onBack={onBack}
@@ -916,242 +934,123 @@ export function StepMedia({
   )
 }
 
-// ─── Step 4: Pricing & access ────────────────────────────────────────────────
 
-export type BillingType = 'one_time' | 'subscription'
-export type RecurringInterval = 'month' | 'year'
+// ─── Step 3: Pricing & access (canonical) ────────────────────────────────────
+//
+// Mounts the same ProductMediaSection and ProductPricingSection used by the
+// regular product create/edit form. Media uploads land on form.full_medias
+// (real product_media records — surfaced in checkout / emails / social).
+// Pricing controls match the canonical UI, including currency tabs +
+// "Add Currency". We hide "Pay what you want" and "Per seat" via
+// allowedAmountTypes since they don't make sense for a course. Below the
+// section we keep the course-specific paywall toggle + free preview lessons
+// count.
 
-export type PricingState = {
+export type WizardPaywallState = {
   paywallEnabled: boolean
-  billingType: BillingType
-  recurringInterval: RecurringInterval
-  currency: string
-  priceCents: number
   freePreviewLessons: number
 }
 
-const CURRENCY_OPTIONS: { code: string; label: string; symbol: string }[] = [
-  { code: 'usd', label: 'USD', symbol: '$' },
-  { code: 'eur', label: 'EUR', symbol: '€' },
-  { code: 'gbp', label: 'GBP', symbol: '£' },
-  { code: 'cad', label: 'CAD', symbol: 'CA$' },
-  { code: 'aud', label: 'AUD', symbol: 'A$' },
-  { code: 'jpy', label: 'JPY', symbol: '¥' },
-  { code: 'chf', label: 'CHF', symbol: 'Fr' },
-  { code: 'sek', label: 'SEK', symbol: 'kr' },
-]
-
-function symbolFor(code: string): string {
-  return CURRENCY_OPTIONS.find((c) => c.code === code)?.symbol ?? '$'
-}
-
-export function StepPricing({
-  data,
-  onChange,
+export function StepPricingWizard({
+  organization,
+  paywall,
+  onPaywallChange,
   onNext,
   onBack,
   onClose,
 }: {
-  data: PricingState
-  onChange: (next: PricingState) => void
+  organization: schemas['Organization']
+  paywall: WizardPaywallState
+  onPaywallChange: (next: WizardPaywallState) => void
   onNext: () => void
   onBack: () => void
   onClose: () => void
 }) {
-  const [priceText, setPriceText] = useState(
-    data.paywallEnabled && data.priceCents > 0
-      ? (data.priceCents / 100).toFixed(0)
-      : '',
-  )
-
-  const validPrice =
-    !data.paywallEnabled ||
-    (data.priceCents > 0 && Number.isFinite(data.priceCents))
-
   return (
     <StepShell
-      step={4}
-      total={4}
-      title="Pricing & access"
+      step={3}
+      total={3}
+      nextLabel="Generate outline"
       onNext={onNext}
       onBack={onBack}
       onClose={onClose}
-      nextLabel="Generate outline"
-      nextDisabled={!validPrice}
+      wide
     >
-      <div className="so-fields">
-        {/* ── Access ────────────────────────────────────────── */}
-        <div className="so-field">
-          <label className="so-label">Access</label>
-          <div className="so-pricing-toggle-row">
-            <button
-              type="button"
-              className={`so-pricing-card${!data.paywallEnabled ? 'selected' : ''}`}
-              onClick={() =>
-                onChange({ ...data, paywallEnabled: false, priceCents: 0 })
-              }
-            >
-              <div className="so-pricing-card-title">Free</div>
-              <div className="so-pricing-card-sub">
-                Anyone can watch every lesson.
-              </div>
-            </button>
-            <button
-              type="button"
-              className={`so-pricing-card${data.paywallEnabled ? 'selected' : ''}`}
-              onClick={() => onChange({ ...data, paywallEnabled: true })}
-            >
-              <div className="so-pricing-card-title">Paid</div>
-              <div className="so-pricing-card-sub">
-                First few lessons free, rest unlocks on purchase.
-              </div>
-            </button>
-          </div>
+      <ProductMediaSection organization={organization} />
+      <ProductPricingSection
+        organization={organization}
+        compact
+        allowedAmountTypes={['fixed', 'free']}
+      />
+
+      {/* Paywall + free preview — course-specific, doesn't belong on a product. */}
+      <div
+        style={{
+          marginTop: 16,
+          padding: '24px 32px',
+          borderTop: '1px solid var(--so-gray2)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 16,
+          fontFamily: 'var(--font-poppins), system-ui, sans-serif',
+        }}
+      >
+        <div className="so-pricing-toggle-row">
+          <button
+            type="button"
+            className={`so-pricing-card${!paywall.paywallEnabled ? ' selected' : ''}`}
+            onClick={() =>
+              onPaywallChange({ ...paywall, paywallEnabled: false })
+            }
+          >
+            <div className="so-pricing-card-title">Open access</div>
+            <div className="so-pricing-card-sub">
+              Anyone enrolled can watch every lesson.
+            </div>
+          </button>
+          <button
+            type="button"
+            className={`so-pricing-card${paywall.paywallEnabled ? ' selected' : ''}`}
+            onClick={() =>
+              onPaywallChange({ ...paywall, paywallEnabled: true })
+            }
+          >
+            <div className="so-pricing-card-title">Free preview</div>
+            <div className="so-pricing-card-sub">
+              First few lessons free, the rest unlocks on purchase.
+            </div>
+          </button>
         </div>
 
-        {data.paywallEnabled && (
-          <>
-            {/* ── Billing model ─────────────────────────────── */}
-            <div className="so-field">
-              <label className="so-label">Billing model</label>
-              <div className="so-pricing-toggle-row">
-                <button
-                  type="button"
-                  className={`so-pricing-card${data.billingType === 'one_time' ? 'selected' : ''}`}
-                  onClick={() => onChange({ ...data, billingType: 'one_time' })}
-                >
-                  <div className="so-pricing-card-title">One-time</div>
-                  <div className="so-pricing-card-sub">
-                    Pay once, watch forever.
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  className={`so-pricing-card${data.billingType === 'subscription' ? 'selected' : ''}`}
-                  onClick={() =>
-                    onChange({ ...data, billingType: 'subscription' })
-                  }
-                >
-                  <div className="so-pricing-card-title">Subscription</div>
-                  <div className="so-pricing-card-sub">
-                    Recurring access, monthly or yearly.
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            {/* ── Recurring interval (subscription only) ────── */}
-            {data.billingType === 'subscription' && (
-              <div className="so-field">
-                <label className="so-label">Renews</label>
-                <div className="so-segment-row">
-                  {(['month', 'year'] as const).map((iv) => (
-                    <button
-                      key={iv}
-                      type="button"
-                      className={`so-segment${data.recurringInterval === iv ? 'selected' : ''}`}
-                      onClick={() =>
-                        onChange({ ...data, recurringInterval: iv })
-                      }
-                    >
-                      {iv === 'month' ? 'Monthly' : 'Yearly'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* ── Currency + price ──────────────────────────── */}
-            <div className="so-field">
-              <label className="so-label">Price</label>
-              <div className="so-price-row">
-                <select
-                  className="so-currency"
-                  value={data.currency}
-                  onChange={(e) =>
-                    onChange({ ...data, currency: e.target.value })
-                  }
-                >
-                  {CURRENCY_OPTIONS.map((c) => (
-                    <option key={c.code} value={c.code}>
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
-                <div style={{ position: 'relative', flex: 1 }}>
-                  <span
-                    style={{
-                      position: 'absolute',
-                      left: 16,
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      color: '#6a6a6a',
-                      fontSize: 15,
-                      pointerEvents: 'none',
-                    }}
-                  >
-                    {symbolFor(data.currency)}
-                  </span>
-                  <input
-                    className="so-input"
-                    type="text"
-                    inputMode="decimal"
-                    placeholder="79"
-                    value={priceText}
-                    style={{
-                      paddingLeft:
-                        symbolFor(data.currency).length > 1 ? 44 : 28,
-                    }}
-                    onChange={(e) => {
-                      const raw = e.target.value.replace(/[^0-9.]/g, '')
-                      setPriceText(raw)
-                      const amount = parseFloat(raw)
-                      // Most currencies use 2 minor units; JPY uses 0.
-                      const minorUnits = data.currency === 'jpy' ? 1 : 100
-                      onChange({
-                        ...data,
-                        priceCents: Number.isFinite(amount)
-                          ? Math.round(amount * minorUnits)
-                          : 0,
-                      })
-                    }}
-                  />
-                </div>
-              </div>
-              <span className="so-hint">
-                {data.billingType === 'subscription'
-                  ? `What students pay every ${data.recurringInterval}.`
-                  : 'What students pay once to enroll. You can change this later.'}
-              </span>
-            </div>
-
-            {/* ── Free preview lessons ──────────────────────── */}
-            <div className="so-field">
-              <label className="so-label">Free preview lessons</label>
-              <input
-                className="so-input"
-                type="number"
-                min={0}
-                max={20}
-                value={data.freePreviewLessons}
-                onChange={(e) =>
-                  onChange({
-                    ...data,
-                    freePreviewLessons: Math.max(
-                      0,
-                      Math.min(20, parseInt(e.target.value || '0', 10)),
-                    ),
-                  })
-                }
-              />
-              <span className="so-hint">
-                Lessons visible before the paywall. The rest unlock after
-                purchase.
-              </span>
-            </div>
-          </>
+        {paywall.paywallEnabled && (
+          <div className="so-field">
+            <label className="so-label">
+              Free preview lessons (0 = no preview)
+            </label>
+            <input
+              className="so-input"
+              type="number"
+              min={0}
+              max={20}
+              value={paywall.freePreviewLessons}
+              onChange={(e) =>
+                onPaywallChange({
+                  ...paywall,
+                  freePreviewLessons: Math.max(
+                    0,
+                    Math.min(20, parseInt(e.target.value || '0', 10)),
+                  ),
+                })
+              }
+            />
+            <span className="so-hint">
+              Lessons visible before the paywall. The rest unlock after
+              purchase.
+            </span>
+          </div>
         )}
       </div>
+
       <style jsx global>{`
         .so-pricing-toggle-row {
           display: grid;
@@ -1192,52 +1091,6 @@ export function StepPricing({
           font-size: 12px;
           color: var(--so-gray3);
           line-height: 1.5;
-        }
-        .so-segment-row {
-          display: inline-flex;
-          padding: 4px;
-          background: var(--so-gray1);
-          border: 1.5px solid var(--so-gray2);
-          border-radius: 12px;
-        }
-        .so-segment {
-          padding: 8px 16px;
-          background: transparent;
-          border: none;
-          border-radius: 8px;
-          font-family: var(--font-poppins), system-ui, sans-serif;
-          font-size: 13px;
-          font-weight: 500;
-          color: var(--so-gray4);
-          cursor: pointer;
-          transition:
-            background 0.15s,
-            color 0.15s;
-        }
-        .so-segment.selected {
-          background: var(--so-white);
-          color: var(--so-black);
-          box-shadow: 0 1px 2px rgba(10, 10, 10, 0.08);
-        }
-        .so-price-row {
-          display: flex;
-          gap: 10px;
-        }
-        .so-currency {
-          padding: 13px 14px;
-          background: var(--so-gray1);
-          border: 1.5px solid var(--so-gray2);
-          border-radius: 10px;
-          font-family: var(--font-poppins), system-ui, sans-serif;
-          font-size: 14px;
-          font-weight: 500;
-          color: var(--so-black);
-          outline: none;
-          cursor: pointer;
-        }
-        .so-currency:focus {
-          border-color: var(--so-black);
-          box-shadow: 0 0 0 3px rgba(10, 10, 10, 0.07);
         }
       `}</style>
     </StepShell>
