@@ -20,49 +20,10 @@ import {
 } from '@spaire/ui/components/ui/form'
 import React from 'react'
 import { useForm } from 'react-hook-form'
+import { CURRENCIES } from './currencies'
 import { SettingsGroup, SettingsGroupItem } from './SettingsGroup'
 
 type PresentmentCurrency = schemas['PresentmentCurrency']
-
-const CURRENCIES: { code: PresentmentCurrency; flag: string; label: string }[] =
-  [
-    { code: 'usd', flag: '🇺🇸', label: 'USD' },
-    { code: 'eur', flag: '🇪🇺', label: 'EUR' },
-    { code: 'gbp', flag: '🇬🇧', label: 'GBP' },
-    { code: 'cad', flag: '🇨🇦', label: 'CAD' },
-    { code: 'aud', flag: '🇦🇺', label: 'AUD' },
-    { code: 'chf', flag: '🇨🇭', label: 'CHF' },
-    { code: 'jpy', flag: '🇯🇵', label: 'JPY' },
-    { code: 'sek', flag: '🇸🇪', label: 'SEK' },
-    { code: 'inr', flag: '🇮🇳', label: 'INR' },
-    { code: 'brl', flag: '🇧🇷', label: 'BRL' },
-    { code: 'aed', flag: '🇦🇪', label: 'AED' },
-    { code: 'ars', flag: '🇦🇷', label: 'ARS' },
-    { code: 'clp', flag: '🇨🇱', label: 'CLP' },
-    { code: 'cny', flag: '🇨🇳', label: 'CNY' },
-    { code: 'cop', flag: '🇨🇴', label: 'COP' },
-    { code: 'czk', flag: '🇨🇿', label: 'CZK' },
-    { code: 'dkk', flag: '🇩🇰', label: 'DKK' },
-    { code: 'hkd', flag: '🇭🇰', label: 'HKD' },
-    { code: 'huf', flag: '🇭🇺', label: 'HUF' },
-    { code: 'idr', flag: '🇮🇩', label: 'IDR' },
-    { code: 'ils', flag: '🇮🇱', label: 'ILS' },
-    { code: 'krw', flag: '🇰🇷', label: 'KRW' },
-    { code: 'mxn', flag: '🇲🇽', label: 'MXN' },
-    { code: 'myr', flag: '🇲🇾', label: 'MYR' },
-    { code: 'nok', flag: '🇳🇴', label: 'NOK' },
-    { code: 'nzd', flag: '🇳🇿', label: 'NZD' },
-    { code: 'pen', flag: '🇵🇪', label: 'PEN' },
-    { code: 'php', flag: '🇵🇭', label: 'PHP' },
-    { code: 'pln', flag: '🇵🇱', label: 'PLN' },
-    { code: 'ron', flag: '🇷🇴', label: 'RON' },
-    { code: 'sar', flag: '🇸🇦', label: 'SAR' },
-    { code: 'sgd', flag: '🇸🇬', label: 'SGD' },
-    { code: 'thb', flag: '🇹🇭', label: 'THB' },
-    { code: 'try', flag: '🇹🇷', label: 'TRY' },
-    { code: 'twd', flag: '🇹🇼', label: 'TWD' },
-    { code: 'zar', flag: '🇿🇦', label: 'ZAR' },
-  ]
 
 interface OrganizationCurrencySettingsProps {
   organization: schemas['Organization']
