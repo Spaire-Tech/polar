@@ -510,6 +510,7 @@ export default function CourseWizard({
               onBack={() => setScreen('course')}
               onClose={handleClose}
               courseTitle={draft.courseTitle || course.title}
+              courseDesc={draft.desc || course.desc}
               courseLessons={12}
             />
           )}
