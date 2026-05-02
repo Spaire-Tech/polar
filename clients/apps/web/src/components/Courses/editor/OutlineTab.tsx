@@ -185,7 +185,7 @@ export function OutlineTab({
   const paidLessons = showPaywall ? filtered.slice(paywallAt) : []
 
   return (
-    <div className="mx-auto w-full max-w-[960px] px-6 pt-7 pb-20">
+    <div className="mx-auto w-full max-w-[880px] px-8 pt-7 pb-20">
       {/* Search */}
       <div className="pb-5">
         <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-[9px] shadow-sm">
@@ -268,7 +268,7 @@ function SectionLabel({ text, count }: { text: string; count: number }) {
 
 function LessonGrid({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mb-1 grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3.5">
+    <div className="mb-1 grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
       {children}
     </div>
   )

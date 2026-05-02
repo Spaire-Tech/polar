@@ -249,7 +249,7 @@ export function LessonDetail({
       <div className="flex flex-1 overflow-hidden">
         {/* Main column — centered 560px max */}
         <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto flex w-full max-w-[560px] flex-col gap-2.5 px-0 pt-6 pb-20">
+        <div className="mx-auto flex w-full max-w-[640px] flex-col gap-2.5 px-6 pt-6 pb-20">
           <Card>
             <CardHeader title="Lesson Details" />
 

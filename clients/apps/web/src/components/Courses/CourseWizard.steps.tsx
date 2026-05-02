@@ -1,10 +1,27 @@
 'use client'
 
-import { ProductMediaSection } from '@/components/Products/ProductForm/ProductMediaSection'
-import { ProductPricingSection } from '@/components/Products/ProductForm/ProductPricingSection'
+import { Upload } from '@/components/FileUpload/Upload'
 import CloseIcon from '@mui/icons-material/Close'
-import { schemas } from '@spaire/client'
-import { useEffect, useRef, useState } from 'react'
+import { enums, schemas } from '@spaire/client'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useFieldArray, useFormContext } from 'react-hook-form'
+
+// Local form type — the wizard's shared react-hook-form holds a discriminated
+// `ProductCreate | ProductUpdate`, but we only touch a flat subset of fields
+// (pricing, recurring, trial). Using a permissive local view sidesteps the
+// union-narrowing pain while still matching the runtime shape exactly.
+type WizardPricingForm = {
+  recurring_interval: schemas['SubscriptionRecurringInterval'] | null
+  recurring_interval_count: number | null
+  trial_interval: schemas['TrialInterval'] | null
+  trial_interval_count: number | null
+  prices: Array<{
+    id?: string
+    amount_type?: 'fixed' | 'free' | 'custom' | 'seat_based' | 'metered_unit'
+    price_currency?: schemas['PresentmentCurrency']
+    price_amount?: number | null
+  }>
+}
 
 // ─── Shared style block ───────────────────────────────────────────────────────
 
@@ -565,10 +582,7 @@ export function StepShell({
       <ProgressBar pct={(step / total) * 100} />
       <TopBar step={step} total={total} onClose={onClose} />
       <div className="so-stage">
-        <div
-          className="so-screen"
-          style={wide ? { maxWidth: 720 } : undefined}
-        >
+        <div className="so-screen" style={wide ? { maxWidth: 1200 } : undefined}>
           {!wide && (
             <>
               <div className="so-eyebrow">
@@ -934,17 +948,543 @@ export function StepMedia({
   )
 }
 
+// ─── Step 3: Pricing & access — design ported from spaire/Product Flow.html ──
+// Implementation matches the design exactly (indigo accent, live CheckoutPreview
+// pane, MediaDrop, PriceRow with currency picker, Section primitives, Toggle).
+// The only thing dropped from the source design is the top nav bar — wizard
+// chrome (StepShell) provides its own progress bar and footer CTAs.
 
-// ─── Step 3: Pricing & access (canonical) ────────────────────────────────────
-//
-// Mounts the same ProductMediaSection and ProductPricingSection used by the
-// regular product create/edit form. Media uploads land on form.full_medias
-// (real product_media records — surfaced in checkout / emails / social).
-// Pricing controls match the canonical UI, including currency tabs +
-// "Add Currency". We hide "Pay what you want" and "Per seat" via
-// allowedAmountTypes since they don't make sense for a course. Below the
-// section we keep the course-specific paywall toggle + free preview lessons
-// count.
+type CurrencyMeta = { code: string; symbol: string; name: string }
+
+const SYMBOL_FALLBACKS: Record<string, string> = {
+  xof: 'CFA',
+  xaf: 'FCFA',
+  xpf: 'CFP',
+  xcd: 'EC$',
+  xcg: 'Cg',
+  ngn: '₦',
+  ghs: 'GH₵',
+  kes: 'KSh',
+  zar: 'R',
+  vuv: 'VT',
+  cve: '$',
+}
+
+const buildCurrencyMeta = (code: string): CurrencyMeta => {
+  const upper = code.toUpperCase()
+  let symbol = SYMBOL_FALLBACKS[code] ?? upper
+  let name = upper
+  try {
+    const parts = new Intl.NumberFormat('en', {
+      style: 'currency',
+      currency: upper,
+      currencyDisplay: 'narrowSymbol',
+    }).formatToParts(1)
+    const sym = parts.find((p) => p.type === 'currency')?.value
+    if (sym && sym !== upper) symbol = sym
+  } catch {}
+  try {
+    const dn = new Intl.DisplayNames(['en'], { type: 'currency' }).of(upper)
+    if (dn) name = dn
+  } catch {}
+  return { code, symbol, name }
+}
+
+const CURRENCIES: CurrencyMeta[] = (
+  enums.presentmentCurrencyValues as readonly string[]
+)
+  .map(buildCurrencyMeta)
+  .sort((a, b) => {
+    const featured = ['usd', 'eur', 'gbp', 'cad', 'aud', 'xof', 'ngn']
+    const ai = featured.indexOf(a.code)
+    const bi = featured.indexOf(b.code)
+    if (ai !== -1 || bi !== -1) {
+      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi)
+    }
+    return a.code.localeCompare(b.code)
+  })
+
+const ZERO_DECIMAL_FACTOR = new Set([
+  'bif',
+  'clp',
+  'djf',
+  'gnf',
+  'jpy',
+  'kmf',
+  'krw',
+  'mga',
+  'pyg',
+  'rwf',
+  'ugx',
+  'vnd',
+  'vuv',
+  'xaf',
+  'xof',
+  'xpf',
+])
+const decFactor = (code: string) => (ZERO_DECIMAL_FACTOR.has(code) ? 1 : 100)
+const toMinor = (input: string, currency: string): number => {
+  const n = Number.parseFloat(input)
+  if (!Number.isFinite(n) || n < 0) return 0
+  return Math.round(n * decFactor(currency))
+}
+const fromMinor = (
+  amount: number | null | undefined,
+  currency: string,
+): string => {
+  if (amount == null) return ''
+  const f = decFactor(currency)
+  if (f === 1) return String(amount)
+  return (amount / f).toFixed(2)
+}
+
+// ── Section primitive (from components.jsx) ────────────────────────────────
+function PFSection({
+  eyebrow,
+  title,
+  description,
+  children,
+}: {
+  eyebrow?: string
+  title: string
+  description?: string
+  children: React.ReactNode
+}) {
+  return (
+    <section className="pf-section">
+      <div className="pf-section-head">
+        {eyebrow && <div className="pf-eyebrow">{eyebrow}</div>}
+        <h2 className="pf-title">{title}</h2>
+        {description && <p className="pf-desc">{description}</p>}
+      </div>
+      <div>{children}</div>
+    </section>
+  )
+}
+
+// ── Segmented (from components.jsx) ────────────────────────────────────────
+function PFSegmented<T extends string>({
+  value,
+  onChange,
+  options,
+}: {
+  value: T
+  onChange: (v: T) => void
+  options: { value: T; label: string }[]
+}) {
+  return (
+    <div className="pf-seg">
+      {options.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          className={`pf-seg-btn${value === o.value ? 'active' : ''}`}
+          onClick={() => onChange(o.value)}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+// ── ChoiceCard (from components.jsx) ───────────────────────────────────────
+function PFChoiceCard({
+  active,
+  onClick,
+  title,
+  description,
+}: {
+  active: boolean
+  onClick: () => void
+  title: string
+  description: string
+}) {
+  return (
+    <button
+      type="button"
+      className={`pf-choice${active ? 'active' : ''}`}
+      onClick={onClick}
+    >
+      <span className="pf-choice-title">{title}</span>
+      <span className="pf-choice-desc">{description}</span>
+    </button>
+  )
+}
+
+// ── Toggle (from components.jsx) ───────────────────────────────────────────
+function PFToggle({
+  checked,
+  onChange,
+  label,
+  description,
+}: {
+  checked: boolean
+  onChange: (v: boolean) => void
+  label: string
+  description: string
+}) {
+  return (
+    <div className="pf-toggle-row">
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        className={`pf-toggle${checked ? 'on' : ''}`}
+        onClick={() => onChange(!checked)}
+      >
+        <span className="pf-toggle-knob" />
+      </button>
+      <div className="pf-toggle-text">
+        <div className="pf-toggle-label">{label}</div>
+        <div className="pf-toggle-desc">{description}</div>
+      </div>
+    </div>
+  )
+}
+
+// ── Select (from components.jsx, used in Recurring row) ────────────────────
+function PFSelect<T extends string>({
+  value,
+  onChange,
+  options,
+}: {
+  value: T
+  onChange: (v: T) => void
+  options: { value: T; label: string }[]
+}) {
+  return (
+    <div className="pf-select-wrap">
+      <select
+        className="pf-select"
+        value={value}
+        onChange={(e) => onChange(e.target.value as T)}
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      <span className="pf-select-chev">▾</span>
+    </div>
+  )
+}
+
+// ── PriceRow (from app.jsx) ────────────────────────────────────────────────
+function PFPriceRow({
+  index,
+  primary,
+  disabledCurrencies,
+  onRemove,
+}: {
+  index: number
+  primary?: boolean
+  disabledCurrencies: string[]
+  onRemove?: () => void
+}) {
+  const { watch, setValue } = useFormContext<WizardPricingForm>()
+  const price = watch(`prices.${index}`)
+  const currency = price?.price_currency ?? 'usd'
+  const amount = price?.price_amount ?? null
+  const cur = CURRENCIES.find((c) => c.code === currency) ?? CURRENCIES[0]
+
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    const close = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [])
+
+  // Local draft string is the source of truth for what the user is typing —
+  // we only resync from the form when the *currency* changes (decimal factor
+  // shifts), not when the amount changes (since that comes from our own
+  // setValue and would clobber the keystroke mid-type with "1.00").
+  const [draft, setDraft] = useState<string>(fromMinor(amount, currency))
+  const lastCurrencyRef = useRef(currency)
+  useEffect(() => {
+    if (lastCurrencyRef.current !== currency) {
+      setDraft(fromMinor(amount, currency))
+      lastCurrencyRef.current = currency
+    }
+  }, [currency, amount])
+
+  return (
+    <div className="pf-price-row" ref={ref}>
+      <button
+        type="button"
+        className="pf-price-cur"
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span className="pf-price-pill">{cur.symbol}</span>
+        {cur.code.toUpperCase()}
+        <span className="pf-price-chev">▾</span>
+      </button>
+      <input
+        type="text"
+        inputMode="decimal"
+        className="pf-price-amount"
+        value={draft}
+        placeholder="0.00"
+        onChange={(e) => {
+          const cleaned = e.target.value.replace(/[^\d.]/g, '')
+          setDraft(cleaned)
+          setValue(`prices.${index}.price_amount`, toMinor(cleaned, currency))
+          setValue(`prices.${index}.id`, '')
+        }}
+      />
+      {primary && <span className="pf-price-tag">Primary</span>}
+      {onRemove && (
+        <button
+          type="button"
+          className="pf-price-remove"
+          onClick={onRemove}
+          aria-label="Remove currency"
+        >
+          ×
+        </button>
+      )}
+      {open && (
+        <div className="pf-cur-menu">
+          {CURRENCIES.map((c) => {
+            const isDisabled =
+              disabledCurrencies.includes(c.code) && c.code !== currency
+            return (
+              <button
+                type="button"
+                key={c.code}
+                disabled={isDisabled}
+                className={`pf-cur-item${
+                  c.code === currency ? 'active' : ''
+                }${isDisabled ? 'disabled' : ''}`}
+                onClick={() => {
+                  if (isDisabled) return
+                  setValue(
+                    `prices.${index}.price_currency`,
+                    c.code as schemas['PresentmentCurrency'],
+                  )
+                  setValue(`prices.${index}.id`, '')
+                  setOpen(false)
+                }}
+              >
+                <span className="pf-cur-pill">{c.symbol}</span>
+                <span className="pf-cur-code">{c.code.toUpperCase()}</span>
+                <span className="pf-cur-name">{c.name}</span>
+                {c.code === currency && <span className="pf-cur-check">✓</span>}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── MediaDrop (from app.jsx) — visually identical, routes upload through the
+// canonical Upload service so the file lands as a real product_media. ──────
+function PFMediaDrop({
+  organization,
+  value,
+  onChange,
+}: {
+  organization: schemas['Organization']
+  value: schemas['ProductMediaFileRead'] | null
+  onChange: (v: schemas['ProductMediaFileRead'] | null) => void
+}) {
+  const [hover, setHover] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const onFile = async (file?: File | null) => {
+    if (!file) return
+    setUploading(true)
+    const upload = new Upload({
+      organization,
+      service: 'product_media',
+      file,
+      onFileProcessing: () => {},
+      onFileCreate: () => {},
+      onFileUploadProgress: () => {},
+      onFileUploaded: (response) => {
+        setUploading(false)
+        onChange(response as schemas['ProductMediaFileRead'])
+      },
+      onFileError: () => {
+        setUploading(false)
+      },
+    })
+    upload.run()
+  }
+
+  if (value) {
+    return (
+      <div className="pf-media-preview">
+        <img src={value.public_url} alt={value.name} />
+        <button
+          type="button"
+          className="pf-media-remove"
+          onClick={() => onChange(null)}
+        >
+          Remove
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className={`pf-media-drop${hover ? 'hover' : ''}`}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      onClick={() => inputRef.current?.click()}
+      onDragOver={(e) => {
+        e.preventDefault()
+        setHover(true)
+      }}
+      onDragLeave={() => setHover(false)}
+      onDrop={(e) => {
+        e.preventDefault()
+        setHover(false)
+        onFile(e.dataTransfer.files?.[0])
+      }}
+    >
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*,video/*"
+        hidden
+        onChange={(e) => onFile(e.target.files?.[0])}
+      />
+      <div className="pf-media-title">
+        {uploading ? (
+          'Uploading…'
+        ) : (
+          <>
+            Drop image or video, or{' '}
+            <span className="pf-media-browse">browse</span>
+          </>
+        )}
+      </div>
+      <div className="pf-media-hint">
+        PNG, JPG, MP4 · up to 10 MB · 16:9 recommended
+      </div>
+    </div>
+  )
+}
+
+// ── CheckoutPreview (from app.jsx) ─────────────────────────────────────────
+function PFCheckoutPreview({
+  courseTitle,
+  courseLessons,
+  primaryPrice,
+  additionalPrices,
+  cycle,
+  every,
+  period,
+  freeTrial,
+  trialDays,
+  isFree,
+  accessMode,
+  previewLessons,
+  media,
+}: {
+  courseTitle: string
+  courseLessons: number
+  primaryPrice: { currency: string; amount: string }
+  additionalPrices: { currency: string; amount: string }[]
+  cycle: 'onetime' | 'recurring'
+  every: number
+  period: string
+  freeTrial: boolean
+  trialDays: number
+  isFree: boolean
+  accessMode: 'open' | 'preview'
+  previewLessons: number
+  media: schemas['ProductMediaFileRead'] | null
+}) {
+  const cur =
+    CURRENCIES.find((c) => c.code === primaryPrice.currency) ?? CURRENCIES[0]
+  const amount = isFree ? 'Free' : `${cur.symbol}${primaryPrice.amount || '0'}`
+  const cycleLabel =
+    cycle === 'recurring' && !isFree
+      ? ` / ${every > 1 ? `${every} ${period}s` : period}`
+      : ''
+  const cta = isFree
+    ? 'Enrol for free'
+    : cycle === 'recurring'
+      ? freeTrial
+        ? `Start ${trialDays}-day free trial`
+        : 'Subscribe & start learning'
+      : 'Buy course'
+
+  return (
+    <aside className="pf-preview-aside">
+      <div className="pf-preview-eyebrow">Live preview</div>
+      <div className="pf-preview-card">
+        <div
+          className="pf-preview-hero"
+          style={
+            media?.public_url
+              ? {
+                  background: `center / cover no-repeat url(${media.public_url})`,
+                }
+              : undefined
+          }
+        >
+          {accessMode === 'preview' && previewLessons > 0 && (
+            <span className="pf-preview-badge">
+              {previewLessons} free preview{' '}
+              {previewLessons === 1 ? 'lesson' : 'lessons'}
+            </span>
+          )}
+          {!media?.public_url && (
+            <div className="pf-preview-placeholder">course cover · 16:9</div>
+          )}
+        </div>
+        <div className="pf-preview-body">
+          <div className="pf-preview-meta">
+            Online course · {courseLessons} lessons
+          </div>
+          <h3 className="pf-preview-title">{courseTitle}</h3>
+          <div className="pf-preview-price">
+            <span className="pf-preview-amount">{amount}</span>
+            {cycleLabel && (
+              <span className="pf-preview-cycle">{cycleLabel}</span>
+            )}
+          </div>
+          {additionalPrices.length > 0 && !isFree && (
+            <div className="pf-preview-extras">
+              {additionalPrices.map((p, i) => {
+                const c =
+                  CURRENCIES.find((x) => x.code === p.currency) ?? CURRENCIES[0]
+                return (
+                  <span key={i} className="pf-preview-extra">
+                    {c.symbol}
+                    {p.amount || '0'} {c.code.toUpperCase()}
+                  </span>
+                )
+              })}
+            </div>
+          )}
+          <button type="button" className="pf-preview-cta">
+            {cta}
+          </button>
+          <div className="pf-preview-footer">
+            <span>Secure checkout</span>
+            <span>Powered by spaire</span>
+          </div>
+        </div>
+      </div>
+      <div className="pf-preview-note">
+        Updates as you change the form. Final layout may vary in email & social
+        shares.
+      </div>
+    </aside>
+  )
+}
 
 export type WizardPaywallState = {
   paywallEnabled: boolean
@@ -958,6 +1498,8 @@ export function StepPricingWizard({
   onNext,
   onBack,
   onClose,
+  courseTitle,
+  courseLessons,
 }: {
   organization: schemas['Organization']
   paywall: WizardPaywallState
@@ -965,7 +1507,125 @@ export function StepPricingWizard({
   onNext: () => void
   onBack: () => void
   onClose: () => void
+  courseTitle?: string
+  courseLessons?: number
 }) {
+  const { control, watch, setValue, getValues } =
+    useFormContext<WizardPricingForm>()
+
+  const { fields, append, remove, replace } = useFieldArray({
+    control,
+    name: 'prices',
+  })
+
+  const recurringInterval = watch('recurring_interval')
+  const recurringIntervalCount = watch('recurring_interval_count') ?? 1
+  const trialInterval = watch('trial_interval')
+  const trialIntervalCount = watch('trial_interval_count')
+  const fullMedias =
+    (watch('full_medias' as never) as schemas['ProductMediaFileRead'][]) ?? []
+  const heroMedia: schemas['ProductMediaFileRead'] | null =
+    fullMedias[0] ?? null
+
+  const cycle: 'onetime' | 'recurring' =
+    recurringInterval == null ? 'onetime' : 'recurring'
+
+  const prices = watch('prices') ?? []
+  const priceModel: 'fixed' | 'free' =
+    prices[0]?.amount_type === 'free' ? 'free' : 'fixed'
+
+  const defaultCurrency = organization.default_presentment_currency ?? 'usd'
+
+  const usedCurrencies: string[] = useMemo(
+    () =>
+      prices
+        .map((p) => p?.price_currency)
+        .filter((c): c is NonNullable<typeof c> => typeof c === 'string'),
+    [prices],
+  )
+  const additionalIndices = useMemo(
+    () => prices.map((_, i) => i).slice(1),
+    [prices],
+  )
+
+  const setCycle = (next: 'onetime' | 'recurring') => {
+    if (next === 'onetime') {
+      setValue('recurring_interval', null)
+      setValue('recurring_interval_count', null)
+      setValue('trial_interval', null)
+      setValue('trial_interval_count', null)
+    } else {
+      setValue('recurring_interval', recurringInterval ?? 'month')
+      setValue('recurring_interval_count', recurringIntervalCount || 1)
+    }
+  }
+
+  const setPriceModel = (next: 'fixed' | 'free') => {
+    const current = getValues('prices') ?? []
+    const updated: WizardPricingForm['prices'] = current.map((p) => {
+      const c = p?.price_currency ?? defaultCurrency
+      const base = { price_currency: c as schemas['PresentmentCurrency'] }
+      if (next === 'free') return { ...base, amount_type: 'free' }
+      return {
+        ...base,
+        amount_type: 'fixed',
+        price_amount: p?.price_amount ?? 0,
+      }
+    })
+    replace(updated)
+  }
+
+  const addCurrency = () => {
+    const used = new Set(usedCurrencies)
+    const next = CURRENCIES.find((c) => !used.has(c.code))?.code ?? 'usd'
+    if (priceModel === 'free') {
+      append({
+        amount_type: 'free',
+        price_currency: next as schemas['PresentmentCurrency'],
+      })
+    } else {
+      append({
+        amount_type: 'fixed',
+        price_amount: 0,
+        price_currency: next as schemas['PresentmentCurrency'],
+      })
+    }
+  }
+
+  const trialEnabled = trialInterval != null && trialIntervalCount != null
+  const setTrialEnabled = (enabled: boolean) => {
+    if (enabled) {
+      setValue('trial_interval', 'day')
+      setValue('trial_interval_count', trialIntervalCount ?? 7)
+    } else {
+      setValue('trial_interval', null)
+      setValue('trial_interval_count', null)
+    }
+  }
+
+  const previewPrimary = {
+    currency: prices[0]?.price_currency ?? defaultCurrency,
+    amount: fromMinor(
+      prices[0]?.price_amount,
+      prices[0]?.price_currency ?? defaultCurrency,
+    ),
+  }
+  const previewAdditional = additionalIndices.map((i) => ({
+    currency: prices[i]?.price_currency ?? 'usd',
+    amount: fromMinor(
+      prices[i]?.price_amount,
+      prices[i]?.price_currency ?? 'usd',
+    ),
+  }))
+
+  const accessMode: 'open' | 'preview' = paywall.paywallEnabled
+    ? 'preview'
+    : 'open'
+
+  const setMedia = (m: schemas['ProductMediaFileRead'] | null) => {
+    setValue('full_medias' as never, (m ? [m] : []) as never)
+  }
+
   return (
     <StepShell
       step={3}
@@ -976,120 +1636,963 @@ export function StepPricingWizard({
       onClose={onClose}
       wide
     >
-      <ProductMediaSection organization={organization} />
-      <ProductPricingSection
-        organization={organization}
-        compact
-        allowedAmountTypes={['fixed', 'free']}
-      />
+      <div className="spaire-wizard-pricing">
+        <main className="pf-main">
+          <div className="pf-form-col">
+            {/* MEDIA */}
+            <PFSection
+              eyebrow="Media"
+              title="Course cover"
+              description="The first thing students see — in checkout, on your spaire space, in shares. Use a frame from a lesson, or a custom thumbnail. 16:9 works best."
+            >
+              <PFMediaDrop
+                organization={organization}
+                value={heroMedia}
+                onChange={setMedia}
+              />
+            </PFSection>
 
-      {/* Paywall + free preview — course-specific, doesn't belong on a product. */}
-      <div
-        style={{
-          marginTop: 16,
-          padding: '24px 32px',
-          borderTop: '1px solid var(--so-gray2)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 16,
-          fontFamily: 'var(--font-poppins), system-ui, sans-serif',
-        }}
-      >
-        <div className="so-pricing-toggle-row">
-          <button
-            type="button"
-            className={`so-pricing-card${!paywall.paywallEnabled ? ' selected' : ''}`}
-            onClick={() =>
-              onPaywallChange({ ...paywall, paywallEnabled: false })
-            }
-          >
-            <div className="so-pricing-card-title">Open access</div>
-            <div className="so-pricing-card-sub">
-              Anyone enrolled can watch every lesson.
-            </div>
-          </button>
-          <button
-            type="button"
-            className={`so-pricing-card${paywall.paywallEnabled ? ' selected' : ''}`}
-            onClick={() =>
-              onPaywallChange({ ...paywall, paywallEnabled: true })
-            }
-          >
-            <div className="so-pricing-card-title">Free preview</div>
-            <div className="so-pricing-card-sub">
-              First few lessons free, the rest unlocks on purchase.
-            </div>
-          </button>
-        </div>
+            {/* PRICING */}
+            <PFSection
+              eyebrow="Pricing"
+              title="How students pay"
+              description="Sell your course once, or charge a recurring fee for ongoing access. Add other currencies for international students."
+            >
+              <div className="pf-stack">
+                {/* Cycle: segmented */}
+                <div className="pf-field">
+                  <span className="pf-label">Billing</span>
+                  <PFSegmented
+                    value={cycle}
+                    onChange={setCycle}
+                    options={[
+                      { value: 'onetime', label: 'One-time purchase' },
+                      { value: 'recurring', label: 'Recurring subscription' },
+                    ]}
+                  />
+                  {cycle === 'recurring' && (
+                    <div className="pf-recurring">
+                      <span>Renew every</span>
+                      <input
+                        type="number"
+                        min={1}
+                        className="pf-num"
+                        value={recurringIntervalCount}
+                        onChange={(e) =>
+                          setValue(
+                            'recurring_interval_count',
+                            Math.max(1, parseInt(e.target.value || '1', 10)),
+                          )
+                        }
+                      />
+                      <PFSelect
+                        value={recurringInterval ?? 'month'}
+                        onChange={(v) =>
+                          setValue(
+                            'recurring_interval',
+                            v as schemas['SubscriptionRecurringInterval'],
+                          )
+                        }
+                        options={[
+                          {
+                            value: 'day',
+                            label: recurringIntervalCount > 1 ? 'days' : 'day',
+                          },
+                          {
+                            value: 'week',
+                            label:
+                              recurringIntervalCount > 1 ? 'weeks' : 'week',
+                          },
+                          {
+                            value: 'month',
+                            label:
+                              recurringIntervalCount > 1 ? 'months' : 'month',
+                          },
+                          {
+                            value: 'year',
+                            label:
+                              recurringIntervalCount > 1 ? 'years' : 'year',
+                          },
+                        ]}
+                      />
+                      <span className="pf-recurring-hint">
+                        Charged on enrolment, then every{' '}
+                        {recurringIntervalCount} {recurringInterval ?? 'month'}
+                        {recurringIntervalCount > 1 ? 's' : ''}.
+                      </span>
+                    </div>
+                  )}
+                </div>
 
-        {paywall.paywallEnabled && (
-          <div className="so-field">
-            <label className="so-label">
-              Free preview lessons (0 = no preview)
-            </label>
-            <input
-              className="so-input"
-              type="number"
-              min={0}
-              max={20}
-              value={paywall.freePreviewLessons}
-              onChange={(e) =>
-                onPaywallChange({
-                  ...paywall,
-                  freePreviewLessons: Math.max(
-                    0,
-                    Math.min(20, parseInt(e.target.value || '0', 10)),
-                  ),
-                })
-              }
-            />
-            <span className="so-hint">
-              Lessons visible before the paywall. The rest unlock after
-              purchase.
-            </span>
+                {/* Price model */}
+                <div className="pf-field">
+                  <span className="pf-label">Price</span>
+                  <div className="pf-choice-grid">
+                    <PFChoiceCard
+                      active={priceModel === 'fixed'}
+                      onClick={() => setPriceModel('fixed')}
+                      title="Set a price"
+                      description="Charge a fixed amount per enrolment."
+                    />
+                    <PFChoiceCard
+                      active={priceModel === 'free'}
+                      onClick={() => setPriceModel('free')}
+                      title="Free course"
+                      description="No charge — open to anyone who enrols."
+                    />
+                  </div>
+                </div>
+
+                {/* Prices */}
+                {priceModel === 'fixed' && fields.length > 0 && (
+                  <div className="pf-prices">
+                    <PFPriceRow
+                      index={0}
+                      primary
+                      disabledCurrencies={usedCurrencies}
+                    />
+                    {additionalIndices.map((i) => (
+                      <PFPriceRow
+                        key={i}
+                        index={i}
+                        disabledCurrencies={usedCurrencies}
+                        onRemove={() => remove(i)}
+                      />
+                    ))}
+                    <button
+                      type="button"
+                      className="pf-add-currency"
+                      onClick={addCurrency}
+                      disabled={usedCurrencies.length >= CURRENCIES.length}
+                    >
+                      Add another currency
+                    </button>
+                  </div>
+                )}
+
+                {/* Trial */}
+                {cycle === 'recurring' && (
+                  <div className="pf-trial">
+                    <PFToggle
+                      checked={trialEnabled}
+                      onChange={setTrialEnabled}
+                      label="Free trial period"
+                      description="Let students explore the course before being charged."
+                    />
+                    {trialEnabled && (
+                      <div className="pf-trial-row">
+                        <span>Trial length</span>
+                        <input
+                          type="number"
+                          min={1}
+                          className="pf-num"
+                          value={trialIntervalCount ?? 7}
+                          onChange={(e) =>
+                            setValue(
+                              'trial_interval_count',
+                              Math.max(1, parseInt(e.target.value || '1', 10)),
+                            )
+                          }
+                        />
+                        <span>days</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </PFSection>
+
+            {/* ACCESS */}
+            <PFSection
+              eyebrow="Access"
+              title="What students see before paying"
+              description="Give a taste of the course, or keep everything behind the paywall."
+            >
+              <div className="pf-choice-grid">
+                <PFChoiceCard
+                  active={accessMode === 'open'}
+                  onClick={() =>
+                    onPaywallChange({ ...paywall, paywallEnabled: false })
+                  }
+                  title="Open access"
+                  description="Anyone enrolled can watch every lesson."
+                />
+                <PFChoiceCard
+                  active={accessMode === 'preview'}
+                  onClick={() =>
+                    onPaywallChange({ ...paywall, paywallEnabled: true })
+                  }
+                  title="Free preview"
+                  description="First few lessons free, the rest unlocks on purchase."
+                />
+              </div>
+              {accessMode === 'preview' && (
+                <div className="pf-preview-slider">
+                  <div className="pf-preview-slider-row">
+                    <div>
+                      <div className="pf-preview-slider-title">
+                        Free preview lessons
+                      </div>
+                      <div className="pf-preview-slider-desc">
+                        Visible before the paywall. The rest unlock after
+                        purchase.
+                      </div>
+                    </div>
+                    <div className="pf-preview-slider-count">
+                      <span className="pf-preview-slider-num">
+                        {paywall.freePreviewLessons}
+                      </span>
+                      <span className="pf-preview-slider-total">
+                        / {courseLessons ?? 12}
+                      </span>
+                    </div>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={courseLessons ?? 12}
+                    value={paywall.freePreviewLessons}
+                    className="pf-slider"
+                    onChange={(e) =>
+                      onPaywallChange({
+                        ...paywall,
+                        freePreviewLessons: parseInt(e.target.value, 10),
+                      })
+                    }
+                  />
+                  <div className="pf-slider-legend">
+                    <span>0 — no preview</span>
+                    <span>All {courseLessons ?? 12} lessons</span>
+                  </div>
+                </div>
+              )}
+            </PFSection>
           </div>
-        )}
+
+          {/* LIVE PREVIEW */}
+          <PFCheckoutPreview
+            courseTitle={courseTitle ?? 'Mastering Modern UI Design'}
+            courseLessons={courseLessons ?? 12}
+            primaryPrice={previewPrimary}
+            additionalPrices={previewAdditional}
+            cycle={cycle}
+            every={recurringIntervalCount}
+            period={recurringInterval ?? 'month'}
+            freeTrial={trialEnabled}
+            trialDays={trialIntervalCount ?? 7}
+            isFree={priceModel === 'free'}
+            accessMode={accessMode}
+            previewLessons={paywall.freePreviewLessons}
+            media={heroMedia}
+          />
+        </main>
       </div>
 
       <style jsx global>{`
-        .so-pricing-toggle-row {
+        .spaire-wizard-pricing {
+          /* Design tokens — exactly as in spaire/Product Flow.html */
+          --bg: oklch(0.995 0.002 80);
+          --surface: #ffffff;
+          --surface-2: oklch(0.975 0.004 270);
+          --surface-3: oklch(0.955 0.006 270);
+          --ink: oklch(0.18 0.012 270);
+          --ink-2: oklch(0.36 0.012 270);
+          --muted: oklch(0.56 0.014 270);
+          --muted-2: oklch(0.72 0.012 270);
+          --hair: oklch(0.92 0.006 270);
+          --hair-strong: oklch(0.86 0.008 270);
+          --accent: oklch(0.52 0.18 270);
+          --accent-soft: oklch(0.96 0.04 270);
+          --accent-ring: oklch(0.52 0.18 270 / 0.18);
+          --shadow-md:
+            0 1px 2px oklch(0.2 0.02 270 / 0.04),
+            0 8px 24px oklch(0.2 0.02 270 / 0.06);
+          font-family: 'Poppins', system-ui, sans-serif;
+          color: var(--ink);
+          background: var(--bg);
+        }
+        .spaire-wizard-pricing,
+        .spaire-wizard-pricing * {
+          font-family: 'Poppins', system-ui, sans-serif;
+        }
+        .pf-main {
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 12px 32px 60px;
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) 360px;
+          gap: 56px;
+        }
+        @media (max-width: 960px) {
+          .pf-main {
+            grid-template-columns: 1fr;
+            gap: 32px;
+          }
+        }
+        .pf-form-col {
+          min-width: 0;
+        }
+
+        /* Section */
+        .pf-section {
+          padding-block: 36px;
+          border-top: 1px solid var(--hair);
+        }
+        .pf-section:first-of-type {
+          border-top: none;
+        }
+        .pf-section-head {
+          margin-bottom: 24px;
+        }
+        .pf-eyebrow {
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: 1.2px;
+          text-transform: uppercase;
+          color: var(--muted-2);
+          margin-bottom: 6px;
+        }
+        .pf-title {
+          font-size: 20px;
+          font-weight: 600;
+          margin: 0;
+          letter-spacing: -0.2px;
+          color: var(--ink);
+        }
+        .pf-desc {
+          font-size: 13.5px;
+          color: var(--muted);
+          margin: 6px 0 0;
+          max-width: 520px;
+          line-height: 1.5;
+        }
+        .pf-stack {
+          display: flex;
+          flex-direction: column;
+          gap: 24px;
+        }
+        .pf-field {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+        .pf-label {
+          font-size: 13px;
+          font-weight: 500;
+          color: var(--ink);
+        }
+
+        /* Segmented */
+        .pf-seg {
+          display: inline-flex;
+          padding: 4px;
+          gap: 2px;
+          background: var(--surface-3);
+          border-radius: 12px;
+          border: 1px solid var(--hair);
+          align-self: flex-start;
+        }
+        .pf-seg-btn {
+          padding: 9px 16px;
+          font-size: 13px;
+          font-weight: 500;
+          border-radius: 9px;
+          border: none;
+          background: transparent;
+          color: var(--muted);
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+        .pf-seg-btn.active {
+          background: #fff;
+          color: var(--ink);
+          box-shadow:
+            0 1px 2px oklch(0.2 0.02 270 / 0.06),
+            0 1px 0 oklch(0.92 0.006 270);
+        }
+
+        /* Recurring config row */
+        .pf-recurring {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-wrap: wrap;
+          margin-top: 4px;
+          padding: 12px 14px;
+          background: var(--surface-2);
+          border-radius: 10px;
+          border: 1px solid var(--hair);
+          font-size: 13px;
+          color: var(--ink-2);
+        }
+        .pf-recurring-hint {
+          margin-left: auto;
+          font-size: 12px;
+          color: var(--muted);
+        }
+        .pf-num {
+          width: 64px;
+          padding: 7px 10px;
+          text-align: center;
+          border: 1px solid var(--hair);
+          border-radius: 7px;
+          background: #fff;
+          font-size: 13px;
+          font-weight: 500;
+          color: var(--ink);
+          outline: none;
+        }
+        .pf-num:focus {
+          border-color: var(--accent);
+          box-shadow: 0 0 0 3px var(--accent-ring);
+        }
+        .pf-select:focus {
+          border-color: var(--accent);
+          box-shadow: 0 0 0 3px var(--accent-ring);
+        }
+        .pf-select-wrap {
+          position: relative;
+          display: inline-flex;
+        }
+        .pf-select {
+          appearance: none;
+          padding: 9px 36px 9px 14px;
+          font-size: 13px;
+          font-weight: 500;
+          border: 1px solid var(--hair);
+          border-radius: 8px;
+          background: #fff;
+          color: var(--ink);
+          cursor: pointer;
+          outline: none;
+        }
+        .pf-select-chev {
+          position: absolute;
+          right: 10px;
+          top: 50%;
+          transform: translateY(-50%);
+          pointer-events: none;
+          color: var(--muted);
+          font-size: 10px;
+        }
+
+        /* Choice cards */
+        .pf-choice-grid {
           display: grid;
           grid-template-columns: 1fr 1fr;
           gap: 10px;
         }
-        .so-pricing-card {
-          padding: 16px 18px;
-          background: var(--so-gray1);
-          border: 1.5px solid var(--so-gray2);
+        .pf-choice {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 4px;
+          padding: 14px 16px;
+          text-align: left;
+          width: 100%;
+          background: #fff;
+          border: 1px solid var(--hair);
           border-radius: 12px;
           cursor: pointer;
-          transition:
-            border-color 0.2s,
-            background 0.2s,
-            box-shadow 0.2s;
-          text-align: left;
-          font-family: var(--font-poppins), system-ui, sans-serif;
-          color: var(--so-black);
-          -webkit-appearance: none;
+          transition: all 0.15s;
+          color: var(--ink);
         }
-        .so-pricing-card:hover {
-          border-color: #c8c8c8;
-          background: #f0f0f0;
+        .pf-choice.active {
+          background: var(--accent-soft);
+          border-color: var(--accent);
+          box-shadow: 0 0 0 3px var(--accent-ring);
         }
-        .so-pricing-card.selected {
-          border-color: var(--so-black);
-          background: var(--so-white);
-          box-shadow: 0 0 0 3px rgba(10, 10, 10, 0.07);
-        }
-        .so-pricing-card-title {
+        .pf-choice-title {
           font-size: 14px;
           font-weight: 600;
-          color: var(--so-black);
-          margin-bottom: 4px;
+          color: var(--ink);
         }
-        .so-pricing-card-sub {
+        .pf-choice-desc {
+          font-size: 12.5px;
+          color: var(--muted);
+          line-height: 1.45;
+        }
+
+        /* Price row */
+        .pf-prices {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .pf-price-row {
+          display: flex;
+          align-items: center;
+          border: 1px solid var(--hair);
+          border-radius: 12px;
+          background: #fff;
+          position: relative;
+          transition:
+            border-color 0.15s,
+            box-shadow 0.15s;
+        }
+        .pf-price-row:focus-within {
+          border-color: var(--accent);
+          box-shadow: 0 0 0 4px var(--accent-ring);
+        }
+        .pf-price-cur {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 12px 12px 12px 14px;
+          background: transparent;
+          border: none;
+          border-right: 1px solid var(--hair);
+          color: var(--ink);
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          min-width: 96px;
+        }
+        .pf-price-pill {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-width: 22px;
+          height: 22px;
+          padding: 0 5px;
+          border-radius: 6px;
+          background: var(--accent-soft);
+          color: var(--accent);
+          font-size: 11px;
+          font-weight: 700;
+        }
+        .pf-price-chev {
+          margin-left: 2px;
+          color: var(--muted);
+          font-size: 10px;
+        }
+        .pf-price-amount {
+          flex: 1;
+          padding: 12px 14px;
+          font-size: 16px;
+          font-weight: 500;
+          border: none;
+          outline: none;
+          background: transparent;
+          color: var(--ink);
+          min-width: 0;
+          font-variant-numeric: tabular-nums;
+        }
+        .pf-price-tag {
+          font-size: 11px;
+          font-weight: 600;
+          color: var(--muted-2);
+          letter-spacing: 0.5px;
+          padding-right: 14px;
+          text-transform: uppercase;
+        }
+        .pf-price-remove {
+          width: 36px;
+          height: 36px;
+          margin-right: 6px;
+          background: transparent;
+          border: none;
+          border-radius: 8px;
+          color: var(--muted);
+          cursor: pointer;
+          font-size: 16px;
+        }
+        .pf-cur-menu {
+          position: absolute;
+          top: calc(100% + 6px);
+          left: 0;
+          width: 320px;
+          padding: 6px;
+          z-index: 30;
+          background: #fff;
+          border: 1px solid var(--hair);
+          border-radius: 12px;
+          box-shadow: var(--shadow-md);
+          max-height: 360px;
+          overflow-y: auto;
+        }
+        .pf-cur-item {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          width: 100%;
+          padding: 9px 10px;
+          font-size: 13px;
+          text-align: left;
+          background: transparent;
+          border: none;
+          border-radius: 8px;
+          color: var(--ink);
+          cursor: pointer;
+        }
+        .pf-cur-item:hover:not(.disabled) {
+          background: var(--surface-3);
+        }
+        .pf-cur-item.active {
+          background: var(--surface-3);
+        }
+        .pf-cur-item.disabled {
+          color: var(--muted-2);
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+        .pf-cur-pill {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-width: 26px;
+          height: 26px;
+          padding: 0 6px;
+          border-radius: 6px;
+          font-size: 11px;
+          font-weight: 700;
+          background: var(--surface-3);
+          color: var(--ink-2);
+        }
+        .pf-cur-code {
+          font-weight: 600;
+        }
+        .pf-cur-name {
+          color: var(--muted);
           font-size: 12px;
-          color: var(--so-gray3);
+          flex: 1;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .pf-cur-check {
+          margin-left: auto;
+          color: var(--accent);
+          font-size: 14px;
+        }
+        .pf-add-currency {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          align-self: flex-start;
+          padding: 8px 14px;
+          font-size: 13px;
+          font-weight: 500;
+          background: transparent;
+          border: 1px dashed var(--hair-strong);
+          color: var(--ink-2);
+          border-radius: 8px;
+          cursor: pointer;
+        }
+        .pf-add-currency:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        /* Trial */
+        .pf-trial {
+          border-top: 1px solid var(--hair);
+          padding-top: 16px;
+        }
+        .pf-toggle-row {
+          display: flex;
+          align-items: flex-start;
+          gap: 12px;
+          padding: 10px 0;
+        }
+        .pf-toggle {
+          flex-shrink: 0;
+          margin-top: 2px;
+          width: 38px;
+          height: 22px;
+          border-radius: 999px;
+          background: var(--hair-strong);
+          border: none;
+          padding: 0;
+          position: relative;
+          transition: background 0.2s;
+          cursor: pointer;
+        }
+        .pf-toggle.on {
+          background: var(--accent);
+        }
+        .pf-toggle-knob {
+          position: absolute;
+          top: 2px;
+          left: 2px;
+          width: 18px;
+          height: 18px;
+          border-radius: 50%;
+          background: #fff;
+          transition: left 0.2s;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        }
+        .pf-toggle.on .pf-toggle-knob {
+          left: 18px;
+        }
+        .pf-toggle-text {
+          flex: 1;
+          min-width: 0;
+        }
+        .pf-toggle-label {
+          font-size: 13.5px;
+          font-weight: 500;
+          color: var(--ink);
+        }
+        .pf-toggle-desc {
+          font-size: 12.5px;
+          color: var(--muted);
+          margin-top: 2px;
+        }
+        .pf-trial-row {
+          margin-left: 50px;
+          margin-top: 8px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          font-size: 13px;
+          color: var(--ink-2);
+        }
+
+        /* Media drop */
+        .pf-media-drop {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
+          padding: 44px 24px;
+          border: 1.5px dashed var(--hair-strong);
+          border-radius: 14px;
+          background: var(--surface-2);
+          cursor: pointer;
+          transition: all 0.15s;
+          aspect-ratio: 16 / 9;
+          text-align: center;
+        }
+        .pf-media-drop.hover {
+          border-color: var(--accent);
+          background: var(--accent-soft);
+        }
+        .pf-media-title {
+          font-size: 14px;
+          font-weight: 500;
+          color: var(--ink);
+        }
+        .pf-media-browse {
+          color: var(--accent);
+          text-decoration: underline;
+        }
+        .pf-media-hint {
+          font-size: 12px;
+          color: var(--muted);
+        }
+        .pf-media-preview {
+          position: relative;
+          border-radius: 14px;
+          overflow: hidden;
+          aspect-ratio: 16 / 9;
+          background: var(--surface-3);
+          border: 1px solid var(--hair);
+        }
+        .pf-media-preview img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+        .pf-media-remove {
+          position: absolute;
+          top: 12px;
+          right: 12px;
+          padding: 6px 12px;
+          font-size: 12px;
+          font-weight: 500;
+          background: rgba(255, 255, 255, 0.95);
+          color: var(--ink);
+          border: none;
+          border-radius: 8px;
+          cursor: pointer;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Free preview slider card */
+        .pf-preview-slider {
+          margin-top: 14px;
+          padding: 16px;
+          background: var(--surface-2);
+          border-radius: 12px;
+          border: 1px solid var(--hair);
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .pf-preview-slider-row {
+          display: flex;
+          align-items: flex-end;
+          justify-content: space-between;
+          gap: 12px;
+        }
+        .pf-preview-slider-title {
+          font-size: 13px;
+          font-weight: 500;
+          color: var(--ink);
+        }
+        .pf-preview-slider-desc {
+          font-size: 12px;
+          color: var(--muted);
+          margin-top: 2px;
+        }
+        .pf-preview-slider-count {
+          display: flex;
+          align-items: baseline;
+          gap: 4px;
+          color: var(--ink);
+        }
+        .pf-preview-slider-num {
+          font-size: 28px;
+          font-weight: 600;
+          font-variant-numeric: tabular-nums;
+          letter-spacing: -0.5px;
+        }
+        .pf-preview-slider-total {
+          font-size: 12px;
+          color: var(--muted);
+        }
+        .pf-slider {
+          width: 100%;
+          accent-color: var(--accent);
+        }
+        .pf-slider-legend {
+          display: flex;
+          justify-content: space-between;
+          font-size: 11px;
+          color: var(--muted-2);
+        }
+
+        /* Live checkout preview */
+        .pf-preview-aside {
+          position: sticky;
+          top: 100px;
+          align-self: start;
+        }
+        .pf-preview-eyebrow {
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: 1.2px;
+          text-transform: uppercase;
+          color: var(--muted-2);
+          margin-bottom: 12px;
+        }
+        .pf-preview-card {
+          background: #fff;
+          border: 1px solid var(--hair);
+          border-radius: 16px;
+          overflow: hidden;
+          box-shadow: var(--shadow-md);
+        }
+        .pf-preview-hero {
+          aspect-ratio: 16 / 9;
+          background: repeating-linear-gradient(
+            45deg,
+            oklch(0.94 0.01 270) 0 12px,
+            oklch(0.96 0.01 270) 12px 24px
+          );
+          position: relative;
+        }
+        .pf-preview-badge {
+          position: absolute;
+          top: 12px;
+          left: 12px;
+          padding: 5px 10px;
+          font-size: 11px;
+          font-weight: 600;
+          background: rgba(255, 255, 255, 0.96);
+          color: var(--ink);
+          border-radius: 999px;
+          letter-spacing: 0.2px;
+        }
+        .pf-preview-placeholder {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: oklch(0.55 0.02 270);
+          font-size: 11px;
+          font-family: ui-monospace, monospace;
+          letter-spacing: 0.5px;
+        }
+        .pf-preview-body {
+          padding: 18px;
+        }
+        .pf-preview-meta {
+          font-size: 11px;
+          font-weight: 600;
+          color: var(--muted-2);
+          letter-spacing: 0.6px;
+          text-transform: uppercase;
+          margin-bottom: 6px;
+        }
+        .pf-preview-title {
+          font-size: 18px;
+          font-weight: 600;
+          margin: 0;
+          line-height: 1.3;
+          letter-spacing: -0.2px;
+        }
+        .pf-preview-price {
+          display: flex;
+          align-items: baseline;
+          gap: 6px;
+          margin-top: 18px;
+          margin-bottom: 16px;
+        }
+        .pf-preview-amount {
+          font-size: 26px;
+          font-weight: 600;
+          color: var(--ink);
+          letter-spacing: -0.6px;
+          font-variant-numeric: tabular-nums;
+        }
+        .pf-preview-cycle {
+          font-size: 13px;
+          color: var(--muted);
+        }
+        .pf-preview-extras {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+          margin-bottom: 16px;
+        }
+        .pf-preview-extra {
+          padding: 3px 8px;
+          font-size: 11px;
+          font-weight: 500;
+          background: var(--surface-3);
+          color: var(--muted);
+          border-radius: 6px;
+          font-variant-numeric: tabular-nums;
+        }
+        .pf-preview-cta {
+          width: 100%;
+          padding: 13px 16px;
+          font-size: 14px;
+          font-weight: 600;
+          background: var(--ink);
+          color: #fff;
+          border: none;
+          border-radius: 10px;
+          cursor: pointer;
+        }
+        .pf-preview-footer {
+          margin-top: 12px;
+          padding-top: 12px;
+          border-top: 1px solid var(--hair);
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          font-size: 11px;
+          color: var(--muted);
+        }
+        .pf-preview-note {
+          margin-top: 12px;
+          font-size: 11px;
+          color: var(--muted);
           line-height: 1.5;
         }
       `}</style>
