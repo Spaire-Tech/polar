@@ -582,7 +582,7 @@ export function StepShell({
       <ProgressBar pct={(step / total) * 100} />
       <TopBar step={step} total={total} onClose={onClose} />
       <div className="so-stage">
-        <div className="so-screen" style={wide ? { maxWidth: 720 } : undefined}>
+        <div className="so-screen" style={wide ? { maxWidth: 1200 } : undefined}>
           {!wide && (
             <>
               <div className="so-eyebrow">
