@@ -1,10 +1,27 @@
 'use client'
 
 import { ProductMediaSection } from '@/components/Products/ProductForm/ProductMediaSection'
-import { ProductPricingSection } from '@/components/Products/ProductForm/ProductPricingSection'
 import CloseIcon from '@mui/icons-material/Close'
-import { schemas } from '@spaire/client'
-import { useEffect, useRef, useState } from 'react'
+import { enums, schemas } from '@spaire/client'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useFieldArray, useFormContext } from 'react-hook-form'
+
+// Local form type — the wizard's shared react-hook-form holds a discriminated
+// `ProductCreate | ProductUpdate`, but we only touch a flat subset of fields
+// (pricing, recurring, trial). Using a permissive local view sidesteps the
+// union-narrowing pain while still matching the runtime shape exactly.
+type WizardPricingForm = {
+  recurring_interval: schemas['SubscriptionRecurringInterval'] | null
+  recurring_interval_count: number | null
+  trial_interval: schemas['TrialInterval'] | null
+  trial_interval_count: number | null
+  prices: Array<{
+    id?: string
+    amount_type?: 'fixed' | 'free' | 'custom' | 'seat_based' | 'metered_unit'
+    price_currency?: schemas['PresentmentCurrency']
+    price_amount?: number | null
+  }>
+}
 
 // ─── Shared style block ───────────────────────────────────────────────────────
 
@@ -565,10 +582,7 @@ export function StepShell({
       <ProgressBar pct={(step / total) * 100} />
       <TopBar step={step} total={total} onClose={onClose} />
       <div className="so-stage">
-        <div
-          className="so-screen"
-          style={wide ? { maxWidth: 720 } : undefined}
-        >
+        <div className="so-screen" style={wide ? { maxWidth: 720 } : undefined}>
           {!wide && (
             <>
               <div className="so-eyebrow">
@@ -934,21 +948,245 @@ export function StepMedia({
   )
 }
 
-
-// ─── Step 3: Pricing & access (canonical) ────────────────────────────────────
+// ─── Step 3: Pricing & access ────────────────────────────────────────────────
 //
-// Mounts the same ProductMediaSection and ProductPricingSection used by the
-// regular product create/edit form. Media uploads land on form.full_medias
-// (real product_media records — surfaced in checkout / emails / social).
-// Pricing controls match the canonical UI, including currency tabs +
-// "Add Currency". We hide "Pay what you want" and "Per seat" via
-// allowedAmountTypes since they don't make sense for a course. Below the
-// section we keep the course-specific paywall toggle + free preview lessons
-// count.
+// Bespoke pricing/access UI matching the spaire Product Flow design. Mounts
+// ProductMediaSection (canonical product media uploads) so files still land on
+// real product_media records, then renders a custom pricing block that writes
+// directly to the shared react-hook-form: recurring_interval / interval_count,
+// prices[].{price_currency,price_amount,amount_type}, trial_interval and
+// trial_interval_count. The course-specific paywall toggle + free preview
+// slider stay below pricing.
 
 export type WizardPaywallState = {
   paywallEnabled: boolean
   freePreviewLessons: number
+}
+
+// Currency catalog — derived from the backend PresentmentCurrency enum so we
+// support every currency the API accepts. Symbols/names come from the
+// browser's CLDR data via Intl, with a small fallback table for obscure codes.
+type CurrencyMeta = { code: string; symbol: string; name: string }
+
+const SYMBOL_FALLBACKS: Record<string, string> = {
+  xof: 'CFA',
+  xaf: 'FCFA',
+  xpf: 'CFP',
+  xcd: 'EC$',
+  xcg: 'Cg',
+  ngn: '₦',
+  ghs: 'GH₵',
+  kes: 'KSh',
+  zar: 'R',
+  vuv: 'VT',
+  cve: '$',
+}
+
+const buildCurrencyMeta = (code: string): CurrencyMeta => {
+  const upper = code.toUpperCase()
+  let symbol = SYMBOL_FALLBACKS[code] ?? upper
+  let name = upper
+  try {
+    const parts = new Intl.NumberFormat('en', {
+      style: 'currency',
+      currency: upper,
+      currencyDisplay: 'narrowSymbol',
+    }).formatToParts(1)
+    const sym = parts.find((p) => p.type === 'currency')?.value
+    if (sym && sym !== upper) symbol = sym
+  } catch {
+    // browser doesn't know this code — keep fallback/upper
+  }
+  try {
+    const dn = new Intl.DisplayNames(['en'], { type: 'currency' }).of(upper)
+    if (dn) name = dn
+  } catch {
+    // older browser — keep upper
+  }
+  return { code, symbol, name }
+}
+
+const CURRENCIES: CurrencyMeta[] = (
+  enums.presentmentCurrencyValues as readonly string[]
+)
+  .map(buildCurrencyMeta)
+  .sort((a, b) => {
+    // Surface the headline currencies first, then alphabetical.
+    const featured = ['usd', 'eur', 'gbp', 'cad', 'aud']
+    const ai = featured.indexOf(a.code)
+    const bi = featured.indexOf(b.code)
+    if (ai !== -1 || bi !== -1) {
+      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi)
+    }
+    return a.code.localeCompare(b.code)
+  })
+
+const ZERO_DECIMAL = new Set([
+  'bif',
+  'clp',
+  'djf',
+  'gnf',
+  'jpy',
+  'kmf',
+  'krw',
+  'mga',
+  'pyg',
+  'rwf',
+  'ugx',
+  'vnd',
+  'vuv',
+  'xaf',
+  'xof',
+  'xpf',
+])
+const decimalFactor = (code: string) => (ZERO_DECIMAL.has(code) ? 1 : 100)
+
+// Convert "12.50" / "12" into the integer minor-unit amount the backend wants
+// (cents for usd, whole units for jpy/xof/etc).
+const toMinorUnits = (input: string, currency: string): number => {
+  const n = Number.parseFloat(input)
+  if (!Number.isFinite(n) || n < 0) return 0
+  return Math.round(n * decimalFactor(currency))
+}
+
+const fromMinorUnits = (
+  amount: number | null | undefined,
+  currency: string,
+): string => {
+  if (amount == null) return ''
+  const factor = decimalFactor(currency)
+  if (factor === 1) return String(amount)
+  return (amount / factor).toFixed(2)
+}
+
+// Inline currency dropdown — matches design's PriceRow currency picker with
+// symbol pill + code + name.
+function CurrencyMenu({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string
+  onChange: (code: string) => void
+  disabled: string[]
+}) {
+  const cur = CURRENCIES.find((c) => c.code === value) ?? CURRENCIES[0]
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    const close = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [])
+
+  return (
+    <div className="pa-cur" ref={ref}>
+      <button
+        type="button"
+        className="pa-cur-trigger"
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span className="pa-cur-pill">{cur.symbol}</span>
+        <span className="pa-cur-code">{cur.code.toUpperCase()}</span>
+        <span className="pa-cur-chevron">▾</span>
+      </button>
+      {open && (
+        <div className="pa-cur-menu" role="listbox">
+          {CURRENCIES.map((c) => {
+            const isDisabled = disabled.includes(c.code) && c.code !== value
+            const active = c.code === value
+            return (
+              <button
+                type="button"
+                key={c.code}
+                disabled={isDisabled}
+                className={`pa-cur-item${active ? 'active' : ''}${isDisabled ? 'disabled' : ''}`}
+                onClick={() => {
+                  if (isDisabled) return
+                  onChange(c.code)
+                  setOpen(false)
+                }}
+              >
+                <span className="pa-cur-pill small">{c.symbol}</span>
+                <span className="pa-cur-code">{c.code.toUpperCase()}</span>
+                <span className="pa-cur-name">{c.name}</span>
+                {active && <span className="pa-cur-check">✓</span>}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Single price row — currency pill + amount + (Primary | remove ×). Writes to
+// `prices.${index}` in the shared product form.
+function PriceRow({
+  index,
+  primary,
+  disabledCurrencies,
+  onRemove,
+}: {
+  index: number
+  primary?: boolean
+  disabledCurrencies: string[]
+  onRemove?: () => void
+}) {
+  const { watch, setValue } = useFormContext<WizardPricingForm>()
+  const price = watch(`prices.${index}`)
+
+  const currency = price?.price_currency ?? 'usd'
+  const amount = price?.price_amount ?? null
+
+  const [draft, setDraft] = useState<string>(fromMinorUnits(amount, currency))
+
+  // Keep local draft in sync if the upstream value changes (e.g. currency
+  // change re-renders the amount in different decimal precision).
+  useEffect(() => {
+    setDraft(fromMinorUnits(amount, currency))
+  }, [amount, currency])
+
+  return (
+    <div className="pa-price-row">
+      <CurrencyMenu
+        value={currency}
+        disabled={disabledCurrencies}
+        onChange={(code) => {
+          setValue(
+            `prices.${index}.price_currency`,
+            code as schemas['PresentmentCurrency'],
+          )
+          setValue(`prices.${index}.id`, '')
+        }}
+      />
+      <input
+        className="pa-price-input"
+        type="text"
+        inputMode="decimal"
+        value={draft}
+        placeholder="0.00"
+        onChange={(e) => {
+          const cleaned = e.target.value.replace(/[^\d.]/g, '')
+          setDraft(cleaned)
+          setValue(
+            `prices.${index}.price_amount`,
+            toMinorUnits(cleaned, currency),
+          )
+          setValue(`prices.${index}.id`, '')
+        }}
+      />
+      {primary && <span className="pa-price-tag">Primary</span>}
+      {onRemove && (
+        <button type="button" className="pa-price-remove" onClick={onRemove}>
+          ×
+        </button>
+      )}
+    </div>
+  )
 }
 
 export function StepPricingWizard({
@@ -966,6 +1204,113 @@ export function StepPricingWizard({
   onBack: () => void
   onClose: () => void
 }) {
+  const { control, watch, setValue, getValues } =
+    useFormContext<WizardPricingForm>()
+
+  const { fields, append, remove, replace } = useFieldArray({
+    control,
+    name: 'prices',
+  })
+
+  const recurringInterval = watch('recurring_interval')
+  const recurringIntervalCount = watch('recurring_interval_count') ?? 1
+  const trialInterval = watch('trial_interval')
+  const trialIntervalCount = watch('trial_interval_count')
+
+  const cycle: 'onetime' | 'recurring' =
+    recurringInterval === null || recurringInterval === undefined
+      ? 'onetime'
+      : 'recurring'
+
+  const prices = watch('prices') ?? []
+
+  // Derive the active price model (fixed/free) from the first price entry.
+  // We mirror it across all currency rows when the user toggles.
+  const priceModel: 'fixed' | 'free' =
+    prices[0]?.amount_type === 'free' ? 'free' : 'fixed'
+
+  const defaultCurrency = organization.default_presentment_currency ?? 'usd'
+
+  // First price = primary; subsequent = additional currencies.
+  const additionalIndices = useMemo(
+    () => prices.map((_, i) => i).slice(1),
+    [prices],
+  )
+  const usedCurrencies: string[] = useMemo(
+    () =>
+      prices
+        .map((p) => p?.price_currency)
+        .filter((c): c is NonNullable<typeof c> => typeof c === 'string'),
+    [prices],
+  )
+
+  // ── Cycle (one-time / recurring) ──────────────────────────────────────────
+  const setCycle = (next: 'onetime' | 'recurring') => {
+    if (next === 'onetime') {
+      setValue('recurring_interval', null)
+      setValue('recurring_interval_count', null)
+      // Trial only makes sense with recurring.
+      setValue('trial_interval', null)
+      setValue('trial_interval_count', null)
+    } else {
+      setValue('recurring_interval', recurringInterval ?? 'month')
+      setValue('recurring_interval_count', recurringIntervalCount || 1)
+    }
+  }
+
+  // ── Price model (fixed / free) ────────────────────────────────────────────
+  const setPriceModel = (next: 'fixed' | 'free') => {
+    const current = getValues('prices') ?? []
+    const updated: WizardPricingForm['prices'] = current.map((p) => {
+      const c = p?.price_currency ?? defaultCurrency
+      const base = { price_currency: c as schemas['PresentmentCurrency'] }
+      if (next === 'free') {
+        return { ...base, amount_type: 'free' }
+      }
+      return {
+        ...base,
+        amount_type: 'fixed',
+        price_amount: p?.price_amount ?? 0,
+      }
+    })
+    replace(updated)
+  }
+
+  // ── Currency rows ─────────────────────────────────────────────────────────
+  const addCurrency = () => {
+    const used = new Set(usedCurrencies)
+    const next = CURRENCIES.find((c) => !used.has(c.code))?.code ?? 'usd'
+    if (priceModel === 'free') {
+      append({
+        amount_type: 'free',
+        price_currency: next as schemas['PresentmentCurrency'],
+      })
+    } else {
+      append({
+        amount_type: 'fixed',
+        price_amount: 0,
+        price_currency: next as schemas['PresentmentCurrency'],
+      })
+    }
+  }
+  const removeCurrency = (i: number) => remove(i)
+
+  // ── Trial ─────────────────────────────────────────────────────────────────
+  const trialEnabled = trialInterval != null && trialIntervalCount != null
+  const setTrialEnabled = (enabled: boolean) => {
+    if (enabled) {
+      setValue('trial_interval', 'day')
+      setValue('trial_interval_count', trialIntervalCount ?? 7)
+    } else {
+      setValue('trial_interval', null)
+      setValue('trial_interval_count', null)
+    }
+  }
+
+  // Use organization course module count (if known) for the slider max.
+  // Falls back to 20 — same cap the previous numeric input enforced.
+  const maxPreviewLessons = 20
+
   return (
     <StepShell
       step={3}
@@ -976,121 +1321,737 @@ export function StepPricingWizard({
       onClose={onClose}
       wide
     >
-      <ProductMediaSection organization={organization} />
-      <ProductPricingSection
-        organization={organization}
-        compact
-        allowedAmountTypes={['fixed', 'free']}
-      />
-
-      {/* Paywall + free preview — course-specific, doesn't belong on a product. */}
-      <div
-        style={{
-          marginTop: 16,
-          padding: '24px 32px',
-          borderTop: '1px solid var(--so-gray2)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 16,
-          fontFamily: 'var(--font-poppins), system-ui, sans-serif',
-        }}
-      >
-        <div className="so-pricing-toggle-row">
-          <button
-            type="button"
-            className={`so-pricing-card${!paywall.paywallEnabled ? ' selected' : ''}`}
-            onClick={() =>
-              onPaywallChange({ ...paywall, paywallEnabled: false })
-            }
-          >
-            <div className="so-pricing-card-title">Open access</div>
-            <div className="so-pricing-card-sub">
-              Anyone enrolled can watch every lesson.
-            </div>
-          </button>
-          <button
-            type="button"
-            className={`so-pricing-card${paywall.paywallEnabled ? ' selected' : ''}`}
-            onClick={() =>
-              onPaywallChange({ ...paywall, paywallEnabled: true })
-            }
-          >
-            <div className="so-pricing-card-title">Free preview</div>
-            <div className="so-pricing-card-sub">
-              First few lessons free, the rest unlocks on purchase.
-            </div>
-          </button>
-        </div>
-
-        {paywall.paywallEnabled && (
-          <div className="so-field">
-            <label className="so-label">
-              Free preview lessons (0 = no preview)
-            </label>
-            <input
-              className="so-input"
-              type="number"
-              min={0}
-              max={20}
-              value={paywall.freePreviewLessons}
-              onChange={(e) =>
-                onPaywallChange({
-                  ...paywall,
-                  freePreviewLessons: Math.max(
-                    0,
-                    Math.min(20, parseInt(e.target.value || '0', 10)),
-                  ),
-                })
-              }
-            />
-            <span className="so-hint">
-              Lessons visible before the paywall. The rest unlock after
-              purchase.
-            </span>
+      <div className="pa-root">
+        {/* MEDIA — keep the canonical uploader so files persist correctly. */}
+        <section className="pa-section first">
+          <div className="pa-section-header">
+            <div className="pa-eyebrow">Media</div>
+            <h2 className="pa-title">Course cover</h2>
+            <p className="pa-desc">
+              The first thing students see — in checkout, on your spaire space,
+              in shares. 16:9 works best.
+            </p>
           </div>
-        )}
+          <ProductMediaSection organization={organization} />
+        </section>
+
+        {/* PRICING */}
+        <section className="pa-section">
+          <div className="pa-section-header">
+            <div className="pa-eyebrow">Pricing</div>
+            <h2 className="pa-title">How students pay</h2>
+            <p className="pa-desc">
+              Sell your course once, or charge a recurring fee for ongoing
+              access. Add other currencies for international students.
+            </p>
+          </div>
+
+          <div className="pa-stack">
+            {/* Billing cycle — segmented */}
+            <div className="pa-field">
+              <span className="pa-label">Billing</span>
+              <div className="pa-segmented">
+                {(
+                  [
+                    { v: 'onetime', l: 'One-time purchase' },
+                    { v: 'recurring', l: 'Recurring subscription' },
+                  ] as const
+                ).map((o) => (
+                  <button
+                    key={o.v}
+                    type="button"
+                    className={`pa-seg${cycle === o.v ? 'active' : ''}`}
+                    onClick={() => setCycle(o.v)}
+                  >
+                    {o.l}
+                  </button>
+                ))}
+              </div>
+
+              {cycle === 'recurring' && (
+                <div className="pa-recurring">
+                  <span>Renew every</span>
+                  <input
+                    type="number"
+                    min={1}
+                    className="pa-num"
+                    value={recurringIntervalCount}
+                    onChange={(e) =>
+                      setValue(
+                        'recurring_interval_count',
+                        Math.max(1, parseInt(e.target.value || '1', 10)),
+                      )
+                    }
+                  />
+                  <select
+                    className="pa-select"
+                    value={recurringInterval ?? 'month'}
+                    onChange={(e) =>
+                      setValue(
+                        'recurring_interval',
+                        e.target
+                          .value as schemas['SubscriptionRecurringInterval'],
+                      )
+                    }
+                  >
+                    {(['day', 'week', 'month', 'year'] as const).map((p) => (
+                      <option key={p} value={p}>
+                        {recurringIntervalCount > 1 ? `${p}s` : p}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="pa-recurring-hint">
+                    Charged on enrolment, then every {recurringIntervalCount}{' '}
+                    {recurringInterval ?? 'month'}
+                    {recurringIntervalCount > 1 ? 's' : ''}.
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Price model — choice cards */}
+            <div className="pa-field">
+              <span className="pa-label">Price</span>
+              <div className="pa-choice-row">
+                <button
+                  type="button"
+                  className={`pa-choice${priceModel === 'fixed' ? 'active' : ''}`}
+                  onClick={() => setPriceModel('fixed')}
+                >
+                  <div className="pa-choice-title">Set a price</div>
+                  <div className="pa-choice-sub">
+                    Charge a fixed amount per enrolment.
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  className={`pa-choice${priceModel === 'free' ? 'active' : ''}`}
+                  onClick={() => setPriceModel('free')}
+                >
+                  <div className="pa-choice-title">Free course</div>
+                  <div className="pa-choice-sub">
+                    No charge — open to anyone who enrols.
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* Currency price rows */}
+            {priceModel === 'fixed' && fields.length > 0 && (
+              <div className="pa-prices">
+                <PriceRow
+                  index={0}
+                  primary
+                  disabledCurrencies={usedCurrencies}
+                />
+                {additionalIndices.map((i) => (
+                  <PriceRow
+                    key={i}
+                    index={i}
+                    disabledCurrencies={usedCurrencies}
+                    onRemove={() => removeCurrency(i)}
+                  />
+                ))}
+                <button
+                  type="button"
+                  className="pa-add-currency"
+                  onClick={addCurrency}
+                  disabled={usedCurrencies.length >= CURRENCIES.length}
+                >
+                  Add another currency
+                </button>
+              </div>
+            )}
+
+            {/* Trial — recurring only */}
+            {cycle === 'recurring' && (
+              <div className="pa-trial">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={trialEnabled}
+                  className={`pa-toggle${trialEnabled ? 'on' : ''}`}
+                  onClick={() => setTrialEnabled(!trialEnabled)}
+                >
+                  <span className="pa-toggle-knob" />
+                </button>
+                <div className="pa-trial-text">
+                  <div className="pa-trial-label">Free trial period</div>
+                  <div className="pa-trial-desc">
+                    Let students explore the course before being charged.
+                  </div>
+                  {trialEnabled && (
+                    <div className="pa-trial-input-row">
+                      <span>Trial length</span>
+                      <input
+                        type="number"
+                        min={1}
+                        className="pa-num"
+                        value={trialIntervalCount ?? 7}
+                        onChange={(e) =>
+                          setValue(
+                            'trial_interval_count',
+                            Math.max(1, parseInt(e.target.value || '1', 10)),
+                          )
+                        }
+                      />
+                      <span>days</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* ACCESS */}
+        <section className="pa-section">
+          <div className="pa-section-header">
+            <div className="pa-eyebrow">Access</div>
+            <h2 className="pa-title">What students see before paying</h2>
+            <p className="pa-desc">
+              Give a taste of the course, or keep everything behind the paywall.
+            </p>
+          </div>
+
+          <div className="pa-choice-row">
+            <button
+              type="button"
+              className={`pa-choice${!paywall.paywallEnabled ? 'active' : ''}`}
+              onClick={() =>
+                onPaywallChange({ ...paywall, paywallEnabled: false })
+              }
+            >
+              <div className="pa-choice-title">Open access</div>
+              <div className="pa-choice-sub">
+                Anyone enrolled can watch every lesson.
+              </div>
+            </button>
+            <button
+              type="button"
+              className={`pa-choice${paywall.paywallEnabled ? 'active' : ''}`}
+              onClick={() =>
+                onPaywallChange({ ...paywall, paywallEnabled: true })
+              }
+            >
+              <div className="pa-choice-title">Free preview</div>
+              <div className="pa-choice-sub">
+                First few lessons free, the rest unlocks on purchase.
+              </div>
+            </button>
+          </div>
+
+          {paywall.paywallEnabled && (
+            <div className="pa-preview-card">
+              <div className="pa-preview-row">
+                <div>
+                  <div className="pa-preview-title">Free preview lessons</div>
+                  <div className="pa-preview-sub">
+                    Visible before the paywall. The rest unlock after purchase.
+                  </div>
+                </div>
+                <div className="pa-preview-count">
+                  <span className="pa-preview-num">
+                    {paywall.freePreviewLessons}
+                  </span>
+                  <span className="pa-preview-total">
+                    / {maxPreviewLessons}
+                  </span>
+                </div>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={maxPreviewLessons}
+                value={paywall.freePreviewLessons}
+                className="pa-slider"
+                onChange={(e) =>
+                  onPaywallChange({
+                    ...paywall,
+                    freePreviewLessons: Math.max(
+                      0,
+                      Math.min(
+                        maxPreviewLessons,
+                        parseInt(e.target.value || '0', 10),
+                      ),
+                    ),
+                  })
+                }
+              />
+              <div className="pa-slider-legend">
+                <span>0 — no preview</span>
+                <span>All {maxPreviewLessons} lessons</span>
+              </div>
+            </div>
+          )}
+        </section>
       </div>
 
       <style jsx global>{`
-        .so-pricing-toggle-row {
+        .pa-root {
+          --pa-ink: var(--so-black);
+          --pa-ink-2: var(--so-gray4);
+          --pa-muted: var(--so-gray3);
+          --pa-hair: var(--so-gray2);
+          --pa-surface: var(--so-white);
+          --pa-surface-2: var(--so-gray1);
+          --pa-accent: var(--so-black);
+          --pa-accent-soft: rgba(10, 10, 10, 0.06);
+          font-family: var(--font-poppins), system-ui, sans-serif;
+          color: var(--pa-ink);
+          display: flex;
+          flex-direction: column;
+        }
+        .pa-section {
+          padding-block: 36px;
+          border-top: 1px solid var(--pa-hair);
+        }
+        .pa-section.first {
+          border-top: none;
+          padding-top: 8px;
+        }
+        .pa-section-header {
+          margin-bottom: 24px;
+        }
+        .pa-eyebrow {
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          color: var(--pa-muted);
+          margin-bottom: 6px;
+        }
+        .pa-title {
+          font-size: 20px;
+          font-weight: 600;
+          margin: 0;
+          letter-spacing: -0.2px;
+          color: var(--pa-ink);
+        }
+        .pa-desc {
+          font-size: 13.5px;
+          color: var(--pa-muted);
+          margin: 6px 0 0;
+          max-width: 520px;
+          line-height: 1.5;
+        }
+        .pa-stack {
+          display: flex;
+          flex-direction: column;
+          gap: 24px;
+        }
+        .pa-field {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+        .pa-label {
+          font-size: 13px;
+          font-weight: 500;
+          color: var(--pa-ink);
+        }
+
+        /* Segmented */
+        .pa-segmented {
+          display: inline-flex;
+          padding: 4px;
+          gap: 2px;
+          background: var(--pa-surface-2);
+          border-radius: 12px;
+          border: 1px solid var(--pa-hair);
+          align-self: flex-start;
+        }
+        .pa-seg {
+          padding: 9px 16px;
+          font-size: 13px;
+          font-weight: 500;
+          border-radius: 9px;
+          border: none;
+          background: transparent;
+          color: var(--pa-muted);
+          cursor: pointer;
+          transition: all 0.15s;
+          font-family: inherit;
+        }
+        .pa-seg.active {
+          background: #fff;
+          color: var(--pa-ink);
+          box-shadow:
+            0 1px 2px rgba(20, 20, 20, 0.06),
+            0 1px 0 var(--pa-hair);
+        }
+
+        /* Recurring config row */
+        .pa-recurring {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-wrap: wrap;
+          margin-top: 4px;
+          padding: 12px 14px;
+          background: var(--pa-surface-2);
+          border-radius: 10px;
+          border: 1px solid var(--pa-hair);
+          font-size: 13px;
+          color: var(--pa-ink-2);
+        }
+        .pa-num {
+          width: 64px;
+          padding: 7px 10px;
+          text-align: center;
+          border: 1px solid var(--pa-hair);
+          border-radius: 7px;
+          background: #fff;
+          font-size: 13px;
+          font-weight: 500;
+          color: var(--pa-ink);
+          outline: none;
+          font-family: inherit;
+        }
+        .pa-num:focus {
+          border-color: var(--pa-accent);
+        }
+        .pa-select {
+          appearance: none;
+          padding: 7px 28px 7px 12px;
+          font-size: 13px;
+          font-weight: 500;
+          border: 1px solid var(--pa-hair);
+          border-radius: 7px;
+          background: #fff
+            url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M2 4l3 3 3-3' stroke='%23999' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>")
+            no-repeat right 8px center;
+          color: var(--pa-ink);
+          cursor: pointer;
+          outline: none;
+          font-family: inherit;
+        }
+        .pa-recurring-hint {
+          margin-left: auto;
+          font-size: 12px;
+          color: var(--pa-muted);
+        }
+
+        /* Choice cards */
+        .pa-choice-row {
           display: grid;
           grid-template-columns: 1fr 1fr;
           gap: 10px;
         }
-        .so-pricing-card {
-          padding: 16px 18px;
-          background: var(--so-gray1);
-          border: 1.5px solid var(--so-gray2);
+        .pa-choice {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 4px;
+          padding: 14px 16px;
+          text-align: left;
+          width: 100%;
+          background: #fff;
+          border: 1px solid var(--pa-hair);
           border-radius: 12px;
           cursor: pointer;
-          transition:
-            border-color 0.2s,
-            background 0.2s,
-            box-shadow 0.2s;
-          text-align: left;
-          font-family: var(--font-poppins), system-ui, sans-serif;
-          color: var(--so-black);
-          -webkit-appearance: none;
+          transition: all 0.15s;
+          color: var(--pa-ink);
+          font-family: inherit;
         }
-        .so-pricing-card:hover {
-          border-color: #c8c8c8;
-          background: #f0f0f0;
-        }
-        .so-pricing-card.selected {
-          border-color: var(--so-black);
-          background: var(--so-white);
+        .pa-choice.active {
+          background: var(--pa-accent-soft);
+          border-color: var(--pa-accent);
           box-shadow: 0 0 0 3px rgba(10, 10, 10, 0.07);
         }
-        .so-pricing-card-title {
+        .pa-choice-title {
           font-size: 14px;
           font-weight: 600;
-          color: var(--so-black);
-          margin-bottom: 4px;
+          color: var(--pa-ink);
         }
-        .so-pricing-card-sub {
+        .pa-choice-sub {
+          font-size: 12.5px;
+          color: var(--pa-muted);
+          line-height: 1.45;
+        }
+
+        /* Price rows */
+        .pa-prices {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .pa-price-row {
+          display: flex;
+          align-items: center;
+          border: 1px solid var(--pa-hair);
+          border-radius: 12px;
+          background: #fff;
+          position: relative;
+        }
+        .pa-cur {
+          position: relative;
+        }
+        .pa-cur-trigger {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 12px 12px 12px 14px;
+          background: transparent;
+          border: none;
+          border-right: 1px solid var(--pa-hair);
+          color: var(--pa-ink);
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          min-width: 110px;
+          font-family: inherit;
+        }
+        .pa-cur-pill {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-width: 28px;
+          height: 22px;
+          padding: 0 6px;
+          border-radius: 6px;
+          background: var(--pa-accent-soft);
+          color: var(--pa-ink);
+          font-size: 11px;
+          font-weight: 700;
+        }
+        .pa-cur-pill.small {
+          min-width: 30px;
+          height: 26px;
+        }
+        .pa-cur-code {
+          font-weight: 600;
+        }
+        .pa-cur-chevron {
+          margin-left: 2px;
+          color: var(--pa-muted);
+          font-size: 10px;
+        }
+        .pa-cur-menu {
+          position: absolute;
+          top: calc(100% + 6px);
+          left: 0;
+          width: 320px;
+          padding: 6px;
+          z-index: 30;
+          background: #fff;
+          border: 1px solid var(--pa-hair);
+          border-radius: 12px;
+          box-shadow:
+            0 1px 2px rgba(20, 20, 20, 0.05),
+            0 12px 28px rgba(20, 20, 20, 0.1);
+          max-height: 360px;
+          overflow-y: auto;
+        }
+        .pa-cur-item {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          width: 100%;
+          padding: 9px 10px;
+          font-size: 13px;
+          text-align: left;
+          background: transparent;
+          border: none;
+          border-radius: 8px;
+          color: var(--pa-ink);
+          cursor: pointer;
+          font-family: inherit;
+        }
+        .pa-cur-item:hover:not(.disabled) {
+          background: var(--pa-surface-2);
+        }
+        .pa-cur-item.active {
+          background: var(--pa-surface-2);
+        }
+        .pa-cur-item.disabled {
+          color: var(--pa-muted);
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+        .pa-cur-name {
+          color: var(--pa-muted);
           font-size: 12px;
-          color: var(--so-gray3);
-          line-height: 1.5;
+          margin-left: 2px;
+          flex: 1;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .pa-cur-check {
+          margin-left: auto;
+          color: var(--pa-accent);
+          font-size: 14px;
+        }
+        .pa-price-input {
+          flex: 1;
+          padding: 12px 14px;
+          font-size: 16px;
+          font-weight: 500;
+          border: none;
+          outline: none;
+          background: transparent;
+          color: var(--pa-ink);
+          min-width: 0;
+          font-variant-numeric: tabular-nums;
+          font-family: inherit;
+        }
+        .pa-price-tag {
+          font-size: 11px;
+          font-weight: 600;
+          color: var(--pa-muted);
+          letter-spacing: 0.5px;
+          padding-right: 14px;
+          text-transform: uppercase;
+        }
+        .pa-price-remove {
+          width: 36px;
+          height: 36px;
+          margin-right: 6px;
+          background: transparent;
+          border: none;
+          border-radius: 8px;
+          color: var(--pa-muted);
+          cursor: pointer;
+          font-size: 18px;
+          font-family: inherit;
+        }
+        .pa-price-remove:hover {
+          background: var(--pa-surface-2);
+          color: var(--pa-ink);
+        }
+        .pa-add-currency {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          align-self: flex-start;
+          padding: 8px 14px;
+          font-size: 13px;
+          font-weight: 500;
+          background: transparent;
+          border: 1px dashed #c8c8c8;
+          color: var(--pa-ink-2);
+          border-radius: 8px;
+          cursor: pointer;
+          font-family: inherit;
+        }
+        .pa-add-currency:hover:not(:disabled) {
+          background: var(--pa-surface-2);
+        }
+        .pa-add-currency:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        /* Trial */
+        .pa-trial {
+          display: flex;
+          gap: 12px;
+          padding-top: 16px;
+          border-top: 1px solid var(--pa-hair);
+        }
+        .pa-toggle {
+          flex-shrink: 0;
+          margin-top: 2px;
+          width: 38px;
+          height: 22px;
+          border-radius: 999px;
+          background: #c8c8c8;
+          border: none;
+          padding: 0;
+          position: relative;
+          transition: background 0.2s;
+          cursor: pointer;
+        }
+        .pa-toggle.on {
+          background: var(--pa-accent);
+        }
+        .pa-toggle-knob {
+          position: absolute;
+          top: 2px;
+          left: 2px;
+          width: 18px;
+          height: 18px;
+          border-radius: 50%;
+          background: #fff;
+          transition: left 0.2s;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        }
+        .pa-toggle.on .pa-toggle-knob {
+          left: 18px;
+        }
+        .pa-trial-label {
+          font-size: 13.5px;
+          font-weight: 500;
+          color: var(--pa-ink);
+        }
+        .pa-trial-desc {
+          font-size: 12.5px;
+          color: var(--pa-muted);
+          margin-top: 2px;
+        }
+        .pa-trial-input-row {
+          margin-top: 8px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          font-size: 13px;
+          color: var(--pa-ink-2);
+        }
+
+        /* Free preview slider card */
+        .pa-preview-card {
+          margin-top: 14px;
+          padding: 16px;
+          background: var(--pa-surface-2);
+          border-radius: 12px;
+          border: 1px solid var(--pa-hair);
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .pa-preview-row {
+          display: flex;
+          align-items: flex-end;
+          justify-content: space-between;
+          gap: 12px;
+        }
+        .pa-preview-title {
+          font-size: 13px;
+          font-weight: 500;
+          color: var(--pa-ink);
+        }
+        .pa-preview-sub {
+          font-size: 12px;
+          color: var(--pa-muted);
+          margin-top: 2px;
+          max-width: 380px;
+        }
+        .pa-preview-count {
+          display: flex;
+          align-items: baseline;
+          gap: 4px;
+          color: var(--pa-ink);
+        }
+        .pa-preview-num {
+          font-size: 28px;
+          font-weight: 600;
+          font-variant-numeric: tabular-nums;
+          letter-spacing: -0.5px;
+        }
+        .pa-preview-total {
+          font-size: 12px;
+          color: var(--pa-muted);
+        }
+        .pa-slider {
+          width: 100%;
+          accent-color: var(--pa-accent);
+        }
+        .pa-slider-legend {
+          display: flex;
+          justify-content: space-between;
+          font-size: 11px;
+          color: var(--pa-muted);
         }
       `}</style>
     </StepShell>
