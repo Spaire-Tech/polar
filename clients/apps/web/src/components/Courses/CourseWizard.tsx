@@ -19,10 +19,6 @@ import { toast } from '../Toast/use-toast'
 import { OutlineScreen } from './CourseWizard.outline'
 import { CreatingScreen, GeneratingScreen } from './CourseWizard.status'
 import {
-  WizardLandingEditor,
-  type WizardFinalizationData,
-} from './editor/WizardLandingEditor'
-import {
   Intro,
   SpaireOnboardingStyles,
   StepCourse,
@@ -30,6 +26,10 @@ import {
   StepPricingWizard,
   type WizardPaywallState,
 } from './CourseWizard.steps'
+import {
+  WizardLandingEditor,
+  type WizardFinalizationData,
+} from './editor/WizardLandingEditor'
 import { landingSchema, outlineSchema } from './schemas'
 
 type WizardStep =
@@ -132,8 +132,7 @@ export default function CourseWizard({
   // (one-time / recurring, fixed / free, currency tabs, media uploads) lands
   // straight on form values, so finalizeCourse just hands form.getValues() to
   // useCreateProduct. No bespoke mappers.
-  const defaultCurrency =
-    organization.default_presentment_currency ?? 'usd'
+  const defaultCurrency = organization.default_presentment_currency ?? 'usd'
   const form = useForm<ProductEditOrCreateForm>({
     defaultValues: {
       name: '',
@@ -224,8 +223,9 @@ export default function CourseWizard({
         0,
       ) ?? 0
     const recurringInterval = form.getValues('recurring_interval')
-    const billingType: 'one_time' | 'subscription' =
-      recurringInterval ? 'subscription' : 'one_time'
+    const billingType: 'one_time' | 'subscription' = recurringInterval
+      ? 'subscription'
+      : 'one_time'
     setScreen('generating-landing')
     submitLanding({
       title: draft.courseTitle || course.title,
@@ -509,6 +509,8 @@ export default function CourseWizard({
               onNext={startOutlineGeneration}
               onBack={() => setScreen('course')}
               onClose={handleClose}
+              courseTitle={draft.courseTitle || course.title}
+              courseLessons={12}
             />
           )}
           {screen === 'generating-outline' && (
