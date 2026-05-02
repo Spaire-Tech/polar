@@ -1177,11 +1177,17 @@ function PFPriceRow({
   primary,
   disabledCurrencies,
   onRemove,
+  cycle,
+  every,
+  period,
 }: {
   index: number
   primary?: boolean
   disabledCurrencies: string[]
   onRemove?: () => void
+  cycle?: 'onetime' | 'recurring'
+  every?: number
+  period?: string
 }) {
   const { watch, setValue } = useFormContext<WizardPricingForm>()
   const price = watch(`prices.${index}`)
@@ -1212,17 +1218,14 @@ function PFPriceRow({
     }
   }, [currency, amount])
 
+  const cadenceLabel =
+    cycle === 'recurring' && period
+      ? `/ ${every && every > 1 ? `${every} ${period}s` : period}`
+      : null
+
   return (
     <div className="pf-price-row" ref={ref}>
-      <button
-        type="button"
-        className="pf-price-cur"
-        onClick={() => setOpen((o) => !o)}
-      >
-        <span className="pf-price-pill">{cur.symbol}</span>
-        {cur.code.toUpperCase()}
-        <span className="pf-price-chev">▾</span>
-      </button>
+      <span className="pf-price-sym">{cur.symbol}</span>
       <input
         type="text"
         inputMode="decimal"
@@ -1236,6 +1239,17 @@ function PFPriceRow({
           setValue(`prices.${index}.id`, '')
         }}
       />
+      {cadenceLabel && (
+        <span className="pf-price-cadence">{cadenceLabel}</span>
+      )}
+      <button
+        type="button"
+        className="pf-price-cur-right"
+        onClick={() => setOpen((o) => !o)}
+      >
+        {cur.code.toUpperCase()}
+        <span className="pf-price-chev">▾</span>
+      </button>
       {primary && <span className="pf-price-tag">Primary</span>}
       {onRemove && (
         <button
@@ -1258,8 +1272,8 @@ function PFPriceRow({
                 key={c.code}
                 disabled={isDisabled}
                 className={`pf-cur-item${
-                  c.code === currency ? 'active' : ''
-                }${isDisabled ? 'disabled' : ''}`}
+                  c.code === currency ? ' active' : ''
+                }${isDisabled ? ' disabled' : ''}`}
                 onClick={() => {
                   if (isDisabled) return
                   setValue(
@@ -1270,9 +1284,9 @@ function PFPriceRow({
                   setOpen(false)
                 }}
               >
-                <span className="pf-cur-pill">{c.symbol}</span>
                 <span className="pf-cur-code">{c.code.toUpperCase()}</span>
                 <span className="pf-cur-name">{c.name}</span>
+                <span className="pf-cur-sym-right">{c.symbol}</span>
                 {c.code === currency && <span className="pf-cur-check">✓</span>}
               </button>
             )
@@ -1659,142 +1673,166 @@ export function StepPricingWizard({
               description="Sell your course once, or charge a recurring fee for ongoing access. Add other currencies for international students."
             >
               <div className="pf-stack">
-                {/* Cycle: segmented */}
-                <div className="pf-field">
-                  <span className="pf-label">Billing</span>
-                  <PFSegmented
-                    value={cycle}
-                    onChange={setCycle}
-                    options={[
-                      { value: 'onetime', label: 'One-time purchase' },
-                      { value: 'recurring', label: 'Recurring subscription' },
-                    ]}
+                {/* Free vs paid — choice cards first */}
+                <div className="pf-choice-grid">
+                  <PFChoiceCard
+                    active={priceModel === 'fixed'}
+                    onClick={() => setPriceModel('fixed')}
+                    title="Paid course"
+                    description="Charge a fixed amount per enrolment."
                   />
-                  {cycle === 'recurring' && (
-                    <div className="pf-recurring">
-                      <span>Renew every</span>
-                      <input
-                        type="number"
-                        min={1}
-                        className="pf-num"
-                        value={recurringIntervalCount}
-                        onChange={(e) =>
-                          setValue(
-                            'recurring_interval_count',
-                            Math.max(1, parseInt(e.target.value || '1', 10)),
-                          )
-                        }
-                      />
-                      <PFSelect
-                        value={recurringInterval ?? 'month'}
-                        onChange={(v) =>
-                          setValue(
-                            'recurring_interval',
-                            v as schemas['SubscriptionRecurringInterval'],
-                          )
-                        }
+                  <PFChoiceCard
+                    active={priceModel === 'free'}
+                    onClick={() => setPriceModel('free')}
+                    title="Free course"
+                    description="No charge — open to anyone who enrols."
+                  />
+                </div>
+
+                {/* Prices + billing — only when paid */}
+                {priceModel === 'fixed' && fields.length > 0 && (
+                  <div className="pf-paid-block">
+                    {/* Price rows */}
+                    <div className="pf-field">
+                      <div className="pf-price-label-row">
+                        <span className="pf-label">Price</span>
+                        <span className="pf-price-hint">
+                          {cycle === 'recurring'
+                            ? `Charged every ${recurringIntervalCount > 1 ? `${recurringIntervalCount} ${recurringInterval ?? 'month'}s` : (recurringInterval ?? 'month')}`
+                            : 'Charged once at enrolment'}
+                        </span>
+                      </div>
+                      <div className="pf-prices">
+                        <PFPriceRow
+                          index={0}
+                          primary
+                          disabledCurrencies={usedCurrencies}
+                          cycle={cycle}
+                          every={recurringIntervalCount}
+                          period={recurringInterval ?? 'month'}
+                        />
+                        {additionalIndices.map((i) => (
+                          <PFPriceRow
+                            key={i}
+                            index={i}
+                            disabledCurrencies={usedCurrencies}
+                            onRemove={() => remove(i)}
+                            cycle={cycle}
+                            every={recurringIntervalCount}
+                            period={recurringInterval ?? 'month'}
+                          />
+                        ))}
+                        <button
+                          type="button"
+                          className="pf-add-currency"
+                          onClick={addCurrency}
+                          disabled={usedCurrencies.length >= CURRENCIES.length}
+                        >
+                          + Add another currency
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Billing cadence — below price rows */}
+                    <div className="pf-field">
+                      <span className="pf-label">Billing</span>
+                      <PFSegmented
+                        value={cycle}
+                        onChange={setCycle}
                         options={[
-                          {
-                            value: 'day',
-                            label: recurringIntervalCount > 1 ? 'days' : 'day',
-                          },
-                          {
-                            value: 'week',
-                            label:
-                              recurringIntervalCount > 1 ? 'weeks' : 'week',
-                          },
-                          {
-                            value: 'month',
-                            label:
-                              recurringIntervalCount > 1 ? 'months' : 'month',
-                          },
-                          {
-                            value: 'year',
-                            label:
-                              recurringIntervalCount > 1 ? 'years' : 'year',
-                          },
+                          { value: 'onetime', label: 'Pay once' },
+                          { value: 'recurring', label: 'Recurring' },
                         ]}
                       />
-                      <span className="pf-recurring-hint">
-                        Charged on enrolment, then every{' '}
-                        {recurringIntervalCount} {recurringInterval ?? 'month'}
-                        {recurringIntervalCount > 1 ? 's' : ''}.
-                      </span>
+                      {cycle === 'recurring' && (
+                        <div className="pf-recurring">
+                          <span>Renew every</span>
+                          <input
+                            type="number"
+                            min={1}
+                            className="pf-num"
+                            value={recurringIntervalCount}
+                            onChange={(e) =>
+                              setValue(
+                                'recurring_interval_count',
+                                Math.max(
+                                  1,
+                                  parseInt(e.target.value || '1', 10),
+                                ),
+                              )
+                            }
+                          />
+                          <PFSelect
+                            value={recurringInterval ?? 'month'}
+                            onChange={(v) =>
+                              setValue(
+                                'recurring_interval',
+                                v as schemas['SubscriptionRecurringInterval'],
+                              )
+                            }
+                            options={[
+                              {
+                                value: 'day',
+                                label:
+                                  recurringIntervalCount > 1 ? 'days' : 'day',
+                              },
+                              {
+                                value: 'week',
+                                label:
+                                  recurringIntervalCount > 1
+                                    ? 'weeks'
+                                    : 'week',
+                              },
+                              {
+                                value: 'month',
+                                label:
+                                  recurringIntervalCount > 1
+                                    ? 'months'
+                                    : 'month',
+                              },
+                              {
+                                value: 'year',
+                                label:
+                                  recurringIntervalCount > 1
+                                    ? 'years'
+                                    : 'year',
+                              },
+                            ]}
+                          />
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
 
-                {/* Price model */}
-                <div className="pf-field">
-                  <span className="pf-label">Price</span>
-                  <div className="pf-choice-grid">
-                    <PFChoiceCard
-                      active={priceModel === 'fixed'}
-                      onClick={() => setPriceModel('fixed')}
-                      title="Set a price"
-                      description="Charge a fixed amount per enrolment."
-                    />
-                    <PFChoiceCard
-                      active={priceModel === 'free'}
-                      onClick={() => setPriceModel('free')}
-                      title="Free course"
-                      description="No charge — open to anyone who enrols."
-                    />
-                  </div>
-                </div>
-
-                {/* Prices */}
-                {priceModel === 'fixed' && fields.length > 0 && (
-                  <div className="pf-prices">
-                    <PFPriceRow
-                      index={0}
-                      primary
-                      disabledCurrencies={usedCurrencies}
-                    />
-                    {additionalIndices.map((i) => (
-                      <PFPriceRow
-                        key={i}
-                        index={i}
-                        disabledCurrencies={usedCurrencies}
-                        onRemove={() => remove(i)}
-                      />
-                    ))}
-                    <button
-                      type="button"
-                      className="pf-add-currency"
-                      onClick={addCurrency}
-                      disabled={usedCurrencies.length >= CURRENCIES.length}
-                    >
-                      Add another currency
-                    </button>
-                  </div>
-                )}
-
-                {/* Trial */}
-                {cycle === 'recurring' && (
-                  <div className="pf-trial">
-                    <PFToggle
-                      checked={trialEnabled}
-                      onChange={setTrialEnabled}
-                      label="Free trial period"
-                      description="Let students explore the course before being charged."
-                    />
-                    {trialEnabled && (
-                      <div className="pf-trial-row">
-                        <span>Trial length</span>
-                        <input
-                          type="number"
-                          min={1}
-                          className="pf-num"
-                          value={trialIntervalCount ?? 7}
-                          onChange={(e) =>
-                            setValue(
-                              'trial_interval_count',
-                              Math.max(1, parseInt(e.target.value || '1', 10)),
-                            )
-                          }
+                    {/* Trial — only when recurring */}
+                    {cycle === 'recurring' && (
+                      <div className="pf-trial">
+                        <PFToggle
+                          checked={trialEnabled}
+                          onChange={setTrialEnabled}
+                          label="Free trial period"
+                          description="Let students explore the course before being charged."
                         />
-                        <span>days</span>
+                        {trialEnabled && (
+                          <div className="pf-trial-row">
+                            <span>Trial length</span>
+                            <input
+                              type="number"
+                              min={1}
+                              className="pf-num"
+                              value={trialIntervalCount ?? 7}
+                              onChange={(e) =>
+                                setValue(
+                                  'trial_interval_count',
+                                  Math.max(
+                                    1,
+                                    parseInt(e.target.value || '1', 10),
+                                  ),
+                                )
+                              }
+                            />
+                            <span>days</span>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -2113,11 +2151,30 @@ export function StepPricingWizard({
           line-height: 1.45;
         }
 
+        /* Price label row (label + hint) */
+        .pf-price-label-row {
+          display: flex;
+          align-items: baseline;
+          justify-content: space-between;
+          margin-bottom: 8px;
+        }
+        .pf-price-hint {
+          font-size: 12px;
+          color: var(--muted);
+        }
+
+        /* Paid block — wraps prices + billing + trial */
+        .pf-paid-block {
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
+        }
+
         /* Price row */
         .pf-prices {
           display: flex;
           flex-direction: column;
-          gap: 12px;
+          gap: 8px;
         }
         .pf-price-row {
           display: flex;
@@ -2126,6 +2183,7 @@ export function StepPricingWizard({
           border-radius: 12px;
           background: #fff;
           position: relative;
+          overflow: visible;
           transition:
             border-color 0.15s,
             box-shadow 0.15s;
@@ -2134,41 +2192,41 @@ export function StepPricingWizard({
           border-color: var(--accent);
           box-shadow: 0 0 0 4px var(--accent-ring);
         }
-        .pf-price-cur {
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          padding: 12px 12px 12px 14px;
-          background: transparent;
-          border: none;
-          border-right: 1px solid var(--hair);
-          color: var(--ink);
-          font-size: 13px;
-          font-weight: 600;
-          cursor: pointer;
-          min-width: 96px;
-        }
-        .pf-price-pill {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          min-width: 22px;
-          height: 22px;
-          padding: 0 5px;
-          border-radius: 6px;
-          background: var(--accent-soft);
-          color: var(--accent);
-          font-size: 11px;
-          font-weight: 700;
+        .pf-price-sym {
+          padding: 12px 0 12px 16px;
+          font-size: 16px;
+          font-weight: 500;
+          color: var(--muted);
+          font-variant-numeric: tabular-nums;
+          user-select: none;
         }
         .pf-price-chev {
           margin-left: 2px;
           color: var(--muted);
           font-size: 10px;
         }
+        .pf-price-cadence {
+          font-size: 13px;
+          color: var(--muted);
+          padding-right: 10px;
+          white-space: nowrap;
+        }
+        .pf-price-cur-right {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 12px 14px;
+          background: transparent;
+          border: none;
+          border-left: 1px solid var(--hair);
+          color: var(--ink);
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+        }
         .pf-price-amount {
           flex: 1;
-          padding: 12px 14px;
+          padding: 12px 8px;
           font-size: 16px;
           font-weight: 500;
           border: none;
@@ -2236,21 +2294,9 @@ export function StepPricingWizard({
           opacity: 0.5;
           cursor: not-allowed;
         }
-        .pf-cur-pill {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          min-width: 26px;
-          height: 26px;
-          padding: 0 6px;
-          border-radius: 6px;
-          font-size: 11px;
-          font-weight: 700;
-          background: var(--surface-3);
-          color: var(--ink-2);
-        }
         .pf-cur-code {
           font-weight: 600;
+          min-width: 38px;
         }
         .pf-cur-name {
           color: var(--muted);
@@ -2259,6 +2305,12 @@ export function StepPricingWizard({
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
+        }
+        .pf-cur-sym-right {
+          color: var(--muted-2);
+          font-size: 12px;
+          font-variant-numeric: tabular-nums;
+          margin-left: 4px;
         }
         .pf-cur-check {
           margin-left: auto;
