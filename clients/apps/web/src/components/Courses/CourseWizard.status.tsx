@@ -266,39 +266,19 @@ function CenterStage({
   )
 }
 
-// ─── Orb — simple spinning arc + logo core ────────────────────────────────────
+// ─── Orb — 3D sphere with halo, sheen, breathe ───────────────────────────────
 
 function Orb() {
   return (
     <div className="cg-orb">
-      <svg
-        width="96"
-        height="96"
-        viewBox="0 0 96 96"
-        style={{ position: 'absolute', inset: 0 }}
-      >
-        <circle
-          cx="48"
-          cy="48"
-          r="44"
-          fill="none"
-          stroke="var(--cg-hair)"
-          strokeWidth="1"
-        />
-        <circle
-          cx="48"
-          cy="48"
-          r="44"
-          fill="none"
-          stroke="var(--cg-accent)"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeDasharray="40 240"
-          className="cg-orb-spin"
-        />
-      </svg>
-      <div className="cg-orb-core">
-        <img src="/spaire-logo-light.png" alt="" />
+      {/* soft halo */}
+      <div className="cg-orb-halo" />
+      {/* orb body */}
+      <div className="cg-orb-body">
+        {/* slow sheen */}
+        <div className="cg-orb-sheen" />
+        {/* highlight */}
+        <div className="cg-orb-highlight" />
       </div>
     </div>
   )
@@ -347,7 +327,6 @@ function StagePreview({
   }
   return (
     <div className="cg-preview">
-      <div className="cg-preview-sweep" />
       <div className="cg-preview-body">{body}</div>
     </div>
   )
@@ -422,11 +401,9 @@ function OutlinePreview({
   )
 }
 
-function LessonsPreview({ progress }: { progress: number }) {
-  const fullText =
+function LessonsPreview({ progress: _ }: { progress: number }) {
+  const text =
     'Most courses fail at the first 90 seconds. Open with the smallest possible promise — what the student will be able to do by the end of this lesson — then prove you can deliver it in under three minutes.'
-  const visibleCount = Math.floor(progress * fullText.length * 1.4)
-  const visible = fullText.slice(0, Math.min(visibleCount, fullText.length))
   return (
     <div className="cg-stack">
       <div className="cg-lesson-meta">
@@ -434,10 +411,7 @@ function LessonsPreview({ progress }: { progress: number }) {
         <span className="cg-dot" />
         <span className="cg-lesson-title">The 90-second hook</span>
       </div>
-      <div className="cg-typewriter">
-        {visible}
-        <span className="cg-caret" />
-      </div>
+      <div className="cg-typewriter">{text}</div>
     </div>
   )
 }
@@ -575,7 +549,7 @@ function SideRail({
                     className="cg-rail-connector"
                     style={{
                       background: done
-                        ? 'var(--cg-accent)'
+                        ? 'var(--cg-ink)'
                         : 'var(--cg-hair)',
                     }}
                   />
@@ -752,8 +726,7 @@ function GeneratingStyles() {
       }
       .cg-progress-fill {
         height: 100%;
-        background: var(--cg-accent);
-        box-shadow: 0 0 8px var(--cg-accent);
+        background: var(--cg-ink);
         transition: width 0.2s linear;
       }
 
@@ -814,31 +787,47 @@ function GeneratingStyles() {
 
       /* Orb */
       .cg-orb {
-        width: 96px;
-        height: 96px;
+        width: 120px;
+        height: 120px;
         position: relative;
         display: flex;
         align-items: center;
         justify-content: center;
       }
-      .cg-orb-spin {
-        transform-origin: center;
-        animation: cgRingspin 2.4s linear infinite;
-      }
-      .cg-orb-core {
-        width: 52px;
-        height: 52px;
+      .cg-orb-halo {
+        position: absolute;
+        inset: -8px;
         border-radius: 50%;
-        background: var(--cg-ink);
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        background: radial-gradient(circle, rgba(10,10,10,0.10) 0%, rgba(10,10,10,0) 70%);
+        animation: haloPulse 3.6s ease-in-out infinite;
+      }
+      .cg-orb-body {
+        position: relative;
+        width: 84px;
+        height: 84px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 32% 28%, #ffffff 0%, #e8e8eb 38%, #1a1a1a 92%);
+        box-shadow: 0 1px 2px rgba(0,0,0,0.08), 0 12px 30px rgba(0,0,0,0.18), inset 0 -6px 14px rgba(0,0,0,0.25), inset 0 2px 4px rgba(255,255,255,0.6);
+        animation: orbBreathe 3.6s ease-in-out infinite;
         overflow: hidden;
       }
-      .cg-orb-core img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
+      .cg-orb-sheen {
+        position: absolute;
+        inset: -6px;
+        border-radius: 50%;
+        background: conic-gradient(from 0deg, rgba(255,255,255,0) 0deg, rgba(255,255,255,0.45) 60deg, rgba(255,255,255,0) 140deg, rgba(255,255,255,0) 360deg);
+        mix-blend-mode: screen;
+        animation: sheenSpin 5.5s linear infinite;
+      }
+      .cg-orb-highlight {
+        position: absolute;
+        top: 10px;
+        left: 16px;
+        width: 22px;
+        height: 14px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.85);
+        filter: blur(3px);
       }
 
       /* Preview card */
@@ -853,18 +842,6 @@ function GeneratingStyles() {
         position: relative;
         overflow: hidden;
         box-shadow: 0 1px 2px oklch(0.2 0.02 270 / 0.04);
-      }
-      .cg-preview-sweep {
-        position: absolute;
-        inset: 0;
-        pointer-events: none;
-        background: linear-gradient(
-          90deg,
-          transparent,
-          oklch(0.52 0.18 270 / 0.07),
-          transparent
-        );
-        animation: cgLineSweep 2.8s ease-in-out infinite;
       }
       .cg-preview-body {
         position: relative;
@@ -974,7 +951,7 @@ function GeneratingStyles() {
         width: 7px;
         height: 15px;
         margin-left: 2px;
-        background: var(--cg-accent);
+        background: var(--cg-ink);
         vertical-align: middle;
         animation: cgBlink 1s steps(1) infinite;
       }
@@ -995,7 +972,7 @@ function GeneratingStyles() {
         width: 5px;
         height: 5px;
         border-radius: 50%;
-        background: var(--cg-accent);
+        background: var(--cg-ink);
         flex-shrink: 0;
       }
 
@@ -1042,7 +1019,7 @@ function GeneratingStyles() {
         width: 18px;
         height: 18px;
         border-radius: 50%;
-        background: var(--cg-accent);
+        background: var(--cg-ink);
         color: #fff;
         flex-shrink: 0;
         animation: cgCheckPop 0.35s ease both;
@@ -1067,10 +1044,10 @@ function GeneratingStyles() {
         font-weight: 700;
         letter-spacing: 0.12em;
         text-transform: uppercase;
-        color: var(--cg-accent);
+        color: var(--cg-ink);
         padding: 4px 8px;
         border-radius: 5px;
-        background: var(--cg-accent-soft);
+        background: var(--cg-surface-3);
       }
       .cg-tip-text {
         font-size: 13.5px;
@@ -1144,11 +1121,11 @@ function GeneratingStyles() {
       }
       .cg-rail-item.active .cg-rail-bubble {
         background: #fff;
-        border: 1.5px solid var(--cg-accent);
-        color: var(--cg-accent);
+        border: 1.5px solid var(--cg-ink);
+        color: var(--cg-ink);
       }
       .cg-rail-item.done .cg-rail-bubble {
-        background: var(--cg-accent);
+        background: var(--cg-ink);
         border: none;
         color: #fff;
       }
@@ -1156,7 +1133,7 @@ function GeneratingStyles() {
         width: 7px;
         height: 7px;
         border-radius: 50%;
-        background: var(--cg-accent);
+        background: var(--cg-ink);
         animation: cgPulse 1.5s ease-in-out infinite;
       }
       .cg-rail-body {
@@ -1190,7 +1167,7 @@ function GeneratingStyles() {
       }
       .cg-rail-bar-fill {
         height: 100%;
-        background: var(--cg-accent);
+        background: var(--cg-ink);
         transition: width 0.15s linear;
       }
       .cg-rail-note {
@@ -1233,10 +1210,16 @@ function GeneratingStyles() {
           background-position: 200% 0;
         }
       }
-      @keyframes cgRingspin {
-        to {
-          transform: rotate(360deg);
-        }
+      @keyframes haloPulse {
+        0%, 100% { opacity: 0.6; transform: scale(1); }
+        50% { opacity: 1; transform: scale(1.06); }
+      }
+      @keyframes orbBreathe {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.04); }
+      }
+      @keyframes sheenSpin {
+        to { transform: rotate(360deg); }
       }
       @keyframes cgPulse {
         0%,
@@ -1257,14 +1240,6 @@ function GeneratingStyles() {
         50%,
         100% {
           opacity: 0;
-        }
-      }
-      @keyframes cgLineSweep {
-        0% {
-          transform: translateX(-100%);
-        }
-        100% {
-          transform: translateX(100%);
         }
       }
       @keyframes cgCheckPop {
