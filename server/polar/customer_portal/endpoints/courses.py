@@ -464,11 +464,13 @@ async def get_course_landing(
         )
         has_access = True
     else:
-        # Not enrolled: show free preview lessons. A lesson is considered
-        # free preview if explicitly flagged, OR if it sits before the
-        # course's paywall_position (the customize landing UI treats the
-        # pre-paywall lessons as the implicit free preview, so the public
-        # page should match).
+        # Not enrolled: return every published lesson so the public landing
+        # can render both the free preview grid and the paywall CTA (with
+        # locked-lesson previews). Sensitive fields are stripped from
+        # locked lessons. A lesson is considered free preview if it's
+        # explicitly flagged, OR if it sits before the course's
+        # paywall_position (the customize landing UI treats the
+        # pre-paywall lessons as the implicit free preview).
         flat_lessons = []
         published_lessons = [
             lesson
@@ -478,22 +480,31 @@ async def get_course_landing(
         ]
         published_lessons.sort(key=lambda l: l.position)
 
-        explicit_free = [l for l in published_lessons if l.is_free_preview]
-        if explicit_free:
-            visible = explicit_free
-        elif course.paywall_position is not None and course.paywall_position > 0:
-            visible = published_lessons[: course.paywall_position]
-        else:
-            visible = []
+        any_explicit_free = any(l.is_free_preview for l in published_lessons)
+        paywall_at = (
+            course.paywall_position
+            if course.paywall_position is not None and course.paywall_position > 0
+            else None
+        )
 
-        for lesson in visible:
+        for idx, lesson in enumerate(published_lessons):
+            if any_explicit_free:
+                is_free = lesson.is_free_preview
+            elif paywall_at is not None:
+                is_free = idx < paywall_at
+            else:
+                is_free = False
+
             lesson_data = _serialize_lesson(lesson, set())
-            lesson_data["locked"] = False
+            lesson_data["is_free_preview"] = is_free
+            lesson_data["locked"] = not is_free
             lesson_data["locked_until"] = None
-            lesson_data["description"] = lesson.description
-            # Ensure the frontend treats these as free preview even when
-            # the implicit (paywall_position) path is used.
-            lesson_data["is_free_preview"] = True
+            lesson_data["description"] = lesson.description if is_free else None
+            if not is_free:
+                # Strip content from locked lessons so non-enrolled users
+                # can't read paid material via the public endpoint.
+                lesson_data["content"] = None
+                lesson_data["mux_playback_id"] = None
             flat_lessons.append(lesson_data)
         has_access = False
 
