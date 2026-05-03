@@ -8,6 +8,7 @@
 // affordances. So the same component tree is used for both modes.
 
 import type { LandingMedia } from '@/hooks/queries/courses'
+import { toast } from '../../Toast/use-toast'
 import { useEditor } from './EditorContext'
 import {
   forwardRef,
@@ -122,16 +123,35 @@ export const EditMedia = forwardRef<
     style?: CSSProperties
     className?: string
     fit?: 'cover' | 'contain'
-    /** Default visual when no media is uploaded. */
+    /** Default visual when no media is uploaded.
+     *  Pass via `placeholder` so it disappears once the user uploads media.
+     *  `children` always renders (use it for labels / controls that should
+     *  stay on top of the uploaded media). */
+    placeholder?: ReactNode
+    /** Always-rendered overlays (labels, controls) on top of the media. */
     children?: ReactNode
     /** When the host wants to render the uploaded media itself
      *  (e.g. the hero section that already has its own object-position),
      *  pass `renderMedia` and we'll skip the default <img>/<video> overlay.
      */
     renderMedia?: (media: LandingMedia) => ReactNode
+    /** Suppress the hover Replace/Remove pill + label overlay. Use this when
+     *  the host renders its own controls (e.g. the hero's add-image /
+     *  add-trailer buttons) so they don't get duplicated. */
+    chromeless?: boolean
   }
 >(function EditMedia(
-  { id, label, style, className, fit = 'cover', children, renderMedia },
+  {
+    id,
+    label,
+    style,
+    className,
+    fit = 'cover',
+    placeholder,
+    children,
+    renderMedia,
+    chromeless,
+  },
   ref,
 ) {
   const ed = useEditor()
@@ -150,7 +170,26 @@ export const EditMedia = forwardRef<
     setPopoverOpen(false)
     try {
       const next = await upload(f)
+      if (!next?.url) {
+        // eslint-disable-next-line no-console
+        console.error('[EditMedia] upload returned empty url', { id, next })
+        toast({
+          title: `Upload failed for ${id}`,
+          description: 'Server returned an empty url. See console for details.',
+        })
+        return
+      }
+      // eslint-disable-next-line no-console
+      console.log('[EditMedia] upload ok', { id, url: next.url, kind: next.kind })
       ed.setMedia(id, { ...next, name: f.name })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      // eslint-disable-next-line no-console
+      console.error('[EditMedia] upload failed', { id, file: f.name }, err)
+      toast({
+        title: `Upload failed for ${id}`,
+        description: message,
+      })
     } finally {
       setBusy(false)
       e.target.value = ''
@@ -177,7 +216,7 @@ export const EditMedia = forwardRef<
   return (
     <div
       ref={ref}
-      style={{ ...style, position: 'relative', isolation: 'isolate' }}
+      style={{ position: 'relative', isolation: 'isolate', ...style }}
       className={className}
       data-spaire-edit-media={id}
       onMouseEnter={() => setHover(true)}
@@ -186,8 +225,9 @@ export const EditMedia = forwardRef<
         setPopoverOpen(false)
       }}
     >
-      {/* Default placeholder */}
-      {children}
+      {/* Placeholder — hidden once media is uploaded so the upload is the
+          only visual at the base of the stack. */}
+      {!m && placeholder}
       {/* Uploaded media — host can render its own */}
       {m && (renderMedia ? renderMedia(m) : m.kind === 'image' ? (
         // eslint-disable-next-line @next/next/no-img-element
@@ -195,7 +235,9 @@ export const EditMedia = forwardRef<
       ) : (
         <video src={m.url} autoPlay muted loop playsInline style={cover} />
       ))}
-      {ed.mode === 'edit' && (
+      {/* Always-on overlays (labels, controls) sit on top of the media. */}
+      {children}
+      {ed.mode === 'edit' && !chromeless && (
         <>
           <div
             style={{

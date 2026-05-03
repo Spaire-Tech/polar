@@ -12,7 +12,8 @@
 
 import type { CourseLessonRead, CourseRead } from '@/hooks/queries/courses'
 import type { schemas } from '@spaire/client'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { toast } from '../../Toast/use-toast'
 import { useEditor } from './EditorContext'
 import { EditBlock, EditMedia, EditText } from './EditPrimitives'
 import { HeroMedia } from './HeroMedia'
@@ -164,10 +165,23 @@ function Hero({
   freeCount: number
   priceLabel: string
 }) {
+  const ed = useEditor()
   const totalDurationSeconds = flatLessons.reduce(
     (a, l) => a + (l.duration_seconds ?? 0),
     0,
   )
+
+  // Resolve the trailer URL the same way HeroMediaSurface does so the Watch
+  // trailer button always plays whatever is shown in the hero peek.
+  const heroImage = ed.m('hero.backdrop')
+  const heroTrailer = ed.m('hero.trailer')
+  const trailerUrl =
+    (heroTrailer && heroTrailer.kind === 'video' ? heroTrailer.url : null) ??
+    (heroImage && heroImage.kind === 'video' ? heroImage.url : null) ??
+    course.trailer_url ??
+    null
+
+  const [trailerOpen, setTrailerOpen] = useState(false)
 
   return (
     <section
@@ -195,6 +209,7 @@ function Hero({
           overflow: 'hidden',
         }}
         renderMedia={() => null}
+        chromeless
       >
         <HeroMediaSurface
           fallbackImageUrl={course.thumbnail_url ?? null}
@@ -352,6 +367,11 @@ function Hero({
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button
             type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              if (trailerUrl) setTrailerOpen(true)
+            }}
+            disabled={!trailerUrl}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -362,7 +382,8 @@ function Hero({
               borderRadius: 999,
               boxShadow: '0 8px 28px oklch(0 0 0 / 0.4)',
               border: 'none',
-              cursor: 'default',
+              cursor: trailerUrl ? 'pointer' : 'not-allowed',
+              opacity: trailerUrl ? 1 : 0.55,
               fontFamily: 'inherit',
             }}
           >
@@ -409,7 +430,104 @@ function Hero({
           </button>
         </div>
       </div>
+      {trailerOpen && trailerUrl && (
+        <TrailerModal url={trailerUrl} onClose={() => setTrailerOpen(false)} />
+      )}
     </section>
+  )
+}
+
+// Fullscreen trailer player. Mounts a fixed overlay with the video; tries
+// to enter the browser's Fullscreen API on open and falls back to the
+// 100vw/100vh overlay if the browser refuses (e.g. iOS Safari).
+function TrailerModal({ url, onClose }: { url: string; onClose: () => void }) {
+  const videoRef = useRef<HTMLVideoElement>(null)
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+
+    const v = videoRef.current as
+      | (HTMLVideoElement & { webkitEnterFullscreen?: () => void })
+      | null
+    if (v) {
+      try {
+        if (typeof v.requestFullscreen === 'function') {
+          Promise.resolve(v.requestFullscreen()).catch(() => {})
+        } else if (typeof v.webkitEnterFullscreen === 'function') {
+          v.webkitEnterFullscreen()
+        }
+      } catch {
+        // ignored — user can use the in-player fullscreen control
+      }
+    }
+
+    const onFsChange = () => {
+      if (!document.fullscreenElement) onClose()
+    }
+    document.addEventListener('fullscreenchange', onFsChange)
+
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.removeEventListener('fullscreenchange', onFsChange)
+      if (document.fullscreenElement) {
+        document.exitFullscreen?.().catch(() => {})
+      }
+    }
+  }, [onClose])
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 1000,
+        background: 'rgba(0,0,0,0.95)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <video
+        ref={videoRef}
+        src={url}
+        autoPlay
+        controls
+        playsInline
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          maxWidth: '92vw',
+          maxHeight: '92vh',
+          background: 'black',
+          borderRadius: 8,
+          boxShadow: '0 24px 80px rgba(0,0,0,0.6)',
+        }}
+      />
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close trailer"
+        style={{
+          position: 'absolute',
+          right: 24,
+          top: 24,
+          width: 40,
+          height: 40,
+          borderRadius: '50%',
+          background: 'rgba(255,255,255,0.10)',
+          border: '1px solid rgba(255,255,255,0.20)',
+          color: 'white',
+          fontSize: 18,
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+        }}
+      >
+        ✕
+      </button>
+    </div>
   )
 }
 
@@ -460,8 +578,40 @@ function HeroMediaControls() {
 
   const upload = async (slotId: string, file: File) => {
     const uploader = ed.uploaderForSlot?.(slotId) ?? ed.uploadMedia
-    const next = await uploader(file)
-    ed.setMedia(slotId, { ...next, name: file.name })
+    try {
+      const next = await uploader(file)
+      if (!next?.url) {
+        // eslint-disable-next-line no-console
+        console.error('[HeroMediaControls] upload returned empty url', {
+          slotId,
+          next,
+        })
+        toast({
+          title: `Upload failed for ${slotId}`,
+          description: 'Server returned an empty url. See console for details.',
+        })
+        return
+      }
+      // eslint-disable-next-line no-console
+      console.log('[HeroMediaControls] upload ok', {
+        slotId,
+        url: next.url,
+        kind: next.kind,
+      })
+      ed.setMedia(slotId, { ...next, name: file.name })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      // eslint-disable-next-line no-console
+      console.error(
+        '[HeroMediaControls] upload failed',
+        { slotId, file: file.name },
+        err,
+      )
+      toast({
+        title: `Upload failed for ${slotId}`,
+        description: message,
+      })
+    }
   }
 
   const onImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -925,17 +1075,18 @@ function EpisodeThumb({
         background: '#111',
         overflow: 'hidden',
       }}
+      placeholder={
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: `radial-gradient(ellipse at 30% 40%, oklch(0.42 0.10 ${hue}) 0%, oklch(0.18 0.05 ${
+              (hue + 25) % 360
+            }) 55%, oklch(0.07 0.01 280) 100%)`,
+          }}
+        />
+      }
     >
-      {/* Default placeholder gradient */}
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background: `radial-gradient(ellipse at 30% 40%, oklch(0.42 0.10 ${hue}) 0%, oklch(0.18 0.05 ${
-            (hue + 25) % 360
-          }) 55%, oklch(0.07 0.01 280) 100%)`,
-        }}
-      />
       <div
         style={{
           position: 'absolute',
@@ -1302,28 +1453,32 @@ function Instructor({ course }: { course: CourseRead }) {
             boxShadow:
               '0 2px 6px rgba(0,0,0,0.06), 0 24px 60px rgba(0,0,0,0.12)',
           }}
+          placeholder={
+            <>
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background:
+                    'linear-gradient(160deg, oklch(0.42 0.09 35), oklch(0.18 0.05 65))',
+                }}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  left: 16,
+                  top: 16,
+                  fontFamily: 'ui-monospace, monospace',
+                  fontSize: 10,
+                  color: 'rgba(255,255,255,0.3)',
+                  zIndex: 3,
+                }}
+              >
+                portrait placeholder
+              </div>
+            </>
+          }
         >
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              background:
-                'linear-gradient(160deg, oklch(0.42 0.09 35), oklch(0.18 0.05 65))',
-            }}
-          />
-          <div
-            style={{
-              position: 'absolute',
-              left: 16,
-              top: 16,
-              fontFamily: 'ui-monospace, monospace',
-              fontSize: 10,
-              color: 'rgba(255,255,255,0.3)',
-              zIndex: 3,
-            }}
-          >
-            portrait placeholder
-          </div>
           {course.instructor_name && (
             <div
               style={{
@@ -1478,32 +1633,36 @@ function FinalCta({
           borderRadius: 'inherit',
           overflow: 'hidden',
         }}
-      >
-        <div
-          style={{
-            position: 'absolute',
-            left: '-10%',
-            top: '-40%',
-            width: '70%',
-            height: '130%',
-            background:
-              'radial-gradient(ellipse, oklch(0.45 0.18 265 / 0.50) 0%, transparent 60%)',
-            filter: 'blur(40px)',
-          }}
-        />
-        <div
-          style={{
-            position: 'absolute',
-            right: '-10%',
-            bottom: '-40%',
-            width: '60%',
-            height: '130%',
-            background:
-              'radial-gradient(ellipse, oklch(0.50 0.15 25 / 0.32) 0%, transparent 60%)',
-            filter: 'blur(40px)',
-          }}
-        />
-      </EditMedia>
+        placeholder={
+          <>
+            <div
+              style={{
+                position: 'absolute',
+                left: '-10%',
+                top: '-40%',
+                width: '70%',
+                height: '130%',
+                background:
+                  'radial-gradient(ellipse, oklch(0.45 0.18 265 / 0.50) 0%, transparent 60%)',
+                filter: 'blur(40px)',
+              }}
+            />
+            <div
+              style={{
+                position: 'absolute',
+                right: '-10%',
+                bottom: '-40%',
+                width: '60%',
+                height: '130%',
+                background:
+                  'radial-gradient(ellipse, oklch(0.50 0.15 25 / 0.32) 0%, transparent 60%)',
+                filter: 'blur(40px)',
+              }}
+            />
+          </>
+        }
+      />
+      {/* CTA backdrop EditMedia is self-closing — it has only a placeholder. */}
 
       <div
         style={{

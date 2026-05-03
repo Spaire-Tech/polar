@@ -52,6 +52,17 @@ export function HeroMedia({
           muted
           playsInline
           preload="auto"
+          onError={(e) => {
+            const v = e.currentTarget
+            // eslint-disable-next-line no-console
+            console.error('[HeroMedia] video failed to load', {
+              src: trailerUrl,
+              code: v.error?.code,
+              message: v.error?.message,
+              networkState: v.networkState,
+              readyState: v.readyState,
+            })
+          }}
           style={{
             position: 'absolute',
             inset: 0,
@@ -68,6 +79,10 @@ export function HeroMedia({
         <img
           src={imageUrl}
           alt=""
+          onError={() => {
+            // eslint-disable-next-line no-console
+            console.error('[HeroMedia] image failed to load', { src: imageUrl })
+          }}
           style={{
             position: 'absolute',
             inset: 0,
