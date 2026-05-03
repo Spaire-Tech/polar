@@ -92,6 +92,18 @@ CustomerPortalUnionRead = Annotated[
     AuthSubject[Customer | Member], Depends(_CustomerPortalUnionRead)
 ]
 
+# Public landing pages (course product detail, etc.) are accessible to
+# anonymous visitors. We still accept Customer / Member so the same handler
+# can return enrollment-aware data when the user is logged in.
+_CustomerPortalLandingRead = Authenticator(
+    required_scopes=set(),
+    allowed_subjects={Customer, Member, Anonymous},
+)
+CustomerPortalLandingRead = Annotated[
+    AuthSubject[Customer | Member | Anonymous],
+    Depends(_CustomerPortalLandingRead),
+]
+
 _CustomerPortalUnionWrite = Authenticator(
     required_scopes={Scope.customer_portal_write},
     allowed_subjects={Customer, Member},

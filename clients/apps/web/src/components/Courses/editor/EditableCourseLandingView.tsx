@@ -11,8 +11,10 @@
 // creator chose during onboarding.
 
 import type { CourseLessonRead, CourseRead } from '@/hooks/queries/courses'
+import { api } from '@/utils/client'
+import { CONFIG } from '@/utils/config'
 import type { schemas } from '@spaire/client'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from '../../Toast/use-toast'
 import { useEditor } from './EditorContext'
 import { EditBlock, EditMedia, EditText } from './EditPrimitives'
@@ -70,6 +72,37 @@ export type EditableLandingProps = {
   product?: schemas['Product']
 }
 
+// Trigger checkout for the course product. Mirrors ProductDetailPage.handleBuy
+// — POST /v1/checkouts/client/ with the product id, then redirect to the
+// hosted checkout URL. In edit mode (customize page) this is a no-op so the
+// dashboard preview doesn't accidentally open a real checkout.
+function useEnroll(productId: string | undefined) {
+  const ed = useEditor()
+  const [busy, setBusy] = useState(false)
+  const enabled = ed.mode === 'preview' && !!productId
+  const enroll = useCallback(async () => {
+    if (!enabled || busy || !productId) return
+    setBusy(true)
+    try {
+      const { data: checkout, error } = await api.POST(
+        '/v1/checkouts/client/',
+        { body: { product_id: productId } },
+      )
+      if (error || !checkout?.client_secret) {
+        toast({
+          title: 'Could not start checkout',
+          description: 'Please try again in a moment.',
+        })
+        return
+      }
+      window.location.href = `${CONFIG.FRONTEND_BASE_URL}/checkout/${checkout.client_secret}?theme=light`
+    } finally {
+      setBusy(false)
+    }
+  }, [enabled, busy, productId])
+  return { enroll, busy, enabled }
+}
+
 export function EditableCourseLandingView({
   course,
   organizationName,
@@ -79,6 +112,7 @@ export function EditableCourseLandingView({
 }: EditableLandingProps) {
   const ed = useEditor()
   const priceLabel = formatProductPrice(product)
+  const { enroll, busy: enrolling, enabled: canEnroll } = useEnroll(product?.id)
 
   const paywallAt =
     course.paywall_enabled && course.paywall_position != null
@@ -99,6 +133,9 @@ export function EditableCourseLandingView({
           flatLessons={flatLessons}
           freeCount={freeLessons.length}
           priceLabel={priceLabel}
+          onEnroll={enroll}
+          enrolling={enrolling}
+          canEnroll={canEnroll}
         />
       ),
     },
@@ -112,6 +149,9 @@ export function EditableCourseLandingView({
           lockedCount={lockedCount}
           priceLabel={priceLabel}
           organizationSlug={organizationSlug}
+          onEnroll={enroll}
+          enrolling={enrolling}
+          canEnroll={canEnroll}
         />
       ),
     },
@@ -122,6 +162,9 @@ export function EditableCourseLandingView({
         <FinalCta
           freeCount={freeLessons.length}
           priceLabel={priceLabel}
+          onEnroll={enroll}
+          enrolling={enrolling}
+          canEnroll={canEnroll}
         />
       ),
     },
@@ -159,11 +202,17 @@ function Hero({
   flatLessons,
   freeCount,
   priceLabel,
+  onEnroll,
+  enrolling,
+  canEnroll,
 }: {
   course: CourseRead
   flatLessons: CourseLessonRead[]
   freeCount: number
   priceLabel: string
+  onEnroll: () => void
+  enrolling: boolean
+  canEnroll: boolean
 }) {
   const ed = useEditor()
   const totalDurationSeconds = flatLessons.reduce(
@@ -409,6 +458,8 @@ function Hero({
           </button>
           <button
             type="button"
+            onClick={onEnroll}
+            disabled={!canEnroll || enrolling}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -422,11 +473,14 @@ function Hero({
               borderRadius: 999,
               fontSize: 13.5,
               fontWeight: 600,
-              cursor: 'default',
+              cursor: canEnroll ? (enrolling ? 'wait' : 'pointer') : 'default',
               fontFamily: 'inherit',
+              opacity: enrolling ? 0.7 : 1,
             }}
           >
-            Enroll{priceLabel ? ` · ${priceLabel}` : ''} →
+            {enrolling
+              ? 'Loading…'
+              : `Enroll${priceLabel ? ` · ${priceLabel}` : ''} →`}
           </button>
         </div>
       </div>
@@ -769,6 +823,9 @@ function EpisodeGrid({
   lockedCount,
   priceLabel,
   organizationSlug,
+  onEnroll,
+  enrolling,
+  canEnroll,
 }: {
   course: CourseRead
   freeLessons: CourseLessonRead[]
@@ -776,6 +833,9 @@ function EpisodeGrid({
   lockedCount: number
   priceLabel: string
   organizationSlug?: string
+  onEnroll: () => void
+  enrolling: boolean
+  canEnroll: boolean
 }) {
   const thumbHues = [35, 195, 285, 145, 25, 320]
   const [hovered, setHovered] = useState<string | null>(null)
@@ -975,6 +1035,8 @@ function EpisodeGrid({
               )}
               <button
                 type="button"
+                onClick={onEnroll}
+                disabled={!canEnroll || enrolling}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -986,11 +1048,18 @@ function EpisodeGrid({
                   fontSize: 13,
                   fontWeight: 600,
                   border: 'none',
-                  cursor: 'default',
+                  cursor: canEnroll ? (enrolling ? 'wait' : 'pointer') : 'default',
                   fontFamily: 'inherit',
+                  opacity: enrolling ? 0.7 : 1,
                 }}
               >
-                <EditText path="paywall.cta" defaultValue="Enroll" /> →
+                {enrolling ? (
+                  'Loading…'
+                ) : (
+                  <>
+                    <EditText path="paywall.cta" defaultValue="Enroll" /> →
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -1605,9 +1674,15 @@ function Instructor({ course }: { course: CourseRead }) {
 function FinalCta({
   freeCount,
   priceLabel,
+  onEnroll,
+  enrolling,
+  canEnroll,
 }: {
   freeCount: number
   priceLabel: string
+  onEnroll: () => void
+  enrolling: boolean
+  canEnroll: boolean
 }) {
   return (
     <section
@@ -1741,6 +1816,8 @@ function FinalCta({
         >
           <button
             type="button"
+            onClick={onEnroll}
+            disabled={!canEnroll || enrolling}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -1753,11 +1830,14 @@ function FinalCta({
               fontWeight: 600,
               border: 'none',
               boxShadow: '0 8px 28px rgba(0,0,0,0.35)',
-              cursor: 'default',
+              cursor: canEnroll ? (enrolling ? 'wait' : 'pointer') : 'default',
               fontFamily: 'inherit',
+              opacity: enrolling ? 0.7 : 1,
             }}
           >
-            Enroll{priceLabel ? ` for ${priceLabel}` : ''} →
+            {enrolling
+              ? 'Loading…'
+              : `Enroll${priceLabel ? ` for ${priceLabel}` : ''} →`}
           </button>
           <button
             type="button"
