@@ -197,7 +197,7 @@ export const EditMedia = forwardRef<
   return (
     <div
       ref={ref}
-      style={{ ...style, position: 'relative', isolation: 'isolate' }}
+      style={{ position: 'relative', isolation: 'isolate', ...style }}
       className={className}
       data-spaire-edit-media={id}
       onMouseEnter={() => setHover(true)}
