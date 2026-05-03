@@ -209,6 +209,7 @@ const LessonViewerPage = ({
         paywallPosition={data.course.paywall_position}
         flatLessons={flatLessons}
         landing={landing}
+        landingMedia={data.course.landing_overrides?.media ?? null}
         onStart={handleStartClass}
         onTrailer={handleTrailer}
       />
