@@ -41,6 +41,17 @@ type PartialOutline = { modules?: PartialModule[] }
 type PartialLanding = Partial<CourseLanding>
 type LandingMediaMap = Record<string, { url: string; kind?: 'image' | 'video' } | null>
 
+const pickMedia = (
+  media: LandingMediaMap | undefined,
+  keys: string[],
+): { url: string; kind?: 'image' | 'video' } | null => {
+  for (const key of keys) {
+    const item = media?.[key]
+    if (item?.url) return item
+  }
+  return null
+}
+
 // ─── Color & font tokens (Apple-TV-inspired light theme) ─────────────────────
 
 const FONT = "'Poppins', var(--font-poppins), system-ui, sans-serif"
@@ -1479,7 +1490,11 @@ export function InstructorBlock({
   const bio = instructor.bio
   const quote = landing.instructor_pull_quote ?? ''
   const creds = landing.instructor_credentials ?? []
-  const portrait = media?.['instructor.portrait'] ?? null
+  const portrait = pickMedia(media, [
+    'instructor.portrait',
+    'instructor.media',
+    'instructor.image',
+  ])
 
   return (
     <section
@@ -1777,7 +1792,12 @@ export function FinalCta({
   const primaryLabel =
     landing.final_cta_primary ??
     (pricing.paywallEnabled ? 'Enroll' : 'Start watching')
-  const backdrop = media?.['finalCta.backdrop'] ?? null
+  const backdrop = pickMedia(media, [
+    'finalCta.backdrop',
+    'finalCta.media',
+    'cta.backdrop',
+    'cta.media',
+  ])
 
   // Render \n as a real line break.
   const titleLines = titleRaw ? titleRaw.split(/\\n|\n/) : []
