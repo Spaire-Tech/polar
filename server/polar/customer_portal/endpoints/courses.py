@@ -464,17 +464,37 @@ async def get_course_landing(
         )
         has_access = True
     else:
-        # Not enrolled: show only free preview lessons
+        # Not enrolled: show free preview lessons. A lesson is considered
+        # free preview if explicitly flagged, OR if it sits before the
+        # course's paywall_position (the customize landing UI treats the
+        # pre-paywall lessons as the implicit free preview, so the public
+        # page should match).
         flat_lessons = []
-        for module in course.modules:
-            for lesson in module.lessons:
-                if lesson.published and lesson.is_free_preview:
-                    lesson_data = _serialize_lesson(lesson, set())
-                    lesson_data["locked"] = False
-                    lesson_data["locked_until"] = None
-                    lesson_data["description"] = lesson.description
-                    flat_lessons.append(lesson_data)
-        flat_lessons.sort(key=lambda l: l["position"])
+        published_lessons = [
+            lesson
+            for module in course.modules
+            for lesson in module.lessons
+            if lesson.published
+        ]
+        published_lessons.sort(key=lambda l: l.position)
+
+        explicit_free = [l for l in published_lessons if l.is_free_preview]
+        if explicit_free:
+            visible = explicit_free
+        elif course.paywall_position is not None and course.paywall_position > 0:
+            visible = published_lessons[: course.paywall_position]
+        else:
+            visible = []
+
+        for lesson in visible:
+            lesson_data = _serialize_lesson(lesson, set())
+            lesson_data["locked"] = False
+            lesson_data["locked_until"] = None
+            lesson_data["description"] = lesson.description
+            # Ensure the frontend treats these as free preview even when
+            # the implicit (paywall_position) path is used.
+            lesson_data["is_free_preview"] = True
+            flat_lessons.append(lesson_data)
         has_access = False
 
     # Calculate total duration
