@@ -37,6 +37,13 @@ export type LessonHandlers = {
     file: File,
     onProgress?: (pct: number) => void,
   ) => Promise<void>
+  /**
+   * Optional escape hatch for wizard-style hosts that buffer the uploaded
+   * video locally (no Mux playback id yet). When provided, the episode tile
+   * will use a plain <video src=...> for the hover peek + lightbox so the
+   * user still sees what they uploaded.
+   */
+  getLocalVideoUrl?: (lessonId: string) => string | undefined
 }
 
 const FONT_VAR = 'var(--font-body, "Poppins", system-ui, sans-serif)'
@@ -1152,6 +1159,7 @@ function EpisodeGrid({
         <LessonLightbox
           lesson={openLesson}
           onClose={() => setOpenLessonId(null)}
+          localVideoUrl={lessonHandlers?.getLocalVideoUrl?.(openLesson.id)}
         />
       )}
     </section>
@@ -1161,9 +1169,11 @@ function EpisodeGrid({
 function LessonLightbox({
   lesson,
   onClose,
+  localVideoUrl,
 }: {
   lesson: CourseLessonRead
   onClose: () => void
+  localVideoUrl?: string
 }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -1210,6 +1220,22 @@ function LessonLightbox({
             poster={lesson.thumbnail_url}
             controls
             autoPlay
+          />
+        ) : localVideoUrl ? (
+          <video
+            src={localVideoUrl}
+            poster={lesson.thumbnail_url ?? undefined}
+            controls
+            autoPlay
+            playsInline
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
+              background: '#000',
+            }}
           />
         ) : (
           <div
@@ -1404,6 +1430,8 @@ function RealLessonEpisodeThumb({
     lesson.mux_playback_id && lesson.mux_status === 'ready'
       ? lesson.mux_playback_id
       : null
+  const localVideoUrl = lessonHandlers?.getLocalVideoUrl?.(lesson.id) ?? null
+  const hasPeekVideo = !!playbackId || !!localVideoUrl
   const thumbnailUrl = lesson.thumbnail_url ?? null
 
   // Drive the hover-triggered peek. Re-evaluate when `hovered` flips.
@@ -1412,7 +1440,7 @@ function RealLessonEpisodeThumb({
       clearTimeout(peekTimerRef.current)
       peekTimerRef.current = null
     }
-    if (hovered && playbackId) {
+    if (hovered && hasPeekVideo) {
       setPeekActive(true)
       peekTimerRef.current = setTimeout(
         () => setPeekActive(false),
@@ -1424,7 +1452,7 @@ function RealLessonEpisodeThumb({
     return () => {
       if (peekTimerRef.current) clearTimeout(peekTimerRef.current)
     }
-  }, [hovered, playbackId])
+  }, [hovered, hasPeekVideo])
 
   const onPickThumb = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -1509,7 +1537,7 @@ function RealLessonEpisodeThumb({
           }}
         />
       )}
-      {playbackId && peekActive && (
+      {hasPeekVideo && peekActive && (
         <div
           style={{
             position: 'absolute',
@@ -1520,14 +1548,31 @@ function RealLessonEpisodeThumb({
             pointerEvents: 'none',
           }}
         >
-          <HlsVideo
-            playbackId={playbackId}
-            poster={thumbnailUrl}
-            controls={false}
-            autoPlay
-            muted
-            className="h-full w-full object-cover"
-          />
+          {playbackId ? (
+            <HlsVideo
+              playbackId={playbackId}
+              poster={thumbnailUrl}
+              controls={false}
+              autoPlay
+              muted
+              loop
+              className="h-full w-full object-cover"
+            />
+          ) : localVideoUrl ? (
+            <video
+              src={localVideoUrl}
+              poster={thumbnailUrl ?? undefined}
+              autoPlay
+              muted
+              loop
+              playsInline
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+              }}
+            />
+          ) : null}
         </div>
       )}
 

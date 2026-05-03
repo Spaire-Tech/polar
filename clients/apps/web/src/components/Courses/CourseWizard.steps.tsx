@@ -443,7 +443,7 @@ function TopBar({
 }) {
   return (
     <div className="so-topbar">
-      <div className="so-logo">Spaire</div>
+      <div />
       <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
         {step !== undefined && total !== undefined && (
           <div className="so-step-counter">
