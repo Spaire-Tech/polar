@@ -468,9 +468,14 @@ async def get_course_landing(
         ]
         published_lessons.sort(key=lambda lesson: lesson.position)
 
-        preview_lessons = [lesson for lesson in published_lessons if lesson.is_free_preview]
-        if not preview_lessons and course.paywall_enabled and course.paywall_position:
-            preview_lessons = published_lessons[: course.paywall_position]
+        if not course.paywall_enabled:
+            preview_lessons = published_lessons
+        else:
+            preview_lessons = [
+                lesson for lesson in published_lessons if lesson.is_free_preview
+            ]
+            if not preview_lessons and course.paywall_position:
+                preview_lessons = published_lessons[: course.paywall_position]
 
         flat_lessons = []
         for lesson in preview_lessons:
