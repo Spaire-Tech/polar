@@ -8,6 +8,7 @@
 // affordances. So the same component tree is used for both modes.
 
 import type { LandingMedia } from '@/hooks/queries/courses'
+import { toast } from '../../Toast/use-toast'
 import { useEditor } from './EditorContext'
 import {
   forwardRef,
@@ -150,7 +151,26 @@ export const EditMedia = forwardRef<
     setPopoverOpen(false)
     try {
       const next = await upload(f)
+      if (!next?.url) {
+        // eslint-disable-next-line no-console
+        console.error('[EditMedia] upload returned empty url', { id, next })
+        toast({
+          title: `Upload failed for ${id}`,
+          description: 'Server returned an empty url. See console for details.',
+        })
+        return
+      }
+      // eslint-disable-next-line no-console
+      console.log('[EditMedia] upload ok', { id, url: next.url, kind: next.kind })
       ed.setMedia(id, { ...next, name: f.name })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      // eslint-disable-next-line no-console
+      console.error('[EditMedia] upload failed', { id, file: f.name }, err)
+      toast({
+        title: `Upload failed for ${id}`,
+        description: message,
+      })
     } finally {
       setBusy(false)
       e.target.value = ''

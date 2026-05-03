@@ -130,8 +130,11 @@ export function CustomizeTab({
       })
       setDirty(false)
       toast({ title: 'Landing saved' })
-    } catch {
-      toast({ title: 'Failed to save' })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      // eslint-disable-next-line no-console
+      console.error('[CustomizeTab] failed to save landing', err)
+      toast({ title: 'Failed to save', description: message })
     }
   }
 

@@ -13,6 +13,7 @@
 import type { CourseLessonRead, CourseRead } from '@/hooks/queries/courses'
 import type { schemas } from '@spaire/client'
 import { useRef, useState } from 'react'
+import { toast } from '../../Toast/use-toast'
 import { useEditor } from './EditorContext'
 import { EditBlock, EditMedia, EditText } from './EditPrimitives'
 import { HeroMedia } from './HeroMedia'
@@ -460,8 +461,40 @@ function HeroMediaControls() {
 
   const upload = async (slotId: string, file: File) => {
     const uploader = ed.uploaderForSlot?.(slotId) ?? ed.uploadMedia
-    const next = await uploader(file)
-    ed.setMedia(slotId, { ...next, name: file.name })
+    try {
+      const next = await uploader(file)
+      if (!next?.url) {
+        // eslint-disable-next-line no-console
+        console.error('[HeroMediaControls] upload returned empty url', {
+          slotId,
+          next,
+        })
+        toast({
+          title: `Upload failed for ${slotId}`,
+          description: 'Server returned an empty url. See console for details.',
+        })
+        return
+      }
+      // eslint-disable-next-line no-console
+      console.log('[HeroMediaControls] upload ok', {
+        slotId,
+        url: next.url,
+        kind: next.kind,
+      })
+      ed.setMedia(slotId, { ...next, name: file.name })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      // eslint-disable-next-line no-console
+      console.error(
+        '[HeroMediaControls] upload failed',
+        { slotId, file: file.name },
+        err,
+      )
+      toast({
+        title: `Upload failed for ${slotId}`,
+        description: message,
+      })
+    }
   }
 
   const onImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
