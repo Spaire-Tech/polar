@@ -187,7 +187,7 @@ function Hero({
     >
       <EditMedia
         id="hero.backdrop"
-        label="hero media"
+        label="hero image"
         style={{
           position: 'absolute',
           inset: 0,
@@ -196,10 +196,9 @@ function Hero({
         }}
         renderMedia={() => null}
       >
-        <HeroMedia
-          imageUrl={course.thumbnail_url ?? null}
-          trailerUrl={course.trailer_url ?? null}
-          peekSeconds={10}
+        <HeroMediaSurface
+          fallbackImageUrl={course.thumbnail_url ?? null}
+          fallbackTrailerUrl={course.trailer_url ?? null}
         />
       </EditMedia>
 
@@ -249,9 +248,8 @@ function Hero({
         />
       </div>
 
-      {/* Hero media controls (top-right) — explicit Add/Replace + info */}
-      <HeroMediaControls hasMedia={!!course.thumbnail_url || !!course.trailer_url} />
-
+      {/* Hero media controls (top-right) — separate Add image + Add trailer */}
+      <HeroMediaControls />
       {/* Bottom content */}
       <div
         style={{
@@ -415,30 +413,95 @@ function Hero({
   )
 }
 
-// Hero media controls — sits in the top-right corner of the hero. Always
-// visible (in edit mode) so creators can find the upload affordance even when
-// EditMedia's hover Replace button isn't discoverable. Includes an info icon
-// that explains the trailer-then-image peek behaviour (Netflix/YouTube style).
-function HeroMediaControls({ hasMedia }: { hasMedia: boolean }) {
+// Surface that reads media from the editor state first (so uploads show
+// immediately) and falls back to the course's persisted thumbnail / trailer.
+function HeroMediaSurface({
+  fallbackImageUrl,
+  fallbackTrailerUrl,
+}: {
+  fallbackImageUrl: string | null
+  fallbackTrailerUrl: string | null
+}) {
+  const ed = useEditor()
+  const heroImage = ed.m('hero.backdrop')
+  const heroTrailer = ed.m('hero.trailer')
+  const imageUrl =
+    heroImage && heroImage.kind === 'image' ? heroImage.url : fallbackImageUrl
+  const trailerUrl =
+    heroTrailer && heroTrailer.kind === 'video'
+      ? heroTrailer.url
+      : heroImage && heroImage.kind === 'video'
+        ? heroImage.url
+        : fallbackTrailerUrl
+  return (
+    <HeroMedia imageUrl={imageUrl} trailerUrl={trailerUrl} peekSeconds={10} />
+  )
+}
+
+// Hero media controls — sits in the top-right corner of the hero. Two
+// separate buttons: Add image (writes to course.thumbnail_url + the
+// hero.backdrop slot), Add trailer (writes to course.trailer_url + the
+// hero.trailer slot). An info icon explains the Netflix/YouTube-style peek.
+function HeroMediaControls() {
   const ed = useEditor()
   const [tipOpen, setTipOpen] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const fileRef = useRef<HTMLInputElement>(null)
+  const [busyImage, setBusyImage] = useState(false)
+  const [busyTrailer, setBusyTrailer] = useState(false)
+  const imageInputRef = useRef<HTMLInputElement>(null)
+  const trailerInputRef = useRef<HTMLInputElement>(null)
   if (ed.mode !== 'edit') return null
 
-  const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const heroImage = ed.m('hero.backdrop')
+  const heroTrailer = ed.m('hero.trailer')
+  const hasImage = !!heroImage && heroImage.kind === 'image'
+  const hasTrailer =
+    !!heroTrailer ||
+    (!!heroImage && heroImage.kind === 'video')
+
+  const upload = async (slotId: string, file: File) => {
+    const uploader = ed.uploaderForSlot?.(slotId) ?? ed.uploadMedia
+    const next = await uploader(file)
+    ed.setMedia(slotId, { ...next, name: file.name })
+  }
+
+  const onImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
-    setBusy(true)
+    setBusyImage(true)
     try {
-      const upload = ed.uploaderForSlot?.('hero.backdrop') ?? ed.uploadMedia
-      const next = await upload(file)
-      ed.setMedia('hero.backdrop', { ...next, name: file.name })
+      await upload('hero.backdrop', file)
     } finally {
-      setBusy(false)
+      setBusyImage(false)
     }
   }
+
+  const onTrailer = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setBusyTrailer(true)
+    try {
+      await upload('hero.trailer', file)
+    } finally {
+      setBusyTrailer(false)
+    }
+  }
+
+  const pillBtn = (busy: boolean): React.CSSProperties => ({
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '7px 12px',
+    borderRadius: 999,
+    background: 'rgba(20,20,22,0.92)',
+    color: 'white',
+    fontSize: 11.5,
+    fontWeight: 600,
+    border: '1px solid rgba(255,255,255,0.10)',
+    fontFamily: 'Inter, system-ui, sans-serif',
+    cursor: busy ? 'wait' : 'pointer',
+  })
 
   return (
     <div
@@ -453,32 +516,42 @@ function HeroMediaControls({ hasMedia }: { hasMedia: boolean }) {
       }}
     >
       <input
-        ref={fileRef}
+        ref={imageInputRef}
         type="file"
-        accept="image/*,video/*"
+        accept="image/*"
         hidden
-        onChange={onFile}
+        onChange={onImage}
+      />
+      <input
+        ref={trailerInputRef}
+        type="file"
+        accept="video/*"
+        hidden
+        onChange={onTrailer}
       />
       <button
         type="button"
-        onClick={() => fileRef.current?.click()}
-        disabled={busy}
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 6,
-          padding: '7px 12px',
-          borderRadius: 999,
-          background: 'rgba(20,20,22,0.92)',
-          color: 'white',
-          fontSize: 11.5,
-          fontWeight: 600,
-          border: '1px solid rgba(255,255,255,0.10)',
-          fontFamily: 'Inter, system-ui, sans-serif',
-          cursor: busy ? 'wait' : 'pointer',
-        }}
+        onClick={() => imageInputRef.current?.click()}
+        disabled={busyImage}
+        style={pillBtn(busyImage)}
       >
-        {busy ? 'Uploading…' : hasMedia ? '↺ Replace media' : '＋ Add media'}
+        {busyImage
+          ? 'Uploading image…'
+          : hasImage
+            ? '↺ Replace image'
+            : '＋ Add image'}
+      </button>
+      <button
+        type="button"
+        onClick={() => trailerInputRef.current?.click()}
+        disabled={busyTrailer}
+        style={pillBtn(busyTrailer)}
+      >
+        {busyTrailer
+          ? 'Uploading trailer…'
+          : hasTrailer
+            ? '↺ Replace trailer'
+            : '＋ Add trailer'}
       </button>
       <div style={{ position: 'relative' }}>
         <button
@@ -526,9 +599,9 @@ function HeroMediaControls({ hasMedia }: { hasMedia: boolean }) {
               UPLOAD A TRAILER + IMAGE
             </strong>
             <div style={{ marginTop: 6, color: 'rgba(255,255,255,0.78)' }}>
-              Like Netflix or YouTube — your hero plays the first ~10 seconds of
-              the trailer as a peek, then settles on the cover image. Upload
-              both for the best effect; one of them works on its own too.
+              Like Netflix or YouTube — when both are set, the hero plays the
+              first ~10 seconds of the trailer as a peek, then settles on the
+              cover image. One of them works on its own too.
             </div>
           </div>
         )}

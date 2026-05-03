@@ -92,16 +92,21 @@ export function CustomizeTab({
     return { kind: res.kind, url: res.url, name: file.name }
   }
 
-  // The hero slot accepts both an image (thumbnail) and a video (trailer).
-  // Route the file to the right course column based on its mime type so
-  // the Netflix-style peek can play the trailer and then settle on the image.
-  const heroSlotUpload = async (file: File): Promise<LandingMedia> => {
+  // The hero has two separate slots — image (cover) and trailer (peek). Route
+  // each to the right course column so the Netflix-style hero plays the
+  // trailer for ~10s and then settles on the cover image.
+  const heroImageUpload = async (file: File): Promise<LandingMedia> => {
     if (file.type.startsWith('video/')) return trailerUpload(file)
     return heroUpload(file)
   }
+  const heroTrailerUpload = async (file: File): Promise<LandingMedia> => {
+    if (file.type.startsWith('image/')) return heroUpload(file)
+    return trailerUpload(file)
+  }
 
   const uploaderForSlot = (slotId: string) => {
-    if (slotId === 'hero.backdrop') return heroSlotUpload
+    if (slotId === 'hero.backdrop') return heroImageUpload
+    if (slotId === 'hero.trailer') return heroTrailerUpload
     if (slotId === 'trailer.video') return trailerUpload
     return slotUpload
   }
@@ -109,7 +114,10 @@ export function CustomizeTab({
   const handleSave = async () => {
     try {
       const persistedMedia = { ...overridesRef.current.media }
+      // hero image / trailer are mirrored onto course columns, so don't
+      // double-store them in landing_overrides.
       delete persistedMedia['hero.backdrop']
+      delete persistedMedia['hero.trailer']
       delete persistedMedia['trailer.video']
       await updateCourse.mutateAsync({
         courseId: course.id,
@@ -149,6 +157,7 @@ export function CustomizeTab({
       <div className="flex h-full flex-col bg-white">
         <CustomizeBar
           courseTitle={course.title ?? 'Untitled course'}
+          previewHref={`/${organization.slug}/products/${course.product_id}`}
           dirty={dirty}
           saving={saving}
           onSave={handleSave}
@@ -171,11 +180,13 @@ export function CustomizeTab({
 // right inspector; every change happens inline on the canvas.
 function CustomizeBar({
   courseTitle,
+  previewHref,
   dirty,
   saving,
   onSave,
 }: {
   courseTitle: string
+  previewHref: string
   dirty: boolean
   saving: boolean
   onSave: () => void
@@ -193,6 +204,14 @@ function CustomizeBar({
         <span className="text-[11.5px] text-gray-400">
           {dirty ? 'Unsaved changes' : saving ? '' : 'All changes saved'}
         </span>
+        <a
+          href={previewHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="rounded-md border border-gray-200 bg-white px-3 py-[6px] text-[12px] font-medium text-gray-700 transition-colors hover:bg-gray-50"
+        >
+          Preview ↗
+        </a>
         <button
           type="button"
           onClick={onSave}
