@@ -1,23 +1,6 @@
 'use client'
 
-import CloseIcon from '@mui/icons-material/Close'
 import { useEffect, useRef, useState } from 'react'
-
-function MinimalTopBar({ onClose }: { onClose: () => void }) {
-  return (
-    <div className="so-topbar">
-      <div className="so-logo">Spaire</div>
-      <button
-        type="button"
-        aria-label="Close"
-        onClick={onClose}
-        className="so-close"
-      >
-        <CloseIcon style={{ fontSize: 18 }} />
-      </button>
-    </div>
-  )
-}
 
 // ─── Stage definitions ────────────────────────────────────────────────────────
 
@@ -101,8 +84,9 @@ export function GeneratingScreen({
   const stages = phase === 'landing' ? LANDING_STAGES : OUTLINE_STAGES
   const flowTitle =
     phase === 'landing' ? 'Building your landing page' : 'Building your outline'
+  const flowCrumb =
+    phase === 'landing' ? 'Generating landing page' : 'Generating outline'
 
-  // Timer-driven stage advance — restarts whenever the phase changes.
   const [stageIdx, setStageIdx] = useState(0)
   const [stageStart, setStageStart] = useState(() => Date.now())
   const [now, setNow] = useState(() => Date.now())
@@ -126,8 +110,6 @@ export function GeneratingScreen({
     const stage = stages[stageIdx]
     if (!stage) return
     const t = setTimeout(() => {
-      // Hold on the last stage — the wizard advances when generation
-      // finishes; we don't want to "complete" the rail before that happens.
       if (stageIdx < stages.length - 1) {
         setStageIdx((i) => i + 1)
         setStageStart(Date.now())
@@ -149,20 +131,17 @@ export function GeneratingScreen({
   const stageProgress = stageElapsed / stage.duration
   const totalDuration = stages.reduce((a, b) => a + b.duration, 0)
   const passed = stages.slice(0, stageIdx).reduce((a, b) => a + b.duration, 0)
-  // Cap at 95% — the final percent ticks over only when generation truly
-  // finishes upstream. Users hate seeing 100% and then waiting.
   const overallProgress = Math.min(
     0.95,
     (passed + stageElapsed) / totalDuration,
   )
 
   return (
-    <>
+    <div className="cg-root">
       <GeneratingHeader
         progress={overallProgress}
-        flowCrumb={
-          phase === 'landing' ? 'Generating landing page' : 'Generating outline'
-        }
+        flowCrumb={flowCrumb}
+        courseTitle={title}
         onClose={onClose}
       />
       <main className="cg-main">
@@ -183,9 +162,8 @@ export function GeneratingScreen({
           stageProgress={stageProgress}
         />
       </main>
-
       <GeneratingStyles />
-    </>
+    </div>
   )
 }
 
@@ -194,10 +172,12 @@ export function GeneratingScreen({
 function GeneratingHeader({
   progress,
   flowCrumb,
+  courseTitle,
   onClose,
 }: {
   progress: number
   flowCrumb: string
+  courseTitle: string
   onClose: () => void
 }) {
   return (
@@ -209,6 +189,8 @@ function GeneratingHeader({
           </span>
           <span className="cg-crumb-sep">/</span>
           <span className="cg-crumb-muted">Courses</span>
+          <span className="cg-crumb-sep">/</span>
+          <span className="cg-crumb-muted">{courseTitle || 'New course'}</span>
           <span className="cg-crumb-sep">/</span>
           <span className="cg-crumb-active">{flowCrumb}</span>
         </div>
@@ -272,7 +254,6 @@ function CenterStage({
           {stage.sub}
         </p>
       </div>
-
       <StagePreview
         stageKey={stage.key}
         progress={stageProgress}
@@ -285,60 +266,19 @@ function CenterStage({
   )
 }
 
-// ─── Orb ──────────────────────────────────────────────────────────────────────
+// ─── Orb — 3D sphere with halo, sheen, breathe ───────────────────────────────
 
 function Orb() {
   return (
     <div className="cg-orb">
-      <svg
-        width="132"
-        height="132"
-        viewBox="0 0 132 132"
-        className="cg-orb-rings"
-      >
-        <circle
-          cx="66"
-          cy="66"
-          r="62"
-          fill="none"
-          stroke="var(--so-gray2)"
-          strokeWidth="1"
-        />
-        <circle
-          cx="66"
-          cy="66"
-          r="62"
-          fill="none"
-          stroke="var(--so-orange)"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeDasharray="60 320"
-          className="cg-orb-spin"
-        />
-      </svg>
-      <svg
-        width="100"
-        height="100"
-        viewBox="0 0 100 100"
-        className="cg-orb-dashed"
-      >
-        <circle
-          cx="50"
-          cy="50"
-          r="46"
-          fill="none"
-          stroke="#c8c8c8"
-          strokeWidth="1"
-          strokeDasharray="2 4"
-          opacity="0.6"
-        />
-      </svg>
-      {[0, 1, 2].map((i) => (
-        <span key={i} className={`cg-orb-dot cg-orb-dot-${i}`} />
-      ))}
-      <div className="cg-orb-core">
-        <img src="/spaire-logo-light.png" alt="" />
-        <span className="cg-orb-pulse" />
+      {/* soft halo */}
+      <div className="cg-orb-halo" />
+      {/* orb body */}
+      <div className="cg-orb-body">
+        {/* slow sheen */}
+        <div className="cg-orb-sheen" />
+        {/* highlight */}
+        <div className="cg-orb-highlight" />
       </div>
     </div>
   )
@@ -379,7 +319,7 @@ function StagePreview({
       body = <ResearchPreview />
       break
     case 'landing':
-      body = <LandingPreview />
+      body = <LandingSkeletonPreview />
       break
     case 'polish':
       body = <PolishPreview />
@@ -387,7 +327,6 @@ function StagePreview({
   }
   return (
     <div className="cg-preview">
-      <div className="cg-preview-sweep" />
       <div className="cg-preview-body">{body}</div>
     </div>
   )
@@ -433,7 +372,6 @@ function OutlinePreview({
     'Structuring lessons that finish',
     'Pricing & launch playbook',
   ]
-  // Either show real counts (when known) or the placeholder labels.
   const items = labels.slice(
     0,
     Math.max(2, Math.min(labels.length, modulesCount || 4)),
@@ -463,11 +401,9 @@ function OutlinePreview({
   )
 }
 
-function LessonsPreview({ progress }: { progress: number }) {
-  const fullText =
+function LessonsPreview({ progress: _ }: { progress: number }) {
+  const text =
     'Most courses fail at the first 90 seconds. Open with the smallest possible promise — what the student will be able to do by the end of this lesson — then prove you can deliver it in under three minutes.'
-  const visibleCount = Math.floor(progress * fullText.length * 1.4)
-  const visible = fullText.slice(0, Math.min(visibleCount, fullText.length))
   return (
     <div className="cg-stack">
       <div className="cg-lesson-meta">
@@ -475,10 +411,7 @@ function LessonsPreview({ progress }: { progress: number }) {
         <span className="cg-dot" />
         <span className="cg-lesson-title">The 90-second hook</span>
       </div>
-      <div className="cg-typewriter">
-        {visible}
-        <span className="cg-caret" />
-      </div>
+      <div className="cg-typewriter">{text}</div>
     </div>
   )
 }
@@ -507,7 +440,7 @@ function ResearchPreview() {
   )
 }
 
-function LandingPreview() {
+function LandingSkeletonPreview() {
   const blocks = ['Hero', 'Curriculum', 'Instructor', 'Reviews']
   return (
     <div className="cg-landing-grid">
@@ -571,7 +504,7 @@ function PolishPreview() {
   )
 }
 
-// ─── Did you know ────────────────────────────────────────────────────────────
+// ─── Did you know ─────────────────────────────────────────────────────────────
 
 function DidYouKnow({ factIdx }: { factIdx: number }) {
   return (
@@ -584,7 +517,7 @@ function DidYouKnow({ factIdx }: { factIdx: number }) {
   )
 }
 
-// ─── Side rail ───────────────────────────────────────────────────────────────
+// ─── Side rail ────────────────────────────────────────────────────────────────
 
 function SideRail({
   flowTitle,
@@ -608,14 +541,16 @@ function SideRail({
           return (
             <li
               key={s.key}
-              className={`cg-rail-item${done ? 'done' : ''}${active ? 'active' : ''}`}
+              className={`cg-rail-item${done ? ' done' : ''}${active ? ' active' : ''}`}
             >
               <div className="cg-rail-marker">
                 {!isLast && (
                   <span
                     className="cg-rail-connector"
                     style={{
-                      background: done ? 'var(--so-orange)' : 'var(--so-gray2)',
+                      background: done
+                        ? 'var(--cg-ink)'
+                        : 'var(--cg-hair)',
                     }}
                   />
                 )}
@@ -661,17 +596,42 @@ function SideRail({
 
       <div className="cg-rail-note">
         You can close this window — generation continues in the background and
-        we’ll email you when your draft is ready.
+        we&apos;ll email you when your draft is ready.
       </div>
     </aside>
   )
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 function GeneratingStyles() {
   return (
     <style jsx global>{`
+      /* Design tokens — same Poppins system as Product Flow */
+      .cg-root {
+        --cg-bg: oklch(0.995 0.002 80);
+        --cg-ink: oklch(0.18 0.012 270);
+        --cg-ink-2: oklch(0.36 0.012 270);
+        --cg-muted: oklch(0.56 0.014 270);
+        --cg-muted-2: oklch(0.72 0.012 270);
+        --cg-hair: oklch(0.92 0.006 270);
+        --cg-hair-strong: oklch(0.86 0.008 270);
+        --cg-surface-2: oklch(0.975 0.004 270);
+        --cg-surface-3: oklch(0.955 0.006 270);
+        --cg-accent: oklch(0.52 0.18 270);
+        --cg-accent-soft: oklch(0.96 0.04 270);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        background: var(--cg-bg);
+        color: var(--cg-ink);
+      }
+      .cg-root,
+      .cg-root * {
+        font-family: 'Poppins', system-ui, sans-serif;
+      }
+
+      /* Header */
       .cg-header {
         position: fixed;
         top: 0;
@@ -680,7 +640,7 @@ function GeneratingStyles() {
         padding: 18px 32px;
         background: rgba(255, 255, 255, 0.92);
         backdrop-filter: blur(8px);
-        border-bottom: 1px solid var(--so-gray2);
+        border-bottom: 1px solid var(--cg-hair);
         z-index: 200;
       }
       .cg-header-row {
@@ -694,32 +654,37 @@ function GeneratingStyles() {
         align-items: center;
         gap: 12px;
         font-size: 13px;
-        font-family: var(--font-poppins), system-ui, sans-serif;
         min-width: 0;
       }
       .cg-crumb-sep {
-        color: #c8c8c8;
+        color: var(--cg-muted-2);
+        flex-shrink: 0;
       }
       .cg-crumb-muted {
-        color: var(--so-gray3);
-      }
-      .cg-crumb-active {
-        color: var(--so-gray4);
-        font-weight: 500;
+        color: var(--cg-muted);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        max-width: 200px;
+      }
+      .cg-crumb-active {
+        color: var(--cg-ink-2);
+        font-weight: 500;
+        white-space: nowrap;
+        flex-shrink: 0;
       }
       .cg-mark {
         display: inline-flex;
+        flex-shrink: 0;
       }
       .cg-spaire-mark {
         display: inline-flex;
         align-items: center;
         justify-content: center;
         border-radius: 6px;
-        background: var(--so-black);
+        background: var(--cg-ink);
         overflow: hidden;
+        flex-shrink: 0;
       }
       .cg-spaire-mark img {
         width: 100%;
@@ -730,11 +695,11 @@ function GeneratingStyles() {
         display: flex;
         align-items: center;
         gap: 12px;
-        font-family: var(--font-poppins), system-ui, sans-serif;
+        flex-shrink: 0;
       }
       .cg-pct {
         font-size: 12px;
-        color: var(--so-gray3);
+        color: var(--cg-muted);
         font-variant-numeric: tabular-nums;
       }
       .cg-cancel {
@@ -742,15 +707,14 @@ function GeneratingStyles() {
         font-size: 12px;
         font-weight: 500;
         background: transparent;
-        border: 1px solid var(--so-gray2);
-        color: var(--so-gray4);
+        border: 1px solid var(--cg-hair);
+        color: var(--cg-ink-2);
         border-radius: 7px;
         cursor: pointer;
-        font-family: inherit;
       }
       .cg-cancel:hover {
-        background: var(--so-gray1);
-        color: var(--so-black);
+        background: var(--cg-surface-2);
+        color: var(--cg-ink);
       }
       .cg-progress-track {
         position: absolute;
@@ -758,12 +722,11 @@ function GeneratingStyles() {
         left: 0;
         right: 0;
         height: 2px;
-        background: var(--so-gray2);
+        background: var(--cg-hair);
       }
       .cg-progress-fill {
         height: 100%;
-        background: var(--so-orange);
-        box-shadow: 0 0 8px var(--so-orange);
+        background: var(--cg-ink);
         transition: width 0.2s linear;
       }
 
@@ -777,7 +740,6 @@ function GeneratingStyles() {
         display: grid;
         grid-template-columns: minmax(0, 1fr) 340px;
         gap: 56px;
-        font-family: var(--font-poppins), system-ui, sans-serif;
       }
       @media (max-width: 880px) {
         .cg-main {
@@ -804,20 +766,20 @@ function GeneratingStyles() {
         font-weight: 600;
         letter-spacing: 0.12em;
         text-transform: uppercase;
-        color: var(--so-gray3);
+        color: var(--cg-muted-2);
         margin-bottom: 10px;
       }
       .cg-title {
-        font-size: 32px;
+        font-size: 30px;
         font-weight: 600;
         margin: 0;
         letter-spacing: -0.7px;
-        color: var(--so-black);
+        color: var(--cg-ink);
         animation: cgFadeIn 0.5s ease both;
       }
       .cg-sub {
         font-size: 15px;
-        color: var(--so-gray3);
+        color: var(--cg-muted);
         margin-top: 10px;
         line-height: 1.55;
         animation: cgFadeIn 0.6s 0.1s ease both;
@@ -825,97 +787,61 @@ function GeneratingStyles() {
 
       /* Orb */
       .cg-orb {
-        width: 132px;
-        height: 132px;
+        width: 120px;
+        height: 120px;
         position: relative;
         display: flex;
         align-items: center;
         justify-content: center;
       }
-      .cg-orb-rings,
-      .cg-orb-dashed {
+      .cg-orb-halo {
         position: absolute;
-        inset: 0;
-        margin: auto;
-      }
-      .cg-orb-spin {
-        transform-origin: center;
-        animation: cgRingspin 2.4s linear infinite;
-      }
-      .cg-orb-dot {
-        position: absolute;
-        width: 6px;
-        height: 6px;
+        inset: -8px;
         border-radius: 50%;
-        animation: cgOrbit 3s linear infinite;
+        background: radial-gradient(circle, rgba(10,10,10,0.10) 0%, rgba(10,10,10,0) 70%);
+        animation: haloPulse 3.6s ease-in-out infinite;
       }
-      .cg-orb-dot-0 {
-        background: var(--so-orange);
-      }
-      .cg-orb-dot-1 {
-        background: var(--so-black);
-        animation-duration: 3.6s;
-        animation-delay: -1s;
-      }
-      .cg-orb-dot-2 {
-        background: #c8c8c8;
-        animation-duration: 4.2s;
-        animation-delay: -2s;
-      }
-      .cg-orb-core {
+      .cg-orb-body {
         position: relative;
-        width: 56px;
-        height: 56px;
+        width: 84px;
+        height: 84px;
         border-radius: 50%;
-        background: var(--so-black);
-        box-shadow:
-          0 0 32px rgba(255, 92, 0, 0.18),
-          0 0 0 6px var(--so-white);
-        animation: cgFloat 3s ease-in-out infinite;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        background: radial-gradient(circle at 32% 28%, #ffffff 0%, #e8e8eb 38%, #1a1a1a 92%);
+        box-shadow: 0 1px 2px rgba(0,0,0,0.08), 0 12px 30px rgba(0,0,0,0.18), inset 0 -6px 14px rgba(0,0,0,0.25), inset 0 2px 4px rgba(255,255,255,0.6);
+        animation: orbBreathe 3.6s ease-in-out infinite;
         overflow: hidden;
       }
-      .cg-orb-core img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-      }
-      .cg-orb-pulse {
+      .cg-orb-sheen {
         position: absolute;
         inset: -6px;
         border-radius: 50%;
-        border: 1.5px solid var(--so-orange);
-        opacity: 0.4;
-        animation: cgPulse 2.2s ease-in-out infinite;
+        background: conic-gradient(from 0deg, rgba(255,255,255,0) 0deg, rgba(255,255,255,0.45) 60deg, rgba(255,255,255,0) 140deg, rgba(255,255,255,0) 360deg);
+        mix-blend-mode: screen;
+        animation: sheenSpin 5.5s linear infinite;
+      }
+      .cg-orb-highlight {
+        position: absolute;
+        top: 10px;
+        left: 16px;
+        width: 22px;
+        height: 14px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.85);
+        filter: blur(3px);
       }
 
       /* Preview card */
       .cg-preview {
         width: 100%;
         max-width: 560px;
-        background: var(--so-white);
-        border: 1px solid var(--so-gray2);
+        background: #fff;
+        border: 1px solid var(--cg-hair);
         border-radius: 14px;
         padding: 18px;
         min-height: 180px;
         position: relative;
         overflow: hidden;
-        box-shadow: 0 1px 2px rgba(20, 20, 20, 0.04);
-      }
-      .cg-preview-sweep {
-        position: absolute;
-        inset: 0;
-        pointer-events: none;
-        background: linear-gradient(
-          90deg,
-          transparent,
-          rgba(255, 92, 0, 0.08),
-          transparent
-        );
-        animation: cgLineSweep 2.8s ease-in-out infinite;
-        opacity: 0.6;
+        box-shadow: 0 1px 2px oklch(0.2 0.02 270 / 0.04);
       }
       .cg-preview-body {
         position: relative;
@@ -923,7 +849,7 @@ function GeneratingStyles() {
       .cg-preview-eyebrow {
         font-size: 11px;
         font-weight: 600;
-        color: var(--so-gray3);
+        color: var(--cg-muted-2);
         letter-spacing: 0.06em;
         text-transform: uppercase;
       }
@@ -936,7 +862,7 @@ function GeneratingStyles() {
         gap: 8px;
       }
 
-      /* Thinking — tags */
+      /* Thinking tags */
       .cg-tags {
         display: flex;
         flex-wrap: wrap;
@@ -948,27 +874,27 @@ function GeneratingStyles() {
         gap: 6px;
         padding: 6px 10px;
         font-size: 12px;
-        background: var(--so-gray1);
-        border: 1px solid var(--so-gray2);
+        background: var(--cg-surface-2);
+        border: 1px solid var(--cg-hair);
         border-radius: 8px;
         animation: cgFadeIn 0.5s ease both;
       }
       .cg-tag-key {
-        color: var(--so-gray3);
+        color: var(--cg-muted-2);
         font-weight: 500;
       }
       .cg-tag-val {
-        color: var(--so-black);
+        color: var(--cg-ink);
         font-weight: 500;
       }
 
-      /* Outline */
+      /* Outline rows */
       .cg-outline-row {
         display: flex;
         align-items: center;
         gap: 12px;
         padding: 10px 12px;
-        background: var(--so-gray1);
+        background: var(--cg-surface-2);
         border-radius: 9px;
         animation: cgSlideIn 0.5s ease both;
       }
@@ -979,22 +905,22 @@ function GeneratingStyles() {
         width: 22px;
         height: 22px;
         border-radius: 6px;
-        background: var(--so-white);
-        border: 1px solid var(--so-gray2);
+        background: #fff;
+        border: 1px solid var(--cg-hair);
         font-size: 11px;
         font-weight: 600;
-        color: var(--so-gray3);
+        color: var(--cg-muted);
         font-variant-numeric: tabular-nums;
       }
       .cg-outline-title {
         font-size: 13px;
         font-weight: 500;
-        color: var(--so-black);
+        color: var(--cg-ink);
         flex: 1;
       }
       .cg-outline-count {
         font-size: 11px;
-        color: var(--so-gray3);
+        color: var(--cg-muted-2);
       }
 
       /* Lessons typewriter */
@@ -1007,16 +933,16 @@ function GeneratingStyles() {
         width: 4px;
         height: 4px;
         border-radius: 50%;
-        background: var(--so-gray3);
+        background: var(--cg-muted-2);
       }
       .cg-lesson-title {
         font-size: 12px;
-        color: var(--so-gray4);
+        color: var(--cg-ink-2);
         font-weight: 500;
       }
       .cg-typewriter {
         font-size: 13.5px;
-        color: var(--so-gray4);
+        color: var(--cg-ink-2);
         line-height: 1.6;
         min-height: 100px;
       }
@@ -1025,31 +951,32 @@ function GeneratingStyles() {
         width: 7px;
         height: 15px;
         margin-left: 2px;
-        background: var(--so-orange);
+        background: var(--cg-ink);
         vertical-align: middle;
         animation: cgBlink 1s steps(1) infinite;
       }
 
-      /* Research */
+      /* Research rows */
       .cg-research-row {
         display: flex;
         align-items: center;
         gap: 10px;
         padding: 8px 12px;
-        background: var(--so-gray1);
+        background: var(--cg-surface-2);
         border-radius: 9px;
         font-size: 13px;
-        color: var(--so-gray4);
+        color: var(--cg-ink-2);
         animation: cgSlideIn 0.45s ease both;
       }
       .cg-bullet {
         width: 5px;
         height: 5px;
         border-radius: 50%;
-        background: var(--so-orange);
+        background: var(--cg-ink);
+        flex-shrink: 0;
       }
 
-      /* Landing skeleton */
+      /* Landing skeleton grid */
       .cg-landing-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -1057,9 +984,9 @@ function GeneratingStyles() {
       }
       .cg-landing-block {
         padding: 12px;
-        background: var(--so-gray1);
+        background: var(--cg-surface-2);
         border-radius: 10px;
-        border: 1px solid var(--so-gray2);
+        border: 1px solid var(--cg-hair);
         animation: cgFadeIn 0.5s ease both;
       }
       .cg-shimmer {
@@ -1068,21 +995,21 @@ function GeneratingStyles() {
         border-radius: 3px;
         background: linear-gradient(
           90deg,
-          var(--so-gray2),
-          #ededed,
-          var(--so-gray2)
+          var(--cg-hair),
+          var(--cg-surface-3),
+          var(--cg-hair)
         );
         background-size: 200% 100%;
         animation: cgShimmer 1.6s linear infinite;
       }
 
-      /* Polish */
+      /* Polish rows */
       .cg-polish-row {
         display: flex;
         align-items: center;
         gap: 12px;
         font-size: 13px;
-        color: var(--so-gray4);
+        color: var(--cg-ink-2);
         animation: cgSlideIn 0.4s ease both;
       }
       .cg-check {
@@ -1092,18 +1019,19 @@ function GeneratingStyles() {
         width: 18px;
         height: 18px;
         border-radius: 50%;
-        background: var(--so-orange);
-        color: var(--so-white);
+        background: var(--cg-ink);
+        color: #fff;
+        flex-shrink: 0;
         animation: cgCheckPop 0.35s ease both;
       }
 
-      /* Tip */
+      /* Tip box */
       .cg-tip {
         max-width: 560px;
         width: 100%;
         padding: 16px 18px;
-        background: var(--so-gray1);
-        border: 1px solid var(--so-gray2);
+        background: var(--cg-surface-2);
+        border: 1px solid var(--cg-hair);
         border-radius: 12px;
         display: flex;
         gap: 14px;
@@ -1116,14 +1044,14 @@ function GeneratingStyles() {
         font-weight: 700;
         letter-spacing: 0.12em;
         text-transform: uppercase;
-        color: var(--so-orange);
+        color: var(--cg-ink);
         padding: 4px 8px;
         border-radius: 5px;
-        background: rgba(255, 92, 0, 0.08);
+        background: var(--cg-surface-3);
       }
       .cg-tip-text {
         font-size: 13.5px;
-        color: var(--so-gray4);
+        color: var(--cg-ink-2);
         line-height: 1.55;
         animation: cgFadeIn 0.6s ease both;
       }
@@ -1137,7 +1065,7 @@ function GeneratingStyles() {
         font-weight: 600;
         letter-spacing: 0.12em;
         text-transform: uppercase;
-        color: var(--so-gray3);
+        color: var(--cg-muted-2);
         margin-bottom: 16px;
       }
       .cg-rail-list {
@@ -1184,28 +1112,28 @@ function GeneratingStyles() {
         width: 22px;
         height: 22px;
         border-radius: 50%;
-        background: #ededed;
-        border: 1px solid #c8c8c8;
-        color: var(--so-gray3);
+        background: var(--cg-surface-3);
+        border: 1px solid var(--cg-hair-strong);
+        color: var(--cg-muted);
         font-size: 10px;
         font-weight: 600;
         font-variant-numeric: tabular-nums;
       }
       .cg-rail-item.active .cg-rail-bubble {
-        background: var(--so-white);
-        border: 1.5px solid var(--so-orange);
-        color: var(--so-orange);
+        background: #fff;
+        border: 1.5px solid var(--cg-ink);
+        color: var(--cg-ink);
       }
       .cg-rail-item.done .cg-rail-bubble {
-        background: var(--so-orange);
+        background: var(--cg-ink);
         border: none;
-        color: var(--so-white);
+        color: #fff;
       }
       .cg-rail-pulse {
         width: 7px;
         height: 7px;
         border-radius: 50%;
-        background: var(--so-orange);
+        background: var(--cg-ink);
         animation: cgPulse 1.5s ease-in-out infinite;
       }
       .cg-rail-body {
@@ -1215,45 +1143,45 @@ function GeneratingStyles() {
       .cg-rail-title {
         font-size: 13.5px;
         font-weight: 500;
-        color: var(--so-gray3);
+        color: var(--cg-muted);
       }
       .cg-rail-item.active .cg-rail-title {
         font-weight: 600;
-        color: var(--so-black);
+        color: var(--cg-ink);
       }
       .cg-rail-item.done .cg-rail-title {
-        color: var(--so-gray4);
+        color: var(--cg-ink-2);
       }
       .cg-rail-status {
         font-size: 12px;
-        color: var(--so-gray3);
+        color: var(--cg-muted);
         margin-top: 2px;
         line-height: 1.45;
       }
       .cg-rail-bar {
         margin-top: 8px;
         height: 2px;
-        background: var(--so-gray2);
+        background: var(--cg-hair);
         border-radius: 999px;
         overflow: hidden;
       }
       .cg-rail-bar-fill {
         height: 100%;
-        background: var(--so-orange);
+        background: var(--cg-ink);
         transition: width 0.15s linear;
       }
       .cg-rail-note {
         margin-top: 28px;
         padding: 14px;
-        background: var(--so-gray1);
-        border: 1px dashed #c8c8c8;
+        background: var(--cg-surface-2);
+        border: 1px dashed var(--cg-hair-strong);
         border-radius: 10px;
         font-size: 12px;
-        color: var(--so-gray3);
+        color: var(--cg-muted);
         line-height: 1.5;
       }
 
-      /* Animations */
+      /* Keyframes */
       @keyframes cgFadeIn {
         from {
           opacity: 0;
@@ -1282,10 +1210,16 @@ function GeneratingStyles() {
           background-position: 200% 0;
         }
       }
-      @keyframes cgRingspin {
-        to {
-          transform: rotate(360deg);
-        }
+      @keyframes haloPulse {
+        0%, 100% { opacity: 0.6; transform: scale(1); }
+        50% { opacity: 1; transform: scale(1.06); }
+      }
+      @keyframes orbBreathe {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.04); }
+      }
+      @keyframes sheenSpin {
+        to { transform: rotate(360deg); }
       }
       @keyframes cgPulse {
         0%,
@@ -1298,23 +1232,6 @@ function GeneratingStyles() {
           opacity: 0.4;
         }
       }
-      @keyframes cgFloat {
-        0%,
-        100% {
-          transform: translateY(0);
-        }
-        50% {
-          transform: translateY(-3px);
-        }
-      }
-      @keyframes cgOrbit {
-        from {
-          transform: rotate(0deg) translateX(46px) rotate(0deg);
-        }
-        to {
-          transform: rotate(360deg) translateX(46px) rotate(-360deg);
-        }
-      }
       @keyframes cgBlink {
         0%,
         49% {
@@ -1323,14 +1240,6 @@ function GeneratingStyles() {
         50%,
         100% {
           opacity: 0;
-        }
-      }
-      @keyframes cgLineSweep {
-        0% {
-          transform: translateX(-100%);
-        }
-        100% {
-          transform: translateX(100%);
         }
       }
       @keyframes cgCheckPop {
@@ -1351,12 +1260,19 @@ function GeneratingStyles() {
   )
 }
 
-// ─── Creating screen (unchanged behaviour, kept here for compactness) ─────────
+// ─── Creating screen ──────────────────────────────────────────────────────────
 
 export function CreatingScreen({ onClose }: { onClose: () => void }) {
   return (
-    <>
-      <MinimalTopBar onClose={onClose} />
+    <div
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        background: '#fff',
+        fontFamily: "'Poppins', system-ui, sans-serif",
+      }}
+    >
       <div
         style={{
           flex: 1,
@@ -1366,7 +1282,6 @@ export function CreatingScreen({ onClose }: { onClose: () => void }) {
           justifyContent: 'center',
           padding: '0 24px',
           textAlign: 'center',
-          background: '#fff',
         }}
       >
         <div
@@ -1394,7 +1309,6 @@ export function CreatingScreen({ onClose }: { onClose: () => void }) {
         </div>
         <p
           style={{
-            fontFamily: 'var(--font-poppins), system-ui, sans-serif',
             fontSize: 26,
             fontWeight: 700,
             letterSpacing: '-0.025em',
@@ -1409,12 +1323,11 @@ export function CreatingScreen({ onClose }: { onClose: () => void }) {
             marginTop: 8,
             fontSize: 14,
             color: '#a0a0a0',
-            fontFamily: 'var(--font-poppins), system-ui, sans-serif',
           }}
         >
           Setting everything up…
         </p>
       </div>
-    </>
+    </div>
   )
 }
