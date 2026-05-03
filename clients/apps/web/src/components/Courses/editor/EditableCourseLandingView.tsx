@@ -12,7 +12,7 @@
 
 import type { CourseLessonRead, CourseRead } from '@/hooks/queries/courses'
 import type { schemas } from '@spaire/client'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from '../../Toast/use-toast'
 import { useEditor } from './EditorContext'
 import { EditBlock, EditMedia, EditText } from './EditPrimitives'
@@ -165,10 +165,23 @@ function Hero({
   freeCount: number
   priceLabel: string
 }) {
+  const ed = useEditor()
   const totalDurationSeconds = flatLessons.reduce(
     (a, l) => a + (l.duration_seconds ?? 0),
     0,
   )
+
+  // Resolve the trailer URL the same way HeroMediaSurface does so the Watch
+  // trailer button always plays whatever is shown in the hero peek.
+  const heroImage = ed.m('hero.backdrop')
+  const heroTrailer = ed.m('hero.trailer')
+  const trailerUrl =
+    (heroTrailer && heroTrailer.kind === 'video' ? heroTrailer.url : null) ??
+    (heroImage && heroImage.kind === 'video' ? heroImage.url : null) ??
+    course.trailer_url ??
+    null
+
+  const [trailerOpen, setTrailerOpen] = useState(false)
 
   return (
     <section
@@ -196,6 +209,7 @@ function Hero({
           overflow: 'hidden',
         }}
         renderMedia={() => null}
+        chromeless
       >
         <HeroMediaSurface
           fallbackImageUrl={course.thumbnail_url ?? null}
@@ -353,6 +367,11 @@ function Hero({
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button
             type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              if (trailerUrl) setTrailerOpen(true)
+            }}
+            disabled={!trailerUrl}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -363,7 +382,8 @@ function Hero({
               borderRadius: 999,
               boxShadow: '0 8px 28px oklch(0 0 0 / 0.4)',
               border: 'none',
-              cursor: 'default',
+              cursor: trailerUrl ? 'pointer' : 'not-allowed',
+              opacity: trailerUrl ? 1 : 0.55,
               fontFamily: 'inherit',
             }}
           >
@@ -410,7 +430,102 @@ function Hero({
           </button>
         </div>
       </div>
+      {trailerOpen && trailerUrl && (
+        <TrailerModal url={trailerUrl} onClose={() => setTrailerOpen(false)} />
+      )}
     </section>
+  )
+}
+
+// Fullscreen trailer player. Mounts a fixed overlay with the video; tries
+// to enter the browser's Fullscreen API on open and falls back to the
+// 100vw/100vh overlay if the browser refuses (e.g. iOS Safari).
+function TrailerModal({ url, onClose }: { url: string; onClose: () => void }) {
+  const videoRef = useRef<HTMLVideoElement>(null)
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+
+    const v = videoRef.current
+    const req =
+      (v as unknown as { requestFullscreen?: () => Promise<void> })
+        ?.requestFullscreen ??
+      (v as unknown as { webkitEnterFullscreen?: () => void })
+        ?.webkitEnterFullscreen
+    try {
+      const result = req?.call(v)
+      if (result instanceof Promise) result.catch(() => {})
+    } catch {
+      // ignored — user can use the in-player fullscreen control
+    }
+
+    const onFsChange = () => {
+      if (!document.fullscreenElement) onClose()
+    }
+    document.addEventListener('fullscreenchange', onFsChange)
+
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.removeEventListener('fullscreenchange', onFsChange)
+      if (document.fullscreenElement) {
+        document.exitFullscreen?.().catch(() => {})
+      }
+    }
+  }, [onClose])
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 1000,
+        background: 'rgba(0,0,0,0.95)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <video
+        ref={videoRef}
+        src={url}
+        autoPlay
+        controls
+        playsInline
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          maxWidth: '92vw',
+          maxHeight: '92vh',
+          background: 'black',
+          borderRadius: 8,
+          boxShadow: '0 24px 80px rgba(0,0,0,0.6)',
+        }}
+      />
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close trailer"
+        style={{
+          position: 'absolute',
+          right: 24,
+          top: 24,
+          width: 40,
+          height: 40,
+          borderRadius: '50%',
+          background: 'rgba(255,255,255,0.10)',
+          border: '1px solid rgba(255,255,255,0.20)',
+          color: 'white',
+          fontSize: 18,
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+        }}
+      >
+        ✕
+      </button>
+    </div>
   )
 }
 

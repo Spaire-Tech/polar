@@ -130,9 +130,13 @@ export const EditMedia = forwardRef<
      *  pass `renderMedia` and we'll skip the default <img>/<video> overlay.
      */
     renderMedia?: (media: LandingMedia) => ReactNode
+    /** Suppress the hover Replace/Remove pill + label overlay. Use this when
+     *  the host renders its own controls (e.g. the hero's add-image /
+     *  add-trailer buttons) so they don't get duplicated. */
+    chromeless?: boolean
   }
 >(function EditMedia(
-  { id, label, style, className, fit = 'cover', children, renderMedia },
+  { id, label, style, className, fit = 'cover', children, renderMedia, chromeless },
   ref,
 ) {
   const ed = useEditor()
@@ -215,7 +219,7 @@ export const EditMedia = forwardRef<
       ) : (
         <video src={m.url} autoPlay muted loop playsInline style={cover} />
       ))}
-      {ed.mode === 'edit' && (
+      {ed.mode === 'edit' && !chromeless && (
         <>
           <div
             style={{
