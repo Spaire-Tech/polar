@@ -1390,6 +1390,7 @@ function PFMediaDrop({
 // ── CheckoutPreview (from app.jsx) ─────────────────────────────────────────
 function PFCheckoutPreview({
   courseTitle,
+  courseDesc,
   courseLessons,
   primaryPrice,
   additionalPrices,
@@ -1404,6 +1405,7 @@ function PFCheckoutPreview({
   media,
 }: {
   courseTitle: string
+  courseDesc?: string
   courseLessons: number
   primaryPrice: { currency: string; amount: string }
   additionalPrices: { currency: string; amount: string }[]
@@ -1461,6 +1463,9 @@ function PFCheckoutPreview({
             Online course · {courseLessons} lessons
           </div>
           <h3 className="pf-preview-title">{courseTitle}</h3>
+          {courseDesc && (
+            <p className="pf-preview-desc">{courseDesc}</p>
+          )}
           <div className="pf-preview-price">
             <span className="pf-preview-amount">{amount}</span>
             {cycleLabel && (
@@ -1511,6 +1516,7 @@ export function StepPricingWizard({
   onBack,
   onClose,
   courseTitle,
+  courseDesc,
   courseLessons,
 }: {
   organization: schemas['Organization']
@@ -1520,6 +1526,7 @@ export function StepPricingWizard({
   onBack: () => void
   onClose: () => void
   courseTitle?: string
+  courseDesc?: string
   courseLessons?: number
 }) {
   const { control, watch, setValue, getValues } =
@@ -1878,9 +1885,6 @@ export function StepPricingWizard({
                       <span className="pf-preview-slider-num">
                         {paywall.freePreviewLessons}
                       </span>
-                      <span className="pf-preview-slider-total">
-                        / {courseLessons ?? 12}
-                      </span>
                     </div>
                   </div>
                   <input
@@ -1908,6 +1912,7 @@ export function StepPricingWizard({
           {/* LIVE PREVIEW */}
           <PFCheckoutPreview
             courseTitle={courseTitle ?? 'Mastering Modern UI Design'}
+            courseDesc={courseDesc}
             courseLessons={courseLessons ?? 12}
             primaryPrice={previewPrimary}
             additionalPrices={previewAdditional}
@@ -2500,10 +2505,6 @@ export function StepPricingWizard({
           font-variant-numeric: tabular-nums;
           letter-spacing: -0.5px;
         }
-        .pf-preview-slider-total {
-          font-size: 12px;
-          color: var(--muted);
-        }
         .pf-slider {
           width: 100%;
           accent-color: var(--accent);
@@ -2585,6 +2586,12 @@ export function StepPricingWizard({
           margin: 0;
           line-height: 1.3;
           letter-spacing: -0.2px;
+        }
+        .pf-preview-desc {
+          font-size: 12.5px;
+          color: var(--muted);
+          margin: 6px 0 0;
+          line-height: 1.5;
         }
         .pf-preview-price {
           display: flex;
