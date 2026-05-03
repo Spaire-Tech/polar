@@ -555,24 +555,41 @@ export default function CourseWizard({
               phase="landing"
             />
           )}
-          {screen === 'preview' && (
-            <WizardLandingEditor
-              organization={organization}
-              draft={{
-                name: draft.name || instructor.name,
-                courseTitle: draft.courseTitle || course.title,
-                desc: draft.desc || course.desc,
-              }}
-              outline={partialOutlineSafe}
-              initialLanding={
-                (partialLanding as Record<string, unknown> | null) ?? null
-              }
-              initialThumbFile={null}
-              initialThumbName=""
-              onPublish={finalizeCourse}
-              onBack={() => setScreen('outline')}
-            />
-          )}
+          {screen === 'preview' && (() => {
+            const wizardPrice = form.getValues('prices')?.[0]
+            const priceCents =
+              wizardPrice && 'price_amount' in wizardPrice
+                ? (wizardPrice.price_amount as number)
+                : null
+            const priceCurrency =
+              (wizardPrice && 'price_currency' in wizardPrice
+                ? (wizardPrice.price_currency as string)
+                : null) ?? defaultCurrency
+            return (
+              <WizardLandingEditor
+                organization={organization}
+                draft={{
+                  name: draft.name || instructor.name,
+                  courseTitle: draft.courseTitle || course.title,
+                  desc: draft.desc || course.desc,
+                  priceCents,
+                  priceCurrency,
+                  paywallEnabled: paywall.paywallEnabled,
+                  paywallPosition: paywall.paywallEnabled
+                    ? paywall.freePreviewLessons
+                    : null,
+                }}
+                outline={partialOutlineSafe}
+                initialLanding={
+                  (partialLanding as Record<string, unknown> | null) ?? null
+                }
+                initialThumbFile={null}
+                initialThumbName=""
+                onPublish={finalizeCourse}
+                onBack={() => setScreen('outline')}
+              />
+            )
+          })()}
           {screen === 'creating' && <CreatingScreen onClose={handleClose} />}
         </div>
       </form>

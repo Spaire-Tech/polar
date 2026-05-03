@@ -12,7 +12,7 @@
 
 import type { CourseLessonRead, CourseRead } from '@/hooks/queries/courses'
 import type { schemas } from '@spaire/client'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useEditor } from './EditorContext'
 import { EditBlock, EditMedia, EditText } from './EditPrimitives'
 import { HeroMedia } from './HeroMedia'
@@ -422,7 +422,24 @@ function Hero({
 function HeroMediaControls({ hasMedia }: { hasMedia: boolean }) {
   const ed = useEditor()
   const [tipOpen, setTipOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
   if (ed.mode !== 'edit') return null
+
+  const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setBusy(true)
+    try {
+      const upload = ed.uploaderForSlot?.('hero.backdrop') ?? ed.uploadMedia
+      const next = await upload(file)
+      ed.setMedia('hero.backdrop', { ...next, name: file.name })
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <div
       style={{
@@ -435,19 +452,17 @@ function HeroMediaControls({ hasMedia }: { hasMedia: boolean }) {
         gap: 8,
       }}
     >
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*,video/*"
+        hidden
+        onChange={onFile}
+      />
       <button
         type="button"
-        onClick={() => {
-          const target = document.querySelector(
-            '[data-spaire-edit-media="hero.backdrop"]',
-          )
-          if (target instanceof HTMLElement) {
-            const ev = new MouseEvent('mouseenter', { bubbles: true })
-            target.dispatchEvent(ev)
-            const replace = target.querySelector('button')
-            if (replace instanceof HTMLElement) replace.click()
-          }
-        }}
+        onClick={() => fileRef.current?.click()}
+        disabled={busy}
         style={{
           display: 'inline-flex',
           alignItems: 'center',
@@ -460,10 +475,10 @@ function HeroMediaControls({ hasMedia }: { hasMedia: boolean }) {
           fontWeight: 600,
           border: '1px solid rgba(255,255,255,0.10)',
           fontFamily: 'Inter, system-ui, sans-serif',
-          cursor: 'pointer',
+          cursor: busy ? 'wait' : 'pointer',
         }}
       >
-        {hasMedia ? '↺ Replace media' : '＋ Add media'}
+        {busy ? 'Uploading…' : hasMedia ? '↺ Replace media' : '＋ Add media'}
       </button>
       <div style={{ position: 'relative' }}>
         <button

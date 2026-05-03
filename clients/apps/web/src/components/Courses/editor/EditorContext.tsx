@@ -488,17 +488,9 @@ export function EditorProvider({
       }
     `
 
-    // Lazy-load Google Fonts
-    ;[fontH, fontB].forEach((f) => {
-      if (!f.google) return
-      const id = `gfont-${f.id}`
-      if (document.getElementById(id)) return
-      const l = document.createElement('link')
-      l.id = id
-      l.rel = 'stylesheet'
-      l.href = `https://fonts.googleapis.com/css2?family=${f.google}&display=swap`
-      document.head.appendChild(l)
-    })
+    // Site CSP blocks fonts.gstatic.com — fall back to system fonts and the
+    // app-bundled families. Designers can still pick a family in the panel;
+    // the browser substitutes when it isn't available.
   }, [overrides.theme])
 
   // device class for responsive overrides
