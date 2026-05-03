@@ -1,20 +1,24 @@
 'use client'
 
-// EditableCourseLandingView — mirrors the public landing layout from the design
-// bundle (Spaire Course Landing.html / landing-hero.jsx / landing-curriculum.jsx
-// / landing-lessons.jsx / landing-instructor.jsx) and weaves EditText, EditMedia,
-// and EditBlock through the sections so every visible string is click-to-edit
-// and every media tile gets a hover Replace button.
+// Apple TV-style course landing — mirrors the Spaire Course Landing v2 design
+// (light page, dark cinematic hero in a rounded box, free preview episode grid,
+// dark paywall block, light instructor section, dark final CTA).
 //
-// In `preview` mode the wrappers fall through to plain rendering — same tree,
-// no affordances.
+// Inline editing is provided by EditText, EditMedia and EditBlock — every
+// visible string is click-to-edit and every media tile gets a hover Replace
+// button. Live values that come from elsewhere in the editor (paywall position,
+// product price) flow through props so the landing always reflects what the
+// creator chose during onboarding.
 
 import type { CourseLessonRead, CourseRead } from '@/hooks/queries/courses'
+import type { schemas } from '@spaire/client'
+import { useRef, useState } from 'react'
 import { useEditor } from './EditorContext'
 import { EditBlock, EditMedia, EditText } from './EditPrimitives'
-import type React from 'react'
+import { HeroMedia } from './HeroMedia'
 
 const FONT_VAR = 'var(--font-body, "Poppins", system-ui, sans-serif)'
+const HEADING_VAR = 'var(--font-heading, ' + FONT_VAR + ')'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -30,43 +34,29 @@ function fmtLessonTime(secs?: number | null) {
   if (!secs) return '—'
   const m = Math.floor(secs / 60)
   const s = secs % 60
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  return `${m}m ${String(s).padStart(2, '0')}s`
 }
 
-// Numbered section label ("01" + "OFFICIAL TRAILER")
-function NumberLabel({ n, label }: { n: string; label: string }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-      <span
-        style={{
-          fontSize: 11,
-          fontWeight: 600,
-          fontVariantNumeric: 'tabular-nums',
-          width: 28,
-          height: 28,
-          borderRadius: '50%',
-          border: '1px solid rgba(0,0,0,0.08)',
-          color: 'oklch(0.32 0.008 280)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        {n}
-      </span>
-      <EditText
-        path={`label.${label.toLowerCase().replace(/\s+/g, '_')}`}
-        defaultValue={label}
-        style={{
-          fontSize: 11,
-          letterSpacing: '0.18em',
-          fontWeight: 600,
-          color: 'oklch(0.52 0.008 280)',
-          textTransform: 'uppercase',
-        }}
-      />
-    </div>
-  )
+function plural(n: number, one: string, many: string) {
+  return n === 1 ? one : many
+}
+
+export function formatProductPrice(
+  product: schemas['Product'] | undefined,
+): string {
+  if (!product) return ''
+  const fixed = product.prices.find((p) => p.amount_type === 'fixed')
+  if (!fixed || !('price_amount' in fixed)) {
+    const free = product.prices.find((p) => p.amount_type === 'free')
+    if (free) return 'Free'
+    const custom = product.prices.find((p) => p.amount_type === 'custom')
+    if (custom) return 'Pay what you want'
+    return ''
+  }
+  const cents = fixed.price_amount as number
+  const dollars = cents / 100
+  if (dollars === Math.floor(dollars)) return `$${dollars.toFixed(0)}`
+  return `$${dollars.toFixed(2)}`
 }
 
 // ── Top-level ──────────────────────────────────────────────────────────────
@@ -74,28 +64,66 @@ function NumberLabel({ n, label }: { n: string; label: string }) {
 export type EditableLandingProps = {
   course: CourseRead
   organizationName: string
+  organizationSlug?: string
   flatLessons: CourseLessonRead[]
+  product?: schemas['Product']
 }
 
 export function EditableCourseLandingView({
   course,
   organizationName,
+  organizationSlug,
   flatLessons,
+  product,
 }: EditableLandingProps) {
   const ed = useEditor()
+  const priceLabel = formatProductPrice(product)
+
+  const paywallAt =
+    course.paywall_enabled && course.paywall_position != null
+      ? Math.min(course.paywall_position, flatLessons.length)
+      : null
+  const freeLessons =
+    paywallAt != null ? flatLessons.slice(0, paywallAt) : flatLessons
+  const paidLessons =
+    paywallAt != null ? flatLessons.slice(paywallAt) : []
+  const lockedCount = paidLessons.length
 
   const sectionMap: Record<string, { label: string; node: React.ReactNode }> = {
-    hero: { label: 'Hero', node: <Hero course={course} flatLessons={flatLessons} /> },
-    value: { label: "What's included", node: <ValueStrip /> },
-    trailer: { label: 'Trailer', node: <TrailerBlock course={course} /> },
-    curriculum: { label: 'Curriculum', node: <CurriculumTimeline /> },
+    hero: {
+      label: 'Hero',
+      node: (
+        <Hero
+          course={course}
+          flatLessons={flatLessons}
+          freeCount={freeLessons.length}
+          priceLabel={priceLabel}
+        />
+      ),
+    },
     lessons: {
-      label: 'All lessons',
-      node: <FullLessonList course={course} flatLessons={flatLessons} />,
+      label: 'Free preview',
+      node: (
+        <EpisodeGrid
+          course={course}
+          freeLessons={freeLessons}
+          paidLessons={paidLessons}
+          lockedCount={lockedCount}
+          priceLabel={priceLabel}
+          organizationSlug={organizationSlug}
+        />
+      ),
     },
     instructor: { label: 'Instructor', node: <Instructor course={course} /> },
-    reviews: { label: 'Reviews', node: <Reviews /> },
-    finalCta: { label: 'Final CTA', node: <FinalCta /> },
+    finalCta: {
+      label: 'Final CTA',
+      node: (
+        <FinalCta
+          freeCount={freeLessons.length}
+          priceLabel={priceLabel}
+        />
+      ),
+    },
   }
 
   return (
@@ -108,15 +136,16 @@ export function EditableCourseLandingView({
         minHeight: '100%',
       }}
     >
-      {ed.overrides.order.map((id) => {
-        const s = sectionMap[id]
-        if (!s) return null
-        return (
-          <EditBlock key={id} id={id} label={s.label}>
-            {s.node}
-          </EditBlock>
-        )
-      })}
+      {ed.overrides.order
+        .filter((id) => sectionMap[id])
+        .map((id) => {
+          const s = sectionMap[id]
+          return (
+            <EditBlock key={id} id={id} label={s.label}>
+              {s.node}
+            </EditBlock>
+          )
+        })}
       <Footer organizationName={organizationName} />
     </div>
   )
@@ -127,11 +156,14 @@ export function EditableCourseLandingView({
 function Hero({
   course,
   flatLessons,
+  freeCount,
+  priceLabel,
 }: {
   course: CourseRead
   flatLessons: CourseLessonRead[]
+  freeCount: number
+  priceLabel: string
 }) {
-  const ed = useEditor()
   const totalDurationSeconds = flatLessons.reduce(
     (a, l) => a + (l.duration_seconds ?? 0),
     0,
@@ -142,46 +174,47 @@ function Hero({
       style={{
         position: 'relative',
         height: 'min(88vh, 760px)',
-        minHeight: 600,
+        minHeight: 580,
         margin: '20px 20px 0',
         borderRadius: 'calc(28px * var(--radius-mul, 1))',
         overflow: 'hidden',
         background: '#000',
         isolation: 'isolate',
+        border: '1px solid oklch(0.92 0.003 280)',
+        boxShadow:
+          '0 2px 6px rgba(0,0,0,0.06), 0 24px 60px rgba(0,0,0,0.10)',
       }}
     >
       <EditMedia
         id="hero.backdrop"
-        label="hero backdrop"
+        label="hero image"
         style={{
           position: 'absolute',
           inset: 0,
           borderRadius: 'inherit',
           overflow: 'hidden',
         }}
+        renderMedia={() => null}
       >
-        {/* Default placeholder backdrop: gradient + window light */}
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            background:
-              'radial-gradient(ellipse at 25% 35%, oklch(0.45 0.12 35) 0%, oklch(0.18 0.05 65) 55%, oklch(0.08 0.02 280) 100%)',
-          }}
-        />
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            background:
-              'linear-gradient(180deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,0) 50%, rgba(0,0,0,0.55) 80%, rgba(0,0,0,0.85) 100%)',
-            zIndex: 2,
-            pointerEvents: 'none',
-          }}
+        <HeroMediaSurface
+          fallbackImageUrl={course.thumbnail_url ?? null}
+          fallbackTrailerUrl={course.trailer_url ?? null}
         />
       </EditMedia>
 
-      {/* SPAIRE ORIGINAL pill */}
+      {/* Vignette */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          zIndex: 2,
+          pointerEvents: 'none',
+          background:
+            'linear-gradient(180deg, oklch(0 0 0 / 0.2) 0%, oklch(0 0 0 / 0) 30%, oklch(0 0 0 / 0) 45%, oklch(0 0 0 / 0.6) 80%, oklch(0 0 0 / 0.92) 100%)',
+        }}
+      />
+
+      {/* SPAIRE ORIGINAL pill (top-left) */}
       <div
         style={{
           position: 'absolute',
@@ -198,8 +231,8 @@ function Hero({
             width: 6,
             height: 6,
             borderRadius: '50%',
-            background: 'oklch(0.78 0.16 25)',
-            boxShadow: '0 0 12px oklch(0.78 0.16 25)',
+            background: 'oklch(0.72 0.16 25)',
+            boxShadow: '0 0 12px oklch(0.72 0.16 25)',
           }}
         />
         <EditText
@@ -215,7 +248,9 @@ function Hero({
         />
       </div>
 
-      {/* Content */}
+      {/* Hero media controls (top-right) — separate Add image + Add trailer */}
+      <HeroMediaControls />
+      {/* Bottom content */}
       <div
         style={{
           position: 'absolute',
@@ -223,7 +258,7 @@ function Hero({
           right: 0,
           bottom: 0,
           zIndex: 3,
-          padding: '40px 48px 44px',
+          padding: '40px 48px 52px',
           color: 'white',
           fontFamily: FONT_VAR,
         }}
@@ -233,9 +268,9 @@ function Hero({
             display: 'flex',
             alignItems: 'center',
             gap: 10,
-            marginBottom: 18,
+            marginBottom: 16,
             fontSize: 12,
-            color: 'rgba(255,255,255,0.7)',
+            color: 'rgba(255,255,255,0.65)',
             fontWeight: 500,
           }}
         >
@@ -243,30 +278,30 @@ function Hero({
             path="hero.series_label"
             defaultValue="NEW SERIES"
             style={{
-              padding: '4px 10px',
-              background: 'rgba(255,255,255,0.15)',
+              padding: '3px 10px',
+              background: 'rgba(255,255,255,0.12)',
               backdropFilter: 'blur(20px)',
               WebkitBackdropFilter: 'blur(20px)',
               borderRadius: 999,
-              border: '1px solid rgba(255,255,255,0.2)',
+              border: '1px solid rgba(255,255,255,0.18)',
               fontSize: 10,
               letterSpacing: '0.12em',
               fontWeight: 600,
               color: 'white',
             }}
           />
-          <span style={{ color: 'rgba(255,255,255,0.65)' }}>
-            {flatLessons.length} lessons
+          <span style={{ color: 'rgba(255,255,255,0.6)' }}>
+            {flatLessons.length} {plural(flatLessons.length, 'lesson', 'lessons')}
           </span>
-          <span style={{ color: 'rgba(255,255,255,0.5)' }}>·</span>
-          <span style={{ color: 'rgba(255,255,255,0.65)' }}>
+          <span style={{ color: 'rgba(255,255,255,0.3)' }}>·</span>
+          <span style={{ color: 'rgba(255,255,255,0.6)' }}>
             {fmtDuration(totalDurationSeconds)}
           </span>
-          <span style={{ color: 'rgba(255,255,255,0.5)' }}>·</span>
+          <span style={{ color: 'rgba(255,255,255,0.3)' }}>·</span>
           <EditText
             path="hero.level"
             defaultValue="All levels"
-            style={{ color: 'rgba(255,255,255,0.65)' }}
+            style={{ color: 'rgba(255,255,255,0.6)' }}
           />
         </div>
 
@@ -276,587 +311,449 @@ function Hero({
           defaultValue={course.title ?? 'Untitled course'}
           multiline
           style={{
-            fontSize: `calc(clamp(56px, 8vw, 104px) * var(--type-scale, 1))`,
+            fontSize: `calc(clamp(52px, 7.5vw, 96px) * var(--type-scale, 1))`,
             fontWeight: 'var(--h-weight, 700)',
             fontStyle: 'var(--h-italic, normal)',
             letterSpacing: 'calc(var(--h-tracking, 0em) - 0.045em)',
             lineHeight: 'calc(var(--h-leading, 1) * 0.95)',
-            margin: '0 0 20px',
+            margin: '0 0 18px',
             color: 'white',
             maxWidth: '14ch',
-            textShadow: '0 2px 30px oklch(0 0 0 / 0.4)',
-            fontFamily: 'var(--font-heading, ' + FONT_VAR + ')',
+            textShadow: '0 2px 30px oklch(0 0 0 / 0.35)',
+            fontFamily: HEADING_VAR,
           }}
         />
 
         <div
           style={{
-            fontSize: 'clamp(15px, 1.4vw, 19px)',
+            fontSize: 'clamp(14px, 1.3vw, 18px)',
             fontWeight: 400,
-            color: 'rgba(255,255,255,0.92)',
-            maxWidth: 600,
-            marginBottom: 32,
+            color: 'rgba(255,255,255,0.88)',
+            maxWidth: 560,
+            marginBottom: 30,
             lineHeight: 1.4,
           }}
         >
           <EditText
             path="hero.tagline"
             defaultValue="Build arguments that move people"
-          />{' '}
-          <span style={{ color: 'rgba(255,255,255,0.55)' }}>
-            — with{' '}
-            <EditText
-              path="hero.instructor"
-              defaultValue={course.instructor_name ?? ''}
-            />
-          </span>
+          />
+          {course.instructor_name && (
+            <span style={{ color: 'rgba(255,255,255,0.5)' }}>
+              {' '}— with{' '}
+              <EditText
+                path="hero.instructor"
+                defaultValue={course.instructor_name}
+              />
+            </span>
+          )}
         </div>
 
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'flex-end',
-            justifyContent: 'space-between',
-            gap: 24,
-            flexWrap: 'wrap',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <button
-              type="button"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                padding: '12px 24px 12px 14px',
-                background: 'white',
-                color: 'oklch(0.18 0.008 280)',
-                borderRadius: 999,
-                border: 'none',
-                cursor: ed.mode === 'edit' ? 'default' : 'pointer',
-                boxShadow: '0 8px 24px oklch(0 0 0 / 0.3)',
-              }}
-            >
-              <span
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: '50%',
-                  background: 'oklch(0.18 0.008 280)',
-                  color: 'white',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  paddingLeft: 2,
-                }}
-              >
-                ▶
-              </span>
-              <span>
-                <span style={{ display: 'block', fontSize: 14, fontWeight: 600, lineHeight: 1.1 }}>
-                  Watch trailer
-                </span>
-                <span
-                  style={{
-                    display: 'block',
-                    fontSize: 11,
-                    color: 'oklch(0.55 0.012 280)',
-                    fontWeight: 500,
-                    marginTop: 1,
-                  }}
-                >
-                  1 min 34 sec
-                </span>
-              </span>
-            </button>
-            <button
-              type="button"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '14px 22px',
-                background: 'rgba(255,255,255,0.10)',
-                backdropFilter: 'blur(24px) saturate(180%)',
-                WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-                border: '1px solid rgba(255,255,255,0.18)',
-                color: 'white',
-                borderRadius: 999,
-                fontSize: 13.5,
-                fontWeight: 600,
-              }}
-            >
-              <EditText path="hero.cta_primary" defaultValue="Enroll · $79" /> →
-            </button>
-          </div>
-          <div
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button
+            type="button"
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 14,
-              padding: '8px 16px',
-              background: 'rgba(255,255,255,0.08)',
-              border: '1px solid rgba(255,255,255,0.12)',
+              gap: 10,
+              padding: '13px 22px 13px 14px',
+              background: 'white',
+              color: 'oklch(0.14 0.006 280)',
               borderRadius: 999,
-              fontSize: 12.5,
-              color: 'rgba(255,255,255,0.85)',
-              fontWeight: 500,
+              boxShadow: '0 8px 28px oklch(0 0 0 / 0.4)',
+              border: 'none',
+              cursor: 'default',
+              fontFamily: 'inherit',
             }}
           >
-            <span>
-              ★{' '}
-              <EditText
-                path="hero.rating"
-                defaultValue="4.9"
-                style={{ fontWeight: 700 }}
-              />{' '}
-              (
-              <EditText path="hero.rating_count" defaultValue="2,814" />)
-            </span>
-            <span style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.2)' }} />
-            <EditText path="hero.students" defaultValue="38,200 enrolled" />
-          </div>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-// ── Value strip ─────────────────────────────────────────────────────────────
-
-const VALUE_DEFAULTS = [
-  { title: '22 lessons, structured', desc: 'Six sections that build on each other.' },
-  { title: 'Workshops & assignments', desc: 'Three real projects with feedback.' },
-  { title: 'Peer feedback', desc: 'A small, moderated cohort reads your drafts.' },
-  { title: 'Certificate on completion', desc: 'Issued when you finish all assignments.' },
-]
-
-function ValueStrip() {
-  return (
-    <section style={{ padding: '96px 32px 48px', maxWidth: 1320, margin: '0 auto' }}>
-      <div
-        style={{
-          fontSize: 11,
-          letterSpacing: '0.18em',
-          fontWeight: 600,
-          color: 'oklch(0.66 0.006 280)',
-          marginBottom: 32,
-          textAlign: 'center',
-          textTransform: 'uppercase',
-        }}
-      >
-        <EditText path="value.label" defaultValue="WHAT'S INCLUDED" />
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 0 }}>
-        {VALUE_DEFAULTS.map((v, i) => (
-          <div
-            key={i}
-            style={{
-              position: 'relative',
-              padding: '24px 28px 28px',
-              borderLeft: i === 0 ? 'none' : '1px solid oklch(0.92 0.003 280)',
-              minHeight: 200,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 12,
-            }}
-          >
-            <div
+            <span
               style={{
-                width: 36,
-                height: 36,
-                borderRadius: 999,
-                background: 'oklch(0.18 0.008 280)',
+                width: 28,
+                height: 28,
+                borderRadius: '50%',
+                background: 'oklch(0.14 0.006 280)',
                 color: 'white',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: 14,
-              }}
-            >
-              ◇
-            </div>
-            <EditText
-              path={`value.${i}.title`}
-              defaultValue={v.title}
-              multiline
-              style={{
-                fontSize: 17,
-                fontWeight: 600,
-                letterSpacing: '-0.015em',
-                color: 'oklch(0.18 0.008 280)',
-                marginTop: 6,
-              }}
-            />
-            <EditText
-              path={`value.${i}.desc`}
-              defaultValue={v.desc}
-              multiline
-              style={{
-                fontSize: 13,
-                color: 'oklch(0.52 0.008 280)',
-                lineHeight: 1.55,
-              }}
-            />
-            <span
-              style={{
-                position: 'absolute',
-                right: 20,
-                top: 20,
+                paddingLeft: 2,
                 fontSize: 11,
-                fontWeight: 600,
-                color: 'oklch(0.66 0.006 280)',
-                fontVariantNumeric: 'tabular-nums',
-                letterSpacing: '0.04em',
               }}
             >
-              {String(i + 1).padStart(2, '0')}
+              ▶
             </span>
-          </div>
-        ))}
-      </div>
-    </section>
-  )
-}
-
-// ── Trailer ─────────────────────────────────────────────────────────────────
-
-function TrailerBlock({ course: _course }: { course: CourseRead }) {
-  return (
-    <section
-      id="preview-trailer"
-      style={{ padding: '64px 32px 24px', maxWidth: 1180, margin: '0 auto' }}
-    >
-      <NumberLabel n="01" label="OFFICIAL TRAILER" />
-      <EditMedia
-        id="trailer.video"
-        label="trailer video"
-        style={{
-          position: 'relative',
-          aspectRatio: '21 / 9',
-          background: '#000',
-          borderRadius: 'calc(28px * var(--radius-mul, 1))',
-          overflow: 'hidden',
-          boxShadow: '0 2px 6px rgba(0,0,0,0.06), 0 24px 60px rgba(0,0,0,0.12)',
-        }}
-      >
-        {/* Default placeholder scene */}
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            background:
-              'radial-gradient(ellipse at 35% 45%, oklch(0.40 0.10 25) 0%, oklch(0.16 0.04 280) 60%, #000 100%)',
-          }}
-        />
-        <div
-          style={{
-            position: 'absolute',
-            left: 24,
-            top: 24,
-            fontFamily: 'ui-monospace, monospace',
-            fontSize: 11,
-            color: 'rgba(255,255,255,0.4)',
-            letterSpacing: '0.04em',
-            zIndex: 4,
-          }}
-        >
-          trailer placeholder
-        </div>
-        <button
-          type="button"
-          style={{
-            position: 'absolute',
-            left: '50%',
-            top: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: 88,
-            height: 88,
-            borderRadius: '50%',
-            background: 'rgba(255,255,255,0.95)',
-            color: 'oklch(0.18 0.008 280)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            paddingLeft: 4,
-            boxShadow: '0 12px 40px rgba(0,0,0,0.5)',
-            zIndex: 4,
-            border: 'none',
-            fontSize: 28,
-            cursor: 'default',
-          }}
-        >
-          ▶
-        </button>
-      </EditMedia>
-    </section>
-  )
-}
-
-// ── Curriculum timeline ────────────────────────────────────────────────────
-
-const CHAPTER_DEFAULTS = [
-  { title: 'Foundations', lessons: 4, hue: 35 },
-  { title: 'Reading the Reader', lessons: 3, hue: 195 },
-  { title: 'Structure & Cadence', lessons: 4, hue: 285 },
-  { title: 'Concession & Pressure', lessons: 3, hue: 145 },
-  { title: 'Workshops', lessons: 4, hue: 25 },
-  { title: 'Voice on the Page', lessons: 4, hue: 320 },
-]
-
-function CurriculumTimeline() {
-  return (
-    <section style={{ padding: '64px 32px 48px', maxWidth: 1320, margin: '0 auto' }}>
-      <div style={{ marginBottom: 48, maxWidth: 720 }}>
-        <NumberLabel n="02" label="CURRICULUM" />
-        <EditText
-          as="h2"
-          path="curriculum.heading"
-          defaultValue="Six chapters, built to compound."
-          multiline
-          style={{
-            fontSize: 'calc(clamp(36px, 5vw, 56px) * var(--type-scale, 1))',
-            fontWeight: 'var(--h-weight, 600)',
-            letterSpacing: 'calc(var(--h-tracking, 0em) - 0.035em)',
-            lineHeight: 'calc(var(--h-leading, 1) * 1.05)',
-            margin: 0,
-            color: 'oklch(0.18 0.008 280)',
-            fontFamily: 'var(--font-heading, ' + FONT_VAR + ')',
-          }}
-        />
-        <EditText
-          as="p"
-          path="curriculum.subheading"
-          defaultValue="Every chapter assumes the last. Watch in order — or don't. The lessons unlock the moment you enroll."
-          multiline
-          style={{
-            fontSize: 16,
-            color: 'oklch(0.52 0.008 280)',
-            margin: '20px 0 0',
-            lineHeight: 1.55,
-            maxWidth: 560,
-          }}
-        />
-      </div>
-      <div style={{ overflowX: 'auto', margin: '0 -32px', padding: '0 32px 12px' }}>
-        <div style={{ display: 'flex', gap: 16 }}>
-          {CHAPTER_DEFAULTS.map((s, i) => (
-            <div
-              key={i}
-              style={{
-                flex: '0 0 280px',
-                background: 'white',
-                border: '1px solid oklch(0.92 0.003 280)',
-                borderRadius: 'calc(20px * var(--radius-mul, 1))',
-                overflow: 'hidden',
-                boxShadow: '0 1px 2px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.06)',
-              }}
-            >
-              <EditMedia
-                id={`curriculum.${i + 1}`}
-                label={`Chapter ${i + 1} cover`}
-                style={{
-                  aspectRatio: '4 / 3',
-                  background: `linear-gradient(150deg, oklch(0.45 0.12 ${s.hue}) 0%, oklch(0.20 0.05 ${(s.hue + 30) % 360}) 100%)`,
-                  position: 'relative',
-                }}
-              >
-                <div
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    padding: 22,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    color: 'white',
-                    zIndex: 2,
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: 10.5,
-                      fontWeight: 600,
-                      letterSpacing: '0.18em',
-                      opacity: 0.85,
-                      textShadow: '0 1px 6px rgba(0,0,0,0.5)',
-                    }}
-                  >
-                    CHAPTER {String(i + 1).padStart(2, '0')}
-                  </div>
-                  <EditText
-                    path={`curriculum.${i + 1}.title`}
-                    defaultValue={s.title}
-                    style={{
-                      fontSize: 22,
-                      fontWeight: 600,
-                      letterSpacing: '-0.02em',
-                      textShadow: '0 1px 8px rgba(0,0,0,0.5)',
-                    }}
-                  />
-                </div>
-              </EditMedia>
-              <div
-                style={{
-                  padding: '14px 20px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                }}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    fontSize: 13,
-                    color: 'oklch(0.32 0.008 280)',
-                    fontWeight: 500,
-                  }}
-                >
-                  <span
-                    style={{
-                      width: 7,
-                      height: 7,
-                      borderRadius: '50%',
-                      background: `oklch(0.55 0.15 ${s.hue})`,
-                    }}
-                  />
-                  {s.lessons} lessons
-                </div>
-                <span style={{ color: 'oklch(0.66 0.006 280)' }}>→</span>
-              </div>
-            </div>
-          ))}
+            <span style={{ fontSize: 14, fontWeight: 600, lineHeight: 1 }}>
+              <EditText path="hero.cta_secondary" defaultValue="Watch trailer" />
+            </span>
+          </button>
+          <button
+            type="button"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '14px 22px',
+              background: 'rgba(255,255,255,0.10)',
+              backdropFilter: 'blur(24px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+              border: '1px solid rgba(255,255,255,0.18)',
+              color: 'white',
+              borderRadius: 999,
+              fontSize: 13.5,
+              fontWeight: 600,
+              cursor: 'default',
+              fontFamily: 'inherit',
+            }}
+          >
+            Enroll{priceLabel ? ` · ${priceLabel}` : ''} →
+          </button>
         </div>
       </div>
     </section>
   )
 }
 
-// ── Full lesson list (real lessons from course) ────────────────────────────
-
-function FullLessonList({
-  course,
-  flatLessons,
+// Surface that reads media from the editor state first (so uploads show
+// immediately) and falls back to the course's persisted thumbnail / trailer.
+function HeroMediaSurface({
+  fallbackImageUrl,
+  fallbackTrailerUrl,
 }: {
-  course: CourseRead
-  flatLessons: CourseLessonRead[]
+  fallbackImageUrl: string | null
+  fallbackTrailerUrl: string | null
 }) {
   const ed = useEditor()
-  const paywallAt = course.paywall_position ?? null
-  const free = paywallAt != null ? flatLessons.slice(0, paywallAt) : []
-  const paid = paywallAt != null ? flatLessons.slice(paywallAt) : flatLessons
+  const heroImage = ed.m('hero.backdrop')
+  const heroTrailer = ed.m('hero.trailer')
+  const imageUrl =
+    heroImage && heroImage.kind === 'image' ? heroImage.url : fallbackImageUrl
+  const trailerUrl =
+    heroTrailer && heroTrailer.kind === 'video'
+      ? heroTrailer.url
+      : heroImage && heroImage.kind === 'video'
+        ? heroImage.url
+        : fallbackTrailerUrl
+  return (
+    <HeroMedia imageUrl={imageUrl} trailerUrl={trailerUrl} peekSeconds={10} />
+  )
+}
+
+// Hero media controls — sits in the top-right corner of the hero. Two
+// separate buttons: Add image (writes to course.thumbnail_url + the
+// hero.backdrop slot), Add trailer (writes to course.trailer_url + the
+// hero.trailer slot). An info icon explains the Netflix/YouTube-style peek.
+function HeroMediaControls() {
+  const ed = useEditor()
+  const [tipOpen, setTipOpen] = useState(false)
+  const [busyImage, setBusyImage] = useState(false)
+  const [busyTrailer, setBusyTrailer] = useState(false)
+  const imageInputRef = useRef<HTMLInputElement>(null)
+  const trailerInputRef = useRef<HTMLInputElement>(null)
+  if (ed.mode !== 'edit') return null
+
+  const heroImage = ed.m('hero.backdrop')
+  const heroTrailer = ed.m('hero.trailer')
+  const hasImage = !!heroImage && heroImage.kind === 'image'
+  const hasTrailer =
+    !!heroTrailer ||
+    (!!heroImage && heroImage.kind === 'video')
+
+  const upload = async (slotId: string, file: File) => {
+    const uploader = ed.uploaderForSlot?.(slotId) ?? ed.uploadMedia
+    const next = await uploader(file)
+    ed.setMedia(slotId, { ...next, name: file.name })
+  }
+
+  const onImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setBusyImage(true)
+    try {
+      await upload('hero.backdrop', file)
+    } finally {
+      setBusyImage(false)
+    }
+  }
+
+  const onTrailer = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setBusyTrailer(true)
+    try {
+      await upload('hero.trailer', file)
+    } finally {
+      setBusyTrailer(false)
+    }
+  }
+
+  const pillBtn = (busy: boolean): React.CSSProperties => ({
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '7px 12px',
+    borderRadius: 999,
+    background: 'rgba(20,20,22,0.92)',
+    color: 'white',
+    fontSize: 11.5,
+    fontWeight: 600,
+    border: '1px solid rgba(255,255,255,0.10)',
+    fontFamily: 'Inter, system-ui, sans-serif',
+    cursor: busy ? 'wait' : 'pointer',
+  })
 
   return (
-    <section style={{ padding: '64px 32px', maxWidth: 1100, margin: '0 auto' }}>
-      <div style={{ marginBottom: 40, maxWidth: 640 }}>
-        <NumberLabel n="03" label="EVERY LESSON" />
+    <div
+      style={{
+        position: 'absolute',
+        right: 24,
+        top: 24,
+        zIndex: 6,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+      }}
+    >
+      <input
+        ref={imageInputRef}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={onImage}
+      />
+      <input
+        ref={trailerInputRef}
+        type="file"
+        accept="video/*"
+        hidden
+        onChange={onTrailer}
+      />
+      <button
+        type="button"
+        onClick={() => imageInputRef.current?.click()}
+        disabled={busyImage}
+        style={pillBtn(busyImage)}
+      >
+        {busyImage
+          ? 'Uploading image…'
+          : hasImage
+            ? '↺ Replace image'
+            : '＋ Add image'}
+      </button>
+      <button
+        type="button"
+        onClick={() => trailerInputRef.current?.click()}
+        disabled={busyTrailer}
+        style={pillBtn(busyTrailer)}
+      >
+        {busyTrailer
+          ? 'Uploading trailer…'
+          : hasTrailer
+            ? '↺ Replace trailer'
+            : '＋ Add trailer'}
+      </button>
+      <div style={{ position: 'relative' }}>
+        <button
+          type="button"
+          aria-label="How hero media works"
+          onClick={() => setTipOpen((p) => !p)}
+          onMouseEnter={() => setTipOpen(true)}
+          onMouseLeave={() => setTipOpen(false)}
+          style={{
+            width: 26,
+            height: 26,
+            borderRadius: '50%',
+            background: 'rgba(255,255,255,0.14)',
+            border: '1px solid rgba(255,255,255,0.20)',
+            color: 'white',
+            fontSize: 12,
+            fontWeight: 700,
+            cursor: 'help',
+            fontFamily: 'inherit',
+          }}
+        >
+          ?
+        </button>
+        {tipOpen && (
+          <div
+            role="tooltip"
+            style={{
+              position: 'absolute',
+              right: 0,
+              top: 34,
+              width: 260,
+              padding: 12,
+              borderRadius: 10,
+              background: 'rgba(20,20,22,0.95)',
+              color: 'white',
+              fontSize: 11.5,
+              lineHeight: 1.5,
+              border: '1px solid rgba(255,255,255,0.10)',
+              boxShadow: '0 12px 40px rgba(0,0,0,0.45)',
+              fontFamily: 'Inter, system-ui, sans-serif',
+              zIndex: 10,
+            }}
+          >
+            <strong style={{ fontSize: 11, letterSpacing: '0.06em' }}>
+              UPLOAD A TRAILER + IMAGE
+            </strong>
+            <div style={{ marginTop: 6, color: 'rgba(255,255,255,0.78)' }}>
+              Like Netflix or YouTube — when both are set, the hero plays the
+              first ~10 seconds of the trailer as a peek, then settles on the
+              cover image. One of them works on its own too.
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Episode grid (free preview) + paywall ─────────────────────────────────
+
+function EpisodeGrid({
+  course,
+  freeLessons,
+  paidLessons,
+  lockedCount,
+  priceLabel,
+  organizationSlug,
+}: {
+  course: CourseRead
+  freeLessons: CourseLessonRead[]
+  paidLessons: CourseLessonRead[]
+  lockedCount: number
+  priceLabel: string
+  organizationSlug?: string
+}) {
+  const thumbHues = [35, 195, 285, 145, 25, 320]
+  const [hovered, setHovered] = useState<string | null>(null)
+
+  return (
+    <section
+      style={{
+        padding: '72px 32px 0',
+        maxWidth: 1320,
+        margin: '0 auto',
+        fontFamily: FONT_VAR,
+      }}
+    >
+      <div style={{ marginBottom: 32 }}>
         <EditText
           as="h2"
           path="lessons.heading"
-          defaultValue="The full arc."
+          defaultValue="Free preview"
           style={{
-            fontSize: 'calc(clamp(36px, 5vw, 56px) * var(--type-scale, 1))',
+            fontSize: 'calc(clamp(26px, 3vw, 38px) * var(--type-scale, 1))',
             fontWeight: 'var(--h-weight, 600)',
-            letterSpacing: 'calc(var(--h-tracking, 0em) - 0.035em)',
+            letterSpacing: 'calc(var(--h-tracking, 0em) - 0.03em)',
             lineHeight: 1.05,
-            margin: 0,
+            margin: '0 0 8px',
             color: 'oklch(0.18 0.008 280)',
-            fontFamily: 'var(--font-heading, ' + FONT_VAR + ')',
+            fontFamily: HEADING_VAR,
           }}
         />
         <EditText
           as="p"
           path="lessons.subheading"
-          defaultValue="The first lessons are free to preview. Enroll to unlock the rest."
+          defaultValue={
+            freeLessons.length > 0
+              ? `Watch the first ${freeLessons.length} ${plural(
+                  freeLessons.length,
+                  'episode',
+                  'episodes',
+                )} before you enroll.`
+              : 'Mark a lesson as free preview to show it here.'
+          }
           multiline
           style={{
-            fontSize: 15,
+            fontSize: 14.5,
             color: 'oklch(0.52 0.008 280)',
-            margin: '20px 0 0',
-            lineHeight: 1.55,
-            maxWidth: 520,
+            margin: 0,
+            fontWeight: 400,
           }}
         />
       </div>
-      <div
-        style={{
-          border: '1px solid oklch(0.92 0.003 280)',
-          borderRadius: 'calc(20px * var(--radius-mul, 1))',
-          overflow: 'hidden',
-          background: 'white',
-        }}
-      >
-        {free.length > 0 && (
-          <div>
-            {free.map((l, i) => (
-              <LessonRow key={l.id} lesson={l} index={i + 1} locked={false} />
-            ))}
-          </div>
-        )}
-        {free.length > 0 && paid.length > 0 && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              padding: '12px 28px',
-              background: 'oklch(0.96 0.005 280)',
-              borderTop: '1px solid oklch(0.92 0.003 280)',
-              borderBottom: '1px solid oklch(0.92 0.003 280)',
-              fontSize: 11.5,
-              fontWeight: 600,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              color: 'oklch(0.45 0.18 265)',
-            }}
-          >
-            🔒 Members only
-          </div>
-        )}
-        {paid.map((l, i) => (
-          <LessonRow
-            key={l.id}
-            lesson={l}
-            index={(free.length || 0) + i + 1}
-            locked={paywallAt != null && i + free.length >= paywallAt}
-          />
-        ))}
-      </div>
-      {/* Paywall callout (rendered when paywall is set) */}
-      {paywallAt != null && course.paywall_enabled && ed.mode === 'edit' && (
+
+      {freeLessons.length > 0 && (
         <div
           style={{
-            position: 'relative',
-            marginTop: 24,
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: 18,
+            marginBottom: 40,
+          }}
+        >
+          {freeLessons.map((lesson, i) => {
+            const hue = thumbHues[i % thumbHues.length]
+            const isHovered = hovered === lesson.id
+            return (
+              <div
+                key={lesson.id}
+                onMouseEnter={() => setHovered(lesson.id)}
+                onMouseLeave={() => setHovered(null)}
+                style={{
+                  background: 'white',
+                  borderRadius: 'calc(20px * var(--radius-mul, 1))',
+                  overflow: 'hidden',
+                  border: '1px solid oklch(0.92 0.003 280)',
+                  cursor: 'pointer',
+                  transform: isHovered ? 'scale(1.02)' : 'scale(1)',
+                  boxShadow: isHovered
+                    ? '0 16px 48px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.06)'
+                    : '0 1px 2px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.05)',
+                  transition:
+                    'transform 250ms cubic-bezier(0.34,1.3,0.64,1), box-shadow 250ms ease',
+                }}
+              >
+                <EpisodeThumb
+                  lesson={lesson}
+                  index={i + 1}
+                  hue={hue}
+                  hovered={isHovered}
+                />
+                <EpisodeInfo
+                  course={course}
+                  lesson={lesson}
+                  index={i + 1}
+                  organizationSlug={organizationSlug}
+                />
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Paywall block */}
+      {course.paywall_enabled && lockedCount > 0 && (
+        <div
+          style={{
+            background: 'oklch(0.18 0.008 280)',
             borderRadius: 'calc(20px * var(--radius-mul, 1))',
             overflow: 'hidden',
-            background: 'oklch(0.18 0.008 280)',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.05), 0 12px 32px rgba(0,0,0,0.08)',
+            marginBottom: 72,
+            boxShadow:
+              '0 2px 6px rgba(0,0,0,0.06), 0 12px 32px rgba(0,0,0,0.08)',
+            position: 'relative',
           }}
         >
           <div
             style={{
-              position: 'absolute',
-              inset: 0,
-              background:
-                'radial-gradient(ellipse at 80% 50%, oklch(0.40 0.18 265 / 0.4), transparent 60%)',
-            }}
-          />
-          <div
-            style={{
-              position: 'relative',
               display: 'flex',
               alignItems: 'center',
-              gap: 18,
-              padding: '20px 24px',
+              gap: 20,
+              padding: '26px 28px',
+              borderBottom: '1px solid rgba(255,255,255,0.07)',
+              flexWrap: 'wrap',
+              background:
+                'radial-gradient(ellipse at 80% 50%, oklch(0.40 0.18 265 / 0.35), transparent 60%)',
             }}
           >
             <div
               style={{
-                width: 44,
-                height: 44,
+                width: 46,
+                height: 46,
                 borderRadius: 12,
                 background: 'rgba(255,255,255,0.10)',
                 border: '1px solid rgba(255,255,255,0.15)',
@@ -864,51 +761,142 @@ function FullLessonList({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: 20,
+                flexShrink: 0,
+                fontSize: 18,
               }}
             >
               🔒
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ flex: 1, minWidth: 200 }}>
               <EditText
                 path="paywall.title"
-                defaultValue={`Unlock all ${flatLessons.length} lessons`}
+                defaultValue={`${lockedCount} more ${plural(
+                  lockedCount,
+                  'lesson',
+                  'lessons',
+                )}, unlocked when you enroll`}
                 style={{
                   fontSize: 16,
                   fontWeight: 600,
                   letterSpacing: '-0.015em',
                   color: 'white',
                   display: 'block',
+                  marginBottom: 4,
                 }}
               />
               <EditText
                 path="paywall.subtitle"
-                defaultValue="Lifetime · Workshops · Certificate · 30-day refund"
+                defaultValue="Lifetime access · Workshops · Certificate · 30-day refund"
                 style={{
-                  fontSize: 12.5,
-                  color: 'rgba(255,255,255,0.65)',
-                  marginTop: 3,
+                  fontSize: 12,
+                  color: 'rgba(255,255,255,0.5)',
                   display: 'block',
+                  lineHeight: 1.4,
                 }}
               />
             </div>
-            <button
-              type="button"
+            <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 7,
-                padding: '12px 20px',
-                borderRadius: 999,
-                background: 'white',
-                color: 'oklch(0.18 0.008 280)',
-                fontSize: 13,
-                fontWeight: 600,
-                border: 'none',
+                gap: 18,
+                flexShrink: 0,
               }}
             >
-              <EditText path="paywall.cta" defaultValue="Enroll" /> →
-            </button>
+              {priceLabel && (
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-end',
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 24,
+                      fontWeight: 700,
+                      letterSpacing: '-0.025em',
+                      color: 'white',
+                    }}
+                  >
+                    {priceLabel}
+                  </span>
+                </div>
+              )}
+              <button
+                type="button"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '12px 20px',
+                  borderRadius: 999,
+                  background: 'white',
+                  color: 'oklch(0.18 0.008 280)',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  border: 'none',
+                  cursor: 'default',
+                  fontFamily: 'inherit',
+                }}
+              >
+                <EditText path="paywall.cta" defaultValue="Enroll" /> →
+              </button>
+            </div>
+          </div>
+
+          {/* Locked episode previews */}
+          <div
+            style={{
+              display: 'flex',
+              gap: 0,
+              padding: '20px 28px 22px',
+              overflowX: 'auto',
+              alignItems: 'flex-start',
+              background: 'rgba(255,255,255,0.03)',
+            }}
+          >
+            {paidLessons.slice(0, 5).map((lesson, i) => (
+              <LockedRowItem
+                key={lesson.id}
+                lesson={lesson}
+                index={freeLessons.length + i + 1}
+                hue={thumbHues[i % thumbHues.length]}
+              />
+            ))}
+            {lockedCount > 5 && (
+              <div
+                style={{
+                  flex: '0 0 auto',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 3,
+                  paddingLeft: 4,
+                  alignSelf: 'center',
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 20,
+                    fontWeight: 600,
+                    color: 'rgba(255,255,255,0.28)',
+                    letterSpacing: '-0.02em',
+                  }}
+                >
+                  +{lockedCount - 5}
+                </div>
+                <div
+                  style={{
+                    fontSize: 10.5,
+                    color: 'rgba(255,255,255,0.20)',
+                  }}
+                >
+                  more {plural(lockedCount - 5, 'lesson', 'lessons')}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -916,141 +904,403 @@ function FullLessonList({
   )
 }
 
-function LessonRow({
+function EpisodeThumb({
   lesson,
   index,
-  locked,
+  hue,
+  hovered,
 }: {
   lesson: CourseLessonRead
   index: number
-  locked: boolean
+  hue: number
+  hovered: boolean
 }) {
   return (
-    <div
+    <EditMedia
+      id={`lesson.${lesson.id}.thumb`}
+      label={`Episode ${index} thumbnail`}
       style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '14px 28px 14px 70px',
-        borderBottom: '1px solid oklch(0.945 0.003 280)',
-        gap: 16,
+        position: 'relative',
+        aspectRatio: '16 / 9',
+        background: '#111',
+        overflow: 'hidden',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
+      {/* Default placeholder gradient */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: `radial-gradient(ellipse at 30% 40%, oklch(0.42 0.10 ${hue}) 0%, oklch(0.18 0.05 ${
+            (hue + 25) % 360
+          }) 55%, oklch(0.07 0.01 280) 100%)`,
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          left: 10,
+          top: 10,
+          fontSize: 9,
+          fontWeight: 700,
+          letterSpacing: '0.10em',
+          color: 'rgba(255,255,255,0.80)',
+          background: 'rgba(0,0,0,0.40)',
+          backdropFilter: 'blur(8px)',
+          padding: '3px 7px',
+          borderRadius: 4,
+          zIndex: 4,
+        }}
+      >
+        EPISODE {index}
+      </div>
+      <div
+        style={{
+          position: 'absolute',
+          right: 10,
+          bottom: 10,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
+          fontSize: 11,
+          fontWeight: 500,
+          color: 'rgba(255,255,255,0.85)',
+          background: 'rgba(0,0,0,0.50)',
+          backdropFilter: 'blur(8px)',
+          padding: '3px 8px',
+          borderRadius: 5,
+          zIndex: 4,
+        }}
+      >
+        ⏱ <span>{fmtLessonTime(lesson.duration_seconds)}</span>
+      </div>
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'rgba(0,0,0,0.25)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          opacity: hovered ? 1 : 0,
+          transition: 'opacity 200ms ease',
+          zIndex: 3,
+        }}
+      >
         <div
           style={{
-            fontSize: 12,
-            fontWeight: 600,
-            color: 'oklch(0.66 0.006 280)',
-            fontVariantNumeric: 'tabular-nums',
+            width: 50,
+            height: 50,
+            borderRadius: '50%',
+            background: 'rgba(255,255,255,0.95)',
+            color: 'oklch(0.18 0.008 280)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingLeft: 3,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+            fontSize: 16,
           }}
         >
-          {String(index).padStart(2, '0')}
+          ▶
         </div>
-        <div>
-          <div
-            style={{
-              fontSize: 14,
-              fontWeight: 500,
-              color: 'oklch(0.18 0.008 280)',
-            }}
-          >
-            {lesson.title}
-          </div>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              fontSize: 11.5,
-              color: 'oklch(0.52 0.008 280)',
-              marginTop: 3,
-            }}
-          >
-            ⏱ <span>{fmtLessonTime(lesson.duration_seconds)}</span>
-            {!locked && lesson.is_free_preview && (
-              <span
-                style={{
-                  fontSize: 10,
-                  fontWeight: 600,
-                  letterSpacing: '0.06em',
-                  color: 'oklch(0.45 0.14 155)',
-                  border: '1px solid oklch(0.85 0.10 155)',
-                  padding: '1px 6px',
-                  borderRadius: 3,
-                  textTransform: 'uppercase',
-                }}
-              >
-                Free preview
+      </div>
+    </EditMedia>
+  )
+}
+
+function EpisodeInfo({
+  course,
+  lesson,
+  index,
+  organizationSlug,
+}: {
+  course: CourseRead
+  lesson: CourseLessonRead
+  index: number
+  organizationSlug?: string
+}) {
+  const ed = useEditor()
+  const descPath = `lesson.${lesson.id}.description`
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const generate = async () => {
+    if (!organizationSlug) {
+      setError('AI needs an organization context.')
+      return
+    }
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await fetch(
+        `/dashboard/${organizationSlug}/courses/landing-rewrite`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            kind: 'free_preview_description',
+            current: ed.t(descPath, ''),
+            hint: `Episode ${index} description`,
+            intent:
+              'Write a single 2-sentence description that hooks the reader. No quotes.',
+            context: {
+              courseTitle: course.title,
+              instructor: course.instructor_name,
+              lessonTitle: lesson.title,
+              lessonIndex: index,
+            },
+          }),
+        },
+      )
+      if (!res.ok || !res.body) {
+        setError(`Generation failed (${res.status}).`)
+        return
+      }
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let acc = ''
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        acc += decoder.decode(value, { stream: true })
+      }
+      ed.setText(descPath, acc.trim().replace(/^["']|["']$/g, ''))
+    } catch (e) {
+      setError((e as Error).message ?? 'Generation failed.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div style={{ padding: '16px 18px 18px' }}>
+      <div
+        style={{
+          fontSize: 10,
+          fontWeight: 600,
+          letterSpacing: '0.08em',
+          color: 'oklch(0.66 0.006 280)',
+          marginBottom: 4,
+          textTransform: 'uppercase',
+        }}
+      >
+        Episode {index}
+      </div>
+      <div
+        style={{
+          fontSize: 15.5,
+          fontWeight: 600,
+          letterSpacing: '-0.015em',
+          color: 'oklch(0.18 0.008 280)',
+          lineHeight: 1.25,
+          marginBottom: 7,
+        }}
+      >
+        {lesson.title}
+      </div>
+      <div style={{ position: 'relative', marginBottom: 10 }}>
+        <EditText
+          path={descPath}
+          defaultValue={lesson.description ?? ''}
+          multiline
+          style={{
+            fontSize: 12.5,
+            color: 'oklch(0.52 0.008 280)',
+            lineHeight: 1.6,
+            display: 'block',
+            minHeight: '1.6em',
+          }}
+        />
+        {ed.mode === 'edit' && (
+          <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              type="button"
+              onClick={generate}
+              disabled={busy}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                padding: '4px 9px',
+                borderRadius: 999,
+                background:
+                  'linear-gradient(135deg, oklch(0.96 0.04 280), oklch(0.95 0.05 320))',
+                border: '1px solid oklch(0.90 0.04 280)',
+                color: 'oklch(0.35 0.18 280)',
+                fontSize: 10.5,
+                fontWeight: 600,
+                cursor: busy ? 'wait' : 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              ✦ {busy ? 'Generating…' : 'Generate description'}
+            </button>
+            {error && (
+              <span style={{ fontSize: 10.5, color: 'oklch(0.55 0.18 25)' }}>
+                {error}
               </span>
             )}
           </div>
-        </div>
-      </div>
-      <div>
-        {locked ? (
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: '50%',
-              background: 'oklch(0.95 0.003 280)',
-              color: 'oklch(0.66 0.006 280)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            🔒
-          </div>
-        ) : (
-          <button
-            type="button"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 5,
-              padding: '7px 14px',
-              borderRadius: 999,
-              background: 'oklch(0.18 0.008 280)',
-              color: 'white',
-              fontSize: 12,
-              fontWeight: 500,
-              border: 'none',
-              cursor: 'default',
-            }}
-          >
-            ▶ Watch
-          </button>
         )}
+      </div>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 5,
+          fontSize: 11.5,
+          color: 'oklch(0.66 0.006 280)',
+          fontVariantNumeric: 'tabular-nums',
+        }}
+      >
+        ⏱ <span>{fmtLessonTime(lesson.duration_seconds)}</span>
       </div>
     </div>
   )
 }
 
-// ── Instructor ──────────────────────────────────────────────────────────────
+function LockedRowItem({
+  lesson,
+  index,
+  hue,
+}: {
+  lesson: CourseLessonRead
+  index: number
+  hue: number
+}) {
+  return (
+    <div
+      style={{
+        flex: '0 0 200px',
+        display: 'flex',
+        gap: 11,
+        alignItems: 'flex-start',
+        paddingRight: 20,
+        borderRight: '1px solid rgba(255,255,255,0.07)',
+        marginRight: 20,
+      }}
+    >
+      <div
+        style={{
+          position: 'relative',
+          width: 68,
+          height: 44,
+          borderRadius: 7,
+          overflow: 'hidden',
+          flexShrink: 0,
+          background: 'rgba(255,255,255,0.06)',
+        }}
+      >
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: `linear-gradient(150deg, oklch(0.80 0.06 ${hue}) 0%, oklch(0.88 0.02 280) 100%)`,
+          }}
+        />
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(0,0,0,0.25)',
+            color: 'rgba(255,255,255,0.85)',
+            fontSize: 11,
+          }}
+        >
+          🔒
+        </div>
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            fontSize: 9.5,
+            fontWeight: 600,
+            letterSpacing: '0.06em',
+            color: 'rgba(255,255,255,0.28)',
+            textTransform: 'uppercase',
+            marginBottom: 3,
+          }}
+        >
+          Episode {index}
+        </div>
+        <div
+          style={{
+            fontSize: 11.5,
+            fontWeight: 500,
+            color: 'rgba(255,255,255,0.45)',
+            lineHeight: 1.3,
+            marginBottom: 4,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {lesson.title}
+        </div>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            fontSize: 10.5,
+            color: 'rgba(255,255,255,0.24)',
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
+          ⏱ <span>{fmtLessonTime(lesson.duration_seconds)}</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Instructor (light) ──────────────────────────────────────────────────────
 
 function Instructor({ course }: { course: CourseRead }) {
   return (
-    <section style={{ padding: '64px 32px', maxWidth: 1180, margin: '0 auto' }}>
-      <NumberLabel n="04" label="YOUR INSTRUCTOR" />
+    <section
+      style={{
+        padding: '72px 32px 80px',
+        maxWidth: 1320,
+        margin: '0 auto',
+        fontFamily: FONT_VAR,
+      }}
+    >
+      <div
+        style={{
+          fontSize: 11,
+          letterSpacing: '0.18em',
+          fontWeight: 600,
+          color: 'oklch(0.66 0.006 280)',
+          marginBottom: 36,
+          textTransform: 'uppercase',
+        }}
+      >
+        <EditText path="instructor.eyebrow" defaultValue="YOUR INSTRUCTOR" />
+      </div>
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: '0.85fr 1fr',
-          gap: 48,
+          gridTemplateColumns: '0.75fr 1fr',
+          gap: 60,
           alignItems: 'center',
         }}
       >
         <EditMedia
           id="instructor.portrait"
-          label="portrait"
+          label="instructor portrait"
           style={{
             position: 'relative',
             aspectRatio: '4 / 5',
             borderRadius: 'calc(28px * var(--radius-mul, 1))',
             overflow: 'hidden',
-            boxShadow: '0 2px 6px rgba(0,0,0,0.06), 0 24px 60px rgba(0,0,0,0.12)',
+            boxShadow:
+              '0 2px 6px rgba(0,0,0,0.06), 0 24px 60px rgba(0,0,0,0.12)',
           }}
         >
           <div
@@ -1058,72 +1308,72 @@ function Instructor({ course }: { course: CourseRead }) {
               position: 'absolute',
               inset: 0,
               background:
-                'linear-gradient(160deg, oklch(0.45 0.10 35), oklch(0.20 0.05 65))',
+                'linear-gradient(160deg, oklch(0.42 0.09 35), oklch(0.18 0.05 65))',
             }}
           />
           <div
             style={{
               position: 'absolute',
-              left: 18,
-              top: 18,
+              left: 16,
+              top: 16,
               fontFamily: 'ui-monospace, monospace',
-              fontSize: 11,
-              color: 'rgba(255,255,255,0.5)',
+              fontSize: 10,
+              color: 'rgba(255,255,255,0.3)',
               zIndex: 3,
             }}
           >
             portrait placeholder
           </div>
-          <div
-            style={{
-              position: 'absolute',
-              left: 20,
-              bottom: 18,
-              color: 'white',
-              fontSize: 16,
-              fontWeight: 600,
-              letterSpacing: '-0.01em',
-              textShadow: '0 2px 12px rgba(0,0,0,0.6)',
-              zIndex: 3,
-            }}
-          >
-            <EditText
-              path="hero.instructor"
-              defaultValue={course.instructor_name ?? ''}
-            />
-          </div>
+          {course.instructor_name && (
+            <div
+              style={{
+                position: 'absolute',
+                left: 20,
+                bottom: 18,
+                color: 'white',
+                fontSize: 15,
+                fontWeight: 600,
+                letterSpacing: '-0.01em',
+                textShadow: '0 2px 12px rgba(0,0,0,0.7)',
+                zIndex: 3,
+              }}
+            >
+              {course.instructor_name}
+            </div>
+          )}
         </EditMedia>
+
         <div>
           <EditText
-            as="h2"
+            as="blockquote"
             path="instructor.quote"
-            defaultValue={'"Persuasion isn’t convincing. It’s giving someone a way to change their mind without losing face."'}
+            defaultValue={
+              '"Persuasion isn’t convincing. It’s giving someone a way to change their mind without losing face."'
+            }
             multiline
             style={{
-              fontSize: 'calc(clamp(28px, 3.4vw, 42px) * var(--type-scale, 1))',
+              fontSize: 'calc(clamp(22px, 2.6vw, 34px) * var(--type-scale, 1))',
               fontWeight: 'var(--h-weight, 500)',
-              letterSpacing: 'calc(var(--h-tracking, 0em) - 0.025em)',
-              lineHeight: 1.15,
-              margin: '0 0 16px',
+              fontStyle: 'var(--h-italic, normal)',
+              letterSpacing: 'calc(var(--h-tracking, 0em) - 0.022em)',
+              lineHeight: 1.2,
+              margin: '0 0 14px',
               color: 'oklch(0.18 0.008 280)',
-              fontFamily: 'var(--font-heading, ' + FONT_VAR + ')',
+              fontFamily: HEADING_VAR,
             }}
           />
-          <div
-            style={{
-              fontSize: 12.5,
-              color: 'oklch(0.52 0.008 280)',
-              letterSpacing: '0.04em',
-              marginBottom: 28,
-            }}
-          >
-            —{' '}
-            <EditText
-              path="hero.instructor"
-              defaultValue={course.instructor_name ?? ''}
-            />
-            , on lesson 02
-          </div>
+          {course.instructor_name && (
+            <div
+              style={{
+                fontSize: 12,
+                color: 'oklch(0.66 0.006 280)',
+                letterSpacing: '0.04em',
+                marginBottom: 28,
+              }}
+            >
+              — {course.instructor_name}
+            </div>
+          )}
           <EditText
             as="p"
             path="instructor.bio"
@@ -1131,32 +1381,44 @@ function Instructor({ course }: { course: CourseRead }) {
             multiline
             style={{
               fontSize: 15,
-              lineHeight: 1.65,
+              lineHeight: 1.7,
               color: 'oklch(0.32 0.008 280)',
-              margin: '0 0 32px',
-              maxWidth: 540,
+              margin: '0 0 36px',
+              maxWidth: 520,
             }}
           />
+
           <div
             style={{
               display: 'flex',
-              gap: 40,
-              paddingTop: 24,
+              gap: 0,
+              paddingTop: 28,
               borderTop: '1px solid oklch(0.92 0.003 280)',
+              alignItems: 'flex-start',
             }}
           >
             {[1, 2, 3].map((i) => (
               <div
                 key={i}
-                style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 5,
+                  flex: 1,
+                  paddingLeft: i === 1 ? 0 : 32,
+                  borderLeft:
+                    i === 1
+                      ? 'none'
+                      : '1px solid oklch(0.92 0.003 280)',
+                }}
               >
                 <EditText
                   path={`cred${i}.num`}
                   defaultValue={['3', '12', '02'][i - 1]}
                   style={{
-                    fontSize: 32,
+                    fontSize: 36,
                     fontWeight: 600,
-                    letterSpacing: '-0.025em',
+                    letterSpacing: '-0.03em',
                     color: 'oklch(0.18 0.008 280)',
                     fontVariantNumeric: 'tabular-nums',
                   }}
@@ -1164,7 +1426,7 @@ function Instructor({ course }: { course: CourseRead }) {
                 <EditText
                   path={`cred${i}.label`}
                   defaultValue={
-                    ['Published novels', 'Years in court', 'Spaire courses'][
+                    ['Published works', 'Years of practice', 'Spaire courses'][
                       i - 1
                     ]
                   }
@@ -1183,170 +1445,27 @@ function Instructor({ course }: { course: CourseRead }) {
   )
 }
 
-// ── Reviews ────────────────────────────────────────────────────────────────
-
-const REVIEW_DEFAULTS = [
-  {
-    name: 'Marisol Quan',
-    role: 'Communications lead',
-    text: "I came in skeptical and left rewriting an email I'd been avoiding for three weeks.",
-  },
-  {
-    name: 'Theo Vance',
-    role: 'Founder, early-stage',
-    text: 'The "three-beat" framing has quietly reorganized how I plan every memo.',
-  },
-  {
-    name: 'Nadia Okonkwo',
-    role: 'Litigator',
-    text: 'For legal writing — the chapter on concession is the most useful 10 minutes I’ve spent on rhetoric in years.',
-  },
-]
-
-function Reviews() {
-  return (
-    <section style={{ padding: '64px 32px', maxWidth: 1320, margin: '0 auto' }}>
-      <NumberLabel n="05" label="FROM STUDENTS" />
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'flex-end',
-          justifyContent: 'space-between',
-          marginBottom: 40,
-          gap: 24,
-          flexWrap: 'wrap',
-        }}
-      >
-        <h2
-          style={{
-            fontSize: 'calc(clamp(48px, 7vw, 88px) * var(--type-scale, 1))',
-            fontWeight: 'var(--h-weight, 600)',
-            letterSpacing: 'calc(var(--h-tracking, 0em) - 0.04em)',
-            lineHeight: 0.95,
-            margin: 0,
-            color: 'oklch(0.18 0.008 280)',
-            display: 'flex',
-            alignItems: 'baseline',
-            gap: 8,
-            fontFamily: 'var(--font-heading, ' + FONT_VAR + ')',
-          }}
-        >
-          Rated{' '}
-          <EditText
-            path="reviews.rating"
-            defaultValue="4.9"
-            style={{ fontStyle: 'italic', fontWeight: 300 }}
-          />
-          <span style={{ fontWeight: 300, color: 'oklch(0.66 0.006 280)' }}>/</span>
-          <span style={{ fontWeight: 300, color: 'oklch(0.66 0.006 280)' }}>5</span>
-        </h2>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
-        {REVIEW_DEFAULTS.map((r, i) => (
-          <div
-            key={i}
-            style={{
-              position: 'relative',
-              background: 'white',
-              border: '1px solid oklch(0.92 0.003 280)',
-              borderRadius: 'calc(20px * var(--radius-mul, 1))',
-              padding: 28,
-              boxShadow: '0 1px 2px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.06)',
-            }}
-          >
-            <div
-              style={{
-                fontSize: 80,
-                lineHeight: 0.6,
-                color: 'var(--accent, oklch(0.55 0.20 265))',
-                opacity: 0.3,
-                fontWeight: 700,
-                marginBottom: 4,
-              }}
-            >
-              "
-            </div>
-            <EditText
-              as="p"
-              path={`reviews.${i}.text`}
-              defaultValue={r.text}
-              multiline
-              style={{
-                fontSize: 15,
-                lineHeight: 1.6,
-                color: 'oklch(0.18 0.008 280)',
-                margin: '0 0 24px',
-                fontWeight: 400,
-              }}
-            />
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                paddingTop: 16,
-                borderTop: '1px solid oklch(0.92 0.003 280)',
-              }}
-            >
-              <div
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: '50%',
-                  background:
-                    'linear-gradient(135deg, var(--accent, oklch(0.55 0.20 265)), var(--accent-2, oklch(0.62 0.16 285)))',
-                  color: 'white',
-                  fontWeight: 600,
-                  fontSize: 13,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                {r.name[0]}
-              </div>
-              <div>
-                <EditText
-                  path={`reviews.${i}.name`}
-                  defaultValue={r.name}
-                  style={{
-                    fontSize: 13.5,
-                    fontWeight: 600,
-                    color: 'oklch(0.18 0.008 280)',
-                    display: 'block',
-                  }}
-                />
-                <EditText
-                  path={`reviews.${i}.role`}
-                  defaultValue={r.role}
-                  style={{
-                    fontSize: 12,
-                    color: 'oklch(0.52 0.008 280)',
-                    display: 'block',
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
-  )
-}
-
 // ── Final CTA ──────────────────────────────────────────────────────────────
 
-function FinalCta() {
+function FinalCta({
+  freeCount,
+  priceLabel,
+}: {
+  freeCount: number
+  priceLabel: string
+}) {
   return (
     <section
       style={{
         position: 'relative',
-        margin: '64px 20px 0',
-        padding: '88px 32px 80px',
+        margin: '0 20px 0',
+        padding: '88px 48px 80px',
         background: 'oklch(0.18 0.008 280)',
         borderRadius: 'calc(28px * var(--radius-mul, 1))',
         overflow: 'hidden',
         isolation: 'isolate',
+        textAlign: 'center',
+        fontFamily: FONT_VAR,
       }}
     >
       <EditMedia
@@ -1364,11 +1483,11 @@ function FinalCta() {
           style={{
             position: 'absolute',
             left: '-10%',
-            top: '-30%',
+            top: '-40%',
             width: '70%',
-            height: '120%',
+            height: '130%',
             background:
-              'radial-gradient(ellipse, oklch(0.45 0.18 265 / 0.55) 0%, transparent 60%)',
+              'radial-gradient(ellipse, oklch(0.45 0.18 265 / 0.50) 0%, transparent 60%)',
             filter: 'blur(40px)',
           }}
         />
@@ -1376,21 +1495,21 @@ function FinalCta() {
           style={{
             position: 'absolute',
             right: '-10%',
-            bottom: '-30%',
+            bottom: '-40%',
             width: '60%',
-            height: '120%',
+            height: '130%',
             background:
-              'radial-gradient(ellipse, oklch(0.50 0.15 25 / 0.35) 0%, transparent 60%)',
+              'radial-gradient(ellipse, oklch(0.50 0.15 25 / 0.32) 0%, transparent 60%)',
             filter: 'blur(40px)',
           }}
         />
       </EditMedia>
+
       <div
         style={{
           position: 'relative',
-          zIndex: 2,
-          textAlign: 'center',
-          maxWidth: 700,
+          zIndex: 1,
+          maxWidth: 640,
           margin: '0 auto',
         }}
       >
@@ -1399,20 +1518,20 @@ function FinalCta() {
             display: 'inline-flex',
             alignItems: 'center',
             gap: 8,
-            fontSize: 11,
-            letterSpacing: '0.18em',
+            fontSize: 10.5,
+            letterSpacing: '0.20em',
             fontWeight: 600,
-            color: 'rgba(255,255,255,0.7)',
+            color: 'rgba(255,255,255,0.45)',
             marginBottom: 28,
           }}
         >
           <span
             style={{
-              width: 6,
-              height: 6,
+              width: 5,
+              height: 5,
               borderRadius: '50%',
-              background: 'oklch(0.78 0.16 25)',
-              boxShadow: '0 0 12px oklch(0.78 0.16 25)',
+              background: 'oklch(0.72 0.16 25)',
+              boxShadow: '0 0 10px oklch(0.72 0.16 25)',
             }}
           />
           <EditText path="finalCta.label" defaultValue="READY WHEN YOU ARE" />
@@ -1423,24 +1542,33 @@ function FinalCta() {
           defaultValue="Start free. Continue when you're ready."
           multiline
           style={{
-            fontSize: 'calc(clamp(40px, 6vw, 72px) * var(--type-scale, 1))',
+            fontSize: 'calc(clamp(36px, 5vw, 64px) * var(--type-scale, 1))',
             fontWeight: 'var(--h-weight, 600)',
             letterSpacing: 'calc(var(--h-tracking, 0em) - 0.04em)',
             lineHeight: 1.02,
-            margin: '0 0 16px',
+            margin: '0 0 14px',
             color: 'white',
-            fontFamily: 'var(--font-heading, ' + FONT_VAR + ')',
+            fontFamily: HEADING_VAR,
           }}
         />
         <EditText
           as="p"
           path="finalCta.subtitle"
-          defaultValue="The first three lessons are free to preview. No card required."
+          defaultValue={
+            freeCount > 0
+              ? `The first ${freeCount} ${plural(
+                  freeCount,
+                  'lesson is',
+                  'lessons are',
+                )} free to preview. No card required.`
+              : 'Enroll any time. No card required to peek.'
+          }
           multiline
           style={{
-            fontSize: 16,
-            color: 'rgba(255,255,255,0.7)',
+            fontSize: 15,
+            color: 'rgba(255,255,255,0.50)',
             margin: '0 0 36px',
+            lineHeight: 1.55,
           }}
         />
         <div
@@ -1448,7 +1576,7 @@ function FinalCta() {
             display: 'flex',
             gap: 10,
             justifyContent: 'center',
-            marginBottom: 36,
+            marginBottom: 32,
             flexWrap: 'wrap',
           }}
         >
@@ -1458,18 +1586,19 @@ function FinalCta() {
               display: 'flex',
               alignItems: 'center',
               gap: 10,
-              padding: '14px 22px 14px 24px',
+              padding: '14px 24px',
               borderRadius: 999,
               background: 'white',
               color: 'oklch(0.18 0.008 280)',
               fontSize: 14,
               fontWeight: 600,
-              boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
               border: 'none',
+              boxShadow: '0 8px 28px rgba(0,0,0,0.35)',
               cursor: 'default',
+              fontFamily: 'inherit',
             }}
           >
-            <EditText path="finalCta.primary" defaultValue="Enroll for $79" /> →
+            Enroll{priceLabel ? ` for ${priceLabel}` : ''} →
           </button>
           <button
             type="button"
@@ -1481,11 +1610,13 @@ function FinalCta() {
               borderRadius: 999,
               background: 'rgba(255,255,255,0.10)',
               backdropFilter: 'blur(20px)',
-              border: '1px solid rgba(255,255,255,0.18)',
+              WebkitBackdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255,255,255,0.16)',
               color: 'white',
               fontSize: 13,
               fontWeight: 500,
               cursor: 'default',
+              fontFamily: 'inherit',
             }}
           >
             ▶{' '}
@@ -1505,14 +1636,19 @@ function FinalCta() {
 function Footer({ organizationName }: { organizationName: string }) {
   return (
     <footer
-      style={{ padding: '48px 32px', maxWidth: 1320, margin: '0 auto' }}
+      style={{
+        padding: '40px 32px',
+        maxWidth: 1320,
+        margin: '0 auto',
+        fontFamily: FONT_VAR,
+      }}
     >
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          paddingTop: 28,
+          paddingTop: 24,
           borderTop: '1px solid oklch(0.92 0.003 280)',
           flexWrap: 'wrap',
           gap: 16,
@@ -1521,7 +1657,7 @@ function Footer({ organizationName }: { organizationName: string }) {
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
           <span
             style={{
-              fontSize: 17,
+              fontSize: 16,
               fontWeight: 600,
               letterSpacing: '-0.02em',
               color: 'oklch(0.18 0.008 280)',
@@ -1530,7 +1666,7 @@ function Footer({ organizationName }: { organizationName: string }) {
             Spaire
           </span>
           <span style={{ fontSize: 11.5, color: 'oklch(0.66 0.006 280)' }}>
-            {organizationName}
+            {organizationName} · © {new Date().getFullYear()}
           </span>
         </div>
         <span style={{ fontSize: 12, color: 'oklch(0.66 0.006 280)' }}>
@@ -1540,3 +1676,4 @@ function Footer({ organizationName }: { organizationName: string }) {
     </footer>
   )
 }
+

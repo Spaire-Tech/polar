@@ -1,16 +1,18 @@
 'use client'
 
-// WizardLandingEditor — hosts the same EditorShell + EditableCourseLandingView
-// inside the onboarding wizard preview, before the course exists in the DB.
+// WizardLandingEditor — onboarding step that previews the same v2 landing
+// the dashboard customize tab shows. The shell mirrors CustomizeTab: no left
+// rail, no right inspector, only a slim top bar with Back / Create course.
+// All edits happen inline on the canvas.
 //
 // Because there's no course.id yet:
 //   • media uploads are buffered into a Map<slotId, File> alongside an object
 //     URL, so the canvas previews live but real S3 uploads are deferred.
 //   • the hero backdrop is seeded from the thumbnail uploaded earlier in
 //     onboarding (media.thumbFile) so the same image shows up here.
-//   • clicking Publish hands the host (CourseWizard) the buffered overrides +
-//     files; the host creates the course, uploads the files, and patches
-//     landing_overrides.
+//   • clicking Create course hands the host (CourseWizard) the buffered
+//     overrides + files; the host creates the course, uploads the files, and
+//     patches landing_overrides.
 
 import {
   CourseLessonRead,
@@ -25,7 +27,6 @@ import {
   mergeOverrides,
   type ResolvedOverrides,
 } from './EditorContext'
-import { EditorShell } from './EditorShell'
 
 export type WizardEditorOutline = {
   modules?: Array<
@@ -46,6 +47,12 @@ export type WizardEditorDraft = {
   name: string
   courseTitle: string
   desc: string
+  /** Price in minor units (cents). Optional — undefined renders no price. */
+  priceCents?: number | null
+  priceCurrency?: string
+  paywallEnabled?: boolean
+  /** Number of lessons before the paywall (free preview count). */
+  paywallPosition?: number | null
 }
 
 export type WizardFinalizationData = {
@@ -79,32 +86,25 @@ export function WizardLandingEditor({
   publishing?: boolean
   onBack?: () => void
 }) {
-  // Buffer File objects that we'll upload after the course is created.
   const pendingFilesRef = useRef<Map<string, File>>(new Map())
   const pendingHeroFileRef = useRef<File | null>(initialThumbFile)
   const pendingTrailerFileRef = useRef<File | null>(null)
   const objectUrlsRef = useRef<string[]>([])
 
-  // Seed the override blob: text comes from the AI-streamed landing JSON,
-  // hero backdrop comes from the onboarding-uploaded thumbnail (object URL).
   const initialOverrides = useMemo(() => {
     const merged = mergeOverrides(null)
-    // Seed hero/title/tagline from draft + landing
     const text = (initialLanding ?? {}) as Record<string, unknown>
     if (draft.courseTitle) merged.text['hero.title'] = draft.courseTitle
     if (typeof text.tagline === 'string') merged.text['hero.tagline'] = text.tagline
     if (typeof text.eyebrow === 'string') merged.text['hero.eyebrow'] = text.eyebrow
     if (typeof text.series_label === 'string') merged.text['hero.series_label'] = text.series_label
     if (typeof text.level === 'string') merged.text['hero.level'] = text.level
-    if (typeof text.curriculum_heading === 'string') merged.text['curriculum.heading'] = text.curriculum_heading
-    if (typeof text.curriculum_subheading === 'string') merged.text['curriculum.subheading'] = text.curriculum_subheading
     if (typeof text.lessons_heading === 'string') merged.text['lessons.heading'] = text.lessons_heading
     if (typeof text.lessons_subheading === 'string') merged.text['lessons.subheading'] = text.lessons_subheading
     if (typeof text.instructor_pull_quote === 'string') merged.text['instructor.quote'] = text.instructor_pull_quote
     if (typeof text.final_cta_label === 'string') merged.text['finalCta.label'] = text.final_cta_label
     if (typeof text.final_cta_title === 'string') merged.text['finalCta.title'] = text.final_cta_title
     if (typeof text.final_cta_subtitle === 'string') merged.text['finalCta.subtitle'] = text.final_cta_subtitle
-    if (typeof text.final_cta_primary === 'string') merged.text['finalCta.primary'] = text.final_cta_primary
     if (typeof text.final_cta_secondary === 'string') merged.text['finalCta.secondary'] = text.final_cta_secondary
     if (draft.name) merged.text['hero.instructor'] = draft.name
     if (initialThumbFile) {
@@ -131,21 +131,26 @@ export function WizardLandingEditor({
     overridesRef.current = next
   }
 
-  // In wizard mode, "uploads" produce object URLs and buffer the File for the
-  // host to upload after course creation.
   const wizardUpload = async (slotId: string, file: File): Promise<LandingMedia> => {
     const url = URL.createObjectURL(file)
     objectUrlsRef.current.push(url)
     pendingFilesRef.current.set(slotId, file)
-    if (slotId === 'hero.backdrop') pendingHeroFileRef.current = file
-    if (slotId === 'trailer.video') pendingTrailerFileRef.current = file
+    if (slotId === 'hero.backdrop' && file.type.startsWith('image')) {
+      pendingHeroFileRef.current = file
+    }
+    if (
+      slotId === 'trailer.video' ||
+      (slotId === 'hero.backdrop' && file.type.startsWith('video'))
+    ) {
+      pendingTrailerFileRef.current = file
+    }
     const kind: LandingMedia['kind'] = file.type.startsWith('video') ? 'video' : 'image'
     return { kind, url, name: file.name }
   }
 
   // Build a fake CourseRead so the EditableCourseLandingView (which expects a
-  // course shape) renders correctly. Lessons are derived from the streamed
-  // outline.
+  // course shape) renders correctly. Lessons + paywall flow from the wizard
+  // draft so the customize preview matches what's saved on Create.
   const fakeCourse: CourseRead = useMemo(() => {
     const flatLessons: CourseLessonRead[] = []
     let pos = 0
@@ -177,6 +182,10 @@ export function WizardLandingEditor({
         lessonIdx += 1
       }
     }
+    const paywallEnabled = !!draft.paywallEnabled
+    const paywallPosition = paywallEnabled
+      ? draft.paywallPosition ?? null
+      : null
     return {
       id: 'wizard-course',
       product_id: 'wizard-product',
@@ -184,9 +193,9 @@ export function WizardLandingEditor({
       title: draft.courseTitle || 'Untitled course',
       slug: null,
       course_type: 'evergreen',
-      paywall_enabled: false,
+      paywall_enabled: paywallEnabled,
       paywall_lesson_id: null,
-      paywall_position: null,
+      paywall_position: paywallPosition,
       ai_generated: true,
       description: draft.desc,
       thumbnail_url: null,
@@ -216,9 +225,32 @@ export function WizardLandingEditor({
       created_at: new Date().toISOString(),
       modified_at: null,
     }
-  }, [draft.courseTitle, draft.desc, draft.name, organization.id, outline.modules])
+  }, [
+    draft.courseTitle,
+    draft.desc,
+    draft.name,
+    draft.paywallEnabled,
+    draft.paywallPosition,
+    organization.id,
+    outline.modules,
+  ])
 
   const flatLessons = fakeCourse.modules[0].lessons
+
+  // Build a fake Product shape so the price renders consistently with the
+  // dashboard view. We only fill in what `formatProductPrice` needs.
+  const fakeProduct = useMemo(() => {
+    if (draft.priceCents == null) return undefined
+    return {
+      prices: [
+        {
+          amount_type: 'fixed' as const,
+          price_amount: draft.priceCents,
+          price_currency: draft.priceCurrency ?? 'usd',
+        },
+      ],
+    } as unknown as schemas['Product']
+  }, [draft.priceCents, draft.priceCurrency])
 
   return (
     <EditorProvider
@@ -227,38 +259,50 @@ export function WizardLandingEditor({
       uploadMedia={(file) => wizardUpload('__generic__', file)}
       uploaderForSlot={(slotId) => (file) => wizardUpload(slotId, file)}
     >
-      <EditorShell
-        breadcrumb={{ course: draft.courseTitle || 'Untitled course' }}
-        organizationSlug={organization.slug}
-        onSave={() => {}}
-        onPublish={() =>
-          onPublish({
-            overrides: overridesRef.current,
-            pendingFiles: pendingFilesRef.current,
-            pendingHeroFile: pendingHeroFileRef.current,
-            pendingTrailerFile: pendingTrailerFileRef.current,
-          })
-        }
-        saving={publishing}
-        dirty
-        hideSave
-        publishLabel="Create course"
-      >
-        <EditableCourseLandingView
-          course={fakeCourse}
-          organizationName={organization.name}
-          flatLessons={flatLessons}
-        />
-      </EditorShell>
-      {onBack && (
-        <button
-          type="button"
-          onClick={onBack}
-          className="fixed left-4 top-[72px] z-30 rounded-full border border-gray-200 bg-white px-3 py-1 text-[12px] font-medium text-gray-700 shadow-sm hover:bg-gray-50"
-        >
-          ← Back
-        </button>
-      )}
+      <div className="flex h-full flex-col bg-white">
+        <div className="flex h-12 flex-shrink-0 items-center justify-between gap-3 border-b border-gray-200 bg-white px-4">
+          <div className="flex min-w-0 items-center gap-2">
+            {onBack && (
+              <button
+                type="button"
+                onClick={onBack}
+                className="rounded-md px-2 py-1 text-[12px] font-medium text-gray-600 hover:bg-gray-50"
+              >
+                ← Back
+              </button>
+            )}
+            <span className="text-[12px] text-gray-500">Course landing</span>
+            <span className="text-[13px] text-gray-400">›</span>
+            <span className="truncate text-[13px] font-medium text-gray-900">
+              {draft.courseTitle || 'Untitled course'}
+            </span>
+          </div>
+          <button
+            type="button"
+            disabled={publishing}
+            onClick={() =>
+              onPublish({
+                overrides: overridesRef.current,
+                pendingFiles: pendingFilesRef.current,
+                pendingHeroFile: pendingHeroFileRef.current,
+                pendingTrailerFile: pendingTrailerFileRef.current,
+              })
+            }
+            className="rounded-md bg-gray-900 px-3.5 py-[7px] text-[12px] font-semibold text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {publishing ? 'Creating…' : 'Create course'}
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          <EditableCourseLandingView
+            course={fakeCourse}
+            organizationName={organization.name}
+            organizationSlug={organization.slug}
+            flatLessons={flatLessons}
+            product={fakeProduct}
+          />
+        </div>
+      </div>
     </EditorProvider>
   )
 }

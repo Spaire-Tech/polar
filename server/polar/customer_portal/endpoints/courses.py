@@ -490,6 +490,28 @@ async def get_course_landing(
     }
 
 
+@router.get(
+    "/by-product/{product_id}/landing",
+    summary="Get Course Landing Page by Product",
+)
+async def get_course_landing_by_product(
+    product_id: UUID,
+    auth_subject: auth.CustomerPortalUnionRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """Public landing data for a course, looked up by its product id.
+
+    Mirrors `/courses/{course_id}/landing` but lets the public storefront
+    page resolve the course without first needing the course id.
+    """
+    course = await course_service.get_by_product(session, product_id)
+    if course is None:
+        raise HTTPException(status_code=404, detail="Course not found")
+    return await get_course_landing(
+        course_id=course.id, auth_subject=auth_subject, session=session
+    )
+
+
 @router.post(
     "/{course_id}/lessons/{lesson_id}/can-access",
     summary="Check Lesson Access",

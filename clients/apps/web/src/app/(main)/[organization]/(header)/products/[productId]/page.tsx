@@ -2,7 +2,7 @@ import { getServerSideAPI } from '@/utils/client/serverside'
 import { getStorefrontOrNotFound } from '@/utils/storefront'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import { ProductDetailPage } from './ProductDetailPage'
+import { ProductLandingPage } from './ProductLandingPage'
 
 export async function generateMetadata(props: {
   params: Promise<{ organization: string; productId: string }>
@@ -72,7 +72,7 @@ export default async function Page(props: {
   const otherProducts = products.filter((p) => p.id !== product.id)
 
   return (
-    <ProductDetailPage
+    <ProductLandingPage
       organization={organization}
       product={product}
       otherProducts={otherProducts}
