@@ -7,16 +7,22 @@
 import {
   CourseRead,
   LandingMedia,
+  useCreateMuxUpload,
   useUpdateCourse,
+  useUpdateCourseLesson,
   useUploadCourseThumbnail,
   useUploadCourseTrailer,
   useUploadLandingMedia,
+  useUploadLessonThumbnail,
 } from '@/hooks/queries/courses'
 import { useProduct } from '@/hooks/queries/products'
 import { schemas } from '@spaire/client'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from '../../Toast/use-toast'
-import { EditableCourseLandingView } from './EditableCourseLandingView'
+import {
+  EditableCourseLandingView,
+  type LessonHandlers,
+} from './EditableCourseLandingView'
 import {
   EditorProvider,
   mergeOverrides,
@@ -34,7 +40,39 @@ export function CustomizeTab({
   const uploadThumb = useUploadCourseThumbnail()
   const uploadTrailer = useUploadCourseTrailer()
   const uploadMediaSlot = useUploadLandingMedia()
+  const updateLessonMut = useUpdateCourseLesson()
+  const uploadLessonThumbMut = useUploadLessonThumbnail()
+  const createMuxUpload = useCreateMuxUpload()
   const { data: product } = useProduct(course.product_id)
+
+  const lessonHandlers = useMemo<LessonHandlers>(
+    () => ({
+      updateLesson: async (lessonId, patch) => {
+        await updateLessonMut.mutateAsync({ lessonId, body: patch })
+      },
+      uploadThumbnail: async (lessonId, file) => {
+        await uploadLessonThumbMut.mutateAsync({ lessonId, file })
+      },
+      uploadVideo: async (lessonId, file, onProgress) => {
+        const { upload_url } = await createMuxUpload.mutateAsync(lessonId)
+        await new Promise<void>((resolve, reject) => {
+          const xhr = new XMLHttpRequest()
+          xhr.upload.onprogress = (ev) => {
+            if (!ev.lengthComputable || !onProgress) return
+            onProgress(Math.round((ev.loaded / ev.total) * 100))
+          }
+          xhr.onload = () =>
+            xhr.status >= 200 && xhr.status < 300
+              ? resolve()
+              : reject(new Error(`Upload failed (${xhr.status})`))
+          xhr.onerror = () => reject(new Error('Network error during upload'))
+          xhr.open('PUT', upload_url)
+          xhr.send(file)
+        })
+      },
+    }),
+    [updateLessonMut, uploadLessonThumbMut, createMuxUpload],
+  )
 
   const initial = useMemo(() => {
     const merged = mergeOverrides(course.landing_overrides ?? null)
@@ -172,6 +210,7 @@ export function CustomizeTab({
             organizationSlug={organization.slug}
             flatLessons={flatLessons}
             product={product}
+            lessonHandlers={lessonHandlers}
           />
         </div>
       </div>

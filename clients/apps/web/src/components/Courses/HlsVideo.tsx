@@ -9,12 +9,16 @@ export const HlsVideo = ({
   className,
   controls = true,
   autoPlay = false,
+  muted = false,
+  loop = false,
 }: {
   playbackId: string
   poster?: string | null
   className?: string
   controls?: boolean
   autoPlay?: boolean
+  muted?: boolean
+  loop?: boolean
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null)
 
@@ -53,6 +57,8 @@ export const HlsVideo = ({
       ref={videoRef}
       autoPlay={autoPlay}
       controls={controls}
+      muted={muted}
+      loop={loop}
       playsInline
       poster={poster ?? undefined}
       className={twMerge('h-full w-full', className)}
