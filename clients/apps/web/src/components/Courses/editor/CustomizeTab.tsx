@@ -1,9 +1,8 @@
 'use client'
 
-// Dashboard customize tab: hosts the EditorShell + EditableCourseLandingView,
-// wires uploads (hero → course.thumbnail_url, trailer → course.trailer_url,
-// everything else → POST /v1/courses/{id}/landing-media), and persists the
-// override blob into course.landing_overrides on Save / Publish.
+// Dashboard customize tab. The customize page opens fully — there's no left
+// rail and no right inspector — so all edits happen directly on the canvas.
+// Save/Publish lives in a slim top bar; the EditorProvider still tracks state.
 
 import {
   CourseRead,
@@ -13,6 +12,7 @@ import {
   useUploadCourseTrailer,
   useUploadLandingMedia,
 } from '@/hooks/queries/courses'
+import { useProduct } from '@/hooks/queries/products'
 import { schemas } from '@spaire/client'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from '../../Toast/use-toast'
@@ -22,7 +22,6 @@ import {
   mergeOverrides,
   type ResolvedOverrides,
 } from './EditorContext'
-import { EditorShell } from './EditorShell'
 
 export function CustomizeTab({
   course,
@@ -35,8 +34,8 @@ export function CustomizeTab({
   const uploadThumb = useUploadCourseThumbnail()
   const uploadTrailer = useUploadCourseTrailer()
   const uploadMediaSlot = useUploadLandingMedia()
+  const { data: product } = useProduct(course.product_id)
 
-  // Seed overrides from course; preload hero/trailer so the canvas shows them.
   const initial = useMemo(() => {
     const merged = mergeOverrides(course.landing_overrides ?? null)
     if (course.thumbnail_url && !merged.media['hero.backdrop']) {
@@ -52,7 +51,12 @@ export function CustomizeTab({
       }
     }
     return merged
-  }, [course.id, course.landing_overrides, course.thumbnail_url, course.trailer_url])
+  }, [
+    course.id,
+    course.landing_overrides,
+    course.thumbnail_url,
+    course.trailer_url,
+  ])
 
   const [overrides, setOverrides] = useState(initial)
   const [dirty, setDirty] = useState(false)
@@ -70,7 +74,6 @@ export function CustomizeTab({
     setDirty(true)
   }
 
-  // Hero upload writes to course.thumbnail_url so onboarding & customize stay in sync.
   const heroUpload = async (file: File): Promise<LandingMedia> => {
     const updated = await uploadThumb.mutateAsync({ courseId: course.id, file })
     return { kind: 'image', url: updated.thumbnail_url ?? '', name: file.name }
@@ -89,16 +92,22 @@ export function CustomizeTab({
     return { kind: res.kind, url: res.url, name: file.name }
   }
 
+  // The hero slot accepts both an image (thumbnail) and a video (trailer).
+  // Route the file to the right course column based on its mime type so
+  // the Netflix-style peek can play the trailer and then settle on the image.
+  const heroSlotUpload = async (file: File): Promise<LandingMedia> => {
+    if (file.type.startsWith('video/')) return trailerUpload(file)
+    return heroUpload(file)
+  }
+
   const uploaderForSlot = (slotId: string) => {
-    if (slotId === 'hero.backdrop') return heroUpload
+    if (slotId === 'hero.backdrop') return heroSlotUpload
     if (slotId === 'trailer.video') return trailerUpload
     return slotUpload
   }
 
   const handleSave = async () => {
     try {
-      // Strip the auto-seeded hero/trailer media from what we persist into
-      // landing_overrides so they live solely on the course columns.
       const persistedMedia = { ...overridesRef.current.media }
       delete persistedMedia['hero.backdrop']
       delete persistedMedia['trailer.video']
@@ -123,6 +132,8 @@ export function CustomizeTab({
     [course.modules],
   )
 
+  const saving = updateCourse.isPending
+
   return (
     <EditorProvider
       initialOverrides={overrides}
@@ -135,20 +146,62 @@ export function CustomizeTab({
         uploadMediaSlot.isPending
       }
     >
-      <EditorShell
-        breadcrumb={{ course: course.title ?? 'Untitled course' }}
-        organizationSlug={organization.slug}
-        onSave={handleSave}
-        onPublish={handleSave}
-        saving={updateCourse.isPending}
-        dirty={dirty}
-      >
-        <EditableCourseLandingView
-          course={course}
-          organizationName={organization.name}
-          flatLessons={flatLessons}
+      <div className="flex h-full flex-col bg-white">
+        <CustomizeBar
+          courseTitle={course.title ?? 'Untitled course'}
+          dirty={dirty}
+          saving={saving}
+          onSave={handleSave}
         />
-      </EditorShell>
+        <div className="flex-1 overflow-y-auto">
+          <EditableCourseLandingView
+            course={course}
+            organizationName={organization.name}
+            organizationSlug={organization.slug}
+            flatLessons={flatLessons}
+            product={product}
+          />
+        </div>
+      </div>
     </EditorProvider>
+  )
+}
+
+// Slim top bar — the only chrome in the customize page. No left rail, no
+// right inspector; every change happens inline on the canvas.
+function CustomizeBar({
+  courseTitle,
+  dirty,
+  saving,
+  onSave,
+}: {
+  courseTitle: string
+  dirty: boolean
+  saving: boolean
+  onSave: () => void
+}) {
+  return (
+    <div className="flex h-12 flex-shrink-0 items-center justify-between gap-3 border-b border-gray-200 bg-white px-4">
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="text-[12px] text-gray-500">Course landing</span>
+        <span className="text-[13px] text-gray-400">›</span>
+        <span className="truncate text-[13px] font-medium text-gray-900">
+          {courseTitle}
+        </span>
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="text-[11.5px] text-gray-400">
+          {dirty ? 'Unsaved changes' : saving ? '' : 'All changes saved'}
+        </span>
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={saving || !dirty}
+          className="rounded-md bg-gray-900 px-3.5 py-[7px] text-[12px] font-semibold text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {saving ? 'Saving…' : 'Save & publish'}
+        </button>
+      </div>
+    </div>
   )
 }
