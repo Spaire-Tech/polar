@@ -7,6 +7,7 @@ from sqlalchemy import select
 
 log = logging.getLogger(__name__)
 
+from polar.auth.models import is_customer, is_member
 from polar.course.repository import CourseLessonRepository
 from polar.course.schemas import (
     CourseLessonFlatRead,
@@ -420,16 +421,23 @@ async def get_course_progress(
 )
 async def get_course_landing(
     course_id: UUID,
-    auth_subject: auth.CustomerPortalUnionRead,
+    auth_subject: auth.CustomerPortalLandingRead,
     session: AsyncSession = Depends(get_db_session),
 ) -> dict:
     """Get course landing page data with public lesson list.
 
     This endpoint is used for both authenticated and unauthenticated users.
     For enrolled users, includes all lessons (with gating status).
-    For non-enrolled users, includes only free preview lessons.
+    For non-enrolled users (or anonymous visitors), includes only free
+    preview lessons.
     """
-    customer_id = get_customer_id(auth_subject)
+    # Anonymous visitors have no customer; only resolve a customer id when
+    # the auth subject is actually a Customer or Member.
+    customer_id = (
+        get_customer_id(auth_subject)
+        if is_customer(auth_subject) or is_member(auth_subject)
+        else None
+    )
     now = datetime.now(tz=UTC)
 
     # Load the course
@@ -510,7 +518,7 @@ async def get_course_landing(
 )
 async def get_course_landing_by_product(
     product_id: UUID,
-    auth_subject: auth.CustomerPortalUnionRead,
+    auth_subject: auth.CustomerPortalLandingRead,
     session: AsyncSession = Depends(get_db_session),
 ) -> dict:
     """Public landing data for a course, looked up by its product id.
