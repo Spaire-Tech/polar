@@ -456,17 +456,35 @@ async def get_course_landing(
         )
         has_access = True
     else:
-        # Not enrolled: show only free preview lessons
+        # Not enrolled: show preview lessons.
+        # Prefer explicit free-preview flags. If none are flagged but a paywall
+        # position exists, fallback to the first N published lessons so the
+        # landing page can still surface previews configured via paywall.
+        published_lessons = [
+            lesson
+            for module in course.modules
+            for lesson in module.lessons
+            if lesson.published
+        ]
+        published_lessons.sort(key=lambda lesson: lesson.position)
+
+        if not course.paywall_enabled:
+            preview_lessons = published_lessons
+        else:
+            preview_lessons = [
+                lesson for lesson in published_lessons if lesson.is_free_preview
+            ]
+            if not preview_lessons and course.paywall_position:
+                preview_lessons = published_lessons[: course.paywall_position]
+
         flat_lessons = []
-        for module in course.modules:
-            for lesson in module.lessons:
-                if lesson.published and lesson.is_free_preview:
-                    lesson_data = _serialize_lesson(lesson, set())
-                    lesson_data["locked"] = False
-                    lesson_data["locked_until"] = None
-                    lesson_data["description"] = lesson.description
-                    flat_lessons.append(lesson_data)
-        flat_lessons.sort(key=lambda l: l["position"])
+        for lesson in preview_lessons:
+            lesson_data = _serialize_lesson(lesson, set())
+            lesson_data["locked"] = False
+            lesson_data["locked_until"] = None
+            lesson_data["description"] = lesson.description
+            flat_lessons.append(lesson_data)
+
         has_access = False
 
     # Calculate total duration
