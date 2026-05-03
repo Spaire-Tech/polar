@@ -229,9 +229,24 @@ export const EditMedia = forwardRef<
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => {
         setHover(false)
-        setPopoverOpen(false)
+        // Note: do NOT close the popover on mouseleave. Opening the OS file
+        // picker moves the cursor outside the container, which would unmount
+        // the popover (and the <input>) before the user picks a file — the
+        // upload would silently never fire. The popover closes when an
+        // action completes or when the user clicks elsewhere.
       }}
     >
+      {/* File input is rendered unconditionally (outside the popover) so it
+          stays mounted while the OS file picker is open. */}
+      {ed.mode === 'edit' && !chromeless && (
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*,video/*"
+          hidden
+          onChange={onFile}
+        />
+      )}
       {/* Placeholder — hidden once media is uploaded so the upload is the
           only visual at the base of the stack. */}
       {!m && placeholder}
@@ -421,13 +436,6 @@ export const EditMedia = forwardRef<
               >
                 ⬆ Upload from device
               </button>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*,video/*"
-                hidden
-                onChange={onFile}
-              />
               <button type="button" style={popoverBtn} onClick={onPasteUrl}>
                 🔗 Paste URL
               </button>
