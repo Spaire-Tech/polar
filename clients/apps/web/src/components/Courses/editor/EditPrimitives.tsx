@@ -159,7 +159,14 @@ export const EditMedia = forwardRef<
   const [hover, setHover] = useState(false)
   const [popoverOpen, setPopoverOpen] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  // Reset load-error state whenever the media URL changes so a successful
+  // re-upload clears any prior failure banner.
+  useEffect(() => {
+    setLoadError(null)
+  }, [m?.url])
 
   const upload = ed.uploaderForSlot?.(id) ?? ed.uploadMedia
 
@@ -222,19 +229,104 @@ export const EditMedia = forwardRef<
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => {
         setHover(false)
-        setPopoverOpen(false)
+        // Note: do NOT close the popover on mouseleave. Opening the OS file
+        // picker moves the cursor outside the container, which would unmount
+        // the popover (and the <input>) before the user picks a file — the
+        // upload would silently never fire. The popover closes when an
+        // action completes or when the user clicks elsewhere.
       }}
     >
+      {/* File input is rendered unconditionally (outside the popover) so it
+          stays mounted while the OS file picker is open. */}
+      {ed.mode === 'edit' && !chromeless && (
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*,video/*"
+          hidden
+          onChange={onFile}
+        />
+      )}
       {/* Placeholder — hidden once media is uploaded so the upload is the
           only visual at the base of the stack. */}
       {!m && placeholder}
       {/* Uploaded media — host can render its own */}
       {m && (renderMedia ? renderMedia(m) : m.kind === 'image' ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={m.url} alt="" style={cover} />
+        <img
+          src={m.url}
+          alt=""
+          style={cover}
+          onLoad={() => {
+            // eslint-disable-next-line no-console
+            console.log('[EditMedia] image loaded', { id, url: m.url })
+          }}
+          onError={(e) => {
+            const img = e.currentTarget
+            // eslint-disable-next-line no-console
+            console.error('[EditMedia] image failed to load', {
+              id,
+              url: m.url,
+              naturalWidth: img.naturalWidth,
+              naturalHeight: img.naturalHeight,
+            })
+            setLoadError(
+              `Image blocked or unreachable. Open ${m.url} in a new tab to test.`,
+            )
+          }}
+        />
       ) : (
-        <video src={m.url} autoPlay muted loop playsInline style={cover} />
+        <video
+          src={m.url}
+          autoPlay
+          muted
+          loop
+          playsInline
+          style={cover}
+          onLoadedData={() => {
+            // eslint-disable-next-line no-console
+            console.log('[EditMedia] video loaded', { id, url: m.url })
+          }}
+          onError={(e) => {
+            const v = e.currentTarget
+            // eslint-disable-next-line no-console
+            console.error('[EditMedia] video failed to load', {
+              id,
+              url: m.url,
+              code: v.error?.code,
+              message: v.error?.message,
+              networkState: v.networkState,
+              readyState: v.readyState,
+            })
+            setLoadError(
+              `Video blocked or unreachable (code ${v.error?.code ?? '?'}).`,
+            )
+          }}
+        />
       ))}
+      {loadError && ed.mode === 'edit' && (
+        <div
+          style={{
+            position: 'absolute',
+            left: 12,
+            bottom: 12,
+            zIndex: 8,
+            maxWidth: 'calc(100% - 24px)',
+            padding: '8px 10px',
+            borderRadius: 8,
+            background: 'rgba(220, 38, 38, 0.95)',
+            color: 'white',
+            fontSize: 11,
+            fontWeight: 600,
+            lineHeight: 1.4,
+            fontFamily: 'Inter, system-ui, sans-serif',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+          }}
+          title={m?.url}
+        >
+          ⚠ {loadError}
+        </div>
+      )}
       {/* Always-on overlays (labels, controls) sit on top of the media. */}
       {children}
       {ed.mode === 'edit' && !chromeless && (
@@ -344,13 +436,6 @@ export const EditMedia = forwardRef<
               >
                 ⬆ Upload from device
               </button>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*,video/*"
-                hidden
-                onChange={onFile}
-              />
               <button type="button" style={popoverBtn} onClick={onPasteUrl}>
                 🔗 Paste URL
               </button>
