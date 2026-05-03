@@ -123,7 +123,12 @@ export const EditMedia = forwardRef<
     style?: CSSProperties
     className?: string
     fit?: 'cover' | 'contain'
-    /** Default visual when no media is uploaded. */
+    /** Default visual when no media is uploaded.
+     *  Pass via `placeholder` so it disappears once the user uploads media.
+     *  `children` always renders (use it for labels / controls that should
+     *  stay on top of the uploaded media). */
+    placeholder?: ReactNode
+    /** Always-rendered overlays (labels, controls) on top of the media. */
     children?: ReactNode
     /** When the host wants to render the uploaded media itself
      *  (e.g. the hero section that already has its own object-position),
@@ -136,7 +141,17 @@ export const EditMedia = forwardRef<
     chromeless?: boolean
   }
 >(function EditMedia(
-  { id, label, style, className, fit = 'cover', children, renderMedia, chromeless },
+  {
+    id,
+    label,
+    style,
+    className,
+    fit = 'cover',
+    placeholder,
+    children,
+    renderMedia,
+    chromeless,
+  },
   ref,
 ) {
   const ed = useEditor()
@@ -210,8 +225,9 @@ export const EditMedia = forwardRef<
         setPopoverOpen(false)
       }}
     >
-      {/* Default placeholder */}
-      {children}
+      {/* Placeholder — hidden once media is uploaded so the upload is the
+          only visual at the base of the stack. */}
+      {!m && placeholder}
       {/* Uploaded media — host can render its own */}
       {m && (renderMedia ? renderMedia(m) : m.kind === 'image' ? (
         // eslint-disable-next-line @next/next/no-img-element
@@ -219,6 +235,8 @@ export const EditMedia = forwardRef<
       ) : (
         <video src={m.url} autoPlay muted loop playsInline style={cover} />
       ))}
+      {/* Always-on overlays (labels, controls) sit on top of the media. */}
+      {children}
       {ed.mode === 'edit' && !chromeless && (
         <>
           <div

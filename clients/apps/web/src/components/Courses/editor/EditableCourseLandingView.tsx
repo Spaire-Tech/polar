@@ -1075,17 +1075,18 @@ function EpisodeThumb({
         background: '#111',
         overflow: 'hidden',
       }}
+      placeholder={
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: `radial-gradient(ellipse at 30% 40%, oklch(0.42 0.10 ${hue}) 0%, oklch(0.18 0.05 ${
+              (hue + 25) % 360
+            }) 55%, oklch(0.07 0.01 280) 100%)`,
+          }}
+        />
+      }
     >
-      {/* Default placeholder gradient */}
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background: `radial-gradient(ellipse at 30% 40%, oklch(0.42 0.10 ${hue}) 0%, oklch(0.18 0.05 ${
-            (hue + 25) % 360
-          }) 55%, oklch(0.07 0.01 280) 100%)`,
-        }}
-      />
       <div
         style={{
           position: 'absolute',
@@ -1452,28 +1453,32 @@ function Instructor({ course }: { course: CourseRead }) {
             boxShadow:
               '0 2px 6px rgba(0,0,0,0.06), 0 24px 60px rgba(0,0,0,0.12)',
           }}
+          placeholder={
+            <>
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background:
+                    'linear-gradient(160deg, oklch(0.42 0.09 35), oklch(0.18 0.05 65))',
+                }}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  left: 16,
+                  top: 16,
+                  fontFamily: 'ui-monospace, monospace',
+                  fontSize: 10,
+                  color: 'rgba(255,255,255,0.3)',
+                  zIndex: 3,
+                }}
+              >
+                portrait placeholder
+              </div>
+            </>
+          }
         >
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              background:
-                'linear-gradient(160deg, oklch(0.42 0.09 35), oklch(0.18 0.05 65))',
-            }}
-          />
-          <div
-            style={{
-              position: 'absolute',
-              left: 16,
-              top: 16,
-              fontFamily: 'ui-monospace, monospace',
-              fontSize: 10,
-              color: 'rgba(255,255,255,0.3)',
-              zIndex: 3,
-            }}
-          >
-            portrait placeholder
-          </div>
           {course.instructor_name && (
             <div
               style={{
@@ -1628,32 +1633,36 @@ function FinalCta({
           borderRadius: 'inherit',
           overflow: 'hidden',
         }}
-      >
-        <div
-          style={{
-            position: 'absolute',
-            left: '-10%',
-            top: '-40%',
-            width: '70%',
-            height: '130%',
-            background:
-              'radial-gradient(ellipse, oklch(0.45 0.18 265 / 0.50) 0%, transparent 60%)',
-            filter: 'blur(40px)',
-          }}
-        />
-        <div
-          style={{
-            position: 'absolute',
-            right: '-10%',
-            bottom: '-40%',
-            width: '60%',
-            height: '130%',
-            background:
-              'radial-gradient(ellipse, oklch(0.50 0.15 25 / 0.32) 0%, transparent 60%)',
-            filter: 'blur(40px)',
-          }}
-        />
-      </EditMedia>
+        placeholder={
+          <>
+            <div
+              style={{
+                position: 'absolute',
+                left: '-10%',
+                top: '-40%',
+                width: '70%',
+                height: '130%',
+                background:
+                  'radial-gradient(ellipse, oklch(0.45 0.18 265 / 0.50) 0%, transparent 60%)',
+                filter: 'blur(40px)',
+              }}
+            />
+            <div
+              style={{
+                position: 'absolute',
+                right: '-10%',
+                bottom: '-40%',
+                width: '60%',
+                height: '130%',
+                background:
+                  'radial-gradient(ellipse, oklch(0.50 0.15 25 / 0.32) 0%, transparent 60%)',
+                filter: 'blur(40px)',
+              }}
+            />
+          </>
+        }
+      />
+      {/* CTA backdrop EditMedia is self-closing — it has only a placeholder. */}
 
       <div
         style={{
