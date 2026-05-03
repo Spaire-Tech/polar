@@ -1,8 +1,11 @@
+import logging
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from fastapi import Depends, HTTPException
 from sqlalchemy import select
+
+log = logging.getLogger(__name__)
 
 from polar.course.repository import CourseLessonRepository
 from polar.course.schemas import (
@@ -469,6 +472,17 @@ async def get_course_landing(
     # Calculate total duration
     total_duration = sum(l.get("duration_seconds") or 0 for l in flat_lessons)
 
+    media = (course.landing_overrides or {}).get("media") or {}
+    log.info(
+        "course.landing served",
+        extra={
+            "course_id": str(course.id),
+            "thumbnail_url": course.thumbnail_url,
+            "trailer_url": course.trailer_url,
+            "media_slot_ids": sorted(media.keys()),
+            "lesson_ids": [l.get("id") for l in flat_lessons],
+        },
+    )
     return {
         "id": str(course.id),
         "title": course.title,

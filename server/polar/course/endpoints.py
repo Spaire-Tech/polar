@@ -219,6 +219,16 @@ async def update_course(
     course = await repo.get_readable_by_id(course_id, auth_subject)
     if course is None:
         raise HTTPException(status_code=404, detail="Course not found")
+    if course_update.landing_overrides is not None:
+        media = course_update.landing_overrides.get("media") or {}
+        log.info(
+            "course.update landing_overrides.media",
+            extra={
+                "course_id": str(course_id),
+                "media_slot_ids": sorted(media.keys()),
+                "media_count": len(media),
+            },
+        )
     course = await course_service.update(session, course, course_update)
     return _course_read(course)
 
@@ -562,7 +572,20 @@ async def upload_course_landing_media(
     path = f"course-landing-media/{course_id}/{uuid4().hex}.{ext}"
     s3 = S3Service(bucket=settings.S3_FILES_PUBLIC_BUCKET_NAME)
     s3.upload(data, path, content_type)
-    return {"url": s3.get_public_url(path), "kind": "video" if is_video else "image"}
+    public_url = s3.get_public_url(path)
+    log.info(
+        "course.landing_media uploaded",
+        extra={
+            "course_id": str(course_id),
+            "bucket": settings.S3_FILES_PUBLIC_BUCKET_NAME,
+            "path": path,
+            "content_type": content_type,
+            "size_bytes": len(data),
+            "public_url": public_url,
+            "kind": "video" if is_video else "image",
+        },
+    )
+    return {"url": public_url, "kind": "video" if is_video else "image"}
 
 
 @router.post(
