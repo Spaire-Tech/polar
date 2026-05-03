@@ -449,17 +449,19 @@ function TrailerModal({ url, onClose }: { url: string; onClose: () => void }) {
     }
     window.addEventListener('keydown', onKey)
 
-    const v = videoRef.current
-    const req =
-      (v as unknown as { requestFullscreen?: () => Promise<void> })
-        ?.requestFullscreen ??
-      (v as unknown as { webkitEnterFullscreen?: () => void })
-        ?.webkitEnterFullscreen
-    try {
-      const result = req?.call(v)
-      if (result instanceof Promise) result.catch(() => {})
-    } catch {
-      // ignored — user can use the in-player fullscreen control
+    const v = videoRef.current as
+      | (HTMLVideoElement & { webkitEnterFullscreen?: () => void })
+      | null
+    if (v) {
+      try {
+        if (typeof v.requestFullscreen === 'function') {
+          Promise.resolve(v.requestFullscreen()).catch(() => {})
+        } else if (typeof v.webkitEnterFullscreen === 'function') {
+          v.webkitEnterFullscreen()
+        }
+      } catch {
+        // ignored — user can use the in-player fullscreen control
+      }
     }
 
     const onFsChange = () => {
