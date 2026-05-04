@@ -4,6 +4,7 @@ import AttachMoneyOutlined from '@mui/icons-material/AttachMoneyOutlined'
 import CodeOutlined from '@mui/icons-material/CodeOutlined'
 import ExtensionOutlined from '@mui/icons-material/ExtensionOutlined'
 import HiveOutlined from '@mui/icons-material/HiveOutlined'
+import MailOutlined from '@mui/icons-material/MailOutlined'
 import PeopleAltOutlined from '@mui/icons-material/PeopleAltOutlined'
 import LayersOutlined from '@mui/icons-material/LayersOutlined'
 import ReceiptLongOutlined from '@mui/icons-material/ReceiptLongOutlined'
@@ -235,6 +236,16 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
     link: `/dashboard/${org?.slug}/sales`,
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/sales`)
+    },
+    if: true,
+  },
+  {
+    id: 'marketing',
+    title: 'Marketing',
+    icon: <MailOutlined fontSize="inherit" />,
+    link: `/dashboard/${org?.slug}/email-marketing`,
+    checkIsActive: (currentRoute: string): boolean => {
+      return currentRoute.startsWith(`/dashboard/${org?.slug}/email-marketing`)
     },
     if: true,
   },
