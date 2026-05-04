@@ -176,6 +176,10 @@ class OrganizationStorefrontSettings(Schema):
         "carousel",
         description="Visual layout for the links section",
     )
+    header_focal_point: str | None = Field(
+        None,
+        description="CSS object-position value for the cover image focal point (e.g. '50% 30%')",
+    )
 
 
 class OrganizationSubscribePromoteSettings(Schema):

@@ -38,7 +38,7 @@ export const Storefront = ({
 
   const enableReviews =
     'storefront_settings' in organization
-      ? ((organization.storefront_settings as any)?.enable_reviews ?? false)
+      ? (organization.storefront_settings?.enable_reviews ?? false)
       : false
 
   const thumbnailSize =
@@ -56,13 +56,13 @@ export const Storefront = ({
 
   const storefrontLinks: StorefrontLinkItem[] =
     'storefront_settings' in organization
-      ? (((organization.storefront_settings as any)?.storefront_links ??
+      ? ((organization.storefront_settings?.storefront_links ??
           []) as StorefrontLinkItem[])
       : []
 
   const linksPosition: 'before_products' | 'after_products' =
     'storefront_settings' in organization
-      ? (((organization.storefront_settings as any)?.links_position ??
+      ? ((organization.storefront_settings?.links_position ??
           'after_products') as 'before_products' | 'after_products')
       : 'after_products'
 
@@ -107,7 +107,9 @@ export const Storefront = ({
     return ordered
   }, [scopedProducts])
 
-  if (products.length === 0) {
+  const hasContent = products.length > 0 || storefrontLinks.length > 0
+
+  if (!hasContent) {
     return (
       <div className="flex flex-col items-center justify-center py-24">
         <HiveOutlined className="text-5xl text-gray-300" fontSize="large" />
@@ -127,9 +129,11 @@ export const Storefront = ({
         <StorefrontLinks links={storefrontLinks} />
       )}
 
-      <h2 className="text-lg font-semibold text-gray-900 md:hidden">
-        Products
-      </h2>
+      {products.length > 0 && (
+        <h2 className="text-lg font-semibold text-gray-900 md:hidden">
+          Products
+        </h2>
+      )}
 
       {sections.map((section) => (
         <section

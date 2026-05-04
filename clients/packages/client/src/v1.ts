@@ -21304,6 +21304,46 @@ export interface components {
        * @description Product IDs to feature on the storefront (empty = show all)
        */
       featured_product_ids?: string[]
+      /**
+       * Enable Reviews
+       * @description Allow customers to leave reviews on products
+       */
+      enable_reviews?: boolean
+      /**
+       * Show Card Products
+       * @description Show product images in the profile card
+       */
+      show_card_products?: boolean
+      /**
+       * Storefront Links
+       * @description Links displayed on the storefront
+       */
+      storefront_links?: {
+        id: string
+        url: string
+        title?: string | null
+        description?: string | null
+        image_url?: string | null
+        type?: 'standard' | 'embedded'
+        platform?: string | null
+      }[]
+      /**
+       * Links Position
+       * @description Where to show the links relative to products
+       * @enum {string}
+       */
+      links_position?: 'before_products' | 'after_products'
+      /**
+       * Links Layout
+       * @description Visual layout for the links section
+       * @enum {string}
+       */
+      links_layout?: 'classic' | 'carousel' | 'image_grid' | 'card'
+      /**
+       * Header Focal Point
+       * @description CSS object-position value for the cover image focal point (e.g. '50% 30%')
+       */
+      header_focal_point?: string | null
     }
     /**
      * StorefrontHeaderFileCreate

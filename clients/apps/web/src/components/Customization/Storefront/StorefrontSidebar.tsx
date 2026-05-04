@@ -426,10 +426,9 @@ export const StorefrontEditorForm = ({
   }
 
   // Storefront links
-  const storefrontLinks: StorefrontLinkItem[] = ((settings as any)
-    ?.storefront_links ?? []) as StorefrontLinkItem[]
-  const linksPosition: string =
-    (settings as any)?.links_position ?? 'after_products'
+  const storefrontLinks: StorefrontLinkItem[] =
+    (settings?.storefront_links as StorefrontLinkItem[] | undefined) ?? []
+  const linksPosition: string = settings?.links_position ?? 'after_products'
 
   // Avatar upload
   const avatarUrl = watch('avatar_url') ?? organization.avatar_url
@@ -542,7 +541,7 @@ export const StorefrontEditorForm = ({
   }
 
   const isEnabled = settings?.enabled ?? false
-  const headerFocalRaw = (settings as any)?.header_focal_point ?? '50% 50%'
+  const headerFocalRaw = settings?.header_focal_point ?? '50% 50%'
   const coverPos = parseFocalPosition(headerFocalRaw)
 
   // Drag-to-reposition cover image
@@ -570,7 +569,7 @@ export const StorefrontEditorForm = ({
     const newX = Math.max(0, Math.min(100, posX - (clientX - startX) * 0.5))
     const newY = Math.max(0, Math.min(100, posY - (clientY - startY) * 1.5))
     updateSetting(
-      'header_focal_point' as any,
+      'header_focal_point',
       `${newX.toFixed(1)}% ${newY.toFixed(1)}%`,
     )
   }
@@ -936,15 +935,9 @@ export const StorefrontEditorForm = ({
                 <Switch
                   checked={linksPosition === 'before_products'}
                   onCheckedChange={(v) =>
-                    setValue(
-                      'storefront_settings',
-                      {
-                        ...(settings ?? {}),
-                        links_position: v
-                          ? 'before_products'
-                          : 'after_products',
-                      } as any,
-                      { shouldDirty: true },
+                    updateSetting(
+                      'links_position',
+                      v ? 'before_products' : 'after_products',
                     )
                   }
                 />
@@ -1084,16 +1077,8 @@ export const StorefrontEditorForm = ({
               Show product images in card
             </span>
             <Switch
-              checked={
-                ((settings as any)?.show_card_products ?? true) as boolean
-              }
-              onCheckedChange={(v) =>
-                setValue(
-                  'storefront_settings',
-                  { ...(settings ?? {}), show_card_products: v } as any,
-                  { shouldDirty: true },
-                )
-              }
+              checked={settings?.show_card_products ?? true}
+              onCheckedChange={(v) => updateSetting('show_card_products', v)}
             />
           </div>
           <div className="flex items-center justify-between px-4 py-3.5 transition-colors hover:bg-gray-50">
@@ -1134,8 +1119,8 @@ export const StorefrontEditorForm = ({
               </p>
             </div>
             <Switch
-              checked={(settings as any)?.enable_reviews ?? false}
-              onCheckedChange={(v) => updateSetting('enable_reviews' as any, v)}
+              checked={settings?.enable_reviews ?? false}
+              onCheckedChange={(v) => updateSetting('enable_reviews', v)}
             />
           </div>
         </div>
