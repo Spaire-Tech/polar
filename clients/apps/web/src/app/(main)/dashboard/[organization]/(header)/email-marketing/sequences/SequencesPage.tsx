@@ -138,7 +138,7 @@ export default function SequencesPage({
   organization: schemas['Organization']
 }) {
   const sequencesQuery = useEmailSequences(organization.id, { page: 1, limit: 50 })
-  const sequences = sequencesQuery.data?.items ?? []
+  const sequences = (sequencesQuery.data as any)?.items ?? []
   const base = `/dashboard/${organization.slug}/email-marketing/sequences`
 
   return (
