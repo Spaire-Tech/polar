@@ -36,6 +36,7 @@ interface CourseLandingViewProps {
   paywallPosition: number | null
   flatLessons: FlatLesson[]
   landing: StoredLanding
+  landingMedia?: Record<string, { url: string; kind?: 'image' | 'video' } | null> | null
   onStart: () => void
   onTrailer: () => void
 }
@@ -57,6 +58,7 @@ export function CourseLandingView({
   paywallPosition,
   flatLessons,
   landing,
+  landingMedia,
   onStart,
   onTrailer,
 }: CourseLandingViewProps) {
@@ -142,9 +144,15 @@ export function CourseLandingView({
         instructor={instructor}
         draft={draft}
         landing={landing}
+        media={landingMedia ?? undefined}
       />
       <Reviews landing={landing} />
-      <FinalCta landing={landing} pricing={pricing} onCreate={onStart} />
+      <FinalCta
+        landing={landing}
+        pricing={pricing}
+        onCreate={onStart}
+        media={landingMedia ?? undefined}
+      />
 
       <footer
         style={{
