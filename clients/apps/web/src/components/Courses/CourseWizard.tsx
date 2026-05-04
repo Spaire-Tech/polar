@@ -3,9 +3,12 @@
 import { Upload } from '@/components/FileUpload/Upload'
 import {
   useCreateCourse,
+  useCreateMuxUpload,
   useUpdateCourse,
+  useUpdateCourseLesson,
   useUploadCourseTrailer,
   useUploadLandingMedia,
+  useUploadLessonThumbnail,
 } from '@/hooks/queries/courses'
 import { useCreateProduct } from '@/hooks/queries/products'
 import { ProductEditOrCreateForm } from '@/utils/product'
@@ -248,6 +251,9 @@ export default function CourseWizard({
 
   const uploadTrailerMutation = useUploadCourseTrailer()
   const uploadLandingMediaMutation = useUploadLandingMedia()
+  const updateLessonMutation = useUpdateCourseLesson()
+  const uploadLessonThumbMutation = useUploadLessonThumbnail()
+  const createMuxUploadMutation = useCreateMuxUpload()
 
   const finalizeCourse = async (wizardData?: WizardFinalizationData) => {
     const outline = partialOutline as PartialOutline | undefined
@@ -430,6 +436,85 @@ export default function CourseWizard({
           })
         } catch (e) {
           console.warn('[CourseWizard] landing_overrides patch failed:', e)
+        }
+
+        // Replay buffered per-lesson edits (title/description/thumbnail/video)
+        // onto the lessons that were just created. Wizard placeholder ids are
+        // "wizard-N" (1-indexed) and lessons come back in flat order, so we
+        // map by position.
+        if (wizardData.lessonEdits && wizardData.lessonEdits.size > 0) {
+          const flatCreatedLessons = (created.modules ?? []).flatMap(
+            (m) => m.lessons ?? [],
+          )
+          for (const [wizardId, edit] of wizardData.lessonEdits.entries()) {
+            const idxMatch = /^wizard-(\d+)$/.exec(wizardId)
+            if (!idxMatch) continue
+            const lessonIdx = parseInt(idxMatch[1], 10) - 1
+            const realLesson = flatCreatedLessons[lessonIdx]
+            if (!realLesson) continue
+            // Patch title/description if the user changed them.
+            if (edit.title !== undefined || edit.description !== undefined) {
+              try {
+                await updateLessonMutation.mutateAsync({
+                  lessonId: realLesson.id,
+                  body: {
+                    ...(edit.title !== undefined ? { title: edit.title } : {}),
+                    ...(edit.description !== undefined
+                      ? { description: edit.description }
+                      : {}),
+                  },
+                })
+              } catch (e) {
+                console.warn(
+                  '[CourseWizard] lesson patch failed for',
+                  wizardId,
+                  e,
+                )
+              }
+            }
+            // Upload thumbnail.
+            if (edit.thumbnailFile) {
+              try {
+                await uploadLessonThumbMutation.mutateAsync({
+                  lessonId: realLesson.id,
+                  file: edit.thumbnailFile,
+                })
+              } catch (e) {
+                console.warn(
+                  '[CourseWizard] lesson thumbnail upload failed for',
+                  wizardId,
+                  e,
+                )
+              }
+            }
+            // Kick off the Mux upload for the buffered video. We don't await
+            // Mux processing — the lesson record will pick up mux_playback_id
+            // when the webhook lands.
+            if (edit.videoFile) {
+              try {
+                const { upload_url } = await createMuxUploadMutation.mutateAsync(
+                  realLesson.id,
+                )
+                await new Promise<void>((resolve, reject) => {
+                  const xhr = new XMLHttpRequest()
+                  xhr.onload = () =>
+                    xhr.status >= 200 && xhr.status < 300
+                      ? resolve()
+                      : reject(new Error(`Upload failed (${xhr.status})`))
+                  xhr.onerror = () =>
+                    reject(new Error('Network error during upload'))
+                  xhr.open('PUT', upload_url)
+                  xhr.send(edit.videoFile)
+                })
+              } catch (e) {
+                console.warn(
+                  '[CourseWizard] lesson video upload failed for',
+                  wizardId,
+                  e,
+                )
+              }
+            }
+          }
         }
       }
 

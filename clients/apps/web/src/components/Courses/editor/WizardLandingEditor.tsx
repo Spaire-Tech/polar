@@ -21,12 +21,29 @@ import {
 } from '@/hooks/queries/courses'
 import { schemas } from '@spaire/client'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { EditableCourseLandingView } from './EditableCourseLandingView'
+import {
+  EditableCourseLandingView,
+  type LessonHandlers,
+} from './EditableCourseLandingView'
 import {
   EditorProvider,
   mergeOverrides,
   type ResolvedOverrides,
 } from './EditorContext'
+
+// Per-lesson edit state collected during the wizard preview. Real lesson
+// records don't exist yet (the course hasn't been created), so any edits the
+// user makes on the customize step are buffered here keyed by the wizard
+// placeholder id ("wizard-N", 1-indexed) and replayed by CourseWizard once
+// the lessons have actually been persisted.
+export type WizardLessonEdit = {
+  title?: string
+  description?: string | null
+  thumbnailFile?: File
+  thumbnailObjectUrl?: string
+  videoFile?: File
+  videoObjectUrl?: string
+}
 
 export type WizardEditorOutline = {
   modules?: Array<
@@ -63,6 +80,12 @@ export type WizardFinalizationData = {
   pendingHeroFile: File | null
   /** New trailer file the user picked inline. */
   pendingTrailerFile: File | null
+  /**
+   * Per-lesson edits the user made in the wizard preview, keyed by the wizard
+   * placeholder id ("wizard-N"). The host maps these back onto the real
+   * lesson records by position once the course is created.
+   */
+  lessonEdits: Map<string, WizardLessonEdit>
 }
 
 export function WizardLandingEditor({
@@ -121,6 +144,27 @@ export function WizardLandingEditor({
 
   const [overrides, setOverrides] = useState(initialOverrides)
   const overridesRef = useRef(overrides)
+
+  // Buffered per-lesson edits. Live state is what the preview reads; the ref
+  // is what the publish handler hands back to the host (so the user's latest
+  // changes are always captured even if a re-render is in flight).
+  const [lessonEdits, setLessonEdits] = useState<Map<string, WizardLessonEdit>>(
+    () => new Map(),
+  )
+  const lessonEditsRef = useRef(lessonEdits)
+
+  const updateLessonEdit = (
+    id: string,
+    patch: Partial<WizardLessonEdit>,
+  ) => {
+    setLessonEdits((prev) => {
+      const next = new Map(prev)
+      const merged = { ...(next.get(id) ?? {}), ...patch }
+      next.set(id, merged)
+      lessonEditsRef.current = next
+      return next
+    })
+  }
 
   useEffect(() => () => {
     objectUrlsRef.current.forEach((u) => URL.revokeObjectURL(u))
@@ -235,7 +279,55 @@ export function WizardLandingEditor({
     outline.modules,
   ])
 
-  const flatLessons = fakeCourse.modules[0].lessons
+  // Apply buffered edits on top of the placeholder lessons so the preview
+  // reflects them live (title, description, thumbnail). Video previews are
+  // wired through getLocalVideoUrl on the lesson handlers below.
+  const flatLessons = useMemo<CourseLessonRead[]>(() => {
+    const base = fakeCourse.modules[0].lessons
+    if (lessonEdits.size === 0) return base
+    return base.map((lesson) => {
+      const edit = lessonEdits.get(lesson.id)
+      if (!edit) return lesson
+      return {
+        ...lesson,
+        title: edit.title ?? lesson.title,
+        description:
+          edit.description !== undefined ? edit.description : lesson.description,
+        thumbnail_url: edit.thumbnailObjectUrl ?? lesson.thumbnail_url,
+      }
+    })
+  }, [fakeCourse.modules, lessonEdits])
+
+  const wizardLessonHandlers = useMemo<LessonHandlers>(
+    () => ({
+      updateLesson: async (lessonId, patch) => {
+        updateLessonEdit(lessonId, {
+          ...(patch.title !== undefined ? { title: patch.title } : {}),
+          ...(patch.description !== undefined
+            ? { description: patch.description }
+            : {}),
+        })
+      },
+      uploadThumbnail: async (lessonId, file) => {
+        const url = URL.createObjectURL(file)
+        objectUrlsRef.current.push(url)
+        updateLessonEdit(lessonId, {
+          thumbnailFile: file,
+          thumbnailObjectUrl: url,
+        })
+      },
+      uploadVideo: async (lessonId, file) => {
+        const url = URL.createObjectURL(file)
+        objectUrlsRef.current.push(url)
+        updateLessonEdit(lessonId, {
+          videoFile: file,
+          videoObjectUrl: url,
+        })
+      },
+      getLocalVideoUrl: (lessonId) => lessonEdits.get(lessonId)?.videoObjectUrl,
+    }),
+    [lessonEdits],
+  )
 
   // Build a fake Product shape so the price renders consistently with the
   // dashboard view. We only fill in what `formatProductPrice` needs.
@@ -286,6 +378,7 @@ export function WizardLandingEditor({
                 pendingFiles: pendingFilesRef.current,
                 pendingHeroFile: pendingHeroFileRef.current,
                 pendingTrailerFile: pendingTrailerFileRef.current,
+                lessonEdits: lessonEditsRef.current,
               })
             }
             className="rounded-md bg-gray-900 px-3.5 py-[7px] text-[12px] font-semibold text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-40"
@@ -300,6 +393,7 @@ export function WizardLandingEditor({
             organizationSlug={organization.slug}
             flatLessons={flatLessons}
             product={fakeProduct}
+            lessonHandlers={wizardLessonHandlers}
           />
         </div>
       </div>

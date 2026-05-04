@@ -16,9 +16,35 @@ import { CONFIG } from '@/utils/config'
 import type { schemas } from '@spaire/client'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from '../../Toast/use-toast'
+import { HlsVideo } from '../HlsVideo'
 import { useEditor } from './EditorContext'
 import { EditBlock, EditMedia, EditText } from './EditPrimitives'
 import { HeroMedia } from './HeroMedia'
+
+// Imperative handlers wired by the host (CustomizeTab) so episode tiles can
+// persist edits to the actual course lesson — title, description, thumbnail
+// and video — instead of only updating landing_overrides. When omitted (e.g.
+// in the wizard preview) the tiles fall back to the legacy slot-based
+// EditMedia flow that just stores into landing_overrides.
+export type LessonHandlers = {
+  updateLesson: (
+    lessonId: string,
+    patch: { title?: string; description?: string | null },
+  ) => Promise<void>
+  uploadThumbnail: (lessonId: string, file: File) => Promise<void>
+  uploadVideo: (
+    lessonId: string,
+    file: File,
+    onProgress?: (pct: number) => void,
+  ) => Promise<void>
+  /**
+   * Optional escape hatch for wizard-style hosts that buffer the uploaded
+   * video locally (no Mux playback id yet). When provided, the episode tile
+   * will use a plain <video src=...> for the hover peek + lightbox so the
+   * user still sees what they uploaded.
+   */
+  getLocalVideoUrl?: (lessonId: string) => string | undefined
+}
 
 const FONT_VAR = 'var(--font-body, "Poppins", system-ui, sans-serif)'
 const HEADING_VAR = 'var(--font-heading, ' + FONT_VAR + ')'
@@ -70,6 +96,7 @@ export type EditableLandingProps = {
   organizationSlug?: string
   flatLessons: CourseLessonRead[]
   product?: schemas['Product']
+  lessonHandlers?: LessonHandlers
 }
 
 // Trigger checkout for the course product. Mirrors ProductDetailPage.handleBuy
@@ -109,6 +136,7 @@ export function EditableCourseLandingView({
   organizationSlug,
   flatLessons,
   product,
+  lessonHandlers,
 }: EditableLandingProps) {
   const ed = useEditor()
   const priceLabel = formatProductPrice(product)
@@ -152,6 +180,7 @@ export function EditableCourseLandingView({
           onEnroll={enroll}
           enrolling={enrolling}
           canEnroll={canEnroll}
+          lessonHandlers={lessonHandlers}
         />
       ),
     },
@@ -826,6 +855,7 @@ function EpisodeGrid({
   onEnroll,
   enrolling,
   canEnroll,
+  lessonHandlers,
 }: {
   course: CourseRead
   freeLessons: CourseLessonRead[]
@@ -836,7 +866,10 @@ function EpisodeGrid({
   onEnroll: () => void
   enrolling: boolean
   canEnroll: boolean
+  lessonHandlers?: LessonHandlers
 }) {
+  const [openLessonId, setOpenLessonId] = useState<string | null>(null)
+  const openLesson = freeLessons.find((l) => l.id === openLessonId) ?? null
   const thumbHues = [35, 195, 285, 145, 25, 320]
   const [hovered, setHovered] = useState<string | null>(null)
 
@@ -922,10 +955,13 @@ function EpisodeGrid({
                   index={i + 1}
                   hue={hue}
                   hovered={isHovered}
+                  lessonHandlers={lessonHandlers}
+                  onOpen={() => setOpenLessonId(lesson.id)}
                 />
                 <EpisodeInfo
                   course={course}
                   lesson={lesson}
+                  lessonHandlers={lessonHandlers}
                   index={i + 1}
                   organizationSlug={organizationSlug}
                 />
@@ -1119,7 +1155,127 @@ function EpisodeGrid({
           </div>
         </div>
       )}
+      {openLesson && (
+        <LessonLightbox
+          lesson={openLesson}
+          onClose={() => setOpenLessonId(null)}
+          localVideoUrl={lessonHandlers?.getLocalVideoUrl?.(openLesson.id)}
+        />
+      )}
     </section>
+  )
+}
+
+function LessonLightbox({
+  lesson,
+  onClose,
+  localVideoUrl,
+}: {
+  lesson: CourseLessonRead
+  onClose: () => void
+  localVideoUrl?: string
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    document.body.style.overflow = 'hidden'
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = ''
+    }
+  }, [onClose])
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 1000,
+        background: 'rgba(0,0,0,0.92)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 32,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: '100%',
+          maxWidth: 1100,
+          aspectRatio: '16 / 9',
+          background: '#000',
+          borderRadius: 16,
+          overflow: 'hidden',
+          position: 'relative',
+          boxShadow: '0 24px 64px rgba(0,0,0,0.6)',
+        }}
+      >
+        {lesson.mux_playback_id && lesson.mux_status === 'ready' ? (
+          <HlsVideo
+            playbackId={lesson.mux_playback_id}
+            poster={lesson.thumbnail_url}
+            controls
+            autoPlay
+          />
+        ) : localVideoUrl ? (
+          <video
+            src={localVideoUrl}
+            poster={lesson.thumbnail_url ?? undefined}
+            controls
+            autoPlay
+            playsInline
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
+              background: '#000',
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'rgba(255,255,255,0.6)',
+              fontSize: 14,
+            }}
+          >
+            {lesson.mux_upload_id
+              ? 'Video is still processing — check back in a moment.'
+              : 'No video uploaded for this lesson yet.'}
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          style={{
+            position: 'absolute',
+            top: 12,
+            right: 12,
+            width: 36,
+            height: 36,
+            borderRadius: 999,
+            background: 'rgba(0,0,0,0.55)',
+            color: 'white',
+            border: '1px solid rgba(255,255,255,0.15)',
+            fontSize: 18,
+            cursor: 'pointer',
+          }}
+        >
+          ✕
+        </button>
+      </div>
+    </div>
   )
 }
 
@@ -1128,34 +1284,76 @@ function EpisodeThumb({
   index,
   hue,
   hovered,
+  lessonHandlers,
+  onOpen,
 }: {
   lesson: CourseLessonRead
   index: number
   hue: number
   hovered: boolean
+  lessonHandlers?: LessonHandlers
+  onOpen: () => void
+}) {
+  const ed = useEditor()
+
+  // In edit mode with no real lesson handlers (e.g. the wizard preview where
+  // lesson ids are placeholders), fall back to the original slot-based
+  // EditMedia tile so authors can still drop in a thumbnail. Preview mode
+  // always uses the real-lesson display so the public landing renders the
+  // actual thumbnail + Mux peek video.
+  if (ed.mode === 'edit' && !lessonHandlers) {
+    return (
+      <EditMedia
+        id={`lesson.${lesson.id}.thumb`}
+        label={`Episode ${index} thumbnail`}
+        style={{
+          position: 'relative',
+          aspectRatio: '16 / 9',
+          background: '#111',
+          overflow: 'hidden',
+        }}
+        placeholder={
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: `radial-gradient(ellipse at 30% 40%, oklch(0.42 0.10 ${hue}) 0%, oklch(0.18 0.05 ${
+                (hue + 25) % 360
+              }) 55%, oklch(0.07 0.01 280) 100%)`,
+            }}
+          />
+        }
+      >
+        <EpisodeThumbBadges
+          index={index}
+          durationSeconds={lesson.duration_seconds}
+        />
+      </EditMedia>
+    )
+  }
+
+  return (
+    <RealLessonEpisodeThumb
+      lesson={lesson}
+      index={index}
+      hue={hue}
+      hovered={hovered}
+      isEditMode={ed.mode === 'edit'}
+      lessonHandlers={lessonHandlers}
+      onOpen={onOpen}
+    />
+  )
+}
+
+function EpisodeThumbBadges({
+  index,
+  durationSeconds,
+}: {
+  index: number
+  durationSeconds: number | null | undefined
 }) {
   return (
-    <EditMedia
-      id={`lesson.${lesson.id}.thumb`}
-      label={`Episode ${index} thumbnail`}
-      style={{
-        position: 'relative',
-        aspectRatio: '16 / 9',
-        background: '#111',
-        overflow: 'hidden',
-      }}
-      placeholder={
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            background: `radial-gradient(ellipse at 30% 40%, oklch(0.42 0.10 ${hue}) 0%, oklch(0.18 0.05 ${
-              (hue + 25) % 360
-            }) 55%, oklch(0.07 0.01 280) 100%)`,
-          }}
-        />
-      }
-    >
+    <>
       <div
         style={{
           position: 'absolute',
@@ -1192,41 +1390,340 @@ function EpisodeThumb({
           zIndex: 4,
         }}
       >
-        ⏱ <span>{fmtLessonTime(lesson.duration_seconds)}</span>
+        ⏱ <span>{fmtLessonTime(durationSeconds ?? null)}</span>
       </div>
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background: 'rgba(0,0,0,0.25)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          opacity: hovered ? 1 : 0,
-          transition: 'opacity 200ms ease',
-          zIndex: 3,
-        }}
-      >
+    </>
+  )
+}
+
+// Episode thumb wired to the actual lesson record. Owns:
+//   • Thumbnail + Mux video peek (fade in muted on hover, max 10s)
+//   • Click-to-open lightbox (in preview mode only)
+//   • Edit affordances (Replace thumbnail / Replace video) in edit mode
+function RealLessonEpisodeThumb({
+  lesson,
+  index,
+  hue,
+  hovered,
+  isEditMode,
+  lessonHandlers,
+  onOpen,
+}: {
+  lesson: CourseLessonRead
+  index: number
+  hue: number
+  hovered: boolean
+  isEditMode: boolean
+  lessonHandlers?: LessonHandlers
+  onOpen: () => void
+}) {
+  const peekSeconds = 10
+  const [peekActive, setPeekActive] = useState(false)
+  const peekTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [thumbBusy, setThumbBusy] = useState(false)
+  const [videoBusy, setVideoBusy] = useState(false)
+  const [videoProgress, setVideoProgress] = useState<number | null>(null)
+  const thumbInputRef = useRef<HTMLInputElement>(null)
+  const videoInputRef = useRef<HTMLInputElement>(null)
+
+  const playbackId =
+    lesson.mux_playback_id && lesson.mux_status === 'ready'
+      ? lesson.mux_playback_id
+      : null
+  const localVideoUrl = lessonHandlers?.getLocalVideoUrl?.(lesson.id) ?? null
+  const hasPeekVideo = !!playbackId || !!localVideoUrl
+  const thumbnailUrl = lesson.thumbnail_url ?? null
+
+  // Drive the hover-triggered peek. Re-evaluate when `hovered` flips.
+  useEffect(() => {
+    if (peekTimerRef.current) {
+      clearTimeout(peekTimerRef.current)
+      peekTimerRef.current = null
+    }
+    if (hovered && hasPeekVideo) {
+      setPeekActive(true)
+      peekTimerRef.current = setTimeout(
+        () => setPeekActive(false),
+        peekSeconds * 1000,
+      )
+    } else {
+      setPeekActive(false)
+    }
+    return () => {
+      if (peekTimerRef.current) clearTimeout(peekTimerRef.current)
+    }
+  }, [hovered, hasPeekVideo])
+
+  const onPickThumb = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file || !lessonHandlers) return
+    setThumbBusy(true)
+    try {
+      await lessonHandlers.uploadThumbnail(lesson.id, file)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      toast({ title: 'Thumbnail upload failed', description: message })
+    } finally {
+      setThumbBusy(false)
+    }
+  }
+
+  const onPickVideo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file || !lessonHandlers) return
+    setVideoBusy(true)
+    setVideoProgress(0)
+    try {
+      await lessonHandlers.uploadVideo(lesson.id, file, (pct) =>
+        setVideoProgress(pct),
+      )
+      toast({
+        title: 'Video uploaded',
+        description: 'Mux is processing — preview will appear shortly.',
+      })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      toast({ title: 'Video upload failed', description: message })
+    } finally {
+      setVideoBusy(false)
+      setVideoProgress(null)
+    }
+  }
+
+  const placeholder = (
+    <div
+      style={{
+        position: 'absolute',
+        inset: 0,
+        background: `radial-gradient(ellipse at 30% 40%, oklch(0.42 0.10 ${hue}) 0%, oklch(0.18 0.05 ${
+          (hue + 25) % 360
+        }) 55%, oklch(0.07 0.01 280) 100%)`,
+        zIndex: 0,
+      }}
+    />
+  )
+
+  return (
+    <div
+      onClick={() => {
+        if (isEditMode) return
+        onOpen()
+      }}
+      style={{
+        position: 'relative',
+        aspectRatio: '16 / 9',
+        background: '#111',
+        overflow: 'hidden',
+        cursor: isEditMode ? 'default' : 'pointer',
+      }}
+    >
+      {!thumbnailUrl && !playbackId && placeholder}
+      {thumbnailUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={thumbnailUrl}
+          alt=""
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            opacity: peekActive ? 0 : 1,
+            transition: 'opacity 400ms ease',
+            zIndex: 1,
+          }}
+        />
+      )}
+      {hasPeekVideo && peekActive && (
         <div
           style={{
-            width: 50,
-            height: 50,
-            borderRadius: '50%',
-            background: 'rgba(255,255,255,0.95)',
-            color: 'oklch(0.18 0.008 280)',
+            position: 'absolute',
+            inset: 0,
+            zIndex: 2,
+            opacity: 1,
+            transition: 'opacity 400ms ease',
+            pointerEvents: 'none',
+          }}
+        >
+          {playbackId ? (
+            <HlsVideo
+              playbackId={playbackId}
+              poster={thumbnailUrl}
+              controls={false}
+              autoPlay
+              muted
+              loop
+              className="h-full w-full object-cover"
+            />
+          ) : localVideoUrl ? (
+            <video
+              src={localVideoUrl}
+              poster={thumbnailUrl ?? undefined}
+              autoPlay
+              muted
+              loop
+              playsInline
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+              }}
+            />
+          ) : null}
+        </div>
+      )}
+
+      <EpisodeThumbBadges
+        index={index}
+        durationSeconds={lesson.duration_seconds}
+      />
+
+      {/* Play overlay (preview mode only) */}
+      {!isEditMode && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'rgba(0,0,0,0.25)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            paddingLeft: 3,
-            boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-            fontSize: 16,
+            opacity: hovered && !peekActive ? 1 : 0,
+            transition: 'opacity 200ms ease',
+            zIndex: 3,
+            pointerEvents: 'none',
           }}
         >
-          ▶
+          <div
+            style={{
+              width: 50,
+              height: 50,
+              borderRadius: '50%',
+              background: 'rgba(255,255,255,0.95)',
+              color: 'oklch(0.18 0.008 280)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              paddingLeft: 3,
+              boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+              fontSize: 16,
+            }}
+          >
+            ▶
+          </div>
         </div>
-      </div>
-    </EditMedia>
+      )}
+
+      {/* Edit affordances */}
+      {isEditMode && lessonHandlers && (
+        <>
+          <input
+            ref={thumbInputRef}
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={onPickThumb}
+          />
+          <input
+            ref={videoInputRef}
+            type="file"
+            accept="video/*"
+            hidden
+            onChange={onPickVideo}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              border: hovered
+                ? '2px dashed rgba(99,102,241,0.85)'
+                : '2px dashed transparent',
+              borderRadius: 'inherit',
+              pointerEvents: 'none',
+              zIndex: 5,
+              transition: 'border-color 150ms ease',
+            }}
+          />
+          {hovered && (
+            <div
+              style={{
+                position: 'absolute',
+                right: 10,
+                top: 10,
+                zIndex: 6,
+                display: 'flex',
+                gap: 6,
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => thumbInputRef.current?.click()}
+                disabled={thumbBusy}
+                style={lessonPillBtn}
+              >
+                {thumbBusy
+                  ? 'Uploading…'
+                  : thumbnailUrl
+                    ? 'Replace thumbnail'
+                    : 'Add thumbnail'}
+              </button>
+              <button
+                type="button"
+                onClick={() => videoInputRef.current?.click()}
+                disabled={videoBusy}
+                style={lessonPillBtn}
+              >
+                {videoBusy
+                  ? videoProgress != null
+                    ? `Uploading ${videoProgress}%`
+                    : 'Uploading…'
+                  : playbackId
+                    ? 'Replace video'
+                    : 'Add video'}
+              </button>
+            </div>
+          )}
+          {lesson.mux_upload_id && !playbackId && (
+            <div
+              style={{
+                position: 'absolute',
+                left: 10,
+                bottom: 10,
+                zIndex: 6,
+                fontSize: 10.5,
+                fontWeight: 600,
+                color: 'white',
+                background: 'rgba(0,0,0,0.6)',
+                padding: '4px 8px',
+                borderRadius: 999,
+              }}
+            >
+              ◐ Processing video…
+            </div>
+          )}
+        </>
+      )}
+    </div>
   )
+}
+
+const lessonPillBtn: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 6,
+  padding: '7px 12px',
+  borderRadius: 999,
+  background: 'rgba(20,20,22,0.92)',
+  color: 'white',
+  fontSize: 11.5,
+  fontWeight: 600,
+  cursor: 'pointer',
+  border: '1px solid rgba(255,255,255,0.08)',
+  fontFamily: 'Inter, system-ui, sans-serif',
 }
 
 function EpisodeInfo({
@@ -1234,16 +1731,43 @@ function EpisodeInfo({
   lesson,
   index,
   organizationSlug,
+  lessonHandlers,
 }: {
   course: CourseRead
   lesson: CourseLessonRead
   index: number
   organizationSlug?: string
+  lessonHandlers?: LessonHandlers
 }) {
   const ed = useEditor()
   const descPath = `lesson.${lesson.id}.description`
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // When real lesson handlers are wired, the description and title persist
+  // back to the actual lesson record (so the customize edit and the lesson
+  // editor stay in sync). Without handlers we fall back to landing_overrides.
+  const persistsToLesson = !!lessonHandlers
+  const titleRef = useRef<HTMLDivElement>(null)
+  const descRef = useRef<HTMLDivElement>(null)
+  const [titleEditing, setTitleEditing] = useState(false)
+  const [descEditing, setDescEditing] = useState(false)
+  const lessonTitle = lesson.title ?? ''
+  const lessonDesc = lesson.description ?? ''
+  // Sync DOM contentEditable text with the underlying lesson value when not
+  // actively editing, so refetches (e.g. after wizard edits) flow back into
+  // the customize preview.
+  useEffect(() => {
+    if (titleEditing) return
+    if (titleRef.current && titleRef.current.innerText !== lessonTitle) {
+      titleRef.current.innerText = lessonTitle
+    }
+  }, [lessonTitle, titleEditing])
+  useEffect(() => {
+    if (descEditing) return
+    if (descRef.current && descRef.current.innerText !== lessonDesc) {
+      descRef.current.innerText = lessonDesc
+    }
+  }, [lessonDesc, descEditing])
 
   const generate = async () => {
     if (!organizationSlug) {
@@ -1286,11 +1810,57 @@ function EpisodeInfo({
         if (done) break
         acc += decoder.decode(value, { stream: true })
       }
-      ed.setText(descPath, acc.trim().replace(/^["']|["']$/g, ''))
+      const next = acc.trim().replace(/^["']|["']$/g, '')
+      if (persistsToLesson && lessonHandlers) {
+        if (descRef.current) descRef.current.innerText = next
+        try {
+          await lessonHandlers.updateLesson(lesson.id, { description: next })
+        } catch (e) {
+          setError((e as Error).message ?? 'Failed to save description.')
+        }
+      } else {
+        ed.setText(descPath, next)
+      }
     } catch (e) {
       setError((e as Error).message ?? 'Generation failed.')
     } finally {
       setBusy(false)
+    }
+  }
+
+  const persistTitle = async () => {
+    setTitleEditing(false)
+    if (!persistsToLesson || !lessonHandlers) return
+    const next = (titleRef.current?.innerText ?? '').trim()
+    if (!next) {
+      if (titleRef.current) titleRef.current.innerText = lessonTitle
+      return
+    }
+    if (next === lessonTitle) return
+    try {
+      await lessonHandlers.updateLesson(lesson.id, { title: next })
+    } catch (e) {
+      toast({
+        title: 'Failed to save title',
+        description: (e as Error).message ?? '',
+      })
+    }
+  }
+
+  const persistDesc = async () => {
+    setDescEditing(false)
+    if (!persistsToLesson || !lessonHandlers) return
+    const next = (descRef.current?.innerText ?? '').replace(/\n+$/, '')
+    if (next === lessonDesc) return
+    try {
+      await lessonHandlers.updateLesson(lesson.id, {
+        description: next.length > 0 ? next : null,
+      })
+    } catch (e) {
+      toast({
+        title: 'Failed to save description',
+        description: (e as Error).message ?? '',
+      })
     }
   }
 
@@ -1308,31 +1878,106 @@ function EpisodeInfo({
       >
         Episode {index}
       </div>
-      <div
-        style={{
-          fontSize: 15.5,
-          fontWeight: 600,
-          letterSpacing: '-0.015em',
-          color: 'oklch(0.18 0.008 280)',
-          lineHeight: 1.25,
-          marginBottom: 7,
-        }}
-      >
-        {lesson.title}
-      </div>
-      <div style={{ position: 'relative', marginBottom: 10 }}>
-        <EditText
-          path={descPath}
-          defaultValue={lesson.description ?? ''}
-          multiline
+      {persistsToLesson && ed.mode === 'edit' ? (
+        <div
+          ref={titleRef}
+          contentEditable
+          suppressContentEditableWarning
+          onFocus={() => setTitleEditing(true)}
+          onBlur={persistTitle}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              ;(e.target as HTMLElement).blur()
+            }
+            if (e.key === 'Escape') {
+              if (titleRef.current) titleRef.current.innerText = lessonTitle
+              ;(e.target as HTMLElement).blur()
+            }
+          }}
           style={{
-            fontSize: 12.5,
-            color: 'oklch(0.52 0.008 280)',
-            lineHeight: 1.6,
-            display: 'block',
-            minHeight: '1.6em',
+            fontSize: 15.5,
+            fontWeight: 600,
+            letterSpacing: '-0.015em',
+            color: 'oklch(0.18 0.008 280)',
+            lineHeight: 1.25,
+            marginBottom: 7,
+            outline: titleEditing ? '2px solid #6366f1' : 'none',
+            outlineOffset: 2,
+            cursor: 'text',
+            borderRadius: 3,
           }}
         />
+      ) : (
+        <div
+          style={{
+            fontSize: 15.5,
+            fontWeight: 600,
+            letterSpacing: '-0.015em',
+            color: 'oklch(0.18 0.008 280)',
+            lineHeight: 1.25,
+            marginBottom: 7,
+          }}
+        >
+          {lesson.title}
+        </div>
+      )}
+      <div style={{ position: 'relative', marginBottom: 10 }}>
+        {persistsToLesson ? (
+          ed.mode === 'edit' ? (
+            <div
+              ref={descRef}
+              contentEditable
+              suppressContentEditableWarning
+              onFocus={() => setDescEditing(true)}
+              onBlur={persistDesc}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  if (descRef.current)
+                    descRef.current.innerText = lessonDesc
+                  ;(e.target as HTMLElement).blur()
+                }
+              }}
+              style={{
+                fontSize: 12.5,
+                color: 'oklch(0.52 0.008 280)',
+                lineHeight: 1.6,
+                display: 'block',
+                minHeight: '1.6em',
+                outline: descEditing ? '2px solid #6366f1' : 'none',
+                outlineOffset: 2,
+                cursor: 'text',
+                borderRadius: 3,
+                whiteSpace: 'pre-wrap',
+              }}
+            />
+          ) : (
+            <p
+              style={{
+                fontSize: 12.5,
+                color: 'oklch(0.52 0.008 280)',
+                lineHeight: 1.6,
+                margin: 0,
+                whiteSpace: 'pre-wrap',
+              }}
+            >
+              {lessonDesc}
+            </p>
+          )
+        ) : (
+          <EditText
+            path={descPath}
+            defaultValue={lesson.description ?? ''}
+            multiline
+            style={{
+              fontSize: 12.5,
+              color: 'oklch(0.52 0.008 280)',
+              lineHeight: 1.6,
+              display: 'block',
+              minHeight: '1.6em',
+            }}
+          />
+        )}
         {ed.mode === 'edit' && (
           <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
             <button

@@ -368,6 +368,7 @@ export const useUpdateCourseLesson = () =>
         method: 'PATCH',
         body: JSON.stringify(body),
       }),
+    onSuccess: invalidateCourseQueries,
   })
 
 export const useDeleteCourseLesson = () =>
@@ -616,6 +617,7 @@ export const useUploadLessonThumbnail = () =>
       }
       return res.json() as Promise<CourseLessonRead>
     },
+    onSuccess: invalidateCourseQueries,
   })
 
 export const useUploadCourseThumbnail = () =>
