@@ -35,7 +35,7 @@ import DragIndicatorOutlined from '@mui/icons-material/DragIndicatorOutlined'
 import EditOutlined from '@mui/icons-material/EditOutlined'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
-import { Input } from '@spaire/ui/components/atoms/Input'
+import Input from '@spaire/ui/components/atoms/Input'
 import {
   Tabs,
   TabsContent,
