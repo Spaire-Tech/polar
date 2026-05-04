@@ -39,6 +39,18 @@ type PartialModule = {
 type PartialOutline = { modules?: PartialModule[] }
 
 type PartialLanding = Partial<CourseLanding>
+type LandingMediaMap = Record<string, { url: string; kind?: 'image' | 'video' } | null>
+
+const pickMedia = (
+  media: LandingMediaMap | undefined,
+  keys: string[],
+): { url: string; kind?: 'image' | 'video' } | null => {
+  for (const key of keys) {
+    const item = media?.[key]
+    if (item?.url) return item
+  }
+  return null
+}
 
 // ─── Color & font tokens (Apple-TV-inspired light theme) ─────────────────────
 
@@ -1467,15 +1479,22 @@ export function InstructorBlock({
   instructor,
   draft,
   landing,
+  media,
 }: {
   instructor: { name: string; bio: string }
   draft: DraftState
   landing: PartialLanding
+  media?: LandingMediaMap
 }) {
   const name = draft.name || instructor.name || 'Your name'
   const bio = instructor.bio
   const quote = landing.instructor_pull_quote ?? ''
   const creds = landing.instructor_credentials ?? []
+  const portrait = pickMedia(media, [
+    'instructor.portrait',
+    'instructor.media',
+    'instructor.image',
+  ])
 
   return (
     <section
@@ -1513,6 +1532,20 @@ export function InstructorBlock({
                 'linear-gradient(160deg, oklch(0.45 0.10 35), oklch(0.20 0.05 65))',
             }}
           >
+            {portrait?.url && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={portrait.url}
+                alt={name}
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                }}
+              />
+            )}
             <div
               style={{
                 position: 'absolute',
@@ -1746,10 +1779,12 @@ export function FinalCta({
   landing,
   pricing,
   onCreate,
+  media,
 }: {
   landing: PartialLanding
   pricing: PricingState
   onCreate: () => void
+  media?: LandingMediaMap
 }) {
   const label = landing.final_cta_label ?? 'READY WHEN YOU ARE'
   const titleRaw = landing.final_cta_title ?? ''
@@ -1757,6 +1792,12 @@ export function FinalCta({
   const primaryLabel =
     landing.final_cta_primary ??
     (pricing.paywallEnabled ? 'Enroll' : 'Start watching')
+  const backdrop = pickMedia(media, [
+    'finalCta.backdrop',
+    'finalCta.media',
+    'cta.backdrop',
+    'cta.media',
+  ])
 
   // Render \n as a real line break.
   const titleLines = titleRaw ? titleRaw.split(/\\n|\n/) : []
@@ -1774,6 +1815,21 @@ export function FinalCta({
         fontFamily: FONT,
       }}
     >
+      {backdrop?.url && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={backdrop.url}
+          alt=""
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            opacity: 0.35,
+          }}
+        />
+      )}
       <div
         style={{
           position: 'absolute',
