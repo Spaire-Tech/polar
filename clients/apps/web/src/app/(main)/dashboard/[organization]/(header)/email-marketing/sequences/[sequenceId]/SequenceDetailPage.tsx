@@ -299,7 +299,7 @@ function StepsTab({
   const [localSteps, setLocalSteps] = useState<any[]>([])
 
   useEffect(() => {
-    if (stepsQuery.data) setLocalSteps(stepsQuery.data as unknown as any[])
+    if (stepsQuery.data) setLocalSteps(stepsQuery.data)
   }, [stepsQuery.data])
 
   const sensors = useSensors(
@@ -389,7 +389,7 @@ function StepsTab({
 
 function EnrollmentsTab({ sequenceId }: { sequenceId: string }) {
   const enrollmentsQuery = useSequenceEnrollments(sequenceId)
-  const enrollments = (enrollmentsQuery.data as unknown as any[]) ?? []
+  const enrollments = enrollmentsQuery.data ?? []
 
   const STATUS_PILL: Record<string, string> = {
     active: 'bg-blue-100 text-blue-700',

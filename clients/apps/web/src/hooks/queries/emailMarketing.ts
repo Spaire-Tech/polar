@@ -292,6 +292,30 @@ export const useStorefrontSubscribe = () =>
       }),
   })
 
+// ── Sequence raw fetch helpers (endpoints not yet in generated client) ──
+
+const seqFetch = async <T>(path: string): Promise<T> => {
+  const res = await fetch(getServerURL(path), { credentials: 'include' })
+  if (!res.ok) throw new Error(`API error: ${res.status}`)
+  return res.json()
+}
+
+const seqMutate = async <T>(
+  path: string,
+  method: 'POST' | 'PATCH' | 'DELETE',
+  body?: unknown,
+): Promise<T> => {
+  const res = await fetch(getServerURL(path), {
+    method,
+    credentials: 'include',
+    headers: body !== undefined ? { 'Content-Type': 'application/json' } : {},
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  })
+  if (!res.ok) throw new Error(`API error: ${res.status}`)
+  if (res.status === 204) return undefined as T
+  return res.json()
+}
+
 // ── Email Sequences ──
 
 export const useEmailSequences = (
@@ -300,12 +324,12 @@ export const useEmailSequences = (
 ) =>
   useQuery({
     queryKey: ['email_sequences', { organizationId, ...(params ?? {}) }],
-    queryFn: () =>
-      api
-        .GET('/v1/email-sequences/', {
-          params: { query: { organization_id: organizationId, ...params } },
-        })
-        .then((r) => r.data),
+    queryFn: () => {
+      const qs = new URLSearchParams({ organization_id: organizationId })
+      if (params?.page) qs.set('page', String(params.page))
+      if (params?.limit) qs.set('limit', String(params.limit))
+      return seqFetch<any>(`/v1/email-sequences/?${qs}`)
+    },
     retry: defaultRetry,
     placeholderData: keepPreviousData,
   })
@@ -313,12 +337,7 @@ export const useEmailSequences = (
 export const useEmailSequence = (sequenceId: string) =>
   useQuery({
     queryKey: ['email_sequence', sequenceId],
-    queryFn: () =>
-      api
-        .GET('/v1/email-sequences/{sequence_id}', {
-          params: { path: { sequence_id: sequenceId } },
-        })
-        .then((r) => r.data),
+    queryFn: () => seqFetch<any>(`/v1/email-sequences/${sequenceId}`),
     retry: defaultRetry,
     enabled: !!sequenceId,
   })
@@ -331,10 +350,11 @@ export const useCreateEmailSequence = (organizationId: string) =>
       trigger_type?: string
       trigger_config?: Record<string, unknown>
     }) =>
-      api.POST('/v1/email-sequences/', {
-        params: { query: { organization_id: organizationId } },
+      seqMutate<any>(
+        `/v1/email-sequences/?organization_id=${organizationId}`,
+        'POST',
         body,
-      }),
+      ),
     onSuccess: () => {
       getQueryClient().invalidateQueries({ queryKey: ['email_sequences'] })
     },
@@ -353,10 +373,7 @@ export const useUpdateEmailSequence = () =>
       trigger_config?: Record<string, unknown>
       status?: string
     }) =>
-      api.PATCH('/v1/email-sequences/{sequence_id}', {
-        params: { path: { sequence_id: sequenceId } },
-        body,
-      }),
+      seqMutate<any>(`/v1/email-sequences/${sequenceId}`, 'PATCH', body),
     onSuccess: (_data, vars) => {
       getQueryClient().invalidateQueries({ queryKey: ['email_sequences'] })
       getQueryClient().invalidateQueries({
@@ -368,9 +385,7 @@ export const useUpdateEmailSequence = () =>
 export const useDeleteEmailSequence = () =>
   useMutation({
     mutationFn: (sequenceId: string) =>
-      api.DELETE('/v1/email-sequences/{sequence_id}', {
-        params: { path: { sequence_id: sequenceId } },
-      }),
+      seqMutate<void>(`/v1/email-sequences/${sequenceId}`, 'DELETE'),
     onSuccess: () => {
       getQueryClient().invalidateQueries({ queryKey: ['email_sequences'] })
     },
@@ -381,12 +396,7 @@ export const useDeleteEmailSequence = () =>
 export const useSequenceSteps = (sequenceId: string) =>
   useQuery({
     queryKey: ['email_sequence_steps', sequenceId],
-    queryFn: () =>
-      api
-        .GET('/v1/email-sequences/{sequence_id}/steps', {
-          params: { path: { sequence_id: sequenceId } },
-        })
-        .then((r) => r.data),
+    queryFn: () => seqFetch<any[]>(`/v1/email-sequences/${sequenceId}/steps`),
     retry: defaultRetry,
     enabled: !!sequenceId,
   })
@@ -401,10 +411,7 @@ export const useCreateSequenceStep = (sequenceId: string) =>
       reply_to_email?: string
       content_html?: string
     }) =>
-      api.POST('/v1/email-sequences/{sequence_id}/steps', {
-        params: { path: { sequence_id: sequenceId } },
-        body,
-      }),
+      seqMutate<any>(`/v1/email-sequences/${sequenceId}/steps`, 'POST', body),
     onSuccess: () => {
       getQueryClient().invalidateQueries({
         queryKey: ['email_sequence_steps', sequenceId],
@@ -426,12 +433,11 @@ export const useUpdateSequenceStep = (sequenceId: string) =>
       reply_to_email?: string
       content_html?: string
     }) =>
-      api.PATCH('/v1/email-sequences/{sequence_id}/steps/{step_id}', {
-        params: {
-          path: { sequence_id: sequenceId, step_id: stepId },
-        },
+      seqMutate<any>(
+        `/v1/email-sequences/${sequenceId}/steps/${stepId}`,
+        'PATCH',
         body,
-      }),
+      ),
     onSuccess: () => {
       getQueryClient().invalidateQueries({
         queryKey: ['email_sequence_steps', sequenceId],
@@ -442,11 +448,10 @@ export const useUpdateSequenceStep = (sequenceId: string) =>
 export const useDeleteSequenceStep = (sequenceId: string) =>
   useMutation({
     mutationFn: (stepId: string) =>
-      api.DELETE('/v1/email-sequences/{sequence_id}/steps/{step_id}', {
-        params: {
-          path: { sequence_id: sequenceId, step_id: stepId },
-        },
-      }),
+      seqMutate<void>(
+        `/v1/email-sequences/${sequenceId}/steps/${stepId}`,
+        'DELETE',
+      ),
     onSuccess: () => {
       getQueryClient().invalidateQueries({
         queryKey: ['email_sequence_steps', sequenceId],
@@ -457,10 +462,11 @@ export const useDeleteSequenceStep = (sequenceId: string) =>
 export const useReorderSequenceSteps = (sequenceId: string) =>
   useMutation({
     mutationFn: (items: Array<{ id: string; position: number }>) =>
-      api.POST('/v1/email-sequences/{sequence_id}/steps/reorder', {
-        params: { path: { sequence_id: sequenceId } },
-        body: items,
-      }),
+      seqMutate<void>(
+        `/v1/email-sequences/${sequenceId}/steps/reorder`,
+        'POST',
+        items,
+      ),
     onSuccess: () => {
       getQueryClient().invalidateQueries({
         queryKey: ['email_sequence_steps', sequenceId],
@@ -474,11 +480,7 @@ export const useSequenceEnrollments = (sequenceId: string) =>
   useQuery({
     queryKey: ['email_sequence_enrollments', sequenceId],
     queryFn: () =>
-      api
-        .GET('/v1/email-sequences/{sequence_id}/enrollments', {
-          params: { path: { sequence_id: sequenceId } },
-        })
-        .then((r) => r.data),
+      seqFetch<any[]>(`/v1/email-sequences/${sequenceId}/enrollments`),
     retry: defaultRetry,
     enabled: !!sequenceId,
   })
@@ -486,10 +488,11 @@ export const useSequenceEnrollments = (sequenceId: string) =>
 export const useEnrollSubscriber = (sequenceId: string) =>
   useMutation({
     mutationFn: (subscriberId: string) =>
-      api.POST('/v1/email-sequences/{sequence_id}/enrollments', {
-        params: { path: { sequence_id: sequenceId } },
-        body: { subscriber_id: subscriberId },
-      }),
+      seqMutate<any>(
+        `/v1/email-sequences/${sequenceId}/enrollments`,
+        'POST',
+        { subscriber_id: subscriberId },
+      ),
     onSuccess: () => {
       getQueryClient().invalidateQueries({
         queryKey: ['email_sequence_enrollments', sequenceId],
@@ -500,13 +503,9 @@ export const useEnrollSubscriber = (sequenceId: string) =>
 export const useUnenrollSubscriber = (sequenceId: string) =>
   useMutation({
     mutationFn: (subscriberId: string) =>
-      api.DELETE(
-        '/v1/email-sequences/{sequence_id}/enrollments/{subscriber_id}',
-        {
-          params: {
-            path: { sequence_id: sequenceId, subscriber_id: subscriberId },
-          },
-        },
+      seqMutate<void>(
+        `/v1/email-sequences/${sequenceId}/enrollments/${subscriberId}`,
+        'DELETE',
       ),
     onSuccess: () => {
       getQueryClient().invalidateQueries({
@@ -521,11 +520,7 @@ export const useSequenceAnalytics = (sequenceId: string) =>
   useQuery({
     queryKey: ['email_sequence_analytics', sequenceId],
     queryFn: () =>
-      api
-        .GET('/v1/email-sequences/{sequence_id}/analytics', {
-          params: { path: { sequence_id: sequenceId } },
-        })
-        .then((r) => r.data),
+      seqFetch<any>(`/v1/email-sequences/${sequenceId}/analytics`),
     retry: defaultRetry,
     enabled: !!sequenceId,
   })
