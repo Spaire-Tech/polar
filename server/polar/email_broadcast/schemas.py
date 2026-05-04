@@ -1,8 +1,9 @@
 from datetime import datetime
 
-from pydantic import UUID4, Field
+from pydantic import UUID4, Field, field_validator
 
 from polar.kit.schemas import IDSchema, Schema, TimestampedSchema
+from polar.kit.utils import utc_now
 
 
 class EmailBroadcastCreate(Schema):
@@ -37,6 +38,17 @@ class EmailBroadcast(TimestampedSchema, IDSchema):
     scheduled_at: datetime | None = None
     sent_at: datetime | None = None
     total_recipients: int = 0
+
+
+class EmailBroadcastSchedule(Schema):
+    scheduled_at: datetime = Field(description="When to send the broadcast (UTC)")
+
+    @field_validator("scheduled_at")
+    @classmethod
+    def must_be_future(cls, v: datetime) -> datetime:
+        if v <= utc_now():
+            raise ValueError("scheduled_at must be in the future")
+        return v
 
 
 class EmailBroadcastAnalytics(Schema):

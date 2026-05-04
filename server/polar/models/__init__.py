@@ -26,6 +26,10 @@ from .email_broadcast import EmailBroadcast
 from .email_broadcast_send import EmailBroadcastSend
 from .email_segment import EmailSegment
 from .email_segment_subscriber import EmailSegmentSubscriber
+from .email_sequence import EmailSequence, EmailSequenceStatus, EmailSequenceTriggerType
+from .email_sequence_enrollment import EmailSequenceEnrollment, EmailSequenceEnrollmentStatus
+from .email_sequence_step import EmailSequenceStep
+from .email_sequence_step_send import EmailSequenceStepSend, EmailSequenceStepSendStatus
 from .email_subscriber import EmailSubscriber
 from .email_verification import EmailVerification
 from .event import Event, EventClosure
@@ -132,6 +136,14 @@ __all__ = [
     "EmailBroadcastSend",
     "EmailSegment",
     "EmailSegmentSubscriber",
+    "EmailSequence",
+    "EmailSequenceEnrollment",
+    "EmailSequenceEnrollmentStatus",
+    "EmailSequenceStatus",
+    "EmailSequenceStep",
+    "EmailSequenceStepSend",
+    "EmailSequenceStepSendStatus",
+    "EmailSequenceTriggerType",
     "EmailSubscriber",
     "EmailVerification",
     "Event",

@@ -8,6 +8,7 @@ from polar.customer_seat import tasks as customer_seat
 from polar.customer_session import tasks as customer_session
 from polar.email import tasks as email
 from polar.email_broadcast import tasks as email_broadcast
+from polar.email_sequence import tasks as email_sequence
 from polar.email_subscriber import tasks as email_subscriber
 from polar.email_update import tasks as email_update
 from polar.event import tasks as event
@@ -42,6 +43,7 @@ __all__ = [
     "customer_session",
     "email",
     "email_broadcast",
+    "email_sequence",
     "email_subscriber",
     "email_update",
     "event",

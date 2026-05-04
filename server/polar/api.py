@@ -17,6 +17,7 @@ from polar.discount.endpoints import router as discount_router
 from polar.dispute.endpoints import router as dispute_router
 from polar.email_broadcast.endpoints import router as email_broadcast_router
 from polar.email_segment.endpoints import router as email_segment_router
+from polar.email_sequence.endpoints import router as email_sequence_router
 from polar.email_subscriber.endpoints import router as email_subscriber_router
 from polar.email_update.endpoints import router as email_update_router
 from polar.event.endpoints import router as event_router
@@ -150,6 +151,8 @@ router.include_router(email_subscriber_router)
 router.include_router(email_segment_router)
 # /email-broadcasts
 router.include_router(email_broadcast_router)
+# /email-sequences
+router.include_router(email_sequence_router)
 # /update-email
 router.include_router(email_update_router)
 # /customer-sessions

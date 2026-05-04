@@ -1,7 +1,9 @@
 from collections.abc import Sequence
+from datetime import datetime
 from uuid import UUID
 
 from polar.auth.models import AuthSubject, Organization, User
+from polar.exceptions import PolarError
 from polar.postgres import AsyncReadSession, AsyncSession
 from polar.kit.pagination import PaginationParams
 from polar.kit.utils import utc_now
@@ -9,6 +11,14 @@ from polar.models.email_broadcast import EmailBroadcast, EmailBroadcastStatus
 from polar.models.email_broadcast_send import EmailBroadcastSend, EmailBroadcastSendStatus
 from polar.models.email_subscriber import EmailSubscriber
 from polar.worker import enqueue_job
+
+
+class BroadcastError(PolarError): ...
+
+
+class BroadcastAlreadySent(BroadcastError):
+    def __init__(self) -> None:
+        super().__init__("Broadcast has already been sent or is currently sending.")
 
 from .repository import EmailBroadcastRepository
 
@@ -160,6 +170,25 @@ class EmailBroadcastService:
         )
 
         return broadcast
+
+    async def schedule(
+        self,
+        session: AsyncSession,
+        broadcast: EmailBroadcast,
+        *,
+        scheduled_at: datetime,
+    ) -> EmailBroadcast:
+        """Schedule a broadcast to be sent at a specific time."""
+        if broadcast.status in (
+            EmailBroadcastStatus.sending,
+            EmailBroadcastStatus.sent,
+        ):
+            raise BroadcastAlreadySent()
+
+        repository = EmailBroadcastRepository.from_session(session)
+        broadcast.status = EmailBroadcastStatus.scheduled
+        broadcast.scheduled_at = scheduled_at
+        return await repository.update(broadcast)
 
     async def get_analytics(
         self,

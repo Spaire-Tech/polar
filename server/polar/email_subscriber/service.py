@@ -138,13 +138,15 @@ class EmailSubscriberService:
         email: str,
         name: str | None = None,
     ) -> EmailSubscriber:
-        return await self.create(
+        subscriber = await self.create(
             session,
             organization_id=organization_id,
             email=email,
             name=name,
             source=EmailSubscriberSource.space_signup,
         )
+        await self._trigger_on_subscribe_sequences(session, organization_id, subscriber.id)
+        return subscriber
 
     async def subscribe_from_purchase(
         self,
@@ -154,14 +156,42 @@ class EmailSubscriberService:
         email: str,
         name: str | None = None,
         customer_id: UUID | None = None,
+        product_id: UUID | None = None,
     ) -> EmailSubscriber:
-        return await self.create(
+        subscriber = await self.create(
             session,
             organization_id=organization_id,
             email=email,
             name=name,
             source=EmailSubscriberSource.purchase,
             customer_id=customer_id,
+        )
+        await self._trigger_on_subscribe_sequences(session, organization_id, subscriber.id)
+        if product_id is not None:
+            from polar.email_sequence.service import email_sequence as sequence_service
+            from polar.models.email_sequence import EmailSequenceTriggerType
+            await sequence_service.enroll_for_trigger(
+                session,
+                organization_id,
+                EmailSequenceTriggerType.on_purchase,
+                subscriber.id,
+                trigger_filter={"product_id": str(product_id)},
+            )
+        return subscriber
+
+    async def _trigger_on_subscribe_sequences(
+        self,
+        session: AsyncSession,
+        organization_id: UUID,
+        subscriber_id: UUID,
+    ) -> None:
+        from polar.email_sequence.service import email_sequence as sequence_service
+        from polar.models.email_sequence import EmailSequenceTriggerType
+        await sequence_service.enroll_for_trigger(
+            session,
+            organization_id,
+            EmailSequenceTriggerType.on_subscribe,
+            subscriber_id,
         )
 
     async def get_all_for_export(
