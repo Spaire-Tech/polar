@@ -299,7 +299,7 @@ function StepsTab({
   const [localSteps, setLocalSteps] = useState<any[]>([])
 
   useEffect(() => {
-    if (stepsQuery.data) setLocalSteps(stepsQuery.data as any[])
+    if (stepsQuery.data) setLocalSteps(stepsQuery.data as unknown as any[])
   }, [stepsQuery.data])
 
   const sensors = useSensors(
