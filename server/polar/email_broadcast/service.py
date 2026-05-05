@@ -158,6 +158,7 @@ class EmailBroadcastService:
         content_json: dict | None = None,
         content_html: str | None = None,
         segment_id: UUID | None = None,
+        filter_rules: dict | None = None,
     ) -> EmailBroadcast:
         repository = EmailBroadcastRepository.from_session(session)
         broadcast = EmailBroadcast(
@@ -169,6 +170,7 @@ class EmailBroadcastService:
             content_json=content_json,
             content_html=content_html,
             segment_id=segment_id,
+            filter_rules=filter_rules,
             status=EmailBroadcastStatus.draft,
         )
         return await repository.create(broadcast, flush=True)
@@ -190,6 +192,7 @@ class EmailBroadcastService:
             "content_json",
             "content_html",
             "segment_id",
+            "filter_rules",
         ):
             if key in update:
                 setattr(broadcast, key, update[key])
@@ -232,8 +235,18 @@ class EmailBroadcastService:
         """Initiate sending a broadcast. Creates send records and enqueues jobs."""
         repository = EmailBroadcastRepository.from_session(session)
 
-        # Get subscribers — filter by segment if one is set
-        if broadcast.segment_id is not None:
+        # Audience precedence: inline filter_rules → saved segment → all active.
+        if broadcast.filter_rules:
+            from polar.email_subscriber.service import (
+                email_subscriber as subscriber_service,
+            )
+
+            subscribers = await subscriber_service.resolve_filter_subscribers(
+                session,
+                organization_id=broadcast.organization_id,
+                filter_rules=broadcast.filter_rules,
+            )
+        elif broadcast.segment_id is not None:
             from polar.email_segment.service import email_segment as segment_service
             from polar.models.email_segment import EmailSegment
 
@@ -373,6 +386,34 @@ class EmailBroadcastService:
     ) -> list[dict]:
         repository = EmailBroadcastRepository.from_session(session)
         return await repository.get_daily_sends(organization_id, days)
+
+    async def get_top_links(
+        self,
+        session: AsyncReadSession,
+        organization_id: UUID,
+        days: int = 14,
+        limit: int = 10,
+    ) -> list[dict]:
+        repository = EmailBroadcastRepository.from_session(session)
+        return await repository.get_top_links(organization_id, days, limit=limit)
+
+    async def get_device_share(
+        self,
+        session: AsyncReadSession,
+        organization_id: UUID,
+        days: int = 90,
+    ) -> list[dict]:
+        repository = EmailBroadcastRepository.from_session(session)
+        return await repository.get_device_share(organization_id, days)
+
+    async def get_daily_engagement(
+        self,
+        session: AsyncReadSession,
+        organization_id: UUID,
+        days: int = 14,
+    ) -> list[dict]:
+        repository = EmailBroadcastRepository.from_session(session)
+        return await repository.get_daily_engagement(organization_id, days)
 
 
 email_broadcast = EmailBroadcastService()

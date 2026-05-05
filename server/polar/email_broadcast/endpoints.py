@@ -13,10 +13,13 @@ from .schemas import (
     EmailBroadcast as EmailBroadcastSchema,
     EmailBroadcastAnalytics,
     EmailBroadcastCreate,
+    EmailBroadcastDailyEngagementPoint,
+    EmailBroadcastDeviceShare,
     EmailBroadcastRowAnalytics,
     EmailBroadcastSchedule,
     EmailBroadcastSendRow,
     EmailBroadcastTestSend,
+    EmailBroadcastTopLink,
     EmailBroadcastUpdate,
     EmailBroadcastWithAnalytics,
 )
@@ -74,6 +77,45 @@ async def get_broadcast_aggregate_analytics(
     )
 
 
+@router.get("/top-links", response_model=list[EmailBroadcastTopLink])
+async def get_broadcast_top_links(
+    auth_subject: EmailSubscribersRead,
+    organization_id: UUID = Query(),
+    days: int = Query(default=14),
+    limit: int = Query(default=10),
+    session: AsyncReadSession = Depends(get_db_read_session),
+) -> list[dict]:
+    return await email_broadcast_service.get_top_links(
+        session, organization_id, days=days, limit=limit
+    )
+
+
+@router.get("/devices", response_model=list[EmailBroadcastDeviceShare])
+async def get_broadcast_devices(
+    auth_subject: EmailSubscribersRead,
+    organization_id: UUID = Query(),
+    days: int = Query(default=90),
+    session: AsyncReadSession = Depends(get_db_read_session),
+) -> list[dict]:
+    return await email_broadcast_service.get_device_share(
+        session, organization_id, days=days
+    )
+
+
+@router.get(
+    "/daily-engagement", response_model=list[EmailBroadcastDailyEngagementPoint]
+)
+async def get_broadcast_daily_engagement(
+    auth_subject: EmailSubscribersRead,
+    organization_id: UUID = Query(),
+    days: int = Query(default=14),
+    session: AsyncReadSession = Depends(get_db_read_session),
+) -> list[dict]:
+    return await email_broadcast_service.get_daily_engagement(
+        session, organization_id, days=days
+    )
+
+
 @router.get("/daily-sends")
 async def get_broadcast_daily_sends(
     auth_subject: EmailSubscribersRead,
@@ -103,6 +145,7 @@ async def create_email_broadcast(
         content_json=broadcast_create.content_json,
         content_html=broadcast_create.content_html,
         segment_id=broadcast_create.segment_id,
+        filter_rules=broadcast_create.filter_rules,
     )
     return EmailBroadcastSchema.model_validate(broadcast, from_attributes=True)
 

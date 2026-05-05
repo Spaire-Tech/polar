@@ -241,6 +241,16 @@ export type BroadcastRowAnalytics = {
   click_rate: number
 }
 
+export type FilterRule = {
+  field: string
+  op: string
+  value?: string | number | null
+}
+
+export type FilterRules = {
+  all?: FilterRule[]
+}
+
 export type BroadcastRow = {
   id: string
   organization_id: string
@@ -249,6 +259,7 @@ export type BroadcastRow = {
   sender_name: string
   sender_email: string
   reply_to_email: string | null
+  filter_rules: FilterRules | null
   content_json: Record<string, unknown> | null
   content_html: string | null
   segment_id: string | null
@@ -385,6 +396,7 @@ export type BroadcastWritePayload = {
   content_html?: string | null
   content_json?: Record<string, unknown> | null
   segment_id?: string | null
+  filter_rules?: FilterRules | null
 }
 
 export const useCreateEmailBroadcast = (organizationId: string) =>
@@ -490,6 +502,64 @@ export const useEmailBroadcastAnalytics = (broadcastId: string) =>
       ),
     retry: defaultRetry,
     enabled: !!broadcastId,
+  })
+
+export const useBroadcastTopLinks = (
+  organizationId: string,
+  days = 14,
+  limit = 5,
+) =>
+  useQuery({
+    queryKey: ['broadcast_top_links', organizationId, days, limit],
+    queryFn: () =>
+      fetchApi<{ url: string; clicks: number; ctr: number }[]>(
+        `/v1/email-broadcasts/top-links?organization_id=${organizationId}&days=${days}&limit=${limit}`,
+      ),
+    retry: defaultRetry,
+  })
+
+export const useBroadcastDevices = (organizationId: string, days = 90) =>
+  useQuery({
+    queryKey: ['broadcast_devices', organizationId, days],
+    queryFn: () =>
+      fetchApi<{ name: string; share: number }[]>(
+        `/v1/email-broadcasts/devices?organization_id=${organizationId}&days=${days}`,
+      ),
+    retry: defaultRetry,
+  })
+
+export const useBroadcastDailyEngagement = (
+  organizationId: string,
+  days = 14,
+) =>
+  useQuery({
+    queryKey: ['broadcast_daily_engagement', organizationId, days],
+    queryFn: () =>
+      fetchApi<{ day: string; open_rate: number; click_rate: number }[]>(
+        `/v1/email-broadcasts/daily-engagement?organization_id=${organizationId}&days=${days}`,
+      ),
+    retry: defaultRetry,
+  })
+
+export const useSegmentFilterPreview = (
+  organizationId: string,
+  filterRules: FilterRules | null,
+  enabled: boolean,
+) =>
+  useQuery({
+    queryKey: ['segment_filter_preview', organizationId, filterRules],
+    queryFn: () =>
+      fetchApiWrite<{
+        count: number
+        sample: SubscriberRow[]
+      }>(
+        `/v1/email-subscribers/segment-preview?organization_id=${organizationId}`,
+        'POST',
+        { filter_rules: filterRules },
+      ),
+    retry: defaultRetry,
+    enabled,
+    placeholderData: keepPreviousData,
   })
 
 // ── Segments ──

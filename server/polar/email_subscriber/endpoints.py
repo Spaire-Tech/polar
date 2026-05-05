@@ -17,6 +17,8 @@ from .schemas import (
     EmailSubscriberBulkCreate,
     EmailSubscriberBulkResult,
     EmailSubscriberCreate,
+    EmailSubscriberFilterPreview,
+    EmailSubscriberFilterPreviewResult,
     EmailSubscriberStats,
     EmailSubscriberUpdate,
 )
@@ -200,6 +202,30 @@ async def delete_email_subscriber_permanently(
     if subscriber is None:
         raise ResourceNotFound()
     await email_subscriber_service.delete_permanently(session, subscriber)
+
+
+@router.post(
+    "/segment-preview", response_model=EmailSubscriberFilterPreviewResult
+)
+async def preview_segment_filter(
+    auth_subject: auth.EmailSubscribersRead,
+    body: EmailSubscriberFilterPreview,
+    organization_id: UUID = Query(),
+    session: AsyncReadSession = Depends(get_db_read_session),
+) -> EmailSubscriberFilterPreviewResult:
+    """Preview the audience matching a custom segment filter."""
+    count, sample = await email_subscriber_service.preview_filter(
+        session,
+        organization_id=organization_id,
+        filter_rules=body.filter_rules,
+    )
+    return EmailSubscriberFilterPreviewResult(
+        count=count,
+        sample=[
+            EmailSubscriberSchema.model_validate(s, from_attributes=True)
+            for s in sample
+        ],
+    )
 
 
 @router.post(

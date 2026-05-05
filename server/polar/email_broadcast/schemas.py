@@ -18,6 +18,10 @@ class EmailBroadcastCreate(Schema):
     content_json: dict | None = Field(default=None, description="Structured editor content")
     content_html: str | None = Field(default=None, description="HTML content for sending")
     segment_id: UUID4 | None = Field(default=None, description="Target segment ID")
+    filter_rules: dict | None = Field(
+        default=None,
+        description="Inline audience filter (overrides segment_id when set).",
+    )
 
 
 class EmailBroadcastUpdate(Schema):
@@ -28,6 +32,7 @@ class EmailBroadcastUpdate(Schema):
     content_json: dict | None = None
     content_html: str | None = None
     segment_id: UUID4 | None = None
+    filter_rules: dict | None = None
 
 
 class EmailBroadcast(TimestampedSchema, IDSchema):
@@ -41,6 +46,7 @@ class EmailBroadcast(TimestampedSchema, IDSchema):
     content_json: dict | None = None
     content_html: str | None = None
     segment_id: UUID4 | None = None
+    filter_rules: dict | None = None
     status: str
     scheduled_at: datetime | None = None
     sent_at: datetime | None = None
@@ -49,6 +55,23 @@ class EmailBroadcast(TimestampedSchema, IDSchema):
 
 class EmailBroadcastTestSend(Schema):
     email: str = Field(description="Inbox to send the test email to.", max_length=320)
+
+
+class EmailBroadcastTopLink(Schema):
+    url: str
+    clicks: int
+    ctr: float
+
+
+class EmailBroadcastDeviceShare(Schema):
+    name: str
+    share: float
+
+
+class EmailBroadcastDailyEngagementPoint(Schema):
+    day: str
+    open_rate: float
+    click_rate: float
 
 
 class EmailBroadcastSchedule(Schema):

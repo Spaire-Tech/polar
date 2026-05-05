@@ -1,11 +1,14 @@
 import { useAuth } from '@/hooks/auth'
 import {
   BroadcastWritePayload,
+  FilterRule,
+  FilterRules,
   useCreateEmailBroadcast,
   useEmailBroadcast,
   useEmailSegments,
   useEmailSubscriberStats,
   useScheduleEmailBroadcast,
+  useSegmentFilterPreview,
   useSendEmailBroadcast,
   useSendTestEmailBroadcast,
   useUpdateEmailBroadcast,
@@ -32,6 +35,7 @@ type Draft = {
   reply_to_email: string
   content_html: string
   segment_id: string | null
+  filter_rules: FilterRules | null
 }
 
 const blankDraft = (organization: schemas['Organization']): Draft => ({
@@ -41,6 +45,7 @@ const blankDraft = (organization: schemas['Organization']): Draft => ({
   reply_to_email: '',
   content_html: '<p>Hi friends,</p>\n<p>Write your update here…</p>',
   segment_id: null,
+  filter_rules: null,
 })
 
 // Next Tuesday at 08:42 in the user's local timezone — used as our Phase 3 stub
@@ -73,6 +78,8 @@ const draftFromExisting = (
   reply_to_email: existing.reply_to_email ?? '',
   content_html: existing.content_html ?? '',
   segment_id: existing.segment_id ?? null,
+  filter_rules:
+    (existing as { filter_rules?: FilterRules | null }).filter_rules ?? null,
 })
 
 export const NewBroadcastScreen = (props: {
@@ -151,6 +158,7 @@ const ComposerInner = ({
     reply_to_email: draft.reply_to_email || null,
     content_html: draft.content_html,
     segment_id: draft.segment_id,
+    filter_rules: draft.filter_rules,
   })
 
   // Returns the persisted broadcast id (creates first if needed).
@@ -171,6 +179,7 @@ const ComposerInner = ({
       reply_to_email: draft.reply_to_email || null,
       content_html: draft.content_html,
       segment_id: draft.segment_id,
+      filter_rules: draft.filter_rules,
     })
     setSavedAt(new Date())
     onOpened?.(created.id)
@@ -660,6 +669,21 @@ const ContentSection = ({
   </Section>
 )
 
+type AudienceMode = 'all' | 'segment' | 'filter'
+
+const audienceMode = (draft: Draft): AudienceMode => {
+  if (draft.filter_rules) return 'filter'
+  if (draft.segment_id) return 'segment'
+  return 'all'
+}
+
+const SOURCE_OPTIONS = [
+  { value: 'space_signup', label: 'Newsletter form' },
+  { value: 'purchase', label: 'Purchase' },
+  { value: 'manual', label: 'Manual' },
+  { value: 'import', label: 'CSV import' },
+]
+
 const AudienceSection = ({
   organization,
   draft,
@@ -672,31 +696,48 @@ const AudienceSection = ({
   const segmentsQuery = useEmailSegments(organization.id)
   const subStatsQuery = useEmailSubscriberStats(organization.id)
   const segments = segmentsQuery.data ?? []
+  const mode = audienceMode(draft)
+  const totalActive = subStatsQuery.data?.active ?? 0
 
-  const mode: 'all' | 'segment' = draft.segment_id ? 'segment' : 'all'
+  const previewQuery = useSegmentFilterPreview(
+    organization.id,
+    draft.filter_rules,
+    mode === 'filter',
+  )
 
   const selectedSegment = segments.find((s) => s.id === draft.segment_id)
   const audienceCount =
     mode === 'all'
-      ? (subStatsQuery.data?.active ?? 0)
-      : (selectedSegment?.subscriber_count ?? 0)
-  const totalActive = subStatsQuery.data?.active ?? 0
+      ? totalActive
+      : mode === 'segment'
+        ? (selectedSegment?.subscriber_count ?? 0)
+        : (previewQuery.data?.count ?? 0)
   const audiencePct =
     totalActive > 0 ? Math.round((audienceCount / totalActive) * 100) : 0
+
+  const setFilterRules = (rules: FilterRule[] | null) => {
+    if (rules === null) {
+      setDraft({ filter_rules: null })
+      return
+    }
+    setDraft({ filter_rules: { all: rules }, segment_id: null })
+  }
+
+  const rules = draft.filter_rules?.all ?? []
 
   return (
     <Section
       title="Who gets this?"
-      sub="Send to your whole list, or pick a segment."
+      sub="Send to your whole list, pick a saved segment, or build a filter."
     >
       <div className="card" style={{ padding: 8, marginBottom: 16 }}>
         <div className="tabs" style={{ width: '100%' }}>
           <button
             className={`tab ${mode === 'all' ? 'tab-active' : ''}`}
-            onClick={() => setDraft({ segment_id: null })}
+            onClick={() => setDraft({ segment_id: null, filter_rules: null })}
             style={{ flex: 1 }}
           >
-            All active subscribers{' '}
+            All active{' '}
             <span style={{ color: 'var(--ink-4)', marginLeft: 6 }}>
               {totalActive.toLocaleString()}
             </span>
@@ -704,13 +745,17 @@ const AudienceSection = ({
           <button
             className={`tab ${mode === 'segment' ? 'tab-active' : ''}`}
             onClick={() => {
-              if (segments.length > 0) setDraft({ segment_id: segments[0].id })
+              if (segments.length > 0)
+                setDraft({
+                  segment_id: segments[0].id,
+                  filter_rules: null,
+                })
             }}
             style={{ flex: 1 }}
             disabled={segments.length === 0}
             title={
               segments.length === 0
-                ? 'No segments yet — create one from the segments tab.'
+                ? 'No segments yet — create one from the segments area.'
                 : undefined
             }
           >
@@ -720,10 +765,16 @@ const AudienceSection = ({
             </span>
           </button>
           <button
-            className="tab"
-            disabled
-            style={{ flex: 1, opacity: 0.5, cursor: 'not-allowed' }}
-            title="Coming soon"
+            className={`tab ${mode === 'filter' ? 'tab-active' : ''}`}
+            onClick={() =>
+              setDraft({
+                segment_id: null,
+                filter_rules: draft.filter_rules ?? {
+                  all: [{ field: 'source', op: 'is', value: 'space_signup' }],
+                },
+              })
+            }
+            style={{ flex: 1 }}
           >
             Custom segment
           </button>
@@ -744,7 +795,12 @@ const AudienceSection = ({
           <select
             className="select"
             value={draft.segment_id ?? ''}
-            onChange={(e) => setDraft({ segment_id: e.target.value || null })}
+            onChange={(e) =>
+              setDraft({
+                segment_id: e.target.value || null,
+                filter_rules: null,
+              })
+            }
           >
             {segments.map((s) => (
               <option key={s.id} value={s.id}>
@@ -752,6 +808,51 @@ const AudienceSection = ({
               </option>
             ))}
           </select>
+        </div>
+      )}
+
+      {mode === 'filter' && (
+        <div className="card" style={{ padding: 24, marginBottom: 16 }}>
+          <div
+            style={{
+              fontSize: 13,
+              fontWeight: 500,
+              color: 'var(--ink-2)',
+              marginBottom: 16,
+            }}
+          >
+            Subscribers who match all of:
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {rules.map((rule, i) => (
+              <FilterRowEditor
+                key={i}
+                rule={rule}
+                onChange={(next) => {
+                  const copy = [...rules]
+                  copy[i] = next
+                  setFilterRules(copy)
+                }}
+                onRemove={() => {
+                  const copy = rules.filter((_, j) => j !== i)
+                  setFilterRules(copy.length ? copy : null)
+                }}
+              />
+            ))}
+          </div>
+          <button
+            className="btn btn-ghost btn-sm"
+            style={{ marginTop: 14, color: 'var(--ink-2)' }}
+            onClick={() =>
+              setFilterRules([
+                ...rules,
+                { field: 'source', op: 'is', value: 'space_signup' },
+              ])
+            }
+          >
+            <Icon name="plus" size={13} />
+            Add filter
+          </button>
         </div>
       )}
 
@@ -776,15 +877,14 @@ const AudienceSection = ({
               letterSpacing: '-0.02em',
             }}
           >
-            {audienceCount.toLocaleString()} subscribers
+            {mode === 'filter' && previewQuery.isFetching && !previewQuery.data
+              ? '…'
+              : audienceCount.toLocaleString()}{' '}
+            subscribers
           </div>
         </div>
         <div
-          style={{
-            fontSize: 12,
-            color: 'var(--ink-3)',
-            textAlign: 'right',
-          }}
+          style={{ fontSize: 12, color: 'var(--ink-3)', textAlign: 'right' }}
         >
           {mode === 'all'
             ? 'Everyone marked active.'
@@ -793,7 +893,174 @@ const AudienceSection = ({
           updates live as your list grows
         </div>
       </div>
+
+      {mode === 'filter' &&
+        previewQuery.data &&
+        previewQuery.data.sample.length > 0 && (
+          <div
+            className="card"
+            style={{
+              marginTop: 16,
+              padding: '12px 18px',
+              fontSize: 12.5,
+              color: 'var(--ink-3)',
+            }}
+          >
+            <div
+              style={{
+                marginBottom: 6,
+                color: 'var(--ink-2)',
+                fontWeight: 500,
+              }}
+            >
+              Sample matches
+            </div>
+            {previewQuery.data.sample.slice(0, 5).map((s) => (
+              <div key={s.id} style={{ padding: '2px 0' }}>
+                {s.name ? `${s.name} · ` : ''}
+                <span style={{ color: 'var(--ink-2)' }}>{s.email}</span>
+              </div>
+            ))}
+          </div>
+        )}
     </Section>
+  )
+}
+
+const FILTER_FIELDS = [
+  {
+    field: 'source',
+    label: 'Source',
+    ops: [
+      { op: 'is', label: 'is' },
+      { op: 'is_not', label: 'is not' },
+    ],
+    valueKind: 'source' as const,
+  },
+  {
+    field: 'subscribed_at',
+    label: 'Subscribed',
+    ops: [
+      { op: 'within_days', label: 'in the last' },
+      { op: 'more_than_days_ago', label: 'more than days ago' },
+    ],
+    valueKind: 'days' as const,
+  },
+  {
+    field: 'last_opened_at',
+    label: 'Last opened',
+    ops: [
+      { op: 'within_days', label: 'within' },
+      { op: 'more_than_days_ago', label: 'more than days ago' },
+      { op: 'never_opened', label: 'never opened' },
+    ],
+    valueKind: 'days' as const,
+  },
+]
+
+const FilterRowEditor = ({
+  rule,
+  onChange,
+  onRemove,
+}: {
+  rule: FilterRule
+  onChange: (next: FilterRule) => void
+  onRemove: () => void
+}) => {
+  const fieldDef =
+    FILTER_FIELDS.find((f) => f.field === rule.field) ?? FILTER_FIELDS[0]
+  const showValue = rule.op !== 'never_opened'
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <select
+        className="select"
+        style={{ width: 160 }}
+        value={rule.field}
+        onChange={(e) => {
+          const next = FILTER_FIELDS.find((f) => f.field === e.target.value)!
+          onChange({
+            field: next.field,
+            op: next.ops[0].op,
+            value: next.valueKind === 'days' ? 30 : 'space_signup',
+          })
+        }}
+      >
+        {FILTER_FIELDS.map((f) => (
+          <option key={f.field} value={f.field}>
+            {f.label}
+          </option>
+        ))}
+      </select>
+      <select
+        className="select"
+        style={{ width: 170 }}
+        value={rule.op}
+        onChange={(e) =>
+          onChange({
+            ...rule,
+            op: e.target.value,
+            value:
+              e.target.value === 'never_opened'
+                ? null
+                : (rule.value ??
+                  (fieldDef.valueKind === 'days' ? 30 : 'space_signup')),
+          })
+        }
+      >
+        {fieldDef.ops.map((o) => (
+          <option key={o.op} value={o.op}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      {showValue && fieldDef.valueKind === 'source' && (
+        <select
+          className="select"
+          style={{ flex: 1 }}
+          value={typeof rule.value === 'string' ? rule.value : ''}
+          onChange={(e) => onChange({ ...rule, value: e.target.value })}
+        >
+          {SOURCE_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      )}
+      {showValue && fieldDef.valueKind === 'days' && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            flex: 1,
+          }}
+        >
+          <input
+            className="input"
+            type="number"
+            min={1}
+            max={365}
+            value={typeof rule.value === 'number' ? rule.value : 30}
+            onChange={(e) =>
+              onChange({ ...rule, value: Number(e.target.value) || 30 })
+            }
+            style={{ width: 100 }}
+          />
+          <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>days</span>
+        </div>
+      )}
+      {!showValue && <div style={{ flex: 1 }} />}
+      <button
+        className="btn-ghost"
+        style={{ padding: 8, borderRadius: 8 }}
+        onClick={onRemove}
+        aria-label="Remove filter"
+      >
+        <Icon name="trash" size={15} />
+      </button>
+    </div>
   )
 }
 
@@ -1120,9 +1387,21 @@ const ReviewSection = ({
   const segment = (segmentsQuery.data ?? []).find(
     (s) => s.id === draft.segment_id,
   )
-  const audienceCount = draft.segment_id
-    ? (segment?.subscriber_count ?? 0)
-    : (subStatsQuery.data?.active ?? 0)
+  const filterPreviewQuery = useSegmentFilterPreview(
+    organization.id,
+    draft.filter_rules,
+    !!draft.filter_rules,
+  )
+  const audienceCount = draft.filter_rules
+    ? (filterPreviewQuery.data?.count ?? 0)
+    : draft.segment_id
+      ? (segment?.subscriber_count ?? 0)
+      : (subStatsQuery.data?.active ?? 0)
+  const audienceLabel = draft.filter_rules
+    ? 'Custom segment'
+    : segment
+      ? segment.name
+      : null
 
   const fmtFull = (d: Date) =>
     d.toLocaleString(undefined, {
@@ -1218,7 +1497,7 @@ const ReviewSection = ({
           />
           <KV
             k="Audience"
-            v={`${audienceCount.toLocaleString()} subscribers${segment ? ` · ${segment.name}` : ''}`}
+            v={`${audienceCount.toLocaleString()} subscribers${audienceLabel ? ` · ${audienceLabel}` : ''}`}
           />
           <KV k="Subject" v={draft.subject || '—'} />
           <KV k="Preview" v={draft.preview_text || '—'} />

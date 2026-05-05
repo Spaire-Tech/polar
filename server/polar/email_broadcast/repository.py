@@ -202,6 +202,174 @@ class EmailBroadcastRepository(
             "unsubscribed": row[4],
         }
 
+    async def get_top_links(
+        self, organization_id: UUID, days: int, limit: int = 10
+    ) -> list[dict]:
+        """Aggregate click counts across stored clicked_links across the org."""
+        from datetime import timedelta
+
+        from polar.kit.utils import utc_now
+
+        cutoff = utc_now() - timedelta(days=days)
+        # Unnest the JSONB array of click events on each send so we can group
+        # by URL across the whole org.
+        unnested = (
+            select(
+                func.jsonb_array_elements(EmailBroadcastSend.clicked_links).label(
+                    "evt"
+                ),
+            )
+            .join(
+                EmailBroadcast,
+                EmailBroadcastSend.broadcast_id == EmailBroadcast.id,
+            )
+            .where(
+                EmailBroadcast.organization_id == organization_id,
+                EmailBroadcastSend.deleted_at.is_(None),
+                EmailBroadcastSend.created_at >= cutoff,
+            )
+            .subquery()
+        )
+
+        url_col = unnested.c.evt.op("->>")("url").label("url")
+        statement = (
+            select(url_col, func.count().label("clicks"))
+            .where(url_col.is_not(None))
+            .group_by(url_col)
+            .order_by(func.count().desc())
+            .limit(limit)
+        )
+        result = await self.session.execute(statement)
+        rows = list(result.all())
+
+        delivered_subq = await self.session.execute(
+            select(func.count(EmailBroadcastSend.id))
+            .join(
+                EmailBroadcast,
+                EmailBroadcastSend.broadcast_id == EmailBroadcast.id,
+            )
+            .where(
+                EmailBroadcast.organization_id == organization_id,
+                EmailBroadcastSend.deleted_at.is_(None),
+                EmailBroadcastSend.created_at >= cutoff,
+                EmailBroadcastSend.status.in_(
+                    [
+                        EmailBroadcastSendStatus.delivered,
+                        EmailBroadcastSendStatus.opened,
+                        EmailBroadcastSendStatus.clicked,
+                    ]
+                ),
+            )
+        )
+        delivered = delivered_subq.scalar_one() or 0
+
+        return [
+            {
+                "url": row[0],
+                "clicks": row[1],
+                "ctr": round((row[1] / delivered * 100), 2) if delivered else 0.0,
+            }
+            for row in rows
+        ]
+
+    async def get_device_share(
+        self, organization_id: UUID, days: int
+    ) -> list[dict]:
+        """Bucket last_user_agent strings into device families and return shares."""
+        from datetime import timedelta
+
+        from polar.kit.utils import utc_now
+
+        cutoff = utc_now() - timedelta(days=days)
+        statement = (
+            select(EmailBroadcastSend.last_user_agent)
+            .join(
+                EmailBroadcast,
+                EmailBroadcastSend.broadcast_id == EmailBroadcast.id,
+            )
+            .where(
+                EmailBroadcast.organization_id == organization_id,
+                EmailBroadcastSend.deleted_at.is_(None),
+                EmailBroadcastSend.created_at >= cutoff,
+                EmailBroadcastSend.last_user_agent.is_not(None),
+            )
+        )
+        result = await self.session.execute(statement)
+        agents = [row[0] for row in result.all()]
+
+        buckets: dict[str, int] = {}
+        for ua in agents:
+            buckets[_classify_user_agent(ua)] = (
+                buckets.get(_classify_user_agent(ua), 0) + 1
+            )
+        total = sum(buckets.values()) or 1
+        out = [
+            {"name": k, "share": round(v / total * 100, 1)}
+            for k, v in sorted(buckets.items(), key=lambda kv: -kv[1])
+        ]
+        return out
+
+    async def get_daily_engagement(
+        self, organization_id: UUID, days: int
+    ) -> list[dict]:
+        """Per-day open and click rates across all broadcasts in the window."""
+        from datetime import timedelta
+
+        from polar.kit.utils import utc_now
+
+        cutoff = utc_now() - timedelta(days=days)
+        day_col = cast(EmailBroadcastSend.created_at, Date).label("day")
+        statement = (
+            select(
+                day_col,
+                func.count(EmailBroadcastSend.id).label("delivered"),
+                func.count(EmailBroadcastSend.id)
+                .filter(EmailBroadcastSend.opened_at.is_not(None))
+                .label("opened"),
+                func.count(EmailBroadcastSend.id)
+                .filter(EmailBroadcastSend.clicked_at.is_not(None))
+                .label("clicked"),
+            )
+            .join(
+                EmailBroadcast,
+                EmailBroadcastSend.broadcast_id == EmailBroadcast.id,
+            )
+            .where(
+                EmailBroadcast.organization_id == organization_id,
+                EmailBroadcastSend.deleted_at.is_(None),
+                EmailBroadcastSend.created_at >= cutoff,
+                EmailBroadcastSend.status.in_(
+                    [
+                        EmailBroadcastSendStatus.delivered,
+                        EmailBroadcastSendStatus.opened,
+                        EmailBroadcastSendStatus.clicked,
+                        EmailBroadcastSendStatus.sent,
+                    ]
+                ),
+            )
+            .group_by(day_col)
+            .order_by(day_col)
+        )
+        result = await self.session.execute(statement)
+        rows = result.all()
+        out = []
+        for row in rows:
+            delivered = row[1] or 0
+            opened = row[2] or 0
+            clicked = row[3] or 0
+            out.append(
+                {
+                    "day": str(row[0]),
+                    "open_rate": round(
+                        (opened / delivered * 100) if delivered else 0.0, 2
+                    ),
+                    "click_rate": round(
+                        (clicked / delivered * 100) if delivered else 0.0, 2
+                    ),
+                }
+            )
+        return out
+
     async def get_daily_sends(
         self, organization_id: UUID, days: int = 30
     ) -> list[dict]:
@@ -223,3 +391,29 @@ class EmailBroadcastRepository(
         )
         result = await self.session.execute(statement)
         return [{"day": str(row[0]), "count": row[1]} for row in result.all()]
+
+
+def _classify_user_agent(ua: str | None) -> str:
+    """Bucket a User-Agent string into a coarse mail-client family."""
+    if not ua:
+        return "Other"
+    s = ua.lower()
+    if "iphone" in s or ("apple" in s and "mobile" in s):
+        return "iPhone Mail"
+    if "ipad" in s:
+        return "iPad Mail"
+    if "macintosh" in s and "mail" in s:
+        return "Apple Mail (Mac)"
+    if "android" in s and "gmail" in s:
+        return "Gmail (Android)"
+    if "gmail" in s or "googlemail" in s:
+        return "Gmail (web)"
+    if "outlook" in s or "microsoft outlook" in s:
+        return "Outlook"
+    if "yahoo" in s:
+        return "Yahoo Mail"
+    if "thunderbird" in s:
+        return "Thunderbird"
+    if "android" in s:
+        return "Android Mail"
+    return "Other"

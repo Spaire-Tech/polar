@@ -1,14 +1,23 @@
-import { useEmailBroadcasts } from '@/hooks/queries/emailMarketing'
+import {
+  useBroadcastAggregateAnalytics,
+  useBroadcastDailyEngagement,
+  useBroadcastDevices,
+  useBroadcastTopLinks,
+  useEmailBroadcasts,
+  useEmailSubscriberStats,
+  useSubscriberDailyGrowth,
+} from '@/hooks/queries/emailMarketing'
 import { schemas } from '@spaire/client'
 import { useState } from 'react'
-import {
-  DEVICES,
-  ENGAGEMENT_SERIES,
-  SUBSCRIBER_GROWTH,
-  TOP_LINKS,
-} from '../data'
 import { Icon } from '../Icon'
 import { MetricTile } from '../shared'
+
+const RANGE_DAYS: Record<'7d' | '14d' | '30d' | '90d', number> = {
+  '7d': 7,
+  '14d': 14,
+  '30d': 30,
+  '90d': 90,
+}
 
 export const AnalyticsScreen = ({
   organization,
@@ -16,15 +25,32 @@ export const AnalyticsScreen = ({
   organization: schemas['Organization']
 }) => {
   const [range, setRange] = useState<'7d' | '14d' | '30d' | '90d'>('14d')
+  const days = RANGE_DAYS[range]
 
-  // Top broadcasts uses real data; Engagement / Devices / Top links are still
-  // sample series until those analytics endpoints land (Phase 4).
   const broadcastsQuery = useEmailBroadcasts(organization.id, {
     status: 'sent',
     page: 1,
     limit: 50,
   })
   const sentBroadcasts = broadcastsQuery.data?.items ?? []
+
+  const aggregateQuery = useBroadcastAggregateAnalytics(organization.id)
+  const aggregate = aggregateQuery.data
+
+  const engagementQuery = useBroadcastDailyEngagement(organization.id, days)
+  const engagementSeries = engagementQuery.data ?? []
+
+  const growthQuery = useSubscriberDailyGrowth(organization.id, days)
+  const growthSeries = growthQuery.data ?? []
+  const subStatsQuery = useEmailSubscriberStats(organization.id)
+  const totalSubscribers = subStatsQuery.data?.total ?? 0
+  const growthDelta = growthSeries.reduce((acc, p) => acc + p.count, 0)
+
+  const topLinksQuery = useBroadcastTopLinks(organization.id, days, 5)
+  const topLinks = topLinksQuery.data ?? []
+
+  const devicesQuery = useBroadcastDevices(organization.id, 90)
+  const devices = devicesQuery.data ?? []
 
   return (
     <div className="fade-up">
@@ -84,28 +110,39 @@ export const AnalyticsScreen = ({
         }}
       >
         <MetricTile
-          value="142,419"
+          value={(aggregate?.total_sent ?? 0).toLocaleString()}
           label="Emails sent"
-          delta="+12.4%"
-          deltaLabel="vs prior 14d"
+          delta={
+            aggregate ? `${aggregate.delivered.toLocaleString()}` : undefined
+          }
+          deltaLabel="delivered"
+          subtle
         />
         <MetricTile
-          value="48.9%"
+          value={`${(aggregate?.open_rate ?? 0).toFixed(1)}%`}
           label="Open rate"
-          delta="+2.1pt"
-          deltaLabel="vs prior 14d"
+          delta={aggregate ? aggregate.opened.toLocaleString() : undefined}
+          deltaLabel="opens"
+          subtle
         />
         <MetricTile
-          value="14.3%"
+          value={`${(aggregate?.click_rate ?? 0).toFixed(1)}%`}
           label="Click rate"
-          delta="+0.8pt"
-          deltaLabel="vs prior 14d"
+          delta={aggregate ? aggregate.clicked.toLocaleString() : undefined}
+          deltaLabel="clicks"
+          subtle
         />
         <MetricTile
-          value="$24,182"
-          label="Attributed revenue"
-          delta="+18.6%"
-          deltaLabel="vs prior 14d"
+          value={(aggregate?.unsubscribed ?? 0).toLocaleString()}
+          label="Unsubscribes"
+          delta={
+            aggregate && aggregate.total_sent
+              ? `${((aggregate.unsubscribed / aggregate.total_sent) * 100).toFixed(2)}%`
+              : undefined
+          }
+          deltaLabel="of sent"
+          subtle
+          down
         />
       </div>
 
@@ -137,7 +174,20 @@ export const AnalyticsScreen = ({
               <Legend color="var(--ink-4)" label="Click rate" dashed />
             </div>
           </div>
-          <LineChart data={ENGAGEMENT_SERIES} />
+          {engagementSeries.length === 0 && !engagementQuery.isLoading ? (
+            <div
+              style={{
+                padding: 40,
+                color: 'var(--ink-3)',
+                fontSize: 13,
+                textAlign: 'center',
+              }}
+            >
+              No sends in the last {days} days yet.
+            </div>
+          ) : (
+            <LineChart data={engagementSeries} />
+          )}
         </div>
         <div className="card" style={{ padding: 28 }}>
           <div className="eyebrow" style={{ marginBottom: 6 }}>
@@ -161,7 +211,7 @@ export const AnalyticsScreen = ({
                 letterSpacing: '-0.03em',
               }}
             >
-              4,287
+              {totalSubscribers.toLocaleString()}
             </span>
             <span
               style={{
@@ -170,10 +220,23 @@ export const AnalyticsScreen = ({
                 color: 'var(--green)',
               }}
             >
-              +131
+              {growthDelta >= 0 ? `+${growthDelta}` : growthDelta}
             </span>
           </div>
-          <AreaChart data={SUBSCRIBER_GROWTH} />
+          {growthSeries.length === 0 && !growthQuery.isLoading ? (
+            <div
+              style={{
+                padding: 40,
+                color: 'var(--ink-3)',
+                fontSize: 13,
+                textAlign: 'center',
+              }}
+            >
+              No new subscribers yet.
+            </div>
+          ) : (
+            <AreaChart data={growthSeries} />
+          )}
         </div>
       </div>
 
@@ -285,11 +348,16 @@ export const AnalyticsScreen = ({
           >
             <h3 className="h2">Top links</h3>
             <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>
-              last 14 days
+              last {days} days
             </span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {TOP_LINKS.map((l, i) => (
+            {topLinks.length === 0 && !topLinksQuery.isLoading && (
+              <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>
+                No tracked link clicks yet.
+              </div>
+            )}
+            {topLinks.map((l, i) => (
               <div
                 key={i}
                 style={{
@@ -347,7 +415,7 @@ export const AnalyticsScreen = ({
                     textAlign: 'right',
                   }}
                 >
-                  {l.ctr}%
+                  {l.ctr.toFixed(1)}%
                 </div>
               </div>
             ))}
@@ -367,7 +435,12 @@ export const AnalyticsScreen = ({
             Where readers open
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {DEVICES.map((d, i) => (
+            {devices.length === 0 && !devicesQuery.isLoading && (
+              <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>
+                Not enough open data yet.
+              </div>
+            )}
+            {devices.map((d, i) => (
               <div key={i}>
                 <div
                   style={{
@@ -478,15 +551,21 @@ const Legend = ({
 const LineChart = ({
   data,
 }: {
-  data: { d: string; open: number; click: number }[]
+  data: { day: string; open_rate: number; click_rate: number }[]
 }) => {
   const W = 720
   const H = 220
   const P = 24
-  const xs = data.map((_, i) => P + (i / (data.length - 1)) * (W - 2 * P))
-  const max = 70
-  const yOpen = data.map((d) => H - P - (d.open / max) * (H - 2 * P))
-  const yClick = data.map((d) => H - P - (d.click / max) * (H - 2 * P))
+  const xs = data.map(
+    (_, i) =>
+      P + (data.length === 1 ? 0.5 : i / (data.length - 1)) * (W - 2 * P),
+  )
+  const max = Math.max(
+    70,
+    ...data.map((d) => Math.max(d.open_rate, d.click_rate)),
+  )
+  const yOpen = data.map((d) => H - P - (d.open_rate / max) * (H - 2 * P))
+  const yClick = data.map((d) => H - P - (d.click_rate / max) * (H - 2 * P))
 
   const path = (ys: number[]) =>
     xs.map((x, i) => `${i === 0 ? 'M' : 'L'}${x},${ys[i]}`).join(' ')
@@ -540,7 +619,7 @@ const LineChart = ({
               fill="var(--ink-4)"
               textAnchor="middle"
             >
-              {data[i].d}
+              {data[i].day}
             </text>
           ),
       )}
@@ -548,14 +627,27 @@ const LineChart = ({
   )
 }
 
-const AreaChart = ({ data }: { data: { d: string; v: number }[] }) => {
+const AreaChart = ({ data }: { data: { day: string; count: number }[] }) => {
   const W = 320
   const H = 140
   const P = 4
-  const min = Math.min(...data.map((d) => d.v)) - 10
-  const max = Math.max(...data.map((d) => d.v))
-  const xs = data.map((_, i) => P + (i / (data.length - 1)) * (W - 2 * P))
-  const ys = data.map((d) => H - P - ((d.v - min) / (max - min)) * (H - 2 * P))
+  // Cumulative net new subscribers over the window — gives the chart a
+  // monotonic growth shape rather than a noisy daily bar.
+  const cumulative: number[] = []
+  let running = 0
+  for (const d of data) {
+    running += d.count
+    cumulative.push(running)
+  }
+  const min = Math.min(0, ...cumulative)
+  const max = Math.max(1, ...cumulative)
+  const xs = data.map(
+    (_, i) =>
+      P + (data.length === 1 ? 0.5 : i / (data.length - 1)) * (W - 2 * P),
+  )
+  const ys = cumulative.map(
+    (v) => H - P - ((v - min) / (max - min || 1)) * (H - 2 * P),
+  )
   const path = xs.map((x, i) => `${i === 0 ? 'M' : 'L'}${x},${ys[i]}`).join(' ')
   return (
     <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 140 }}>

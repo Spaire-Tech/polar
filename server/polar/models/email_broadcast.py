@@ -48,6 +48,9 @@ class EmailBroadcast(RecordModel):
         nullable=True,
         default=None,
     )
+    filter_rules: Mapped[dict | None] = mapped_column(
+        JSONB, nullable=True, default=None
+    )
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default=EmailBroadcastStatus.draft
     )

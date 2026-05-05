@@ -58,6 +58,15 @@ class EmailSubscriberBulkResult(Schema):
     skipped: int = 0
 
 
+class EmailSubscriberFilterPreview(Schema):
+    filter_rules: dict | None = Field(default=None)
+
+
+class EmailSubscriberFilterPreviewResult(Schema):
+    count: int = 0
+    sample: list["EmailSubscriber"] = Field(default_factory=list)
+
+
 class StorefrontSubscribe(Schema):
     """Public schema for Space card subscribe."""
 

@@ -272,6 +272,37 @@ class EmailSubscriberService:
                 created += 1
         return {"created": created, "updated": updated, "skipped": skipped}
 
+    async def preview_filter(
+        self,
+        session: AsyncReadSession,
+        *,
+        organization_id: UUID,
+        filter_rules: dict | None,
+        sample_limit: int = 8,
+    ) -> tuple[int, list[EmailSubscriber]]:
+        """Return (matching_count, sample_subscribers) for an audience filter."""
+        repository = EmailSubscriberRepository.from_session(session)
+        total = await repository.count_filter_matches(
+            organization_id, filter_rules
+        )
+        sample = await repository.list_filter_matches(
+            organization_id, filter_rules, limit=sample_limit
+        )
+        return total, sample
+
+    async def resolve_filter_subscribers(
+        self,
+        session: AsyncReadSession,
+        *,
+        organization_id: UUID,
+        filter_rules: dict | None,
+    ) -> list[EmailSubscriber]:
+        """Materialize the subscriber list for an audience filter."""
+        repository = EmailSubscriberRepository.from_session(session)
+        return await repository.list_filter_matches(
+            organization_id, filter_rules
+        )
+
     async def delete_permanently(
         self,
         session: AsyncSession,
