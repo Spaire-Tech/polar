@@ -83,6 +83,11 @@ class EmailBroadcastSend(RecordModel):
     last_user_agent: Mapped[str | None] = mapped_column(
         String(500), nullable=True, default=None
     )
+    # 'a' / 'b' for the test slice; null means the recipient gets the
+    # winner (or the only) variant — see EmailBroadcastABTest.
+    variant: Mapped[str | None] = mapped_column(
+        String(1), nullable=True, default=None
+    )
 
     @declared_attr
     def broadcast(cls) -> Mapped["EmailBroadcast"]:  # type: ignore[name-defined]  # noqa: F821

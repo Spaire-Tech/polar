@@ -3,6 +3,7 @@ import {
   useCancelScheduledEmailBroadcast,
   useDuplicateEmailBroadcast,
   useEmailBroadcast,
+  useEmailBroadcastABTest,
   useEmailBroadcastAnalytics,
   useEmailBroadcastSends,
 } from '@/hooks/queries/emailMarketing'
@@ -84,6 +85,7 @@ export const BroadcastDetailScreen = ({
   const [page, setPage] = useState(1)
   const broadcastQuery = useEmailBroadcast(broadcastId)
   const analyticsQuery = useEmailBroadcastAnalytics(broadcastId)
+  const abQuery = useEmailBroadcastABTest(broadcastId)
   const sendsQuery = useEmailBroadcastSends(broadcastId, {
     page,
     limit: PAGE_SIZE,
@@ -212,6 +214,13 @@ export const BroadcastDetailScreen = ({
           down
         />
       </div>
+
+      {abQuery.data?.config && (
+        <ABTestPanel
+          subject_a={broadcast?.subject ?? ''}
+          state={abQuery.data}
+        />
+      )}
 
       {broadcast?.content_html && (
         <div className="card" style={{ padding: 0, marginBottom: 24 }}>
@@ -396,6 +405,176 @@ export const BroadcastDetailScreen = ({
             </div>
           </div>
         )}
+      </div>
+    </div>
+  )
+}
+
+const ABTestPanel = ({
+  subject_a,
+  state,
+}: {
+  subject_a: string
+  state: import('@/hooks/queries/emailMarketing').ABTestState
+}) => {
+  const { config, variants } = state
+  if (!config) return null
+  const a = variants?.a
+  const b = variants?.b
+  const metric = config.winner_metric
+  const winner = config.winner_variant
+
+  return (
+    <div className="card" style={{ padding: 0, marginBottom: 24 }}>
+      <div
+        style={{
+          padding: '14px 22px',
+          borderBottom: '1px solid var(--line)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <div>
+          <div
+            style={{
+              fontSize: 12,
+              color: 'var(--ink-3)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              fontWeight: 500,
+              marginBottom: 4,
+            }}
+          >
+            A/B test · winner by{' '}
+            {metric === 'click_rate' ? 'click rate' : 'open rate'}
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--ink-2)' }}>
+            {config.slice_pct}% of recipients tested · decided after{' '}
+            {config.decide_after_minutes} minutes
+          </div>
+        </div>
+        {winner ? (
+          <span className="chip chip-success">
+            <Icon name="check" size={11} />
+            Winner · {winner.toUpperCase()}
+          </span>
+        ) : config.test_sent_at ? (
+          <span className="chip chip-info">
+            <Icon name="clock" size={11} />
+            Test running
+          </span>
+        ) : (
+          <span className="chip">
+            <Icon name="flask" size={11} />
+            Configured
+          </span>
+        )}
+      </div>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: 0,
+        }}
+      >
+        <ABVariantBlock
+          label="A"
+          subject={subject_a}
+          stats={a}
+          metric={metric}
+          isWinner={winner === 'a'}
+        />
+        <div
+          style={{
+            borderLeft: '1px solid var(--line)',
+          }}
+        >
+          <ABVariantBlock
+            label="B"
+            subject={config.subject_b}
+            stats={b}
+            metric={metric}
+            isWinner={winner === 'b'}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const ABVariantBlock = ({
+  label,
+  subject,
+  stats,
+  metric,
+  isWinner,
+}: {
+  label: string
+  subject: string
+  stats: import('@/hooks/queries/emailMarketing').ABVariantStats | undefined
+  metric: 'open_rate' | 'click_rate'
+  isWinner: boolean
+}) => {
+  const value =
+    stats == null
+      ? null
+      : metric === 'click_rate'
+        ? stats.click_rate
+        : stats.open_rate
+  return (
+    <div style={{ padding: 24 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          marginBottom: 8,
+        }}
+      >
+        <span
+          style={{
+            fontSize: 11.5,
+            fontWeight: 600,
+            width: 22,
+            height: 22,
+            borderRadius: '50%',
+            background: isWinner ? 'var(--ink)' : 'var(--bg-softer)',
+            color: isWinner ? '#fff' : 'var(--ink-2)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {label}
+        </span>
+        <div
+          style={{
+            fontSize: 13,
+            color: 'var(--ink)',
+            fontWeight: 500,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {subject || '—'}
+        </div>
+      </div>
+      <div
+        style={{
+          fontSize: 32,
+          fontWeight: 600,
+          letterSpacing: '-0.03em',
+          color: 'var(--ink)',
+        }}
+      >
+        {value == null ? '—' : `${value.toFixed(1)}%`}
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 4 }}>
+        {stats
+          ? `${stats.opened} opens · ${stats.clicked} clicks · ${stats.delivered} delivered`
+          : 'No data yet'}
       </div>
     </div>
   )

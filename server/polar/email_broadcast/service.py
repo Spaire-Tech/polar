@@ -1,3 +1,4 @@
+import random
 from collections.abc import Sequence
 from datetime import datetime
 from uuid import UUID
@@ -8,6 +9,7 @@ from polar.postgres import AsyncReadSession, AsyncSession
 from polar.kit.pagination import PaginationParams
 from polar.kit.utils import utc_now
 from polar.models.email_broadcast import EmailBroadcast, EmailBroadcastStatus
+from polar.models.email_broadcast_ab_test import EmailBroadcastABTest
 from polar.models.email_broadcast_send import EmailBroadcastSend, EmailBroadcastSendStatus
 from polar.models.email_subscriber import EmailSubscriber
 from polar.worker import enqueue_job
@@ -20,7 +22,7 @@ class BroadcastAlreadySent(BroadcastError):
     def __init__(self) -> None:
         super().__init__("Broadcast has already been sent or is currently sending.")
 
-from .repository import EmailBroadcastRepository
+from .repository import EmailBroadcastABTestRepository, EmailBroadcastRepository
 
 
 class EmailBroadcastService:
@@ -122,6 +124,77 @@ class EmailBroadcastService:
         broadcast.status = EmailBroadcastStatus.draft
         broadcast.scheduled_at = None
         return await repository.update(broadcast)
+
+    async def get_ab_test(
+        self, session: AsyncReadSession, broadcast_id: UUID
+    ) -> EmailBroadcastABTest | None:
+        repo = EmailBroadcastABTestRepository.from_session(session)
+        return await repo.get_by_broadcast(broadcast_id)
+
+    async def upsert_ab_test(
+        self,
+        session: AsyncSession,
+        broadcast: EmailBroadcast,
+        *,
+        subject_b: str,
+        slice_pct: int,
+        decide_after_minutes: int,
+        winner_metric: str,
+    ) -> EmailBroadcastABTest:
+        if broadcast.status not in (
+            EmailBroadcastStatus.draft,
+            EmailBroadcastStatus.scheduled,
+        ):
+            raise BroadcastError(
+                "A/B test config can only change while the broadcast is a draft or scheduled."
+            )
+
+        slice_pct = max(5, min(50, int(slice_pct)))
+        decide_after_minutes = max(15, int(decide_after_minutes))
+        if winner_metric not in ("open_rate", "click_rate"):
+            winner_metric = "open_rate"
+
+        repo = EmailBroadcastABTestRepository.from_session(session)
+        existing = await repo.get_by_broadcast(broadcast.id)
+        if existing is not None:
+            existing.subject_b = subject_b
+            existing.slice_pct = slice_pct
+            existing.decide_after_minutes = decide_after_minutes
+            existing.winner_metric = winner_metric
+            return await repo.update(existing)
+
+        ab_test = EmailBroadcastABTest(
+            broadcast_id=broadcast.id,
+            subject_b=subject_b,
+            slice_pct=slice_pct,
+            decide_after_minutes=decide_after_minutes,
+            winner_metric=winner_metric,
+        )
+        return await repo.create(ab_test, flush=True)
+
+    async def delete_ab_test(
+        self,
+        session: AsyncSession,
+        broadcast: EmailBroadcast,
+    ) -> None:
+        if broadcast.status not in (
+            EmailBroadcastStatus.draft,
+            EmailBroadcastStatus.scheduled,
+        ):
+            raise BroadcastError(
+                "A/B test config can only change while the broadcast is a draft or scheduled."
+            )
+        repo = EmailBroadcastABTestRepository.from_session(session)
+        existing = await repo.get_by_broadcast(broadcast.id)
+        if existing is not None:
+            existing.deleted_at = utc_now()
+            await repo.update(existing)
+
+    async def get_ab_analytics(
+        self, session: AsyncReadSession, broadcast_id: UUID
+    ) -> dict[str, dict[str, int | float]]:
+        repo = EmailBroadcastABTestRepository.from_session(session)
+        return await repo.variant_analytics(broadcast_id)
 
     async def archive(
         self,
@@ -275,14 +348,50 @@ class EmailBroadcastService:
             broadcast.total_recipients = 0
             return await repository.update(broadcast)
 
-        # Create send records
-        for subscriber in subscribers:
-            send_record = EmailBroadcastSend(
-                broadcast_id=broadcast.id,
-                subscriber_id=subscriber.id,
-                status=EmailBroadcastSendStatus.pending,
-            )
-            session.add(send_record)
+        # Did the user configure an A/B test? If so, only the test slice gets
+        # variant labels right now; the remainder stays variant=null and is
+        # filled in once the winner is picked by the cron job.
+        ab_repo = EmailBroadcastABTestRepository.from_session(session)
+        ab_test = await ab_repo.get_by_broadcast(broadcast.id)
+        ab_active = ab_test is not None and ab_test.winner_picked_at is None
+
+        if ab_active and ab_test is not None:
+            shuffled = list(subscribers)
+            random.shuffle(shuffled)
+            slice_size = max(2, int(len(shuffled) * (ab_test.slice_pct / 100)))
+            slice_size = min(slice_size, len(shuffled))
+            test_slice = shuffled[:slice_size]
+            remainder = shuffled[slice_size:]
+            half = len(test_slice) // 2
+            for i, subscriber in enumerate(test_slice):
+                variant = "a" if i < half else "b"
+                session.add(
+                    EmailBroadcastSend(
+                        broadcast_id=broadcast.id,
+                        subscriber_id=subscriber.id,
+                        status=EmailBroadcastSendStatus.pending,
+                        variant=variant,
+                    )
+                )
+            for subscriber in remainder:
+                session.add(
+                    EmailBroadcastSend(
+                        broadcast_id=broadcast.id,
+                        subscriber_id=subscriber.id,
+                        status=EmailBroadcastSendStatus.pending,
+                        variant=None,
+                    )
+                )
+            ab_test.test_sent_at = utc_now()
+        else:
+            for subscriber in subscribers:
+                session.add(
+                    EmailBroadcastSend(
+                        broadcast_id=broadcast.id,
+                        subscriber_id=subscriber.id,
+                        status=EmailBroadcastSendStatus.pending,
+                    )
+                )
 
         broadcast.status = EmailBroadcastStatus.sending
         broadcast.total_recipients = len(subscribers)
@@ -291,10 +400,12 @@ class EmailBroadcastService:
         # Flush to persist send records
         await session.flush()
 
-        # Enqueue the actual sending job
+        # Worker dispatch. For A/B we only release the test slice now; the
+        # winner-picker cron releases the remainder once it has data.
         enqueue_job(
             "email_broadcast.send_emails",
             broadcast_id=broadcast.id,
+            variant_filter="ab_test_only" if ab_active else None,
         )
 
         return broadcast

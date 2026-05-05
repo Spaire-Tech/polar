@@ -11,6 +11,10 @@ from polar.routing import APIRouter
 
 from .schemas import (
     EmailBroadcast as EmailBroadcastSchema,
+    EmailBroadcastABTest as EmailBroadcastABTestSchema,
+    EmailBroadcastABTestState,
+    EmailBroadcastABTestUpsert,
+    EmailBroadcastABVariantStats,
     EmailBroadcastAnalytics,
     EmailBroadcastCreate,
     EmailBroadcastDailyEngagementPoint,
@@ -302,6 +306,89 @@ async def cancel_email_broadcast_schedule(
         raise ResourceNotFound()
     updated = await email_broadcast_service.cancel_schedule(session, broadcast)
     return EmailBroadcastSchema.model_validate(updated, from_attributes=True)
+
+
+@router.get(
+    "/{broadcast_id}/ab-test", response_model=EmailBroadcastABTestState
+)
+async def get_email_broadcast_ab_test(
+    auth_subject: EmailSubscribersRead,
+    broadcast_id: UUID4,
+    session: AsyncReadSession = Depends(get_db_read_session),
+) -> EmailBroadcastABTestState:
+    broadcast = await email_broadcast_service.get_by_id(
+        session, auth_subject, broadcast_id
+    )
+    if broadcast is None:
+        raise ResourceNotFound()
+    config = await email_broadcast_service.get_ab_test(session, broadcast_id)
+    variants: dict[str, EmailBroadcastABVariantStats] | None = None
+    if config is not None:
+        raw = await email_broadcast_service.get_ab_analytics(session, broadcast_id)
+        variants = {
+            v: EmailBroadcastABVariantStats(**raw[v]) for v in raw
+        }
+    return EmailBroadcastABTestState(
+        config=EmailBroadcastABTestSchema.model_validate(
+            config, from_attributes=True
+        )
+        if config
+        else None,
+        variants=variants,
+    )
+
+
+@router.put(
+    "/{broadcast_id}/ab-test", response_model=EmailBroadcastABTestSchema
+)
+async def upsert_email_broadcast_ab_test(
+    auth_subject: EmailSubscribersWrite,
+    broadcast_id: UUID4,
+    body: EmailBroadcastABTestUpsert,
+    session: AsyncSession = Depends(get_db_session),
+) -> EmailBroadcastABTestSchema:
+    broadcast = await email_broadcast_service.get_by_id(
+        session, auth_subject, broadcast_id
+    )
+    if broadcast is None:
+        raise ResourceNotFound()
+    from fastapi import HTTPException
+    from .service import BroadcastError
+
+    try:
+        ab_test = await email_broadcast_service.upsert_ab_test(
+            session,
+            broadcast,
+            subject_b=body.subject_b,
+            slice_pct=body.slice_pct,
+            decide_after_minutes=body.decide_after_minutes,
+            winner_metric=body.winner_metric,
+        )
+    except BroadcastError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    return EmailBroadcastABTestSchema.model_validate(
+        ab_test, from_attributes=True
+    )
+
+
+@router.delete("/{broadcast_id}/ab-test", status_code=204)
+async def delete_email_broadcast_ab_test(
+    auth_subject: EmailSubscribersWrite,
+    broadcast_id: UUID4,
+    session: AsyncSession = Depends(get_db_session),
+) -> None:
+    broadcast = await email_broadcast_service.get_by_id(
+        session, auth_subject, broadcast_id
+    )
+    if broadcast is None:
+        raise ResourceNotFound()
+    from fastapi import HTTPException
+    from .service import BroadcastError
+
+    try:
+        await email_broadcast_service.delete_ab_test(session, broadcast)
+    except BroadcastError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
 
 
 @router.post("/{broadcast_id}/test", status_code=204)

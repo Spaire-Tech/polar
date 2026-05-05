@@ -23,6 +23,7 @@ from .discount_redemption import DiscountRedemption
 from .dispute import Dispute
 from .downloadable import Downloadable
 from .email_broadcast import EmailBroadcast
+from .email_broadcast_ab_test import EmailBroadcastABTest
 from .email_broadcast_send import EmailBroadcastSend
 from .email_segment import EmailSegment
 from .email_segment_subscriber import EmailSegmentSubscriber
@@ -133,6 +134,7 @@ __all__ = [
     "Dispute",
     "Downloadable",
     "EmailBroadcast",
+    "EmailBroadcastABTest",
     "EmailBroadcastSend",
     "EmailSegment",
     "EmailSegmentSubscriber",

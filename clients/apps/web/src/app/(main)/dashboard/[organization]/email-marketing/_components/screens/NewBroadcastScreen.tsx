@@ -4,7 +4,9 @@ import {
   FilterRule,
   FilterRules,
   useCreateEmailBroadcast,
+  useDeleteEmailBroadcastABTest,
   useEmailBroadcast,
+  useEmailBroadcastABTest,
   useEmailSegments,
   useEmailSubscriberStats,
   useScheduleEmailBroadcast,
@@ -12,11 +14,12 @@ import {
   useSendEmailBroadcast,
   useSendTestEmailBroadcast,
   useUpdateEmailBroadcast,
+  useUpsertEmailBroadcastABTest,
 } from '@/hooks/queries/emailMarketing'
 import { schemas } from '@spaire/client'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Icon } from '../Icon'
-import { KV, Section } from '../shared'
+import { KV, Section, Toggle } from '../shared'
 
 type Step = 'details' | 'content' | 'audience' | 'preview' | 'review'
 
@@ -37,6 +40,20 @@ type Draft = {
   segment_id: string | null
   filter_rules: FilterRules | null
 }
+
+type ABDraft = {
+  subject_b: string
+  slice_pct: number
+  decide_after_minutes: number
+  winner_metric: 'open_rate' | 'click_rate'
+}
+
+const blankAb = (): ABDraft => ({
+  subject_b: '',
+  slice_pct: 20,
+  decide_after_minutes: 240,
+  winner_metric: 'open_rate',
+})
 
 const blankDraft = (organization: schemas['Organization']): Draft => ({
   subject: '',
@@ -90,11 +107,12 @@ export const NewBroadcastScreen = (props: {
 }) => {
   const { broadcastId } = props
   const existingQuery = useEmailBroadcast(broadcastId ?? '')
+  const abQuery = useEmailBroadcastABTest(broadcastId ?? '')
 
-  // Wait for the existing draft before mounting the editor so useState's
-  // lazy initializer can synchronously seed from it (no hydration effect
+  // Wait for both fetches before mounting the editor so useState's lazy
+  // initializer can synchronously seed from real data (no hydration effect
   // needed). React 19 compiler is happier with this split.
-  if (broadcastId && existingQuery.isLoading) {
+  if (broadcastId && (existingQuery.isLoading || abQuery.isLoading)) {
     return (
       <div
         className="card"
@@ -105,7 +123,13 @@ export const NewBroadcastScreen = (props: {
     )
   }
 
-  return <ComposerInner {...props} existing={existingQuery.data ?? null} />
+  return (
+    <ComposerInner
+      {...props}
+      existing={existingQuery.data ?? null}
+      existingAb={abQuery.data?.config ?? null}
+    />
+  )
 }
 
 const ComposerInner = ({
@@ -114,12 +138,19 @@ const ComposerInner = ({
   onBack,
   onOpened,
   existing,
+  existingAb,
 }: {
   organization: schemas['Organization']
   broadcastId: string | null
   onBack: () => void
   onOpened?: (id: string) => void
   existing: NonNullable<ExistingBroadcast> | null
+  existingAb: {
+    subject_b: string
+    slice_pct: number
+    decide_after_minutes: number
+    winner_metric: 'open_rate' | 'click_rate'
+  } | null
 }) => {
   const isNew = !broadcastId
 
@@ -130,6 +161,22 @@ const ComposerInner = ({
   )
   const [step, setStep] = useState<Step>('details')
   const [savedAt, setSavedAt] = useState<Date | null>(null)
+  const [abDraft, setAbDraft] = useState<ABDraft | null>(() =>
+    existingAb
+      ? {
+          subject_b: existingAb.subject_b,
+          slice_pct: existingAb.slice_pct,
+          decide_after_minutes: existingAb.decide_after_minutes,
+          winner_metric: existingAb.winner_metric,
+        }
+      : null,
+  )
+  // Track whether the inner has ever seen a server-side A/B config — drives
+  // whether we issue DELETE on clearing the toggle.
+  const hadServerAbRef = useRef<boolean>(existingAb !== null)
+
+  const upsertAb = useUpsertEmailBroadcastABTest()
+  const deleteAb = useDeleteEmailBroadcastABTest()
 
   const updateDraft = (patch: Partial<Draft>) =>
     setDraft((d) => ({ ...d, ...patch }))
@@ -163,27 +210,46 @@ const ComposerInner = ({
 
   // Returns the persisted broadcast id (creates first if needed).
   const persist = async (): Promise<string | null> => {
-    if (broadcastId) {
+    let id = broadcastId
+    if (id) {
       await updateMutation.mutateAsync({
-        broadcastId,
+        broadcastId: id,
         body: persistableUpdate(),
       })
-      setSavedAt(new Date())
-      return broadcastId
+    } else {
+      if (!draft.subject.trim() || !draft.sender_name.trim()) return null
+      const created = await createMutation.mutateAsync({
+        subject: draft.subject,
+        sender_name: draft.sender_name,
+        preview_text: draft.preview_text || null,
+        reply_to_email: draft.reply_to_email || null,
+        content_html: draft.content_html,
+        segment_id: draft.segment_id,
+        filter_rules: draft.filter_rules,
+      })
+      id = created.id
+      onOpened?.(id)
     }
-    if (!draft.subject.trim() || !draft.sender_name.trim()) return null
-    const created = await createMutation.mutateAsync({
-      subject: draft.subject,
-      sender_name: draft.sender_name,
-      preview_text: draft.preview_text || null,
-      reply_to_email: draft.reply_to_email || null,
-      content_html: draft.content_html,
-      segment_id: draft.segment_id,
-      filter_rules: draft.filter_rules,
-    })
+
+    // Sync the A/B test config alongside the broadcast.
+    if (abDraft && abDraft.subject_b.trim().length > 0) {
+      await upsertAb.mutateAsync({
+        broadcastId: id,
+        body: {
+          subject_b: abDraft.subject_b.trim(),
+          slice_pct: abDraft.slice_pct,
+          decide_after_minutes: abDraft.decide_after_minutes,
+          winner_metric: abDraft.winner_metric,
+        },
+      })
+      hadServerAbRef.current = true
+    } else if (hadServerAbRef.current && !abDraft) {
+      await deleteAb.mutateAsync(id)
+      hadServerAbRef.current = false
+    }
+
     setSavedAt(new Date())
-    onOpened?.(created.id)
-    return created.id
+    return id
   }
 
   const onSchedule = async (date: Date) => {
@@ -363,7 +429,12 @@ const ComposerInner = ({
 
         <div>
           {step === 'details' && (
-            <DetailsSection draft={draft} setDraft={updateDraft} />
+            <DetailsSection
+              draft={draft}
+              setDraft={updateDraft}
+              abDraft={abDraft}
+              setAbDraft={setAbDraft}
+            />
           )}
           {step === 'content' && (
             <ContentSection draft={draft} setDraft={updateDraft} />
@@ -486,9 +557,13 @@ const Checklist = ({
 const DetailsSection = ({
   draft,
   setDraft,
+  abDraft,
+  setAbDraft,
 }: {
   draft: Draft
   setDraft: (p: Partial<Draft>) => void
+  abDraft: ABDraft | null
+  setAbDraft: (next: ABDraft | null) => void
 }) => (
   <Section
     title="The basics"
@@ -556,21 +631,172 @@ const DetailsSection = ({
       </div>
     </div>
 
-    <div
-      style={{
-        marginTop: 16,
-        padding: '14px 18px',
-        border: '1px dashed var(--line-2)',
-        borderRadius: 12,
-        fontSize: 12.5,
-        color: 'var(--ink-3)',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-      }}
-    >
-      <Icon name="flask" size={14} />
-      A/B test the subject line — coming soon.
+    <div className="card" style={{ marginTop: 16, padding: 24 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: abDraft ? 24 : 0,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <Icon name="flask" size={18} style={{ color: 'var(--ink-2)' }} />
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 500 }}>Run an A/B test</div>
+            <div style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>
+              Test subject lines on a slice of your audience first; we&apos;ll
+              send the winner to the rest.
+            </div>
+          </div>
+        </div>
+        <Toggle
+          on={abDraft !== null}
+          onChange={(next) => setAbDraft(next ? (abDraft ?? blankAb()) : null)}
+        />
+      </div>
+      {abDraft && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            <span
+              style={{
+                fontSize: 11.5,
+                fontWeight: 600,
+                width: 22,
+                height: 22,
+                borderRadius: '50%',
+                background: 'var(--bg-softer)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--ink-2)',
+              }}
+            >
+              A
+            </span>
+            <input
+              className="input"
+              value={draft.subject}
+              onChange={(e) => setDraft({ subject: e.target.value })}
+              placeholder="Subject A"
+            />
+          </div>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            <span
+              style={{
+                fontSize: 11.5,
+                fontWeight: 600,
+                width: 22,
+                height: 22,
+                borderRadius: '50%',
+                background: 'var(--bg-softer)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--ink-2)',
+              }}
+            >
+              B
+            </span>
+            <input
+              className="input"
+              value={abDraft.subject_b}
+              onChange={(e) =>
+                setAbDraft({ ...abDraft, subject_b: e.target.value })
+              }
+              placeholder="Subject B"
+              maxLength={255}
+            />
+          </div>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr 1fr',
+              gap: 12,
+              marginTop: 8,
+              padding: 16,
+              background: 'var(--bg-soft)',
+              borderRadius: 10,
+            }}
+          >
+            <div>
+              <div className="label" style={{ marginBottom: 4 }}>
+                Test slice
+              </div>
+              <div
+                style={{
+                  display: 'flex',
+                  gap: 8,
+                  alignItems: 'center',
+                }}
+              >
+                <input
+                  className="input"
+                  type="number"
+                  min={5}
+                  max={50}
+                  value={abDraft.slice_pct}
+                  onChange={(e) =>
+                    setAbDraft({
+                      ...abDraft,
+                      slice_pct: Math.min(
+                        50,
+                        Math.max(5, Number(e.target.value) || 20),
+                      ),
+                    })
+                  }
+                  style={{ width: 80 }}
+                />
+                <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>%</span>
+              </div>
+            </div>
+            <div>
+              <div className="label" style={{ marginBottom: 4 }}>
+                Decide after
+              </div>
+              <select
+                className="select"
+                value={abDraft.decide_after_minutes}
+                onChange={(e) =>
+                  setAbDraft({
+                    ...abDraft,
+                    decide_after_minutes: Number(e.target.value),
+                  })
+                }
+              >
+                <option value={60}>1 hour</option>
+                <option value={240}>4 hours</option>
+                <option value={720}>12 hours</option>
+                <option value={1440}>1 day</option>
+                <option value={4320}>3 days</option>
+              </select>
+            </div>
+            <div>
+              <div className="label" style={{ marginBottom: 4 }}>
+                Winner by
+              </div>
+              <select
+                className="select"
+                value={abDraft.winner_metric}
+                onChange={(e) =>
+                  setAbDraft({
+                    ...abDraft,
+                    winner_metric: e.target.value as 'open_rate' | 'click_rate',
+                  })
+                }
+              >
+                <option value="open_rate">Open rate</option>
+                <option value="click_rate">Click rate</option>
+              </select>
+            </div>
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>
+            Half of the {abDraft.slice_pct}% test slice gets subject A, the
+            other half gets subject B. After {abDraft.decide_after_minutes}{' '}
+            minutes the winner is sent to the rest of your audience.
+          </div>
+        </div>
+      )}
     </div>
   </Section>
 )

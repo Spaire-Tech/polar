@@ -1,12 +1,13 @@
 from datetime import date, timedelta
 from uuid import UUID
 
-from sqlalchemy import Date, Select, cast, func, select
+from sqlalchemy import Date, Select, cast, func, select, update
 
 from polar.auth.models import AuthSubject, Organization, User, is_organization, is_user
 from polar.kit.repository import RepositoryBase, RepositorySoftDeletionMixin
 from polar.models import UserOrganization
 from polar.models.email_broadcast import EmailBroadcast
+from polar.models.email_broadcast_ab_test import EmailBroadcastABTest
 from polar.models.email_broadcast_send import EmailBroadcastSend, EmailBroadcastSendStatus
 from polar.models.email_subscriber import EmailSubscriber, EmailSubscriberStatus
 
@@ -391,6 +392,117 @@ class EmailBroadcastRepository(
         )
         result = await self.session.execute(statement)
         return [{"day": str(row[0]), "count": row[1]} for row in result.all()]
+
+
+class EmailBroadcastABTestRepository(
+    RepositorySoftDeletionMixin[EmailBroadcastABTest],
+    RepositoryBase[EmailBroadcastABTest],
+):
+    model = EmailBroadcastABTest
+
+    async def get_by_broadcast(
+        self, broadcast_id: UUID
+    ) -> EmailBroadcastABTest | None:
+        statement = self.get_base_statement().where(
+            EmailBroadcastABTest.broadcast_id == broadcast_id,
+            EmailBroadcastABTest.deleted_at.is_(None),
+        )
+        return await self.get_one_or_none(statement)
+
+    async def get_due_for_winner(self, now) -> list[EmailBroadcastABTest]:
+        """Tests whose decide_after window has elapsed but no winner picked."""
+        from datetime import timedelta as _td
+
+        statement = self.get_base_statement().where(
+            EmailBroadcastABTest.deleted_at.is_(None),
+            EmailBroadcastABTest.test_sent_at.is_not(None),
+            EmailBroadcastABTest.winner_picked_at.is_(None),
+        )
+        result = await self.session.execute(statement)
+        rows = list(result.scalars().all())
+        return [
+            r
+            for r in rows
+            if r.test_sent_at is not None
+            and now - r.test_sent_at >= _td(minutes=r.decide_after_minutes)
+        ]
+
+    async def variant_analytics(
+        self, broadcast_id: UUID
+    ) -> dict[str, dict[str, int | float]]:
+        """Per-variant counts (delivered/opened/clicked) for a broadcast."""
+        statement = (
+            select(
+                EmailBroadcastSend.variant,
+                func.count(EmailBroadcastSend.id).label("total"),
+                func.count(EmailBroadcastSend.id)
+                .filter(
+                    EmailBroadcastSend.status.in_(
+                        [
+                            EmailBroadcastSendStatus.delivered,
+                            EmailBroadcastSendStatus.opened,
+                            EmailBroadcastSendStatus.clicked,
+                        ]
+                    )
+                )
+                .label("delivered"),
+                func.count(EmailBroadcastSend.id)
+                .filter(EmailBroadcastSend.opened_at.is_not(None))
+                .label("opened"),
+                func.count(EmailBroadcastSend.id)
+                .filter(EmailBroadcastSend.clicked_at.is_not(None))
+                .label("clicked"),
+            )
+            .where(
+                EmailBroadcastSend.broadcast_id == broadcast_id,
+                EmailBroadcastSend.deleted_at.is_(None),
+                EmailBroadcastSend.variant.in_(["a", "b"]),
+            )
+            .group_by(EmailBroadcastSend.variant)
+        )
+        result = await self.session.execute(statement)
+        out: dict[str, dict[str, int | float]] = {}
+        for row in result.all():
+            delivered = row[2] or 0
+            opened = row[3] or 0
+            clicked = row[4] or 0
+            out[row[0]] = {
+                "total": row[1] or 0,
+                "delivered": delivered,
+                "opened": opened,
+                "clicked": clicked,
+                "open_rate": (opened / delivered * 100) if delivered else 0.0,
+                "click_rate": (clicked / delivered * 100) if delivered else 0.0,
+            }
+        for v in ("a", "b"):
+            out.setdefault(
+                v,
+                {
+                    "total": 0,
+                    "delivered": 0,
+                    "opened": 0,
+                    "clicked": 0,
+                    "open_rate": 0.0,
+                    "click_rate": 0.0,
+                },
+            )
+        return out
+
+    async def assign_remainder_variant(
+        self, broadcast_id: UUID, variant: str
+    ) -> int:
+        """Set variant on all currently-unassigned sends for this broadcast."""
+        statement = (
+            update(EmailBroadcastSend)
+            .where(
+                EmailBroadcastSend.broadcast_id == broadcast_id,
+                EmailBroadcastSend.variant.is_(None),
+                EmailBroadcastSend.deleted_at.is_(None),
+            )
+            .values(variant=variant)
+        )
+        result = await self.session.execute(statement)
+        return result.rowcount or 0
 
 
 def _classify_user_agent(ua: str | None) -> str:

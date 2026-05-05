@@ -74,6 +74,39 @@ class EmailBroadcastDailyEngagementPoint(Schema):
     click_rate: float
 
 
+class EmailBroadcastABTestUpsert(Schema):
+    subject_b: str = Field(max_length=255)
+    slice_pct: int = Field(default=20, ge=5, le=50)
+    decide_after_minutes: int = Field(default=240, ge=15, le=10080)
+    winner_metric: str = Field(default="open_rate")
+
+
+class EmailBroadcastABTest(Schema):
+    id: UUID4
+    broadcast_id: UUID4
+    subject_b: str
+    slice_pct: int
+    decide_after_minutes: int
+    winner_metric: str
+    winner_variant: str | None = None
+    test_sent_at: datetime | None = None
+    winner_picked_at: datetime | None = None
+
+
+class EmailBroadcastABVariantStats(Schema):
+    total: int = 0
+    delivered: int = 0
+    opened: int = 0
+    clicked: int = 0
+    open_rate: float = 0.0
+    click_rate: float = 0.0
+
+
+class EmailBroadcastABTestState(Schema):
+    config: EmailBroadcastABTest | None = None
+    variants: dict[str, EmailBroadcastABVariantStats] | None = None
+
+
 class EmailBroadcastSchedule(Schema):
     scheduled_at: datetime = Field(description="When to send the broadcast (UTC)")
 

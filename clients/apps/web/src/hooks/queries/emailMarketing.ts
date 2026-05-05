@@ -13,7 +13,7 @@ const fetchApi = async <T>(path: string): Promise<T> => {
 
 const fetchApiWrite = async <T>(
   path: string,
-  method: 'POST' | 'PATCH' | 'DELETE',
+  method: 'POST' | 'PUT' | 'PATCH' | 'DELETE',
   body?: unknown,
 ): Promise<T> => {
   const res = await fetch(getServerURL(path), {
@@ -376,6 +376,81 @@ export const useCancelScheduledEmailBroadcast = () =>
       ),
     onSuccess: () => {
       getQueryClient().invalidateQueries({ queryKey: ['email_broadcasts'] })
+    },
+  })
+
+export type ABTestConfig = {
+  id: string
+  broadcast_id: string
+  subject_b: string
+  slice_pct: number
+  decide_after_minutes: number
+  winner_metric: 'open_rate' | 'click_rate'
+  winner_variant: 'a' | 'b' | null
+  test_sent_at: string | null
+  winner_picked_at: string | null
+}
+
+export type ABVariantStats = {
+  total: number
+  delivered: number
+  opened: number
+  clicked: number
+  open_rate: number
+  click_rate: number
+}
+
+export type ABTestState = {
+  config: ABTestConfig | null
+  variants: { a: ABVariantStats; b: ABVariantStats } | null
+}
+
+export const useEmailBroadcastABTest = (broadcastId: string) =>
+  useQuery({
+    queryKey: ['email_broadcast_ab_test', broadcastId],
+    queryFn: () =>
+      fetchApi<ABTestState>(`/v1/email-broadcasts/${broadcastId}/ab-test`),
+    retry: defaultRetry,
+    enabled: !!broadcastId,
+  })
+
+export const useUpsertEmailBroadcastABTest = () =>
+  useMutation({
+    mutationFn: ({
+      broadcastId,
+      body,
+    }: {
+      broadcastId: string
+      body: {
+        subject_b: string
+        slice_pct: number
+        decide_after_minutes: number
+        winner_metric: 'open_rate' | 'click_rate'
+      }
+    }) =>
+      fetchApiWrite<ABTestConfig>(
+        `/v1/email-broadcasts/${broadcastId}/ab-test`,
+        'PUT',
+        body,
+      ),
+    onSuccess: (_data, vars) => {
+      getQueryClient().invalidateQueries({
+        queryKey: ['email_broadcast_ab_test', vars.broadcastId],
+      })
+    },
+  })
+
+export const useDeleteEmailBroadcastABTest = () =>
+  useMutation({
+    mutationFn: (broadcastId: string) =>
+      fetchApiWrite<void>(
+        `/v1/email-broadcasts/${broadcastId}/ab-test`,
+        'DELETE',
+      ),
+    onSuccess: (_data, broadcastId) => {
+      getQueryClient().invalidateQueries({
+        queryKey: ['email_broadcast_ab_test', broadcastId],
+      })
     },
   })
 
