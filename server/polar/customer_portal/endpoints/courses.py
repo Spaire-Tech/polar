@@ -40,7 +40,38 @@ from ..utils import get_customer_id
 router = APIRouter(prefix="/courses", tags=["customer_portal_courses", APITag.public])
 
 
-def _serialize_lesson(lesson, completed_ids: set[str]) -> dict:
+def _lesson_thumbnail_overrides(course) -> dict[str, str]:
+    """Pull `lesson.{id}.thumb` slots out of `course.landing_overrides.media`.
+
+    Wizard / slot-based editors persist per-lesson thumbnails into
+    `landing_overrides.media` instead of `lesson.thumbnail_url`. Surface those
+    so the customer portal (and the public landing) can fall back to them.
+    """
+    media = (course.landing_overrides or {}).get("media") or {}
+    out: dict[str, str] = {}
+    for slot_id, value in media.items():
+        if not isinstance(value, dict):
+            continue
+        if value.get("kind") != "image":
+            continue
+        url = value.get("url")
+        if not url:
+            continue
+        if slot_id.startswith("lesson.") and slot_id.endswith(".thumb"):
+            lesson_id = slot_id[len("lesson.") : -len(".thumb")]
+            out[lesson_id] = url
+    return out
+
+
+def _serialize_lesson(
+    lesson,
+    completed_ids: set[str],
+    thumbnail_overrides: dict[str, str] | None = None,
+) -> dict:
+    direct = getattr(lesson, "thumbnail_url", None)
+    fallback = (
+        thumbnail_overrides.get(str(lesson.id)) if thumbnail_overrides else None
+    )
     return {
         "id": str(lesson.id),
         "title": lesson.title,
@@ -52,7 +83,7 @@ def _serialize_lesson(lesson, completed_ids: set[str]) -> dict:
         "is_free_preview": lesson.is_free_preview,
         "mux_playback_id": getattr(lesson, "mux_playback_id", None),
         "mux_status": getattr(lesson, "mux_status", None),
-        "thumbnail_url": getattr(lesson, "thumbnail_url", None),
+        "thumbnail_url": direct or fallback,
         "thumbnail_object_position": getattr(
             lesson, "thumbnail_object_position", None
         ),
@@ -66,6 +97,7 @@ def _build_module_list(course, paywall_position, enrolled_at, now, completed_ids
     Returns (modules, accessible_lesson_ids) where accessible_lesson_ids is the
     set of lesson IDs included in the response (used as the progress denominator).
     """
+    thumbnail_overrides = _lesson_thumbnail_overrides(course)
     modules = []
     accessible_ids: set[str] = set()
     for idx, m in enumerate(course.modules):
@@ -100,7 +132,10 @@ def _build_module_list(course, paywall_position, enrolled_at, now, completed_ids
             # Locked module: surface free-preview lessons only.
             visible = [lesson for lesson in published_lessons if lesson.is_free_preview]
 
-        lessons = [_serialize_lesson(lesson, completed_ids) for lesson in visible]
+        lessons = [
+            _serialize_lesson(lesson, completed_ids, thumbnail_overrides)
+            for lesson in visible
+        ]
         for lesson in visible:
             accessible_ids.add(str(lesson.id))
 
@@ -124,6 +159,7 @@ def _build_flat_lesson_list(course, paywall_position, enrolled_at, now, complete
     Returns (lessons, accessible_lesson_ids) where accessible_lesson_ids is the
     set of lesson IDs included in the response (used as the progress denominator).
     """
+    thumbnail_overrides = _lesson_thumbnail_overrides(course)
     flat_lessons = []
     accessible_ids: set[str] = set()
 
@@ -146,7 +182,7 @@ def _build_flat_lesson_list(course, paywall_position, enrolled_at, now, complete
         locked = not is_accessible
         locked_until_str = locked_until.isoformat() if locked_until else None
 
-        lesson_data = _serialize_lesson(lesson, completed_ids)
+        lesson_data = _serialize_lesson(lesson, completed_ids, thumbnail_overrides)
         lesson_data["locked"] = locked
         lesson_data["locked_until"] = locked_until_str
         lesson_data["description"] = lesson.description
@@ -332,20 +368,6 @@ async def get_enrolled_course(
     total_lessons = len(flat_accessible_ids)
     completed_count = len(completed_ids & flat_accessible_ids)
 
-    # Fall back to landing override slots if the dedicated columns aren't set
-    # (older flows persisted hero media via landing_overrides only).
-    overrides_media = (course.landing_overrides or {}).get("media") or {}
-    hero_backdrop = overrides_media.get("hero.backdrop") or {}
-    hero_trailer = overrides_media.get("hero.trailer") or {}
-    resolved_thumbnail_url = course.thumbnail_url or (
-        hero_backdrop.get("url") if hero_backdrop.get("kind") == "image" else None
-    )
-    resolved_trailer_url = course.trailer_url or (
-        hero_trailer.get("url") if hero_trailer.get("kind") == "video" else None
-    ) or (
-        hero_backdrop.get("url") if hero_backdrop.get("kind") == "video" else None
-    )
-
     return {
         "enrollment_id": str(enrollment.id),
         "enrolled_at": enrolled_at.isoformat(),
@@ -363,11 +385,11 @@ async def get_enrolled_course(
             "id": str(course.id),
             "title": course.title,
             "description": course.description,
-            "thumbnail_url": resolved_thumbnail_url,
+            "thumbnail_url": course.thumbnail_url,
             "thumbnail_object_position": course.thumbnail_object_position,
             "instructor_name": course.instructor_name,
             "instructor_bio": course.instructor_bio,
-            "trailer_url": resolved_trailer_url,
+            "trailer_url": course.trailer_url,
             "instructor_name_italic": course.instructor_name_italic,
             "instructor_name_bold": course.instructor_name_bold,
             "instructor_name_uppercase": course.instructor_name_uppercase,
