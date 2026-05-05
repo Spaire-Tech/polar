@@ -118,26 +118,6 @@ const IconLock = ({ size = 16 }: { size?: number }) => (
     <path d="M8 11V7a4 4 0 0 1 8 0v4" />
   </SvgIcon>
 )
-const IconLayers = ({ size = 16 }: { size?: number }) => (
-  <SvgIcon size={size}>
-    <path d="m12 2 10 6-10 6L2 8l10-6z" />
-    <path d="m2 17 10 6 10-6" />
-    <path d="m2 12 10 6 10-6" />
-  </SvgIcon>
-)
-const IconCheckCircle = ({ size = 16 }: { size?: number }) => (
-  <SvgIcon size={size}>
-    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-    <path d="m22 4-10 10-3-3" />
-  </SvgIcon>
-)
-const IconAward = ({ size = 16 }: { size?: number }) => (
-  <SvgIcon size={size}>
-    <circle cx="12" cy="9" r="6" />
-    <path d="m8.21 13.89-1.21 7.11 5-3 5 3-1.21-7.11" />
-  </SvgIcon>
-)
-
 // ── Helper: figure out which lesson to "Continue" with ─────────────────────
 function pickContinueLesson(modules: CustomerModuleRead[]): {
   module: CustomerModuleRead
@@ -850,17 +830,30 @@ function LessonThumb({
   thumbnailUrl,
   thumbnailObjectPosition,
   muxPlaybackId,
+  fallbackThumbnailUrl,
+  fallbackObjectPosition,
 }: {
   hue: number
   thumbnailUrl: string | null
   thumbnailObjectPosition: string | null
   muxPlaybackId?: string | null
+  fallbackThumbnailUrl?: string | null
+  fallbackObjectPosition?: string | null
 }) {
+  // Prefer the lesson's own thumbnail, then a Mux-derived still, then the
+  // course thumbnail so every card shows real imagery instead of the
+  // procedural placeholder.
+  const usingFallback = !thumbnailUrl && !muxPlaybackId && !!fallbackThumbnailUrl
   const src =
     thumbnailUrl ||
     (muxPlaybackId
       ? `https://image.mux.com/${muxPlaybackId}/thumbnail.jpg?time=0`
-      : null)
+      : null) ||
+    fallbackThumbnailUrl ||
+    null
+  const position = usingFallback
+    ? (fallbackObjectPosition ?? '50% 50%')
+    : (thumbnailObjectPosition ?? '50% 50%')
 
   if (src) {
     return (
@@ -875,7 +868,7 @@ function LessonThumb({
             width: '100%',
             height: '100%',
             objectFit: 'cover',
-            objectPosition: thumbnailObjectPosition ?? '50% 50%',
+            objectPosition: position,
           }}
         />
       </div>
@@ -948,6 +941,8 @@ function LessonCard({
   hue,
   isInProgress,
   inProgressPercent,
+  fallbackThumbnailUrl,
+  fallbackObjectPosition,
   onSelect,
 }: {
   lesson: CustomerLessonRead
@@ -955,6 +950,8 @@ function LessonCard({
   hue: number
   isInProgress: boolean
   inProgressPercent: number
+  fallbackThumbnailUrl: string | null
+  fallbackObjectPosition: string | null
   onSelect: () => void
 }) {
   const [hovered, setHovered] = useState(false)
@@ -980,6 +977,8 @@ function LessonCard({
           thumbnailUrl={lesson.thumbnail_url ?? null}
           thumbnailObjectPosition={lesson.thumbnail_object_position ?? null}
           muxPlaybackId={lesson.mux_playback_id ?? null}
+          fallbackThumbnailUrl={fallbackThumbnailUrl}
+          fallbackObjectPosition={fallbackObjectPosition}
         />
 
         {isWatched && <div style={lessonStyles.watchedDim} />}
@@ -1077,6 +1076,8 @@ function ModuleRow({
   positionToGlobalIndex,
   inProgressLessonId,
   inProgressPercent,
+  fallbackThumbnailUrl,
+  fallbackObjectPosition,
   onSelectLesson,
 }: {
   module: CustomerModuleRead
@@ -1084,6 +1085,8 @@ function ModuleRow({
   positionToGlobalIndex: Map<string, number>
   inProgressLessonId: string | null
   inProgressPercent: number
+  fallbackThumbnailUrl: string | null
+  fallbackObjectPosition: string | null
   onSelectLesson: (lesson: CustomerLessonRead) => void
 }) {
   const hue = moduleHue(moduleIndex)
@@ -1125,6 +1128,8 @@ function ModuleRow({
             hue={hue}
             isInProgress={lesson.id === inProgressLessonId}
             inProgressPercent={inProgressPercent}
+            fallbackThumbnailUrl={fallbackThumbnailUrl}
+            fallbackObjectPosition={fallbackObjectPosition}
             onSelect={() => onSelectLesson(lesson)}
           />
         ))}
@@ -1133,442 +1138,16 @@ function ModuleRow({
   )
 }
 
-// ── Achievements / Progress strip ─────────────────────────────────────────
-function AchievementsStrip({
-  modules,
-  totalLessons,
-  completedLessons,
-  overallPct,
-}: {
-  modules: CustomerModuleRead[]
-  totalLessons: number
-  completedLessons: number
-  overallPct: number
-}) {
-  const completedModules = modules.filter(
-    (m) => m.lessons.length > 0 && m.lessons.every((l) => l.completed),
-  ).length
-
-  const items = [
-    {
-      num: `${overallPct}%`,
-      label: 'Course complete',
-      icon: <IconLayers size={16} />,
-      accent: 25,
-    },
-    {
-      num: `${completedModules}`,
-      label: `of ${modules.length} modules done`,
-      icon: <IconCheckCircle size={16} />,
-      accent: 145,
-    },
-    {
-      num: `${completedLessons}`,
-      label: `of ${totalLessons} lessons watched`,
-      icon: <IconPlay size={14} />,
-      accent: 195,
-    },
-    {
-      num: `0/${Math.max(1, modules.length)}`,
-      label: 'modules mastered',
-      icon: <IconAward size={16} />,
-      accent: 285,
-    },
-  ]
-
-  return (
-    <section
-      style={{
-        margin: '20px 20px 0',
-        padding: '48px 32px 60px',
-        background:
-          'linear-gradient(180deg, oklch(0.20 0.04 280), oklch(0.10 0.02 280))',
-        borderRadius: C.radiusXl,
-        border: `1px solid ${C.line}`,
-        color: 'white',
-      }}
-    >
-      <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: 36 }}>
-          <div
-            style={{
-              fontSize: 11,
-              letterSpacing: '0.18em',
-              fontWeight: 600,
-              color: 'rgba(255,255,255,0.45)',
-              marginBottom: 12,
-            }}
-          >
-            YOUR PROGRESS
-          </div>
-          <div
-            style={{
-              fontSize: 'clamp(22px, 2.4vw, 32px)',
-              fontWeight: 500,
-              letterSpacing: '-0.025em',
-              lineHeight: 1.2,
-              color: 'white',
-              maxWidth: 720,
-              margin: '0 auto',
-            }}
-          >
-            You&rsquo;re{' '}
-            <em
-              style={{
-                fontStyle: 'italic',
-                fontWeight: 300,
-                color: 'rgba(255,255,255,0.55)',
-              }}
-            >
-              {overallPct}% there.
-            </em>{' '}
-            Keep going.
-          </div>
-        </div>
-
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
-            gap: 16,
-            marginBottom: 44,
-          }}
-        >
-          {items.map((it, i) => (
-            <div
-              key={i}
-              style={{
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                borderRadius: 14,
-                padding: '20px 22px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 4,
-              }}
-            >
-              <div
-                style={{
-                  marginBottom: 12,
-                  color: `oklch(0.78 0.14 ${it.accent})`,
-                }}
-              >
-                {it.icon}
-              </div>
-              <div
-                style={{
-                  fontSize: 28,
-                  fontWeight: 600,
-                  letterSpacing: '-0.025em',
-                  color: 'white',
-                  fontVariantNumeric: 'tabular-nums',
-                  lineHeight: 1.05,
-                }}
-              >
-                {it.num}
-              </div>
-              <div
-                style={{ fontSize: 12, color: 'rgba(255,255,255,0.50)' }}
-              >
-                {it.label}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Big progress bar with module ticks */}
-        <div style={{ paddingTop: 8 }}>
-          <div
-            style={{
-              position: 'relative',
-              height: 8,
-              background: 'rgba(255,255,255,0.08)',
-              borderRadius: 999,
-              overflow: 'visible',
-              marginBottom: 14,
-            }}
-          >
-            <div
-              style={{
-                height: '100%',
-                width: `${overallPct}%`,
-                background:
-                  'linear-gradient(90deg, oklch(0.78 0.14 25), oklch(0.65 0.18 35))',
-                borderRadius: 999,
-                boxShadow: '0 0 16px oklch(0.72 0.16 25 / 0.5)',
-              }}
-            />
-            {modules.map((m, i) => {
-              const cumulative = modules
-                .slice(0, i + 1)
-                .reduce((sum, mm) => sum + mm.lessons.length, 0)
-              const pos = totalLessons
-                ? (cumulative / totalLessons) * 100
-                : 0
-              return (
-                <div
-                  key={m.id}
-                  style={{
-                    position: 'absolute',
-                    top: -2,
-                    transform: 'translateX(-50%)',
-                    width: 2,
-                    height: 12,
-                    background: 'rgba(0,0,0,0.6)',
-                    left: `${pos}%`,
-                  }}
-                  title={m.title}
-                />
-              )
-            })}
-          </div>
-          <div style={{ position: 'relative', height: 16 }}>
-            {modules.map((m, i) => {
-              const cumulative = modules
-                .slice(0, i + 1)
-                .reduce((sum, mm) => sum + mm.lessons.length, 0)
-              const prev =
-                i === 0
-                  ? 0
-                  : modules
-                      .slice(0, i)
-                      .reduce((sum, mm) => sum + mm.lessons.length, 0)
-              const center = totalLessons
-                ? ((prev + cumulative) / 2 / totalLessons) * 100
-                : 0
-              const allWatched =
-                m.lessons.length > 0 &&
-                m.lessons.every((l) => l.completed)
-              const someWatched = m.lessons.some((l) => l.completed)
-              const inProg = someWatched && !allWatched
-              return (
-                <div
-                  key={m.id}
-                  style={{
-                    position: 'absolute',
-                    transform: 'translateX(-50%)',
-                    whiteSpace: 'nowrap',
-                    left: `${center}%`,
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: 10.5,
-                      fontWeight: 500,
-                      letterSpacing: '0.01em',
-                      color: allWatched
-                        ? 'rgba(255,255,255,0.85)'
-                        : inProg
-                          ? 'oklch(0.85 0.10 25)'
-                          : 'rgba(255,255,255,0.30)',
-                    }}
-                  >
-                    {m.title}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-// ── Instructor section (portal version) ───────────────────────────────────
-function InstructorSection({
-  instructorName,
-  instructorBio,
-  organizationName,
-  avatarUrl,
-}: {
-  instructorName: string | null
-  instructorBio: string | null
-  organizationName: string
-  avatarUrl: string | null
-}) {
-  const name = instructorName ?? organizationName
-  return (
-    <section
-      style={{
-        padding: '72px 32px 24px',
-        maxWidth: 1320,
-        margin: '0 auto',
-        fontFamily: FONT,
-        color: C.fg0,
-      }}
-    >
-      <div
-        style={{
-          fontSize: 11,
-          letterSpacing: '0.18em',
-          fontWeight: 600,
-          color: C.fg3,
-          marginBottom: 28,
-          textTransform: 'uppercase',
-        }}
-      >
-        YOUR INSTRUCTOR
-      </div>
-
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '0.65fr 1fr',
-          gap: 56,
-          alignItems: 'flex-start',
-        }}
-      >
-        <div>
-          <div
-            style={{
-              position: 'relative',
-              aspectRatio: '4 / 5',
-              borderRadius: C.radiusXl,
-              overflow: 'hidden',
-              boxShadow:
-                '0 2px 6px oklch(0 0 0 / 0.06), 0 24px 60px oklch(0 0 0 / 0.12)',
-              background:
-                'linear-gradient(160deg, oklch(0.42 0.09 35), oklch(0.18 0.05 65))',
-            }}
-          >
-            {avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={avatarUrl}
-                alt={name}
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                }}
-              />
-            ) : (
-              <>
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: '50%',
-                    top: '8%',
-                    transform: 'translateX(-50%)',
-                    width: '32%',
-                    aspectRatio: '1',
-                    background:
-                      'linear-gradient(180deg, oklch(0.52 0.05 35), oklch(0.34 0.04 35))',
-                    borderRadius: '50%',
-                  }}
-                />
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: '20%',
-                    bottom: 0,
-                    right: '20%',
-                    height: '60%',
-                    background:
-                      'linear-gradient(180deg, oklch(0.28 0.04 35), oklch(0.13 0.03 35))',
-                    clipPath: 'polygon(22% 0, 78% 0, 100% 100%, 0% 100%)',
-                    borderRadius: '40% 40% 0 0',
-                  }}
-                />
-              </>
-            )}
-            <div
-              style={{
-                position: 'absolute',
-                left: 20,
-                bottom: 36,
-                color: 'white',
-                fontSize: 17,
-                fontWeight: 600,
-                letterSpacing: '-0.01em',
-                textShadow: '0 2px 12px rgba(0,0,0,0.7)',
-              }}
-            >
-              {name}
-            </div>
-            <div
-              style={{
-                position: 'absolute',
-                left: 20,
-                bottom: 18,
-                color: 'rgba(255,255,255,0.75)',
-                fontSize: 12,
-                textShadow: '0 2px 12px rgba(0,0,0,0.7)',
-              }}
-            >
-              Instructor
-            </div>
-          </div>
-        </div>
-
-        <div>
-          {instructorBio ? (
-            <blockquote
-              style={{
-                fontSize: 'clamp(20px, 2.4vw, 30px)',
-                fontWeight: 500,
-                letterSpacing: '-0.02em',
-                lineHeight: 1.25,
-                margin: '0 0 12px',
-                color: C.fg0,
-              }}
-            >
-              {instructorBio}
-            </blockquote>
-          ) : (
-            <blockquote
-              style={{
-                fontSize: 'clamp(20px, 2.4vw, 30px)',
-                fontWeight: 500,
-                letterSpacing: '-0.02em',
-                lineHeight: 1.25,
-                margin: '0 0 12px',
-                color: C.fg0,
-              }}
-            >
-              Taught by{' '}
-              <em
-                style={{
-                  fontStyle: 'italic',
-                  fontWeight: 300,
-                  color: C.fg2,
-                }}
-              >
-                {name}.
-              </em>
-            </blockquote>
-          )}
-          <div
-            style={{
-              fontSize: 12,
-              color: C.fg3,
-              letterSpacing: '0.04em',
-              marginBottom: 28,
-            }}
-          >
-            — {name}
-          </div>
-        </div>
-      </div>
-    </section>
-  )
-}
-
 // ── Main component ────────────────────────────────────────────────────────
 export interface CoursePortalViewProps {
   data: CustomerCourseDetail
   organizationName: string
-  organizationAvatarUrl: string | null
   onSelectLesson: (lesson: CustomerLessonRead) => void
 }
 
 export function CoursePortalView({
   data,
   organizationName,
-  organizationAvatarUrl,
   onSelectLesson,
 }: CoursePortalViewProps) {
   const course = data.course
@@ -1593,7 +1172,6 @@ export function CoursePortalView({
   )
 
   const totalLessons = data.progress.total_lessons
-  const completedLessons = data.progress.completed_lessons
   const overallPct = Math.round(data.progress.completion_percent)
 
   const cont = pickContinueLesson(modules)
@@ -1659,26 +1237,12 @@ export function CoursePortalView({
             positionToGlobalIndex={positionToGlobalIndex}
             inProgressLessonId={inProgressLessonId}
             inProgressPercent={continueProgress}
+            fallbackThumbnailUrl={course.thumbnail_url ?? null}
+            fallbackObjectPosition={course.thumbnail_object_position ?? null}
             onSelectLesson={onSelectLesson}
           />
         ))}
       </section>
-
-      {totalLessons > 0 && (
-        <AchievementsStrip
-          modules={modules}
-          totalLessons={totalLessons}
-          completedLessons={completedLessons}
-          overallPct={overallPct}
-        />
-      )}
-
-      <InstructorSection
-        instructorName={course.instructor_name ?? null}
-        instructorBio={course.instructor_bio ?? null}
-        organizationName={organizationName}
-        avatarUrl={organizationAvatarUrl}
-      />
 
       <footer
         style={{

@@ -44,6 +44,7 @@ def _serialize_lesson(lesson, completed_ids: set[str]) -> dict:
     return {
         "id": str(lesson.id),
         "title": lesson.title,
+        "description": getattr(lesson, "description", None),
         "content_type": lesson.content_type,
         "content": lesson.content,
         "position": lesson.position,

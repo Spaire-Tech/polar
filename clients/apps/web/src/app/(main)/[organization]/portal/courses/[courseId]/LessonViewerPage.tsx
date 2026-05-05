@@ -178,7 +178,6 @@ const LessonViewerPage = ({
     <CoursePortalView
       data={data}
       organizationName={organization.name}
-      organizationAvatarUrl={organization.avatar_url ?? null}
       onSelectLesson={handleSelectCustomerLesson}
     />
   )
