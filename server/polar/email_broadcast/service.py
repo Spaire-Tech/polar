@@ -22,6 +22,7 @@ class BroadcastAlreadySent(BroadcastError):
     def __init__(self) -> None:
         super().__init__("Broadcast has already been sent or is currently sending.")
 
+from .render import render_blocks_to_html
 from .repository import EmailBroadcastABTestRepository, EmailBroadcastRepository
 
 
@@ -233,6 +234,11 @@ class EmailBroadcastService:
         segment_id: UUID | None = None,
         filter_rules: dict | None = None,
     ) -> EmailBroadcast:
+        # Whenever the JSON document is present, regenerate the HTML so the
+        # send pipeline always reflects what the editor produced.
+        if content_json:
+            content_html = render_blocks_to_html(content_json) or content_html
+
         repository = EmailBroadcastRepository.from_session(session)
         broadcast = EmailBroadcast(
             organization_id=organization_id,
@@ -269,6 +275,13 @@ class EmailBroadcastService:
         ):
             if key in update:
                 setattr(broadcast, key, update[key])
+
+        # If the client patched content_json without supplying a matching
+        # content_html, regenerate the HTML from the JSON so the worker stays
+        # in sync. An explicit content_html in the same patch wins.
+        if "content_json" in update and "content_html" not in update:
+            broadcast.content_html = render_blocks_to_html(broadcast.content_json) or broadcast.content_html
+
         return await repository.update(broadcast)
 
     async def send_test(

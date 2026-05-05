@@ -18,6 +18,9 @@ import {
 } from '@/hooks/queries/emailMarketing'
 import { schemas } from '@spaire/client'
 import { useRef, useState } from 'react'
+import { BlockEditor } from '../blockEditor/BlockEditor'
+import { renderBlocksToHtml } from '../blockEditor/render'
+import { Block, ContentDoc, isContentDoc, newId } from '../blockEditor/types'
 import { Icon } from '../Icon'
 import { KV, Section, Toggle } from '../shared'
 
@@ -36,9 +39,41 @@ type Draft = {
   preview_text: string
   sender_name: string
   reply_to_email: string
-  content_html: string
+  // Block document is the editable shape. content_html is regenerated from
+  // the document each render and sent to the API alongside the JSON.
+  content_doc: ContentDoc
   segment_id: string | null
   filter_rules: FilterRules | null
+}
+
+const STARTER_DOC: ContentDoc = {
+  version: 1,
+  blocks: [
+    {
+      id: newId(),
+      type: 'heading',
+      level: 2,
+      text: 'Hi friends,',
+    } satisfies Block,
+    {
+      id: newId(),
+      type: 'paragraph',
+      text: "Write your update here. We'll wrap it in your branded template before sending.",
+    } satisfies Block,
+  ],
+}
+
+const adoptContentJson = (raw: unknown): ContentDoc => {
+  if (isContentDoc(raw)) {
+    // Defensive: ensure each block has an id even if a legacy doc didn't.
+    return {
+      version: 1,
+      blocks: raw.blocks.map((b) =>
+        'id' in b && b.id ? b : ({ ...b, id: newId() } as Block),
+      ),
+    }
+  }
+  return STARTER_DOC
 }
 
 type ABDraft = {
@@ -60,7 +95,7 @@ const blankDraft = (organization: schemas['Organization']): Draft => ({
   preview_text: '',
   sender_name: organization.name,
   reply_to_email: '',
-  content_html: '<p>Hi friends,</p>\n<p>Write your update here…</p>',
+  content_doc: STARTER_DOC,
   segment_id: null,
   filter_rules: null,
 })
@@ -93,7 +128,7 @@ const draftFromExisting = (
   preview_text: (existing as { preview_text?: string }).preview_text ?? '',
   sender_name: existing.sender_name ?? organization.name,
   reply_to_email: existing.reply_to_email ?? '',
-  content_html: existing.content_html ?? '',
+  content_doc: adoptContentJson(existing.content_json),
   segment_id: existing.segment_id ?? null,
   filter_rules:
     (existing as { filter_rules?: FilterRules | null }).filter_rules ?? null,
@@ -193,17 +228,24 @@ const ComposerInner = ({
     scheduleMutation.isPending ||
     sendMutation.isPending
 
+  // The send pipeline uses content_html, but the editor writes both fields so
+  // the server can round-trip the document on edit and so the worker has
+  // ready-to-send HTML.
+  const renderedHtml = renderBlocksToHtml(draft.content_doc)
+
   const isReadyToSend =
     draft.subject.trim().length > 0 &&
     draft.sender_name.trim().length > 0 &&
-    draft.content_html.trim().length > 0
+    draft.content_doc.blocks.length > 0 &&
+    renderedHtml.trim().length > 0
 
   const persistableUpdate = (): BroadcastWritePayload => ({
     subject: draft.subject,
     preview_text: draft.preview_text || null,
     sender_name: draft.sender_name,
     reply_to_email: draft.reply_to_email || null,
-    content_html: draft.content_html,
+    content_html: renderedHtml,
+    content_json: draft.content_doc as unknown as Record<string, unknown>,
     segment_id: draft.segment_id,
     filter_rules: draft.filter_rules,
   })
@@ -223,7 +265,8 @@ const ComposerInner = ({
         sender_name: draft.sender_name,
         preview_text: draft.preview_text || null,
         reply_to_email: draft.reply_to_email || null,
-        content_html: draft.content_html,
+        content_html: renderedHtml,
+        content_json: draft.content_doc as unknown as Record<string, unknown>,
         segment_id: draft.segment_id,
         filter_rules: draft.filter_rules,
       })
@@ -416,7 +459,7 @@ const ComposerInner = ({
                 },
                 {
                   label: 'Content',
-                  done: draft.content_html.trim().length > 30,
+                  done: draft.content_doc.blocks.length > 0,
                 },
                 {
                   label: 'Audience confirmed',
@@ -437,7 +480,11 @@ const ComposerInner = ({
             />
           )}
           {step === 'content' && (
-            <ContentSection draft={draft} setDraft={updateDraft} />
+            <ContentSection
+              draft={draft}
+              setDraft={updateDraft}
+              renderedHtml={renderedHtml}
+            />
           )}
           {step === 'audience' && (
             <AudienceSection
@@ -804,96 +851,75 @@ const DetailsSection = ({
 const ContentSection = ({
   draft,
   setDraft,
+  renderedHtml,
 }: {
   draft: Draft
   setDraft: (p: Partial<Draft>) => void
-}) => (
-  <Section
-    title="Compose"
-    sub="Write or paste the body of your email as HTML. The block-based editor is on the way."
-  >
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gap: 16,
-      }}
+  renderedHtml: string
+}) => {
+  const hasContent = draft.content_doc.blocks.length > 0
+  return (
+    <Section
+      title="Compose"
+      sub="Drag-free block editor — pick a block from the left, edit it inline, tweak it on the right."
     >
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+      <BlockEditor
+        doc={draft.content_doc}
+        setDoc={(next) => setDraft({ content_doc: next })}
+      />
+      {hasContent && (
         <div
+          className="card"
           style={{
-            padding: '12px 18px',
-            borderBottom: '1px solid var(--line)',
-            background: 'var(--bg-soft)',
-            fontSize: 12,
-            color: 'var(--ink-3)',
-            display: 'flex',
-            justifyContent: 'space-between',
+            marginTop: 16,
+            padding: 0,
+            overflow: 'hidden',
           }}
         >
-          <span>HTML body</span>
-          <span>{draft.content_html.length} chars</span>
+          <div
+            style={{
+              padding: '10px 18px',
+              borderBottom: '1px solid var(--line)',
+              background: 'var(--bg-soft)',
+              fontSize: 12,
+              color: 'var(--ink-3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <span>Render preview</span>
+            <span>{renderedHtml.length} chars of HTML</span>
+          </div>
+          <div
+            style={{
+              padding: 28,
+              fontSize: 14,
+              lineHeight: 1.65,
+              color: 'var(--ink-2)',
+            }}
+            // Local renderer matches the server output one-for-one.
+            dangerouslySetInnerHTML={{ __html: renderedHtml }}
+          />
         </div>
-        <textarea
-          value={draft.content_html}
-          onChange={(e) => setDraft({ content_html: e.target.value })}
-          spellCheck={false}
-          style={{
-            width: '100%',
-            minHeight: 480,
-            padding: 20,
-            border: 'none',
-            outline: 'none',
-            resize: 'vertical',
-            fontFamily: 'JetBrains Mono, monospace',
-            fontSize: 12.5,
-            lineHeight: 1.6,
-            background: '#fff',
-            color: 'var(--ink-2)',
-          }}
-        />
+      )}
+      <div
+        style={{
+          marginTop: 16,
+          padding: '14px 18px',
+          background: 'var(--bg-soft)',
+          borderRadius: 12,
+          fontSize: 12.5,
+          color: 'var(--ink-3)',
+        }}
+      >
+        <Icon name="sparkles" size={14} style={{ marginRight: 8 }} />
+        We render this document to email-safe HTML on the server too — your send
+        always matches what you see here.
       </div>
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div
-          style={{
-            padding: '12px 18px',
-            borderBottom: '1px solid var(--line)',
-            background: 'var(--bg-soft)',
-            fontSize: 12,
-            color: 'var(--ink-3)',
-          }}
-        >
-          Live preview
-        </div>
-        <div
-          style={{
-            padding: 28,
-            minHeight: 480,
-            fontSize: 14,
-            lineHeight: 1.65,
-            color: 'var(--ink-2)',
-          }}
-          dangerouslySetInnerHTML={{ __html: draft.content_html }}
-        />
-      </div>
-    </div>
-    <div
-      style={{
-        marginTop: 16,
-        padding: '14px 18px',
-        background: 'var(--bg-soft)',
-        borderRadius: 12,
-        fontSize: 12.5,
-        color: 'var(--ink-3)',
-      }}
-    >
-      <Icon name="sparkles" size={14} style={{ marginRight: 8 }} />
-      Block-based editor (heading / image / button / divider blocks) is coming
-      in a future update. The HTML body you write here is wrapped in your
-      organization’s branded template before sending.
-    </div>
-  </Section>
-)
+    </Section>
+  )
+}
 
 type AudienceMode = 'all' | 'segment' | 'filter'
 
@@ -1427,85 +1453,92 @@ const PreviewSection = ({
   )
 }
 
-const DesktopPreview = ({ draft }: { draft: Draft }) => (
-  <div
-    style={{
-      width: 600,
-      background: '#fff',
-      borderRadius: 10,
-      border: '1px solid var(--line)',
-      overflow: 'hidden',
-    }}
-  >
+const DesktopPreview = ({ draft }: { draft: Draft }) => {
+  const html = renderBlocksToHtml(draft.content_doc)
+  return (
     <div
       style={{
-        padding: '20px 32px',
-        borderBottom: '1px solid var(--line)',
-        fontSize: 13,
-        color: 'var(--ink-3)',
+        width: 600,
+        background: '#fff',
+        borderRadius: 10,
+        border: '1px solid var(--line)',
+        overflow: 'hidden',
       }}
     >
-      From <strong style={{ color: 'var(--ink)' }}>{draft.sender_name}</strong>
-      {draft.reply_to_email ? ` <${draft.reply_to_email}>` : ''}
-    </div>
-    <div style={{ padding: 32 }}>
-      <h3
+      <div
         style={{
-          fontSize: 22,
-          fontWeight: 600,
-          letterSpacing: '-0.02em',
-          margin: '0 0 16px',
+          padding: '20px 32px',
+          borderBottom: '1px solid var(--line)',
+          fontSize: 13,
+          color: 'var(--ink-3)',
         }}
       >
-        {draft.subject || 'Untitled broadcast'}
-      </h3>
-      <div
-        style={{ fontSize: 14, lineHeight: 1.65, color: 'var(--ink-2)' }}
-        dangerouslySetInnerHTML={{ __html: draft.content_html }}
-      />
+        From{' '}
+        <strong style={{ color: 'var(--ink)' }}>{draft.sender_name}</strong>
+        {draft.reply_to_email ? ` <${draft.reply_to_email}>` : ''}
+      </div>
+      <div style={{ padding: 32 }}>
+        <h3
+          style={{
+            fontSize: 22,
+            fontWeight: 600,
+            letterSpacing: '-0.02em',
+            margin: '0 0 16px',
+          }}
+        >
+          {draft.subject || 'Untitled broadcast'}
+        </h3>
+        <div
+          style={{ fontSize: 14, lineHeight: 1.65, color: 'var(--ink-2)' }}
+          dangerouslySetInnerHTML={{ __html: html }}
+        />
+      </div>
     </div>
-  </div>
-)
+  )
+}
 
-const MobilePreview = ({ draft }: { draft: Draft }) => (
-  <div
-    style={{
-      width: 320,
-      background: '#fff',
-      borderRadius: 28,
-      border: '8px solid #1d1d1f',
-      overflow: 'hidden',
-      boxShadow: '0 24px 48px rgba(0,0,0,0.18)',
-    }}
-  >
+const MobilePreview = ({ draft }: { draft: Draft }) => {
+  const html = renderBlocksToHtml(draft.content_doc)
+  return (
     <div
       style={{
-        padding: '20px 16px',
-        borderBottom: '1px solid var(--line)',
-        fontSize: 11,
-        color: 'var(--ink-3)',
+        width: 320,
+        background: '#fff',
+        borderRadius: 28,
+        border: '8px solid #1d1d1f',
+        overflow: 'hidden',
+        boxShadow: '0 24px 48px rgba(0,0,0,0.18)',
       }}
     >
-      {draft.sender_name}
-    </div>
-    <div style={{ padding: 18 }}>
-      <h3
+      <div
         style={{
-          fontSize: 16,
-          fontWeight: 600,
-          margin: '0 0 12px',
-          letterSpacing: '-0.01em',
+          padding: '20px 16px',
+          borderBottom: '1px solid var(--line)',
+          fontSize: 11,
+          color: 'var(--ink-3)',
         }}
       >
-        {draft.subject || 'Untitled broadcast'}
-      </h3>
-      <div
-        style={{ fontSize: 12.5, lineHeight: 1.6, color: 'var(--ink-2)' }}
-        dangerouslySetInnerHTML={{ __html: draft.content_html }}
-      />
+        {draft.sender_name}
+      </div>
+      <div style={{ padding: 18 }}>
+        <h3
+          style={{
+            fontSize: 16,
+            fontWeight: 600,
+            margin: '0 0 12px',
+            letterSpacing: '-0.01em',
+          }}
+        >
+          {draft.subject || 'Untitled broadcast'}
+        </h3>
+        <div
+          style={{ fontSize: 12.5, lineHeight: 1.6, color: 'var(--ink-2)' }}
+          dangerouslySetInnerHTML={{ __html: html }}
+        />
+      </div>
     </div>
-  </div>
-)
+  )
+}
 
 const InboxPreview = ({ draft }: { draft: Draft }) => (
   <div
