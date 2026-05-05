@@ -1,7 +1,7 @@
 import { getServerSideAPI } from '@/utils/client/serverside'
 import { getOrganizationBySlugOrNotFound } from '@/utils/organization'
 import { Metadata } from 'next'
-import SubscribersPage from './SubscribersPage'
+import EmailMarketingApp from './_components/EmailMarketingApp'
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
@@ -19,5 +19,5 @@ export default async function Page(props: {
     params.organization,
   )
 
-  return <SubscribersPage organization={organization} />
+  return <EmailMarketingApp organization={organization} />
 }
