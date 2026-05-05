@@ -1,22 +1,11 @@
 'use client'
 
-import { useAuth } from '@/hooks/auth'
+import { useCourseEnrollments } from '@/hooks/queries/courses'
 import FileDownloadOutlined from '@mui/icons-material/FileDownloadOutlined'
 import SearchOutlined from '@mui/icons-material/SearchOutlined'
 import { schemas } from '@spaire/client'
 import Avatar from '@spaire/ui/components/atoms/Avatar'
-import { useState } from 'react'
-
-type CustomerRow = {
-  id: string
-  name: string
-  email: string
-  avatar_url: string | null
-  role: string
-  joined: string | null
-  paywall: string
-  lastActive: string | null
-}
+import { useMemo, useState } from 'react'
 
 function formatDate(value: string | null): string {
   if (!value) return '-'
@@ -28,27 +17,27 @@ function formatDate(value: string | null): string {
 }
 
 export function CustomersTab({
-  organization,
+  organization: _organization,
+  courseId,
 }: {
   organization: schemas['Organization']
+  courseId: string
 }) {
-  const { currentUser } = useAuth()
   const [query, setQuery] = useState('')
+  const { data: enrollments, isLoading } = useCourseEnrollments(courseId)
 
-  const adminRow: CustomerRow | null = currentUser
-    ? {
-        id: currentUser.id,
-        name: currentUser.email.split('@')[0],
-        email: currentUser.email,
-        avatar_url: currentUser.avatar_url,
-        role: 'Admin',
-        joined: organization.created_at ?? currentUser.created_at,
-        paywall: '-',
-        lastActive: new Date().toISOString(),
+  const rows = useMemo(() => {
+    return (enrollments ?? []).map((e) => {
+      const display = e.customer.name?.trim() || e.customer.email.split('@')[0]
+      return {
+        id: e.id,
+        name: display,
+        email: e.customer.email,
+        joined: e.enrolled_at,
       }
-    : null
+    })
+  }, [enrollments])
 
-  const rows: CustomerRow[] = adminRow ? [adminRow] : []
   const visibleRows = query.trim()
     ? rows.filter(
         (r) =>
@@ -68,9 +57,6 @@ export function CustomersTab({
             Download CSV
             <FileDownloadOutlined sx={{ fontSize: 16 }} />
           </button>
-          <button className="rounded-full border border-gray-200 bg-white px-4 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50">
-            Add to waitlist
-          </button>
         </div>
       </div>
 
@@ -89,45 +75,42 @@ export function CustomersTab({
           />
         </div>
 
-        <div className="grid grid-cols-[2.5fr_1fr_1.2fr_1fr_1.2fr] gap-4 px-6 py-3 text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
+        <div className="grid grid-cols-[2.5fr_2fr_1.4fr] gap-4 px-6 py-3 text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
           <span>Name</span>
-          <span>Role</span>
-          <span>Joined</span>
-          <span>Paywall</span>
-          <span>Last active</span>
+          <span>Email</span>
+          <span>Enrolled</span>
         </div>
 
-        {visibleRows.length === 0 ? (
+        {isLoading ? (
           <div className="px-6 py-12 text-center text-sm text-gray-500">
-            No customers match your search.
+            Loading customers…
+          </div>
+        ) : visibleRows.length === 0 ? (
+          <div className="px-6 py-12 text-center text-sm text-gray-500">
+            {rows.length === 0
+              ? 'No customers yet. Customers who purchase this course will appear here.'
+              : 'No customers match your search.'}
           </div>
         ) : (
           visibleRows.map((row) => (
             <div
               key={row.id}
-              className="grid grid-cols-[2.5fr_1fr_1.2fr_1fr_1.2fr] items-center gap-4 border-t border-gray-100 px-6 py-4 text-sm text-gray-900"
+              className="grid grid-cols-[2.5fr_2fr_1.4fr] items-center gap-4 border-t border-gray-100 px-6 py-4 text-sm text-gray-900"
             >
               <div className="flex min-w-0 items-center gap-3">
                 <Avatar
                   name={row.name}
-                  avatar_url={row.avatar_url}
+                  avatar_url={null}
                   className="h-10 w-10 text-sm"
                 />
                 <div className="flex min-w-0 flex-col">
                   <span className="truncate font-semibold text-gray-900">
                     {row.name}
                   </span>
-                  <span className="truncate text-xs text-gray-500">
-                    {row.email}
-                  </span>
                 </div>
               </div>
-              <span className="text-gray-700">{row.role}</span>
+              <span className="truncate text-gray-700">{row.email}</span>
               <span className="text-gray-700">{formatDate(row.joined)}</span>
-              <span className="text-gray-500">{row.paywall}</span>
-              <span className="text-gray-700">
-                {formatDate(row.lastActive)}
-              </span>
             </div>
           ))
         )}

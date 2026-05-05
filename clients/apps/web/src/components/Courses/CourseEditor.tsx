@@ -333,7 +333,9 @@ export default function CourseEditor({
       />
     )
   } else {
-    mainContent = <CustomersTab organization={organization} />
+    mainContent = (
+      <CustomersTab organization={organization} courseId={course.id} />
+    )
   }
 
   const handleClose = () =>

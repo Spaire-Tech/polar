@@ -1771,6 +1771,21 @@ class OrderService:
                     product_id=order.product_id,
                 )
 
+        # Auto-enroll the customer in any course linked to this product so
+        # the buyer immediately gets access via the customer portal and shows
+        # up in the course's customer list.
+        if order.product_id is not None:
+            from polar.course.service import course_service
+
+            course = await course_service.get_by_product(session, order.product_id)
+            if course is not None:
+                await course_service.enroll_customer(
+                    session,
+                    course_id=course.id,
+                    customer=order.customer,
+                    product_id=order.product_id,
+                )
+
         # Unlock startup perks on first successful sale
         org_repository = OrganizationRepository.from_session(session)
         organization = await org_repository.get_by_customer(order.customer_id)

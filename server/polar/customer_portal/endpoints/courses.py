@@ -332,6 +332,20 @@ async def get_enrolled_course(
     total_lessons = len(flat_accessible_ids)
     completed_count = len(completed_ids & flat_accessible_ids)
 
+    # Fall back to landing override slots if the dedicated columns aren't set
+    # (older flows persisted hero media via landing_overrides only).
+    overrides_media = (course.landing_overrides or {}).get("media") or {}
+    hero_backdrop = overrides_media.get("hero.backdrop") or {}
+    hero_trailer = overrides_media.get("hero.trailer") or {}
+    resolved_thumbnail_url = course.thumbnail_url or (
+        hero_backdrop.get("url") if hero_backdrop.get("kind") == "image" else None
+    )
+    resolved_trailer_url = course.trailer_url or (
+        hero_trailer.get("url") if hero_trailer.get("kind") == "video" else None
+    ) or (
+        hero_backdrop.get("url") if hero_backdrop.get("kind") == "video" else None
+    )
+
     return {
         "enrollment_id": str(enrollment.id),
         "enrolled_at": enrolled_at.isoformat(),
@@ -349,11 +363,11 @@ async def get_enrolled_course(
             "id": str(course.id),
             "title": course.title,
             "description": course.description,
-            "thumbnail_url": course.thumbnail_url,
+            "thumbnail_url": resolved_thumbnail_url,
             "thumbnail_object_position": course.thumbnail_object_position,
             "instructor_name": course.instructor_name,
             "instructor_bio": course.instructor_bio,
-            "trailer_url": course.trailer_url,
+            "trailer_url": resolved_trailer_url,
             "instructor_name_italic": course.instructor_name_italic,
             "instructor_name_bold": course.instructor_name_bold,
             "instructor_name_uppercase": course.instructor_name_uppercase,

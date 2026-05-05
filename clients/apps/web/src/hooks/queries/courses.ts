@@ -206,6 +206,26 @@ export const useOrganizationCourses = (organizationId: string | undefined) =>
     enabled: !!organizationId,
   })
 
+export type CourseEnrollmentRead = {
+  id: string
+  enrolled_at: string
+  customer: {
+    id: string
+    email: string
+    name: string | null
+  }
+}
+
+export const useCourseEnrollments = (courseId: string | undefined) =>
+  useQuery<CourseEnrollmentRead[]>({
+    queryKey: ['courses', { courseId }, 'enrollments'],
+    queryFn: () =>
+      courseApiFetch<CourseEnrollmentRead[]>(
+        `/v1/courses/${courseId}/enrollments`,
+      ),
+    enabled: !!courseId,
+  })
+
 export const useCreateCourse = () =>
   useMutation({
     mutationFn: (body: {

@@ -676,6 +676,34 @@ async def delete_lesson_attachment(
     return _lesson_read(lesson)
 
 
+@router.get(
+    "/{course_id}/enrollments",
+    summary="List Enrolled Customers",
+)
+async def list_course_enrollments(
+    course_id: UUID,
+    auth_subject: auth.CoursesRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> list[dict]:
+    repo = CourseRepository.from_session(session)
+    course = await repo.get_readable_by_id(course_id, auth_subject)
+    if course is None:
+        raise HTTPException(status_code=404, detail="Course not found")
+    enrollments = await course_service.list_enrollments_for_course(session, course_id)
+    return [
+        {
+            "id": str(e.id),
+            "enrolled_at": e.enrolled_at.isoformat(),
+            "customer": {
+                "id": str(e.customer.id),
+                "email": e.customer.email,
+                "name": e.customer.name,
+            },
+        }
+        for e in enrollments
+    ]
+
+
 @router.post(
     "/{course_id}/preview-access",
     summary="Get Preview Access Token",

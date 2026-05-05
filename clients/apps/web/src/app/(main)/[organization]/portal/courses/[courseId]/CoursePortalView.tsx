@@ -5,6 +5,7 @@ import type {
   CustomerLessonRead,
   CustomerModuleRead,
 } from '@/hooks/queries/courses'
+import { HeroMedia } from '@/components/Courses/editor/HeroMedia'
 import { useState } from 'react'
 
 const FONT = "'Poppins', var(--font-poppins), system-ui, sans-serif"
@@ -575,26 +576,21 @@ function HeroBackdrop({
   hue,
   thumbnailUrl,
   thumbnailObjectPosition,
+  trailerUrl,
 }: {
   hue: number
   thumbnailUrl: string | null
   thumbnailObjectPosition: string | null
+  trailerUrl?: string | null
 }) {
-  if (thumbnailUrl) {
+  void thumbnailObjectPosition
+  if (thumbnailUrl || trailerUrl) {
     return (
       <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={thumbnailUrl}
-          alt=""
-          style={{
-            position: 'absolute',
-            inset: 0,
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-            objectPosition: thumbnailObjectPosition ?? 'center',
-          }}
+        <HeroMedia
+          imageUrl={thumbnailUrl}
+          trailerUrl={trailerUrl ?? null}
+          peekSeconds={10}
         />
       </div>
     )
@@ -725,6 +721,7 @@ function Hero({
           hue={heroHue}
           thumbnailUrl={course.thumbnail_url ?? null}
           thumbnailObjectPosition={course.thumbnail_object_position ?? null}
+          trailerUrl={course.trailer_url ?? null}
         />
         <div style={heroStyles.vignette} />
       </div>

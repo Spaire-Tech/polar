@@ -294,6 +294,22 @@ class CourseService:
         statement = repo.get_by_customer_statement(customer_id)
         return await repo.get_all(statement)
 
+    async def list_enrollments_for_course(
+        self,
+        session: AsyncSession,
+        course_id: UUID,
+    ) -> Sequence[CourseEnrollment]:
+        from sqlalchemy.orm import selectinload
+
+        repo = CourseEnrollmentRepository.from_session(session)
+        statement = (
+            repo.get_base_statement()
+            .where(CourseEnrollment.course_id == course_id)
+            .options(selectinload(CourseEnrollment.customer))
+            .order_by(CourseEnrollment.enrolled_at.desc())
+        )
+        return await repo.get_all(statement)
+
     async def get_enrollment_for_customer(
         self,
         session: AsyncSession,
