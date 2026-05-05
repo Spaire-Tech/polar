@@ -1,18 +1,33 @@
 'use client'
 
-import { splitLanding, type StoredLanding } from '@/components/Courses/landingStorage'
 import {
   useCustomerCourse,
   useMarkLessonComplete,
+  type CustomerLessonRead,
 } from '@/hooks/queries/courses'
 import { schemas } from '@spaire/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
-import { CourseLandingView } from './CourseLandingView'
-import { MasterClassHero } from './MasterClassHero'
-import { MasterClassInstructors } from './MasterClassInstructors'
-import { MasterClassLessonList, type FlatLesson } from './MasterClassLessonList'
+import { CoursePortalView } from './CoursePortalView'
 import { MasterClassLessonViewer } from './MasterClassLessonViewer'
+
+interface FlatLesson {
+  id: string
+  title: string
+  description?: string | null
+  position: number
+  duration_seconds?: number | null
+  thumbnail_url?: string | null
+  thumbnail_object_position?: string | null
+  mux_playback_id?: string | null
+  mux_status?: string | null
+  completed: boolean
+  is_free_preview: boolean
+  locked?: boolean
+  locked_until?: string | null
+  content_type: string
+  content: Record<string, unknown> | null
+}
 
 interface LessonViewerPageProps {
   organization: schemas['CustomerOrganization']
@@ -46,7 +61,7 @@ const LessonViewerPage = ({
         m.lessons.map((l) => ({
           id: l.id,
           title: l.title,
-          description: (l as any).description ?? null,
+          description: l.description ?? null,
           position: l.position,
           duration_seconds: l.duration_seconds,
           thumbnail_url: l.thumbnail_url,
@@ -65,10 +80,6 @@ const LessonViewerPage = ({
 
   const currentLesson =
     flatLessons.find((l) => l.id === selectedLessonId) ?? null
-  const firstIncomplete =
-    flatLessons.find((l) => !l.completed) ?? flatLessons[0]
-  const progress = data?.progress
-  const hasStarted = !!(progress && progress.completed_lessons > 0)
 
   const handleSelectLesson = (lesson: FlatLesson) => {
     setSelectedLessonId(lesson.id)
@@ -89,17 +100,9 @@ const LessonViewerPage = ({
     markComplete.mutate(currentLesson.id)
   }
 
-  const handleStartClass = () => {
-    if (firstIncomplete) {
-      handleSelectLesson(firstIncomplete)
-    }
-  }
-
-  const handleTrailer = () => {
-    const trailer = flatLessons.find((l) => l.is_free_preview)
-    if (trailer) {
-      handleSelectLesson(trailer)
-    }
+  const handleSelectCustomerLesson = (lesson: CustomerLessonRead) => {
+    const flat = flatLessons.find((l) => l.id === lesson.id)
+    if (flat) handleSelectLesson(flat)
   }
 
   if (isLoading) {
@@ -169,89 +172,14 @@ const LessonViewerPage = ({
     )
   }
 
-  // Show landing page (hero + lesson list).
-  // Newer courses persist the AI landing payload on landing_overrides.ai_landing
-  // and keep course.description clean. Older courses still embed the JSON in
-  // the description via splitLanding's sentinel marker — keep that as a
-  // legacy fallback so existing data renders.
-  const aiLandingFromOverrides = data.course.landing_overrides?.ai_landing as
-    | StoredLanding
-    | null
-    | undefined
-  const splitFromDescription = splitLanding(data.course.description)
-  const landing: StoredLanding | null =
-    aiLandingFromOverrides ?? splitFromDescription.landing
-  const humanDescription = landing
-    ? data.course.description
-    : splitFromDescription.humanDescription
-
-  if (landing) {
-    return (
-      <CourseLandingView
-        organizationName={organization.name}
-        instructorName={
-          landing.editable?.instructorName ??
-          data.course.instructor_name ??
-          null
-        }
-        instructorBio={data.course.instructor_bio ?? null}
-        courseTitle={
-          landing.editable?.courseTitle ?? data.course.title ?? 'Course'
-        }
-        courseDescription={
-          landing.editable?.description ?? humanDescription ?? null
-        }
-        thumbnailUrl={data.course.thumbnail_url}
-        thumbnailObjectPosition={data.course.thumbnail_object_position ?? null}
-        trailerUrl={data.course.trailer_url ?? null}
-        isStarted={hasStarted}
-        paywallEnabled={data.course.paywall_enabled}
-        paywallPosition={data.course.paywall_position}
-        flatLessons={flatLessons}
-        landing={landing}
-        onStart={handleStartClass}
-        onTrailer={handleTrailer}
-      />
-    )
-  }
-
+  // No lesson selected — render the redesigned course portal (cinematic
+  // hero, Apple-TV-style module rows, achievements + instructor).
   return (
-    <div className="w-full bg-black">
-      <MasterClassHero
-        courseTitle={data.course.title}
-        organizationName={organization.name}
-        description={humanDescription}
-        thumbnailUrl={data.course.thumbnail_url}
-        thumbnailObjectPosition={data.course.thumbnail_object_position ?? null}
-        trailerUrl={data.course.trailer_url ?? null}
-        instructorName={data.course.instructor_name ?? null}
-        instructorNameItalic={data.course.instructor_name_italic ?? true}
-        instructorNameBold={data.course.instructor_name_bold ?? true}
-        instructorNameUppercase={data.course.instructor_name_uppercase ?? true}
-        isStarted={hasStarted}
-        totalLessons={progress?.total_lessons ?? flatLessons.length}
-        completionPercent={progress?.completion_percent ?? 0}
-        onStart={handleStartClass}
-        onTrailer={handleTrailer}
-      />
-
-      <MasterClassInstructors
-        instructors={[
-          {
-            name: data.course.instructor_name ?? organization.name,
-            avatarUrl: organization.avatar_url,
-            bio: data.course.instructor_bio ?? null,
-          },
-        ]}
-      />
-
-      <MasterClassLessonList
-        lessons={flatLessons}
-        instructorName={organization.name}
-        onSelectLesson={handleSelectLesson}
-        hasAccess={true}
-      />
-    </div>
+    <CoursePortalView
+      data={data}
+      organizationName={organization.name}
+      onSelectLesson={handleSelectCustomerLesson}
+    />
   )
 }
 

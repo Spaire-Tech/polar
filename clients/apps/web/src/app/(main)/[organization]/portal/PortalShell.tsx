@@ -1,11 +1,11 @@
 'use client'
 
 import { schemas } from '@spaire/client'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { TopBar } from './_components/TopBar'
 import './portal.css'
 
-const isImmersiveRoute = (pathname: string): boolean => {
+const isCourseRoute = (pathname: string): boolean => {
   return /\/portal\/courses\/[^/]+/.test(pathname)
 }
 
@@ -25,17 +25,31 @@ export const PortalShell = ({
   children: React.ReactNode
 }) => {
   const pathname = usePathname()
-  const immersive = isImmersiveRoute(pathname)
+  const searchParams = useSearchParams()
+  // Only the in-lesson player is immersive (full-bleed, no portal nav). The
+  // course portal page itself keeps the standard TopBar.
+  const immersive =
+    isCourseRoute(pathname) && !!searchParams.get('lesson')
   const auth = isAuthRoute(pathname)
 
   if (immersive) {
-    // Course player keeps its own immersive layout.
     return <div className="w-full">{children}</div>
   }
 
   if (auth) {
     // Sign-in / claim screens render full-bleed without the portal nav.
     return <div className="spaire-portal sp-app">{children}</div>
+  }
+
+  // The course portal page renders its own full-bleed layout (cinematic hero
+  // + module rows) and so opts out of the standard .sp-page max-width wrapper.
+  if (isCourseRoute(pathname)) {
+    return (
+      <div className="spaire-portal sp-app">
+        <TopBar organization={organization} />
+        <main className="sp-course-portal">{children}</main>
+      </div>
+    )
   }
 
   return (
