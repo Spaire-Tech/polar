@@ -1,6 +1,7 @@
+import { useEmailBroadcasts } from '@/hooks/queries/emailMarketing'
+import { schemas } from '@spaire/client'
 import { useState } from 'react'
 import {
-  BROADCASTS,
   DEVICES,
   ENGAGEMENT_SERIES,
   SUBSCRIBER_GROWTH,
@@ -9,8 +10,21 @@ import {
 import { Icon } from '../Icon'
 import { MetricTile } from '../shared'
 
-export const AnalyticsScreen = () => {
+export const AnalyticsScreen = ({
+  organization,
+}: {
+  organization: schemas['Organization']
+}) => {
   const [range, setRange] = useState<'7d' | '14d' | '30d' | '90d'>('14d')
+
+  // Top broadcasts uses real data; Engagement / Devices / Top links are still
+  // sample series until those analytics endpoints land (Phase 4).
+  const broadcastsQuery = useEmailBroadcasts(organization.id, {
+    status: 'sent',
+    page: 1,
+    limit: 50,
+  })
+  const sentBroadcasts = broadcastsQuery.data?.items ?? []
 
   return (
     <div className="fade-up">
@@ -186,11 +200,16 @@ export const AnalyticsScreen = () => {
             </span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {BROADCASTS.filter((b) => b.opens != null)
+            {sentBroadcasts
+              .filter((b) => b.analytics && b.analytics.delivered > 0)
+              .slice()
+              .sort(
+                (a, b) =>
+                  (b.analytics?.open_rate ?? 0) - (a.analytics?.open_rate ?? 0),
+              )
               .slice(0, 5)
-              .sort((a, b) => b.opens! / b.recipients - a.opens! / a.recipients)
               .map((b) => {
-                const rate = (b.opens! / b.recipients) * 100
+                const rate = b.analytics?.open_rate ?? 0
                 return (
                   <div key={b.id}>
                     <div
@@ -211,7 +230,7 @@ export const AnalyticsScreen = () => {
                           maxWidth: 280,
                         }}
                       >
-                        {b.name}
+                        {b.subject}
                       </span>
                       <span
                         style={{
@@ -241,6 +260,17 @@ export const AnalyticsScreen = () => {
                   </div>
                 )
               })}
+            {!broadcastsQuery.isLoading && sentBroadcasts.length === 0 && (
+              <div
+                style={{
+                  fontSize: 13,
+                  color: 'var(--ink-3)',
+                  padding: '8px 0',
+                }}
+              >
+                No sent broadcasts yet.
+              </div>
+            )}
           </div>
         </div>
 

@@ -25,6 +25,7 @@ class EmailSubscriberService:
         *,
         organization_id: UUID | None = None,
         status: str | None = None,
+        q: str | None = None,
         pagination: PaginationParams,
         sorting: list[Sorting[EmailSubscriberSortProperty]],
     ) -> tuple[Sequence[EmailSubscriber], int]:
@@ -38,6 +39,9 @@ class EmailSubscriberService:
 
         if status is not None:
             statement = statement.where(EmailSubscriber.status == status)
+
+        if q is not None and q.strip():
+            statement = repository.apply_query_filter(statement, q.strip())
 
         # Apply sorting
         order_clauses = []
@@ -206,16 +210,79 @@ class EmailSubscriberService:
         self,
         session: AsyncReadSession,
         organization_id: UUID,
-    ) -> dict[str, int]:
+    ) -> dict[str, int | float]:
         repository = EmailSubscriberRepository.from_session(session)
         counts = await repository.count_by_status(organization_id)
+        active = counts.get("active", 0)
+        unsubscribed = counts.get("unsubscribed", 0)
+        archived = counts.get("archived", 0)
+        invalid = counts.get("invalid", 0)
+        total = sum(counts.values())
+
+        # Last-30-day aggregates for the design's "Avg. daily growth" and "Unsub rate" tiles
+        growth_rows = await repository.get_daily_counts(organization_id, days=30)
+        unsub_rows = await repository.get_daily_unsubscribes(organization_id, days=30)
+        added_30d = sum(r["count"] for r in growth_rows)
+        unsubs_30d = sum(r["count"] for r in unsub_rows)
+        avg_daily_growth_30d = added_30d / 30 if added_30d else 0.0
+        unsub_rate_30d = (unsubs_30d / total * 100) if total else 0.0
+
         return {
-            "total": sum(counts.values()),
-            "active": counts.get("active", 0),
-            "unsubscribed": counts.get("unsubscribed", 0),
-            "archived": counts.get("archived", 0),
-            "invalid": counts.get("invalid", 0),
+            "total": total,
+            "active": active,
+            "unsubscribed": unsubscribed,
+            "archived": archived,
+            "invalid": invalid,
+            "added_30d": added_30d,
+            "unsubs_30d": unsubs_30d,
+            "avg_daily_growth_30d": round(avg_daily_growth_30d, 2),
+            "unsub_rate_30d": round(unsub_rate_30d, 2),
         }
+
+    async def bulk_create(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        rows: list[tuple[str, str | None]],
+        source: str = EmailSubscriberSource.import_,
+        import_source: str | None = None,
+    ) -> dict[str, int]:
+        """Create many subscribers in one go. Returns counts of created/updated/skipped."""
+        created = 0
+        updated = 0
+        skipped = 0
+        for email, name in rows:
+            email = (email or "").strip().lower()
+            if not email or "@" not in email:
+                skipped += 1
+                continue
+            existing = await self.create(
+                session,
+                organization_id=organization_id,
+                email=email,
+                name=name,
+                source=source,
+                import_source=import_source,
+            )
+            # `create` reactivates existing subscribers; we treat the second case as updated.
+            if existing.created_at and existing.modified_at and existing.modified_at > existing.created_at:
+                updated += 1
+            else:
+                created += 1
+        return {"created": created, "updated": updated, "skipped": skipped}
+
+    async def delete_permanently(
+        self,
+        session: AsyncSession,
+        subscriber: EmailSubscriber,
+    ) -> None:
+        """Soft-delete the subscriber row (hides from all queries, frees the email/org slot)."""
+        from polar.kit.utils import utc_now
+
+        subscriber.deleted_at = utc_now()
+        repository = EmailSubscriberRepository.from_session(session)
+        await repository.update(subscriber)
 
 
     async def get_daily_growth(

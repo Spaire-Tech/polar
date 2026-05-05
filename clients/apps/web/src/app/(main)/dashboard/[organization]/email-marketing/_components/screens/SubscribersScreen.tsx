@@ -1,28 +1,175 @@
-import { useState } from 'react'
-import { SUBSCRIBERS } from '../data'
+import {
+  SubscriberRow,
+  useBulkCreateEmailSubscribers,
+  useCreateEmailSubscriber,
+  useEmailSubscribers,
+  useEmailSubscriberStats,
+  usePermanentlyDeleteEmailSubscriber,
+  useUpdateEmailSubscriber,
+} from '@/hooks/queries/emailMarketing'
+import { getServerURL } from '@/utils/api'
+import { schemas } from '@spaire/client'
+import { useCallback, useMemo, useRef, useState } from 'react'
+import { ActionMenu } from '../ActionMenu'
 import { Icon } from '../Icon'
+import { Modal } from '../Modal'
 import { MetricTile } from '../shared'
 
-const FILTERS = ['All', 'Active', 'Unsubscribed', 'Archived'] as const
-type Filter = (typeof FILTERS)[number]
+const FILTERS = [
+  { id: 'All', api: undefined },
+  { id: 'Active', api: 'active' },
+  { id: 'Unsubscribed', api: 'unsubscribed' },
+  { id: 'Archived', api: 'archived' },
+] as const
+type Filter = (typeof FILTERS)[number]['id']
 
-export const SubscribersScreen = () => {
+const PAGE_SIZE = 20
+
+const palette = [
+  '#FF6B35',
+  '#1A7A3E',
+  '#7B5BFF',
+  '#0066CC',
+  '#D6336C',
+  '#FF9500',
+  '#22A39F',
+  '#B3261E',
+  '#5856D6',
+  '#34C759',
+]
+
+const colorFor = (key: string) => {
+  let h = 0
+  for (let i = 0; i < key.length; i++) h = key.charCodeAt(i) + ((h << 5) - h)
+  return palette[Math.abs(h) % palette.length]
+}
+
+const initials = (name: string | null, email: string) => {
+  const source = name?.trim() || email
+  return source
+    .split(/\s+|@/)
+    .map((p) => p[0])
+    .filter(Boolean)
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
+}
+
+const sourceLabel = (source: string, importSource: string | null) => {
+  if (importSource) return importSource
+  switch (source) {
+    case 'space_signup':
+      return 'Newsletter form'
+    case 'purchase':
+      return 'Purchase'
+    case 'manual':
+      return 'Manual'
+    case 'import':
+      return 'CSV import'
+    default:
+      return source
+  }
+}
+
+const formatDateTime = (iso: string) => {
+  const d = new Date(iso)
+  return d.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+export const SubscribersScreen = ({
+  organization,
+}: {
+  organization: schemas['Organization']
+}) => {
+  const orgId = organization.id
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<Filter>('All')
+  const [page, setPage] = useState(1)
+  const [showAdd, setShowAdd] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const list = SUBSCRIBERS.filter((s) => {
-    const q = query.toLowerCase()
-    const matches =
-      !query ||
-      s.name.toLowerCase().includes(q) ||
-      s.email.toLowerCase().includes(q)
-    const f =
-      filter === 'All' ||
-      (filter === 'Active' && s.status === 'active') ||
-      (filter === 'Unsubscribed' && s.status === 'unsub') ||
-      (filter === 'Archived' && s.status === 'archived')
-    return matches && f
+  const apiStatus = FILTERS.find((f) => f.id === filter)?.api
+
+  const subscribersQuery = useEmailSubscribers(orgId, {
+    status: apiStatus,
+    q: query.trim() || undefined,
+    page,
+    limit: PAGE_SIZE,
   })
+  const statsQuery = useEmailSubscriberStats(orgId)
+
+  const updateMutation = useUpdateEmailSubscriber()
+  const createMutation = useCreateEmailSubscriber(orgId)
+  const deleteForeverMutation = usePermanentlyDeleteEmailSubscriber()
+  const bulkMutation = useBulkCreateEmailSubscribers(orgId)
+
+  const items = subscribersQuery.data?.items ?? []
+  const totalCount = subscribersQuery.data?.pagination.total_count ?? 0
+  const maxPage = subscribersQuery.data?.pagination.max_page ?? 1
+  const stats = statsQuery.data
+
+  const onSearch = useCallback((v: string) => {
+    setQuery(v)
+    setPage(1)
+  }, [])
+
+  const onFilter = useCallback((f: Filter) => {
+    setFilter(f)
+    setPage(1)
+  }, [])
+
+  const setStatus = (id: string, status: SubscriberRow['status']) =>
+    updateMutation.mutate({ subscriberId: id, body: { status } })
+
+  const onDeleteForever = (s: SubscriberRow) => {
+    if (
+      window.confirm(
+        `Permanently delete ${s.email}? This frees the email slot and cannot be undone.`,
+      )
+    ) {
+      deleteForeverMutation.mutate(s.id)
+    }
+  }
+
+  const onExport = () => {
+    window.open(
+      getServerURL(`/v1/email-subscribers/export?organization_id=${orgId}`),
+      '_blank',
+    )
+  }
+
+  const onImportClick = () => fileInputRef.current?.click()
+
+  const onImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImporting(true)
+    try {
+      const text = await file.text()
+      const lines = text.split(/\r?\n/).filter((l) => l.trim())
+      const startIdx = lines[0]?.toLowerCase().includes('email') ? 1 : 0
+      const rows: { email: string; name?: string }[] = []
+      for (let i = startIdx; i < lines.length; i++) {
+        const cols = lines[i]
+          .split(',')
+          .map((c) => c.trim().replace(/^"|"$/g, ''))
+        const [email, name] = cols
+        if (email) rows.push({ email, name: name || undefined })
+      }
+      if (rows.length) {
+        await bulkMutation.mutateAsync({ rows, import_source: file.name })
+      }
+    } finally {
+      setImporting(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
 
   return (
     <div className="fade-up">
@@ -48,18 +195,29 @@ export const SubscribersScreen = () => {
           </p>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
-          <button className="btn btn-secondary">
+          <button
+            className="btn btn-secondary"
+            onClick={onImportClick}
+            disabled={importing}
+          >
             <Icon name="upload" size={15} />
-            Import
+            {importing ? 'Importing…' : 'Import'}
           </button>
-          <button className="btn btn-secondary">
+          <button className="btn btn-secondary" onClick={onExport}>
             <Icon name="download" size={15} />
             Export
           </button>
-          <button className="btn btn-primary">
+          <button className="btn btn-primary" onClick={() => setShowAdd(true)}>
             <Icon name="plus" size={15} />
             Add subscriber
           </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,text/csv"
+            style={{ display: 'none' }}
+            onChange={onImportFile}
+          />
         </div>
       </div>
 
@@ -72,29 +230,34 @@ export const SubscribersScreen = () => {
         }}
       >
         <MetricTile
-          value="4,287"
+          value={(stats?.total ?? 0).toLocaleString()}
           label="Total subscribers"
-          delta="+131"
-          deltaLabel="last 14 days"
+          delta={stats ? `+${stats.added_30d}` : undefined}
+          deltaLabel="last 30 days"
         />
         <MetricTile
-          value="4,142"
+          value={(stats?.active ?? 0).toLocaleString()}
           label="Active"
-          delta="96.6%"
+          delta={
+            stats && stats.total
+              ? `${((stats.active / stats.total) * 100).toFixed(1)}%`
+              : undefined
+          }
           deltaLabel="of list"
           subtle
         />
         <MetricTile
-          value="+24"
+          value={stats ? `+${stats.avg_daily_growth_30d.toFixed(1)}` : '0'}
           label="Avg. daily growth"
-          delta="+18%"
-          deltaLabel="vs last month"
+          delta={stats ? `+${stats.added_30d}` : undefined}
+          deltaLabel="net new / 30d"
+          subtle
         />
         <MetricTile
-          value="0.18%"
+          value={stats ? `${stats.unsub_rate_30d.toFixed(2)}%` : '0%'}
           label="Unsub rate"
-          delta="−0.04%"
-          deltaLabel="vs last month"
+          delta={stats ? `${stats.unsubs_30d}` : undefined}
+          deltaLabel="last 30d"
           down
         />
       </div>
@@ -122,25 +285,25 @@ export const SubscribersScreen = () => {
           <input
             className="input"
             style={{ paddingLeft: 42, height: 44 }}
-            placeholder="Search by name, email, or source…"
+            placeholder="Search by name or email…"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => onSearch(e.target.value)}
           />
         </div>
         <div className="tabs">
           {FILTERS.map((f) => (
             <button
-              key={f}
-              className={`tab ${filter === f ? 'tab-active' : ''}`}
-              onClick={() => setFilter(f)}
+              key={f.id}
+              className={`tab ${filter === f.id ? 'tab-active' : ''}`}
+              onClick={() => onFilter(f.id)}
             >
-              {f}
+              {f.id}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="card" style={{ overflow: 'hidden' }}>
+      <div className="card" style={{ overflow: 'visible' }}>
         <table className="table">
           <thead>
             <tr>
@@ -152,22 +315,38 @@ export const SubscribersScreen = () => {
             </tr>
           </thead>
           <tbody>
-            {list.map((s) => (
+            {subscribersQuery.isLoading && items.length === 0 && (
+              <tr>
+                <td colSpan={5} style={{ padding: 40, textAlign: 'center' }}>
+                  Loading…
+                </td>
+              </tr>
+            )}
+            {!subscribersQuery.isLoading && items.length === 0 && (
+              <tr>
+                <td
+                  colSpan={5}
+                  style={{
+                    padding: 40,
+                    textAlign: 'center',
+                    color: 'var(--ink-3)',
+                  }}
+                >
+                  No subscribers match these filters.
+                </td>
+              </tr>
+            )}
+            {items.map((s) => (
               <tr key={s.id}>
                 <td style={{ paddingLeft: 24 }}>
                   <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 12,
-                    }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 12 }}
                   >
-                    <div className="avatar" style={{ background: s.color }}>
-                      {s.name
-                        .split(' ')
-                        .map((n) => n[0])
-                        .join('')
-                        .slice(0, 2)}
+                    <div
+                      className="avatar"
+                      style={{ background: colorFor(s.email) }}
+                    >
+                      {initials(s.name, s.email)}
                     </div>
                     <div>
                       <div
@@ -177,7 +356,7 @@ export const SubscribersScreen = () => {
                           color: 'var(--ink)',
                         }}
                       >
-                        {s.name}
+                        {s.name || s.email}
                       </div>
                       <div
                         style={{
@@ -186,13 +365,13 @@ export const SubscribersScreen = () => {
                           marginTop: 2,
                         }}
                       >
-                        {s.email}
+                        {s.name ? s.email : ' '}
                       </div>
                     </div>
                   </div>
                 </td>
-                <td>{s.source}</td>
-                <td>{s.subscribed}</td>
+                <td>{sourceLabel(s.source, s.import_source)}</td>
+                <td>{formatDateTime(s.created_at)}</td>
                 <td>
                   {s.status === 'active' && (
                     <span className="chip chip-success">
@@ -200,7 +379,7 @@ export const SubscribersScreen = () => {
                       Active
                     </span>
                   )}
-                  {s.status === 'unsub' && (
+                  {s.status === 'unsubscribed' && (
                     <span className="chip">
                       <span
                         className="dot"
@@ -218,14 +397,42 @@ export const SubscribersScreen = () => {
                       Archived
                     </span>
                   )}
+                  {s.status === 'invalid' && (
+                    <span className="chip chip-error">
+                      <span className="dot" />
+                      Invalid
+                    </span>
+                  )}
                 </td>
                 <td>
-                  <button
-                    className="btn-ghost"
-                    style={{ padding: 8, borderRadius: 8 }}
-                  >
-                    <Icon name="more" size={16} />
-                  </button>
+                  <ActionMenu
+                    items={[
+                      {
+                        label: 'Resubscribe',
+                        icon: 'rotate',
+                        hidden: s.status === 'active' || s.status === 'invalid',
+                        onClick: () => setStatus(s.id, 'active'),
+                      },
+                      {
+                        label: 'Unsubscribe',
+                        icon: 'minus',
+                        hidden: s.status !== 'active',
+                        onClick: () => setStatus(s.id, 'unsubscribed'),
+                      },
+                      {
+                        label: 'Archive',
+                        icon: 'package',
+                        hidden: s.status === 'archived',
+                        onClick: () => setStatus(s.id, 'archived'),
+                      },
+                      {
+                        label: 'Delete forever',
+                        icon: 'trash',
+                        destructive: true,
+                        onClick: () => onDeleteForever(s),
+                      },
+                    ]}
+                  />
                 </td>
               </tr>
             ))}
@@ -243,12 +450,107 @@ export const SubscribersScreen = () => {
           color: 'var(--ink-3)',
         }}
       >
-        <div>Showing {list.length} of 4,287 subscribers</div>
+        <div>
+          Showing {items.length} of {totalCount.toLocaleString()} subscribers
+        </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-ghost btn-sm">Previous</button>
-          <button className="btn btn-ghost btn-sm">Next</button>
+          <button
+            className="btn btn-ghost btn-sm"
+            disabled={page <= 1}
+            style={{ opacity: page <= 1 ? 0.4 : 1 }}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+          >
+            Previous
+          </button>
+          <button
+            className="btn btn-ghost btn-sm"
+            disabled={page >= maxPage}
+            style={{ opacity: page >= maxPage ? 0.4 : 1 }}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            Next
+          </button>
         </div>
       </div>
+
+      <AddSubscriberModal
+        open={showAdd}
+        onClose={() => setShowAdd(false)}
+        onSubmit={async ({ email, name }) => {
+          await createMutation.mutateAsync({ email, name })
+          setShowAdd(false)
+        }}
+        submitting={createMutation.isPending}
+      />
     </div>
+  )
+}
+
+const AddSubscriberModal = ({
+  open,
+  onClose,
+  onSubmit,
+  submitting,
+}: {
+  open: boolean
+  onClose: () => void
+  onSubmit: (v: { email: string; name?: string }) => Promise<void>
+  submitting: boolean
+}) => {
+  const [email, setEmail] = useState('')
+  const [name, setName] = useState('')
+  const valid = useMemo(
+    () => /[^@\s]+@[^@\s]+\.[^@\s]+/.test(email.trim()),
+    [email],
+  )
+
+  return (
+    <Modal open={open} onClose={onClose} title="Add subscriber">
+      <form
+        onSubmit={async (e) => {
+          e.preventDefault()
+          if (!valid) return
+          await onSubmit({
+            email: email.trim(),
+            name: name.trim() || undefined,
+          })
+          setEmail('')
+          setName('')
+        }}
+      >
+        <label className="label">Email</label>
+        <input
+          className="input"
+          type="email"
+          required
+          autoFocus
+          placeholder="reader@example.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          style={{ marginBottom: 14 }}
+        />
+        <label className="label">Name (optional)</label>
+        <input
+          className="input"
+          placeholder="Jane Doe"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          style={{ marginBottom: 22 }}
+        />
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button type="button" className="btn btn-secondary" onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={!valid || submitting}
+            style={{ opacity: !valid || submitting ? 0.5 : 1 }}
+          >
+            {submitting ? 'Adding…' : 'Add subscriber'}
+          </button>
+        </div>
+      </form>
+    </Modal>
   )
 }

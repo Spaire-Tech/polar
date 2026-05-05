@@ -11,42 +11,84 @@ const fetchApi = async <T>(path: string): Promise<T> => {
   return res.json()
 }
 
+const fetchApiWrite = async <T>(
+  path: string,
+  method: 'POST' | 'PATCH' | 'DELETE',
+  body?: unknown,
+): Promise<T> => {
+  const res = await fetch(getServerURL(path), {
+    method,
+    credentials: 'include',
+    headers: body !== undefined ? { 'Content-Type': 'application/json' } : {},
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  })
+  if (!res.ok) throw new Error(`API error: ${res.status}`)
+  if (res.status === 204) return undefined as T
+  return res.json()
+}
+
 // ── Subscribers ──
 
 export const useEmailSubscribers = (
   organizationId: string,
   parameters?: {
     status?: string
+    q?: string
     page?: number
     limit?: number
   },
 ) =>
   useQuery({
     queryKey: ['email_subscribers', { organizationId, ...(parameters || {}) }],
-    queryFn: () =>
-      api
-        .GET('/v1/email-subscribers/', {
-          params: {
-            query: {
-              organization_id: organizationId,
-              ...parameters,
-            },
-          },
-        })
-        .then((r) => r.data),
+    queryFn: () => {
+      const qs = new URLSearchParams({ organization_id: organizationId })
+      if (parameters?.status) qs.set('status', parameters.status)
+      if (parameters?.q) qs.set('q', parameters.q)
+      if (parameters?.page) qs.set('page', String(parameters.page))
+      if (parameters?.limit) qs.set('limit', String(parameters.limit))
+      return fetchApi<{
+        items: SubscriberRow[]
+        pagination: { total_count: number; max_page: number }
+      }>(`/v1/email-subscribers/?${qs}`)
+    },
     retry: defaultRetry,
     placeholderData: keepPreviousData,
   })
+
+export type SubscriberRow = {
+  id: string
+  organization_id: string
+  email: string
+  name: string | null
+  status: 'active' | 'unsubscribed' | 'archived' | 'invalid'
+  source: string
+  import_source: string | null
+  customer_id: string | null
+  email_verified_at: string | null
+  unsubscribed_at: string | null
+  created_at: string
+  modified_at: string | null
+}
+
+export type SubscriberStats = {
+  total: number
+  active: number
+  unsubscribed: number
+  archived: number
+  invalid: number
+  added_30d: number
+  unsubs_30d: number
+  avg_daily_growth_30d: number
+  unsub_rate_30d: number
+}
 
 export const useEmailSubscriberStats = (organizationId: string) =>
   useQuery({
     queryKey: ['email_subscriber_stats', organizationId],
     queryFn: () =>
-      api
-        .GET('/v1/email-subscribers/stats', {
-          params: { query: { organization_id: organizationId } },
-        })
-        .then((r) => r.data),
+      fetchApi<SubscriberStats>(
+        `/v1/email-subscribers/stats?organization_id=${organizationId}`,
+      ),
     retry: defaultRetry,
   })
 
@@ -60,7 +102,10 @@ export const useSubscriberDailyGrowth = (organizationId: string, days = 30) =>
     retry: defaultRetry,
   })
 
-export const useSubscriberDailyUnsubscribes = (organizationId: string, days = 30) =>
+export const useSubscriberDailyUnsubscribes = (
+  organizationId: string,
+  days = 30,
+) =>
   useQuery({
     queryKey: ['subscriber_daily_unsubscribes', organizationId, days],
     queryFn: () =>
@@ -110,6 +155,52 @@ export const useUpdateEmailSubscriber = () =>
     },
   })
 
+export const useDeleteEmailSubscriber = () =>
+  useMutation({
+    mutationFn: (subscriberId: string) =>
+      fetchApiWrite<void>(`/v1/email-subscribers/${subscriberId}`, 'DELETE'),
+    onSuccess: () => {
+      getQueryClient().invalidateQueries({ queryKey: ['email_subscribers'] })
+      getQueryClient().invalidateQueries({
+        queryKey: ['email_subscriber_stats'],
+      })
+    },
+  })
+
+export const usePermanentlyDeleteEmailSubscriber = () =>
+  useMutation({
+    mutationFn: (subscriberId: string) =>
+      fetchApiWrite<void>(
+        `/v1/email-subscribers/${subscriberId}/permanent`,
+        'DELETE',
+      ),
+    onSuccess: () => {
+      getQueryClient().invalidateQueries({ queryKey: ['email_subscribers'] })
+      getQueryClient().invalidateQueries({
+        queryKey: ['email_subscriber_stats'],
+      })
+    },
+  })
+
+export const useBulkCreateEmailSubscribers = (organizationId: string) =>
+  useMutation({
+    mutationFn: (body: {
+      rows: { email: string; name?: string }[]
+      import_source?: string
+    }) =>
+      fetchApiWrite<{ created: number; updated: number; skipped: number }>(
+        `/v1/email-subscribers/bulk?organization_id=${organizationId}`,
+        'POST',
+        body,
+      ),
+    onSuccess: () => {
+      getQueryClient().invalidateQueries({ queryKey: ['email_subscribers'] })
+      getQueryClient().invalidateQueries({
+        queryKey: ['email_subscriber_stats'],
+      })
+    },
+  })
+
 // ── Broadcasts ──
 
 export const useBroadcastAggregateAnalytics = (organizationId: string) =>
@@ -124,7 +215,9 @@ export const useBroadcastAggregateAnalytics = (organizationId: string) =>
         unsubscribed: number
         open_rate: number
         click_rate: number
-      }>(`/v1/email-broadcasts/aggregate-analytics?organization_id=${organizationId}`),
+      }>(
+        `/v1/email-broadcasts/aggregate-analytics?organization_id=${organizationId}`,
+      ),
     retry: defaultRetry,
   })
 
@@ -138,28 +231,149 @@ export const useBroadcastDailySends = (organizationId: string, days = 30) =>
     retry: defaultRetry,
   })
 
+export type BroadcastRowAnalytics = {
+  recipients: number
+  delivered: number
+  opens: number
+  clicks: number
+  unsubs: number
+  open_rate: number
+  click_rate: number
+}
+
+export type BroadcastRow = {
+  id: string
+  organization_id: string
+  subject: string
+  sender_name: string
+  sender_email: string
+  reply_to_email: string | null
+  content_json: Record<string, unknown> | null
+  content_html: string | null
+  segment_id: string | null
+  status:
+    | 'draft'
+    | 'pending_approval'
+    | 'sending'
+    | 'sent'
+    | 'failed'
+    | 'scheduled'
+  scheduled_at: string | null
+  sent_at: string | null
+  total_recipients: number
+  created_at: string
+  modified_at: string | null
+  analytics: BroadcastRowAnalytics | null
+}
+
 export const useEmailBroadcasts = (
   organizationId: string,
   parameters?: {
+    status?: string
+    q?: string
     page?: number
     limit?: number
+    include_analytics?: boolean
   },
 ) =>
   useQuery({
     queryKey: ['email_broadcasts', { organizationId, ...(parameters || {}) }],
+    queryFn: () => {
+      const qs = new URLSearchParams({ organization_id: organizationId })
+      if (parameters?.status) qs.set('status', parameters.status)
+      if (parameters?.q) qs.set('q', parameters.q)
+      if (parameters?.page) qs.set('page', String(parameters.page))
+      if (parameters?.limit) qs.set('limit', String(parameters.limit))
+      if (parameters?.include_analytics === false)
+        qs.set('include_analytics', 'false')
+      return fetchApi<{
+        items: BroadcastRow[]
+        pagination: { total_count: number; max_page: number }
+      }>(`/v1/email-broadcasts/?${qs}`)
+    },
+    retry: defaultRetry,
+    placeholderData: keepPreviousData,
+  })
+
+export const useEmailBroadcast = (broadcastId: string) =>
+  useQuery({
+    queryKey: ['email_broadcast', broadcastId],
     queryFn: () =>
       api
-        .GET('/v1/email-broadcasts/', {
-          params: {
-            query: {
-              organization_id: organizationId,
-              ...parameters,
-            },
-          },
+        .GET('/v1/email-broadcasts/{broadcast_id}', {
+          params: { path: { broadcast_id: broadcastId } },
         })
         .then((r) => r.data),
     retry: defaultRetry,
+    enabled: !!broadcastId,
+  })
+
+export type BroadcastSendRow = {
+  id: string
+  subscriber_id: string
+  subscriber_email: string
+  subscriber_name: string | null
+  status: string
+  sent_at: string | null
+  opened_at: string | null
+  open_count: number
+  clicked_at: string | null
+  click_count: number
+  bounced_at: string | null
+  unsubscribed_at: string | null
+}
+
+export const useEmailBroadcastSends = (
+  broadcastId: string,
+  parameters?: { page?: number; limit?: number },
+) =>
+  useQuery({
+    queryKey: ['email_broadcast_sends', { broadcastId, ...(parameters || {}) }],
+    queryFn: () => {
+      const qs = new URLSearchParams()
+      if (parameters?.page) qs.set('page', String(parameters.page))
+      if (parameters?.limit) qs.set('limit', String(parameters.limit))
+      return fetchApi<{
+        items: BroadcastSendRow[]
+        pagination: { total_count: number; max_page: number }
+      }>(`/v1/email-broadcasts/${broadcastId}/sends?${qs}`)
+    },
+    retry: defaultRetry,
+    enabled: !!broadcastId,
     placeholderData: keepPreviousData,
+  })
+
+export const useDuplicateEmailBroadcast = () =>
+  useMutation({
+    mutationFn: (broadcastId: string) =>
+      fetchApiWrite<BroadcastRow>(
+        `/v1/email-broadcasts/${broadcastId}/duplicate`,
+        'POST',
+      ),
+    onSuccess: () => {
+      getQueryClient().invalidateQueries({ queryKey: ['email_broadcasts'] })
+    },
+  })
+
+export const useCancelScheduledEmailBroadcast = () =>
+  useMutation({
+    mutationFn: (broadcastId: string) =>
+      fetchApiWrite<BroadcastRow>(
+        `/v1/email-broadcasts/${broadcastId}/cancel-schedule`,
+        'POST',
+      ),
+    onSuccess: () => {
+      getQueryClient().invalidateQueries({ queryKey: ['email_broadcasts'] })
+    },
+  })
+
+export const useArchiveEmailBroadcast = () =>
+  useMutation({
+    mutationFn: (broadcastId: string) =>
+      fetchApiWrite<void>(`/v1/email-broadcasts/${broadcastId}`, 'DELETE'),
+    onSuccess: () => {
+      getQueryClient().invalidateQueries({ queryKey: ['email_broadcasts'] })
+    },
   })
 
 export const useCreateEmailBroadcast = (organizationId: string) =>
@@ -222,15 +436,25 @@ export const useSendEmailBroadcast = () =>
     },
   })
 
+export type BroadcastAnalytics = {
+  total_recipients: number
+  sent: number
+  delivered: number
+  opened: number
+  clicked: number
+  bounced: number
+  unsubscribed: number
+  open_rate: number
+  click_rate: number
+}
+
 export const useEmailBroadcastAnalytics = (broadcastId: string) =>
   useQuery({
     queryKey: ['email_broadcast_analytics', broadcastId],
     queryFn: () =>
-      api
-        .GET('/v1/email-broadcasts/{broadcast_id}/analytics', {
-          params: { path: { broadcast_id: broadcastId } },
-        })
-        .then((r) => r.data),
+      fetchApi<BroadcastAnalytics>(
+        `/v1/email-broadcasts/${broadcastId}/analytics`,
+      ),
     retry: defaultRetry,
     enabled: !!broadcastId,
   })
@@ -285,7 +509,15 @@ export const useDeleteEmailSegment = () =>
 
 export const useStorefrontSubscribe = () =>
   useMutation({
-    mutationFn: ({ slug, email, name }: { slug: string; email: string; name?: string }) =>
+    mutationFn: ({
+      slug,
+      email,
+      name,
+    }: {
+      slug: string
+      email: string
+      name?: string
+    }) =>
       api.POST('/v1/storefronts/{slug}/subscribe', {
         params: { path: { slug } },
         body: { email, name },
@@ -372,8 +604,7 @@ export const useUpdateEmailSequence = () =>
       trigger_type?: string
       trigger_config?: Record<string, unknown>
       status?: string
-    }) =>
-      seqMutate<any>(`/v1/email-sequences/${sequenceId}`, 'PATCH', body),
+    }) => seqMutate<any>(`/v1/email-sequences/${sequenceId}`, 'PATCH', body),
     onSuccess: (_data, vars) => {
       getQueryClient().invalidateQueries({ queryKey: ['email_sequences'] })
       getQueryClient().invalidateQueries({
@@ -488,11 +719,9 @@ export const useSequenceEnrollments = (sequenceId: string) =>
 export const useEnrollSubscriber = (sequenceId: string) =>
   useMutation({
     mutationFn: (subscriberId: string) =>
-      seqMutate<any>(
-        `/v1/email-sequences/${sequenceId}/enrollments`,
-        'POST',
-        { subscriber_id: subscriberId },
-      ),
+      seqMutate<any>(`/v1/email-sequences/${sequenceId}/enrollments`, 'POST', {
+        subscriber_id: subscriberId,
+      }),
     onSuccess: () => {
       getQueryClient().invalidateQueries({
         queryKey: ['email_sequence_enrollments', sequenceId],
@@ -519,8 +748,7 @@ export const useUnenrollSubscriber = (sequenceId: string) =>
 export const useSequenceAnalytics = (sequenceId: string) =>
   useQuery({
     queryKey: ['email_sequence_analytics', sequenceId],
-    queryFn: () =>
-      seqFetch<any>(`/v1/email-sequences/${sequenceId}/analytics`),
+    queryFn: () => seqFetch<any>(`/v1/email-sequences/${sequenceId}/analytics`),
     retry: defaultRetry,
     enabled: !!sequenceId,
   })

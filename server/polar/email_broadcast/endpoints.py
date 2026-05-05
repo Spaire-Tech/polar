@@ -13,32 +13,53 @@ from .schemas import (
     EmailBroadcast as EmailBroadcastSchema,
     EmailBroadcastAnalytics,
     EmailBroadcastCreate,
+    EmailBroadcastRowAnalytics,
     EmailBroadcastSchedule,
+    EmailBroadcastSendRow,
     EmailBroadcastUpdate,
+    EmailBroadcastWithAnalytics,
 )
 from .service import email_broadcast as email_broadcast_service
 
 router = APIRouter(prefix="/email-broadcasts", tags=["email-broadcasts"])
 
 
-@router.get("/", response_model=ListResource[EmailBroadcastSchema])
+@router.get("/", response_model=ListResource[EmailBroadcastWithAnalytics])
 async def list_email_broadcasts(
     auth_subject: EmailSubscribersRead,
     pagination: PaginationParamsQuery,
     organization_id: UUID | None = Query(default=None),
+    status: str | None = Query(default=None),
+    q: str | None = Query(default=None),
+    include_analytics: bool = Query(default=True),
     session: AsyncReadSession = Depends(get_db_read_session),
-) -> ListResource[EmailBroadcastSchema]:
+) -> ListResource[EmailBroadcastWithAnalytics]:
     results, count = await email_broadcast_service.list(
         session,
         auth_subject,
         organization_id=organization_id,
+        status=status,
+        q=q,
         pagination=pagination,
     )
-    return ListResource.from_paginated_results(
-        [EmailBroadcastSchema.model_validate(r, from_attributes=True) for r in results],
-        count,
-        pagination,
-    )
+
+    analytics_by_id: dict = {}
+    if include_analytics and results:
+        analytics_by_id = await email_broadcast_service.list_analytics(
+            session, [r.id for r in results]
+        )
+
+    items: list[EmailBroadcastWithAnalytics] = []
+    for r in results:
+        base = EmailBroadcastSchema.model_validate(r, from_attributes=True)
+        a = analytics_by_id.get(r.id)
+        items.append(
+            EmailBroadcastWithAnalytics(
+                **base.model_dump(),
+                analytics=EmailBroadcastRowAnalytics(**a) if a else None,
+            )
+        )
+    return ListResource.from_paginated_results(items, count, pagination)
 
 
 @router.get("/aggregate-analytics")
@@ -174,3 +195,84 @@ async def get_email_broadcast_analytics(
         raise ResourceNotFound()
     analytics = await email_broadcast_service.get_analytics(session, broadcast_id)
     return EmailBroadcastAnalytics(**analytics)
+
+
+@router.get(
+    "/{broadcast_id}/sends", response_model=ListResource[EmailBroadcastSendRow]
+)
+async def list_email_broadcast_sends(
+    auth_subject: EmailSubscribersRead,
+    broadcast_id: UUID4,
+    pagination: PaginationParamsQuery,
+    session: AsyncReadSession = Depends(get_db_read_session),
+) -> ListResource[EmailBroadcastSendRow]:
+    broadcast = await email_broadcast_service.get_by_id(
+        session, auth_subject, broadcast_id
+    )
+    if broadcast is None:
+        raise ResourceNotFound()
+    sends, count = await email_broadcast_service.list_sends(
+        session, broadcast_id, pagination=pagination
+    )
+    items = [
+        EmailBroadcastSendRow(
+            id=s.id,
+            subscriber_id=s.subscriber_id,
+            subscriber_email=s.subscriber.email if s.subscriber else "",
+            subscriber_name=s.subscriber.name if s.subscriber else None,
+            status=s.status,
+            sent_at=s.sent_at,
+            opened_at=s.opened_at,
+            open_count=s.open_count,
+            clicked_at=s.clicked_at,
+            click_count=s.click_count,
+            bounced_at=s.bounced_at,
+            unsubscribed_at=s.unsubscribed_at,
+        )
+        for s in sends
+    ]
+    return ListResource.from_paginated_results(items, count, pagination)
+
+
+@router.post("/{broadcast_id}/duplicate", response_model=EmailBroadcastSchema, status_code=201)
+async def duplicate_email_broadcast(
+    auth_subject: EmailSubscribersWrite,
+    broadcast_id: UUID4,
+    session: AsyncSession = Depends(get_db_session),
+) -> EmailBroadcastSchema:
+    broadcast = await email_broadcast_service.get_by_id(
+        session, auth_subject, broadcast_id
+    )
+    if broadcast is None:
+        raise ResourceNotFound()
+    copy = await email_broadcast_service.duplicate(session, broadcast)
+    return EmailBroadcastSchema.model_validate(copy, from_attributes=True)
+
+
+@router.post("/{broadcast_id}/cancel-schedule", response_model=EmailBroadcastSchema)
+async def cancel_email_broadcast_schedule(
+    auth_subject: EmailSubscribersWrite,
+    broadcast_id: UUID4,
+    session: AsyncSession = Depends(get_db_session),
+) -> EmailBroadcastSchema:
+    broadcast = await email_broadcast_service.get_by_id(
+        session, auth_subject, broadcast_id
+    )
+    if broadcast is None:
+        raise ResourceNotFound()
+    updated = await email_broadcast_service.cancel_schedule(session, broadcast)
+    return EmailBroadcastSchema.model_validate(updated, from_attributes=True)
+
+
+@router.delete("/{broadcast_id}", status_code=204)
+async def archive_email_broadcast(
+    auth_subject: EmailSubscribersWrite,
+    broadcast_id: UUID4,
+    session: AsyncSession = Depends(get_db_session),
+) -> None:
+    broadcast = await email_broadcast_service.get_by_id(
+        session, auth_subject, broadcast_id
+    )
+    if broadcast is None:
+        raise ResourceNotFound()
+    await email_broadcast_service.archive(session, broadcast)

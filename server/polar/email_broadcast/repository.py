@@ -48,6 +48,87 @@ class EmailBroadcastRepository(
         result = await self.session.execute(statement)
         return list(result.scalars().all())
 
+    async def get_analytics_counts_for_broadcasts(
+        self, broadcast_ids: list[UUID]
+    ) -> dict[UUID, dict[str, int]]:
+        """Per-broadcast send/open/click/unsub counts, in one query."""
+        if not broadcast_ids:
+            return {}
+        statement = (
+            select(
+                EmailBroadcastSend.broadcast_id,
+                func.count(EmailBroadcastSend.id).label("total"),
+                func.count(EmailBroadcastSend.id)
+                .filter(
+                    EmailBroadcastSend.status.in_(
+                        [
+                            EmailBroadcastSendStatus.delivered,
+                            EmailBroadcastSendStatus.opened,
+                            EmailBroadcastSendStatus.clicked,
+                        ]
+                    )
+                )
+                .label("delivered"),
+                func.count(EmailBroadcastSend.id)
+                .filter(
+                    EmailBroadcastSend.status.in_(
+                        [
+                            EmailBroadcastSendStatus.opened,
+                            EmailBroadcastSendStatus.clicked,
+                        ]
+                    )
+                )
+                .label("opened"),
+                func.count(EmailBroadcastSend.id)
+                .filter(
+                    EmailBroadcastSend.status == EmailBroadcastSendStatus.clicked
+                )
+                .label("clicked"),
+                func.count(EmailBroadcastSend.id)
+                .filter(EmailBroadcastSend.unsubscribed_at.isnot(None))
+                .label("unsubscribed"),
+            )
+            .where(
+                EmailBroadcastSend.broadcast_id.in_(broadcast_ids),
+                EmailBroadcastSend.deleted_at.is_(None),
+            )
+            .group_by(EmailBroadcastSend.broadcast_id)
+        )
+        result = await self.session.execute(statement)
+        out: dict[UUID, dict[str, int]] = {}
+        for row in result.all():
+            out[row[0]] = {
+                "total": row[1],
+                "delivered": row[2],
+                "opened": row[3],
+                "clicked": row[4],
+                "unsubscribed": row[5],
+            }
+        return out
+
+    async def list_sends(
+        self, broadcast_id: UUID, *, limit: int, page: int
+    ) -> tuple[list[EmailBroadcastSend], int]:
+        """Per-recipient sends for a broadcast, joined with subscriber info."""
+        from sqlalchemy.orm import joinedload
+
+        offset = (page - 1) * limit
+        base = select(EmailBroadcastSend).where(
+            EmailBroadcastSend.broadcast_id == broadcast_id,
+            EmailBroadcastSend.deleted_at.is_(None),
+        )
+        count_stmt = select(func.count()).select_from(base.subquery())
+        count = (await self.session.execute(count_stmt)).scalar_one()
+
+        statement = (
+            base.options(joinedload(EmailBroadcastSend.subscriber))
+            .order_by(EmailBroadcastSend.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        result = await self.session.execute(statement)
+        return list(result.scalars().all()), count
+
     async def get_analytics_counts(
         self, broadcast_id: UUID
     ) -> dict[str, int]:

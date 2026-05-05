@@ -61,3 +61,32 @@ class EmailBroadcastAnalytics(Schema):
     unsubscribed: int = 0
     open_rate: float = 0.0
     click_rate: float = 0.0
+
+
+class EmailBroadcastRowAnalytics(Schema):
+    recipients: int = 0
+    delivered: int = 0
+    opens: int = 0
+    clicks: int = 0
+    unsubs: int = 0
+    open_rate: float = 0.0
+    click_rate: float = 0.0
+
+
+class EmailBroadcastWithAnalytics(EmailBroadcast):
+    analytics: EmailBroadcastRowAnalytics | None = None
+
+
+class EmailBroadcastSendRow(Schema):
+    id: UUID4
+    subscriber_id: UUID4
+    subscriber_email: str
+    subscriber_name: str | None = None
+    status: str
+    sent_at: datetime | None = None
+    opened_at: datetime | None = None
+    open_count: int = 0
+    clicked_at: datetime | None = None
+    click_count: int = 0
+    bounced_at: datetime | None = None
+    unsubscribed_at: datetime | None = None

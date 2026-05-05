@@ -2,7 +2,7 @@ from uuid import UUID
 
 from datetime import date, timedelta
 
-from sqlalchemy import Select, cast, Date, func, select
+from sqlalchemy import Select, cast, Date, func, or_, select
 
 from polar.auth.models import AuthSubject, Organization, User, is_organization, is_user
 from polar.kit.repository import (
@@ -18,6 +18,18 @@ class EmailSubscriberRepository(
     RepositoryBase[EmailSubscriber],
 ):
     model = EmailSubscriber
+
+    @staticmethod
+    def apply_query_filter(
+        statement: Select[tuple[EmailSubscriber]], q: str
+    ) -> Select[tuple[EmailSubscriber]]:
+        like = f"%{q.lower()}%"
+        return statement.where(
+            or_(
+                func.lower(EmailSubscriber.email).like(like),
+                func.lower(EmailSubscriber.name).like(like),
+            )
+        )
 
     async def get_by_email_and_organization(
         self, email: str, organization_id: UUID

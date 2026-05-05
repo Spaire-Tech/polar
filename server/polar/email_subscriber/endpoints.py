@@ -14,6 +14,8 @@ from polar.routing import APIRouter
 from . import auth, sorting
 from .schemas import (
     EmailSubscriber as EmailSubscriberSchema,
+    EmailSubscriberBulkCreate,
+    EmailSubscriberBulkResult,
     EmailSubscriberCreate,
     EmailSubscriberStats,
     EmailSubscriberUpdate,
@@ -30,6 +32,9 @@ async def list_email_subscribers(
     sorting: sorting.ListSorting,
     organization_id: UUID | None = Query(default=None),
     status: str | None = Query(default=None),
+    q: str | None = Query(
+        default=None, description="Search query — matches email and name."
+    ),
     session: AsyncReadSession = Depends(get_db_read_session),
 ) -> ListResource[EmailSubscriberSchema]:
     results, count = await email_subscriber_service.list(
@@ -37,6 +42,7 @@ async def list_email_subscribers(
         auth_subject,
         organization_id=organization_id,
         status=status,
+        q=q,
         pagination=pagination,
         sorting=sorting,
     )
@@ -179,3 +185,36 @@ async def delete_email_subscriber(
     await email_subscriber_service.update(
         session, subscriber, status="archived"
     )
+
+
+@router.delete("/{subscriber_id}/permanent", status_code=204)
+async def delete_email_subscriber_permanently(
+    auth_subject: auth.EmailSubscribersWrite,
+    subscriber_id: UUID4,
+    session: AsyncSession = Depends(get_db_session),
+) -> None:
+    """Permanently remove a subscriber (soft-delete on the row so the email slot is freed)."""
+    subscriber = await email_subscriber_service.get_by_id(
+        session, auth_subject, subscriber_id
+    )
+    if subscriber is None:
+        raise ResourceNotFound()
+    await email_subscriber_service.delete_permanently(session, subscriber)
+
+
+@router.post(
+    "/bulk", response_model=EmailSubscriberBulkResult, status_code=201
+)
+async def bulk_create_email_subscribers(
+    auth_subject: auth.EmailSubscribersWrite,
+    bulk: EmailSubscriberBulkCreate,
+    organization_id: UUID = Query(),
+    session: AsyncSession = Depends(get_db_session),
+) -> EmailSubscriberBulkResult:
+    counts = await email_subscriber_service.bulk_create(
+        session,
+        organization_id=organization_id,
+        rows=[(r.email, r.name) for r in bulk.rows],
+        import_source=bulk.import_source,
+    )
+    return EmailSubscriberBulkResult(**counts)

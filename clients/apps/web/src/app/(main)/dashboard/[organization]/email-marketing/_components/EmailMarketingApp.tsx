@@ -6,6 +6,7 @@ import { useState } from 'react'
 import '../styles.css'
 import { Icon } from './Icon'
 import { AnalyticsScreen } from './screens/AnalyticsScreen'
+import { BroadcastDetailScreen } from './screens/BroadcastDetailScreen'
 import { BroadcastsScreen } from './screens/BroadcastsScreen'
 import { NewBroadcastScreen } from './screens/NewBroadcastScreen'
 import { NewSequenceScreen } from './screens/NewSequenceScreen'
@@ -13,7 +14,7 @@ import { SequencesScreen } from './screens/SequencesScreen'
 import { SubscribersScreen } from './screens/SubscribersScreen'
 
 type Tab = 'subscribers' | 'broadcasts' | 'sequences' | 'analytics'
-type View = 'main' | 'new-broadcast' | 'new-sequence'
+type View = 'main' | 'new-broadcast' | 'new-sequence' | 'broadcast-detail'
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'subscribers', label: 'Subscribers', icon: 'users' },
@@ -29,10 +30,19 @@ export default function EmailMarketingApp({
 }) {
   const [tab, setTab] = useState<Tab>('subscribers')
   const [view, setView] = useState<View>('main')
+  const [activeBroadcastId, setActiveBroadcastId] = useState<string | null>(
+    null,
+  )
 
   const selectTab = (next: Tab) => {
     setTab(next)
     setView('main')
+    setActiveBroadcastId(null)
+  }
+
+  const openBroadcast = (id: string) => {
+    setActiveBroadcastId(id)
+    setView('broadcast-detail')
   }
 
   const initials = (organization.name || 'S')
@@ -138,20 +148,34 @@ export default function EmailMarketingApp({
       </div>
 
       <div className="container" style={{ paddingTop: 40, paddingBottom: 80 }}>
-        {tab === 'subscribers' && <SubscribersScreen />}
+        {tab === 'subscribers' && (
+          <SubscribersScreen organization={organization} />
+        )}
         {tab === 'broadcasts' && view === 'main' && (
-          <BroadcastsScreen onNew={() => setView('new-broadcast')} />
+          <BroadcastsScreen
+            organization={organization}
+            onNew={() => setView('new-broadcast')}
+            onOpen={openBroadcast}
+          />
         )}
         {tab === 'broadcasts' && view === 'new-broadcast' && (
           <NewBroadcastScreen onBack={() => setView('main')} />
         )}
+        {tab === 'broadcasts' &&
+          view === 'broadcast-detail' &&
+          activeBroadcastId && (
+            <BroadcastDetailScreen
+              broadcastId={activeBroadcastId}
+              onBack={() => setView('main')}
+            />
+          )}
         {tab === 'sequences' && view === 'main' && (
           <SequencesScreen onNew={() => setView('new-sequence')} />
         )}
         {tab === 'sequences' && view === 'new-sequence' && (
           <NewSequenceScreen onBack={() => setView('main')} />
         )}
-        {tab === 'analytics' && <AnalyticsScreen />}
+        {tab === 'analytics' && <AnalyticsScreen organization={organization} />}
       </div>
     </div>
   )

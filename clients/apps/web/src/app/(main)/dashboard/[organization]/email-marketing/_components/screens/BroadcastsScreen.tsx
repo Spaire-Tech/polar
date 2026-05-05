@@ -1,24 +1,80 @@
+import {
+  BroadcastRow,
+  useArchiveEmailBroadcast,
+  useBroadcastAggregateAnalytics,
+  useCancelScheduledEmailBroadcast,
+  useDuplicateEmailBroadcast,
+  useEmailBroadcasts,
+  useEmailSubscriberStats,
+} from '@/hooks/queries/emailMarketing'
+import { schemas } from '@spaire/client'
 import { useState } from 'react'
-import { Broadcast, BROADCASTS } from '../data'
+import { ActionMenu } from '../ActionMenu'
 import { Icon } from '../Icon'
 import { MetricTile, Stat } from '../shared'
 
-const FILTERS = ['All', 'Sent', 'Scheduled', 'Drafts'] as const
-type Filter = (typeof FILTERS)[number]
+const FILTERS = [
+  { id: 'All', api: undefined },
+  { id: 'Sent', api: 'sent' },
+  { id: 'Scheduled', api: 'scheduled' },
+  { id: 'Drafts', api: 'draft' },
+] as const
+type Filter = (typeof FILTERS)[number]['id']
 
-export const BroadcastsScreen = ({ onNew }: { onNew: () => void }) => {
+const PAGE_SIZE = 20
+
+const formatSentAt = (b: BroadcastRow) => {
+  if (b.status === 'scheduled' && b.scheduled_at)
+    return `Scheduled for ${new Date(b.scheduled_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`
+  if (b.sent_at)
+    return new Date(b.sent_at).toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  if (b.status === 'draft') return 'Draft'
+  return '—'
+}
+
+export const BroadcastsScreen = ({
+  organization,
+  onNew,
+  onOpen,
+}: {
+  organization: schemas['Organization']
+  onNew: () => void
+  onOpen: (broadcastId: string) => void
+}) => {
+  const orgId = organization.id
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<Filter>('All')
+  const [page, setPage] = useState(1)
 
-  const list = BROADCASTS.filter((b) => {
-    const matches = !query || b.name.toLowerCase().includes(query.toLowerCase())
-    const f =
-      filter === 'All' ||
-      (filter === 'Sent' && b.status === 'sent') ||
-      (filter === 'Scheduled' && b.status === 'scheduled') ||
-      (filter === 'Drafts' && b.status === 'draft')
-    return matches && f
+  const apiStatus = FILTERS.find((f) => f.id === filter)?.api
+
+  const broadcastsQuery = useEmailBroadcasts(orgId, {
+    status: apiStatus,
+    q: query.trim() || undefined,
+    page,
+    limit: PAGE_SIZE,
   })
+  const aggregateQuery = useBroadcastAggregateAnalytics(orgId)
+  const subStatsQuery = useEmailSubscriberStats(orgId)
+
+  const duplicateMutation = useDuplicateEmailBroadcast()
+  const cancelMutation = useCancelScheduledEmailBroadcast()
+  const archiveMutation = useArchiveEmailBroadcast()
+
+  const items = broadcastsQuery.data?.items ?? []
+  const totalCount = broadcastsQuery.data?.pagination.total_count ?? 0
+  const maxPage = broadcastsQuery.data?.pagination.max_page ?? 1
+  const aggregate = aggregateQuery.data
+  const subStats = subStatsQuery.data
+
+  const onArchive = (b: BroadcastRow) => {
+    if (window.confirm(`Archive "${b.subject}"?`)) archiveMutation.mutate(b.id)
+  }
 
   return (
     <div className="fade-up">
@@ -44,10 +100,6 @@ export const BroadcastsScreen = ({ onNew }: { onNew: () => void }) => {
           </p>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
-          <button className="btn btn-secondary">
-            <Icon name="calendar" size={15} />
-            Schedule
-          </button>
           <button className="btn btn-primary" onClick={onNew}>
             <Icon name="plus" size={15} />
             New broadcast
@@ -64,28 +116,42 @@ export const BroadcastsScreen = ({ onNew }: { onNew: () => void }) => {
         }}
       >
         <MetricTile
-          value="142,419"
+          value={(aggregate?.total_sent ?? 0).toLocaleString()}
           label="Emails sent"
-          delta="+12.4%"
-          deltaLabel="last 30 days"
+          delta={
+            aggregate ? `${aggregate.delivered.toLocaleString()}` : undefined
+          }
+          deltaLabel="delivered"
+          subtle
         />
         <MetricTile
-          value="48.9%"
+          value={`${(aggregate?.open_rate ?? 0).toFixed(1)}%`}
           label="Avg. open rate"
-          delta="+2.1pt"
-          deltaLabel="vs industry 21%"
+          delta={aggregate ? `${aggregate.opened.toLocaleString()}` : undefined}
+          deltaLabel="opens"
+          subtle
         />
         <MetricTile
-          value="14.3%"
+          value={`${(aggregate?.click_rate ?? 0).toFixed(1)}%`}
           label="Avg. click rate"
-          delta="+0.8pt"
-          deltaLabel="vs last month"
+          delta={
+            aggregate ? `${aggregate.clicked.toLocaleString()}` : undefined
+          }
+          deltaLabel="clicks"
+          subtle
         />
         <MetricTile
-          value="0.18%"
+          value={
+            aggregate && aggregate.total_sent
+              ? `${((aggregate.unsubscribed / aggregate.total_sent) * 100).toFixed(2)}%`
+              : '0%'
+          }
           label="Avg. unsub rate"
-          delta="−0.03pt"
-          deltaLabel="vs last month"
+          delta={
+            subStats ? `${subStats.unsubs_30d.toLocaleString()}` : undefined
+          }
+          deltaLabel="unsubs / 30d"
+          subtle
           down
         />
       </div>
@@ -115,40 +181,135 @@ export const BroadcastsScreen = ({ onNew }: { onNew: () => void }) => {
             style={{ paddingLeft: 42, height: 44 }}
             placeholder="Search broadcasts…"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value)
+              setPage(1)
+            }}
           />
         </div>
         <div className="tabs">
           {FILTERS.map((f) => (
             <button
-              key={f}
-              className={`tab ${filter === f ? 'tab-active' : ''}`}
-              onClick={() => setFilter(f)}
+              key={f.id}
+              className={`tab ${filter === f.id ? 'tab-active' : ''}`}
+              onClick={() => {
+                setFilter(f.id)
+                setPage(1)
+              }}
             >
-              {f}
+              {f.id}
             </button>
           ))}
         </div>
       </div>
 
+      {broadcastsQuery.isLoading && items.length === 0 && (
+        <div
+          className="card"
+          style={{ padding: 40, textAlign: 'center', color: 'var(--ink-3)' }}
+        >
+          Loading…
+        </div>
+      )}
+
+      {!broadcastsQuery.isLoading && items.length === 0 && (
+        <div
+          className="card"
+          style={{ padding: 56, textAlign: 'center', color: 'var(--ink-3)' }}
+        >
+          <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink-2)' }}>
+            No broadcasts {filter !== 'All' ? `with status ${filter}` : 'yet'}.
+          </div>
+          <button
+            className="btn btn-primary"
+            onClick={onNew}
+            style={{ marginTop: 18 }}
+          >
+            <Icon name="plus" size={14} />
+            Create your first broadcast
+          </button>
+        </div>
+      )}
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {list.map((b) => (
-          <BroadcastRow key={b.id} b={b} />
+        {items.map((b) => (
+          <BroadcastListRow
+            key={b.id}
+            b={b}
+            onOpen={() => onOpen(b.id)}
+            onDuplicate={() => duplicateMutation.mutate(b.id)}
+            onCancelSchedule={() => cancelMutation.mutate(b.id)}
+            onArchive={() => onArchive(b)}
+          />
         ))}
       </div>
+
+      {totalCount > PAGE_SIZE && (
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginTop: 16,
+            fontSize: 12.5,
+            color: 'var(--ink-3)',
+          }}
+        >
+          <div>
+            Page {page} of {maxPage} · {totalCount.toLocaleString()} broadcasts
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              className="btn btn-ghost btn-sm"
+              disabled={page <= 1}
+              style={{ opacity: page <= 1 ? 0.4 : 1 }}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              Previous
+            </button>
+            <button
+              className="btn btn-ghost btn-sm"
+              disabled={page >= maxPage}
+              style={{ opacity: page >= maxPage ? 0.4 : 1 }}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
-const BroadcastRow = ({ b }: { b: Broadcast }) => {
-  const openRate =
-    b.opens != null ? ((b.opens / b.recipients) * 100).toFixed(1) : null
-  const clickRate =
-    b.clicks != null ? ((b.clicks / b.recipients) * 100).toFixed(1) : null
+const BroadcastListRow = ({
+  b,
+  onOpen,
+  onDuplicate,
+  onCancelSchedule,
+  onArchive,
+}: {
+  b: BroadcastRow
+  onOpen: () => void
+  onDuplicate: () => void
+  onCancelSchedule: () => void
+  onArchive: () => void
+}) => {
+  const a = b.analytics
+  const recipients = a?.recipients ?? b.total_recipients
 
   return (
     <div
       className="card"
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onOpen()
+        }
+      }}
       style={{
         padding: 24,
         display: 'grid',
@@ -182,6 +343,12 @@ const BroadcastRow = ({ b }: { b: Broadcast }) => {
               Sent
             </span>
           )}
+          {b.status === 'sending' && (
+            <span className="chip chip-info">
+              <Icon name="send" size={11} />
+              Sending…
+            </span>
+          )}
           {b.status === 'scheduled' && (
             <span className="chip chip-info">
               <Icon name="clock" size={11} />
@@ -194,6 +361,12 @@ const BroadcastRow = ({ b }: { b: Broadcast }) => {
               Draft
             </span>
           )}
+          {b.status === 'failed' && (
+            <span className="chip chip-error">
+              <Icon name="x-circle" size={11} />
+              Failed
+            </span>
+          )}
         </div>
         <div
           style={{
@@ -203,30 +376,47 @@ const BroadcastRow = ({ b }: { b: Broadcast }) => {
             letterSpacing: '-0.01em',
           }}
         >
-          {b.name}
+          {b.subject}
         </div>
         <div style={{ fontSize: 12.5, color: 'var(--ink-3)', marginTop: 4 }}>
-          {b.sentAt}
+          {formatSentAt(b)}
         </div>
       </div>
       <Stat
         label="Recipients"
-        value={b.recipients ? b.recipients.toLocaleString() : '—'}
+        value={recipients ? recipients.toLocaleString() : '—'}
       />
       <Stat
         label="Opens"
-        value={openRate ? `${openRate}%` : '—'}
-        sub={b.opens ? b.opens.toLocaleString() : null}
+        value={a ? `${a.open_rate.toFixed(1)}%` : '—'}
+        sub={a && a.opens ? a.opens.toLocaleString() : null}
       />
       <Stat
         label="Clicks"
-        value={clickRate ? `${clickRate}%` : '—'}
-        sub={b.clicks ? b.clicks.toLocaleString() : null}
+        value={a ? `${a.click_rate.toFixed(1)}%` : '—'}
+        sub={a && a.clicks ? a.clicks.toLocaleString() : null}
       />
-      <Stat label="Unsubs" value={b.unsubs != null ? b.unsubs : '—'} />
-      <button className="btn-ghost" style={{ padding: 8, borderRadius: 8 }}>
-        <Icon name="more" size={16} />
-      </button>
+      <Stat label="Unsubs" value={a ? a.unsubs : '—'} />
+      <div onClick={(e) => e.stopPropagation()}>
+        <ActionMenu
+          items={[
+            { label: 'Open', icon: 'arrow-right', onClick: onOpen },
+            { label: 'Duplicate', icon: 'copy', onClick: onDuplicate },
+            {
+              label: 'Cancel schedule',
+              icon: 'x-circle',
+              hidden: b.status !== 'scheduled',
+              onClick: onCancelSchedule,
+            },
+            {
+              label: 'Archive',
+              icon: 'trash',
+              destructive: true,
+              onClick: onArchive,
+            },
+          ]}
+        />
+      </div>
     </div>
   )
 }

@@ -30,6 +30,8 @@ class EmailBroadcastService:
         auth_subject: AuthSubject[User | Organization],
         *,
         organization_id: UUID | None = None,
+        status: str | None = None,
+        q: str | None = None,
         pagination: PaginationParams,
     ) -> tuple[Sequence[EmailBroadcast], int]:
         repository = EmailBroadcastRepository.from_session(session)
@@ -40,8 +42,97 @@ class EmailBroadcastService:
                 EmailBroadcast.organization_id == organization_id
             )
 
+        if status is not None:
+            statement = statement.where(EmailBroadcast.status == status)
+
+        if q is not None and q.strip():
+            from sqlalchemy import func
+
+            like = f"%{q.strip().lower()}%"
+            statement = statement.where(
+                func.lower(EmailBroadcast.subject).like(like)
+            )
+
         statement = statement.order_by(EmailBroadcast.created_at.desc())
         return await repository.paginate(statement, limit=pagination.limit, page=pagination.page)
+
+    async def list_analytics(
+        self,
+        session: AsyncReadSession,
+        broadcast_ids: list[UUID],
+    ) -> dict[UUID, dict[str, int | float]]:
+        """Per-broadcast headline numbers used by the broadcast list view."""
+        if not broadcast_ids:
+            return {}
+        repository = EmailBroadcastRepository.from_session(session)
+        raw = await repository.get_analytics_counts_for_broadcasts(broadcast_ids)
+        out: dict[UUID, dict[str, int | float]] = {}
+        for bid, c in raw.items():
+            delivered = c["delivered"]
+            out[bid] = {
+                "recipients": c["total"],
+                "delivered": delivered,
+                "opens": c["opened"],
+                "clicks": c["clicked"],
+                "unsubs": c["unsubscribed"],
+                "open_rate": (c["opened"] / delivered * 100) if delivered else 0.0,
+                "click_rate": (c["clicked"] / delivered * 100) if delivered else 0.0,
+            }
+        return out
+
+    async def list_sends(
+        self,
+        session: AsyncReadSession,
+        broadcast_id: UUID,
+        *,
+        pagination: PaginationParams,
+    ) -> tuple[list, int]:
+        repository = EmailBroadcastRepository.from_session(session)
+        return await repository.list_sends(
+            broadcast_id, limit=pagination.limit, page=pagination.page
+        )
+
+    async def duplicate(
+        self,
+        session: AsyncSession,
+        original: EmailBroadcast,
+    ) -> EmailBroadcast:
+        repository = EmailBroadcastRepository.from_session(session)
+        copy = EmailBroadcast(
+            organization_id=original.organization_id,
+            subject=f"Copy of {original.subject}",
+            sender_name=original.sender_name,
+            sender_email=original.sender_email,
+            reply_to_email=original.reply_to_email,
+            content_json=original.content_json,
+            content_html=original.content_html,
+            segment_id=original.segment_id,
+            status=EmailBroadcastStatus.draft,
+        )
+        return await repository.create(copy, flush=True)
+
+    async def cancel_schedule(
+        self,
+        session: AsyncSession,
+        broadcast: EmailBroadcast,
+    ) -> EmailBroadcast:
+        if broadcast.status != EmailBroadcastStatus.scheduled:
+            return broadcast
+        repository = EmailBroadcastRepository.from_session(session)
+        broadcast.status = EmailBroadcastStatus.draft
+        broadcast.scheduled_at = None
+        return await repository.update(broadcast)
+
+    async def archive(
+        self,
+        session: AsyncSession,
+        broadcast: EmailBroadcast,
+    ) -> None:
+        from polar.kit.utils import utc_now
+
+        broadcast.deleted_at = utc_now()
+        repository = EmailBroadcastRepository.from_session(session)
+        await repository.update(broadcast)
 
     async def get_by_id(
         self,
