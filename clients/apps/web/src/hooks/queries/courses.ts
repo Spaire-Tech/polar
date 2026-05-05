@@ -116,7 +116,11 @@ export type CourseRead = {
 }
 
 export type LandingMediaKind = 'image' | 'video'
-export type LandingMedia = { kind: LandingMediaKind; url: string; name?: string }
+export type LandingMedia = {
+  kind: LandingMediaKind
+  url: string
+  name?: string
+}
 
 export type LandingTheme = {
   fontHeading: string
@@ -423,7 +427,16 @@ export type CustomerCourseEnrollment = {
     course_type: string
     module_count: number
     lesson_count: number
+    thumbnail_url: string | null
+    thumbnail_object_position: string | null
+    total_duration_seconds: number
   }
+  progress: {
+    total_lessons: number
+    completed_lessons: number
+    completion_percent: number
+  }
+  completed_at: string | null
 }
 
 export type CustomerLessonRead = {
@@ -560,6 +573,11 @@ export const useCustomerCourses = (token: string | null | undefined) =>
         token!,
       ),
     enabled: !!token,
+    // Always re-check on mount and refocus so a course bought via a recent
+    // checkout shows up immediately after the customer lands back here.
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   })
 
 export const useCustomerCourse = (

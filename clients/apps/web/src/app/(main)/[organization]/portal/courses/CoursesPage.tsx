@@ -4,45 +4,131 @@ import {
   useCustomerCourses,
   type CustomerCourseEnrollment,
 } from '@/hooks/queries/courses'
-import AutoStoriesOutlined from '@mui/icons-material/AutoStoriesOutlined'
 import { schemas } from '@spaire/client'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
+import * as React from 'react'
+import { CheckIcon } from '../_components/icons'
+
+type Filter = 'all' | 'in_progress' | 'completed'
+
+const FILTERS: { id: Filter; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'in_progress', label: 'In progress' },
+  { id: 'completed', label: 'Completed' },
+]
+
+const formatCompletedDate = (iso: string | null): string | null => {
+  if (!iso) return null
+  try {
+    return new Date(iso).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    })
+  } catch {
+    return null
+  }
+}
+
+const isCompleted = (e: CustomerCourseEnrollment) =>
+  e.progress.total_lessons > 0 &&
+  e.progress.completed_lessons >= e.progress.total_lessons
 
 const CourseCard = ({
   enrollment,
   organizationSlug,
-  token,
+  searchString,
+  index,
 }: {
   enrollment: CustomerCourseEnrollment
   organizationSlug: string
-  token: string
+  searchString: string
+  index: number
 }) => {
-  const searchParams = useSearchParams()
-  const params = new URLSearchParams(searchParams.toString())
-  const href = `/${organizationSlug}/portal/courses/${enrollment.course.id}?${params.toString()}`
+  const completed = isCompleted(enrollment)
+  const completedLabel = completed
+    ? formatCompletedDate(enrollment.completed_at)
+    : null
+  const progressPct = Math.round(enrollment.progress.completion_percent)
+
+  const href =
+    `/${organizationSlug}/portal/courses/${enrollment.course.id}` +
+    (searchString ? `?${searchString}` : '')
+
+  const thumb = enrollment.course.thumbnail_url
+  const objectPosition = enrollment.course.thumbnail_object_position || 'center'
 
   return (
     <Link
       href={href}
-      className="flex flex-col gap-y-3 rounded-xl border border-gray-200 bg-white p-5 transition-shadow hover:shadow-md"
+      className="sp-card sp-fade-in"
+      style={{
+        animationDelay: `${Math.min(index, 8) * 35}ms`,
+      }}
     >
-      <div className="flex items-center gap-x-3">
-        <div className="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-          <AutoStoriesOutlined fontSize="small" />
-        </div>
-        <h3 className="font-medium text-gray-900">
-          {enrollment.course.title ?? 'Untitled Course'}
-        </h3>
+      <div className="sp-card-media">
+        {thumb ? (
+          <img src={thumb} alt="" loading="lazy" style={{ objectPosition }} />
+        ) : (
+          <div className="sp-card-media-fallback">Course</div>
+        )}
       </div>
-      <div className="flex gap-x-4 text-sm text-gray-500">
-        <span>{enrollment.course.module_count} modules</span>
-        <span>·</span>
-        <span>{enrollment.course.lesson_count} lessons</span>
+      <div className="sp-card-body">
+        <h3 className="sp-card-title">
+          {enrollment.course.title || 'Untitled course'}
+        </h3>
+        <div className="sp-card-meta">
+          {completed ? (
+            <>
+              <span className="sp-check" aria-hidden>
+                <CheckIcon />
+              </span>
+              <span>
+                {completedLabel ? `Completed ${completedLabel}` : 'Completed'}
+              </span>
+            </>
+          ) : enrollment.progress.total_lessons === 0 ? (
+            <span>{enrollment.course.lesson_count} lessons</span>
+          ) : (
+            <>
+              <div
+                className="sp-progress"
+                aria-label={`${progressPct}% complete`}
+              >
+                <i style={{ width: `${progressPct}%` }} />
+              </div>
+              <span className="sp-progress-pct">{progressPct}%</span>
+            </>
+          )}
+        </div>
       </div>
     </Link>
   )
 }
+
+const CoursesSkeleton = () => (
+  <div className="sp-grid">
+    {[0, 1, 2, 3, 4, 5].map((i) => (
+      <div key={i} className="sp-card">
+        <div
+          className="sp-skel"
+          style={{ aspectRatio: '4 / 3', borderRadius: 14 }}
+        />
+        <div className="sp-card-body">
+          <div
+            className="sp-skel"
+            style={{ height: 16, marginBottom: 10, borderRadius: 6 }}
+          />
+          <div
+            className="sp-skel"
+            style={{ height: 12, width: '60%', borderRadius: 6 }}
+          />
+        </div>
+      </div>
+    ))}
+  </div>
+)
 
 const CoursesPage = ({
   organization,
@@ -51,50 +137,92 @@ const CoursesPage = ({
   organization: schemas['CustomerOrganization']
   customerSessionToken: string
 }) => {
-  const { data: enrollments, isLoading } = useCustomerCourses(
-    customerSessionToken,
-  )
+  const searchParams = useSearchParams()
+  const searchString = searchParams.toString()
+  const { data: enrollments, isLoading } =
+    useCustomerCourses(customerSessionToken)
 
-  if (isLoading) {
-    return (
-      <div className="flex flex-col gap-y-4">
-        {[1, 2].map((i) => (
-          <div
-            key={i}
-            className="h-24 animate-pulse rounded-xl bg-gray-100"
-          />
-        ))}
-      </div>
-    )
-  }
+  const [filter, setFilter] = React.useState<Filter>('all')
 
-  if (!enrollments?.length) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 text-center">
-        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 text-gray-400">
-          <AutoStoriesOutlined />
-        </div>
-        <h3 className="text-lg font-medium text-gray-900">No courses yet</h3>
-        <p className="mt-1 text-gray-500">
-          Courses you have access to will appear here.
-        </p>
-      </div>
-    )
-  }
+  const completedCount = (enrollments ?? []).filter(isCompleted).length
+  const total = (enrollments ?? []).length
+
+  const filtered = React.useMemo(() => {
+    const list = enrollments ?? []
+    if (filter === 'completed') return list.filter(isCompleted)
+    if (filter === 'in_progress') return list.filter((e) => !isCompleted(e))
+    return list
+  }, [enrollments, filter])
 
   return (
-    <div className="flex flex-col gap-y-6">
-      <h2 className="text-2xl font-medium">My Courses</h2>
-      <div className="flex flex-col gap-y-4">
-        {enrollments.map((enrollment) => (
-          <CourseCard
-            key={enrollment.enrollment_id}
-            enrollment={enrollment}
-            organizationSlug={organization.slug}
-            token={customerSessionToken}
-          />
+    <div className="sp-route">
+      <div className="sp-page-head">
+        <div>
+          <h1 className="sp-page-title">Courses</h1>
+          {!isLoading && (
+            <p className="sp-page-sub">
+              {total === 0
+                ? 'Your courses will appear here once you enroll.'
+                : `${total} course${total === 1 ? '' : 's'} in your library — ${completedCount} completed`}
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="sp-chips" role="tablist" aria-label="Course filter">
+        {FILTERS.map((f) => (
+          <button
+            key={f.id}
+            role="tab"
+            type="button"
+            aria-selected={filter === f.id}
+            className={'sp-chip' + (filter === f.id ? ' is-active' : '')}
+            onClick={() => setFilter(f.id)}
+          >
+            {f.label}
+          </button>
         ))}
       </div>
+
+      {isLoading ? (
+        <CoursesSkeleton />
+      ) : filtered.length === 0 ? (
+        <div className="sp-empty">
+          <div className="sp-empty-title">
+            {total === 0
+              ? 'No courses yet'
+              : filter === 'completed'
+                ? 'No completed courses yet'
+                : 'Nothing in progress'}
+          </div>
+          <div style={{ fontSize: 13, marginBottom: 16 }}>
+            {total === 0
+              ? 'Courses you have access to will appear here.'
+              : 'Keep going — your progress will show up here.'}
+          </div>
+          {filter !== 'all' && total > 0 && (
+            <button
+              type="button"
+              className="sp-btn is-ghost"
+              onClick={() => setFilter('all')}
+            >
+              View all courses
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="sp-grid">
+          {filtered.map((enrollment, i) => (
+            <CourseCard
+              key={enrollment.enrollment_id}
+              enrollment={enrollment}
+              organizationSlug={organization.slug}
+              searchString={searchString}
+              index={i}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
