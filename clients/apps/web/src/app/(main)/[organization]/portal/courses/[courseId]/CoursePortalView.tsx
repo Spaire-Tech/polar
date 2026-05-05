@@ -421,24 +421,34 @@ const modStyles: Record<string, React.CSSProperties> = {
 }
 
 const lessonStyles: Record<string, React.CSSProperties> = {
+  // Card surface — mirrors the landing "Free preview" episode cards.
   card: {
     display: 'flex',
     flexDirection: 'column',
     cursor: 'pointer',
-    background: 'transparent',
-    border: 'none',
+    background: C.bg0,
+    border: `1px solid ${C.line}`,
+    borderRadius: 20,
+    overflow: 'hidden',
     textAlign: 'left',
     padding: 0,
     fontFamily: FONT,
     color: 'inherit',
+    transition:
+      'transform 250ms cubic-bezier(0.34,1.3,0.64,1), box-shadow 250ms ease',
+    boxShadow:
+      '0 1px 2px oklch(0 0 0 / 0.04), 0 4px 16px oklch(0 0 0 / 0.05)',
+  },
+  cardHover: {
+    transform: 'scale(1.02)',
+    boxShadow:
+      '0 16px 48px oklch(0 0 0 / 0.14), 0 2px 8px oklch(0 0 0 / 0.06)',
   },
   thumb: {
     position: 'relative',
     aspectRatio: '16 / 9',
     background: '#111',
     overflow: 'hidden',
-    borderRadius: 8,
-    transition: 'transform 200ms ease',
   },
   watchedDim: {
     position: 'absolute',
@@ -448,7 +458,7 @@ const lessonStyles: Record<string, React.CSSProperties> = {
   playOverlay: {
     position: 'absolute',
     inset: 0,
-    background: 'rgba(0,0,0,0.30)',
+    background: 'rgba(0,0,0,0.25)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -458,44 +468,64 @@ const lessonStyles: Record<string, React.CSSProperties> = {
     width: 50,
     height: 50,
     borderRadius: '50%',
-    background: 'rgba(255,255,255,0.97)',
-    color: '#000',
+    background: 'rgba(255,255,255,0.95)',
+    color: C.fg0,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     paddingLeft: 3,
-    boxShadow: '0 8px 28px rgba(0,0,0,0.4)',
+    boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
   },
-  checkCircle: {
+  // Episode-number badge, top-left of thumb (like the landing).
+  epBadge: {
     position: 'absolute',
-    right: 8,
-    bottom: 8,
-    width: 22,
-    height: 22,
-    borderRadius: '50%',
-    background: 'rgba(255,255,255,0.97)',
-    color: '#000',
+    left: 10,
+    top: 10,
+    fontSize: 9,
+    fontWeight: 700,
+    letterSpacing: '0.10em',
+    color: 'rgba(255,255,255,0.80)',
+    background: 'rgba(0,0,0,0.40)',
+    backdropFilter: 'blur(8px)',
+    WebkitBackdropFilter: 'blur(8px)',
+    padding: '3px 7px',
+    borderRadius: 4,
+    zIndex: 2,
+  },
+  // Watched pill replaces the EPISODE badge top-left when complete.
+  watchedPill: {
+    position: 'absolute',
+    left: 10,
+    top: 10,
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+    gap: 4,
+    background: '#fff',
+    color: '#000',
+    padding: '3px 9px 3px 7px',
+    borderRadius: 999,
+    fontSize: 10,
+    fontWeight: 700,
+    letterSpacing: '0.06em',
+    textTransform: 'uppercase',
     zIndex: 2,
+    boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
   },
   durBadge: {
     position: 'absolute',
-    right: 8,
-    bottom: 8,
+    right: 10,
+    bottom: 10,
     display: 'flex',
     alignItems: 'center',
     gap: 4,
     fontSize: 11,
     fontWeight: 500,
-    color: 'rgba(255,255,255,0.92)',
-    background: 'rgba(0,0,0,0.55)',
+    color: 'rgba(255,255,255,0.85)',
+    background: 'rgba(0,0,0,0.50)',
     backdropFilter: 'blur(8px)',
     WebkitBackdropFilter: 'blur(8px)',
-    padding: '2px 7px',
-    borderRadius: 4,
+    padding: '3px 8px',
+    borderRadius: 5,
     zIndex: 2,
   },
   thumbProgressTrack: {
@@ -521,34 +551,38 @@ const lessonStyles: Record<string, React.CSSProperties> = {
     color: 'white',
     zIndex: 2,
   },
-  info: { paddingTop: 10 },
+  // Padded info block under the thumbnail.
+  info: { padding: '16px 18px 18px' },
   epLabel: {
-    fontSize: 10.5,
+    fontSize: 10,
     fontWeight: 600,
-    letterSpacing: '0.10em',
-    marginBottom: 3,
+    letterSpacing: '0.08em',
     color: C.fg3,
+    marginBottom: 4,
     textTransform: 'uppercase',
   },
   title: {
-    fontSize: 15,
+    fontSize: 15.5,
     fontWeight: 600,
-    letterSpacing: '-0.012em',
-    lineHeight: 1.3,
-    marginBottom: 4,
+    letterSpacing: '-0.015em',
     color: C.fg0,
+    lineHeight: 1.25,
+    marginBottom: 7,
   },
   desc: {
     fontSize: 12.5,
     color: C.fg2,
-    lineHeight: 1.5,
-    marginBottom: 7,
+    lineHeight: 1.6,
+    marginBottom: 10,
     display: '-webkit-box',
-    WebkitLineClamp: 3,
+    WebkitLineClamp: 2,
     WebkitBoxOrient: 'vertical',
     overflow: 'hidden',
   },
   metaLine: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 5,
     fontSize: 11.5,
     color: C.fg3,
     fontVariantNumeric: 'tabular-nums',
@@ -930,18 +964,17 @@ function LessonCard({
   return (
     <button
       type="button"
-      style={{ ...lessonStyles.card, cursor: isLocked ? 'not-allowed' : 'pointer' }}
+      style={{
+        ...lessonStyles.card,
+        ...(hovered && !isLocked ? lessonStyles.cardHover : null),
+        cursor: isLocked ? 'not-allowed' : 'pointer',
+      }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onClick={() => !isLocked && onSelect()}
       disabled={isLocked}
     >
-      <div
-        style={{
-          ...lessonStyles.thumb,
-          transform: hovered && !isLocked ? 'scale(1.015)' : 'scale(1)',
-        }}
-      >
+      <div style={lessonStyles.thumb}>
         <LessonThumb
           hue={hue}
           thumbnailUrl={lesson.thumbnail_url ?? null}
@@ -964,13 +997,20 @@ function LessonCard({
           </div>
         )}
 
-        {isWatched && !isLocked && (
-          <div style={lessonStyles.checkCircle}>
-            <IconCheck size={11} />
+        {/* Top-left badge: WATCHED pill if completed, otherwise episode number */}
+        {isWatched && !isLocked ? (
+          <div style={lessonStyles.watchedPill}>
+            <IconCheck size={10} />
+            <span>Watched</span>
           </div>
+        ) : (
+          !isLocked && (
+            <div style={lessonStyles.epBadge}>LESSON {globalIndex}</div>
+          )
         )}
 
-        {!isWatched && !isLocked && lesson.duration_seconds ? (
+        {/* Bottom-right duration badge — always visible like the landing */}
+        {!isLocked && lesson.duration_seconds ? (
           <div style={lessonStyles.durBadge}>
             <IconClock size={10} />
             <span>{formatMinSec(lesson.duration_seconds)}</span>
@@ -996,15 +1036,18 @@ function LessonCard({
       </div>
 
       <div style={lessonStyles.info}>
-        <div style={lessonStyles.epLabel}>LESSON {globalIndex}</div>
+        <div style={lessonStyles.epLabel}>Lesson {globalIndex}</div>
         <div style={lessonStyles.title}>{lesson.title}</div>
-        {lesson.description && (
+        {lesson.description ? (
           <div style={lessonStyles.desc}>{lesson.description}</div>
-        )}
+        ) : null}
         <div style={lessonStyles.metaLine}>
-          {lesson.duration_seconds
-            ? formatMinSec(lesson.duration_seconds)
-            : null}
+          {lesson.duration_seconds ? (
+            <>
+              <IconClock size={12} />
+              <span>{formatMinSec(lesson.duration_seconds)}</span>
+            </>
+          ) : null}
           {isInProgress && (
             <span
               style={{
