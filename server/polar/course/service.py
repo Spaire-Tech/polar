@@ -304,6 +304,15 @@ class CourseService:
         statement = repo.get_by_customer_and_course_statement(customer_id, course_id)
         return await repo.get_one_or_none(statement)
 
+    async def list_enrollments_for_course(
+        self,
+        session: AsyncSession,
+        course_id: UUID,
+    ) -> Sequence[CourseEnrollment]:
+        repo = CourseEnrollmentRepository.from_session(session)
+        statement = repo.get_by_course_statement(course_id)
+        return await repo.get_all(statement)
+
     # --- Progress ---
 
     async def mark_lesson_complete(

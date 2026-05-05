@@ -118,6 +118,22 @@ const IconLock = ({ size = 16 }: { size?: number }) => (
     <path d="M8 11V7a4 4 0 0 1 8 0v4" />
   </SvgIcon>
 )
+// Extract the first image URL from landing_overrides.media (any slot).
+function extractLandingImageUrl(
+  landingOverrides: Record<string, unknown> | null | undefined,
+): string | null {
+  if (!landingOverrides) return null
+  const media = landingOverrides.media as
+    | Record<string, { kind: string; url: string } | null>
+    | null
+    | undefined
+  if (!media) return null
+  for (const slot of Object.values(media)) {
+    if (slot && slot.kind === 'image' && slot.url) return slot.url
+  }
+  return null
+}
+
 // ── Helper: figure out which lesson to "Continue" with ─────────────────────
 function pickContinueLesson(modules: CustomerModuleRead[]): {
   module: CustomerModuleRead
@@ -693,6 +709,8 @@ function Hero({
   instructorName,
   tagline,
   heroHue,
+  resolvedThumbnailUrl,
+  resolvedObjectPosition,
   onResume,
 }: {
   data: CustomerCourseDetail
@@ -706,6 +724,8 @@ function Hero({
   instructorName: string | null
   tagline: string
   heroHue: number
+  resolvedThumbnailUrl: string | null
+  resolvedObjectPosition: string | null
   onResume: () => void
 }) {
   const course = data.course
@@ -723,8 +743,8 @@ function Hero({
       <div style={{ position: 'absolute', inset: 0 }}>
         <HeroBackdrop
           hue={heroHue}
-          thumbnailUrl={course.thumbnail_url ?? null}
-          thumbnailObjectPosition={course.thumbnail_object_position ?? null}
+          thumbnailUrl={resolvedThumbnailUrl}
+          thumbnailObjectPosition={resolvedObjectPosition}
         />
         <div style={heroStyles.vignette} />
       </div>
@@ -1201,6 +1221,12 @@ export function CoursePortalView({
 
   const heroHue = moduleHue(0)
 
+  // Best-available thumbnail: course.thumbnail_url (already populated with
+  // product-media fallback by the backend) → landing_overrides.media image.
+  const landingImageUrl = extractLandingImageUrl(course.landing_overrides)
+  const resolvedThumbnailUrl = course.thumbnail_url ?? landingImageUrl ?? null
+  const resolvedObjectPosition = course.thumbnail_object_position ?? null
+
   return (
     <div
       data-screen-label="Spaire Course Portal"
@@ -1223,6 +1249,8 @@ export function CoursePortalView({
         instructorName={course.instructor_name ?? null}
         tagline={tagline}
         heroHue={heroHue}
+        resolvedThumbnailUrl={resolvedThumbnailUrl}
+        resolvedObjectPosition={resolvedObjectPosition}
         onResume={() => {
           if (continueLesson) onSelectLesson(continueLesson)
         }}
@@ -1237,8 +1265,8 @@ export function CoursePortalView({
             positionToGlobalIndex={positionToGlobalIndex}
             inProgressLessonId={inProgressLessonId}
             inProgressPercent={continueProgress}
-            fallbackThumbnailUrl={course.thumbnail_url ?? null}
-            fallbackObjectPosition={course.thumbnail_object_position ?? null}
+            fallbackThumbnailUrl={resolvedThumbnailUrl}
+            fallbackObjectPosition={resolvedObjectPosition}
             onSelectLesson={onSelectLesson}
           />
         ))}

@@ -733,6 +733,57 @@ async def get_preview_access(
     return {"token": token, "portal_url": portal_url}
 
 
+@router.get(
+    "/{course_id}/enrollments",
+    summary="List Course Enrollments",
+    response_model=list[dict],
+)
+async def list_course_enrollments(
+    course_id: UUID,
+    auth_subject: auth.CoursesRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> list[dict]:
+    """List all student enrollments for a course (admin view)."""
+    course_repo = CourseRepository.from_session(session)
+    stmt = course_repo.get_readable_statement(auth_subject).where(
+        course_repo.model.id == course_id
+    )
+    course = await course_repo.get_one_or_none(stmt)
+    if course is None:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    enrollments = await course_service.list_enrollments_for_course(
+        session, course_id
+    )
+
+    # Eager-load customer rows for enrolled customers.
+    customer_ids = {e.customer_id for e in enrollments}
+    customers_by_id: dict[UUID, Customer] = {}
+    if customer_ids:
+        customer_repo = CustomerRepository.from_session(session)
+        stmt_c = customer_repo.get_base_statement().where(
+            Customer.id.in_(customer_ids)
+        )
+        for customer in await customer_repo.get_all(stmt_c):
+            customers_by_id[customer.id] = customer
+
+    result = []
+    for enrollment in enrollments:
+        customer = customers_by_id.get(enrollment.customer_id)
+        result.append(
+            {
+                "enrollment_id": str(enrollment.id),
+                "enrolled_at": enrollment.enrolled_at.isoformat(),
+                "customer": {
+                    "id": str(enrollment.customer_id),
+                    "email": customer.email if customer else None,
+                    "name": customer.name if customer else None,
+                },
+            }
+        )
+    return result
+
+
 @router.post(
     "/mux/webhook",
     status_code=204,

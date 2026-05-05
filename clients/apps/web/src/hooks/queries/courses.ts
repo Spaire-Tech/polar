@@ -614,6 +614,26 @@ export const usePreviewAccess = () =>
       ),
   })
 
+export type CourseEnrollmentRow = {
+  enrollment_id: string
+  enrolled_at: string
+  customer: {
+    id: string
+    email: string | null
+    name: string | null
+  }
+}
+
+export const useCourseEnrollments = (courseId: string | undefined) =>
+  useQuery<CourseEnrollmentRow[]>({
+    queryKey: ['course-enrollments', courseId],
+    queryFn: () =>
+      courseApiFetch<CourseEnrollmentRow[]>(
+        `/v1/courses/${courseId}/enrollments`,
+      ),
+    enabled: !!courseId,
+  })
+
 export const useUploadLessonThumbnail = () =>
   useMutation({
     mutationFn: async ({

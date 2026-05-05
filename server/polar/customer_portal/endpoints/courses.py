@@ -4,7 +4,7 @@ from uuid import UUID
 
 from fastapi import Depends, HTTPException
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import joinedload, selectinload
 
 log = logging.getLogger(__name__)
 
@@ -332,6 +332,30 @@ async def get_enrolled_course(
     total_lessons = len(flat_accessible_ids)
     completed_count = len(completed_ids & flat_accessible_ids)
 
+    # Thumbnail: prefer course's own thumbnail, else fall back to the first
+    # uploaded product media (same logic as list_enrolled_courses).
+    thumbnail_url = course.thumbnail_url
+    if not thumbnail_url and course.product_id:
+        prod_stmt = (
+            select(Product)
+            .where(Product.id == course.product_id)
+            .options(
+                selectinload(Product.product_medias).joinedload(ProductMedia.file)
+            )
+        )
+        prod_result = await session.execute(prod_stmt)
+        owning_product = prod_result.scalars().unique().one_or_none()
+        if owning_product is not None:
+            for media in owning_product.product_medias:
+                file = media.file
+                if file is None or not file.is_uploaded:
+                    continue
+                s3 = S3_SERVICES.get(file.service)
+                if s3 is None:
+                    continue
+                thumbnail_url = s3.get_public_url(file.path)
+                break
+
     return {
         "enrollment_id": str(enrollment.id),
         "enrolled_at": enrolled_at.isoformat(),
@@ -349,7 +373,7 @@ async def get_enrolled_course(
             "id": str(course.id),
             "title": course.title,
             "description": course.description,
-            "thumbnail_url": course.thumbnail_url,
+            "thumbnail_url": thumbnail_url,
             "thumbnail_object_position": course.thumbnail_object_position,
             "instructor_name": course.instructor_name,
             "instructor_bio": course.instructor_bio,
