@@ -42,6 +42,11 @@ const buildTabs = (
       label: 'Courses',
       matches: (p) => p.includes('/portal/courses'),
     },
+    {
+      href: `/${slug}/portal/downloads`,
+      label: 'Downloads',
+      matches: (p) => p.includes('/portal/downloads'),
+    },
   ]
   if (canAccessBilling) {
     tabs.push({

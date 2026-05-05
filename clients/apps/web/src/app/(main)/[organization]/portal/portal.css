@@ -946,3 +946,109 @@
     gap: 12px;
   }
 }
+
+/* ── Downloads ────────────────────────────────────────────────────────── */
+.spaire-portal .sp-chip-count {
+  margin-left: 2px;
+  opacity: 0.55;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.spaire-portal .sp-dl-card {
+  display: flex;
+  flex-direction: column;
+}
+.spaire-portal .sp-dl-cover {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--sp-radius);
+  overflow: hidden;
+  background: #f1f1f1;
+}
+.spaire-portal .sp-dl-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.spaire-portal .sp-dl-card:hover .sp-dl-cover img {
+  transform: scale(1.03);
+}
+.spaire-portal .sp-dl-cover-fallback {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #f4f4f4 0%, #e8e8e8 100%);
+  color: var(--sp-muted);
+}
+.spaire-portal .sp-dl-format {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--sp-ink);
+  padding: 4px 9px;
+  border-radius: 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.spaire-portal .sp-dl-done {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--sp-success);
+  display: grid;
+  place-items: center;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.spaire-portal .sp-dl-body {
+  padding: 14px 2px 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.spaire-portal .sp-dl-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  color: var(--sp-muted);
+  font-size: 12.5px;
+  margin-bottom: 14px;
+}
+.spaire-portal .sp-dl-actions {
+  margin-top: auto;
+  display: flex;
+  gap: 6px;
+}
+.spaire-portal .sp-dl-actions .sp-btn {
+  flex: 1;
+  justify-content: center;
+  padding: 9px 14px;
+  font-size: 13px;
+}
+.spaire-portal .sp-dl-actions .sp-icon-action {
+  padding: 9px 12px;
+}
+.spaire-portal .sp-dot-sep {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--sp-muted-2);
+  flex: none;
+}

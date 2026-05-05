@@ -573,6 +573,11 @@ export const useCustomerCourses = (token: string | null | undefined) =>
         token!,
       ),
     enabled: !!token,
+    // Always re-check on mount and refocus so a course bought via a recent
+    // checkout shows up immediately after the customer lands back here.
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   })
 
 export const useCustomerCourse = (

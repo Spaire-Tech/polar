@@ -6,6 +6,7 @@ from polar.benefit.schemas import BenefitID
 from polar.file.schemas import FileDownload
 from polar.kit.schemas import Schema
 from polar.models.downloadable import DownloadableStatus
+from polar.models.product import ProductCategory
 
 
 class DownloadableURL(Schema):
@@ -18,6 +19,16 @@ class DownloadableRead(Schema):
     benefit_id: UUID4
 
     file: FileDownload
+
+    # Enrichment surfaced for the redesigned customer portal Downloads page.
+    # All fields are optional so existing consumers (e.g. benefit-grant cards)
+    # keep working without changes.
+    product_id: UUID4 | None = None
+    product_name: str | None = None
+    product_category: ProductCategory | None = None
+    product_thumbnail_url: str | None = None
+    downloaded_count: int = 0
+    last_downloaded_at: datetime | None = None
 
 
 class DownloadableCreate(Schema):
