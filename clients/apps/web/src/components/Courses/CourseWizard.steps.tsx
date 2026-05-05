@@ -1106,8 +1106,13 @@ function PFChoiceCard({
       className={`pf-choice${active ? ' active' : ''}`}
       onClick={onClick}
     >
-      <span className="pf-choice-title">{title}</span>
-      <span className="pf-choice-desc">{description}</span>
+      <span className="pf-choice-radio">
+        <span className="pf-choice-radio-dot" />
+      </span>
+      <span className="pf-choice-body">
+        <span className="pf-choice-title">{title}</span>
+        <span className="pf-choice-desc">{description}</span>
+      </span>
     </button>
   )
 }
@@ -1741,14 +1746,20 @@ export function StepPricingWizard({
                     {/* Billing cadence — below price rows */}
                     <div className="pf-field">
                       <span className="pf-label">Billing</span>
-                      <PFSegmented
-                        value={cycle}
-                        onChange={setCycle}
-                        options={[
-                          { value: 'onetime', label: 'Pay once' },
-                          { value: 'recurring', label: 'Recurring' },
-                        ]}
-                      />
+                      <div className="pf-choice-grid">
+                        <PFChoiceCard
+                          active={cycle === 'onetime'}
+                          onClick={() => setCycle('onetime')}
+                          title="Pay once"
+                          description="Charge a one-time fee at enrolment."
+                        />
+                        <PFChoiceCard
+                          active={cycle === 'recurring'}
+                          onClick={() => setCycle('recurring')}
+                          title="Recurring"
+                          description="Charge students on a regular schedule."
+                        />
+                      </div>
                       {cycle === 'recurring' && (
                         <div className="pf-recurring">
                           <span>Renew every</span>
@@ -1845,31 +1856,13 @@ export function StepPricingWizard({
               </div>
             </PFSection>
 
-            {/* ACCESS */}
-            <PFSection
-              eyebrow="Access"
-              title="What students see before paying"
-              description="Give a taste of the course, or keep everything behind the paywall."
-            >
-              <div className="pf-choice-grid">
-                <PFChoiceCard
-                  active={accessMode === 'open'}
-                  onClick={() =>
-                    onPaywallChange({ ...paywall, paywallEnabled: false })
-                  }
-                  title="Open access"
-                  description="Anyone enrolled can watch every lesson."
-                />
-                <PFChoiceCard
-                  active={accessMode === 'preview'}
-                  onClick={() =>
-                    onPaywallChange({ ...paywall, paywallEnabled: true })
-                  }
-                  title="Free preview"
-                  description="First few lessons free, the rest unlocks on purchase."
-                />
-              </div>
-              {accessMode === 'preview' && (
+            {/* ACCESS — only relevant for paid courses */}
+            {priceModel === 'fixed' && (
+              <PFSection
+                eyebrow="Access"
+                title="What students see before paying"
+                description="Give a taste of the course, or keep everything behind the paywall."
+              >
                 <div className="pf-preview-slider">
                   <div className="pf-preview-slider-row">
                     <div>
@@ -1896,17 +1889,18 @@ export function StepPricingWizard({
                     onChange={(e) =>
                       onPaywallChange({
                         ...paywall,
+                        paywallEnabled: true,
                         freePreviewLessons: parseInt(e.target.value, 10),
                       })
                     }
                   />
                   <div className="pf-slider-legend">
                     <span>0 — no preview</span>
-                    <span>All {courseLessons ?? 12} lessons</span>
+                    <span>{courseLessons ?? 12} lessons</span>
                   </div>
                 </div>
-              )}
-            </PFSection>
+              </PFSection>
+            )}
           </div>
 
           {/* LIVE PREVIEW */}
@@ -2125,23 +2119,57 @@ export function StepPricingWizard({
         }
         .pf-choice {
           display: flex;
-          flex-direction: column;
+          flex-direction: row;
           align-items: flex-start;
-          gap: 4px;
-          padding: 14px 16px;
+          gap: 12px;
+          padding: 16px 18px;
           text-align: left;
           width: 100%;
           background: #fff;
           border: 1px solid var(--hair);
-          border-radius: 12px;
+          border-radius: 14px;
           cursor: pointer;
           transition: all 0.15s;
           color: var(--ink);
+        }
+        .pf-choice:hover {
+          border-color: var(--hair-strong);
         }
         .pf-choice.active {
           background: var(--accent-soft);
           border-color: var(--accent);
           box-shadow: 0 0 0 3px var(--accent-ring);
+        }
+        .pf-choice-radio {
+          width: 18px;
+          height: 18px;
+          border-radius: 50%;
+          border: 1.5px solid var(--hair-strong);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          margin-top: 2px;
+          transition: border-color 0.15s;
+        }
+        .pf-choice.active .pf-choice-radio {
+          border-color: var(--accent);
+        }
+        .pf-choice-radio-dot {
+          width: 9px;
+          height: 9px;
+          border-radius: 50%;
+          background: transparent;
+          transition: background 0.15s;
+        }
+        .pf-choice.active .pf-choice-radio-dot {
+          background: var(--accent);
+        }
+        .pf-choice-body {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          flex: 1;
         }
         .pf-choice-title {
           font-size: 14px;
