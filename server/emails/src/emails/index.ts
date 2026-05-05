@@ -1,4 +1,5 @@
 import { ClientInvoice } from './client_invoice'
+import { MarketingEmail } from './marketing_email'
 import { CustomerSessionCode } from './customer_session_code'
 import { EmailUpdate } from './email_update'
 import { LoginCode } from './login_code'
@@ -27,6 +28,7 @@ import { SubscriptionUpdated } from './subscription_updated'
 import { WebhookEndpointDisabled } from './webhook_endpoint_disabled'
 
 const TEMPLATES: Record<string, React.FC<any>> = {
+  marketing_email: MarketingEmail,
   client_invoice: ClientInvoice,
   login_code: LoginCode,
   customer_session_code: CustomerSessionCode,

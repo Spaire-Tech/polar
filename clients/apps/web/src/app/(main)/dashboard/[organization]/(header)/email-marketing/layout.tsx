@@ -8,6 +8,9 @@ import { PropsWithChildren } from 'react'
 const emailTabs = [
   { title: 'Subscribers', suffix: '' },
   { title: 'Broadcasts', suffix: '/broadcasts' },
+  { title: 'Sequences', suffix: '/sequences' },
+  { title: 'Forms', suffix: '/forms' },
+  { title: 'Events', suffix: '/events' },
   { title: 'Segments', suffix: '/segments' },
 ]
 
@@ -18,7 +21,7 @@ export default function EmailMarketingLayout({ children }: PropsWithChildren) {
 
   // Hide tabs on detail pages
   const isDetailPage =
-    /\/broadcasts\/(new|[0-9a-f-]{36})/.test(pathname)
+    /\/(broadcasts|sequences|forms|events)\/(new|[0-9a-f-]{36})/.test(pathname)
 
   if (isDetailPage) {
     return children

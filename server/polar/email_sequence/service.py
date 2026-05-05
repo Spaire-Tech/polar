@@ -1,0 +1,306 @@
+from collections.abc import Sequence
+from uuid import UUID
+
+import structlog
+
+from polar.auth.models import AuthSubject, Organization, User
+from polar.exceptions import PolarError
+from polar.kit.pagination import PaginationParams
+from polar.kit.utils import utc_now
+from polar.models.email_sequence import (
+    EmailSequence,
+    EmailSequenceStatus,
+    EmailSequenceTriggerType,
+)
+from polar.models.email_sequence_enrollment import (
+    EmailSequenceEnrollment,
+    EmailSequenceEnrollmentStatus,
+)
+from polar.models.email_sequence_step import EmailSequenceStep
+from polar.postgres import AsyncReadSession, AsyncSession
+from polar.worker import enqueue_job
+
+from .repository import EmailSequenceRepository
+
+log = structlog.get_logger()
+
+
+class EmailSequenceError(PolarError): ...
+
+
+class AlreadyEnrolled(EmailSequenceError):
+    def __init__(self) -> None:
+        super().__init__("Subscriber is already enrolled in this sequence.")
+
+
+class EmailSequenceService:
+    async def list(
+        self,
+        session: AsyncReadSession,
+        auth_subject: AuthSubject[User | Organization],
+        *,
+        organization_id: UUID | None = None,
+        pagination: PaginationParams,
+    ) -> tuple[Sequence[EmailSequence], int]:
+        repository = EmailSequenceRepository.from_session(session)
+        statement = repository.get_readable_statement(auth_subject)
+        if organization_id is not None:
+            statement = statement.where(EmailSequence.organization_id == organization_id)
+        statement = statement.order_by(EmailSequence.created_at.desc())
+        return await repository.paginate(statement, limit=pagination.limit, page=pagination.page)
+
+    async def get_by_id(
+        self,
+        session: AsyncReadSession,
+        auth_subject: AuthSubject[User | Organization],
+        sequence_id: UUID,
+    ) -> EmailSequence | None:
+        repository = EmailSequenceRepository.from_session(session)
+        statement = repository.get_readable_statement(auth_subject).where(
+            EmailSequence.id == sequence_id
+        )
+        return await repository.get_one_or_none(statement)
+
+    async def create(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        name: str,
+        description: str | None = None,
+        trigger_type: EmailSequenceTriggerType = EmailSequenceTriggerType.manual,
+        trigger_config: dict | None = None,
+    ) -> EmailSequence:
+        repository = EmailSequenceRepository.from_session(session)
+        sequence = EmailSequence(
+            organization_id=organization_id,
+            name=name,
+            description=description,
+            trigger_type=trigger_type,
+            trigger_config=trigger_config or {},
+            status=EmailSequenceStatus.draft,
+        )
+        return await repository.create(sequence, flush=True)
+
+    async def update(
+        self,
+        session: AsyncSession,
+        sequence: EmailSequence,
+        *,
+        name: str | None = None,
+        description: str | None = None,
+        trigger_type: EmailSequenceTriggerType | None = None,
+        trigger_config: dict | None = None,
+        status: EmailSequenceStatus | None = None,
+    ) -> EmailSequence:
+        repository = EmailSequenceRepository.from_session(session)
+        if name is not None:
+            sequence.name = name
+        if description is not None:
+            sequence.description = description
+        if trigger_type is not None:
+            sequence.trigger_type = trigger_type
+        if trigger_config is not None:
+            sequence.trigger_config = trigger_config
+        if status is not None:
+            sequence.status = status
+        return await repository.update(sequence)
+
+    async def delete(self, session: AsyncSession, sequence: EmailSequence) -> None:
+        repository = EmailSequenceRepository.from_session(session)
+        await repository.soft_delete(sequence)
+
+    # ── Steps ──────────────────────────────────────────────────────────────
+
+    async def add_step(
+        self,
+        session: AsyncSession,
+        sequence: EmailSequence,
+        *,
+        position: int | None = None,
+        delay_hours: int = 0,
+        subject: str,
+        sender_name: str,
+        sender_email: str | None = None,
+        reply_to_email: str | None = None,
+        content_html: str | None = None,
+        content_json: dict | None = None,
+    ) -> EmailSequenceStep:
+        repository = EmailSequenceRepository.from_session(session)
+
+        if position is None:
+            max_pos = await repository.max_position(sequence.id)
+            position = max_pos + 1
+
+        step = EmailSequenceStep(
+            sequence_id=sequence.id,
+            position=position,
+            delay_hours=delay_hours,
+            subject=subject,
+            sender_name=sender_name,
+            sender_email=sender_email,
+            reply_to_email=reply_to_email,
+            content_html=content_html,
+            content_json=content_json,
+        )
+        session.add(step)
+        await session.flush()
+        return step
+
+    async def update_step(
+        self,
+        session: AsyncSession,
+        step: EmailSequenceStep,
+        *,
+        position: int | None = None,
+        delay_hours: int | None = None,
+        subject: str | None = None,
+        sender_name: str | None = None,
+        sender_email: str | None = None,
+        reply_to_email: str | None = None,
+        content_html: str | None = None,
+        content_json: dict | None = None,
+    ) -> EmailSequenceStep:
+        if position is not None:
+            step.position = position
+        if delay_hours is not None:
+            step.delay_hours = delay_hours
+        if subject is not None:
+            step.subject = subject
+        if sender_name is not None:
+            step.sender_name = sender_name
+        if sender_email is not None:
+            step.sender_email = sender_email
+        if reply_to_email is not None:
+            step.reply_to_email = reply_to_email
+        if content_html is not None:
+            step.content_html = content_html
+        if content_json is not None:
+            step.content_json = content_json
+        await session.flush()
+        return step
+
+    async def delete_step(self, session: AsyncSession, step: EmailSequenceStep) -> None:
+        step.deleted_at = utc_now()
+        await session.flush()
+
+    async def reorder_steps(
+        self,
+        session: AsyncSession,
+        items: list[dict],
+    ) -> None:
+        repository = EmailSequenceRepository.from_session(session)
+        await repository.reorder_steps(items)
+
+    # ── Enrollments ────────────────────────────────────────────────────────
+
+    async def enroll(
+        self,
+        session: AsyncSession,
+        sequence: EmailSequence,
+        subscriber_id: UUID,
+    ) -> EmailSequenceEnrollment:
+        repository = EmailSequenceRepository.from_session(session)
+
+        existing = await repository.get_enrollment(sequence.id, subscriber_id)
+        if existing is not None and existing.status == EmailSequenceEnrollmentStatus.active:
+            raise AlreadyEnrolled()
+
+        now = utc_now()
+        enrollment = EmailSequenceEnrollment(
+            sequence_id=sequence.id,
+            subscriber_id=subscriber_id,
+            status=EmailSequenceEnrollmentStatus.active,
+            current_step_position=0,
+            enrolled_at=now,
+            next_step_at=now,  # Step 0 fires immediately
+        )
+        session.add(enrollment)
+        await session.flush()
+        return enrollment
+
+    async def unenroll(
+        self,
+        session: AsyncSession,
+        sequence_id: UUID,
+        subscriber_id: UUID,
+    ) -> None:
+        repository = EmailSequenceRepository.from_session(session)
+        enrollment = await repository.get_enrollment(sequence_id, subscriber_id)
+        if enrollment is not None:
+            enrollment.status = EmailSequenceEnrollmentStatus.cancelled
+            await session.flush()
+
+    async def enroll_for_trigger(
+        self,
+        session: AsyncSession,
+        organization_id: UUID,
+        trigger_type: EmailSequenceTriggerType,
+        subscriber_id: UUID,
+        *,
+        trigger_filter: dict | None = None,
+    ) -> None:
+        """Find all active sequences matching this trigger and enqueue enrollment."""
+        repository = EmailSequenceRepository.from_session(session)
+        sequences = await repository.get_active_for_org_by_trigger(
+            organization_id, trigger_type
+        )
+        for sequence in sequences:
+            if trigger_filter:
+                config = sequence.trigger_config or {}
+                if not all(config.get(k) == v for k, v in trigger_filter.items()):
+                    continue
+            enqueue_job(
+                "email_sequence.enroll_subscriber",
+                sequence_id=sequence.id,
+                subscriber_id=subscriber_id,
+            )
+
+    # ── Analytics ──────────────────────────────────────────────────────────
+
+    async def get_analytics(
+        self,
+        session: AsyncReadSession,
+        sequence_id: UUID,
+    ) -> dict:
+        repository = EmailSequenceRepository.from_session(session)
+        send_counts = await repository.get_analytics_counts(sequence_id)
+        enrollment_counts = await repository.get_enrollment_counts(sequence_id)
+
+        delivered = (
+            send_counts.get("delivered", 0)
+            + send_counts.get("opened", 0)
+            + send_counts.get("clicked", 0)
+        )
+        opened = send_counts.get("opened", 0) + send_counts.get("clicked", 0)
+        clicked = send_counts.get("clicked", 0)
+        total_sent = sum(v for k, v in send_counts.items() if k not in ("pending", "failed"))
+        total_enrolled = sum(enrollment_counts.values())
+
+        return {
+            "total_sent": total_sent,
+            "delivered": delivered,
+            "opened": opened,
+            "clicked": clicked,
+            "bounced": send_counts.get("bounced", 0),
+            "open_rate": (opened / delivered * 100) if delivered > 0 else 0.0,
+            "click_rate": (clicked / delivered * 100) if delivered > 0 else 0.0,
+            "total_enrolled": total_enrolled,
+            "active_enrollments": enrollment_counts.get("active", 0),
+            "completed_enrollments": enrollment_counts.get("completed", 0),
+        }
+
+    async def get_steps(
+        self, session: AsyncReadSession, sequence_id: UUID
+    ) -> list[EmailSequenceStep]:
+        repository = EmailSequenceRepository.from_session(session)
+        return await repository.list_steps(sequence_id)
+
+    async def get_enrollments(
+        self, session: AsyncReadSession, sequence_id: UUID
+    ) -> list[EmailSequenceEnrollment]:
+        repository = EmailSequenceRepository.from_session(session)
+        return await repository.list_enrollments(sequence_id)
+
+
+email_sequence = EmailSequenceService()

@@ -291,3 +291,236 @@ export const useStorefrontSubscribe = () =>
         body: { email, name },
       }),
   })
+
+// ── Sequence raw fetch helpers (endpoints not yet in generated client) ──
+
+const seqFetch = async <T>(path: string): Promise<T> => {
+  const res = await fetch(getServerURL(path), { credentials: 'include' })
+  if (!res.ok) throw new Error(`API error: ${res.status}`)
+  return res.json()
+}
+
+const seqMutate = async <T>(
+  path: string,
+  method: 'POST' | 'PATCH' | 'DELETE',
+  body?: unknown,
+): Promise<T> => {
+  const res = await fetch(getServerURL(path), {
+    method,
+    credentials: 'include',
+    headers: body !== undefined ? { 'Content-Type': 'application/json' } : {},
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  })
+  if (!res.ok) throw new Error(`API error: ${res.status}`)
+  if (res.status === 204) return undefined as T
+  return res.json()
+}
+
+// ── Email Sequences ──
+
+export const useEmailSequences = (
+  organizationId: string,
+  params?: { page?: number; limit?: number },
+) =>
+  useQuery({
+    queryKey: ['email_sequences', { organizationId, ...(params ?? {}) }],
+    queryFn: () => {
+      const qs = new URLSearchParams({ organization_id: organizationId })
+      if (params?.page) qs.set('page', String(params.page))
+      if (params?.limit) qs.set('limit', String(params.limit))
+      return seqFetch<any>(`/v1/email-sequences/?${qs}`)
+    },
+    retry: defaultRetry,
+    placeholderData: keepPreviousData,
+  })
+
+export const useEmailSequence = (sequenceId: string) =>
+  useQuery({
+    queryKey: ['email_sequence', sequenceId],
+    queryFn: () => seqFetch<any>(`/v1/email-sequences/${sequenceId}`),
+    retry: defaultRetry,
+    enabled: !!sequenceId,
+  })
+
+export const useCreateEmailSequence = (organizationId: string) =>
+  useMutation({
+    mutationFn: (body: {
+      name: string
+      description?: string
+      trigger_type?: string
+      trigger_config?: Record<string, unknown>
+    }) =>
+      seqMutate<any>(
+        `/v1/email-sequences/?organization_id=${organizationId}`,
+        'POST',
+        body,
+      ),
+    onSuccess: () => {
+      getQueryClient().invalidateQueries({ queryKey: ['email_sequences'] })
+    },
+  })
+
+export const useUpdateEmailSequence = () =>
+  useMutation({
+    mutationFn: ({
+      sequenceId,
+      ...body
+    }: {
+      sequenceId: string
+      name?: string
+      description?: string
+      trigger_type?: string
+      trigger_config?: Record<string, unknown>
+      status?: string
+    }) =>
+      seqMutate<any>(`/v1/email-sequences/${sequenceId}`, 'PATCH', body),
+    onSuccess: (_data, vars) => {
+      getQueryClient().invalidateQueries({ queryKey: ['email_sequences'] })
+      getQueryClient().invalidateQueries({
+        queryKey: ['email_sequence', vars.sequenceId],
+      })
+    },
+  })
+
+export const useDeleteEmailSequence = () =>
+  useMutation({
+    mutationFn: (sequenceId: string) =>
+      seqMutate<void>(`/v1/email-sequences/${sequenceId}`, 'DELETE'),
+    onSuccess: () => {
+      getQueryClient().invalidateQueries({ queryKey: ['email_sequences'] })
+    },
+  })
+
+// ── Sequence Steps ──
+
+export const useSequenceSteps = (sequenceId: string) =>
+  useQuery({
+    queryKey: ['email_sequence_steps', sequenceId],
+    queryFn: () => seqFetch<any[]>(`/v1/email-sequences/${sequenceId}/steps`),
+    retry: defaultRetry,
+    enabled: !!sequenceId,
+  })
+
+export const useCreateSequenceStep = (sequenceId: string) =>
+  useMutation({
+    mutationFn: (body: {
+      delay_hours?: number
+      subject: string
+      sender_name: string
+      sender_email?: string
+      reply_to_email?: string
+      content_html?: string
+    }) =>
+      seqMutate<any>(`/v1/email-sequences/${sequenceId}/steps`, 'POST', body),
+    onSuccess: () => {
+      getQueryClient().invalidateQueries({
+        queryKey: ['email_sequence_steps', sequenceId],
+      })
+    },
+  })
+
+export const useUpdateSequenceStep = (sequenceId: string) =>
+  useMutation({
+    mutationFn: ({
+      stepId,
+      ...body
+    }: {
+      stepId: string
+      delay_hours?: number
+      subject?: string
+      sender_name?: string
+      sender_email?: string
+      reply_to_email?: string
+      content_html?: string
+    }) =>
+      seqMutate<any>(
+        `/v1/email-sequences/${sequenceId}/steps/${stepId}`,
+        'PATCH',
+        body,
+      ),
+    onSuccess: () => {
+      getQueryClient().invalidateQueries({
+        queryKey: ['email_sequence_steps', sequenceId],
+      })
+    },
+  })
+
+export const useDeleteSequenceStep = (sequenceId: string) =>
+  useMutation({
+    mutationFn: (stepId: string) =>
+      seqMutate<void>(
+        `/v1/email-sequences/${sequenceId}/steps/${stepId}`,
+        'DELETE',
+      ),
+    onSuccess: () => {
+      getQueryClient().invalidateQueries({
+        queryKey: ['email_sequence_steps', sequenceId],
+      })
+    },
+  })
+
+export const useReorderSequenceSteps = (sequenceId: string) =>
+  useMutation({
+    mutationFn: (items: Array<{ id: string; position: number }>) =>
+      seqMutate<void>(
+        `/v1/email-sequences/${sequenceId}/steps/reorder`,
+        'POST',
+        items,
+      ),
+    onSuccess: () => {
+      getQueryClient().invalidateQueries({
+        queryKey: ['email_sequence_steps', sequenceId],
+      })
+    },
+  })
+
+// ── Sequence Enrollments ──
+
+export const useSequenceEnrollments = (sequenceId: string) =>
+  useQuery({
+    queryKey: ['email_sequence_enrollments', sequenceId],
+    queryFn: () =>
+      seqFetch<any[]>(`/v1/email-sequences/${sequenceId}/enrollments`),
+    retry: defaultRetry,
+    enabled: !!sequenceId,
+  })
+
+export const useEnrollSubscriber = (sequenceId: string) =>
+  useMutation({
+    mutationFn: (subscriberId: string) =>
+      seqMutate<any>(
+        `/v1/email-sequences/${sequenceId}/enrollments`,
+        'POST',
+        { subscriber_id: subscriberId },
+      ),
+    onSuccess: () => {
+      getQueryClient().invalidateQueries({
+        queryKey: ['email_sequence_enrollments', sequenceId],
+      })
+    },
+  })
+
+export const useUnenrollSubscriber = (sequenceId: string) =>
+  useMutation({
+    mutationFn: (subscriberId: string) =>
+      seqMutate<void>(
+        `/v1/email-sequences/${sequenceId}/enrollments/${subscriberId}`,
+        'DELETE',
+      ),
+    onSuccess: () => {
+      getQueryClient().invalidateQueries({
+        queryKey: ['email_sequence_enrollments', sequenceId],
+      })
+    },
+  })
+
+// ── Sequence Analytics ──
+
+export const useSequenceAnalytics = (sequenceId: string) =>
+  useQuery({
+    queryKey: ['email_sequence_analytics', sequenceId],
+    queryFn: () =>
+      seqFetch<any>(`/v1/email-sequences/${sequenceId}/analytics`),
+    retry: defaultRetry,
+    enabled: !!sequenceId,
+  })

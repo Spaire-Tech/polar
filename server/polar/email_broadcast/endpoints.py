@@ -13,6 +13,7 @@ from .schemas import (
     EmailBroadcast as EmailBroadcastSchema,
     EmailBroadcastAnalytics,
     EmailBroadcastCreate,
+    EmailBroadcastSchedule,
     EmailBroadcastUpdate,
 )
 from .service import email_broadcast as email_broadcast_service
@@ -135,6 +136,29 @@ async def send_email_broadcast(
         raise ResourceNotFound()
     sent = await email_broadcast_service.send(session, broadcast)
     return EmailBroadcastSchema.model_validate(sent, from_attributes=True)
+
+
+@router.post("/{broadcast_id}/schedule", response_model=EmailBroadcastSchema)
+async def schedule_email_broadcast(
+    auth_subject: EmailSubscribersWrite,
+    broadcast_id: UUID4,
+    schedule: EmailBroadcastSchedule,
+    session: AsyncSession = Depends(get_db_session),
+) -> EmailBroadcastSchema:
+    broadcast = await email_broadcast_service.get_by_id(
+        session, auth_subject, broadcast_id
+    )
+    if broadcast is None:
+        raise ResourceNotFound()
+    from .service import BroadcastAlreadySent
+    try:
+        scheduled = await email_broadcast_service.schedule(
+            session, broadcast, scheduled_at=schedule.scheduled_at
+        )
+    except BroadcastAlreadySent as e:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=409, detail=str(e))
+    return EmailBroadcastSchema.model_validate(scheduled, from_attributes=True)
 
 
 @router.get("/{broadcast_id}/analytics", response_model=EmailBroadcastAnalytics)

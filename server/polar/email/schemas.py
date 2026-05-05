@@ -18,6 +18,7 @@ from polar.subscription.schemas import SubscriptionBase
 
 
 class EmailTemplate(StrEnum):
+    marketing_email = "marketing_email"
     client_invoice = "client_invoice"
     login_code = "login_code"
     customer_session_code = "customer_session_code"
@@ -45,6 +46,20 @@ class EmailTemplate(StrEnum):
     notification_new_subscription = "notification_new_subscription"
     notification_create_account = "notification_create_account"
     notification_credits_granted = "notification_credits_granted"
+
+
+class MarketingEmailProps(BaseModel):
+    organization_name: str
+    organization_logo_url: str | None = None
+    organization_website: str | None = None
+    html_content: str
+    unsubscribe_url: str
+    preview_text: str | None = None
+
+
+class MarketingEmail(BaseModel):
+    template: Literal[EmailTemplate.marketing_email] = EmailTemplate.marketing_email
+    props: MarketingEmailProps
 
 
 class SubscriptionEmail(SubscriptionBase): ...
@@ -382,7 +397,8 @@ class OrganizationAccountUnlinkEmail(BaseModel):
 
 
 Email = Annotated[
-    ClientInvoiceEmail
+    MarketingEmail
+    | ClientInvoiceEmail
     | LoginCodeEmail
     | CustomerSessionCodeEmail
     | EmailUpdateEmail
