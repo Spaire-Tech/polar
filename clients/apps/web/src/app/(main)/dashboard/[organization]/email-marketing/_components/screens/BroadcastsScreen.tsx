@@ -41,10 +41,12 @@ export const BroadcastsScreen = ({
   organization,
   onNew,
   onOpen,
+  onEdit,
 }: {
   organization: schemas['Organization']
   onNew: () => void
   onOpen: (broadcastId: string) => void
+  onEdit: (broadcastId: string) => void
 }) => {
   const orgId = organization.id
   const [query, setQuery] = useState('')
@@ -232,16 +234,23 @@ export const BroadcastsScreen = ({
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {items.map((b) => (
-          <BroadcastListRow
-            key={b.id}
-            b={b}
-            onOpen={() => onOpen(b.id)}
-            onDuplicate={() => duplicateMutation.mutate(b.id)}
-            onCancelSchedule={() => cancelMutation.mutate(b.id)}
-            onArchive={() => onArchive(b)}
-          />
-        ))}
+        {items.map((b) => {
+          const editable = b.status === 'draft' || b.status === 'scheduled'
+          return (
+            <BroadcastListRow
+              key={b.id}
+              b={b}
+              // Drafts and scheduled broadcasts open in the composer; sent
+              // broadcasts open in the analytics detail view.
+              onOpen={() => (editable ? onEdit(b.id) : onOpen(b.id))}
+              onEdit={() => onEdit(b.id)}
+              onDuplicate={() => duplicateMutation.mutate(b.id)}
+              onCancelSchedule={() => cancelMutation.mutate(b.id)}
+              onArchive={() => onArchive(b)}
+              onViewReport={editable ? undefined : () => onOpen(b.id)}
+            />
+          )
+        })}
       </div>
 
       {totalCount > PAGE_SIZE && (
@@ -285,16 +294,21 @@ export const BroadcastsScreen = ({
 const BroadcastListRow = ({
   b,
   onOpen,
+  onEdit,
   onDuplicate,
   onCancelSchedule,
   onArchive,
+  onViewReport,
 }: {
   b: BroadcastRow
   onOpen: () => void
+  onEdit: () => void
   onDuplicate: () => void
   onCancelSchedule: () => void
   onArchive: () => void
+  onViewReport?: () => void
 }) => {
+  const editable = b.status === 'draft' || b.status === 'scheduled'
   const a = b.analytics
   const recipients = a?.recipients ?? b.total_recipients
 
@@ -400,7 +414,18 @@ const BroadcastListRow = ({
       <div onClick={(e) => e.stopPropagation()}>
         <ActionMenu
           items={[
-            { label: 'Open', icon: 'arrow-right', onClick: onOpen },
+            {
+              label: 'Edit',
+              icon: 'edit',
+              hidden: !editable,
+              onClick: onEdit,
+            },
+            {
+              label: 'View report',
+              icon: 'chart',
+              hidden: !onViewReport,
+              onClick: () => onViewReport?.(),
+            },
             { label: 'Duplicate', icon: 'copy', onClick: onDuplicate },
             {
               label: 'Cancel schedule',

@@ -8,6 +8,11 @@ from polar.kit.utils import utc_now
 
 class EmailBroadcastCreate(Schema):
     subject: str = Field(description="Email subject line", max_length=255)
+    preview_text: str | None = Field(
+        default=None,
+        description="Inbox preview text shown after the subject.",
+        max_length=150,
+    )
     sender_name: str = Field(description="Sender display name", max_length=100)
     reply_to_email: str | None = Field(default=None, description="Reply-to email address")
     content_json: dict | None = Field(default=None, description="Structured editor content")
@@ -17,6 +22,7 @@ class EmailBroadcastCreate(Schema):
 
 class EmailBroadcastUpdate(Schema):
     subject: str | None = None
+    preview_text: str | None = None
     sender_name: str | None = None
     reply_to_email: str | None = None
     content_json: dict | None = None
@@ -28,6 +34,7 @@ class EmailBroadcast(TimestampedSchema, IDSchema):
     id: UUID4
     organization_id: UUID4
     subject: str
+    preview_text: str | None = None
     sender_name: str
     sender_email: str
     reply_to_email: str | None = None
@@ -38,6 +45,10 @@ class EmailBroadcast(TimestampedSchema, IDSchema):
     scheduled_at: datetime | None = None
     sent_at: datetime | None = None
     total_recipients: int = 0
+
+
+class EmailBroadcastTestSend(Schema):
+    email: str = Field(description="Inbox to send the test email to.", max_length=320)
 
 
 class EmailBroadcastSchedule(Schema):

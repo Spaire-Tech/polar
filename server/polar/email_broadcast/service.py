@@ -153,6 +153,7 @@ class EmailBroadcastService:
         organization_id: UUID,
         subject: str,
         sender_name: str,
+        preview_text: str | None = None,
         reply_to_email: str | None = None,
         content_json: dict | None = None,
         content_html: str | None = None,
@@ -162,6 +163,7 @@ class EmailBroadcastService:
         broadcast = EmailBroadcast(
             organization_id=organization_id,
             subject=subject,
+            preview_text=preview_text,
             sender_name=sender_name,
             reply_to_email=reply_to_email,
             content_json=content_json,
@@ -176,29 +178,51 @@ class EmailBroadcastService:
         session: AsyncSession,
         broadcast: EmailBroadcast,
         *,
-        subject: str | None = None,
-        sender_name: str | None = None,
-        reply_to_email: str | None = None,
-        content_json: dict | None = None,
-        content_html: str | None = None,
-        segment_id: UUID | None = None,
+        update: dict,
     ) -> EmailBroadcast:
+        """Apply only the fields explicitly present in `update`. Pass `None` to clear."""
         repository = EmailBroadcastRepository.from_session(session)
-
-        if subject is not None:
-            broadcast.subject = subject
-        if sender_name is not None:
-            broadcast.sender_name = sender_name
-        if reply_to_email is not None:
-            broadcast.reply_to_email = reply_to_email
-        if content_json is not None:
-            broadcast.content_json = content_json
-        if content_html is not None:
-            broadcast.content_html = content_html
-        if segment_id is not None:
-            broadcast.segment_id = segment_id
-
+        for key in (
+            "subject",
+            "preview_text",
+            "sender_name",
+            "reply_to_email",
+            "content_json",
+            "content_html",
+            "segment_id",
+        ):
+            if key in update:
+                setattr(broadcast, key, update[key])
         return await repository.update(broadcast)
+
+    async def send_test(
+        self,
+        session: AsyncSession,
+        broadcast: EmailBroadcast,
+        *,
+        to_email: str,
+    ) -> None:
+        """Send a one-off test of this broadcast to a single inbox.
+
+        Doesn't create EmailBroadcastSend rows or change status — it's just
+        meant to render the same template the worker will render and drop it
+        into the requester's inbox.
+        """
+        from polar.models.organization import Organization
+
+        from .tasks import send_broadcast_email
+
+        organization = await session.get(Organization, broadcast.organization_id)
+        unsubscribe_url = (
+            "https://space.spairehq.com/email/unsubscribe?test=1"
+        )
+        await send_broadcast_email(
+            broadcast,
+            organization,
+            to_email=to_email,
+            unsubscribe_url=unsubscribe_url,
+            extra_subject_prefix="[TEST] ",
+        )
 
     async def send(
         self,

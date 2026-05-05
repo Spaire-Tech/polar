@@ -245,6 +245,7 @@ export type BroadcastRow = {
   id: string
   organization_id: string
   subject: string
+  preview_text: string | null
   sender_name: string
   sender_email: string
   reply_to_email: string | null
@@ -376,24 +377,28 @@ export const useArchiveEmailBroadcast = () =>
     },
   })
 
+export type BroadcastWritePayload = {
+  subject?: string
+  preview_text?: string | null
+  sender_name?: string
+  reply_to_email?: string | null
+  content_html?: string | null
+  content_json?: Record<string, unknown> | null
+  segment_id?: string | null
+}
+
 export const useCreateEmailBroadcast = (organizationId: string) =>
   useMutation({
-    mutationFn: (body: {
-      subject: string
-      sender_name: string
-      reply_to_email?: string
-      content_html?: string
-      content_json?: Record<string, unknown>
-      segment_id?: string
-    }) =>
-      api.POST('/v1/email-broadcasts/', {
-        params: { query: { organization_id: organizationId } },
+    mutationFn: (
+      body: BroadcastWritePayload & { subject: string; sender_name: string },
+    ) =>
+      fetchApiWrite<BroadcastRow>(
+        `/v1/email-broadcasts/?organization_id=${organizationId}`,
+        'POST',
         body,
-      }),
+      ),
     onSuccess: () => {
-      getQueryClient().invalidateQueries({
-        queryKey: ['email_broadcasts'],
-      })
+      getQueryClient().invalidateQueries({ queryKey: ['email_broadcasts'] })
     },
   })
 
@@ -404,35 +409,63 @@ export const useUpdateEmailBroadcast = () =>
       body,
     }: {
       broadcastId: string
-      body: {
-        subject?: string
-        sender_name?: string
-        reply_to_email?: string
-        content_html?: string
-        content_json?: Record<string, unknown>
-      }
+      body: BroadcastWritePayload
     }) =>
-      api.PATCH('/v1/email-broadcasts/{broadcast_id}', {
-        params: { path: { broadcast_id: broadcastId } },
+      fetchApiWrite<BroadcastRow>(
+        `/v1/email-broadcasts/${broadcastId}`,
+        'PATCH',
         body,
-      }),
-    onSuccess: () => {
+      ),
+    onSuccess: (_d, { broadcastId }) => {
+      getQueryClient().invalidateQueries({ queryKey: ['email_broadcasts'] })
       getQueryClient().invalidateQueries({
-        queryKey: ['email_broadcasts'],
+        queryKey: ['email_broadcast', broadcastId],
       })
     },
+  })
+
+export const useScheduleEmailBroadcast = () =>
+  useMutation({
+    mutationFn: ({
+      broadcastId,
+      scheduledAt,
+    }: {
+      broadcastId: string
+      scheduledAt: string
+    }) =>
+      fetchApiWrite<BroadcastRow>(
+        `/v1/email-broadcasts/${broadcastId}/schedule`,
+        'POST',
+        { scheduled_at: scheduledAt },
+      ),
+    onSuccess: () => {
+      getQueryClient().invalidateQueries({ queryKey: ['email_broadcasts'] })
+    },
+  })
+
+export const useSendTestEmailBroadcast = () =>
+  useMutation({
+    mutationFn: ({
+      broadcastId,
+      email,
+    }: {
+      broadcastId: string
+      email: string
+    }) =>
+      fetchApiWrite<void>(`/v1/email-broadcasts/${broadcastId}/test`, 'POST', {
+        email,
+      }),
   })
 
 export const useSendEmailBroadcast = () =>
   useMutation({
     mutationFn: (broadcastId: string) =>
-      api.POST('/v1/email-broadcasts/{broadcast_id}/send', {
-        params: { path: { broadcast_id: broadcastId } },
-      }),
+      fetchApiWrite<BroadcastRow>(
+        `/v1/email-broadcasts/${broadcastId}/send`,
+        'POST',
+      ),
     onSuccess: () => {
-      getQueryClient().invalidateQueries({
-        queryKey: ['email_broadcasts'],
-      })
+      getQueryClient().invalidateQueries({ queryKey: ['email_broadcasts'] })
     },
   })
 

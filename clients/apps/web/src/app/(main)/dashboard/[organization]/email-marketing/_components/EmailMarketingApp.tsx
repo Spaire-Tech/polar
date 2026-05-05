@@ -33,16 +33,25 @@ export default function EmailMarketingApp({
   const [activeBroadcastId, setActiveBroadcastId] = useState<string | null>(
     null,
   )
+  const [editingBroadcastId, setEditingBroadcastId] = useState<string | null>(
+    null,
+  )
 
   const selectTab = (next: Tab) => {
     setTab(next)
     setView('main')
     setActiveBroadcastId(null)
+    setEditingBroadcastId(null)
   }
 
   const openBroadcast = (id: string) => {
     setActiveBroadcastId(id)
     setView('broadcast-detail')
+  }
+
+  const editBroadcast = (id: string | null) => {
+    setEditingBroadcastId(id)
+    setView('new-broadcast')
   }
 
   const initials = (organization.name || 'S')
@@ -154,12 +163,21 @@ export default function EmailMarketingApp({
         {tab === 'broadcasts' && view === 'main' && (
           <BroadcastsScreen
             organization={organization}
-            onNew={() => setView('new-broadcast')}
+            onNew={() => editBroadcast(null)}
             onOpen={openBroadcast}
+            onEdit={(id) => editBroadcast(id)}
           />
         )}
         {tab === 'broadcasts' && view === 'new-broadcast' && (
-          <NewBroadcastScreen onBack={() => setView('main')} />
+          <NewBroadcastScreen
+            organization={organization}
+            broadcastId={editingBroadcastId}
+            onBack={() => {
+              setEditingBroadcastId(null)
+              setView('main')
+            }}
+            onOpened={(id) => setEditingBroadcastId(id)}
+          />
         )}
         {tab === 'broadcasts' &&
           view === 'broadcast-detail' &&

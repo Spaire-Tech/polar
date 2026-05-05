@@ -16,6 +16,7 @@ from .schemas import (
     EmailBroadcastRowAnalytics,
     EmailBroadcastSchedule,
     EmailBroadcastSendRow,
+    EmailBroadcastTestSend,
     EmailBroadcastUpdate,
     EmailBroadcastWithAnalytics,
 )
@@ -96,6 +97,7 @@ async def create_email_broadcast(
         session,
         organization_id=organization_id,
         subject=broadcast_create.subject,
+        preview_text=broadcast_create.preview_text,
         sender_name=broadcast_create.sender_name,
         reply_to_email=broadcast_create.reply_to_email,
         content_json=broadcast_create.content_json,
@@ -131,15 +133,10 @@ async def update_email_broadcast(
     )
     if broadcast is None:
         raise ResourceNotFound()
+    # Only forward fields the client actually sent so we don't blank out values.
+    update_dict = broadcast_update.model_dump(exclude_unset=True)
     updated = await email_broadcast_service.update(
-        session,
-        broadcast,
-        subject=broadcast_update.subject,
-        sender_name=broadcast_update.sender_name,
-        reply_to_email=broadcast_update.reply_to_email,
-        content_json=broadcast_update.content_json,
-        content_html=broadcast_update.content_html,
-        segment_id=broadcast_update.segment_id,
+        session, broadcast, update=update_dict
     )
     return EmailBroadcastSchema.model_validate(updated, from_attributes=True)
 
@@ -262,6 +259,24 @@ async def cancel_email_broadcast_schedule(
         raise ResourceNotFound()
     updated = await email_broadcast_service.cancel_schedule(session, broadcast)
     return EmailBroadcastSchema.model_validate(updated, from_attributes=True)
+
+
+@router.post("/{broadcast_id}/test", status_code=204)
+async def send_test_email_broadcast(
+    auth_subject: EmailSubscribersWrite,
+    broadcast_id: UUID4,
+    body: EmailBroadcastTestSend,
+    session: AsyncSession = Depends(get_db_session),
+) -> None:
+    """Send a one-off test rendering of this broadcast to a single inbox."""
+    broadcast = await email_broadcast_service.get_by_id(
+        session, auth_subject, broadcast_id
+    )
+    if broadcast is None:
+        raise ResourceNotFound()
+    await email_broadcast_service.send_test(
+        session, broadcast, to_email=body.email
+    )
 
 
 @router.delete("/{broadcast_id}", status_code=204)
