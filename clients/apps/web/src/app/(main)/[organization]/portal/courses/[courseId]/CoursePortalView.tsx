@@ -959,8 +959,10 @@ function LessonCard({
   const isLocked = !!lesson.locked
 
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={isLocked ? -1 : 0}
+      aria-disabled={isLocked || undefined}
       style={{
         ...lessonStyles.card,
         ...(hovered && !isLocked ? lessonStyles.cardHover : null),
@@ -969,7 +971,13 @@ function LessonCard({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onClick={() => !isLocked && onSelect()}
-      disabled={isLocked}
+      onKeyDown={(e) => {
+        if (isLocked) return
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onSelect()
+        }
+      }}
     >
       <div style={lessonStyles.thumb}>
         <LessonThumb
@@ -1066,7 +1074,7 @@ function LessonCard({
           )}
         </div>
       </div>
-    </button>
+    </div>
   )
 }
 
