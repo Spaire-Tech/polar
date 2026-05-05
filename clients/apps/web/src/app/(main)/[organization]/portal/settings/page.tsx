@@ -1,7 +1,15 @@
-import { CustomerPortalSettings } from '@/components/CustomerPortal/CustomerPortalSettings'
 import { getServerSideAPI } from '@/utils/client/serverside'
 import { getOrganizationOrNotFound } from '@/utils/customerPortal'
 import type { Metadata } from 'next'
+import { redirect } from 'next/navigation'
+import BillingPage from './BillingPage'
+
+const cacheConfig = {
+  cache: 'no-store' as RequestCache,
+  next: {
+    tags: ['customer_portal'],
+  },
+}
 
 export async function generateMetadata(props: {
   params: Promise<{ organization: string }>
@@ -64,19 +72,55 @@ export default async function Page(props: {
     searchParams,
   )
 
+  if (!token) {
+    redirect(`/${organization.slug}/portal/request`)
+  }
+
+  const [
+    {
+      data: subscriptions,
+      error: subscriptionsError,
+      response: subscriptionsResponse,
+    },
+    { data: orders, error: ordersError, response: ordersResponse },
+    { data: customer, response: customerResponse },
+  ] = await Promise.all([
+    api.GET('/v1/customer-portal/subscriptions/', {
+      params: { query: { limit: 100 } },
+      ...cacheConfig,
+    }),
+    api.GET('/v1/customer-portal/orders/', {
+      params: { query: { limit: 100 } },
+      ...cacheConfig,
+    }),
+    api.GET('/v1/customer-portal/customers/me', cacheConfig),
+  ])
+
+  if (
+    subscriptionsResponse.status === 401 ||
+    ordersResponse.status === 401 ||
+    customerResponse.status === 401
+  ) {
+    redirect(
+      `/${organization.slug}/portal/request?${new URLSearchParams(searchParams)}`,
+    )
+  }
+
+  if (subscriptionsResponse.status === 403 || ordersResponse.status === 403) {
+    // Member without billing access shouldn't see settings.
+    redirect(`/${organization.slug}/portal/overview`)
+  }
+
+  if (subscriptionsError) throw subscriptionsError
+  if (ordersError) throw ordersError
+
   return (
-    <CustomerPortalSettings
+    <BillingPage
       organization={organization}
       customerSessionToken={token}
-      setupIntentParams={
-        searchParams.setup_intent_client_secret && searchParams.setup_intent
-          ? {
-              setup_intent_client_secret:
-                searchParams.setup_intent_client_secret,
-              setup_intent: searchParams.setup_intent,
-            }
-          : undefined
-      }
+      customer={customer ?? null}
+      subscriptions={subscriptions?.items ?? []}
+      orders={orders?.items ?? []}
     />
   )
 }

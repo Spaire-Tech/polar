@@ -1,13 +1,340 @@
 'use client'
 
-import { CustomerPortalOrders } from '@/components/CustomerPortal/CustomerPortalOrders'
 import { schemas } from '@spaire/client'
+import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { NuqsAdapter } from 'nuqs/adapters/next/app'
+import * as React from 'react'
+import { ChevronIcon, DownloadIcon, ExternalIcon } from '../_components/icons'
+
+type StatusKind = 'paid' | 'refunded' | 'pending' | 'canceled'
+
+const formatCurrency = (amountCents: number, currency: string): string => {
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency.toUpperCase(),
+      maximumFractionDigits: 2,
+    }).format(amountCents / 100)
+  } catch {
+    return `$${(amountCents / 100).toFixed(2)}`
+  }
+}
+
+const formatDate = (iso: string): string => {
+  try {
+    return new Date(iso).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    })
+  } catch {
+    return iso
+  }
+}
+
+const statusKind = (order: schemas['CustomerOrder']): StatusKind => {
+  if (
+    order.refunded_amount > 0 &&
+    order.refunded_amount >= order.total_amount
+  ) {
+    return 'refunded'
+  }
+  if (order.status === 'paid') return 'paid'
+  if (order.status === 'pending') return 'pending'
+  if (order.status === 'partially_refunded') return 'refunded'
+  if (order.status === 'refunded') return 'refunded'
+  return 'pending'
+}
+
+const statusLabel = (kind: StatusKind): string => {
+  if (kind === 'paid') return 'Paid'
+  if (kind === 'refunded') return 'Refunded'
+  if (kind === 'pending') return 'Pending'
+  return 'Canceled'
+}
+
+const StatusPill = ({ kind }: { kind: StatusKind }) => (
+  <span className={`sp-pill is-${kind}`}>{statusLabel(kind)}</span>
+)
+
+const billingLabel = (order: schemas['CustomerOrder']): string => {
+  switch (order.billing_reason) {
+    case 'purchase':
+      return 'One-time payment'
+    case 'subscription_create':
+      return 'Subscription started'
+    case 'subscription_cycle':
+      return 'Subscription renewal'
+    case 'subscription_update':
+      return 'Plan change'
+    default:
+      return 'Payment'
+  }
+}
+
+const OrderRow = ({
+  order,
+  organizationSlug,
+  searchString,
+  isOpen,
+  onToggle,
+}: {
+  order: schemas['CustomerOrder']
+  organizationSlug: string
+  searchString: string
+  isOpen: boolean
+  onToggle: () => void
+}) => {
+  const kind = statusKind(order)
+  const isRefunded = kind === 'refunded'
+  const itemCount = order.items?.length ?? 0
+  const totalLabel = formatCurrency(order.total_amount, order.currency)
+  const orderHref =
+    `/${organizationSlug}/portal/orders/${order.id}` +
+    (searchString ? `?${searchString}` : '')
+
+  return (
+    <div className="sp-order-row">
+      <button
+        type="button"
+        className="sp-order-summary"
+        onClick={onToggle}
+        aria-expanded={isOpen}
+      >
+        <div>
+          <div className="sp-order-id">{order.invoice_number || order.id}</div>
+          <div className="sp-order-sub">
+            {itemCount === 0
+              ? order.description
+              : `${itemCount} ${itemCount === 1 ? 'item' : 'items'}`}
+          </div>
+        </div>
+        <div className="sp-order-cell sp-hide-mobile">
+          {formatDate(order.created_at)}
+        </div>
+        <div className="sp-order-cell sp-hide-mobile">
+          {billingLabel(order)}
+        </div>
+        <span className="sp-hide-mobile">
+          <StatusPill kind={kind} />
+        </span>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            justifyContent: 'flex-end',
+            minWidth: 120,
+          }}
+        >
+          <div
+            className={'sp-order-total' + (isRefunded ? ' is-refunded' : '')}
+          >
+            {totalLabel}
+          </div>
+          <span
+            style={{
+              color: 'var(--sp-muted)',
+              display: 'grid',
+              placeItems: 'center',
+              transform: isOpen ? 'rotate(180deg)' : 'none',
+              transition: 'transform .2s',
+            }}
+            aria-hidden
+          >
+            <ChevronIcon size={14} />
+          </span>
+        </div>
+      </button>
+
+      {isOpen && (
+        <div className="sp-order-detail sp-fade-in">
+          <table className="sp-table">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th style={{ width: 140 }}>Reason</th>
+                <th style={{ width: 100, textAlign: 'right' }}>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(order.items ?? []).map((item) => (
+                <tr key={item.id}>
+                  <td>{item.label}</td>
+                  <td>
+                    <span className="sp-tag">
+                      {item.proration ? 'Proration' : 'Charge'}
+                    </span>
+                  </td>
+                  <td
+                    style={{
+                      textAlign: 'right',
+                      fontVariantNumeric: 'tabular-nums',
+                      fontWeight: 500,
+                    }}
+                  >
+                    {formatCurrency(item.amount, order.currency)}
+                  </td>
+                </tr>
+              ))}
+              {order.discount_amount > 0 && (
+                <tr>
+                  <td>Discount</td>
+                  <td>
+                    <span className="sp-tag">Adjustment</span>
+                  </td>
+                  <td
+                    style={{
+                      textAlign: 'right',
+                      fontVariantNumeric: 'tabular-nums',
+                    }}
+                  >
+                    −{formatCurrency(order.discount_amount, order.currency)}
+                  </td>
+                </tr>
+              )}
+              {order.tax_amount > 0 && (
+                <tr>
+                  <td>Tax</td>
+                  <td>
+                    <span className="sp-tag">VAT/Sales tax</span>
+                  </td>
+                  <td
+                    style={{
+                      textAlign: 'right',
+                      fontVariantNumeric: 'tabular-nums',
+                    }}
+                  >
+                    {formatCurrency(order.tax_amount, order.currency)}
+                  </td>
+                </tr>
+              )}
+              {order.refunded_amount > 0 && (
+                <tr>
+                  <td>Refunded</td>
+                  <td>
+                    <span className="sp-tag">Refund</span>
+                  </td>
+                  <td
+                    style={{
+                      textAlign: 'right',
+                      fontVariantNumeric: 'tabular-nums',
+                      color: 'var(--sp-muted)',
+                    }}
+                  >
+                    −{formatCurrency(order.refunded_amount, order.currency)}
+                  </td>
+                </tr>
+              )}
+              <tr>
+                <td colSpan={2}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'flex-end',
+                      color: 'var(--sp-muted)',
+                      fontSize: 13,
+                    }}
+                  >
+                    Total
+                  </div>
+                </td>
+                <td
+                  style={{
+                    textAlign: 'right',
+                    fontWeight: 600,
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
+                >
+                  {totalLabel}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+            {order.is_invoice_generated && (
+              <Link
+                href={orderHref}
+                className="sp-btn is-ghost"
+                style={{ padding: '8px 14px', fontSize: 12.5 }}
+              >
+                <DownloadIcon size={13} /> Invoice
+              </Link>
+            )}
+            <Link
+              href={orderHref}
+              className="sp-btn is-ghost"
+              style={{ padding: '8px 14px', fontSize: 12.5 }}
+            >
+              <ExternalIcon size={12} /> View order
+            </Link>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+const OrdersBody = ({
+  orders,
+  organizationSlug,
+}: {
+  orders: schemas['CustomerOrder'][]
+  organizationSlug: string
+}) => {
+  const searchParams = useSearchParams()
+  const searchString = searchParams.toString()
+  const [openId, setOpenId] = React.useState<string | null>(
+    orders[0]?.id ?? null,
+  )
+
+  const lifetime = orders
+    .filter((o) => o.status === 'paid')
+    .reduce((sum, o) => sum + (o.total_amount - (o.refunded_amount ?? 0)), 0)
+  const lifetimeCurrency = orders[0]?.currency ?? 'usd'
+
+  return (
+    <div className="sp-route">
+      <div className="sp-page-head">
+        <div>
+          <h1 className="sp-page-title">Orders</h1>
+          <p className="sp-page-sub">
+            {orders.length === 0
+              ? 'Your purchases will show up here.'
+              : `${orders.length} order${orders.length === 1 ? '' : 's'} · ${formatCurrency(lifetime, lifetimeCurrency)} lifetime`}
+          </p>
+        </div>
+      </div>
+
+      {orders.length === 0 ? (
+        <div className="sp-empty">
+          <div className="sp-empty-title">No orders yet</div>
+          <div style={{ fontSize: 13 }}>
+            Purchases and renewals will appear here.
+          </div>
+        </div>
+      ) : (
+        <div className="sp-orders">
+          {orders.map((order) => (
+            <OrderRow
+              key={order.id}
+              order={order}
+              organizationSlug={organizationSlug}
+              searchString={searchString}
+              isOpen={openId === order.id}
+              onToggle={() => setOpenId(openId === order.id ? null : order.id)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 const ClientPage = ({
   organization,
   orders,
-  customerSessionToken,
 }: {
   organization: schemas['CustomerOrganization']
   orders: schemas['ListResource_CustomerOrder_']
@@ -15,10 +342,9 @@ const ClientPage = ({
 }) => {
   return (
     <NuqsAdapter>
-      <CustomerPortalOrders
-        organization={organization}
+      <OrdersBody
         orders={orders.items ?? []}
-        customerSessionToken={customerSessionToken}
+        organizationSlug={organization.slug}
       />
     </NuqsAdapter>
   )

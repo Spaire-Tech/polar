@@ -4,6 +4,7 @@ from uuid import UUID
 
 from fastapi import Depends, HTTPException
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 log = logging.getLogger(__name__)
 
@@ -23,8 +24,12 @@ from polar.course.schemas import (
     QuizAttemptSubmission,
 )
 from polar.course.service import course_service
+from polar.file.s3 import S3_SERVICES
 from polar.models import Customer
 from polar.models.course_enrollment import CourseEnrollment
+from polar.models.course_lesson_progress import CourseLessonProgress
+from polar.models.product import Product
+from polar.models.product_media import ProductMedia
 from polar.openapi import APITag
 from polar.postgres import AsyncSession, get_db_session
 from polar.routing import APIRouter
@@ -165,9 +170,99 @@ async def list_enrolled_courses(
     enrollments = await course_service.list_enrollments_for_customer(
         session, customer_id
     )
+
+    # Eager-load products + product_medias for thumbnail fallback. Course's
+    # `product` relationship is lazy="raise" so we explicitly fetch.
+    course_product_ids = {
+        e.course.product_id for e in enrollments if e.course.product_id is not None
+    }
+    products_by_id: dict[UUID, Product] = {}
+    if course_product_ids:
+        prod_stmt = (
+            select(Product)
+            .where(Product.id.in_(course_product_ids))
+            .options(
+                selectinload(Product.product_medias).joinedload(ProductMedia.file)
+            )
+        )
+        prod_result = await session.execute(prod_stmt)
+        for product in prod_result.scalars().unique().all():
+            products_by_id[product.id] = product
+
+    # Bulk-load progress for all enrollments in this list.
+    enrollment_ids = [e.id for e in enrollments]
+    progress_by_enrollment: dict[UUID, list[CourseLessonProgress]] = {
+        eid: [] for eid in enrollment_ids
+    }
+    if enrollment_ids:
+        prog_stmt = select(CourseLessonProgress).where(
+            CourseLessonProgress.enrollment_id.in_(enrollment_ids)
+        )
+        prog_result = await session.execute(prog_stmt)
+        for progress in prog_result.scalars():
+            progress_by_enrollment.setdefault(
+                progress.enrollment_id, []
+            ).append(progress)
+
     result = []
+    now = datetime.now(tz=UTC)
     for enrollment in enrollments:
         course = enrollment.course
+        progress_items = progress_by_enrollment.get(enrollment.id, [])
+        completed_ids = {str(p.lesson_id) for p in progress_items}
+
+        # Use the same accessibility logic as the detail endpoint so progress
+        # lines up between list and detail views.
+        _, accessible_ids = _build_flat_lesson_list(
+            course,
+            course.paywall_position,
+            enrollment.enrolled_at,
+            now,
+            completed_ids,
+        )
+        total_lessons = len(accessible_ids)
+        completed_count = len(completed_ids & accessible_ids)
+        completion_percent = (
+            round(completed_count / total_lessons * 100, 1)
+            if total_lessons
+            else 0.0
+        )
+
+        # Total duration across published lessons (in seconds).
+        total_duration_seconds = sum(
+            (lesson.duration_seconds or 0)
+            for module in course.modules
+            for lesson in module.lessons
+            if lesson.published
+        )
+
+        # When the course is fully completed, surface the most recent
+        # completion date so the UI can render "Completed Mar 14, 2025".
+        completed_at: str | None = None
+        if total_lessons > 0 and completed_count == total_lessons:
+            relevant = [
+                p for p in progress_items if str(p.lesson_id) in accessible_ids
+            ]
+            if relevant:
+                completed_at = max(p.completed_at for p in relevant).isoformat()
+
+        # Thumbnail: prefer course's own thumbnail, else fall back to the
+        # first uploaded product media so the customer portal always shows
+        # imagery the merchant provided on the product.
+        thumbnail_url = course.thumbnail_url
+        if not thumbnail_url and course.product_id:
+            owning_product = products_by_id.get(course.product_id)
+            if owning_product is not None:
+                for media in owning_product.product_medias:
+                    file = media.file
+                    if file is None or not file.is_uploaded:
+                        continue
+                    s3 = S3_SERVICES.get(file.service)
+                    if s3 is None:
+                        continue
+                    thumbnail_url = s3.get_public_url(file.path)
+                    break
+
         published_lesson_count = sum(
             sum(1 for lesson in m.lessons if lesson.published)
             for m in course.modules
@@ -182,7 +277,16 @@ async def list_enrolled_courses(
                     "course_type": course.course_type,
                     "module_count": len(course.modules),
                     "lesson_count": published_lesson_count,
+                    "thumbnail_url": thumbnail_url,
+                    "thumbnail_object_position": course.thumbnail_object_position,
+                    "total_duration_seconds": total_duration_seconds,
                 },
+                "progress": {
+                    "total_lessons": total_lessons,
+                    "completed_lessons": completed_count,
+                    "completion_percent": completion_percent,
+                },
+                "completed_at": completed_at,
             }
         )
     return result
