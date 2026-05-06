@@ -11,10 +11,8 @@ import { Field, SegmentedControl, SelectField, Toggle } from './shared'
 
 type Tone = {
   icon: string
-  iconBg: string
-  iconColor: string
-  iconShadow: string
   rail: string
+  railText: string
   label: string
 }
 
@@ -24,54 +22,42 @@ export const STEP_TONES: Record<
 > = {
   email: {
     icon: 'mail',
-    iconBg: 'var(--ink)',
-    iconColor: '#fff',
-    iconShadow: '0 4px 10px -3px rgba(0,0,0,0.25)',
-    rail: '#fafafa',
+    rail: 'var(--ink)',
+    railText: 'rgba(255,255,255,0.85)',
     label: 'Email',
   },
   wait: {
     icon: 'clock',
-    iconBg: '#fff',
-    iconColor: 'var(--indigo-2)',
-    iconShadow: '0 0 0 1px var(--indigo-line) inset',
-    rail: '#fafafa',
+    rail: '#fff',
+    railText: 'var(--indigo-2)',
     label: 'Wait',
   },
   branch: {
     icon: 'split',
-    iconBg: 'var(--indigo-soft)',
-    iconColor: 'var(--indigo-2)',
-    iconShadow: '0 0 0 1px var(--indigo-line) inset',
-    rail: '#fafafa',
+    rail: 'var(--indigo-soft)',
+    railText: 'var(--indigo-2)',
     label: 'Branch',
   },
   action: {
     icon: 'tag',
-    iconBg: 'var(--green-soft)',
-    iconColor: 'var(--green)',
-    iconShadow: 'none',
-    rail: '#fafafa',
+    rail: 'var(--green-soft)',
+    railText: 'var(--green)',
     label: 'Action',
   },
   goal: {
     icon: 'target',
-    iconBg: 'var(--ink)',
-    iconColor: '#fff',
-    iconShadow: 'none',
-    rail: '#fafafa',
+    rail: 'var(--ink)',
+    railText: 'rgba(255,255,255,0.85)',
     label: 'Goal',
   },
 }
 
 const StepRail = ({
-  num,
   type,
   dragging,
   onDragStart,
   onDragEnd,
 }: {
-  num: string
   type: keyof typeof STEP_TONES
   dragging: boolean
   onDragStart: () => void
@@ -101,28 +87,19 @@ const StepRail = ({
         style={{
           width: 32,
           height: 32,
-          borderRadius: 9,
-          background: tone.iconBg,
-          color: tone.iconColor,
+          borderRadius: 10,
+          background: 'rgba(255,255,255,0.18)',
+          color: tone.railText,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          boxShadow: tone.iconShadow,
+          boxShadow:
+            tone.rail === '#fff' ? '0 0 0 1px var(--line-2) inset' : 'none',
         }}
       >
-        <Icon name={tone.icon} size={14} />
+        <Icon name={tone.icon} size={16} />
       </div>
-      <div
-        style={{
-          fontSize: 10,
-          fontFamily: 'JetBrains Mono, monospace',
-          color: 'var(--ink-3)',
-          letterSpacing: '0.06em',
-        }}
-      >
-        {num}
-      </div>
-      <div style={{ marginTop: 'auto', color: 'var(--ink-4)', opacity: 0.6 }}>
+      <div style={{ marginTop: 'auto', color: tone.railText, opacity: 0.7 }}>
         <Icon name="drag" size={14} />
       </div>
     </div>
@@ -130,7 +107,6 @@ const StepRail = ({
 }
 
 export const StepCard = ({
-  num,
   type,
   dragging,
   onDragStart,
@@ -148,7 +124,6 @@ export const StepCard = ({
   title,
   children,
 }: {
-  num: string
   type: keyof typeof STEP_TONES
   dragging: boolean
   onDragStart: () => void
@@ -187,7 +162,6 @@ export const StepCard = ({
     >
       <div style={{ display: 'flex', alignItems: 'stretch' }}>
         <StepRail
-          num={num}
           type={type}
           dragging={dragging}
           onDragStart={onDragStart}

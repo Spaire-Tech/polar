@@ -39,7 +39,7 @@ import {
   stepTitle,
 } from '../flow'
 import { Icon } from '../Icon'
-import { MARK_BY_NAME, MarkSparkles } from '../MarkIcons'
+import { MARK_BY_NAME } from '../MarkIcons'
 import { SequenceFlowPreview } from '../SequenceFlowPreview'
 import {
   Field,
@@ -756,7 +756,6 @@ const SequenceEditorInner = ({
                         onClick={() => setTriggerProduct('any')}
                         name="Any product"
                         kind="All products"
-                        color="var(--ink-3)"
                       />
                       {products.map((p) => (
                         <ProductCard
@@ -765,7 +764,7 @@ const SequenceEditorInner = ({
                           onClick={() => setTriggerProduct(p.id)}
                           name={p.name}
                           kind={p.is_recurring ? 'Subscription' : 'One-time'}
-                          color="#1d1d1f"
+                          coverUrl={p.medias[0]?.public_url ?? null}
                         />
                       ))}
                     </div>
@@ -1091,19 +1090,10 @@ const SequenceEditorInner = ({
                 </div>
               )}
               {flow.steps.map((step, idx) => {
-                const num =
-                  step.type === 'email'
-                    ? String(
-                        flow.steps
-                          .slice(0, idx + 1)
-                          .filter((s) => s.type === 'email').length,
-                      ).padStart(2, '0')
-                    : '·'
                 const expanded = expandedId === step.id
                 return (
                   <StepCard
                     key={step.id}
-                    num={num}
                     type={step.type}
                     dragging={draggingId === step.id}
                     onDragStart={() => setDraggingId(step.id)}
@@ -1557,53 +1547,10 @@ const SequenceEditorInner = ({
             </div>
           </div>
 
-          {/* AI suggestion */}
-          <div
-            className="card"
-            style={{ padding: 18, background: 'var(--bg-soft)' }}
-          >
-            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-              <div style={{ flexShrink: 0 }}>
-                <MarkSparkles size={28} />
-              </div>
-              <div>
-                <div
-                  style={{
-                    fontSize: 13.5,
-                    color: 'var(--ink)',
-                    marginBottom: 4,
-                  }}
-                >
-                  Spaire suggests
-                </div>
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: 'var(--ink-2)',
-                    lineHeight: 1.55,
-                  }}
-                >
-                  Add a check-in email at day 14 — subscribers who get one are{' '}
-                  <span style={{ color: 'var(--ink)', fontWeight: 500 }}>
-                    3.2× more likely
-                  </span>{' '}
-                  to finish.
-                </div>
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  style={{ marginTop: 12 }}
-                  onClick={() => addStep('wait')}
-                >
-                  Insert step
-                </button>
-              </div>
-            </div>
-          </div>
         </aside>
       </div>
 
-      {editingEmail && persistedId && (
+      {editingEmail && (
         <SequenceEmailComposerModal
           organization={organization}
           step={editingEmail}
@@ -1646,12 +1593,13 @@ const ProductCard = ({
   onClick,
   name,
   kind,
+  coverUrl,
 }: {
   active: boolean
   onClick: () => void
   name: string
   kind: string
-  color?: string
+  coverUrl?: string | null
 }) => (
   <button
     type="button"
@@ -1665,10 +1613,25 @@ const ProductCard = ({
       textAlign: 'left',
     }}
   >
-    <div
-      className="cover-placeholder"
-      style={{ width: 42, height: 42, borderRadius: 8 }}
-    />
+    {coverUrl ? (
+      <img
+        src={coverUrl}
+        alt=""
+        style={{
+          width: 42,
+          height: 42,
+          borderRadius: 8,
+          objectFit: 'cover',
+          flexShrink: 0,
+          border: '1px solid var(--line)',
+        }}
+      />
+    ) : (
+      <div
+        className="cover-placeholder"
+        style={{ width: 42, height: 42, borderRadius: 8 }}
+      />
+    )}
     <div style={{ flex: 1, minWidth: 0 }}>
       <div
         style={{

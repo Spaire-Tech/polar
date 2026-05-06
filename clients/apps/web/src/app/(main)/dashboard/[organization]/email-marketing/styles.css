@@ -57,6 +57,7 @@
   font-weight: 400;
   min-height: 100vh;
   position: relative;
+  zoom: 0.9;
 }
 
 /* Subtle slate wash at the top of the page — Stripe-style cool neutral. */
@@ -350,19 +351,6 @@
     0 1px 3px rgba(0, 0, 0, 0.08),
     0 0 0 1px rgba(15, 23, 42, 0.04);
 }
-.spaire-email-app .tab-active::before {
-  /* subtle indigo underline cue on active tab */
-  content: '';
-  position: absolute;
-  left: 50%;
-  bottom: 3px;
-  width: 18px;
-  height: 2px;
-  border-radius: 1px;
-  background: var(--indigo);
-  transform: translateX(-50%);
-  opacity: 0.85;
-}
 
 /* Brand lockup — custom Spaire mark */
 .spaire-email-app .brand {
@@ -442,7 +430,7 @@
 
 /* Layout */
 .spaire-email-app .container {
-  max-width: 100%;
+  max-width: 1440px;
   margin: 0 auto;
   padding: 0 64px;
   position: relative;
@@ -452,24 +440,14 @@
   padding: 56px 0 40px;
 }
 
-/* Metric tile — indigo top accent for visual distinction */
+/* Metric tile — clean slate-bordered card */
 .spaire-email-app .metric {
   padding: 28px 28px 24px;
 }
 .spaire-email-app .metric-tile {
   position: relative;
   overflow: hidden;
-}
-.spaire-email-app .metric-tile::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 3px;
-  width: 28px;
-  border-radius: 0 0 3px 3px;
-  background: var(--indigo);
-  opacity: 0.85;
+  border: 1px solid var(--line-2);
 }
 .spaire-email-app .metric-value {
   font-size: 48px;
