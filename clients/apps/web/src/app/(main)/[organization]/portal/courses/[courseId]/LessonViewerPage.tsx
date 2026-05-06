@@ -168,6 +168,7 @@ const LessonViewerPage = ({
         onMarkComplete={handleMarkComplete}
         token={customerSessionToken}
         courseId={courseId}
+        organizationSlug={organization.slug}
       />
     )
   }

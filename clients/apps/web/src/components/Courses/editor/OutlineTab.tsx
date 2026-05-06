@@ -1,6 +1,10 @@
 'use client'
 
-import { CourseLessonRead, CourseRead } from '@/hooks/queries/courses'
+import {
+  CourseLessonRead,
+  CourseModuleRead,
+  CourseRead,
+} from '@/hooks/queries/courses'
 import LockOutlined from '@mui/icons-material/LockOutlined'
 import MoreHorizOutlined from '@mui/icons-material/MoreHorizOutlined'
 import PlayArrowRounded from '@mui/icons-material/PlayArrowRounded'
@@ -88,10 +92,7 @@ function LessonCard({
   onDelete: () => void
 }) {
   return (
-    <div
-      onClick={onSelect}
-      className={cardWrapperClass(isSelected)}
-    >
+    <div onClick={onSelect} className={cardWrapperClass(isSelected)}>
       <div className="relative aspect-video w-full overflow-hidden">
         <ThumbArt
           thumbnailUrl={lesson.thumbnail_url ?? null}
@@ -141,10 +142,32 @@ function cardWrapperClass(selected: boolean): string {
     'group relative cursor-pointer overflow-hidden rounded-2xl border bg-white transition-all',
     'shadow-[0_1px_4px_rgba(0,0,0,0.05),0_2px_10px_rgba(0,0,0,0.03)]',
     'hover:-translate-y-0.5 hover:shadow-[0_6px_24px_rgba(0,0,0,0.10),0_1px_4px_rgba(0,0,0,0.06)]',
-    selected
-      ? 'border-gray-900'
-      : 'border-gray-200 hover:border-gray-300',
+    selected ? 'border-gray-900' : 'border-gray-200 hover:border-gray-300',
   ].join(' ')
+}
+
+type LessonWithGlobalIndex = {
+  lesson: CourseLessonRead
+  module: CourseModuleRead
+  globalIndex: number
+}
+
+type ModuleGroup = {
+  module: CourseModuleRead
+  items: LessonWithGlobalIndex[]
+}
+
+function groupByModule(items: LessonWithGlobalIndex[]): ModuleGroup[] {
+  const groups: ModuleGroup[] = []
+  for (const item of items) {
+    const last = groups[groups.length - 1]
+    if (!last || last.module.id !== item.module.id) {
+      groups.push({ module: item.module, items: [item] })
+    } else {
+      last.items.push(item)
+    }
+  }
+  return groups
 }
 
 export function OutlineTab({
@@ -164,14 +187,21 @@ export function OutlineTab({
 }) {
   const [query, setQuery] = useState('')
 
-  const allLessons = useMemo(
-    () => course.modules.flatMap((m) => m.lessons),
-    [course.modules],
-  )
+  const allLessons = useMemo<LessonWithGlobalIndex[]>(() => {
+    const out: LessonWithGlobalIndex[] = []
+    let i = 1
+    for (const m of course.modules) {
+      for (const l of m.lessons) {
+        out.push({ lesson: l, module: m, globalIndex: i })
+        i += 1
+      }
+    }
+    return out
+  }, [course.modules])
 
   const trimmed = query.trim().toLowerCase()
   const filtered = trimmed
-    ? allLessons.filter((l) => l.title.toLowerCase().includes(trimmed))
+    ? allLessons.filter((x) => x.lesson.title.toLowerCase().includes(trimmed))
     : allLessons
 
   const showPaywall =
@@ -180,9 +210,14 @@ export function OutlineTab({
     course.paywall_position !== undefined &&
     course.paywall_position >= 0
 
-  const paywallAt = showPaywall ? Math.min(course.paywall_position!, filtered.length) : 0
-  const freeLessons = showPaywall ? filtered.slice(0, paywallAt) : filtered
-  const paidLessons = showPaywall ? filtered.slice(paywallAt) : []
+  const paywallAt = showPaywall
+    ? Math.min(course.paywall_position!, filtered.length)
+    : 0
+  const freeItems = showPaywall ? filtered.slice(0, paywallAt) : filtered
+  const paidItems = showPaywall ? filtered.slice(paywallAt) : []
+
+  const freeGroups = useMemo(() => groupByModule(freeItems), [freeItems])
+  const paidGroups = useMemo(() => groupByModule(paidItems), [paidItems])
 
   return (
     <div className="mx-auto w-full max-w-[880px] px-8 pt-7 pb-20">
@@ -201,42 +236,30 @@ export function OutlineTab({
       </div>
 
       {/* Section: Free preview (or All when searching) */}
-      <SectionLabel
-        text={showPaywall ? 'Free preview' : 'Lessons'}
-        count={freeLessons.length}
+      <SectionPill
+        text={showPaywall ? 'Free Preview' : 'Lessons'}
+        count={freeItems.length}
       />
-      <LessonGrid>
-        {freeLessons.map((lesson, idx) => (
-          <LessonCard
-            key={lesson.id}
-            lesson={lesson}
-            position={idx + 1}
-            locked={false}
-            isSelected={selectedLessonId === lesson.id}
-            onSelect={() => onSelectLesson(lesson.id)}
-            onDelete={() => onDeleteLesson(lesson)}
-          />
-        ))}
-      </LessonGrid>
+      <ModuleGroups
+        groups={freeGroups}
+        locked={false}
+        selectedLessonId={selectedLessonId}
+        onSelectLesson={onSelectLesson}
+        onDeleteLesson={onDeleteLesson}
+      />
 
       {showPaywall && <PaywallRow onEditSettings={onEditPaywall} />}
 
-      {showPaywall && paidLessons.length > 0 && (
+      {showPaywall && paidItems.length > 0 && (
         <>
-          <SectionLabel text="Members only" count={paidLessons.length} />
-          <LessonGrid>
-            {paidLessons.map((lesson, idx) => (
-              <LessonCard
-                key={lesson.id}
-                lesson={lesson}
-                position={paywallAt + idx + 1}
-                locked
-                isSelected={selectedLessonId === lesson.id}
-                onSelect={() => onSelectLesson(lesson.id)}
-                onDelete={() => onDeleteLesson(lesson)}
-              />
-            ))}
-          </LessonGrid>
+          <SectionPill text="Members Only" count={paidItems.length} />
+          <ModuleGroups
+            groups={paidGroups}
+            locked
+            selectedLessonId={selectedLessonId}
+            onSelectLesson={onSelectLesson}
+            onDeleteLesson={onDeleteLesson}
+          />
         </>
       )}
 
@@ -255,11 +278,65 @@ export function OutlineTab({
   )
 }
 
-function SectionLabel({ text, count }: { text: string; count: number }) {
+function ModuleGroups({
+  groups,
+  locked,
+  selectedLessonId,
+  onSelectLesson,
+  onDeleteLesson,
+}: {
+  groups: ModuleGroup[]
+  locked: boolean
+  selectedLessonId: string | null
+  onSelectLesson: (lessonId: string) => void
+  onDeleteLesson: (lesson: CourseLessonRead) => void
+}) {
+  if (groups.length === 0) return null
+  return (
+    <div className="mb-6 flex flex-col gap-5">
+      {groups.map((group) => (
+        <div key={group.module.id}>
+          <ModuleHeader title={group.module.title} count={group.items.length} />
+          <LessonGrid>
+            {group.items.map(({ lesson, globalIndex }) => (
+              <LessonCard
+                key={lesson.id}
+                lesson={lesson}
+                position={globalIndex}
+                locked={locked}
+                isSelected={selectedLessonId === lesson.id}
+                onSelect={() => onSelectLesson(lesson.id)}
+                onDelete={() => onDeleteLesson(lesson)}
+              />
+            ))}
+          </LessonGrid>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// "FEATURED"-style pill — borrowed from the Spaire space categories chips.
+// White rounded chip with subtle border + shadow and dark uppercase text.
+function SectionPill({ text, count }: { text: string; count: number }) {
+  return (
+    <div className="mb-3 flex items-center gap-2 px-0.5">
+      <span className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-gray-700 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_1px_8px_rgba(0,0,0,0.04)]">
+        {text}
+      </span>
+      <span className="text-[11px] tabular-nums text-gray-400">{count}</span>
+    </div>
+  )
+}
+
+// Module sub-header — uses what was previously the "Free preview" font
+// (small uppercase gray label). Keeps the modules visually subordinate to
+// the Free Preview / Members Only chips above them.
+function ModuleHeader({ title, count }: { title: string; count: number }) {
   return (
     <div className="mb-2.5 flex items-baseline gap-1.5 px-0.5">
       <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">
-        {text}
+        {title}
       </span>
       <span className="text-[11px] text-gray-400">{count}</span>
     </div>
