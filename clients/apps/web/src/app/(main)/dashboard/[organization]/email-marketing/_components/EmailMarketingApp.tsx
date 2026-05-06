@@ -36,12 +36,16 @@ export default function EmailMarketingApp({
   const [editingBroadcastId, setEditingBroadcastId] = useState<string | null>(
     null,
   )
+  const [editingSequenceId, setEditingSequenceId] = useState<string | null>(
+    null,
+  )
 
   const selectTab = (next: Tab) => {
     setTab(next)
     setView('main')
     setActiveBroadcastId(null)
     setEditingBroadcastId(null)
+    setEditingSequenceId(null)
   }
 
   const openBroadcast = (id: string) => {
@@ -150,10 +154,28 @@ export default function EmailMarketingApp({
             />
           )}
         {tab === 'sequences' && view === 'main' && (
-          <SequencesScreen onNew={() => setView('new-sequence')} />
+          <SequencesScreen
+            organization={organization}
+            onNew={() => {
+              setEditingSequenceId(null)
+              setView('new-sequence')
+            }}
+            onEdit={(id) => {
+              setEditingSequenceId(id)
+              setView('new-sequence')
+            }}
+          />
         )}
         {tab === 'sequences' && view === 'new-sequence' && (
-          <NewSequenceScreen onBack={() => setView('main')} />
+          <NewSequenceScreen
+            organization={organization}
+            sequenceId={editingSequenceId}
+            onBack={() => {
+              setEditingSequenceId(null)
+              setView('main')
+            }}
+            onOpened={(id) => setEditingSequenceId(id)}
+          />
         )}
         {tab === 'analytics' && <AnalyticsScreen organization={organization} />}
       </div>

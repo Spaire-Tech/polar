@@ -948,3 +948,62 @@ export const useSequenceAnalytics = (sequenceId: string) =>
     retry: defaultRetry,
     enabled: !!sequenceId,
   })
+
+// ── Sequence Duplicate / Image Upload ──
+
+export const useDuplicateEmailSequence = () =>
+  useMutation({
+    mutationFn: (sequenceId: string) =>
+      seqMutate<any>(`/v1/email-sequences/${sequenceId}/duplicate`, 'POST'),
+    onSuccess: () => {
+      getQueryClient().invalidateQueries({ queryKey: ['email_sequences'] })
+    },
+  })
+
+export const useUploadSequenceImage = (organizationId: string) =>
+  useMutation({
+    mutationFn: async (file: File) => {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch(
+        getServerURL(
+          `/v1/email-sequences/upload-image?organization_id=${organizationId}`,
+        ),
+        { method: 'POST', credentials: 'include', body: form },
+      )
+      if (!res.ok) throw new Error(`Upload failed: ${res.status}`)
+      return (await res.json()) as { url: string }
+    },
+  })
+
+// ── Sequence Templates ──
+
+export type SequenceTemplate = {
+  slug: string
+  name: string
+  description: string
+  category: string
+  trigger_type: string
+  step_count: number
+}
+
+export const useEmailSequenceTemplates = () =>
+  useQuery({
+    queryKey: ['email_sequence_templates'],
+    queryFn: () =>
+      seqFetch<SequenceTemplate[]>(`/v1/email-sequences/templates`),
+    retry: defaultRetry,
+  })
+
+export const useCreateSequenceFromTemplate = (organizationId: string) =>
+  useMutation({
+    mutationFn: (slug: string) =>
+      seqMutate<any>(
+        `/v1/email-sequences/from-template?organization_id=${organizationId}`,
+        'POST',
+        { slug },
+      ),
+    onSuccess: () => {
+      getQueryClient().invalidateQueries({ queryKey: ['email_sequences'] })
+    },
+  })

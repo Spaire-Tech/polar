@@ -89,6 +89,19 @@ class EmailSequenceEnrollRequest(Schema):
     subscriber_id: UUID4
 
 
+class EmailSequenceTemplate(Schema):
+    slug: str
+    name: str
+    description: str
+    category: str
+    trigger_type: EmailSequenceTriggerType
+    step_count: int
+
+
+class EmailSequenceFromTemplate(Schema):
+    slug: str
+
+
 class EmailSequenceAnalytics(Schema):
     total_sent: int = 0
     delivered: int = 0

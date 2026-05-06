@@ -110,6 +110,75 @@ class EmailSequenceService:
         repository = EmailSequenceRepository.from_session(session)
         await repository.soft_delete(sequence)
 
+    async def create_from_template(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        template: dict,
+    ) -> EmailSequence:
+        repository = EmailSequenceRepository.from_session(session)
+        sequence = EmailSequence(
+            organization_id=organization_id,
+            name=template["name"],
+            description=template.get("description"),
+            trigger_type=template["trigger_type"],
+            trigger_config=dict(template.get("trigger_config") or {}),
+            status=EmailSequenceStatus.draft,
+        )
+        sequence = await repository.create(sequence, flush=True)
+
+        for index, step in enumerate(template.get("steps", [])):
+            session.add(
+                EmailSequenceStep(
+                    sequence_id=sequence.id,
+                    position=index,
+                    delay_hours=step.get("delay_hours", 0),
+                    subject=step["subject"],
+                    sender_name=step.get("sender_name", "Team"),
+                    sender_email=step.get("sender_email"),
+                    reply_to_email=step.get("reply_to_email"),
+                    content_html=step.get("content_html"),
+                    content_json=step.get("content_json"),
+                )
+            )
+        await session.flush()
+        return sequence
+
+    async def duplicate(
+        self,
+        session: AsyncSession,
+        sequence: EmailSequence,
+    ) -> EmailSequence:
+        repository = EmailSequenceRepository.from_session(session)
+        clone = EmailSequence(
+            organization_id=sequence.organization_id,
+            name=f"{sequence.name} (copy)",
+            description=sequence.description,
+            trigger_type=sequence.trigger_type,
+            trigger_config=dict(sequence.trigger_config or {}),
+            status=EmailSequenceStatus.draft,
+        )
+        clone = await repository.create(clone, flush=True)
+
+        steps = await repository.list_steps(sequence.id)
+        for step in steps:
+            session.add(
+                EmailSequenceStep(
+                    sequence_id=clone.id,
+                    position=step.position,
+                    delay_hours=step.delay_hours,
+                    subject=step.subject,
+                    sender_name=step.sender_name,
+                    sender_email=step.sender_email,
+                    reply_to_email=step.reply_to_email,
+                    content_html=step.content_html,
+                    content_json=dict(step.content_json) if step.content_json else None,
+                )
+            )
+        await session.flush()
+        return clone
+
     # ── Steps ──────────────────────────────────────────────────────────────
 
     async def add_step(
