@@ -11,7 +11,6 @@ import {
   usePreviewAccess,
 } from '@/hooks/queries/courses'
 import AddOutlined from '@mui/icons-material/AddOutlined'
-import AttachFileOutlined from '@mui/icons-material/AttachFileOutlined'
 import CheckCircle from '@mui/icons-material/CheckCircle'
 import DeleteOutlineOutlined from '@mui/icons-material/DeleteOutlineOutlined'
 import DragIndicatorOutlined from '@mui/icons-material/DragIndicatorOutlined'
@@ -27,7 +26,6 @@ type QuestionType = QuizQuestion['type']
 const QUESTION_TYPES: { value: QuestionType; label: string }[] = [
   { value: 'multiple_choice', label: 'Multiple choice' },
   { value: 'multiple_select', label: 'Multiple select' },
-  { value: 'short_answer', label: 'Short answer' },
 ]
 
 export type QuizSaveBody = {
@@ -103,9 +101,7 @@ export function QuizDetail({
   onDelete: () => void
   isSaving: boolean
 }) {
-  const [tab, setTab] = useState<'questions' | 'settings' | 'results'>(
-    'questions',
-  )
+  const [tab, setTab] = useState<'questions' | 'settings'>('questions')
   const [quiz, setQuiz] = useState<QuizContent>(() => loadQuiz(lesson))
   const [published, setPublished] = useState(lesson.published)
   const previewAccess = usePreviewAccess()
@@ -203,9 +199,11 @@ export function QuizDetail({
     })
   }
 
+  const hasTitle = (quiz.title ?? '').trim().length > 0
   const isAnyGradedAnswerable = quiz.questions.every((q) =>
     q.graded ? q.options.some((o) => o.is_correct) : true,
   )
+  const canSave = hasTitle && isAnyGradedAnswerable
 
   const handlePreview = async () => {
     try {
@@ -259,7 +257,8 @@ export function QuizDetail({
           </button>
           <button
             onClick={handleSave}
-            disabled={isSaving || !isAnyGradedAnswerable}
+            disabled={isSaving || !canSave}
+            title={!hasTitle ? 'Add a title to save' : undefined}
             className="rounded-full bg-gray-900 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
           >
             {isSaving ? 'Saving…' : 'Save'}
@@ -273,7 +272,6 @@ export function QuizDetail({
             [
               { id: 'questions', label: 'Questions' },
               { id: 'settings', label: 'Settings' },
-              { id: 'results', label: 'Results' },
             ] as const
           ).map((t) => {
             const active = tab === t.id
@@ -333,19 +331,6 @@ export function QuizDetail({
         {tab === 'settings' && (
           <SettingsPanel quiz={quiz} onChange={updateQuiz} />
         )}
-        {tab === 'results' && (
-          <div className="flex h-64 items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-white px-6 text-center">
-            <div>
-              <p className="text-sm font-medium text-gray-700">
-                No results yet
-              </p>
-              <p className="mt-1 text-xs text-gray-500">
-                Once students take this quiz, attempts and grades will show up
-                here.
-              </p>
-            </div>
-          </div>
-        )}
 
         <div className="mt-10 flex items-center justify-between border-t border-gray-100 pt-6">
           <button
@@ -384,7 +369,6 @@ function QuestionCard({
 }) {
   const [moreOpen, setMoreOpen] = useState(false)
   const isMulti = question.type === 'multiple_select'
-  const isShort = question.type === 'short_answer'
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white">
@@ -452,97 +436,70 @@ function QuestionCard({
           <span className="text-sm font-medium text-gray-700">
             Graded question
           </span>
-          {question.graded && !isShort && (
+          {question.graded && (
             <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
               ● Auto-graded
             </span>
           )}
         </div>
 
-        <button
-          type="button"
-          className="mb-5 flex items-center gap-1.5 text-xs font-medium text-gray-700 hover:text-gray-900"
-        >
-          <AttachFileOutlined sx={{ fontSize: 14 }} />
-          Attach image
-        </button>
-
-        {!isShort && (
-          <>
-            <p className="mb-2 text-xs text-gray-400">Responses</p>
-            <div className="flex flex-col gap-2">
-              {question.options.map((option) => (
-                <div key={option.id} className="flex items-start gap-2">
-                  <button
-                    onClick={() => onSetCorrect(option.id)}
-                    className={cn(
-                      'mt-2 flex h-5 w-5 shrink-0 items-center justify-center transition-colors',
-                      isMulti ? 'rounded' : 'rounded-full',
-                      option.is_correct
-                        ? 'bg-emerald-500 text-white'
-                        : 'border-2 border-gray-300 text-transparent hover:border-gray-400',
-                    )}
-                    title={
-                      option.is_correct ? 'Correct answer' : 'Mark correct'
-                    }
-                  >
-                    {option.is_correct && <CheckCircle sx={{ fontSize: 14 }} />}
-                  </button>
-                  <div className="flex flex-1 flex-col gap-1.5">
-                    <input
-                      value={option.text}
-                      onChange={(e) =>
-                        onUpdateOption(option.id, { text: e.target.value })
-                      }
-                      placeholder="Option text"
-                      className="rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm text-gray-900 focus:border-gray-900 focus:outline-none"
-                    />
-                    <input
-                      value={option.explanation ?? ''}
-                      onChange={(e) =>
-                        onUpdateOption(option.id, {
-                          explanation: e.target.value || null,
-                        })
-                      }
-                      placeholder="Add explanation (optional)"
-                      className="rounded-xl border border-transparent px-3.5 py-1.5 text-xs text-gray-500 placeholder:text-gray-400 hover:bg-gray-50 focus:border-gray-200 focus:outline-none"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    className="mt-1.5 flex h-9 w-9 items-center justify-center rounded-lg text-gray-300 transition-colors hover:bg-gray-100 hover:text-gray-600"
-                    title="Attach image"
-                  >
-                    <ImageOutlined sx={{ fontSize: 16 }} />
-                  </button>
-                  {question.options.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => onRemoveOption(option.id)}
-                      className="mt-1.5 flex h-9 w-9 items-center justify-center rounded-lg text-gray-300 transition-colors hover:bg-red-50 hover:text-red-500"
-                      title="Remove option"
-                    >
-                      <DeleteOutlineOutlined sx={{ fontSize: 16 }} />
-                    </button>
-                  )}
-                </div>
-              ))}
+        <p className="mb-2 text-xs text-gray-400">Responses</p>
+        <div className="flex flex-col gap-2">
+          {question.options.map((option) => (
+            <div key={option.id} className="flex items-start gap-2">
+              <button
+                onClick={() => onSetCorrect(option.id)}
+                className={cn(
+                  'mt-2 flex h-5 w-5 shrink-0 items-center justify-center transition-colors',
+                  isMulti ? 'rounded' : 'rounded-full',
+                  option.is_correct
+                    ? 'bg-emerald-500 text-white'
+                    : 'border-2 border-gray-300 text-transparent hover:border-gray-400',
+                )}
+                title={option.is_correct ? 'Correct answer' : 'Mark correct'}
+              >
+                {option.is_correct && <CheckCircle sx={{ fontSize: 14 }} />}
+              </button>
+              <div className="flex flex-1 flex-col gap-1.5">
+                <input
+                  value={option.text}
+                  onChange={(e) =>
+                    onUpdateOption(option.id, { text: e.target.value })
+                  }
+                  placeholder="Option text"
+                  className="rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm text-gray-900 focus:border-gray-900 focus:outline-none"
+                />
+                <input
+                  value={option.explanation ?? ''}
+                  onChange={(e) =>
+                    onUpdateOption(option.id, {
+                      explanation: e.target.value || null,
+                    })
+                  }
+                  placeholder="Add explanation (optional)"
+                  className="rounded-xl border border-transparent px-3.5 py-1.5 text-xs text-gray-500 placeholder:text-gray-400 hover:bg-gray-50 focus:border-gray-200 focus:outline-none"
+                />
+              </div>
+              {question.options.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => onRemoveOption(option.id)}
+                  className="mt-1.5 flex h-9 w-9 items-center justify-center rounded-lg text-gray-300 transition-colors hover:bg-red-50 hover:text-red-500"
+                  title="Remove option"
+                >
+                  <DeleteOutlineOutlined sx={{ fontSize: 16 }} />
+                </button>
+              )}
             </div>
-            <button
-              onClick={onAddOption}
-              className="mt-3 flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-gray-900"
-            >
-              <AddOutlined sx={{ fontSize: 16 }} />
-              Add option
-            </button>
-          </>
-        )}
-        {isShort && (
-          <p className="rounded-xl bg-gray-50 px-4 py-3 text-xs text-gray-500">
-            Short answer responses are collected from students but not
-            auto-graded.
-          </p>
-        )}
+          ))}
+        </div>
+        <button
+          onClick={onAddOption}
+          className="mt-3 flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-gray-900"
+        >
+          <AddOutlined sx={{ fontSize: 16 }} />
+          Add option
+        </button>
       </div>
     </div>
   )
@@ -583,28 +540,14 @@ function SettingsPanel({
           </Field>
           <div className="flex items-center gap-4 rounded-xl border border-gray-200 bg-gray-50 p-3">
             <div className="flex h-16 w-24 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white">
-              {quiz.thumbnail_url ? (
-                <img
-                  src={quiz.thumbnail_url}
-                  alt="Quiz thumbnail"
-                  className="h-full w-full rounded-lg object-cover"
-                />
-              ) : (
-                <ImageOutlined
-                  className="text-gray-300"
-                  sx={{ fontSize: 28 }}
-                />
-              )}
+              <ImageOutlined className="text-gray-300" sx={{ fontSize: 28 }} />
             </div>
             <div className="flex-1">
-              <p className="text-xs text-gray-700">
-                Please use .jpg or .png with non-transparent background.
-                Recommended dimensions of{' '}
-                <span className="font-semibold">1280×720</span>.
-              </p>
-              <p className="mt-1 text-xs text-gray-400">
-                Image upload coming soon — set thumbnail at the lesson level for
-                now.
+              <p className="text-xs text-gray-700">Quiz thumbnail</p>
+              <p className="mt-1 text-xs text-gray-500">
+                The lesson&rsquo;s thumbnail is used for this quiz. Set it on
+                the lesson&rsquo;s{' '}
+                <span className="font-medium">Thumbnail</span> panel.
               </p>
             </div>
           </div>
@@ -617,22 +560,12 @@ function SettingsPanel({
       >
         <div className="flex flex-col gap-4">
           <div className="flex items-start justify-between gap-4">
-            <div className="flex flex-1 items-start gap-3">
-              <Toggle
-                checked={true}
-                onChange={() => {
-                  /* always on for now */
-                }}
-              />
-              <div>
-                <p className="text-sm font-medium text-gray-900">
-                  Set a passing grade
-                </p>
-                <p className="mt-0.5 text-xs text-gray-500">
-                  Tip: For a non-graded quiz, toggle off passing grade and
-                  grading on all questions.
-                </p>
-              </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-900">Passing grade</p>
+              <p className="mt-0.5 text-xs text-gray-500">
+                Score required to pass. To make the quiz ungraded, set each
+                question to non-graded.
+              </p>
             </div>
             <div className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-1.5">
               <input

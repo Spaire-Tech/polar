@@ -8,8 +8,6 @@
 // affordances. So the same component tree is used for both modes.
 
 import type { LandingMedia } from '@/hooks/queries/courses'
-import { toast } from '../../Toast/use-toast'
-import { useEditor } from './EditorContext'
 import {
   forwardRef,
   useEffect,
@@ -19,6 +17,8 @@ import {
   type ElementType,
   type ReactNode,
 } from 'react'
+import { toast } from '../../Toast/use-toast'
+import { useEditor } from './EditorContext'
 
 // ── EditText ────────────────────────────────────────────────────────────────
 
@@ -186,8 +186,6 @@ export const EditMedia = forwardRef<
         })
         return
       }
-      // eslint-disable-next-line no-console
-      console.log('[EditMedia] upload ok', { id, url: next.url, kind: next.kind })
       ed.setMedia(id, { ...next, name: f.name })
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
@@ -251,59 +249,54 @@ export const EditMedia = forwardRef<
           only visual at the base of the stack. */}
       {!m && placeholder}
       {/* Uploaded media — host can render its own */}
-      {m && (renderMedia ? renderMedia(m) : m.kind === 'image' ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={m.url}
-          alt=""
-          style={cover}
-          onLoad={() => {
-            // eslint-disable-next-line no-console
-            console.log('[EditMedia] image loaded', { id, url: m.url })
-          }}
-          onError={(e) => {
-            const img = e.currentTarget
-            // eslint-disable-next-line no-console
-            console.error('[EditMedia] image failed to load', {
-              id,
-              url: m.url,
-              naturalWidth: img.naturalWidth,
-              naturalHeight: img.naturalHeight,
-            })
-            setLoadError(
-              `Image blocked or unreachable. Open ${m.url} in a new tab to test.`,
-            )
-          }}
-        />
-      ) : (
-        <video
-          src={m.url}
-          autoPlay
-          muted
-          loop
-          playsInline
-          style={cover}
-          onLoadedData={() => {
-            // eslint-disable-next-line no-console
-            console.log('[EditMedia] video loaded', { id, url: m.url })
-          }}
-          onError={(e) => {
-            const v = e.currentTarget
-            // eslint-disable-next-line no-console
-            console.error('[EditMedia] video failed to load', {
-              id,
-              url: m.url,
-              code: v.error?.code,
-              message: v.error?.message,
-              networkState: v.networkState,
-              readyState: v.readyState,
-            })
-            setLoadError(
-              `Video blocked or unreachable (code ${v.error?.code ?? '?'}).`,
-            )
-          }}
-        />
-      ))}
+      {m &&
+        (renderMedia ? (
+          renderMedia(m)
+        ) : m.kind === 'image' ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={m.url}
+            alt=""
+            style={cover}
+            onError={(e) => {
+              const img = e.currentTarget
+              // eslint-disable-next-line no-console
+              console.error('[EditMedia] image failed to load', {
+                id,
+                url: m.url,
+                naturalWidth: img.naturalWidth,
+                naturalHeight: img.naturalHeight,
+              })
+              setLoadError(
+                `Image blocked or unreachable. Open ${m.url} in a new tab to test.`,
+              )
+            }}
+          />
+        ) : (
+          <video
+            src={m.url}
+            autoPlay
+            muted
+            loop
+            playsInline
+            style={cover}
+            onError={(e) => {
+              const v = e.currentTarget
+              // eslint-disable-next-line no-console
+              console.error('[EditMedia] video failed to load', {
+                id,
+                url: m.url,
+                code: v.error?.code,
+                message: v.error?.message,
+                networkState: v.networkState,
+                readyState: v.readyState,
+              })
+              setLoadError(
+                `Video blocked or unreachable (code ${v.error?.code ?? '?'}).`,
+              )
+            }}
+          />
+        ))}
       {loadError && ed.mode === 'edit' && (
         <div
           style={{

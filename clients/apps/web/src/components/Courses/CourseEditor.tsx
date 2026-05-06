@@ -136,7 +136,6 @@ export default function CourseEditor({
     }
   }
 
-
   const handleReorderLessons = async (
     moduleId: string,
     orderedIds: string[],
@@ -166,7 +165,6 @@ export default function CourseEditor({
     }
   }
 
-
   const handleSaveLesson = async (edits: LessonEdits) => {
     if (!selectedLessonInfo) return
     setIsSaving(true)
@@ -176,9 +174,7 @@ export default function CourseEditor({
         ? 'quiz'
         : edits.media === 'video'
           ? 'video'
-          : edits.media === 'audio'
-            ? 'audio'
-            : 'text'
+          : 'text'
       const existingContent = (selectedLessonInfo.lesson.content ??
         {}) as Record<string, unknown>
       const nextContent: Record<string, unknown> = { ...existingContent }

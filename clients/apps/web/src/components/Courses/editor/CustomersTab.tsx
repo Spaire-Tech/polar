@@ -57,6 +57,34 @@ export function CustomersTab({
       )
     : rows
 
+  const handleDownloadCsv = () => {
+    const header = ['Name', 'Email', 'Role', 'Joined', 'Last active']
+    const escape = (v: string) => `"${v.replace(/"/g, '""')}"`
+    const lines = [
+      header.map(escape).join(','),
+      ...visibleRows.map((r) =>
+        [
+          r.name,
+          r.email,
+          r.role,
+          formatDate(r.joined),
+          formatDate(r.lastActive),
+        ]
+          .map(escape)
+          .join(','),
+      ),
+    ]
+    const blob = new Blob([lines.join('\n')], {
+      type: 'text/csv;charset=utf-8',
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${organization.slug}-customers.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="mx-auto w-full max-w-6xl px-8 py-8">
       <div className="mb-6 flex items-center justify-between gap-4">
@@ -64,12 +92,13 @@ export function CustomersTab({
           Customers ({rows.length})
         </h2>
         <div className="flex items-center gap-2">
-          <button className="flex items-center gap-1.5 text-sm text-gray-500 transition-colors hover:text-gray-700">
+          <button
+            onClick={handleDownloadCsv}
+            disabled={visibleRows.length === 0}
+            className="flex items-center gap-1.5 text-sm text-gray-500 transition-colors hover:text-gray-700 disabled:opacity-40"
+          >
             Download CSV
             <FileDownloadOutlined sx={{ fontSize: 16 }} />
-          </button>
-          <button className="rounded-full border border-gray-200 bg-white px-4 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50">
-            Add to waitlist
           </button>
         </div>
       </div>

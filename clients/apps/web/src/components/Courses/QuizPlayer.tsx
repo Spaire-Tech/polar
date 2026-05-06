@@ -14,7 +14,9 @@ import { useMemo, useState } from 'react'
 
 type SelectedByQuestion = Record<string, Set<string>>
 
-const buildInitialSelected = (questions: QuizQuestion[]): SelectedByQuestion => {
+const buildInitialSelected = (
+  questions: QuizQuestion[],
+): SelectedByQuestion => {
   const map: SelectedByQuestion = {}
   for (const q of questions) map[q.id] = new Set()
   return map
@@ -31,14 +33,12 @@ export const QuizPlayer = ({
   courseId: string
   onPassed?: () => void
 }) => {
-  const content = lesson.content as
-    | {
-        questions?: QuizQuestion[]
-        passing_grade?: number
-        hide_answers_on_results?: boolean
-        description?: string | null
-      }
-    | null
+  const content = lesson.content as {
+    questions?: QuizQuestion[]
+    passing_grade?: number
+    hide_answers_on_results?: boolean
+    description?: string | null
+  } | null
 
   const questions = useMemo(
     () => (content?.questions ?? []) as QuizQuestion[],
@@ -53,7 +53,11 @@ export const QuizPlayer = ({
   const [result, setResult] = useState<QuizAttemptResult | null>(null)
   const submit = useSubmitQuizAttempt(token, courseId)
 
-  const toggleOption = (questionId: string, optionId: string, multi: boolean) => {
+  const toggleOption = (
+    questionId: string,
+    optionId: string,
+    multi: boolean,
+  ) => {
     setSelected((prev) => {
       const current = new Set(prev[questionId] ?? [])
       if (multi) {
@@ -67,9 +71,7 @@ export const QuizPlayer = ({
     })
   }
 
-  const allAnswered = questions.every(
-    (q) => q.type === 'short_answer' || (selected[q.id]?.size ?? 0) > 0,
-  )
+  const allAnswered = questions.every((q) => (selected[q.id]?.size ?? 0) > 0)
 
   const handleSubmit = async () => {
     try {
@@ -162,8 +164,8 @@ export const QuizPlayer = ({
                             isCorrect
                               ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
                               : wasSelected
-                              ? 'border-amber-200 bg-amber-50 text-amber-800'
-                              : 'border-gray-100 text-gray-600',
+                                ? 'border-amber-200 bg-amber-50 text-amber-800'
+                                : 'border-gray-100 text-gray-600',
                           )}
                         >
                           <span className="mt-0.5">
@@ -193,7 +195,7 @@ export const QuizPlayer = ({
 
         <button
           onClick={handleRetry}
-          className="flex items-center justify-center gap-2 self-start rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+          className="flex items-center justify-center gap-2 self-start rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
         >
           <ReplayOutlined sx={{ fontSize: 16 }} />
           Try again
@@ -209,7 +211,6 @@ export const QuizPlayer = ({
       )}
       {questions.map((q, idx) => {
         const multi = q.type === 'multiple_select'
-        const isShort = q.type === 'short_answer'
         return (
           <div
             key={q.id}
@@ -221,45 +222,36 @@ export const QuizPlayer = ({
             <p className="mt-1 text-sm font-semibold text-gray-900">
               {q.text || 'Question'}
             </p>
-            {isShort ? (
-              <textarea
-                rows={3}
-                placeholder="Your answer"
-                disabled
-                className="mt-3 w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-400"
-              />
-            ) : (
-              <div className="mt-3 flex flex-col gap-1.5">
-                {q.options.map((option) => {
-                  const checked = (selected[q.id] ?? new Set()).has(option.id)
-                  return (
-                    <button
-                      key={option.id}
-                      onClick={() => toggleOption(q.id, option.id, multi)}
+            <div className="mt-3 flex flex-col gap-1.5">
+              {q.options.map((option) => {
+                const checked = (selected[q.id] ?? new Set()).has(option.id)
+                return (
+                  <button
+                    key={option.id}
+                    onClick={() => toggleOption(q.id, option.id, multi)}
+                    className={cn(
+                      'flex items-center gap-3 rounded-xl border px-3.5 py-3 text-left text-sm transition-colors',
+                      checked
+                        ? 'border-blue-500 bg-blue-50 text-blue-900'
+                        : 'border-gray-200 hover:border-gray-300',
+                    )}
+                  >
+                    <span
                       className={cn(
-                        'flex items-center gap-3 rounded-xl border px-3.5 py-3 text-left text-sm transition-colors',
+                        'flex h-5 w-5 shrink-0 items-center justify-center transition-colors',
+                        multi ? 'rounded' : 'rounded-full',
                         checked
-                          ? 'border-blue-500 bg-blue-50 text-blue-900'
-                          : 'border-gray-200 hover:border-gray-300',
+                          ? 'bg-blue-500 text-white'
+                          : 'border-2 border-gray-300 bg-white',
                       )}
                     >
-                      <span
-                        className={cn(
-                          'flex h-5 w-5 shrink-0 items-center justify-center transition-colors',
-                          multi ? 'rounded' : 'rounded-full',
-                          checked
-                            ? 'bg-blue-500 text-white'
-                            : 'border-2 border-gray-300 bg-white',
-                        )}
-                      >
-                        {checked && <CheckCircle sx={{ fontSize: 14 }} />}
-                      </span>
-                      <span>{option.text}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            )}
+                      {checked && <CheckCircle sx={{ fontSize: 14 }} />}
+                    </span>
+                    <span>{option.text}</span>
+                  </button>
+                )
+              })}
+            </div>
           </div>
         )
       })}
@@ -267,7 +259,7 @@ export const QuizPlayer = ({
       <button
         onClick={handleSubmit}
         disabled={!allAnswered || submit.isPending}
-        className="self-start rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+        className="self-start rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
       >
         {submit.isPending ? 'Submitting…' : 'Submit quiz'}
       </button>
