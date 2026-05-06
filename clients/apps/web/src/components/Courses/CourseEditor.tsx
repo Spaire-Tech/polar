@@ -176,9 +176,7 @@ export default function CourseEditor({
         ? 'quiz'
         : edits.media === 'video'
           ? 'video'
-          : edits.media === 'audio'
-            ? 'audio'
-            : 'text'
+          : 'text'
       const existingContent = (selectedLessonInfo.lesson.content ??
         {}) as Record<string, unknown>
       const nextContent: Record<string, unknown> = { ...existingContent }
@@ -333,7 +331,9 @@ export default function CourseEditor({
       />
     )
   } else {
-    mainContent = <CustomersTab organization={organization} />
+    mainContent = (
+      <CustomersTab organization={organization} courseId={course.id} />
+    )
   }
 
   const handleClose = () =>

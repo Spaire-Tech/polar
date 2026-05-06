@@ -294,6 +294,25 @@ class CourseService:
         statement = repo.get_by_customer_statement(customer_id)
         return await repo.get_all(statement)
 
+    async def list_enrollments_for_course(
+        self,
+        session: AsyncSession,
+        course_id: UUID,
+    ) -> Sequence[CourseEnrollment]:
+        repo = CourseEnrollmentRepository.from_session(session)
+        statement = repo.get_base_statement().where(
+            CourseEnrollment.course_id == course_id
+        )
+        return await repo.get_all(statement)
+
+    async def get_enrollment_by_id(
+        self,
+        session: AsyncSession,
+        enrollment_id: UUID,
+    ) -> CourseEnrollment | None:
+        repo = CourseEnrollmentRepository.from_session(session)
+        return await repo.get_by_id(enrollment_id)
+
     async def get_enrollment_for_customer(
         self,
         session: AsyncSession,

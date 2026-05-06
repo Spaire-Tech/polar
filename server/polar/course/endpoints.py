@@ -321,6 +321,65 @@ async def delete_lesson(
     await course_service.delete_lesson(session, lesson)
 
 
+@router.get("/{course_id}/enrollments")
+async def list_course_enrollments(
+    course_id: UUID,
+    auth_subject: auth.CoursesRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> list[dict]:
+    repo = CourseRepository.from_session(session)
+    course = await repo.get_readable_by_id(course_id, auth_subject)
+    if course is None:
+        raise HTTPException(status_code=404, detail="Course not found")
+    enrollments = await course_service.list_enrollments_for_course(
+        session, course_id
+    )
+    customer_ids = {e.customer_id for e in enrollments}
+    customers_by_id: dict[UUID, Customer] = {}
+    if customer_ids:
+        stmt = select(Customer).where(Customer.id.in_(customer_ids))
+        result = await session.execute(stmt)
+        for customer in result.scalars():
+            customers_by_id[customer.id] = customer
+    return [
+        {
+            "id": str(e.id),
+            "customer_id": str(e.customer_id),
+            "enrolled_at": e.enrolled_at.isoformat(),
+            "customer": (
+                {
+                    "id": str(customers_by_id[e.customer_id].id),
+                    "email": customers_by_id[e.customer_id].email,
+                    "name": customers_by_id[e.customer_id].name,
+                    "avatar_url": getattr(
+                        customers_by_id[e.customer_id], "avatar_url", None
+                    ),
+                }
+                if e.customer_id in customers_by_id
+                else None
+            ),
+        }
+        for e in enrollments
+    ]
+
+
+@router.delete("/{course_id}/enrollments/{enrollment_id}", status_code=204)
+async def revoke_course_enrollment(
+    course_id: UUID,
+    enrollment_id: UUID,
+    auth_subject: auth.CoursesWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> None:
+    repo = CourseRepository.from_session(session)
+    course = await repo.get_readable_by_id(course_id, auth_subject)
+    if course is None:
+        raise HTTPException(status_code=404, detail="Course not found")
+    enrollment = await course_service.get_enrollment_by_id(session, enrollment_id)
+    if enrollment is None or enrollment.course_id != course_id:
+        raise HTTPException(status_code=404, detail="Enrollment not found")
+    await course_service.revoke_enrollment(session, enrollment_id)
+
+
 @router.post("/{course_id}/modules/reorder", response_model=CourseRead)
 async def reorder_modules(
     course_id: UUID,

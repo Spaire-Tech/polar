@@ -101,10 +101,15 @@ export const MasterClassLessonViewer = ({
   const { data: savedNote } = useLessonNote(token, courseId, lesson.id)
   const upsertNote = useUpsertLessonNote(token, courseId, lesson.id)
 
+  const bookmarkKey = `polar:bookmark:${courseId}:${lesson.id}`
+
   useEffect(() => {
     setPlaying(false)
     setNoteText('')
-  }, [lesson.id])
+    if (typeof window !== 'undefined') {
+      setBookmarked(window.localStorage.getItem(bookmarkKey) === '1')
+    }
+  }, [lesson.id, bookmarkKey])
 
   useEffect(() => {
     if (savedNote !== undefined) {
@@ -120,6 +125,12 @@ export const MasterClassLessonViewer = ({
     }, 800)
   }
 
+  const handleClearNote = () => {
+    if (noteDebounceRef.current) clearTimeout(noteDebounceRef.current)
+    setNoteText('')
+    upsertNote.mutate('')
+  }
+
   const handleShare = async () => {
     if (typeof window === 'undefined') return
     try {
@@ -132,10 +143,14 @@ export const MasterClassLessonViewer = ({
   }
 
   const handleBookmark = () => {
-    setBookmarked((b) => !b)
-    if (!lesson.completed && !bookmarked) {
-      onMarkComplete()
-    }
+    setBookmarked((prev) => {
+      const next = !prev
+      if (typeof window !== 'undefined') {
+        if (next) window.localStorage.setItem(bookmarkKey, '1')
+        else window.localStorage.removeItem(bookmarkKey)
+      }
+      return next
+    })
   }
 
   const thumbnailSrc =
@@ -854,11 +869,39 @@ export const MasterClassLessonViewer = ({
                     <div
                       style={{
                         marginTop: 8,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
                         fontSize: 11,
                         color: 'oklch(0.66 0.006 280)',
                       }}
                     >
-                      {upsertNote.isPending ? 'Saving…' : 'Auto-saved'}
+                      <span>
+                        {upsertNote.isPending
+                          ? 'Saving…'
+                          : noteText.length === 0
+                            ? 'Type to start a note'
+                            : 'Auto-saved'}
+                      </span>
+                      {noteText.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleClearNote}
+                          disabled={upsertNote.isPending}
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 500,
+                            color: 'oklch(0.55 0.20 25)',
+                            background: 'transparent',
+                            border: 'none',
+                            cursor: 'pointer',
+                            padding: 0,
+                            fontFamily: fontStack,
+                          }}
+                        >
+                          Clear note
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}
