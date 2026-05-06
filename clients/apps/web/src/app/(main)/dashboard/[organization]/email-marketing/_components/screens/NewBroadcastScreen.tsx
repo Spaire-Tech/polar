@@ -375,103 +375,26 @@ const ComposerInner = ({
 
       <div
         style={{
-          display: 'grid',
-          gridTemplateColumns: '220px 1fr',
-          gap: 40,
+          marginBottom: 24,
+          display: 'flex',
+          gap: 6,
+          flexWrap: 'wrap',
         }}
       >
-        <div style={{ position: 'sticky', top: 32, alignSelf: 'flex-start' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {STEPS.map((s, i) => (
-              <button
-                key={s.id}
-                onClick={() => setStep(s.id)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                  padding: '11px 14px',
-                  borderRadius: 10,
-                  background:
-                    step === s.id ? 'var(--bg-softer)' : 'transparent',
-                  color: step === s.id ? 'var(--ink)' : 'var(--ink-3)',
-                  fontSize: 13.5,
-                  fontWeight: step === s.id ? 500 : 400,
-                  textAlign: 'left',
-                  transition: 'all 0.12s',
-                }}
-              >
-                <div
-                  style={{
-                    width: 22,
-                    height: 22,
-                    borderRadius: '50%',
-                    background:
-                      step === s.id ? 'var(--ink)' : 'var(--bg-softer)',
-                    color: step === s.id ? '#fff' : 'var(--ink-3)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 11,
-                    fontWeight: 600,
-                    border: step !== s.id ? '1px solid var(--line)' : 'none',
-                  }}
-                >
-                  {i + 1}
-                </div>
-                {s.label}
-              </button>
-            ))}
-          </div>
-          <div
-            style={{
-              marginTop: 24,
-              padding: '16px 14px',
-              background: 'var(--bg-soft)',
-              borderRadius: 12,
-              border: '1px solid var(--line)',
-            }}
-          >
-            <div
-              style={{
-                fontSize: 11.5,
-                fontWeight: 500,
-                color: 'var(--ink-3)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-                marginBottom: 8,
-              }}
+        <div className="tabs">
+          {STEPS.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => setStep(s.id)}
+              className={`tab ${step === s.id ? 'tab-active' : ''}`}
             >
-              Pre-send checklist
-            </div>
-            <Checklist
-              items={[
-                {
-                  label: 'Subject line',
-                  done: draft.subject.trim().length > 5,
-                },
-                {
-                  label: 'Preview text',
-                  done: draft.preview_text.trim().length > 5,
-                },
-                {
-                  label: 'Sender name',
-                  done: draft.sender_name.trim().length > 0,
-                },
-                {
-                  label: 'Content',
-                  done: draft.content_doc.blocks.length > 0,
-                },
-                {
-                  label: 'Audience confirmed',
-                  done: true,
-                },
-              ]}
-            />
-          </div>
+              {s.label}
+            </button>
+          ))}
         </div>
+      </div>
 
-        <div>
+      <div>
           {step === 'details' && (
             <DetailsSection
               draft={draft}
@@ -557,50 +480,10 @@ const ComposerInner = ({
               <Icon name="arrow-right" size={15} />
             </button>
           </div>
-        </div>
       </div>
     </div>
   )
 }
-
-const Checklist = ({
-  items,
-}: {
-  items: { label: string; done: boolean }[]
-}) => (
-  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-    {items.map((item, i) => (
-      <div
-        key={i}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          fontSize: 12.5,
-          color: item.done ? 'var(--ink-2)' : 'var(--ink-3)',
-        }}
-      >
-        <div
-          style={{
-            width: 16,
-            height: 16,
-            borderRadius: '50%',
-            background: item.done ? 'var(--ink)' : 'transparent',
-            border: item.done ? 'none' : '1.5px solid var(--line-2)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#fff',
-            flexShrink: 0,
-          }}
-        >
-          {item.done && <Icon name="check" size={10} strokeWidth={2.5} />}
-        </div>
-        {item.label}
-      </div>
-    ))}
-  </div>
-)
 
 const DetailsSection = ({
   draft,
@@ -627,6 +510,17 @@ const DetailsSection = ({
           style={{ fontSize: 15 }}
           maxLength={255}
         />
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            marginTop: 8,
+            fontSize: 11.5,
+            color: 'var(--ink-4)',
+          }}
+        >
+          <span>{draft.subject.length}/255</span>
+        </div>
       </div>
       <div style={{ marginBottom: 24 }}>
         <label className="label">Preview text</label>
@@ -2098,16 +1992,20 @@ const ScheduleOption = ({
       style={{
         padding: 18,
         textAlign: 'left',
-        borderColor: active ? 'var(--ink)' : 'var(--line)',
+        borderColor: active ? 'var(--indigo)' : 'var(--line)',
         borderWidth: active ? 2 : 1,
-        background: active ? 'var(--bg-soft)' : '#fff',
+        background: active ? 'var(--indigo-soft)' : '#fff',
+        boxShadow: active ? '0 8px 24px -10px rgba(99,91,255,0.25)' : 'none',
         transition: 'all 0.15s',
       }}
     >
       <Icon
         name={icon}
         size={18}
-        style={{ color: 'var(--ink-2)', marginBottom: 12 }}
+        style={{
+          color: active ? 'var(--indigo-2)' : 'var(--ink-2)',
+          marginBottom: 12,
+        }}
       />
       <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink)' }}>
         {title}

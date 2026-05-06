@@ -102,8 +102,7 @@ export default function EmailMarketingApp({
             </Link>
             <a href="#" className="brand">
               <span className="brand-text">
-                <span className="brand-name">spaire</span>
-                <span className="brand-product">Email&nbsp;·&nbsp;Studio</span>
+                <span className="brand-name">Email Studio</span>
               </span>
             </a>
             <span className="brand-divider" />

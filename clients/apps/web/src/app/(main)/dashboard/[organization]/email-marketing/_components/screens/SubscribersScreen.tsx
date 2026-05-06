@@ -25,25 +25,6 @@ type Filter = (typeof FILTERS)[number]['id']
 
 const PAGE_SIZE = 20
 
-const palette = [
-  '#FF6B35',
-  '#1A7A3E',
-  '#7B5BFF',
-  '#0066CC',
-  '#D6336C',
-  '#FF9500',
-  '#22A39F',
-  '#B3261E',
-  '#5856D6',
-  '#34C759',
-]
-
-const colorFor = (key: string) => {
-  let h = 0
-  for (let i = 0; i < key.length; i++) h = key.charCodeAt(i) + ((h << 5) - h)
-  return palette[Math.abs(h) % palette.length]
-}
-
 const initials = (name: string | null, email: string) => {
   const source = name?.trim() || email
   return source
@@ -344,7 +325,12 @@ export const SubscribersScreen = ({
                   >
                     <div
                       className="avatar"
-                      style={{ background: colorFor(s.email) }}
+                      style={{
+                        background: '#fff',
+                        color: 'var(--ink-2)',
+                        border: '1px solid var(--line)',
+                        fontWeight: 500,
+                      }}
                     >
                       {initials(s.name, s.email)}
                     </div>

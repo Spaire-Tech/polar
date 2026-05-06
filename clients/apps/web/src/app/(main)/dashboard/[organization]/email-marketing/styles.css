@@ -1,5 +1,5 @@
 /* Spaire Email Marketing — Poppins, Stripe-style slate + violet. Scoped to .spaire-email-app. */
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=League+Spartan:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 .spaire-email-app {
   /* Stripe-style palette — cool slate neutrals, single violet accent. */
@@ -373,23 +373,16 @@
   color: inherit;
 }
 .spaire-email-app .brand-text {
-  display: flex;
-  flex-direction: column;
+  display: inline-flex;
+  align-items: center;
   line-height: 1;
 }
 .spaire-email-app .brand-name {
-  font-family: 'Poppins', system-ui, sans-serif;
+  font-family: 'League Spartan', system-ui, sans-serif;
   font-size: 18px;
-  font-weight: 500;
-  letter-spacing: -0.015em;
-  color: var(--ink);
-}
-.spaire-email-app .brand-product {
-  font-size: 11px;
   font-weight: 400;
-  color: var(--ink-3);
-  letter-spacing: 0.04em;
-  margin-top: 4px;
+  letter-spacing: -0.005em;
+  color: var(--ink);
 }
 .spaire-email-app .brand-divider {
   width: 1px;
