@@ -10,6 +10,7 @@ import {
 import { schemas } from '@spaire/client'
 import { useState } from 'react'
 import { ActionMenu } from '../ActionMenu'
+import { fmtPctDelta, fmtPtDelta } from '../analyticsFormat'
 import { Icon } from '../Icon'
 import { MetricTile, Stat } from '../shared'
 
@@ -61,7 +62,10 @@ export const BroadcastsScreen = ({
     page,
     limit: PAGE_SIZE,
   })
-  const aggregateQuery = useBroadcastAggregateAnalytics(orgId)
+  const aggregateQuery = useBroadcastAggregateAnalytics(orgId, {
+    days: 30,
+    comparePrior: true,
+  })
   const subStatsQuery = useEmailSubscriberStats(orgId)
 
   const duplicateMutation = useDuplicateEmailBroadcast()
@@ -71,7 +75,9 @@ export const BroadcastsScreen = ({
   const items = broadcastsQuery.data?.items ?? []
   const totalCount = broadcastsQuery.data?.pagination.total_count ?? 0
   const maxPage = broadcastsQuery.data?.pagination.max_page ?? 1
-  const aggregate = aggregateQuery.data
+  const aggregate = aggregateQuery.data?.current
+  const aggregateDelta = aggregateQuery.data?.delta
+  const aggregateIndustry = aggregateQuery.data?.industry
   const subStats = subStatsQuery.data
 
   const onArchive = (b: BroadcastRow) => {
@@ -120,41 +126,45 @@ export const BroadcastsScreen = ({
         <MetricTile
           value={(aggregate?.total_sent ?? 0).toLocaleString()}
           label="Emails sent"
-          delta={
-            aggregate ? `${aggregate.delivered.toLocaleString()}` : undefined
-          }
-          deltaLabel="delivered"
-          subtle
+          delta={fmtPctDelta(aggregateDelta?.total_sent_pct)}
+          deltaLabel="last 30 days"
+          down={(aggregateDelta?.total_sent_pct ?? 0) < 0}
         />
         <MetricTile
           value={`${(aggregate?.open_rate ?? 0).toFixed(1)}%`}
           label="Avg. open rate"
-          delta={aggregate ? `${aggregate.opened.toLocaleString()}` : undefined}
-          deltaLabel="opens"
-          subtle
+          delta={fmtPtDelta(aggregateDelta?.open_rate_pt)}
+          deltaLabel={
+            aggregateIndustry
+              ? `vs industry ${aggregateIndustry.open_rate.toFixed(0)}%`
+              : 'vs prior 30d'
+          }
+          down={(aggregateDelta?.open_rate_pt ?? 0) < 0}
         />
         <MetricTile
           value={`${(aggregate?.click_rate ?? 0).toFixed(1)}%`}
           label="Avg. click rate"
-          delta={
-            aggregate ? `${aggregate.clicked.toLocaleString()}` : undefined
-          }
-          deltaLabel="clicks"
-          subtle
+          delta={fmtPtDelta(aggregateDelta?.click_rate_pt)}
+          deltaLabel="vs prior 30d"
+          down={(aggregateDelta?.click_rate_pt ?? 0) < 0}
         />
         <MetricTile
-          value={
-            aggregate && aggregate.total_sent
-              ? `${((aggregate.unsubscribed / aggregate.total_sent) * 100).toFixed(2)}%`
-              : '0%'
-          }
+          value={`${(aggregate?.unsub_rate ?? 0).toFixed(2)}%`}
           label="Avg. unsub rate"
           delta={
-            subStats ? `${subStats.unsubs_30d.toLocaleString()}` : undefined
+            aggregateDelta?.unsub_rate_pt !== undefined
+              ? fmtPtDelta(aggregateDelta.unsub_rate_pt)
+              : subStats
+                ? `${subStats.unsubs_30d.toLocaleString()}`
+                : undefined
           }
-          deltaLabel="unsubs / 30d"
+          deltaLabel={
+            aggregateDelta?.unsub_rate_pt !== undefined
+              ? 'vs prior 30d'
+              : 'unsubs / 30d'
+          }
           subtle
-          down
+          down={(aggregateDelta?.unsub_rate_pt ?? 0) > 0}
         />
       </div>
 

@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import Date, Select, cast, func, select, update
@@ -8,7 +8,10 @@ from polar.kit.repository import RepositoryBase, RepositorySoftDeletionMixin
 from polar.models import UserOrganization
 from polar.models.email_broadcast import EmailBroadcast
 from polar.models.email_broadcast_ab_test import EmailBroadcastABTest
-from polar.models.email_broadcast_send import EmailBroadcastSend, EmailBroadcastSendStatus
+from polar.models.email_broadcast_send import (
+    EmailBroadcastSend,
+    EmailBroadcastSendStatus,
+)
 from polar.models.email_subscriber import EmailSubscriber, EmailSubscriberStatus
 
 
@@ -161,9 +164,18 @@ class EmailBroadcastRepository(
         return result.scalar_one()
 
     async def get_aggregate_analytics(
-        self, organization_id: UUID
+        self,
+        organization_id: UUID,
+        *,
+        since: datetime | None = None,
+        until: datetime | None = None,
     ) -> dict[str, int]:
-        """Get aggregate analytics across all broadcasts for an org."""
+        """Get aggregate analytics across all broadcasts for an org.
+
+        Optional `since`/`until` constrain to a window — used by the
+        period-over-period delta query so the prior window can be
+        compared against the current one.
+        """
         statement = (
             select(
                 func.count(EmailBroadcastSend.id).label("total_sent"),
@@ -193,6 +205,10 @@ class EmailBroadcastRepository(
                 EmailBroadcastSend.deleted_at.is_(None),
             )
         )
+        if since is not None:
+            statement = statement.where(EmailBroadcastSend.created_at >= since)
+        if until is not None:
+            statement = statement.where(EmailBroadcastSend.created_at < until)
         result = await self.session.execute(statement)
         row = result.one()
         return {
@@ -370,6 +386,57 @@ class EmailBroadcastRepository(
                 }
             )
         return out
+
+    async def get_send_engagement_heatmap(
+        self, organization_id: UUID, days: int = 90
+    ) -> list[dict]:
+        """Buckets opens by (day-of-week, hour-of-day).
+
+        Returns one row per filled bucket so the API can shape it into a
+        7×24 matrix. `dow` is Postgres' EXTRACT semantics (0=Sunday).
+        Cells with fewer than 5 sends are flagged for the UI to grey
+        out — the rate is still returned so callers can choose to
+        ignore the threshold.
+        """
+        from polar.kit.utils import utc_now
+
+        cutoff = utc_now() - timedelta(days=days)
+        # Bucket every send by its created_at (the moment we queued the
+        # delivery). Open count comes from `opened_at` or `clicked_at`
+        # within the same bucket — Resend opens may arrive later but
+        # they're attributed to when the email was sent, which is what
+        # "best time to send" really asks.
+        dow = func.extract("dow", EmailBroadcastSend.created_at).label("dow")
+        hour = func.extract("hour", EmailBroadcastSend.created_at).label("hour")
+        opened_filter = EmailBroadcastSend.status.in_([
+            EmailBroadcastSendStatus.opened,
+            EmailBroadcastSendStatus.clicked,
+        ])
+        statement = (
+            select(
+                dow,
+                hour,
+                func.count(EmailBroadcastSend.id).label("sends"),
+                func.count(EmailBroadcastSend.id).filter(opened_filter).label("opens"),
+            )
+            .join(EmailBroadcast, EmailBroadcastSend.broadcast_id == EmailBroadcast.id)
+            .where(
+                EmailBroadcast.organization_id == organization_id,
+                EmailBroadcastSend.deleted_at.is_(None),
+                EmailBroadcastSend.created_at >= cutoff,
+            )
+            .group_by(dow, hour)
+        )
+        result = await self.session.execute(statement)
+        return [
+            {
+                "dow": int(row[0]),
+                "hour": int(row[1]),
+                "sends": int(row[2]),
+                "opens": int(row[3]),
+            }
+            for row in result.all()
+        ]
 
     async def get_daily_sends(
         self, organization_id: UUID, days: int = 30

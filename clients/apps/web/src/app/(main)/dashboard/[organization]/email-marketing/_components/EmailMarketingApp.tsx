@@ -186,7 +186,15 @@ export default function EmailMarketingApp({
             onOpened={(id) => setEditingSequenceId(id)}
           />
         )}
-        {tab === 'analytics' && <AnalyticsScreen organization={organization} />}
+        {tab === 'analytics' && (
+          <AnalyticsScreen
+            organization={organization}
+            onOpenBroadcast={(id) => {
+              setTab('broadcasts')
+              openBroadcast(id)
+            }}
+          />
+        )}
       </div>
     </div>
   )

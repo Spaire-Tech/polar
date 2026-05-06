@@ -1,6 +1,9 @@
+import csv
+import io
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-from fastapi import Depends, File, HTTPException, Query, UploadFile
+from fastapi import Depends, File, HTTPException, Query, Response, UploadFile
 from pydantic import UUID4
 
 from polar.config import settings
@@ -8,12 +11,21 @@ from polar.email_subscriber.auth import EmailSubscribersRead, EmailSubscribersWr
 from polar.exceptions import ResourceNotFound
 from polar.integrations.aws.s3 import S3Service
 from polar.kit.pagination import ListResource, PaginationParamsQuery
-from polar.postgres import AsyncReadSession, AsyncSession, get_db_read_session, get_db_session
+from polar.postgres import (
+    AsyncReadSession,
+    AsyncSession,
+    get_db_read_session,
+    get_db_session,
+)
 from polar.routing import APIRouter
 
 from .schemas import (
     EmailBroadcast as EmailBroadcastSchema,
+)
+from .schemas import (
     EmailBroadcastABTest as EmailBroadcastABTestSchema,
+)
+from .schemas import (
     EmailBroadcastABTestState,
     EmailBroadcastABTestUpsert,
     EmailBroadcastABVariantStats,
@@ -76,10 +88,99 @@ async def list_email_broadcasts(
 async def get_broadcast_aggregate_analytics(
     auth_subject: EmailSubscribersRead,
     organization_id: UUID = Query(),
+    days: int | None = Query(
+        default=None,
+        ge=1,
+        le=365,
+        description="Constrain to the last N days; omit for lifetime.",
+    ),
+    compare_prior: bool = Query(
+        default=False,
+        description="Include prior-window aggregate + delta map.",
+    ),
     session: AsyncReadSession = Depends(get_db_read_session),
 ) -> dict:
     return await email_broadcast_service.get_aggregate_analytics(
-        session, organization_id
+        session,
+        organization_id,
+        days=days,
+        compare_prior=compare_prior,
+    )
+
+
+@router.get("/engagement-heatmap")
+async def get_broadcast_engagement_heatmap(
+    auth_subject: EmailSubscribersRead,
+    organization_id: UUID = Query(),
+    days: int = Query(default=90, ge=7, le=365),
+    session: AsyncReadSession = Depends(get_db_read_session),
+) -> dict:
+    return await email_broadcast_service.get_engagement_heatmap(
+        session, organization_id, days=days
+    )
+
+
+@router.get("/export-analytics")
+async def export_broadcast_analytics(
+    auth_subject: EmailSubscribersRead,
+    organization_id: UUID = Query(),
+    days: int = Query(default=30, ge=1, le=365),
+    session: AsyncReadSession = Depends(get_db_read_session),
+) -> Response:
+    """Return a CSV bundle of the analytics screen.
+
+    Sections: aggregate metrics + delta, daily engagement, top
+    broadcasts (sent within the window), top links, devices.
+    """
+    payload = await email_broadcast_service.get_aggregate_analytics(
+        session, organization_id, days=days, compare_prior=True
+    )
+    daily = await email_broadcast_service.get_daily_engagement(
+        session, organization_id, days=days
+    )
+    top_links = await email_broadcast_service.get_top_links(
+        session, organization_id, days=days, limit=20
+    )
+    devices = await email_broadcast_service.get_device_share(
+        session, organization_id, days=max(days, 30)
+    )
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow([f"# Email analytics export — last {days} days"])
+    writer.writerow([])
+    writer.writerow(["Metric", "Value", "Prior", "Delta"])
+    current = payload.get("current") or {}
+    prior = payload.get("prior") or {}
+    delta = payload.get("delta") or {}
+    rows = [
+        ("Total sent", current.get("total_sent"), prior.get("total_sent"), delta.get("total_sent_pct")),
+        ("Open rate %", current.get("open_rate"), prior.get("open_rate"), delta.get("open_rate_pt")),
+        ("Click rate %", current.get("click_rate"), prior.get("click_rate"), delta.get("click_rate_pt")),
+        ("Unsub rate %", current.get("unsub_rate"), prior.get("unsub_rate"), delta.get("unsub_rate_pt")),
+    ]
+    for label, cur, pri, d in rows:
+        writer.writerow([label, cur, pri, d])
+    writer.writerow([])
+    writer.writerow(["Day", "Open rate %", "Click rate %"])
+    for r in daily:
+        writer.writerow([r.get("day"), r.get("open_rate"), r.get("click_rate")])
+    writer.writerow([])
+    writer.writerow(["Top links — URL", "Clicks", "CTR %"])
+    for r in top_links:
+        writer.writerow([r.get("url"), r.get("clicks"), r.get("ctr")])
+    writer.writerow([])
+    writer.writerow(["Device", "Share %"])
+    for r in devices:
+        writer.writerow([r.get("name"), r.get("share")])
+
+    csv_bytes = buf.getvalue().encode("utf-8")
+    today = datetime.now(UTC).date().isoformat()
+    filename = f"email-analytics-{today}.csv"
+    return Response(
+        content=csv_bytes,
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
@@ -355,6 +456,7 @@ async def upsert_email_broadcast_ab_test(
     if broadcast is None:
         raise ResourceNotFound()
     from fastapi import HTTPException
+
     from .service import BroadcastError
 
     try:
@@ -385,6 +487,7 @@ async def delete_email_broadcast_ab_test(
     if broadcast is None:
         raise ResourceNotFound()
     from fastapi import HTTPException
+
     from .service import BroadcastError
 
     try:

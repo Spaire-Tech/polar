@@ -203,20 +203,67 @@ export const useBulkCreateEmailSubscribers = (organizationId: string) =>
 
 // ── Broadcasts ──
 
-export const useBroadcastAggregateAnalytics = (organizationId: string) =>
-  useQuery({
-    queryKey: ['broadcast_aggregate_analytics', organizationId],
+export type BroadcastAggregateMetrics = {
+  total_sent: number
+  delivered: number
+  opened: number
+  clicked: number
+  unsubscribed: number
+  open_rate: number
+  click_rate: number
+  unsub_rate: number
+}
+
+export type BroadcastAggregateAnalytics = {
+  current: BroadcastAggregateMetrics
+  prior: BroadcastAggregateMetrics | null
+  delta: {
+    total_sent_pct?: number
+    open_rate_pt?: number
+    click_rate_pt?: number
+    unsub_rate_pt?: number
+  }
+  industry: { open_rate: number; click_rate: number }
+}
+
+export const useBroadcastAggregateAnalytics = (
+  organizationId: string,
+  options: { days?: number; comparePrior?: boolean } = {},
+) => {
+  const { days, comparePrior = false } = options
+  const params = new URLSearchParams({ organization_id: organizationId })
+  if (days != null) params.set('days', String(days))
+  if (comparePrior) params.set('compare_prior', 'true')
+  return useQuery({
+    queryKey: [
+      'broadcast_aggregate_analytics',
+      organizationId,
+      days,
+      comparePrior,
+    ],
     queryFn: () =>
-      fetchApi<{
-        total_sent: number
-        delivered: number
-        opened: number
-        clicked: number
-        unsubscribed: number
-        open_rate: number
-        click_rate: number
-      }>(
-        `/v1/email-broadcasts/aggregate-analytics?organization_id=${organizationId}`,
+      fetchApi<BroadcastAggregateAnalytics>(
+        `/v1/email-broadcasts/aggregate-analytics?${params.toString()}`,
+      ),
+    retry: defaultRetry,
+  })
+}
+
+export type BroadcastEngagementHeatmap = {
+  matrix: (number | null)[][]
+  sample_size: number
+  threshold: number
+}
+
+export const useBroadcastEngagementHeatmap = (
+  organizationId: string,
+  days = 90,
+) =>
+  useQuery({
+    queryKey: ['broadcast_engagement_heatmap', organizationId, days],
+    queryFn: () =>
+      fetchApi<BroadcastEngagementHeatmap>(
+        `/v1/email-broadcasts/engagement-heatmap?organization_id=${organizationId}&days=${days}`,
       ),
     retry: defaultRetry,
   })

@@ -1,17 +1,20 @@
 import random
 from collections.abc import Sequence
-from datetime import datetime
+from datetime import datetime, timedelta
 from uuid import UUID
 
 from polar.auth.models import AuthSubject, Organization, User
 from polar.exceptions import PolarError
-from polar.postgres import AsyncReadSession, AsyncSession
 from polar.kit.pagination import PaginationParams
 from polar.kit.utils import utc_now
 from polar.models.email_broadcast import EmailBroadcast, EmailBroadcastStatus
 from polar.models.email_broadcast_ab_test import EmailBroadcastABTest
-from polar.models.email_broadcast_send import EmailBroadcastSend, EmailBroadcastSendStatus
+from polar.models.email_broadcast_send import (
+    EmailBroadcastSend,
+    EmailBroadcastSendStatus,
+)
 from polar.models.email_subscriber import EmailSubscriber
+from polar.postgres import AsyncReadSession, AsyncSession
 from polar.worker import enqueue_job
 
 
@@ -24,6 +27,18 @@ class BroadcastAlreadySent(BroadcastError):
 
 from .render import render_blocks_to_html
 from .repository import EmailBroadcastABTestRepository, EmailBroadcastRepository
+
+
+def _pct_delta(current: float | int, prior: float | int) -> float:
+    """Percent-change of `current` relative to `prior`.
+
+    Returns 0 when both sides are 0; returns 100 when `prior` is 0 and
+    `current` is positive (avoids division by zero while still
+    surfacing the growth direction).
+    """
+    if not prior:
+        return 100.0 if current else 0.0
+    return float(current - prior) / float(prior) * 100.0
 
 
 class EmailBroadcastService:
@@ -481,28 +496,137 @@ class EmailBroadcastService:
         }
 
 
-    async def get_aggregate_analytics(
-        self,
-        session: AsyncReadSession,
-        organization_id: UUID,
-    ) -> dict[str, int | float]:
-        repository = EmailBroadcastRepository.from_session(session)
-        counts = await repository.get_aggregate_analytics(organization_id)
+    # Industry baselines surfaced on the analytics tiles. These are
+    # generic creator-newsletter benchmarks (Mailchimp/ConvertKit
+    # publish similar numbers); we expose them on the response so the
+    # frontend can render "+2.1pt vs industry 21%" without baking
+    # constants into the UI.
+    _INDUSTRY_OPEN_RATE = 21.0
+    _INDUSTRY_CLICK_RATE = 2.5
 
+    @staticmethod
+    def _shape_aggregate(counts: dict[str, int]) -> dict[str, int | float]:
         total_sent = counts["total_sent"]
         delivered = counts["delivered"]
         opened = counts["opened"]
         clicked = counts["clicked"]
         unsubscribed = counts["unsubscribed"]
-
+        # Use `delivered` as the denominator when we have webhook
+        # confirmations; otherwise fall back to `total_sent` so a
+        # workspace whose Resend webhooks haven't wired up still sees
+        # honest open/click rates rather than 0%.
+        denom = delivered if delivered > 0 else total_sent
+        open_rate = (opened / denom * 100) if denom > 0 else 0.0
+        click_rate = (clicked / denom * 100) if denom > 0 else 0.0
+        unsub_rate = (unsubscribed / denom * 100) if denom > 0 else 0.0
         return {
             "total_sent": total_sent,
             "delivered": delivered,
             "opened": opened,
             "clicked": clicked,
             "unsubscribed": unsubscribed,
-            "open_rate": (opened / delivered * 100) if delivered > 0 else 0.0,
-            "click_rate": (clicked / delivered * 100) if delivered > 0 else 0.0,
+            "open_rate": open_rate,
+            "click_rate": click_rate,
+            "unsub_rate": unsub_rate,
+        }
+
+    async def get_aggregate_analytics(
+        self,
+        session: AsyncReadSession,
+        organization_id: UUID,
+        *,
+        days: int | None = None,
+        compare_prior: bool = False,
+    ) -> dict:
+        """Aggregate analytics for the org.
+
+        When `days` is provided we constrain to the last N days; when
+        `compare_prior` is also set we run the same query for the
+        immediately preceding window (the same N days before that) and
+        return both alongside a delta map. The frontend uses this to
+        render "+12.4% vs prior 30d" on every tile.
+        """
+        repository = EmailBroadcastRepository.from_session(session)
+
+        since: datetime | None = None
+        until: datetime | None = None
+        prior: dict[str, int | float] | None = None
+        if days is not None:
+            now = utc_now()
+            since = now - timedelta(days=days)
+            until = now
+
+        current_counts = await repository.get_aggregate_analytics(
+            organization_id, since=since, until=until
+        )
+        current = self._shape_aggregate(current_counts)
+
+        delta: dict[str, float] = {}
+        if compare_prior and days is not None and since is not None:
+            prior_since = since - timedelta(days=days)
+            prior_until = since
+            prior_counts = await repository.get_aggregate_analytics(
+                organization_id, since=prior_since, until=prior_until
+            )
+            prior = self._shape_aggregate(prior_counts)
+            delta = {
+                "total_sent_pct": _pct_delta(
+                    current["total_sent"], prior["total_sent"]
+                ),
+                "open_rate_pt": float(current["open_rate"])
+                - float(prior["open_rate"]),
+                "click_rate_pt": float(current["click_rate"])
+                - float(prior["click_rate"]),
+                "unsub_rate_pt": float(current["unsub_rate"])
+                - float(prior["unsub_rate"]),
+            }
+
+        return {
+            "current": current,
+            "prior": prior,
+            "delta": delta,
+            "industry": {
+                "open_rate": self._INDUSTRY_OPEN_RATE,
+                "click_rate": self._INDUSTRY_CLICK_RATE,
+            },
+        }
+
+    async def get_engagement_heatmap(
+        self,
+        session: AsyncReadSession,
+        organization_id: UUID,
+        days: int = 90,
+    ) -> dict:
+        """7×24 (day-of-week × hour) open-rate heatmap.
+
+        Returns the matrix shape directly (`matrix[dow][hour] = rate
+        in 0..1 or null`) so the frontend can drop straight into the
+        SVG. Buckets with fewer than the threshold sample size return
+        null so the UI can render them as empty.
+        """
+        repository = EmailBroadcastRepository.from_session(session)
+        rows = await repository.get_send_engagement_heatmap(
+            organization_id, days=days
+        )
+        threshold = 5
+        matrix: list[list[float | None]] = [
+            [None for _ in range(24)] for _ in range(7)
+        ]
+        sample_total = 0
+        for row in rows:
+            sends = row["sends"]
+            opens = row["opens"]
+            sample_total += sends
+            if sends < threshold:
+                continue
+            dow = row["dow"]
+            hour = row["hour"]
+            if 0 <= dow < 7 and 0 <= hour < 24:
+                matrix[dow][hour] = (opens / sends) if sends > 0 else 0.0
+        return {
+            "matrix": matrix,
+            "sample_size": sample_total,
+            "threshold": threshold,
         }
 
     async def get_daily_sends(

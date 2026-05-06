@@ -1,7 +1,9 @@
+import { getServerURL } from '@/utils/api'
 import {
   useBroadcastAggregateAnalytics,
   useBroadcastDailyEngagement,
   useBroadcastDevices,
+  useBroadcastEngagementHeatmap,
   useBroadcastTopLinks,
   useEmailBroadcasts,
   useEmailSubscriberStats,
@@ -9,6 +11,8 @@ import {
 } from '@/hooks/queries/emailMarketing'
 import { schemas } from '@spaire/client'
 import { useState } from 'react'
+import { ActionMenu } from '../ActionMenu'
+import { fmtPctDelta, fmtPtDelta } from '../analyticsFormat'
 import { Icon } from '../Icon'
 import { MetricTile } from '../shared'
 
@@ -21,8 +25,10 @@ const RANGE_DAYS: Record<'7d' | '14d' | '30d' | '90d', number> = {
 
 export const AnalyticsScreen = ({
   organization,
+  onOpenBroadcast,
 }: {
   organization: schemas['Organization']
+  onOpenBroadcast?: (broadcastId: string) => void
 }) => {
   const [range, setRange] = useState<'7d' | '14d' | '30d' | '90d'>('14d')
   const days = RANGE_DAYS[range]
@@ -34,8 +40,15 @@ export const AnalyticsScreen = ({
   })
   const sentBroadcasts = broadcastsQuery.data?.items ?? []
 
-  const aggregateQuery = useBroadcastAggregateAnalytics(organization.id)
-  const aggregate = aggregateQuery.data
+  const aggregateQuery = useBroadcastAggregateAnalytics(organization.id, {
+    days,
+    comparePrior: true,
+  })
+  const aggregate = aggregateQuery.data?.current
+  const aggregateDelta = aggregateQuery.data?.delta
+  const aggregateIndustry = aggregateQuery.data?.industry
+
+  const heatmapQuery = useBroadcastEngagementHeatmap(organization.id, 90)
 
   const engagementQuery = useBroadcastDailyEngagement(organization.id, days)
   const engagementSeries = engagementQuery.data ?? []
@@ -94,7 +107,17 @@ export const AnalyticsScreen = ({
               </button>
             ))}
           </div>
-          <button className="btn btn-secondary">
+          <button
+            className="btn btn-secondary"
+            onClick={() =>
+              window.open(
+                getServerURL(
+                  `/v1/email-broadcasts/export-analytics?organization_id=${organization.id}&days=${days}`,
+                ),
+                '_blank',
+              )
+            }
+          >
             <Icon name="download" size={15} />
             Export
           </button>
@@ -112,37 +135,38 @@ export const AnalyticsScreen = ({
         <MetricTile
           value={(aggregate?.total_sent ?? 0).toLocaleString()}
           label="Emails sent"
-          delta={
-            aggregate ? `${aggregate.delivered.toLocaleString()}` : undefined
-          }
-          deltaLabel="delivered"
-          subtle
+          delta={fmtPctDelta(aggregateDelta?.total_sent_pct)}
+          deltaLabel={`vs prior ${days}d`}
+          down={(aggregateDelta?.total_sent_pct ?? 0) < 0}
         />
         <MetricTile
           value={`${(aggregate?.open_rate ?? 0).toFixed(1)}%`}
           label="Open rate"
-          delta={aggregate ? aggregate.opened.toLocaleString() : undefined}
-          deltaLabel="opens"
-          subtle
+          delta={fmtPtDelta(aggregateDelta?.open_rate_pt)}
+          deltaLabel={
+            aggregateIndustry
+              ? `vs industry ${aggregateIndustry.open_rate.toFixed(0)}%`
+              : `vs prior ${days}d`
+          }
+          down={(aggregateDelta?.open_rate_pt ?? 0) < 0}
         />
         <MetricTile
           value={`${(aggregate?.click_rate ?? 0).toFixed(1)}%`}
           label="Click rate"
-          delta={aggregate ? aggregate.clicked.toLocaleString() : undefined}
-          deltaLabel="clicks"
-          subtle
+          delta={fmtPtDelta(aggregateDelta?.click_rate_pt)}
+          deltaLabel={
+            aggregateIndustry
+              ? `vs industry ${aggregateIndustry.click_rate.toFixed(1)}%`
+              : `vs prior ${days}d`
+          }
+          down={(aggregateDelta?.click_rate_pt ?? 0) < 0}
         />
         <MetricTile
           value={(aggregate?.unsubscribed ?? 0).toLocaleString()}
           label="Unsubscribes"
-          delta={
-            aggregate && aggregate.total_sent
-              ? `${((aggregate.unsubscribed / aggregate.total_sent) * 100).toFixed(2)}%`
-              : undefined
-          }
-          deltaLabel="of sent"
-          subtle
-          down
+          delta={fmtPtDelta(aggregateDelta?.unsub_rate_pt)}
+          deltaLabel={`vs prior ${days}d`}
+          down={(aggregateDelta?.unsub_rate_pt ?? 0) > 0}
         />
       </div>
 
@@ -273,8 +297,21 @@ export const AnalyticsScreen = ({
               .slice(0, 5)
               .map((b) => {
                 const rate = b.analytics?.open_rate ?? 0
+                const handleOpen = () => onOpenBroadcast?.(b.id)
                 return (
-                  <div key={b.id}>
+                  <button
+                    type="button"
+                    key={b.id}
+                    onClick={handleOpen}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      padding: 0,
+                      textAlign: 'left',
+                      cursor: onOpenBroadcast ? 'pointer' : 'default',
+                      width: '100%',
+                    }}
+                  >
                     <div
                       style={{
                         display: 'flex',
@@ -321,7 +358,7 @@ export const AnalyticsScreen = ({
                         }}
                       />
                     </div>
-                  </div>
+                  </button>
                 )
               })}
             {!broadcastsQuery.isLoading && sentBroadcasts.length === 0 && (
@@ -386,7 +423,10 @@ export const AnalyticsScreen = ({
                     style={{ color: 'var(--ink-3)' }}
                   />
                 </div>
-                <div
+                <a
+                  href={l.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   style={{
                     flex: 1,
                     fontSize: 12.5,
@@ -395,10 +435,12 @@ export const AnalyticsScreen = ({
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
                     fontFamily: 'JetBrains Mono, monospace',
+                    textDecoration: 'none',
                   }}
+                  title={l.url}
                 >
                   {l.url}
-                </div>
+                </a>
                 <div
                   style={{
                     fontSize: 13,
@@ -418,6 +460,20 @@ export const AnalyticsScreen = ({
                 >
                   {l.ctr.toFixed(1)}%
                 </div>
+                <ActionMenu
+                  items={[
+                    {
+                      label: 'Copy URL',
+                      icon: 'copy',
+                      onClick: () => navigator.clipboard?.writeText(l.url),
+                    },
+                    {
+                      label: 'Open in new tab',
+                      icon: 'link',
+                      onClick: () => window.open(l.url, '_blank'),
+                    },
+                  ]}
+                />
               </div>
             ))}
           </div>
@@ -491,7 +547,7 @@ export const AnalyticsScreen = ({
           >
             Open-rate heatmap by day & hour, last 90 days.
           </p>
-          <Heatmap />
+          <Heatmap data={heatmapQuery.data ?? null} />
           <div
             style={{
               display: 'flex',
@@ -518,6 +574,20 @@ export const AnalyticsScreen = ({
             </div>
             <span>Higher</span>
           </div>
+          {heatmapQuery.data && heatmapQuery.data.sample_size > 0 && (
+            <div
+              style={{
+                marginTop: 8,
+                fontSize: 11,
+                color: 'var(--ink-4)',
+                textAlign: 'center',
+              }}
+            >
+              {heatmapQuery.data.sample_size.toLocaleString()} sends ·
+              buckets with under {heatmapQuery.data.threshold} sends are
+              greyed out.
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -712,16 +782,26 @@ const AreaChart = ({ data }: { data: { day: string; count: number }[] }) => {
   )
 }
 
-const Heatmap = () => {
-  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-  const cell = (d: number, h: number) => {
-    let v = 0.15
-    if (h >= 7 && h <= 10) v += 0.4
-    if (h >= 17 && h <= 19) v += 0.25
-    if (d === 1 || d === 2) v += 0.15
-    if (d >= 5) v -= 0.1
-    v += Math.sin(h * 1.3 + d) * 0.06
-    return Math.max(0.05, Math.min(0.95, v))
+const Heatmap = ({
+  data,
+}: {
+  data: { matrix: (number | null)[][] } | null
+}) => {
+  // Postgres extract(dow): 0=Sunday..6=Saturday. Reorder so the row
+  // axis reads Mon→Sun like the design.
+  const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+  const dowOrder = [1, 2, 3, 4, 5, 6, 0]
+  const matrix = data?.matrix
+  // Normalise so the busiest cell hits the strongest indigo. Without
+  // this, a workspace with low overall opens would render a uniformly
+  // pale grid.
+  let max = 0
+  if (matrix) {
+    for (const row of matrix) {
+      for (const cell of row) {
+        if (cell != null && cell > max) max = cell
+      }
+    }
   }
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 6 }}>
@@ -736,7 +816,7 @@ const Heatmap = () => {
           alignItems: 'flex-end',
         }}
       >
-        {days.map((d) => (
+        {labels.map((d) => (
           <div key={d} style={{ height: 18, lineHeight: '18px' }}>
             {d}
           </div>
@@ -765,7 +845,7 @@ const Heatmap = () => {
             </div>
           ))}
         </div>
-        {days.map((_, di) => (
+        {dowOrder.map((dow, di) => (
           <div
             key={di}
             style={{
@@ -775,16 +855,32 @@ const Heatmap = () => {
               marginBottom: 3,
             }}
           >
-            {Array.from({ length: 24 }).map((_, hi) => (
-              <div
-                key={hi}
-                style={{
-                  height: 18,
-                  background: `rgba(79,70,229,${cell(di, hi).toFixed(2)})`,
-                  borderRadius: 2,
-                }}
-              />
-            ))}
+            {Array.from({ length: 24 }).map((_, hi) => {
+              const value = matrix?.[dow]?.[hi]
+              const filled = value != null
+              const alpha =
+                filled && max > 0
+                  ? Math.max(0.05, Math.min(0.95, value / max))
+                  : 0
+              return (
+                <div
+                  key={hi}
+                  title={
+                    filled
+                      ? `${labels[di]} ${hi}:00 — ${(value * 100).toFixed(1)}% open rate`
+                      : `${labels[di]} ${hi}:00 — not enough data`
+                  }
+                  style={{
+                    height: 18,
+                    background: filled
+                      ? `rgba(79,70,229,${alpha.toFixed(2)})`
+                      : 'transparent',
+                    border: filled ? 'none' : '1px solid var(--line)',
+                    borderRadius: 2,
+                  }}
+                />
+              )
+            })}
           </div>
         ))}
       </div>
