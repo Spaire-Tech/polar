@@ -104,7 +104,11 @@ def _wait_until_time(value: dict, base: datetime) -> datetime:
 
 
 def schedule_wait(
-    value: dict, *, base: datetime, sequence_config: dict | None
+    value: dict,
+    *,
+    base: datetime,
+    sequence_config: dict | None,
+    subscriber_timezone: str | None = None,
 ) -> datetime | None:
     """Compute the next_step_at for a wait node.
 
@@ -120,7 +124,9 @@ def schedule_wait(
         return None
     else:
         candidate = base
-    return apply_send_window(candidate, sequence_config)
+    return apply_send_window(
+        candidate, sequence_config, subscriber_timezone=subscriber_timezone
+    )
 
 
 # ── Branch evaluation ─────────────────────────────────────────────────────────
@@ -318,7 +324,7 @@ async def process_one_step(
     enrollment: EmailSequenceEnrollment,
     sequence: EmailSequence,
     *,
-    send_email_node: "callable[[EmailSequence, EmailSequenceEnrollment, dict], None]",
+    send_email_node: "callable[[EmailSequence, EmailSequenceEnrollment, dict], dict | None]",
 ) -> None:
     """Walk a single iteration of the flow for `enrollment`.
 
@@ -356,16 +362,29 @@ async def process_one_step(
         value = node.get("value") or {}
 
         if node_type == "email":
-            # Sending is delegated; the caller advances flow_index + sets
-            # next_step_at appropriately for the *next* node so we exit here.
-            await send_email_node(sequence, enrollment, value)
+            # Sending is delegated; the callback may return
+            # `{"deferred_until": datetime}` to signal a frequency-cap
+            # throttle. In that case we leave flow_index where it is and
+            # park the enrolment until the deferral time.
+            outcome = await send_email_node(sequence, enrollment, value)
+            if isinstance(outcome, dict) and "deferred_until" in outcome:
+                deferred = outcome["deferred_until"]
+                if isinstance(deferred, datetime):
+                    enrollment.next_step_at = deferred
+                return
             enrollment.flow_index = advance_linear(index)
             enrollment.next_step_at = utc_now()
             return
 
         if node_type == "wait":
+            subscriber_tz = await _subscriber_timezone(
+                session, enrollment.subscriber_id
+            )
             next_at = schedule_wait(
-                value, base=utc_now(), sequence_config=sequence.trigger_config
+                value,
+                base=utc_now(),
+                sequence_config=sequence.trigger_config,
+                subscriber_timezone=subscriber_tz,
             )
             enrollment.flow_index = advance_linear(index)
             enrollment.next_step_at = next_at
@@ -384,15 +403,24 @@ async def process_one_step(
             child_type = child.get("type")
             child_value = child.get("value") or {}
             if child_type == "email":
-                await send_email_node(sequence, enrollment, child_value)
+                outcome = await send_email_node(sequence, enrollment, child_value)
+                if isinstance(outcome, dict) and "deferred_until" in outcome:
+                    deferred = outcome["deferred_until"]
+                    if isinstance(deferred, datetime):
+                        enrollment.next_step_at = deferred
+                    return
                 enrollment.flow_index = post_branch_index
                 enrollment.next_step_at = utc_now()
                 return
             if child_type == "wait":
+                subscriber_tz = await _subscriber_timezone(
+                    session, enrollment.subscriber_id
+                )
                 next_at = schedule_wait(
                     child_value,
                     base=utc_now(),
                     sequence_config=sequence.trigger_config,
+                    subscriber_timezone=subscriber_tz,
                 )
                 enrollment.flow_index = post_branch_index
                 enrollment.next_step_at = next_at
@@ -454,8 +482,23 @@ def initial_flow_index(flow: dict) -> int:
     return 0
 
 
+async def _subscriber_timezone(
+    session: AsyncSession, subscriber_id: UUID
+) -> str | None:
+    from polar.models.email_subscriber import EmailSubscriber
+
+    subscriber = await session.get(EmailSubscriber, subscriber_id)
+    if subscriber is None:
+        return None
+    return getattr(subscriber, "timezone", None)
+
+
 def initial_send_at(
-    flow: dict, sequence_config: dict | None, *, now: datetime | None = None
+    flow: dict,
+    sequence_config: dict | None,
+    *,
+    now: datetime | None = None,
+    subscriber_timezone: str | None = None,
 ) -> datetime | None:
     """Worker picks up the enrolment at this time and walks from index 0.
 
@@ -463,7 +506,9 @@ def initial_send_at(
     wait node itself on first tick, which avoids double-applying delays."""
     _ = flow
     base = now or utc_now()
-    return apply_send_window(base, sequence_config)
+    return apply_send_window(
+        base, sequence_config, subscriber_timezone=subscriber_timezone
+    )
 
 
 # Unused-imports guard — these stay imported so static analysers see the

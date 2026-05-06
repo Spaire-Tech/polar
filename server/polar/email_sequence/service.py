@@ -52,15 +52,21 @@ def trigger_config_matches(
     return True
 
 
-def apply_send_window(candidate: datetime, config: dict | None) -> datetime:
+def apply_send_window(
+    candidate: datetime,
+    config: dict | None,
+    *,
+    subscriber_timezone: str | None = None,
+) -> datetime:
     """Defer `candidate` to the next allowed send-window slot, if any.
 
     The window lives at `config.send_window` and supports:
       enabled: bool — short-circuit if false / missing
       days: list[int] — 0=Mon..6=Sun (defaults to weekdays)
       start_hour, end_hour: int — window in the configured timezone
-      timezone: IANA name (currently treated as UTC; full tz support is a
-        bigger change and not needed for the first round).
+      respect_timezone: bool — when true and `subscriber_timezone` is a
+        valid IANA name, the window's start_hour / end_hour are evaluated
+        in that tz. Otherwise everything is UTC.
     """
     if not config:
         return candidate
@@ -80,11 +86,19 @@ def apply_send_window(candidate: datetime, config: dict | None) -> datetime:
     start_hour = max(0, min(23, start_hour))
     end_hour = max(start_hour + 1, min(24, end_hour))
 
-    # Work entirely in UTC for now. The picker writes UTC hours by default.
+    target_tz = timezone.utc
+    if window.get("respect_timezone") and subscriber_timezone:
+        try:
+            from zoneinfo import ZoneInfo
+
+            target_tz = ZoneInfo(subscriber_timezone)
+        except Exception:
+            target_tz = timezone.utc
+
     moment = (
-        candidate.astimezone(timezone.utc)
+        candidate.astimezone(target_tz)
         if candidate.tzinfo
-        else candidate.replace(tzinfo=timezone.utc)
+        else candidate.replace(tzinfo=timezone.utc).astimezone(target_tz)
     )
     for _ in range(14):  # 2-week safety bound; windows always recur weekly
         if moment.weekday() in days_set:
@@ -95,14 +109,40 @@ def apply_send_window(candidate: datetime, config: dict | None) -> datetime:
                 hour=0, minute=0, second=0, microsecond=0
             ) + timedelta(hours=end_hour)
             if moment < window_start:
-                return window_start
+                return window_start.astimezone(timezone.utc)
             if moment < window_end:
-                return moment
+                return moment.astimezone(timezone.utc)
         moment = (
             moment.replace(hour=0, minute=0, second=0, microsecond=0)
             + timedelta(days=1)
         )
     return candidate
+
+
+# Workspace-wide cap on how many sequence emails a subscriber can receive
+# in a 7-day window. Override per-sequence with `send_window.frequency_cap`.
+DEFAULT_FREQUENCY_CAP = 3
+
+
+async def check_frequency_cap(
+    session: "AsyncSession",
+    subscriber_id: UUID,
+    *,
+    cap: int = DEFAULT_FREQUENCY_CAP,
+    window_days: int = 7,
+) -> bool:
+    """Return True when the subscriber has capacity for another sequence
+    send in the rolling window. Repository owns the actual query."""
+    from .repository import EmailSequenceRepository
+
+    if cap <= 0:
+        return True
+    repository = EmailSequenceRepository.from_session(session)
+    cutoff = utc_now() - timedelta(days=window_days)
+    count = await repository.count_recent_sends_for_subscriber(
+        subscriber_id, cutoff=cutoff
+    )
+    return count < cap
 
 
 class EmailSequenceError(PolarError): ...
@@ -374,13 +414,26 @@ class EmailSequenceService:
             initial_send_at,
         )
 
+        # Resolve subscriber tz (best-effort) so the first send respects it.
+        from polar.models.email_subscriber import EmailSubscriber
+
+        sub = await session.get(EmailSubscriber, subscriber_id)
+        sub_tz = getattr(sub, "timezone", None) if sub is not None else None
+
         flow = get_flow_doc(sequence)
         flow_index: int | None = None
         if flow is not None:
             flow_index = initial_flow_index(flow)
-            first_send = initial_send_at(flow, sequence.trigger_config, now=now)
+            first_send = initial_send_at(
+                flow,
+                sequence.trigger_config,
+                now=now,
+                subscriber_timezone=sub_tz,
+            )
         else:
-            first_send = apply_send_window(now, sequence.trigger_config)
+            first_send = apply_send_window(
+                now, sequence.trigger_config, subscriber_timezone=sub_tz
+            )
 
         enrollment = EmailSequenceEnrollment(
             sequence_id=sequence.id,
@@ -470,17 +523,23 @@ class EmailSequenceService:
         sequences = await repository.get_active_for_org_by_trigger(
             organization_id, trigger_type
         )
+        from .audience import evaluate_audience
         from .tags import has_any_tag
 
+        # Eagerly hydrate the subscriber once for audience evaluation; every
+        # candidate sequence reads from the same row.
+        subscriber = None
         for sequence in sequences:
             if not trigger_config_matches(sequence.trigger_config, trigger_filter):
                 continue
+            flow_doc = (sequence.trigger_config or {}).get("flow_doc")
+            audience = (
+                flow_doc.get("audience") if isinstance(flow_doc, dict) else None
+            )
             # Honour audience.excludeTags from the flow_doc — a subscriber
             # carrying any of those tags is dropped before we enqueue.
-            flow_doc = (sequence.trigger_config or {}).get("flow_doc")
             exclude_tags: list[str] = []
-            if isinstance(flow_doc, dict):
-                audience = flow_doc.get("audience") or {}
+            if isinstance(audience, dict):
                 tags = audience.get("excludeTags")
                 if isinstance(tags, list):
                     exclude_tags = [t for t in tags if isinstance(t, str) and t]
@@ -488,6 +547,24 @@ class EmailSequenceService:
                 session, subscriber_id, exclude_tags
             ):
                 continue
+            # Only resolve the rule list if the editor switched to "filtered"
+            # mode; defaults stay in the no-filter path so we skip the
+            # subscriber lookup entirely for "all" audiences.
+            if (
+                isinstance(audience, dict)
+                and audience.get("mode") == "filtered"
+                and (audience.get("filters") or [])
+            ):
+                if subscriber is None:
+                    from polar.models.email_subscriber import EmailSubscriber
+
+                    subscriber = await session.get(
+                        EmailSubscriber, subscriber_id
+                    )
+                if subscriber is None:
+                    continue
+                if not await evaluate_audience(session, subscriber, audience):
+                    continue
             enqueue_job(
                 "email_sequence.enroll_subscriber",
                 sequence_id=sequence.id,

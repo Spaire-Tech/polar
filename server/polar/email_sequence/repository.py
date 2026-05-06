@@ -195,6 +195,27 @@ class EmailSequenceRepository(
         result = await self.session.execute(statement)
         return {row[0]: row[1] for row in result.all()}
 
+    async def count_recent_sends_for_subscriber(
+        self,
+        subscriber_id: UUID,
+        *,
+        cutoff: datetime,
+    ) -> int:
+        """Count non-failed sequence sends to a subscriber since `cutoff`.
+
+        Used by the workspace-wide frequency cap. We exclude the failed
+        bucket so a transient send error doesn't count against the
+        subscriber's quota.
+        """
+        statement = select(func.count(EmailSequenceStepSend.id)).where(
+            EmailSequenceStepSend.subscriber_id == subscriber_id,
+            EmailSequenceStepSend.status != "failed",
+            EmailSequenceStepSend.deleted_at.is_(None),
+            EmailSequenceStepSend.created_at >= cutoff,
+        )
+        result = await self.session.execute(statement)
+        return int(result.scalar_one() or 0)
+
     async def get_step_analytics_counts(
         self, sequence_id: UUID
     ) -> dict[UUID, dict[str, int]]:

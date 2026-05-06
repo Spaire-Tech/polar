@@ -159,7 +159,7 @@ async def _process_legacy(
     subscriber: EmailSubscriber,
 ) -> None:
     from .repository import EmailSequenceRepository
-    from .service import apply_send_window
+    from .service import apply_send_window, check_frequency_cap
 
     repository = EmailSequenceRepository.from_session(session)
 
@@ -170,6 +170,25 @@ async def _process_legacy(
         enrollment.status = EmailSequenceEnrollmentStatus.completed
         enrollment.completed_at = utc_now()
         enrollment.next_step_at = None
+        return
+
+    # Frequency-cap for the legacy walker: defer if the subscriber has hit
+    # their workspace quota in the last 7 days. Because the legacy doc
+    # doesn't carry a frequencyCap toggle we always honour the default cap.
+    if not await check_frequency_cap(session, enrollment.subscriber_id):
+        base = utc_now() + timedelta(hours=24)
+        enrollment.next_step_at = apply_send_window(
+            base,
+            sequence.trigger_config,
+            subscriber_timezone=subscriber.timezone,
+        )
+        log.info(
+            "email_sequence.legacy.cap_deferred",
+            enrollment_id=str(enrollment.id),
+            deferred_until=enrollment.next_step_at.isoformat()
+            if enrollment.next_step_at
+            else None,
+        )
         return
 
     organization = await session.get(Organization, sequence.organization_id)
@@ -195,7 +214,9 @@ async def _process_legacy(
         enrollment.current_step_position = next_position
         candidate = utc_now() + timedelta(hours=next_step.delay_hours)
         enrollment.next_step_at = apply_send_window(
-            candidate, sequence.trigger_config
+            candidate,
+            sequence.trigger_config,
+            subscriber_timezone=subscriber.timezone,
         )
 
 
@@ -221,18 +242,43 @@ async def _send_email_node(
     subscriber: EmailSubscriber,
     organization: Organization | None,
     email_value: dict,
-) -> None:
+) -> dict | None:
     """Send an email node from the flow_doc.
 
     Looks up the corresponding EmailSequenceStep row by email-ordinal so
     analytics, send-test and step-send rows continue to tie back to the
     same step ids the editor already manages.
+
+    Returns `{"deferred_until": datetime}` when the frequency cap throttles
+    the send so the flow engine can park the enrolment without advancing
+    flow_index. Returns None on a successful send.
     """
     from .flow_engine import get_flow_doc
     from .repository import EmailSequenceRepository
+    from .service import apply_send_window, check_frequency_cap
+
+    flow = get_flow_doc(sequence)
+    send_cfg = (
+        (flow or {}).get("send") if isinstance(flow, dict) else None
+    ) or {}
+    if send_cfg.get("frequencyCap"):
+        if not await check_frequency_cap(session, enrollment.subscriber_id):
+            # Defer to the next eligible window slot (or just 24h out if
+            # no window is configured).
+            base = utc_now() + timedelta(hours=24)
+            deferred = apply_send_window(
+                base,
+                sequence.trigger_config,
+                subscriber_timezone=subscriber.timezone,
+            )
+            log.info(
+                "email_sequence.flow.cap_deferred",
+                enrollment_id=str(enrollment.id),
+                deferred_until=deferred.isoformat(),
+            )
+            return {"deferred_until": deferred}
 
     repository = EmailSequenceRepository.from_session(session)
-    flow = get_flow_doc(sequence)
     cursor = enrollment.flow_index if enrollment.flow_index is not None else 0
     ordinal = (
         _email_ordinal_for_flow_index(flow, cursor) if flow is not None else 0
@@ -255,7 +301,7 @@ async def _send_email_node(
         )
         # Bump current_step_position so legacy analytics keep marching forward.
         enrollment.current_step_position = ordinal + 1
-        return
+        return None
 
     await _send_email_step(
         session,
@@ -266,6 +312,7 @@ async def _send_email_node(
         step=step,
     )
     enrollment.current_step_position = ordinal + 1
+    return None
 
 
 async def _send_email_step(

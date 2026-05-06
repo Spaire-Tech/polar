@@ -354,7 +354,11 @@ const SequenceEditorInner = ({
       pause_on_unsubscribe: flow.send.pauseOnUnsub,
       send_window:
         flow.send.window === 'anytime'
-          ? { enabled: false }
+          ? {
+              enabled: false,
+              respect_timezone: flow.send.respectTimezone,
+              frequency_cap: flow.send.frequencyCap,
+            }
           : {
               enabled: true,
               days:
@@ -365,6 +369,8 @@ const SequenceEditorInner = ({
                     : [0, 1, 2, 3, 4],
               start_hour: parseInt(flow.send.start.split(':')[0] || '9', 10),
               end_hour: parseInt(flow.send.end.split(':')[0] || '17', 10) + 1,
+              respect_timezone: flow.send.respectTimezone,
+              frequency_cap: flow.send.frequencyCap,
             },
     }
     if (
