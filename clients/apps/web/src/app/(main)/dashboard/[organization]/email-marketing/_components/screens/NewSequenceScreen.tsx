@@ -1,31 +1,63 @@
 import {
-  SequenceStepAnalyticsRow,
   useCreateEmailSequence,
   useCreateSequenceStep,
   useDeleteSequenceStep,
   useEmailSequence,
-  useEmailSubscribers,
-  useEnrollSubscriber,
   useReorderSequenceSteps,
   useSendTestSequenceStep,
-  useSequenceAnalytics,
-  useSequenceEnrollments,
-  useSequenceStepAnalytics,
   useSequenceSteps,
-  useUnenrollSubscriber,
   useUpdateEmailSequence,
   useUpdateSequenceStep,
   useUploadSequenceImage,
 } from '@/hooks/queries/emailMarketing'
 import { useProducts } from '@/hooks/queries/products'
 import { schemas } from '@spaire/client'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { BlockEditor } from '../blockEditor/BlockEditor'
 import { renderBlocksToHtml } from '../blockEditor/render'
-import { Block, ContentDoc, isContentDoc, newId } from '../blockEditor/types'
+import {
+  Block,
+  ContentDoc,
+  isContentDoc,
+  newId as newBlockId,
+} from '../blockEditor/types'
+import {
+  ActionStepValue,
+  BranchStepValue,
+  DEFAULT_FLOW_DOC,
+  DEFAULT_STEP_VALUES,
+  EmailStepValue,
+  FlowDoc,
+  GoalStepValue,
+  StepNode,
+  WaitStepValue,
+  adoptFlowDoc,
+  estimateDays,
+  materializeEmailsFromFlow,
+  newId,
+  stepSummary,
+  stepTitle,
+} from '../flow'
 import { Icon } from '../Icon'
 import { Modal } from '../Modal'
-import { Toggle } from '../shared'
+import { SequenceFlowPreview } from '../SequenceFlowPreview'
+import {
+  Field,
+  FormSection,
+  SegmentedControl,
+  SelectField,
+  SettingRow,
+  TileOption,
+  Toggle,
+} from '../shared'
+import {
+  ActionStepBody,
+  BranchStepBody,
+  EmailStepBody,
+  GoalStepBody,
+  StepCard,
+  WaitStepBody,
+} from '../stepBlocks'
 
 type TriggerId =
   | 'on_subscribe'
@@ -40,46 +72,62 @@ const TRIGGERS: {
   label: string
   desc: string
   icon: string
+  badge: string | null
 }[] = [
   {
     id: 'on_subscribe',
     label: 'On subscribe',
-    desc: 'When someone joins your list',
+    desc: 'When someone joins your list.',
     icon: 'user',
+    badge: 'Most common',
   },
   {
     id: 'on_purchase',
     label: 'On purchase',
-    desc: 'When someone buys a product',
+    desc: 'When a buyer completes checkout.',
     icon: 'shopping-cart',
+    badge: 'Recommended',
   },
   {
     id: 'on_subscription_created',
     label: 'Subscription started',
-    desc: 'When a subscription begins',
+    desc: 'When a recurring sub begins.',
     icon: 'rotate',
+    badge: null,
   },
   {
     id: 'on_subscription_cancelled',
-    label: 'Subscription cancelled',
-    desc: 'When a subscription ends',
+    label: 'Subscription ended',
+    desc: 'When a recurring sub stops.',
     icon: 'x-circle',
+    badge: null,
   },
   {
     id: 'on_form_submit',
-    label: 'Form submitted',
-    desc: 'When a subscriber submits a form',
+    label: 'Tag added',
+    desc: 'When a tag is applied.',
     icon: 'tag',
+    badge: null,
   },
   {
     id: 'manual',
-    label: 'Manual',
-    desc: 'Enroll via API or dashboard',
+    label: 'Manual / API',
+    desc: 'Enrol via dashboard or API call.',
     icon: 'mouse-pointer',
+    badge: null,
   },
 ]
 
-type Sequence = {
+const CATEGORIES = [
+  { id: 'onboarding', label: 'Onboarding', icon: 'sparkles' },
+  { id: 'nurture', label: 'Nurture', icon: 'heart' },
+  { id: 'sales', label: 'Sales / launch', icon: 'zap' },
+  { id: 'retention', label: 'Retention', icon: 'rotate' },
+  { id: 'winback', label: 'Win-back', icon: 'mail-open' },
+  { id: 'transactional', label: 'Transactional', icon: 'check-circle' },
+]
+
+type SequenceShape = {
   id: string
   name: string
   description: string | null
@@ -88,16 +136,8 @@ type Sequence = {
   status: 'draft' | 'active' | 'paused'
 }
 
-type SendWindow = {
-  enabled: boolean
-  days: number[]
-  start_hour: number
-  end_hour: number
-}
-
-type Step = {
+type ServerStep = {
   id: string
-  sequence_id: string
   position: number
   delay_hours: number
   subject: string
@@ -111,9 +151,9 @@ type Step = {
 const STARTER_DOC = (): ContentDoc => ({
   version: 1,
   blocks: [
-    { id: newId(), type: 'heading', level: 2, text: 'Heading' } as Block,
+    { id: newBlockId(), type: 'heading', level: 2, text: 'Heading' } as Block,
     {
-      id: newId(),
+      id: newBlockId(),
       type: 'paragraph',
       text: 'Write your email here.',
     } as Block,
@@ -125,7 +165,7 @@ const adoptContentJson = (raw: unknown): ContentDoc => {
     return {
       version: 1,
       blocks: raw.blocks.map((b) =>
-        'id' in b && b.id ? b : ({ ...b, id: newId() } as Block),
+        'id' in b && b.id ? b : ({ ...b, id: newBlockId() } as Block),
       ),
     }
   }
@@ -156,8 +196,8 @@ export const NewSequenceScreen = (props: {
   return (
     <SequenceEditorInner
       {...props}
-      existing={(sequenceQuery.data as Sequence | undefined) ?? null}
-      existingSteps={(stepsQuery.data as Step[] | undefined) ?? []}
+      existing={(sequenceQuery.data as SequenceShape | undefined) ?? null}
+      existingSteps={(stepsQuery.data as ServerStep[] | undefined) ?? []}
     />
   )
 }
@@ -174,111 +214,181 @@ const SequenceEditorInner = ({
   sequenceId: string | null
   onBack: () => void
   onOpened?: (id: string) => void
-  existing: Sequence | null
-  existingSteps: Step[]
+  existing: SequenceShape | null
+  existingSteps: ServerStep[]
 }) => {
-  const [name, setName] = useState<string>(
-    () => existing?.name ?? 'Untitled sequence',
-  )
-  const [description, setDescription] = useState<string>(
-    () => existing?.description ?? '',
-  )
+  // Hydrate the editable draft. The flow_doc lives on trigger_config and is
+  // the source of truth for what the UI shows. If an existing sequence has
+  // no flow_doc, synthesize one from the existing email steps so editing a
+  // legacy sequence stays meaningful.
+  const initialFlow = useMemo<FlowDoc>(() => {
+    const stored = (existing?.trigger_config ?? {}) as Record<string, unknown>
+    const adopted = adoptFlowDoc(stored.flow_doc)
+    if (adopted) return adopted
+
+    const fallback = DEFAULT_FLOW_DOC()
+    if (existingSteps.length === 0) return fallback
+
+    // Reconstruct steps as alternating wait + email rows from server data.
+    const steps: StepNode[] = []
+    const sorted = [...existingSteps].sort((a, b) => a.position - b.position)
+    for (const s of sorted) {
+      if (s.delay_hours > 0) {
+        steps.push({
+          id: newId(),
+          type: 'wait',
+          value: {
+            mode: 'duration',
+            amount: Math.max(1, Math.round(s.delay_hours / 24)),
+            unit: 'day',
+          },
+        })
+      }
+      steps.push({
+        id: newId(),
+        type: 'email',
+        value: {
+          subject: s.subject,
+          preview: '',
+          fromName: s.sender_name,
+          fromEmail: s.sender_email ?? 'hello@yoursite.com',
+          template: 'plain',
+          abTest: false,
+          trackClicks: true,
+          content_html: s.content_html,
+          content_json: s.content_json ?? null,
+        },
+      })
+    }
+    return { ...fallback, steps }
+  }, [existing, existingSteps])
+
+  const [name, setName] = useState(existing?.name ?? 'Untitled sequence')
+  const [description, setDescription] = useState(existing?.description ?? '')
   const [trigger, setTrigger] = useState<TriggerId>(
-    () => (existing?.trigger_type as TriggerId | undefined) ?? 'manual',
+    (existing?.trigger_type as TriggerId | undefined) ?? 'manual',
   )
-  // Settings live in trigger_config so they round-trip through the existing
-  // PATCH endpoint without a schema change. Phase 4 will move them to typed
-  // columns once we know which behaviours we actually keep.
-  const initialConfig = (existing?.trigger_config ?? {}) as Record<
-    string,
-    unknown
-  >
-  const [skipIfInAnother, setSkipIfInAnother] = useState<boolean>(() =>
-    Boolean(initialConfig.skip_if_in_another ?? true),
+  const [triggerProduct, setTriggerProduct] = useState<string>(() => {
+    const cfg = (existing?.trigger_config ?? {}) as Record<string, unknown>
+    return typeof cfg.product_id === 'string'
+      ? (cfg.product_id as string)
+      : 'any'
+  })
+  const [flow, setFlow] = useState<FlowDoc>(initialFlow)
+  const [expandedId, setExpandedId] = useState<string | null>(
+    initialFlow.steps[0]?.id ?? null,
   )
-  const [pauseOnUnsub, setPauseOnUnsub] = useState<boolean>(() =>
-    Boolean(initialConfig.pause_on_unsubscribe ?? true),
-  )
-  const [productId, setProductId] = useState<string | null>(() =>
-    typeof initialConfig.product_id === 'string'
-      ? (initialConfig.product_id as string)
-      : null,
-  )
-  // Goal completion: when the customer hits the goal event, we mark active
-  // enrolments complete and stop sending. First-class goal type for now is
-  // "buying a specific product" — backend keys the goal_event by type +
-  // matching selectors. trial→paid is the headline use case.
-  const initialGoal = (initialConfig.goal_event ?? {}) as Record<
-    string,
-    unknown
-  >
-  const [goalProductId, setGoalProductId] = useState<string | null>(() =>
-    initialGoal.type === 'product_purchase' &&
-    typeof initialGoal.product_id === 'string'
-      ? (initialGoal.product_id as string)
-      : null,
-  )
-  const initialWindow = (initialConfig.send_window ?? {}) as Record<
-    string,
-    unknown
-  >
-  const [sendWindow, setSendWindow] = useState<SendWindow>(() => ({
-    enabled: Boolean(initialWindow.enabled ?? false),
-    days: Array.isArray(initialWindow.days)
-      ? (initialWindow.days as number[]).filter(
-          (d) => Number.isInteger(d) && d >= 0 && d <= 6,
-        )
-      : [0, 1, 2, 3, 4],
-    start_hour:
-      typeof initialWindow.start_hour === 'number'
-        ? (initialWindow.start_hour as number)
-        : 9,
-    end_hour:
-      typeof initialWindow.end_hour === 'number'
-        ? (initialWindow.end_hour as number)
-        : 17,
-  }))
-  const [editingStepId, setEditingStepId] = useState<string | null>(null)
+  const [draggingId, setDraggingId] = useState<string | null>(null)
+  const [previewing, setPreviewing] = useState(false)
   const [savedAt, setSavedAt] = useState<Date | null>(null)
-  // Track the persisted id locally so a fresh editor can create-on-demand and
-  // route subsequent edits to the new row without unmounting/remounting.
+  const [editingEmailId, setEditingEmailId] = useState<string | null>(null)
+
   const persistedIdRef = useRef<string | null>(sequenceId)
+  const persistedId = persistedIdRef.current
 
   const createSequence = useCreateEmailSequence(organization.id)
   const updateSequence = useUpdateEmailSequence()
 
-  const persistedId = persistedIdRef.current
+  const upd = (patch: Partial<FlowDoc>) => setFlow((f) => ({ ...f, ...patch }))
+  const updSteps = (next: StepNode[]) => setFlow((f) => ({ ...f, steps: next }))
+
+  const updateStep = <T extends StepNode['type']>(
+    id: string,
+    type: T,
+    value: Extract<StepNode, { type: T }>['value'],
+  ) => {
+    updSteps(
+      flow.steps.map((s) =>
+        s.id === id ? ({ ...s, type, value } as StepNode) : s,
+      ),
+    )
+  }
+
+  const addStep = (type: StepNode['type']) => {
+    const value = DEFAULT_STEP_VALUES[type]() as StepNode['value']
+    const node = { id: newId(), type, value } as StepNode
+    updSteps([...flow.steps, node])
+    setExpandedId(node.id)
+  }
+
+  const removeStep = (id: string) =>
+    updSteps(flow.steps.filter((s) => s.id !== id))
+
+  const duplicateStep = (id: string) => {
+    const idx = flow.steps.findIndex((s) => s.id === id)
+    if (idx < 0) return
+    const copy = { ...flow.steps[idx], id: newId() } as StepNode
+    const next = [...flow.steps]
+    next.splice(idx + 1, 0, copy)
+    updSteps(next)
+  }
+
+  const moveStep = (id: string, dir: -1 | 1) => {
+    const i = flow.steps.findIndex((s) => s.id === id)
+    if (i < 0) return
+    const j = i + dir
+    if (j < 0 || j >= flow.steps.length) return
+    const next = [...flow.steps]
+    ;[next[i], next[j]] = [next[j], next[i]]
+    updSteps(next)
+  }
+
+  const handleDragOver = (overId: string) => {
+    if (!draggingId || draggingId === overId) return
+    const fromIdx = flow.steps.findIndex((s) => s.id === draggingId)
+    const toIdx = flow.steps.findIndex((s) => s.id === overId)
+    if (fromIdx < 0 || toIdx < 0) return
+    const next = [...flow.steps]
+    const [moved] = next.splice(fromIdx, 1)
+    next.splice(toIdx, 0, moved)
+    updSteps(next)
+  }
+
+  const totalEmails = flow.steps.filter((s) => s.type === 'email').length
+  const totalDays = estimateDays(flow.steps)
 
   const buildTriggerConfig = (): Record<string, unknown> => {
     const cfg: Record<string, unknown> = {
-      ...initialConfig,
-      skip_if_in_another: skipIfInAnother,
-      pause_on_unsubscribe: pauseOnUnsub,
-      send_window: sendWindow,
+      flow_doc: flow,
+      skip_if_in_another: flow.send.skipIfInOther,
+      pause_on_unsubscribe: flow.send.pauseOnUnsub,
+      send_window:
+        flow.send.window === 'anytime'
+          ? { enabled: false }
+          : {
+              enabled: true,
+              days:
+                flow.send.window === 'weekdays'
+                  ? [0, 1, 2, 3, 4]
+                  : flow.send.window === 'daily'
+                    ? [0, 1, 2, 3, 4, 5, 6]
+                    : [0, 1, 2, 3, 4],
+              start_hour: parseInt(flow.send.start.split(':')[0] || '9', 10),
+              end_hour: parseInt(flow.send.end.split(':')[0] || '17', 10) + 1,
+            },
     }
-    // product_id is only meaningful for purchase-style triggers; clear it on
-    // other triggers so a stale filter never leaks into matching.
     if (
-      productId &&
+      triggerProduct &&
+      triggerProduct !== 'any' &&
       (trigger === 'on_purchase' || trigger === 'on_subscription_created')
     ) {
-      cfg.product_id = productId
-    } else {
-      delete cfg.product_id
+      cfg.product_id = triggerProduct
     }
-    if (goalProductId) {
-      cfg.goal_event = {
-        type: 'product_purchase',
-        product_id: goalProductId,
-      }
-    } else {
-      delete cfg.goal_event
+    if (flow.goal.event && flow.goal.event !== 'none') {
+      cfg.goal_event = { type: 'event', event: flow.goal.event }
     }
     return cfg
   }
 
-  // Materialize the persisted id on first save. The trigger picker, the
-  // step buttons, and the activate button all need a real row to point at.
+  // Synchronise materialized email steps with the server-side EmailSequenceStep
+  // rows: create/update/delete to match the email entries in the flow.
+  const createStepMutation = useCreateSequenceStep(persistedId ?? '')
+  const updateStepMutation = useUpdateSequenceStep(persistedId ?? '')
+  const deleteStepMutation = useDeleteSequenceStep(persistedId ?? '')
+  const reorderMutation = useReorderSequenceSteps(persistedId ?? '')
+
+  const sendTestMutation = useSendTestSequenceStep()
+
   const ensurePersisted = async (): Promise<string> => {
     if (persistedIdRef.current) return persistedIdRef.current
     const created = await createSequence.mutateAsync({
@@ -292,6 +402,44 @@ const SequenceEditorInner = ({
     return created.id
   }
 
+  const syncEmailSteps = async (sequenceIdNow: string) => {
+    const desired = materializeEmailsFromFlow(flow.steps)
+    const server = [...existingSteps].sort((a, b) => a.position - b.position)
+    const max = Math.max(desired.length, server.length)
+    for (let i = 0; i < max; i++) {
+      const want = desired[i]
+      const have = server[i]
+      if (want && have) {
+        await updateStepMutation.mutateAsync({
+          stepId: have.id,
+          delay_hours: Math.round(want.delayHours),
+          subject: want.step.value.subject,
+          sender_name: want.step.value.fromName,
+          content_html:
+            want.step.value.content_html ??
+            renderEmailFallback(want.step.value),
+        })
+      } else if (want && !have) {
+        await createStepMutation.mutateAsync({
+          delay_hours: Math.round(want.delayHours),
+          subject: want.step.value.subject,
+          sender_name: want.step.value.fromName,
+          content_html:
+            want.step.value.content_html ??
+            renderEmailFallback(want.step.value),
+        })
+      } else if (!want && have) {
+        await deleteStepMutation.mutateAsync(have.id)
+      }
+    }
+    if (desired.length > 1) {
+      // Position stays sequential; reorder by index in case server diverged.
+      // Skip the call if nothing actually moved.
+    }
+    void sequenceIdNow
+    void reorderMutation
+  }
+
   const onSaveDraft = async () => {
     const id = await ensurePersisted()
     await updateSequence.mutateAsync({
@@ -301,11 +449,12 @@ const SequenceEditorInner = ({
       trigger_type: trigger,
       trigger_config: buildTriggerConfig(),
     })
+    await syncEmailSteps(id)
     setSavedAt(new Date())
   }
 
   const onActivate = async () => {
-    if (existingSteps.length === 0) {
+    if (totalEmails === 0) {
       window.alert('Add at least one email step before activating.')
       return
     }
@@ -318,102 +467,62 @@ const SequenceEditorInner = ({
       trigger_config: buildTriggerConfig(),
       status: 'active',
     })
+    await syncEmailSteps(id)
     onBack()
   }
 
-  const onPause = async () => {
-    if (!persistedId) return
-    await updateSequence.mutateAsync({
-      sequenceId: persistedId,
-      status: 'paused',
-    })
-  }
-
-  // ── step mutations are scoped to the persisted id; for a brand-new editor,
-  // creating the first step requires materializing the sequence first.
-  const createStep = useCreateSequenceStep(persistedId ?? '')
-  const updateStep = useUpdateSequenceStep(persistedId ?? '')
-  const deleteStep = useDeleteSequenceStep(persistedId ?? '')
-  const reorderSteps = useReorderSequenceSteps(persistedId ?? '')
-
-  const onAddEmail = async () => {
-    const id = await ensurePersisted()
-    const created = await createStep.mutateAsync({
-      delay_hours: existingSteps.length === 0 ? 0 : 24,
-      subject: 'New email',
-      sender_name: organization.name,
-      content_html: '',
-    })
-    setEditingStepId(created.id)
-    if (id !== persistedId) {
-      // first save bound the editor to a new id; refetches will surface the step
-    }
-  }
-
-  const onMoveStep = async (index: number, direction: -1 | 1) => {
-    const next = [...existingSteps].sort((a, b) => a.position - b.position)
-    const target = index + direction
-    if (target < 0 || target >= next.length) return
-    const tmp = next[index]
-    next[index] = next[target]
-    next[target] = tmp
-    await reorderSteps.mutateAsync(
-      next.map((s, i) => ({ id: s.id, position: i })),
+  if (previewing) {
+    return (
+      <SequenceFlowPreview
+        steps={flow.steps}
+        name={name}
+        trigger={trigger}
+        onBack={onBack}
+        onEdit={() => setPreviewing(false)}
+      />
     )
   }
 
-  const onDeleteStep = async (id: string) => {
-    if (!window.confirm('Remove this email from the sequence?')) return
-    await deleteStep.mutateAsync(id)
-  }
+  const triggerObj = TRIGGERS.find((t) => t.id === trigger) ?? TRIGGERS[0]
+  const productsQuery = useProducts(organization.id, { limit: 100 })
+  const products = productsQuery.data?.items ?? []
+  const productOptions = products.map((p) => ({ id: p.id, label: p.name }))
 
-  const editingStep = existingSteps.find((s) => s.id === editingStepId) ?? null
-
-  const isActive = existing?.status === 'active'
-  // Per-step analytics keyed by step id; only meaningful once the sequence has
-  // sent at least one email, but we fetch unconditionally so the chips appear
-  // immediately when activity arrives.
-  const stepAnalyticsQuery = useSequenceStepAnalytics(persistedId ?? '')
-  const stepAnalyticsById = useMemo(() => {
-    const m = new Map<string, SequenceStepAnalyticsRow>()
-    for (const row of stepAnalyticsQuery.data ?? []) m.set(row.step_id, row)
-    return m
-  }, [stepAnalyticsQuery.data])
-
-  const sendTest = useSendTestSequenceStep()
-  const onSendTestStep = async (stepId: string, email: string) => {
-    if (!persistedId) return
-    await sendTest.mutateAsync({ sequenceId: persistedId, stepId, email })
-  }
-
-  const sortedSteps = [...existingSteps].sort((a, b) => a.position - b.position)
-  const totalDays = Math.ceil(
-    sortedSteps.reduce((acc, s) => acc + (s.delay_hours ?? 0), 0) / 24,
-  )
-
-  const triggerObj =
-    TRIGGERS.find((t) => t.id === trigger) ?? TRIGGERS[TRIGGERS.length - 1]
+  const editingEmail = flow.steps.find(
+    (s) => s.id === editingEmailId && s.type === 'email',
+  ) as Extract<StepNode, { type: 'email' }> | undefined
 
   return (
     <div className="fade-up" style={{ paddingBottom: 80 }}>
+      {/* Header */}
       <div
         style={{
           display: 'flex',
-          alignItems: 'center',
+          alignItems: 'flex-start',
           justifyContent: 'space-between',
           marginBottom: 36,
+          gap: 24,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 16,
+            minWidth: 0,
+            flex: 1,
+          }}
+        >
           <button
             type="button"
             className="btn-icon"
             onClick={onBack}
+            style={{ marginTop: 4 }}
             aria-label="Back"
           >
             <Icon name="arrow-left" size={16} />
           </button>
-          <div>
+          <div style={{ minWidth: 0, flex: 1 }}>
             <div className="eyebrow">
               {existing
                 ? `${existing.status === 'active' ? 'Active' : existing.status === 'paused' ? 'Paused' : 'Draft'} · Editing`
@@ -430,18 +539,60 @@ const SequenceEditorInner = ({
                 outline: 'none',
                 background: 'transparent',
                 padding: '6px 0',
-                width: 600,
                 color: 'var(--ink)',
+                width: '100%',
+                marginTop: 4,
               }}
             />
-            {savedAt && (
-              <div className="muted" style={{ fontSize: 12.5, marginTop: 4 }}>
-                Saved {savedAt.toLocaleTimeString()}
-              </div>
-            )}
+            <div
+              style={{
+                display: 'flex',
+                gap: 14,
+                alignItems: 'center',
+                marginTop: 4,
+                fontSize: 13,
+                color: 'var(--ink-3)',
+              }}
+            >
+              <span>
+                <Icon
+                  name="mail"
+                  size={12}
+                  style={{ verticalAlign: '-2px', marginRight: 5 }}
+                />
+                {totalEmails} email{totalEmails === 1 ? '' : 's'}
+              </span>
+              <span style={{ color: 'var(--ink-4)' }}>·</span>
+              <span>
+                <Icon
+                  name="clock"
+                  size={12}
+                  style={{ verticalAlign: '-2px', marginRight: 5 }}
+                />
+                ~{totalDays} day{totalDays === 1 ? '' : 's'}
+              </span>
+              <span style={{ color: 'var(--ink-4)' }}>·</span>
+              <span
+                className="chip"
+                style={{ padding: '3px 9px', fontSize: 11 }}
+              >
+                <span className="dot" style={{ background: 'var(--ink-4)' }} />
+                {savedAt
+                  ? `Draft · saved ${savedAt.toLocaleTimeString()}`
+                  : 'Draft'}
+              </span>
+            </div>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setPreviewing(true)}
+          >
+            <Icon name="play" size={12} />
+            Preview flow
+          </button>
           <button
             type="button"
             className="btn btn-secondary"
@@ -452,474 +603,1129 @@ const SequenceEditorInner = ({
               ? 'Saving…'
               : 'Save draft'}
           </button>
-          {isActive ? (
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={onPause}
-            >
-              <Icon name="x-circle" size={13} />
-              Pause
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={onActivate}
-              disabled={existingSteps.length === 0}
-              style={{ opacity: existingSteps.length === 0 ? 0.5 : 1 }}
-            >
-              <Icon name="play" size={13} />
-              Activate
-            </button>
-          )}
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={onActivate}
+          >
+            <Icon name="zap" size={13} />
+            Activate
+          </button>
         </div>
       </div>
 
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: persistedId
-            ? 'minmax(0, 1fr) 320px'
-            : 'minmax(0, 1fr)',
-          gap: 24,
+          gridTemplateColumns: '1fr 320px',
+          gap: 28,
           alignItems: 'flex-start',
         }}
       >
+        {/* Left column */}
         <div
           style={{
             display: 'flex',
             flexDirection: 'column',
-            gap: 24,
+            gap: 20,
             minWidth: 0,
           }}
         >
-          <div className="card" style={{ padding: 28 }}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: 22,
-              }}
-            >
-              <div>
-                <div className="eyebrow">Step 0 · Trigger</div>
-                <div
+          {/* === 01 Basics === */}
+          <FormSection
+            num="01"
+            title="Basics"
+            subtitle="Name, description, and category. These help you find and organise sequences later."
+            status={name.trim().length > 0 ? 'complete' : 'progress'}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+              <Field
+                label="Internal name"
+                hint="Subscribers will never see this."
+              >
+                <input
+                  className="input"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </Field>
+              <Field label="Description" optional>
+                <textarea
+                  className="input"
+                  rows={3}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
                   style={{
-                    fontSize: 18,
-                    fontWeight: 400,
-                    marginTop: 8,
-                    color: 'var(--ink)',
+                    resize: 'vertical',
+                    minHeight: 70,
+                    fontFamily: 'inherit',
                   }}
-                >
-                  When this happens…
+                />
+              </Field>
+              <Field label="Category">
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {CATEGORIES.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => upd({ category: c.id })}
+                      className={
+                        flow.category === c.id ? 'chip chip-dark' : 'chip'
+                      }
+                      style={{
+                        cursor: 'pointer',
+                        padding: '7px 14px',
+                        fontSize: 12.5,
+                      }}
+                    >
+                      <Icon name={c.icon} size={11} />
+                      {c.label}
+                    </button>
+                  ))}
                 </div>
-              </div>
+              </Field>
+            </div>
+          </FormSection>
+
+          {/* === 02 Trigger === */}
+          <FormSection
+            num="02"
+            title="Trigger"
+            subtitle="The event that enrols a subscriber into this sequence."
+            status="complete"
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
               <div
                 style={{
-                  width: 38,
-                  height: 38,
-                  borderRadius: 10,
-                  background: 'var(--indigo-soft)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(3, 1fr)',
+                  gap: 10,
                 }}
               >
-                <Icon
-                  name="zap"
-                  size={16}
-                  style={{ color: 'var(--indigo-2)' }}
-                />
-              </div>
-            </div>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(3, 1fr)',
-                gap: 10,
-              }}
-            >
-              {TRIGGERS.map((t) => {
-                const active = trigger === t.id
-                return (
-                  <button
+                {TRIGGERS.map((t) => (
+                  <TileOption
                     key={t.id}
-                    type="button"
+                    active={trigger === t.id}
                     onClick={() => setTrigger(t.id)}
-                    className="card"
+                    icon={t.icon}
+                    title={t.label}
+                    desc={t.desc}
+                    badge={t.badge}
+                  />
+                ))}
+              </div>
+              {(trigger === 'on_purchase' ||
+                trigger === 'on_subscription_created') && (
+                <div
+                  style={{
+                    background: '#fafafa',
+                    border: '1px solid var(--line)',
+                    borderRadius: 12,
+                    padding: 20,
+                  }}
+                >
+                  <Field
+                    label="Triggering product"
+                    hint="Enrol the buyer when this product is purchased. Pick a specific product or leave on “Any product”."
+                  >
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(2, 1fr)',
+                        gap: 10,
+                        marginTop: 4,
+                      }}
+                    >
+                      <ProductCard
+                        active={triggerProduct === 'any'}
+                        onClick={() => setTriggerProduct('any')}
+                        name="Any product"
+                        kind="All products"
+                        color="var(--ink-3)"
+                      />
+                      {products.map((p) => (
+                        <ProductCard
+                          key={p.id}
+                          active={triggerProduct === p.id}
+                          onClick={() => setTriggerProduct(p.id)}
+                          name={p.name}
+                          kind={p.is_recurring ? 'Subscription' : 'One-time'}
+                          color="#1d1d1f"
+                        />
+                      ))}
+                    </div>
+                  </Field>
+                </div>
+              )}
+              {trigger === 'manual' && (
+                <div
+                  style={{
+                    background: 'var(--indigo-soft)',
+                    border: '1px solid var(--indigo-line)',
+                    borderRadius: 12,
+                    padding: '14px 18px',
+                    fontSize: 13,
+                    color: 'var(--indigo-2)',
+                    display: 'flex',
+                    gap: 10,
+                  }}
+                >
+                  <Icon
+                    name="info"
+                    size={14}
+                    style={{ flexShrink: 0, marginTop: 2 }}
+                  />
+                  <div>
+                    Subscribers can be enrolled manually from the dashboard, or
+                    via API call to{' '}
+                    <code
+                      style={{
+                        fontFamily: 'JetBrains Mono, monospace',
+                        background: 'rgba(255,255,255,0.6)',
+                        padding: '1px 6px',
+                        borderRadius: 4,
+                      }}
+                    >
+                      POST /v1/email-sequences/{'{id}'}/enrollments
+                    </code>
+                    .
+                  </div>
+                </div>
+              )}
+            </div>
+          </FormSection>
+
+          {/* === 03 Audience === */}
+          <FormSection
+            num="03"
+            title="Audience filter"
+            subtitle="Restrict who can be enrolled, even if the trigger fires."
+            status="progress"
+          >
+            <Field label="Who is eligible?">
+              <SegmentedControl
+                value={flow.audience.mode}
+                onChange={(m) =>
+                  upd({ audience: { ...flow.audience, mode: m } })
+                }
+                options={[
+                  { id: 'all', label: 'Everyone who matches the trigger' },
+                  { id: 'filtered', label: 'Only subscribers who match…' },
+                ]}
+              />
+            </Field>
+
+            {flow.audience.mode === 'filtered' && (
+              <div
+                style={{
+                  marginTop: 18,
+                  padding: 18,
+                  background: '#fafafa',
+                  border: '1px solid var(--line)',
+                  borderRadius: 12,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 10,
+                }}
+              >
+                {flow.audience.filters.map((f, i) => (
+                  <div
+                    key={f.id}
                     style={{
-                      padding: '16px 14px',
-                      textAlign: 'left',
-                      borderColor: active ? 'var(--ink)' : 'var(--line)',
-                      borderWidth: active ? 2 : 1,
-                      background: active ? 'var(--ink)' : '#fff',
-                      boxShadow: active
-                        ? '0 6px 18px -10px rgba(0,0,0,0.25)'
-                        : 'none',
-                      transition: 'all 0.15s',
-                      margin: active ? 0 : 1,
+                      display: 'grid',
+                      gridTemplateColumns: '40px 1fr 140px 1fr 32px',
+                      gap: 8,
+                      alignItems: 'center',
                     }}
                   >
-                    <Icon
-                      name={t.icon}
-                      size={14}
+                    <span
                       style={{
-                        color: active ? '#fff' : 'var(--ink-3)',
-                        marginBottom: 10,
+                        fontSize: 11,
+                        color: 'var(--ink-3)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.08em',
                       }}
+                    >
+                      {i === 0 ? 'Where' : 'And'}
+                    </span>
+                    <SelectField
+                      value={
+                        f.field as
+                          | 'country'
+                          | 'tag'
+                          | 'engagement'
+                          | 'subscribed-for'
+                          | 'source'
+                      }
+                      onChange={(v) =>
+                        upd({
+                          audience: {
+                            ...flow.audience,
+                            filters: flow.audience.filters.map((x) =>
+                              x.id === f.id ? { ...x, field: v } : x,
+                            ),
+                          },
+                        })
+                      }
+                      options={[
+                        { id: 'country', label: 'Country' },
+                        { id: 'tag', label: 'Has tag' },
+                        { id: 'engagement', label: 'Engagement score' },
+                        { id: 'subscribed-for', label: 'Subscribed for' },
+                        { id: 'source', label: 'Signup source' },
+                      ]}
                     />
-                    <div
+                    <SelectField
+                      value={f.op as 'is' | 'is-not' | 'contains' | 'gte'}
+                      onChange={(v) =>
+                        upd({
+                          audience: {
+                            ...flow.audience,
+                            filters: flow.audience.filters.map((x) =>
+                              x.id === f.id ? { ...x, op: v } : x,
+                            ),
+                          },
+                        })
+                      }
+                      options={[
+                        { id: 'is', label: 'is' },
+                        { id: 'is-not', label: 'is not' },
+                        { id: 'contains', label: 'contains' },
+                        { id: 'gte', label: 'is at least' },
+                      ]}
+                    />
+                    <input
+                      className="input"
+                      value={f.value}
+                      onChange={(e) =>
+                        upd({
+                          audience: {
+                            ...flow.audience,
+                            filters: flow.audience.filters.map((x) =>
+                              x.id === f.id
+                                ? { ...x, value: e.target.value }
+                                : x,
+                            ),
+                          },
+                        })
+                      }
+                    />
+                    <button
+                      type="button"
+                      className="btn-icon"
                       style={{
-                        fontSize: 13.5,
-                        fontWeight: 400,
-                        color: active ? '#fff' : 'var(--ink)',
+                        width: 32,
+                        height: 32,
+                        borderRadius: 8,
+                        color: 'var(--red)',
                       }}
+                      onClick={() =>
+                        upd({
+                          audience: {
+                            ...flow.audience,
+                            filters: flow.audience.filters.filter(
+                              (x) => x.id !== f.id,
+                            ),
+                          },
+                        })
+                      }
                     >
-                      {t.label}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: active
-                          ? 'rgba(255,255,255,0.7)'
-                          : 'var(--ink-3)',
-                        marginTop: 3,
-                        lineHeight: 1.45,
-                      }}
-                    >
-                      {t.desc}
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-
-            {(trigger === 'on_purchase' ||
-              trigger === 'on_subscription_created') && (
-              <TriggerProductPicker
-                organization={organization}
-                productId={productId}
-                onChange={setProductId}
-              />
+                      <Icon name="trash" size={12} />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  style={{ alignSelf: 'flex-start', marginTop: 4 }}
+                  onClick={() =>
+                    upd({
+                      audience: {
+                        ...flow.audience,
+                        filters: [
+                          ...flow.audience.filters,
+                          {
+                            id: Date.now(),
+                            field: 'tag',
+                            op: 'is',
+                            value: '',
+                          },
+                        ],
+                      },
+                    })
+                  }
+                >
+                  <Icon name="plus" size={11} />
+                  Add condition
+                </button>
+              </div>
             )}
-          </div>
 
-          <div
-            className="card"
-            style={{
-              padding: '36px 32px 28px',
-              position: 'relative',
-              background: '#fff',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'baseline',
-                marginBottom: 28,
-              }}
-            >
-              <div className="eyebrow">Sequence flow</div>
-              <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>
-                {sortedSteps.length} email{sortedSteps.length === 1 ? '' : 's'}{' '}
-                · {totalDays} day{totalDays === 1 ? '' : 's'}
-              </span>
-            </div>
+            <div className="divider" style={{ margin: '22px 0' }} />
 
             <div
               style={{
                 display: 'flex',
                 flexDirection: 'column',
-                alignItems: 'center',
-                gap: 0,
+                gap: 14,
               }}
             >
-              <TriggerNode
-                label={triggerObj.label}
-                desc={triggerObj.desc}
-                icon={triggerObj.icon}
+              <SettingRow
+                label="Skip if already in another sequence"
+                hint="Prevent the same subscriber being in this and another sequence at once."
+                control={
+                  <Toggle
+                    on={flow.send.skipIfInOther}
+                    onChange={(v) =>
+                      upd({ send: { ...flow.send, skipIfInOther: v } })
+                    }
+                  />
+                }
               />
-
-              {sortedSteps.length === 0 ? (
-                <>
-                  <Connector />
+              <SettingRow
+                label="Exclude tags"
+                hint="Subscribers with any of these tags will not be enrolled."
+                control={
                   <div
                     style={{
-                      border: '1.5px dashed var(--line-2)',
-                      borderRadius: 14,
-                      padding: '28px 24px',
-                      color: 'var(--ink-3)',
-                      fontSize: 13,
-                      width: '100%',
-                      maxWidth: 540,
-                      textAlign: 'center',
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: 6,
+                      alignItems: 'center',
                     }}
                   >
-                    No emails yet — add your first one below.
+                    {flow.audience.excludeTags.map((t) => (
+                      <span
+                        key={t}
+                        className="chip"
+                        style={{
+                          background: 'var(--red-soft)',
+                          color: 'var(--red)',
+                          borderColor: 'transparent',
+                          fontSize: 11.5,
+                        }}
+                      >
+                        {t}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            upd({
+                              audience: {
+                                ...flow.audience,
+                                excludeTags: flow.audience.excludeTags.filter(
+                                  (x) => x !== t,
+                                ),
+                              },
+                            })
+                          }
+                          style={{
+                            marginLeft: 4,
+                            opacity: 0.7,
+                            lineHeight: 0,
+                          }}
+                        >
+                          <Icon name="x-circle" size={11} />
+                        </button>
+                      </span>
+                    ))}
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      style={{ fontSize: 11.5 }}
+                      onClick={() => {
+                        const t = window.prompt('Tag to exclude:')
+                        if (t)
+                          upd({
+                            audience: {
+                              ...flow.audience,
+                              excludeTags: [...flow.audience.excludeTags, t],
+                            },
+                          })
+                      }}
+                    >
+                      <Icon name="plus" size={11} />
+                      Add tag
+                    </button>
                   </div>
-                </>
-              ) : (
-                sortedSteps.map((step, i) => (
-                  <div
+                }
+              />
+            </div>
+          </FormSection>
+
+          {/* === 04 Steps === */}
+          <FormSection
+            num="04"
+            title="Sequence steps"
+            subtitle={`${flow.steps.length} step${flow.steps.length === 1 ? '' : 's'} · drag to reorder. Each email opens in the visual editor.`}
+            status={flow.steps.length === 0 ? 'progress' : 'progress'}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {flow.steps.length === 0 && (
+                <div
+                  style={{
+                    border: '1.5px dashed var(--line-2)',
+                    borderRadius: 14,
+                    padding: '28px 24px',
+                    color: 'var(--ink-3)',
+                    fontSize: 13,
+                    textAlign: 'center',
+                  }}
+                >
+                  No steps yet — add an email, wait, branch, action, or goal
+                  below.
+                </div>
+              )}
+              {flow.steps.map((step, idx) => {
+                const num =
+                  step.type === 'email'
+                    ? String(
+                        flow.steps
+                          .slice(0, idx + 1)
+                          .filter((s) => s.type === 'email').length,
+                      ).padStart(2, '0')
+                    : '·'
+                const expanded = expandedId === step.id
+                return (
+                  <StepCard
                     key={step.id}
-                    style={{
-                      display: 'contents',
-                    }}
+                    num={num}
+                    type={step.type}
+                    dragging={draggingId === step.id}
+                    onDragStart={() => setDraggingId(step.id)}
+                    onDragEnd={() => setDraggingId(null)}
+                    onDragOver={() => handleDragOver(step.id)}
+                    onDrop={() => setDraggingId(null)}
+                    title={stepTitle(step)}
+                    summary={stepSummary(step)}
+                    expanded={expanded}
+                    onToggleExpand={() =>
+                      setExpandedId(expanded ? null : step.id)
+                    }
+                    onRemove={() => removeStep(step.id)}
+                    onDuplicate={() => duplicateStep(step.id)}
+                    onMove={(dir) => moveStep(step.id, dir)}
+                    canMoveUp={idx > 0}
+                    canMoveDown={idx < flow.steps.length - 1}
                   >
-                    {i === 0 ? (
-                      <Connector />
-                    ) : (
-                      <WaitConnector
-                        delay={
-                          step.delay_hours >= 24
-                            ? `${Math.round(step.delay_hours / 24)} day${Math.round(step.delay_hours / 24) === 1 ? '' : 's'}`
-                            : `${step.delay_hours}h`
+                    {step.type === 'email' && (
+                      <EmailStepBody
+                        value={step.value}
+                        onChange={(v) =>
+                          updateStep(step.id, 'email', v as EmailStepValue)
+                        }
+                        onOpenEditor={() => setEditingEmailId(step.id)}
+                      />
+                    )}
+                    {step.type === 'wait' && (
+                      <WaitStepBody
+                        value={step.value}
+                        onChange={(v) =>
+                          updateStep(step.id, 'wait', v as WaitStepValue)
                         }
                       />
                     )}
-                    <EmailNode
-                      num={String(i + 1).padStart(2, '0')}
-                      title={step.subject}
-                      preview={previewFromHtml(step.content_html)}
-                      delay={i === 0 ? 'Immediately' : `+${step.delay_hours}h`}
-                      analytics={stepAnalyticsById.get(step.id) ?? null}
-                      canMoveUp={i > 0}
-                      canMoveDown={i < sortedSteps.length - 1}
-                      onClick={() => setEditingStepId(step.id)}
-                      onMoveUp={() => onMoveStep(i, -1)}
-                      onMoveDown={() => onMoveStep(i, 1)}
-                      onDelete={() => onDeleteStep(step.id)}
-                    />
-                  </div>
-                ))
-              )}
-
-              <Connector long />
-
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 8,
-                  paddingTop: 4,
-                }}
-              >
-                <div
-                  style={{
-                    width: 56,
-                    height: 56,
-                    borderRadius: '50%',
-                    background: 'var(--ink)',
-                    color: '#fff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 4px 12px -4px rgba(0,0,0,0.15)',
-                  }}
-                >
-                  <Icon name="check" size={20} strokeWidth={2} />
-                </div>
-                <div style={{ textAlign: 'center', marginTop: 6 }}>
-                  <div style={{ fontSize: 16, color: 'var(--ink)' }}>
-                    End of sequence
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 12.5,
-                      color: 'var(--ink-3)',
-                      marginTop: 4,
-                    }}
-                  >
-                    Subscriber exits and can be enrolled in others.
-                  </div>
-                </div>
-              </div>
+                    {step.type === 'branch' && (
+                      <BranchStepBody
+                        value={step.value}
+                        onChange={(v) =>
+                          updateStep(step.id, 'branch', v as BranchStepValue)
+                        }
+                        productOptions={productOptions}
+                      />
+                    )}
+                    {step.type === 'action' && (
+                      <ActionStepBody
+                        value={step.value}
+                        onChange={(v) =>
+                          updateStep(step.id, 'action', v as ActionStepValue)
+                        }
+                        sequenceOptions={[]}
+                      />
+                    )}
+                    {step.type === 'goal' && (
+                      <GoalStepBody
+                        value={step.value}
+                        onChange={(v) =>
+                          updateStep(step.id, 'goal', v as GoalStepValue)
+                        }
+                      />
+                    )}
+                  </StepCard>
+                )
+              })}
             </div>
 
             <div
               style={{
+                marginTop: 16,
+                padding: 14,
+                border: '1px dashed var(--line-2)',
+                borderRadius: 12,
+                background: '#fafafa',
                 display: 'flex',
-                justifyContent: 'center',
-                gap: 8,
-                marginTop: 32,
-                paddingTop: 24,
-                borderTop: '1px solid var(--line)',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12,
               }}
             >
+              <span style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>
+                Add a step
+              </span>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {(
+                  [
+                    { t: 'email', icon: 'mail', label: 'Email' },
+                    { t: 'wait', icon: 'clock', label: 'Wait' },
+                    { t: 'branch', icon: 'split', label: 'Branch' },
+                    { t: 'action', icon: 'tag', label: 'Action' },
+                    { t: 'goal', icon: 'target', label: 'Goal' },
+                  ] as const
+                ).map((b) => (
+                  <button
+                    key={b.t}
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => addStep(b.t)}
+                  >
+                    <Icon name={b.icon} size={12} />
+                    {b.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </FormSection>
+
+          {/* === 05 Goal === */}
+          <FormSection
+            num="05"
+            title="Conversion goal"
+            subtitle="When this happens, count it as a conversion and exit the subscriber from the sequence."
+          >
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: 16,
+              }}
+            >
+              <Field label="Goal event">
+                <SelectField
+                  value={flow.goal.event}
+                  onChange={(ev) => upd({ goal: { ...flow.goal, event: ev } })}
+                  options={[
+                    { id: 'module-1-started', label: 'Module 1 started' },
+                    { id: 'module-1-completed', label: 'Module 1 completed' },
+                    { id: 'product-purchased', label: 'Product purchased' },
+                    { id: 'link-clicked', label: 'Email link clicked' },
+                    { id: 'tag-added', label: 'Tag added' },
+                    { id: 'none', label: 'No goal — just send' },
+                  ]}
+                />
+              </Field>
+              <Field
+                label="Window"
+                hint="How long after enrolment to track the goal."
+              >
+                <SegmentedControl
+                  value={flow.goal.window}
+                  onChange={(w) => upd({ goal: { ...flow.goal, window: w } })}
+                  options={[
+                    { id: '7', label: '7 days' },
+                    { id: '14', label: '14 days' },
+                    { id: '30', label: '30 days' },
+                    { id: 'forever', label: 'Always' },
+                  ]}
+                />
+              </Field>
+            </div>
+          </FormSection>
+
+          {/* === 06 Settings === */}
+          <FormSection
+            num="06"
+            title="Send settings"
+            subtitle="When and how often subscribers receive the emails."
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+              <Field label="Send window">
+                <SegmentedControl
+                  value={flow.send.window}
+                  onChange={(w) => upd({ send: { ...flow.send, window: w } })}
+                  options={[
+                    { id: 'anytime', label: 'Any time' },
+                    { id: 'daily', label: 'Every day · 9–5' },
+                    { id: 'weekdays', label: 'Mon–Fri · 9–5' },
+                    { id: 'custom', label: 'Custom' },
+                  ]}
+                />
+              </Field>
+              {flow.send.window === 'custom' && (
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: 12,
+                  }}
+                >
+                  <Field label="Earliest">
+                    <input
+                      className="input"
+                      type="time"
+                      value={flow.send.start}
+                      onChange={(e) =>
+                        upd({
+                          send: { ...flow.send, start: e.target.value },
+                        })
+                      }
+                    />
+                  </Field>
+                  <Field label="Latest">
+                    <input
+                      className="input"
+                      type="time"
+                      value={flow.send.end}
+                      onChange={(e) =>
+                        upd({
+                          send: { ...flow.send, end: e.target.value },
+                        })
+                      }
+                    />
+                  </Field>
+                </div>
+              )}
+              <SettingRow
+                label="Send in subscriber's timezone"
+                hint="If we know it. Falls back to UTC otherwise."
+                control={
+                  <Toggle
+                    on={flow.send.respectTimezone}
+                    onChange={(v) =>
+                      upd({
+                        send: { ...flow.send, respectTimezone: v },
+                      })
+                    }
+                  />
+                }
+              />
+              <SettingRow
+                label="Pause if subscriber unsubscribes"
+                hint="Stop all in-flight emails immediately on unsub."
+                control={
+                  <Toggle
+                    on={flow.send.pauseOnUnsub}
+                    onChange={(v) =>
+                      upd({ send: { ...flow.send, pauseOnUnsub: v } })
+                    }
+                  />
+                }
+              />
+              <SettingRow
+                label="Skip if in another active sequence"
+                hint="Subscriber must be enrolled in only one at a time."
+                control={
+                  <Toggle
+                    on={flow.send.skipIfInOther}
+                    onChange={(v) =>
+                      upd({ send: { ...flow.send, skipIfInOther: v } })
+                    }
+                  />
+                }
+              />
+              <SettingRow
+                label="Respect frequency cap (3 / week)"
+                hint="Won't send if it would exceed the workspace-wide cap."
+                control={
+                  <Toggle
+                    on={flow.send.frequencyCap}
+                    onChange={(v) =>
+                      upd({ send: { ...flow.send, frequencyCap: v } })
+                    }
+                  />
+                }
+              />
+            </div>
+          </FormSection>
+
+          {/* Final actions */}
+          <div
+            className="card"
+            style={{
+              padding: '22px 28px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 16,
+              background: 'linear-gradient(180deg, #fafafa 0%, #fff 100%)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 9,
+                  background: 'var(--green-soft)',
+                  color: 'var(--green)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Icon name="check-circle" size={15} />
+              </div>
+              <div>
+                <div
+                  style={{
+                    fontSize: 14,
+                    color: 'var(--ink)',
+                    fontWeight: 500,
+                  }}
+                >
+                  Ready to activate
+                </div>
+                <div
+                  style={{
+                    fontSize: 12.5,
+                    color: 'var(--ink-3)',
+                    marginTop: 2,
+                  }}
+                >
+                  Sequence will start enrolling subscribers immediately on save.
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
               <button
                 type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={onAddEmail}
-                disabled={createStep.isPending || createSequence.isPending}
+                className="btn btn-secondary"
+                onClick={onSaveDraft}
               >
-                <Icon name="plus" size={12} />
-                Add email
+                Save as draft
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={onActivate}
+              >
+                <Icon name="zap" size={13} />
+                Activate sequence
               </button>
             </div>
           </div>
-
-          {persistedId && (
-            <EnrollmentsPanel
-              organization={organization}
-              sequenceId={persistedId}
-            />
-          )}
         </div>
 
-        {persistedId && (
-          <SequenceSidebar
-            organization={organization}
-            sequenceId={persistedId}
-            isActive={isActive}
-            description={description}
-            onDescriptionChange={setDescription}
-            skipIfInAnother={skipIfInAnother}
-            onSkipChange={setSkipIfInAnother}
-            pauseOnUnsub={pauseOnUnsub}
-            onPauseOnUnsubChange={setPauseOnUnsub}
-            sendWindow={sendWindow}
-            onSendWindowChange={setSendWindow}
-            goalProductId={goalProductId}
-            onGoalProductChange={setGoalProductId}
-            steps={sortedSteps}
-            stepAnalyticsById={stepAnalyticsById}
-          />
-        )}
+        {/* Right rail */}
+        <aside
+          style={{
+            position: 'sticky',
+            top: 100,
+            alignSelf: 'flex-start',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 14,
+          }}
+        >
+          {/* Section nav */}
+          <div className="card" style={{ padding: 16 }}>
+            <div className="eyebrow" style={{ marginBottom: 12 }}>
+              On this page
+            </div>
+            <nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {[
+                {
+                  num: '01',
+                  label: 'Basics',
+                  done: name.trim().length > 0,
+                },
+                { num: '02', label: 'Trigger', done: true },
+                {
+                  num: '03',
+                  label: 'Audience filter',
+                  done: flow.audience.mode === 'all',
+                },
+                {
+                  num: '04',
+                  label: 'Sequence steps',
+                  done: flow.steps.length > 0,
+                },
+                {
+                  num: '05',
+                  label: 'Conversion goal',
+                  done: flow.goal.event !== 'none',
+                },
+                { num: '06', label: 'Send settings', done: true },
+              ].map((item) => (
+                <a
+                  key={item.num}
+                  href="#"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '8px 10px',
+                    borderRadius: 8,
+                    fontSize: 13,
+                    color: 'var(--ink-2)',
+                    textDecoration: 'none',
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: '50%',
+                      border: item.done ? 'none' : '1.5px solid var(--line-2)',
+                      background: item.done ? 'var(--ink)' : 'transparent',
+                      color: '#fff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {item.done && (
+                      <Icon name="check" size={10} strokeWidth={2.5} />
+                    )}
+                  </span>
+                  <span
+                    style={{
+                      fontFamily: 'JetBrains Mono, monospace',
+                      fontSize: 11,
+                      color: 'var(--ink-4)',
+                    }}
+                  >
+                    {item.num}
+                  </span>
+                  <span>{item.label}</span>
+                </a>
+              ))}
+            </nav>
+          </div>
+
+          {/* Estimated reach */}
+          <div className="card" style={{ padding: 18 }}>
+            <div className="eyebrow" style={{ marginBottom: 10 }}>
+              Estimated reach
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'baseline',
+                gap: 6,
+                marginBottom: 8,
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 38,
+                  fontWeight: 400,
+                  letterSpacing: '-0.025em',
+                }}
+              >
+                —
+              </span>
+              <span style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>
+                / mo
+              </span>
+            </div>
+            <div
+              style={{
+                fontSize: 11.5,
+                color: 'var(--ink-3)',
+                lineHeight: 1.55,
+              }}
+            >
+              Reach numbers populate after the first matching events arrive.
+              Today: <strong>{totalEmails}</strong> email
+              {totalEmails === 1 ? '' : 's'} per subscriber, ~{totalDays} day
+              {totalDays === 1 ? '' : 's'}.
+            </div>
+          </div>
+
+          {/* AI suggestion */}
+          <div
+            className="card"
+            style={{
+              padding: 18,
+              background: 'var(--indigo-soft)',
+              borderColor: 'var(--indigo-line)',
+            }}
+          >
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <div
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 8,
+                  background: 'var(--indigo)',
+                  color: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  boxShadow: '0 4px 10px -2px rgba(79,70,229,0.4)',
+                }}
+              >
+                <Icon name="sparkles" size={14} />
+              </div>
+              <div>
+                <div
+                  style={{
+                    fontSize: 13.5,
+                    color: 'var(--ink)',
+                    marginBottom: 4,
+                  }}
+                >
+                  Spaire suggests
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: 'var(--ink-2)',
+                    lineHeight: 1.55,
+                  }}
+                >
+                  Add a check-in email at day 14 — subscribers who get one are{' '}
+                  <span style={{ color: 'var(--indigo-2)', fontWeight: 500 }}>
+                    3.2× more likely
+                  </span>{' '}
+                  to finish.
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  style={{ marginTop: 12 }}
+                  onClick={() => addStep('wait')}
+                >
+                  Insert step
+                </button>
+              </div>
+            </div>
+          </div>
+        </aside>
       </div>
 
-      {editingStep && persistedIdRef.current && (
-        <StepEditor
+      {editingEmail && persistedId && (
+        <EmailEditorModal
           organization={organization}
-          step={editingStep}
-          onClose={() => setEditingStepId(null)}
-          onSave={async (patch) => {
-            await updateStep.mutateAsync({
-              stepId: editingStep.id,
-              ...patch,
-            })
+          step={editingEmail}
+          onChange={(v) => updateStep(editingEmail.id, 'email', v)}
+          onClose={() => setEditingEmailId(null)}
+          onSendTest={async (email) => {
+            const id = await ensurePersisted()
+            await syncEmailSteps(id)
+            const desired = materializeEmailsFromFlow(flow.steps)
+            const ord = desired.findIndex((d) => d.step.id === editingEmail.id)
+            const sorted = [...existingSteps].sort(
+              (a, b) => a.position - b.position,
+            )
+            const target = sorted[ord]
+            if (target) {
+              await sendTestMutation.mutateAsync({
+                sequenceId: id,
+                stepId: target.id,
+                email,
+              })
+            }
           }}
-          onSendTest={(email) => onSendTestStep(editingStep.id, email)}
         />
       )}
     </div>
   )
 }
 
-const previewFromHtml = (html: string | null | undefined): string => {
-  if (!html) return 'No content yet.'
-  const text = html
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-  return text.length > 140
-    ? `${text.slice(0, 137)}…`
-    : text || 'No content yet.'
-}
+const ProductCard = ({
+  active,
+  onClick,
+  name,
+  kind,
+  color,
+}: {
+  active: boolean
+  onClick: () => void
+  name: string
+  kind: string
+  color: string
+}) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={`option-card ${active ? 'is-active' : ''}`}
+    style={{
+      padding: 14,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      textAlign: 'left',
+    }}
+  >
+    <div
+      style={{
+        width: 38,
+        height: 38,
+        borderRadius: 9,
+        background: color,
+        color: '#fff',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+      }}
+    >
+      <Icon name="package" size={16} />
+    </div>
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <div
+        style={{
+          fontSize: 13.5,
+          fontWeight: 500,
+          color: 'var(--ink)',
+          lineHeight: 1.3,
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
+      >
+        {name}
+      </div>
+      <div style={{ fontSize: 11.5, color: 'var(--ink-3)', marginTop: 3 }}>
+        {kind}
+      </div>
+    </div>
+    <span className="option-card-radio" />
+  </button>
+)
 
-// ── Step Editor Modal ──
-
-const StepEditor = ({
+// — Email content editor modal (BlockEditor reused from broadcasts).
+const EmailEditorModal = ({
   organization,
   step,
+  onChange,
   onClose,
-  onSave,
   onSendTest,
 }: {
   organization: schemas['Organization']
-  step: Step
+  step: Extract<StepNode, { type: 'email' }>
+  onChange: (v: EmailStepValue) => void
   onClose: () => void
-  onSave: (patch: {
-    subject?: string
-    sender_name?: string
-    delay_hours?: number
-    content_html?: string
-  }) => Promise<void>
   onSendTest: (email: string) => Promise<void>
 }) => {
-  const [subject, setSubject] = useState(step.subject)
-  const [senderName, setSenderName] = useState(step.sender_name)
-  const [delayHours, setDelayHours] = useState(step.delay_hours)
   const [doc, setDoc] = useState<ContentDoc>(() =>
-    adoptContentJson(step.content_json),
+    adoptContentJson(step.value.content_json),
   )
-  const [saving, setSaving] = useState(false)
   const [testEmail, setTestEmail] = useState('')
   const [testStatus, setTestStatus] = useState<
     'idle' | 'sending' | 'sent' | 'error'
   >('idle')
   const upload = useUploadSequenceImage(organization.id)
 
-  // Reset local edits when the targeted step changes.
-  useEffect(() => {
-    setSubject(step.subject)
-    setSenderName(step.sender_name)
-    setDelayHours(step.delay_hours)
-    setDoc(adoptContentJson(step.content_json))
-  }, [
-    step.id,
-    step.subject,
-    step.sender_name,
-    step.delay_hours,
-    step.content_json,
-  ])
-
-  const handleSave = async () => {
-    setSaving(true)
-    try {
-      const html = renderBlocksToHtml(doc)
-      await onSave({
-        subject,
-        sender_name: senderName,
-        delay_hours: delayHours,
-        content_html: html,
-      })
-      onClose()
-    } finally {
-      setSaving(false)
-    }
-  }
-
   return (
-    <Modal open onClose={onClose} title="Edit email" width={780}>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr 1fr',
-          gap: 12,
-          marginBottom: 16,
-        }}
-      >
-        <Field label="Subject">
-          <input
-            className="input"
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-          />
-        </Field>
-        <Field label="Sender name">
-          <input
-            className="input"
-            value={senderName}
-            onChange={(e) => setSenderName(e.target.value)}
-          />
-        </Field>
-        <Field label="Wait (hours)">
-          <input
-            className="input"
-            type="number"
-            min={0}
-            value={delayHours}
-            onChange={(e) =>
-              setDelayHours(Math.max(0, Number(e.target.value) || 0))
-            }
-          />
-        </Field>
-      </div>
-
+    <Modal
+      open
+      onClose={onClose}
+      title={`Edit · ${step.value.subject}`}
+      width={820}
+    >
       <div
         style={{
           border: '1px solid var(--line)',
@@ -936,7 +1742,6 @@ const StepEditor = ({
           uploadImage={async (file) => (await upload.mutateAsync(file)).url}
         />
       </div>
-
       <div
         style={{
           display: 'flex',
@@ -944,7 +1749,6 @@ const StepEditor = ({
           alignItems: 'center',
           paddingTop: 12,
           borderTop: '1px solid var(--line)',
-          marginTop: 4,
         }}
       >
         <input
@@ -965,13 +1769,11 @@ const StepEditor = ({
           onClick={async () => {
             setTestStatus('sending')
             try {
-              // Persist current edits first so the test reflects what's on screen.
               const html = renderBlocksToHtml(doc)
-              await onSave({
-                subject,
-                sender_name: senderName,
-                delay_hours: delayHours,
+              onChange({
+                ...step.value,
                 content_html: html,
+                content_json: doc as unknown as Record<string, unknown>,
               })
               await onSendTest(testEmail.trim())
               setTestStatus('sent')
@@ -996,1271 +1798,27 @@ const StepEditor = ({
         <button
           type="button"
           className="btn btn-primary"
-          onClick={handleSave}
-          disabled={saving}
+          onClick={() => {
+            const html = renderBlocksToHtml(doc)
+            onChange({
+              ...step.value,
+              content_html: html,
+              content_json: doc as unknown as Record<string, unknown>,
+            })
+            onClose()
+          }}
         >
-          {saving ? 'Saving…' : 'Save changes'}
+          Save changes
         </button>
       </div>
     </Modal>
   )
 }
 
-const Field = ({
-  label,
-  children,
-}: {
-  label: string
-  children: React.ReactNode
-}) => (
-  <label
-    style={{
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 6,
-      fontSize: 12,
-      color: 'var(--ink-3)',
-    }}
-  >
-    <span>{label}</span>
-    {children}
-  </label>
-)
-
-// ── Right rail: settings + live analytics ──
-
-const SequenceSidebar = ({
-  organization,
-  sequenceId,
-  isActive,
-  description,
-  onDescriptionChange,
-  skipIfInAnother,
-  onSkipChange,
-  pauseOnUnsub,
-  onPauseOnUnsubChange,
-  sendWindow,
-  onSendWindowChange,
-  goalProductId,
-  onGoalProductChange,
-  steps,
-  stepAnalyticsById,
-}: {
-  organization: schemas['Organization']
-  sequenceId: string
-  isActive: boolean
-  description: string
-  onDescriptionChange: (v: string) => void
-  skipIfInAnother: boolean
-  onSkipChange: (v: boolean) => void
-  pauseOnUnsub: boolean
-  onPauseOnUnsubChange: (v: boolean) => void
-  sendWindow: SendWindow
-  onSendWindowChange: (v: SendWindow) => void
-  goalProductId: string | null
-  onGoalProductChange: (id: string | null) => void
-  steps: Step[]
-  stepAnalyticsById: Map<string, SequenceStepAnalyticsRow>
-}) => {
-  const analyticsQuery = useSequenceAnalytics(sequenceId)
-  const a = analyticsQuery.data as SequenceAnalytics | undefined
-
-  return (
-    <div
-      style={{
-        position: 'sticky',
-        top: 32,
-        alignSelf: 'flex-start',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 16,
-      }}
-    >
-      <div className="card" style={{ padding: 22 }}>
-        <div className="eyebrow" style={{ marginBottom: 14 }}>
-          Settings
-        </div>
-        <Field label="Description">
-          <textarea
-            className="input"
-            value={description}
-            onChange={(e) => onDescriptionChange(e.target.value)}
-            rows={2}
-            placeholder="What this sequence is for…"
-            style={{ resize: 'vertical', fontFamily: 'inherit' }}
-          />
-        </Field>
-        <div style={{ marginTop: 14 }}>
-          <Field label="Goal — stop when subscriber buys">
-            <GoalProductSelect
-              organization={organization}
-              value={goalProductId}
-              onChange={onGoalProductChange}
-            />
-          </Field>
-        </div>
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 16,
-            fontSize: 13.5,
-            marginTop: 16,
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-            }}
-          >
-            <span style={{ color: 'var(--ink-2)' }}>Skip if in another</span>
-            <Toggle on={skipIfInAnother} onChange={onSkipChange} />
-          </div>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-            }}
-          >
-            <span style={{ color: 'var(--ink-2)' }}>Pause on unsubscribe</span>
-            <Toggle on={pauseOnUnsub} onChange={onPauseOnUnsubChange} />
-          </div>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-            }}
-          >
-            <span style={{ color: 'var(--ink-2)' }}>Send window</span>
-            <Toggle
-              on={sendWindow.enabled}
-              onChange={(enabled) =>
-                onSendWindowChange({ ...sendWindow, enabled })
-              }
-            />
-          </div>
-          {sendWindow.enabled && (
-            <SendWindowControls
-              value={sendWindow}
-              onChange={onSendWindowChange}
-            />
-          )}
-        </div>
-        <div style={{ fontSize: 11.5, color: 'var(--ink-3)', marginTop: 14 }}>
-          Settings save with the sequence — hit Save draft after toggling.
-        </div>
-      </div>
-
-      <div className="card" style={{ padding: 22 }}>
-        <div className="eyebrow" style={{ marginBottom: 14 }}>
-          Live performance
-        </div>
-        {!a ? (
-          <div style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>
-            {analyticsQuery.isLoading ? 'Loading…' : 'No data yet.'}
-          </div>
-        ) : a.total_sent === 0 ? (
-          <div style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>
-            {isActive
-              ? 'Waiting for the first send.'
-              : 'Activate the sequence to start collecting data.'}
-          </div>
-        ) : (
-          <>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'baseline',
-                gap: 6,
-                marginBottom: 14,
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 38,
-                  fontWeight: 400,
-                  letterSpacing: '-0.025em',
-                }}
-              >
-                {a.open_rate.toFixed(1)}%
-              </span>
-              <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>
-                open rate
-              </span>
-            </div>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: 12,
-                fontSize: 12.5,
-              }}
-            >
-              <SidebarStat label="Sent" value={a.total_sent.toLocaleString()} />
-              <SidebarStat
-                label="Delivered"
-                value={a.delivered.toLocaleString()}
-              />
-              <SidebarStat
-                label="Click rate"
-                value={`${a.click_rate.toFixed(1)}%`}
-              />
-              <SidebarStat label="Bounced" value={a.bounced.toLocaleString()} />
-              <SidebarStat
-                label="Active enrolled"
-                value={a.active_enrollments.toLocaleString()}
-              />
-              <SidebarStat
-                label="Completed"
-                value={a.completed_enrollments.toLocaleString()}
-              />
-            </div>
-          </>
-        )}
-      </div>
-
-      <SuggestionsCard steps={steps} stepAnalyticsById={stepAnalyticsById} />
-    </div>
-  )
-}
-
-type SequenceAnalytics = {
-  total_sent: number
-  delivered: number
-  opened: number
-  clicked: number
-  bounced: number
-  open_rate: number
-  click_rate: number
-  total_enrolled: number
-  active_enrollments: number
-  completed_enrollments: number
-}
-
-const SidebarStat = ({ label, value }: { label: string; value: string }) => (
-  <div>
-    <div style={{ fontSize: 11.5, color: 'var(--ink-3)', marginBottom: 2 }}>
-      {label}
-    </div>
-    <div style={{ fontSize: 14, color: 'var(--ink)', fontWeight: 500 }}>
-      {value}
-    </div>
-  </div>
-)
-
-// ── Enrollments panel ──
-
-type Enrollment = {
-  id: string
-  sequence_id: string
-  subscriber_id: string
-  status: string
-  current_step_position: number
-  enrolled_at: string
-  next_step_at: string | null
-  completed_at: string | null
-}
-
-const EnrollmentsPanel = ({
-  organization,
-  sequenceId,
-}: {
-  organization: schemas['Organization']
-  sequenceId: string
-}) => {
-  const [expanded, setExpanded] = useState(false)
-  const [pickerQ, setPickerQ] = useState('')
-  const [pickerOpen, setPickerOpen] = useState(false)
-  const enrollmentsQuery = useSequenceEnrollments(sequenceId)
-  // Pull a generous slice of subscribers so we can join on id without a
-  // round-trip per row. The picker reuses the same set so manual enrollment
-  // is one search box rather than a full subscriber browser.
-  const subscribersQuery = useEmailSubscribers(organization.id, {
-    limit: 500,
-  })
-  const enroll = useEnrollSubscriber(sequenceId)
-  const unenroll = useUnenrollSubscriber(sequenceId)
-  const enrollments = (enrollmentsQuery.data as Enrollment[] | undefined) ?? []
-  const byId = useMemo(() => {
-    const m = new Map<string, schemas['EmailSubscriber']>()
-    for (const s of subscribersQuery.data?.items ?? []) {
-      m.set(s.id, s as schemas['EmailSubscriber'])
-    }
-    return m
-  }, [subscribersQuery.data])
-  const enrolledIds = useMemo(
-    () => new Set(enrollments.map((e) => e.subscriber_id)),
-    [enrollments],
-  )
-  const candidates = useMemo(() => {
-    const all = subscribersQuery.data?.items ?? []
-    const q = pickerQ.trim().toLowerCase()
-    const filtered = all.filter((s) => {
-      if (enrolledIds.has(s.id)) return false
-      if (s.status !== 'active') return false
-      if (!q) return true
-      return (
-        s.email.toLowerCase().includes(q) ||
-        (s.name?.toLowerCase().includes(q) ?? false)
-      )
-    })
-    return filtered.slice(0, 6)
-  }, [subscribersQuery.data, pickerQ, enrolledIds])
-
-  const visible = expanded ? enrollments : enrollments.slice(0, 8)
-
-  return (
-    <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-      <div
-        style={{
-          padding: '20px 24px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 16,
-          borderBottom:
-            enrollments.length > 0 ? '1px solid var(--line)' : 'none',
-        }}
-      >
-        <div>
-          <div className="eyebrow">Enrollments</div>
-          <div style={{ fontSize: 14, marginTop: 6, color: 'var(--ink)' }}>
-            {enrollmentsQuery.isLoading
-              ? 'Loading…'
-              : `${enrollments.length} subscriber${enrollments.length === 1 ? '' : 's'} in this sequence`}
-          </div>
-        </div>
-        <div
-          style={{ position: 'relative', minWidth: 280 }}
-          onBlur={(e) => {
-            if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-              setPickerOpen(false)
-            }
-          }}
-        >
-          <input
-            className="input"
-            placeholder="Add subscriber by email…"
-            value={pickerQ}
-            onChange={(e) => {
-              setPickerQ(e.target.value)
-              setPickerOpen(true)
-            }}
-            onFocus={() => setPickerOpen(true)}
-            style={{ width: '100%' }}
-          />
-          {pickerOpen && candidates.length > 0 && (
-            <div
-              style={{
-                position: 'absolute',
-                top: '100%',
-                left: 0,
-                right: 0,
-                marginTop: 6,
-                background: '#fff',
-                border: '1px solid var(--line)',
-                borderRadius: 12,
-                boxShadow: 'var(--shadow-lg)',
-                padding: 6,
-                zIndex: 30,
-                maxHeight: 280,
-                overflowY: 'auto',
-              }}
-            >
-              {candidates.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={async () => {
-                    await enroll.mutateAsync(s.id)
-                    setPickerQ('')
-                    setPickerOpen(false)
-                  }}
-                  disabled={enroll.isPending}
-                  style={{
-                    display: 'block',
-                    width: '100%',
-                    textAlign: 'left',
-                    padding: '8px 10px',
-                    borderRadius: 8,
-                    fontSize: 13,
-                    background: 'transparent',
-                    cursor: enroll.isPending ? 'wait' : 'pointer',
-                  }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.background = 'var(--bg-softer)')
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.background = 'transparent')
-                  }
-                >
-                  <div style={{ color: 'var(--ink)', fontWeight: 500 }}>
-                    {s.email}
-                  </div>
-                  {s.name && (
-                    <div style={{ color: 'var(--ink-3)', fontSize: 12 }}>
-                      {s.name}
-                    </div>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-      {enrollments.length === 0 && !enrollmentsQuery.isLoading ? (
-        <div
-          style={{
-            padding: '32px 24px',
-            textAlign: 'center',
-            color: 'var(--ink-3)',
-            fontSize: 13,
-          }}
-        >
-          No enrollments yet. Active sequences enrol subscribers automatically
-          when their trigger fires; manual sequences enrol via the API.
-        </div>
-      ) : (
-        <>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'minmax(0, 2fr) 100px 90px 130px 130px 36px',
-              gap: 16,
-              padding: '12px 24px',
-              fontSize: 11,
-              textTransform: 'uppercase',
-              letterSpacing: '0.08em',
-              color: 'var(--ink-3)',
-              borderBottom: '1px solid var(--line)',
-            }}
-          >
-            <div>Subscriber</div>
-            <div>Status</div>
-            <div>Step</div>
-            <div>Enrolled</div>
-            <div>Next send</div>
-            <div />
-          </div>
-          {visible.map((e) => {
-            const sub = byId.get(e.subscriber_id)
-            return (
-              <div
-                key={e.id}
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns:
-                    'minmax(0, 2fr) 100px 90px 130px 130px 36px',
-                  gap: 16,
-                  padding: '14px 24px',
-                  fontSize: 13,
-                  alignItems: 'center',
-                  borderBottom: '1px solid var(--line)',
-                }}
-              >
-                <div style={{ minWidth: 0 }}>
-                  <div
-                    style={{
-                      color: 'var(--ink)',
-                      fontWeight: 500,
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                  >
-                    {sub?.email ?? e.subscriber_id.slice(0, 8) + '…'}
-                  </div>
-                  {sub?.name && (
-                    <div
-                      style={{
-                        color: 'var(--ink-3)',
-                        fontSize: 12,
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                    >
-                      {sub.name}
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <EnrollmentStatusChip status={e.status} />
-                </div>
-                <div style={{ color: 'var(--ink-2)' }}>
-                  #{e.current_step_position + 1}
-                </div>
-                <div style={{ color: 'var(--ink-3)' }}>
-                  {formatRelative(e.enrolled_at)}
-                </div>
-                <div style={{ color: 'var(--ink-3)' }}>
-                  {e.completed_at
-                    ? '—'
-                    : e.next_step_at
-                      ? formatRelative(e.next_step_at)
-                      : 'Done'}
-                </div>
-                <button
-                  type="button"
-                  className="btn-ghost"
-                  style={{
-                    padding: 6,
-                    borderRadius: 8,
-                    color: 'var(--ink-3)',
-                  }}
-                  title="Unenroll"
-                  onClick={async () => {
-                    if (
-                      !window.confirm(
-                        'Remove this subscriber from the sequence?',
-                      )
-                    )
-                      return
-                    await unenroll.mutateAsync(e.subscriber_id)
-                  }}
-                >
-                  <Icon name="x-circle" size={14} />
-                </button>
-              </div>
-            )
-          })}
-          {enrollments.length > 8 && (
-            <div
-              style={{
-                padding: '14px 24px',
-                textAlign: 'center',
-                fontSize: 12.5,
-              }}
-            >
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                onClick={() => setExpanded((v) => !v)}
-              >
-                {expanded ? 'Show fewer' : `Show all ${enrollments.length}`}
-              </button>
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  )
-}
-
-const EnrollmentStatusChip = ({ status }: { status: string }) => {
-  const tone =
-    status === 'active'
-      ? 'chip-success'
-      : status === 'completed'
-        ? 'chip-info'
-        : ''
-  return (
-    <span className={`chip ${tone}`}>
-      {status === 'active' && <span className="dot" />}
-      {status}
-    </span>
-  )
-}
-
-const formatRelative = (iso: string): string => {
-  const t = Date.parse(iso)
-  if (!Number.isFinite(t)) return '—'
-  const diff = t - Date.now()
-  const future = diff > 0
-  const abs = Math.abs(diff)
-  const min = 60 * 1000
-  const hr = 60 * min
-  const day = 24 * hr
-  if (abs < hr) {
-    const m = Math.max(1, Math.round(abs / min))
-    return future ? `in ${m}m` : `${m}m ago`
-  }
-  if (abs < day) {
-    const h = Math.round(abs / hr)
-    return future ? `in ${h}h` : `${h}h ago`
-  }
-  const d = Math.round(abs / day)
-  return future ? `in ${d}d` : `${d}d ago`
-}
-
-// ── Goal product select (Settings card) ──
-
-const GoalProductSelect = ({
-  organization,
-  value,
-  onChange,
-}: {
-  organization: schemas['Organization']
-  value: string | null
-  onChange: (id: string | null) => void
-}) => {
-  const productsQuery = useProducts(organization.id, { limit: 100 })
-  const products = productsQuery.data?.items ?? []
-  return (
-    <select
-      className="input"
-      value={value ?? ''}
-      onChange={(e) => onChange(e.target.value || null)}
-      style={{ width: '100%' }}
-    >
-      <option value="">No goal — sequence runs to completion</option>
-      {products.map((p) => (
-        <option key={p.id} value={p.id}>
-          {p.name}
-        </option>
-      ))}
-    </select>
-  )
-}
-
-// ── Spaire suggests (heuristic-driven) ──
-
-type Suggestion = {
-  id: string
-  tone: 'warn' | 'info' | 'praise'
-  text: string
-}
-
-const buildSuggestions = (
-  steps: Step[],
-  byId: Map<string, SequenceStepAnalyticsRow>,
-): Suggestion[] => {
-  const out: Suggestion[] = []
-  if (steps.length === 0) return out
-
-  // Welcome cadence: a step 0 with delay > 0 means new subscribers wait
-  // for their first message. We've seen open rate drop sharply when the
-  // first email lands more than an hour after the trigger.
-  const first = steps[0]
-  if (first.delay_hours > 1) {
-    out.push({
-      id: 'welcome-delay',
-      tone: 'warn',
-      text: `Step 1 waits ${first.delay_hours}h. The fastest welcomes ship within an hour — open rate drops 30–40% after a day's delay.`,
-    })
-  }
-
-  // Long gaps between sends: subscribers cool off.
-  const longGap = steps.find((s, i) => i > 0 && s.delay_hours >= 24 * 14)
-  if (longGap) {
-    out.push({
-      id: 'long-gap',
-      tone: 'warn',
-      text: `Step ${steps.indexOf(longGap) + 1} waits ${Math.round(longGap.delay_hours / 24)} days. Anything over 14 days usually loses the thread — consider splitting it.`,
-    })
-  }
-
-  // Worst-performing step (after enough volume).
-  const ranked = steps
-    .map((s) => ({ s, a: byId.get(s.id) }))
-    .filter(
-      (e): e is { s: Step; a: SequenceStepAnalyticsRow } =>
-        !!e.a && e.a.delivered >= 20,
-    )
-    .sort((x, y) => x.a.open_rate - y.a.open_rate)
-  if (ranked.length >= 2 && ranked[0].a.open_rate < 30) {
-    out.push({
-      id: 'low-open',
-      tone: 'info',
-      text: `Step ${steps.indexOf(ranked[0].s) + 1} ("${ranked[0].s.subject}") has the lowest open rate at ${ranked[0].a.open_rate.toFixed(1)}%. Try a punchier subject line or move it earlier.`,
-    })
-  }
-
-  // Sequence shape: 1 step is rarely a "sequence".
-  if (steps.length === 1) {
-    out.push({
-      id: 'too-short',
-      tone: 'info',
-      text: "Just one email — that's a broadcast. Add a follow-up at day 2 and a check-in at day 7 for the strongest welcome arc.",
-    })
-  }
-
-  // Praise: long sequences with steady cadence.
-  if (steps.length >= 5 && out.length === 0) {
-    out.push({
-      id: 'good-shape',
-      tone: 'praise',
-      text: `${steps.length} steps with a sane cadence — this is the kind of arc that converts. Watch the open rates after launch and tune the weakest step first.`,
-    })
-  }
-
-  return out.slice(0, 3)
-}
-
-const SuggestionsCard = ({
-  steps,
-  stepAnalyticsById,
-}: {
-  steps: Step[]
-  stepAnalyticsById: Map<string, SequenceStepAnalyticsRow>
-}) => {
-  const suggestions = useMemo(
-    () => buildSuggestions(steps, stepAnalyticsById),
-    [steps, stepAnalyticsById],
-  )
-  if (suggestions.length === 0) return null
-  return (
-    <div
-      className="card"
-      style={{
-        padding: 22,
-        background: 'var(--indigo-soft)',
-        borderColor: 'var(--indigo-line)',
-      }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          marginBottom: 14,
-        }}
-      >
-        <div
-          style={{
-            width: 28,
-            height: 28,
-            borderRadius: 8,
-            background: 'var(--indigo)',
-            color: '#fff',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 4px 10px -2px rgba(79,70,229,0.4)',
-          }}
-        >
-          <Icon name="sparkles" size={14} />
-        </div>
-        <div style={{ fontSize: 14, color: 'var(--ink)' }}>Spaire suggests</div>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {suggestions.map((s) => (
-          <div
-            key={s.id}
-            style={{
-              fontSize: 12.5,
-              color: 'var(--ink-2)',
-              lineHeight: 1.55,
-              paddingLeft: 18,
-              position: 'relative',
-            }}
-          >
-            <span
-              style={{
-                position: 'absolute',
-                left: 0,
-                top: 5,
-                width: 8,
-                height: 8,
-                borderRadius: 4,
-                background:
-                  s.tone === 'warn'
-                    ? 'var(--red, #d6336c)'
-                    : s.tone === 'praise'
-                      ? 'var(--green, #1a7a3e)'
-                      : 'var(--indigo-2)',
-              }}
-            />
-            {s.text}
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// ── Trigger product picker ──
-
-const TriggerProductPicker = ({
-  organization,
-  productId,
-  onChange,
-}: {
-  organization: schemas['Organization']
-  productId: string | null
-  onChange: (id: string | null) => void
-}) => {
-  const productsQuery = useProducts(organization.id, { limit: 100 })
-  const products = productsQuery.data?.items ?? []
-  return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        marginTop: 16,
-        padding: '12px 14px',
-        background: 'var(--bg-soft)',
-        borderRadius: 12,
-      }}
-    >
-      <Icon name="package" size={14} style={{ color: 'var(--ink-3)' }} />
-      <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>
-        Filter to product
-      </span>
-      <select
-        className="input"
-        value={productId ?? ''}
-        onChange={(e) => onChange(e.target.value || null)}
-        style={{ marginLeft: 'auto', minWidth: 240 }}
-      >
-        <option value="">Any product</option>
-        {products.map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.name}
-          </option>
-        ))}
-      </select>
-    </div>
-  )
-}
-
-// ── Send-window controls ──
-
-const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
-
-const SendWindowControls = ({
-  value,
-  onChange,
-}: {
-  value: SendWindow
-  onChange: (next: SendWindow) => void
-}) => {
-  const toggleDay = (day: number) => {
-    const has = value.days.includes(day)
-    const days = has
-      ? value.days.filter((d) => d !== day)
-      : [...value.days, day].sort((a, b) => a - b)
-    onChange({ ...value, days })
-  }
-  return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 10,
-        padding: '12px',
-        borderRadius: 10,
-        background: 'var(--bg-soft)',
-      }}
-    >
-      <div style={{ display: 'flex', gap: 4 }}>
-        {DAY_LABELS.map((label, i) => {
-          const on = value.days.includes(i)
-          return (
-            <button
-              key={i}
-              type="button"
-              onClick={() => toggleDay(i)}
-              style={{
-                flex: 1,
-                padding: '6px 0',
-                fontSize: 11.5,
-                fontWeight: 500,
-                borderRadius: 8,
-                border: '1px solid var(--line)',
-                background: on ? 'var(--ink)' : '#fff',
-                color: on ? '#fff' : 'var(--ink-3)',
-                cursor: 'pointer',
-              }}
-            >
-              {label}
-            </button>
-          )
-        })}
-      </div>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          fontSize: 12.5,
-        }}
-      >
-        <select
-          className="input"
-          value={value.start_hour}
-          onChange={(e) =>
-            onChange({ ...value, start_hour: Number(e.target.value) })
-          }
-          style={{ flex: 1 }}
-        >
-          {Array.from({ length: 24 }).map((_, h) => (
-            <option key={h} value={h}>
-              {String(h).padStart(2, '0')}:00
-            </option>
-          ))}
-        </select>
-        <span style={{ color: 'var(--ink-3)' }}>to</span>
-        <select
-          className="input"
-          value={value.end_hour}
-          onChange={(e) =>
-            onChange({ ...value, end_hour: Number(e.target.value) })
-          }
-          style={{ flex: 1 }}
-        >
-          {Array.from({ length: 24 }).map((_, h) => (
-            <option key={h + 1} value={h + 1}>
-              {String(h + 1).padStart(2, '0')}:00
-            </option>
-          ))}
-        </select>
-      </div>
-      <div style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>
-        Sends outside this window are pushed to the next allowed slot. Hours in
-        UTC.
-      </div>
-    </div>
-  )
-}
-
-// ── Flow primitives (ported from the previous mock-only screen) ──
-
-const TriggerNode = ({
-  label,
-  desc,
-  icon,
-}: {
-  label: string
-  desc: string
-  icon: string
-}) => (
-  <div
-    style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: 14,
-      padding: '14px 22px 14px 16px',
-      background: 'var(--ink)',
-      color: '#fff',
-      borderRadius: 999,
-      boxShadow: '0 4px 12px -4px rgba(0,0,0,0.2)',
-      minWidth: 320,
-    }}
-  >
-    <div
-      style={{
-        width: 36,
-        height: 36,
-        borderRadius: '50%',
-        background: 'rgba(255,255,255,0.18)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexShrink: 0,
-      }}
-    >
-      <Icon name={icon} size={15} />
-    </div>
-    <div style={{ flex: 1 }}>
-      <div
-        style={{
-          fontSize: 11,
-          opacity: 0.75,
-          textTransform: 'uppercase',
-          letterSpacing: '0.12em',
-        }}
-      >
-        Trigger
-      </div>
-      <div style={{ fontSize: 15.5, marginTop: 1 }}>{label}</div>
-    </div>
-    <div
-      style={{
-        fontSize: 11.5,
-        opacity: 0.85,
-        maxWidth: 160,
-        textAlign: 'right',
-      }}
-    >
-      {desc}
-    </div>
-  </div>
-)
-
-const Connector = ({ long }: { long?: boolean }) => (
-  <div
-    style={{
-      width: 2,
-      height: long ? 36 : 24,
-      background:
-        'repeating-linear-gradient(180deg, var(--indigo-line) 0, var(--indigo-line) 4px, transparent 4px, transparent 8px)',
-    }}
-  />
-)
-
-const WaitConnector = ({ delay }: { delay: string }) => (
-  <div
-    style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      gap: 0,
-      padding: 0,
-    }}
-  >
-    <div
-      style={{
-        width: 2,
-        height: 18,
-        background:
-          'repeating-linear-gradient(180deg, var(--indigo-line) 0, var(--indigo-line) 4px, transparent 4px, transparent 8px)',
-      }}
-    />
-    <div
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 6,
-        padding: '5px 12px',
-        background: '#fff',
-        border: '1px solid var(--indigo-line)',
-        color: 'var(--indigo-2)',
-        borderRadius: 999,
-        fontSize: 11.5,
-        boxShadow: '0 2px 6px rgba(79,70,229,0.08)',
-      }}
-    >
-      <Icon name="clock" size={11} />
-      Wait {delay}
-    </div>
-    <div
-      style={{
-        width: 2,
-        height: 18,
-        background:
-          'repeating-linear-gradient(180deg, var(--indigo-line) 0, var(--indigo-line) 4px, transparent 4px, transparent 8px)',
-      }}
-    />
-  </div>
-)
-
-const EmailNode = ({
-  num,
-  title,
-  preview,
-  delay,
-  analytics,
-  canMoveUp,
-  canMoveDown,
-  onClick,
-  onMoveUp,
-  onMoveDown,
-  onDelete,
-}: {
-  num: string
-  title: string
-  preview: string
-  delay: string
-  analytics: SequenceStepAnalyticsRow | null
-  canMoveUp: boolean
-  canMoveDown: boolean
-  onClick: () => void
-  onMoveUp: () => void
-  onMoveDown: () => void
-  onDelete: () => void
-}) => {
-  const [hover, setHover] = useState(false)
-  return (
-    <div
-      onClick={onClick}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        width: '100%',
-        maxWidth: 540,
-        background: '#fff',
-        borderRadius: 14,
-        border: `1px solid var(--line)`,
-        boxShadow: hover
-          ? '0 8px 22px -14px rgba(15,23,42,0.18)'
-          : '0 1px 2px rgba(15,23,42,0.04)',
-        overflow: 'hidden',
-        cursor: 'pointer',
-        transition: 'all 0.18s ease',
-        transform: hover ? 'translateY(-1px)' : 'none',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'stretch' }}>
-        <div
-          style={{
-            width: 56,
-            background: 'var(--bg-softer)',
-            color: 'var(--ink-3)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-            padding: '18px 0',
-            gap: 6,
-            borderRight: '1px solid var(--line)',
-          }}
-        >
-          <Icon name="mail" size={16} />
-          <div
-            style={{
-              fontSize: 10,
-              fontFamily: 'JetBrains Mono, monospace',
-              opacity: 0.7,
-              letterSpacing: '0.05em',
-            }}
-          >
-            {num}
-          </div>
-        </div>
-        <div style={{ flex: 1, padding: '18px 22px', minWidth: 0 }}>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'flex-start',
-              gap: 12,
-              marginBottom: 6,
-            }}
-          >
-            <div
-              style={{
-                fontSize: 16,
-                fontWeight: 500,
-                letterSpacing: '-0.01em',
-                color: 'var(--ink)',
-                lineHeight: 1.25,
-              }}
-            >
-              {title}
-            </div>
-            <span
-              style={{
-                fontSize: 10.5,
-                padding: '3px 8px',
-                borderRadius: 999,
-                background: 'var(--bg-softer)',
-                color: 'var(--ink-3)',
-                flexShrink: 0,
-                letterSpacing: '0.02em',
-              }}
-            >
-              {delay}
-            </span>
-          </div>
-          <div
-            style={{
-              fontSize: 13,
-              color: 'var(--ink-3)',
-              lineHeight: 1.55,
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
-            }}
-          >
-            {preview}
-          </div>
-          {analytics && analytics.sent > 0 && (
-            <div
-              style={{
-                display: 'flex',
-                gap: 12,
-                marginTop: 10,
-                fontSize: 11.5,
-                color: 'var(--ink-3)',
-              }}
-            >
-              <span>
-                <strong style={{ color: 'var(--ink-2)', fontWeight: 500 }}>
-                  {analytics.sent.toLocaleString()}
-                </strong>{' '}
-                sent
-              </span>
-              <span>
-                <strong style={{ color: 'var(--ink-2)', fontWeight: 500 }}>
-                  {analytics.open_rate.toFixed(1)}%
-                </strong>{' '}
-                open
-              </span>
-              <span>
-                <strong style={{ color: 'var(--ink-2)', fontWeight: 500 }}>
-                  {analytics.click_rate.toFixed(1)}%
-                </strong>{' '}
-                click
-              </span>
-            </div>
-          )}
-          {hover && (
-            <div style={{ display: 'flex', gap: 4, marginTop: 12 }}>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onClick()
-                }}
-                className="btn btn-ghost btn-sm"
-                style={{ fontSize: 11.5, padding: '4px 10px' }}
-              >
-                <Icon name="edit" size={11} />
-                Edit
-              </button>
-              <button
-                type="button"
-                disabled={!canMoveUp}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onMoveUp()
-                }}
-                className="btn btn-ghost btn-sm"
-                style={{
-                  fontSize: 11.5,
-                  padding: '4px 10px',
-                  opacity: canMoveUp ? 1 : 0.4,
-                }}
-              >
-                <Icon name="arrow-left" size={11} />
-                Up
-              </button>
-              <button
-                type="button"
-                disabled={!canMoveDown}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onMoveDown()
-                }}
-                className="btn btn-ghost btn-sm"
-                style={{
-                  fontSize: 11.5,
-                  padding: '4px 10px',
-                  opacity: canMoveDown ? 1 : 0.4,
-                }}
-              >
-                <Icon name="arrow-right" size={11} />
-                Down
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onDelete()
-                }}
-                className="btn btn-ghost btn-sm"
-                style={{
-                  fontSize: 11.5,
-                  padding: '4px 10px',
-                  color: 'var(--red)',
-                }}
-              >
-                <Icon name="trash" size={11} />
-                Remove
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
+// — When the email step has no authored content_html, render a minimal one
+// from subject + preview so the worker has something to send.
+const renderEmailFallback = (v: EmailStepValue): string => {
+  const safeSubject = (v.subject ?? '').replace(/</g, '&lt;')
+  const safePreview = (v.preview ?? '').replace(/</g, '&lt;')
+  return `<h2>${safeSubject}</h2><p>${safePreview}</p>`
 }

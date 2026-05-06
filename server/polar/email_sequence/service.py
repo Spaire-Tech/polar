@@ -198,12 +198,20 @@ class EmailSequenceService:
         template: dict,
     ) -> EmailSequence:
         repository = EmailSequenceRepository.from_session(session)
+        # The template can ship a rich `flow_doc` with wait/branch/action/goal
+        # nodes. We mirror it onto trigger_config so the editor opens with the
+        # full authored flow; the materialized email steps below are what the
+        # worker actually iterates over.
+        trigger_config = dict(template.get("trigger_config") or {})
+        if "flow_doc" in template:
+            trigger_config["flow_doc"] = template["flow_doc"]
+
         sequence = EmailSequence(
             organization_id=organization_id,
             name=template["name"],
             description=template.get("description"),
             trigger_type=template["trigger_type"],
-            trigger_config=dict(template.get("trigger_config") or {}),
+            trigger_config=trigger_config,
             status=EmailSequenceStatus.draft,
         )
         sequence = await repository.create(sequence, flush=True)

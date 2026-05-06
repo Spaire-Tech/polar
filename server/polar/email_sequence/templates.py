@@ -28,6 +28,11 @@ class SequenceTemplate(TypedDict):
     trigger_type: EmailSequenceTriggerType
     trigger_config: dict
     steps: list[TemplateStep]
+    # Rich authored flow doc — same shape the editor reads from
+    # trigger_config.flow_doc. Includes email, wait, branch, action, goal
+    # nodes so cloning a template yields the full authored experience,
+    # not just a flat list of emails.
+    flow_doc: dict
 
 
 def _para(text: str) -> dict:
@@ -488,6 +493,131 @@ TEMPLATES: list[SequenceTemplate] = [
         ],
     },
 ]
+
+
+def _node(type_: str, value: dict) -> dict:
+    return {
+        "id": f"n-{abs(hash(repr(value)) ^ hash(type_)) % 10**8}",
+        "type": type_,
+        "value": value,
+    }
+
+
+def _email_node(step: TemplateStep) -> dict:
+    return _node(
+        "email",
+        {
+            "subject": step["subject"],
+            "preview": "",
+            "fromName": step["sender_name"],
+            "fromEmail": "hello@yoursite.com",
+            "template": "plain",
+            "abTest": False,
+            "trackClicks": True,
+            "content_html": step["content_html"],
+            "content_json": step["content_json"],
+        },
+    )
+
+
+def _wait_node(hours: int) -> dict:
+    if hours <= 0:
+        return _node("wait", {"mode": "duration", "amount": 0, "unit": "hour"})
+    if hours % 24 == 0:
+        return _node(
+            "wait",
+            {"mode": "duration", "amount": hours // 24, "unit": "day"},
+        )
+    return _node("wait", {"mode": "duration", "amount": hours, "unit": "hour"})
+
+
+def _branch_node(field: str, **rest: object) -> dict:
+    return _node("branch", {"field": field, **rest})
+
+
+def _action_node(action: str, **rest: object) -> dict:
+    return _node("action", {"action": action, **rest})
+
+
+def _goal_node(event: str) -> dict:
+    return _node("goal", {"event": event})
+
+
+# Custom flow docs for templates whose value is more than a flat email list:
+# course welcome and trial→paid both benefit from an engagement branch part-way
+# through; cart recovery uses a goal node to stop on purchase.
+def _flow_for(template: SequenceTemplate) -> dict:
+    steps_iter = template["steps"]
+    nodes: list[dict] = []
+    slug = template["slug"]
+
+    # Default: alternating wait + email, with a final action/goal where useful.
+    for i, step in enumerate(steps_iter):
+        if i > 0:
+            nodes.append(_wait_node(step["delay_hours"]))
+        nodes.append(_email_node(step))
+
+    if slug == "course_welcome" and len(nodes) >= 4:
+        # Inject an engagement branch right after the second email so paths
+        # can diverge for engaged vs not-yet-engaged students.
+        insertion = nodes.index(nodes[3])  # after wait + email + wait + email
+        branch = _branch_node("opened-prev")
+        nodes.insert(insertion + 1, branch)
+        nodes.append(_action_node("add-tag", tag="completed-onboarding"))
+        nodes.append(_goal_node("module-1-started"))
+    elif slug == "trial_to_paid" and len(nodes) >= 4:
+        branch = _branch_node("clicked-prev")
+        nodes.insert(4, branch)
+        nodes.append(_goal_node("product-purchased"))
+    elif slug == "cart_recovery":
+        nodes.append(_goal_node("product-purchased"))
+    elif slug == "post_purchase_onboarding":
+        nodes.append(_action_node("add-tag", tag="onboarded"))
+    elif slug == "win_back":
+        branch = _branch_node("opened-prev")
+        if len(nodes) >= 4:
+            nodes.insert(2, branch)
+    elif slug == "cancellation_save":
+        nodes.append(_goal_node("subscription-resumed"))
+
+    return {
+        "version": 1,
+        "category": _categoryToFlowKey(template["category"]),
+        "audience": {
+            "mode": "all",
+            "filters": [],
+            "excludeTags": [],
+        },
+        "goal": {"event": "none", "window": "14"},
+        "send": {
+            "window": "weekdays",
+            "start": "09:00",
+            "end": "17:00",
+            "respectTimezone": True,
+            "pauseOnUnsub": True,
+            "skipIfInOther": True,
+            "frequencyCap": True,
+        },
+        "steps": nodes,
+    }
+
+
+def _categoryToFlowKey(category: str) -> str:
+    return {
+        "Course": "onboarding",
+        "Launch": "sales",
+        "Audience": "nurture",
+        "Commerce": "sales",
+        "Customer": "onboarding",
+        "Retention": "retention",
+        "Conversion": "sales",
+    }.get(category, "onboarding")
+
+
+# Attach a flow_doc to every template so cloning yields the rich authored
+# experience in the editor.
+for _t in TEMPLATES:
+    _t["flow_doc"] = _flow_for(_t)
 
 
 _BY_SLUG = {t["slug"]: t for t in TEMPLATES}

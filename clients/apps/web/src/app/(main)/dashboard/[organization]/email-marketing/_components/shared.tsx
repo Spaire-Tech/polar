@@ -1,6 +1,380 @@
 import { ReactNode } from 'react'
 import { Icon } from './Icon'
 
+// — Field wrapper: uppercase label + optional hint, used across the sequence form
+export const Field = ({
+  label,
+  hint,
+  optional,
+  children,
+}: {
+  label?: string
+  hint?: ReactNode
+  optional?: boolean
+  children: ReactNode
+}) => (
+  <div style={{ display: 'flex', flexDirection: 'column' }}>
+    {label && (
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'baseline',
+          justifyContent: 'space-between',
+          marginBottom: 7,
+        }}
+      >
+        <label
+          style={{
+            fontSize: 11,
+            fontWeight: 500,
+            color: 'var(--ink-2)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+          }}
+        >
+          {label}
+        </label>
+        {optional && (
+          <span style={{ fontSize: 10.5, color: 'var(--ink-4)' }}>
+            Optional
+          </span>
+        )}
+      </div>
+    )}
+    {children}
+    {hint && (
+      <div
+        style={{
+          fontSize: 11.5,
+          color: 'var(--ink-3)',
+          marginTop: 7,
+          lineHeight: 1.5,
+        }}
+      >
+        {hint}
+      </div>
+    )}
+  </div>
+)
+
+// — Segmented control: pill row of 2-4 options with white-on-grey active pill
+export const SegmentedControl = <T extends string>({
+  value,
+  onChange,
+  options,
+}: {
+  value: T
+  onChange: (next: T) => void
+  options: { id: T; label: string }[]
+}) => (
+  <div
+    style={{
+      display: 'flex',
+      background: 'var(--bg-softer)',
+      padding: 3,
+      borderRadius: 10,
+      border: '1px solid var(--line)',
+      width: 'fit-content',
+    }}
+  >
+    {options.map((o) => (
+      <button
+        key={o.id}
+        type="button"
+        onClick={() => onChange(o.id)}
+        style={{
+          padding: '7px 14px',
+          fontSize: 13,
+          borderRadius: 7,
+          background: value === o.id ? '#fff' : 'transparent',
+          color: value === o.id ? 'var(--ink)' : 'var(--ink-3)',
+          boxShadow:
+            value === o.id
+              ? '0 1px 3px rgba(0,0,0,0.08), 0 0 0 1px rgba(15,23,42,0.04)'
+              : 'none',
+          transition: 'all 0.15s',
+          whiteSpace: 'nowrap',
+          border: 'none',
+          cursor: 'pointer',
+        }}
+      >
+        {o.label}
+      </button>
+    ))}
+  </div>
+)
+
+// — Native-styled select wrapped with a chevron icon
+export const SelectField = <T extends string>({
+  value,
+  onChange,
+  options,
+  placeholder,
+}: {
+  value: T | ''
+  onChange: (next: T) => void
+  options: { id: T; label: string }[]
+  placeholder?: string
+}) => (
+  <div style={{ position: 'relative' }}>
+    <select
+      value={value || ''}
+      onChange={(e) => onChange(e.target.value as T)}
+      className="input"
+      style={{
+        paddingRight: 36,
+        appearance: 'none',
+        WebkitAppearance: 'none',
+        cursor: 'pointer',
+        width: '100%',
+      }}
+    >
+      {placeholder && (
+        <option value="" disabled>
+          {placeholder}
+        </option>
+      )}
+      {options.map((o) => (
+        <option key={o.id} value={o.id}>
+          {o.label}
+        </option>
+      ))}
+    </select>
+    <div
+      style={{
+        position: 'absolute',
+        right: 12,
+        top: '50%',
+        transform: 'translateY(-50%)',
+        pointerEvents: 'none',
+        color: 'var(--ink-3)',
+      }}
+    >
+      <Icon name="chevron-down" size={14} />
+    </div>
+  </div>
+)
+
+// — Section header + body card used across the new-sequence form
+export const FormSection = ({
+  num,
+  title,
+  subtitle,
+  status,
+  children,
+}: {
+  num: string
+  title: string
+  subtitle?: string
+  status?: 'complete' | 'progress' | 'warn'
+  children: ReactNode
+}) => (
+  <section className="card" style={{ padding: 0, overflow: 'hidden' }}>
+    <header
+      style={{
+        padding: '22px 28px',
+        borderBottom: '1px solid var(--line)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 16,
+        background: 'linear-gradient(180deg, #fafafa 0%, #fff 100%)',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: 10,
+            background: 'var(--indigo-soft)',
+            color: 'var(--indigo-2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontWeight: 500,
+            fontFamily: 'JetBrains Mono, monospace',
+            fontSize: 13,
+            border: '1px solid var(--indigo-line)',
+          }}
+        >
+          {num}
+        </div>
+        <div>
+          <div
+            style={{
+              fontSize: 17,
+              fontWeight: 500,
+              color: 'var(--ink)',
+              letterSpacing: '-0.005em',
+            }}
+          >
+            {title}
+          </div>
+          {subtitle && (
+            <div style={{ fontSize: 13, color: 'var(--ink-3)', marginTop: 3 }}>
+              {subtitle}
+            </div>
+          )}
+        </div>
+      </div>
+      {status && (
+        <span
+          className={`chip ${status === 'complete' ? 'chip-success' : status === 'warn' ? 'chip-warn' : ''}`}
+        >
+          {status === 'complete' && (
+            <>
+              <Icon name="check" size={11} />
+              Complete
+            </>
+          )}
+          {status === 'warn' && (
+            <>
+              <Icon name="alert" size={11} />
+              Needs review
+            </>
+          )}
+          {status === 'progress' && (
+            <>
+              <span className="dot" />
+              In progress
+            </>
+          )}
+        </span>
+      )}
+    </header>
+    <div style={{ padding: '24px 28px 28px' }}>{children}</div>
+  </section>
+)
+
+// — Tile option: card-style radio used for trigger picker, audience, etc.
+export const TileOption = ({
+  active,
+  onClick,
+  icon,
+  title,
+  desc,
+  badge,
+}: {
+  active: boolean
+  onClick: () => void
+  icon: string
+  title: string
+  desc?: string
+  badge?: string | null
+}) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={`option-card ${active ? 'is-active' : ''}`}
+    style={{
+      padding: 18,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 10,
+      alignItems: 'flex-start',
+      minHeight: 112,
+      textAlign: 'left',
+    }}
+  >
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        width: '100%',
+      }}
+    >
+      <div
+        style={{
+          width: 32,
+          height: 32,
+          borderRadius: 9,
+          background: active ? 'var(--indigo)' : 'var(--bg-softer)',
+          color: active ? '#fff' : 'var(--ink-2)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'all 0.15s',
+        }}
+      >
+        <Icon name={icon} size={14} />
+      </div>
+      <span className="option-card-radio" />
+    </div>
+    <div>
+      <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink)' }}>
+        {title}
+      </div>
+      {desc && (
+        <div
+          style={{
+            fontSize: 12.5,
+            color: 'var(--ink-3)',
+            marginTop: 4,
+            lineHeight: 1.45,
+          }}
+        >
+          {desc}
+        </div>
+      )}
+    </div>
+    {badge && (
+      <span
+        style={{
+          marginTop: 'auto',
+          fontSize: 10.5,
+          color: active ? 'var(--indigo-2)' : 'var(--ink-3)',
+          background: active ? 'rgba(255,255,255,0.7)' : 'transparent',
+          padding: active ? '3px 8px' : 0,
+          borderRadius: 999,
+          fontFamily: 'JetBrains Mono, monospace',
+        }}
+      >
+        {badge}
+      </span>
+    )}
+  </button>
+)
+
+// — Settings row: label + hint on left, control on right
+export const SettingRow = ({
+  label,
+  hint,
+  control,
+}: {
+  label: string
+  hint?: string
+  control: ReactNode
+}) => (
+  <div
+    style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 16,
+      padding: '4px 0',
+    }}
+  >
+    <div style={{ minWidth: 0, flex: 1 }}>
+      <div style={{ fontSize: 13.5, color: 'var(--ink)' }}>{label}</div>
+      {hint && (
+        <div
+          style={{
+            fontSize: 12,
+            color: 'var(--ink-3)',
+            marginTop: 3,
+            lineHeight: 1.45,
+          }}
+        >
+          {hint}
+        </div>
+      )}
+    </div>
+    <div style={{ flexShrink: 0 }}>{control}</div>
+  </div>
+)
+
 export const MetricTile = ({
   value,
   label,
