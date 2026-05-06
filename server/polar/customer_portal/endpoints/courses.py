@@ -221,7 +221,7 @@ async def list_enrolled_courses(
         # lines up between list and detail views.
         _, accessible_ids = _build_flat_lesson_list(
             course,
-            course.paywall_position,
+            course_service.effective_paywall_lesson_position(course),
             enrollment.enrolled_at,
             now,
             completed_ids,
@@ -332,10 +332,18 @@ async def get_enrolled_course(
     customer_name = customer.name if customer else None
 
     modules, accessible_ids = _build_module_list(
-        course, course.paywall_position, enrolled_at, now, completed_ids
+        course,
+        course_service.effective_paywall_module_index(course),
+        enrolled_at,
+        now,
+        completed_ids,
     )
     flat_lessons, flat_accessible_ids = _build_flat_lesson_list(
-        course, course.paywall_position, enrolled_at, now, completed_ids
+        course,
+        course_service.effective_paywall_lesson_position(course),
+        enrolled_at,
+        now,
+        completed_ids,
     )
 
     # Progress only counts lessons the student can actually access.
@@ -514,7 +522,7 @@ async def get_course_progress(
     # Use the flat lesson list logic so progress matches the flat lesson list response
     _, accessible_ids = _build_flat_lesson_list(
         course,
-        course.paywall_position,
+        course_service.effective_paywall_lesson_position(course),
         enrollment.enrolled_at,
         now,
         completed_ids,
@@ -588,7 +596,11 @@ async def get_course_landing(
             if p.completed_at is not None
         }
         flat_lessons, _ = _build_flat_lesson_list(
-            course, course.paywall_position, enrollment.enrolled_at, now, completed_ids
+            course,
+            course_service.effective_paywall_lesson_position(course),
+            enrollment.enrolled_at,
+            now,
+            completed_ids,
         )
         has_access = True
     else:
@@ -742,7 +754,10 @@ async def check_lesson_access(
 
     # User is enrolled, check drip/paywall gating
     is_accessible, locked_until = course_service.calculate_lesson_accessibility(
-        lesson, course.paywall_position, enrollment.enrolled_at, now
+        lesson,
+        course_service.effective_paywall_lesson_position(course),
+        enrollment.enrolled_at,
+        now,
     )
 
     if is_accessible:
@@ -788,7 +803,11 @@ async def _verify_lesson_in_enrolled_course(
     course = enrollment.course
     now = datetime.now(tz=UTC)
     _, accessible_ids = _build_module_list(
-        course, course.paywall_position, enrollment.enrolled_at, now, set()
+        course,
+        course_service.effective_paywall_module_index(course),
+        enrollment.enrolled_at,
+        now,
+        set(),
     )
     if str(lesson.id) not in accessible_ids:
         raise HTTPException(status_code=403, detail="Lesson is not accessible")

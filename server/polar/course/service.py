@@ -296,6 +296,15 @@ class CourseService:
         statement = repo.get_by_customer_statement(customer_id)
         return await repo.get_all(statement)
 
+    async def list_enrollments_for_course(
+        self,
+        session: AsyncSession,
+        course_id: UUID,
+    ) -> Sequence[CourseEnrollment]:
+        repo = CourseEnrollmentRepository.from_session(session)
+        statement = repo.get_by_course_statement(course_id)
+        return await repo.get_all(statement)
+
     async def get_enrollment_for_customer(
         self,
         session: AsyncSession,
@@ -435,6 +444,36 @@ class CourseService:
             .limit(1)
         )
         return await lesson_repo.get_one_or_none(statement)
+
+    def effective_paywall_lesson_position(self, course: Course) -> int | None:
+        """Resolve the paywall position used for lesson-level gating.
+
+        Returns the explicit paywall_position when set, otherwise the position
+        of the lesson identified by paywall_lesson_id. None if neither is set.
+        """
+        if course.paywall_position is not None:
+            return course.paywall_position
+        if course.paywall_lesson_id is not None:
+            for module in course.modules:
+                for lesson in module.lessons:
+                    if lesson.id == course.paywall_lesson_id:
+                        return lesson.position
+        return None
+
+    def effective_paywall_module_index(self, course: Course) -> int | None:
+        """Resolve the paywall position used for module-level gating.
+
+        Returns the explicit paywall_position when set, otherwise the index of
+        the module that contains the lesson identified by paywall_lesson_id.
+        """
+        if course.paywall_position is not None:
+            return course.paywall_position
+        if course.paywall_lesson_id is not None:
+            for idx, module in enumerate(course.modules):
+                for lesson in module.lessons:
+                    if lesson.id == course.paywall_lesson_id:
+                        return idx
+        return None
 
     def calculate_lesson_accessibility(
         self,

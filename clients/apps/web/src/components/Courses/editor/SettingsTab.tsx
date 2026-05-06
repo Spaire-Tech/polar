@@ -1,14 +1,20 @@
 'use client'
 
 import { CourseRead, useUploadCourseThumbnail } from '@/hooks/queries/courses'
+import GroupOutlined from '@mui/icons-material/GroupOutlined'
 import ImageOutlined from '@mui/icons-material/ImageOutlined'
 import LockOutlined from '@mui/icons-material/LockOutlined'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ThumbnailPositioner } from './ThumbnailPositioner'
 
 export type CourseSettingsEdits = {
   paywall_enabled: boolean
   paywall_position: number | null
+  paywall_lesson_id?: string | null
+  course_type?: 'evergreen' | 'cohort'
+  instructor_name_italic?: boolean
+  instructor_name_bold?: boolean
+  instructor_name_uppercase?: boolean
   thumbnail_object_position?: string | null
 }
 
@@ -25,11 +31,30 @@ export function SettingsTab({
   const [position, setPosition] = useState<number | null>(
     course.paywall_position ?? (course.modules.length > 1 ? 1 : null),
   )
+  const [paywallLessonId, setPaywallLessonId] = useState<string | null>(
+    course.paywall_lesson_id ?? null,
+  )
+  const [paywallMode, setPaywallMode] = useState<'module' | 'lesson'>(
+    course.paywall_lesson_id ? 'lesson' : 'module',
+  )
+  const [courseType, setCourseType] = useState<'evergreen' | 'cohort'>(
+    (course.course_type as 'evergreen' | 'cohort') ?? 'evergreen',
+  )
+  const [italic, setItalic] = useState(course.instructor_name_italic ?? true)
+  const [bold, setBold] = useState(course.instructor_name_bold ?? true)
+  const [uppercase, setUppercase] = useState(
+    course.instructor_name_uppercase ?? true,
+  )
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(
     course.thumbnail_url ?? null,
   )
   const [thumbnailPosition, setThumbnailPosition] = useState<string | null>(
     course.thumbnail_object_position ?? null,
+  )
+
+  const flatLessons = useMemo(
+    () => course.modules.flatMap((m) => m.lessons),
+    [course.modules],
   )
   const thumbnailInputRef = useRef<HTMLInputElement>(null)
   const uploadThumbnail = useUploadCourseThumbnail()
@@ -37,12 +62,23 @@ export function SettingsTab({
   useEffect(() => {
     setEnabled(course.paywall_enabled)
     setPosition(course.paywall_position)
+    setPaywallLessonId(course.paywall_lesson_id ?? null)
+    setPaywallMode(course.paywall_lesson_id ? 'lesson' : 'module')
+    setCourseType((course.course_type as 'evergreen' | 'cohort') ?? 'evergreen')
+    setItalic(course.instructor_name_italic ?? true)
+    setBold(course.instructor_name_bold ?? true)
+    setUppercase(course.instructor_name_uppercase ?? true)
     setThumbnailUrl(course.thumbnail_url ?? null)
     setThumbnailPosition(course.thumbnail_object_position ?? null)
   }, [
     course.id,
     course.paywall_enabled,
     course.paywall_position,
+    course.paywall_lesson_id,
+    course.course_type,
+    course.instructor_name_italic,
+    course.instructor_name_bold,
+    course.instructor_name_uppercase,
     course.thumbnail_url,
     course.thumbnail_object_position,
   ])
@@ -67,11 +103,18 @@ export function SettingsTab({
   const dirty =
     enabled !== course.paywall_enabled ||
     position !== course.paywall_position ||
+    paywallLessonId !== (course.paywall_lesson_id ?? null) ||
+    courseType !==
+      ((course.course_type as 'evergreen' | 'cohort') ?? 'evergreen') ||
+    italic !== (course.instructor_name_italic ?? true) ||
+    bold !== (course.instructor_name_bold ?? true) ||
+    uppercase !== (course.instructor_name_uppercase ?? true) ||
     (thumbnailPosition ?? null) !== (course.thumbnail_object_position ?? null)
 
-  const lockedCount = enabled && position != null
-    ? Math.max(0, course.modules.length - position)
-    : 0
+  const lockedCount =
+    enabled && position != null
+      ? Math.max(0, course.modules.length - position)
+      : 0
 
   return (
     <div className="mx-auto w-full max-w-3xl px-8 py-8">
@@ -115,8 +158,8 @@ export function SettingsTab({
               onChange={setThumbnailPosition}
             />
             <p className="text-xs text-gray-500">
-              Drag the image to choose the focal point shown on the landing
-              page hero.
+              Drag the image to choose the focal point shown on the landing page
+              hero.
             </p>
             <div className="flex justify-end">
               <button
@@ -158,6 +201,85 @@ export function SettingsTab({
         )}
       </section>
 
+      <section className="mb-6 rounded-2xl border border-gray-200 bg-white p-6">
+        <div className="mb-4 flex items-start gap-3">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+            <GroupOutlined sx={{ fontSize: 18 }} />
+          </span>
+          <div className="flex-1">
+            <h2 className="text-base font-bold text-gray-900">Course type</h2>
+            <p className="mt-0.5 text-sm text-gray-500">
+              Evergreen courses are open-ended for self-paced students. Cohort
+              courses run on a fixed schedule with a shared start date.
+            </p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => setCourseType('evergreen')}
+            className={`flex flex-col items-start gap-1 rounded-xl border-2 p-4 text-left transition-colors ${
+              courseType === 'evergreen'
+                ? 'border-gray-900 bg-white'
+                : 'border-gray-200 bg-white hover:border-gray-300'
+            }`}
+          >
+            <span className="text-sm font-semibold text-gray-900">
+              Evergreen
+            </span>
+            <span className="text-xs text-gray-500">
+              Always-open self-paced learning.
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setCourseType('cohort')}
+            className={`flex flex-col items-start gap-1 rounded-xl border-2 p-4 text-left transition-colors ${
+              courseType === 'cohort'
+                ? 'border-gray-900 bg-white'
+                : 'border-gray-200 bg-white hover:border-gray-300'
+            }`}
+          >
+            <span className="text-sm font-semibold text-gray-900">Cohort</span>
+            <span className="text-xs text-gray-500">
+              Group of students moving through together.
+            </span>
+          </button>
+        </div>
+      </section>
+
+      <section className="mb-6 rounded-2xl border border-gray-200 bg-white p-6">
+        <div className="mb-4">
+          <h2 className="text-base font-bold text-gray-900">
+            Instructor name styling
+          </h2>
+          <p className="mt-0.5 text-sm text-gray-500">
+            How the instructor&rsquo;s name is displayed on the landing page.
+          </p>
+        </div>
+        <div className="flex flex-col gap-2">
+          <StyleToggle label="Italic" checked={italic} onChange={setItalic} />
+          <StyleToggle label="Bold" checked={bold} onChange={setBold} />
+          <StyleToggle
+            label="Uppercase"
+            checked={uppercase}
+            onChange={setUppercase}
+          />
+        </div>
+        {course.instructor_name && (
+          <div
+            className="mt-4 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm"
+            style={{
+              fontStyle: italic ? 'italic' : 'normal',
+              fontWeight: bold ? 700 : 400,
+              textTransform: uppercase ? 'uppercase' : 'none',
+            }}
+          >
+            {course.instructor_name}
+          </div>
+        )}
+      </section>
+
       <section className="rounded-2xl border border-gray-200 bg-white p-6">
         <div className="mb-4 flex items-start gap-3">
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
@@ -166,8 +288,8 @@ export function SettingsTab({
           <div className="flex-1">
             <h2 className="text-base font-bold text-gray-900">Paywall</h2>
             <p className="mt-0.5 text-sm text-gray-500">
-              Place a paywall between modules. Modules above the paywall are
-              free preview; everything after is locked until purchase.
+              Lock content behind purchase. Choose how far into the course
+              students can preview before paying.
             </p>
           </div>
           <Toggle checked={enabled} onChange={setEnabled} />
@@ -175,67 +297,159 @@ export function SettingsTab({
 
         {enabled && (
           <div className="mt-4 border-t border-gray-100 pt-4">
-            <label className="block text-sm font-bold text-gray-900">
-              Paywall position
-            </label>
-            <p className="mt-0.5 text-xs text-gray-500">
-              Number of modules visible before the paywall. Modules after this
-              count are locked.
-            </p>
-            <div className="mt-3 flex items-center gap-3">
-              <input
-                type="number"
-                min={0}
-                max={course.modules.length}
-                value={position ?? 0}
-                onChange={(e) => setPosition(parseInt(e.target.value || '0'))}
-                className="w-24 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
-              />
-              <span className="text-sm text-gray-600">
-                of {course.modules.length} modules visible
-              </span>
+            <div className="mb-4 inline-flex rounded-lg border border-gray-200 bg-gray-50 p-1 text-xs font-medium">
+              <button
+                type="button"
+                onClick={() => {
+                  setPaywallMode('module')
+                  setPaywallLessonId(null)
+                }}
+                className={`rounded-md px-3 py-1.5 transition-colors ${
+                  paywallMode === 'module'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                By module
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaywallMode('lesson')}
+                className={`rounded-md px-3 py-1.5 transition-colors ${
+                  paywallMode === 'lesson'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                By lesson
+              </button>
             </div>
 
-            {course.modules.length > 0 && position != null && (
-              <div className="mt-4 flex flex-col gap-1">
-                {course.modules.map((m, idx) => {
-                  const locked = idx >= position
-                  return (
-                    <div
-                      key={m.id}
-                      className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm"
-                      style={{
-                        backgroundColor: locked
-                          ? 'rgb(254 242 242)'
-                          : 'rgb(240 253 244)',
-                      }}
-                    >
-                      <span className="text-xs text-gray-400">
-                        {idx + 1}.
-                      </span>
-                      <span className="flex-1 truncate text-gray-900">
-                        {m.title}
-                      </span>
-                      <span
-                        className={
-                          locked
-                            ? 'text-xs font-medium text-red-700'
-                            : 'text-xs font-medium text-green-700'
-                        }
-                      >
-                        {locked ? 'Locked' : 'Free preview'}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
+            {paywallMode === 'module' ? (
+              <>
+                <label className="block text-sm font-bold text-gray-900">
+                  Paywall position
+                </label>
+                <p className="mt-0.5 text-xs text-gray-500">
+                  Number of modules visible before the paywall.
+                </p>
+                <div className="mt-3 flex items-center gap-3">
+                  <input
+                    type="number"
+                    min={0}
+                    max={course.modules.length}
+                    value={position ?? 0}
+                    onChange={(e) =>
+                      setPosition(parseInt(e.target.value || '0'))
+                    }
+                    className="w-24 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                  />
+                  <span className="text-sm text-gray-600">
+                    of {course.modules.length} modules visible
+                  </span>
+                </div>
 
-            {lockedCount === 0 && position != null && (
-              <p className="mt-3 text-xs text-amber-600">
-                With this position, no modules are locked — every module is a
-                free preview.
-              </p>
+                {course.modules.length > 0 && position != null && (
+                  <div className="mt-4 flex flex-col gap-1">
+                    {course.modules.map((m, idx) => {
+                      const locked = idx >= position
+                      return (
+                        <div
+                          key={m.id}
+                          className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm"
+                          style={{
+                            backgroundColor: locked
+                              ? 'rgb(254 242 242)'
+                              : 'rgb(240 253 244)',
+                          }}
+                        >
+                          <span className="text-xs text-gray-400">
+                            {idx + 1}.
+                          </span>
+                          <span className="flex-1 truncate text-gray-900">
+                            {m.title}
+                          </span>
+                          <span
+                            className={
+                              locked
+                                ? 'text-xs font-medium text-red-700'
+                                : 'text-xs font-medium text-green-700'
+                            }
+                          >
+                            {locked ? 'Locked' : 'Free preview'}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+
+                {lockedCount === 0 && position != null && (
+                  <p className="mt-3 text-xs text-amber-600">
+                    With this position, no modules are locked — every module is
+                    a free preview.
+                  </p>
+                )}
+              </>
+            ) : (
+              <>
+                <label className="block text-sm font-bold text-gray-900">
+                  Paywall lesson
+                </label>
+                <p className="mt-0.5 text-xs text-gray-500">
+                  Lessons before this one are free preview; this lesson and
+                  everything after are locked until purchase.
+                </p>
+                <select
+                  value={paywallLessonId ?? ''}
+                  onChange={(e) => setPaywallLessonId(e.target.value || null)}
+                  className="mt-3 w-full max-w-md rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                >
+                  <option value="">— Select a lesson —</option>
+                  {flatLessons.map((l, idx) => (
+                    <option key={l.id} value={l.id}>
+                      {idx + 1}. {l.title || 'Untitled lesson'}
+                    </option>
+                  ))}
+                </select>
+                {paywallLessonId && (
+                  <div className="mt-4 flex flex-col gap-1">
+                    {flatLessons.map((l, idx) => {
+                      const lockIdx = flatLessons.findIndex(
+                        (x) => x.id === paywallLessonId,
+                      )
+                      const locked = lockIdx >= 0 && idx >= lockIdx
+                      return (
+                        <div
+                          key={l.id}
+                          className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm"
+                          style={{
+                            backgroundColor: locked
+                              ? 'rgb(254 242 242)'
+                              : 'rgb(240 253 244)',
+                          }}
+                        >
+                          <span className="text-xs text-gray-400">
+                            {idx + 1}.
+                          </span>
+                          <span className="flex-1 truncate text-gray-900">
+                            {l.title || 'Untitled lesson'}
+                          </span>
+                          <span
+                            className={
+                              locked
+                                ? 'text-xs font-medium text-red-700'
+                                : 'text-xs font-medium text-green-700'
+                            }
+                          >
+                            {locked ? 'Locked' : 'Free preview'}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
@@ -246,6 +460,14 @@ export function SettingsTab({
             onClick={() => {
               setEnabled(course.paywall_enabled)
               setPosition(course.paywall_position)
+              setPaywallLessonId(course.paywall_lesson_id ?? null)
+              setPaywallMode(course.paywall_lesson_id ? 'lesson' : 'module')
+              setCourseType(
+                (course.course_type as 'evergreen' | 'cohort') ?? 'evergreen',
+              )
+              setItalic(course.instructor_name_italic ?? true)
+              setBold(course.instructor_name_bold ?? true)
+              setUppercase(course.instructor_name_uppercase ?? true)
               setThumbnailPosition(course.thumbnail_object_position ?? null)
             }}
             className="rounded-full border border-gray-300 px-4 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
@@ -257,7 +479,14 @@ export function SettingsTab({
             onClick={() =>
               onSave({
                 paywall_enabled: enabled,
-                paywall_position: enabled ? position : null,
+                paywall_position:
+                  enabled && paywallMode === 'module' ? position : null,
+                paywall_lesson_id:
+                  enabled && paywallMode === 'lesson' ? paywallLessonId : null,
+                course_type: courseType,
+                instructor_name_italic: italic,
+                instructor_name_bold: bold,
+                instructor_name_uppercase: uppercase,
                 thumbnail_object_position: thumbnailPosition,
               })
             }
@@ -268,6 +497,23 @@ export function SettingsTab({
         </div>
       </section>
     </div>
+  )
+}
+
+function StyleToggle({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string
+  checked: boolean
+  onChange: (next: boolean) => void
+}) {
+  return (
+    <label className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm">
+      <span className="font-medium text-gray-900">{label}</span>
+      <Toggle checked={checked} onChange={onChange} />
+    </label>
   )
 }
 

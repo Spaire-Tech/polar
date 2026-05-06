@@ -155,6 +155,11 @@ export default function CourseEditor({
         body: {
           paywall_enabled: edits.paywall_enabled,
           paywall_position: edits.paywall_position,
+          paywall_lesson_id: edits.paywall_lesson_id,
+          course_type: edits.course_type,
+          instructor_name_italic: edits.instructor_name_italic,
+          instructor_name_bold: edits.instructor_name_bold,
+          instructor_name_uppercase: edits.instructor_name_uppercase,
           thumbnail_object_position: edits.thumbnail_object_position,
         },
       })
@@ -194,6 +199,9 @@ export default function CourseEditor({
           published: edits.published,
           thumbnail_object_position: edits.thumbnailObjectPosition,
           comments_mode: edits.commentsMode,
+          is_free_preview: edits.isFreePreview,
+          release_at: edits.releaseAt,
+          drip_days: edits.dripDays,
         },
       })
       invalidateCourse()
@@ -329,7 +337,9 @@ export default function CourseEditor({
       />
     )
   } else {
-    mainContent = <CustomersTab organization={organization} />
+    mainContent = (
+      <CustomersTab courseId={course.id} organization={organization} />
+    )
   }
 
   const handleClose = () =>

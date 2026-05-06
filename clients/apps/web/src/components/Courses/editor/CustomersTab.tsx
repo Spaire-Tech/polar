@@ -1,6 +1,6 @@
 'use client'
 
-import { useAuth } from '@/hooks/auth'
+import { useCourseEnrollments } from '@/hooks/queries/courses'
 import FileDownloadOutlined from '@mui/icons-material/FileDownloadOutlined'
 import SearchOutlined from '@mui/icons-material/SearchOutlined'
 import { schemas } from '@spaire/client'
@@ -12,9 +12,8 @@ type CustomerRow = {
   name: string
   email: string
   avatar_url: string | null
-  role: string
   joined: string | null
-  paywall: string
+  progress: string
   lastActive: string | null
 }
 
@@ -28,27 +27,26 @@ function formatDate(value: string | null): string {
 }
 
 export function CustomersTab({
+  courseId,
   organization,
 }: {
+  courseId: string
   organization: schemas['Organization']
 }) {
-  const { currentUser } = useAuth()
   const [query, setQuery] = useState('')
+  const { data: enrollments = [], isLoading } = useCourseEnrollments(courseId)
 
-  const adminRow: CustomerRow | null = currentUser
-    ? {
-        id: currentUser.id,
-        name: currentUser.email.split('@')[0],
-        email: currentUser.email,
-        avatar_url: currentUser.avatar_url,
-        role: 'Admin',
-        joined: organization.created_at ?? currentUser.created_at,
-        paywall: '-',
-        lastActive: new Date().toISOString(),
-      }
-    : null
+  const rows: CustomerRow[] = enrollments.map((e) => ({
+    id: e.id,
+    name: e.customer.name || e.customer.email.split('@')[0] || 'Student',
+    email: e.customer.email,
+    avatar_url: e.customer.avatar_url,
+    joined: e.enrolled_at,
+    progress:
+      e.total_lessons > 0 ? `${e.completed_lessons} / ${e.total_lessons}` : '-',
+    lastActive: e.last_active_at,
+  }))
 
-  const rows: CustomerRow[] = adminRow ? [adminRow] : []
   const visibleRows = query.trim()
     ? rows.filter(
         (r) =>
@@ -58,7 +56,7 @@ export function CustomersTab({
     : rows
 
   const handleDownloadCsv = () => {
-    const header = ['Name', 'Email', 'Role', 'Joined', 'Last active']
+    const header = ['Name', 'Email', 'Joined', 'Progress', 'Last active']
     const escape = (v: string) => `"${v.replace(/"/g, '""')}"`
     const lines = [
       header.map(escape).join(','),
@@ -66,8 +64,8 @@ export function CustomersTab({
         [
           r.name,
           r.email,
-          r.role,
           formatDate(r.joined),
+          r.progress,
           formatDate(r.lastActive),
         ]
           .map(escape)
@@ -89,7 +87,7 @@ export function CustomersTab({
     <div className="mx-auto w-full max-w-6xl px-8 py-8">
       <div className="mb-6 flex items-center justify-between gap-4">
         <h2 className="text-base font-bold text-gray-900">
-          Customers ({rows.length})
+          Students ({rows.length})
         </h2>
         <div className="flex items-center gap-2">
           <button
@@ -113,28 +111,33 @@ export function CustomersTab({
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search customers"
+            placeholder="Search students"
             className="focus:border-primary w-full rounded-lg border border-transparent bg-transparent py-1.5 pr-3 pl-8 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
           />
         </div>
 
-        <div className="grid grid-cols-[2.5fr_1fr_1.2fr_1fr_1.2fr] gap-4 px-6 py-3 text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
+        <div className="grid grid-cols-[2.5fr_1.2fr_1fr_1.2fr] gap-4 px-6 py-3 text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
           <span>Name</span>
-          <span>Role</span>
           <span>Joined</span>
-          <span>Paywall</span>
+          <span>Progress</span>
           <span>Last active</span>
         </div>
 
-        {visibleRows.length === 0 ? (
+        {isLoading ? (
           <div className="px-6 py-12 text-center text-sm text-gray-500">
-            No customers match your search.
+            Loading…
+          </div>
+        ) : visibleRows.length === 0 ? (
+          <div className="px-6 py-12 text-center text-sm text-gray-500">
+            {query.trim()
+              ? 'No students match your search.'
+              : 'No one has enrolled in this course yet.'}
           </div>
         ) : (
           visibleRows.map((row) => (
             <div
               key={row.id}
-              className="grid grid-cols-[2.5fr_1fr_1.2fr_1fr_1.2fr] items-center gap-4 border-t border-gray-100 px-6 py-4 text-sm text-gray-900"
+              className="grid grid-cols-[2.5fr_1.2fr_1fr_1.2fr] items-center gap-4 border-t border-gray-100 px-6 py-4 text-sm text-gray-900"
             >
               <div className="flex min-w-0 items-center gap-3">
                 <Avatar
@@ -151,9 +154,8 @@ export function CustomersTab({
                   </span>
                 </div>
               </div>
-              <span className="text-gray-700">{row.role}</span>
               <span className="text-gray-700">{formatDate(row.joined)}</span>
-              <span className="text-gray-500">{row.paywall}</span>
+              <span className="text-gray-700">{row.progress}</span>
               <span className="text-gray-700">
                 {formatDate(row.lastActive)}
               </span>

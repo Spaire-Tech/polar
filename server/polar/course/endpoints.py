@@ -24,6 +24,8 @@ from .repository import (
 )
 from .schemas import (
     CourseCreate,
+    CourseEnrollmentCustomer,
+    CourseEnrollmentRead,
     CourseLessonCreate,
     CourseLessonRead,
     CourseLessonUpdate,
@@ -65,6 +67,7 @@ def _lesson_read(lesson) -> CourseLessonRead:
         description=getattr(lesson, "description", None),
         release_at=getattr(lesson, "release_at", None),
         drip_days=getattr(lesson, "drip_days", None),
+        comments_mode=getattr(lesson, "comments_mode", "visible"),
         created_at=lesson.created_at,
         modified_at=lesson.modified_at,
     )
@@ -792,3 +795,64 @@ async def mux_webhook(
                 await lesson_repo.update(
                     lesson, update_dict={"mux_status": "errored"}
                 )
+
+
+@router.get(
+    "/{course_id}/enrollments",
+    response_model=list[CourseEnrollmentRead],
+)
+async def list_course_enrollments(
+    course_id: UUID,
+    auth_subject: auth.CoursesRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> list[CourseEnrollmentRead]:
+    repo = CourseRepository.from_session(session)
+    course = await repo.get_readable_by_id(course_id, auth_subject)
+    if course is None:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    enrollments = await course_service.list_enrollments_for_course(
+        session, course_id
+    )
+    if not enrollments:
+        return []
+
+    customer_ids = [e.customer_id for e in enrollments]
+    customers_result = await session.execute(
+        select(Customer).where(Customer.id.in_(customer_ids))
+    )
+    customers_by_id: dict[UUID, Customer] = {
+        c.id: c for c in customers_result.scalars().all()
+    }
+
+    total_lessons = sum(
+        1 for module in course.modules for lesson in module.lessons if lesson.published
+    )
+
+    rows: list[CourseEnrollmentRead] = []
+    for enrollment in enrollments:
+        progress_items = await course_service.get_progress_for_enrollment(
+            session, enrollment_id=enrollment.id
+        )
+        completed = sum(1 for p in progress_items if p.completed_at is not None)
+        last_active = max(
+            (p.modified_at or p.created_at for p in progress_items),
+            default=None,
+        )
+        customer = customers_by_id.get(enrollment.customer_id)
+        rows.append(
+            CourseEnrollmentRead(
+                id=enrollment.id,
+                enrolled_at=enrollment.enrolled_at,
+                completed_lessons=completed,
+                total_lessons=total_lessons,
+                last_active_at=last_active,
+                customer=CourseEnrollmentCustomer(
+                    id=enrollment.customer_id,
+                    email=customer.email if customer else "",
+                    name=customer.name if customer else None,
+                    avatar_url=customer.avatar_url if customer else None,
+                ),
+            )
+        )
+    return rows

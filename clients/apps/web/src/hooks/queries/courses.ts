@@ -66,6 +66,8 @@ export type CourseLessonRead = {
   thumbnail_object_position: string | null
   description?: string | null
   comments_mode?: 'visible' | 'hidden' | 'locked'
+  release_at?: string | null
+  drip_days?: number | null
   created_at: string
   modified_at: string | null
 }
@@ -254,6 +256,7 @@ export const useUpdateCourse = () =>
         course_type?: string
         paywall_enabled?: boolean
         paywall_position?: number | null
+        paywall_lesson_id?: string | null
         description?: string | null
         thumbnail_url?: string | null
         thumbnail_object_position?: string | null
@@ -928,6 +931,32 @@ export const useUpsertLessonNote = (
         queryKey: ['lesson-note', token, courseId, lessonId],
       })
     },
+  })
+
+// ── Enrollments (organization view) ──────────────────────────────────────
+
+export interface CourseEnrollmentRead {
+  id: string
+  enrolled_at: string
+  completed_lessons: number
+  total_lessons: number
+  last_active_at: string | null
+  customer: {
+    id: string
+    email: string
+    name: string | null
+    avatar_url: string | null
+  }
+}
+
+export const useCourseEnrollments = (courseId: string | undefined) =>
+  useQuery<CourseEnrollmentRead[]>({
+    queryKey: ['course-enrollments', courseId],
+    queryFn: () =>
+      courseApiFetch<CourseEnrollmentRead[]>(
+        `/v1/courses/${courseId}/enrollments`,
+      ),
+    enabled: !!courseId,
   })
 
 // ── Bookmarks ────────────────────────────────────────────────────────────

@@ -36,6 +36,9 @@ export type LessonEdits = {
   published: boolean
   commentsMode: 'visible' | 'hidden' | 'locked'
   thumbnailObjectPosition: string | null
+  isFreePreview: boolean
+  releaseAt: string | null
+  dripDays: number | null
 }
 
 export function LessonDetail({
@@ -571,6 +574,34 @@ export function LessonDetail({
             </div>
           </SbSection>
 
+          <SbSection label="Access">
+            <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+              <div className="flex flex-col">
+                <span className="text-[12.5px] font-medium text-gray-900">
+                  Free preview
+                </span>
+                <span className="text-[11px] text-gray-500">
+                  Unlocked even when behind a paywall.
+                </span>
+              </div>
+              <SidebarSwitch
+                checked={edits.isFreePreview}
+                onChange={(v) => update('isFreePreview', v)}
+              />
+            </div>
+          </SbSection>
+
+          <SbSection label="Release">
+            <ReleaseControl
+              releaseAt={edits.releaseAt}
+              dripDays={edits.dripDays}
+              onChange={(next) => {
+                update('releaseAt', next.releaseAt)
+                update('dripDays', next.dripDays)
+              }}
+            />
+          </SbSection>
+
           <div>
             <button
               onClick={onDelete}
@@ -686,6 +717,151 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
 }
 
+function SidebarSwitch({
+  checked,
+  onChange,
+}: {
+  checked: boolean
+  onChange: (next: boolean) => void
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className={cn(
+        'relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors',
+        checked ? 'bg-gray-900' : 'bg-gray-300',
+      )}
+    >
+      <span
+        className={cn(
+          'pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition',
+          checked ? 'translate-x-4' : 'translate-x-0',
+        )}
+      />
+    </button>
+  )
+}
+
+type ReleaseMode = 'always' | 'drip' | 'date'
+
+function ReleaseControl({
+  releaseAt,
+  dripDays,
+  onChange,
+}: {
+  releaseAt: string | null
+  dripDays: number | null
+  onChange: (next: {
+    releaseAt: string | null
+    dripDays: number | null
+  }) => void
+}) {
+  const mode: ReleaseMode = releaseAt
+    ? 'date'
+    : dripDays != null
+      ? 'drip'
+      : 'always'
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
+      <ReleaseRow
+        selected={mode === 'always'}
+        label="Available immediately"
+        onSelect={() => onChange({ releaseAt: null, dripDays: null })}
+      />
+      <ReleaseRow
+        selected={mode === 'drip'}
+        label="Drip after enrollment"
+        onSelect={() => onChange({ releaseAt: null, dripDays: dripDays ?? 7 })}
+      />
+      {mode === 'drip' && (
+        <div className="flex items-center gap-2 border-t border-gray-200 bg-white px-3 py-2">
+          <input
+            type="number"
+            min={0}
+            value={dripDays ?? 0}
+            onChange={(e) =>
+              onChange({
+                releaseAt: null,
+                dripDays: Math.max(0, parseInt(e.target.value || '0')),
+              })
+            }
+            className="w-16 rounded-md border border-gray-300 px-2 py-1 text-[12px] focus:border-gray-900 focus:outline-none"
+          />
+          <span className="text-[11.5px] text-gray-600">
+            day{dripDays === 1 ? '' : 's'} after enrollment
+          </span>
+        </div>
+      )}
+      <ReleaseRow
+        selected={mode === 'date'}
+        label="Release on a date"
+        onSelect={() =>
+          onChange({
+            releaseAt:
+              releaseAt ?? new Date().toISOString().slice(0, 10) + 'T00:00:00Z',
+            dripDays: null,
+          })
+        }
+        isLast={mode !== 'date'}
+      />
+      {mode === 'date' && (
+        <div className="flex items-center gap-2 border-t border-gray-200 bg-white px-3 py-2">
+          <input
+            type="date"
+            value={releaseAt ? releaseAt.slice(0, 10) : ''}
+            onChange={(e) => {
+              const next = e.target.value
+                ? new Date(`${e.target.value}T00:00:00Z`).toISOString()
+                : null
+              onChange({ releaseAt: next, dripDays: null })
+            }}
+            className="rounded-md border border-gray-300 px-2 py-1 text-[12px] focus:border-gray-900 focus:outline-none"
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ReleaseRow({
+  selected,
+  label,
+  onSelect,
+  isLast,
+}: {
+  selected: boolean
+  label: string
+  onSelect: () => void
+  isLast?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={cn(
+        'flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors hover:bg-white',
+        !isLast && 'border-b border-gray-200',
+      )}
+    >
+      <span
+        className={cn(
+          'flex h-[14px] w-[14px] flex-shrink-0 items-center justify-center rounded-full border-[1.5px]',
+          selected ? 'border-gray-900' : 'border-gray-400',
+        )}
+      >
+        {selected && <span className="h-1.5 w-1.5 rounded-full bg-gray-900" />}
+      </span>
+      <span className="text-[12.5px] tracking-tight text-gray-900">
+        {label}
+      </span>
+    </button>
+  )
+}
+
 function initEdits(
   lesson: CourseLessonRead,
   module: CourseModuleRead,
@@ -705,6 +881,9 @@ function initEdits(
       | 'hidden'
       | 'locked',
     thumbnailObjectPosition: lesson.thumbnail_object_position ?? null,
+    isFreePreview: lesson.is_free_preview ?? false,
+    releaseAt: (lesson as any).release_at ?? null,
+    dripDays: (lesson as any).drip_days ?? null,
   }
 }
 

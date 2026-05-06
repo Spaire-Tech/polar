@@ -140,6 +140,11 @@ class CourseEnrollmentRepository(
             CourseEnrollment.customer_id == customer_id
         )
 
+    def get_by_course_statement(self, course_id: UUID):
+        return self.get_base_statement().where(
+            CourseEnrollment.course_id == course_id
+        )
+
     def get_by_customer_and_course_statement(
         self, customer_id: UUID, course_id: UUID
     ):

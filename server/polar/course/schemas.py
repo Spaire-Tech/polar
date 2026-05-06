@@ -211,6 +211,22 @@ class CourseProgressRead(Schema):
     last_position_seconds: dict[str, int] = Field(default_factory=dict)
 
 
+class CourseEnrollmentCustomer(Schema):
+    id: UUID4
+    email: str
+    name: str | None
+    avatar_url: str | None
+
+
+class CourseEnrollmentRead(Schema):
+    id: UUID4
+    enrolled_at: datetime
+    completed_lessons: int
+    total_lessons: int
+    last_active_at: datetime | None
+    customer: CourseEnrollmentCustomer
+
+
 class LessonProgressUpsert(Schema):
     last_position_seconds: int = Field(ge=0)
 

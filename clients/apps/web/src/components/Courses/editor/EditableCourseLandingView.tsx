@@ -51,6 +51,14 @@ const HEADING_VAR = 'var(--font-heading, ' + FONT_VAR + ')'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
+function instructorNameStyle(course: CourseRead): React.CSSProperties {
+  return {
+    fontStyle: course.instructor_name_italic ? 'italic' : 'normal',
+    fontWeight: course.instructor_name_bold ? 700 : undefined,
+    textTransform: course.instructor_name_uppercase ? 'uppercase' : 'none',
+  }
+}
+
 function fmtDuration(secs: number) {
   if (!secs) return '—'
   const h = Math.floor(secs / 3600)
@@ -148,8 +156,7 @@ export function EditableCourseLandingView({
       : null
   const freeLessons =
     paywallAt != null ? flatLessons.slice(0, paywallAt) : flatLessons
-  const paidLessons =
-    paywallAt != null ? flatLessons.slice(paywallAt) : []
+  const paidLessons = paywallAt != null ? flatLessons.slice(paywallAt) : []
   const lockedCount = paidLessons.length
 
   const sectionMap: Record<string, { label: string; node: React.ReactNode }> = {
@@ -273,8 +280,7 @@ function Hero({
         background: '#000',
         isolation: 'isolate',
         border: '1px solid oklch(0.92 0.003 280)',
-        boxShadow:
-          '0 2px 6px rgba(0,0,0,0.06), 0 24px 60px rgba(0,0,0,0.10)',
+        boxShadow: '0 2px 6px rgba(0,0,0,0.06), 0 24px 60px rgba(0,0,0,0.10)',
       }}
     >
       <EditMedia
@@ -384,7 +390,8 @@ function Hero({
             }}
           />
           <span style={{ color: 'rgba(255,255,255,0.6)' }}>
-            {flatLessons.length} {plural(flatLessons.length, 'lesson', 'lessons')}
+            {flatLessons.length}{' '}
+            {plural(flatLessons.length, 'lesson', 'lessons')}
           </span>
           <span style={{ color: 'rgba(255,255,255,0.3)' }}>·</span>
           <span style={{ color: 'rgba(255,255,255,0.6)' }}>
@@ -433,10 +440,12 @@ function Hero({
           />
           {course.instructor_name && (
             <span style={{ color: 'rgba(255,255,255,0.5)' }}>
-              {' '}— with{' '}
+              {' '}
+              — with{' '}
               <EditText
                 path="hero.instructor"
                 defaultValue={course.instructor_name}
+                style={instructorNameStyle(course)}
               />
             </span>
           )}
@@ -482,7 +491,10 @@ function Hero({
               ▶
             </span>
             <span style={{ fontSize: 14, fontWeight: 600, lineHeight: 1 }}>
-              <EditText path="hero.cta_secondary" defaultValue="Watch trailer" />
+              <EditText
+                path="hero.cta_secondary"
+                defaultValue="Watch trailer"
+              />
             </span>
           </button>
           <button
@@ -656,8 +668,7 @@ function HeroMediaControls() {
   const heroTrailer = ed.m('hero.trailer')
   const hasImage = !!heroImage && heroImage.kind === 'image'
   const hasTrailer =
-    !!heroTrailer ||
-    (!!heroImage && heroImage.kind === 'video')
+    !!heroTrailer || (!!heroImage && heroImage.kind === 'video')
 
   const upload = async (slotId: string, file: File) => {
     const uploader = ed.uploaderForSlot?.(slotId) ?? ed.uploadMedia
@@ -1084,7 +1095,11 @@ function EpisodeGrid({
                   fontSize: 13,
                   fontWeight: 600,
                   border: 'none',
-                  cursor: canEnroll ? (enrolling ? 'wait' : 'pointer') : 'default',
+                  cursor: canEnroll
+                    ? enrolling
+                      ? 'wait'
+                      : 'pointer'
+                    : 'default',
                   fontFamily: 'inherit',
                   opacity: enrolling ? 0.7 : 1,
                 }}
@@ -1933,8 +1948,7 @@ function EpisodeInfo({
               onBlur={persistDesc}
               onKeyDown={(e) => {
                 if (e.key === 'Escape') {
-                  if (descRef.current)
-                    descRef.current.innerText = lessonDesc
+                  if (descRef.current) descRef.current.innerText = lessonDesc
                   ;(e.target as HTMLElement).blur()
                 }
               }}
@@ -1979,7 +1993,14 @@ function EpisodeInfo({
           />
         )}
         {ed.mode === 'edit' && (
-          <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div
+            style={{
+              marginTop: 6,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
             <button
               type="button"
               onClick={generate}
@@ -2205,6 +2226,7 @@ function Instructor({ course }: { course: CourseRead }) {
                 letterSpacing: '-0.01em',
                 textShadow: '0 2px 12px rgba(0,0,0,0.7)',
                 zIndex: 3,
+                ...instructorNameStyle(course),
               }}
             >
               {course.instructor_name}
@@ -2238,6 +2260,7 @@ function Instructor({ course }: { course: CourseRead }) {
                 color: 'oklch(0.66 0.006 280)',
                 letterSpacing: '0.04em',
                 marginBottom: 28,
+                ...instructorNameStyle(course),
               }}
             >
               — {course.instructor_name}
@@ -2276,9 +2299,7 @@ function Instructor({ course }: { course: CourseRead }) {
                   flex: 1,
                   paddingLeft: i === 1 ? 0 : 32,
                   borderLeft:
-                    i === 1
-                      ? 'none'
-                      : '1px solid oklch(0.92 0.003 280)',
+                    i === 1 ? 'none' : '1px solid oklch(0.92 0.003 280)',
                 }}
               >
                 <EditText
@@ -2560,4 +2581,3 @@ function Footer({ organizationName }: { organizationName: string }) {
     </footer>
   )
 }
-
