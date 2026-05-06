@@ -381,6 +381,55 @@ class EmailSequenceService:
             enrollment.status = EmailSequenceEnrollmentStatus.cancelled
             await session.flush()
 
+    async def complete_for_goal(
+        self,
+        session: AsyncSession,
+        organization_id: UUID,
+        subscriber_id: UUID,
+        *,
+        goal_type: str,
+        goal_filter: dict | None = None,
+    ) -> int:
+        """Mark active enrolments complete when a subscriber's customer hits
+        the sequence's configured goal.
+
+        Goal lives at `trigger_config.goal_event = {type, ...selectors}`.
+        We compare `type` and any selector keys against the event payload.
+        Returns the number of enrolments closed.
+        """
+        repository = EmailSequenceRepository.from_session(session)
+
+        # Pull every active enrolment this subscriber has in this org and
+        # check each parent sequence's goal config in-memory. Subscribers are
+        # rarely enrolled in many sequences so the N+1 is fine here.
+        enrolments = await repository.list_active_enrolments_for_subscriber(
+            organization_id, subscriber_id
+        )
+        completed_count = 0
+        for enrolment, sequence in enrolments:
+            goal = (sequence.trigger_config or {}).get("goal_event")
+            if not isinstance(goal, dict):
+                continue
+            if goal.get("type") != goal_type:
+                continue
+            event = goal_filter or {}
+            ok = True
+            for key, expected in goal.items():
+                if key == "type":
+                    continue
+                if event.get(key) != expected:
+                    ok = False
+                    break
+            if not ok:
+                continue
+            enrolment.status = EmailSequenceEnrollmentStatus.completed
+            enrolment.completed_at = utc_now()
+            enrolment.next_step_at = None
+            completed_count += 1
+        if completed_count:
+            await session.flush()
+        return completed_count
+
     async def enroll_for_trigger(
         self,
         session: AsyncSession,

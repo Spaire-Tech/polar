@@ -83,6 +83,31 @@ class EmailSequenceRepository(
         result = await self.session.execute(statement)
         return list(result.scalars().all())
 
+    async def list_active_enrolments_for_subscriber(
+        self,
+        organization_id: UUID,
+        subscriber_id: UUID,
+    ) -> list[tuple[EmailSequenceEnrollment, EmailSequence]]:
+        """All active enrolments for a subscriber within an organization,
+        with their parent sequence eagerly joined so callers can read the
+        sequence's `trigger_config` without another round-trip."""
+        statement = (
+            select(EmailSequenceEnrollment, EmailSequence)
+            .join(
+                EmailSequence,
+                EmailSequenceEnrollment.sequence_id == EmailSequence.id,
+            )
+            .where(
+                EmailSequence.organization_id == organization_id,
+                EmailSequenceEnrollment.subscriber_id == subscriber_id,
+                EmailSequenceEnrollment.status
+                == EmailSequenceEnrollmentStatus.active,
+                EmailSequenceEnrollment.deleted_at.is_(None),
+            )
+        )
+        result = await self.session.execute(statement)
+        return [(row[0], row[1]) for row in result.all()]
+
     async def list_due_enrollments(self, now: datetime) -> list[EmailSequenceEnrollment]:
         """All active enrollments where next_step_at has passed."""
         statement = (

@@ -204,6 +204,20 @@ const SequenceEditorInner = ({
       ? (initialConfig.product_id as string)
       : null,
   )
+  // Goal completion: when the customer hits the goal event, we mark active
+  // enrolments complete and stop sending. First-class goal type for now is
+  // "buying a specific product" — backend keys the goal_event by type +
+  // matching selectors. trial→paid is the headline use case.
+  const initialGoal = (initialConfig.goal_event ?? {}) as Record<
+    string,
+    unknown
+  >
+  const [goalProductId, setGoalProductId] = useState<string | null>(() =>
+    initialGoal.type === 'product_purchase' &&
+    typeof initialGoal.product_id === 'string'
+      ? (initialGoal.product_id as string)
+      : null,
+  )
   const initialWindow = (initialConfig.send_window ?? {}) as Record<
     string,
     unknown
@@ -251,6 +265,14 @@ const SequenceEditorInner = ({
       cfg.product_id = productId
     } else {
       delete cfg.product_id
+    }
+    if (goalProductId) {
+      cfg.goal_event = {
+        type: 'product_purchase',
+        product_id: goalProductId,
+      }
+    } else {
+      delete cfg.goal_event
     }
     return cfg
   }
@@ -750,6 +772,7 @@ const SequenceEditorInner = ({
 
         {persistedId && (
           <SequenceSidebar
+            organization={organization}
             sequenceId={persistedId}
             isActive={isActive}
             description={description}
@@ -760,6 +783,10 @@ const SequenceEditorInner = ({
             onPauseOnUnsubChange={setPauseOnUnsub}
             sendWindow={sendWindow}
             onSendWindowChange={setSendWindow}
+            goalProductId={goalProductId}
+            onGoalProductChange={setGoalProductId}
+            steps={sortedSteps}
+            stepAnalyticsById={stepAnalyticsById}
           />
         )}
       </div>
@@ -1003,6 +1030,7 @@ const Field = ({
 // ── Right rail: settings + live analytics ──
 
 const SequenceSidebar = ({
+  organization,
   sequenceId,
   isActive,
   description,
@@ -1013,7 +1041,12 @@ const SequenceSidebar = ({
   onPauseOnUnsubChange,
   sendWindow,
   onSendWindowChange,
+  goalProductId,
+  onGoalProductChange,
+  steps,
+  stepAnalyticsById,
 }: {
+  organization: schemas['Organization']
   sequenceId: string
   isActive: boolean
   description: string
@@ -1024,6 +1057,10 @@ const SequenceSidebar = ({
   onPauseOnUnsubChange: (v: boolean) => void
   sendWindow: SendWindow
   onSendWindowChange: (v: SendWindow) => void
+  goalProductId: string | null
+  onGoalProductChange: (id: string | null) => void
+  steps: Step[]
+  stepAnalyticsById: Map<string, SequenceStepAnalyticsRow>
 }) => {
   const analyticsQuery = useSequenceAnalytics(sequenceId)
   const a = analyticsQuery.data as SequenceAnalytics | undefined
@@ -1053,6 +1090,15 @@ const SequenceSidebar = ({
             style={{ resize: 'vertical', fontFamily: 'inherit' }}
           />
         </Field>
+        <div style={{ marginTop: 14 }}>
+          <Field label="Goal — stop when subscriber buys">
+            <GoalProductSelect
+              organization={organization}
+              value={goalProductId}
+              onChange={onGoalProductChange}
+            />
+          </Field>
+        </div>
         <div
           style={{
             display: 'flex',
@@ -1176,6 +1222,8 @@ const SequenceSidebar = ({
           </>
         )}
       </div>
+
+      <SuggestionsCard steps={steps} stepAnalyticsById={stepAnalyticsById} />
     </div>
   )
 }
@@ -1538,6 +1586,192 @@ const formatRelative = (iso: string): string => {
   }
   const d = Math.round(abs / day)
   return future ? `in ${d}d` : `${d}d ago`
+}
+
+// ── Goal product select (Settings card) ──
+
+const GoalProductSelect = ({
+  organization,
+  value,
+  onChange,
+}: {
+  organization: schemas['Organization']
+  value: string | null
+  onChange: (id: string | null) => void
+}) => {
+  const productsQuery = useProducts(organization.id, { limit: 100 })
+  const products = productsQuery.data?.items ?? []
+  return (
+    <select
+      className="input"
+      value={value ?? ''}
+      onChange={(e) => onChange(e.target.value || null)}
+      style={{ width: '100%' }}
+    >
+      <option value="">No goal — sequence runs to completion</option>
+      {products.map((p) => (
+        <option key={p.id} value={p.id}>
+          {p.name}
+        </option>
+      ))}
+    </select>
+  )
+}
+
+// ── Spaire suggests (heuristic-driven) ──
+
+type Suggestion = {
+  id: string
+  tone: 'warn' | 'info' | 'praise'
+  text: string
+}
+
+const buildSuggestions = (
+  steps: Step[],
+  byId: Map<string, SequenceStepAnalyticsRow>,
+): Suggestion[] => {
+  const out: Suggestion[] = []
+  if (steps.length === 0) return out
+
+  // Welcome cadence: a step 0 with delay > 0 means new subscribers wait
+  // for their first message. We've seen open rate drop sharply when the
+  // first email lands more than an hour after the trigger.
+  const first = steps[0]
+  if (first.delay_hours > 1) {
+    out.push({
+      id: 'welcome-delay',
+      tone: 'warn',
+      text: `Step 1 waits ${first.delay_hours}h. The fastest welcomes ship within an hour — open rate drops 30–40% after a day's delay.`,
+    })
+  }
+
+  // Long gaps between sends: subscribers cool off.
+  const longGap = steps.find((s, i) => i > 0 && s.delay_hours >= 24 * 14)
+  if (longGap) {
+    out.push({
+      id: 'long-gap',
+      tone: 'warn',
+      text: `Step ${steps.indexOf(longGap) + 1} waits ${Math.round(longGap.delay_hours / 24)} days. Anything over 14 days usually loses the thread — consider splitting it.`,
+    })
+  }
+
+  // Worst-performing step (after enough volume).
+  const ranked = steps
+    .map((s) => ({ s, a: byId.get(s.id) }))
+    .filter(
+      (e): e is { s: Step; a: SequenceStepAnalyticsRow } =>
+        !!e.a && e.a.delivered >= 20,
+    )
+    .sort((x, y) => x.a.open_rate - y.a.open_rate)
+  if (ranked.length >= 2 && ranked[0].a.open_rate < 30) {
+    out.push({
+      id: 'low-open',
+      tone: 'info',
+      text: `Step ${steps.indexOf(ranked[0].s) + 1} ("${ranked[0].s.subject}") has the lowest open rate at ${ranked[0].a.open_rate.toFixed(1)}%. Try a punchier subject line or move it earlier.`,
+    })
+  }
+
+  // Sequence shape: 1 step is rarely a "sequence".
+  if (steps.length === 1) {
+    out.push({
+      id: 'too-short',
+      tone: 'info',
+      text: "Just one email — that's a broadcast. Add a follow-up at day 2 and a check-in at day 7 for the strongest welcome arc.",
+    })
+  }
+
+  // Praise: long sequences with steady cadence.
+  if (steps.length >= 5 && out.length === 0) {
+    out.push({
+      id: 'good-shape',
+      tone: 'praise',
+      text: `${steps.length} steps with a sane cadence — this is the kind of arc that converts. Watch the open rates after launch and tune the weakest step first.`,
+    })
+  }
+
+  return out.slice(0, 3)
+}
+
+const SuggestionsCard = ({
+  steps,
+  stepAnalyticsById,
+}: {
+  steps: Step[]
+  stepAnalyticsById: Map<string, SequenceStepAnalyticsRow>
+}) => {
+  const suggestions = useMemo(
+    () => buildSuggestions(steps, stepAnalyticsById),
+    [steps, stepAnalyticsById],
+  )
+  if (suggestions.length === 0) return null
+  return (
+    <div
+      className="card"
+      style={{
+        padding: 22,
+        background: 'var(--indigo-soft)',
+        borderColor: 'var(--indigo-line)',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          marginBottom: 14,
+        }}
+      >
+        <div
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 8,
+            background: 'var(--indigo)',
+            color: '#fff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 10px -2px rgba(79,70,229,0.4)',
+          }}
+        >
+          <Icon name="sparkles" size={14} />
+        </div>
+        <div style={{ fontSize: 14, color: 'var(--ink)' }}>Spaire suggests</div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {suggestions.map((s) => (
+          <div
+            key={s.id}
+            style={{
+              fontSize: 12.5,
+              color: 'var(--ink-2)',
+              lineHeight: 1.55,
+              paddingLeft: 18,
+              position: 'relative',
+            }}
+          >
+            <span
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: 5,
+                width: 8,
+                height: 8,
+                borderRadius: 4,
+                background:
+                  s.tone === 'warn'
+                    ? 'var(--red, #d6336c)'
+                    : s.tone === 'praise'
+                      ? 'var(--green, #1a7a3e)'
+                      : 'var(--indigo-2)',
+              }}
+            />
+            {s.text}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 // ── Trigger product picker ──

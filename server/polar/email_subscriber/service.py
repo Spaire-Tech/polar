@@ -181,6 +181,16 @@ class EmailSubscriberService:
                 subscriber.id,
                 trigger_filter={"product_id": str(product_id)},
             )
+            # Goal completion: stop any active sequences whose configured
+            # goal is "buying this product". Trial→paid sequences use this
+            # to halt promo emails the moment the customer converts.
+            await sequence_service.complete_for_goal(
+                session,
+                organization_id,
+                subscriber.id,
+                goal_type="product_purchase",
+                goal_filter={"product_id": str(product_id)},
+            )
         return subscriber
 
     async def _trigger_on_subscribe_sequences(
