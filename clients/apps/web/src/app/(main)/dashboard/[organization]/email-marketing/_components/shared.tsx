@@ -156,6 +156,10 @@ export const SelectField = <T extends string>({
 )
 
 // — Section header + body card used across the new-sequence form
+// — Section card: header (title + subtitle + optional status chip) over body.
+// `num` is accepted as metadata so the parent's right-rail "On this page"
+// nav can scroll to / mark sections complete, but the header itself doesn't
+// render a number badge — the design's section cards are clean text only.
 export const FormSection = ({
   num,
   title,
@@ -163,13 +167,17 @@ export const FormSection = ({
   status,
   children,
 }: {
-  num: string
+  num?: string
   title: string
   subtitle?: string
   status?: 'complete' | 'progress' | 'warn'
   children: ReactNode
 }) => (
-  <section className="card" style={{ padding: 0, overflow: 'hidden' }}>
+  <section
+    className="card"
+    style={{ padding: 0, overflow: 'hidden' }}
+    data-section={num}
+  >
     <header
       style={{
         padding: '22px 28px',
@@ -181,42 +189,22 @@ export const FormSection = ({
         background: 'linear-gradient(180deg, #fafafa 0%, #fff 100%)',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+      <div>
         <div
           style={{
-            width: 38,
-            height: 38,
-            borderRadius: 10,
-            background: 'var(--indigo-soft)',
-            color: 'var(--indigo-2)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            fontSize: 17,
             fontWeight: 500,
-            fontFamily: 'JetBrains Mono, monospace',
-            fontSize: 13,
-            border: '1px solid var(--indigo-line)',
+            color: 'var(--ink)',
+            letterSpacing: '-0.005em',
           }}
         >
-          {num}
+          {title}
         </div>
-        <div>
-          <div
-            style={{
-              fontSize: 17,
-              fontWeight: 500,
-              color: 'var(--ink)',
-              letterSpacing: '-0.005em',
-            }}
-          >
-            {title}
+        {subtitle && (
+          <div style={{ fontSize: 13, color: 'var(--ink-3)', marginTop: 3 }}>
+            {subtitle}
           </div>
-          {subtitle && (
-            <div style={{ fontSize: 13, color: 'var(--ink-3)', marginTop: 3 }}>
-              {subtitle}
-            </div>
-          )}
-        </div>
+        )}
       </div>
       {status && (
         <span
@@ -262,80 +250,67 @@ export const TileOption = ({
   title: string
   desc?: string
   badge?: string | null
-}) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className={`option-card ${active ? 'is-active' : ''}`}
-    style={{
-      padding: 18,
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 10,
-      alignItems: 'flex-start',
-      minHeight: 112,
-      textAlign: 'left',
-    }}
-  >
-    <div
+}) => {
+  // Icon prop kept for API compatibility but the design's tile is text-only
+  // with a corner radio dot. We reference it as `void icon` so the lint
+  // doesn't flag it; callers can stop passing it whenever they like.
+  void icon
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`option-card ${active ? 'is-active' : ''}`}
       style={{
+        padding: 16,
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        width: '100%',
+        flexDirection: 'column',
+        gap: 6,
+        alignItems: 'flex-start',
+        minHeight: 88,
+        position: 'relative',
+        textAlign: 'left',
       }}
     >
-      <div
-        style={{
-          width: 32,
-          height: 32,
-          borderRadius: 9,
-          background: active ? 'var(--indigo)' : 'var(--bg-softer)',
-          color: active ? '#fff' : 'var(--ink-2)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          transition: 'all 0.15s',
-        }}
-      >
-        <Icon name={icon} size={14} />
-      </div>
-      <span className="option-card-radio" />
-    </div>
-    <div>
-      <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink)' }}>
-        {title}
-      </div>
-      {desc && (
-        <div
+      <span
+        className="option-card-radio"
+        style={{ position: 'absolute', top: 14, right: 14 }}
+      />
+      {badge && (
+        <span
           style={{
-            fontSize: 12.5,
+            position: 'absolute',
+            top: 14,
+            right: 36,
+            fontSize: 10,
+            fontFamily: 'JetBrains Mono, monospace',
             color: 'var(--ink-3)',
-            marginTop: 4,
-            lineHeight: 1.45,
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
           }}
         >
-          {desc}
-        </div>
+          {badge}
+        </span>
       )}
-    </div>
-    {badge && (
-      <span
-        style={{
-          marginTop: 'auto',
-          fontSize: 10.5,
-          color: active ? 'var(--indigo-2)' : 'var(--ink-3)',
-          background: active ? 'rgba(255,255,255,0.7)' : 'transparent',
-          padding: active ? '3px 8px' : 0,
-          borderRadius: 999,
-          fontFamily: 'JetBrains Mono, monospace',
-        }}
-      >
-        {badge}
-      </span>
-    )}
-  </button>
-)
+      <div style={{ paddingRight: 28 }}>
+        <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink)' }}>
+          {title}
+        </div>
+        {desc && (
+          <div
+            style={{
+              fontSize: 12.5,
+              color: 'var(--ink-3)',
+              marginTop: 4,
+              lineHeight: 1.45,
+            }}
+          >
+            {desc}
+          </div>
+        )}
+      </div>
+    </button>
+  )
+}
 
 // — Settings row: label + hint on left, control on right
 export const SettingRow = ({
