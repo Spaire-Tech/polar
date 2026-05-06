@@ -8,12 +8,19 @@ from starlette.responses import StreamingResponse
 
 from polar.exceptions import ResourceNotFound
 from polar.kit.pagination import ListResource, PaginationParamsQuery
-from polar.postgres import AsyncReadSession, AsyncSession, get_db_read_session, get_db_session
+from polar.postgres import (
+    AsyncReadSession,
+    AsyncSession,
+    get_db_read_session,
+    get_db_session,
+)
 from polar.routing import APIRouter
 
 from . import auth, sorting
 from .schemas import (
     EmailSubscriber as EmailSubscriberSchema,
+)
+from .schemas import (
     EmailSubscriberBulkCreate,
     EmailSubscriberBulkResult,
     EmailSubscriberCreate,
@@ -204,6 +211,70 @@ async def remove_email_subscriber_tag(
 
     await remove_tag(session, subscriber.id, tag)
     return await list_tags(session, subscriber.id)
+
+
+@router.get(
+    "/{subscriber_id}/custom-fields", response_model=dict[str, str | None]
+)
+async def list_email_subscriber_custom_fields(
+    auth_subject: auth.EmailSubscribersRead,
+    subscriber_id: UUID4,
+    session: AsyncReadSession = Depends(get_db_read_session),
+) -> dict[str, str | None]:
+    subscriber = await email_subscriber_service.get_by_id(
+        session, auth_subject, subscriber_id
+    )
+    if subscriber is None:
+        raise ResourceNotFound()
+    from polar.email_sequence.custom_fields import list_fields
+
+    return await list_fields(session, subscriber.id)
+
+
+@router.put(
+    "/{subscriber_id}/custom-fields/{key}",
+    response_model=dict[str, str | None],
+)
+async def set_email_subscriber_custom_field(
+    auth_subject: auth.EmailSubscribersWrite,
+    subscriber_id: UUID4,
+    key: str,
+    body: dict,
+    session: AsyncSession = Depends(get_db_session),
+) -> dict[str, str | None]:
+    subscriber = await email_subscriber_service.get_by_id(
+        session, auth_subject, subscriber_id
+    )
+    if subscriber is None:
+        raise ResourceNotFound()
+    from polar.email_sequence.custom_fields import list_fields, set_field
+
+    value = body.get("value") if isinstance(body, dict) else None
+    if value is not None and not isinstance(value, str):
+        value = str(value)
+    await set_field(session, subscriber.id, key, value)
+    return await list_fields(session, subscriber.id)
+
+
+@router.delete(
+    "/{subscriber_id}/custom-fields/{key}",
+    response_model=dict[str, str | None],
+)
+async def delete_email_subscriber_custom_field(
+    auth_subject: auth.EmailSubscribersWrite,
+    subscriber_id: UUID4,
+    key: str,
+    session: AsyncSession = Depends(get_db_session),
+) -> dict[str, str | None]:
+    subscriber = await email_subscriber_service.get_by_id(
+        session, auth_subject, subscriber_id
+    )
+    if subscriber is None:
+        raise ResourceNotFound()
+    from polar.email_sequence.custom_fields import delete_field, list_fields
+
+    await delete_field(session, subscriber.id, key)
+    return await list_fields(session, subscriber.id)
 
 
 @router.patch("/{subscriber_id}", response_model=EmailSubscriberSchema)

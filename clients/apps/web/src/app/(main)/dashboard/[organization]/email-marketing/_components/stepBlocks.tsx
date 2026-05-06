@@ -667,6 +667,35 @@ export const ActionStepBody = ({
           />
         </Field>
       )}
+      {value.action === 'update-field' && (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: 12,
+          }}
+        >
+          <Field label="Field key">
+            <input
+              className="input"
+              value={value.key ?? ''}
+              onChange={(e) => upd({ key: e.target.value })}
+              placeholder="favourite_module"
+            />
+          </Field>
+          <Field
+            label="New value"
+            hint="Leave blank to clear the field for this subscriber."
+          >
+            <input
+              className="input"
+              value={value.value ?? ''}
+              onChange={(e) => upd({ value: e.target.value })}
+              placeholder="brand-foundations"
+            />
+          </Field>
+        </div>
+      )}
       {value.action === 'enroll' && (
         <Field label="Sequence">
           <SelectField

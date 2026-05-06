@@ -57,6 +57,10 @@ export type ActionStepValue = {
   tag?: string
   sequence?: string
   url?: string
+  // update-field key/value pair, persisted on the subscriber's
+  // custom_fields. Empty key is treated as a no-op by the worker.
+  key?: string
+  value?: string
 }
 
 export type GoalStepValue = {

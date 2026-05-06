@@ -236,9 +236,9 @@ async def execute_action(
 ) -> None:
     """Execute an action node.
 
-    Supports add-tag, remove-tag, enroll (cross-sequence enrolment),
-    webhook (HMAC-signed POST), and notify (Slack incoming webhook).
-    update-field stays log-only until the custom-field model lands.
+    Supports add-tag, remove-tag, update-field (sets a custom key/value
+    on the subscriber), enroll (cross-sequence enrolment), webhook
+    (HMAC-signed POST), and notify (Slack incoming webhook).
     """
     action = action_value.get("action")
     if action == "add-tag":
@@ -252,6 +252,13 @@ async def execute_action(
         await remove_tag(
             session, enrollment.subscriber_id, action_value.get("tag") or ""
         )
+        return
+    if action == "update-field":
+        from .custom_fields import set_field
+
+        key = action_value.get("key") or action_value.get("field") or ""
+        value = action_value.get("value")
+        await set_field(session, enrollment.subscriber_id, key, value)
         return
     if action == "enroll":
         target_id = action_value.get("sequence")
@@ -324,7 +331,7 @@ async def process_one_step(
     enrollment: EmailSequenceEnrollment,
     sequence: EmailSequence,
     *,
-    send_email_node: "callable[[EmailSequence, EmailSequenceEnrollment, dict], dict | None]",
+    send_email_node: callable[[EmailSequence, EmailSequenceEnrollment, dict], dict | None],
 ) -> None:
     """Walk a single iteration of the flow for `enrollment`.
 

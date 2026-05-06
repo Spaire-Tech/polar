@@ -7,27 +7,45 @@ from polar.config import settings
 from polar.exceptions import ResourceNotFound
 from polar.integrations.aws.s3 import S3Service
 from polar.kit.pagination import ListResource, PaginationParamsQuery
-from polar.postgres import AsyncReadSession, AsyncSession, get_db_read_session, get_db_session
+from polar.postgres import (
+    AsyncReadSession,
+    AsyncSession,
+    get_db_read_session,
+    get_db_session,
+)
 from polar.routing import APIRouter
 
 from .auth import EmailSequencesRead, EmailSequencesWrite
 from .schemas import (
     EmailSequence as EmailSequenceSchema,
+)
+from .schemas import (
     EmailSequenceAnalytics,
     EmailSequenceCreate,
-    EmailSequenceEnrollment as EmailSequenceEnrollmentSchema,
     EmailSequenceEnrollRequest,
+    EmailSequenceFireEvent,
+    EmailSequenceFireEventResult,
     EmailSequenceFromTemplate,
     EmailSequenceReorderItem,
-    EmailSequenceStep as EmailSequenceStepSchema,
-    EmailSequenceStepAnalytics as EmailSequenceStepAnalyticsSchema,
     EmailSequenceStepCreate,
     EmailSequenceStepTestSend,
     EmailSequenceStepUpdate,
-    EmailSequenceTemplate as EmailSequenceTemplateSchema,
     EmailSequenceUpdate,
 )
-from .service import AlreadyEnrolled, email_sequence as sequence_service
+from .schemas import (
+    EmailSequenceEnrollment as EmailSequenceEnrollmentSchema,
+)
+from .schemas import (
+    EmailSequenceStep as EmailSequenceStepSchema,
+)
+from .schemas import (
+    EmailSequenceStepAnalytics as EmailSequenceStepAnalyticsSchema,
+)
+from .schemas import (
+    EmailSequenceTemplate as EmailSequenceTemplateSchema,
+)
+from .service import AlreadyEnrolled
+from .service import email_sequence as sequence_service
 from .templates import TEMPLATES, get_template
 
 router = APIRouter(prefix="/email-sequences", tags=["email-sequences"])
@@ -397,6 +415,47 @@ async def get_sequence_step_analytics(
         raise ResourceNotFound()
     rows = await sequence_service.get_step_analytics(session, sequence_id)
     return [EmailSequenceStepAnalyticsSchema(**row) for row in rows]
+
+
+# ── Event firing (resumes parked until-event waits) ──────────────────────────
+
+
+@router.post(
+    "/events/fire",
+    response_model=EmailSequenceFireEventResult,
+)
+async def fire_sequence_event(
+    auth_subject: EmailSequencesWrite,
+    body: EmailSequenceFireEvent,
+    session: AsyncSession = Depends(get_db_session),
+) -> EmailSequenceFireEventResult:
+    """Fire a named event for a subscriber.
+
+    Resumes any active enrolment parked on `wait{ mode:'until-event',
+    event:<name> }` for that subscriber.
+    """
+    from polar.email_subscriber.repository import EmailSubscriberRepository
+    from polar.models.email_subscriber import EmailSubscriber
+
+    repo = EmailSubscriberRepository.from_session(session)
+    statement = repo.get_readable_statement(auth_subject).where(
+        EmailSubscriber.id == body.subscriber_id
+    )
+    subscriber = await repo.get_one_or_none(statement)
+    if subscriber is None:
+        raise ResourceNotFound()
+
+    from .events import fire_event
+
+    woken = await fire_event(
+        session,
+        organization_id=subscriber.organization_id,
+        subscriber_id=subscriber.id,
+        event_name=body.event_name,
+    )
+    return EmailSequenceFireEventResult(
+        woken_enrolment_ids=[w.id for w in woken]
+    )
 
 
 @router.get("/{sequence_id}/analytics", response_model=EmailSequenceAnalytics)
