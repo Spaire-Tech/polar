@@ -76,10 +76,14 @@ const renderBlock = (block: Block): string => {
     case 'divider':
       return `<hr style="${DIVIDER_STYLE}">`
     case 'video': {
-      const thumb = safeUrl(block.thumbnail)
-      const url = safeUrl(block.url)
-      if (!thumb || !url) return ''
-      return `<div style="margin:24px 0"><a href="${escape(url)}" target="_blank" rel="noreferrer"><img src="${escape(thumb)}" alt="Watch video" style="${VIDEO_THUMB_STYLE}"></a></div>`
+      // Email clients can't autoplay video, so we render a click-through
+      // thumbnail. Prefer an explicit thumbnail; fall back to the same URL
+      // (so an uploaded mp4 frame still works) — and finally drop the block
+      // if there's nothing to render.
+      const target = safeUrl(block.embed_url) || safeUrl(block.src)
+      if (!target) return ''
+      const thumb = safeUrl(block.thumbnail) || target
+      return `<div style="margin:24px 0"><a href="${escape(target)}" target="_blank" rel="noreferrer"><img src="${escape(thumb)}" alt="Watch video" style="${VIDEO_THUMB_STYLE}"></a></div>`
     }
   }
 }

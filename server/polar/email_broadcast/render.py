@@ -118,13 +118,15 @@ def _render_divider(_block: dict[str, Any]) -> str:
 
 
 def _render_video(block: dict[str, Any]) -> str:
-    thumb = _safe_url(block.get("thumbnail"))
-    url = _safe_url(block.get("url"))
-    if not thumb or not url:
+    # Prefer the embed link; fall back to a direct file URL. Thumbnail
+    # defaults to the same URL when none is given.
+    target = _safe_url(block.get("embed_url")) or _safe_url(block.get("src"))
+    if not target:
         return ""
+    thumb = _safe_url(block.get("thumbnail")) or target
     return (
         f'<div style="margin:24px 0">'
-        f'<a href="{_attr(url)}" target="_blank" rel="noreferrer">'
+        f'<a href="{_attr(target)}" target="_blank" rel="noreferrer">'
         f'<img src="{_attr(thumb)}" alt="Watch video" style="{_VIDEO_THUMB_STYLE}">'
         f"</a>"
         f"</div>"

@@ -480,11 +480,7 @@ const ComposerInner = ({
             />
           )}
           {step === 'content' && (
-            <ContentSection
-              draft={draft}
-              setDraft={updateDraft}
-              renderedHtml={renderedHtml}
-            />
+            <ContentSection draft={draft} setDraft={updateDraft} />
           )}
           {step === 'audience' && (
             <AudienceSection
@@ -624,22 +620,8 @@ const DetailsSection = ({
           value={draft.subject}
           onChange={(e) => setDraft({ subject: e.target.value })}
           style={{ fontSize: 15 }}
-          placeholder="Brand Foundations — Module 5 is live"
           maxLength={255}
         />
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            marginTop: 8,
-            fontSize: 11.5,
-            color: 'var(--ink-4)',
-          }}
-        >
-          <span>
-            {draft.subject.length} / 60 recommended · iPhone Mail truncates ~40
-          </span>
-        </div>
       </div>
       <div style={{ marginBottom: 24 }}>
         <label className="label">Preview text</label>
@@ -647,13 +629,8 @@ const DetailsSection = ({
           className="input"
           value={draft.preview_text}
           onChange={(e) => setDraft({ preview_text: e.target.value })}
-          placeholder="A short hint at what's inside…"
           maxLength={150}
         />
-        <div style={{ marginTop: 8, fontSize: 11.5, color: 'var(--ink-4)' }}>
-          Shows after the subject in the inbox preview ·{' '}
-          {draft.preview_text.length} / 90 recommended
-        </div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <div>
@@ -851,75 +828,20 @@ const DetailsSection = ({
 const ContentSection = ({
   draft,
   setDraft,
-  renderedHtml,
 }: {
   draft: Draft
   setDraft: (p: Partial<Draft>) => void
-  renderedHtml: string
-}) => {
-  const hasContent = draft.content_doc.blocks.length > 0
-  return (
-    <Section
-      title="Compose"
-      sub="Drag-free block editor — pick a block from the left, edit it inline, tweak it on the right."
-    >
-      <BlockEditor
-        doc={draft.content_doc}
-        setDoc={(next) => setDraft({ content_doc: next })}
-      />
-      {hasContent && (
-        <div
-          className="card"
-          style={{
-            marginTop: 16,
-            padding: 0,
-            overflow: 'hidden',
-          }}
-        >
-          <div
-            style={{
-              padding: '10px 18px',
-              borderBottom: '1px solid var(--line)',
-              background: 'var(--bg-soft)',
-              fontSize: 12,
-              color: 'var(--ink-3)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <span>Render preview</span>
-            <span>{renderedHtml.length} chars of HTML</span>
-          </div>
-          <div
-            style={{
-              padding: 28,
-              fontSize: 14,
-              lineHeight: 1.65,
-              color: 'var(--ink-2)',
-            }}
-            // Local renderer matches the server output one-for-one.
-            dangerouslySetInnerHTML={{ __html: renderedHtml }}
-          />
-        </div>
-      )}
-      <div
-        style={{
-          marginTop: 16,
-          padding: '14px 18px',
-          background: 'var(--bg-soft)',
-          borderRadius: 12,
-          fontSize: 12.5,
-          color: 'var(--ink-3)',
-        }}
-      >
-        <Icon name="sparkles" size={14} style={{ marginRight: 8 }} />
-        We render this document to email-safe HTML on the server too — your send
-        always matches what you see here.
-      </div>
-    </Section>
-  )
-}
+}) => (
+  <Section
+    title="Compose"
+    sub="Click a block on the left to add it. Click any block on the canvas to edit. Drag the handle to reorder."
+  >
+    <BlockEditor
+      doc={draft.content_doc}
+      setDoc={(next) => setDraft({ content_doc: next })}
+    />
+  </Section>
+)
 
 type AudienceMode = 'all' | 'segment' | 'filter'
 

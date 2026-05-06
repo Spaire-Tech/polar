@@ -42,8 +42,11 @@ export type DividerBlock = {
 export type VideoBlock = {
   id: BlockId
   type: 'video'
-  thumbnail: string
-  url: string
+  // Either an uploaded video file URL (object URL or hosted) — set `src` —
+  // or an embed link (YouTube/Vimeo/Loom) — set `embed_url`.
+  src?: string
+  embed_url?: string
+  thumbnail?: string
 }
 
 export type Block =
@@ -91,7 +94,7 @@ export const blankBlock = (type: BlockType): Block => {
     case 'divider':
       return { id: newId(), type: 'divider' }
     case 'video':
-      return { id: newId(), type: 'video', thumbnail: '', url: '' }
+      return { id: newId(), type: 'video' }
   }
 }
 

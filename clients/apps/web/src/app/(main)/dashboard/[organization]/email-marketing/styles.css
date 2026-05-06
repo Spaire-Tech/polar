@@ -455,9 +455,9 @@
 
 /* Layout */
 .spaire-email-app .container {
-  max-width: 1280px;
+  max-width: 100%;
   margin: 0 auto;
-  padding: 0 56px;
+  padding: 0 64px;
   position: relative;
   z-index: 1;
 }

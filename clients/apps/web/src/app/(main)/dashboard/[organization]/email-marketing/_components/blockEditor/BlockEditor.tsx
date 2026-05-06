@@ -1,4 +1,4 @@
-import { CSSProperties, useState } from 'react'
+import { CSSProperties, useRef, useState } from 'react'
 import { Icon } from '../Icon'
 import {
   Block,
@@ -22,6 +22,7 @@ export const BlockEditor = ({
   setDoc: (next: ContentDoc) => void
 }) => {
   const [selectedId, setSelectedId] = useState<BlockId | null>(null)
+  const dragId = useRef<BlockId | null>(null)
 
   const updateBlocks = (next: Block[]) => setDoc({ ...doc, blocks: next })
 
@@ -40,17 +41,6 @@ export const BlockEditor = ({
     if (selectedId === id) setSelectedId(null)
   }
 
-  const moveBlock = (id: BlockId, direction: -1 | 1) => {
-    const idx = doc.blocks.findIndex((b) => b.id === id)
-    if (idx < 0) return
-    const target = idx + direction
-    if (target < 0 || target >= doc.blocks.length) return
-    const next = [...doc.blocks]
-    const [removed] = next.splice(idx, 1)
-    next.splice(target, 0, removed)
-    updateBlocks(next)
-  }
-
   const duplicateBlock = (id: BlockId) => {
     const idx = doc.blocks.findIndex((b) => b.id === id)
     if (idx < 0) return
@@ -62,39 +52,116 @@ export const BlockEditor = ({
     setSelectedId(copy.id)
   }
 
-  const selected = doc.blocks.find((b) => b.id === selectedId) ?? null
+  const moveBeforeTarget = (fromId: BlockId, toId: BlockId) => {
+    const from = doc.blocks.findIndex((b) => b.id === fromId)
+    const to = doc.blocks.findIndex((b) => b.id === toId)
+    if (from < 0 || to < 0 || from === to) return
+    const next = [...doc.blocks]
+    const [moved] = next.splice(from, 1)
+    next.splice(to, 0, moved)
+    updateBlocks(next)
+  }
 
   return (
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: '180px 1fr 260px',
-        gap: 16,
+        gridTemplateColumns: '200px 1fr',
+        gap: 24,
+        alignItems: 'flex-start',
       }}
     >
       <BlockLibrary onPick={appendBlock} />
-      <Canvas
-        blocks={doc.blocks}
-        selectedId={selectedId}
-        onSelect={setSelectedId}
-        onChange={replaceBlock}
-        onMove={moveBlock}
-        onDuplicate={duplicateBlock}
-        onRemove={removeBlock}
-        onAppend={appendBlock}
-      />
-      <BlockTweaks
-        block={selected}
-        onChange={(next) =>
-          selected ? replaceBlock(selected.id, next) : undefined
-        }
-      />
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div
+          style={{
+            padding: '12px 20px',
+            borderBottom: '1px solid var(--line)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: 'var(--bg-soft)',
+          }}
+        >
+          <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>
+            620px · branded template · {doc.blocks.length} block
+            {doc.blocks.length === 1 ? '' : 's'}
+          </div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              disabled
+              style={{ opacity: 0.5, cursor: 'not-allowed' }}
+            >
+              Theme
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              disabled
+              style={{ opacity: 0.5, cursor: 'not-allowed' }}
+            >
+              Code
+            </button>
+          </div>
+        </div>
+        <div
+          style={{ padding: 40, background: 'var(--bg-soft)' }}
+          onClick={() => setSelectedId(null)}
+        >
+          <div
+            style={{
+              background: '#fff',
+              maxWidth: 540,
+              margin: '0 auto',
+              padding: 36,
+              borderRadius: 12,
+              border: '1px solid var(--line)',
+              minHeight: 200,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {doc.blocks.length === 0 && (
+              <div
+                style={{
+                  textAlign: 'center',
+                  padding: 40,
+                  color: 'var(--ink-4)',
+                  fontSize: 13,
+                }}
+              >
+                Click a block on the left to start.
+              </div>
+            )}
+            {doc.blocks.map((block) => (
+              <EditableBlock
+                key={block.id}
+                block={block}
+                selected={selectedId === block.id}
+                onSelect={() => setSelectedId(block.id)}
+                onChange={(next) => replaceBlock(block.id, next)}
+                onRemove={() => removeBlock(block.id)}
+                onDuplicate={() => duplicateBlock(block.id)}
+                onDragStart={() => {
+                  dragId.current = block.id
+                }}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={() => {
+                  if (dragId.current) moveBeforeTarget(dragId.current, block.id)
+                  dragId.current = null
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
 
 const BlockLibrary = ({ onPick }: { onPick: (type: BlockType) => void }) => (
-  <div>
+  <div style={{ position: 'sticky', top: 24 }}>
     <div
       style={{
         fontSize: 11,
@@ -126,13 +193,17 @@ const BlockLibrary = ({ onPick }: { onPick: (type: BlockType) => void }) => (
             gap: 8,
             cursor: 'pointer',
             transition: 'all 0.15s',
+            background: '#fff',
+            border: '1px solid var(--line)',
           }}
-          onMouseEnter={(e) =>
-            (e.currentTarget.style.borderColor = 'var(--ink-3)')
-          }
-          onMouseLeave={(e) =>
-            (e.currentTarget.style.borderColor = 'var(--line)')
-          }
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = 'var(--ink-3)'
+            e.currentTarget.style.transform = 'translateY(-1px)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = 'var(--line)'
+            e.currentTarget.style.transform = 'none'
+          }}
           onClick={() => onPick(b.type)}
         >
           <Icon name={b.icon} size={16} style={{ color: 'var(--ink-2)' }} />
@@ -144,209 +215,131 @@ const BlockLibrary = ({ onPick }: { onPick: (type: BlockType) => void }) => (
     </div>
     <div
       style={{
-        marginTop: 14,
-        padding: '10px 12px',
+        marginTop: 16,
+        padding: 12,
         background: 'var(--bg-soft)',
         borderRadius: 10,
-        fontSize: 11,
+        fontSize: 11.5,
         color: 'var(--ink-3)',
         lineHeight: 1.5,
       }}
     >
-      Click a block to insert it. Click an inserted block to edit it inline, and
-      use the right rail for type-specific tweaks.
+      Tip: click the canvas to deselect. Hover any block for actions.
     </div>
   </div>
 )
 
-const Canvas = ({
-  blocks,
-  selectedId,
-  onSelect,
-  onChange,
-  onMove,
-  onDuplicate,
-  onRemove,
-  onAppend,
-}: {
-  blocks: Block[]
-  selectedId: BlockId | null
-  onSelect: (id: BlockId | null) => void
-  onChange: (id: BlockId, next: Block) => void
-  onMove: (id: BlockId, direction: -1 | 1) => void
-  onDuplicate: (id: BlockId) => void
-  onRemove: (id: BlockId) => void
-  onAppend: (type: BlockType) => void
-}) => (
-  <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-    <div
-      style={{
-        padding: '12px 20px',
-        borderBottom: '1px solid var(--line)',
-        background: 'var(--bg-soft)',
-        fontSize: 12,
-        color: 'var(--ink-3)',
-      }}
-    >
-      620px · branded template
-    </div>
-    <div
-      style={{ padding: 32, background: 'var(--bg-soft)' }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onSelect(null)
-      }}
-    >
-      <div
-        style={{
-          background: '#fff',
-          maxWidth: 540,
-          margin: '0 auto',
-          padding: 36,
-          borderRadius: 12,
-          border: '1px solid var(--line)',
-        }}
-      >
-        {blocks.length === 0 ? (
-          <EmptyCanvas onAppend={onAppend} />
-        ) : (
-          blocks.map((block, i) => (
-            <BlockRow
-              key={block.id}
-              block={block}
-              selected={selectedId === block.id}
-              isFirst={i === 0}
-              isLast={i === blocks.length - 1}
-              onSelect={() => onSelect(block.id)}
-              onChange={(next) => onChange(block.id, next)}
-              onMove={(dir) => onMove(block.id, dir)}
-              onDuplicate={() => onDuplicate(block.id)}
-              onRemove={() => onRemove(block.id)}
-            />
-          ))
-        )}
-      </div>
-    </div>
-  </div>
-)
-
-const EmptyCanvas = ({ onAppend }: { onAppend: (type: BlockType) => void }) => (
-  <div
-    style={{
-      padding: 32,
-      textAlign: 'center',
-      color: 'var(--ink-3)',
-      fontSize: 13,
-    }}
-  >
-    <div style={{ marginBottom: 14 }}>
-      Empty email — pick a block from the left, or get started:
-    </div>
-    <div
-      style={{
-        display: 'flex',
-        gap: 8,
-        justifyContent: 'center',
-        flexWrap: 'wrap',
-      }}
-    >
-      {(['heading', 'paragraph', 'image', 'button'] as const).map((t) => (
-        <button
-          key={t}
-          type="button"
-          className="btn btn-secondary btn-sm"
-          onClick={() => onAppend(t)}
-        >
-          + {t}
-        </button>
-      ))}
-    </div>
-  </div>
-)
-
-const BlockRow = ({
+const EditableBlock = ({
   block,
   selected,
-  isFirst,
-  isLast,
   onSelect,
   onChange,
-  onMove,
-  onDuplicate,
   onRemove,
+  onDuplicate,
+  onDragStart,
+  onDragOver,
+  onDrop,
 }: {
   block: Block
   selected: boolean
-  isFirst: boolean
-  isLast: boolean
   onSelect: () => void
   onChange: (next: Block) => void
-  onMove: (dir: -1 | 1) => void
-  onDuplicate: () => void
   onRemove: () => void
+  onDuplicate: () => void
+  onDragStart: () => void
+  onDragOver: (e: React.DragEvent) => void
+  onDrop: () => void
 }) => {
-  const wrapStyle: CSSProperties = {
+  const [hover, setHover] = useState(false)
+  const showChrome = hover || selected
+  const wrap: CSSProperties = {
+    padding: '8px 0',
     position: 'relative',
-    padding: '6px 8px',
-    margin: '4px -8px',
-    borderRadius: 8,
+    borderRadius: 6,
     transition: 'background 0.12s, box-shadow 0.12s',
-    background: selected ? 'rgba(0,0,0,0.03)' : 'transparent',
-    boxShadow: selected ? '0 0 0 1px var(--ink-4)' : 'none',
+    background: selected
+      ? 'rgba(79,70,229,0.04)'
+      : hover
+        ? 'rgba(0,0,0,0.02)'
+        : 'transparent',
+    boxShadow: selected ? 'inset 0 0 0 1.5px var(--indigo)' : 'none',
     cursor: 'pointer',
   }
 
   return (
     <div
-      style={wrapStyle}
+      style={wrap}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
       onClick={(e) => {
         e.stopPropagation()
         onSelect()
       }}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
     >
-      {selected && (
+      {block.type === 'heading' && (
+        <HeadingBody block={block} onChange={onChange} />
+      )}
+      {block.type === 'paragraph' && (
+        <ParagraphBody block={block} onChange={onChange} />
+      )}
+      {block.type === 'image' && (
+        <ImageBody block={block} onChange={onChange} selected={selected} />
+      )}
+      {block.type === 'video' && (
+        <VideoBody block={block} onChange={onChange} selected={selected} />
+      )}
+      {block.type === 'button' && (
+        <ButtonBody block={block} onChange={onChange} selected={selected} />
+      )}
+      {block.type === 'divider' && (
+        <hr
+          style={{
+            border: 'none',
+            borderTop: '1px solid var(--line)',
+            margin: '20px 0',
+          }}
+        />
+      )}
+
+      {showChrome && (
         <div
           style={{
             position: 'absolute',
-            right: -42,
+            right: -10,
             top: 4,
+            transform: 'translateX(100%)',
             display: 'flex',
             flexDirection: 'column',
             gap: 4,
+            zIndex: 2,
           }}
           onClick={(e) => e.stopPropagation()}
         >
           <button
             type="button"
             className="btn-icon"
-            style={{ width: 28, height: 28, borderRadius: 7 }}
-            disabled={isFirst}
-            onClick={() => onMove(-1)}
-            aria-label="Move up"
-            title="Move up"
+            draggable
+            onDragStart={(e) => {
+              onDragStart()
+              e.stopPropagation()
+            }}
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: 7,
+              cursor: 'grab',
+            }}
+            title="Drag to reorder"
           >
-            <Icon
-              name="chevron-down"
-              size={13}
-              style={{ transform: 'rotate(180deg)' }}
-            />
+            <Icon name="drag" size={13} />
           </button>
           <button
             type="button"
             className="btn-icon"
-            style={{ width: 28, height: 28, borderRadius: 7 }}
-            disabled={isLast}
-            onClick={() => onMove(1)}
-            aria-label="Move down"
-            title="Move down"
-          >
-            <Icon name="chevron-down" size={13} />
-          </button>
-          <button
-            type="button"
-            className="btn-icon"
-            style={{ width: 28, height: 28, borderRadius: 7 }}
             onClick={onDuplicate}
-            aria-label="Duplicate"
+            style={{ width: 28, height: 28, borderRadius: 7 }}
             title="Duplicate"
           >
             <Icon name="copy" size={13} />
@@ -354,365 +347,431 @@ const BlockRow = ({
           <button
             type="button"
             className="btn-icon"
+            onClick={onRemove}
             style={{
               width: 28,
               height: 28,
               borderRadius: 7,
               color: 'var(--red)',
             }}
-            onClick={onRemove}
-            aria-label="Remove"
-            title="Remove"
+            title="Delete"
           >
             <Icon name="trash" size={13} />
           </button>
         </div>
       )}
-      <BlockBody block={block} onChange={onChange} />
     </div>
   )
 }
 
-const inlineInput: CSSProperties = {
-  width: '100%',
-  border: 'none',
-  outline: 'none',
-  background: 'transparent',
-  padding: 0,
-  resize: 'none',
-}
-
-const BlockBody = ({
+const HeadingBody = ({
   block,
   onChange,
 }: {
-  block: Block
+  block: HeadingBlock
   onChange: (next: Block) => void
 }) => {
-  if (block.type === 'heading') {
-    const level = block.level
-    const fontSize = level === 1 ? 28 : level === 2 ? 22 : 17
-    return (
-      <input
-        value={block.text}
-        onChange={(e) =>
-          onChange({ ...block, text: e.target.value } as HeadingBlock)
-        }
-        placeholder="Heading"
-        style={{
-          ...inlineInput,
-          fontSize,
-          fontWeight: 600,
-          letterSpacing: '-0.02em',
-          color: 'var(--ink)',
-          margin: '0 0 16px',
-        }}
-      />
-    )
-  }
-  if (block.type === 'paragraph') {
-    return (
-      <textarea
-        value={block.text}
-        onChange={(e) =>
-          onChange({ ...block, text: e.target.value } as ParagraphBlock)
-        }
-        rows={Math.max(2, block.text.split('\n').length)}
-        placeholder="Write your paragraph here…"
-        style={{
-          ...inlineInput,
-          fontSize: 14,
-          lineHeight: 1.65,
-          color: 'var(--ink-2)',
-          fontFamily: 'inherit',
-          margin: '0 0 16px',
-        }}
-      />
-    )
-  }
-  if (block.type === 'image') {
-    if (!block.src)
-      return (
-        <div
-          className="placeholder-img"
-          style={{ height: 140, margin: '20px 0', fontSize: 11 }}
-        >
-          Add an image URL in the right rail →
-        </div>
-      )
-    return (
-      <div style={{ margin: '20px 0' }}>
-        {/* Editor mirror of what the email client will render — bypasses
-            next/image so the preview matches the actual send. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={block.src}
-          alt={block.alt}
-          style={{
-            maxWidth: '100%',
-            height: 'auto',
-            display: 'block',
-            borderRadius: 8,
-          }}
-        />
-      </div>
-    )
-  }
-  if (block.type === 'button') {
-    return (
-      <div style={{ margin: '24px 0' }}>
-        <input
-          value={block.text}
-          onChange={(e) =>
-            onChange({ ...block, text: e.target.value } as ButtonBlock)
-          }
-          placeholder="Button label"
-          style={{
-            display: 'inline-block',
-            background: '#1d1d1f',
-            color: '#fff',
-            padding: '10px 20px',
-            borderRadius: 8,
-            fontSize: 13,
-            fontWeight: 500,
-            border: 'none',
-            outline: 'none',
-            textAlign: 'center',
-            minWidth: 140,
-          }}
-        />
-        <div
-          style={{
-            fontSize: 11.5,
-            color: 'var(--ink-4)',
-            marginTop: 6,
-          }}
-        >
-          {block.url ? `→ ${block.url}` : 'Set the URL in the right rail.'}
-        </div>
-      </div>
-    )
-  }
-  if (block.type === 'divider') {
-    return (
-      <hr
-        style={{
-          border: 'none',
-          borderTop: '1px solid var(--line)',
-          margin: '28px 0',
-        }}
-      />
-    )
-  }
-  // video
+  const fontSize = block.level === 1 ? 28 : block.level === 2 ? 22 : 17
   return (
-    <div style={{ margin: '24px 0' }}>
-      {block.thumbnail ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={block.thumbnail}
-          alt="Video thumbnail"
-          style={{
-            maxWidth: '100%',
-            display: 'block',
-            borderRadius: 10,
-            border: '1px solid var(--line)',
-          }}
-        />
-      ) : (
-        <div className="placeholder-img" style={{ height: 160, fontSize: 11 }}>
-          Add thumbnail + URL in the right rail →
-        </div>
-      )}
-    </div>
+    <h3
+      contentEditable
+      suppressContentEditableWarning
+      onBlur={(e) =>
+        onChange({ ...block, text: e.currentTarget.textContent ?? '' })
+      }
+      style={{
+        fontSize,
+        fontWeight: 600,
+        letterSpacing: '-0.02em',
+        margin: 0,
+        color: 'var(--ink)',
+        outline: 'none',
+      }}
+    >
+      {block.text}
+    </h3>
   )
 }
 
-const tweakLabel: CSSProperties = {
-  fontSize: 11,
-  color: 'var(--ink-3)',
-  textTransform: 'uppercase',
-  letterSpacing: '0.05em',
-  marginBottom: 6,
-  fontWeight: 500,
-}
-
-const BlockTweaks = ({
+const ParagraphBody = ({
   block,
   onChange,
 }: {
-  block: Block | null
-  onChange: (next: Block) => void
-}) => {
-  if (!block)
-    return (
-      <div className="card" style={{ padding: 18 }}>
-        <div style={tweakLabel}>Tweaks</div>
-        <div
-          style={{
-            fontSize: 12.5,
-            color: 'var(--ink-3)',
-            lineHeight: 1.55,
-          }}
-        >
-          Click a block in the canvas to tweak it. Each block type has its own
-          settings.
-        </div>
-      </div>
-    )
-
-  return (
-    <div className="card" style={{ padding: 18 }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          marginBottom: 14,
-        }}
-      >
-        <div style={tweakLabel}>{block.type}</div>
-      </div>
-      {block.type === 'heading' && (
-        <div>
-          <div style={{ marginBottom: 14 }}>
-            <div style={tweakLabel}>Level</div>
-            <div className="tabs" style={{ width: '100%' }}>
-              {([1, 2, 3] as const).map((l) => (
-                <button
-                  key={l}
-                  type="button"
-                  className={`tab ${block.level === l ? 'tab-active' : ''}`}
-                  onClick={() => onChange({ ...block, level: l })}
-                  style={{ flex: 1 }}
-                >
-                  H{l}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-      {block.type === 'image' && (
-        <ImageTweaks block={block} onChange={onChange} />
-      )}
-      {block.type === 'button' && (
-        <ButtonTweaks block={block} onChange={onChange} />
-      )}
-      {block.type === 'video' && (
-        <VideoTweaks block={block} onChange={onChange} />
-      )}
-      {block.type === 'paragraph' && (
-        <div style={{ fontSize: 12, color: 'var(--ink-3)', lineHeight: 1.55 }}>
-          Edit the paragraph inline in the canvas. Newlines are preserved.
-        </div>
-      )}
-      {block.type === 'divider' && (
-        <div style={{ fontSize: 12, color: 'var(--ink-3)', lineHeight: 1.55 }}>
-          A simple horizontal rule. No settings.
-        </div>
-      )}
-    </div>
-  )
-}
-
-const ImageTweaks = ({
-  block,
-  onChange,
-}: {
-  block: ImageBlock
+  block: ParagraphBlock
   onChange: (next: Block) => void
 }) => (
-  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-    <div>
-      <div style={tweakLabel}>Image URL</div>
-      <input
-        className="input"
-        type="url"
-        placeholder="https://…"
-        value={block.src}
-        onChange={(e) => onChange({ ...block, src: e.target.value })}
-      />
-    </div>
-    <div>
-      <div style={tweakLabel}>Alt text</div>
-      <input
-        className="input"
-        value={block.alt}
-        onChange={(e) => onChange({ ...block, alt: e.target.value })}
-        placeholder="Describe the image"
-      />
-    </div>
-    <div>
-      <div style={tweakLabel}>Click-through (optional)</div>
-      <input
-        className="input"
-        type="url"
-        placeholder="https://…"
-        value={block.href ?? ''}
-        onChange={(e) =>
-          onChange({ ...block, href: e.target.value || undefined })
-        }
-      />
-    </div>
-  </div>
+  <p
+    contentEditable
+    suppressContentEditableWarning
+    onBlur={(e) =>
+      onChange({ ...block, text: e.currentTarget.textContent ?? '' })
+    }
+    style={{
+      fontSize: 14,
+      lineHeight: 1.65,
+      color: 'var(--ink-2)',
+      margin: 0,
+      outline: 'none',
+    }}
+  >
+    {block.text}
+  </p>
 )
 
-const ButtonTweaks = ({
+const ButtonBody = ({
   block,
   onChange,
 }: {
   block: ButtonBlock
   onChange: (next: Block) => void
-}) => (
-  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-    <div>
-      <div style={tweakLabel}>URL</div>
-      <input
-        className="input"
-        type="url"
-        placeholder="https://…"
-        value={block.url}
-        onChange={(e) => onChange({ ...block, url: e.target.value })}
-      />
+  selected: boolean
+}) => {
+  const [editingUrl, setEditingUrl] = useState(false)
+  return (
+    <div style={{ margin: '8px 0' }}>
+      <a
+        contentEditable
+        suppressContentEditableWarning
+        onBlur={(e) =>
+          onChange({ ...block, text: e.currentTarget.textContent ?? '' })
+        }
+        style={{
+          display: 'inline-block',
+          background: 'var(--ink)',
+          color: '#fff',
+          padding: '10px 20px',
+          borderRadius: 8,
+          fontSize: 13,
+          fontWeight: 500,
+          textDecoration: 'none',
+          outline: 'none',
+        }}
+      >
+        {block.text}
+      </a>
+      <div style={{ marginTop: 6 }}>
+        {editingUrl ? (
+          <input
+            autoFocus
+            className="input"
+            value={block.url}
+            placeholder="https://…"
+            onChange={(e) => onChange({ ...block, url: e.target.value })}
+            onBlur={() => setEditingUrl(false)}
+            style={{ fontSize: 12, padding: '6px 10px' }}
+            onClick={(e) => e.stopPropagation()}
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              setEditingUrl(true)
+            }}
+            style={{
+              fontSize: 11.5,
+              color: 'var(--ink-4)',
+              cursor: 'pointer',
+            }}
+          >
+            {block.url ? `→ ${block.url}` : 'Set link'}
+          </button>
+        )}
+      </div>
     </div>
-    <div style={{ fontSize: 12, color: 'var(--ink-3)', lineHeight: 1.55 }}>
-      Edit the button label inline in the canvas.
-    </div>
-  </div>
-)
+  )
+}
 
-const VideoTweaks = ({
+const ImageBody = ({
   block,
   onChange,
+  selected,
+}: {
+  block: ImageBlock
+  onChange: (next: Block) => void
+  selected: boolean
+}) => {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const onFile = (file: File | undefined) => {
+    if (!file) return
+    const url = URL.createObjectURL(file)
+    onChange({ ...block, src: url, alt: file.name })
+  }
+  return (
+    <div style={{ margin: '12px 0' }}>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        style={{ display: 'none' }}
+        onChange={(e) => onFile(e.target.files?.[0])}
+      />
+      {block.src ? (
+        <div style={{ position: 'relative' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={block.src}
+            alt={block.alt}
+            style={{
+              width: '100%',
+              display: 'block',
+              borderRadius: 8,
+              border: '1px solid var(--line)',
+            }}
+          />
+          {selected && (
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={(e) => {
+                e.stopPropagation()
+                inputRef.current?.click()
+              }}
+              style={{
+                position: 'absolute',
+                top: 10,
+                right: 10,
+                fontSize: 11.5,
+              }}
+            >
+              Replace
+            </button>
+          )}
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            inputRef.current?.click()
+          }}
+          style={{
+            width: '100%',
+            height: 180,
+            border: '1.5px dashed var(--line-2)',
+            borderRadius: 8,
+            background: 'var(--bg-soft)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+            cursor: 'pointer',
+            transition: 'all 0.15s',
+            color: 'var(--ink-3)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = 'var(--ink-3)'
+            e.currentTarget.style.color = 'var(--ink-2)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = 'var(--line-2)'
+            e.currentTarget.style.color = 'var(--ink-3)'
+          }}
+        >
+          <Icon name="upload" size={18} />
+          <span style={{ fontSize: 13, fontWeight: 500 }}>Upload an image</span>
+          <span style={{ fontSize: 11.5, color: 'var(--ink-4)' }}>
+            PNG, JPG, GIF · up to 10MB
+          </span>
+        </button>
+      )}
+    </div>
+  )
+}
+
+const toEmbedSrc = (url: string): string => {
+  // YouTube → embed
+  const yt = url.match(
+    /(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([\w-]{11})/,
+  )
+  if (yt) return `https://www.youtube.com/embed/${yt[1]}`
+  // Vimeo → embed
+  const vimeo = url.match(/vimeo\.com\/(?:video\/)?(\d+)/)
+  if (vimeo) return `https://player.vimeo.com/video/${vimeo[1]}`
+  // Loom → embed
+  const loom = url.match(/loom\.com\/share\/([\w-]+)/)
+  if (loom) return `https://www.loom.com/embed/${loom[1]}`
+  return url
+}
+
+const VideoBody = ({
+  block,
+  onChange,
+  selected,
 }: {
   block: VideoBlock
   onChange: (next: Block) => void
-}) => (
-  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-    <div>
-      <div style={tweakLabel}>Thumbnail URL</div>
+  selected: boolean
+}) => {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [tab, setTab] = useState<'upload' | 'embed'>(
+    block.embed_url ? 'embed' : 'upload',
+  )
+  const [url, setUrl] = useState(block.embed_url ?? '')
+
+  const onFile = (file: File | undefined) => {
+    if (!file) return
+    const u = URL.createObjectURL(file)
+    onChange({ ...block, src: u, embed_url: undefined })
+  }
+  const submitEmbed = () => {
+    if (!url.trim()) return
+    onChange({ ...block, embed_url: url.trim(), src: undefined })
+  }
+  const reset = () => {
+    onChange({ ...block, src: undefined, embed_url: undefined })
+    setUrl('')
+  }
+
+  const hasMedia = !!(block.src || block.embed_url)
+
+  if (hasMedia) {
+    return (
+      <div style={{ margin: '12px 0', position: 'relative' }}>
+        {block.src && (
+          <video
+            src={block.src}
+            controls
+            style={{
+              width: '100%',
+              display: 'block',
+              borderRadius: 8,
+              border: '1px solid var(--line)',
+              background: '#000',
+            }}
+          />
+        )}
+        {block.embed_url && (
+          <div
+            style={{
+              position: 'relative',
+              paddingBottom: '56.25%',
+              height: 0,
+              borderRadius: 8,
+              overflow: 'hidden',
+              border: '1px solid var(--line)',
+              background: '#000',
+            }}
+          >
+            <iframe
+              title="Video preview"
+              src={toEmbedSrc(block.embed_url)}
+              style={{
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                border: 0,
+              }}
+              allow="autoplay; encrypted-media; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
+        )}
+        {selected && (
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={(e) => {
+              e.stopPropagation()
+              reset()
+            }}
+            style={{
+              position: 'absolute',
+              top: 10,
+              right: 10,
+              fontSize: 11.5,
+            }}
+          >
+            Replace
+          </button>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div
+      style={{
+        margin: '12px 0',
+        border: '1.5px dashed var(--line-2)',
+        borderRadius: 8,
+        background: 'var(--bg-soft)',
+        padding: 16,
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
       <input
-        className="input"
-        type="url"
-        placeholder="https://…"
-        value={block.thumbnail}
-        onChange={(e) => onChange({ ...block, thumbnail: e.target.value })}
+        ref={inputRef}
+        type="file"
+        accept="video/*"
+        style={{ display: 'none' }}
+        onChange={(e) => onFile(e.target.files?.[0])}
       />
+      <div className="tabs" style={{ marginBottom: 12 }}>
+        <button
+          type="button"
+          className={`tab ${tab === 'upload' ? 'tab-active' : ''}`}
+          onClick={() => setTab('upload')}
+        >
+          Upload
+        </button>
+        <button
+          type="button"
+          className={`tab ${tab === 'embed' ? 'tab-active' : ''}`}
+          onClick={() => setTab('embed')}
+        >
+          Embed link
+        </button>
+      </div>
+      {tab === 'upload' ? (
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          style={{
+            width: '100%',
+            height: 120,
+            border: '1px dashed var(--line-2)',
+            borderRadius: 8,
+            background: '#fff',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+            cursor: 'pointer',
+            color: 'var(--ink-3)',
+          }}
+        >
+          <Icon name="upload" size={18} />
+          <span style={{ fontSize: 13, fontWeight: 500 }}>Upload a video</span>
+          <span style={{ fontSize: 11.5, color: 'var(--ink-4)' }}>
+            MP4, MOV, WebM
+          </span>
+        </button>
+      ) : (
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input
+            className="input"
+            placeholder="https://youtube.com/watch?v=… or vimeo.com/…"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') submitEmbed()
+            }}
+          />
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={submitEmbed}
+            disabled={!url.trim()}
+            style={{ opacity: !url.trim() ? 0.5 : 1 }}
+          >
+            Embed
+          </button>
+        </div>
+      )}
     </div>
-    <div>
-      <div style={tweakLabel}>Video URL</div>
-      <input
-        className="input"
-        type="url"
-        placeholder="https://youtube.com/…"
-        value={block.url}
-        onChange={(e) => onChange({ ...block, url: e.target.value })}
-      />
-    </div>
-    <div style={{ fontSize: 12, color: 'var(--ink-3)', lineHeight: 1.55 }}>
-      Email clients can&apos;t autoplay video. We render a clickable thumbnail
-      that opens the video URL.
-    </div>
-  </div>
-)
+  )
+}
