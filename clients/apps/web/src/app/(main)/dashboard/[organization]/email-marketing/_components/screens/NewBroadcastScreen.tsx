@@ -19,9 +19,9 @@ import {
 } from '@/hooks/queries/emailMarketing'
 import { schemas } from '@spaire/client'
 import { useRef, useState } from 'react'
-import { BlockEditor } from '../blockEditor/BlockEditor'
 import { renderBlocksToHtml } from '../blockEditor/render'
 import { Block, ContentDoc, isContentDoc, newId } from '../blockEditor/types'
+import { Composer } from '../composer/Composer'
 import { Icon } from '../Icon'
 import { KV, Section, Toggle } from '../shared'
 
@@ -847,16 +847,15 @@ const ContentSection = ({
     return result.url
   }
   return (
-    <Section
-      title="Compose"
-      sub="Click a block on the left to add it. Click any block on the canvas to edit. Drag the handle to reorder."
-    >
-      <BlockEditor
-        doc={draft.content_doc}
-        setDoc={(next) => setDraft({ content_doc: next })}
-        uploadImage={uploadImage}
-      />
-    </Section>
+    <Composer
+      doc={draft.content_doc}
+      setDoc={(next) => setDraft({ content_doc: next })}
+      uploadImage={uploadImage}
+      sender={{
+        name: draft.sender_name || organization.name,
+        email: draft.reply_to_email || '',
+      }}
+    />
   )
 }
 

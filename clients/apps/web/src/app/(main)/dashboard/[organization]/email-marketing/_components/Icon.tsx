@@ -14,8 +14,14 @@ type IconName =
   | 'arrow-right'
   | 'arrow-left'
   | 'arrow-up-right'
+  | 'arrow-up'
+  | 'arrow-down'
   | 'chevron-down'
+  | 'chevron-up'
   | 'chevron-right'
+  | 'list'
+  | 'quote'
+  | 'x'
   | 'check'
   | 'check-circle'
   | 'circle'
@@ -180,10 +186,47 @@ export const Icon = ({
           <path d="M7 17 17 7M7 7h10v10" />
         </svg>
       )
+    case 'arrow-up':
+      return (
+        <svg {...props}>
+          <path d="M12 19V5M5 12l7-7 7 7" />
+        </svg>
+      )
+    case 'arrow-down':
+      return (
+        <svg {...props}>
+          <path d="M12 5v14M19 12l-7 7-7-7" />
+        </svg>
+      )
     case 'chevron-down':
       return (
         <svg {...props}>
           <path d="m6 9 6 6 6-6" />
+        </svg>
+      )
+    case 'chevron-up':
+      return (
+        <svg {...props}>
+          <path d="m18 15-6-6-6 6" />
+        </svg>
+      )
+    case 'list':
+      return (
+        <svg {...props}>
+          <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+        </svg>
+      )
+    case 'quote':
+      return (
+        <svg {...props}>
+          <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z" />
+          <path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z" />
+        </svg>
+      )
+    case 'x':
+      return (
+        <svg {...props}>
+          <path d="M18 6 6 18M6 6l12 12" />
         </svg>
       )
     case 'chevron-right':
