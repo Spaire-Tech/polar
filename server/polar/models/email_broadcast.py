@@ -28,6 +28,9 @@ class EmailBroadcast(RecordModel):
         index=True,
     )
     subject: Mapped[str] = mapped_column(String(255), nullable=False)
+    preview_text: Mapped[str | None] = mapped_column(
+        String(150), nullable=True, default=None
+    )
     sender_name: Mapped[str] = mapped_column(String(100), nullable=False)
     sender_email: Mapped[str] = mapped_column(
         String(255), nullable=False, default="noreply@notifications.spairehq.com"
@@ -44,6 +47,9 @@ class EmailBroadcast(RecordModel):
         ForeignKey("email_segments.id", ondelete="set null"),
         nullable=True,
         default=None,
+    )
+    filter_rules: Mapped[dict | None] = mapped_column(
+        JSONB, nullable=True, default=None
     )
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default=EmailBroadcastStatus.draft

@@ -1,27 +1,52 @@
-from uuid import UUID
+from uuid import UUID, uuid4
 
-from fastapi import Depends, Query
+from fastapi import Depends, File, HTTPException, Query, UploadFile
 from pydantic import UUID4
 
+from polar.config import settings
 from polar.exceptions import ResourceNotFound
+from polar.integrations.aws.s3 import S3Service
 from polar.kit.pagination import ListResource, PaginationParamsQuery
-from polar.postgres import AsyncReadSession, AsyncSession, get_db_read_session, get_db_session
+from polar.postgres import (
+    AsyncReadSession,
+    AsyncSession,
+    get_db_read_session,
+    get_db_session,
+)
 from polar.routing import APIRouter
 
 from .auth import EmailSequencesRead, EmailSequencesWrite
 from .schemas import (
     EmailSequence as EmailSequenceSchema,
+)
+from .schemas import (
     EmailSequenceAnalytics,
     EmailSequenceCreate,
-    EmailSequenceEnrollment as EmailSequenceEnrollmentSchema,
     EmailSequenceEnrollRequest,
+    EmailSequenceFireEvent,
+    EmailSequenceFireEventResult,
+    EmailSequenceFromTemplate,
     EmailSequenceReorderItem,
-    EmailSequenceStep as EmailSequenceStepSchema,
     EmailSequenceStepCreate,
+    EmailSequenceStepTestSend,
     EmailSequenceStepUpdate,
     EmailSequenceUpdate,
 )
-from .service import AlreadyEnrolled, email_sequence as sequence_service
+from .schemas import (
+    EmailSequenceEnrollment as EmailSequenceEnrollmentSchema,
+)
+from .schemas import (
+    EmailSequenceStep as EmailSequenceStepSchema,
+)
+from .schemas import (
+    EmailSequenceStepAnalytics as EmailSequenceStepAnalyticsSchema,
+)
+from .schemas import (
+    EmailSequenceTemplate as EmailSequenceTemplateSchema,
+)
+from .service import AlreadyEnrolled
+from .service import email_sequence as sequence_service
+from .templates import TEMPLATES, get_template
 
 router = APIRouter(prefix="/email-sequences", tags=["email-sequences"])
 
@@ -59,6 +84,77 @@ async def create_email_sequence(
         trigger_config=sequence_create.trigger_config,
     )
     return EmailSequenceSchema.model_validate(sequence, from_attributes=True)
+
+
+# ── Templates ─────────────────────────────────────────────────────────────────
+# Registered before /{sequence_id} so the literal path wins.
+
+@router.get("/templates", response_model=list[EmailSequenceTemplateSchema])
+async def list_email_sequence_templates(
+    auth_subject: EmailSequencesRead,
+) -> list[EmailSequenceTemplateSchema]:
+    return [
+        EmailSequenceTemplateSchema(
+            slug=t["slug"],
+            name=t["name"],
+            description=t["description"],
+            category=t["category"],
+            trigger_type=t["trigger_type"],
+            step_count=len(t["steps"]),
+            flow_doc=t.get("flow_doc"),
+        )
+        for t in TEMPLATES
+    ]
+
+
+@router.post("/from-template", response_model=EmailSequenceSchema, status_code=201)
+async def create_email_sequence_from_template(
+    auth_subject: EmailSequencesWrite,
+    body: EmailSequenceFromTemplate,
+    organization_id: UUID = Query(),
+    session: AsyncSession = Depends(get_db_session),
+) -> EmailSequenceSchema:
+    template = get_template(body.slug)
+    if template is None:
+        raise HTTPException(status_code=404, detail="Template not found")
+
+    sequence = await sequence_service.create_from_template(
+        session,
+        organization_id=organization_id,
+        template=dict(template),
+    )
+    return EmailSequenceSchema.model_validate(sequence, from_attributes=True)
+
+
+# ── Image upload ──────────────────────────────────────────────────────────────
+
+@router.post("/upload-image")
+async def upload_sequence_image(
+    auth_subject: EmailSequencesWrite,
+    organization_id: UUID = Query(),
+    upload: UploadFile = File(..., alias="file"),
+) -> dict[str, str]:
+    """Upload an inline image used in a sequence step.
+
+    Mirrors the broadcast image-upload endpoint: stores into the public
+    assets bucket so recipients (not just the author's browser) can load it.
+    """
+    content_type = upload.content_type or "image/jpeg"
+    if not content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+
+    data = await upload.read()
+    if len(data) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Image must be under 10 MB")
+
+    ext = (upload.filename or "image.jpg").rsplit(".", 1)[-1].lower()
+    if ext not in {"jpg", "jpeg", "png", "webp", "gif"}:
+        ext = "jpg"
+
+    path = f"email-marketing/{organization_id}/{uuid4().hex}.{ext}"
+    s3 = S3Service(bucket=settings.S3_FILES_PUBLIC_BUCKET_NAME)
+    s3.upload(data, path, content_type)
+    return {"url": s3.get_public_url(path)}
 
 
 @router.get("/{sequence_id}", response_model=EmailSequenceSchema)
@@ -105,6 +201,19 @@ async def delete_email_sequence(
     if sequence is None:
         raise ResourceNotFound()
     await sequence_service.delete(session, sequence)
+
+
+@router.post("/{sequence_id}/duplicate", response_model=EmailSequenceSchema, status_code=201)
+async def duplicate_email_sequence(
+    auth_subject: EmailSequencesWrite,
+    sequence_id: UUID4,
+    session: AsyncSession = Depends(get_db_session),
+) -> EmailSequenceSchema:
+    sequence = await sequence_service.get_by_id(session, auth_subject, sequence_id)
+    if sequence is None:
+        raise ResourceNotFound()
+    clone = await sequence_service.duplicate(session, sequence)
+    return EmailSequenceSchema.model_validate(clone, from_attributes=True)
 
 
 # ── Steps ─────────────────────────────────────────────────────────────────────
@@ -266,7 +375,88 @@ async def unenroll_subscriber(
     await sequence_service.unenroll(session, sequence_id, subscriber_id)
 
 
+# ── Step send-test ────────────────────────────────────────────────────────────
+
+@router.post("/{sequence_id}/steps/{step_id}/test", status_code=204)
+async def send_test_sequence_step(
+    auth_subject: EmailSequencesWrite,
+    sequence_id: UUID4,
+    step_id: UUID4,
+    body: EmailSequenceStepTestSend,
+    session: AsyncSession = Depends(get_db_session),
+) -> None:
+    from .repository import EmailSequenceRepository
+
+    sequence = await sequence_service.get_by_id(session, auth_subject, sequence_id)
+    if sequence is None:
+        raise ResourceNotFound()
+
+    repository = EmailSequenceRepository.from_session(session)
+    step = await repository.get_step(step_id)
+    if step is None or step.sequence_id != sequence_id:
+        raise ResourceNotFound()
+
+    await sequence_service.send_test_step(session, step, to_email=body.email)
+
+
 # ── Analytics ─────────────────────────────────────────────────────────────────
+
+@router.get(
+    "/{sequence_id}/step-analytics",
+    response_model=list[EmailSequenceStepAnalyticsSchema],
+)
+async def get_sequence_step_analytics(
+    auth_subject: EmailSequencesRead,
+    sequence_id: UUID4,
+    session: AsyncReadSession = Depends(get_db_read_session),
+) -> list[EmailSequenceStepAnalyticsSchema]:
+    sequence = await sequence_service.get_by_id(session, auth_subject, sequence_id)
+    if sequence is None:
+        raise ResourceNotFound()
+    rows = await sequence_service.get_step_analytics(session, sequence_id)
+    return [EmailSequenceStepAnalyticsSchema(**row) for row in rows]
+
+
+# ── Event firing (resumes parked until-event waits) ──────────────────────────
+
+
+@router.post(
+    "/events/fire",
+    response_model=EmailSequenceFireEventResult,
+)
+async def fire_sequence_event(
+    auth_subject: EmailSequencesWrite,
+    body: EmailSequenceFireEvent,
+    session: AsyncSession = Depends(get_db_session),
+) -> EmailSequenceFireEventResult:
+    """Fire a named event for a subscriber.
+
+    Resumes any active enrolment parked on `wait{ mode:'until-event',
+    event:<name> }` for that subscriber.
+    """
+    from polar.email_subscriber.repository import EmailSubscriberRepository
+    from polar.models.email_subscriber import EmailSubscriber
+
+    repo = EmailSubscriberRepository.from_session(session)
+    statement = repo.get_readable_statement(auth_subject).where(
+        EmailSubscriber.id == body.subscriber_id
+    )
+    subscriber = await repo.get_one_or_none(statement)
+    if subscriber is None:
+        raise ResourceNotFound()
+
+    from .events import fire_event
+
+    woken = await fire_event(
+        session,
+        organization_id=subscriber.organization_id,
+        subscriber_id=subscriber.id,
+        event_name=body.event_name,
+    )
+    return EmailSequenceFireEventResult(
+        woken_enrolment_ids=[w.id for w in woken]
+    )
+
 
 @router.get("/{sequence_id}/analytics", response_model=EmailSequenceAnalytics)
 async def get_sequence_analytics(

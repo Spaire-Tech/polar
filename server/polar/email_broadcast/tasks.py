@@ -1,13 +1,15 @@
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import structlog
 from sqlalchemy import select
 
+from polar.config import settings
 from polar.email.react import render_email_template
 from polar.email.schemas import MarketingEmail, MarketingEmailProps
 from polar.email.sender import email_sender
 from polar.kit.utils import utc_now
 from polar.models.email_broadcast import EmailBroadcast, EmailBroadcastStatus
+from polar.models.email_broadcast_ab_test import EmailBroadcastABTest
 from polar.models.email_broadcast_send import EmailBroadcastSend, EmailBroadcastSendStatus
 from polar.models.email_subscriber import EmailSubscriber
 from polar.models.organization import Organization
@@ -16,68 +18,123 @@ from polar.worker import AsyncSessionMaker, CronTrigger, TaskPriority, actor, en
 log = structlog.get_logger()
 
 
+def _render_broadcast_html(
+    broadcast: EmailBroadcast,
+    organization: Organization | None,
+    *,
+    unsubscribe_url: str,
+) -> str:
+    """Wrap the broadcast's content in the unified marketing email template."""
+    return render_email_template(
+        MarketingEmail(
+            props=MarketingEmailProps(
+                organization_name=organization.name
+                if organization
+                else broadcast.sender_name,
+                organization_logo_url=organization.avatar_url
+                if organization
+                else None,
+                organization_website=organization.website if organization else None,
+                html_content=broadcast.content_html or "<p>No content</p>",
+                preview_text=broadcast.preview_text,
+                unsubscribe_url=unsubscribe_url,
+            )
+        )
+    )
+
+
+async def send_broadcast_email(
+    broadcast: EmailBroadcast,
+    organization: Organization | None,
+    *,
+    to_email: str,
+    unsubscribe_url: str,
+    extra_subject_prefix: str = "",
+    subject_override: str | None = None,
+) -> str | None:
+    """Render and send a single broadcast email. Returns the Resend email id."""
+    wrapped_html = _render_broadcast_html(
+        broadcast, organization, unsubscribe_url=unsubscribe_url
+    )
+    base_subject = subject_override if subject_override is not None else broadcast.subject
+    return await email_sender.send(
+        to_email_addr=to_email,
+        subject=f"{extra_subject_prefix}{base_subject}",
+        html_content=wrapped_html,
+        from_name=broadcast.sender_name,
+        from_email_addr=broadcast.sender_email,
+        email_headers={
+            "List-Unsubscribe": f"<{unsubscribe_url}>",
+            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+        },
+        reply_to_name=broadcast.sender_name if broadcast.reply_to_email else None,
+        reply_to_email_addr=broadcast.reply_to_email,
+    )
+
+
 @actor(actor_name="email_broadcast.send_emails", priority=TaskPriority.MEDIUM)
-async def send_emails(broadcast_id: UUID) -> None:
-    """Send all pending emails for a broadcast."""
+async def send_emails(
+    broadcast_id: UUID, variant_filter: str | None = None
+) -> None:
+    """Send pending emails for a broadcast.
+
+    `variant_filter` controls what gets released this pass:
+      - None: every pending row (default; non-A/B sends).
+      - "ab_test_only": only rows tagged with variant 'a' or 'b' (the
+        initial test slice — the remainder is held until the cron picks
+        a winner).
+      - "remainder": only rows with a variant set by the winner-picker
+        (i.e. excludes the test slice that already went out).
+    """
     async with AsyncSessionMaker() as session:
-        # Load broadcast
         broadcast = await session.get(EmailBroadcast, broadcast_id)
         if broadcast is None or broadcast.status != EmailBroadcastStatus.sending:
             return
 
-        # Load organization for branding
         organization = await session.get(Organization, broadcast.organization_id)
 
-        # Get all pending sends
-        statement = (
-            select(EmailBroadcastSend)
-            .where(
-                EmailBroadcastSend.broadcast_id == broadcast_id,
-                EmailBroadcastSend.status == EmailBroadcastSendStatus.pending,
-            )
+        ab_test: EmailBroadcastABTest | None = None
+        ab_stmt = select(EmailBroadcastABTest).where(
+            EmailBroadcastABTest.broadcast_id == broadcast_id,
+            EmailBroadcastABTest.deleted_at.is_(None),
         )
+        ab_test = (await session.execute(ab_stmt)).scalar_one_or_none()
+
+        statement = select(EmailBroadcastSend).where(
+            EmailBroadcastSend.broadcast_id == broadcast_id,
+            EmailBroadcastSend.status == EmailBroadcastSendStatus.pending,
+        )
+        if variant_filter == "ab_test_only":
+            statement = statement.where(EmailBroadcastSend.variant.in_(["a", "b"]))
+        elif variant_filter == "remainder":
+            # The remainder gets sent the winning variant's subject. Skip
+            # rows that don't have a variant yet (winner not picked) and
+            # rows already handled in the initial test slice (status != pending).
+            statement = statement.where(EmailBroadcastSend.variant.is_not(None))
         result = await session.execute(statement)
         sends = result.scalars().all()
 
         for send in sends:
-            # Load subscriber
             subscriber = await session.get(EmailSubscriber, send.subscriber_id)
             if subscriber is None:
                 send.status = EmailBroadcastSendStatus.failed
                 continue
 
+            subject_override: str | None = None
+            if ab_test is not None and send.variant == "b":
+                subject_override = ab_test.subject_b
+
             try:
-                # Build unsubscribe URL
-                unsubscribe_url = f"https://space.spairehq.com/email/unsubscribe?sid={send.subscriber_id}"
-
-                # Wrap content_html in the unified marketing email template
-                wrapped_html = render_email_template(
-                    MarketingEmail(
-                        props=MarketingEmailProps(
-                            organization_name=organization.name if organization else broadcast.sender_name,
-                            organization_logo_url=organization.avatar_url if organization else None,
-                            organization_website=organization.website if organization else None,
-                            html_content=broadcast.content_html or "<p>No content</p>",
-                            unsubscribe_url=unsubscribe_url,
-                        )
-                    )
+                unsubscribe_url = (
+                    f"{settings.FRONTEND_BASE_URL}/email/unsubscribe?sid={send.subscriber_id}"
                 )
-
-                # Send via Resend directly to capture email ID
-                resend_email_id = await email_sender.send(
-                    to_email_addr=subscriber.email,
-                    subject=broadcast.subject,
-                    html_content=wrapped_html,
-                    from_name=broadcast.sender_name,
-                    from_email_addr=broadcast.sender_email,
-                    email_headers={
-                        "List-Unsubscribe": f"<{unsubscribe_url}>",
-                        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-                    },
-                    reply_to_name=broadcast.sender_name if broadcast.reply_to_email else None,
-                    reply_to_email_addr=broadcast.reply_to_email,
+                resend_email_id = await send_broadcast_email(
+                    broadcast,
+                    organization,
+                    to_email=subscriber.email,
+                    unsubscribe_url=unsubscribe_url,
+                    subject_override=subject_override,
                 )
-
                 send.status = EmailBroadcastSendStatus.sent
                 send.sent_at = utc_now()
                 if resend_email_id:
@@ -90,9 +147,18 @@ async def send_emails(broadcast_id: UUID) -> None:
                 )
                 send.status = EmailBroadcastSendStatus.failed
 
-        # Mark broadcast as sent
-        broadcast.status = EmailBroadcastStatus.sent
-        broadcast.sent_at = utc_now()
+        # Only mark the broadcast finished when there's nothing left pending.
+        # During an A/B test the remainder stays pending until the cron job
+        # releases it.
+        remaining_stmt = select(EmailBroadcastSend.id).where(
+            EmailBroadcastSend.broadcast_id == broadcast_id,
+            EmailBroadcastSend.status == EmailBroadcastSendStatus.pending,
+            EmailBroadcastSend.deleted_at.is_(None),
+        )
+        remaining = (await session.execute(remaining_stmt)).first()
+        if remaining is None:
+            broadcast.status = EmailBroadcastStatus.sent
+            broadcast.sent_at = utc_now()
 
 
 @actor(
@@ -127,3 +193,75 @@ async def send_scheduled_broadcast(broadcast_id: UUID) -> None:
         from .service import email_broadcast as broadcast_service
 
         await broadcast_service.send(session, broadcast)
+
+
+# Re-exported for callers that just need a one-off id.
+def _new_test_token() -> str:
+    return uuid4().hex
+
+
+@actor(
+    actor_name="email_broadcast.process_ab_winners",
+    cron_trigger=CronTrigger(minute="*"),
+    priority=TaskPriority.MEDIUM,
+)
+async def process_ab_winners() -> None:
+    """Find A/B tests whose decide_after window has elapsed and pick the winner."""
+    async with AsyncSessionMaker() as session:
+        from .repository import EmailBroadcastABTestRepository
+
+        repo = EmailBroadcastABTestRepository.from_session(session)
+        due = await repo.get_due_for_winner(utc_now())
+
+    for ab_test in due:
+        enqueue_job(
+            "email_broadcast.pick_ab_winner",
+            ab_test_id=ab_test.id,
+        )
+
+
+@actor(actor_name="email_broadcast.pick_ab_winner", priority=TaskPriority.MEDIUM)
+async def pick_ab_winner(ab_test_id: UUID) -> None:
+    """Compute which variant won and release the remainder of the audience."""
+    async with AsyncSessionMaker() as session:
+        from .repository import EmailBroadcastABTestRepository
+
+        repo = EmailBroadcastABTestRepository.from_session(session)
+        ab_test = await session.get(EmailBroadcastABTest, ab_test_id)
+        if ab_test is None or ab_test.winner_picked_at is not None:
+            return
+
+        analytics = await repo.variant_analytics(ab_test.broadcast_id)
+        a = analytics.get("a", {})
+        b = analytics.get("b", {})
+        metric_key = (
+            "click_rate"
+            if ab_test.winner_metric == "click_rate"
+            else "open_rate"
+        )
+        winner = (
+            "b" if (b.get(metric_key, 0.0) or 0) > (a.get(metric_key, 0.0) or 0) else "a"
+        )
+
+        ab_test.winner_variant = winner
+        ab_test.winner_picked_at = utc_now()
+
+        # Backfill the remainder rows so the worker knows which subject to use.
+        await repo.assign_remainder_variant(ab_test.broadcast_id, winner)
+
+        log.info(
+            "email_broadcast.ab_winner_picked",
+            broadcast_id=str(ab_test.broadcast_id),
+            winner=winner,
+            metric=ab_test.winner_metric,
+            a=a.get(metric_key),
+            b=b.get(metric_key),
+        )
+
+        # Release the remainder. The send worker will only pick up rows that
+        # are still pending and now have a non-null variant.
+        enqueue_job(
+            "email_broadcast.send_emails",
+            broadcast_id=ab_test.broadcast_id,
+            variant_filter="remainder",
+        )

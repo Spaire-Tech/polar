@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from datetime import datetime, time, timedelta, timezone
 from uuid import UUID
 
 import structlog
@@ -23,6 +24,125 @@ from polar.worker import enqueue_job
 from .repository import EmailSequenceRepository
 
 log = structlog.get_logger()
+
+
+# Keys in trigger_config that participate in event matching. Settings keys
+# (skip_if_in_another, pause_on_unsubscribe, send_window) are intentionally
+# excluded — they're behavioural, not selectors.
+_TRIGGER_FILTER_KEYS = {"product_id"}
+
+
+def trigger_config_matches(
+    config: dict | None, event_filter: dict | None
+) -> bool:
+    """Decide whether an event should fan out to a sequence.
+
+    For each filter key on the sequence, the event must match. Keys outside
+    `_TRIGGER_FILTER_KEYS` are ignored (settings, not selectors). A sequence
+    with no filter keys configured matches every event.
+    """
+    if not config:
+        return True
+    event = event_filter or {}
+    for key, expected in config.items():
+        if key not in _TRIGGER_FILTER_KEYS:
+            continue
+        if event.get(key) != expected:
+            return False
+    return True
+
+
+def apply_send_window(
+    candidate: datetime,
+    config: dict | None,
+    *,
+    subscriber_timezone: str | None = None,
+) -> datetime:
+    """Defer `candidate` to the next allowed send-window slot, if any.
+
+    The window lives at `config.send_window` and supports:
+      enabled: bool — short-circuit if false / missing
+      days: list[int] — 0=Mon..6=Sun (defaults to weekdays)
+      start_hour, end_hour: int — window in the configured timezone
+      respect_timezone: bool — when true and `subscriber_timezone` is a
+        valid IANA name, the window's start_hour / end_hour are evaluated
+        in that tz. Otherwise everything is UTC.
+    """
+    if not config:
+        return candidate
+    window = config.get("send_window")
+    if not isinstance(window, dict) or not window.get("enabled"):
+        return candidate
+
+    days = window.get("days")
+    if not isinstance(days, list) or not days:
+        days = [0, 1, 2, 3, 4]
+    days_set = {int(d) for d in days if isinstance(d, int) and 0 <= d <= 6}
+    if not days_set:
+        return candidate
+
+    start_hour = int(window.get("start_hour", 9))
+    end_hour = int(window.get("end_hour", 17))
+    start_hour = max(0, min(23, start_hour))
+    end_hour = max(start_hour + 1, min(24, end_hour))
+
+    target_tz = timezone.utc
+    if window.get("respect_timezone") and subscriber_timezone:
+        try:
+            from zoneinfo import ZoneInfo
+
+            target_tz = ZoneInfo(subscriber_timezone)
+        except Exception:
+            target_tz = timezone.utc
+
+    moment = (
+        candidate.astimezone(target_tz)
+        if candidate.tzinfo
+        else candidate.replace(tzinfo=timezone.utc).astimezone(target_tz)
+    )
+    for _ in range(14):  # 2-week safety bound; windows always recur weekly
+        if moment.weekday() in days_set:
+            window_start = moment.replace(
+                hour=start_hour, minute=0, second=0, microsecond=0
+            )
+            window_end = moment.replace(
+                hour=0, minute=0, second=0, microsecond=0
+            ) + timedelta(hours=end_hour)
+            if moment < window_start:
+                return window_start.astimezone(timezone.utc)
+            if moment < window_end:
+                return moment.astimezone(timezone.utc)
+        moment = (
+            moment.replace(hour=0, minute=0, second=0, microsecond=0)
+            + timedelta(days=1)
+        )
+    return candidate
+
+
+# Workspace-wide cap on how many sequence emails a subscriber can receive
+# in a 7-day window. Override per-sequence with `send_window.frequency_cap`.
+DEFAULT_FREQUENCY_CAP = 3
+
+
+async def check_frequency_cap(
+    session: "AsyncSession",
+    subscriber_id: UUID,
+    *,
+    cap: int = DEFAULT_FREQUENCY_CAP,
+    window_days: int = 7,
+) -> bool:
+    """Return True when the subscriber has capacity for another sequence
+    send in the rolling window. Repository owns the actual query."""
+    from .repository import EmailSequenceRepository
+
+    if cap <= 0:
+        return True
+    repository = EmailSequenceRepository.from_session(session)
+    cutoff = utc_now() - timedelta(days=window_days)
+    count = await repository.count_recent_sends_for_subscriber(
+        subscriber_id, cutoff=cutoff
+    )
+    return count < cap
 
 
 class EmailSequenceError(PolarError): ...
@@ -109,6 +229,83 @@ class EmailSequenceService:
     async def delete(self, session: AsyncSession, sequence: EmailSequence) -> None:
         repository = EmailSequenceRepository.from_session(session)
         await repository.soft_delete(sequence)
+
+    async def create_from_template(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        template: dict,
+    ) -> EmailSequence:
+        repository = EmailSequenceRepository.from_session(session)
+        # The template can ship a rich `flow_doc` with wait/branch/action/goal
+        # nodes. We mirror it onto trigger_config so the editor opens with the
+        # full authored flow; the materialized email steps below are what the
+        # worker actually iterates over.
+        trigger_config = dict(template.get("trigger_config") or {})
+        if "flow_doc" in template:
+            trigger_config["flow_doc"] = template["flow_doc"]
+
+        sequence = EmailSequence(
+            organization_id=organization_id,
+            name=template["name"],
+            description=template.get("description"),
+            trigger_type=template["trigger_type"],
+            trigger_config=trigger_config,
+            status=EmailSequenceStatus.draft,
+        )
+        sequence = await repository.create(sequence, flush=True)
+
+        for index, step in enumerate(template.get("steps", [])):
+            session.add(
+                EmailSequenceStep(
+                    sequence_id=sequence.id,
+                    position=index,
+                    delay_hours=step.get("delay_hours", 0),
+                    subject=step["subject"],
+                    sender_name=step.get("sender_name", "Team"),
+                    sender_email=step.get("sender_email"),
+                    reply_to_email=step.get("reply_to_email"),
+                    content_html=step.get("content_html"),
+                    content_json=step.get("content_json"),
+                )
+            )
+        await session.flush()
+        return sequence
+
+    async def duplicate(
+        self,
+        session: AsyncSession,
+        sequence: EmailSequence,
+    ) -> EmailSequence:
+        repository = EmailSequenceRepository.from_session(session)
+        clone = EmailSequence(
+            organization_id=sequence.organization_id,
+            name=f"{sequence.name} (copy)",
+            description=sequence.description,
+            trigger_type=sequence.trigger_type,
+            trigger_config=dict(sequence.trigger_config or {}),
+            status=EmailSequenceStatus.draft,
+        )
+        clone = await repository.create(clone, flush=True)
+
+        steps = await repository.list_steps(sequence.id)
+        for step in steps:
+            session.add(
+                EmailSequenceStep(
+                    sequence_id=clone.id,
+                    position=step.position,
+                    delay_hours=step.delay_hours,
+                    subject=step.subject,
+                    sender_name=step.sender_name,
+                    sender_email=step.sender_email,
+                    reply_to_email=step.reply_to_email,
+                    content_html=step.content_html,
+                    content_json=dict(step.content_json) if step.content_json else None,
+                )
+            )
+        await session.flush()
+        return clone
 
     # ── Steps ──────────────────────────────────────────────────────────────
 
@@ -207,13 +404,45 @@ class EmailSequenceService:
             raise AlreadyEnrolled()
 
         now = utc_now()
+        # If the sequence ships an authored flow_doc, the worker walks that
+        # tree via flow_index. The initial next_step_at honours an opening
+        # wait node so first emails don't fire mid-night for time-of-day
+        # gated flows.
+        from .flow_engine import (
+            get_flow_doc,
+            initial_flow_index,
+            initial_send_at,
+        )
+
+        # Resolve subscriber tz (best-effort) so the first send respects it.
+        from polar.models.email_subscriber import EmailSubscriber
+
+        sub = await session.get(EmailSubscriber, subscriber_id)
+        sub_tz = getattr(sub, "timezone", None) if sub is not None else None
+
+        flow = get_flow_doc(sequence)
+        flow_index: int | None = None
+        if flow is not None:
+            flow_index = initial_flow_index(flow)
+            first_send = initial_send_at(
+                flow,
+                sequence.trigger_config,
+                now=now,
+                subscriber_timezone=sub_tz,
+            )
+        else:
+            first_send = apply_send_window(
+                now, sequence.trigger_config, subscriber_timezone=sub_tz
+            )
+
         enrollment = EmailSequenceEnrollment(
             sequence_id=sequence.id,
             subscriber_id=subscriber_id,
             status=EmailSequenceEnrollmentStatus.active,
             current_step_position=0,
+            flow_index=flow_index,
             enrolled_at=now,
-            next_step_at=now,  # Step 0 fires immediately
+            next_step_at=first_send,
         )
         session.add(enrollment)
         await session.flush()
@@ -231,6 +460,55 @@ class EmailSequenceService:
             enrollment.status = EmailSequenceEnrollmentStatus.cancelled
             await session.flush()
 
+    async def complete_for_goal(
+        self,
+        session: AsyncSession,
+        organization_id: UUID,
+        subscriber_id: UUID,
+        *,
+        goal_type: str,
+        goal_filter: dict | None = None,
+    ) -> int:
+        """Mark active enrolments complete when a subscriber's customer hits
+        the sequence's configured goal.
+
+        Goal lives at `trigger_config.goal_event = {type, ...selectors}`.
+        We compare `type` and any selector keys against the event payload.
+        Returns the number of enrolments closed.
+        """
+        repository = EmailSequenceRepository.from_session(session)
+
+        # Pull every active enrolment this subscriber has in this org and
+        # check each parent sequence's goal config in-memory. Subscribers are
+        # rarely enrolled in many sequences so the N+1 is fine here.
+        enrolments = await repository.list_active_enrolments_for_subscriber(
+            organization_id, subscriber_id
+        )
+        completed_count = 0
+        for enrolment, sequence in enrolments:
+            goal = (sequence.trigger_config or {}).get("goal_event")
+            if not isinstance(goal, dict):
+                continue
+            if goal.get("type") != goal_type:
+                continue
+            event = goal_filter or {}
+            ok = True
+            for key, expected in goal.items():
+                if key == "type":
+                    continue
+                if event.get(key) != expected:
+                    ok = False
+                    break
+            if not ok:
+                continue
+            enrolment.status = EmailSequenceEnrollmentStatus.completed
+            enrolment.completed_at = utc_now()
+            enrolment.next_step_at = None
+            completed_count += 1
+        if completed_count:
+            await session.flush()
+        return completed_count
+
     async def enroll_for_trigger(
         self,
         session: AsyncSession,
@@ -245,10 +523,47 @@ class EmailSequenceService:
         sequences = await repository.get_active_for_org_by_trigger(
             organization_id, trigger_type
         )
+        from .audience import evaluate_audience
+        from .tags import has_any_tag
+
+        # Eagerly hydrate the subscriber once for audience evaluation; every
+        # candidate sequence reads from the same row.
+        subscriber = None
         for sequence in sequences:
-            if trigger_filter:
-                config = sequence.trigger_config or {}
-                if not all(config.get(k) == v for k, v in trigger_filter.items()):
+            if not trigger_config_matches(sequence.trigger_config, trigger_filter):
+                continue
+            flow_doc = (sequence.trigger_config or {}).get("flow_doc")
+            audience = (
+                flow_doc.get("audience") if isinstance(flow_doc, dict) else None
+            )
+            # Honour audience.excludeTags from the flow_doc — a subscriber
+            # carrying any of those tags is dropped before we enqueue.
+            exclude_tags: list[str] = []
+            if isinstance(audience, dict):
+                tags = audience.get("excludeTags")
+                if isinstance(tags, list):
+                    exclude_tags = [t for t in tags if isinstance(t, str) and t]
+            if exclude_tags and await has_any_tag(
+                session, subscriber_id, exclude_tags
+            ):
+                continue
+            # Only resolve the rule list if the editor switched to "filtered"
+            # mode; defaults stay in the no-filter path so we skip the
+            # subscriber lookup entirely for "all" audiences.
+            if (
+                isinstance(audience, dict)
+                and audience.get("mode") == "filtered"
+                and (audience.get("filters") or [])
+            ):
+                if subscriber is None:
+                    from polar.models.email_subscriber import EmailSubscriber
+
+                    subscriber = await session.get(
+                        EmailSubscriber, subscriber_id
+                    )
+                if subscriber is None:
+                    continue
+                if not await evaluate_audience(session, subscriber, audience):
                     continue
             enqueue_job(
                 "email_sequence.enroll_subscriber",
@@ -289,6 +604,107 @@ class EmailSequenceService:
             "active_enrollments": enrollment_counts.get("active", 0),
             "completed_enrollments": enrollment_counts.get("completed", 0),
         }
+
+    async def get_step_analytics(
+        self,
+        session: AsyncReadSession,
+        sequence_id: UUID,
+    ) -> list[dict]:
+        """Per-step open / click rates derived from EmailSequenceStepSend rows.
+
+        Open and click events bubble up the status enum (sent → delivered →
+        opened → clicked) so 'opened' counts include 'clicked', and the
+        delivered bucket counts everything that landed.
+        """
+        repository = EmailSequenceRepository.from_session(session)
+        steps = await repository.list_steps(sequence_id)
+        per_step = await repository.get_step_analytics_counts(sequence_id)
+
+        rows: list[dict] = []
+        for step in steps:
+            counts = per_step.get(step.id, {})
+            delivered = (
+                counts.get("delivered", 0)
+                + counts.get("opened", 0)
+                + counts.get("clicked", 0)
+            )
+            opened = counts.get("opened", 0) + counts.get("clicked", 0)
+            clicked = counts.get("clicked", 0)
+            sent = sum(
+                v for k, v in counts.items() if k not in ("pending", "failed")
+            )
+            rows.append(
+                {
+                    "step_id": step.id,
+                    "sent": sent,
+                    "delivered": delivered,
+                    "opened": opened,
+                    "clicked": clicked,
+                    "bounced": counts.get("bounced", 0),
+                    "open_rate": (opened / delivered * 100) if delivered else 0.0,
+                    "click_rate": (clicked / delivered * 100) if delivered else 0.0,
+                }
+            )
+        return rows
+
+    async def send_test_step(
+        self,
+        session: AsyncSession,
+        step: EmailSequenceStep,
+        *,
+        to_email: str,
+    ) -> None:
+        """Render this step exactly as the worker would and ship it to
+        a single inbox. Doesn't touch step_sends or enrollments — purely
+        a preview send."""
+        from polar.config import settings as app_settings
+        from polar.email.react import render_email_template
+        from polar.email.schemas import MarketingEmail, MarketingEmailProps
+        from polar.email.sender import email_sender
+        from polar.models.email_sequence import EmailSequence
+        from polar.models.organization import Organization
+
+        sequence = await session.get(EmailSequence, step.sequence_id)
+        organization = (
+            await session.get(Organization, sequence.organization_id)
+            if sequence is not None
+            else None
+        )
+
+        unsubscribe_url = (
+            f"{app_settings.FRONTEND_BASE_URL}/email/unsubscribe?test=1"
+        )
+        wrapped_html = render_email_template(
+            MarketingEmail(
+                props=MarketingEmailProps(
+                    organization_name=(
+                        organization.name if organization else step.sender_name
+                    ),
+                    organization_logo_url=(
+                        organization.avatar_url if organization else None
+                    ),
+                    organization_website=(
+                        organization.website if organization else None
+                    ),
+                    html_content=step.content_html or "<p>No content</p>",
+                    unsubscribe_url=unsubscribe_url,
+                )
+            )
+        )
+        await email_sender.send(
+            to_email_addr=to_email,
+            subject=f"[TEST] {step.subject}",
+            html_content=wrapped_html,
+            from_name=step.sender_name,
+            from_email_addr=step.sender_email
+            or "noreply@notifications.spairehq.com",
+            email_headers={
+                "List-Unsubscribe": f"<{unsubscribe_url}>",
+                "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+            },
+            reply_to_name=step.sender_name if step.reply_to_email else None,
+            reply_to_email_addr=step.reply_to_email,
+        )
 
     async def get_steps(
         self, session: AsyncReadSession, sequence_id: UUID

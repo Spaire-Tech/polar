@@ -46,8 +46,16 @@ class EmailSequenceEnrollment(RecordModel):
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default=EmailSequenceEnrollmentStatus.active
     )
-    # Position of the step we're waiting to send next (0-based, matches EmailSequenceStep.position)
+    # Position of the step we're waiting to send next (0-based, matches EmailSequenceStep.position).
+    # Used by the legacy email-step walker; the flow_doc walker uses flow_index.
     current_step_position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # Cursor into the parent sequence's flow_doc.steps array. Populated for
+    # sequences that ship an authored flow_doc (templates, anything created
+    # in the new editor). Legacy sequences leave this NULL and the worker
+    # falls back to the email-step walker.
+    flow_index: Mapped[int | None] = mapped_column(
+        Integer, nullable=True, default=None
+    )
     enrolled_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), nullable=False
     )

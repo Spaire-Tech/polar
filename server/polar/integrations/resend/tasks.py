@@ -45,7 +45,9 @@ async def process_resend_event(
         broadcast_send = result.scalar_one_or_none()
 
         if broadcast_send is not None:
-            await _apply_broadcast_event(session, broadcast_send, event_type, now)
+            await _apply_broadcast_event(
+                session, broadcast_send, event_type, now, event_data
+            )
             log.info(
                 "resend.webhook.processed",
                 email_id=email_id,
@@ -86,6 +88,7 @@ async def _apply_broadcast_event(
     send: EmailBroadcastSend,
     event_type: str,
     now: Any,
+    event_data: dict[str, Any] | None = None,
 ) -> None:
     if event_type == "email.delivered":
         if send.status in (EmailBroadcastSendStatus.pending, EmailBroadcastSendStatus.sent):
@@ -97,6 +100,9 @@ async def _apply_broadcast_event(
             send.opened_at = now
         if send.status in (EmailBroadcastSendStatus.sent, EmailBroadcastSendStatus.delivered):
             send.status = EmailBroadcastSendStatus.opened
+        ua = _extract_user_agent(event_data)
+        if ua:
+            send.last_user_agent = ua[:500]
 
     elif event_type == "email.clicked":
         send.click_count += 1
@@ -106,6 +112,15 @@ async def _apply_broadcast_event(
             send.opened_at = now
             send.open_count += 1
         send.status = EmailBroadcastSendStatus.clicked
+        ua = _extract_user_agent(event_data)
+        if ua:
+            send.last_user_agent = ua[:500]
+        url = _extract_click_url(event_data)
+        if url:
+            # Append to clicked_links so we can aggregate top URLs later.
+            existing = list(send.clicked_links or [])
+            existing.append({"url": url, "at": now.isoformat()})
+            send.clicked_links = existing
 
     elif event_type == "email.bounced":
         send.status = EmailBroadcastSendStatus.bounced
@@ -151,3 +166,34 @@ async def _apply_sequence_event(
     elif event_type == "email.complained":
         send.unsubscribed_at = now
         await session.execute(_update_subscriber_on_complaint(session, send.subscriber_id, now))
+
+
+def _extract_click_url(event_data: dict[str, Any] | None) -> str | None:
+    """Resend's email.clicked payload places the URL under data.click.link."""
+    if not event_data:
+        return None
+    click = event_data.get("click") or {}
+    link = click.get("link") or event_data.get("link")
+    if isinstance(link, str) and link:
+        return link
+    return None
+
+
+def _extract_user_agent(event_data: dict[str, Any] | None) -> str | None:
+    """Pull a User-Agent string from the typical Resend event shapes."""
+    if not event_data:
+        return None
+    for path in (
+        ("click", "userAgent"),
+        ("open", "userAgent"),
+        ("userAgent",),
+    ):
+        cur: Any = event_data
+        for key in path:
+            if not isinstance(cur, dict):
+                cur = None
+                break
+            cur = cur.get(key)
+        if isinstance(cur, str) and cur:
+            return cur
+    return None

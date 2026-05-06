@@ -2,15 +2,129 @@ from uuid import UUID
 
 from datetime import date, timedelta
 
-from sqlalchemy import Select, cast, Date, func, select
+from sqlalchemy import Select, cast, Date, func, or_, select
 
 from polar.auth.models import AuthSubject, Organization, User, is_organization, is_user
 from polar.kit.repository import (
     RepositoryBase,
     RepositorySoftDeletionMixin,
 )
+from polar.kit.utils import utc_now
 from polar.models import UserOrganization
-from polar.models.email_subscriber import EmailSubscriber
+from polar.models.email_broadcast_send import EmailBroadcastSend
+from polar.models.email_subscriber import EmailSubscriber, EmailSubscriberStatus
+
+
+# JSON shape that the audience builder serializes:
+#   {"all": [{"field": "source", "op": "is", "value": "manual"}, ...]}
+# Supported field/op combos are listed in build_filter_query below.
+def build_filter_query(
+    organization_id: UUID, filter_rules: dict | None
+) -> Select:
+    """Compile a filter_rules JSON object into a select(EmailSubscriber)."""
+    statement = select(EmailSubscriber).where(
+        EmailSubscriber.organization_id == organization_id,
+        EmailSubscriber.deleted_at.is_(None),
+    )
+
+    if not filter_rules:
+        return statement.where(
+            EmailSubscriber.status == EmailSubscriberStatus.active,
+        )
+
+    rules = filter_rules.get("all") or []
+
+    # Subquery only joined when a last_opened_at filter is present.
+    last_open_subq = None
+
+    # Default: only target active subscribers unless a status rule overrides.
+    has_status_rule = any(r.get("field") == "status" for r in rules)
+    if not has_status_rule:
+        statement = statement.where(
+            EmailSubscriber.status == EmailSubscriberStatus.active,
+        )
+
+    for rule in rules:
+        field = rule.get("field")
+        op = rule.get("op")
+        value = rule.get("value")
+
+        if field == "source":
+            if op == "is":
+                statement = statement.where(EmailSubscriber.source == value)
+            elif op == "is_not":
+                statement = statement.where(EmailSubscriber.source != value)
+
+        elif field == "status":
+            if op == "is":
+                statement = statement.where(EmailSubscriber.status == value)
+            elif op == "is_not":
+                statement = statement.where(EmailSubscriber.status != value)
+
+        elif field == "import_source":
+            if op == "is":
+                statement = statement.where(
+                    EmailSubscriber.import_source == value
+                )
+            elif op == "contains" and isinstance(value, str):
+                statement = statement.where(
+                    func.lower(EmailSubscriber.import_source).like(
+                        f"%{value.lower()}%"
+                    )
+                )
+
+        elif field == "subscribed_at":
+            try:
+                days = int(value)
+            except (TypeError, ValueError):
+                continue
+            cutoff = utc_now() - timedelta(days=days)
+            if op == "within_days":
+                statement = statement.where(
+                    EmailSubscriber.created_at >= cutoff
+                )
+            elif op == "more_than_days_ago":
+                statement = statement.where(
+                    EmailSubscriber.created_at < cutoff
+                )
+
+        elif field == "last_opened_at":
+            if last_open_subq is None:
+                last_open_subq = (
+                    select(
+                        EmailBroadcastSend.subscriber_id.label("subscriber_id"),
+                        func.max(EmailBroadcastSend.opened_at).label("last_open"),
+                    )
+                    .where(EmailBroadcastSend.opened_at.is_not(None))
+                    .group_by(EmailBroadcastSend.subscriber_id)
+                    .subquery()
+                )
+                statement = statement.outerjoin(
+                    last_open_subq,
+                    last_open_subq.c.subscriber_id == EmailSubscriber.id,
+                )
+
+            if op == "never_opened":
+                statement = statement.where(last_open_subq.c.last_open.is_(None))
+            else:
+                try:
+                    days = int(value)
+                except (TypeError, ValueError):
+                    continue
+                cutoff = utc_now() - timedelta(days=days)
+                if op == "within_days":
+                    statement = statement.where(
+                        last_open_subq.c.last_open >= cutoff
+                    )
+                elif op == "more_than_days_ago":
+                    statement = statement.where(
+                        or_(
+                            last_open_subq.c.last_open.is_(None),
+                            last_open_subq.c.last_open < cutoff,
+                        )
+                    )
+
+    return statement
 
 
 class EmailSubscriberRepository(
@@ -18,6 +132,18 @@ class EmailSubscriberRepository(
     RepositoryBase[EmailSubscriber],
 ):
     model = EmailSubscriber
+
+    @staticmethod
+    def apply_query_filter(
+        statement: Select[tuple[EmailSubscriber]], q: str
+    ) -> Select[tuple[EmailSubscriber]]:
+        like = f"%{q.lower()}%"
+        return statement.where(
+            or_(
+                func.lower(EmailSubscriber.email).like(like),
+                func.lower(EmailSubscriber.name).like(like),
+            )
+        )
 
     async def get_by_email_and_organization(
         self, email: str, organization_id: UUID
@@ -52,6 +178,29 @@ class EmailSubscriberRepository(
         result = await self.session.execute(statement)
         counts = {row[0]: row[1] for row in result.all()}
         return counts
+
+    async def count_filter_matches(
+        self, organization_id: UUID, filter_rules: dict | None
+    ) -> int:
+        base = build_filter_query(organization_id, filter_rules)
+        statement = select(func.count()).select_from(base.subquery())
+        result = await self.session.execute(statement)
+        return result.scalar_one()
+
+    async def list_filter_matches(
+        self,
+        organization_id: UUID,
+        filter_rules: dict | None,
+        *,
+        limit: int | None = None,
+    ) -> list[EmailSubscriber]:
+        statement = build_filter_query(organization_id, filter_rules).order_by(
+            EmailSubscriber.created_at.desc()
+        )
+        if limit is not None:
+            statement = statement.limit(limit)
+        result = await self.session.execute(statement)
+        return list(result.scalars().all())
 
     async def get_active_by_organization(
         self, organization_id: UUID

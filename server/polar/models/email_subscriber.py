@@ -74,6 +74,12 @@ class EmailSubscriber(RecordModel):
     unsubscribed_at: Mapped[datetime | None] = mapped_column(
         TIMESTAMP(timezone=True), nullable=True, default=None
     )
+    # Best-effort IANA timezone name (e.g. "America/New_York"). When set and
+    # the parent sequence opts into respect_timezone, send-window deferrals
+    # are computed in this tz instead of UTC. NULL falls back to UTC.
+    timezone: Mapped[str | None] = mapped_column(
+        String(64), nullable=True, default=None
+    )
 
     @declared_attr
     def organization(cls) -> Mapped["Organization"]:  # type: ignore[name-defined]  # noqa: F821

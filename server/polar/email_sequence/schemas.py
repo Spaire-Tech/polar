@@ -1,5 +1,4 @@
 from datetime import datetime
-from uuid import UUID
 
 from pydantic import UUID4, Field
 
@@ -87,6 +86,50 @@ class EmailSequenceEnrollment(TimestampedSchema, IDSchema):
 
 class EmailSequenceEnrollRequest(Schema):
     subscriber_id: UUID4
+
+
+class EmailSequenceFireEvent(Schema):
+    """Caller fires a named event for a subscriber. Any active enrolment
+    parked on `wait{ mode:'until-event', event:<name> }` for that
+    subscriber resumes immediately."""
+
+    event_name: str = Field(min_length=1, max_length=120)
+    subscriber_id: UUID4
+
+
+class EmailSequenceFireEventResult(Schema):
+    woken_enrolment_ids: list[UUID4]
+
+
+class EmailSequenceStepAnalytics(Schema):
+    step_id: UUID4
+    sent: int = 0
+    delivered: int = 0
+    opened: int = 0
+    clicked: int = 0
+    bounced: int = 0
+    open_rate: float = 0.0
+    click_rate: float = 0.0
+
+
+class EmailSequenceStepTestSend(Schema):
+    email: str
+
+
+class EmailSequenceTemplate(Schema):
+    slug: str
+    name: str
+    description: str
+    category: str
+    trigger_type: EmailSequenceTriggerType
+    step_count: int
+    # Full authored flow doc — small enough to ship with the list response so
+    # the template gallery can render a free preview without a second fetch.
+    flow_doc: dict | None = None
+
+
+class EmailSequenceFromTemplate(Schema):
+    slug: str
 
 
 class EmailSequenceAnalytics(Schema):

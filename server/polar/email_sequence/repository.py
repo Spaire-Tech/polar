@@ -1,12 +1,17 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import Select, func, select, update as sa_update
+from sqlalchemy import Select, func, select
+from sqlalchemy import update as sa_update
 
 from polar.auth.models import AuthSubject, Organization, User, is_organization, is_user
 from polar.kit.repository import RepositoryBase, RepositorySoftDeletionMixin
 from polar.models import UserOrganization
-from polar.models.email_sequence import EmailSequence, EmailSequenceStatus, EmailSequenceTriggerType
+from polar.models.email_sequence import (
+    EmailSequence,
+    EmailSequenceStatus,
+    EmailSequenceTriggerType,
+)
 from polar.models.email_sequence_enrollment import (
     EmailSequenceEnrollment,
     EmailSequenceEnrollmentStatus,
@@ -82,6 +87,62 @@ class EmailSequenceRepository(
         )
         result = await self.session.execute(statement)
         return list(result.scalars().all())
+
+    async def list_active_enrolments_for_subscriber(
+        self,
+        organization_id: UUID,
+        subscriber_id: UUID,
+    ) -> list[tuple[EmailSequenceEnrollment, EmailSequence]]:
+        """All active enrolments for a subscriber within an organization,
+        with their parent sequence eagerly joined so callers can read the
+        sequence's `trigger_config` without another round-trip."""
+        statement = (
+            select(EmailSequenceEnrollment, EmailSequence)
+            .join(
+                EmailSequence,
+                EmailSequenceEnrollment.sequence_id == EmailSequence.id,
+            )
+            .where(
+                EmailSequence.organization_id == organization_id,
+                EmailSequenceEnrollment.subscriber_id == subscriber_id,
+                EmailSequenceEnrollment.status
+                == EmailSequenceEnrollmentStatus.active,
+                EmailSequenceEnrollment.deleted_at.is_(None),
+            )
+        )
+        result = await self.session.execute(statement)
+        return [(row[0], row[1]) for row in result.all()]
+
+    async def list_parked_enrolments_for_subscriber(
+        self,
+        organization_id: UUID,
+        subscriber_id: UUID,
+    ) -> list[tuple[EmailSequenceEnrollment, EmailSequence]]:
+        """Active enrolments parked indefinitely (next_step_at IS NULL).
+
+        Today the only path that produces this state is a wait node with
+        mode=until-event — goal-completed/cancelled enrolments leave
+        `status=active` only transiently and are then flipped. Caller
+        inspects each enrolment's previous flow step to confirm the
+        match.
+        """
+        statement = (
+            select(EmailSequenceEnrollment, EmailSequence)
+            .join(
+                EmailSequence,
+                EmailSequenceEnrollment.sequence_id == EmailSequence.id,
+            )
+            .where(
+                EmailSequence.organization_id == organization_id,
+                EmailSequenceEnrollment.subscriber_id == subscriber_id,
+                EmailSequenceEnrollment.status
+                == EmailSequenceEnrollmentStatus.active,
+                EmailSequenceEnrollment.next_step_at.is_(None),
+                EmailSequenceEnrollment.deleted_at.is_(None),
+            )
+        )
+        result = await self.session.execute(statement)
+        return [(row[0], row[1]) for row in result.all()]
 
     async def list_due_enrollments(self, now: datetime) -> list[EmailSequenceEnrollment]:
         """All active enrollments where next_step_at has passed."""
@@ -169,6 +230,57 @@ class EmailSequenceRepository(
         )
         result = await self.session.execute(statement)
         return {row[0]: row[1] for row in result.all()}
+
+    async def count_recent_sends_for_subscriber(
+        self,
+        subscriber_id: UUID,
+        *,
+        cutoff: datetime,
+    ) -> int:
+        """Count non-failed sequence sends to a subscriber since `cutoff`.
+
+        Used by the workspace-wide frequency cap. We exclude the failed
+        bucket so a transient send error doesn't count against the
+        subscriber's quota.
+        """
+        statement = select(func.count(EmailSequenceStepSend.id)).where(
+            EmailSequenceStepSend.subscriber_id == subscriber_id,
+            EmailSequenceStepSend.status != "failed",
+            EmailSequenceStepSend.deleted_at.is_(None),
+            EmailSequenceStepSend.created_at >= cutoff,
+        )
+        result = await self.session.execute(statement)
+        return int(result.scalar_one() or 0)
+
+    async def get_step_analytics_counts(
+        self, sequence_id: UUID
+    ) -> dict[UUID, dict[str, int]]:
+        """Per-step send counts grouped by status. Returned as
+        {step_id: {status: count}} so callers can derive open/click rate."""
+        statement = (
+            select(
+                EmailSequenceStepSend.step_id,
+                EmailSequenceStepSend.status,
+                func.count(EmailSequenceStepSend.id),
+            )
+            .join(
+                EmailSequenceEnrollment,
+                EmailSequenceStepSend.enrollment_id == EmailSequenceEnrollment.id,
+            )
+            .where(
+                EmailSequenceEnrollment.sequence_id == sequence_id,
+                EmailSequenceStepSend.deleted_at.is_(None),
+            )
+            .group_by(
+                EmailSequenceStepSend.step_id,
+                EmailSequenceStepSend.status,
+            )
+        )
+        result = await self.session.execute(statement)
+        bucket: dict[UUID, dict[str, int]] = {}
+        for step_id, status, count in result.all():
+            bucket.setdefault(step_id, {})[status] = count
+        return bucket
 
     async def get_enrollment_counts(self, sequence_id: UUID) -> dict:
         statement = (
