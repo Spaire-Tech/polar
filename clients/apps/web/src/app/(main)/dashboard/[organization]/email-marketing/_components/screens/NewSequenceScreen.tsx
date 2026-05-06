@@ -13,6 +13,7 @@ import {
 import { useProducts } from '@/hooks/queries/products'
 import { schemas } from '@spaire/client'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { renderBlocksToHtml } from '../blockEditor/render'
 import {
   Block,
@@ -1738,13 +1739,21 @@ const SequenceEmailComposerModal = ({
     }, 300)
   }
 
-  return (
+  // Portal to <body> so the modal escapes the dashboard's stacking
+  // context and the .spaire-email-app `zoom: 0.9` scale. Wrapping it
+  // back in a `.spaire-email-app` host preserves the scoped CSS used
+  // throughout the modal (`.btn`, `.input`, `.modal-fade-in`,
+  // `--ink-*` tokens, …). Without this the modal mounted but was
+  // hidden behind ancestor layers and the editor looked "dead".
+  if (typeof window === 'undefined') return null
+  return createPortal(
+    <div className="spaire-email-app">
     <div
       className="modal-fade-in"
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 200,
+        zIndex: 1000,
         background: 'rgba(15,23,42,0.45)',
         backdropFilter: 'blur(8px)',
         display: 'flex',
@@ -1921,6 +1930,8 @@ const SequenceEmailComposerModal = ({
         </div>
       </div>
     </div>
+    </div>,
+    document.body,
   )
 }
 
