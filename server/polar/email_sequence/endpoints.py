@@ -20,7 +20,9 @@ from .schemas import (
     EmailSequenceFromTemplate,
     EmailSequenceReorderItem,
     EmailSequenceStep as EmailSequenceStepSchema,
+    EmailSequenceStepAnalytics as EmailSequenceStepAnalyticsSchema,
     EmailSequenceStepCreate,
+    EmailSequenceStepTestSend,
     EmailSequenceStepUpdate,
     EmailSequenceTemplate as EmailSequenceTemplateSchema,
     EmailSequenceUpdate,
@@ -354,7 +356,47 @@ async def unenroll_subscriber(
     await sequence_service.unenroll(session, sequence_id, subscriber_id)
 
 
+# ── Step send-test ────────────────────────────────────────────────────────────
+
+@router.post("/{sequence_id}/steps/{step_id}/test", status_code=204)
+async def send_test_sequence_step(
+    auth_subject: EmailSequencesWrite,
+    sequence_id: UUID4,
+    step_id: UUID4,
+    body: EmailSequenceStepTestSend,
+    session: AsyncSession = Depends(get_db_session),
+) -> None:
+    from .repository import EmailSequenceRepository
+
+    sequence = await sequence_service.get_by_id(session, auth_subject, sequence_id)
+    if sequence is None:
+        raise ResourceNotFound()
+
+    repository = EmailSequenceRepository.from_session(session)
+    step = await repository.get_step(step_id)
+    if step is None or step.sequence_id != sequence_id:
+        raise ResourceNotFound()
+
+    await sequence_service.send_test_step(session, step, to_email=body.email)
+
+
 # ── Analytics ─────────────────────────────────────────────────────────────────
+
+@router.get(
+    "/{sequence_id}/step-analytics",
+    response_model=list[EmailSequenceStepAnalyticsSchema],
+)
+async def get_sequence_step_analytics(
+    auth_subject: EmailSequencesRead,
+    sequence_id: UUID4,
+    session: AsyncReadSession = Depends(get_db_read_session),
+) -> list[EmailSequenceStepAnalyticsSchema]:
+    sequence = await sequence_service.get_by_id(session, auth_subject, sequence_id)
+    if sequence is None:
+        raise ResourceNotFound()
+    rows = await sequence_service.get_step_analytics(session, sequence_id)
+    return [EmailSequenceStepAnalyticsSchema(**row) for row in rows]
+
 
 @router.get("/{sequence_id}/analytics", response_model=EmailSequenceAnalytics)
 async def get_sequence_analytics(

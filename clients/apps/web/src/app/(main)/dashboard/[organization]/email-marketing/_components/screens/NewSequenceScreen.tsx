@@ -1,13 +1,18 @@
 import {
+  SequenceStepAnalyticsRow,
   useCreateEmailSequence,
   useCreateSequenceStep,
   useDeleteSequenceStep,
   useEmailSequence,
   useEmailSubscribers,
+  useEnrollSubscriber,
   useReorderSequenceSteps,
+  useSendTestSequenceStep,
   useSequenceAnalytics,
   useSequenceEnrollments,
+  useSequenceStepAnalytics,
   useSequenceSteps,
+  useUnenrollSubscriber,
   useUpdateEmailSequence,
   useUpdateSequenceStep,
   useUploadSequenceImage,
@@ -296,6 +301,22 @@ const SequenceEditorInner = ({
   const editingStep = existingSteps.find((s) => s.id === editingStepId) ?? null
 
   const isActive = existing?.status === 'active'
+  // Per-step analytics keyed by step id; only meaningful once the sequence has
+  // sent at least one email, but we fetch unconditionally so the chips appear
+  // immediately when activity arrives.
+  const stepAnalyticsQuery = useSequenceStepAnalytics(persistedId ?? '')
+  const stepAnalyticsById = useMemo(() => {
+    const m = new Map<string, SequenceStepAnalyticsRow>()
+    for (const row of stepAnalyticsQuery.data ?? []) m.set(row.step_id, row)
+    return m
+  }, [stepAnalyticsQuery.data])
+
+  const sendTest = useSendTestSequenceStep()
+  const onSendTestStep = async (stepId: string, email: string) => {
+    if (!persistedId) return
+    await sendTest.mutateAsync({ sequenceId: persistedId, stepId, email })
+  }
+
   const sortedSteps = [...existingSteps].sort((a, b) => a.position - b.position)
   const totalDays = Math.ceil(
     sortedSteps.reduce((acc, s) => acc + (s.delay_hours ?? 0), 0) / 24,
@@ -586,6 +607,7 @@ const SequenceEditorInner = ({
                       title={step.subject}
                       preview={previewFromHtml(step.content_html)}
                       delay={i === 0 ? 'Immediately' : `+${step.delay_hours}h`}
+                      analytics={stepAnalyticsById.get(step.id) ?? null}
                       canMoveUp={i > 0}
                       canMoveDown={i < sortedSteps.length - 1}
                       onClick={() => setEditingStepId(step.id)}
@@ -695,6 +717,7 @@ const SequenceEditorInner = ({
               ...patch,
             })
           }}
+          onSendTest={(email) => onSendTestStep(editingStep.id, email)}
         />
       )}
     </div>
@@ -719,6 +742,7 @@ const StepEditor = ({
   step,
   onClose,
   onSave,
+  onSendTest,
 }: {
   organization: schemas['Organization']
   step: Step
@@ -729,6 +753,7 @@ const StepEditor = ({
     delay_hours?: number
     content_html?: string
   }) => Promise<void>
+  onSendTest: (email: string) => Promise<void>
 }) => {
   const [subject, setSubject] = useState(step.subject)
   const [senderName, setSenderName] = useState(step.sender_name)
@@ -737,6 +762,10 @@ const StepEditor = ({
     adoptContentJson(step.content_json),
   )
   const [saving, setSaving] = useState(false)
+  const [testEmail, setTestEmail] = useState('')
+  const [testStatus, setTestStatus] = useState<
+    'idle' | 'sending' | 'sent' | 'error'
+  >('idle')
   const upload = useUploadSequenceImage(organization.id)
 
   // Reset local edits when the targeted step changes.
@@ -826,10 +855,56 @@ const StepEditor = ({
       <div
         style={{
           display: 'flex',
-          justifyContent: 'flex-end',
           gap: 10,
+          alignItems: 'center',
+          paddingTop: 12,
+          borderTop: '1px solid var(--line)',
+          marginTop: 4,
         }}
       >
+        <input
+          className="input"
+          type="email"
+          placeholder="you@example.com"
+          value={testEmail}
+          onChange={(e) => {
+            setTestEmail(e.target.value)
+            setTestStatus('idle')
+          }}
+          style={{ flex: 1, minWidth: 0 }}
+        />
+        <button
+          type="button"
+          className="btn btn-secondary"
+          disabled={!testEmail.trim() || testStatus === 'sending'}
+          onClick={async () => {
+            setTestStatus('sending')
+            try {
+              // Persist current edits first so the test reflects what's on screen.
+              const html = renderBlocksToHtml(doc)
+              await onSave({
+                subject,
+                sender_name: senderName,
+                delay_hours: delayHours,
+                content_html: html,
+              })
+              await onSendTest(testEmail.trim())
+              setTestStatus('sent')
+            } catch {
+              setTestStatus('error')
+            }
+          }}
+        >
+          <Icon name="send" size={12} />
+          {testStatus === 'sending'
+            ? 'Sending…'
+            : testStatus === 'sent'
+              ? 'Sent ✓'
+              : testStatus === 'error'
+                ? 'Failed'
+                : 'Send test'}
+        </button>
+        <div style={{ flex: 1 }} />
         <button type="button" className="btn btn-secondary" onClick={onClose}>
           Cancel
         </button>
@@ -1067,13 +1142,17 @@ const EnrollmentsPanel = ({
   sequenceId: string
 }) => {
   const [expanded, setExpanded] = useState(false)
+  const [pickerQ, setPickerQ] = useState('')
+  const [pickerOpen, setPickerOpen] = useState(false)
   const enrollmentsQuery = useSequenceEnrollments(sequenceId)
   // Pull a generous slice of subscribers so we can join on id without a
-  // round-trip per row. Phase 4 can swap to a server-side join if this gets
-  // expensive.
+  // round-trip per row. The picker reuses the same set so manual enrollment
+  // is one search box rather than a full subscriber browser.
   const subscribersQuery = useEmailSubscribers(organization.id, {
     limit: 500,
   })
+  const enroll = useEnrollSubscriber(sequenceId)
+  const unenroll = useUnenrollSubscriber(sequenceId)
   const enrollments = (enrollmentsQuery.data as Enrollment[] | undefined) ?? []
   const byId = useMemo(() => {
     const m = new Map<string, schemas['EmailSubscriber']>()
@@ -1082,6 +1161,24 @@ const EnrollmentsPanel = ({
     }
     return m
   }, [subscribersQuery.data])
+  const enrolledIds = useMemo(
+    () => new Set(enrollments.map((e) => e.subscriber_id)),
+    [enrollments],
+  )
+  const candidates = useMemo(() => {
+    const all = subscribersQuery.data?.items ?? []
+    const q = pickerQ.trim().toLowerCase()
+    const filtered = all.filter((s) => {
+      if (enrolledIds.has(s.id)) return false
+      if (s.status !== 'active') return false
+      if (!q) return true
+      return (
+        s.email.toLowerCase().includes(q) ||
+        (s.name?.toLowerCase().includes(q) ?? false)
+      )
+    })
+    return filtered.slice(0, 6)
+  }, [subscribersQuery.data, pickerQ, enrolledIds])
 
   const visible = expanded ? enrollments : enrollments.slice(0, 8)
 
@@ -1093,6 +1190,7 @@ const EnrollmentsPanel = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
+          gap: 16,
           borderBottom:
             enrollments.length > 0 ? '1px solid var(--line)' : 'none',
         }}
@@ -1104,6 +1202,84 @@ const EnrollmentsPanel = ({
               ? 'Loading…'
               : `${enrollments.length} subscriber${enrollments.length === 1 ? '' : 's'} in this sequence`}
           </div>
+        </div>
+        <div
+          style={{ position: 'relative', minWidth: 280 }}
+          onBlur={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+              setPickerOpen(false)
+            }
+          }}
+        >
+          <input
+            className="input"
+            placeholder="Add subscriber by email…"
+            value={pickerQ}
+            onChange={(e) => {
+              setPickerQ(e.target.value)
+              setPickerOpen(true)
+            }}
+            onFocus={() => setPickerOpen(true)}
+            style={{ width: '100%' }}
+          />
+          {pickerOpen && candidates.length > 0 && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '100%',
+                left: 0,
+                right: 0,
+                marginTop: 6,
+                background: '#fff',
+                border: '1px solid var(--line)',
+                borderRadius: 12,
+                boxShadow: 'var(--shadow-lg)',
+                padding: 6,
+                zIndex: 30,
+                maxHeight: 280,
+                overflowY: 'auto',
+              }}
+            >
+              {candidates.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={async () => {
+                    await enroll.mutateAsync(s.id)
+                    setPickerQ('')
+                    setPickerOpen(false)
+                  }}
+                  disabled={enroll.isPending}
+                  style={{
+                    display: 'block',
+                    width: '100%',
+                    textAlign: 'left',
+                    padding: '8px 10px',
+                    borderRadius: 8,
+                    fontSize: 13,
+                    background: 'transparent',
+                    cursor: enroll.isPending ? 'wait' : 'pointer',
+                  }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.background = 'var(--bg-softer)')
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.background = 'transparent')
+                  }
+                >
+                  <div style={{ color: 'var(--ink)', fontWeight: 500 }}>
+                    {s.email}
+                  </div>
+                  {s.name && (
+                    <div style={{ color: 'var(--ink-3)', fontSize: 12 }}>
+                      {s.name}
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
       {enrollments.length === 0 && !enrollmentsQuery.isLoading ? (
@@ -1123,7 +1299,7 @@ const EnrollmentsPanel = ({
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'minmax(0, 2fr) 100px 110px 140px 140px',
+              gridTemplateColumns: 'minmax(0, 2fr) 100px 90px 130px 130px 36px',
               gap: 16,
               padding: '12px 24px',
               fontSize: 11,
@@ -1138,6 +1314,7 @@ const EnrollmentsPanel = ({
             <div>Step</div>
             <div>Enrolled</div>
             <div>Next send</div>
+            <div />
           </div>
           {visible.map((e) => {
             const sub = byId.get(e.subscriber_id)
@@ -1146,7 +1323,8 @@ const EnrollmentsPanel = ({
                 key={e.id}
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: 'minmax(0, 2fr) 100px 110px 140px 140px',
+                  gridTemplateColumns:
+                    'minmax(0, 2fr) 100px 90px 130px 130px 36px',
                   gap: 16,
                   padding: '14px 24px',
                   fontSize: 13,
@@ -1196,6 +1374,27 @@ const EnrollmentsPanel = ({
                       ? formatRelative(e.next_step_at)
                       : 'Done'}
                 </div>
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  style={{
+                    padding: 6,
+                    borderRadius: 8,
+                    color: 'var(--ink-3)',
+                  }}
+                  title="Unenroll"
+                  onClick={async () => {
+                    if (
+                      !window.confirm(
+                        'Remove this subscriber from the sequence?',
+                      )
+                    )
+                      return
+                    await unenroll.mutateAsync(e.subscriber_id)
+                  }}
+                >
+                  <Icon name="x-circle" size={14} />
+                </button>
               </div>
             )
           })}
@@ -1384,6 +1583,7 @@ const EmailNode = ({
   title,
   preview,
   delay,
+  analytics,
   canMoveUp,
   canMoveDown,
   onClick,
@@ -1395,6 +1595,7 @@ const EmailNode = ({
   title: string
   preview: string
   delay: string
+  analytics: SequenceStepAnalyticsRow | null
   canMoveUp: boolean
   canMoveDown: boolean
   onClick: () => void
@@ -1499,6 +1700,36 @@ const EmailNode = ({
           >
             {preview}
           </div>
+          {analytics && analytics.sent > 0 && (
+            <div
+              style={{
+                display: 'flex',
+                gap: 12,
+                marginTop: 10,
+                fontSize: 11.5,
+                color: 'var(--ink-3)',
+              }}
+            >
+              <span>
+                <strong style={{ color: 'var(--ink-2)', fontWeight: 500 }}>
+                  {analytics.sent.toLocaleString()}
+                </strong>{' '}
+                sent
+              </span>
+              <span>
+                <strong style={{ color: 'var(--ink-2)', fontWeight: 500 }}>
+                  {analytics.open_rate.toFixed(1)}%
+                </strong>{' '}
+                open
+              </span>
+              <span>
+                <strong style={{ color: 'var(--ink-2)', fontWeight: 500 }}>
+                  {analytics.click_rate.toFixed(1)}%
+                </strong>{' '}
+                click
+              </span>
+            </div>
+          )}
           {hover && (
             <div style={{ display: 'flex', gap: 4, marginTop: 12 }}>
               <button

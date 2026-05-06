@@ -359,6 +359,107 @@ class EmailSequenceService:
             "completed_enrollments": enrollment_counts.get("completed", 0),
         }
 
+    async def get_step_analytics(
+        self,
+        session: AsyncReadSession,
+        sequence_id: UUID,
+    ) -> list[dict]:
+        """Per-step open / click rates derived from EmailSequenceStepSend rows.
+
+        Open and click events bubble up the status enum (sent → delivered →
+        opened → clicked) so 'opened' counts include 'clicked', and the
+        delivered bucket counts everything that landed.
+        """
+        repository = EmailSequenceRepository.from_session(session)
+        steps = await repository.list_steps(sequence_id)
+        per_step = await repository.get_step_analytics_counts(sequence_id)
+
+        rows: list[dict] = []
+        for step in steps:
+            counts = per_step.get(step.id, {})
+            delivered = (
+                counts.get("delivered", 0)
+                + counts.get("opened", 0)
+                + counts.get("clicked", 0)
+            )
+            opened = counts.get("opened", 0) + counts.get("clicked", 0)
+            clicked = counts.get("clicked", 0)
+            sent = sum(
+                v for k, v in counts.items() if k not in ("pending", "failed")
+            )
+            rows.append(
+                {
+                    "step_id": step.id,
+                    "sent": sent,
+                    "delivered": delivered,
+                    "opened": opened,
+                    "clicked": clicked,
+                    "bounced": counts.get("bounced", 0),
+                    "open_rate": (opened / delivered * 100) if delivered else 0.0,
+                    "click_rate": (clicked / delivered * 100) if delivered else 0.0,
+                }
+            )
+        return rows
+
+    async def send_test_step(
+        self,
+        session: AsyncSession,
+        step: EmailSequenceStep,
+        *,
+        to_email: str,
+    ) -> None:
+        """Render this step exactly as the worker would and ship it to
+        a single inbox. Doesn't touch step_sends or enrollments — purely
+        a preview send."""
+        from polar.config import settings as app_settings
+        from polar.email.react import render_email_template
+        from polar.email.schemas import MarketingEmail, MarketingEmailProps
+        from polar.email.sender import email_sender
+        from polar.models.email_sequence import EmailSequence
+        from polar.models.organization import Organization
+
+        sequence = await session.get(EmailSequence, step.sequence_id)
+        organization = (
+            await session.get(Organization, sequence.organization_id)
+            if sequence is not None
+            else None
+        )
+
+        unsubscribe_url = (
+            f"{app_settings.FRONTEND_BASE_URL}/email/unsubscribe?test=1"
+        )
+        wrapped_html = render_email_template(
+            MarketingEmail(
+                props=MarketingEmailProps(
+                    organization_name=(
+                        organization.name if organization else step.sender_name
+                    ),
+                    organization_logo_url=(
+                        organization.avatar_url if organization else None
+                    ),
+                    organization_website=(
+                        organization.website if organization else None
+                    ),
+                    html_content=step.content_html or "<p>No content</p>",
+                    unsubscribe_url=unsubscribe_url,
+                )
+            )
+        )
+        await email_sender.send(
+            to_email_addr=to_email,
+            subject=f"[TEST] {step.subject}",
+            html_content=wrapped_html,
+            from_name=step.sender_name,
+            from_email_addr=step.sender_email
+            or "noreply@notifications.spairehq.com",
+            email_headers={
+                "List-Unsubscribe": f"<{unsubscribe_url}>",
+                "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+            },
+            reply_to_name=step.sender_name if step.reply_to_email else None,
+            reply_to_email_addr=step.reply_to_email,
+        )
+
     async def get_steps(
         self, session: AsyncReadSession, sequence_id: UUID
     ) -> list[EmailSequenceStep]:

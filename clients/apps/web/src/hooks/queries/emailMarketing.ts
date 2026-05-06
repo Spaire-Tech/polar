@@ -949,6 +949,48 @@ export const useSequenceAnalytics = (sequenceId: string) =>
     enabled: !!sequenceId,
   })
 
+// ── Sequence Step Analytics + Send-test ──
+
+export type SequenceStepAnalyticsRow = {
+  step_id: string
+  sent: number
+  delivered: number
+  opened: number
+  clicked: number
+  bounced: number
+  open_rate: number
+  click_rate: number
+}
+
+export const useSequenceStepAnalytics = (sequenceId: string) =>
+  useQuery({
+    queryKey: ['email_sequence_step_analytics', sequenceId],
+    queryFn: () =>
+      seqFetch<SequenceStepAnalyticsRow[]>(
+        `/v1/email-sequences/${sequenceId}/step-analytics`,
+      ),
+    retry: defaultRetry,
+    enabled: !!sequenceId,
+  })
+
+export const useSendTestSequenceStep = () =>
+  useMutation({
+    mutationFn: ({
+      sequenceId,
+      stepId,
+      email,
+    }: {
+      sequenceId: string
+      stepId: string
+      email: string
+    }) =>
+      seqMutate<void>(
+        `/v1/email-sequences/${sequenceId}/steps/${stepId}/test`,
+        'POST',
+        { email },
+      ),
+  })
+
 // ── Sequence Duplicate / Image Upload ──
 
 export const useDuplicateEmailSequence = () =>

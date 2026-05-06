@@ -170,6 +170,36 @@ class EmailSequenceRepository(
         result = await self.session.execute(statement)
         return {row[0]: row[1] for row in result.all()}
 
+    async def get_step_analytics_counts(
+        self, sequence_id: UUID
+    ) -> dict[UUID, dict[str, int]]:
+        """Per-step send counts grouped by status. Returned as
+        {step_id: {status: count}} so callers can derive open/click rate."""
+        statement = (
+            select(
+                EmailSequenceStepSend.step_id,
+                EmailSequenceStepSend.status,
+                func.count(EmailSequenceStepSend.id),
+            )
+            .join(
+                EmailSequenceEnrollment,
+                EmailSequenceStepSend.enrollment_id == EmailSequenceEnrollment.id,
+            )
+            .where(
+                EmailSequenceEnrollment.sequence_id == sequence_id,
+                EmailSequenceStepSend.deleted_at.is_(None),
+            )
+            .group_by(
+                EmailSequenceStepSend.step_id,
+                EmailSequenceStepSend.status,
+            )
+        )
+        result = await self.session.execute(statement)
+        bucket: dict[UUID, dict[str, int]] = {}
+        for step_id, status, count in result.all():
+            bucket.setdefault(step_id, {})[status] = count
+        return bucket
+
     async def get_enrollment_counts(self, sequence_id: UUID) -> dict:
         statement = (
             select(

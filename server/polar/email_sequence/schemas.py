@@ -89,6 +89,21 @@ class EmailSequenceEnrollRequest(Schema):
     subscriber_id: UUID4
 
 
+class EmailSequenceStepAnalytics(Schema):
+    step_id: UUID4
+    sent: int = 0
+    delivered: int = 0
+    opened: int = 0
+    clicked: int = 0
+    bounced: int = 0
+    open_rate: float = 0.0
+    click_rate: float = 0.0
+
+
+class EmailSequenceStepTestSend(Schema):
+    email: str
+
+
 class EmailSequenceTemplate(Schema):
     slug: str
     name: str
