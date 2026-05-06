@@ -5,6 +5,12 @@ import Link from 'next/link'
 import { useState } from 'react'
 import '../styles.css'
 import { Icon } from './Icon'
+import {
+  MarkAnalytics,
+  MarkBroadcast,
+  MarkPeople,
+  MarkSequences,
+} from './MarkIcons'
 import { AnalyticsScreen } from './screens/AnalyticsScreen'
 import { BroadcastDetailScreen } from './screens/BroadcastDetailScreen'
 import { BroadcastsScreen } from './screens/BroadcastsScreen'
@@ -16,11 +22,15 @@ import { SubscribersScreen } from './screens/SubscribersScreen'
 type Tab = 'subscribers' | 'broadcasts' | 'sequences' | 'analytics'
 type View = 'main' | 'new-broadcast' | 'new-sequence' | 'broadcast-detail'
 
-const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: 'subscribers', label: 'Subscribers', icon: 'users' },
-  { id: 'broadcasts', label: 'Broadcasts', icon: 'send' },
-  { id: 'sequences', label: 'Sequences', icon: 'zap' },
-  { id: 'analytics', label: 'Analytics', icon: 'chart' },
+const TABS: {
+  id: Tab
+  label: string
+  Mark: (props: { size?: number }) => React.ReactElement
+}[] = [
+  { id: 'subscribers', label: 'Subscribers', Mark: MarkPeople },
+  { id: 'broadcasts', label: 'Broadcasts', Mark: MarkBroadcast },
+  { id: 'sequences', label: 'Sequences', Mark: MarkSequences },
+  { id: 'analytics', label: 'Analytics', Mark: MarkAnalytics },
 ]
 
 export default function EmailMarketingApp({
@@ -98,21 +108,21 @@ export default function EmailMarketingApp({
             </a>
             <span className="brand-divider" />
             <div className="tabs">
-              {TABS.map((t) => (
+              {TABS.map(({ id, label, Mark }) => (
                 <button
-                  key={t.id}
-                  className={`tab ${tab === t.id ? 'tab-active' : ''}`}
-                  onClick={() => selectTab(t.id)}
+                  key={id}
+                  className={`tab ${tab === id ? 'tab-active' : ''}`}
+                  onClick={() => selectTab(id)}
                 >
                   <span
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
-                      gap: 7,
+                      gap: 8,
                     }}
                   >
-                    <Icon name={t.icon} size={13} />
-                    {t.label}
+                    <Mark size={18} />
+                    {label}
                   </span>
                 </button>
               ))}

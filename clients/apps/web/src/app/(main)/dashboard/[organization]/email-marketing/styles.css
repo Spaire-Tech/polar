@@ -1,34 +1,37 @@
-/* Spaire Email Marketing — Poppins, indigo-accented. Scoped to .spaire-email-app. */
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=League+Spartan:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+/* Spaire Email Marketing — Poppins, Stripe-style slate + violet. Scoped to .spaire-email-app. */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 .spaire-email-app {
+  /* Stripe-style palette — cool slate neutrals, single violet accent. */
   --bg: #ffffff;
-  --bg-soft: #fafafa;
-  --bg-softer: #f5f5f7;
-  --ink: #1d1d1f;
-  --ink-2: #424245;
-  --ink-3: #6e6e73;
-  --ink-4: #86868b;
-  --line: #e8e8ed;
-  --line-2: #d2d2d7;
-  --black: #1d1d1f;
-  --black-hover: #000000;
-  --green: #1a7a3e;
-  --green-soft: #e8f5ec;
-  --red: #b3261e;
-  --red-soft: #fdecea;
-  --amber: #8a5a00;
-  --amber-soft: #fdf3d8;
-  --blue: #0066cc;
-  --blue-soft: #e8f0fb;
+  --bg-soft: #f6f9fc; /* Stripe canvas */
+  --bg-softer: #f1f4f9;
+  --ink: #0a2540; /* Stripe near-black slate */
+  --ink-2: #425466;
+  --ink-3: #6b7c93;
+  --ink-4: #8898aa;
+  --line: #e6ebf1;
+  --line-2: #cfd7e0;
+  --black: #0a2540;
+  --black-hover: #002558;
 
-  /* Indigo accent — used for state, links, active selections, focus rings */
-  --indigo: #4f46e5;
-  --indigo-2: #4338ca;
-  --indigo-soft: #eef2ff;
-  --indigo-soft-2: #e0e7ff;
-  --indigo-line: #c7d2fe;
-  --pink: #ec4899;
+  /* Status — desaturated, slate-leaning */
+  --green: #237e5e;
+  --green-soft: #e6f4ee;
+  --red: #b34b4b;
+  --red-soft: #f9ecec;
+  --amber: #826013;
+  --amber-soft: #f6efdb;
+  --blue: #3a6ea5;
+  --blue-soft: #ecf2f9;
+
+  /* Stripe violet accent — used for state, links, active selections, focus rings */
+  --indigo: #635bff;
+  --indigo-2: #4f46db;
+  --indigo-soft: #f0eefe;
+  --indigo-soft-2: #e3e0fc;
+  --indigo-line: #cfcafa;
+  --pink: #d96aa1;
 
   --r-sm: 8px;
   --r-md: 12px;
@@ -56,25 +59,19 @@
   position: relative;
 }
 
-/* Soft indigo wash at the top of the page for atmosphere */
+/* Subtle slate wash at the top of the page — Stripe-style cool neutral. */
 .spaire-email-app::before {
   content: '';
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  height: 420px;
-  background:
-    radial-gradient(
-      900px 320px at 12% -10%,
-      rgba(99, 102, 241, 0.1),
-      transparent 70%
-    ),
-    radial-gradient(
-      700px 280px at 92% -20%,
-      rgba(165, 180, 252, 0.18),
-      transparent 70%
-    );
+  height: 320px;
+  background: linear-gradient(
+    180deg,
+    rgba(246, 249, 252, 0.9) 0%,
+    rgba(246, 249, 252, 0) 100%
+  );
   pointer-events: none;
   z-index: 0;
 }
@@ -200,14 +197,14 @@
 
 .spaire-email-app .card {
   background: #fff;
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-2);
   border-radius: var(--r-lg);
 }
 
 /* Lifted variant — used on key panels for more presence */
 .spaire-email-app .card-lift {
   background: #fff;
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-2);
   border-radius: var(--r-lg);
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.6) inset,
@@ -381,12 +378,11 @@
   line-height: 1;
 }
 .spaire-email-app .brand-name {
-  font-family: 'League Spartan', 'Poppins', system-ui, sans-serif;
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
   color: var(--ink);
-  text-transform: lowercase;
 }
 .spaire-email-app .brand-product {
   font-size: 11px;
@@ -418,10 +414,8 @@
 }
 .spaire-email-app .option-card.is-active {
   border-color: var(--indigo);
-  background: var(--indigo-soft);
-  box-shadow:
-    0 0 0 1px var(--indigo) inset,
-    0 8px 24px -10px rgba(79, 70, 229, 0.25);
+  background: #fff;
+  box-shadow: 0 0 0 1px var(--indigo) inset;
 }
 
 /* Avatar */
