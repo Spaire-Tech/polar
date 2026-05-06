@@ -170,8 +170,8 @@ export const AnalyticsScreen = ({
               <h3 className="h2">Open & click rate</h3>
             </div>
             <div style={{ display: 'flex', gap: 16, fontSize: 12 }}>
-              <Legend color="var(--ink)" label="Open rate" />
-              <Legend color="var(--ink-4)" label="Click rate" dashed />
+              <Legend color="#4f46e5" label="Open rate" />
+              <Legend color="#ec4899" label="Click rate" />
             </div>
           </div>
           {engagementSeries.length === 0 && !engagementQuery.isLoading ? (
@@ -206,9 +206,9 @@ export const AnalyticsScreen = ({
           >
             <span
               style={{
-                fontSize: 36,
-                fontWeight: 600,
-                letterSpacing: '-0.03em',
+                fontSize: 40,
+                fontWeight: 400,
+                letterSpacing: '-0.025em',
               }}
             >
               {totalSubscribers.toLocaleString()}
@@ -217,7 +217,7 @@ export const AnalyticsScreen = ({
               style={{
                 fontSize: 13,
                 fontWeight: 500,
-                color: 'var(--green)',
+                color: '#4f46e5',
               }}
             >
               {growthDelta >= 0 ? `+${growthDelta}` : growthDelta}
@@ -306,9 +306,9 @@ export const AnalyticsScreen = ({
                     </div>
                     <div
                       style={{
-                        height: 4,
+                        height: 6,
                         background: 'var(--bg-softer)',
-                        borderRadius: 2,
+                        borderRadius: 3,
                         overflow: 'hidden',
                       }}
                     >
@@ -316,7 +316,8 @@ export const AnalyticsScreen = ({
                         style={{
                           height: '100%',
                           width: `${rate}%`,
-                          background: 'var(--ink)',
+                          background: 'linear-gradient(90deg,#6366f1,#4f46e5)',
+                          borderRadius: 3,
                         }}
                       />
                     </div>
@@ -457,9 +458,9 @@ export const AnalyticsScreen = ({
                 </div>
                 <div
                   style={{
-                    height: 4,
+                    height: 6,
                     background: 'var(--bg-softer)',
-                    borderRadius: 2,
+                    borderRadius: 3,
                     overflow: 'hidden',
                   }}
                 >
@@ -467,8 +468,11 @@ export const AnalyticsScreen = ({
                     style={{
                       height: '100%',
                       width: `${d.share * 2.2}%`,
-                      background: 'var(--ink)',
-                      opacity: 1 - i * 0.13,
+                      background:
+                        ['#4f46e5', '#6366f1', '#818cf8', '#a5b4fc', '#c7d2fe'][
+                          i
+                        ] || '#c7d2fe',
+                      borderRadius: 3,
                     }}
                   />
                 </div>
@@ -506,7 +510,7 @@ export const AnalyticsScreen = ({
                   style={{
                     width: 16,
                     height: 8,
-                    background: `rgba(29,29,31,${o})`,
+                    background: `rgba(79,70,229,${o})`,
                     borderRadius: 1,
                   }}
                 />
@@ -586,28 +590,53 @@ const LineChart = ({
         />
       ))}
       <defs>
-        <linearGradient id="emailGrad" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor="rgba(29,29,31,0.08)" />
-          <stop offset="100%" stopColor="rgba(29,29,31,0)" />
+        <linearGradient id="emailGradOpen" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor="rgba(79,70,229,0.22)" />
+          <stop offset="100%" stopColor="rgba(79,70,229,0)" />
+        </linearGradient>
+        <linearGradient id="emailGradClick" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor="rgba(244,114,182,0.14)" />
+          <stop offset="100%" stopColor="rgba(244,114,182,0)" />
         </linearGradient>
       </defs>
-      <path d={fillPath(yOpen)} fill="url(#emailGrad)" />
+      <path d={fillPath(yClick)} fill="url(#emailGradClick)" />
+      <path d={fillPath(yOpen)} fill="url(#emailGradOpen)" />
       <path
-        d={path(yOpen)}
+        d={path(yClick)}
         fill="none"
-        stroke="var(--ink)"
+        stroke="#ec4899"
         strokeWidth="1.8"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       <path
-        d={path(yClick)}
+        d={path(yOpen)}
         fill="none"
-        stroke="var(--ink-4)"
-        strokeWidth="1.5"
-        strokeDasharray="4 4"
+        stroke="#4f46e5"
+        strokeWidth="2.2"
         strokeLinecap="round"
+        strokeLinejoin="round"
       />
+      {xs.length > 0 && (
+        <>
+          <circle
+            cx={xs[xs.length - 1]}
+            cy={yOpen[yOpen.length - 1]}
+            r="4"
+            fill="#4f46e5"
+            stroke="#fff"
+            strokeWidth="2"
+          />
+          <circle
+            cx={xs[xs.length - 1]}
+            cy={yClick[yClick.length - 1]}
+            r="4"
+            fill="#ec4899"
+            stroke="#fff"
+            strokeWidth="2"
+          />
+        </>
+      )}
       {xs.map(
         (x, i) =>
           i % 2 === 0 && (
@@ -653,8 +682,8 @@ const AreaChart = ({ data }: { data: { day: string; count: number }[] }) => {
     <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 140 }}>
       <defs>
         <linearGradient id="emailGrad2" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor="rgba(29,29,31,0.14)" />
-          <stop offset="100%" stopColor="rgba(29,29,31,0)" />
+          <stop offset="0%" stopColor="rgba(79,70,229,0.28)" />
+          <stop offset="100%" stopColor="rgba(79,70,229,0)" />
         </linearGradient>
       </defs>
       <path
@@ -664,11 +693,21 @@ const AreaChart = ({ data }: { data: { day: string; count: number }[] }) => {
       <path
         d={path}
         fill="none"
-        stroke="var(--ink)"
-        strokeWidth="1.8"
+        stroke="#4f46e5"
+        strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+      {xs.length > 0 && (
+        <circle
+          cx={xs[xs.length - 1]}
+          cy={ys[ys.length - 1]}
+          r="4"
+          fill="#4f46e5"
+          stroke="#fff"
+          strokeWidth="2"
+        />
+      )}
     </svg>
   )
 }
@@ -741,7 +780,7 @@ const Heatmap = () => {
                 key={hi}
                 style={{
                   height: 18,
-                  background: `rgba(29,29,31,${cell(di, hi).toFixed(2)})`,
+                  background: `rgba(79,70,229,${cell(di, hi).toFixed(2)})`,
                   borderRadius: 2,
                 }}
               />

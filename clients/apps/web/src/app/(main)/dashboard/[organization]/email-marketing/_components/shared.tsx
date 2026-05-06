@@ -16,7 +16,7 @@ export const MetricTile = ({
   down?: boolean
   subtle?: boolean
 }) => (
-  <div className="card" style={{ padding: 28 }}>
+  <div className="card metric-tile" style={{ padding: 28 }}>
     <div className="metric-label" style={{ marginTop: 0, marginBottom: 18 }}>
       {label}
     </div>
@@ -29,7 +29,11 @@ export const MetricTile = ({
           alignItems: 'center',
           gap: 6,
           fontSize: 12,
-          color: subtle ? 'var(--ink-3)' : 'var(--green)',
+          color: subtle
+            ? 'var(--ink-3)'
+            : down
+              ? 'var(--red)'
+              : 'var(--indigo-2)',
         }}
       >
         {!subtle && (
@@ -118,7 +122,7 @@ export const Toggle = ({
       width: 44,
       height: 26,
       borderRadius: 13,
-      background: on ? 'var(--ink)' : 'var(--line-2)',
+      background: on ? 'var(--indigo)' : 'var(--line-2)',
       position: 'relative',
       transition: 'background 0.18s',
     }}

@@ -1453,88 +1453,428 @@ const PreviewSection = ({
   )
 }
 
+const SF_FONT =
+  '-apple-system, BlinkMacSystemFont, "SF Pro", "Helvetica Neue", sans-serif'
+
+// MacBook preview — lid + screen + base/hinge — to match the design's
+// realistic desktop frame. Inside the screen we render a Mail.app window
+// chrome (menu bar + traffic lights + email body).
 const DesktopPreview = ({ draft }: { draft: Draft }) => {
   const html = renderBlocksToHtml(draft.content_doc)
+  const initials = draft.sender_name
+    .split(' ')
+    .map((p) => p[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
   return (
     <div
-      style={{
-        width: 600,
-        background: '#fff',
-        borderRadius: 10,
-        border: '1px solid var(--line)',
-        overflow: 'hidden',
-      }}
+      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}
     >
       <div
         style={{
-          padding: '20px 32px',
-          borderBottom: '1px solid var(--line)',
-          fontSize: 13,
-          color: 'var(--ink-3)',
+          width: 720,
+          padding: 14,
+          background: 'linear-gradient(180deg, #2a2a2c 0%, #1a1a1c 100%)',
+          borderRadius: '18px 18px 4px 4px',
+          boxShadow:
+            '0 30px 60px -20px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.08)',
+          border: '1px solid #0a0a0c',
         }}
       >
-        From{' '}
-        <strong style={{ color: 'var(--ink)' }}>{draft.sender_name}</strong>
-        {draft.reply_to_email ? ` <${draft.reply_to_email}>` : ''}
-      </div>
-      <div style={{ padding: 32 }}>
-        <h3
+        <div
+          style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}
+        >
+          <div
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              background: '#0a0a0a',
+              boxShadow: 'inset 0 0 0 1px #2a2a2c',
+            }}
+          />
+        </div>
+        <div
           style={{
-            fontSize: 22,
-            fontWeight: 600,
-            letterSpacing: '-0.02em',
-            margin: '0 0 16px',
+            background: '#f5f5f7',
+            borderRadius: 4,
+            overflow: 'hidden',
+            border: '1px solid #000',
           }}
         >
-          {draft.subject || 'Untitled broadcast'}
-        </h3>
+          <div
+            style={{
+              height: 26,
+              background: 'rgba(255,255,255,0.7)',
+              backdropFilter: 'blur(20px)',
+              borderBottom: '0.5px solid rgba(0,0,0,0.1)',
+              display: 'flex',
+              alignItems: 'center',
+              padding: '0 12px',
+              gap: 16,
+              fontFamily: SF_FONT,
+              fontSize: 12.5,
+            }}
+          >
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <span style={{ fontWeight: 600 }}>Mail</span>
+            </div>
+            <span style={{ color: 'rgba(0,0,0,0.85)' }}>File</span>
+            <span style={{ color: 'rgba(0,0,0,0.85)' }}>Edit</span>
+            <span style={{ color: 'rgba(0,0,0,0.85)' }}>View</span>
+            <span style={{ color: 'rgba(0,0,0,0.85)' }}>Mailbox</span>
+            <span style={{ color: 'rgba(0,0,0,0.85)' }}>Message</span>
+            <div style={{ flex: 1 }} />
+            <span style={{ color: 'rgba(0,0,0,0.7)', fontSize: 12 }}>
+              Tue 9:41 AM
+            </span>
+          </div>
+          <div
+            style={{
+              background: '#ebebed',
+              borderBottom: '0.5px solid rgba(0,0,0,0.08)',
+              padding: '10px 14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
+            <div style={{ display: 'flex', gap: 6 }}>
+              <div
+                style={{
+                  width: 12,
+                  height: 12,
+                  borderRadius: '50%',
+                  background: '#ff5f57',
+                }}
+              />
+              <div
+                style={{
+                  width: 12,
+                  height: 12,
+                  borderRadius: '50%',
+                  background: '#febc2e',
+                }}
+              />
+              <div
+                style={{
+                  width: 12,
+                  height: 12,
+                  borderRadius: '50%',
+                  background: '#28c840',
+                }}
+              />
+            </div>
+            <div
+              style={{
+                flex: 1,
+                textAlign: 'center',
+                fontFamily: SF_FONT,
+                fontSize: 12,
+                fontWeight: 600,
+                color: 'rgba(0,0,0,0.7)',
+              }}
+            >
+              Inbox — {draft.reply_to_email || 'you@yourdomain.com'}
+            </div>
+            <div style={{ width: 60 }} />
+          </div>
+          <div
+            style={{
+              background: '#fff',
+              padding: '22px 30px 28px',
+              fontFamily: SF_FONT,
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                gap: 12,
+                alignItems: 'flex-start',
+                paddingBottom: 14,
+                borderBottom: '0.5px solid rgba(60,60,67,0.18)',
+                marginBottom: 18,
+              }}
+            >
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: '50%',
+                  background: '#1d1d1f',
+                  color: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  flexShrink: 0,
+                }}
+              >
+                {initials}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: '#000',
+                  }}
+                >
+                  {draft.sender_name}{' '}
+                  {draft.reply_to_email && (
+                    <span
+                      style={{
+                        fontWeight: 400,
+                        color: 'rgba(60,60,67,0.6)',
+                      }}
+                    >
+                      &lt;{draft.reply_to_email}&gt;
+                    </span>
+                  )}
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: 'rgba(60,60,67,0.6)',
+                    marginTop: 2,
+                  }}
+                >
+                  to me · Today, 9:41 AM
+                </div>
+              </div>
+              <div style={{ fontSize: 12, color: 'rgba(60,60,67,0.6)' }}>
+                ↩ Reply
+              </div>
+            </div>
+            <h3
+              style={{
+                fontSize: 22,
+                fontWeight: 600,
+                letterSpacing: '-0.02em',
+                margin: '0 0 18px',
+                color: '#000',
+                lineHeight: 1.25,
+              }}
+            >
+              {draft.subject || 'Untitled broadcast'}
+            </h3>
+            <div
+              style={{ fontSize: 14, lineHeight: 1.65, color: '#000' }}
+              dangerouslySetInnerHTML={{ __html: html }}
+            />
+          </div>
+        </div>
+      </div>
+      <div
+        style={{
+          width: 800,
+          height: 14,
+          background:
+            'linear-gradient(180deg, #c5c5c8 0%, #9a9a9d 50%, #5a5a5d 100%)',
+          borderRadius: '0 0 14px 14px',
+          position: 'relative',
+          boxShadow: '0 10px 20px -8px rgba(0,0,0,0.4)',
+        }}
+      >
         <div
-          style={{ fontSize: 14, lineHeight: 1.65, color: 'var(--ink-2)' }}
-          dangerouslySetInnerHTML={{ __html: html }}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: 100,
+            height: 4,
+            background: 'linear-gradient(180deg, #4a4a4c 0%, #6a6a6c 100%)',
+            borderRadius: '0 0 6px 6px',
+          }}
         />
       </div>
     </div>
   )
 }
 
+// iPhone-style preview — Dynamic Island + status bar + Mail app chrome.
 const MobilePreview = ({ draft }: { draft: Draft }) => {
   const html = renderBlocksToHtml(draft.content_doc)
+  const initials = draft.sender_name
+    .split(' ')
+    .map((p) => p[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
   return (
     <div
       style={{
-        width: 320,
-        background: '#fff',
-        borderRadius: 28,
-        border: '8px solid #1d1d1f',
-        overflow: 'hidden',
-        boxShadow: '0 24px 48px rgba(0,0,0,0.18)',
+        width: 360,
+        height: 720,
+        background: '#000',
+        borderRadius: 48,
+        padding: 6,
+        boxShadow:
+          '0 30px 60px -20px rgba(0,0,0,0.45), inset 0 0 0 2px rgba(255,255,255,0.05)',
+        position: 'relative',
       }}
     >
       <div
         style={{
-          padding: '20px 16px',
-          borderBottom: '1px solid var(--line)',
-          fontSize: 11,
-          color: 'var(--ink-3)',
+          width: '100%',
+          height: '100%',
+          background: '#fff',
+          borderRadius: 42,
+          overflow: 'hidden',
+          position: 'relative',
         }}
       >
-        {draft.sender_name}
-      </div>
-      <div style={{ padding: 18 }}>
-        <h3
+        {/* Dynamic Island */}
+        <div
           style={{
-            fontSize: 16,
+            position: 'absolute',
+            top: 12,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: 110,
+            height: 32,
+            background: '#000',
+            borderRadius: 20,
+            zIndex: 5,
+          }}
+        />
+        {/* Status bar */}
+        <div
+          style={{
+            position: 'absolute',
+            top: 14,
+            left: 0,
+            right: 0,
+            height: 28,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '0 28px',
+            fontFamily: SF_FONT,
+            fontSize: 14,
             fontWeight: 600,
-            margin: '0 0 12px',
-            letterSpacing: '-0.01em',
+            color: '#000',
+            zIndex: 4,
           }}
         >
-          {draft.subject || 'Untitled broadcast'}
-        </h3>
+          <span>9:41</span>
+          <span style={{ width: 110 }} />
+          <span style={{ fontSize: 12 }}>● ● ●</span>
+        </div>
+        {/* Mail header */}
         <div
-          style={{ fontSize: 12.5, lineHeight: 1.6, color: 'var(--ink-2)' }}
-          dangerouslySetInnerHTML={{ __html: html }}
-        />
+          style={{
+            paddingTop: 56,
+            paddingBottom: 8,
+            background: '#fff',
+            position: 'relative',
+            zIndex: 1,
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '0 16px',
+              height: 44,
+            }}
+          >
+            <span
+              style={{ fontSize: 17, color: '#007aff', fontFamily: SF_FONT }}
+            >
+              ‹ Inbox
+            </span>
+            <div style={{ display: 'flex', gap: 18 }}>
+              <span style={{ fontSize: 17, color: '#007aff' }}>⌃</span>
+              <span style={{ fontSize: 17, color: '#007aff' }}>⌄</span>
+            </div>
+          </div>
+        </div>
+        {/* Email body */}
+        <div
+          style={{
+            background: '#fff',
+            padding: '14px 16px 24px',
+            overflowY: 'auto',
+            height: 'calc(100% - 110px)',
+          }}
+        >
+          <h3
+            style={{
+              fontSize: 19,
+              fontWeight: 600,
+              margin: '0 0 12px',
+              letterSpacing: '-0.01em',
+              color: '#000',
+              lineHeight: 1.25,
+              fontFamily: SF_FONT,
+            }}
+          >
+            {draft.subject || 'Untitled broadcast'}
+          </h3>
+          <div
+            style={{
+              display: 'flex',
+              gap: 10,
+              alignItems: 'center',
+              marginBottom: 14,
+              paddingBottom: 14,
+              borderBottom: '0.5px solid rgba(60,60,67,0.18)',
+            }}
+          >
+            <div
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: '50%',
+                background: '#1d1d1f',
+                color: '#fff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 12,
+                fontWeight: 600,
+                fontFamily: SF_FONT,
+              }}
+            >
+              {initials}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div
+                style={{
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: '#000',
+                  fontFamily: SF_FONT,
+                }}
+              >
+                {draft.sender_name}
+              </div>
+              <div
+                style={{
+                  fontSize: 12,
+                  color: 'rgba(60,60,67,0.6)',
+                  fontFamily: SF_FONT,
+                }}
+              >
+                to me · Today, 9:41 AM
+              </div>
+            </div>
+          </div>
+          <div
+            style={{
+              fontSize: 14,
+              lineHeight: 1.55,
+              color: '#000',
+              fontFamily: SF_FONT,
+            }}
+            dangerouslySetInnerHTML={{ __html: html }}
+          />
+        </div>
       </div>
     </div>
   )

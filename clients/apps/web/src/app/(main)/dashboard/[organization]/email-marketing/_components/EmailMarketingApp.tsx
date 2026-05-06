@@ -54,20 +54,13 @@ export default function EmailMarketingApp({
     setView('new-broadcast')
   }
 
-  const initials = (organization.name || 'S')
-    .split(' ')
-    .map((p) => p[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase()
-
   return (
     <div className="spaire-email-app">
       <div
         data-screen-label={`Email Marketing — ${tab}`}
         style={{
           borderBottom: '1px solid var(--line)',
-          background: 'rgba(255,255,255,0.92)',
+          background: 'rgba(255,255,255,0.85)',
           backdropFilter: 'saturate(180%) blur(20px)',
           WebkitBackdropFilter: 'saturate(180%) blur(20px)',
           position: 'sticky',
@@ -81,30 +74,25 @@ export default function EmailMarketingApp({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            height: 64,
+            height: 78,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <Link
-                href={`/dashboard/${organization.slug}`}
-                className="btn-icon"
-                style={{ width: 34, height: 34, borderRadius: 8 }}
-                aria-label="Back to dashboard"
-              >
-                <Icon name="arrow-left" size={15} />
-              </Link>
-              <span
-                style={{
-                  fontSize: 14,
-                  fontWeight: 500,
-                  color: 'var(--ink-2)',
-                  letterSpacing: '-0.01em',
-                }}
-              >
-                Email marketing
+          <div style={{ display: 'flex', alignItems: 'center', gap: 28 }}>
+            <Link
+              href={`/dashboard/${organization.slug}`}
+              className="btn-icon"
+              style={{ width: 36, height: 36, borderRadius: 9 }}
+              aria-label="Back to dashboard"
+            >
+              <Icon name="arrow-left" size={15} />
+            </Link>
+            <a href="#" className="brand">
+              <span className="brand-text">
+                <span className="brand-name">spaire</span>
+                <span className="brand-product">Email&nbsp;·&nbsp;Studio</span>
               </span>
-            </div>
+            </a>
+            <span className="brand-divider" />
             <div className="tabs">
               {TABS.map((t) => (
                 <button
@@ -126,37 +114,11 @@ export default function EmailMarketingApp({
               ))}
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <button
-              className="btn-icon"
-              style={{ width: 34, height: 34, borderRadius: 8 }}
-              aria-label="Search"
-            >
-              <Icon name="search" size={15} />
-            </button>
-            <button
-              className="btn-icon"
-              style={{ width: 34, height: 34, borderRadius: 8 }}
-              aria-label="Settings"
-            >
-              <Icon name="settings" size={15} />
-            </button>
-            <div
-              className="avatar"
-              style={{
-                width: 30,
-                height: 30,
-                background: '#1d1d1f',
-                fontSize: 11,
-              }}
-            >
-              {initials}
-            </div>
-          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }} />
         </div>
       </div>
 
-      <div className="container" style={{ paddingTop: 40, paddingBottom: 80 }}>
+      <div className="container" style={{ paddingTop: 56, paddingBottom: 96 }}>
         {tab === 'subscribers' && (
           <SubscribersScreen organization={organization} />
         )}
