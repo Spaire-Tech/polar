@@ -3,19 +3,23 @@ import {
   useCreateSequenceStep,
   useDeleteSequenceStep,
   useEmailSequence,
+  useEmailSubscribers,
   useReorderSequenceSteps,
+  useSequenceAnalytics,
+  useSequenceEnrollments,
   useSequenceSteps,
   useUpdateEmailSequence,
   useUpdateSequenceStep,
   useUploadSequenceImage,
 } from '@/hooks/queries/emailMarketing'
 import { schemas } from '@spaire/client'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { BlockEditor } from '../blockEditor/BlockEditor'
 import { renderBlocksToHtml } from '../blockEditor/render'
 import { Block, ContentDoc, isContentDoc, newId } from '../blockEditor/types'
 import { Icon } from '../Icon'
 import { Modal } from '../Modal'
+import { Toggle } from '../shared'
 
 type TriggerId =
   | 'on_subscribe'
@@ -163,8 +167,24 @@ const SequenceEditorInner = ({
   const [name, setName] = useState<string>(
     () => existing?.name ?? 'Untitled sequence',
   )
+  const [description, setDescription] = useState<string>(
+    () => existing?.description ?? '',
+  )
   const [trigger, setTrigger] = useState<TriggerId>(
     () => (existing?.trigger_type as TriggerId | undefined) ?? 'manual',
+  )
+  // Settings live in trigger_config so they round-trip through the existing
+  // PATCH endpoint without a schema change. Phase 4 will move them to typed
+  // columns once we know which behaviours we actually keep.
+  const initialConfig = (existing?.trigger_config ?? {}) as Record<
+    string,
+    unknown
+  >
+  const [skipIfInAnother, setSkipIfInAnother] = useState<boolean>(() =>
+    Boolean(initialConfig.skip_if_in_another ?? true),
+  )
+  const [pauseOnUnsub, setPauseOnUnsub] = useState<boolean>(() =>
+    Boolean(initialConfig.pause_on_unsubscribe ?? true),
   )
   const [editingStepId, setEditingStepId] = useState<string | null>(null)
   const [savedAt, setSavedAt] = useState<Date | null>(null)
@@ -177,13 +197,21 @@ const SequenceEditorInner = ({
 
   const persistedId = persistedIdRef.current
 
+  const buildTriggerConfig = (): Record<string, unknown> => ({
+    ...initialConfig,
+    skip_if_in_another: skipIfInAnother,
+    pause_on_unsubscribe: pauseOnUnsub,
+  })
+
   // Materialize the persisted id on first save. The trigger picker, the
   // step buttons, and the activate button all need a real row to point at.
   const ensurePersisted = async (): Promise<string> => {
     if (persistedIdRef.current) return persistedIdRef.current
     const created = await createSequence.mutateAsync({
       name,
+      description: description || undefined,
       trigger_type: trigger,
+      trigger_config: buildTriggerConfig(),
     })
     persistedIdRef.current = created.id
     onOpened?.(created.id)
@@ -195,7 +223,9 @@ const SequenceEditorInner = ({
     await updateSequence.mutateAsync({
       sequenceId: id,
       name,
+      description,
       trigger_type: trigger,
+      trigger_config: buildTriggerConfig(),
     })
     setSavedAt(new Date())
   }
@@ -209,7 +239,9 @@ const SequenceEditorInner = ({
     await updateSequence.mutateAsync({
       sequenceId: id,
       name,
+      description,
       trigger_type: trigger,
+      trigger_config: buildTriggerConfig(),
       status: 'active',
     })
     onBack()
@@ -357,261 +389,299 @@ const SequenceEditorInner = ({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'minmax(0, 1fr)',
+          gridTemplateColumns: persistedId
+            ? 'minmax(0, 1fr) 320px'
+            : 'minmax(0, 1fr)',
           gap: 24,
+          alignItems: 'flex-start',
         }}
       >
-        <div className="card" style={{ padding: 28 }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: 22,
-            }}
-          >
-            <div>
-              <div className="eyebrow">Step 0 · Trigger</div>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 24,
+            minWidth: 0,
+          }}
+        >
+          <div className="card" style={{ padding: 28 }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: 22,
+              }}
+            >
+              <div>
+                <div className="eyebrow">Step 0 · Trigger</div>
+                <div
+                  style={{
+                    fontSize: 18,
+                    fontWeight: 400,
+                    marginTop: 8,
+                    color: 'var(--ink)',
+                  }}
+                >
+                  When this happens…
+                </div>
+              </div>
               <div
                 style={{
-                  fontSize: 18,
-                  fontWeight: 400,
-                  marginTop: 8,
-                  color: 'var(--ink)',
+                  width: 38,
+                  height: 38,
+                  borderRadius: 10,
+                  background: 'var(--indigo-soft)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
               >
-                When this happens…
+                <Icon
+                  name="zap"
+                  size={16}
+                  style={{ color: 'var(--indigo-2)' }}
+                />
               </div>
             </div>
             <div
               style={{
-                width: 38,
-                height: 38,
-                borderRadius: 10,
-                background: 'var(--indigo-soft)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: 10,
               }}
             >
-              <Icon name="zap" size={16} style={{ color: 'var(--indigo-2)' }} />
+              {TRIGGERS.map((t) => {
+                const active = trigger === t.id
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setTrigger(t.id)}
+                    className="card"
+                    style={{
+                      padding: '16px 14px',
+                      textAlign: 'left',
+                      borderColor: active ? 'var(--ink)' : 'var(--line)',
+                      borderWidth: active ? 2 : 1,
+                      background: active ? 'var(--ink)' : '#fff',
+                      boxShadow: active
+                        ? '0 6px 18px -10px rgba(0,0,0,0.25)'
+                        : 'none',
+                      transition: 'all 0.15s',
+                      margin: active ? 0 : 1,
+                    }}
+                  >
+                    <Icon
+                      name={t.icon}
+                      size={14}
+                      style={{
+                        color: active ? '#fff' : 'var(--ink-3)',
+                        marginBottom: 10,
+                      }}
+                    />
+                    <div
+                      style={{
+                        fontSize: 13.5,
+                        fontWeight: 400,
+                        color: active ? '#fff' : 'var(--ink)',
+                      }}
+                    >
+                      {t.label}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        color: active
+                          ? 'rgba(255,255,255,0.7)'
+                          : 'var(--ink-3)',
+                        marginTop: 3,
+                        lineHeight: 1.45,
+                      }}
+                    >
+                      {t.desc}
+                    </div>
+                  </button>
+                )
+              })}
             </div>
           </div>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
-              gap: 10,
-            }}
-          >
-            {TRIGGERS.map((t) => {
-              const active = trigger === t.id
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => setTrigger(t.id)}
-                  className="card"
-                  style={{
-                    padding: '16px 14px',
-                    textAlign: 'left',
-                    borderColor: active ? 'var(--ink)' : 'var(--line)',
-                    borderWidth: active ? 2 : 1,
-                    background: active ? 'var(--ink)' : '#fff',
-                    boxShadow: active
-                      ? '0 6px 18px -10px rgba(0,0,0,0.25)'
-                      : 'none',
-                    transition: 'all 0.15s',
-                    margin: active ? 0 : 1,
-                  }}
-                >
-                  <Icon
-                    name={t.icon}
-                    size={14}
-                    style={{
-                      color: active ? '#fff' : 'var(--ink-3)',
-                      marginBottom: 10,
-                    }}
-                  />
-                  <div
-                    style={{
-                      fontSize: 13.5,
-                      fontWeight: 400,
-                      color: active ? '#fff' : 'var(--ink)',
-                    }}
-                  >
-                    {t.label}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 12,
-                      color: active ? 'rgba(255,255,255,0.7)' : 'var(--ink-3)',
-                      marginTop: 3,
-                      lineHeight: 1.45,
-                    }}
-                  >
-                    {t.desc}
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        <div
-          className="card"
-          style={{
-            padding: '36px 32px 28px',
-            position: 'relative',
-            background: '#fff',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'baseline',
-              marginBottom: 28,
-            }}
-          >
-            <div className="eyebrow">Sequence flow</div>
-            <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>
-              {sortedSteps.length} email{sortedSteps.length === 1 ? '' : 's'} ·{' '}
-              {totalDays} day{totalDays === 1 ? '' : 's'}
-            </span>
-          </div>
 
           <div
+            className="card"
             style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 0,
+              padding: '36px 32px 28px',
+              position: 'relative',
+              background: '#fff',
             }}
           >
-            <TriggerNode
-              label={triggerObj.label}
-              desc={triggerObj.desc}
-              icon={triggerObj.icon}
-            />
-
-            {sortedSteps.length === 0 ? (
-              <>
-                <Connector />
-                <div
-                  style={{
-                    border: '1.5px dashed var(--line-2)',
-                    borderRadius: 14,
-                    padding: '28px 24px',
-                    color: 'var(--ink-3)',
-                    fontSize: 13,
-                    width: '100%',
-                    maxWidth: 540,
-                    textAlign: 'center',
-                  }}
-                >
-                  No emails yet — add your first one below.
-                </div>
-              </>
-            ) : (
-              sortedSteps.map((step, i) => (
-                <div
-                  key={step.id}
-                  style={{
-                    display: 'contents',
-                  }}
-                >
-                  {i === 0 ? (
-                    <Connector />
-                  ) : (
-                    <WaitConnector
-                      delay={
-                        step.delay_hours >= 24
-                          ? `${Math.round(step.delay_hours / 24)} day${Math.round(step.delay_hours / 24) === 1 ? '' : 's'}`
-                          : `${step.delay_hours}h`
-                      }
-                    />
-                  )}
-                  <EmailNode
-                    num={String(i + 1).padStart(2, '0')}
-                    title={step.subject}
-                    preview={previewFromHtml(step.content_html)}
-                    delay={i === 0 ? 'Immediately' : `+${step.delay_hours}h`}
-                    canMoveUp={i > 0}
-                    canMoveDown={i < sortedSteps.length - 1}
-                    onClick={() => setEditingStepId(step.id)}
-                    onMoveUp={() => onMoveStep(i, -1)}
-                    onMoveDown={() => onMoveStep(i, 1)}
-                    onDelete={() => onDeleteStep(step.id)}
-                  />
-                </div>
-              ))
-            )}
-
-            <Connector long />
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'baseline',
+                marginBottom: 28,
+              }}
+            >
+              <div className="eyebrow">Sequence flow</div>
+              <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>
+                {sortedSteps.length} email{sortedSteps.length === 1 ? '' : 's'}{' '}
+                · {totalDays} day{totalDays === 1 ? '' : 's'}
+              </span>
+            </div>
 
             <div
               style={{
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                gap: 8,
-                paddingTop: 4,
+                gap: 0,
               }}
             >
+              <TriggerNode
+                label={triggerObj.label}
+                desc={triggerObj.desc}
+                icon={triggerObj.icon}
+              />
+
+              {sortedSteps.length === 0 ? (
+                <>
+                  <Connector />
+                  <div
+                    style={{
+                      border: '1.5px dashed var(--line-2)',
+                      borderRadius: 14,
+                      padding: '28px 24px',
+                      color: 'var(--ink-3)',
+                      fontSize: 13,
+                      width: '100%',
+                      maxWidth: 540,
+                      textAlign: 'center',
+                    }}
+                  >
+                    No emails yet — add your first one below.
+                  </div>
+                </>
+              ) : (
+                sortedSteps.map((step, i) => (
+                  <div
+                    key={step.id}
+                    style={{
+                      display: 'contents',
+                    }}
+                  >
+                    {i === 0 ? (
+                      <Connector />
+                    ) : (
+                      <WaitConnector
+                        delay={
+                          step.delay_hours >= 24
+                            ? `${Math.round(step.delay_hours / 24)} day${Math.round(step.delay_hours / 24) === 1 ? '' : 's'}`
+                            : `${step.delay_hours}h`
+                        }
+                      />
+                    )}
+                    <EmailNode
+                      num={String(i + 1).padStart(2, '0')}
+                      title={step.subject}
+                      preview={previewFromHtml(step.content_html)}
+                      delay={i === 0 ? 'Immediately' : `+${step.delay_hours}h`}
+                      canMoveUp={i > 0}
+                      canMoveDown={i < sortedSteps.length - 1}
+                      onClick={() => setEditingStepId(step.id)}
+                      onMoveUp={() => onMoveStep(i, -1)}
+                      onMoveDown={() => onMoveStep(i, 1)}
+                      onDelete={() => onDeleteStep(step.id)}
+                    />
+                  </div>
+                ))
+              )}
+
+              <Connector long />
+
               <div
                 style={{
-                  width: 56,
-                  height: 56,
-                  borderRadius: '50%',
-                  background: 'var(--ink)',
-                  color: '#fff',
                   display: 'flex',
+                  flexDirection: 'column',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 4px 12px -4px rgba(0,0,0,0.15)',
+                  gap: 8,
+                  paddingTop: 4,
                 }}
               >
-                <Icon name="check" size={20} strokeWidth={2} />
-              </div>
-              <div style={{ textAlign: 'center', marginTop: 6 }}>
-                <div style={{ fontSize: 16, color: 'var(--ink)' }}>
-                  End of sequence
-                </div>
                 <div
                   style={{
-                    fontSize: 12.5,
-                    color: 'var(--ink-3)',
-                    marginTop: 4,
+                    width: 56,
+                    height: 56,
+                    borderRadius: '50%',
+                    background: 'var(--ink)',
+                    color: '#fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 4px 12px -4px rgba(0,0,0,0.15)',
                   }}
                 >
-                  Subscriber exits and can be enrolled in others.
+                  <Icon name="check" size={20} strokeWidth={2} />
+                </div>
+                <div style={{ textAlign: 'center', marginTop: 6 }}>
+                  <div style={{ fontSize: 16, color: 'var(--ink)' }}>
+                    End of sequence
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 12.5,
+                      color: 'var(--ink-3)',
+                      marginTop: 4,
+                    }}
+                  >
+                    Subscriber exits and can be enrolled in others.
+                  </div>
                 </div>
               </div>
             </div>
+
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+                gap: 8,
+                marginTop: 32,
+                paddingTop: 24,
+                borderTop: '1px solid var(--line)',
+              }}
+            >
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={onAddEmail}
+                disabled={createStep.isPending || createSequence.isPending}
+              >
+                <Icon name="plus" size={12} />
+                Add email
+              </button>
+            </div>
           </div>
 
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'center',
-              gap: 8,
-              marginTop: 32,
-              paddingTop: 24,
-              borderTop: '1px solid var(--line)',
-            }}
-          >
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              onClick={onAddEmail}
-              disabled={createStep.isPending || createSequence.isPending}
-            >
-              <Icon name="plus" size={12} />
-              Add email
-            </button>
-          </div>
+          {persistedId && (
+            <EnrollmentsPanel
+              organization={organization}
+              sequenceId={persistedId}
+            />
+          )}
         </div>
+
+        {persistedId && (
+          <SequenceSidebar
+            sequenceId={persistedId}
+            isActive={isActive}
+            description={description}
+            onDescriptionChange={setDescription}
+            skipIfInAnother={skipIfInAnother}
+            onSkipChange={setSkipIfInAnother}
+            pauseOnUnsub={pauseOnUnsub}
+            onPauseOnUnsubChange={setPauseOnUnsub}
+          />
+        )}
       </div>
 
       {editingStep && persistedIdRef.current && (
@@ -796,6 +866,397 @@ const Field = ({
     {children}
   </label>
 )
+
+// ── Right rail: settings + live analytics ──
+
+const SequenceSidebar = ({
+  sequenceId,
+  isActive,
+  description,
+  onDescriptionChange,
+  skipIfInAnother,
+  onSkipChange,
+  pauseOnUnsub,
+  onPauseOnUnsubChange,
+}: {
+  sequenceId: string
+  isActive: boolean
+  description: string
+  onDescriptionChange: (v: string) => void
+  skipIfInAnother: boolean
+  onSkipChange: (v: boolean) => void
+  pauseOnUnsub: boolean
+  onPauseOnUnsubChange: (v: boolean) => void
+}) => {
+  const analyticsQuery = useSequenceAnalytics(sequenceId)
+  const a = analyticsQuery.data as SequenceAnalytics | undefined
+
+  return (
+    <div
+      style={{
+        position: 'sticky',
+        top: 32,
+        alignSelf: 'flex-start',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 16,
+      }}
+    >
+      <div className="card" style={{ padding: 22 }}>
+        <div className="eyebrow" style={{ marginBottom: 14 }}>
+          Settings
+        </div>
+        <Field label="Description">
+          <textarea
+            className="input"
+            value={description}
+            onChange={(e) => onDescriptionChange(e.target.value)}
+            rows={2}
+            placeholder="What this sequence is for…"
+            style={{ resize: 'vertical', fontFamily: 'inherit' }}
+          />
+        </Field>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 16,
+            fontSize: 13.5,
+            marginTop: 16,
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <span style={{ color: 'var(--ink-2)' }}>Skip if in another</span>
+            <Toggle on={skipIfInAnother} onChange={onSkipChange} />
+          </div>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <span style={{ color: 'var(--ink-2)' }}>Pause on unsubscribe</span>
+            <Toggle on={pauseOnUnsub} onChange={onPauseOnUnsubChange} />
+          </div>
+        </div>
+        <div style={{ fontSize: 11.5, color: 'var(--ink-3)', marginTop: 14 }}>
+          Settings save with the sequence — hit Save draft after toggling.
+        </div>
+      </div>
+
+      <div className="card" style={{ padding: 22 }}>
+        <div className="eyebrow" style={{ marginBottom: 14 }}>
+          Live performance
+        </div>
+        {!a ? (
+          <div style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>
+            {analyticsQuery.isLoading ? 'Loading…' : 'No data yet.'}
+          </div>
+        ) : a.total_sent === 0 ? (
+          <div style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>
+            {isActive
+              ? 'Waiting for the first send.'
+              : 'Activate the sequence to start collecting data.'}
+          </div>
+        ) : (
+          <>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'baseline',
+                gap: 6,
+                marginBottom: 14,
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 38,
+                  fontWeight: 400,
+                  letterSpacing: '-0.025em',
+                }}
+              >
+                {a.open_rate.toFixed(1)}%
+              </span>
+              <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>
+                open rate
+              </span>
+            </div>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: 12,
+                fontSize: 12.5,
+              }}
+            >
+              <SidebarStat label="Sent" value={a.total_sent.toLocaleString()} />
+              <SidebarStat
+                label="Delivered"
+                value={a.delivered.toLocaleString()}
+              />
+              <SidebarStat
+                label="Click rate"
+                value={`${a.click_rate.toFixed(1)}%`}
+              />
+              <SidebarStat label="Bounced" value={a.bounced.toLocaleString()} />
+              <SidebarStat
+                label="Active enrolled"
+                value={a.active_enrollments.toLocaleString()}
+              />
+              <SidebarStat
+                label="Completed"
+                value={a.completed_enrollments.toLocaleString()}
+              />
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+type SequenceAnalytics = {
+  total_sent: number
+  delivered: number
+  opened: number
+  clicked: number
+  bounced: number
+  open_rate: number
+  click_rate: number
+  total_enrolled: number
+  active_enrollments: number
+  completed_enrollments: number
+}
+
+const SidebarStat = ({ label, value }: { label: string; value: string }) => (
+  <div>
+    <div style={{ fontSize: 11.5, color: 'var(--ink-3)', marginBottom: 2 }}>
+      {label}
+    </div>
+    <div style={{ fontSize: 14, color: 'var(--ink)', fontWeight: 500 }}>
+      {value}
+    </div>
+  </div>
+)
+
+// ── Enrollments panel ──
+
+type Enrollment = {
+  id: string
+  sequence_id: string
+  subscriber_id: string
+  status: string
+  current_step_position: number
+  enrolled_at: string
+  next_step_at: string | null
+  completed_at: string | null
+}
+
+const EnrollmentsPanel = ({
+  organization,
+  sequenceId,
+}: {
+  organization: schemas['Organization']
+  sequenceId: string
+}) => {
+  const [expanded, setExpanded] = useState(false)
+  const enrollmentsQuery = useSequenceEnrollments(sequenceId)
+  // Pull a generous slice of subscribers so we can join on id without a
+  // round-trip per row. Phase 4 can swap to a server-side join if this gets
+  // expensive.
+  const subscribersQuery = useEmailSubscribers(organization.id, {
+    limit: 500,
+  })
+  const enrollments = (enrollmentsQuery.data as Enrollment[] | undefined) ?? []
+  const byId = useMemo(() => {
+    const m = new Map<string, schemas['EmailSubscriber']>()
+    for (const s of subscribersQuery.data?.items ?? []) {
+      m.set(s.id, s as schemas['EmailSubscriber'])
+    }
+    return m
+  }, [subscribersQuery.data])
+
+  const visible = expanded ? enrollments : enrollments.slice(0, 8)
+
+  return (
+    <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+      <div
+        style={{
+          padding: '20px 24px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          borderBottom:
+            enrollments.length > 0 ? '1px solid var(--line)' : 'none',
+        }}
+      >
+        <div>
+          <div className="eyebrow">Enrollments</div>
+          <div style={{ fontSize: 14, marginTop: 6, color: 'var(--ink)' }}>
+            {enrollmentsQuery.isLoading
+              ? 'Loading…'
+              : `${enrollments.length} subscriber${enrollments.length === 1 ? '' : 's'} in this sequence`}
+          </div>
+        </div>
+      </div>
+      {enrollments.length === 0 && !enrollmentsQuery.isLoading ? (
+        <div
+          style={{
+            padding: '32px 24px',
+            textAlign: 'center',
+            color: 'var(--ink-3)',
+            fontSize: 13,
+          }}
+        >
+          No enrollments yet. Active sequences enrol subscribers automatically
+          when their trigger fires; manual sequences enrol via the API.
+        </div>
+      ) : (
+        <>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'minmax(0, 2fr) 100px 110px 140px 140px',
+              gap: 16,
+              padding: '12px 24px',
+              fontSize: 11,
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              color: 'var(--ink-3)',
+              borderBottom: '1px solid var(--line)',
+            }}
+          >
+            <div>Subscriber</div>
+            <div>Status</div>
+            <div>Step</div>
+            <div>Enrolled</div>
+            <div>Next send</div>
+          </div>
+          {visible.map((e) => {
+            const sub = byId.get(e.subscriber_id)
+            return (
+              <div
+                key={e.id}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'minmax(0, 2fr) 100px 110px 140px 140px',
+                  gap: 16,
+                  padding: '14px 24px',
+                  fontSize: 13,
+                  alignItems: 'center',
+                  borderBottom: '1px solid var(--line)',
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <div
+                    style={{
+                      color: 'var(--ink)',
+                      fontWeight: 500,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {sub?.email ?? e.subscriber_id.slice(0, 8) + '…'}
+                  </div>
+                  {sub?.name && (
+                    <div
+                      style={{
+                        color: 'var(--ink-3)',
+                        fontSize: 12,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {sub.name}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <EnrollmentStatusChip status={e.status} />
+                </div>
+                <div style={{ color: 'var(--ink-2)' }}>
+                  #{e.current_step_position + 1}
+                </div>
+                <div style={{ color: 'var(--ink-3)' }}>
+                  {formatRelative(e.enrolled_at)}
+                </div>
+                <div style={{ color: 'var(--ink-3)' }}>
+                  {e.completed_at
+                    ? '—'
+                    : e.next_step_at
+                      ? formatRelative(e.next_step_at)
+                      : 'Done'}
+                </div>
+              </div>
+            )
+          })}
+          {enrollments.length > 8 && (
+            <div
+              style={{
+                padding: '14px 24px',
+                textAlign: 'center',
+                fontSize: 12.5,
+              }}
+            >
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => setExpanded((v) => !v)}
+              >
+                {expanded ? 'Show fewer' : `Show all ${enrollments.length}`}
+              </button>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+const EnrollmentStatusChip = ({ status }: { status: string }) => {
+  const tone =
+    status === 'active'
+      ? 'chip-success'
+      : status === 'completed'
+        ? 'chip-info'
+        : ''
+  return (
+    <span className={`chip ${tone}`}>
+      {status === 'active' && <span className="dot" />}
+      {status}
+    </span>
+  )
+}
+
+const formatRelative = (iso: string): string => {
+  const t = Date.parse(iso)
+  if (!Number.isFinite(t)) return '—'
+  const diff = t - Date.now()
+  const future = diff > 0
+  const abs = Math.abs(diff)
+  const min = 60 * 1000
+  const hr = 60 * min
+  const day = 24 * hr
+  if (abs < hr) {
+    const m = Math.max(1, Math.round(abs / min))
+    return future ? `in ${m}m` : `${m}m ago`
+  }
+  if (abs < day) {
+    const h = Math.round(abs / hr)
+    return future ? `in ${h}h` : `${h}h ago`
+  }
+  const d = Math.round(abs / day)
+  return future ? `in ${d}d` : `${d}d ago`
+}
 
 // ── Flow primitives (ported from the previous mock-only screen) ──
 
