@@ -454,6 +454,24 @@ export const useDeleteEmailBroadcastABTest = () =>
     },
   })
 
+export const useUploadEmailImage = (organizationId: string) =>
+  useMutation({
+    mutationFn: async (file: File) => {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch(
+        getServerURL(
+          `/v1/email-broadcasts/upload-image?organization_id=${organizationId}`,
+        ),
+        { method: 'POST', credentials: 'include', body: form },
+      )
+      if (!res.ok) {
+        throw new Error(`Upload failed: ${res.status}`)
+      }
+      return (await res.json()) as { url: string }
+    },
+  })
+
 export const useArchiveEmailBroadcast = () =>
   useMutation({
     mutationFn: (broadcastId: string) =>

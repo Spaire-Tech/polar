@@ -14,6 +14,7 @@ import {
   useSendEmailBroadcast,
   useSendTestEmailBroadcast,
   useUpdateEmailBroadcast,
+  useUploadEmailImage,
   useUpsertEmailBroadcastABTest,
 } from '@/hooks/queries/emailMarketing'
 import { schemas } from '@spaire/client'
@@ -480,7 +481,11 @@ const ComposerInner = ({
             />
           )}
           {step === 'content' && (
-            <ContentSection draft={draft} setDraft={updateDraft} />
+            <ContentSection
+              draft={draft}
+              setDraft={updateDraft}
+              organization={organization}
+            />
           )}
           {step === 'audience' && (
             <AudienceSection
@@ -828,20 +833,32 @@ const DetailsSection = ({
 const ContentSection = ({
   draft,
   setDraft,
+  organization,
 }: {
   draft: Draft
   setDraft: (p: Partial<Draft>) => void
-}) => (
-  <Section
-    title="Compose"
-    sub="Click a block on the left to add it. Click any block on the canvas to edit. Drag the handle to reorder."
-  >
-    <BlockEditor
-      doc={draft.content_doc}
-      setDoc={(next) => setDraft({ content_doc: next })}
-    />
-  </Section>
-)
+  organization: schemas['Organization']
+}) => {
+  const uploadMutation = useUploadEmailImage(organization.id)
+  // Wrap the mutation in a stable async function so the BlockEditor doesn't
+  // reach into TanStack Query directly.
+  const uploadImage = async (file: File): Promise<string> => {
+    const result = await uploadMutation.mutateAsync(file)
+    return result.url
+  }
+  return (
+    <Section
+      title="Compose"
+      sub="Click a block on the left to add it. Click any block on the canvas to edit. Drag the handle to reorder."
+    >
+      <BlockEditor
+        doc={draft.content_doc}
+        setDoc={(next) => setDraft({ content_doc: next })}
+        uploadImage={uploadImage}
+      />
+    </Section>
+  )
+}
 
 type AudienceMode = 'all' | 'segment' | 'filter'
 

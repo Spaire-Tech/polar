@@ -14,21 +14,40 @@ import {
   blockLibrary,
 } from './types'
 
+export type ImageUploader = (file: File) => Promise<string>
+
+type DropPosition = 'above' | 'below'
+
 export const BlockEditor = ({
   doc,
   setDoc,
+  uploadImage,
 }: {
   doc: ContentDoc
   setDoc: (next: ContentDoc) => void
+  uploadImage?: ImageUploader
 }) => {
   const [selectedId, setSelectedId] = useState<BlockId | null>(null)
+  const [dragOverId, setDragOverId] = useState<BlockId | null>(null)
+  const [dropPosition, setDropPosition] = useState<DropPosition>('below')
   const dragId = useRef<BlockId | null>(null)
 
   const updateBlocks = (next: Block[]) => setDoc({ ...doc, blocks: next })
 
-  const appendBlock = (type: BlockType) => {
+  // Insert a fresh block right after the currently-selected block instead of
+  // always at the end. If nothing's selected, append. The new block becomes
+  // the selection so subsequent inserts continue down the cursor.
+  const insertBlock = (type: BlockType) => {
     const block = blankBlock(type)
-    updateBlocks([...doc.blocks, block])
+    const idx =
+      selectedId != null ? doc.blocks.findIndex((b) => b.id === selectedId) : -1
+    if (idx < 0) {
+      updateBlocks([...doc.blocks, block])
+    } else {
+      const next = [...doc.blocks]
+      next.splice(idx + 1, 0, block)
+      updateBlocks(next)
+    }
     setSelectedId(block.id)
   }
 
@@ -52,13 +71,18 @@ export const BlockEditor = ({
     setSelectedId(copy.id)
   }
 
-  const moveBeforeTarget = (fromId: BlockId, toId: BlockId) => {
+  const dropAt = (fromId: BlockId, toId: BlockId, position: DropPosition) => {
     const from = doc.blocks.findIndex((b) => b.id === fromId)
     const to = doc.blocks.findIndex((b) => b.id === toId)
-    if (from < 0 || to < 0 || from === to) return
+    if (from < 0 || to < 0) return
     const next = [...doc.blocks]
     const [moved] = next.splice(from, 1)
-    next.splice(to, 0, moved)
+    // Recompute target index after the splice — when dragging downward, the
+    // remaining indices shift down by one because we already removed the
+    // dragged block.
+    const adjustedTo = to > from ? to - 1 : to
+    const insertAt = position === 'below' ? adjustedTo + 1 : adjustedTo
+    next.splice(insertAt, 0, moved)
     updateBlocks(next)
   }
 
@@ -71,7 +95,7 @@ export const BlockEditor = ({
         alignItems: 'flex-start',
       }}
     >
-      <BlockLibrary onPick={appendBlock} />
+      <BlockLibrary onPick={insertBlock} />
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         <div
           style={{
@@ -134,25 +158,48 @@ export const BlockEditor = ({
                 Click a block on the left to start.
               </div>
             )}
-            {doc.blocks.map((block) => (
-              <EditableBlock
-                key={block.id}
-                block={block}
-                selected={selectedId === block.id}
-                onSelect={() => setSelectedId(block.id)}
-                onChange={(next) => replaceBlock(block.id, next)}
-                onRemove={() => removeBlock(block.id)}
-                onDuplicate={() => duplicateBlock(block.id)}
-                onDragStart={() => {
-                  dragId.current = block.id
-                }}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={() => {
-                  if (dragId.current) moveBeforeTarget(dragId.current, block.id)
-                  dragId.current = null
-                }}
-              />
-            ))}
+            {doc.blocks.map((block) => {
+              const isDragOver = dragOverId === block.id
+              return (
+                <EditableBlock
+                  key={block.id}
+                  block={block}
+                  selected={selectedId === block.id}
+                  isDragOver={isDragOver}
+                  dropPosition={isDragOver ? dropPosition : null}
+                  uploadImage={uploadImage}
+                  onSelect={() => setSelectedId(block.id)}
+                  onChange={(next) => replaceBlock(block.id, next)}
+                  onRemove={() => removeBlock(block.id)}
+                  onDuplicate={() => duplicateBlock(block.id)}
+                  onDragStart={() => {
+                    dragId.current = block.id
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault()
+                    if (!dragId.current || dragId.current === block.id) return
+                    const rect = e.currentTarget.getBoundingClientRect()
+                    const above =
+                      e.clientY - rect.top < rect.height / 2 ? 'above' : 'below'
+                    setDragOverId(block.id)
+                    setDropPosition(above)
+                  }}
+                  onDragLeave={() => {
+                    if (dragOverId === block.id) {
+                      setDragOverId(null)
+                    }
+                  }}
+                  onDrop={() => {
+                    const fromId = dragId.current
+                    if (fromId && fromId !== block.id) {
+                      dropAt(fromId, block.id, dropPosition)
+                    }
+                    dragId.current = null
+                    setDragOverId(null)
+                  }}
+                />
+              )
+            })}
           </div>
         </div>
       </div>
@@ -232,22 +279,30 @@ const BlockLibrary = ({ onPick }: { onPick: (type: BlockType) => void }) => (
 const EditableBlock = ({
   block,
   selected,
+  isDragOver,
+  dropPosition,
+  uploadImage,
   onSelect,
   onChange,
   onRemove,
   onDuplicate,
   onDragStart,
   onDragOver,
+  onDragLeave,
   onDrop,
 }: {
   block: Block
   selected: boolean
+  isDragOver: boolean
+  dropPosition: DropPosition | null
+  uploadImage: ImageUploader | undefined
   onSelect: () => void
   onChange: (next: Block) => void
   onRemove: () => void
   onDuplicate: () => void
   onDragStart: () => void
-  onDragOver: (e: React.DragEvent) => void
+  onDragOver: (e: React.DragEvent<HTMLDivElement>) => void
+  onDragLeave: () => void
   onDrop: () => void
 }) => {
   const [hover, setHover] = useState(false)
@@ -276,8 +331,26 @@ const EditableBlock = ({
         onSelect()
       }}
       onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
       onDrop={onDrop}
     >
+      {isDragOver && (
+        <div
+          style={{
+            position: 'absolute',
+            left: -4,
+            right: -4,
+            top: dropPosition === 'above' ? -2 : undefined,
+            bottom: dropPosition === 'below' ? -2 : undefined,
+            height: 3,
+            borderRadius: 2,
+            background: 'var(--indigo)',
+            boxShadow: '0 0 0 4px rgba(79,70,229,0.18)',
+            pointerEvents: 'none',
+            zIndex: 3,
+          }}
+        />
+      )}
       {block.type === 'heading' && (
         <HeadingBody block={block} onChange={onChange} />
       )}
@@ -285,7 +358,12 @@ const EditableBlock = ({
         <ParagraphBody block={block} onChange={onChange} />
       )}
       {block.type === 'image' && (
-        <ImageBody block={block} onChange={onChange} selected={selected} />
+        <ImageBody
+          block={block}
+          onChange={onChange}
+          selected={selected}
+          uploadImage={uploadImage}
+        />
       )}
       {block.type === 'video' && (
         <VideoBody block={block} onChange={onChange} selected={selected} />
@@ -486,16 +564,33 @@ const ImageBody = ({
   block,
   onChange,
   selected,
+  uploadImage,
 }: {
   block: ImageBlock
   onChange: (next: Block) => void
   selected: boolean
+  uploadImage: ImageUploader | undefined
 }) => {
   const inputRef = useRef<HTMLInputElement>(null)
-  const onFile = (file: File | undefined) => {
+  const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const onFile = async (file: File | undefined) => {
     if (!file) return
-    const url = URL.createObjectURL(file)
-    onChange({ ...block, src: url, alt: file.name })
+    setError(null)
+    if (!uploadImage) {
+      setError('Image upload not configured')
+      return
+    }
+    setUploading(true)
+    try {
+      const url = await uploadImage(file)
+      onChange({ ...block, src: url, alt: file.name })
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Upload failed')
+    } finally {
+      setUploading(false)
+    }
   }
   return (
     <div style={{ margin: '12px 0' }}>
@@ -517,9 +612,10 @@ const ImageBody = ({
               display: 'block',
               borderRadius: 8,
               border: '1px solid var(--line)',
+              opacity: uploading ? 0.5 : 1,
             }}
           />
-          {selected && (
+          {selected && !uploading && (
             <button
               type="button"
               className="btn btn-secondary btn-sm"
@@ -537,10 +633,28 @@ const ImageBody = ({
               Replace
             </button>
           )}
+          {uploading && (
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 12,
+                color: 'var(--ink-2)',
+                background: 'rgba(255,255,255,0.65)',
+                borderRadius: 8,
+              }}
+            >
+              Uploading…
+            </div>
+          )}
         </div>
       ) : (
         <button
           type="button"
+          disabled={uploading}
           onClick={(e) => {
             e.stopPropagation()
             inputRef.current?.click()
@@ -556,9 +670,10 @@ const ImageBody = ({
             alignItems: 'center',
             justifyContent: 'center',
             gap: 6,
-            cursor: 'pointer',
+            cursor: uploading ? 'wait' : 'pointer',
             transition: 'all 0.15s',
             color: 'var(--ink-3)',
+            opacity: uploading ? 0.7 : 1,
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.borderColor = 'var(--ink-3)'
@@ -570,11 +685,24 @@ const ImageBody = ({
           }}
         >
           <Icon name="upload" size={18} />
-          <span style={{ fontSize: 13, fontWeight: 500 }}>Upload an image</span>
+          <span style={{ fontSize: 13, fontWeight: 500 }}>
+            {uploading ? 'Uploading…' : 'Upload an image'}
+          </span>
           <span style={{ fontSize: 11.5, color: 'var(--ink-4)' }}>
             PNG, JPG, GIF · up to 10MB
           </span>
         </button>
+      )}
+      {error && (
+        <div
+          style={{
+            marginTop: 8,
+            fontSize: 12,
+            color: 'var(--red)',
+          }}
+        >
+          {error}
+        </div>
       )}
     </div>
   )

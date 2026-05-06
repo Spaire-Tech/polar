@@ -1,10 +1,12 @@
-from uuid import UUID
+from uuid import UUID, uuid4
 
-from fastapi import Depends, Query
+from fastapi import Depends, File, HTTPException, Query, UploadFile
 from pydantic import UUID4
 
+from polar.config import settings
 from polar.email_subscriber.auth import EmailSubscribersRead, EmailSubscribersWrite
 from polar.exceptions import ResourceNotFound
+from polar.integrations.aws.s3 import S3Service
 from polar.kit.pagination import ListResource, PaginationParamsQuery
 from polar.postgres import AsyncReadSession, AsyncSession, get_db_read_session, get_db_session
 from polar.routing import APIRouter
@@ -389,6 +391,38 @@ async def delete_email_broadcast_ab_test(
         await email_broadcast_service.delete_ab_test(session, broadcast)
     except BroadcastError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
+
+
+@router.post("/upload-image")
+async def upload_email_image(
+    auth_subject: EmailSubscribersWrite,
+    organization_id: UUID = Query(),
+    upload: UploadFile = File(..., alias="file"),
+) -> dict[str, str]:
+    """Upload an inline image for use in a broadcast.
+
+    The composer used to set image src to a `blob:` URL produced by
+    `URL.createObjectURL`, which only worked in the author's browser —
+    recipients saw a broken image. This endpoint uploads the file to the
+    public assets bucket and returns a permanent URL the composer stores
+    on the block.
+    """
+    content_type = upload.content_type or "image/jpeg"
+    if not content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+
+    data = await upload.read()
+    if len(data) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Image must be under 10 MB")
+
+    ext = (upload.filename or "image.jpg").rsplit(".", 1)[-1].lower()
+    if ext not in {"jpg", "jpeg", "png", "webp", "gif"}:
+        ext = "jpg"
+
+    path = f"email-marketing/{organization_id}/{uuid4().hex}.{ext}"
+    s3 = S3Service(bucket=settings.S3_FILES_PUBLIC_BUCKET_NAME)
+    s3.upload(data, path, content_type)
+    return {"url": s3.get_public_url(path)}
 
 
 @router.post("/{broadcast_id}/test", status_code=204)
