@@ -53,12 +53,14 @@ export const SequenceFlowPreview = ({
   trigger,
   onBack,
   onEdit,
+  compact,
 }: {
   steps: StepNode[]
   name: string
   trigger: string
   onBack: () => void
   onEdit: () => void
+  compact?: boolean
 }) => {
   const triggerObj = TRIGGER_META[trigger] ?? TRIGGER_META.manual
   const rendered = groupSteps(steps)
@@ -66,53 +68,61 @@ export const SequenceFlowPreview = ({
   const totalDays = estimateDays(steps)
 
   return (
-    <div className="fade-up" style={{ paddingBottom: 80 }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: 36,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <button
-            type="button"
-            className="btn-icon"
-            onClick={onBack}
-            aria-label="Back"
-          >
-            <Icon name="arrow-left" size={16} />
-          </button>
-          <div>
-            <div className="eyebrow">Flow preview</div>
-            <div
-              style={{
-                fontSize: 32,
-                fontWeight: 400,
-                letterSpacing: '-0.02em',
-                marginTop: 4,
-              }}
+    <div className="fade-up" style={{ paddingBottom: compact ? 0 : 80 }}>
+      {!compact && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: 36,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <button
+              type="button"
+              className="btn-icon"
+              onClick={onBack}
+              aria-label="Back"
             >
-              {name}
-            </div>
-            <div style={{ fontSize: 13, color: 'var(--ink-3)', marginTop: 4 }}>
-              {totalEmails} email{totalEmails === 1 ? '' : 's'} · ~{totalDays}{' '}
-              day{totalDays === 1 ? '' : 's'} · read-only visualisation
+              <Icon name="arrow-left" size={16} />
+            </button>
+            <div>
+              <div className="eyebrow">Flow preview</div>
+              <div
+                style={{
+                  fontSize: 32,
+                  fontWeight: 400,
+                  letterSpacing: '-0.02em',
+                  marginTop: 4,
+                }}
+              >
+                {name}
+              </div>
+              <div
+                style={{ fontSize: 13, color: 'var(--ink-3)', marginTop: 4 }}
+              >
+                {totalEmails} email{totalEmails === 1 ? '' : 's'} · ~{totalDays}{' '}
+                day{totalDays === 1 ? '' : 's'} · read-only visualisation
+              </div>
             </div>
           </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={onEdit}
+            >
+              <Icon name="edit" size={12} />
+              Back to form
+            </button>
+            <button type="button" className="btn btn-primary">
+              <Icon name="zap" size={13} />
+              Activate
+            </button>
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button type="button" className="btn btn-secondary" onClick={onEdit}>
-            <Icon name="edit" size={12} />
-            Back to form
-          </button>
-          <button type="button" className="btn btn-primary">
-            <Icon name="zap" size={13} />
-            Activate
-          </button>
-        </div>
-      </div>
+      )}
 
       <div
         className="card"

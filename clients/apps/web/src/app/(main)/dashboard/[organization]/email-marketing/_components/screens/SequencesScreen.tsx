@@ -10,7 +10,10 @@ import {
 import { schemas } from '@spaire/client'
 import { useMemo, useState } from 'react'
 import { ActionMenu } from '../ActionMenu'
+import { StepNode } from '../flow'
 import { Icon } from '../Icon'
+import { Modal } from '../Modal'
+import { SequenceFlowPreview } from '../SequenceFlowPreview'
 import { MetricTile, Stat } from '../shared'
 
 type Sequence = {
@@ -365,6 +368,10 @@ const TemplateGallery = ({
 
   const [cat, setCat] = useState<string>('all')
   const [q, setQ] = useState<string>('')
+  const [previewSlug, setPreviewSlug] = useState<string | null>(null)
+  const previewing = previewSlug
+    ? (templates.find((t) => t.slug === previewSlug) ?? null)
+    : null
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase()
@@ -506,6 +513,7 @@ const TemplateGallery = ({
                   color: '#fff',
                   border: '1px solid rgba(255,255,255,0.25)',
                 }}
+                onClick={() => setPreviewSlug(featured.slug)}
               >
                 Preview flow
               </button>
@@ -604,9 +612,89 @@ const TemplateGallery = ({
             t={t}
             estimatedDays={estimateDays(t.step_count)}
             onUse={() => onUse(t.slug)}
+            onPreview={() => setPreviewSlug(t.slug)}
             busy={fromTemplate.isPending}
           />
         ))}
+      </div>
+
+      {previewing && (
+        <Modal
+          open
+          onClose={() => setPreviewSlug(null)}
+          title={`Preview · ${previewing.name}`}
+          width={920}
+        >
+          <TemplatePreview
+            template={previewing}
+            onUse={async () => {
+              setPreviewSlug(null)
+              await onUse(previewing.slug)
+            }}
+            busy={fromTemplate.isPending}
+          />
+        </Modal>
+      )}
+    </div>
+  )
+}
+
+const TemplatePreview = ({
+  template,
+  onUse,
+  busy,
+}: {
+  template: SequenceTemplate
+  onUse: () => void
+  busy: boolean
+}) => {
+  // Coerce the template's flow_doc into the StepNode shape the preview
+  // renderer expects. The doc shipped from the backend matches the same
+  // shape the editor authors, so this is a structural cast.
+  const steps = (template.flow_doc?.steps ?? []) as unknown as StepNode[]
+  if (steps.length === 0) {
+    return (
+      <div style={{ padding: 32, textAlign: 'center', color: 'var(--ink-3)' }}>
+        This template has no flow preview yet.
+      </div>
+    )
+  }
+  return (
+    <div>
+      <div
+        style={{
+          maxHeight: '70vh',
+          overflowY: 'auto',
+          padding: '4px 4px 0',
+        }}
+      >
+        <SequenceFlowPreview
+          steps={steps}
+          name={template.name}
+          trigger={template.trigger_type}
+          onBack={() => {}}
+          onEdit={() => {}}
+          compact
+        />
+      </div>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          gap: 10,
+          marginTop: 16,
+          paddingTop: 14,
+          borderTop: '1px solid var(--line)',
+        }}
+      >
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={onUse}
+          disabled={busy}
+        >
+          {busy ? 'Creating…' : 'Use this template'}
+        </button>
       </div>
     </div>
   )
@@ -636,11 +724,13 @@ const TemplateCard = ({
   t,
   estimatedDays,
   onUse,
+  onPreview,
   busy,
 }: {
   t: SequenceTemplate
   estimatedDays: number
   onUse: () => void
+  onPreview: () => void
   busy: boolean
 }) => {
   const [hover, setHover] = useState(false)
@@ -649,6 +739,7 @@ const TemplateCard = ({
   return (
     <div
       className="card"
+      onClick={onPreview}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
@@ -780,13 +871,25 @@ const TemplateCard = ({
           </span>
           <button
             type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onPreview()
+            }}
+            className="btn btn-ghost btn-sm"
+            style={{ marginLeft: 'auto', padding: '5px 9px' }}
+          >
+            <Icon name="eye" size={11} />
+            Preview
+          </button>
+          <button
+            type="button"
             disabled={busy}
             onClick={(e) => {
               e.stopPropagation()
               onUse()
             }}
             className="btn btn-secondary btn-sm"
-            style={{ marginLeft: 'auto', padding: '5px 11px' }}
+            style={{ padding: '5px 11px' }}
           >
             {busy ? 'Creating…' : 'Use'}
             <Icon name="arrow-right" size={10} />

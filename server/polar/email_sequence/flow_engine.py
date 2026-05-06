@@ -133,10 +133,10 @@ async def evaluate_branch(
 ) -> bool:
     """Return True for the Yes path, False for No.
 
-    Today we evaluate `opened-prev` and `clicked-prev` against
-    EmailSequenceStepSend rows. Other fields default to True so authored
-    flows still execute end-to-end; tag / engagement / product evaluation
-    lands with Phases C and D.
+    Supports `opened-prev`, `clicked-prev` (against EmailSequenceStepSend),
+    and `has-tag` (against the email_subscriber_tags table). The remaining
+    branch types (product-bought, engagement) fall back to True so authored
+    flows still execute end-to-end; they'll land in their own follow-up.
     """
     field = branch_value.get("field")
     if field == "opened-prev":
@@ -151,6 +151,13 @@ async def evaluate_branch(
             enrollment.id,
             min_status=EmailSequenceStepSendStatus.clicked,
         )
+    if field == "has-tag":
+        from .tags import has_tag
+
+        tag = (branch_value.get("tag") or "").strip()
+        if not tag:
+            return True
+        return await has_tag(session, enrollment.subscriber_id, tag)
     log.debug(
         "email_sequence.flow.branch_default_yes",
         field=field,
@@ -218,11 +225,28 @@ async def execute_action(
     session: AsyncSession,
     enrollment: EmailSequenceEnrollment,
     action_value: dict,
+    *,
+    organization_id: UUID | None = None,
 ) -> None:
-    """Execute an action node. Tags / custom fields / webhooks land in their
-    own phases; for now we wire `enroll` (cross-sequence enrolment) and
-    log everything else so it's observable."""
+    """Execute an action node.
+
+    Supports add-tag, remove-tag, enroll (cross-sequence enrolment),
+    webhook (HMAC-signed POST), and notify (Slack incoming webhook).
+    update-field stays log-only until the custom-field model lands.
+    """
     action = action_value.get("action")
+    if action == "add-tag":
+        from .tags import add_tag
+
+        await add_tag(session, enrollment.subscriber_id, action_value.get("tag") or "")
+        return
+    if action == "remove-tag":
+        from .tags import remove_tag
+
+        await remove_tag(
+            session, enrollment.subscriber_id, action_value.get("tag") or ""
+        )
+        return
     if action == "enroll":
         target_id = action_value.get("sequence")
         if target_id:
@@ -239,6 +263,27 @@ async def execute_action(
                 subscriber_id=str(enrollment.subscriber_id),
             )
             return
+    if action == "webhook":
+        from .webhooks import dispatch_action_webhook
+
+        await dispatch_action_webhook(
+            session,
+            enrollment=enrollment,
+            organization_id=organization_id,
+            url=action_value.get("url") or "",
+        )
+        return
+    if action == "notify":
+        from .webhooks import dispatch_slack_notify
+
+        await dispatch_slack_notify(
+            session,
+            enrollment=enrollment,
+            organization_id=organization_id,
+            text=action_value.get("text"),
+            channel=action_value.get("channel"),
+        )
+        return
     log.info(
         "email_sequence.flow.action.unhandled",
         action=action,
@@ -353,7 +398,12 @@ async def process_one_step(
                 enrollment.next_step_at = next_at
                 return
             if child_type == "action":
-                await execute_action(session, enrollment, child_value)
+                await execute_action(
+                    session,
+                    enrollment,
+                    child_value,
+                    organization_id=sequence.organization_id,
+                )
                 index = post_branch_index
                 enrollment.flow_index = index
                 continue
@@ -366,7 +416,12 @@ async def process_one_step(
             continue
 
         if node_type == "action":
-            await execute_action(session, enrollment, value)
+            await execute_action(
+                session,
+                enrollment,
+                value,
+                organization_id=sequence.organization_id,
+            )
             index = advance_linear(index)
             enrollment.flow_index = index
             continue

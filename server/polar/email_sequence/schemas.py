@@ -111,6 +111,9 @@ class EmailSequenceTemplate(Schema):
     category: str
     trigger_type: EmailSequenceTriggerType
     step_count: int
+    # Full authored flow doc — small enough to ship with the list response so
+    # the template gallery can render a free preview without a second fetch.
+    flow_doc: dict | None = None
 
 
 class EmailSequenceFromTemplate(Schema):

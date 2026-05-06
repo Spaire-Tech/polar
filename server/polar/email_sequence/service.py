@@ -470,8 +470,23 @@ class EmailSequenceService:
         sequences = await repository.get_active_for_org_by_trigger(
             organization_id, trigger_type
         )
+        from .tags import has_any_tag
+
         for sequence in sequences:
             if not trigger_config_matches(sequence.trigger_config, trigger_filter):
+                continue
+            # Honour audience.excludeTags from the flow_doc — a subscriber
+            # carrying any of those tags is dropped before we enqueue.
+            flow_doc = (sequence.trigger_config or {}).get("flow_doc")
+            exclude_tags: list[str] = []
+            if isinstance(flow_doc, dict):
+                audience = flow_doc.get("audience") or {}
+                tags = audience.get("excludeTags")
+                if isinstance(tags, list):
+                    exclude_tags = [t for t in tags if isinstance(t, str) and t]
+            if exclude_tags and await has_any_tag(
+                session, subscriber_id, exclude_tags
+            ):
                 continue
             enqueue_job(
                 "email_sequence.enroll_subscriber",

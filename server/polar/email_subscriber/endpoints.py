@@ -152,6 +152,60 @@ async def get_email_subscriber(
     return EmailSubscriberSchema.model_validate(subscriber, from_attributes=True)
 
 
+@router.get("/{subscriber_id}/tags", response_model=list[str])
+async def list_email_subscriber_tags(
+    auth_subject: auth.EmailSubscribersRead,
+    subscriber_id: UUID4,
+    session: AsyncReadSession = Depends(get_db_read_session),
+) -> list[str]:
+    subscriber = await email_subscriber_service.get_by_id(
+        session, auth_subject, subscriber_id
+    )
+    if subscriber is None:
+        raise ResourceNotFound()
+    from polar.email_sequence.tags import list_tags
+
+    return await list_tags(session, subscriber.id)
+
+
+@router.post("/{subscriber_id}/tags", response_model=list[str], status_code=201)
+async def add_email_subscriber_tag(
+    auth_subject: auth.EmailSubscribersWrite,
+    subscriber_id: UUID4,
+    body: dict,
+    session: AsyncSession = Depends(get_db_session),
+) -> list[str]:
+    subscriber = await email_subscriber_service.get_by_id(
+        session, auth_subject, subscriber_id
+    )
+    if subscriber is None:
+        raise ResourceNotFound()
+    from polar.email_sequence.tags import add_tag, list_tags
+
+    tag = (body.get("tag") or "").strip() if isinstance(body, dict) else ""
+    if tag:
+        await add_tag(session, subscriber.id, tag)
+    return await list_tags(session, subscriber.id)
+
+
+@router.delete("/{subscriber_id}/tags/{tag}", response_model=list[str])
+async def remove_email_subscriber_tag(
+    auth_subject: auth.EmailSubscribersWrite,
+    subscriber_id: UUID4,
+    tag: str,
+    session: AsyncSession = Depends(get_db_session),
+) -> list[str]:
+    subscriber = await email_subscriber_service.get_by_id(
+        session, auth_subject, subscriber_id
+    )
+    if subscriber is None:
+        raise ResourceNotFound()
+    from polar.email_sequence.tags import list_tags, remove_tag
+
+    await remove_tag(session, subscriber.id, tag)
+    return await list_tags(session, subscriber.id)
+
+
 @router.patch("/{subscriber_id}", response_model=EmailSubscriberSchema)
 async def update_email_subscriber(
     auth_subject: auth.EmailSubscribersWrite,

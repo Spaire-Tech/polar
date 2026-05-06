@@ -32,6 +32,7 @@ from .email_sequence_enrollment import EmailSequenceEnrollment, EmailSequenceEnr
 from .email_sequence_step import EmailSequenceStep
 from .email_sequence_step_send import EmailSequenceStepSend, EmailSequenceStepSendStatus
 from .email_subscriber import EmailSubscriber
+from .email_subscriber_tag import EmailSubscriberTag
 from .email_verification import EmailVerification
 from .event import Event, EventClosure
 from .event_type import EventType

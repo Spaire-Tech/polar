@@ -83,6 +83,7 @@ async def list_email_sequence_templates(
             category=t["category"],
             trigger_type=t["trigger_type"],
             step_count=len(t["steps"]),
+            flow_doc=t.get("flow_doc"),
         )
         for t in TEMPLATES
     ]

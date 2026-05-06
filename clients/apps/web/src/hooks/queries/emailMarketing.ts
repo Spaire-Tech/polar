@@ -1020,6 +1020,12 @@ export const useUploadSequenceImage = (organizationId: string) =>
 
 // ── Sequence Templates ──
 
+export type SequenceTemplateFlowDoc = {
+  version: 1
+  steps: Array<{ id: string; type: string; value: Record<string, unknown> }>
+  [key: string]: unknown
+}
+
 export type SequenceTemplate = {
   slug: string
   name: string
@@ -1027,6 +1033,7 @@ export type SequenceTemplate = {
   category: string
   trigger_type: string
   step_count: number
+  flow_doc: SequenceTemplateFlowDoc | null
 }
 
 export const useEmailSequenceTemplates = () =>
