@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from datetime import datetime, time, timedelta, timezone
 from uuid import UUID
 
 import structlog
@@ -23,6 +24,85 @@ from polar.worker import enqueue_job
 from .repository import EmailSequenceRepository
 
 log = structlog.get_logger()
+
+
+# Keys in trigger_config that participate in event matching. Settings keys
+# (skip_if_in_another, pause_on_unsubscribe, send_window) are intentionally
+# excluded — they're behavioural, not selectors.
+_TRIGGER_FILTER_KEYS = {"product_id"}
+
+
+def trigger_config_matches(
+    config: dict | None, event_filter: dict | None
+) -> bool:
+    """Decide whether an event should fan out to a sequence.
+
+    For each filter key on the sequence, the event must match. Keys outside
+    `_TRIGGER_FILTER_KEYS` are ignored (settings, not selectors). A sequence
+    with no filter keys configured matches every event.
+    """
+    if not config:
+        return True
+    event = event_filter or {}
+    for key, expected in config.items():
+        if key not in _TRIGGER_FILTER_KEYS:
+            continue
+        if event.get(key) != expected:
+            return False
+    return True
+
+
+def apply_send_window(candidate: datetime, config: dict | None) -> datetime:
+    """Defer `candidate` to the next allowed send-window slot, if any.
+
+    The window lives at `config.send_window` and supports:
+      enabled: bool — short-circuit if false / missing
+      days: list[int] — 0=Mon..6=Sun (defaults to weekdays)
+      start_hour, end_hour: int — window in the configured timezone
+      timezone: IANA name (currently treated as UTC; full tz support is a
+        bigger change and not needed for the first round).
+    """
+    if not config:
+        return candidate
+    window = config.get("send_window")
+    if not isinstance(window, dict) or not window.get("enabled"):
+        return candidate
+
+    days = window.get("days")
+    if not isinstance(days, list) or not days:
+        days = [0, 1, 2, 3, 4]
+    days_set = {int(d) for d in days if isinstance(d, int) and 0 <= d <= 6}
+    if not days_set:
+        return candidate
+
+    start_hour = int(window.get("start_hour", 9))
+    end_hour = int(window.get("end_hour", 17))
+    start_hour = max(0, min(23, start_hour))
+    end_hour = max(start_hour + 1, min(24, end_hour))
+
+    # Work entirely in UTC for now. The picker writes UTC hours by default.
+    moment = (
+        candidate.astimezone(timezone.utc)
+        if candidate.tzinfo
+        else candidate.replace(tzinfo=timezone.utc)
+    )
+    for _ in range(14):  # 2-week safety bound; windows always recur weekly
+        if moment.weekday() in days_set:
+            window_start = moment.replace(
+                hour=start_hour, minute=0, second=0, microsecond=0
+            )
+            window_end = moment.replace(
+                hour=0, minute=0, second=0, microsecond=0
+            ) + timedelta(hours=end_hour)
+            if moment < window_start:
+                return window_start
+            if moment < window_end:
+                return moment
+        moment = (
+            moment.replace(hour=0, minute=0, second=0, microsecond=0)
+            + timedelta(days=1)
+        )
+    return candidate
 
 
 class EmailSequenceError(PolarError): ...
@@ -276,13 +356,14 @@ class EmailSequenceService:
             raise AlreadyEnrolled()
 
         now = utc_now()
+        first_send = apply_send_window(now, sequence.trigger_config)
         enrollment = EmailSequenceEnrollment(
             sequence_id=sequence.id,
             subscriber_id=subscriber_id,
             status=EmailSequenceEnrollmentStatus.active,
             current_step_position=0,
             enrolled_at=now,
-            next_step_at=now,  # Step 0 fires immediately
+            next_step_at=first_send,
         )
         session.add(enrollment)
         await session.flush()
@@ -315,10 +396,8 @@ class EmailSequenceService:
             organization_id, trigger_type
         )
         for sequence in sequences:
-            if trigger_filter:
-                config = sequence.trigger_config or {}
-                if not all(config.get(k) == v for k, v in trigger_filter.items()):
-                    continue
+            if not trigger_config_matches(sequence.trigger_config, trigger_filter):
+                continue
             enqueue_job(
                 "email_sequence.enroll_subscriber",
                 sequence_id=sequence.id,

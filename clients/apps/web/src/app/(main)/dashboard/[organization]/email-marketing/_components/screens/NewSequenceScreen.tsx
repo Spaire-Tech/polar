@@ -17,6 +17,7 @@ import {
   useUpdateSequenceStep,
   useUploadSequenceImage,
 } from '@/hooks/queries/emailMarketing'
+import { useProducts } from '@/hooks/queries/products'
 import { schemas } from '@spaire/client'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { BlockEditor } from '../blockEditor/BlockEditor'
@@ -85,6 +86,13 @@ type Sequence = {
   trigger_type: string
   trigger_config: Record<string, unknown>
   status: 'draft' | 'active' | 'paused'
+}
+
+type SendWindow = {
+  enabled: boolean
+  days: number[]
+  start_hour: number
+  end_hour: number
 }
 
 type Step = {
@@ -191,6 +199,31 @@ const SequenceEditorInner = ({
   const [pauseOnUnsub, setPauseOnUnsub] = useState<boolean>(() =>
     Boolean(initialConfig.pause_on_unsubscribe ?? true),
   )
+  const [productId, setProductId] = useState<string | null>(() =>
+    typeof initialConfig.product_id === 'string'
+      ? (initialConfig.product_id as string)
+      : null,
+  )
+  const initialWindow = (initialConfig.send_window ?? {}) as Record<
+    string,
+    unknown
+  >
+  const [sendWindow, setSendWindow] = useState<SendWindow>(() => ({
+    enabled: Boolean(initialWindow.enabled ?? false),
+    days: Array.isArray(initialWindow.days)
+      ? (initialWindow.days as number[]).filter(
+          (d) => Number.isInteger(d) && d >= 0 && d <= 6,
+        )
+      : [0, 1, 2, 3, 4],
+    start_hour:
+      typeof initialWindow.start_hour === 'number'
+        ? (initialWindow.start_hour as number)
+        : 9,
+    end_hour:
+      typeof initialWindow.end_hour === 'number'
+        ? (initialWindow.end_hour as number)
+        : 17,
+  }))
   const [editingStepId, setEditingStepId] = useState<string | null>(null)
   const [savedAt, setSavedAt] = useState<Date | null>(null)
   // Track the persisted id locally so a fresh editor can create-on-demand and
@@ -202,11 +235,25 @@ const SequenceEditorInner = ({
 
   const persistedId = persistedIdRef.current
 
-  const buildTriggerConfig = (): Record<string, unknown> => ({
-    ...initialConfig,
-    skip_if_in_another: skipIfInAnother,
-    pause_on_unsubscribe: pauseOnUnsub,
-  })
+  const buildTriggerConfig = (): Record<string, unknown> => {
+    const cfg: Record<string, unknown> = {
+      ...initialConfig,
+      skip_if_in_another: skipIfInAnother,
+      pause_on_unsubscribe: pauseOnUnsub,
+      send_window: sendWindow,
+    }
+    // product_id is only meaningful for purchase-style triggers; clear it on
+    // other triggers so a stale filter never leaks into matching.
+    if (
+      productId &&
+      (trigger === 'on_purchase' || trigger === 'on_subscription_created')
+    ) {
+      cfg.product_id = productId
+    } else {
+      delete cfg.product_id
+    }
+    return cfg
+  }
 
   // Materialize the persisted id on first save. The trigger picker, the
   // step buttons, and the activate button all need a real row to point at.
@@ -526,6 +573,15 @@ const SequenceEditorInner = ({
                 )
               })}
             </div>
+
+            {(trigger === 'on_purchase' ||
+              trigger === 'on_subscription_created') && (
+              <TriggerProductPicker
+                organization={organization}
+                productId={productId}
+                onChange={setProductId}
+              />
+            )}
           </div>
 
           <div
@@ -702,6 +758,8 @@ const SequenceEditorInner = ({
             onSkipChange={setSkipIfInAnother}
             pauseOnUnsub={pauseOnUnsub}
             onPauseOnUnsubChange={setPauseOnUnsub}
+            sendWindow={sendWindow}
+            onSendWindowChange={setSendWindow}
           />
         )}
       </div>
@@ -953,6 +1011,8 @@ const SequenceSidebar = ({
   onSkipChange,
   pauseOnUnsub,
   onPauseOnUnsubChange,
+  sendWindow,
+  onSendWindowChange,
 }: {
   sequenceId: string
   isActive: boolean
@@ -962,6 +1022,8 @@ const SequenceSidebar = ({
   onSkipChange: (v: boolean) => void
   pauseOnUnsub: boolean
   onPauseOnUnsubChange: (v: boolean) => void
+  sendWindow: SendWindow
+  onSendWindowChange: (v: SendWindow) => void
 }) => {
   const analyticsQuery = useSequenceAnalytics(sequenceId)
   const a = analyticsQuery.data as SequenceAnalytics | undefined
@@ -1020,6 +1082,27 @@ const SequenceSidebar = ({
             <span style={{ color: 'var(--ink-2)' }}>Pause on unsubscribe</span>
             <Toggle on={pauseOnUnsub} onChange={onPauseOnUnsubChange} />
           </div>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <span style={{ color: 'var(--ink-2)' }}>Send window</span>
+            <Toggle
+              on={sendWindow.enabled}
+              onChange={(enabled) =>
+                onSendWindowChange({ ...sendWindow, enabled })
+              }
+            />
+          </div>
+          {sendWindow.enabled && (
+            <SendWindowControls
+              value={sendWindow}
+              onChange={onSendWindowChange}
+            />
+          )}
         </div>
         <div style={{ fontSize: 11.5, color: 'var(--ink-3)', marginTop: 14 }}>
           Settings save with the sequence — hit Save draft after toggling.
@@ -1455,6 +1538,152 @@ const formatRelative = (iso: string): string => {
   }
   const d = Math.round(abs / day)
   return future ? `in ${d}d` : `${d}d ago`
+}
+
+// ── Trigger product picker ──
+
+const TriggerProductPicker = ({
+  organization,
+  productId,
+  onChange,
+}: {
+  organization: schemas['Organization']
+  productId: string | null
+  onChange: (id: string | null) => void
+}) => {
+  const productsQuery = useProducts(organization.id, { limit: 100 })
+  const products = productsQuery.data?.items ?? []
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        marginTop: 16,
+        padding: '12px 14px',
+        background: 'var(--bg-soft)',
+        borderRadius: 12,
+      }}
+    >
+      <Icon name="package" size={14} style={{ color: 'var(--ink-3)' }} />
+      <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>
+        Filter to product
+      </span>
+      <select
+        className="input"
+        value={productId ?? ''}
+        onChange={(e) => onChange(e.target.value || null)}
+        style={{ marginLeft: 'auto', minWidth: 240 }}
+      >
+        <option value="">Any product</option>
+        {products.map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.name}
+          </option>
+        ))}
+      </select>
+    </div>
+  )
+}
+
+// ── Send-window controls ──
+
+const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
+
+const SendWindowControls = ({
+  value,
+  onChange,
+}: {
+  value: SendWindow
+  onChange: (next: SendWindow) => void
+}) => {
+  const toggleDay = (day: number) => {
+    const has = value.days.includes(day)
+    const days = has
+      ? value.days.filter((d) => d !== day)
+      : [...value.days, day].sort((a, b) => a - b)
+    onChange({ ...value, days })
+  }
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 10,
+        padding: '12px',
+        borderRadius: 10,
+        background: 'var(--bg-soft)',
+      }}
+    >
+      <div style={{ display: 'flex', gap: 4 }}>
+        {DAY_LABELS.map((label, i) => {
+          const on = value.days.includes(i)
+          return (
+            <button
+              key={i}
+              type="button"
+              onClick={() => toggleDay(i)}
+              style={{
+                flex: 1,
+                padding: '6px 0',
+                fontSize: 11.5,
+                fontWeight: 500,
+                borderRadius: 8,
+                border: '1px solid var(--line)',
+                background: on ? 'var(--ink)' : '#fff',
+                color: on ? '#fff' : 'var(--ink-3)',
+                cursor: 'pointer',
+              }}
+            >
+              {label}
+            </button>
+          )
+        })}
+      </div>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          fontSize: 12.5,
+        }}
+      >
+        <select
+          className="input"
+          value={value.start_hour}
+          onChange={(e) =>
+            onChange({ ...value, start_hour: Number(e.target.value) })
+          }
+          style={{ flex: 1 }}
+        >
+          {Array.from({ length: 24 }).map((_, h) => (
+            <option key={h} value={h}>
+              {String(h).padStart(2, '0')}:00
+            </option>
+          ))}
+        </select>
+        <span style={{ color: 'var(--ink-3)' }}>to</span>
+        <select
+          className="input"
+          value={value.end_hour}
+          onChange={(e) =>
+            onChange({ ...value, end_hour: Number(e.target.value) })
+          }
+          style={{ flex: 1 }}
+        >
+          {Array.from({ length: 24 }).map((_, h) => (
+            <option key={h + 1} value={h + 1}>
+              {String(h + 1).padStart(2, '0')}:00
+            </option>
+          ))}
+        </select>
+      </div>
+      <div style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>
+        Sends outside this window are pushed to the next allowed slot. Hours in
+        UTC.
+      </div>
+    </div>
+  )
 }
 
 // ── Flow primitives (ported from the previous mock-only screen) ──

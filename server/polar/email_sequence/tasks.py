@@ -169,5 +169,10 @@ async def send_sequence_step(enrollment_id: UUID) -> None:
             enrollment.completed_at = utc_now()
             enrollment.next_step_at = None
         else:
+            from .service import apply_send_window
+
             enrollment.current_step_position = next_position
-            enrollment.next_step_at = utc_now() + timedelta(hours=next_step.delay_hours)
+            candidate = utc_now() + timedelta(hours=next_step.delay_hours)
+            enrollment.next_step_at = apply_send_window(
+                candidate, sequence.trigger_config if sequence else None
+            )
