@@ -508,19 +508,6 @@ const lessonStyles: Record<string, React.CSSProperties> = {
     borderRadius: 5,
     zIndex: 2,
   },
-  thumbProgressTrack: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 3,
-    background: 'rgba(0,0,0,0.4)',
-    zIndex: 2,
-  },
-  thumbProgressFill: {
-    height: '100%',
-    background: 'oklch(0.62 0.20 25)',
-  },
   lockOverlay: {
     position: 'absolute',
     inset: 0,
@@ -689,7 +676,6 @@ function Hero({
   continueLesson,
   continueModuleTitle,
   continueLessonNumber,
-  continueProgress,
   instructorName,
   tagline,
   heroHue,
@@ -702,20 +688,16 @@ function Hero({
   continueLesson: CustomerLessonRead | null
   continueModuleTitle: string | null
   continueLessonNumber: number | null
-  continueProgress: number
   instructorName: string | null
   tagline: string
   heroHue: number
   onResume: () => void
 }) {
   const course = data.course
+  // We don't yet track partial watch progress, so "remaining" is just the
+  // full lesson duration when present.
   const remainingMin = continueLesson?.duration_seconds
-    ? Math.max(
-        1,
-        Math.ceil(
-          (continueLesson.duration_seconds * (1 - continueProgress)) / 60,
-        ),
-      )
+    ? Math.max(1, Math.ceil(continueLesson.duration_seconds / 60))
     : null
 
   return (
@@ -777,15 +759,7 @@ function Hero({
                 {continueModuleTitle && remainingMin !== null && (
                   <span style={heroStyles.metaDot}>·</span>
                 )}
-                {remainingMin !== null && <span>{remainingMin} min left</span>}
-              </div>
-              <div style={heroStyles.progressBar}>
-                <div
-                  style={{
-                    ...heroStyles.progressFill,
-                    width: `${Math.round(continueProgress * 100)}%`,
-                  }}
-                />
+                {remainingMin !== null && <span>{remainingMin} min</span>}
               </div>
             </div>
           ) : (
@@ -804,7 +778,7 @@ function Hero({
               </span>
               <span style={heroStyles.ctaPlayLabel}>
                 {continueLesson
-                  ? `Resume lesson ${continueLessonNumber}`
+                  ? `Play lesson ${continueLessonNumber}`
                   : 'Start course'}
               </span>
             </button>
@@ -940,7 +914,6 @@ function LessonCard({
   globalIndex,
   hue,
   isInProgress,
-  inProgressPercent,
   fallbackThumbnailUrl,
   fallbackObjectPosition,
   onSelect,
@@ -949,7 +922,6 @@ function LessonCard({
   globalIndex: number
   hue: number
   isInProgress: boolean
-  inProgressPercent: number
   fallbackThumbnailUrl: string | null
   fallbackObjectPosition: string | null
   onSelect: () => void
@@ -1016,17 +988,6 @@ function LessonCard({
           </div>
         ) : null}
 
-        {isInProgress && !isLocked && (
-          <div style={lessonStyles.thumbProgressTrack}>
-            <div
-              style={{
-                ...lessonStyles.thumbProgressFill,
-                width: `${Math.round(inProgressPercent * 100)}%`,
-              }}
-            />
-          </div>
-        )}
-
         {isLocked && (
           <div style={lessonStyles.lockOverlay}>
             <IconLock size={26} />
@@ -1055,7 +1016,7 @@ function LessonCard({
                 marginLeft: 6,
               }}
             >
-              · {Math.round(inProgressPercent * 100)}% watched
+              · Up next
             </span>
           )}
           {isLocked && lesson.locked_until && (
@@ -1075,7 +1036,6 @@ function ModuleRow({
   moduleIndex,
   positionToGlobalIndex,
   inProgressLessonId,
-  inProgressPercent,
   fallbackThumbnailUrl,
   fallbackObjectPosition,
   onSelectLesson,
@@ -1084,7 +1044,6 @@ function ModuleRow({
   moduleIndex: number
   positionToGlobalIndex: Map<string, number>
   inProgressLessonId: string | null
-  inProgressPercent: number
   fallbackThumbnailUrl: string | null
   fallbackObjectPosition: string | null
   onSelectLesson: (lesson: CustomerLessonRead) => void
@@ -1127,7 +1086,6 @@ function ModuleRow({
             globalIndex={positionToGlobalIndex.get(lesson.id) ?? lesson.position}
             hue={hue}
             isInProgress={lesson.id === inProgressLessonId}
-            inProgressPercent={inProgressPercent}
             fallbackThumbnailUrl={fallbackThumbnailUrl}
             fallbackObjectPosition={fallbackObjectPosition}
             onSelect={() => onSelectLesson(lesson)}
@@ -1181,10 +1139,6 @@ export function CoursePortalView({
     ? (positionToGlobalIndex.get(continueLesson.id) ?? null)
     : null
 
-  // We do not yet track partial watch progress per lesson server-side, so the
-  // "in-progress" lesson always renders at 0%. The hero still shows the right
-  // lesson title + module + remaining duration.
-  const continueProgress = 0
   const inProgressLessonId =
     continueLesson && !continueLesson.completed ? continueLesson.id : null
 
@@ -1219,7 +1173,6 @@ export function CoursePortalView({
         continueLesson={continueLesson}
         continueModuleTitle={continueModuleTitle}
         continueLessonNumber={continueLessonNumber}
-        continueProgress={continueProgress}
         instructorName={course.instructor_name ?? null}
         tagline={tagline}
         heroHue={heroHue}
@@ -1236,7 +1189,6 @@ export function CoursePortalView({
             moduleIndex={i}
             positionToGlobalIndex={positionToGlobalIndex}
             inProgressLessonId={inProgressLessonId}
-            inProgressPercent={continueProgress}
             fallbackThumbnailUrl={course.thumbnail_url ?? null}
             fallbackObjectPosition={course.thumbnail_object_position ?? null}
             onSelectLesson={onSelectLesson}

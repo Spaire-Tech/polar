@@ -398,6 +398,42 @@ export const useReorderModules = () =>
       }),
   })
 
+export type CourseEnrollmentRead = {
+  id: string
+  customer_id: string
+  enrolled_at: string
+  customer: {
+    id: string
+    email: string
+    name: string | null
+    avatar_url: string | null
+  } | null
+}
+
+export const useCourseEnrollments = (courseId: string | undefined) =>
+  useQuery<CourseEnrollmentRead[]>({
+    queryKey: ['course-enrollments', courseId],
+    queryFn: () =>
+      courseApiFetch<CourseEnrollmentRead[]>(
+        `/v1/courses/${courseId}/enrollments`,
+      ),
+    enabled: !!courseId,
+  })
+
+export const useRevokeCourseEnrollment = (courseId: string | undefined) =>
+  useMutation({
+    mutationFn: (enrollmentId: string) =>
+      courseApiFetch<void>(
+        `/v1/courses/${courseId}/enrollments/${enrollmentId}`,
+        { method: 'DELETE' },
+      ),
+    onSuccess: () => {
+      getQueryClient().invalidateQueries({
+        queryKey: ['course-enrollments', courseId],
+      })
+    },
+  })
+
 export const useReorderLessons = () =>
   useMutation({
     mutationFn: ({

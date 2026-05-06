@@ -107,8 +107,12 @@ export function ModuleCard({
 
   const commitRename = () => {
     const next = draftTitle.trim()
-    if (next && next !== module.title) onRenameModule(next)
-    else setDraftTitle(module.title)
+    if (!next) {
+      setDraftTitle(module.title)
+      setIsEditing(false)
+      return
+    }
+    if (next !== module.title) onRenameModule(next)
     setIsEditing(false)
   }
 

@@ -13,21 +13,19 @@ import {
 } from '@/hooks/queries/courses'
 import AddOutlined from '@mui/icons-material/AddOutlined'
 import AttachFileOutlined from '@mui/icons-material/AttachFileOutlined'
-import AudiotrackOutlined from '@mui/icons-material/AudiotrackOutlined'
-import CloseOutlined from '@mui/icons-material/CloseOutlined'
 import DeleteOutlineOutlined from '@mui/icons-material/DeleteOutlineOutlined'
 import HelpOutlineOutlined from '@mui/icons-material/HelpOutlineOutlined'
 import ImageOutlined from '@mui/icons-material/ImageOutlined'
-import KeyboardArrowDownOutlined from '@mui/icons-material/KeyboardArrowDownOutlined'
 import OndemandVideoOutlined from '@mui/icons-material/OndemandVideoOutlined'
 import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined'
 import { cn } from '@spaire/ui/lib/utils'
 import { useEffect, useRef, useState } from 'react'
+import { toast } from '../../Toast/use-toast'
 import { HlsVideo } from '../HlsVideo'
 import { RichTextEditor } from './RichTextEditor'
 import { ThumbnailPositioner } from './ThumbnailPositioner'
 
-type Media = 'none' | 'video' | 'audio'
+type Media = 'none' | 'video'
 
 export type LessonEdits = {
   title: string
@@ -125,8 +123,9 @@ export function LessonDetail({
       setAttachments(
         (updated.content?.attachments as LessonAttachment[] | undefined) ?? [],
       )
+      toast({ title: `Attached ${file.name}` })
     } catch {
-      // mutation surfaces error
+      toast({ title: 'Failed to upload attachment' })
     }
     e.target.value = ''
   }
@@ -140,8 +139,9 @@ export function LessonDetail({
       setAttachments(
         (updated.content?.attachments as LessonAttachment[] | undefined) ?? [],
       )
+      toast({ title: 'Attachment removed' })
     } catch {
-      // mutation surfaces error
+      toast({ title: 'Failed to remove attachment' })
     }
   }
 
@@ -156,8 +156,9 @@ export function LessonDetail({
         file,
       })
       setThumbnailUrl(updated.thumbnail_url ?? null)
+      toast({ title: 'Thumbnail uploaded' })
     } catch {
-      // error feedback handled by mutation
+      toast({ title: 'Failed to upload thumbnail' })
     }
     e.target.value = ''
   }
@@ -207,10 +208,21 @@ export function LessonDetail({
         xhr.open('PUT', upload_url)
         xhr.send(file)
       })
+      toast({ title: 'Video uploaded — Mux is now processing' })
     } catch {
       setUploadProgress(null)
+      toast({ title: 'Video upload failed' })
     }
     e.target.value = ''
+  }
+
+  const titleError = edits.title.trim().length === 0
+  const handleSaveClick = () => {
+    if (titleError) {
+      toast({ title: 'Lesson title is required' })
+      return
+    }
+    onSave(edits)
   }
 
   return (
@@ -230,8 +242,9 @@ export function LessonDetail({
             {previewAccess.isPending ? 'Opening…' : 'Preview'}
           </button>
           <button
-            onClick={() => onSave(edits)}
-            disabled={isSaving}
+            onClick={handleSaveClick}
+            disabled={isSaving || titleError}
+            title={titleError ? 'Title is required' : undefined}
             className="px-1 py-[5px] text-[12px] font-medium tracking-tight text-blue-600 transition-opacity hover:opacity-70 disabled:opacity-50"
           >
             {isSaving ? 'Saving…' : 'Save'}
@@ -256,10 +269,22 @@ export function LessonDetail({
             <Field label="Title">
               <input
                 type="text"
+                required
                 value={edits.title}
                 onChange={(e) => update('title', e.target.value)}
-                className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:border-gray-900 focus:ring-2 focus:ring-gray-100 focus:outline-none"
+                aria-invalid={titleError}
+                className={cn(
+                  'w-full rounded-xl border px-3.5 py-2.5 text-sm text-gray-900 focus:ring-2 focus:ring-gray-100 focus:outline-none',
+                  titleError
+                    ? 'border-red-400 focus:border-red-500'
+                    : 'border-gray-300 focus:border-gray-900',
+                )}
               />
+              {titleError && (
+                <p className="mt-1 text-xs text-red-500">
+                  Title is required.
+                </p>
+              )}
             </Field>
 
             <Field label="Description">
@@ -274,16 +299,11 @@ export function LessonDetail({
 
             <div className="mb-5">
               <h3 className="mb-2 text-base font-bold text-gray-900">Media</h3>
-              <div className="grid grid-cols-3 gap-3">
-                {(['none', 'video', 'audio'] as const).map((m) => {
+              <div className="grid grid-cols-2 gap-3">
+                {(['none', 'video'] as const).map((m) => {
                   const active = edits.media === m
                   const label = m[0].toUpperCase() + m.slice(1)
-                  const Icon =
-                    m === 'video'
-                      ? OndemandVideoOutlined
-                      : m === 'audio'
-                        ? AudiotrackOutlined
-                        : null
+                  const Icon = m === 'video' ? OndemandVideoOutlined : null
                   return (
                     <button
                       key={m}
@@ -378,9 +398,13 @@ export function LessonDetail({
             />
 
             <div className="mt-6">
-              <h3 className="mb-2 text-base font-bold text-gray-900">
-                Downloads
+              <h3 className="mb-1 text-base font-bold text-gray-900">
+                Attachments
               </h3>
+              <p className="mb-3 text-xs text-gray-500">
+                Files attached to this lesson — shown to students alongside the
+                lesson content.
+              </p>
               <input
                 ref={attachmentInputRef}
                 type="file"
@@ -681,12 +705,7 @@ function initEdits(
   module: CourseModuleRead,
 ): LessonEdits {
   const text = (lesson.content as { text?: string } | null)?.text ?? ''
-  const media: Media =
-    lesson.content_type === 'video'
-      ? 'video'
-      : lesson.content_type === 'download'
-        ? 'audio'
-        : 'none'
+  const media: Media = lesson.content_type === 'video' ? 'video' : 'none'
   return {
     title: lesson.title,
     moduleId: module.id,
