@@ -49,11 +49,30 @@ export const Composer = ({
   setDoc,
   uploadImage,
   sender,
+  // Embedded mode: render without the page-level "Compose" header so the
+  // composer can sit inside a fullscreen modal (sequence email editor).
+  embedded,
+  // Optional editable subject + preview-text strip drawn just under the
+  // envelope chrome. Pass undefined to hide the strip entirely.
+  subject,
+  onSubjectChange,
+  previewText,
+  onPreviewTextChange,
+  // Optional inline Save button on the toolbar.
+  onSave,
+  saveLabel,
 }: {
   doc: ContentDoc
   setDoc: (next: ContentDoc) => void
   uploadImage?: ImageUploader
   sender?: Sender
+  embedded?: boolean
+  subject?: string
+  onSubjectChange?: (next: string) => void
+  previewText?: string
+  onPreviewTextChange?: (next: string) => void
+  onSave?: () => void
+  saveLabel?: string
 }) => {
   const [selected, setSelected] = useState<string | null>(null)
   const [showPalette, setShowPalette] = useState(false)
@@ -123,32 +142,34 @@ export const Composer = ({
   const selectedBlock = doc.blocks.find((b) => b.id === selected) ?? null
 
   return (
-    <div style={{ marginBottom: 36 }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'flex-end',
-          justifyContent: 'space-between',
-          marginBottom: 20,
-        }}
-      >
-        <div>
-          <h2 className="h2" style={{ marginBottom: 6 }}>
-            Compose
-          </h2>
-          <p className="muted" style={{ fontSize: 14, margin: 0 }}>
-            Pick a template, or build it block by block.
-          </p>
-        </div>
-        <button
-          type="button"
-          className="btn btn-secondary"
-          onClick={() => setShowTemplates(true)}
+    <div style={{ marginBottom: embedded ? 0 : 36 }}>
+      {!embedded && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'space-between',
+            marginBottom: 20,
+          }}
         >
-          <Icon name="grid" size={14} />
-          Browse templates
-        </button>
-      </div>
+          <div>
+            <h2 className="h2" style={{ marginBottom: 6 }}>
+              Compose
+            </h2>
+            <p className="muted" style={{ fontSize: 14, margin: 0 }}>
+              Pick a template, or build it block by block.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setShowTemplates(true)}
+          >
+            <Icon name="grid" size={14} />
+            Browse templates
+          </button>
+        </div>
+      )}
 
       <div
         className="card"
@@ -166,6 +187,8 @@ export const Composer = ({
           onTemplates={() => setShowTemplates(true)}
           paletteOpen={showPalette}
           itemCount={doc.blocks.length}
+          onSave={onSave}
+          saveLabel={saveLabel}
         />
 
         <div
@@ -197,6 +220,55 @@ export const Composer = ({
               onClick={(e) => e.stopPropagation()}
             >
               <EnvelopeHeader sender={sender} />
+
+              {(subject !== undefined || previewText !== undefined) && (
+                <div
+                  style={{
+                    padding: '16px 36px 14px',
+                    borderBottom: '1px solid #efefef',
+                    background: '#fff',
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {subject !== undefined && (
+                    <input
+                      value={subject}
+                      onChange={(e) => onSubjectChange?.(e.target.value)}
+                      placeholder="Subject line…"
+                      style={{
+                        width: '100%',
+                        border: 'none',
+                        outline: 'none',
+                        background: 'transparent',
+                        fontSize: 20,
+                        fontWeight: 500,
+                        letterSpacing: '-0.012em',
+                        color: '#1d1d1f',
+                        padding: 0,
+                        marginBottom: 4,
+                        fontFamily: 'inherit',
+                      }}
+                    />
+                  )}
+                  {previewText !== undefined && (
+                    <input
+                      value={previewText}
+                      onChange={(e) => onPreviewTextChange?.(e.target.value)}
+                      placeholder="Preview text — appears in the inbox after the subject."
+                      style={{
+                        width: '100%',
+                        border: 'none',
+                        outline: 'none',
+                        background: 'transparent',
+                        fontSize: 13,
+                        color: '#86868b',
+                        padding: 0,
+                        fontFamily: 'inherit',
+                      }}
+                    />
+                  )}
+                </div>
+              )}
 
               <div style={{ padding: '32px 36px 40px' }}>
                 <Inserter
@@ -344,6 +416,8 @@ const Toolbar = ({
   onTemplates,
   paletteOpen,
   itemCount,
+  onSave,
+  saveLabel,
 }: {
   device: 'desktop' | 'mobile'
   setDevice: (d: 'desktop' | 'mobile') => void
@@ -353,6 +427,8 @@ const Toolbar = ({
   onTemplates: () => void
   paletteOpen: boolean
   itemCount: number
+  onSave?: () => void
+  saveLabel?: string
 }) => (
   <div
     style={{
@@ -460,6 +536,19 @@ const Toolbar = ({
           <Icon name="phone" size={12} />
         </button>
       </div>
+      {onSave && (
+        <>
+          <div style={{ width: 1, height: 22, background: 'var(--line)' }} />
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            onClick={onSave}
+          >
+            <Icon name="check" size={12} />
+            {saveLabel || 'Save'}
+          </button>
+        </>
+      )}
     </div>
   </div>
 )

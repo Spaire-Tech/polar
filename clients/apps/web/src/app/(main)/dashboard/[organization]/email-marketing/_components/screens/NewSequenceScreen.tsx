@@ -12,8 +12,7 @@ import {
 } from '@/hooks/queries/emailMarketing'
 import { useProducts } from '@/hooks/queries/products'
 import { schemas } from '@spaire/client'
-import { useMemo, useRef, useState } from 'react'
-import { BlockEditor } from '../blockEditor/BlockEditor'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { renderBlocksToHtml } from '../blockEditor/render'
 import {
   Block,
@@ -21,6 +20,7 @@ import {
   isContentDoc,
   newId as newBlockId,
 } from '../blockEditor/types'
+import { Composer } from '../composer/Composer'
 import {
   ActionStepValue,
   BranchStepValue,
@@ -39,7 +39,7 @@ import {
   stepTitle,
 } from '../flow'
 import { Icon } from '../Icon'
-import { Modal } from '../Modal'
+import { MARK_BY_NAME, MarkSparkles } from '../MarkIcons'
 import { SequenceFlowPreview } from '../SequenceFlowPreview'
 import {
   Field,
@@ -79,14 +79,14 @@ const TRIGGERS: {
     label: 'On subscribe',
     desc: 'When someone joins your list.',
     icon: 'user',
-    badge: 'Most common',
+    badge: null,
   },
   {
     id: 'on_purchase',
     label: 'On purchase',
     desc: 'When a buyer completes checkout.',
     icon: 'shopping-cart',
-    badge: 'Recommended',
+    badge: null,
   },
   {
     id: 'on_subscription_created',
@@ -485,6 +485,7 @@ const SequenceEditorInner = ({
         trigger={trigger}
         onBack={onBack}
         onEdit={() => setPreviewing(false)}
+        onActivate={onActivate}
       />
     )
   }
@@ -670,24 +671,32 @@ const SequenceEditorInner = ({
               </Field>
               <Field label="Category">
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  {CATEGORIES.map((c) => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => upd({ category: c.id })}
-                      className={
-                        flow.category === c.id ? 'chip chip-dark' : 'chip'
-                      }
-                      style={{
-                        cursor: 'pointer',
-                        padding: '7px 14px',
-                        fontSize: 12.5,
-                      }}
-                    >
-                      <Icon name={c.icon} size={11} />
-                      {c.label}
-                    </button>
-                  ))}
+                  {CATEGORIES.map((c) => {
+                    const Mark = MARK_BY_NAME[c.icon]
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => upd({ category: c.id })}
+                        className={
+                          flow.category === c.id ? 'chip chip-dark' : 'chip'
+                        }
+                        style={{
+                          cursor: 'pointer',
+                          padding: '6px 12px 6px 8px',
+                          fontSize: 12.5,
+                          gap: 6,
+                        }}
+                      >
+                        {Mark ? (
+                          <Mark size={18} />
+                        ) : (
+                          <Icon name={c.icon} size={11} />
+                        )}
+                        {c.label}
+                      </button>
+                    )
+                  })}
                 </div>
               </Field>
             </div>
@@ -1551,28 +1560,11 @@ const SequenceEditorInner = ({
           {/* AI suggestion */}
           <div
             className="card"
-            style={{
-              padding: 18,
-              background: 'var(--indigo-soft)',
-              borderColor: 'var(--indigo-line)',
-            }}
+            style={{ padding: 18, background: 'var(--bg-soft)' }}
           >
             <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-              <div
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 8,
-                  background: 'var(--indigo)',
-                  color: '#fff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                  boxShadow: '0 4px 10px -2px rgba(79,70,229,0.4)',
-                }}
-              >
-                <Icon name="sparkles" size={14} />
+              <div style={{ flexShrink: 0 }}>
+                <MarkSparkles size={28} />
               </div>
               <div>
                 <div
@@ -1592,7 +1584,7 @@ const SequenceEditorInner = ({
                   }}
                 >
                   Add a check-in email at day 14 — subscribers who get one are{' '}
-                  <span style={{ color: 'var(--indigo-2)', fontWeight: 500 }}>
+                  <span style={{ color: 'var(--ink)', fontWeight: 500 }}>
                     3.2× more likely
                   </span>{' '}
                   to finish.
@@ -1612,9 +1604,18 @@ const SequenceEditorInner = ({
       </div>
 
       {editingEmail && persistedId && (
-        <EmailEditorModal
+        <SequenceEmailComposerModal
           organization={organization}
           step={editingEmail}
+          emailNum={
+            flow.steps
+              .slice(
+                0,
+                flow.steps.findIndex((s) => s.id === editingEmail.id) + 1,
+              )
+              .filter((s) => s.type === 'email').length
+          }
+          sequenceName={name}
           onChange={(v) => updateStep(editingEmail.id, 'email', v)}
           onClose={() => setEditingEmailId(null)}
           onSendTest={async (email) => {
@@ -1645,13 +1646,12 @@ const ProductCard = ({
   onClick,
   name,
   kind,
-  color,
 }: {
   active: boolean
   onClick: () => void
   name: string
   kind: string
-  color: string
+  color?: string
 }) => (
   <button
     type="button"
@@ -1666,20 +1666,9 @@ const ProductCard = ({
     }}
   >
     <div
-      style={{
-        width: 38,
-        height: 38,
-        borderRadius: 9,
-        background: color,
-        color: '#fff',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexShrink: 0,
-      }}
-    >
-      <Icon name="package" size={16} />
-    </div>
+      className="cover-placeholder"
+      style={{ width: 42, height: 42, borderRadius: 8 }}
+    />
     <div style={{ flex: 1, minWidth: 0 }}>
       <div
         style={{
@@ -1703,15 +1692,23 @@ const ProductCard = ({
 )
 
 // — Email content editor modal (BlockEditor reused from broadcasts).
-const EmailEditorModal = ({
+// Fullscreen sequence email composer — hosts the broadcast Composer in
+// embedded mode, so editing an email step inside a sequence reuses the
+// same template gallery, block palette, and inspector as standalone
+// broadcasts. Mirrors the design's sequence-email-composer modal.
+const SequenceEmailComposerModal = ({
   organization,
   step,
+  emailNum,
+  sequenceName,
   onChange,
   onClose,
   onSendTest,
 }: {
   organization: schemas['Organization']
   step: Extract<StepNode, { type: 'email' }>
+  emailNum: number
+  sequenceName: string
   onChange: (v: EmailStepValue) => void
   onClose: () => void
   onSendTest: (email: string) => Promise<void>
@@ -1719,105 +1716,245 @@ const EmailEditorModal = ({
   const [doc, setDoc] = useState<ContentDoc>(() =>
     adoptContentJson(step.value.content_json),
   )
+  const [subject, setSubject] = useState(step.value.subject)
+  const [preview, setPreview] = useState(step.value.preview)
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>(
+    'idle',
+  )
   const [testEmail, setTestEmail] = useState('')
   const [testStatus, setTestStatus] = useState<
     'idle' | 'sending' | 'sent' | 'error'
   >('idle')
+  const [showTestField, setShowTestField] = useState(false)
   const upload = useUploadSequenceImage(organization.id)
 
+  // Lock body scroll while open + Esc / ⌘S shortcuts.
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault()
+        triggerSave(true)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = prev
+      window.removeEventListener('keydown', onKey)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onClose])
+
+  const persist = () => {
+    const html = renderBlocksToHtml(doc)
+    onChange({
+      ...step.value,
+      subject,
+      preview,
+      content_html: html,
+      content_json: doc as unknown as Record<string, unknown>,
+    })
+  }
+
+  const triggerSave = (close = false) => {
+    setSaveStatus('saving')
+    persist()
+    // Tiny artificial settle so the indicator visibly transitions.
+    window.setTimeout(() => {
+      setSaveStatus('saved')
+      if (close) {
+        window.setTimeout(onClose, 250)
+      } else {
+        window.setTimeout(() => setSaveStatus('idle'), 1800)
+      }
+    }, 300)
+  }
+
   return (
-    <Modal
-      open
-      onClose={onClose}
-      title={`Edit · ${step.value.subject}`}
-      width={820}
+    <div
+      className="modal-fade-in"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 200,
+        background: 'rgba(15,23,42,0.45)',
+        backdropFilter: 'blur(8px)',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
     >
       <div
         style={{
-          border: '1px solid var(--line)',
-          borderRadius: 12,
-          padding: 16,
-          marginBottom: 16,
-          maxHeight: '50vh',
-          overflowY: 'auto',
+          flexShrink: 0,
+          background: '#fff',
+          borderBottom: '1px solid var(--line)',
+          padding: '14px 24px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 16,
         }}
       >
-        <BlockEditor
-          doc={doc}
-          setDoc={setDoc}
-          uploadImage={async (file) => (await upload.mutateAsync(file)).url}
-        />
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 14,
+            minWidth: 0,
+            flex: 1,
+          }}
+        >
+          <button
+            type="button"
+            className="btn-icon"
+            onClick={onClose}
+            title="Close (Esc)"
+          >
+            <Icon name="x" size={16} />
+          </button>
+          <div style={{ height: 24, width: 1, background: 'var(--line)' }} />
+          <div style={{ minWidth: 0 }}>
+            <div className="eyebrow" style={{ marginBottom: 2 }}>
+              {sequenceName} · Email {String(emailNum).padStart(2, '0')}
+            </div>
+            <div
+              style={{
+                fontSize: 14.5,
+                color: 'var(--ink)',
+                fontWeight: 500,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                maxWidth: 480,
+              }}
+            >
+              {subject || 'Untitled email'}
+            </div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span
+            style={{
+              fontSize: 12,
+              color: saveStatus === 'saved' ? 'var(--green)' : 'var(--ink-3)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              transition: 'color 0.2s',
+            }}
+          >
+            <span
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: '50%',
+                background:
+                  saveStatus === 'saved' ? 'var(--green)' : 'var(--ink-4)',
+              }}
+            />
+            {saveStatus === 'saving'
+              ? 'Saving…'
+              : saveStatus === 'saved'
+                ? 'Saved'
+                : 'Auto-saving'}
+          </span>
+          {showTestField ? (
+            <>
+              <input
+                className="input"
+                type="email"
+                placeholder="you@example.com"
+                value={testEmail}
+                onChange={(e) => {
+                  setTestEmail(e.target.value)
+                  setTestStatus('idle')
+                }}
+                style={{ width: 200, fontSize: 12 }}
+              />
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                disabled={!testEmail.trim() || testStatus === 'sending'}
+                onClick={async () => {
+                  setTestStatus('sending')
+                  try {
+                    persist()
+                    await onSendTest(testEmail.trim())
+                    setTestStatus('sent')
+                  } catch {
+                    setTestStatus('error')
+                  }
+                }}
+              >
+                <Icon name="send" size={12} />
+                {testStatus === 'sending'
+                  ? 'Sending…'
+                  : testStatus === 'sent'
+                    ? 'Sent ✓'
+                    : testStatus === 'error'
+                      ? 'Failed'
+                      : 'Send'}
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => {
+                  setShowTestField(false)
+                  setTestStatus('idle')
+                }}
+              >
+                <Icon name="x" size={12} />
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => setShowTestField(true)}
+            >
+              <Icon name="send" size={12} />
+              Send test
+            </button>
+          )}
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            onClick={() => triggerSave(true)}
+          >
+            <Icon name="check" size={12} />
+            Save & update sequence
+          </button>
+        </div>
       </div>
+
       <div
         style={{
-          display: 'flex',
-          gap: 10,
-          alignItems: 'center',
-          paddingTop: 12,
-          borderTop: '1px solid var(--line)',
+          flex: 1,
+          overflow: 'auto',
+          background: '#f0f0f3',
+          padding: '24px 24px 48px',
         }}
       >
-        <input
-          className="input"
-          type="email"
-          placeholder="you@example.com"
-          value={testEmail}
-          onChange={(e) => {
-            setTestEmail(e.target.value)
-            setTestStatus('idle')
-          }}
-          style={{ flex: 1, minWidth: 0 }}
-        />
-        <button
-          type="button"
-          className="btn btn-secondary"
-          disabled={!testEmail.trim() || testStatus === 'sending'}
-          onClick={async () => {
-            setTestStatus('sending')
-            try {
-              const html = renderBlocksToHtml(doc)
-              onChange({
-                ...step.value,
-                content_html: html,
-                content_json: doc as unknown as Record<string, unknown>,
-              })
-              await onSendTest(testEmail.trim())
-              setTestStatus('sent')
-            } catch {
-              setTestStatus('error')
-            }
-          }}
-        >
-          <Icon name="send" size={12} />
-          {testStatus === 'sending'
-            ? 'Sending…'
-            : testStatus === 'sent'
-              ? 'Sent ✓'
-              : testStatus === 'error'
-                ? 'Failed'
-                : 'Send test'}
-        </button>
-        <div style={{ flex: 1 }} />
-        <button type="button" className="btn btn-secondary" onClick={onClose}>
-          Cancel
-        </button>
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={() => {
-            const html = renderBlocksToHtml(doc)
-            onChange({
-              ...step.value,
-              content_html: html,
-              content_json: doc as unknown as Record<string, unknown>,
-            })
-            onClose()
-          }}
-        >
-          Save changes
-        </button>
+        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+          <Composer
+            embedded
+            doc={doc}
+            setDoc={setDoc}
+            uploadImage={async (file) => (await upload.mutateAsync(file)).url}
+            sender={{
+              name: step.value.fromName,
+              email: step.value.fromEmail,
+            }}
+            subject={subject}
+            onSubjectChange={setSubject}
+            previewText={preview}
+            onPreviewTextChange={setPreview}
+          />
+        </div>
       </div>
-    </Modal>
+    </div>
   )
 }
 

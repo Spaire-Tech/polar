@@ -53,6 +53,7 @@ export const SequenceFlowPreview = ({
   trigger,
   onBack,
   onEdit,
+  onActivate,
   compact,
 }: {
   steps: StepNode[]
@@ -60,6 +61,7 @@ export const SequenceFlowPreview = ({
   trigger: string
   onBack: () => void
   onEdit: () => void
+  onActivate?: () => void
   compact?: boolean
 }) => {
   const triggerObj = TRIGGER_META[trigger] ?? TRIGGER_META.manual
@@ -116,10 +118,16 @@ export const SequenceFlowPreview = ({
               <Icon name="edit" size={12} />
               Back to form
             </button>
-            <button type="button" className="btn btn-primary">
-              <Icon name="zap" size={13} />
-              Activate
-            </button>
+            {onActivate && (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={onActivate}
+              >
+                <Icon name="zap" size={13} />
+                Activate
+              </button>
+            )}
           </div>
         </div>
       )}
