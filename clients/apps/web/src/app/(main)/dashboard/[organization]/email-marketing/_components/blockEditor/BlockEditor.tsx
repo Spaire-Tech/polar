@@ -1,4 +1,4 @@
-import { CSSProperties, useRef, useState } from 'react'
+import { CSSProperties, useEffect, useRef, useState } from 'react'
 import { Icon } from '../Icon'
 import {
   Block,
@@ -477,24 +477,45 @@ const ParagraphBody = ({
 }: {
   block: ParagraphBlock
   onChange: (next: Block) => void
-}) => (
-  <p
-    contentEditable
-    suppressContentEditableWarning
-    onBlur={(e) =>
-      onChange({ ...block, text: e.currentTarget.textContent ?? '' })
+}) => {
+  // We can't render `{block.text}` as a child of a contentEditable
+  // <p> — every parent re-render would replace the DOM and wipe the
+  // user's in-progress edits (and the line breaks they made with
+  // Enter). Instead we mount the text imperatively via a ref, only
+  // re-syncing the DOM when block.text changes from the outside
+  // (e.g. a duplicate / template insertion). innerText (vs.
+  // textContent) preserves the visible line breaks `<br>`/`<div>`
+  // splits introduce when the user hits Enter.
+  const ref = useRef<HTMLParagraphElement | null>(null)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    if ((el.innerText ?? '') !== (block.text ?? '')) {
+      el.innerText = block.text ?? ''
     }
-    style={{
-      fontSize: 14,
-      lineHeight: 1.65,
-      color: 'var(--ink-2)',
-      margin: 0,
-      outline: 'none',
-    }}
-  >
-    {block.text}
-  </p>
-)
+  }, [block.text])
+  return (
+    <p
+      ref={ref}
+      contentEditable
+      suppressContentEditableWarning
+      onInput={(e) =>
+        onChange({ ...block, text: e.currentTarget.innerText ?? '' })
+      }
+      onBlur={(e) =>
+        onChange({ ...block, text: e.currentTarget.innerText ?? '' })
+      }
+      style={{
+        fontSize: 14,
+        lineHeight: 1.65,
+        color: 'var(--ink-2)',
+        margin: 0,
+        outline: 'none',
+        whiteSpace: 'pre-wrap',
+      }}
+    />
+  )
+}
 
 const ButtonBody = ({
   block,

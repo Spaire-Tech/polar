@@ -477,6 +477,18 @@ const SequenceEditorInner = ({
     onBack()
   }
 
+  // All hooks must run on every render — the previewing branch's
+  // early return below would otherwise skip these and trip React's
+  // rules-of-hooks check, which is what was making the Preview-flow
+  // toggle and the email editor modal both look "dead" after a click.
+  const productsQuery = useProducts(organization.id, { limit: 100 })
+  const products = productsQuery.data?.items ?? []
+  const productOptions = products.map((p) => ({ id: p.id, label: p.name }))
+
+  const editingEmail = flow.steps.find(
+    (s) => s.id === editingEmailId && s.type === 'email',
+  ) as Extract<StepNode, { type: 'email' }> | undefined
+
   if (previewing) {
     return (
       <SequenceFlowPreview
@@ -489,15 +501,6 @@ const SequenceEditorInner = ({
       />
     )
   }
-
-  const triggerObj = TRIGGERS.find((t) => t.id === trigger) ?? TRIGGERS[0]
-  const productsQuery = useProducts(organization.id, { limit: 100 })
-  const products = productsQuery.data?.items ?? []
-  const productOptions = products.map((p) => ({ id: p.id, label: p.name }))
-
-  const editingEmail = flow.steps.find(
-    (s) => s.id === editingEmailId && s.type === 'email',
-  ) as Extract<StepNode, { type: 'email' }> | undefined
 
   return (
     <div className="fade-up" style={{ paddingBottom: 80 }}>
