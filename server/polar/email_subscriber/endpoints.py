@@ -204,6 +204,31 @@ async def delete_email_subscriber_permanently(
     await email_subscriber_service.delete_permanently(session, subscriber)
 
 
+@router.api_route("/unsubscribe", methods=["GET", "POST"], status_code=200)
+async def unsubscribe_email_subscriber(
+    sid: str = Query(..., description="Subscriber id from the email link."),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict[str, bool]:
+    """Public, no-auth unsubscribe endpoint.
+
+    Linked from the `List-Unsubscribe` header on every marketing email and
+    from the in-body Unsubscribe link. Accepts both GET (so the link in the
+    email works on click) and POST (so RFC 8058 one-click unsubscribe via
+    `List-Unsubscribe-Post: List-Unsubscribe=One-Click` works).
+
+    Idempotent — returns `{ ok: true }` whether or not the subscriber was
+    already unsubscribed.
+    """
+    if sid in ("", "preview", "test", "1"):
+        return {"ok": True}
+    try:
+        subscriber_id = UUID(sid)
+    except (ValueError, TypeError):
+        return {"ok": False}
+    ok = await email_subscriber_service.unsubscribe_by_id(session, subscriber_id)
+    return {"ok": ok}
+
+
 @router.post(
     "/segment-preview", response_model=EmailSubscriberFilterPreviewResult
 )

@@ -3,6 +3,7 @@ from uuid import UUID, uuid4
 import structlog
 from sqlalchemy import select
 
+from polar.config import settings
 from polar.email.react import render_email_template
 from polar.email.schemas import MarketingEmail, MarketingEmailProps
 from polar.email.sender import email_sender
@@ -125,7 +126,7 @@ async def send_emails(
 
             try:
                 unsubscribe_url = (
-                    f"https://space.spairehq.com/email/unsubscribe?sid={send.subscriber_id}"
+                    f"{settings.FRONTEND_BASE_URL}/email/unsubscribe?sid={send.subscriber_id}"
                 )
                 resend_email_id = await send_broadcast_email(
                     broadcast,

@@ -297,13 +297,16 @@ class EmailBroadcastService:
         meant to render the same template the worker will render and drop it
         into the requester's inbox.
         """
+        from polar.config import settings
         from polar.models.organization import Organization
 
         from .tasks import send_broadcast_email
 
         organization = await session.get(Organization, broadcast.organization_id)
+        # Test sends don't have a real subscriber id; the unsubscribe page
+        # treats `?test=1` as a no-op so the link still resolves cleanly.
         unsubscribe_url = (
-            "https://space.spairehq.com/email/unsubscribe?test=1"
+            f"{settings.FRONTEND_BASE_URL}/email/unsubscribe?test=1"
         )
         await send_broadcast_email(
             broadcast,

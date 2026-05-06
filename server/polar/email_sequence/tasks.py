@@ -3,6 +3,7 @@ from uuid import UUID
 
 import structlog
 
+from polar.config import settings
 from polar.email.react import render_email_template
 from polar.email.schemas import MarketingEmail, MarketingEmailProps
 from polar.email.sender import email_sender
@@ -102,7 +103,7 @@ async def send_sequence_step(enrollment_id: UUID) -> None:
         organization = await session.get(Organization, sequence.organization_id) if sequence else None
 
         unsubscribe_url = (
-            f"https://space.spairehq.com/email/unsubscribe?sid={enrollment.subscriber_id}"
+            f"{settings.FRONTEND_BASE_URL}/email/unsubscribe?sid={enrollment.subscriber_id}"
         )
 
         try:

@@ -303,6 +303,32 @@ class EmailSubscriberService:
             organization_id, filter_rules
         )
 
+    async def unsubscribe_by_id(
+        self,
+        session: AsyncSession,
+        subscriber_id: UUID,
+    ) -> bool:
+        """Public unsubscribe — used by List-Unsubscribe links in emails.
+
+        Returns True if a matching subscriber was found and is now
+        unsubscribed (idempotent — already-unsubscribed counts as success).
+        """
+        from polar.kit.utils import utc_now
+
+        repository = EmailSubscriberRepository.from_session(session)
+        statement = repository.get_base_statement().where(
+            EmailSubscriber.id == subscriber_id,
+            EmailSubscriber.deleted_at.is_(None),
+        )
+        subscriber = await repository.get_one_or_none(statement)
+        if subscriber is None:
+            return False
+        if subscriber.status != EmailSubscriberStatus.unsubscribed:
+            subscriber.status = EmailSubscriberStatus.unsubscribed
+            subscriber.unsubscribed_at = utc_now()
+            await repository.update(subscriber)
+        return True
+
     async def delete_permanently(
         self,
         session: AsyncSession,
