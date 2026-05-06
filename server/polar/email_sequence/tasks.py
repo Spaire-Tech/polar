@@ -8,15 +8,26 @@ from polar.email.react import render_email_template
 from polar.email.schemas import MarketingEmail, MarketingEmailProps
 from polar.email.sender import email_sender
 from polar.kit.utils import utc_now
-from polar.models.email_sequence import EmailSequenceStatus
+from polar.models.email_sequence import EmailSequence, EmailSequenceStatus
 from polar.models.email_sequence_enrollment import (
     EmailSequenceEnrollment,
     EmailSequenceEnrollmentStatus,
 )
-from polar.models.email_sequence_step_send import EmailSequenceStepSend, EmailSequenceStepSendStatus
+from polar.models.email_sequence_step import EmailSequenceStep
+from polar.models.email_sequence_step_send import (
+    EmailSequenceStepSend,
+    EmailSequenceStepSendStatus,
+)
 from polar.models.email_subscriber import EmailSubscriber, EmailSubscriberStatus
 from polar.models.organization import Organization
-from polar.worker import AsyncSessionMaker, CronTrigger, TaskPriority, actor, enqueue_job
+from polar.postgres import AsyncSession
+from polar.worker import (
+    AsyncSessionMaker,
+    CronTrigger,
+    TaskPriority,
+    actor,
+    enqueue_job,
+)
 
 log = structlog.get_logger()
 
@@ -25,7 +36,6 @@ log = structlog.get_logger()
 async def enroll_subscriber(sequence_id: UUID, subscriber_id: UUID) -> None:
     """Create an enrollment for a subscriber in a sequence."""
     from .service import AlreadyEnrolled, email_sequence as sequence_service
-    from polar.models.email_sequence import EmailSequence
 
     async with AsyncSessionMaker() as session:
         sequence = await session.get(EmailSequence, sequence_id)
@@ -68,12 +78,14 @@ async def process_due_enrollments() -> None:
 
 @actor(actor_name="email_sequence.send_step", priority=TaskPriority.MEDIUM)
 async def send_sequence_step(enrollment_id: UUID) -> None:
-    """Send the current step for an enrollment and advance it."""
-    from .repository import EmailSequenceRepository
+    """Advance an enrolment by one node.
 
+    Sequences with an authored flow_doc are walked by the flow_engine
+    (handles wait / branch / action / goal nodes too). Sequences without
+    one fall through to the legacy email-step walker so existing data
+    keeps working.
+    """
     async with AsyncSessionMaker() as session:
-        repository = EmailSequenceRepository.from_session(session)
-
         enrollment = await session.get(EmailSequenceEnrollment, enrollment_id)
         if enrollment is None or enrollment.status != EmailSequenceEnrollmentStatus.active:
             return
@@ -82,14 +94,8 @@ async def send_sequence_step(enrollment_id: UUID) -> None:
         if enrollment.next_step_at is None or enrollment.next_step_at > utc_now():
             return
 
-        step = await repository.get_step_by_position(
-            enrollment.sequence_id, enrollment.current_step_position
-        )
-        if step is None:
-            # No more steps — sequence complete
-            enrollment.status = EmailSequenceEnrollmentStatus.completed
-            enrollment.completed_at = utc_now()
-            enrollment.next_step_at = None
+        sequence = await session.get(EmailSequence, enrollment.sequence_id)
+        if sequence is None:
             return
 
         subscriber = await session.get(EmailSubscriber, enrollment.subscriber_id)
@@ -97,43 +103,217 @@ async def send_sequence_step(enrollment_id: UUID) -> None:
             enrollment.status = EmailSequenceEnrollmentStatus.cancelled
             return
 
-        from polar.models.email_sequence import EmailSequence
+        from .flow_engine import get_flow_doc, process_one_step
 
-        sequence = await session.get(EmailSequence, enrollment.sequence_id)
-        organization = await session.get(Organization, sequence.organization_id) if sequence else None
+        flow = get_flow_doc(sequence)
+        if flow is not None:
+            await _process_with_flow_engine(
+                session,
+                enrollment,
+                sequence,
+                subscriber,
+                process_one_step=process_one_step,
+            )
+            return
 
-        unsubscribe_url = (
-            f"{settings.FRONTEND_BASE_URL}/email/unsubscribe?sid={enrollment.subscriber_id}"
+        # — Legacy path: walk EmailSequenceStep rows in order —
+        await _process_legacy(session, enrollment, sequence, subscriber)
+
+
+async def _process_with_flow_engine(
+    session: AsyncSession,
+    enrollment: EmailSequenceEnrollment,
+    sequence: EmailSequence,
+    subscriber: EmailSubscriber,
+    *,
+    process_one_step,
+) -> None:
+    organization = await session.get(Organization, sequence.organization_id)
+
+    async def _send(
+        _seq: EmailSequence,
+        enr: EmailSequenceEnrollment,
+        value: dict,
+    ) -> None:
+        await _send_email_node(
+            session,
+            sequence=sequence,
+            enrollment=enr,
+            subscriber=subscriber,
+            organization=organization,
+            email_value=value,
         )
 
-        try:
-            wrapped_html = render_email_template(
-                MarketingEmail(
-                    props=MarketingEmailProps(
-                        organization_name=organization.name if organization else step.sender_name,
-                        organization_logo_url=organization.avatar_url if organization else None,
-                        organization_website=organization.website if organization else None,
-                        html_content=step.content_html or "<p>No content</p>",
-                        unsubscribe_url=unsubscribe_url,
-                    )
+    await process_one_step(
+        session,
+        enrollment,
+        sequence,
+        send_email_node=_send,
+    )
+
+
+async def _process_legacy(
+    session: AsyncSession,
+    enrollment: EmailSequenceEnrollment,
+    sequence: EmailSequence,
+    subscriber: EmailSubscriber,
+) -> None:
+    from .repository import EmailSequenceRepository
+    from .service import apply_send_window
+
+    repository = EmailSequenceRepository.from_session(session)
+
+    step = await repository.get_step_by_position(
+        enrollment.sequence_id, enrollment.current_step_position
+    )
+    if step is None:
+        enrollment.status = EmailSequenceEnrollmentStatus.completed
+        enrollment.completed_at = utc_now()
+        enrollment.next_step_at = None
+        return
+
+    organization = await session.get(Organization, sequence.organization_id)
+    await _send_email_step(
+        session,
+        sequence=sequence,
+        enrollment=enrollment,
+        subscriber=subscriber,
+        organization=organization,
+        step=step,
+    )
+
+    next_position = enrollment.current_step_position + 1
+    next_step = await repository.get_step_by_position(
+        enrollment.sequence_id, next_position
+    )
+
+    if next_step is None:
+        enrollment.status = EmailSequenceEnrollmentStatus.completed
+        enrollment.completed_at = utc_now()
+        enrollment.next_step_at = None
+    else:
+        enrollment.current_step_position = next_position
+        candidate = utc_now() + timedelta(hours=next_step.delay_hours)
+        enrollment.next_step_at = apply_send_window(
+            candidate, sequence.trigger_config
+        )
+
+
+# ── Email send helpers ────────────────────────────────────────────────────────
+
+
+def _email_ordinal_for_flow_index(flow: dict, index: int) -> int:
+    """Number of email nodes appearing at indices < `index`."""
+    steps = flow.get("steps") or []
+    count = 0
+    for i in range(min(index, len(steps))):
+        node = steps[i]
+        if isinstance(node, dict) and node.get("type") == "email":
+            count += 1
+    return count
+
+
+async def _send_email_node(
+    session: AsyncSession,
+    *,
+    sequence: EmailSequence,
+    enrollment: EmailSequenceEnrollment,
+    subscriber: EmailSubscriber,
+    organization: Organization | None,
+    email_value: dict,
+) -> None:
+    """Send an email node from the flow_doc.
+
+    Looks up the corresponding EmailSequenceStep row by email-ordinal so
+    analytics, send-test and step-send rows continue to tie back to the
+    same step ids the editor already manages.
+    """
+    from .flow_engine import get_flow_doc
+    from .repository import EmailSequenceRepository
+
+    repository = EmailSequenceRepository.from_session(session)
+    flow = get_flow_doc(sequence)
+    cursor = enrollment.flow_index if enrollment.flow_index is not None else 0
+    ordinal = (
+        _email_ordinal_for_flow_index(flow, cursor) if flow is not None else 0
+    )
+    step = await repository.get_step_by_position(sequence.id, ordinal)
+    if step is None:
+        # Materialized step row missing — synthesise a best-effort send from
+        # the flow node so authors can still ship even if syncEmailSteps
+        # hasn't run. step_id is required for step_send rows so we skip the
+        # send analytics row in this case and just deliver the email.
+        await _send_inline(
+            sequence=sequence,
+            enrollment=enrollment,
+            subscriber=subscriber,
+            organization=organization,
+            subject=email_value.get("subject") or "(no subject)",
+            sender_name=email_value.get("fromName") or (organization.name if organization else "Spaire"),
+            sender_email=email_value.get("fromEmail"),
+            content_html=email_value.get("content_html") or _fallback_html(email_value),
+        )
+        # Bump current_step_position so legacy analytics keep marching forward.
+        enrollment.current_step_position = ordinal + 1
+        return
+
+    await _send_email_step(
+        session,
+        sequence=sequence,
+        enrollment=enrollment,
+        subscriber=subscriber,
+        organization=organization,
+        step=step,
+    )
+    enrollment.current_step_position = ordinal + 1
+
+
+async def _send_email_step(
+    session: AsyncSession,
+    *,
+    sequence: EmailSequence,
+    enrollment: EmailSequenceEnrollment,
+    subscriber: EmailSubscriber,
+    organization: Organization | None,
+    step: EmailSequenceStep,
+) -> None:
+    unsubscribe_url = (
+        f"{settings.FRONTEND_BASE_URL}/email/unsubscribe?sid={enrollment.subscriber_id}"
+    )
+    try:
+        wrapped_html = render_email_template(
+            MarketingEmail(
+                props=MarketingEmailProps(
+                    organization_name=organization.name
+                    if organization
+                    else step.sender_name,
+                    organization_logo_url=organization.avatar_url
+                    if organization
+                    else None,
+                    organization_website=organization.website
+                    if organization
+                    else None,
+                    html_content=step.content_html or "<p>No content</p>",
+                    unsubscribe_url=unsubscribe_url,
                 )
             )
-
-            resend_email_id = await email_sender.send(
-                to_email_addr=subscriber.email,
-                subject=step.subject,
-                html_content=wrapped_html,
-                from_name=step.sender_name,
-                from_email_addr=step.sender_email or f"noreply@notifications.spairehq.com",
-                email_headers={
-                    "List-Unsubscribe": f"<{unsubscribe_url}>",
-                    "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-                },
-                reply_to_name=step.sender_name if step.reply_to_email else None,
-                reply_to_email_addr=step.reply_to_email,
-            )
-
-            step_send = EmailSequenceStepSend(
+        )
+        resend_email_id = await email_sender.send(
+            to_email_addr=subscriber.email,
+            subject=step.subject,
+            html_content=wrapped_html,
+            from_name=step.sender_name,
+            from_email_addr=step.sender_email
+            or "noreply@notifications.spairehq.com",
+            email_headers={
+                "List-Unsubscribe": f"<{unsubscribe_url}>",
+                "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+            },
+            reply_to_name=step.sender_name if step.reply_to_email else None,
+            reply_to_email_addr=step.reply_to_email,
+        )
+        session.add(
+            EmailSequenceStepSend(
                 enrollment_id=enrollment.id,
                 step_id=step.id,
                 subscriber_id=enrollment.subscriber_id,
@@ -141,38 +321,73 @@ async def send_sequence_step(enrollment_id: UUID) -> None:
                 status=EmailSequenceStepSendStatus.sent,
                 sent_at=utc_now(),
             )
-            session.add(step_send)
-
-        except Exception:
-            log.exception(
-                "email_sequence.send_step_failed",
-                enrollment_id=str(enrollment_id),
-                step_id=str(step.id),
-            )
-            step_send = EmailSequenceStepSend(
+        )
+    except Exception:
+        log.exception(
+            "email_sequence.send_step_failed",
+            enrollment_id=str(enrollment.id),
+            step_id=str(step.id),
+        )
+        session.add(
+            EmailSequenceStepSend(
                 enrollment_id=enrollment.id,
                 step_id=step.id,
                 subscriber_id=enrollment.subscriber_id,
                 status=EmailSequenceStepSendStatus.failed,
             )
-            session.add(step_send)
-            return
-
-        # Advance enrollment to next step
-        next_position = enrollment.current_step_position + 1
-        next_step = await repository.get_step_by_position(
-            enrollment.sequence_id, next_position
         )
 
-        if next_step is None:
-            enrollment.status = EmailSequenceEnrollmentStatus.completed
-            enrollment.completed_at = utc_now()
-            enrollment.next_step_at = None
-        else:
-            from .service import apply_send_window
 
-            enrollment.current_step_position = next_position
-            candidate = utc_now() + timedelta(hours=next_step.delay_hours)
-            enrollment.next_step_at = apply_send_window(
-                candidate, sequence.trigger_config if sequence else None
+async def _send_inline(
+    *,
+    sequence: EmailSequence,
+    enrollment: EmailSequenceEnrollment,
+    subscriber: EmailSubscriber,
+    organization: Organization | None,
+    subject: str,
+    sender_name: str,
+    sender_email: str | None,
+    content_html: str,
+) -> None:
+    unsubscribe_url = (
+        f"{settings.FRONTEND_BASE_URL}/email/unsubscribe?sid={enrollment.subscriber_id}"
+    )
+    try:
+        wrapped_html = render_email_template(
+            MarketingEmail(
+                props=MarketingEmailProps(
+                    organization_name=organization.name if organization else sender_name,
+                    organization_logo_url=organization.avatar_url
+                    if organization
+                    else None,
+                    organization_website=organization.website
+                    if organization
+                    else None,
+                    html_content=content_html,
+                    unsubscribe_url=unsubscribe_url,
+                )
             )
+        )
+        await email_sender.send(
+            to_email_addr=subscriber.email,
+            subject=subject,
+            html_content=wrapped_html,
+            from_name=sender_name,
+            from_email_addr=sender_email or "noreply@notifications.spairehq.com",
+            email_headers={
+                "List-Unsubscribe": f"<{unsubscribe_url}>",
+                "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+            },
+        )
+    except Exception:
+        log.exception(
+            "email_sequence.send_flow_node_failed",
+            enrollment_id=str(enrollment.id),
+            sequence_id=str(sequence.id),
+        )
+
+
+def _fallback_html(email_value: dict) -> str:
+    subject = (email_value.get("subject") or "").replace("<", "&lt;")
+    preview = (email_value.get("preview") or "").replace("<", "&lt;")
+    return f"<h2>{subject}</h2><p>{preview}</p>"

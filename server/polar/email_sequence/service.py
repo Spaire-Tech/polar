@@ -364,12 +364,30 @@ class EmailSequenceService:
             raise AlreadyEnrolled()
 
         now = utc_now()
-        first_send = apply_send_window(now, sequence.trigger_config)
+        # If the sequence ships an authored flow_doc, the worker walks that
+        # tree via flow_index. The initial next_step_at honours an opening
+        # wait node so first emails don't fire mid-night for time-of-day
+        # gated flows.
+        from .flow_engine import (
+            get_flow_doc,
+            initial_flow_index,
+            initial_send_at,
+        )
+
+        flow = get_flow_doc(sequence)
+        flow_index: int | None = None
+        if flow is not None:
+            flow_index = initial_flow_index(flow)
+            first_send = initial_send_at(flow, sequence.trigger_config, now=now)
+        else:
+            first_send = apply_send_window(now, sequence.trigger_config)
+
         enrollment = EmailSequenceEnrollment(
             sequence_id=sequence.id,
             subscriber_id=subscriber_id,
             status=EmailSequenceEnrollmentStatus.active,
             current_step_position=0,
+            flow_index=flow_index,
             enrolled_at=now,
             next_step_at=first_send,
         )
