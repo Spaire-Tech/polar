@@ -12,6 +12,7 @@ from polar.models import UserOrganization
 from polar.models.course import Course
 from polar.models.course_enrollment import CourseEnrollment
 from polar.models.course_lesson import CourseLesson
+from polar.models.course_lesson_bookmark import CourseLessonBookmark
 from polar.models.course_lesson_progress import CourseLessonProgress
 from polar.models.course_module import CourseModule
 from polar.models.course_note import CourseNote
@@ -187,6 +188,27 @@ class LessonCommentRepository(
         return self.get_base_statement().where(
             LessonComment.enrollment_id == enrollment_id,
             LessonComment.lesson_id == lesson_id,
+        )
+
+
+class CourseLessonBookmarkRepository(
+    RepositorySoftDeletionIDMixin[CourseLessonBookmark, UUID],
+    RepositorySoftDeletionMixin[CourseLessonBookmark],
+    RepositoryBase[CourseLessonBookmark],
+):
+    model = CourseLessonBookmark
+
+    def get_by_enrollment_statement(self, enrollment_id: UUID):
+        return self.get_base_statement().where(
+            CourseLessonBookmark.enrollment_id == enrollment_id
+        )
+
+    def get_by_enrollment_and_lesson_statement(
+        self, enrollment_id: UUID, lesson_id: UUID
+    ):
+        return self.get_base_statement().where(
+            CourseLessonBookmark.enrollment_id == enrollment_id,
+            CourseLessonBookmark.lesson_id == lesson_id,
         )
 
 

@@ -438,6 +438,30 @@ export function LessonDetail({
                 </button>
               </div>
             </Card>
+
+            <Card>
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold text-gray-900">Automations</h3>
+                <button
+                  type="button"
+                  className="flex items-center gap-1.5 rounded-full bg-gray-900 px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:bg-gray-800"
+                >
+                  <AddOutlined sx={{ fontSize: 16 }} />
+                  New automation
+                </button>
+              </div>
+              <p className="mt-4 text-sm text-gray-500">
+                Automations using this{' '}
+                <span className="font-semibold text-gray-900">
+                  {edits.title}
+                </span>{' '}
+                will appear here.
+              </p>
+              <p className="mt-12 text-center text-sm text-gray-400">
+                This resource is not used as a trigger or action within any
+                workflow.
+              </p>
+            </Card>
           </div>
         </div>
 

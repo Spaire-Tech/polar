@@ -11,14 +11,14 @@ log = logging.getLogger(__name__)
 from polar.auth.models import is_customer, is_member
 from polar.course.repository import CourseLessonRepository
 from polar.course.schemas import (
-    CourseLessonFlatRead,
-    CourseLandingPageRead,
     CourseNoteRead,
     CourseNoteUpsert,
     CourseProgressRead,
+    LessonBookmarkRead,
     LessonCommentAuthor,
     LessonCommentCreate,
     LessonCommentRead,
+    LessonProgressUpsert,
     QuizAnswerResult,
     QuizAttemptResult,
     QuizAttemptSubmission,
@@ -57,6 +57,7 @@ def _serialize_lesson(lesson, completed_ids: set[str]) -> dict:
             lesson, "thumbnail_object_position", None
         ),
         "completed": str(lesson.id) in completed_ids,
+        "comments_mode": getattr(lesson, "comments_mode", "visible"),
     }
 
 
@@ -210,7 +211,11 @@ async def list_enrolled_courses(
     for enrollment in enrollments:
         course = enrollment.course
         progress_items = progress_by_enrollment.get(enrollment.id, [])
-        completed_ids = {str(p.lesson_id) for p in progress_items}
+        completed_ids = {
+            str(p.lesson_id)
+            for p in progress_items
+            if p.completed_at is not None
+        }
 
         # Use the same accessibility logic as the detail endpoint so progress
         # lines up between list and detail views.
@@ -242,10 +247,13 @@ async def list_enrolled_courses(
         completed_at: str | None = None
         if total_lessons > 0 and completed_count == total_lessons:
             relevant = [
-                p for p in progress_items if str(p.lesson_id) in accessible_ids
+                p
+                for p in progress_items
+                if str(p.lesson_id) in accessible_ids and p.completed_at is not None
             ]
             if relevant:
-                completed_at = max(p.completed_at for p in relevant).isoformat()
+                latest = max(p.completed_at for p in relevant if p.completed_at)
+                completed_at = latest.isoformat() if latest else None
 
         # Thumbnail: prefer course's own thumbnail, else fall back to the
         # first uploaded product media so the customer portal always shows
@@ -312,7 +320,9 @@ async def get_enrolled_course(
     progress_items = await course_service.get_progress_for_enrollment(
         session, enrollment_id=enrollment.id
     )
-    completed_ids = {str(p.lesson_id) for p in progress_items}
+    completed_ids = {
+        str(p.lesson_id) for p in progress_items if p.completed_at is not None
+    }
 
     course = enrollment.course
     now = datetime.now(tz=UTC)
@@ -497,7 +507,9 @@ async def get_course_progress(
     )
     course = enrollment.course
     now = datetime.now(tz=UTC)
-    completed_ids = {str(p.lesson_id) for p in progress_items}
+    completed_ids = {
+        str(p.lesson_id) for p in progress_items if p.completed_at is not None
+    }
 
     # Use the flat lesson list logic so progress matches the flat lesson list response
     _, accessible_ids = _build_flat_lesson_list(
@@ -515,7 +527,14 @@ async def get_course_progress(
         completed_lessons=completed,
         completion_percent=round(completed / total * 100, 1) if total else 0.0,
         completed={
-            str(p.lesson_id): p.completed_at.isoformat() for p in progress_items
+            str(p.lesson_id): p.completed_at.isoformat()
+            for p in progress_items
+            if p.completed_at is not None
+        },
+        last_position_seconds={
+            str(p.lesson_id): p.last_position_seconds
+            for p in progress_items
+            if p.last_position_seconds is not None
         },
     )
 
@@ -563,7 +582,11 @@ async def get_course_landing(
         progress_items = await course_service.get_progress_for_enrollment(
             session, enrollment_id=enrollment.id
         )
-        completed_ids = {str(p.lesson_id) for p in progress_items}
+        completed_ids = {
+            str(p.lesson_id)
+            for p in progress_items
+            if p.completed_at is not None
+        }
         flat_lessons, _ = _build_flat_lesson_list(
             course, course.paywall_position, enrollment.enrolled_at, now, completed_ids
         )
@@ -959,3 +982,94 @@ async def delete_lesson_note(
     if note is None:
         return
     await course_service.delete_lesson_note(session, note)
+
+
+# ── Bookmarks ──────────────────────────────────────────────────────────────
+
+
+@router.get(
+    "/{course_id}/bookmarks",
+    response_model=list[LessonBookmarkRead],
+    summary="List Course Bookmarks",
+)
+async def list_course_bookmarks(
+    course_id: UUID,
+    auth_subject: auth.CustomerPortalUnionRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> list[LessonBookmarkRead]:
+    customer_id = get_customer_id(auth_subject)
+    enrollment = await course_service.get_enrollment_for_customer(
+        session, customer_id, course_id
+    )
+    if enrollment is None:
+        raise HTTPException(status_code=404, detail="Course not found or not enrolled")
+    bookmarks = await course_service.list_bookmarks(session, enrollment.id)
+    return [LessonBookmarkRead(lesson_id=b.lesson_id) for b in bookmarks]
+
+
+@router.put(
+    "/{course_id}/lessons/{lesson_id}/bookmark",
+    response_model=LessonBookmarkRead,
+    summary="Add Lesson Bookmark",
+)
+async def add_lesson_bookmark(
+    course_id: UUID,
+    lesson_id: UUID,
+    auth_subject: auth.CustomerPortalUnionRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> LessonBookmarkRead:
+    customer_id = get_customer_id(auth_subject)
+    enrollment, _ = await _verify_lesson_in_enrolled_course(
+        session, customer_id, course_id, lesson_id
+    )
+    bookmark = await course_service.set_bookmark(
+        session, enrollment_id=enrollment.id, lesson_id=lesson_id
+    )
+    return LessonBookmarkRead(lesson_id=bookmark.lesson_id)
+
+
+@router.delete(
+    "/{course_id}/lessons/{lesson_id}/bookmark",
+    status_code=204,
+    summary="Remove Lesson Bookmark",
+)
+async def delete_lesson_bookmark(
+    course_id: UUID,
+    lesson_id: UUID,
+    auth_subject: auth.CustomerPortalUnionRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> None:
+    customer_id = get_customer_id(auth_subject)
+    enrollment, _ = await _verify_lesson_in_enrolled_course(
+        session, customer_id, course_id, lesson_id
+    )
+    await course_service.delete_bookmark(
+        session, enrollment_id=enrollment.id, lesson_id=lesson_id
+    )
+
+
+# ── Position ───────────────────────────────────────────────────────────────
+
+
+@router.put(
+    "/{course_id}/lessons/{lesson_id}/position",
+    status_code=204,
+    summary="Update Lesson Watch Position",
+)
+async def update_lesson_position(
+    course_id: UUID,
+    lesson_id: UUID,
+    payload: LessonProgressUpsert,
+    auth_subject: auth.CustomerPortalUnionRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> None:
+    customer_id = get_customer_id(auth_subject)
+    enrollment, _ = await _verify_lesson_in_enrolled_course(
+        session, customer_id, course_id, lesson_id
+    )
+    await course_service.upsert_lesson_position(
+        session,
+        enrollment_id=enrollment.id,
+        lesson_id=lesson_id,
+        last_position_seconds=payload.last_position_seconds,
+    )

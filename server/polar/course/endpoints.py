@@ -540,9 +540,10 @@ async def upload_course_landing_media(
     file: UploadFile = File(...),
     session: AsyncSession = Depends(get_db_session),
 ) -> dict[str, str]:
+    from uuid import uuid4
+
     from polar.config import settings
     from polar.integrations.aws.s3 import S3Service
-    from uuid import uuid4
 
     repo = CourseRepository.from_session(session)
     course = await repo.get_readable_by_id(course_id, auth_subject)

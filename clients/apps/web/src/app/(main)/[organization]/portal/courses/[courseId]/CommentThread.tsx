@@ -69,10 +69,12 @@ export function CommentThread({
   token,
   courseId,
   lessonId,
+  readOnly = false,
 }: {
   token: string
   courseId: string
   lessonId: string
+  readOnly?: boolean
 }) {
   const { data: comments = [], isLoading } = useLessonComments(
     token,
@@ -133,69 +135,86 @@ export function CommentThread({
       </div>
 
       {/* Composer */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 28 }}>
-        <Avatar name="You" size={40} />
-        <div style={{ flex: 1 }}>
-          <input
-            type="text"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onFocus={() => setFocused(true)}
-            placeholder="Add a comment…"
-            style={{
-              width: '100%',
-              background: 'transparent',
-              border: 'none',
-              borderBottom: `1px solid ${
-                focused ? COLORS.accent : COLORS.line
-              }`,
-              padding: '10px 0',
-              color: COLORS.fg0,
-              fontSize: 14,
-              outline: 'none',
-              transition: 'border-color 150ms ease',
-              fontFamily: fontStack,
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') submitTopLevel()
-              if (e.key === 'Escape') {
-                setDraft('')
-                setFocused(false)
-              }
-            }}
-          />
-          {(focused || draft) && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginTop: 12,
-              }}
-            >
-              <span style={{ fontSize: 11.5, color: COLORS.fg3 }}>
-                Be kind. Specific feedback helps everyone.
-              </span>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <BtnGhost
-                  onClick={() => {
-                    setDraft('')
-                    setFocused(false)
-                  }}
-                >
-                  Cancel
-                </BtnGhost>
-                <BtnPrimary
-                  onClick={submitTopLevel}
-                  disabled={!draft.trim() || create.isPending}
-                >
-                  {create.isPending ? 'Posting…' : 'Comment'}
-                </BtnPrimary>
-              </div>
-            </div>
-          )}
+      {readOnly ? (
+        <div
+          style={{
+            marginBottom: 28,
+            padding: '12px 14px',
+            border: `1px solid ${COLORS.line}`,
+            borderRadius: 10,
+            fontSize: 13,
+            color: COLORS.fg3,
+            background: 'transparent',
+          }}
+        >
+          Comments are locked for this lesson. You can read existing replies but
+          new comments are disabled.
         </div>
-      </div>
+      ) : (
+        <div style={{ display: 'flex', gap: 12, marginBottom: 28 }}>
+          <Avatar name="You" size={40} />
+          <div style={{ flex: 1 }}>
+            <input
+              type="text"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onFocus={() => setFocused(true)}
+              placeholder="Add a comment…"
+              style={{
+                width: '100%',
+                background: 'transparent',
+                border: 'none',
+                borderBottom: `1px solid ${
+                  focused ? COLORS.accent : COLORS.line
+                }`,
+                padding: '10px 0',
+                color: COLORS.fg0,
+                fontSize: 14,
+                outline: 'none',
+                transition: 'border-color 150ms ease',
+                fontFamily: fontStack,
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') submitTopLevel()
+                if (e.key === 'Escape') {
+                  setDraft('')
+                  setFocused(false)
+                }
+              }}
+            />
+            {(focused || draft) && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginTop: 12,
+                }}
+              >
+                <span style={{ fontSize: 11.5, color: COLORS.fg3 }}>
+                  Be kind. Specific feedback helps everyone.
+                </span>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <BtnGhost
+                    onClick={() => {
+                      setDraft('')
+                      setFocused(false)
+                    }}
+                  >
+                    Cancel
+                  </BtnGhost>
+                  <BtnPrimary
+                    onClick={submitTopLevel}
+                    disabled={!draft.trim() || create.isPending}
+                  >
+                    {create.isPending ? 'Posting…' : 'Comment'}
+                  </BtnPrimary>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* List */}
       {isLoading ? (
@@ -221,6 +240,7 @@ export function CommentThread({
               onSubmitReply={submitReply}
               onDelete={(id) => del.mutate(id)}
               isPosting={create.isPending}
+              readOnly={readOnly}
             />
           ))}
         </div>
@@ -239,6 +259,7 @@ function CommentItem({
   onSubmitReply,
   onDelete,
   isPosting,
+  readOnly = false,
 }: {
   comment: CommentNode
   depth: number
@@ -249,6 +270,7 @@ function CommentItem({
   onSubmitReply: (parentId: string) => void
   onDelete: (id: string) => void
   isPosting: boolean
+  readOnly?: boolean
 }) {
   const showReplyBox = activeReplyId === comment.id
   const [liked, setLiked] = useState(false)
@@ -326,7 +348,7 @@ function CommentItem({
           >
             <ThumbDownOutlined sx={{ fontSize: 16 }} />
           </button>
-          {depth < 2 && (
+          {depth < 2 && !readOnly && (
             <button
               type="button"
               onClick={() => onReply(comment.id)}

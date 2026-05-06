@@ -463,6 +463,7 @@ export type CustomerLessonRead = {
   description?: string | null
   locked?: boolean
   locked_until?: string | null
+  comments_mode?: 'visible' | 'hidden' | 'locked'
 }
 
 export type CustomerModuleRead = {
@@ -480,6 +481,7 @@ export type CustomerCourseProgress = {
   completed_lessons: number
   completion_percent: number
   completed: Record<string, string>
+  last_position_seconds?: Record<string, number>
 }
 
 export type CustomerCourseDetail = {
@@ -926,4 +928,76 @@ export const useUpsertLessonNote = (
         queryKey: ['lesson-note', token, courseId, lessonId],
       })
     },
+  })
+
+// ── Bookmarks ────────────────────────────────────────────────────────────
+
+export interface LessonBookmarkRead {
+  lesson_id: string
+}
+
+export const useCourseBookmarks = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+) =>
+  useQuery<Set<string>>({
+    queryKey: ['course-bookmarks', token, courseId],
+    queryFn: async () => {
+      const items = await portalApiFetch<LessonBookmarkRead[]>(
+        `/v1/customer-portal/courses/${courseId}/bookmarks`,
+        token!,
+      )
+      return new Set(items.map((b) => b.lesson_id))
+    },
+    enabled: !!token && !!courseId,
+  })
+
+export const useToggleLessonBookmark = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+) =>
+  useMutation({
+    mutationFn: ({
+      lessonId,
+      bookmarked,
+    }: {
+      lessonId: string
+      bookmarked: boolean
+    }) =>
+      portalApiFetch<LessonBookmarkRead | void>(
+        `/v1/customer-portal/courses/${courseId}/lessons/${lessonId}/bookmark`,
+        token!,
+        { method: bookmarked ? 'PUT' : 'DELETE' },
+      ),
+    onSuccess: () => {
+      getQueryClient().invalidateQueries({
+        queryKey: ['course-bookmarks', token, courseId],
+      })
+    },
+  })
+
+// ── Watch position ───────────────────────────────────────────────────────
+
+export const useUpdateLessonPosition = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+) =>
+  useMutation({
+    mutationFn: ({
+      lessonId,
+      lastPositionSeconds,
+    }: {
+      lessonId: string
+      lastPositionSeconds: number
+    }) =>
+      portalApiFetch<void>(
+        `/v1/customer-portal/courses/${courseId}/lessons/${lessonId}/position`,
+        token!,
+        {
+          method: 'PUT',
+          body: JSON.stringify({
+            last_position_seconds: Math.max(0, Math.floor(lastPositionSeconds)),
+          }),
+        },
+      ),
   })

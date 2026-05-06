@@ -1,8 +1,7 @@
-from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import TIMESTAMP, ForeignKey, Integer, UniqueConstraint, Uuid
+from sqlalchemy import ForeignKey, UniqueConstraint, Uuid
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
 
 from polar.kit.db.models import RecordModel
@@ -12,8 +11,8 @@ if TYPE_CHECKING:
     from polar.models.course_lesson import CourseLesson
 
 
-class CourseLessonProgress(RecordModel):
-    __tablename__ = "course_lesson_progress"
+class CourseLessonBookmark(RecordModel):
+    __tablename__ = "course_lesson_bookmarks"
     __table_args__ = (UniqueConstraint("enrollment_id", "lesson_id"),)
 
     enrollment_id: Mapped[UUID] = mapped_column(
@@ -28,16 +27,6 @@ class CourseLessonProgress(RecordModel):
         ForeignKey("course_lessons.id", ondelete="cascade"),
         nullable=False,
         index=True,
-    )
-
-    completed_at: Mapped[datetime | None] = mapped_column(
-        TIMESTAMP(timezone=True),
-        nullable=True,
-        default=None,
-    )
-
-    last_position_seconds: Mapped[int | None] = mapped_column(
-        Integer, nullable=True, default=None
     )
 
     @declared_attr

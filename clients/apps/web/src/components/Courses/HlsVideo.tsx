@@ -11,6 +11,8 @@ export const HlsVideo = ({
   autoPlay = false,
   muted = false,
   loop = false,
+  startAtSeconds,
+  onTimeUpdate,
 }: {
   playbackId: string
   poster?: string | null
@@ -19,13 +21,17 @@ export const HlsVideo = ({
   autoPlay?: boolean
   muted?: boolean
   loop?: boolean
+  startAtSeconds?: number
+  onTimeUpdate?: (currentTime: number) => void
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null)
+  const seekedRef = useRef(false)
 
   useEffect(() => {
     const video = videoRef.current
     if (!video) return
     const src = `https://stream.mux.com/${playbackId}.m3u8`
+    seekedRef.current = false
 
     if (video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = src
@@ -61,6 +67,23 @@ export const HlsVideo = ({
       loop={loop}
       playsInline
       poster={poster ?? undefined}
+      onLoadedMetadata={() => {
+        const v = videoRef.current
+        if (!v || seekedRef.current) return
+        if (
+          startAtSeconds &&
+          startAtSeconds > 0 &&
+          startAtSeconds < v.duration
+        ) {
+          v.currentTime = startAtSeconds
+        }
+        seekedRef.current = true
+      }}
+      onTimeUpdate={
+        onTimeUpdate
+          ? (e) => onTimeUpdate(e.currentTarget.currentTime)
+          : undefined
+      }
       className={twMerge('h-full w-full', className)}
     />
   )

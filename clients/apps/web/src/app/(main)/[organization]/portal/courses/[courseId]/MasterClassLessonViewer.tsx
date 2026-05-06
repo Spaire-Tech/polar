@@ -3,7 +3,13 @@
 import { HlsVideo } from '@/components/Courses/HlsVideo'
 import { QuizPlayer } from '@/components/Courses/QuizPlayer'
 import { MemoizedMarkdown } from '@/components/Markdown/MemoizedMarkdown'
-import { useLessonNote, useUpsertLessonNote } from '@/hooks/queries/courses'
+import {
+  useCourseBookmarks,
+  useLessonNote,
+  useToggleLessonBookmark,
+  useUpdateLessonPosition,
+  useUpsertLessonNote,
+} from '@/hooks/queries/courses'
 import Bookmark from '@mui/icons-material/Bookmark'
 import BookmarkBorderOutlined from '@mui/icons-material/BookmarkBorderOutlined'
 import DownloadOutlined from '@mui/icons-material/DownloadOutlined'
@@ -26,6 +32,7 @@ export interface MasterClassLessonViewerProps {
     mux_status?: string | null
     completed: boolean
     content?: Record<string, unknown> | null
+    comments_mode?: 'visible' | 'hidden' | 'locked'
   }
   lessonIndex: number
   totalLessons: number
@@ -45,6 +52,7 @@ export interface MasterClassLessonViewerProps {
   instructorAvatarUrl: string | null
   totalDurationSeconds: number
   isPending: boolean
+  initialPositionSeconds?: number | null
   onBack: () => void
   onSelectLesson: (lessonId: string) => void
   onMarkComplete: () => void
@@ -84,6 +92,7 @@ export const MasterClassLessonViewer = ({
   instructorAvatarUrl,
   totalDurationSeconds,
   isPending: _isPending,
+  initialPositionSeconds,
   onBack,
   onSelectLesson,
   onMarkComplete,
@@ -94,16 +103,32 @@ export const MasterClassLessonViewer = ({
   const [playing, setPlaying] = useState(false)
   const [activeTab, setActiveTab] = useState<'lessons' | 'notes'>('lessons')
   const [noteText, setNoteText] = useState('')
-  const [bookmarked, setBookmarked] = useState(false)
   const [shareCopied, setShareCopied] = useState(false)
   const noteDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const { data: savedNote } = useLessonNote(token, courseId, lesson.id)
   const upsertNote = useUpsertLessonNote(token, courseId, lesson.id)
+  const { data: bookmarkedIds } = useCourseBookmarks(token, courseId)
+  const toggleBookmark = useToggleLessonBookmark(token, courseId)
+  const updatePosition = useUpdateLessonPosition(token, courseId)
+  const bookmarked = bookmarkedIds?.has(lesson.id) ?? false
+
+  const positionThrottleRef = useRef<number>(0)
+  const reportPosition = (seconds: number) => {
+    if (!Number.isFinite(seconds)) return
+    const now = Date.now()
+    if (now - positionThrottleRef.current < 5000) return
+    positionThrottleRef.current = now
+    updatePosition.mutate({
+      lessonId: lesson.id,
+      lastPositionSeconds: seconds,
+    })
+  }
 
   useEffect(() => {
     setPlaying(false)
     setNoteText('')
+    positionThrottleRef.current = 0
   }, [lesson.id])
 
   useEffect(() => {
@@ -132,10 +157,7 @@ export const MasterClassLessonViewer = ({
   }
 
   const handleBookmark = () => {
-    setBookmarked((b) => !b)
-    if (!lesson.completed && !bookmarked) {
-      onMarkComplete()
-    }
+    toggleBookmark.mutate({ lessonId: lesson.id, bookmarked: !bookmarked })
   }
 
   const thumbnailSrc =
@@ -158,6 +180,8 @@ export const MasterClassLessonViewer = ({
               playbackId={lesson.mux_playback_id}
               poster={thumbnailSrc ?? undefined}
               autoPlay
+              startAtSeconds={initialPositionSeconds ?? undefined}
+              onTimeUpdate={reportPosition}
             />
           </div>
         )
@@ -453,11 +477,14 @@ export const MasterClassLessonViewer = ({
             />
 
             {/* Comments */}
-            <CommentThread
-              token={token}
-              courseId={courseId}
-              lessonId={lesson.id}
-            />
+            {(lesson.comments_mode ?? 'visible') !== 'hidden' && (
+              <CommentThread
+                token={token}
+                courseId={courseId}
+                lessonId={lesson.id}
+                readOnly={lesson.comments_mode === 'locked'}
+              />
+            )}
           </div>
 
           {/* RIGHT: sidebar */}

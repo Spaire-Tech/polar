@@ -27,6 +27,7 @@ interface FlatLesson {
   locked_until?: string | null
   content_type: string
   content: Record<string, unknown> | null
+  comments_mode?: 'visible' | 'hidden' | 'locked'
 }
 
 interface LessonViewerPageProps {
@@ -74,6 +75,7 @@ const LessonViewerPage = ({
           locked_until: m.locked_until,
           content_type: l.content_type ?? 'text',
           content: l.content ?? null,
+          comments_mode: l.comments_mode,
         })),
       ))
     : []
@@ -138,6 +140,7 @@ const LessonViewerPage = ({
           mux_status: currentLesson.mux_status,
           completed: currentLesson.completed,
           content: currentLesson.content,
+          comments_mode: currentLesson.comments_mode,
         }}
         lessonIndex={flatLessons.findIndex((l) => l.id === currentLesson.id)}
         totalLessons={flatLessons.length}
@@ -160,6 +163,9 @@ const LessonViewerPage = ({
           0,
         )}
         isPending={markComplete.isPending}
+        initialPositionSeconds={
+          data.progress?.last_position_seconds?.[currentLesson.id] ?? null
+        }
         onBack={handleBack}
         onSelectLesson={(lessonId) => {
           const lesson = flatLessons.find((l) => l.id === lessonId)

@@ -155,8 +155,7 @@ const heroStyles: Record<string, React.CSSProperties> = {
     background: '#000',
     isolation: 'isolate',
     border: `1px solid ${C.line}`,
-    boxShadow:
-      '0 2px 6px oklch(0 0 0 / 0.06), 0 24px 60px oklch(0 0 0 / 0.10)',
+    boxShadow: '0 2px 6px oklch(0 0 0 / 0.06), 0 24px 60px oklch(0 0 0 / 0.10)',
   },
   vignette: {
     position: 'absolute',
@@ -416,13 +415,11 @@ const lessonStyles: Record<string, React.CSSProperties> = {
     color: 'inherit',
     transition:
       'transform 250ms cubic-bezier(0.34,1.3,0.64,1), box-shadow 250ms ease',
-    boxShadow:
-      '0 1px 2px oklch(0 0 0 / 0.04), 0 4px 16px oklch(0 0 0 / 0.05)',
+    boxShadow: '0 1px 2px oklch(0 0 0 / 0.04), 0 4px 16px oklch(0 0 0 / 0.05)',
   },
   cardHover: {
     transform: 'scale(1.02)',
-    boxShadow:
-      '0 16px 48px oklch(0 0 0 / 0.14), 0 2px 8px oklch(0 0 0 / 0.06)',
+    boxShadow: '0 16px 48px oklch(0 0 0 / 0.14), 0 2px 8px oklch(0 0 0 / 0.06)',
   },
   thumb: {
     position: 'relative',
@@ -758,10 +755,7 @@ function Hero({
         <div style={heroStyles.tagline}>
           {tagline}
           {instructorName ? (
-            <span style={heroStyles.taglineDim}>
-              {' '}
-              — with {instructorName}
-            </span>
+            <span style={heroStyles.taglineDim}> — with {instructorName}</span>
           ) : null}
         </div>
 
@@ -843,7 +837,8 @@ function LessonThumb({
   // Prefer the lesson's own thumbnail, then a Mux-derived still, then the
   // course thumbnail so every card shows real imagery instead of the
   // procedural placeholder.
-  const usingFallback = !thumbnailUrl && !muxPlaybackId && !!fallbackThumbnailUrl
+  const usingFallback =
+    !thumbnailUrl && !muxPlaybackId && !!fallbackThumbnailUrl
   const src =
     thumbnailUrl ||
     (muxPlaybackId
@@ -1060,8 +1055,7 @@ function LessonCard({
           )}
           {isLocked && lesson.locked_until && (
             <span style={{ color: '#fb923c', marginLeft: 6 }}>
-              · Unlocks{' '}
-              {new Date(lesson.locked_until).toLocaleDateString()}
+              · Unlocks {new Date(lesson.locked_until).toLocaleDateString()}
             </span>
           )}
         </div>
@@ -1124,7 +1118,9 @@ function ModuleRow({
           <LessonCard
             key={lesson.id}
             lesson={lesson}
-            globalIndex={positionToGlobalIndex.get(lesson.id) ?? lesson.position}
+            globalIndex={
+              positionToGlobalIndex.get(lesson.id) ?? lesson.position
+            }
             hue={hue}
             isInProgress={lesson.id === inProgressLessonId}
             inProgressPercent={inProgressPercent}
@@ -1166,8 +1162,7 @@ export function CoursePortalView({
 
   const totalDurationSeconds = modules.reduce(
     (acc, m) =>
-      acc +
-      m.lessons.reduce((s, l) => s + (l.duration_seconds ?? 0), 0),
+      acc + m.lessons.reduce((s, l) => s + (l.duration_seconds ?? 0), 0),
     0,
   )
 
@@ -1181,19 +1176,22 @@ export function CoursePortalView({
     ? (positionToGlobalIndex.get(continueLesson.id) ?? null)
     : null
 
-  // We do not yet track partial watch progress per lesson server-side, so the
-  // "in-progress" lesson always renders at 0%. The hero still shows the right
-  // lesson title + module + remaining duration.
-  const continueProgress = 0
+  const lastPos =
+    data.progress.last_position_seconds?.[continueLesson?.id ?? ''] ?? 0
+  const continueProgress =
+    continueLesson && continueLesson.duration_seconds
+      ? Math.min(1, Math.max(0, lastPos / continueLesson.duration_seconds))
+      : 0
   const inProgressLessonId =
     continueLesson && !continueLesson.completed ? continueLesson.id : null
 
   // Tagline: prefer the AI landing tagline if present, otherwise fall back to
   // the course's plain description (truncated). This way the cinematic hero
   // surfaces the "actual" landing copy as requested.
-  const aiLanding = (course.landing_overrides?.ai_landing ?? null) as
-    | { tagline?: string; eyebrow?: string }
-    | null
+  const aiLanding = (course.landing_overrides?.ai_landing ?? null) as {
+    tagline?: string
+    eyebrow?: string
+  } | null
   const tagline =
     (aiLanding?.tagline && aiLanding.tagline.trim()) ||
     (course.description ? course.description.split('\n')[0]! : '') ||

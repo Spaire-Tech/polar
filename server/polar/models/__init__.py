@@ -7,10 +7,17 @@ from .benefit_grant import BenefitGrant
 from .billing_entry import BillingEntry
 from .campaign import Campaign
 from .checkout import Checkout
-from .client_invoice import ClientInvoice, ClientInvoiceLineItem, ClientInvoiceStatus
 from .checkout_link import CheckoutLink
 from .checkout_link_product import CheckoutLinkProduct
 from .checkout_product import CheckoutProduct
+from .client_invoice import ClientInvoice, ClientInvoiceLineItem, ClientInvoiceStatus
+from .course import Course
+from .course_enrollment import CourseEnrollment
+from .course_lesson import CourseLesson
+from .course_lesson_bookmark import CourseLessonBookmark
+from .course_lesson_progress import CourseLessonProgress
+from .course_module import CourseModule
+from .course_note import CourseNote
 from .custom_field import CustomField
 from .customer import Customer
 from .customer_meter import CustomerMeter
@@ -27,7 +34,10 @@ from .email_broadcast_send import EmailBroadcastSend
 from .email_segment import EmailSegment
 from .email_segment_subscriber import EmailSegmentSubscriber
 from .email_sequence import EmailSequence, EmailSequenceStatus, EmailSequenceTriggerType
-from .email_sequence_enrollment import EmailSequenceEnrollment, EmailSequenceEnrollmentStatus
+from .email_sequence_enrollment import (
+    EmailSequenceEnrollment,
+    EmailSequenceEnrollmentStatus,
+)
 from .email_sequence_step import EmailSequenceStep
 from .email_sequence_step_send import EmailSequenceStepSend, EmailSequenceStepSendStatus
 from .email_subscriber import EmailSubscriber
@@ -38,6 +48,7 @@ from .external_event import ExternalEvent
 from .file import File
 from .held_balance import HeldBalance
 from .issue_reward import IssueReward
+from .lesson_comment import LessonComment
 from .license_key import LicenseKey
 from .license_key_activation import LicenseKeyActivation
 from .login_code import LoginCode
@@ -63,18 +74,10 @@ from .personal_access_token import PersonalAccessToken
 from .pledge import Pledge
 from .pledge_transaction import PledgeTransaction
 from .processor_transaction import ProcessorTransaction
-from .course import Course
-from .course_enrollment import CourseEnrollment
-from .course_lesson import CourseLesson
-from .course_lesson_progress import CourseLessonProgress
-from .course_module import CourseModule
-from .course_note import CourseNote
-from .lesson_comment import LessonComment
 from .product import Product, ProductVisibility
 from .product_benefit import ProductBenefit
 from .product_custom_field import ProductCustomField
 from .product_media import ProductMedia
-from .product_review import ProductReview
 from .product_price import (
     LegacyRecurringProductPriceCustom,
     LegacyRecurringProductPriceFixed,
@@ -86,6 +89,7 @@ from .product_price import (
     ProductPriceMeteredUnit,
     ProductPriceSeatUnit,
 )
+from .product_review import ProductReview
 from .refund import Refund
 from .subscription import Subscription
 from .subscription_meter import SubscriptionMeter
@@ -111,17 +115,19 @@ __all__ = [
     "Campaign",
     "Checkout",
     "CheckoutLink",
+    "CheckoutLinkProduct",
+    "CheckoutProduct",
     "ClientInvoice",
     "ClientInvoiceLineItem",
     "ClientInvoiceStatus",
-    "CheckoutLinkProduct",
-    "CheckoutProduct",
-    "CustomField",
     "Course",
     "CourseEnrollment",
     "CourseLesson",
+    "CourseLessonBookmark",
+    "CourseLessonProgress",
     "CourseModule",
     "CourseNote",
+    "CustomField",
     "Customer",
     "CustomerMeter",
     "CustomerSeat",

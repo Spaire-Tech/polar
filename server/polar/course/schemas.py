@@ -208,6 +208,15 @@ class CourseProgressRead(Schema):
     completed_lessons: int
     completion_percent: float
     completed: dict[str, str]  # lesson_id -> completed_at ISO string
+    last_position_seconds: dict[str, int] = Field(default_factory=dict)
+
+
+class LessonProgressUpsert(Schema):
+    last_position_seconds: int = Field(ge=0)
+
+
+class LessonBookmarkRead(Schema):
+    lesson_id: UUID4
 
 
 class LessonCommentCreate(Schema):

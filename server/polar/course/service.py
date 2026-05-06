@@ -7,14 +7,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from polar.models.course import Course
 from polar.models.course_enrollment import CourseEnrollment
 from polar.models.course_lesson import CourseLesson
+from polar.models.course_lesson_bookmark import CourseLessonBookmark
 from polar.models.course_lesson_progress import CourseLessonProgress
 from polar.models.course_module import CourseModule
-from polar.models.customer import Customer
 from polar.models.course_note import CourseNote
+from polar.models.customer import Customer
 from polar.models.lesson_comment import LessonComment
 
 from .repository import (
     CourseEnrollmentRepository,
+    CourseLessonBookmarkRepository,
     CourseLessonProgressRepository,
     CourseLessonRepository,
     CourseModuleRepository,
@@ -317,12 +319,39 @@ class CourseService:
         existing = await repo.get_one_or_none(
             repo.get_by_enrollment_and_lesson_statement(enrollment_id, lesson_id)
         )
+        now = datetime.now(tz=UTC)
         if existing is not None:
+            if existing.completed_at is None:
+                return await repo.update(existing, {"completed_at": now})
             return existing
         progress = CourseLessonProgress(
             enrollment_id=enrollment_id,
             lesson_id=lesson_id,
-            completed_at=datetime.now(tz=UTC),
+            completed_at=now,
+        )
+        return await repo.create(progress, flush=True)
+
+    async def upsert_lesson_position(
+        self,
+        session: AsyncSession,
+        *,
+        enrollment_id: UUID,
+        lesson_id: UUID,
+        last_position_seconds: int,
+    ) -> CourseLessonProgress:
+        repo = CourseLessonProgressRepository.from_session(session)
+        existing = await repo.get_one_or_none(
+            repo.get_by_enrollment_and_lesson_statement(enrollment_id, lesson_id)
+        )
+        if existing is not None:
+            return await repo.update(
+                existing, {"last_position_seconds": last_position_seconds}
+            )
+        progress = CourseLessonProgress(
+            enrollment_id=enrollment_id,
+            lesson_id=lesson_id,
+            completed_at=None,
+            last_position_seconds=last_position_seconds,
         )
         return await repo.create(progress, flush=True)
 
@@ -493,6 +522,49 @@ class CourseService:
     ) -> None:
         repo = CourseNoteRepository.from_session(session)
         await repo.soft_delete(note)
+
+    # ── Bookmarks ──────────────────────────────────────────────────────────
+
+    async def list_bookmarks(
+        self,
+        session: AsyncSession,
+        enrollment_id: UUID,
+    ) -> Sequence[CourseLessonBookmark]:
+        repo = CourseLessonBookmarkRepository.from_session(session)
+        return await repo.get_all(repo.get_by_enrollment_statement(enrollment_id))
+
+    async def set_bookmark(
+        self,
+        session: AsyncSession,
+        *,
+        enrollment_id: UUID,
+        lesson_id: UUID,
+    ) -> CourseLessonBookmark:
+        repo = CourseLessonBookmarkRepository.from_session(session)
+        existing = await repo.get_one_or_none(
+            repo.get_by_enrollment_and_lesson_statement(enrollment_id, lesson_id)
+        )
+        if existing is not None:
+            return existing
+        bookmark = CourseLessonBookmark(
+            enrollment_id=enrollment_id,
+            lesson_id=lesson_id,
+        )
+        return await repo.create(bookmark, flush=True)
+
+    async def delete_bookmark(
+        self,
+        session: AsyncSession,
+        *,
+        enrollment_id: UUID,
+        lesson_id: UUID,
+    ) -> None:
+        repo = CourseLessonBookmarkRepository.from_session(session)
+        existing = await repo.get_one_or_none(
+            repo.get_by_enrollment_and_lesson_statement(enrollment_id, lesson_id)
+        )
+        if existing is not None:
+            await repo.soft_delete(existing)
 
 
 course_service = CourseService()
