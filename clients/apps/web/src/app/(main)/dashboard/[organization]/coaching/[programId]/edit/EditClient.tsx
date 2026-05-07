@@ -4,6 +4,7 @@ import {
   patchCoachingProgram,
   publishCoachingProgram,
   unpublishCoachingProgram,
+  uploadLandingMedia,
   type CoachingProgram,
 } from '@/components/Coaching/api'
 import CoachingLanding from '@/components/Coaching/CoachingLanding'
@@ -12,12 +13,49 @@ import type { CoachingLandingData } from '@/components/Coaching/CoachingLanding.
 import type { schemas } from '@spaire/client'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-// Build a usable CoachingLandingData from a CoachingProgram. If the program
-// already has landing_data, that wins. Otherwise we seed defaults and inject
-// program-specific fields so the editor isn't fully populated with placeholder
-// fitness copy.
+// Build a usable CoachingLandingData from a CoachingProgram. We always start
+// from the defaults and deep-merge any persisted landing_data on top so a
+// partially-populated AI result (which may not have streamed every nested
+// field) still renders without crashing the editor.
+type DeepPartial<T> = {
+  [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K]
+}
+
+const isPlainObject = (v: unknown): v is Record<string, unknown> =>
+  typeof v === 'object' &&
+  v !== null &&
+  !Array.isArray(v) &&
+  Object.getPrototypeOf(v) === Object.prototype
+
+// Recursive merge that prefers `over` whenever a leaf is provided. Arrays are
+// replaced wholesale (we don't want to merge array element-by-element since
+// the AI may stream a different shape per element).
+function mergeLanding<T>(base: T, over: DeepPartial<T> | null | undefined): T {
+  if (over === null || over === undefined) return base
+  if (!isPlainObject(base) || !isPlainObject(over)) {
+    return (over as T) ?? base
+  }
+  const out: Record<string, unknown> = { ...(base as Record<string, unknown>) }
+  for (const key of Object.keys(over) as (keyof typeof over)[]) {
+    const baseVal = (base as Record<string, unknown>)[key as string]
+    const overVal = (over as Record<string, unknown>)[key as string]
+    if (overVal === undefined) continue
+    if (isPlainObject(baseVal) && isPlainObject(overVal)) {
+      out[key as string] = mergeLanding(
+        baseVal,
+        overVal as DeepPartial<typeof baseVal>,
+      )
+    } else {
+      out[key as string] = overVal
+    }
+  }
+  return out as T
+}
+
 function landingFromProgram(program: CoachingProgram): CoachingLandingData {
-  if (program.landing_data) return program.landing_data
+  // Seed with program-derived placeholders first so a brand-new draft (no
+  // landing_data yet) still reads as the coach's own program rather than the
+  // sample fitness copy.
   const seed: CoachingLandingData = {
     ...defaultCoachingLandingData,
     nav: {
@@ -42,7 +80,11 @@ function landingFromProgram(program: CoachingProgram): CoachingLandingData {
       title: program.title || defaultCoachingLandingData.atlas.title,
     },
   }
-  return seed
+  if (!program.landing_data) return seed
+  return mergeLanding(
+    seed,
+    program.landing_data as DeepPartial<CoachingLandingData>,
+  )
 }
 
 export default function EditClient({
@@ -229,6 +271,7 @@ export default function EditClient({
         editable
         program={data}
         onChange={onChange}
+        onUploadFile={(file) => uploadLandingMedia(program.id, file)}
       />
     </div>
   )

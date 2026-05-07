@@ -354,11 +354,118 @@ export default function CoachingWizard({
             .map((l) => ({ type: l.type as string, title: l.title }))
           return { title, lessons }
         })
-        .filter((m): m is { title: string; lessons: { type: string; title: string }[] } => m !== null)
+        .filter(
+          (m): m is { title: string; lessons: { type: string; title: string }[] } =>
+            m !== null,
+        )
+
+      // Build the full CoachingLandingData from the AI's `landing` slice plus
+      // the runtime-only fields the AI never streams (media URLs/types,
+      // clientsAvatars, atlas slides, nav.brand). The mapping is intentionally
+      // lenient so a partial AI stream still yields a usable landing.
+      const aiLanding = result.landing ?? {}
+      const aiHero = aiLanding.hero ?? {}
+      const aiCe = aiLanding.coreEvolution ?? {}
+      const aiCourses = aiLanding.courses ?? {}
+      const aiAtlas = aiLanding.atlas ?? {}
+      const aiFaq = aiLanding.faq ?? {}
+
+      const titleParts =
+        (aiHero.titleParts ?? [])
+          .filter((p): p is { text: string; italic?: boolean } => !!p?.text)
+          .map((p) => ({ text: p.text, italic: p.italic })) ?? []
+
+      const ceStats = (aiCe.stats ?? [])
+        .filter(
+          (s): s is { label: string; value: string; barPercent: number } =>
+            !!s?.label &&
+            !!s.value &&
+            typeof s.barPercent === 'number',
+        )
+        .map((s) => ({
+          label: s.label,
+          value: s.value,
+          barPercent: s.barPercent,
+        }))
+
+      const atlasMeta = (aiAtlas.meta ?? [])
+        .filter((m): m is { label: string; value: string } => !!m?.label && !!m.value)
+        .map((m) => ({ label: m.label, value: m.value }))
+
+      const atlasSections = (aiAtlas.sections ?? [])
+        .filter((s): s is { label: string; body: string } => !!s?.label && !!s.body)
+        .map((s) => ({ label: s.label, body: s.body }))
+
+      const faqItems = (aiFaq.items ?? [])
+        .filter((f): f is { q: string; a: string } => !!f?.q && !!f?.a)
+        .map((f) => ({ q: f.q, a: f.a }))
+
+      // Map AI modules into landing's CoachingLandingModule shape (lessons
+      // get a `code` like "01.1" and a 'D' | 'V' kind).
+      const landingModules = modules.map((m, mi) => {
+        const moduleNum = String(mi + 1).padStart(2, '0')
+        return {
+          title: m.title,
+          lessons: m.lessons.map((l, li) => ({
+            code: `${moduleNum}.${li + 1}`,
+            text: l.title,
+            kind: (l.type === 'video' ? 'V' : 'D') as 'D' | 'V',
+          })),
+        }
+      })
+
+      const landing_data = {
+        nav: { brand: state.programTitle || 'Program' },
+        hero: {
+          titleParts,
+          subtitle: aiHero.subtitle ?? '',
+          ctaPrimary: aiHero.ctaPrimary ?? '',
+          ctaSecondary: aiHero.ctaSecondary ?? '',
+          heroMediaUrl: null,
+          heroMediaType: 'image' as const,
+          clientsPillText: aiHero.clientsPillText ?? '',
+          clientsAvatars: [],
+        },
+        coreEvolution: {
+          heading: aiCe.heading ?? '',
+          description: aiCe.description ?? '',
+          resultsHeading: aiCe.resultsHeading ?? 'Expected Results',
+          stats: ceStats,
+          cta: aiCe.cta ?? '',
+          mediaUrl: null,
+          mediaType: 'image' as const,
+          caption: aiCe.caption ?? '',
+        },
+        courses: {
+          heading: aiCourses.heading ?? '',
+          lede: aiCourses.lede ?? '',
+          formats: ['D', 'V'],
+          modules: landingModules,
+        },
+        faq: {
+          heading: aiFaq.heading ?? '',
+          lede: aiFaq.lede ?? '',
+          cta: aiFaq.cta ?? '',
+          items: faqItems,
+        },
+        atlas: {
+          eyebrow: aiAtlas.eyebrow ?? '',
+          title: aiAtlas.title ?? state.programTitle ?? '',
+          meta: atlasMeta,
+          orderCta: aiAtlas.orderCta ?? '',
+          sections: atlasSections,
+          testimonial: {
+            quote: aiAtlas.testimonial?.quote ?? '',
+            author: aiAtlas.testimonial?.author ?? '',
+            authorSub: aiAtlas.testimonial?.authorSub ?? '',
+          },
+          slides: [],
+        },
+      }
 
       await finalizeAI(programId, {
         modules,
-        landing_data: result.landing ?? null,
+        landing_data,
         intake_questions: (result.intakeQuestions ?? []).filter(
           (q): q is string => typeof q === 'string',
         ),

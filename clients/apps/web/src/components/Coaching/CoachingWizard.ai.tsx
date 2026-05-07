@@ -49,14 +49,61 @@ export const SAMPLE_MODULES: ModuleSpec[] = [
 ]
 
 export const SAMPLE_LANDING: LandingSpec = {
-  hero: 'Launch your first paid product in 30 days.',
-  sub: 'A focused program for makers who keep starting and never finishing. Weekly live coaching, async feedback, and a community that ships.',
-  bullets: [
-    'Four weekly modules with practical assignments',
-    'Live group coaching every Thursday',
-    'Async feedback on your work, within 24 hours',
-    'Private community of fellow shippers',
-  ],
+  hero: {
+    titleParts: [
+      { text: 'Launch your first' },
+      { text: 'paid product', italic: true },
+      { text: 'in 30 days.' },
+    ],
+    subtitle:
+      'A focused program for makers who keep starting and never finishing. Weekly live coaching, async feedback, and a community that ships.',
+    ctaPrimary: 'See programs',
+    ctaSecondary: 'Learn more',
+    clientsPillText: '+ 300 makers shipped',
+  },
+  coreEvolution: {
+    heading: 'Ship What Matters',
+    description:
+      'Move from idea to paid product through a focused, accountable system. Weekly coaching keeps you on track; async reviews keep momentum.',
+    resultsHeading: 'Expected Results',
+    stats: [
+      { label: 'Validation conversations', value: '+5/wk', barPercent: 70 },
+      { label: 'Weekly shipping cadence', value: '+80%', barPercent: 80 },
+      { label: 'Time to first sale', value: '4 weeks', barPercent: 65 },
+      { label: 'Confidence in scope', value: '+50%', barPercent: 60 },
+    ],
+    cta: 'Join now',
+    caption: 'Your launch, built one week at a time.',
+  },
+  atlas: {
+    eyebrow: 'Build with rhythm.',
+    title: 'Atlas Program',
+    meta: [
+      { label: 'Duration', value: '4 weeks' },
+      { label: 'Format', value: 'Self-paced' },
+      { label: 'Follow-up', value: 'Async feedback' },
+    ],
+    orderCta: 'Order — $99',
+    sections: [
+      {
+        label: 'Ideal for',
+        body: 'Makers with a few hours a week who want a structured, accountable path to a paid launch.',
+      },
+      {
+        label: 'Money-back guarantee',
+        body: '30-day refund if it isn’t the right fit.',
+      },
+      {
+        label: 'Delivery & access',
+        body: 'Instant access to the dashboard, weekly drops, and direct coach feedback.',
+      },
+    ],
+    testimonial: {
+      quote: 'Atlas got me from idea to paying customer in under a month.',
+      author: 'Mara. K',
+      authorSub: 'Atlas Program',
+    },
+  },
   faqs: [
     {
       q: 'Who is this for?',
@@ -92,10 +139,45 @@ export const SAMPLE_SESSIONS: string[] = [
 export type LessonSpec = { type: 'doc' | 'video'; title: string }
 export type ModuleSpec = { title: string; lessons: LessonSpec[] }
 export type FaqSpec = { q: string; a: string }
+
+export type TitlePartSpec = { text: string; italic?: boolean }
+export type StatSpec = { label: string; value: string; barPercent: number }
+export type MetaSpec = { label: string; value: string }
+export type SectionSpec = { label: string; body: string }
+export type TestimonialSpec = {
+  quote: string
+  author: string
+  authorSub: string
+}
+
+export type HeroSpec = {
+  titleParts: TitlePartSpec[]
+  subtitle: string
+  ctaPrimary: string
+  ctaSecondary: string
+  clientsPillText: string
+}
+export type CoreEvolutionSpec = {
+  heading: string
+  description: string
+  resultsHeading: string
+  stats: StatSpec[]
+  cta: string
+  caption: string
+}
+export type AtlasSpec = {
+  eyebrow: string
+  title: string
+  meta: MetaSpec[]
+  orderCta: string
+  sections: SectionSpec[]
+  testimonial: TestimonialSpec
+}
+
 export type LandingSpec = {
-  hero: string
-  sub: string
-  bullets: string[]
+  hero: HeroSpec
+  coreEvolution: CoreEvolutionSpec
+  atlas: AtlasSpec
   faqs: FaqSpec[]
 }
 
@@ -103,11 +185,42 @@ type PartialModule = {
   title?: string
   lessons?: { type?: 'doc' | 'video'; title?: string }[]
 }
+type PartialHero = {
+  titleParts?: { text?: string; italic?: boolean }[]
+  subtitle?: string
+  ctaPrimary?: string
+  ctaSecondary?: string
+  clientsPillText?: string
+}
+type PartialCoreEvolution = {
+  heading?: string
+  description?: string
+  resultsHeading?: string
+  stats?: { label?: string; value?: string; barPercent?: number }[]
+  cta?: string
+  caption?: string
+}
+type PartialCourses = { heading?: string; lede?: string }
+type PartialAtlas = {
+  eyebrow?: string
+  title?: string
+  meta?: { label?: string; value?: string }[]
+  orderCta?: string
+  sections?: { label?: string; body?: string }[]
+  testimonial?: { quote?: string; author?: string; authorSub?: string }
+}
+type PartialFaq = {
+  heading?: string
+  lede?: string
+  cta?: string
+  items?: { q?: string; a?: string }[]
+}
 type PartialLanding = {
-  hero?: string
-  sub?: string
-  bullets?: string[]
-  faqs?: { q?: string; a?: string }[]
+  hero?: PartialHero
+  coreEvolution?: PartialCoreEvolution
+  courses?: PartialCourses
+  atlas?: PartialAtlas
+  faq?: PartialFaq
 }
 type PartialOutline = {
   modules?: PartialModule[]
@@ -355,17 +468,75 @@ function GenerationView({
   const landing: LandingSpec | null = useMemo(() => {
     if (!partial.landing) return null
     const l = partial.landing
-    if (!l.hero) return null
-    return {
-      hero: l.hero,
-      sub: l.sub ?? '',
-      bullets: (l.bullets ?? []).filter(
-        (b): b is string => typeof b === 'string',
-      ),
-      faqs: (l.faqs ?? [])
-        .filter((f): f is { q: string; a: string } => !!f?.q && !!f?.a)
-        .map((f) => ({ q: f.q, a: f.a })),
+    const hero: HeroSpec = {
+      titleParts: (l.hero?.titleParts ?? [])
+        .filter(
+          (p): p is { text: string; italic?: boolean } =>
+            !!p && typeof p.text === 'string' && p.text.length > 0,
+        )
+        .map((p) => ({ text: p.text, italic: p.italic })),
+      subtitle: l.hero?.subtitle ?? '',
+      ctaPrimary: l.hero?.ctaPrimary ?? '',
+      ctaSecondary: l.hero?.ctaSecondary ?? '',
+      clientsPillText: l.hero?.clientsPillText ?? '',
     }
+    const coreEvolution: CoreEvolutionSpec = {
+      heading: l.coreEvolution?.heading ?? '',
+      description: l.coreEvolution?.description ?? '',
+      resultsHeading: l.coreEvolution?.resultsHeading ?? '',
+      stats: (l.coreEvolution?.stats ?? [])
+        .filter(
+          (s): s is { label: string; value: string; barPercent: number } =>
+            !!s &&
+            typeof s.label === 'string' &&
+            typeof s.value === 'string' &&
+            typeof s.barPercent === 'number',
+        )
+        .map((s) => ({
+          label: s.label,
+          value: s.value,
+          barPercent: s.barPercent,
+        })),
+      cta: l.coreEvolution?.cta ?? '',
+      caption: l.coreEvolution?.caption ?? '',
+    }
+    const atlas: AtlasSpec = {
+      eyebrow: l.atlas?.eyebrow ?? '',
+      title: l.atlas?.title ?? '',
+      meta: (l.atlas?.meta ?? [])
+        .filter(
+          (m): m is { label: string; value: string } =>
+            !!m &&
+            typeof m.label === 'string' &&
+            typeof m.value === 'string',
+        )
+        .map((m) => ({ label: m.label, value: m.value })),
+      orderCta: l.atlas?.orderCta ?? '',
+      sections: (l.atlas?.sections ?? [])
+        .filter(
+          (s): s is { label: string; body: string } =>
+            !!s && typeof s.label === 'string' && typeof s.body === 'string',
+        )
+        .map((s) => ({ label: s.label, body: s.body })),
+      testimonial: {
+        quote: l.atlas?.testimonial?.quote ?? '',
+        author: l.atlas?.testimonial?.author ?? '',
+        authorSub: l.atlas?.testimonial?.authorSub ?? '',
+      },
+    }
+    const faqs = (l.faq?.items ?? [])
+      .filter((f): f is { q: string; a: string } => !!f?.q && !!f?.a)
+      .map((f) => ({ q: f.q, a: f.a }))
+
+    // Treat the landing as "available" once any meaningful hero piece has
+    // streamed; otherwise let the caller fall back to the sample.
+    const hasAny =
+      hero.titleParts.length > 0 ||
+      hero.subtitle.length > 0 ||
+      coreEvolution.heading.length > 0 ||
+      atlas.title.length > 0
+    if (!hasAny) return null
+    return { hero, coreEvolution, atlas, faqs }
   }, [partial.landing])
   const landingFallback: LandingSpec = SAMPLE_LANDING
 
@@ -389,15 +560,28 @@ function GenerationView({
 
   const totalModules = modules.length
 
-  // Landing progress maps to: 1=hero done, 2=bullets done, 3=faqs done. We
-  // derive it from how much landing data has streamed so the skeleton fills in.
-  const landingProgress = (() => {
-    if (!partial.landing) return 0
-    if ((partial.landing.faqs ?? []).length > 0) return 3
-    if ((partial.landing.bullets ?? []).length > 0) return 2
-    if (partial.landing.hero) return 1
-    return 0
-  })()
+  // Per-subsection progress flags: each becomes true as soon as the AI has
+  // streamed at least one meaningful entry for that subsection. We keep them
+  // independent so the UI fills in progressively rather than waiting on a
+  // strict ordering.
+  const landingProgress = {
+    hero:
+      !!partial.landing?.hero &&
+      ((partial.landing.hero.titleParts ?? []).length > 0 ||
+        (partial.landing.hero.subtitle ?? '').length > 0),
+    coreEvolution:
+      !!partial.landing?.coreEvolution &&
+      ((partial.landing.coreEvolution.heading ?? '').length > 0 ||
+        (partial.landing.coreEvolution.stats ?? []).length > 0),
+    atlas:
+      !!partial.landing?.atlas &&
+      ((partial.landing.atlas.title ?? '').length > 0 ||
+        (partial.landing.atlas.meta ?? []).length > 0 ||
+        (partial.landing.atlas.sections ?? []).length > 0),
+    faq:
+      !!partial.landing?.faq &&
+      (partial.landing.faq.items ?? []).length > 0,
+  }
 
   return (
     <div className="fade-up" style={{ position: 'relative' }}>
@@ -1000,35 +1184,54 @@ export function SkelLine({
 }
 
 // ─── LandingDraft ───────────────────────────────────────────────────────────
+export type LandingProgress = {
+  hero: boolean
+  coreEvolution: boolean
+  atlas: boolean
+  faq: boolean
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        fontSize: 11,
+        color: 'var(--muted-2)',
+        textTransform: 'uppercase',
+        letterSpacing: '0.08em',
+        marginBottom: 8,
+      }}
+    >
+      {children}
+    </div>
+  )
+}
+
 export function LandingDraft({
   progress,
   landing,
 }: {
-  progress: number
+  progress: LandingProgress
   landing: LandingSpec
 }) {
+  const heroTitle = landing.hero.titleParts
+    .map((p) => p.text)
+    .join(' ')
+    .trim()
+
   return (
     <div
       style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: 18,
+        gap: 22,
         paddingTop: 4,
       }}
     >
+      {/* HERO */}
       <div>
-        <div
-          style={{
-            fontSize: 11,
-            color: 'var(--muted-2)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-            marginBottom: 8,
-          }}
-        >
-          Hero
-        </div>
-        {progress >= 1 ? (
+        <SectionLabel>Hero</SectionLabel>
+        {progress.hero ? (
           <div className="slide-in">
             <div
               style={{
@@ -1040,7 +1243,7 @@ export function LandingDraft({
                 marginBottom: 8,
               }}
             >
-              {landing.hero}
+              {heroTitle}
             </div>
             <div
               style={{
@@ -1049,17 +1252,11 @@ export function LandingDraft({
                 lineHeight: 1.5,
               }}
             >
-              {landing.sub}
+              {landing.hero.subtitle}
             </div>
           </div>
         ) : (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 8,
-            }}
-          >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <SkelLine width="85%" height={20} />
             <SkelLine width="60%" height={12} />
             <SkelLine width="50%" height={12} />
@@ -1067,80 +1264,208 @@ export function LandingDraft({
         )}
       </div>
 
+      {/* CORE EVOLUTION */}
       <div>
-        <div
-          style={{
-            fontSize: 11,
-            color: 'var(--muted-2)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-            marginBottom: 8,
-          }}
-        >
-          What's included
-        </div>
-        {progress >= 2 ? (
-          <ul
+        <SectionLabel>Core Evolution</SectionLabel>
+        {progress.coreEvolution ? (
+          <div
             className="slide-in"
-            style={{
-              margin: 0,
-              padding: 0,
-              listStyle: 'none',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 6,
-            }}
+            style={{ display: 'flex', flexDirection: 'column', gap: 10 }}
           >
-            {landing.bullets.map((b, i) => (
-              <li
-                key={i}
+            {landing.coreEvolution.heading && (
+              <div
                 style={{
-                  fontSize: 14,
-                  color: 'var(--ink-2)',
-                  display: 'flex',
-                  gap: 10,
+                  fontSize: 16,
+                  fontWeight: 600,
+                  color: 'var(--ink)',
+                  letterSpacing: '-0.01em',
                 }}
               >
-                <span style={{ color: 'var(--indigo)' }}>—</span>
-                <span>{b}</span>
-              </li>
-            ))}
-          </ul>
+                {landing.coreEvolution.heading}
+              </div>
+            )}
+            {landing.coreEvolution.description && (
+              <div
+                style={{
+                  fontSize: 13.5,
+                  color: 'var(--muted)',
+                  lineHeight: 1.55,
+                }}
+              >
+                {landing.coreEvolution.description}
+              </div>
+            )}
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+                marginTop: 6,
+              }}
+            >
+              {landing.coreEvolution.stats.map((s, i) => (
+                <div key={i}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontSize: 13,
+                      color: 'var(--ink-2)',
+                      marginBottom: 4,
+                    }}
+                  >
+                    <span>{s.label}</span>
+                    <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                      {s.value}
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      height: 4,
+                      borderRadius: 2,
+                      background: 'var(--line-2)',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <div
+                      style={{
+                        height: '100%',
+                        width: `${Math.max(0, Math.min(100, s.barPercent))}%`,
+                        background: 'var(--indigo)',
+                        transition: 'width 300ms ease',
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         ) : (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 6,
-            }}
-          >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <SkelLine width="50%" height={14} />
+            <SkelLine width="90%" />
             <SkelLine width="80%" />
             <SkelLine width="70%" />
-            <SkelLine width="75%" />
           </div>
         )}
       </div>
 
+      {/* ATLAS */}
       <div>
-        <div
-          style={{
-            fontSize: 11,
-            color: 'var(--muted-2)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-            marginBottom: 8,
-          }}
-        >
-          FAQ
-        </div>
-        {progress >= 3 ? (
+        <SectionLabel>Atlas</SectionLabel>
+        {progress.atlas ? (
           <div
             className="slide-in"
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 12,
-            }}
+            style={{ display: 'flex', flexDirection: 'column', gap: 10 }}
+          >
+            {landing.atlas.title && (
+              <div
+                style={{
+                  fontSize: 16,
+                  fontWeight: 600,
+                  color: 'var(--ink)',
+                  letterSpacing: '-0.01em',
+                }}
+              >
+                {landing.atlas.title}
+              </div>
+            )}
+            {landing.atlas.meta.length > 0 && (
+              <div
+                style={{
+                  display: 'flex',
+                  gap: 12,
+                  flexWrap: 'wrap',
+                  fontSize: 12.5,
+                  color: 'var(--muted)',
+                }}
+              >
+                {landing.atlas.meta.map((m, i) => (
+                  <div key={i}>
+                    <span style={{ color: 'var(--muted-2)' }}>{m.label}</span>{' '}
+                    <span style={{ color: 'var(--ink-2)' }}>{m.value}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {landing.atlas.sections.map((s, i) => (
+              <div key={i}>
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 500,
+                    color: 'var(--ink)',
+                  }}
+                >
+                  {s.label}
+                </div>
+                <div
+                  style={{
+                    fontSize: 13,
+                    color: 'var(--muted)',
+                    lineHeight: 1.5,
+                    marginTop: 2,
+                  }}
+                >
+                  {s.body}
+                </div>
+              </div>
+            ))}
+            {(landing.atlas.testimonial.quote ||
+              landing.atlas.testimonial.author) && (
+              <div
+                style={{
+                  marginTop: 4,
+                  paddingLeft: 10,
+                  borderLeft: '2px solid var(--line-2)',
+                }}
+              >
+                {landing.atlas.testimonial.quote && (
+                  <div
+                    style={{
+                      fontSize: 13.5,
+                      fontStyle: 'italic',
+                      color: 'var(--ink-2)',
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    {landing.atlas.testimonial.quote}
+                  </div>
+                )}
+                {landing.atlas.testimonial.author && (
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: 'var(--muted)',
+                      marginTop: 4,
+                    }}
+                  >
+                    — {landing.atlas.testimonial.author}
+                    {landing.atlas.testimonial.authorSub
+                      ? `, ${landing.atlas.testimonial.authorSub}`
+                      : ''}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <SkelLine width="40%" height={14} />
+            <SkelLine width="70%" />
+            <SkelLine width="85%" />
+            <SkelLine width="60%" />
+          </div>
+        )}
+      </div>
+
+      {/* FAQ */}
+      <div>
+        <SectionLabel>FAQ</SectionLabel>
+        {progress.faq ? (
+          <div
+            className="slide-in"
+            style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
           >
             {landing.faqs.map((f, i) => (
               <div key={i}>
@@ -1167,13 +1492,7 @@ export function LandingDraft({
             ))}
           </div>
         ) : (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 12,
-            }}
-          >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div>
               <SkelLine width="40%" />
               <div style={{ height: 4 }} />

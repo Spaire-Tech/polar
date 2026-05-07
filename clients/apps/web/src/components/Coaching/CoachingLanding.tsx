@@ -30,6 +30,14 @@ export type CoachingLandingProps = {
   // When set (public-mode only), the Atlas "Order" button navigates here.
   // Ignored when editable is true (we show a tooltip instead).
   buyHref?: string
+  // When provided AND `editable` is true, file inputs persist their selection
+  // to the backend instead of relying on a temporary blob URL. The blob URL is
+  // shown optimistically while the upload is in flight; on success it is
+  // replaced with the persisted URL via `onChange`. On error the slot reverts
+  // and shows a brief red border.
+  onUploadFile?: (
+    file: File,
+  ) => Promise<{ url: string; kind: CoachingLandingMediaType }>
 }
 
 /* -------------------------------------------------------------------------- */
@@ -107,11 +115,60 @@ const EditableText = ({
 /*  Media slot (image or video, optional click-to-upload)                     */
 /* -------------------------------------------------------------------------- */
 
+type UploadFile = (
+  file: File,
+) => Promise<{ url: string; kind: CoachingLandingMediaType }>
+
+// Shared file-input handler. Optimistically commits the blob URL via
+// `onUpload`, awaits the persisted URL from `uploader` (if any) and then
+// replaces it. On failure with a `uploader` set, reverts to the previous URL
+// and flashes a red border on the slot via `onError`.
+const useUploadHandler = ({
+  prevUrl,
+  prevType,
+  uploader,
+  onUpload,
+  onError,
+}: {
+  prevUrl: string | null
+  prevType: CoachingLandingMediaType
+  uploader?: UploadFile
+  onUpload: (url: string, type: CoachingLandingMediaType) => void
+  onError?: () => void
+}) =>
+  useCallback(
+    async (e: ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      if (!file) return
+      const blobUrl = URL.createObjectURL(file)
+      const kind: CoachingLandingMediaType = file.type.startsWith('video/')
+        ? 'video'
+        : 'image'
+      onUpload(blobUrl, kind)
+      if (!uploader) return
+      try {
+        const { url, kind: serverKind } = await uploader(file)
+        onUpload(url, serverKind)
+      } catch (err) {
+        console.warn('[CoachingLanding] upload failed', err)
+        onUpload(prevUrl ?? '', prevType)
+        // Revert to "no media" if there was none originally.
+        if (!prevUrl) onUpload('', prevType)
+        onError?.()
+      } finally {
+        // Reset the input so picking the same file again re-triggers change.
+        e.target.value = ''
+      }
+    },
+    [onUpload, uploader, prevUrl, prevType, onError],
+  )
+
 type MediaSlotProps = {
   url: string | null
   type: CoachingLandingMediaType
   editable: boolean
   onUpload: (url: string, type: CoachingLandingMediaType) => void
+  uploader?: UploadFile
   className?: string
   children?: ReactNode
 }
@@ -121,20 +178,25 @@ const MediaSlot = ({
   type,
   editable,
   onUpload,
+  uploader,
   className,
   children,
 }: MediaSlotProps) => {
-  const handleChange = useCallback(
-    (e: ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0]
-      if (!file) return
-      const next = URL.createObjectURL(file)
-      onUpload(next, file.type.startsWith('video/') ? 'video' : 'image')
+  const [errorFlash, setErrorFlash] = useState(false)
+  const handleChange = useUploadHandler({
+    prevUrl: url,
+    prevType: type,
+    uploader,
+    onUpload,
+    onError: () => {
+      setErrorFlash(true)
+      window.setTimeout(() => setErrorFlash(false), 2000)
     },
-    [onUpload],
-  )
+  })
 
-  const wrapperClass = `${className ?? ''}${editable ? ' img-slot' : ''}`.trim()
+  const wrapperClass = `${className ?? ''}${editable ? ' img-slot' : ''}${
+    errorFlash ? ' upload-error' : ''
+  }`.trim()
 
   return (
     <div className={wrapperClass}>
@@ -168,6 +230,7 @@ type SectionProps = {
   data: CoachingLandingData
   editable: boolean
   update: (path: PathSegment[], value: unknown) => void
+  uploader?: UploadFile
 }
 
 const NavPill = ({ data, editable, update }: SectionProps) => (
@@ -188,25 +251,34 @@ type HeroProps = SectionProps & {
   onSeePrograms: () => void
 }
 
-const Hero = ({ data, editable, update, onSeePrograms }: HeroProps) => {
+const Hero = ({ data, editable, update, onSeePrograms, uploader }: HeroProps) => {
   const { hero } = data
+  const [errorFlash, setErrorFlash] = useState(false)
+  const handleHeroFile = useUploadHandler({
+    prevUrl: hero.heroMediaUrl,
+    prevType: hero.heroMediaType,
+    uploader,
+    onUpload: (url, type) => {
+      update(['hero', 'heroMediaUrl'], url || null)
+      update(['hero', 'heroMediaType'], type)
+    },
+    onError: () => {
+      setErrorFlash(true)
+      window.setTimeout(() => setErrorFlash(false), 2000)
+    },
+  })
   return (
     <section className="hero">
-      <div className={`hero-frame${editable ? ' img-slot' : ''}`}>
+      <div
+        className={`hero-frame${editable ? ' img-slot' : ''}${
+          errorFlash ? ' upload-error' : ''
+        }`}
+      >
         {editable ? (
           <input
             type="file"
             accept="image/*,video/*"
-            onChange={(e) => {
-              const file = e.target.files?.[0]
-              if (!file) return
-              const url = URL.createObjectURL(file)
-              const t: CoachingLandingMediaType = file.type.startsWith('video/')
-                ? 'video'
-                : 'image'
-              update(['hero', 'heroMediaUrl'], url)
-              update(['hero', 'heroMediaType'], t)
-            }}
+            onChange={handleHeroFile}
           />
         ) : null}
         {hero.heroMediaUrl ? (
@@ -312,6 +384,7 @@ const CoreEvolution = ({
   update,
   onJoin,
   programsRef,
+  uploader,
 }: CoreEvolutionProps) => {
   const { coreEvolution: ce } = data
   return (
@@ -389,8 +462,9 @@ const CoreEvolution = ({
           url={ce.mediaUrl}
           type={ce.mediaType}
           editable={editable}
+          uploader={uploader}
           onUpload={(url, type) => {
-            update(['coreEvolution', 'mediaUrl'], url)
+            update(['coreEvolution', 'mediaUrl'], url || null)
             update(['coreEvolution', 'mediaType'], type)
           }}
         >
@@ -543,9 +617,34 @@ const AtlasModal = ({
   open,
   onClose,
   buyHref,
+  uploader,
 }: AtlasModalProps) => {
   const { atlas } = data
   const [activeSlide, setActiveSlide] = useState(0)
+  const [atlasError, setAtlasError] = useState(false)
+
+  const handleAtlasFile = useCallback(
+    async (e: ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      if (!file) return
+      const blobUrl = URL.createObjectURL(file)
+      const prev = atlas.slides[0] ?? null
+      update(['atlas', 'slides', 0], blobUrl)
+      if (uploader) {
+        try {
+          const { url } = await uploader(file)
+          update(['atlas', 'slides', 0], url)
+        } catch (err) {
+          console.warn('[CoachingLanding] atlas slide upload failed', err)
+          update(['atlas', 'slides', 0], prev ?? '')
+          setAtlasError(true)
+          window.setTimeout(() => setAtlasError(false), 2000)
+        }
+      }
+      e.target.value = ''
+    },
+    [atlas.slides, uploader, update],
+  )
 
   // Carousel — only when modal is open
   useEffect(() => {
@@ -589,17 +688,16 @@ const AtlasModal = ({
         ×
       </button>
       <section className="program-detail">
-        <div className={`pd-img${editable ? ' img-slot' : ''}`}>
+        <div
+          className={`pd-img${editable ? ' img-slot' : ''}${
+            atlasError ? ' upload-error' : ''
+          }`}
+        >
           {editable ? (
             <input
               type="file"
               accept="image/*"
-              onChange={(e) => {
-                const file = e.target.files?.[0]
-                if (!file) return
-                const url = URL.createObjectURL(file)
-                update(['atlas', 'slides', 0], url)
-              }}
+              onChange={handleAtlasFile}
             />
           ) : null}
           {atlas.slides.map((src, i) => (
@@ -738,7 +836,11 @@ const CoachingLanding = ({
   editable = false,
   onChange,
   buyHref,
+  onUploadFile,
 }: CoachingLandingProps) => {
+  // Only use the uploader when the page is editable. In public mode the prop
+  // is ignored regardless.
+  const uploader = editable ? onUploadFile : undefined
   const [internalData, setInternalData] = useState<CoachingLandingData>(
     program ?? defaultCoachingLandingData,
   )
@@ -801,6 +903,7 @@ const CoachingLanding = ({
         editable={editable}
         update={update}
         onSeePrograms={scrollToPrograms}
+        uploader={uploader}
       />
       <CoreEvolution
         data={data}
@@ -808,6 +911,7 @@ const CoachingLanding = ({
         update={update}
         onJoin={() => setModalOpen(true)}
         programsRef={programsRef}
+        uploader={uploader}
       />
       <Courses data={data} editable={editable} update={update} />
       <Faq data={data} editable={editable} update={update} />
@@ -818,6 +922,7 @@ const CoachingLanding = ({
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         buyHref={buyHref}
+        uploader={uploader}
       />
       <button
         className="theme-toggle"

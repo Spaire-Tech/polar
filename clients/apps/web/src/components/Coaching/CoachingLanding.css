@@ -682,6 +682,11 @@
   cursor: pointer;
   z-index: 2;
 }
+.spaire-landing .upload-error {
+  outline: 2px solid #dc2626;
+  outline-offset: -2px;
+  transition: outline-color 200ms ease;
+}
 
 .spaire-landing .modal-close {
   position: fixed;
