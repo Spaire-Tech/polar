@@ -107,7 +107,7 @@ export function IntakeBanner({ courseId }: { courseId: string }) {
         <IntakeModal
           courseId={courseId}
           form={data.form}
-          existingAnswers={data.response?.answers ?? null}
+          existingAnswers={null}
           onClose={() => setOpen(false)}
         />
       )}
