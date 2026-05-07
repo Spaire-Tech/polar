@@ -426,9 +426,11 @@ const lessonStyles: Record<string, React.CSSProperties> = {
   },
   thumb: {
     position: 'relative',
+    width: '100%',
     aspectRatio: '16 / 9',
     background: '#111',
     overflow: 'hidden',
+    flexShrink: 0,
   },
   watchedDim: {
     position: 'absolute',
