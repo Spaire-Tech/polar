@@ -1,265 +1,163 @@
 'use client'
 
-// Pricing tab — ported from pricing.jsx in the design handoff.
-//
-// v1 of this surface is read-only / framing for the design. Wiring to
-// the real product price endpoints (one-time vs subscription, payment
-// plan, early-bird) is a follow-up — this matches the visual design 1:1
-// while we settle on which existing product hooks to call.
+// Pricing tab — read-only summary of the underlying product price.
+// Edits route the merchant to the existing product editor where pricing
+// + payment plans + discounts already work end-to-end. Building a second
+// pricing editor in the coaching tab would just create two sources of
+// truth for the same data.
 
 import type { CourseRead } from '@/hooks/queries/courses'
-import { useState } from 'react'
+import { useProduct } from '@/hooks/queries/products'
+import { schemas } from '@spaire/client'
+import { useParams } from 'next/navigation'
 import { Ic } from '../icons'
-import { Btn, SectionHead, Toggle } from '../ui'
+import { Btn, SectionHead } from '../ui'
 
 const SYMBOL: Record<string, string> = {
-  USD: '$',
-  EUR: '€',
-  GBP: '£',
-  AUD: 'A$',
-  CAD: 'C$',
+  usd: '$',
+  eur: '€',
+  gbp: '£',
+  aud: 'A$',
+  cad: 'C$',
 }
 
-export function PricingTab({ course: _course }: { course: CourseRead }) {
-  const [model, setModel] = useState<'onetime' | 'subscription'>('onetime')
-  const [currency, setCurrency] = useState<'USD' | 'EUR' | 'GBP' | 'AUD' | 'CAD'>('USD')
-  const [price, setPrice] = useState(1200)
-  const [paymentPlan, setPaymentPlan] = useState(false)
-  const [installments, setInstallments] = useState(3)
-  const [earlyBird, setEarlyBird] = useState(false)
+function formatPrice(price: schemas['ProductPrice']): string {
+  // Discriminated union over amount_type. We only render the most common
+  // variants explicitly; everything else (metered / seat) gets a generic
+  // label since this surface is read-only — full pricing edit lives on
+  // the product editor.
+  if (price.amount_type === 'free') return 'Free'
+  if (price.amount_type === 'fixed') {
+    const sym = SYMBOL[price.price_currency.toLowerCase()] ?? '$'
+    return `${sym}${(price.price_amount / 100).toFixed(2)}`
+  }
+  if (price.amount_type === 'custom') return 'Pay what you want'
+  return 'Custom pricing'
+}
 
-  const symbol = SYMBOL[currency]
+function recurringLabel(p: schemas['Product']): string {
+  if (!p.recurring_interval) return 'One-time'
+  const count = p.recurring_interval_count ?? 1
+  return count === 1
+    ? `Subscription · monthly`
+    : `Subscription · every ${count} ${p.recurring_interval}s`
+}
+
+export function PricingTab({ course }: { course: CourseRead }) {
+  const params = useParams<{ organization: string }>()
+  const orgSlug = params.organization
+  const { data: product, isLoading } = useProduct(course.product_id)
 
   return (
     <>
       <SectionHead
         title="Pricing"
         subtitle="How members buy. Spaire is your merchant of record — we handle tax, refunds, and payouts."
-        actions={<Btn variant="primary">Save changes</Btn>}
+        actions={
+          <Btn
+            icon={<Ic.External size={14} />}
+            onClick={() =>
+              window.open(
+                `/dashboard/${orgSlug}/products/${course.product_id}`,
+                '_blank',
+              )
+            }
+          >
+            Edit pricing
+          </Btn>
+        }
       />
 
       <div style={{ maxWidth: 720 }}>
-        <div className="ce-stack-16">
-          <div className="ce-card ce-card-pad">
-            <div className="ce-label">Pricing model</div>
-            <div className="ce-grid-2" style={{ marginTop: 8 }}>
-              <div
-                className={
-                  'ce-radio-card' + (model === 'onetime' ? ' selected' : '')
-                }
-                onClick={() => setModel('onetime')}
-              >
-                <div className="ce-radio-dot" />
-                <div>
-                  <div style={{ fontWeight: 500, fontSize: 13.5 }}>One-time</div>
-                  <div className="ce-mini" style={{ marginTop: 2 }}>
-                    Members pay once, get access for the duration of the cohort.
-                  </div>
-                </div>
-              </div>
-              <div
-                className={
-                  'ce-radio-card' +
-                  (model === 'subscription' ? ' selected' : '')
-                }
-                onClick={() => setModel('subscription')}
-              >
-                <div className="ce-radio-dot" />
-                <div>
-                  <div style={{ fontWeight: 500, fontSize: 13.5 }}>
-                    Subscription
-                  </div>
-                  <div className="ce-mini" style={{ marginTop: 2 }}>
-                    Recurring monthly access. Best for ongoing programs.
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="ce-card ce-card-pad">
-            <div className="ce-grid-2">
-              <div>
-                <label className="ce-label">Currency</label>
-                <select
-                  className="ce-select"
-                  value={currency}
-                  onChange={(e) =>
-                    setCurrency(
-                      e.target.value as 'USD' | 'EUR' | 'GBP' | 'AUD' | 'CAD',
-                    )
-                  }
-                >
-                  <option value="USD">USD — $</option>
-                  <option value="EUR">EUR — €</option>
-                  <option value="GBP">GBP — £</option>
-                  <option value="AUD">AUD — A$</option>
-                  <option value="CAD">CAD — C$</option>
-                </select>
-              </div>
-              <div>
-                <label className="ce-label">
-                  {model === 'subscription' ? 'Monthly price' : 'Price'}
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <span
-                    style={{
-                      position: 'absolute',
-                      left: 12,
-                      top: 8,
-                      color: 'var(--ink-3)',
-                    }}
-                  >
-                    {symbol}
-                  </span>
-                  <input
-                    type="number"
-                    className="ce-input"
-                    value={price}
-                    onChange={(e) => setPrice(+e.target.value || 0)}
-                    style={{
-                      paddingLeft: 28,
-                      fontVariantNumeric: 'tabular-nums',
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {model === 'onetime' && (
-            <div className="ce-card">
-              <div
-                className="ce-card-pad"
-                style={{ paddingBottom: paymentPlan ? 0 : 22 }}
-              >
-                <div className="ce-row-between">
-                  <div>
-                    <div style={{ fontWeight: 500, fontSize: 14 }}>
-                      Offer a payment plan
-                    </div>
-                    <div className="ce-mini" style={{ marginTop: 2 }}>
-                      Lets buyers split the price into equal monthly payments.
-                    </div>
-                  </div>
-                  <Toggle on={paymentPlan} onChange={setPaymentPlan} />
-                </div>
-              </div>
-              {paymentPlan && (
-                <>
-                  <hr
-                    className="ce-divider"
-                    style={{ margin: '16px 22px' }}
-                  />
-                  <div className="ce-card-pad" style={{ paddingTop: 0 }}>
-                    <label className="ce-label">Number of installments</label>
-                    <div className="ce-row" style={{ gap: 6 }}>
-                      {[2, 3, 4, 6].map((n) => (
-                        <button
-                          key={n}
-                          className={
-                            'ce-btn ce-btn-sm ' +
-                            (installments === n ? 'ce-btn-primary' : '')
-                          }
-                          onClick={() => setInstallments(n)}
+        {isLoading || !product ? (
+          <div
+            style={{
+              height: 220,
+              background: 'var(--bg-muted)',
+              borderRadius: 16,
+            }}
+          />
+        ) : (
+          <div className="ce-stack-16">
+            <div className="ce-card ce-card-pad">
+              <div className="ce-label">Current price</div>
+              {(product.prices ?? []).length === 0 ? (
+                <p style={{ color: 'var(--ink-3)', margin: '8px 0 0' }}>
+                  No price set. Click <strong>Edit pricing</strong> to add one.
+                </p>
+              ) : (
+                <div className="ce-stack-12" style={{ marginTop: 8 }}>
+                  {(product.prices ?? []).map((price) => (
+                    <div
+                      key={price.id}
+                      className="ce-row-between"
+                      style={{
+                        padding: '14px 16px',
+                        background: 'var(--bg-muted)',
+                        borderRadius: 'var(--r-sm)',
+                      }}
+                    >
+                      <div>
+                        <div
+                          style={{
+                            fontSize: 22,
+                            fontWeight: 500,
+                            letterSpacing: '-0.02em',
+                            color: 'var(--ink)',
+                            fontVariantNumeric: 'tabular-nums',
+                          }}
                         >
-                          {n}× {symbol}
-                          {Math.ceil(price / n)}
-                        </button>
-                      ))}
+                          {formatPrice(price)}
+                        </div>
+                        <div className="ce-mini" style={{ marginTop: 4 }}>
+                          {recurringLabel(product)}
+                        </div>
+                      </div>
                     </div>
-                    <div className="ce-help">
-                      A 1.5% fee covers the spread risk — passed to the buyer
-                      or absorbed by you.
-                    </div>
-                  </div>
-                </>
+                  ))}
+                </div>
               )}
             </div>
-          )}
 
-          <div className="ce-card">
             <div
-              className="ce-card-pad"
-              style={{ paddingBottom: earlyBird ? 0 : 22 }}
+              className="ce-card ce-card-pad"
+              style={{ background: 'var(--bg-muted)' }}
             >
-              <div className="ce-row-between">
-                <div>
-                  <div style={{ fontWeight: 500, fontSize: 14 }}>
-                    Early-bird discount
-                  </div>
-                  <div className="ce-mini" style={{ marginTop: 2 }}>
-                    Drop the price for the first N seats or until a date.
-                  </div>
-                </div>
-                <Toggle on={earlyBird} onChange={setEarlyBird} />
-              </div>
-            </div>
-            {earlyBird && (
-              <>
-                <hr className="ce-divider" style={{ margin: '16px 22px' }} />
-                <div className="ce-card-pad" style={{ paddingTop: 0 }}>
-                  <div className="ce-grid-3">
-                    <div>
-                      <label className="ce-label">Discount</label>
-                      <input className="ce-input" defaultValue="20%" />
-                    </div>
-                    <div>
-                      <label className="ce-label">First N seats</label>
-                      <input
-                        className="ce-input"
-                        type="number"
-                        defaultValue="5"
-                      />
-                    </div>
-                    <div>
-                      <label className="ce-label">…or until</label>
-                      <input
-                        className="ce-input"
-                        type="date"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-
-          <div
-            className="ce-card ce-card-pad"
-            style={{ background: 'var(--bg-muted)' }}
-          >
-            <div className="ce-row" style={{ gap: 12, alignItems: 'flex-start' }}>
               <div
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 'var(--r-sm)',
-                  background: 'var(--ink)',
-                  color: 'white',
-                  display: 'grid',
-                  placeItems: 'center',
-                  flexShrink: 0,
-                }}
+                className="ce-row"
+                style={{ gap: 12, alignItems: 'flex-start' }}
               >
-                <Ic.Lock size={14} />
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 500, fontSize: 13.5 }}>
-                  Spaire handles tax and refunds for you
+                <div
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 'var(--r-sm)',
+                    background: 'var(--ink)',
+                    color: 'white',
+                    display: 'grid',
+                    placeItems: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <Ic.Lock size={14} />
                 </div>
-                <div className="ce-mini" style={{ marginTop: 4, lineHeight: 1.5 }}>
-                  As your merchant of record, we collect and remit sales tax /
-                  VAT in 60+ jurisdictions and process refunds per your refund
-                  policy.
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 500, fontSize: 13.5 }}>
+                    Spaire handles tax and refunds for you
+                  </div>
+                  <div
+                    className="ce-mini"
+                    style={{ marginTop: 4, lineHeight: 1.5 }}
+                  >
+                    As your merchant of record, we collect and remit sales
+                    tax / VAT in 60+ jurisdictions and process refunds per
+                    your refund policy.
+                  </div>
                 </div>
               </div>
-              <Btn variant="ghost" size="sm">
-                Refund policy
-              </Btn>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </>
   )
