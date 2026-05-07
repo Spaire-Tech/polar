@@ -1,5 +1,6 @@
 'use client'
 
+import ProgramEditor from '@/components/Coaching/editor/ProgramEditor'
 import CourseEditor from '@/components/Courses/CourseEditor'
 import { useCourseById } from '@/hooks/queries/courses'
 import { schemas } from '@spaire/client'
@@ -27,6 +28,12 @@ export default function CourseEditorWrapper({
         <p className="text-sm text-gray-500">Course not found.</p>
       </div>
     )
+  }
+
+  // Coaching programs get the Claude Design-spec'd editor; standard
+  // courses keep the existing CourseEditor.
+  if (course.program_format === 'coaching') {
+    return <ProgramEditor organization={organization} course={course} />
   }
 
   return (
