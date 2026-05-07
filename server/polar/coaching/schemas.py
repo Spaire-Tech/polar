@@ -118,3 +118,63 @@ class CoachingMemberRead(Schema):
 
 class CoachingMemberAssignCohort(Schema):
     cohort_id: UUID
+
+
+# ── Intake forms ───────────────────────────────────────────────────────────
+
+IntakeFieldType = Literal[
+    "short_text", "long_text", "select", "multiselect", "email"
+]
+
+
+class IntakeField(Schema):
+    id: str = Field(min_length=1, max_length=64)
+    type: IntakeFieldType
+    label: str = Field(min_length=1, max_length=500)
+    placeholder: str | None = Field(default=None, max_length=500)
+    required: bool = False
+    options: list[str] | None = Field(default=None, max_length=50)
+
+
+class IntakeSchema(Schema):
+    """Body of CoachingIntakeForm.schema_json."""
+
+    fields: list[IntakeField] = Field(default_factory=list)
+
+
+class CoachingIntakeFormBase(Schema):
+    title: str | None = Field(default=None, max_length=200)
+    description: str | None = Field(default=None, max_length=2000)
+    schema_json: IntakeSchema = Field(default_factory=IntakeSchema)
+    required_for_access: bool = False
+
+
+class CoachingIntakeFormCreate(CoachingIntakeFormBase):
+    course_id: UUID
+
+
+class CoachingIntakeFormUpdate(Schema):
+    title: str | None = Field(default=None, max_length=200)
+    description: str | None = Field(default=None, max_length=2000)
+    schema_json: IntakeSchema | None = None
+    required_for_access: bool | None = None
+
+
+class CoachingIntakeFormRead(TimestampedSchema, CoachingIntakeFormBase):
+    id: UUID
+    course_id: UUID
+
+
+class CoachingIntakeResponseSubmit(Schema):
+    answers: dict[str, Any]
+
+
+class CoachingIntakeResponseRead(TimestampedSchema):
+    id: UUID
+    form_id: UUID
+    customer_id: UUID
+    enrollment_id: UUID | None = None
+    answers: dict[str, Any]
+    submitted_at: datetime
+    customer_email: str | None = None
+    customer_name: str | None = None

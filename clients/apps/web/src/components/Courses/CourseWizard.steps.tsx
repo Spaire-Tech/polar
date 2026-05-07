@@ -473,22 +473,25 @@ function ProgressBar({ pct }: { pct: number }) {
 
 // ─── Intro screen ─────────────────────────────────────────────────────────────
 
-const INTRO_WORDS = ['Sell', 'your', 'expertise']
 const STAGGER_MS = 68
 
 export function Intro({
   onNext,
   onClose,
+  programFormat = 'standard',
 }: {
   onNext: () => void
   onClose: () => void
+  programFormat?: 'standard' | 'coaching'
 }) {
+  const introWords =
+    programFormat === 'coaching' ? ['Coach', 'at', 'scale'] : ['Sell', 'your', 'expertise']
   const [started, setStarted] = useState(false)
 
   // Build letter list with delays (no period)
   const chars: { ch: string; delay: number }[] = []
   let idx = 0
-  INTRO_WORDS.forEach((word) => {
+  introWords.forEach((word) => {
     word.split('').forEach((ch) => {
       chars.push({ ch, delay: idx * STAGGER_MS })
       idx++
@@ -512,7 +515,7 @@ export function Intro({
   // Rebuild word groups from chars
   const wordGroups: (typeof chars)[] = []
   let ci = 0
-  INTRO_WORDS.forEach((word) => {
+  introWords.forEach((word) => {
     wordGroups.push(chars.slice(ci, ci + word.length))
     ci += word.length
   })

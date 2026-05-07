@@ -13,6 +13,8 @@ from polar.models import UserOrganization
 from polar.models.coaching_cohort import CoachingCohort
 from polar.models.coaching_cohort_enrollment import CoachingCohortEnrollment
 from polar.models.coaching_event import CoachingEvent
+from polar.models.coaching_intake_form import CoachingIntakeForm
+from polar.models.coaching_intake_response import CoachingIntakeResponse
 from polar.models.course import Course
 
 
@@ -178,4 +180,72 @@ class CoachingCohortEnrollmentRepository(
     ) -> Select[tuple[CoachingCohortEnrollment]]:
         return self.get_base_statement().where(
             CoachingCohortEnrollment.cohort_id == cohort_id
+        )
+
+
+class CoachingIntakeFormRepository(
+    RepositorySoftDeletionIDMixin[CoachingIntakeForm, UUID],
+    RepositorySoftDeletionMixin[CoachingIntakeForm],
+    RepositoryBase[CoachingIntakeForm],
+):
+    model = CoachingIntakeForm
+
+    def get_by_course_statement(
+        self, course_id: UUID
+    ) -> Select[tuple[CoachingIntakeForm]]:
+        return self.get_base_statement().where(
+            CoachingIntakeForm.course_id == course_id
+        )
+
+    async def get_by_course(
+        self, course_id: UUID
+    ) -> CoachingIntakeForm | None:
+        return await self.get_one_or_none(
+            self.get_by_course_statement(course_id)
+        )
+
+    def get_readable_statement(
+        self, auth_subject: AuthSubject[User | Organization]
+    ) -> Select[tuple[CoachingIntakeForm]]:
+        statement = self.get_base_statement().join(
+            Course, Course.id == CoachingIntakeForm.course_id
+        )
+        if is_user(auth_subject):
+            statement = statement.where(
+                Course.organization_id.in_(
+                    select(UserOrganization.organization_id).where(
+                        UserOrganization.user_id == auth_subject.subject.id,
+                        UserOrganization.deleted_at.is_(None),
+                    )
+                )
+            )
+        elif is_organization(auth_subject):
+            statement = statement.where(
+                Course.organization_id == auth_subject.subject.id
+            )
+        return statement
+
+
+class CoachingIntakeResponseRepository(
+    RepositorySoftDeletionIDMixin[CoachingIntakeResponse, UUID],
+    RepositorySoftDeletionMixin[CoachingIntakeResponse],
+    RepositoryBase[CoachingIntakeResponse],
+):
+    model = CoachingIntakeResponse
+
+    def get_by_form_statement(
+        self, form_id: UUID
+    ) -> Select[tuple[CoachingIntakeResponse]]:
+        return (
+            self.get_base_statement()
+            .where(CoachingIntakeResponse.form_id == form_id)
+            .order_by(CoachingIntakeResponse.submitted_at.desc())
+        )
+
+    def get_by_form_and_customer_statement(
+        self, form_id: UUID, customer_id: UUID
+    ) -> Select[tuple[CoachingIntakeResponse]]:
+        return self.get_base_statement().where(
+            CoachingIntakeResponse.form_id == form_id,
+            CoachingIntakeResponse.customer_id == customer_id,
         )

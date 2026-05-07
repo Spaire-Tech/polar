@@ -12,6 +12,8 @@ from polar.kit.utils import utc_now
 from polar.models.coaching_cohort import CoachingCohort
 from polar.models.coaching_cohort_enrollment import CoachingCohortEnrollment
 from polar.models.coaching_event import CoachingEvent
+from polar.models.coaching_intake_form import CoachingIntakeForm
+from polar.models.coaching_intake_response import CoachingIntakeResponse
 from polar.models.course import Course
 from polar.models.course_enrollment import CourseEnrollment
 from polar.models.course_lesson import CourseLesson
@@ -24,12 +26,16 @@ from .repository import (
     CoachingCohortEnrollmentRepository,
     CoachingCohortRepository,
     CoachingEventRepository,
+    CoachingIntakeFormRepository,
+    CoachingIntakeResponseRepository,
 )
 from .schemas import (
     CoachingCohortCreate,
     CoachingCohortUpdate,
     CoachingEventCreate,
     CoachingEventUpdate,
+    CoachingIntakeFormCreate,
+    CoachingIntakeFormUpdate,
 )
 
 
@@ -523,3 +529,254 @@ def _optional_utc(dt: datetime | None) -> datetime | None:
 
 
 cohort_service = CohortService()
+
+
+# ── Intake forms ───────────────────────────────────────────────────────────
+
+
+class IntakeService:
+    async def get_form_for_course(
+        self,
+        session: AsyncReadSession,
+        auth_subject: AuthSubject[User | Organization],
+        *,
+        course_id: UUID,
+    ) -> CoachingIntakeForm | None:
+        """Creator-side fetch. Returns None if no form has been authored yet
+        for this program."""
+        course_repo = CourseRepository.from_session(session)
+        course = await course_repo.get_readable_by_id(course_id, auth_subject)
+        if course is None:
+            raise ResourceNotFound()
+        repo = CoachingIntakeFormRepository.from_session(session)
+        return await repo.get_by_course(course_id)
+
+    async def upsert_form(
+        self,
+        session: AsyncSession,
+        auth_subject: AuthSubject[User | Organization],
+        create_schema: CoachingIntakeFormCreate,
+    ) -> CoachingIntakeForm:
+        """Each program has at most one form (course_id is unique on
+        coaching_intake_forms). This is upsert semantics: caller doesn't
+        need to know whether a form already exists."""
+        course_repo = CourseRepository.from_session(session)
+        course = await course_repo.get_readable_by_id(
+            create_schema.course_id, auth_subject
+        )
+        if course is None:
+            raise ResourceNotFound()
+        if course.program_format != "coaching":
+            raise CoachingProgramRequired()
+
+        repo = CoachingIntakeFormRepository.from_session(session)
+        existing = await repo.get_by_course(course.id)
+        schema_dict = create_schema.schema_json.model_dump()
+        if existing is not None:
+            return await repo.update(
+                existing,
+                update_dict={
+                    "title": create_schema.title,
+                    "description": create_schema.description,
+                    "schema_json": schema_dict,
+                    "required_for_access": create_schema.required_for_access,
+                },
+            )
+        form = CoachingIntakeForm(
+            course_id=course.id,
+            title=create_schema.title,
+            description=create_schema.description,
+            schema_json=schema_dict,
+            required_for_access=create_schema.required_for_access,
+        )
+        return await repo.create(form, flush=True)
+
+    async def update_form(
+        self,
+        session: AsyncSession,
+        auth_subject: AuthSubject[User | Organization],
+        *,
+        form_id: UUID,
+        update_schema: CoachingIntakeFormUpdate,
+    ) -> CoachingIntakeForm:
+        repo = CoachingIntakeFormRepository.from_session(session)
+        form = await repo.get_one_or_none(
+            repo.get_readable_statement(auth_subject).where(
+                CoachingIntakeForm.id == form_id
+            )
+        )
+        if form is None:
+            raise ResourceNotFound()
+        update_dict = update_schema.model_dump(exclude_unset=True)
+        if "schema_json" in update_dict and update_dict["schema_json"] is not None:
+            # IntakeSchema → dict
+            schema = update_dict["schema_json"]
+            if hasattr(schema, "model_dump"):
+                update_dict["schema_json"] = schema.model_dump()
+        return await repo.update(form, update_dict=update_dict)
+
+    async def delete_form(
+        self,
+        session: AsyncSession,
+        auth_subject: AuthSubject[User | Organization],
+        *,
+        form_id: UUID,
+    ) -> None:
+        repo = CoachingIntakeFormRepository.from_session(session)
+        form = await repo.get_one_or_none(
+            repo.get_readable_statement(auth_subject).where(
+                CoachingIntakeForm.id == form_id
+            )
+        )
+        if form is None:
+            raise ResourceNotFound()
+        await repo.soft_delete(form)
+
+    async def list_responses(
+        self,
+        session: AsyncReadSession,
+        auth_subject: AuthSubject[User | Organization],
+        *,
+        course_id: UUID,
+    ) -> list[dict]:
+        course_repo = CourseRepository.from_session(session)
+        course = await course_repo.get_readable_by_id(course_id, auth_subject)
+        if course is None:
+            raise ResourceNotFound()
+
+        form_repo = CoachingIntakeFormRepository.from_session(session)
+        form = await form_repo.get_by_course(course_id)
+        if form is None:
+            return []
+
+        stmt = (
+            select(CoachingIntakeResponse, Customer)
+            .join(Customer, Customer.id == CoachingIntakeResponse.customer_id)
+            .where(
+                CoachingIntakeResponse.form_id == form.id,
+                CoachingIntakeResponse.deleted_at.is_(None),
+            )
+            .order_by(CoachingIntakeResponse.submitted_at.desc())
+        )
+        result = await session.execute(stmt)
+        return [
+            {
+                "id": str(response.id),
+                "form_id": str(response.form_id),
+                "customer_id": str(response.customer_id),
+                "enrollment_id": (
+                    str(response.enrollment_id) if response.enrollment_id else None
+                ),
+                "answers": response.answers_json,
+                "submitted_at": response.submitted_at,
+                "customer_email": customer.email,
+                "customer_name": customer.name,
+                "created_at": response.created_at,
+                "modified_at": response.modified_at,
+            }
+            for response, customer in result.all()
+        ]
+
+    # ── Customer-portal side ────────────────────────────────────────────────
+
+    async def get_form_public(
+        self, session: AsyncReadSession, *, course_id: UUID
+    ) -> CoachingIntakeForm | None:
+        """Customer-portal fetch. The portal endpoint must verify enrollment
+        before calling this — the form itself isn't access-controlled."""
+        repo = CoachingIntakeFormRepository.from_session(session)
+        return await repo.get_by_course(course_id)
+
+    async def get_response_for_customer(
+        self,
+        session: AsyncReadSession,
+        *,
+        form_id: UUID,
+        customer_id: UUID,
+    ) -> CoachingIntakeResponse | None:
+        repo = CoachingIntakeResponseRepository.from_session(session)
+        return await repo.get_one_or_none(
+            repo.get_by_form_and_customer_statement(form_id, customer_id)
+        )
+
+    async def submit_response(
+        self,
+        session: AsyncSession,
+        *,
+        form: CoachingIntakeForm,
+        customer_id: UUID,
+        enrollment_id: UUID | None,
+        answers: dict,
+    ) -> CoachingIntakeResponse:
+        """Idempotent: re-submitting overwrites the previous answers and
+        bumps submitted_at. Validation against the schema is done in the
+        endpoint (so we can return a 422 with a proper error)."""
+        repo = CoachingIntakeResponseRepository.from_session(session)
+        existing = await repo.get_one_or_none(
+            repo.get_by_form_and_customer_statement(form.id, customer_id)
+        )
+        if existing is not None:
+            return await repo.update(
+                existing,
+                update_dict={
+                    "answers_json": answers,
+                    "enrollment_id": enrollment_id,
+                    "submitted_at": utc_now(),
+                },
+            )
+        response = CoachingIntakeResponse(
+            form_id=form.id,
+            customer_id=customer_id,
+            enrollment_id=enrollment_id,
+            answers_json=answers,
+            submitted_at=utc_now(),
+        )
+        return await repo.create(response, flush=True)
+
+
+def validate_intake_answers(form: CoachingIntakeForm, answers: dict) -> list[str]:
+    """Pure validation helper: returns the list of error strings (empty when
+    the submission is acceptable). Live in the service module so endpoint
+    + tests can both reuse it."""
+    schema = form.schema_json or {}
+    fields = schema.get("fields", []) if isinstance(schema, dict) else []
+    errors: list[str] = []
+    for field in fields:
+        fid = field.get("id")
+        ftype = field.get("type")
+        required = bool(field.get("required"))
+        if not fid or not ftype:
+            continue
+        value = answers.get(fid)
+        is_empty = (
+            value is None
+            or (isinstance(value, str) and not value.strip())
+            or (isinstance(value, list) and len(value) == 0)
+        )
+        if required and is_empty:
+            errors.append(f"{fid}: required")
+            continue
+        if is_empty:
+            continue
+        if ftype in {"short_text", "long_text", "select", "email"}:
+            if not isinstance(value, str):
+                errors.append(f"{fid}: expected string")
+            elif ftype == "email" and "@" not in value:
+                errors.append(f"{fid}: invalid email")
+            elif ftype == "select":
+                options = field.get("options") or []
+                if options and value not in options:
+                    errors.append(f"{fid}: not a valid option")
+        elif ftype == "multiselect":
+            if not isinstance(value, list) or not all(
+                isinstance(v, str) for v in value
+            ):
+                errors.append(f"{fid}: expected list of strings")
+            else:
+                options = field.get("options") or []
+                if options and any(v not in options for v in value):
+                    errors.append(f"{fid}: contains invalid option")
+    return errors
+
+
+intake_service = IntakeService()

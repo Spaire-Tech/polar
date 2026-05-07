@@ -20,6 +20,7 @@ import { CourseHeader, TabId } from './editor/CourseHeader'
 import { CustomersTab } from './editor/CustomersTab'
 import { CustomizeTab } from './editor/CustomizeTab'
 import { EventsTab } from './editor/EventsTab'
+import { IntakeTab } from './editor/IntakeTab'
 import { MembersTab } from './editor/MembersTab'
 import { LessonDetail, LessonEdits } from './editor/LessonDetail'
 import { LessonContentType } from './editor/ModuleCard'
@@ -81,9 +82,11 @@ export default function CourseEditor({
           ? 'customers'
           : tabParam === 'events'
             ? 'events'
-            : initialCourse.program_format === 'coaching'
-              ? 'events'
-              : 'outline'
+            : tabParam === 'intake'
+              ? 'intake'
+              : initialCourse.program_format === 'coaching'
+                ? 'events'
+                : 'outline'
   const [activeTab, setActiveTab] = useState<TabId>(initialTab)
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
@@ -328,6 +331,8 @@ export default function CourseEditor({
     }
   } else if (activeTab === 'events') {
     mainContent = <EventsTab courseId={course.id} />
+  } else if (activeTab === 'intake') {
+    mainContent = <IntakeTab courseId={course.id} />
   } else if (activeTab === 'customize') {
     mainContent = <CustomizeTab course={course} organization={organization} />
   } else if (activeTab === 'pricing') {

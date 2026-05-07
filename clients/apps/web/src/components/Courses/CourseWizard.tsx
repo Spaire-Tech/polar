@@ -569,6 +569,7 @@ export default function CourseWizard({
             <Intro
               onNext={() => setScreen('instructor')}
               onClose={handleClose}
+              programFormat={programFormat}
             />
           )}
           {screen === 'instructor' && (

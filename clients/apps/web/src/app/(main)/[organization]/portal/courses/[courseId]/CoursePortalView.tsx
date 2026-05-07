@@ -7,6 +7,7 @@ import type {
 } from '@/hooks/queries/courses'
 import { useState } from 'react'
 import { CoachingSchedule } from './CoachingSchedule'
+import { IntakeBanner } from './IntakeBanner'
 
 const FONT = "'Poppins', var(--font-poppins), system-ui, sans-serif"
 
@@ -1185,7 +1186,10 @@ export function CoursePortalView({
       />
 
       {course.program_format === 'coaching' && (
-        <CoachingSchedule courseId={course.id} />
+        <>
+          <IntakeBanner courseId={course.id} />
+          <CoachingSchedule courseId={course.id} />
+        </>
       )}
 
       <section style={modStyles.wrap}>

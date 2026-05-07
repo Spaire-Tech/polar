@@ -12,7 +12,11 @@ from uuid import UUID
 from fastapi import Depends, HTTPException, Response
 
 from polar.coaching.ics import event_to_ics, filename_for
-from polar.coaching.service import coaching_service
+from polar.coaching.service import (
+    coaching_service,
+    intake_service,
+    validate_intake_answers,
+)
 from polar.course.service import course_service
 from polar.openapi import APITag
 from polar.postgres import AsyncSession, get_db_session
@@ -126,3 +130,97 @@ async def download_ics(
             )
         },
     )
+
+
+@router.get(
+    "/{course_id}/intake-form",
+    summary="Get the program's intake form (and the customer's existing response, if any)",
+)
+async def get_intake_form(
+    course_id: UUID,
+    auth_subject: auth.CustomerPortalUnionRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    customer_id = get_customer_id(auth_subject)
+    enrollment = await course_service.get_enrollment_for_customer(
+        session, customer_id, course_id
+    )
+    if enrollment is None:
+        raise HTTPException(
+            status_code=404, detail="Program not found or not enrolled"
+        )
+
+    form = await intake_service.get_form_public(session, course_id=course_id)
+    if form is None:
+        return {"form": None, "response": None}
+
+    response = await intake_service.get_response_for_customer(
+        session, form_id=form.id, customer_id=customer_id
+    )
+    return {
+        "form": {
+            "id": str(form.id),
+            "title": form.title,
+            "description": form.description,
+            "schema_json": form.schema_json,
+            "required_for_access": form.required_for_access,
+        },
+        "response": (
+            {
+                "id": str(response.id),
+                "answers": response.answers_json,
+                "submitted_at": response.submitted_at.isoformat(),
+            }
+            if response
+            else None
+        ),
+    }
+
+
+@router.post(
+    "/{course_id}/intake-form/submit",
+    summary="Submit (or re-submit) the program's intake form",
+)
+async def submit_intake_form(
+    course_id: UUID,
+    body: dict,
+    auth_subject: auth.CustomerPortalUnionRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    customer_id = get_customer_id(auth_subject)
+    enrollment = await course_service.get_enrollment_for_customer(
+        session, customer_id, course_id
+    )
+    if enrollment is None:
+        raise HTTPException(
+            status_code=404, detail="Program not found or not enrolled"
+        )
+
+    form = await intake_service.get_form_public(session, course_id=course_id)
+    if form is None:
+        raise HTTPException(
+            status_code=404, detail="No intake form on this program"
+        )
+
+    answers = body.get("answers")
+    if not isinstance(answers, dict):
+        raise HTTPException(
+            status_code=422, detail="`answers` must be an object keyed by field id"
+        )
+
+    errors = validate_intake_answers(form, answers)
+    if errors:
+        raise HTTPException(status_code=422, detail={"errors": errors})
+
+    response = await intake_service.submit_response(
+        session,
+        form=form,
+        customer_id=customer_id,
+        enrollment_id=enrollment.id,
+        answers=answers,
+    )
+    return {
+        "id": str(response.id),
+        "answers": response.answers_json,
+        "submitted_at": response.submitted_at.isoformat(),
+    }

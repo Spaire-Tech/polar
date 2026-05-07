@@ -14,6 +14,8 @@ from .client_invoice import ClientInvoice, ClientInvoiceLineItem, ClientInvoiceS
 from .coaching_cohort import CoachingCohort
 from .coaching_cohort_enrollment import CoachingCohortEnrollment
 from .coaching_event import CoachingEvent
+from .coaching_intake_form import CoachingIntakeForm
+from .coaching_intake_response import CoachingIntakeResponse
 from .course import Course
 from .course_enrollment import CourseEnrollment
 from .course_lesson import CourseLesson
@@ -128,6 +130,8 @@ __all__ = [
     "CoachingCohort",
     "CoachingCohortEnrollment",
     "CoachingEvent",
+    "CoachingIntakeForm",
+    "CoachingIntakeResponse",
     "Course",
     "CourseEnrollment",
     "CourseLesson",

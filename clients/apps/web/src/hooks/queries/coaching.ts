@@ -282,3 +282,156 @@ export const useAssignMemberCohort = (courseId: string) => {
     },
   })
 }
+
+// ── Intake forms ─────────────────────────────────────────────────────────
+
+export type IntakeFieldType =
+  | 'short_text'
+  | 'long_text'
+  | 'select'
+  | 'multiselect'
+  | 'email'
+
+export type IntakeField = {
+  id: string
+  type: IntakeFieldType
+  label: string
+  placeholder?: string | null
+  required: boolean
+  options?: string[] | null
+}
+
+export type IntakeSchema = { fields: IntakeField[] }
+
+export type CoachingIntakeFormRead = {
+  id: string
+  course_id: string
+  title: string | null
+  description: string | null
+  schema_json: IntakeSchema
+  required_for_access: boolean
+  created_at: string
+  modified_at: string | null
+}
+
+export type CoachingIntakeFormUpsert = {
+  course_id: string
+  title?: string | null
+  description?: string | null
+  schema_json: IntakeSchema
+  required_for_access: boolean
+}
+
+export type CoachingIntakeResponseRead = {
+  id: string
+  form_id: string
+  customer_id: string
+  enrollment_id: string | null
+  answers: Record<string, unknown>
+  submitted_at: string
+  customer_email: string | null
+  customer_name: string | null
+  created_at: string
+  modified_at: string | null
+}
+
+export const useCoachingIntakeForm = (courseId: string | undefined) =>
+  useQuery<CoachingIntakeFormRead | null>({
+    queryKey: ['coaching-intake-form', { courseId }],
+    queryFn: () =>
+      coachingFetch<CoachingIntakeFormRead | null>(
+        `/v1/coaching/intake-forms?course_id=${courseId}`,
+      ),
+    enabled: !!courseId,
+  })
+
+export const useUpsertCoachingIntakeForm = (courseId: string) => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: CoachingIntakeFormUpsert) =>
+      coachingFetch<CoachingIntakeFormRead>('/v1/coaching/intake-forms', {
+        method: 'PUT',
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({
+        queryKey: ['coaching-intake-form', { courseId }],
+      })
+    },
+  })
+}
+
+export const useDeleteCoachingIntakeForm = (courseId: string) => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (formId: string) =>
+      coachingFetch<void>(`/v1/coaching/intake-forms/${formId}`, {
+        method: 'DELETE',
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({
+        queryKey: ['coaching-intake-form', { courseId }],
+      })
+      qc.invalidateQueries({
+        queryKey: ['coaching-intake-responses', { courseId }],
+      })
+    },
+  })
+}
+
+export const useCoachingIntakeResponses = (courseId: string | undefined) =>
+  useQuery<CoachingIntakeResponseRead[]>({
+    queryKey: ['coaching-intake-responses', { courseId }],
+    queryFn: () =>
+      coachingFetch<CoachingIntakeResponseRead[]>(
+        `/v1/coaching/intake-responses?course_id=${courseId}`,
+      ),
+    enabled: !!courseId,
+  })
+
+// ── Customer-portal intake form (separate endpoint base) ────────────────
+
+export type CustomerIntakeFormResponse = {
+  form: {
+    id: string
+    title: string | null
+    description: string | null
+    schema_json: IntakeSchema
+    required_for_access: boolean
+  } | null
+  response: {
+    id: string
+    answers: Record<string, unknown>
+    submitted_at: string
+  } | null
+}
+
+export const useCustomerIntakeForm = (courseId: string | undefined) =>
+  useQuery<CustomerIntakeFormResponse>({
+    queryKey: ['customer-intake-form', { courseId }],
+    queryFn: () =>
+      coachingFetch<CustomerIntakeFormResponse>(
+        `/v1/customer-portal/coaching/${courseId}/intake-form`,
+      ),
+    enabled: !!courseId,
+  })
+
+export const useSubmitCustomerIntakeForm = (courseId: string) => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (answers: Record<string, unknown>) =>
+      coachingFetch<{
+        id: string
+        answers: Record<string, unknown>
+        submitted_at: string
+      }>(`/v1/customer-portal/coaching/${courseId}/intake-form/submit`, {
+        method: 'POST',
+        body: JSON.stringify({ answers }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({
+        queryKey: ['customer-intake-form', { courseId }],
+      })
+    },
+  })
+}

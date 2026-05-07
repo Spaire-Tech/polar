@@ -16,12 +16,17 @@ from .schemas import (
     CoachingEventCreate,
     CoachingEventRead,
     CoachingEventUpdate,
+    CoachingIntakeFormCreate,
+    CoachingIntakeFormRead,
+    CoachingIntakeFormUpdate,
+    CoachingIntakeResponseRead,
     CoachingMemberAssignCohort,
     CoachingMemberCustomer,
     CoachingMemberRead,
     CoachingMuxUploadRead,
+    IntakeSchema,
 )
-from .service import coaching_service, cohort_service
+from .service import coaching_service, cohort_service, intake_service
 
 log = logging.getLogger(__name__)
 
@@ -274,3 +279,107 @@ async def assign_member_cohort(
         completed_lessons=0,
         total_lessons=0,
     )
+
+
+# ── Intake forms ────────────────────────────────────────────────────────────
+
+
+def _intake_read(form) -> CoachingIntakeFormRead:
+    schema = form.schema_json or {}
+    return CoachingIntakeFormRead(
+        id=form.id,
+        course_id=form.course_id,
+        title=form.title,
+        description=form.description,
+        schema_json=IntakeSchema.model_validate(schema),
+        required_for_access=form.required_for_access,
+        created_at=form.created_at,
+        modified_at=form.modified_at,
+    )
+
+
+@router.get(
+    "/intake-forms",
+    response_model=CoachingIntakeFormRead | None,
+    description="Returns the intake form for the program, or null if none exists.",
+)
+async def get_intake_form(
+    auth_subject: auth.CoachingRead,
+    course_id: Annotated[UUID, Query(description="Course ID")],
+    session: AsyncReadSession = Depends(get_db_read_session),
+) -> CoachingIntakeFormRead | None:
+    form = await intake_service.get_form_for_course(
+        session, auth_subject, course_id=course_id
+    )
+    return _intake_read(form) if form else None
+
+
+@router.put(
+    "/intake-forms",
+    response_model=CoachingIntakeFormRead,
+    description=(
+        "Upsert the intake form for a coaching program. Each program has at "
+        "most one form, so PUT is the right verb."
+    ),
+)
+async def upsert_intake_form(
+    body: CoachingIntakeFormCreate,
+    auth_subject: auth.CoachingWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> CoachingIntakeFormRead:
+    form = await intake_service.upsert_form(session, auth_subject, body)
+    return _intake_read(form)
+
+
+@router.patch(
+    "/intake-forms/{form_id}",
+    response_model=CoachingIntakeFormRead,
+)
+async def update_intake_form(
+    form_id: UUID,
+    body: CoachingIntakeFormUpdate,
+    auth_subject: auth.CoachingWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> CoachingIntakeFormRead:
+    form = await intake_service.update_form(
+        session, auth_subject, form_id=form_id, update_schema=body
+    )
+    return _intake_read(form)
+
+
+@router.delete("/intake-forms/{form_id}", status_code=204)
+async def delete_intake_form(
+    form_id: UUID,
+    auth_subject: auth.CoachingWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> None:
+    await intake_service.delete_form(session, auth_subject, form_id=form_id)
+
+
+@router.get(
+    "/intake-responses",
+    response_model=list[CoachingIntakeResponseRead],
+)
+async def list_intake_responses(
+    auth_subject: auth.CoachingRead,
+    course_id: Annotated[UUID, Query(description="Course ID")],
+    session: AsyncReadSession = Depends(get_db_read_session),
+) -> list[CoachingIntakeResponseRead]:
+    rows = await intake_service.list_responses(
+        session, auth_subject, course_id=course_id
+    )
+    return [
+        CoachingIntakeResponseRead(
+            id=row["id"],
+            form_id=row["form_id"],
+            customer_id=row["customer_id"],
+            enrollment_id=row["enrollment_id"],
+            answers=row["answers"],
+            submitted_at=row["submitted_at"],
+            customer_email=row["customer_email"],
+            customer_name=row["customer_name"],
+            created_at=row["created_at"],
+            modified_at=row["modified_at"],
+        )
+        for row in rows
+    ]
