@@ -6,7 +6,7 @@
 
 import { StepShell } from '@/components/Courses/CourseWizard.steps'
 import { schemas } from '@spaire/client'
-import { useFieldArray, useFormContext } from 'react-hook-form'
+import { useFormContext } from 'react-hook-form'
 
 // Same shape the course pricing step uses — keeps the form provider
 // compatible across both wizards.
@@ -182,7 +182,7 @@ export function StepProgram({
           />
           <span className="so-hint">
             Describe the situation, not the demographic. The more specific,
-            the better the AI nails the curriculum.
+            the better the AI nails your landing page.
           </span>
         </div>
         <div className="so-field">
@@ -606,5 +606,195 @@ export function StepPricingCoaching({
         </div>
       </div>
     </StepShell>
+  )
+}
+
+// ── Step 5: Review (last screen before publish) ─────────────────────────────
+//
+// Read-only summary of every choice the coach made. The publish button is
+// always enabled — there's no AI gate, no async validation. Clicking
+// publish moves to the creating screen which kicks off product/course/
+// events creation (and best-effort AI landing generation in parallel).
+
+const formatDate = (iso: string): string =>
+  new Date(iso).toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  })
+
+const formatPrice = (cents: number, currency: string): string => {
+  const dollars = cents / 100
+  return new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency: currency.toUpperCase(),
+  }).format(dollars)
+}
+
+export function StepReview({
+  program,
+  coach,
+  schedule,
+  sessions,
+  priceCents,
+  priceCurrency,
+  billingCycle,
+  onPublish,
+  onBack,
+  onClose,
+}: {
+  program: ProgramState
+  coach: CoachState
+  schedule: ScheduleState
+  sessions: string[]
+  priceCents: number
+  priceCurrency: string
+  billingCycle: 'onetime' | 'recurring'
+  onPublish: () => void
+  onBack: () => void
+  onClose: () => void
+}) {
+  return (
+    <StepShell
+      step={5}
+      total={5}
+      title="Review and publish"
+      onNext={onPublish}
+      onBack={onBack}
+      onClose={onClose}
+      nextLabel="Publish program"
+    >
+      <div className="so-fields">
+        <ReviewBlock label="Program">
+          <ReviewRow label="Title" value={program.title || '—'} />
+          <ReviewRow
+            label="Transformation"
+            value={program.transformation || '—'}
+          />
+          <ReviewRow label="Audience" value={program.audience || '—'} />
+          <ReviewRow
+            label="Length"
+            value={`${program.weeks} ${program.weeks === 1 ? 'week' : 'weeks'}`}
+          />
+        </ReviewBlock>
+
+        <ReviewBlock label="Coach">
+          <ReviewRow label="Name" value={coach.name || '—'} />
+          <ReviewRow label="Niche" value={coach.focus || '—'} />
+        </ReviewBlock>
+
+        <ReviewBlock label="Schedule">
+          <ReviewRow
+            label="First session"
+            value={
+              sessions[0]
+                ? `${formatDate(sessions[0])} at ${schedule.time}`
+                : '—'
+            }
+          />
+          <ReviewRow
+            label="Cadence"
+            value={`Weekly · ${schedule.durationMinutes} min`}
+          />
+          <ReviewRow label="Timezone" value={schedule.timezone} />
+          <ReviewRow
+            label="Sessions"
+            value={`${sessions.length} live calls`}
+          />
+        </ReviewBlock>
+
+        <ReviewBlock label="Pricing">
+          <ReviewRow
+            label="Price"
+            value={
+              priceCents > 0
+                ? `${formatPrice(priceCents, priceCurrency)}${
+                    billingCycle === 'recurring' ? ' / month' : ''
+                  }`
+                : '—'
+            }
+          />
+          <ReviewRow
+            label="Billing"
+            value={
+              billingCycle === 'recurring' ? 'Subscription' : 'One-time'
+            }
+          />
+        </ReviewBlock>
+
+        <p
+          style={{
+            marginTop: 16,
+            padding: 12,
+            borderRadius: 10,
+            background: 'var(--so-surface)',
+            color: 'var(--so-gray4)',
+            fontSize: 12.5,
+            lineHeight: 1.5,
+          }}
+        >
+          Once you publish, we&apos;ll write a landing page draft for you
+          (you can rewrite or replace it from the Customize tab) and create
+          all {sessions.length} sessions on the dates above with placeholder
+          titles. Edit each session&apos;s title, agenda, and join link from
+          the Events tab.
+        </p>
+      </div>
+    </StepShell>
+  )
+}
+
+function ReviewBlock({
+  label,
+  children,
+}: {
+  label: string
+  children: React.ReactNode
+}) {
+  return (
+    <div
+      style={{
+        padding: 16,
+        borderRadius: 12,
+        border: '1px solid var(--so-border)',
+        background: 'var(--so-white)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 8,
+      }}
+    >
+      <span
+        style={{
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+          color: 'var(--so-gray4)',
+        }}
+      >
+        {label}
+      </span>
+      <div
+        style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
+      >
+        {children}
+      </div>
+    </div>
+  )
+}
+
+function ReviewRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: '140px 1fr',
+        gap: 12,
+        fontSize: 13,
+      }}
+    >
+      <span style={{ color: 'var(--so-gray4)' }}>{label}</span>
+      <span style={{ color: 'var(--so-ink)' }}>{value}</span>
+    </div>
   )
 }

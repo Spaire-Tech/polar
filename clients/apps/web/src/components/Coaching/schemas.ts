@@ -1,42 +1,5 @@
 import { z } from 'zod'
 
-// ── Curriculum (week-by-week structure) ─────────────────────────────────
-//
-// A coaching program is time-boxed: each week is anchored on one live group
-// call (the "session") and may carry pre-recorded support modules. The AI
-// is told the exact week count up front and must return that many weeks,
-// each with one session and zero-or-more pre-recorded modules.
-
-export const curriculumSchema = z.object({
-  weeks: z.array(
-    z.object({
-      number: z.number().int().positive(),
-      title: z.string(),
-      theme: z.string(),
-      session: z.object({
-        title: z.string(),
-        talking_points: z.array(z.string()),
-      }),
-      // Pre-recorded support content for this week. May be empty — many
-      // cohorts are pure live-call programs.
-      modules: z.array(
-        z.object({
-          title: z.string(),
-          description: z.string().optional(),
-          lessons: z.array(
-            z.object({
-              title: z.string(),
-              content_type: z.enum(['text', 'video']),
-            }),
-          ),
-        }),
-      ),
-    }),
-  ),
-})
-
-export type CoachingCurriculum = z.infer<typeof curriculumSchema>
-
 // ── Landing (coaching-shaped public page copy) ───────────────────────────
 //
 // Same intent as the course landing schema (every visible string comes from
