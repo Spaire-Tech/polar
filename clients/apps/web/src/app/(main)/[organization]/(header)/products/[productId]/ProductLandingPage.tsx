@@ -17,6 +17,7 @@ import {
   mergeOverrides,
 } from '@/components/Courses/editor/EditorContext'
 import type { LandingMedia } from '@/hooks/queries/courses'
+import { CoachingProgramPreview } from './CoachingProgramPreview'
 import { ProductDetailPage } from './ProductDetailPage'
 
 export function ProductLandingPage({
@@ -123,8 +124,8 @@ function CourseLandingShell({
     title: landing.title ?? product.name,
     slug: null,
     course_type: landing.course_type,
-    program_format: 'standard',
-    community_enabled: false,
+    program_format: landing.program_format ?? 'standard',
+    community_enabled: landing.community_enabled ?? false,
     paywall_enabled: paywallPosition >= 0,
     paywall_lesson_id: null,
     paywall_position: paywallPosition >= 0 ? paywallPosition : null,
@@ -177,6 +178,14 @@ function CourseLandingShell({
         flatLessons={flatLessons}
         product={product as unknown as schemas['Product']}
       />
+      {fakeCourse.program_format === 'coaching' && landing.coaching && (
+        <CoachingProgramPreview
+          preview={landing.coaching}
+          lessonCount={landing.lesson_count}
+          totalDurationSeconds={landing.total_duration_seconds}
+          communityEnabled={fakeCourse.community_enabled}
+        />
+      )}
     </EditorProvider>
   )
 }

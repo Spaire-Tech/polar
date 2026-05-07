@@ -9,6 +9,12 @@ from sqlalchemy.orm import selectinload
 log = logging.getLogger(__name__)
 
 from polar.auth.models import is_customer, is_member
+from polar.coaching.repository import (
+    CoachingCohortEnrollmentRepository,
+    CoachingCohortRepository,
+    CoachingEventRepository,
+    CoachingIntakeFormRepository,
+)
 from polar.course.repository import CourseLessonRepository
 from polar.course.schemas import (
     CourseLessonFlatRead,
@@ -629,6 +635,16 @@ async def get_course_landing(
             "lesson_ids": [l.get("id") for l in flat_lessons],
         },
     )
+
+    # Coaching preview: public-safe meta about events / cohort / extras so
+    # the storefront can render "What's included" and a schedule peek
+    # without leaking meeting URLs or recording playback ids.
+    coaching_block = (
+        await _build_coaching_landing_block(session, course)
+        if course.program_format == "coaching"
+        else None
+    )
+
     return {
         "id": str(course.id),
         "title": course.title,
@@ -642,11 +658,14 @@ async def get_course_landing(
         "instructor_name_bold": course.instructor_name_bold,
         "instructor_name_uppercase": course.instructor_name_uppercase,
         "course_type": course.course_type,
+        "program_format": course.program_format,
+        "community_enabled": course.community_enabled,
         "lesson_count": len(flat_lessons),
         "total_duration_seconds": total_duration,
         "landing_overrides": course.landing_overrides,
         "lessons": flat_lessons,
         "has_access": has_access,
+        "coaching": coaching_block,
     }
 
 
@@ -961,3 +980,89 @@ async def delete_lesson_note(
     if note is None:
         return
     await course_service.delete_lesson_note(session, note)
+
+
+# ── Coaching landing block ──────────────────────────────────────────────────
+
+# Public-safe coaching preview returned alongside the course landing data.
+# Strips meeting URLs and recording playback ids — those only flow through
+# the customer-portal coaching endpoints which require enrollment.
+
+from sqlalchemy import func as _sa_func
+
+
+async def _build_coaching_landing_block(
+    session: AsyncSession, course
+) -> dict:
+    event_repo = CoachingEventRepository.from_session(session)
+    cohort_repo = CoachingCohortRepository.from_session(session)
+    enrollment_repo = CoachingCohortEnrollmentRepository.from_session(session)
+    intake_repo = CoachingIntakeFormRepository.from_session(session)
+
+    # Upcoming events: titles + dates + duration only. Capped to 8 for the
+    # preview — the customer sees the full schedule once enrolled.
+    now = datetime.now(tz=UTC)
+    upcoming_stmt = event_repo.get_by_course_statement(course.id).where(
+        event_repo.model.starts_at >= now,
+        event_repo.model.status == "scheduled",
+    ).limit(8)
+    upcoming_events = await event_repo.get_all(upcoming_stmt)
+
+    total_events_stmt = select(_sa_func.count(event_repo.model.id)).where(
+        event_repo.model.course_id == course.id,
+        event_repo.model.deleted_at.is_(None),
+    )
+    total_events = (await session.execute(total_events_stmt)).scalar_one() or 0
+
+    # Default cohort meta (single-cohort programs always have one).
+    default_cohort = await cohort_repo.get_one_or_none(
+        cohort_repo.get_default_for_course_statement(course.id)
+    )
+    cohort_block = None
+    if default_cohort is not None:
+        member_count_stmt = select(
+            _sa_func.count(enrollment_repo.model.id)
+        ).where(
+            enrollment_repo.model.cohort_id == default_cohort.id,
+            enrollment_repo.model.deleted_at.is_(None),
+        )
+        member_count = (
+            await session.execute(member_count_stmt)
+        ).scalar_one() or 0
+        cohort_block = {
+            "name": default_cohort.name,
+            "starts_at": (
+                default_cohort.starts_at.isoformat()
+                if default_cohort.starts_at
+                else None
+            ),
+            "ends_at": (
+                default_cohort.ends_at.isoformat()
+                if default_cohort.ends_at
+                else None
+            ),
+            "capacity": default_cohort.capacity,
+            "member_count": member_count,
+            "enrollment_open": default_cohort.enrollment_open,
+            "is_full": (
+                default_cohort.capacity is not None
+                and member_count >= default_cohort.capacity
+            ),
+        }
+
+    intake_form = await intake_repo.get_by_course(course.id)
+
+    return {
+        "total_events": total_events,
+        "upcoming_events": [
+            {
+                "id": str(e.id),
+                "title": e.title,
+                "starts_at": e.starts_at.isoformat(),
+                "duration_minutes": e.duration_minutes,
+            }
+            for e in upcoming_events
+        ],
+        "cohort": cohort_block,
+        "has_intake": intake_form is not None,
+    }

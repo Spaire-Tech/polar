@@ -566,6 +566,26 @@ export type CourseLandingLesson = {
   completed?: boolean
 }
 
+export type CoachingLandingPreview = {
+  total_events: number
+  upcoming_events: {
+    id: string
+    title: string
+    starts_at: string
+    duration_minutes: number
+  }[]
+  cohort: {
+    name: string
+    starts_at: string | null
+    ends_at: string | null
+    capacity: number | null
+    member_count: number
+    enrollment_open: boolean
+    is_full: boolean
+  } | null
+  has_intake: boolean
+}
+
 export type CourseLandingPageData = {
   id: string
   title: string | null
@@ -579,10 +599,13 @@ export type CourseLandingPageData = {
   instructor_name_bold?: boolean
   instructor_name_uppercase?: boolean
   course_type: string
+  program_format?: 'standard' | 'coaching'
+  community_enabled?: boolean
   lesson_count: number
   total_duration_seconds: number
   lessons: CourseLandingLesson[]
   has_access: boolean
+  coaching?: CoachingLandingPreview | null
 }
 
 async function portalApiFetch<T>(
