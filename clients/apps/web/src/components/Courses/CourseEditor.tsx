@@ -19,6 +19,7 @@ import { toast } from '../Toast/use-toast'
 import { CourseHeader, TabId } from './editor/CourseHeader'
 import { CustomersTab } from './editor/CustomersTab'
 import { CustomizeTab } from './editor/CustomizeTab'
+import { EventsTab } from './editor/EventsTab'
 import { LessonDetail, LessonEdits } from './editor/LessonDetail'
 import { LessonContentType } from './editor/ModuleCard'
 import { OutlineTab } from './editor/OutlineTab'
@@ -69,14 +70,19 @@ export default function CourseEditor({
   const router = useRouter()
   const searchParams = useSearchParams()
 
+  const tabParam = searchParams.get('tab') as TabId
   const initialTab: TabId =
-    (searchParams.get('tab') as TabId) === 'customize'
+    tabParam === 'customize'
       ? 'customize'
-      : (searchParams.get('tab') as TabId) === 'pricing'
+      : tabParam === 'pricing'
         ? 'pricing'
-        : (searchParams.get('tab') as TabId) === 'customers'
+        : tabParam === 'customers'
           ? 'customers'
-          : 'outline'
+          : tabParam === 'events'
+            ? 'events'
+            : initialCourse.program_format === 'coaching'
+              ? 'events'
+              : 'outline'
   const [activeTab, setActiveTab] = useState<TabId>(initialTab)
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
@@ -319,6 +325,8 @@ export default function CourseEditor({
         />
       )
     }
+  } else if (activeTab === 'events') {
+    mainContent = <EventsTab courseId={course.id} />
   } else if (activeTab === 'customize') {
     mainContent = <CustomizeTab course={course} organization={organization} />
   } else if (activeTab === 'pricing') {

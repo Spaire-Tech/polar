@@ -96,6 +96,7 @@ export type CourseRead = {
   title: string | null
   slug: string | null
   course_type: string
+  program_format: 'standard' | 'coaching'
   paywall_enabled: boolean
   paywall_lesson_id: string | null
   paywall_position: number | null
@@ -213,6 +214,7 @@ export const useCreateCourse = () =>
       organization_id: string
       title?: string | null
       course_type?: string
+      program_format?: 'standard' | 'coaching'
       paywall_enabled?: boolean
       ai_generated?: boolean
       description?: string | null
@@ -536,6 +538,7 @@ export type CustomerCourseDetail = {
     instructor_name_bold?: boolean
     instructor_name_uppercase?: boolean
     course_type: string
+    program_format?: 'standard' | 'coaching'
     paywall_enabled: boolean
     paywall_position: number | null
     landing_overrides?: LandingOverrides | null

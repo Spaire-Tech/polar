@@ -94,6 +94,7 @@ def _course_read(course) -> CourseRead:
         title=course.title,
         slug=course.slug,
         course_type=course.course_type,
+        program_format=course.program_format,
         paywall_enabled=course.paywall_enabled,
         paywall_lesson_id=course.paywall_lesson_id,
         paywall_position=course.paywall_position,

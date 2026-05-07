@@ -16,7 +16,11 @@ export default function Page({
   const type = searchParams.get('type')
 
   if (type === 'course') {
-    return <CourseWizard organization={organization} />
+    return <CourseWizard organization={organization} programFormat="standard" />
+  }
+
+  if (type === 'coaching') {
+    return <CourseWizard organization={organization} programFormat="coaching" />
   }
 
   if (type === 'digital') {

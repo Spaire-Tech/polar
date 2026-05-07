@@ -44,6 +44,16 @@ class Course(RecordModel):
         default="evergreen",
     )
 
+    # "standard" | "coaching". Coaching programs surface live events and a
+    # schedule tab; everything else (modules, lessons, drip, paywall, comments,
+    # notes, customer portal) reuses the course pipeline unchanged.
+    program_format: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        default="standard",
+        server_default="standard",
+    )
+
     paywall_enabled: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False
     )

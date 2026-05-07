@@ -138,6 +138,7 @@ class CourseCreate(Schema):
     title: str | None = None
     slug: str | None = None
     course_type: Literal["evergreen", "cohort"] = "evergreen"
+    program_format: Literal["standard", "coaching"] = "standard"
     paywall_enabled: bool = False
     paywall_lesson_id: UUID4 | None = None
     paywall_position: int | None = None
@@ -159,6 +160,7 @@ class CourseUpdate(Schema):
     title: str | None = None
     slug: str | None = None
     course_type: Literal["evergreen", "cohort"] | None = None
+    program_format: Literal["standard", "coaching"] | None = None
     paywall_enabled: bool | None = None
     paywall_lesson_id: UUID4 | None = None
     paywall_position: int | None = None
@@ -237,6 +239,7 @@ class CourseRead(TimestampedSchema):
     title: str | None
     slug: str | None
     course_type: str
+    program_format: str = "standard"
     paywall_enabled: bool
     paywall_lesson_id: UUID4 | None
     paywall_position: int | None

@@ -5,13 +5,26 @@ import AddOutlined from '@mui/icons-material/AddOutlined'
 import ChevronLeftOutlined from '@mui/icons-material/ChevronLeftOutlined'
 import { cn } from '@spaire/ui/lib/utils'
 
-export type TabId = 'outline' | 'customize' | 'pricing' | 'customers'
+export type TabId =
+  | 'outline'
+  | 'events'
+  | 'customize'
+  | 'pricing'
+  | 'customers'
 
-const TABS: { id: TabId; label: string }[] = [
+const STANDARD_TABS: { id: TabId; label: string }[] = [
   { id: 'outline', label: 'Outline' },
   { id: 'customize', label: 'Customize' },
   { id: 'pricing', label: 'Pricing' },
   { id: 'customers', label: 'Customers' },
+]
+
+const COACHING_TABS: { id: TabId; label: string }[] = [
+  { id: 'events', label: 'Events' },
+  { id: 'outline', label: 'Modules' },
+  { id: 'customize', label: 'Customize' },
+  { id: 'pricing', label: 'Pricing' },
+  { id: 'customers', label: 'Members' },
 ]
 
 export function CourseHeader({
@@ -75,7 +88,10 @@ export function CourseHeader({
 
       {/* Tabs row — centered */}
       <div className="flex flex-shrink-0 items-center justify-center border-b border-gray-200 bg-white">
-        {TABS.map((tab) => {
+        {(course.program_format === 'coaching'
+          ? COACHING_TABS
+          : STANDARD_TABS
+        ).map((tab) => {
           const active = tab.id === activeTab
           return (
             <button

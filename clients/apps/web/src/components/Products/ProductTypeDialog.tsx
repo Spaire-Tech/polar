@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation'
 import { ElementType } from 'react'
 
 type TileType = {
-  id: 'digital' | 'course'
+  id: 'digital' | 'course' | 'coaching'
   label: string
   description: string
   Icon: ElementType
@@ -28,6 +28,13 @@ const PRODUCT_TYPES: TileType[] = [
     description:
       'Build a structured learning experience with modules, video lessons, downloadable resources, and quizzes.',
     Icon: CourseIcon,
+  },
+  {
+    id: 'coaching',
+    label: 'Coaching Program',
+    description:
+      'Run a cohort program with pre-recorded modules, scheduled live group calls, downloadable resources, and a community space.',
+    Icon: CoachingIcon,
   },
 ]
 
@@ -66,17 +73,10 @@ export const ProductTypeDialog = ({
         </p>
       </div>
 
-      <div className="relative mx-auto grid w-full max-w-4xl grid-cols-1 items-stretch gap-6 md:grid-cols-[1fr_auto_1fr]">
-        <Tile tile={PRODUCT_TYPES[0]} onSelect={handleSelect} />
-
-        <div className="relative hidden items-center justify-center md:flex">
-          <div className="absolute inset-y-8 left-1/2 w-px -translate-x-1/2 bg-gradient-to-b from-transparent via-gray-200 to-transparent" />
-          <div className="relative flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white text-[11px] font-semibold tracking-wider text-gray-400 uppercase shadow-sm">
-            or
-          </div>
-        </div>
-
-        <Tile tile={PRODUCT_TYPES[1]} onSelect={handleSelect} />
+      <div className="relative mx-auto grid w-full max-w-5xl grid-cols-1 items-stretch gap-6 md:grid-cols-3">
+        {PRODUCT_TYPES.map((tile) => (
+          <Tile key={tile.id} tile={tile} onSelect={handleSelect} />
+        ))}
       </div>
     </div>
   )
@@ -310,6 +310,73 @@ function CourseIcon() {
       {/* Eye/circle accent on top page */}
       <circle cx="20" cy="22" r="4.5" fill="#FFF6DC" />
       <circle cx="22" cy="22" r="2.5" fill="#0E2433" />
+    </svg>
+  )
+}
+
+function CoachingIcon() {
+  return (
+    <svg
+      width="72"
+      height="72"
+      viewBox="0 0 72 72"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <defs>
+        <linearGradient id="cgBgGradient" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#FFFFFF" />
+          <stop offset="100%" stopColor="#F2F3F5" />
+        </linearGradient>
+        <linearGradient id="cgPurple" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#B59CFF" />
+          <stop offset="100%" stopColor="#6F49E0" />
+        </linearGradient>
+        <linearGradient id="cgPurpleDeep" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#7B58F0" />
+          <stop offset="100%" stopColor="#3D1FA8" />
+        </linearGradient>
+      </defs>
+
+      <rect
+        x="2"
+        y="2"
+        width="68"
+        height="68"
+        rx="18"
+        fill="url(#cgBgGradient)"
+        stroke="#E5E7EB"
+        strokeWidth="1"
+      />
+
+      {/* Calendar card */}
+      <rect
+        x="14"
+        y="18"
+        width="44"
+        height="36"
+        rx="6"
+        fill="white"
+        stroke="#E5E7EB"
+        strokeWidth="1"
+      />
+      {/* Calendar header */}
+      <rect x="14" y="18" width="44" height="9" rx="6" fill="url(#cgPurpleDeep)" />
+      <rect x="14" y="22" width="44" height="5" fill="url(#cgPurpleDeep)" />
+      {/* Hanger lines */}
+      <rect x="22" y="14" width="3" height="8" rx="1.5" fill="#3D1FA8" />
+      <rect x="47" y="14" width="3" height="8" rx="1.5" fill="#3D1FA8" />
+
+      {/* Three "session" rows */}
+      <rect x="20" y="32" width="22" height="3" rx="1.5" fill="#D5C7FF" />
+      <circle cx="48" cy="33.5" r="2.2" fill="url(#cgPurple)" />
+
+      <rect x="20" y="40" width="28" height="3" rx="1.5" fill="#D5C7FF" />
+      <circle cx="52" cy="41.5" r="2.2" fill="url(#cgPurple)" />
+
+      <rect x="20" y="48" width="18" height="3" rx="1.5" fill="#D5C7FF" />
+      <circle cx="44" cy="49.5" r="2.2" fill="url(#cgPurple)" />
     </svg>
   )
 }

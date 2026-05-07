@@ -6,6 +6,7 @@ import type {
   CustomerModuleRead,
 } from '@/hooks/queries/courses'
 import { useState } from 'react'
+import { CoachingSchedule } from './CoachingSchedule'
 
 const FONT = "'Poppins', var(--font-poppins), system-ui, sans-serif"
 
@@ -1182,6 +1183,10 @@ export function CoursePortalView({
           if (continueLesson) onSelectLesson(continueLesson)
         }}
       />
+
+      {course.program_format === 'coaching' && (
+        <CoachingSchedule courseId={course.id} />
+      )}
 
       <section style={modStyles.wrap}>
         {modules.map((m, i) => (

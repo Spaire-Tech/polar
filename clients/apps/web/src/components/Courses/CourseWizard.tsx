@@ -96,9 +96,12 @@ function uploadCourseThumbnail(
 
 export default function CourseWizard({
   organization,
+  programFormat = 'standard',
 }: {
   organization: schemas['Organization']
+  programFormat?: 'standard' | 'coaching'
 }) {
+  const isCoaching = programFormat === 'coaching'
   const router = useRouter()
   const createProduct = useCreateProduct(organization)
   const createCourse = useCreateCourse()
@@ -339,6 +342,7 @@ export default function CourseWizard({
         organization_id: organization.id,
         title: draft.courseTitle || course.title || 'Untitled Course',
         course_type: 'evergreen',
+        program_format: programFormat,
         paywall_enabled: paywall.paywallEnabled,
         ai_generated: true,
         description: humanDescription,
@@ -519,11 +523,13 @@ export default function CourseWizard({
       }
 
       toast({
-        title: 'Course Created',
+        title: isCoaching ? 'Coaching Program Created' : 'Course Created',
         description: `"${draft.courseTitle || course.title}" is ready to edit`,
       })
       router.replace(
-        `/dashboard/${organization.slug}/courses/${created.id}?tab=outline`,
+        `/dashboard/${organization.slug}/courses/${created.id}?tab=${
+          isCoaching ? 'events' : 'outline'
+        }`,
       )
     } catch (err) {
       console.error('[CourseWizard] create error:', err)

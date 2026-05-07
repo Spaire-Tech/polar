@@ -53,6 +53,7 @@ from polar.organization_access_token.endpoints import (
 )
 from polar.payment.endpoints import router as payment_router
 from polar.payout.endpoints import router as payout_router
+from polar.coaching.endpoints import router as coaching_router
 from polar.course.endpoints import router as course_router
 from polar.personal_access_token.endpoints import router as pat_router
 from polar.product.endpoints import router as product_router
@@ -183,3 +184,5 @@ router.include_router(resend_router)
 router.include_router(chargeback_stop_router)
 # /courses
 router.include_router(course_router)
+# /coaching
+router.include_router(coaching_router)
