@@ -110,6 +110,15 @@ class CourseService:
         course = await repo.create(course, flush=True)
         # Refresh to avoid MissingGreenlet when selectin relationships are accessed
         await session.refresh(course, attribute_names=["modules"])
+
+        # Seed the default cohort for coaching programs so members always
+        # have somewhere to land. ensure_default_for_course is idempotent
+        # so re-running is safe. Lazy import to avoid a circular dep.
+        if course.program_format == "coaching":
+            from polar.coaching.service import cohort_service
+
+            await cohort_service.ensure_default_for_course(session, course)
+
         return course
 
     async def update(
@@ -274,7 +283,19 @@ class CourseService:
             product_id=product_id,
             enrolled_at=datetime.now(tz=UTC),
         )
-        return await repo.create(enrollment, flush=True)
+        enrollment = await repo.create(enrollment, flush=True)
+
+        # If this is a coaching program, drop the new enrollment into the
+        # default cohort so the Members tab + cohort-scoped queries see it
+        # immediately. attach_enrollment is a no-op for non-coaching courses.
+        # Lazy import to avoid a course→coaching→course circular import.
+        from polar.coaching.service import cohort_service
+
+        await cohort_service.attach_enrollment(
+            session, course_id=course_id, enrollment=enrollment
+        )
+
+        return enrollment
 
     async def revoke_enrollment(
         self,

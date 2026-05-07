@@ -139,3 +139,146 @@ export const useCreateCoachingRecordingUpload = () =>
         { method: 'POST' },
       ),
   })
+
+// ── Cohorts ──────────────────────────────────────────────────────────────
+
+export type CoachingCohortRead = {
+  id: string
+  course_id: string
+  name: string
+  starts_at: string | null
+  ends_at: string | null
+  capacity: number | null
+  enrollment_open: boolean
+  is_default: boolean
+  member_count: number
+  created_at: string
+  modified_at: string | null
+}
+
+export type CoachingCohortCreate = {
+  course_id: string
+  name: string
+  starts_at?: string | null
+  ends_at?: string | null
+  capacity?: number | null
+  enrollment_open?: boolean
+}
+
+export type CoachingCohortUpdate = {
+  name?: string
+  starts_at?: string | null
+  ends_at?: string | null
+  capacity?: number | null
+  enrollment_open?: boolean
+}
+
+export const useCoachingCohorts = (courseId: string | undefined) =>
+  useQuery<CoachingCohortRead[]>({
+    queryKey: ['coaching-cohorts', { courseId }],
+    queryFn: () =>
+      coachingFetch<CoachingCohortRead[]>(
+        `/v1/coaching/cohorts?course_id=${courseId}`,
+      ),
+    enabled: !!courseId,
+  })
+
+export const useCreateCoachingCohort = (courseId: string) => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: CoachingCohortCreate) =>
+      coachingFetch<CoachingCohortRead>('/v1/coaching/cohorts', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['coaching-cohorts', { courseId }] })
+      qc.invalidateQueries({ queryKey: ['coaching-members', { courseId }] })
+    },
+  })
+}
+
+export const useUpdateCoachingCohort = (courseId: string) => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      cohortId,
+      body,
+    }: {
+      cohortId: string
+      body: CoachingCohortUpdate
+    }) =>
+      coachingFetch<CoachingCohortRead>(`/v1/coaching/cohorts/${cohortId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['coaching-cohorts', { courseId }] })
+    },
+  })
+}
+
+export const useDeleteCoachingCohort = (courseId: string) => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (cohortId: string) =>
+      coachingFetch<void>(`/v1/coaching/cohorts/${cohortId}`, {
+        method: 'DELETE',
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['coaching-cohorts', { courseId }] })
+      qc.invalidateQueries({ queryKey: ['coaching-members', { courseId }] })
+    },
+  })
+}
+
+// ── Members ──────────────────────────────────────────────────────────────
+
+export type CoachingMemberRead = {
+  enrollment_id: string
+  enrolled_at: string
+  cohort_id: string | null
+  cohort_name: string | null
+  customer: {
+    id: string
+    email: string | null
+    name: string | null
+    avatar_url: string | null
+  }
+  completed_lessons: number
+  total_lessons: number
+}
+
+export const useCoachingMembers = (courseId: string | undefined) =>
+  useQuery<CoachingMemberRead[]>({
+    queryKey: ['coaching-members', { courseId }],
+    queryFn: () =>
+      coachingFetch<CoachingMemberRead[]>(
+        `/v1/coaching/members?course_id=${courseId}`,
+      ),
+    enabled: !!courseId,
+  })
+
+export const useAssignMemberCohort = (courseId: string) => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      enrollmentId,
+      cohortId,
+    }: {
+      enrollmentId: string
+      cohortId: string
+    }) =>
+      coachingFetch<CoachingMemberRead>(
+        `/v1/coaching/members/${enrollmentId}/cohort`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ cohort_id: cohortId }),
+        },
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['coaching-members', { courseId }] })
+      qc.invalidateQueries({ queryKey: ['coaching-cohorts', { courseId }] })
+    },
+  })
+}

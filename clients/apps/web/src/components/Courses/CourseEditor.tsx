@@ -20,6 +20,7 @@ import { CourseHeader, TabId } from './editor/CourseHeader'
 import { CustomersTab } from './editor/CustomersTab'
 import { CustomizeTab } from './editor/CustomizeTab'
 import { EventsTab } from './editor/EventsTab'
+import { MembersTab } from './editor/MembersTab'
 import { LessonDetail, LessonEdits } from './editor/LessonDetail'
 import { LessonContentType } from './editor/ModuleCard'
 import { OutlineTab } from './editor/OutlineTab'
@@ -339,9 +340,15 @@ export default function CourseEditor({
       />
     )
   } else {
-    mainContent = (
-      <CustomersTab organization={organization} courseId={course.id} />
-    )
+    // 'customers' tab — coaching programs surface the Members + Cohorts UI
+    // here so the merchant can move people between cohorts. Standard
+    // courses keep the existing CustomersTab.
+    mainContent =
+      course.program_format === 'coaching' ? (
+        <MembersTab courseId={course.id} />
+      ) : (
+        <CustomersTab organization={organization} courseId={course.id} />
+      )
   }
 
   const handleClose = () =>
