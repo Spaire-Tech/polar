@@ -123,6 +123,7 @@ function CourseLandingShell({
     title: landing.title ?? product.name,
     slug: null,
     course_type: landing.course_type,
+    program_format: 'standard',
     paywall_enabled: paywallPosition >= 0,
     paywall_lesson_id: null,
     paywall_position: paywallPosition >= 0 ? paywallPosition : null,

@@ -237,6 +237,7 @@ export function WizardLandingEditor({
       title: draft.courseTitle || 'Untitled course',
       slug: null,
       course_type: 'evergreen',
+      program_format: 'standard',
       paywall_enabled: paywallEnabled,
       paywall_lesson_id: null,
       paywall_position: paywallPosition,
