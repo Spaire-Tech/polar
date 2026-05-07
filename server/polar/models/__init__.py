@@ -16,6 +16,7 @@ from .coaching_cohort_enrollment import CoachingCohortEnrollment
 from .coaching_event import CoachingEvent
 from .coaching_intake_form import CoachingIntakeForm
 from .coaching_intake_response import CoachingIntakeResponse
+from .coaching_post import CoachingPost
 from .course import Course
 from .course_enrollment import CourseEnrollment
 from .course_lesson import CourseLesson
@@ -132,6 +133,7 @@ __all__ = [
     "CoachingEvent",
     "CoachingIntakeForm",
     "CoachingIntakeResponse",
+    "CoachingPost",
     "Course",
     "CourseEnrollment",
     "CourseLesson",

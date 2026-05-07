@@ -6,6 +6,7 @@ import type {
   CustomerModuleRead,
 } from '@/hooks/queries/courses'
 import { useState } from 'react'
+import { CoachingCommunity } from './CoachingCommunity'
 import { CoachingSchedule } from './CoachingSchedule'
 import { IntakeBanner } from './IntakeBanner'
 
@@ -1189,6 +1190,9 @@ export function CoursePortalView({
         <>
           <IntakeBanner courseId={course.id} />
           <CoachingSchedule courseId={course.id} />
+          {course.community_enabled && (
+            <CoachingCommunity courseId={course.id} />
+          )}
         </>
       )}
 

@@ -15,6 +15,7 @@ from polar.models.coaching_cohort_enrollment import CoachingCohortEnrollment
 from polar.models.coaching_event import CoachingEvent
 from polar.models.coaching_intake_form import CoachingIntakeForm
 from polar.models.coaching_intake_response import CoachingIntakeResponse
+from polar.models.coaching_post import CoachingPost
 from polar.models.course import Course
 
 
@@ -249,3 +250,57 @@ class CoachingIntakeResponseRepository(
             CoachingIntakeResponse.form_id == form_id,
             CoachingIntakeResponse.customer_id == customer_id,
         )
+
+
+class CoachingPostRepository(
+    RepositorySoftDeletionIDMixin[CoachingPost, UUID],
+    RepositorySoftDeletionMixin[CoachingPost],
+    RepositoryBase[CoachingPost],
+):
+    model = CoachingPost
+
+    def get_top_level_for_course_statement(
+        self, course_id: UUID, *, include_hidden: bool = False
+    ) -> Select[tuple[CoachingPost]]:
+        statement = self.get_base_statement().where(
+            CoachingPost.course_id == course_id,
+            CoachingPost.parent_id.is_(None),
+        )
+        if not include_hidden:
+            statement = statement.where(CoachingPost.hidden.is_(False))
+        # Pinned threads first, then newest-first.
+        return statement.order_by(
+            CoachingPost.pinned.desc(),
+            CoachingPost.created_at.desc(),
+        )
+
+    def get_replies_for_parents_statement(
+        self, parent_ids: list[UUID], *, include_hidden: bool = False
+    ) -> Select[tuple[CoachingPost]]:
+        statement = self.get_base_statement().where(
+            CoachingPost.parent_id.in_(parent_ids),
+        )
+        if not include_hidden:
+            statement = statement.where(CoachingPost.hidden.is_(False))
+        return statement.order_by(CoachingPost.created_at.asc())
+
+    def get_readable_statement(
+        self, auth_subject: AuthSubject[User | Organization]
+    ) -> Select[tuple[CoachingPost]]:
+        statement = self.get_base_statement().join(
+            Course, Course.id == CoachingPost.course_id
+        )
+        if is_user(auth_subject):
+            statement = statement.where(
+                Course.organization_id.in_(
+                    select(UserOrganization.organization_id).where(
+                        UserOrganization.user_id == auth_subject.subject.id,
+                        UserOrganization.deleted_at.is_(None),
+                    )
+                )
+            )
+        elif is_organization(auth_subject):
+            statement = statement.where(
+                Course.organization_id == auth_subject.subject.id
+            )
+        return statement

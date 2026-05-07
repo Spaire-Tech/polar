@@ -54,6 +54,16 @@ class Course(RecordModel):
         server_default="standard",
     )
 
+    # Program-level discussion board for coaching programs. Disabled by
+    # default for non-coaching courses (which use per-lesson comments
+    # instead).
+    community_enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="false",
+    )
+
     paywall_enabled: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False
     )

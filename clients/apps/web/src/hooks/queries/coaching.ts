@@ -435,3 +435,157 @@ export const useSubmitCustomerIntakeForm = (courseId: string) => {
     },
   })
 }
+
+// ── Community (creator) ──────────────────────────────────────────────────
+
+export type CoachingPostAuthor = {
+  enrollment_id: string | null
+  name: string | null
+  is_creator: boolean
+}
+
+export type CoachingPostRead = {
+  id: string
+  course_id: string
+  parent_id: string | null
+  content: string
+  is_creator: boolean
+  pinned: boolean
+  hidden: boolean
+  author: CoachingPostAuthor
+  reply_count: number
+  created_at: string
+  modified_at: string | null
+}
+
+export type CoachingThreadRead = CoachingPostRead & {
+  replies: CoachingPostRead[]
+}
+
+export const useCoachingPosts = (courseId: string | undefined) =>
+  useQuery<CoachingThreadRead[]>({
+    queryKey: ['coaching-posts', { courseId }],
+    queryFn: () =>
+      coachingFetch<CoachingThreadRead[]>(
+        `/v1/coaching/posts?course_id=${courseId}`,
+      ),
+    enabled: !!courseId,
+  })
+
+export const useCreateCoachingPostAsCreator = (courseId: string) => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      content,
+      parent_id,
+    }: {
+      content: string
+      parent_id?: string | null
+    }) =>
+      coachingFetch<CoachingPostRead>('/v1/coaching/posts', {
+        method: 'POST',
+        body: JSON.stringify({
+          course_id: courseId,
+          content,
+          parent_id: parent_id ?? null,
+        }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['coaching-posts', { courseId }] })
+    },
+  })
+}
+
+export const useModerateCoachingPost = (courseId: string) => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      postId,
+      pinned,
+      hidden,
+    }: {
+      postId: string
+      pinned?: boolean
+      hidden?: boolean
+    }) =>
+      coachingFetch<CoachingPostRead>(`/v1/coaching/posts/${postId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ pinned, hidden }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['coaching-posts', { courseId }] })
+    },
+  })
+}
+
+export const useDeleteCoachingPostAsCreator = (courseId: string) => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (postId: string) =>
+      coachingFetch<void>(`/v1/coaching/posts/${postId}`, {
+        method: 'DELETE',
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['coaching-posts', { courseId }] })
+    },
+  })
+}
+
+// ── Community (customer-portal) ──────────────────────────────────────────
+
+export type CustomerCommunityResponse = {
+  enabled: boolean
+  enrollment_id?: string
+  threads: CoachingThreadRead[]
+}
+
+export const useCustomerCommunity = (courseId: string | undefined) =>
+  useQuery<CustomerCommunityResponse>({
+    queryKey: ['customer-community', { courseId }],
+    queryFn: () =>
+      coachingFetch<CustomerCommunityResponse>(
+        `/v1/customer-portal/coaching/${courseId}/community`,
+      ),
+    enabled: !!courseId,
+  })
+
+export const useCustomerCreatePost = (courseId: string) => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      content,
+      parent_id,
+    }: {
+      content: string
+      parent_id?: string | null
+    }) =>
+      coachingFetch<CoachingPostRead>(
+        `/v1/customer-portal/coaching/${courseId}/community/posts`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ content, parent_id: parent_id ?? null }),
+        },
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({
+        queryKey: ['customer-community', { courseId }],
+      })
+    },
+  })
+}
+
+export const useCustomerDeletePost = (courseId: string) => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (postId: string) =>
+      coachingFetch<void>(
+        `/v1/customer-portal/coaching/${courseId}/community/posts/${postId}`,
+        { method: 'DELETE' },
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({
+        queryKey: ['customer-community', { courseId }],
+      })
+    },
+  })
+}

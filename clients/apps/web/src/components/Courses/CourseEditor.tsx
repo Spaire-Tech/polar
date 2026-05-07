@@ -17,6 +17,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useRef, useState } from 'react'
 import { toast } from '../Toast/use-toast'
 import { CourseHeader, TabId } from './editor/CourseHeader'
+import { CommunityTab } from './editor/CommunityTab'
 import { CustomersTab } from './editor/CustomersTab'
 import { CustomizeTab } from './editor/CustomizeTab'
 import { EventsTab } from './editor/EventsTab'
@@ -84,9 +85,11 @@ export default function CourseEditor({
             ? 'events'
             : tabParam === 'intake'
               ? 'intake'
-              : initialCourse.program_format === 'coaching'
-                ? 'events'
-                : 'outline'
+              : tabParam === 'community'
+                ? 'community'
+                : initialCourse.program_format === 'coaching'
+                  ? 'events'
+                  : 'outline'
   const [activeTab, setActiveTab] = useState<TabId>(initialTab)
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
@@ -333,6 +336,8 @@ export default function CourseEditor({
     mainContent = <EventsTab courseId={course.id} />
   } else if (activeTab === 'intake') {
     mainContent = <IntakeTab courseId={course.id} />
+  } else if (activeTab === 'community') {
+    mainContent = <CommunityTab course={course} />
   } else if (activeTab === 'customize') {
     mainContent = <CustomizeTab course={course} organization={organization} />
   } else if (activeTab === 'pricing') {

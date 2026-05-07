@@ -178,3 +178,43 @@ class CoachingIntakeResponseRead(TimestampedSchema):
     submitted_at: datetime
     customer_email: str | None = None
     customer_name: str | None = None
+
+
+# ── Community posts ────────────────────────────────────────────────────────
+
+
+class CoachingPostAuthor(Schema):
+    enrollment_id: UUID | None = None
+    name: str | None = None
+    is_creator: bool = False
+
+
+class CoachingPostBase(Schema):
+    content: str = Field(min_length=1, max_length=10000)
+
+
+class CoachingPostCreate(CoachingPostBase):
+    course_id: UUID
+    parent_id: UUID | None = None
+
+
+class CoachingPostModeration(Schema):
+    """Creator-only: pin/unpin or hide/unhide a post."""
+
+    pinned: bool | None = None
+    hidden: bool | None = None
+
+
+class CoachingPostRead(TimestampedSchema, CoachingPostBase):
+    id: UUID
+    course_id: UUID
+    parent_id: UUID | None = None
+    is_creator: bool
+    pinned: bool
+    hidden: bool
+    author: CoachingPostAuthor
+    reply_count: int = 0
+
+
+class CoachingThreadRead(CoachingPostRead):
+    replies: list[CoachingPostRead] = Field(default_factory=list)

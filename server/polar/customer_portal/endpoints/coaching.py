@@ -14,6 +14,7 @@ from fastapi import Depends, HTTPException, Response
 from polar.coaching.ics import event_to_ics, filename_for
 from polar.coaching.service import (
     coaching_service,
+    community_service,
     intake_service,
     validate_intake_answers,
 )
@@ -224,3 +225,145 @@ async def submit_intake_form(
         "answers": response.answers_json,
         "submitted_at": response.submitted_at.isoformat(),
     }
+
+
+def _serialize_post(post_dict: dict) -> dict:
+    return {
+        "id": str(post_dict["id"]),
+        "course_id": str(post_dict["course_id"]),
+        "parent_id": str(post_dict["parent_id"]) if post_dict["parent_id"] else None,
+        "content": post_dict["content"],
+        "is_creator": post_dict["is_creator"],
+        "pinned": post_dict["pinned"],
+        "hidden": post_dict["hidden"],
+        "author": {
+            "enrollment_id": (
+                str(post_dict["author"]["enrollment_id"])
+                if post_dict["author"]["enrollment_id"]
+                else None
+            ),
+            "name": post_dict["author"]["name"],
+            "is_creator": post_dict["author"]["is_creator"],
+        },
+        "reply_count": post_dict["reply_count"],
+        "created_at": post_dict["created_at"].isoformat(),
+        "modified_at": (
+            post_dict["modified_at"].isoformat() if post_dict["modified_at"] else None
+        ),
+    }
+
+
+@router.get(
+    "/{course_id}/community",
+    summary="List the program's discussion threads",
+)
+async def list_community(
+    course_id: UUID,
+    auth_subject: auth.CustomerPortalUnionRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    customer_id = get_customer_id(auth_subject)
+    enrollment = await course_service.get_enrollment_for_customer(
+        session, customer_id, course_id
+    )
+    if enrollment is None:
+        raise HTTPException(
+            status_code=404, detail="Program not found or not enrolled"
+        )
+    course = enrollment.course
+    if not course.community_enabled:
+        return {"enabled": False, "threads": []}
+
+    threads = await community_service.list_threads(
+        session, course_id=course_id, include_hidden=False
+    )
+    return {
+        "enabled": True,
+        "enrollment_id": str(enrollment.id),
+        "threads": [
+            {
+                **_serialize_post(t),
+                "replies": [_serialize_post(r) for r in t["replies"]],
+            }
+            for t in threads
+        ],
+    }
+
+
+@router.post(
+    "/{course_id}/community/posts",
+    summary="Create a top-level post or a reply",
+)
+async def create_community_post(
+    course_id: UUID,
+    body: dict,
+    auth_subject: auth.CustomerPortalUnionRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    customer_id = get_customer_id(auth_subject)
+    enrollment = await course_service.get_enrollment_for_customer(
+        session, customer_id, course_id
+    )
+    if enrollment is None:
+        raise HTTPException(
+            status_code=404, detail="Program not found or not enrolled"
+        )
+
+    content = body.get("content")
+    if not isinstance(content, str) or not content.strip():
+        raise HTTPException(status_code=422, detail="`content` is required")
+    if len(content) > 10000:
+        raise HTTPException(status_code=422, detail="`content` is too long")
+    parent_id_raw = body.get("parent_id")
+    parent_id = UUID(parent_id_raw) if parent_id_raw else None
+
+    post = await community_service.post_as_customer(
+        session,
+        course_id=course_id,
+        enrollment=enrollment,
+        content=content,
+        parent_id=parent_id,
+    )
+    return {
+        "id": str(post.id),
+        "course_id": str(post.course_id),
+        "parent_id": str(post.parent_id) if post.parent_id else None,
+        "content": post.content,
+        "is_creator": post.is_creator,
+        "pinned": post.pinned,
+        "hidden": post.hidden,
+        "author": {
+            "enrollment_id": str(post.enrollment_id) if post.enrollment_id else None,
+            "name": None,
+            "is_creator": False,
+        },
+        "reply_count": 0,
+        "created_at": post.created_at.isoformat(),
+        "modified_at": (
+            post.modified_at.isoformat() if post.modified_at else None
+        ),
+    }
+
+
+@router.delete(
+    "/{course_id}/community/posts/{post_id}",
+    status_code=204,
+    summary="Delete one of your own posts",
+)
+async def delete_community_post(
+    course_id: UUID,
+    post_id: UUID,
+    auth_subject: auth.CustomerPortalUnionRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> None:
+    customer_id = get_customer_id(auth_subject)
+    enrollment = await course_service.get_enrollment_for_customer(
+        session, customer_id, course_id
+    )
+    if enrollment is None:
+        raise HTTPException(
+            status_code=404, detail="Program not found or not enrolled"
+        )
+    await community_service.delete_post_as_customer(
+        session, post_id=post_id, enrollment_id=enrollment.id
+    )

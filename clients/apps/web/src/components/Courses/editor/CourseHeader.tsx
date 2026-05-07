@@ -9,6 +9,7 @@ export type TabId =
   | 'outline'
   | 'events'
   | 'intake'
+  | 'community'
   | 'customize'
   | 'pricing'
   | 'customers'
@@ -23,6 +24,7 @@ const STANDARD_TABS: { id: TabId; label: string }[] = [
 const COACHING_TABS: { id: TabId; label: string }[] = [
   { id: 'events', label: 'Events' },
   { id: 'outline', label: 'Modules' },
+  { id: 'community', label: 'Community' },
   { id: 'intake', label: 'Intake' },
   { id: 'customize', label: 'Customize' },
   { id: 'pricing', label: 'Pricing' },

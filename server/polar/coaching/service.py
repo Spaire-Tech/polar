@@ -14,6 +14,7 @@ from polar.models.coaching_cohort_enrollment import CoachingCohortEnrollment
 from polar.models.coaching_event import CoachingEvent
 from polar.models.coaching_intake_form import CoachingIntakeForm
 from polar.models.coaching_intake_response import CoachingIntakeResponse
+from polar.models.coaching_post import CoachingPost
 from polar.models.course import Course
 from polar.models.course_enrollment import CourseEnrollment
 from polar.models.course_lesson import CourseLesson
@@ -28,6 +29,7 @@ from .repository import (
     CoachingEventRepository,
     CoachingIntakeFormRepository,
     CoachingIntakeResponseRepository,
+    CoachingPostRepository,
 )
 from .schemas import (
     CoachingCohortCreate,
@@ -780,3 +782,301 @@ def validate_intake_answers(form: CoachingIntakeForm, answers: dict) -> list[str
 
 
 intake_service = IntakeService()
+
+
+# ── Community posts ─────────────────────────────────────────────────────────
+
+
+class CommunityService:
+    """Program-level discussion board.
+
+    Two write paths converge here:
+      - Customer side: posts owned by an enrollment_id, content under
+        moderation.
+      - Creator side: coach posts (is_creator=True, no enrollment), plus
+        moderation actions (pin/hide) on any post in their org.
+    """
+
+    async def list_threads(
+        self,
+        session: AsyncReadSession,
+        *,
+        course_id: UUID,
+        include_hidden: bool = False,
+    ) -> list[dict]:
+        """Returns top-level posts with a small snapshot of replies. The
+        author 'name' is resolved via the customer record on the
+        enrollment. Coach posts surface organization name in the renderer
+        (frontend concern)."""
+        repo = CoachingPostRepository.from_session(session)
+
+        top_stmt = repo.get_top_level_for_course_statement(
+            course_id, include_hidden=include_hidden
+        )
+        top_posts = list(await repo.get_all(top_stmt))
+        if not top_posts:
+            return []
+
+        replies_stmt = repo.get_replies_for_parents_statement(
+            [p.id for p in top_posts], include_hidden=include_hidden
+        )
+        replies = list(await repo.get_all(replies_stmt))
+
+        # Resolve enrollment → customer name in one round-trip.
+        enrollment_ids = {
+            p.enrollment_id
+            for p in top_posts + replies
+            if p.enrollment_id is not None
+        }
+        customer_by_enrollment: dict[UUID, Customer] = {}
+        if enrollment_ids:
+            stmt = (
+                select(CourseEnrollment, Customer)
+                .join(Customer, Customer.id == CourseEnrollment.customer_id)
+                .where(CourseEnrollment.id.in_(enrollment_ids))
+            )
+            for enrollment, customer in (await session.execute(stmt)).all():
+                customer_by_enrollment[enrollment.id] = customer
+
+        def _author(post: CoachingPost) -> dict:
+            customer = (
+                customer_by_enrollment.get(post.enrollment_id)
+                if post.enrollment_id
+                else None
+            )
+            return {
+                "enrollment_id": post.enrollment_id,
+                "name": (customer.name or customer.email) if customer else None,
+                "is_creator": post.is_creator,
+            }
+
+        replies_by_parent: dict[UUID, list[CoachingPost]] = {}
+        for reply in replies:
+            replies_by_parent.setdefault(reply.parent_id, []).append(reply)
+
+        out: list[dict] = []
+        for post in top_posts:
+            child_list = replies_by_parent.get(post.id, [])
+            out.append(
+                {
+                    "id": post.id,
+                    "course_id": post.course_id,
+                    "parent_id": None,
+                    "content": post.content,
+                    "is_creator": post.is_creator,
+                    "pinned": post.pinned,
+                    "hidden": post.hidden,
+                    "author": _author(post),
+                    "reply_count": len(child_list),
+                    "created_at": post.created_at,
+                    "modified_at": post.modified_at,
+                    "replies": [
+                        {
+                            "id": r.id,
+                            "course_id": r.course_id,
+                            "parent_id": r.parent_id,
+                            "content": r.content,
+                            "is_creator": r.is_creator,
+                            "pinned": r.pinned,
+                            "hidden": r.hidden,
+                            "author": _author(r),
+                            "reply_count": 0,
+                            "created_at": r.created_at,
+                            "modified_at": r.modified_at,
+                        }
+                        for r in child_list
+                    ],
+                }
+            )
+        return out
+
+    async def list_threads_for_creator(
+        self,
+        session: AsyncReadSession,
+        auth_subject: AuthSubject[User | Organization],
+        *,
+        course_id: UUID,
+    ) -> list[dict]:
+        course_repo = CourseRepository.from_session(session)
+        course = await course_repo.get_readable_by_id(course_id, auth_subject)
+        if course is None:
+            raise ResourceNotFound()
+        return await self.list_threads(
+            session, course_id=course_id, include_hidden=True
+        )
+
+    async def post_as_customer(
+        self,
+        session: AsyncSession,
+        *,
+        course_id: UUID,
+        enrollment: CourseEnrollment,
+        content: str,
+        parent_id: UUID | None,
+    ) -> CoachingPost:
+        course_repo = CourseRepository.from_session(session)
+        course = await course_repo.get_one_or_none(
+            course_repo.get_base_statement().where(Course.id == course_id)
+        )
+        if course is None:
+            raise ResourceNotFound()
+        if not course.community_enabled:
+            raise SpaireRequestValidationError(
+                errors=[
+                    {
+                        "type": "value_error",
+                        "loc": ("course_id",),
+                        "msg": "Community is not enabled for this program.",
+                        "input": str(course_id),
+                    }
+                ]
+            )
+
+        repo = CoachingPostRepository.from_session(session)
+        if parent_id is not None:
+            parent = await repo.get_by_id(parent_id)
+            if (
+                parent is None
+                or parent.course_id != course_id
+                or parent.parent_id is not None
+            ):
+                raise SpaireRequestValidationError(
+                    errors=[
+                        {
+                            "type": "value_error",
+                            "loc": ("parent_id",),
+                            "msg": "Invalid parent post (one-deep threading).",
+                            "input": str(parent_id),
+                        }
+                    ]
+                )
+
+        post = CoachingPost(
+            course_id=course_id,
+            enrollment_id=enrollment.id,
+            parent_id=parent_id,
+            content=content,
+            is_creator=False,
+        )
+        return await repo.create(post, flush=True)
+
+    async def post_as_creator(
+        self,
+        session: AsyncSession,
+        auth_subject: AuthSubject[User | Organization],
+        *,
+        course_id: UUID,
+        content: str,
+        parent_id: UUID | None,
+    ) -> CoachingPost:
+        course_repo = CourseRepository.from_session(session)
+        course = await course_repo.get_readable_by_id(course_id, auth_subject)
+        if course is None:
+            raise ResourceNotFound()
+        if course.program_format != "coaching":
+            raise CoachingProgramRequired()
+
+        repo = CoachingPostRepository.from_session(session)
+        if parent_id is not None:
+            parent = await repo.get_by_id(parent_id)
+            if (
+                parent is None
+                or parent.course_id != course_id
+                or parent.parent_id is not None
+            ):
+                raise SpaireRequestValidationError(
+                    errors=[
+                        {
+                            "type": "value_error",
+                            "loc": ("parent_id",),
+                            "msg": "Invalid parent post (one-deep threading).",
+                            "input": str(parent_id),
+                        }
+                    ]
+                )
+
+        post = CoachingPost(
+            course_id=course_id,
+            enrollment_id=None,
+            parent_id=parent_id,
+            content=content,
+            is_creator=True,
+        )
+        return await repo.create(post, flush=True)
+
+    async def moderate_post(
+        self,
+        session: AsyncSession,
+        auth_subject: AuthSubject[User | Organization],
+        *,
+        post_id: UUID,
+        pinned: bool | None,
+        hidden: bool | None,
+    ) -> CoachingPost:
+        """Pin/unpin or hide/unhide. Pinning a reply is a no-op (rejected
+        by the schema if you tried to set pinned on a reply, but we also
+        guard here)."""
+        repo = CoachingPostRepository.from_session(session)
+        post = await repo.get_one_or_none(
+            repo.get_readable_statement(auth_subject).where(
+                CoachingPost.id == post_id
+            )
+        )
+        if post is None:
+            raise ResourceNotFound()
+
+        update_dict: dict = {}
+        if pinned is not None:
+            if post.parent_id is not None and pinned:
+                raise SpaireRequestValidationError(
+                    errors=[
+                        {
+                            "type": "value_error",
+                            "loc": ("pinned",),
+                            "msg": "Replies cannot be pinned.",
+                            "input": True,
+                        }
+                    ]
+                )
+            update_dict["pinned"] = pinned
+        if hidden is not None:
+            update_dict["hidden"] = hidden
+        if not update_dict:
+            return post
+        return await repo.update(post, update_dict=update_dict)
+
+    async def delete_post_as_creator(
+        self,
+        session: AsyncSession,
+        auth_subject: AuthSubject[User | Organization],
+        *,
+        post_id: UUID,
+    ) -> None:
+        repo = CoachingPostRepository.from_session(session)
+        post = await repo.get_one_or_none(
+            repo.get_readable_statement(auth_subject).where(
+                CoachingPost.id == post_id
+            )
+        )
+        if post is None:
+            raise ResourceNotFound()
+        await repo.soft_delete(post)
+
+    async def delete_post_as_customer(
+        self,
+        session: AsyncSession,
+        *,
+        post_id: UUID,
+        enrollment_id: UUID,
+    ) -> None:
+        """Customers can only delete their own posts."""
+        repo = CoachingPostRepository.from_session(session)
+        post = await repo.get_by_id(post_id)
+        if post is None:
+            raise ResourceNotFound()
+        if post.enrollment_id != enrollment_id:
+            raise ResourceNotFound()  # don't disclose existence
+        await repo.soft_delete(post)
+
+
+community_service = CommunityService()

@@ -24,9 +24,18 @@ from .schemas import (
     CoachingMemberCustomer,
     CoachingMemberRead,
     CoachingMuxUploadRead,
+    CoachingPostBase,
+    CoachingPostModeration,
+    CoachingPostRead,
+    CoachingThreadRead,
     IntakeSchema,
 )
-from .service import coaching_service, cohort_service, intake_service
+from .service import (
+    coaching_service,
+    cohort_service,
+    community_service,
+    intake_service,
+)
 
 log = logging.getLogger(__name__)
 
@@ -383,3 +392,119 @@ async def list_intake_responses(
         )
         for row in rows
     ]
+
+
+# ── Community (creator-side) ────────────────────────────────────────────────
+
+
+def _thread_read(thread: dict) -> CoachingThreadRead:
+    return CoachingThreadRead.model_validate(thread)
+
+
+@router.get(
+    "/posts",
+    response_model=list[CoachingThreadRead],
+    description=(
+        "Creator view: every top-level thread including hidden posts so the "
+        "merchant can moderate. Replies are included inline."
+    ),
+)
+async def list_posts(
+    auth_subject: auth.CoachingRead,
+    course_id: Annotated[UUID, Query(description="Course ID")],
+    session: AsyncReadSession = Depends(get_db_read_session),
+) -> list[CoachingThreadRead]:
+    threads = await community_service.list_threads_for_creator(
+        session, auth_subject, course_id=course_id
+    )
+    return [_thread_read(t) for t in threads]
+
+
+class _CreatorPostBody(CoachingPostBase):
+    course_id: UUID
+    parent_id: UUID | None = None
+
+
+@router.post(
+    "/posts",
+    response_model=CoachingPostRead,
+    status_code=201,
+    description="Post as the coach. is_creator=True; doesn't need an enrollment.",
+)
+async def create_post_as_creator(
+    body: _CreatorPostBody,
+    auth_subject: auth.CoachingWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> CoachingPostRead:
+    post = await community_service.post_as_creator(
+        session,
+        auth_subject,
+        course_id=body.course_id,
+        content=body.content,
+        parent_id=body.parent_id,
+    )
+    return CoachingPostRead(
+        id=post.id,
+        course_id=post.course_id,
+        parent_id=post.parent_id,
+        content=post.content,
+        is_creator=post.is_creator,
+        pinned=post.pinned,
+        hidden=post.hidden,
+        author={
+            "enrollment_id": None,
+            "name": None,
+            "is_creator": True,
+        },
+        reply_count=0,
+        created_at=post.created_at,
+        modified_at=post.modified_at,
+    )
+
+
+@router.patch(
+    "/posts/{post_id}",
+    response_model=CoachingPostRead,
+    description="Pin/unpin or hide/unhide.",
+)
+async def moderate_post(
+    post_id: UUID,
+    body: CoachingPostModeration,
+    auth_subject: auth.CoachingWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> CoachingPostRead:
+    post = await community_service.moderate_post(
+        session,
+        auth_subject,
+        post_id=post_id,
+        pinned=body.pinned,
+        hidden=body.hidden,
+    )
+    return CoachingPostRead(
+        id=post.id,
+        course_id=post.course_id,
+        parent_id=post.parent_id,
+        content=post.content,
+        is_creator=post.is_creator,
+        pinned=post.pinned,
+        hidden=post.hidden,
+        author={
+            "enrollment_id": post.enrollment_id,
+            "name": None,
+            "is_creator": post.is_creator,
+        },
+        reply_count=0,
+        created_at=post.created_at,
+        modified_at=post.modified_at,
+    )
+
+
+@router.delete("/posts/{post_id}", status_code=204)
+async def delete_post(
+    post_id: UUID,
+    auth_subject: auth.CoachingWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> None:
+    await community_service.delete_post_as_creator(
+        session, auth_subject, post_id=post_id
+    )
