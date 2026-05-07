@@ -93,15 +93,22 @@ function uploadCourseThumbnail(
 }
 
 // ─── Main wizard ─────────────────────────────────────────────────────────────
+//
+// Course-only wizard. Coaching programs use a dedicated CoachingWizard at
+// `/components/Coaching/CoachingWizard.tsx` — they have a different shape
+// (weekly cohort + live sessions + curriculum) that doesn't share enough
+// with the course wizard to justify branching every step internally.
 
 export default function CourseWizard({
   organization,
   programFormat = 'standard',
 }: {
   organization: schemas['Organization']
-  programFormat?: 'standard' | 'coaching'
+  // Kept on the type only because `NewPage.tsx` still passes
+  // programFormat="standard" explicitly. Coaching never reaches this
+  // wizard anymore; the flag is effectively a static "standard".
+  programFormat?: 'standard'
 }) {
-  const isCoaching = programFormat === 'coaching'
   const router = useRouter()
   const createProduct = useCreateProduct(organization)
   const createCourse = useCreateCourse()
@@ -342,7 +349,7 @@ export default function CourseWizard({
         organization_id: organization.id,
         title: draft.courseTitle || course.title || 'Untitled Course',
         course_type: 'evergreen',
-        program_format: programFormat,
+        program_format: 'standard',
         paywall_enabled: paywall.paywallEnabled,
         ai_generated: true,
         description: humanDescription,
@@ -523,13 +530,11 @@ export default function CourseWizard({
       }
 
       toast({
-        title: isCoaching ? 'Coaching Program Created' : 'Course Created',
+        title: 'Course Created',
         description: `"${draft.courseTitle || course.title}" is ready to edit`,
       })
       router.replace(
-        `/dashboard/${organization.slug}/courses/${created.id}?tab=${
-          isCoaching ? 'events' : 'outline'
-        }`,
+        `/dashboard/${organization.slug}/courses/${created.id}?tab=outline`,
       )
     } catch (err) {
       console.error('[CourseWizard] create error:', err)
@@ -569,7 +574,7 @@ export default function CourseWizard({
             <Intro
               onNext={() => setScreen('instructor')}
               onClose={handleClose}
-              programFormat={programFormat}
+              programFormat="standard"
             />
           )}
           {screen === 'instructor' && (
