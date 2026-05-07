@@ -152,11 +152,9 @@ export function StepAI({
   } = useObject({
     api: `/dashboard/${organization.slug}/coaching/outline`,
     schema: coachingOutlineSchema,
-    onFinish: (event) => {
+    onFinish: () => {
       setDone(true)
       update({ generationDone: true })
-      const result = (event?.object ?? null) as PartialOutline | null
-      if (result) onResult?.(result)
       onComplete?.()
     },
     onError: () => {
@@ -169,6 +167,14 @@ export function StepAI({
   })
 
   const partialOutline = (partialOutlineRaw as PartialOutline) ?? {}
+
+  // Bubble the partial up to the parent whenever it changes — by the time
+  // the user clicks "Continue to preview" the parent will have the latest
+  // streamed data without us needing to inspect onFinish's event arg.
+  useEffect(() => {
+    if (partialOutlineRaw) onResult?.(partialOutline)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [partialOutlineRaw])
 
   const start = (extraNotes?: string) => {
     if (!state.aiPrompt.trim()) return

@@ -48,11 +48,33 @@ export async function POST(req: Request) {
     accessDuration,
     freePreview,
     clarifyingAnswers,
+    prompt: userPrompt,
     aiPrompt,
   } = await req.json()
 
-  if (!programTitle && !aiPrompt) {
-    return new Response('programTitle or aiPrompt is required', { status: 400 })
+  const description = userPrompt || aiPrompt
+
+  if (!programTitle && !description) {
+    return new Response('programTitle or prompt is required', { status: 400 })
+  }
+
+  // clarifyingAnswers can be either a string (raw notes the user typed) or
+  // an object { question: answer } when the AI asked structured questions.
+  let clarifyingAnswersBlock: string | null = null
+  if (clarifyingAnswers) {
+    if (
+      typeof clarifyingAnswers === 'object' &&
+      Object.keys(clarifyingAnswers).length > 0
+    ) {
+      clarifyingAnswersBlock = Object.entries(
+        clarifyingAnswers as Record<string, string>,
+      )
+        .filter(([, v]) => v && String(v).trim().length > 0)
+        .map(([q, a]) => `Q: ${q}\nA: ${a}`)
+        .join('\n')
+    } else if (typeof clarifyingAnswers === 'string' && clarifyingAnswers.trim()) {
+      clarifyingAnswersBlock = clarifyingAnswers
+    }
   }
 
   const lines = [
@@ -68,13 +90,9 @@ export async function POST(req: Request) {
     typeof freePreview === 'boolean'
       ? `Free preview enabled: ${freePreview ? 'yes' : 'no'}`
       : null,
-    aiPrompt ? `\nUser description:\n${aiPrompt}` : null,
-    clarifyingAnswers && Object.keys(clarifyingAnswers).length > 0
-      ? `\nUser answered clarifying questions:\n${Object.entries(
-          clarifyingAnswers as Record<string, string>,
-        )
-          .map(([q, a]) => `Q: ${q}\nA: ${a}`)
-          .join('\n')}`
+    description ? `\nUser description:\n${description}` : null,
+    clarifyingAnswersBlock
+      ? `\nUser answered clarifying questions / extra notes:\n${clarifyingAnswersBlock}`
       : null,
   ].filter(Boolean)
 
