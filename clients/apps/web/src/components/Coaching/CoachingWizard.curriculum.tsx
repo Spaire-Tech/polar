@@ -1,7 +1,42 @@
 'use client'
 
-import { TopBar } from '@/components/Courses/CourseWizard.steps'
+import CloseIcon from '@mui/icons-material/Close'
 import type { CoachingCurriculum } from './schemas'
+
+// Local copy of the course wizard's internal TopBar — that one isn't
+// exported and the styles all live in the shared SpaireOnboardingStyles
+// CSS layer, so duplicating the markup is cheaper than refactoring the
+// course wizard to expose it.
+function TopBar({
+  step,
+  total,
+  onClose,
+}: {
+  step?: number
+  total?: number
+  onClose: () => void
+}) {
+  return (
+    <div className="so-topbar">
+      <div />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        {step !== undefined && total !== undefined && (
+          <div className="so-step-counter">
+            {step} / {total}
+          </div>
+        )}
+        <button
+          type="button"
+          aria-label="Close"
+          onClick={onClose}
+          className="so-close"
+        >
+          <CloseIcon style={{ fontSize: 18 }} />
+        </button>
+      </div>
+    </div>
+  )
+}
 
 type PartialWeek = Partial<CoachingCurriculum['weeks'][number]>
 export type PartialCurriculum = { weeks?: PartialWeek[] }
