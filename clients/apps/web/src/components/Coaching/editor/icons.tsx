@@ -1,37 +1,68 @@
 // Icons for the coaching editor — ported verbatim from the design handoff
 // (icons.jsx). Stroked, 24x24 viewBox, currentColor.
 
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 
 type IconProps = {
   size?: number
+  // Numeric stroke-width that the wrapper hands to <svg strokeWidth>.
+  // Renamed locally so it doesn't collide with SVG's `stroke` attribute
+  // (string) when callers pass it through the wrapper.
   stroke?: number
-  fill?: string
-  style?: React.CSSProperties
+  style?: CSSProperties
   className?: string
 }
 
-const SvgWrap = ({
+function SvgWrap({
   size = 16,
   stroke = 1.6,
   fill = 'none',
   children,
-  ...rest
-}: IconProps & { children: ReactNode }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill={fill}
-    stroke="currentColor"
-    strokeWidth={stroke}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    {...rest}
-  >
-    {children}
-  </svg>
-)
+  style,
+  className,
+}: IconProps & { fill?: string; children: ReactNode }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill={fill}
+      stroke="currentColor"
+      strokeWidth={stroke}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={style}
+      className={className}
+    >
+      {children}
+    </svg>
+  )
+}
+
+function FilledSvg({
+  size = 16,
+  style,
+  className,
+  children,
+}: {
+  size?: number
+  style?: CSSProperties
+  className?: string
+  children: ReactNode
+}) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      style={style}
+      className={className}
+    >
+      {children}
+    </svg>
+  )
+}
 
 export const Ic = {
   Plus: (p: IconProps) => (
@@ -60,34 +91,22 @@ export const Ic = {
       <path d="M21 21l-4.3-4.3" />
     </SvgWrap>
   ),
-  More: ({ size = 16, ...p }: IconProps) => (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      {...p}
-    >
+  More: (p: IconProps) => (
+    <FilledSvg {...p}>
       <circle cx="5" cy="12" r="1.6" />
       <circle cx="12" cy="12" r="1.6" />
       <circle cx="19" cy="12" r="1.6" />
-    </svg>
+    </FilledSvg>
   ),
-  Drag: ({ size = 16, ...p }: IconProps) => (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      {...p}
-    >
+  Drag: (p: IconProps) => (
+    <FilledSvg {...p}>
       <circle cx="9" cy="6" r="1.4" />
       <circle cx="9" cy="12" r="1.4" />
       <circle cx="9" cy="18" r="1.4" />
       <circle cx="15" cy="6" r="1.4" />
       <circle cx="15" cy="12" r="1.4" />
       <circle cx="15" cy="18" r="1.4" />
-    </svg>
+    </FilledSvg>
   ),
   Calendar: (p: IconProps) => (
     <SvgWrap {...p}>
