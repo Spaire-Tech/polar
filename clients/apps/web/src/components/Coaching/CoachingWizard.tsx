@@ -294,11 +294,15 @@ export default function CoachingWizard({
   }
 
   const sessions = computeSessionDatetimes(schedule, program.weeks)
-  const priceCents =
-    (form.watch('prices')?.[0]?.price_amount as number | null | undefined) ?? 0
-  const priceCurrency =
-    (form.watch('prices')?.[0]?.price_currency as string | undefined) ??
-    defaultCurrency
+  // The `prices` array is a discriminated union; only the `fixed` /
+  // `free` variants carry price_amount/price_currency. Narrow by reading
+  // through `unknown` so TS doesn't reject the property access on the
+  // `custom` variant (which doesn't have these fields).
+  const firstPrice = (form.watch('prices')?.[0] ?? null) as
+    | { price_amount?: number | null; price_currency?: string }
+    | null
+  const priceCents = firstPrice?.price_amount ?? 0
+  const priceCurrency = firstPrice?.price_currency ?? defaultCurrency
   const billingCycle: 'onetime' | 'recurring' =
     form.watch('recurring_interval') == null ? 'onetime' : 'recurring'
 
