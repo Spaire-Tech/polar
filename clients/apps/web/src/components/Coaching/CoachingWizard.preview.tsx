@@ -34,12 +34,12 @@ export function Preview({
     return () => clearTimeout(t)
   }, [])
 
-  const formatLabel =
-    {
-      self: 'Self‑paced',
-      cohort: 'Cohort',
-      hybrid: 'Hybrid',
-    }[state.format] || 'Self‑paced'
+  const formatLabels: Record<string, string> = {
+    self: 'Self‑paced',
+    cohort: 'Cohort',
+    hybrid: 'Hybrid',
+  }
+  const formatLabel = formatLabels[state.format] || 'Self‑paced'
 
   const pricingSummary = (() => {
     const p = state.price || '49'
