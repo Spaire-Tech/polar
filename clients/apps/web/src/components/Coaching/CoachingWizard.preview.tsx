@@ -1,33 +1,32 @@
 'use client'
 
-import { useCreateProduct } from '@/hooks/queries/products'
 import type { schemas } from '@spaire/client'
 import { useRouter } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
-import {
-  GhostButton,
-  PrimaryButton,
-} from './CoachingWizard.primitives'
+import { GhostButton, PrimaryButton } from './CoachingWizard.primitives'
 import type { PartialOutline } from './CoachingWizard.ai'
 import type { WizardState } from './CoachingWizard'
 
 // ─── Preview screen ─────────────────────────────────────────────────────────
+//
+// At this point the program already exists (created at step 2 → 3 transition,
+// AI finalized at step 5). All this screen does is display a summary and let
+// the user jump into the editable landing page route.
 export function Preview({
   state,
   aiResult,
   organization,
+  programId,
   onEdit,
 }: {
   state: WizardState
   aiResult: PartialOutline | null
   organization: schemas['Organization']
+  programId: string
   onEdit: () => void
 }) {
   const router = useRouter()
-  const createProduct = useCreateProduct(organization)
   const [showConfetti, setShowConfetti] = useState(true)
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const t = setTimeout(() => setShowConfetti(false), 2000)
@@ -52,8 +51,6 @@ export function Preview({
     return `$${p} one‑time`
   })()
 
-  // Module/lesson counts come from the AI result if present, otherwise show
-  // the defaults from the prototype (4 modules / 11 lessons).
   const moduleCount = aiResult?.modules?.length ?? 4
   const lessonCount =
     aiResult?.modules?.reduce(
@@ -61,109 +58,10 @@ export function Preview({
       0,
     ) ?? 11
 
-  const openInEditor = async () => {
-    if (submitting) return
-    setSubmitting(true)
-    setError(null)
-    try {
-      const priceAmountCents = Math.round(
-        parseFloat(state.price || '0') * 100,
-      )
-      const isSub = state.pricingModel === 'subscription'
-      const recurring_interval: 'month' | 'year' | null = isSub
-        ? state.interval === 'Monthly'
-          ? 'month'
-          : 'year'
-        : null
-
-      // The product create payload. `product_type: 'coaching'` is sent so the
-      // backend can route the product into the coaching flow. We use a typed
-      // `as` cast on the body since `ProductCreate` is a discriminated union
-      // (Recurring vs OneTime) and we want to flip between them at runtime.
-      const body = {
-        name: state.programTitle || 'Untitled Program',
-        description: state.promise || null,
-        organization_id: organization.id,
-        product_type: 'coaching',
-        recurring_interval,
-        prices: [
-          {
-            amount_type: 'fixed' as const,
-            price_amount: priceAmountCents,
-            price_currency: 'usd',
-          },
-        ],
-        medias: [],
-        metadata: {},
-      } as unknown as schemas['ProductCreate']
-
-      const result = await createProduct.mutateAsync(body)
-      if (result.error || !result.data) {
-        throw new Error(
-          `Product creation failed: ${JSON.stringify(result.error ?? {})}`,
-        )
-      }
-      const productId = result.data.id
-
-      // Persist the wizard state + AI draft to the coaching API.
-      try {
-        const wizardSubmit = {
-          product_id: productId,
-          format: state.format || 'self',
-          cohort_start: state.startDate || null,
-          cohort_end: state.endDate || null,
-          weeks: state.weeks ? parseInt(state.weeks, 10) : null,
-          promise: state.promise || '',
-          coach_name: state.coachName || '',
-          coach_bio: state.coachBio || null,
-          coach_credentials: state.coachCreds || null,
-          pricing_model: state.pricingModel || 'onetime',
-          access_duration: state.access || 'lifetime',
-          free_preview: state.freePreview || false,
-          landing_data: aiResult?.landing
-            ? { landing: aiResult.landing }
-            : null,
-          intake_questions: aiResult?.intakeQuestions ?? [],
-          session_ideas: aiResult?.sessionIdeas ?? [],
-          ai_generated: !!aiResult,
-          modules:
-            aiResult?.modules?.map((m) => ({
-              title: m.title,
-              lessons:
-                m.lessons?.map((l) => ({
-                  type: l.type,
-                  title: l.title,
-                })) ?? [],
-            })) ?? [],
-        }
-        const persistRes = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/v1/coaching/wizard`,
-          {
-            method: 'POST',
-            credentials: 'include',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify(wizardSubmit),
-          },
-        )
-        if (!persistRes.ok) {
-          console.warn(
-            '[CoachingWizard] /v1/coaching/wizard returned',
-            persistRes.status,
-            await persistRes.text().catch(() => ''),
-          )
-        }
-      } catch (e) {
-        console.warn('[CoachingWizard] coaching persistence failed:', e)
-      }
-
-      router.push(`/dashboard/${organization.slug}/products/${productId}`)
-    } catch (e) {
-      console.error('[CoachingWizard] open-in-editor failed:', e)
-      setError(
-        e instanceof Error ? e.message : 'Could not create the program.',
-      )
-      setSubmitting(false)
-    }
+  const openInEditor = () => {
+    router.push(
+      `/dashboard/${organization.slug}/coaching/${programId}/edit`,
+    )
   }
 
   return (
@@ -227,8 +125,8 @@ export function Preview({
         <div
           style={{
             aspectRatio: '16/9',
-            background: state.thumbnail
-              ? 'linear-gradient(135deg, #2d2a5e 0%, #514c9a 100%)'
+            background: state.thumbnailUrl
+              ? `center / cover no-repeat url(${JSON.stringify(state.thumbnailUrl)}), #2d2a5e`
               : '#F5F5F7',
             position: 'relative',
             display: 'flex',
@@ -236,7 +134,7 @@ export function Preview({
             padding: 20,
           }}
         >
-          {!state.thumbnail && (
+          {!state.thumbnailUrl && (
             <div
               style={{
                 position: 'absolute',
@@ -250,22 +148,6 @@ export function Preview({
             >
               No thumbnail
             </div>
-          )}
-          {state.thumbnail && (
-            <svg
-              viewBox="0 0 100 100"
-              style={{
-                position: 'absolute',
-                bottom: -10,
-                left: '50%',
-                transform: 'translateX(-50%)',
-                width: '40%',
-                opacity: 0.4,
-              }}
-            >
-              <circle cx="50" cy="35" r="16" fill="#a8a3d8" />
-              <path d="M 18 100 C 18 70, 82 70, 82 100 Z" fill="#a8a3d8" />
-            </svg>
           )}
         </div>
 
@@ -284,8 +166,8 @@ export function Preview({
                 width: 28,
                 height: 28,
                 borderRadius: '50%',
-                background: state.coachPhoto
-                  ? 'linear-gradient(135deg, #c5c0e8, #8580bf)'
+                background: state.coachPhotoUrl
+                  ? `center / cover no-repeat url(${JSON.stringify(state.coachPhotoUrl)})`
                   : '#E5E5EA',
                 display: 'flex',
                 alignItems: 'center',
@@ -295,7 +177,8 @@ export function Preview({
                 fontWeight: 600,
               }}
             >
-              {(state.coachName || 'A')[0].toUpperCase()}
+              {!state.coachPhotoUrl &&
+                (state.coachName || 'A')[0].toUpperCase()}
             </div>
             <span style={{ fontSize: 13.5, color: 'var(--muted)' }}>
               {state.coachName || 'You'}
@@ -396,26 +279,8 @@ export function Preview({
         </div>
       </div>
 
-      {error && (
-        <div
-          style={{
-            marginTop: 16,
-            padding: '12px 16px',
-            borderRadius: 10,
-            background: '#fff5f5',
-            border: '1.5px solid #fecaca',
-            color: '#dc2626',
-            fontSize: 13,
-          }}
-        >
-          {error}
-        </div>
-      )}
-
       <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
-        <PrimaryButton onClick={openInEditor} disabled={submitting}>
-          {submitting ? 'Creating…' : 'Open in editor'}
-        </PrimaryButton>
+        <PrimaryButton onClick={openInEditor}>Open in editor</PrimaryButton>
         <GhostButton onClick={onEdit}>Edit landing page first</GhostButton>
       </div>
     </div>

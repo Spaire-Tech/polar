@@ -1,14 +1,15 @@
-from datetime import date
+from datetime import date, datetime
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from sqlalchemy import Boolean, Date, ForeignKey, Integer, String, Text, Uuid
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
 
 from polar.kit.db.models import RecordModel
 
 if TYPE_CHECKING:
+    from polar.models.course import Course
     from polar.models.product import Product
 
 
@@ -106,6 +107,22 @@ class CoachingProgram(RecordModel):
         Boolean, nullable=False, default=False
     )
 
+    course_id: Mapped[UUID | None] = mapped_column(
+        Uuid,
+        ForeignKey("courses.id", ondelete="SET NULL"),
+        nullable=True,
+        default=None,
+        index=True,
+    )
+
+    published_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True, default=None, index=True
+    )
+
     @declared_attr
     def product(cls) -> Mapped["Product"]:
         return relationship("Product", lazy="raise")
+
+    @declared_attr
+    def course(cls) -> Mapped["Course | None"]:
+        return relationship("Course", lazy="raise")

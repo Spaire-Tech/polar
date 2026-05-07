@@ -1,8 +1,19 @@
 'use client'
 
+import { useCreateProduct } from '@/hooks/queries/products'
 import type { schemas } from '@spaire/client'
 import { useRouter } from 'next/navigation'
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  createCoachingDraft,
+  deleteCoachingProgram,
+  finalizeAI,
+  patchCoachingProgram,
+  uploadCoachPhoto as uploadCoachPhotoApi,
+  uploadThumbnail as uploadThumbnailApi,
+  type CoachingProgram,
+  type CoachingProgramPatch,
+} from './api'
 import {
   CoachingWizardStyles,
   GhostButton,
@@ -24,7 +35,10 @@ export type WizardState = {
   coachName: string
   coachBio: string
   coachCreds: string
-  coachPhoto: boolean
+  // Real persisted URL (or object URL while pending). null = no photo.
+  coachPhotoUrl: string | null
+  // Pending File for step 1 — uploaded the moment the program is created.
+  pendingCoachPhoto: File | null
   // Step 2 — Program
   programTitle: string
   promise: string
@@ -33,7 +47,10 @@ export type WizardState = {
   endDate: string
   weeks: string
   // Step 3 — Media
-  thumbnail: boolean
+  thumbnailUrl: string | null
+  pendingThumbnail: File | null
+  // Trailer is OUT OF SCOPE for this PR — kept as a no-op boolean to preserve
+  // the existing dropzone visual. Marked "Coming soon" in the UI.
   trailer: boolean
   // Step 4 — Pricing
   pricingModel: 'onetime' | 'subscription' | 'plan'
@@ -51,14 +68,16 @@ const INITIAL_STATE: WizardState = {
   coachName: '',
   coachBio: '',
   coachCreds: '',
-  coachPhoto: false,
+  coachPhotoUrl: null,
+  pendingCoachPhoto: null,
   programTitle: '',
   promise: '',
   format: '',
   startDate: '',
   endDate: '',
   weeks: '',
-  thumbnail: false,
+  thumbnailUrl: null,
+  pendingThumbnail: null,
   trailer: false,
   pricingModel: 'onetime',
   price: '',
@@ -77,31 +96,224 @@ export default function CoachingWizard({
   organization: schemas['Organization']
 }) {
   const router = useRouter()
+  const createProduct = useCreateProduct(organization)
   const [step, setStep] = useState(1) // 1..5, 6=preview
   const [state, setState] = useState<WizardState>(INITIAL_STATE)
   const [aiCanContinue, setAiCanContinue] = useState(false)
   const [aiResult, setAiResult] = useState<PartialOutline | null>(null)
+  const [programId, setProgramId] = useState<string | null>(null)
+  const [draftError, setDraftError] = useState<string | null>(null)
+  const [transitioning, setTransitioning] = useState(false)
+  const [showExitDialog, setShowExitDialog] = useState(false)
 
   useEffect(() => {
     if (step !== 5) setAiCanContinue(false)
     if (step === 5 && state.generationDone) setAiCanContinue(true)
   }, [step, state.generationDone])
 
-  const update = (patch: Partial<WizardState>) =>
+  const update = useCallback((patch: Partial<WizardState>) => {
     setState((s) => ({ ...s, ...patch }))
+  }, [])
+
+  // ── Debounced PATCH /v1/coaching/{programId} ─────────────────────────────
+  // Whenever wizard state mutates AND a programId exists (i.e. step 3+), we
+  // schedule a 600ms-debounced patch with the up-to-date wizard fields. This
+  // keeps the draft persisted without firing on every keystroke.
+  const patchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    if (!programId) return
+    if (patchTimer.current) clearTimeout(patchTimer.current)
+    patchTimer.current = setTimeout(() => {
+      const body: CoachingProgramPatch = {
+        title: state.programTitle || undefined,
+        format: state.format || undefined,
+        cohort_start: state.startDate || null,
+        cohort_end: state.endDate || null,
+        weeks: state.weeks ? parseInt(state.weeks, 10) : null,
+        promise: state.promise || null,
+        coach_name: state.coachName || null,
+        coach_bio: state.coachBio || null,
+        coach_credentials: state.coachCreds || null,
+        pricing_model: state.pricingModel,
+        access_duration: state.access || 'lifetime',
+        free_preview: state.freePreview,
+      }
+      patchCoachingProgram(programId, body).catch(() => {
+        /* surfaced in the network tab; non-fatal for draft UX */
+      })
+    }, 600)
+    return () => {
+      if (patchTimer.current) clearTimeout(patchTimer.current)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    programId,
+    state.programTitle,
+    state.format,
+    state.startDate,
+    state.endDate,
+    state.weeks,
+    state.promise,
+    state.coachName,
+    state.coachBio,
+    state.coachCreds,
+    state.pricingModel,
+    state.access,
+    state.freePreview,
+  ])
+
+  // ── Pre-create product + draft when leaving step 2 ───────────────────────
+  const ensureDraft = async (): Promise<string | null> => {
+    if (programId) return programId
+    setTransitioning(true)
+    setDraftError(null)
+    try {
+      const priceAmountCents = Math.max(
+        Math.round(parseFloat(state.price || '0') * 100),
+        0,
+      )
+      const isSub = state.pricingModel === 'subscription'
+      const recurring_interval: 'month' | 'year' | null = isSub
+        ? state.interval === 'Monthly'
+          ? 'month'
+          : 'year'
+        : null
+
+      const productBody = {
+        name: state.programTitle || 'Untitled Program',
+        description: state.promise || null,
+        organization_id: organization.id,
+        product_type: 'coaching',
+        recurring_interval,
+        prices: [
+          {
+            amount_type: 'fixed' as const,
+            // Use a placeholder $1 if user hasn't entered the price yet; we
+            // re-validate at step 4 anyway.
+            price_amount: priceAmountCents > 0 ? priceAmountCents : 100,
+            price_currency: 'usd',
+          },
+        ],
+        medias: [],
+        metadata: {},
+      } as unknown as schemas['ProductCreate']
+
+      const result = await createProduct.mutateAsync(productBody)
+      if (result.error || !result.data) {
+        throw new Error(
+          `Product creation failed: ${JSON.stringify(result.error ?? {})}`,
+        )
+      }
+      const productIdNew = result.data.id
+
+      const program = await createCoachingDraft({
+        product_id: productIdNew,
+        title: state.programTitle || undefined,
+        organization_id: organization.id,
+      })
+      setProgramId(program.id)
+
+      // After the draft exists, flush any pending file uploads from step 1.
+      await flushPendingUploads(program.id)
+
+      return program.id
+    } catch (e) {
+      console.error('[CoachingWizard] ensureDraft failed:', e)
+      setDraftError(
+        e instanceof Error ? e.message : 'Could not create the program draft.',
+      )
+      return null
+    } finally {
+      setTransitioning(false)
+    }
+  }
+
+  // ── Flush pending uploads (called once a programId exists) ──────────────
+  const flushPendingUploads = async (id: string) => {
+    if (state.pendingCoachPhoto) {
+      try {
+        const program = await uploadCoachPhotoApi(id, state.pendingCoachPhoto)
+        update({
+          coachPhotoUrl: program.coach_photo_url ?? state.coachPhotoUrl,
+          pendingCoachPhoto: null,
+        })
+      } catch {
+        update({ pendingCoachPhoto: null })
+      }
+    }
+    if (state.pendingThumbnail) {
+      try {
+        const program = await uploadThumbnailApi(id, state.pendingThumbnail)
+        update({
+          thumbnailUrl: program.thumbnail_url ?? state.thumbnailUrl,
+          pendingThumbnail: null,
+        })
+      } catch {
+        update({ pendingThumbnail: null })
+      }
+    }
+  }
+
+  // ── Coach-photo upload (step 1) ──────────────────────────────────────────
+  // If a programId exists, hit the endpoint immediately. Otherwise stash the
+  // File and a local object-URL preview; the upload runs once the draft is
+  // created at the step-2→3 boundary.
+  const uploadCoachPhoto = async (file: File): Promise<string | null> => {
+    if (!programId) {
+      const localUrl = URL.createObjectURL(file)
+      update({ pendingCoachPhoto: file, coachPhotoUrl: localUrl })
+      return localUrl
+    }
+    try {
+      const program = await uploadCoachPhotoApi(programId, file)
+      const url = program.coach_photo_url
+      if (url) update({ coachPhotoUrl: url })
+      return url
+    } catch (e) {
+      console.warn('[CoachingWizard] coach photo upload failed', e)
+      return null
+    }
+  }
+
+  const uploadThumbnail = async (file: File): Promise<string | null> => {
+    if (!programId) {
+      const localUrl = URL.createObjectURL(file)
+      update({ pendingThumbnail: file, thumbnailUrl: localUrl })
+      return localUrl
+    }
+    try {
+      const program = await uploadThumbnailApi(programId, file)
+      const url = program.thumbnail_url
+      if (url) update({ thumbnailUrl: url })
+      return url
+    } catch (e) {
+      console.warn('[CoachingWizard] thumbnail upload failed', e)
+      return null
+    }
+  }
 
   const canContinue = (() => {
+    if (transitioning) return false
     if (step === 1) return state.coachName.trim().length > 0
     if (step === 2)
       return state.programTitle.trim().length > 0 && !!state.format
     if (step === 3) return true
-    if (step === 4)
-      return !!state.pricingModel && (state.price || '').toString().length > 0
+    if (step === 4) {
+      if (state.pricingModel === 'plan') return false // Coming soon
+      const num = parseFloat(state.price || '0')
+      return state.pricingModel.length > 0 && num > 0
+    }
     if (step === 5) return aiCanContinue
     return true
   })()
 
-  const next = () => {
+  const next = async () => {
+    if (step === 2) {
+      const id = await ensureDraft()
+      if (!id) return
+      setStep(3)
+      return
+    }
     if (step < 5) setStep(step + 1)
     else if (step === 5) setStep(6)
   }
@@ -110,15 +322,75 @@ export default function CoachingWizard({
   }
 
   const onSaveAndExit = () => {
-    // v1: data isn't yet persisted between steps, so we just navigate away
-    // without confirmation.
+    if (programId) {
+      setShowExitDialog(true)
+      return
+    }
     router.push(`/dashboard/${organization.slug}/products`)
   }
 
+  const confirmDiscard = async () => {
+    if (programId) {
+      await deleteCoachingProgram(programId).catch(() => {})
+    }
+    router.push(`/dashboard/${organization.slug}/products`)
+  }
+
+  // Persist AI result via finalize-ai when arriving at preview.
+  const onAIFinalize = async (result: PartialOutline): Promise<boolean> => {
+    if (!programId) return false
+    try {
+      const modules = (result.modules ?? [])
+        .map((m) => {
+          const title = m?.title
+          if (typeof title !== 'string' || title.length === 0) return null
+          const lessons = (m?.lessons ?? [])
+            .filter(
+              (l): l is { type: 'doc' | 'video'; title: string } =>
+                !!l &&
+                (l.type === 'doc' || l.type === 'video') &&
+                typeof l.title === 'string',
+            )
+            .map((l) => ({ type: l.type as string, title: l.title }))
+          return { title, lessons }
+        })
+        .filter((m): m is { title: string; lessons: { type: string; title: string }[] } => m !== null)
+
+      await finalizeAI(programId, {
+        modules,
+        landing_data: result.landing ?? null,
+        intake_questions: (result.intakeQuestions ?? []).filter(
+          (q): q is string => typeof q === 'string',
+        ),
+        session_ideas: (result.sessionIdeas ?? []).filter(
+          (s): s is string => typeof s === 'string',
+        ),
+      })
+      return true
+    } catch (e) {
+      console.warn('[CoachingWizard] finalize-ai failed', e)
+      return false
+    }
+  }
+
   const content = (() => {
-    if (step === 1) return <StepCoach state={state} update={update} />
+    if (step === 1)
+      return (
+        <StepCoach
+          state={state}
+          update={update}
+          onUploadPhoto={uploadCoachPhoto}
+        />
+      )
     if (step === 2) return <StepProgram state={state} update={update} />
-    if (step === 3) return <StepMedia state={state} update={update} />
+    if (step === 3)
+      return (
+        <StepMedia
+          state={state}
+          update={update}
+          onUploadThumbnail={uploadThumbnail}
+        />
+      )
     if (step === 4) return <StepPricing state={state} update={update} />
     if (step === 5)
       return (
@@ -128,14 +400,17 @@ export default function CoachingWizard({
           organization={{ slug: organization.slug }}
           onComplete={() => setAiCanContinue(true)}
           onResult={setAiResult}
+          programId={programId}
+          onFinalize={onAIFinalize}
         />
       )
-    if (step === 6)
+    if (step === 6 && programId)
       return (
         <Preview
           state={state}
           aiResult={aiResult}
           organization={organization}
+          programId={programId}
           onEdit={() => setStep(1)}
         />
       )
@@ -203,7 +478,24 @@ export default function CoachingWizard({
             justifyContent: 'center',
           }}
         >
-          <div style={{ width: '100%', maxWidth: 540 }}>{content}</div>
+          <div style={{ width: '100%', maxWidth: 540 }}>
+            {draftError && (
+              <div
+                style={{
+                  marginBottom: 16,
+                  padding: '12px 16px',
+                  borderRadius: 10,
+                  background: '#fff5f5',
+                  border: '1.5px solid #fecaca',
+                  color: '#dc2626',
+                  fontSize: 13,
+                }}
+              >
+                {draftError}
+              </div>
+            )}
+            {content}
+          </div>
         </div>
 
         {/* Sticky bottom bar */}
@@ -232,7 +524,11 @@ export default function CoachingWizard({
               Back
             </GhostButton>
             <PrimaryButton onClick={next} disabled={!canContinue}>
-              {step === 5 ? 'Continue to preview' : 'Continue'}
+              {transitioning
+                ? 'Creating draft…'
+                : step === 5
+                  ? 'Continue to preview'
+                  : 'Continue'}
             </PrimaryButton>
           </div>
         )}
@@ -240,6 +536,13 @@ export default function CoachingWizard({
 
       {/* Right panel */}
       <RightPanel currentStep={step} />
+
+      {showExitDialog && (
+        <ExitDialog
+          onCancel={() => setShowExitDialog(false)}
+          onConfirm={confirmDiscard}
+        />
+      )}
     </div>
   )
 }
@@ -282,3 +585,69 @@ function ProgressDots({ current, total }: { current: number; total: number }) {
     </div>
   )
 }
+
+// ─── ExitDialog ─────────────────────────────────────────────────────────────
+function ExitDialog({
+  onCancel,
+  onConfirm,
+}: {
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.4)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000,
+      }}
+    >
+      <div
+        style={{
+          background: '#fff',
+          borderRadius: 14,
+          padding: 24,
+          width: 'min(420px, 90vw)',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
+        }}
+      >
+        <h2
+          style={{
+            margin: '0 0 8px',
+            fontSize: 18,
+            fontWeight: 600,
+            color: 'var(--ink)',
+            letterSpacing: '-0.01em',
+          }}
+        >
+          Discard this draft?
+        </h2>
+        <p
+          style={{
+            margin: '0 0 20px',
+            fontSize: 14,
+            color: 'var(--muted)',
+            lineHeight: 1.5,
+          }}
+        >
+          Your in-progress program will be deleted. You can always start again
+          from the products list.
+        </p>
+        <div
+          style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}
+        >
+          <GhostButton onClick={onCancel}>Keep editing</GhostButton>
+          <PrimaryButton onClick={onConfirm}>Discard draft</PrimaryButton>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Re-export so that legacy CoachingWizardType reference stays valid where
+// other modules expect a default-only export (no other re-export needed).
+export type { PartialOutline }

@@ -6,21 +6,17 @@ import React from 'react'
 // Verbatim port of `right-panel.jsx`. Animation keyframes (`coachingScrollUp`/
 // `coachingScrollDown`) are injected once by `CoachingWizardStyles`.
 
+// We have 5 local coach photos; each column needs 3 entries. coach-01 appears
+// in both columns to cycle nicely without leaving the column short.
 const COL_A = [
-  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=600&q=80',
-  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&q=80',
-  'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=600&q=80',
-  'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=600&q=80',
-  'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=600&q=80',
-  'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=600&q=80',
+  '/coaching-onboarding/coach-01.jpg',
+  '/coaching-onboarding/coach-03.jpg',
+  '/coaching-onboarding/coach-05.jpg',
 ]
 const COL_B = [
-  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&q=80',
-  'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=600&q=80',
-  'https://images.unsplash.com/photo-1463453091185-61582044d556?w=600&q=80',
-  'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=600&q=80',
-  'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=600&q=80',
-  'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=600&q=80',
+  '/coaching-onboarding/coach-02.jpg',
+  '/coaching-onboarding/coach-04.jpg',
+  '/coaching-onboarding/coach-01.jpg',
 ]
 
 export function RightPanel({ currentStep }: { currentStep: number }) {

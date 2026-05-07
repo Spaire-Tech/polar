@@ -110,6 +110,10 @@ export function CoachingWizardStyles() {
           0% { transform: translateY(0) rotate(0); opacity: 1; }
           100% { transform: translateY(400px) rotate(720deg); opacity: 0; }
         }
+        @keyframes coachingSpin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
       `}</style>
     </>
   )
@@ -668,6 +672,15 @@ export function Toggle({
 }
 
 // ─── DropZone ───────────────────────────────────────────────────────────────
+//
+// Two operating modes:
+//   1. Boolean mode (legacy / trailer): pass `filled` + `onClick`. The button
+//      toggles a boolean in parent state. No file picker is involved.
+//   2. Upload mode: pass `imageUrl` + `onUpload`. Clicking opens the native
+//      file picker; when the user picks a file we call `onUpload(file)` which
+//      returns the persisted URL. While the upload is in flight we show a
+//      spinner overlay. When complete the URL is rendered as a background
+//      image filling the drop zone.
 export function DropZone({
   filled,
   onClick,
@@ -677,6 +690,10 @@ export function DropZone({
   shape = 'rect',
   filename,
   duration,
+  imageUrl,
+  onUpload,
+  uploading: uploadingProp,
+  accept = 'image/*',
 }: {
   filled?: boolean
   onClick?: () => void
@@ -686,21 +703,56 @@ export function DropZone({
   shape?: 'rect' | 'circle'
   filename?: string | null
   duration?: string | null
+  imageUrl?: string | null
+  onUpload?: (file: File) => Promise<string | null>
+  uploading?: boolean
+  accept?: string
 }) {
   const isCircle = shape === 'circle'
+  const inputRef = useRef<HTMLInputElement | null>(null)
+  const [internalUploading, setInternalUploading] = useState(false)
+  const uploading = uploadingProp || internalUploading
+  const hasImage = !!imageUrl
+  const isFilled = hasImage || !!filled
+
+  const handleClick = () => {
+    if (uploading) return
+    if (onUpload) {
+      inputRef.current?.click()
+      return
+    }
+    onClick?.()
+  }
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file || !onUpload) return
+    setInternalUploading(true)
+    try {
+      await onUpload(file)
+    } finally {
+      setInternalUploading(false)
+    }
+  }
+
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={handleClick}
       style={{
-        border: filled
+        border: isFilled
           ? '1.5px solid var(--indigo)'
           : '1.5px dashed var(--line)',
-        background: filled ? 'var(--indigo-tint)' : '#FBFBFC',
+        background: hasImage
+          ? `center / cover no-repeat url(${JSON.stringify(imageUrl)}), #FBFBFC`
+          : isFilled
+            ? 'var(--indigo-tint)'
+            : '#FBFBFC',
         borderRadius: isCircle ? '50%' : 'var(--radius)',
         aspectRatio: isCircle ? '1 / 1' : aspect,
         width: '100%',
-        cursor: 'pointer',
+        cursor: uploading ? 'progress' : 'pointer',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -708,18 +760,27 @@ export function DropZone({
         padding: 16,
         transition: 'border-color 150ms ease, background 150ms ease',
         fontFamily: 'inherit',
-        boxShadow: filled ? `0 0 0 3px var(--indigo-ring)` : 'none',
+        boxShadow: isFilled ? `0 0 0 3px var(--indigo-ring)` : 'none',
         position: 'relative',
         overflow: 'hidden',
       }}
       onMouseEnter={(e) => {
-        if (!filled) e.currentTarget.style.borderColor = '#C5C5CA'
+        if (!isFilled) e.currentTarget.style.borderColor = '#C5C5CA'
       }}
       onMouseLeave={(e) => {
-        if (!filled) e.currentTarget.style.borderColor = 'var(--line)'
+        if (!isFilled) e.currentTarget.style.borderColor = 'var(--line)'
       }}
     >
-      {!filled && (
+      {onUpload && (
+        <input
+          ref={inputRef}
+          type="file"
+          accept={accept}
+          onChange={handleFileChange}
+          style={{ display: 'none' }}
+        />
+      )}
+      {!isFilled && !uploading && (
         <>
           <div
             style={{
@@ -744,7 +805,7 @@ export function DropZone({
           )}
         </>
       )}
-      {filled && (
+      {isFilled && !hasImage && !uploading && (
         <div style={{ textAlign: 'center' }}>
           <div
             style={{ fontSize: 13, fontWeight: 500, color: 'var(--indigo)' }}
@@ -758,7 +819,37 @@ export function DropZone({
           )}
         </div>
       )}
+      {uploading && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: hasImage ? 'rgba(255,255,255,0.55)' : 'transparent',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Spinner />
+        </div>
+      )}
     </button>
+  )
+}
+
+// ─── Spinner ───────────────────────────────────────────────────────────────
+function Spinner() {
+  return (
+    <div
+      style={{
+        width: 18,
+        height: 18,
+        border: '2px solid rgba(0,0,0,0.15)',
+        borderTopColor: 'var(--ink)',
+        borderRadius: '50%',
+        animation: 'coachingSpin 0.7s linear infinite',
+      }}
+    />
   )
 }
 

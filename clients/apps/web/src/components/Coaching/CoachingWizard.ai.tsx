@@ -124,6 +124,8 @@ export type StepAIProps = {
   organization: { slug: string }
   onComplete?: () => void
   onResult?: (result: PartialOutline) => void
+  programId?: string | null
+  onFinalize?: (result: PartialOutline) => Promise<boolean>
 }
 
 export function StepAI({
@@ -132,12 +134,47 @@ export function StepAI({
   organization,
   onComplete,
   onResult,
+  programId,
+  onFinalize,
 }: StepAIProps) {
   const [generating, setGenerating] = useState(state.generationDone || false)
   const [done, setDone] = useState(state.generationDone || false)
+  const [savingDraft, setSavingDraft] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const finalizedRef = React.useRef(false)
   // Map of clarifyingQuestion -> user answer.
   const [clarifyAnswers, setClarifyAnswers] = useState<Record<string, string>>(
     {},
+  )
+
+  // Hold the latest partial outline so we can pass a stable snapshot to
+  // finalize-ai once streaming finishes. `useObject` doesn't pass the final
+  // object to `onFinish`, so we keep a ref synced via the result effect below.
+  const latestRef = React.useRef<PartialOutline | null>(null)
+
+  const finalize = React.useCallback(
+    async (result: PartialOutline) => {
+      if (!programId || !onFinalize) {
+        // Still allow the user to continue even if persistence isn't wired.
+        update({ generationDone: true })
+        onComplete?.()
+        return
+      }
+      if (finalizedRef.current) return
+      finalizedRef.current = true
+      setSavingDraft(true)
+      setSaveError(null)
+      const ok = await onFinalize(result)
+      setSavingDraft(false)
+      if (!ok) {
+        finalizedRef.current = false
+        setSaveError('Could not save your draft. Try regenerating.')
+        return
+      }
+      update({ generationDone: true })
+      onComplete?.()
+    },
+    [programId, onFinalize, update, onComplete],
   )
 
   // TODO: backend route — /dashboard/[slug]/coaching/outline does not yet
@@ -154,8 +191,8 @@ export function StepAI({
     schema: coachingOutlineSchema,
     onFinish: () => {
       setDone(true)
-      update({ generationDone: true })
-      onComplete?.()
+      const latest = latestRef.current ?? {}
+      finalize(latest)
     },
     onError: () => {
       // Streaming failed — leave the user on the generation screen with sample
@@ -172,7 +209,10 @@ export function StepAI({
   // the user clicks "Continue to preview" the parent will have the latest
   // streamed data without us needing to inspect onFinish's event arg.
   useEffect(() => {
-    if (partialOutlineRaw) onResult?.(partialOutline)
+    if (partialOutlineRaw) {
+      onResult?.(partialOutline)
+      latestRef.current = partialOutline
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [partialOutlineRaw])
 
@@ -197,7 +237,14 @@ export function StepAI({
   const regenerate = (extraNotes?: string) => {
     stop()
     setDone(false)
+    finalizedRef.current = false
+    setSaveError(null)
     start(extraNotes)
+  }
+
+  const retryFinalize = () => {
+    finalizedRef.current = false
+    finalize(latestRef.current ?? {})
   }
 
   if (!generating) {
@@ -250,6 +297,9 @@ export function StepAI({
           .join('\n\n')
         regenerate(notes)
       }}
+      savingDraft={savingDraft}
+      saveError={saveError}
+      onRetrySave={retryFinalize}
     />
   )
 }
@@ -264,6 +314,9 @@ function GenerationView({
   clarifyAnswers,
   onClarifyAnswer,
   onRegenerate,
+  savingDraft,
+  saveError,
+  onRetrySave,
 }: {
   isCohort: boolean
   isStreaming: boolean
@@ -273,6 +326,9 @@ function GenerationView({
   clarifyAnswers: Record<string, string>
   onClarifyAnswer: (q: string, v: string) => void
   onRegenerate: () => void
+  savingDraft: boolean
+  saveError: string | null
+  onRetrySave: () => void
 }) {
   // ── Resolve the data we render. While streaming with no data yet, we use
   // SAMPLE_* so skeleton cardinality is sensible. Once any real data has
@@ -416,6 +472,62 @@ function GenerationView({
           }}
         >
           {error}
+        </div>
+      )}
+
+      {savingDraft && (
+        <div
+          style={{
+            marginBottom: 16,
+            padding: '10px 14px',
+            borderRadius: 10,
+            background: 'var(--indigo-tint)',
+            border: '1px solid var(--indigo)',
+            color: 'var(--indigo)',
+            fontSize: 13,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+          }}
+        >
+          <PulseDot />
+          Saving your draft…
+        </div>
+      )}
+
+      {saveError && (
+        <div
+          style={{
+            marginBottom: 16,
+            padding: '12px 16px',
+            borderRadius: 10,
+            background: '#fff5f5',
+            border: '1.5px solid #fecaca',
+            color: '#dc2626',
+            fontSize: 13,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+          }}
+        >
+          <span>{saveError}</span>
+          <button
+            type="button"
+            onClick={onRetrySave}
+            style={{
+              background: '#dc2626',
+              color: '#fff',
+              border: 'none',
+              padding: '6px 12px',
+              borderRadius: 8,
+              fontSize: 12.5,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+            }}
+          >
+            Retry
+          </button>
         </div>
       )}
 

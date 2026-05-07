@@ -4,7 +4,6 @@ import React from 'react'
 import {
   DropZone,
   Field,
-  GhostButton,
   Label,
   Reveal,
   Segmented,
@@ -22,7 +21,11 @@ type StepProps = {
 }
 
 // ─── Step 1 — Coach ─────────────────────────────────────────────────────────
-export function StepCoach({ state, update }: StepProps) {
+export function StepCoach({
+  state,
+  update,
+  onUploadPhoto,
+}: StepProps & { onUploadPhoto: (file: File) => Promise<string | null> }) {
   return (
     <div className="fade-up">
       <StepHeader step={1} total={5} headline="Tell clients who you are." />
@@ -57,9 +60,12 @@ export function StepCoach({ state, update }: StepProps) {
         <div style={{ width: 120 }}>
           <DropZone
             shape="circle"
-            filled={state.coachPhoto}
-            onClick={() => update({ coachPhoto: !state.coachPhoto })}
             label="Add photo"
+            imageUrl={state.coachPhotoUrl}
+            onUpload={async (file) => {
+              const url = await onUploadPhoto(file)
+              return url
+            }}
           />
         </div>
       </Field>
@@ -100,23 +106,26 @@ export function StepProgram({ state, update }: StepProps) {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: 12,
+            gridTemplateColumns: '1fr',
+            gap: 10,
           }}
         >
           <SelectCard
+            layout="row"
             selected={state.format === 'self'}
             onClick={() => update({ format: 'self' })}
             title="Self‑paced"
             body="Content + resources + messaging, no live calls."
           />
           <SelectCard
+            layout="row"
             selected={state.format === 'cohort'}
             onClick={() => update({ format: 'cohort' })}
             title="Cohort"
             body="Runs on fixed dates with a group."
           />
           <SelectCard
+            layout="row"
             selected={state.format === 'hybrid'}
             onClick={() => update({ format: 'hybrid' })}
             title="Hybrid"
@@ -169,7 +178,14 @@ export function StepProgram({ state, update }: StepProps) {
 }
 
 // ─── Step 3 — Hero media ────────────────────────────────────────────────────
-export function StepMedia({ state, update }: StepProps) {
+// Trailer is OUT OF SCOPE for this PR — it's a no-op visual + "Coming soon"
+// pill (we kept the card; removing it would leave a single column that looks
+// awkward against step 1's wide center column).
+export function StepMedia({
+  state,
+  update,
+  onUploadThumbnail,
+}: StepProps & { onUploadThumbnail: (file: File) => Promise<string | null> }) {
   return (
     <div className="fade-up">
       <StepHeader
@@ -186,63 +202,47 @@ export function StepMedia({ state, update }: StepProps) {
         <div>
           <Label>Thumbnail image</Label>
           <DropZone
-            filled={state.thumbnail}
-            onClick={() => update({ thumbnail: !state.thumbnail })}
             label="Drop image or click to upload"
             helper="JPG or PNG · 16:9 recommended"
+            imageUrl={state.thumbnailUrl}
+            onUpload={onUploadThumbnail}
+            accept="image/*"
           />
-          {state.thumbnail && (
-            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-              <GhostButton
-                onClick={() => update({ thumbnail: !state.thumbnail })}
-                style={{ padding: '6px 10px', fontSize: 13 }}
-              >
-                Replace
-              </GhostButton>
-              <GhostButton
-                onClick={() => update({ thumbnail: false })}
-                style={{
-                  padding: '6px 10px',
-                  fontSize: 13,
-                  color: 'var(--muted)',
-                }}
-              >
-                Remove
-              </GhostButton>
-            </div>
-          )}
         </div>
 
         <div>
-          <Label optional>Trailer video</Label>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              marginBottom: 8,
+            }}
+          >
+            <Label optional>Trailer video</Label>
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 500,
+                padding: '3px 8px',
+                borderRadius: 999,
+                background: '#F2F2F4',
+                color: 'var(--muted)',
+                letterSpacing: '0.02em',
+              }}
+            >
+              Coming soon
+            </span>
+          </div>
           <DropZone
-            filled={state.trailer}
-            onClick={() => update({ trailer: !state.trailer })}
+            filled={false}
+            onClick={() => {
+              // No-op: trailer pipeline is deferred. Leaving the visual so
+              // the layout is balanced.
+            }}
             label="Drop video or click to upload"
             helper="MP4 · up to 90 seconds"
-            filename={state.trailer ? 'trailer-final.mp4' : null}
-            duration={state.trailer ? '0:48' : null}
           />
-          {state.trailer && (
-            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-              <GhostButton
-                onClick={() => update({ trailer: !state.trailer })}
-                style={{ padding: '6px 10px', fontSize: 13 }}
-              >
-                Replace
-              </GhostButton>
-              <GhostButton
-                onClick={() => update({ trailer: false })}
-                style={{
-                  padding: '6px 10px',
-                  fontSize: 13,
-                  color: 'var(--muted)',
-                }}
-              >
-                Remove
-              </GhostButton>
-            </div>
-          )}
         </div>
       </div>
     </div>
@@ -252,6 +252,7 @@ export function StepMedia({ state, update }: StepProps) {
 // ─── Step 4 — Pricing & access ──────────────────────────────────────────────
 export function StepPricing({ state, update }: StepProps) {
   const isCohort = state.format === 'cohort' || state.format === 'hybrid'
+  const planDisabled = true // Payment plan deferred to a future PR.
 
   return (
     <div className="fade-up">
@@ -275,13 +276,36 @@ export function StepPricing({ state, update }: StepProps) {
             title="Subscription"
             body="Recurring monthly or yearly billing."
           />
-          <SelectCard
-            layout="row"
-            selected={state.pricingModel === 'plan'}
-            onClick={() => update({ pricingModel: 'plan' })}
-            title="Payment plan"
-            body="Split into N installments."
-          />
+          <div style={{ position: 'relative', opacity: planDisabled ? 0.55 : 1 }}>
+            <SelectCard
+              layout="row"
+              selected={state.pricingModel === 'plan'}
+              onClick={() => {
+                if (planDisabled) return
+                update({ pricingModel: 'plan' })
+              }}
+              title="Payment plan"
+              body="Split into N installments."
+            />
+            {planDisabled && (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: 14,
+                  right: 48,
+                  fontSize: 11,
+                  fontWeight: 500,
+                  padding: '3px 8px',
+                  borderRadius: 999,
+                  background: '#F2F2F4',
+                  color: 'var(--muted)',
+                  letterSpacing: '0.02em',
+                }}
+              >
+                Coming soon
+              </span>
+            )}
+          </div>
         </div>
       </Field>
 
@@ -310,24 +334,6 @@ export function StepPricing({ state, update }: StepProps) {
               value={state.interval}
               onChange={(v) => update({ interval: v as 'Monthly' | 'Yearly' })}
             />
-          </Reveal>
-
-          <Reveal open={state.pricingModel === 'plan'}>
-            <div
-              style={{ display: 'flex', alignItems: 'center', gap: 8 }}
-            >
-              <div style={{ width: 100 }}>
-                <TextInput
-                  type="number"
-                  value={state.installments}
-                  onChange={(v) => update({ installments: v })}
-                  placeholder="3"
-                />
-              </div>
-              <span style={{ fontSize: 13.5, color: 'var(--muted)' }}>
-                installments
-              </span>
-            </div>
           </Reveal>
         </div>
       </Field>

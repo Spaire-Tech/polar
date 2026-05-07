@@ -27,6 +27,9 @@ export type CoachingLandingProps = {
   program?: CoachingLandingData
   editable?: boolean
   onChange?: (next: CoachingLandingData) => void
+  // When set (public-mode only), the Atlas "Order" button navigates here.
+  // Ignored when editable is true (we show a tooltip instead).
+  buyHref?: string
 }
 
 /* -------------------------------------------------------------------------- */
@@ -530,6 +533,7 @@ const Faq = ({ data, editable, update }: SectionProps) => {
 type AtlasModalProps = SectionProps & {
   open: boolean
   onClose: () => void
+  buyHref?: string
 }
 
 const AtlasModal = ({
@@ -538,6 +542,7 @@ const AtlasModal = ({
   update,
   open,
   onClose,
+  buyHref,
 }: AtlasModalProps) => {
   const { atlas } = data
   const [activeSlide, setActiveSlide] = useState(0)
@@ -649,7 +654,22 @@ const AtlasModal = ({
               </div>
             ))}
           </div>
-          <button className="pd-order" type="button">
+          <button
+            className="pd-order"
+            type="button"
+            onClick={() => {
+              if (editable) return
+              if (buyHref && typeof window !== 'undefined') {
+                window.location.href = buyHref
+              }
+            }}
+            title={
+              editable
+                ? "This is your buyer's checkout button."
+                : undefined
+            }
+            style={editable ? { cursor: 'help' } : undefined}
+          >
             <EditableText
               value={atlas.orderCta}
               editable={editable}
@@ -717,6 +737,7 @@ const CoachingLanding = ({
   program,
   editable = false,
   onChange,
+  buyHref,
 }: CoachingLandingProps) => {
   const [internalData, setInternalData] = useState<CoachingLandingData>(
     program ?? defaultCoachingLandingData,
@@ -796,6 +817,7 @@ const CoachingLanding = ({
         update={update}
         open={modalOpen}
         onClose={() => setModalOpen(false)}
+        buyHref={buyHref}
       />
       <button
         className="theme-toggle"

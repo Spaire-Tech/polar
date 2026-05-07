@@ -30,8 +30,11 @@ class CoachingProgramRepository(
             CoachingProgram.organization_id == organization_id
         )
 
-    def get_by_slug_statement(self, slug: str):
-        return self.get_base_statement().where(CoachingProgram.slug == slug)
+    def get_by_slug_statement(self, organization_id: UUID, slug: str):
+        return self.get_base_statement().where(
+            CoachingProgram.organization_id == organization_id,
+            CoachingProgram.slug == slug,
+        )
 
     def get_readable_statement(
         self, auth_subject: AuthSubject[User | Organization]
@@ -67,8 +70,20 @@ class CoachingProgramRepository(
     ) -> CoachingProgram | None:
         return await self.get_one_or_none(self.get_by_product_statement(product_id))
 
-    async def get_by_slug(self, slug: str) -> CoachingProgram | None:
-        return await self.get_one_or_none(self.get_by_slug_statement(slug))
+    async def get_by_slug(
+        self, organization_id: UUID, slug: str
+    ) -> CoachingProgram | None:
+        return await self.get_one_or_none(
+            self.get_by_slug_statement(organization_id, slug)
+        )
+
+    async def get_published_by_slug(
+        self, organization_id: UUID, slug: str
+    ) -> CoachingProgram | None:
+        statement = self.get_by_slug_statement(organization_id, slug).where(
+            CoachingProgram.published_at.is_not(None)
+        )
+        return await self.get_one_or_none(statement)
 
     async def get_product_by_id(self, product_id: UUID) -> Product | None:
         return await self.session.get(Product, product_id)
