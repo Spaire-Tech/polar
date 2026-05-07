@@ -1,9 +1,10 @@
 'use client'
 
+import { useCoachingEvents } from '@/hooks/queries/coaching'
 import type { CourseRead } from '@/hooks/queries/courses'
 import { schemas } from '@spaire/client'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import './coaching-editor.css'
 import { CommunityTab } from './tabs/CommunityTab'
 import { EventsTab } from './tabs/EventsTab'
@@ -13,6 +14,55 @@ import { ModulesTab } from './tabs/ModulesTab'
 import { PricingTab } from './tabs/PricingTab'
 import { Btn } from './ui'
 import { Ic } from './icons'
+
+type Lifecycle = 'draft' | 'live' | 'wrapped'
+
+function deriveLifecycle(
+  events: ReadonlyArray<{ starts_at: string; status: string }>,
+): Lifecycle {
+  if (events.length === 0) return 'draft'
+  const now = Date.now()
+  const hasFuture = events.some(
+    (e) => e.status !== 'cancelled' && new Date(e.starts_at).getTime() >= now,
+  )
+  return hasFuture ? 'live' : 'wrapped'
+}
+
+const LIFECYCLE_LABEL: Record<Lifecycle, string> = {
+  draft: 'Draft',
+  live: 'Live',
+  wrapped: 'Wrapped',
+}
+
+function buildMeta(
+  events: ReadonlyArray<{ starts_at: string; status: string }>,
+): string[] {
+  if (events.length === 0) return []
+  const total = events.length
+  const now = Date.now()
+  const upcoming = events
+    .filter(
+      (e) => e.status !== 'cancelled' && new Date(e.starts_at).getTime() >= now,
+    )
+    .sort(
+      (a, b) =>
+        new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime(),
+    )
+  const out: string[] = [`${total} session${total === 1 ? '' : 's'}`]
+  if (upcoming[0]) {
+    const d = new Date(upcoming[0].starts_at)
+    out.push(
+      `next ${d.toLocaleDateString(undefined, {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+      })}`,
+    )
+  } else {
+    out.push('all sessions complete')
+  }
+  return out
+}
 
 type TabId =
   | 'events'
@@ -122,8 +172,9 @@ function ProgramHeader({
   activeTab: TabId
   onTabChange: (next: TabId) => void
 }) {
-  // Counts come in lazily — show without badges if not yet fetched, the
-  // tab content fills them in.
+  const { data: events = [] } = useCoachingEvents(course.id)
+  const lifecycle = useMemo(() => deriveLifecycle(events), [events])
+  const meta = useMemo(() => buildMeta(events), [events])
   return (
     <>
       <div className="ce-prog-header">
@@ -133,13 +184,25 @@ function ProgramHeader({
             {course.title || 'Untitled program'}
           </h1>
           <div className="ce-prog-meta">
-            <span className="ce-status-pill">
-              <span className="ce-led" /> Live
+            <span
+              className={
+                'ce-status-pill' + (lifecycle === 'draft' ? ' draft' : '')
+              }
+            >
+              <span className="ce-led" /> {LIFECYCLE_LABEL[lifecycle]}
             </span>
-            <span className="ce-dot" />
-            <span>
-              {organization.name}
-            </span>
+            {meta.map((piece, i) => (
+              <span key={i} style={{ display: 'contents' }}>
+                <span className="ce-dot" />
+                <span>{piece}</span>
+              </span>
+            ))}
+            {meta.length === 0 && (
+              <>
+                <span className="ce-dot" />
+                <span>{organization.name}</span>
+              </>
+            )}
           </div>
         </div>
         <div className="ce-row">
