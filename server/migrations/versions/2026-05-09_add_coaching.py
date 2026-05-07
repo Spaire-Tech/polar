@@ -1,7 +1,7 @@
 """Add coaching: program_format on courses + coaching_events table
 
 Revision ID: y4z5a6b7c8d9
-Revises: x3y4z5a6b7c8
+Revises: c0a17de9b4f3
 Create Date: 2026-05-09 10:00:00.000000
 
 Coaching programs are a flavour of course (program_format='coaching') that
@@ -9,6 +9,9 @@ also publish a list of pre-scheduled live events on a timeline. Events are
 content the customer buys access to, not bookings the coach personally
 performs — kept that way so Polar's MoR posture and digital-product tax
 classification stay clean.
+
+Chains off of c0a17de9b4f3 (a stub for an orphan revision applied to
+production by a parallel coaching branch — see stub_c0a17de9b4f3.py).
 """
 
 import sqlalchemy as sa
@@ -16,7 +19,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision = "y4z5a6b7c8d9"
-down_revision = "x3y4z5a6b7c8"
+down_revision = "c0a17de9b4f3"
 branch_labels: tuple[str] | None = None
 depends_on: tuple[str] | None = None
 
