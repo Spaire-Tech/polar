@@ -122,18 +122,13 @@ export function EventsTab({ course }: { course: CourseRead }) {
         title="Events"
         subtitle="Your live group calls. The spine of an active cohort."
         actions={
-          <>
-            <Btn variant="ghost" icon={<Ic.Calendar size={14} />}>
-              Sync to calendar
-            </Btn>
-            <Btn
-              variant="primary"
-              icon={<Ic.Plus size={14} />}
-              onClick={() => setScheduleOpen(true)}
-            >
-              Schedule event
-            </Btn>
-          </>
+          <Btn
+            variant="primary"
+            icon={<Ic.Plus size={14} />}
+            onClick={() => setScheduleOpen(true)}
+          >
+            Schedule event
+          </Btn>
         }
       />
 

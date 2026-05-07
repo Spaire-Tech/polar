@@ -80,13 +80,6 @@ export function MembersTab({ course }: { course: CourseRead }) {
       <SectionHead
         title="Members & Cohorts"
         subtitle="Who's enrolled, where they are in the program, and which wave they're in."
-        actions={
-          <>
-            <Btn variant="ghost" icon={<Ic.External size={14} />}>
-              Export
-            </Btn>
-          </>
-        }
       />
 
       {/* Cohorts */}

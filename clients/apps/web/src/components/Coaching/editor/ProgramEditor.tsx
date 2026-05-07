@@ -1,8 +1,8 @@
 'use client'
 
-import { useUpdateCourse, type CourseRead } from '@/hooks/queries/courses'
+import type { CourseRead } from '@/hooks/queries/courses'
 import { schemas } from '@spaire/client'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import './coaching-editor.css'
 import { CommunityTab } from './tabs/CommunityTab'
@@ -41,11 +41,20 @@ export default function ProgramEditor({
   course: CourseRead
 }) {
   const router = useRouter()
+  const pathname = usePathname()
   const searchParams = useSearchParams()
   const tabParam = (searchParams.get('tab') as TabId) || null
-  const [tab, setTab] = useState<TabId>(
+  const [tab, setTabState] = useState<TabId>(
     TABS.some((t) => t.id === tabParam) ? (tabParam as TabId) : 'events',
   )
+
+  const setTab = (next: TabId) => {
+    setTabState(next)
+    // Persist to URL so refresh / share-link / back-button keep the tab.
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('tab', next)
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+  }
 
   const handleBack = () =>
     router.push(`/dashboard/${organization.slug}/products`)
@@ -113,7 +122,6 @@ function ProgramHeader({
   activeTab: TabId
   onTabChange: (next: TabId) => void
 }) {
-  const updateCourse = useUpdateCourse()
   // Counts come in lazily — show without badges if not yet fetched, the
   // tab content fills them in.
   return (
@@ -135,12 +143,28 @@ function ProgramHeader({
           </div>
         </div>
         <div className="ce-row">
-          <Btn variant="ghost" icon={<Ic.External size={14} />}>
+          <Btn
+            variant="ghost"
+            icon={<Ic.External size={14} />}
+            onClick={() =>
+              window.open(
+                `/${organization.slug}/products/${course.product_id}`,
+                '_blank',
+              )
+            }
+          >
             View public page
           </Btn>
-          <Btn icon={<Ic.Eye size={14} />}>Preview as member</Btn>
-          <Btn variant="primary" icon={<Ic.Sparkles size={14} />}>
-            Share invite
+          <Btn
+            icon={<Ic.Eye size={14} />}
+            onClick={() =>
+              window.open(
+                `/${organization.slug}/portal/courses/${course.id}`,
+                '_blank',
+              )
+            }
+          >
+            Preview as member
           </Btn>
         </div>
       </div>
@@ -158,9 +182,6 @@ function ProgramHeader({
           </button>
         ))}
       </div>
-      {/* updateCourse is wired so individual tabs can call it via context
-          later; no-op here keeps the import live. */}
-      <span style={{ display: 'none' }}>{updateCourse.isPending ? '' : ''}</span>
     </>
   )
 }
