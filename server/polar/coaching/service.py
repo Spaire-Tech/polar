@@ -5,7 +5,7 @@ from uuid import UUID
 from polar.auth.models import AuthSubject, Organization, User
 from polar.course import mux as mux_client
 from polar.course.repository import CourseRepository
-from polar.exceptions import PolarRequestValidationError, ResourceNotFound
+from polar.exceptions import SpaireRequestValidationError, ResourceNotFound
 from polar.models.coaching_event import CoachingEvent
 from polar.models.course import Course
 from polar.postgres import AsyncReadSession, AsyncSession
@@ -13,7 +13,7 @@ from .repository import CoachingEventRepository
 from .schemas import CoachingEventCreate, CoachingEventUpdate
 
 
-class CoachingProgramRequired(PolarRequestValidationError):
+class CoachingProgramRequired(SpaireRequestValidationError):
     """Raised when an action targets a course that isn't a coaching program."""
 
     def __init__(self) -> None:
