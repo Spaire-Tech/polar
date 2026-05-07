@@ -1,6 +1,6 @@
 """Add coaching_programs table
 
-Revision ID: a1b2c3d4e5f6
+Revision ID: 3b4ad59bf547
 Revises: x3y4z5a6b7c8
 Create Date: 2026-05-08 12:00:00.000000
 
@@ -15,7 +15,7 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-revision = "a1b2c3d4e5f6"
+revision = "3b4ad59bf547"
 down_revision = "x3y4z5a6b7c8"
 branch_labels: tuple[str] | None = None
 depends_on: tuple[str] | None = None
