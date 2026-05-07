@@ -64,3 +64,57 @@ class CoachingMuxUploadRead(Schema):
 
     upload_id: str
     upload_url: str
+
+
+# ── Cohorts ────────────────────────────────────────────────────────────────
+
+
+class CoachingCohortBase(Schema):
+    name: str = Field(min_length=1, max_length=200)
+    starts_at: datetime | None = None
+    ends_at: datetime | None = None
+    capacity: int | None = Field(default=None, ge=1)
+    enrollment_open: bool = True
+
+
+class CoachingCohortCreate(CoachingCohortBase):
+    course_id: UUID
+
+
+class CoachingCohortUpdate(Schema):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    starts_at: datetime | None = None
+    ends_at: datetime | None = None
+    capacity: int | None = Field(default=None, ge=1)
+    enrollment_open: bool | None = None
+
+
+class CoachingCohortRead(TimestampedSchema, CoachingCohortBase):
+    id: UUID
+    course_id: UUID
+    is_default: bool
+    member_count: int = 0
+
+
+# ── Members (enrolled customers in a coaching program) ─────────────────────
+
+
+class CoachingMemberCustomer(Schema):
+    id: UUID
+    email: str | None = None
+    name: str | None = None
+    avatar_url: str | None = None
+
+
+class CoachingMemberRead(Schema):
+    enrollment_id: UUID
+    enrolled_at: datetime
+    cohort_id: UUID | None = None
+    cohort_name: str | None = None
+    customer: CoachingMemberCustomer
+    completed_lessons: int = 0
+    total_lessons: int = 0
+
+
+class CoachingMemberAssignCohort(Schema):
+    cohort_id: UUID
