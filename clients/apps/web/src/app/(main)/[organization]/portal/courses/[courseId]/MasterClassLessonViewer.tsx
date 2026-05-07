@@ -50,6 +50,7 @@ export interface MasterClassLessonViewerProps {
   onMarkComplete: () => void
   token: string
   courseId: string
+  organizationSlug: string
   // 'portal' = signed-in customer, full toolbar (Share + Class Guide + Bookmark)
   // 'landing' = public preview, only Share is shown
   mode?: 'portal' | 'landing'
@@ -89,6 +90,7 @@ export const MasterClassLessonViewer = ({
   onMarkComplete,
   token,
   courseId,
+  organizationSlug,
   mode = 'portal',
 }: MasterClassLessonViewerProps) => {
   const [playing, setPlaying] = useState(false)
@@ -107,7 +109,7 @@ export const MasterClassLessonViewer = ({
     setPlaying(false)
     setNoteText('')
     if (typeof window !== 'undefined') {
-      setBookmarked(window.localStorage.getItem(bookmarkKey) === '1')
+      setBookmarked(window.localStorage.getItem(bookmarkKey) !== null)
     }
   }, [lesson.id, bookmarkKey])
 
@@ -146,8 +148,26 @@ export const MasterClassLessonViewer = ({
     setBookmarked((prev) => {
       const next = !prev
       if (typeof window !== 'undefined') {
-        if (next) window.localStorage.setItem(bookmarkKey, '1')
-        else window.localStorage.removeItem(bookmarkKey)
+        if (next) {
+          const thumbnail =
+            lesson.thumbnail_url ||
+            (lesson.mux_playback_id
+              ? `https://image.mux.com/${lesson.mux_playback_id}/thumbnail.jpg?time=0`
+              : null)
+          const payload = {
+            lessonId: lesson.id,
+            courseId,
+            organizationSlug,
+            lessonTitle: lesson.title,
+            courseTitle,
+            thumbnailUrl: thumbnail,
+            durationSeconds: lesson.duration_seconds ?? null,
+            savedAt: new Date().toISOString(),
+          }
+          window.localStorage.setItem(bookmarkKey, JSON.stringify(payload))
+        } else {
+          window.localStorage.removeItem(bookmarkKey)
+        }
       }
       return next
     })

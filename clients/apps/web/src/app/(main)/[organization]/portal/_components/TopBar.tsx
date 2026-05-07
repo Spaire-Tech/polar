@@ -159,14 +159,17 @@ export const TopBar = ({
             <BellIcon />
             <span className="sp-dot" aria-hidden />
           </button>
-          <button
-            type="button"
-            className="sp-iconbtn"
-            aria-label="Saved"
-            title="Saved"
+          <Link
+            href={buildHref(`/${organization.slug}/portal/bookmarks`)}
+            className={
+              'sp-iconbtn' +
+              (pathname.includes('/portal/bookmarks') ? ' is-active' : '')
+            }
+            aria-label="Bookmarks"
+            title="Bookmarks"
           >
             <BookmarkIcon />
-          </button>
+          </Link>
           <div
             className="sp-avatar"
             title={authenticatedUser?.name ?? authenticatedUser?.email ?? ''}
