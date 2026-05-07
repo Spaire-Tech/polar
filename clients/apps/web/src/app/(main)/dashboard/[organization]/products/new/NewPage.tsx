@@ -1,5 +1,6 @@
 'use client'
 
+import CoachingWizard from '@/components/Coaching/CoachingWizard'
 import { CreateProductSplitPage } from '@/components/Products/CreateProductSplitPage'
 import CourseWizard from '@/components/Courses/CourseWizard'
 import { ProductTypeDialog } from '@/components/Products/ProductTypeDialog'
@@ -20,7 +21,7 @@ export default function Page({
   }
 
   if (type === 'coaching') {
-    return <CourseWizard organization={organization} programFormat="coaching" />
+    return <CoachingWizard organization={organization} />
   }
 
   if (type === 'digital') {
