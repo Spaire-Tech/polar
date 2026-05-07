@@ -115,16 +115,21 @@ class CourseService:
             course.modules.append(module)
 
         course = await repo.create(course, flush=True)
-        # Refresh to avoid MissingGreenlet when selectin relationships are accessed
-        await session.refresh(course, attribute_names=["modules"])
 
         # Seed the default cohort for coaching programs so members always
-        # have somewhere to land. ensure_default_for_course is idempotent
-        # so re-running is safe. Lazy import to avoid a circular dep.
+        # have somewhere to land. Run BEFORE the modules refresh — the
+        # cohort flush expires loaded relationships, so refreshing modules
+        # afterwards is what keeps the response-serializer from doing
+        # implicit IO in a sync context (MissingGreenlet). Lazy import
+        # avoids a course→coaching→course circular dep.
         if course.program_format == "coaching":
             from polar.coaching.service import cohort_service
 
             await cohort_service.ensure_default_for_course(session, course)
+
+        # Refresh modules last so the relationship is fresh when Pydantic
+        # walks it during response serialization.
+        await session.refresh(course, attribute_names=["modules"])
 
         return course
 
