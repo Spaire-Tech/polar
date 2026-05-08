@@ -11,10 +11,8 @@ import {
   usePreviewAccess,
 } from '@/hooks/queries/courses'
 import AddOutlined from '@mui/icons-material/AddOutlined'
-import AttachFileOutlined from '@mui/icons-material/AttachFileOutlined'
 import CheckCircle from '@mui/icons-material/CheckCircle'
 import DeleteOutlineOutlined from '@mui/icons-material/DeleteOutlineOutlined'
-import DragIndicatorOutlined from '@mui/icons-material/DragIndicatorOutlined'
 import ImageOutlined from '@mui/icons-material/ImageOutlined'
 import KeyboardArrowDownOutlined from '@mui/icons-material/KeyboardArrowDownOutlined'
 import MoreHorizOutlined from '@mui/icons-material/MoreHorizOutlined'
@@ -113,7 +111,10 @@ export function QuizDetail({
   useEffect(() => {
     setQuiz(loadQuiz(lesson))
     setPublished(lesson.published)
-  }, [lesson.id])
+    // Re-sync when the lesson identity OR the server's published flag
+    // changes; otherwise a successful save's refetch can leave the local
+    // toggle stuck on the stale value.
+  }, [lesson.id, lesson.published])
 
   const updateQuiz = (patch: Partial<QuizContent>) =>
     setQuiz((prev) => ({ ...prev, ...patch }))
@@ -139,61 +140,76 @@ export function QuizDetail({
     }))
 
   const addOption = (questionId: string) =>
-    updateQuestion(questionId, {
-      options: [
-        ...(quiz.questions.find((q) => q.id === questionId)?.options ?? []),
-        newOption(
-          `Option ${
-            (quiz.questions.find((q) => q.id === questionId)?.options.length ??
-              0) + 1
-          }`,
-        ),
-      ],
-    })
+    setQuiz((prev) => ({
+      ...prev,
+      questions: prev.questions.map((q) =>
+        q.id === questionId
+          ? {
+              ...q,
+              options: [
+                ...q.options,
+                newOption(`Option ${q.options.length + 1}`),
+              ],
+            }
+          : q,
+      ),
+    }))
 
   const updateOption = (
     questionId: string,
     optionId: string,
     patch: Partial<QuizOption>,
-  ) => {
-    const question = quiz.questions.find((q) => q.id === questionId)
-    if (!question) return
-    updateQuestion(questionId, {
-      options: question.options.map((o) =>
-        o.id === optionId ? { ...o, ...patch } : o,
+  ) =>
+    setQuiz((prev) => ({
+      ...prev,
+      questions: prev.questions.map((q) =>
+        q.id === questionId
+          ? {
+              ...q,
+              options: q.options.map((o) =>
+                o.id === optionId ? { ...o, ...patch } : o,
+              ),
+            }
+          : q,
       ),
-    })
-  }
+    }))
 
   const setCorrect = (
     questionId: string,
     optionId: string,
     type: QuestionType,
-  ) => {
-    const question = quiz.questions.find((q) => q.id === questionId)
-    if (!question) return
-    if (type === 'multiple_choice') {
-      updateQuestion(questionId, {
-        options: question.options.map((o) => ({
-          ...o,
-          is_correct: o.id === optionId,
-        })),
-      })
-    } else {
-      updateOption(questionId, optionId, {
-        is_correct: !question.options.find((o) => o.id === optionId)
-          ?.is_correct,
-      })
-    }
-  }
+  ) =>
+    setQuiz((prev) => ({
+      ...prev,
+      questions: prev.questions.map((q) => {
+        if (q.id !== questionId) return q
+        if (type === 'multiple_choice') {
+          return {
+            ...q,
+            options: q.options.map((o) => ({
+              ...o,
+              is_correct: o.id === optionId,
+            })),
+          }
+        }
+        return {
+          ...q,
+          options: q.options.map((o) =>
+            o.id === optionId ? { ...o, is_correct: !o.is_correct } : o,
+          ),
+        }
+      }),
+    }))
 
-  const removeOption = (questionId: string, optionId: string) => {
-    const question = quiz.questions.find((q) => q.id === questionId)
-    if (!question) return
-    updateQuestion(questionId, {
-      options: question.options.filter((o) => o.id !== optionId),
-    })
-  }
+  const removeOption = (questionId: string, optionId: string) =>
+    setQuiz((prev) => ({
+      ...prev,
+      questions: prev.questions.map((q) =>
+        q.id === questionId
+          ? { ...q, options: q.options.filter((o) => o.id !== optionId) }
+          : q,
+      ),
+    }))
 
   const handleSave = () => {
     onSave({
@@ -388,13 +404,7 @@ function QuestionCard({
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white">
-      <div className="flex items-center justify-center pt-2">
-        <DragIndicatorOutlined
-          className="text-gray-300"
-          sx={{ fontSize: 18 }}
-        />
-      </div>
-      <div className="px-6 pt-2 pb-6">
+      <div className="px-6 pt-5 pb-6">
         <div className="mb-3 flex items-center justify-between">
           <p className="text-sm font-bold text-gray-900">
             Question {index + 1}
@@ -459,14 +469,6 @@ function QuestionCard({
           )}
         </div>
 
-        <button
-          type="button"
-          className="mb-5 flex items-center gap-1.5 text-xs font-medium text-gray-700 hover:text-gray-900"
-        >
-          <AttachFileOutlined sx={{ fontSize: 14 }} />
-          Attach image
-        </button>
-
         {!isShort && (
           <>
             <p className="mb-2 text-xs text-gray-400">Responses</p>
@@ -508,13 +510,6 @@ function QuestionCard({
                       className="rounded-xl border border-transparent px-3.5 py-1.5 text-xs text-gray-500 placeholder:text-gray-400 hover:bg-gray-50 focus:border-gray-200 focus:outline-none"
                     />
                   </div>
-                  <button
-                    type="button"
-                    className="mt-1.5 flex h-9 w-9 items-center justify-center rounded-lg text-gray-300 transition-colors hover:bg-gray-100 hover:text-gray-600"
-                    title="Attach image"
-                  >
-                    <ImageOutlined sx={{ fontSize: 16 }} />
-                  </button>
                   {question.options.length > 1 && (
                     <button
                       type="button"
@@ -617,22 +612,15 @@ function SettingsPanel({
       >
         <div className="flex flex-col gap-4">
           <div className="flex items-start justify-between gap-4">
-            <div className="flex flex-1 items-start gap-3">
-              <Toggle
-                checked={true}
-                onChange={() => {
-                  /* always on for now */
-                }}
-              />
-              <div>
-                <p className="text-sm font-medium text-gray-900">
-                  Set a passing grade
-                </p>
-                <p className="mt-0.5 text-xs text-gray-500">
-                  Tip: For a non-graded quiz, toggle off passing grade and
-                  grading on all questions.
-                </p>
-              </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-900">
+                Passing grade
+              </p>
+              <p className="mt-0.5 text-xs text-gray-500">
+                The minimum percentage of correct answers required to pass.
+                Mark individual questions as ungraded to exclude them from
+                scoring.
+              </p>
             </div>
             <div className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-1.5">
               <input
@@ -640,14 +628,13 @@ function SettingsPanel({
                 min={0}
                 max={100}
                 value={quiz.passing_grade}
-                onChange={(e) =>
-                  onChange({
-                    passing_grade: Math.max(
-                      0,
-                      Math.min(100, parseInt(e.target.value || '0')),
-                    ),
-                  })
-                }
+                onChange={(e) => {
+                  const parsed = parseInt(e.target.value, 10)
+                  const next = Number.isFinite(parsed)
+                    ? Math.max(0, Math.min(100, parsed))
+                    : 0
+                  onChange({ passing_grade: next })
+                }}
                 className="w-12 bg-transparent text-right text-sm focus:outline-none"
               />
               <span className="text-xs text-gray-500">%</span>
