@@ -204,10 +204,26 @@ export function LessonDetail({
 
   const handleGenerate = async () => {
     if (!onGenerateAI) return
+    const previous = edits.textContent
+    if (previous.trim().length > 0) {
+      const confirmed =
+        typeof window === 'undefined' ||
+        window.confirm(
+          'Regenerating will replace the current lesson text. Continue?',
+        )
+      if (!confirmed) return
+    }
     update('textContent', '')
-    await onGenerateAI(edits, (chunk) =>
-      setEdits((prev) => ({ ...prev, textContent: prev.textContent + chunk })),
-    )
+    try {
+      await onGenerateAI(edits, (chunk) =>
+        setEdits((prev) => ({ ...prev, textContent: prev.textContent + chunk })),
+      )
+    } catch (error) {
+      // Restore the previous content if generation fails so the user
+      // doesn't lose their work to a network blip.
+      update('textContent', previous)
+      throw error
+    }
   }
 
   const handleVideoFileChange = async (
