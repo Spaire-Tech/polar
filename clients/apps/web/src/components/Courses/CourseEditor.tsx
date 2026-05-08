@@ -199,56 +199,6 @@ export default function CourseEditor({
     }
   }
 
-  const handleAddModule = async () => {
-    try {
-      const title = window.prompt('Module title', 'New module')?.trim()
-      if (!title) return
-      await addModule.mutateAsync({
-        courseId: course.id,
-        body: { title, position: course.modules.length },
-      })
-      invalidateCourse()
-    } catch {
-      toast({ title: 'Failed to add module' })
-    }
-  }
-
-  const handleRenameModule = async (mod: CourseModuleRead) => {
-    const next = window.prompt('Module title', mod.title)?.trim()
-    if (!next || next === mod.title) return
-    try {
-      await updateModule.mutateAsync({
-        moduleId: mod.id,
-        body: { title: next },
-      })
-      invalidateCourse()
-    } catch {
-      toast({ title: 'Failed to rename module' })
-    }
-  }
-
-  const handleDeleteModule = async (mod: CourseModuleRead) => {
-    const lessonCount = mod.lessons.length
-    const confirmed = window.confirm(
-      lessonCount > 0
-        ? `Delete "${mod.title}" and its ${lessonCount} lesson${lessonCount === 1 ? '' : 's'}? This cannot be undone.`
-        : `Delete "${mod.title}"?`,
-    )
-    if (!confirmed) return
-    try {
-      await deleteModule.mutateAsync(mod.id)
-      if (
-        selectedLessonId &&
-        mod.lessons.some((l) => l.id === selectedLessonId)
-      ) {
-        setSelectedLessonId(null)
-      }
-      invalidateCourse()
-    } catch {
-      toast({ title: 'Failed to delete module' })
-    }
-  }
-
   const handleSaveSettings = async (edits: CourseSettingsEdits) => {
     try {
       await updateCourse.mutateAsync({
