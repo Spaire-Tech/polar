@@ -23,18 +23,15 @@ export const StorefrontLivePreview = ({
   const allProducts =
     useProducts(organization.id, { is_archived: false }).data?.items ?? []
 
-  // Filter by featured product IDs if set
-  const featuredIds = organization.storefront_settings?.featured_product_ids ?? []
-  const products = featuredIds.length > 0
-    ? allProducts.filter((p) => featuredIds.includes(p.id))
-    : allProducts
+  // Honor featured_mode: 'all' shows every product, 'curated' shows only
+  // the IDs the user has explicitly selected.
+  const featuredMode = organization.storefront_settings?.featured_mode ?? 'all'
+  const featuredIds =
+    organization.storefront_settings?.featured_product_ids ?? []
+  const products =
+    featuredMode === 'curated'
+      ? allProducts.filter((p) => featuredIds.includes(p.id))
+      : allProducts
 
-  const showCardProducts = (storefrontSettings as any)?.show_card_products ?? true
-
-  return (
-    <ProfileCard organization={organization} products={showCardProducts ? products : []} />
-  )
+  return <ProfileCard organization={organization} products={products} preview />
 }
-
-// Keep backward-compat export
-export const StorefrontPreview = StorefrontLivePreview

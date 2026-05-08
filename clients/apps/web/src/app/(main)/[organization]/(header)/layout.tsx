@@ -1,5 +1,8 @@
 import PublicLayout from '@/components/Layout/PublicLayout'
-import { ForceLightMode } from '@/components/Profile/ForceLightMode'
+import {
+  ForceLightMode,
+  forceLightModeBeforeHydration,
+} from '@/components/Profile/ForceLightMode'
 import { ProfileCard } from '@/components/Profile/ProfileCard'
 import { getServerSideAPI } from '@/utils/client/serverside'
 import { getStorefrontOrNotFound } from '@/utils/storefront'
@@ -22,6 +25,11 @@ export default async function Layout(props: {
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
+      {/* Strip dark mode synchronously, before hydration, so dark-theme
+          users don't flash dark styles on a public Space page. */}
+      <script
+        dangerouslySetInnerHTML={{ __html: forceLightModeBeforeHydration }}
+      />
       <ForceLightMode />
       <PublicLayout className="gap-y-0 py-4 md:py-8" wide footer={false}>
         {/* Two-column layout — no topbar, no login, no nav tabs */}

@@ -9,6 +9,7 @@ type FileRead =
   | schemas['ProductMediaFileRead']
   | schemas['OrganizationAvatarFileRead']
   | schemas['StorefrontHeaderFileRead']
+  | schemas['StorefrontLinkFileRead']
 
 export const useFiles = (
   organizationId: string,

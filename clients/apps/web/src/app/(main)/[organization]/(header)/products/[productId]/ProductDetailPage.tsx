@@ -4,12 +4,11 @@ import { DETAIL_OPTION_MAP, DETAIL_KEYS } from '@/components/Products/ProductFor
 import { hasLegacyRecurringPrices } from '@/utils/product'
 import LegacyRecurringProductPrices from '@/components/Products/LegacyRecurringProductPrices'
 import { CONFIG } from '@/utils/config'
-import { getServerURL } from '@/utils/api'
 import { api } from '@/utils/client'
 import { schemas } from '@spaire/client'
 import { formatCurrency } from '@spaire/currency'
 import Link from 'next/link'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { twMerge } from 'tailwind-merge'
 import LogoIcon from '@/components/Brand/LogoIcon'
 import { ProductCard } from '@/components/Products/ProductCard'
@@ -164,20 +163,6 @@ function DetailIcon({ detailKey }: { detailKey: string }) {
   }
 }
 
-interface ReviewData {
-  id: string
-  rating: number
-  title: string | null
-  text: string | null
-  customer_name: string
-  created_at: string
-}
-
-interface ReviewStats {
-  average_rating: number
-  total_reviews: number
-}
-
 export const ProductDetailPage = ({
   organization,
   product,
@@ -187,9 +172,6 @@ export const ProductDetailPage = ({
   product: schemas['ProductStorefront']
   otherProducts: schemas['ProductStorefront'][]
 }) => {
-  const reviewsEnabled =
-    'storefront_settings' in organization &&
-    (organization.storefront_settings as any)?.enable_reviews === true
   const [checkoutLoading, setCheckoutLoading] = useState(false)
 
   const category = product.category
@@ -335,11 +317,6 @@ export const ProductDetailPage = ({
         </div>
       </div>
 
-      {/* Reviews — hidden until fully implemented */}
-      {false && reviewsEnabled && (
-        <ReviewsSection productId={product.id} />
-      )}
-
       {/* More from org */}
       {otherProducts.length > 0 && (
         <div className="flex flex-col gap-6 border-t border-gray-100 pt-10">
@@ -447,115 +424,3 @@ function MediaGallery({
   )
 }
 
-// ── Reviews Section ──
-
-function StarRating({ rating, size = 16 }: { rating: number; size?: number }) {
-  return (
-    <div className="flex gap-0.5">
-      {[1, 2, 3, 4, 5].map((star) => (
-        <svg
-          key={star}
-          width={size}
-          height={size}
-          viewBox="0 0 20 20"
-          fill={star <= rating ? '#f59e0b' : '#e5e7eb'}
-        >
-          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-        </svg>
-      ))}
-    </div>
-  )
-}
-
-function ReviewsSection({ productId }: { productId: string }) {
-  const [reviews, setReviews] = useState<ReviewData[]>([])
-  const [stats, setStats] = useState<ReviewStats | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const fetchReviews = async () => {
-      try {
-        const res = await fetch(
-          `${getServerURL()}/v1/product-reviews/product/${productId}`,
-          { credentials: 'include' },
-        )
-        if (res.ok) {
-          const data = await res.json()
-          setReviews(data.reviews ?? [])
-          setStats(data.stats ?? null)
-        }
-      } catch {
-        // silently fail
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchReviews()
-  }, [productId])
-
-  if (loading) {
-    return (
-      <div className="border-t border-gray-100 pt-10">
-        <div className="h-8 w-32 animate-pulse rounded bg-gray-100" />
-      </div>
-    )
-  }
-
-  return (
-    <div className="flex flex-col gap-6 border-t border-gray-100 pt-10">
-      <div className="flex items-center gap-4">
-        <h2 className="text-lg font-semibold text-gray-900">Reviews</h2>
-        {stats && stats.total_reviews > 0 && (
-          <div className="flex items-center gap-2">
-            <StarRating rating={Math.round(stats.average_rating)} />
-            <span className="text-sm text-gray-500">
-              {stats.average_rating} ({stats.total_reviews} review{stats.total_reviews !== 1 ? 's' : ''})
-            </span>
-          </div>
-        )}
-      </div>
-
-      {reviews.length === 0 ? (
-        <p className="text-sm text-gray-400">No reviews yet. Be the first to leave one!</p>
-      ) : (
-        <div className="flex flex-col gap-4">
-          {reviews.map((review) => (
-            <div
-              key={review.id}
-              className="flex flex-col gap-2 rounded-xl border border-gray-100 bg-gray-50 p-5"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-xs font-medium text-gray-600">
-                    {review.customer_name.charAt(0).toUpperCase()}
-                  </div>
-                  <span className="text-sm font-medium text-gray-900">
-                    {review.customer_name}
-                  </span>
-                </div>
-                <span className="text-xs text-gray-400">
-                  {new Date(review.created_at).toLocaleDateString(undefined, {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                  })}
-                </span>
-              </div>
-              <StarRating rating={review.rating} size={14} />
-              {review.title && (
-                <h4 className="text-sm font-medium text-gray-900">
-                  {review.title}
-                </h4>
-              )}
-              {review.text && (
-                <p className="text-sm leading-relaxed text-gray-600">
-                  {review.text}
-                </p>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}

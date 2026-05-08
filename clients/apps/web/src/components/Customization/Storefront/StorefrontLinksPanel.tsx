@@ -1,6 +1,7 @@
 'use client'
 
 import { Upload } from '@/components/FileUpload/Upload'
+import { ConfirmModal } from '@/components/Modal/ConfirmModal'
 import { StorefrontLinkItem } from '@/components/Profile/StorefrontLinks'
 import AddOutlined from '@mui/icons-material/AddOutlined'
 import AddPhotoAlternateOutlined from '@mui/icons-material/AddPhotoAlternateOutlined'
@@ -26,29 +27,11 @@ import { useCallback, useRef, useState } from 'react'
 import { useFormContext } from 'react-hook-form'
 import { twMerge } from 'tailwind-merge'
 
-// ─── Platform helpers ────────────────────────────────────────────────────────
-
-function detectPlatform(url: string): string | null {
-  try {
-    const host = new URL(url).hostname.replace('www.', '')
-    if (host === 'youtube.com' || host === 'youtu.be') return 'youtube'
-    if (host === 'open.spotify.com') return 'spotify'
-    if (host === 'tiktok.com') return 'tiktok'
-    if (host === 'soundcloud.com') return 'soundcloud'
-    if (host === 'instagram.com') return 'instagram'
-  } catch {}
-  return null
-}
-
-const EMBEDDABLE = new Set(['youtube', 'spotify', 'soundcloud'])
-
-function getDomain(url: string): string {
-  try {
-    return new URL(url).hostname.replace('www.', '')
-  } catch {
-    return url
-  }
-}
+import {
+  detectPlatform,
+  getDomain,
+  isEmbeddablePlatform,
+} from '../../Profile/linkPlatforms'
 
 const TikTokIcon = () => (
   <svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em">
@@ -73,15 +56,14 @@ function uploadImageFile(
   return new Promise((resolve) => {
     const upload = new Upload({
       organization,
-      service: 'organization_avatar',
+      service: 'storefront_link',
       file,
       onFileProcessing: () => {},
       onFileCreate: () => {},
       onFileUploadProgress: () => {},
       onFileUploaded: (response) => {
         resolve(
-          (response as schemas['OrganizationAvatarFileRead']).public_url ??
-            null,
+          (response as schemas['StorefrontLinkFileRead']).public_url ?? null,
         )
       },
       onFileError: () => resolve(null),
@@ -408,7 +390,7 @@ export const StorefrontLinksPanel = ({
     }
 
     const platform = detectPlatform(url)
-    const isEmbeddable = Boolean(platform && EMBEDDABLE.has(platform))
+    const isEmbeddable = isEmbeddablePlatform(platform)
 
     if (mode === 'embed' && !isEmbeddable) {
       setAddError(
@@ -418,7 +400,7 @@ export const StorefrontLinksPanel = ({
     }
 
     const type = mode === 'embed' ? 'embedded' : 'standard'
-    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+    const id = crypto.randomUUID()
     const newLink: StorefrontLinkItem = {
       id,
       url,
@@ -494,6 +476,17 @@ export const StorefrontLinksPanel = ({
     },
     [getValues, setLinks],
   )
+
+  // Confirm before removing a link. The delete button (h-7 w-7 next to
+  // the chevron) is easy to mis-tap, and the link's metadata + cover are
+  // not recoverable.
+  const [pendingLinkRemoval, setPendingLinkRemoval] = useState<string | null>(
+    null,
+  )
+  const pendingLink =
+    pendingLinkRemoval !== null
+      ? storefrontLinks.find((l) => l.id === pendingLinkRemoval)
+      : null
 
   const toggleExpanded = (id: string) => {
     let opening = false
@@ -680,7 +673,7 @@ export const StorefrontLinksPanel = ({
                     isExpanded={expandedIds.has(link.id)}
                     onToggle={() => toggleExpanded(link.id)}
                     onUpdate={updateLink}
-                    onRemove={() => removeLink(link.id)}
+                    onRemove={() => setPendingLinkRemoval(link.id)}
                     registerRef={(el) => {
                       if (el) cardRefs.current.set(link.id, el)
                       else cardRefs.current.delete(link.id)
@@ -722,6 +715,23 @@ export const StorefrontLinksPanel = ({
           )}
         </div>
       </div>
+
+      <ConfirmModal
+        isShown={pendingLinkRemoval !== null}
+        hide={() => setPendingLinkRemoval(null)}
+        title="Remove this link?"
+        description={
+          pendingLink
+            ? `${pendingLink.title || getDomain(pendingLink.url)} will be removed from your Space along with its cover image and metadata.`
+            : ''
+        }
+        destructive
+        destructiveText="Remove link"
+        onConfirm={() => {
+          if (pendingLinkRemoval) removeLink(pendingLinkRemoval)
+          setPendingLinkRemoval(null)
+        }}
+      />
     </>
   )
 }
