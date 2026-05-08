@@ -32,6 +32,26 @@ from .schemas import (
 )
 
 
+def _build_lesson(schema: CourseLessonCreate) -> CourseLesson:
+    """Build a CourseLesson from a create schema, persisting every declared
+    field (description, drip, comments_mode, thumbnails, etc.). Without this,
+    fields silently drop on initial create and require a follow-up PATCH."""
+    return CourseLesson(
+        title=schema.title,
+        content_type=schema.content_type,
+        content=schema.content,
+        video_asset_id=schema.video_asset_id,
+        duration_seconds=schema.duration_seconds,
+        position=schema.position,
+        is_free_preview=schema.is_free_preview,
+        published=schema.published,
+        description=schema.description,
+        release_at=schema.release_at,
+        drip_days=schema.drip_days,
+        comments_mode=schema.comments_mode,
+    )
+
+
 class CourseService:
     async def get_by_id(self, session: AsyncSession, course_id: UUID) -> Course | None:
         repo = CourseRepository.from_session(session)
@@ -91,19 +111,12 @@ class CourseService:
                 title=mod_schema.title,
                 description=mod_schema.description,
                 position=mod_schema.position,
+                status=mod_schema.status,
+                release_at=mod_schema.release_at,
+                drip_days=mod_schema.drip_days,
             )
             for lesson_schema in mod_schema.lessons:
-                module.lessons.append(
-                    CourseLesson(
-                        title=lesson_schema.title,
-                        content_type=lesson_schema.content_type,
-                        content=lesson_schema.content,
-                        video_asset_id=lesson_schema.video_asset_id,
-                        duration_seconds=lesson_schema.duration_seconds,
-                        position=lesson_schema.position,
-                        is_free_preview=lesson_schema.is_free_preview,
-                    )
-                )
+                module.lessons.append(_build_lesson(lesson_schema))
             course.modules.append(module)
 
         course = await repo.create(course, flush=True)
@@ -134,20 +147,13 @@ class CourseService:
             title=create_schema.title,
             description=create_schema.description,
             position=create_schema.position,
+            status=create_schema.status,
+            release_at=create_schema.release_at,
+            drip_days=create_schema.drip_days,
         )
 
         for lesson_schema in create_schema.lessons:
-            module.lessons.append(
-                CourseLesson(
-                    title=lesson_schema.title,
-                    content_type=lesson_schema.content_type,
-                    content=lesson_schema.content,
-                    video_asset_id=lesson_schema.video_asset_id,
-                    duration_seconds=lesson_schema.duration_seconds,
-                    position=lesson_schema.position,
-                    is_free_preview=lesson_schema.is_free_preview,
-                )
-            )
+            module.lessons.append(_build_lesson(lesson_schema))
 
         module = await module_repo.create(module, flush=True)
         # Refresh lessons so selectin access doesn't trigger MissingGreenlet
@@ -199,19 +205,9 @@ class CourseService:
         create_schema: CourseLessonCreate,
     ) -> CourseLesson:
         lesson_repo = CourseLessonRepository.from_session(session)
-        return await lesson_repo.create(
-            CourseLesson(
-                module_id=module.id,
-                title=create_schema.title,
-                content_type=create_schema.content_type,
-                content=create_schema.content,
-                video_asset_id=create_schema.video_asset_id,
-                duration_seconds=create_schema.duration_seconds,
-                position=create_schema.position,
-                is_free_preview=create_schema.is_free_preview,
-            ),
-            flush=True,
-        )
+        lesson = _build_lesson(create_schema)
+        lesson.module_id = module.id
+        return await lesson_repo.create(lesson, flush=True)
 
     async def update_lesson(
         self,
@@ -261,6 +257,16 @@ class CourseService:
         customer: Customer,
         product_id: UUID | None = None,
     ) -> CourseEnrollment:
+        """Enroll a customer in a course.
+
+        Idempotent: if an active enrollment already exists, return it.
+        Soft-deleted enrollments are ignored by the lookup so a customer
+        who was revoked can re-enroll cleanly. The partial unique index
+        on (customer_id, course_id) where deleted_at IS NULL prevents
+        duplicate active rows under concurrent grants — a losing
+        transaction will surface as IntegrityError and the caller (a
+        Dramatiq actor for benefit grant) will retry.
+        """
         repo = CourseEnrollmentRepository.from_session(session)
         statement = repo.get_by_customer_and_course_statement(customer.id, course_id)
         existing = await repo.get_one_or_none(statement)
@@ -432,10 +438,17 @@ class CourseService:
         paywall_position: int | None,
         enrolled_at: datetime,
         now: datetime,
+        *,
+        global_lesson_index: int | None = None,
     ) -> tuple[bool, datetime | None]:
         """Calculate if a lesson is accessible given paywall/drip settings.
 
         Returns (is_accessible, locked_until_timestamp).
+
+        ``paywall_position`` is the number of lessons (in global course
+        order) that are visible before the paywall — lessons whose
+        ``global_lesson_index`` is >= paywall_position are locked.
+
         Accessibility rules:
         - Trailer (is_free_preview=true): always accessible
         - Non-trailer + enrolled: check paywall position and drip schedule
@@ -447,12 +460,21 @@ class CourseService:
         if lesson.is_free_preview:
             return True, None
 
-        # Check paywall: lesson at position >= paywall_position is locked
-        if paywall_position is not None and lesson.position >= paywall_position:
-            return False, None
+        # Check paywall against the global lesson index (number of lessons
+        # before this one in the whole course). Falls back to the
+        # module-relative position only when no index is supplied — that
+        # matches the legacy behaviour for callers that haven't been
+        # updated yet.
+        if paywall_position is not None:
+            position = (
+                global_lesson_index
+                if global_lesson_index is not None
+                else lesson.position
+            )
+            if position >= paywall_position:
+                return False, None
 
         # Check drip: release_at or drip_days
-        locked_until = None
         if lesson.release_at and now < lesson.release_at:
             return False, lesson.release_at
         if lesson.drip_days is not None:

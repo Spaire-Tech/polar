@@ -252,6 +252,19 @@ export function OutlineTab({
   const freeGroups = useMemo(() => groupByModule(freeItems), [freeItems])
   const paidGroups = useMemo(() => groupByModule(paidItems), [paidItems])
 
+  // Modules with no lessons still need to appear so instructors can rename
+  // or delete them — without this, an empty new module is invisible.
+  const emptyModules = useMemo(
+    () =>
+      course.modules.filter((m) => m.lessons.length === 0).map(
+        (m): ModuleGroup => ({ module: m, items: [] }),
+      ),
+    [course.modules],
+  )
+
+  const showEmptyCourseState =
+    !trimmed && allLessons.length === 0 && course.modules.length === 0
+
   return (
     <div className="mx-auto w-full max-w-[880px] px-8 pt-7 pb-20">
       {/* Search + Preview */}
@@ -298,10 +311,14 @@ export function OutlineTab({
 
       {showPaywall && paidItems.length > 0 && (
         <>
-          <SectionPill text="Members Only" count={paidItems.length} />
+          {/* Section: Free preview (or All when searching) */}
+          <SectionPill
+            text={showPaywall ? 'Free Preview' : 'Lessons'}
+            count={freeItems.length}
+          />
           <ModuleGroups
-            groups={paidGroups}
-            locked
+            groups={freeGroups}
+            locked={false}
             selectedLessonId={selectedLessonId}
             onSelectLesson={onSelectLesson}
             onAddLesson={onAddLesson}
@@ -309,8 +326,6 @@ export function OutlineTab({
             onRenameModule={onRenameModule}
             onDeleteModule={onDeleteModule}
           />
-        </>
-      )}
 
       {!trimmed && onAddModule && (
         <button

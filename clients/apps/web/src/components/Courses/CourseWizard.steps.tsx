@@ -915,7 +915,7 @@ export function StepMedia({
             <button
               key={opt.id}
               type="button"
-              className={`so-media-card${isSelected ? 'selected' : ''}`}
+              className={`so-media-card${isSelected ? ' selected' : ''}`}
               onClick={() =>
                 onChange({
                   ...data,

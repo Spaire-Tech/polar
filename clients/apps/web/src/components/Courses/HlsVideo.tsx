@@ -5,27 +5,35 @@ import { twMerge } from 'tailwind-merge'
 
 export const HlsVideo = ({
   playbackId,
+  playbackUrl,
   poster,
   className,
   controls = true,
   autoPlay = false,
   muted = false,
   loop = false,
+  onEnded,
 }: {
-  playbackId: string
+  playbackId?: string | null
+  playbackUrl?: string | null
   poster?: string | null
   className?: string
   controls?: boolean
   autoPlay?: boolean
   muted?: boolean
   loop?: boolean
+  onEnded?: () => void
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null)
+  // Prefer the server-signed playback URL. Fall back to building one from
+  // the public playback id for legacy public assets.
+  const src =
+    playbackUrl ??
+    (playbackId ? `https://stream.mux.com/${playbackId}.m3u8` : null)
 
   useEffect(() => {
     const video = videoRef.current
-    if (!video) return
-    const src = `https://stream.mux.com/${playbackId}.m3u8`
+    if (!video || !src) return
 
     if (video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = src
@@ -50,7 +58,7 @@ export const HlsVideo = ({
       cancelled = true
       hls?.destroy()
     }
-  }, [playbackId])
+  }, [src])
 
   return (
     <video
@@ -62,6 +70,7 @@ export const HlsVideo = ({
       playsInline
       poster={poster ?? undefined}
       className={twMerge('h-full w-full', className)}
+      onEnded={onEnded}
     />
   )
 }

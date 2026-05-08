@@ -151,7 +151,13 @@ export function PricingTab({
                 min={0}
                 max={allLessons.length}
                 value={position ?? 0}
-                onChange={(e) => setPosition(parseInt(e.target.value || '0'))}
+                onChange={(e) => {
+                  const parsed = parseInt(e.target.value, 10)
+                  const next = Number.isFinite(parsed)
+                    ? Math.max(0, Math.min(allLessons.length, parsed))
+                    : 0
+                  setPosition(next)
+                }}
                 className="focus:border-primary w-24 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none"
               />
               <span className="text-sm text-gray-600">

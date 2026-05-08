@@ -144,9 +144,8 @@ export type LandingOverrides = {
   visible?: Record<string, boolean>
   order?: string[]
   theme?: Partial<LandingTheme>
-  // The full AI-generated landing payload. Stored here (rather than appended
-  // onto course.description with a sentinel marker) so the human description
-  // stays clean. See `StoredLanding` in landingStorage.ts for the shape.
+  // The full AI-generated landing payload, stored here so the human-facing
+  // description stays clean.
   ai_landing?: Record<string, unknown> | null
 }
 
@@ -492,11 +491,13 @@ export type CustomerLessonRead = {
   duration_seconds: number | null
   is_free_preview: boolean
   mux_playback_id: string | null
+  mux_playback_url?: string | null
   mux_status: string | null
   thumbnail_url: string | null
   thumbnail_object_position?: string | null
   completed: boolean
   description?: string | null
+  comments_mode?: 'visible' | 'hidden' | 'locked'
   locked?: boolean
   locked_until?: string | null
 }
@@ -583,6 +584,8 @@ export type CourseLandingPageData = {
     description?: string | null
     position: number
   }[]
+  paywall_enabled?: boolean
+  paywall_position?: number | null
   has_access: boolean
 }
 

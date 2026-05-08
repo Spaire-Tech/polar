@@ -69,11 +69,17 @@ export function CommentThread({
   token,
   courseId,
   lessonId,
+  customerName,
+  commentsMode = 'visible',
 }: {
   token: string
   courseId: string
   lessonId: string
+  customerName?: string | null
+  commentsMode?: 'visible' | 'hidden' | 'locked'
 }) {
+  const selfName = customerName?.trim() || 'You'
+  const composerDisabled = commentsMode !== 'visible'
   const { data: comments = [], isLoading } = useLessonComments(
     token,
     courseId,
@@ -104,6 +110,10 @@ export function CommentThread({
     setReplyTo(null)
   }
 
+  if (commentsMode === 'hidden') {
+    return null
+  }
+
   return (
     <section
       style={{
@@ -130,72 +140,87 @@ export function CommentThread({
         >
           {comments.length} {comments.length === 1 ? 'comment' : 'comments'}
         </h3>
+        {commentsMode === 'locked' && (
+          <span
+            style={{
+              fontSize: 12,
+              color: COLORS.fg3,
+              padding: '4px 10px',
+              borderRadius: 999,
+              background: COLORS.bg2,
+            }}
+          >
+            Comments are locked
+          </span>
+        )}
       </div>
 
       {/* Composer */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 28 }}>
-        <Avatar name="You" size={40} />
-        <div style={{ flex: 1 }}>
-          <input
-            type="text"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onFocus={() => setFocused(true)}
-            placeholder="Add a comment…"
-            style={{
-              width: '100%',
-              background: 'transparent',
-              border: 'none',
-              borderBottom: `1px solid ${
-                focused ? COLORS.accent : COLORS.line
-              }`,
-              padding: '10px 0',
-              color: COLORS.fg0,
-              fontSize: 14,
-              outline: 'none',
-              transition: 'border-color 150ms ease',
-              fontFamily: fontStack,
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') submitTopLevel()
-              if (e.key === 'Escape') {
-                setDraft('')
-                setFocused(false)
-              }
-            }}
-          />
-          {(focused || draft) && (
-            <div
+      {!composerDisabled && (
+        <div style={{ display: 'flex', gap: 12, marginBottom: 28 }}>
+          <Avatar name={selfName} size={40} />
+          <div style={{ flex: 1 }}>
+            <input
+              type="text"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onFocus={() => setFocused(true)}
+              placeholder="Add a comment…"
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginTop: 12,
+                width: '100%',
+                background: 'transparent',
+                border: 'none',
+                borderBottom: `1px solid ${
+                  focused ? COLORS.accent : COLORS.line
+                }`,
+                padding: '10px 0',
+                color: COLORS.fg0,
+                fontSize: 14,
+                outline: 'none',
+                transition: 'border-color 150ms ease',
+                fontFamily: fontStack,
               }}
-            >
-              <span style={{ fontSize: 11.5, color: COLORS.fg3 }}>
-                Be kind. Specific feedback helps everyone.
-              </span>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <BtnGhost
-                  onClick={() => {
-                    setDraft('')
-                    setFocused(false)
-                  }}
-                >
-                  Cancel
-                </BtnGhost>
-                <BtnPrimary
-                  onClick={submitTopLevel}
-                  disabled={!draft.trim() || create.isPending}
-                >
-                  {create.isPending ? 'Posting…' : 'Comment'}
-                </BtnPrimary>
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') submitTopLevel()
+                if (e.key === 'Escape') {
+                  setDraft('')
+                  setFocused(false)
+                }
+              }}
+            />
+            {(focused || draft) && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginTop: 12,
+                }}
+              >
+                <span style={{ fontSize: 11.5, color: COLORS.fg3 }}>
+                  Be kind. Specific feedback helps everyone.
+                </span>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <BtnGhost
+                    onClick={() => {
+                      setDraft('')
+                      setFocused(false)
+                    }}
+                  >
+                    Cancel
+                  </BtnGhost>
+                  <BtnPrimary
+                    onClick={submitTopLevel}
+                    disabled={!draft.trim() || create.isPending}
+                  >
+                    {create.isPending ? 'Posting…' : 'Comment'}
+                  </BtnPrimary>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* List */}
       {isLoading ? (
@@ -221,6 +246,8 @@ export function CommentThread({
               onSubmitReply={submitReply}
               onDelete={(id) => del.mutate(id)}
               isPosting={create.isPending}
+              selfName={selfName}
+              repliesDisabled={composerDisabled}
             />
           ))}
         </div>
@@ -239,6 +266,8 @@ function CommentItem({
   onSubmitReply,
   onDelete,
   isPosting,
+  selfName,
+  repliesDisabled,
 }: {
   comment: CommentNode
   depth: number
@@ -249,11 +278,13 @@ function CommentItem({
   onSubmitReply: (parentId: string) => void
   onDelete: (id: string) => void
   isPosting: boolean
+  selfName: string
+  repliesDisabled: boolean
 }) {
   const showReplyBox = activeReplyId === comment.id
   const [liked, setLiked] = useState(false)
   const [showReplies, setShowReplies] = useState(true)
-  const authorName = comment.author.name ?? 'Student'
+  const authorName = comment.author.name?.trim() || 'Anonymous'
 
   return (
     <div style={{ display: 'flex', gap: 12 }}>
@@ -326,7 +357,7 @@ function CommentItem({
           >
             <ThumbDownOutlined sx={{ fontSize: 16 }} />
           </button>
-          {depth < 2 && (
+          {depth < 2 && !repliesDisabled && (
             <button
               type="button"
               onClick={() => onReply(comment.id)}
@@ -372,7 +403,7 @@ function CommentItem({
 
         {showReplyBox && (
           <div style={{ display: 'flex', gap: 12, marginTop: 12 }}>
-            <Avatar name="You" size={32} />
+            <Avatar name={selfName} size={32} />
             <div style={{ flex: 1 }}>
               <input
                 type="text"
@@ -478,6 +509,8 @@ function CommentItem({
                     onSubmitReply={onSubmitReply}
                     onDelete={onDelete}
                     isPosting={isPosting}
+                    selfName={selfName}
+                    repliesDisabled={repliesDisabled}
                   />
                 ))}
               </div>

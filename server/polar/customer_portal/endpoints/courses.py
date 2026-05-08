@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 log = logging.getLogger(__name__)
 
 from polar.auth.models import is_customer, is_member
+from polar.course import mux as mux_client
 from polar.course.repository import CourseLessonRepository
 from polar.course.schemas import (
     CourseLessonFlatRead,
@@ -40,25 +41,44 @@ from ..utils import get_customer_id
 router = APIRouter(prefix="/courses", tags=["customer_portal_courses", APITag.public])
 
 
-def _serialize_lesson(lesson, completed_ids: set[str]) -> dict:
-    return {
+def _serialize_lesson(
+    lesson, completed_ids: set[str], *, accessible: bool = True
+) -> dict:
+    """Serialize a lesson for the customer portal.
+
+    When ``accessible`` is False (paywall- or drip-locked), strip body fields
+    that would let a client bypass the lock (content, mux playback id,
+    description, attachments).
+    """
+    base = {
         "id": str(lesson.id),
         "module_id": str(lesson.module_id),
         "title": lesson.title,
-        "description": getattr(lesson, "description", None),
         "content_type": lesson.content_type,
-        "content": lesson.content,
         "position": lesson.position,
         "duration_seconds": lesson.duration_seconds,
         "is_free_preview": lesson.is_free_preview,
-        "mux_playback_id": getattr(lesson, "mux_playback_id", None),
-        "mux_status": getattr(lesson, "mux_status", None),
         "thumbnail_url": getattr(lesson, "thumbnail_url", None),
         "thumbnail_object_position": getattr(
             lesson, "thumbnail_object_position", None
         ),
+        "comments_mode": getattr(lesson, "comments_mode", "visible"),
         "completed": str(lesson.id) in completed_ids,
     }
+    if accessible:
+        base["description"] = getattr(lesson, "description", None)
+        base["content"] = lesson.content
+        playback_id = getattr(lesson, "mux_playback_id", None)
+        base["mux_playback_id"] = playback_id
+        base["mux_playback_url"] = mux_client.playback_url(playback_id)
+        base["mux_status"] = getattr(lesson, "mux_status", None)
+    else:
+        base["description"] = None
+        base["content"] = None
+        base["mux_playback_id"] = None
+        base["mux_playback_url"] = None
+        base["mux_status"] = None
+    return base
 
 
 def _build_module_list(course, paywall_position, enrolled_at, now, completed_ids):
@@ -66,44 +86,76 @@ def _build_module_list(course, paywall_position, enrolled_at, now, completed_ids
 
     Returns (modules, accessible_lesson_ids) where accessible_lesson_ids is the
     set of lesson IDs included in the response (used as the progress denominator).
+
+    ``paywall_position`` is interpreted as a count of LESSONS in global
+    course order (not modules) — matches the customize-tab semantics
+    where instructors set "first N lessons free, then paywall".
     """
     modules = []
     accessible_ids: set[str] = set()
-    for idx, m in enumerate(course.modules):
-        # Paywall: modules at index >= paywall_position are locked.
-        paywall_locked = (
-            course.paywall_enabled
-            and paywall_position is not None
-            and idx >= paywall_position
-        )
-
+    paywall_at = paywall_position if course.paywall_enabled else None
+    # Track global lesson index across modules so the paywall slice
+    # cuts by lesson count rather than module index.
+    global_lesson_idx = 0
+    for m in course.modules:
         # Drip: unlock based on release_at or drip_days since enrollment.
         drip_locked = False
         locked_until = None
-        if not paywall_locked:
-            if m.release_at and now < m.release_at:
+        if m.release_at and now < m.release_at:
+            drip_locked = True
+            locked_until = m.release_at.isoformat()
+        elif m.drip_days is not None:
+            unlock_at = enrolled_at + timedelta(days=m.drip_days)
+            if now < unlock_at:
                 drip_locked = True
-                locked_until = m.release_at.isoformat()
-            elif m.drip_days is not None:
-                unlock_at = enrolled_at + timedelta(days=m.drip_days)
-                if now < unlock_at:
-                    drip_locked = True
-                    locked_until = unlock_at.isoformat()
-
-        locked = paywall_locked or drip_locked
+                locked_until = unlock_at.isoformat()
 
         # Only published lessons are visible to students.
         published_lessons = [lesson for lesson in m.lessons if lesson.published]
 
-        if not locked:
-            visible = published_lessons
-        else:
-            # Locked module: surface free-preview lessons only.
-            visible = [lesson for lesson in published_lessons if lesson.is_free_preview]
+        # Paywall is per-lesson: a module is "paywall_locked" iff every
+        # one of its published lessons sits at or beyond the paywall.
+        module_paywall_first = global_lesson_idx
+        module_paywall_last = global_lesson_idx + len(published_lessons) - 1
+        paywall_locked = (
+            paywall_at is not None and module_paywall_first >= paywall_at
+        )
+        # Mixed paywall: some lessons before, some after.
+        paywall_partial = (
+            paywall_at is not None
+            and not paywall_locked
+            and module_paywall_last >= paywall_at
+        )
 
-        lessons = [_serialize_lesson(lesson, completed_ids) for lesson in visible]
+        locked = paywall_locked or drip_locked
+
+        if drip_locked:
+            # Drip-locked: only free-preview lessons are visible.
+            visible = [
+                lesson for lesson in published_lessons if lesson.is_free_preview
+            ]
+        elif paywall_locked:
+            # Whole module behind paywall: free-preview lessons only.
+            visible = [
+                lesson for lesson in published_lessons if lesson.is_free_preview
+            ]
+        elif paywall_partial and paywall_at is not None:
+            # Free until the paywall lesson, free previews after.
+            visible = []
+            for offset, lesson in enumerate(published_lessons):
+                idx = module_paywall_first + offset
+                if idx < paywall_at or lesson.is_free_preview:
+                    visible.append(lesson)
+        else:
+            visible = published_lessons
+
+        lessons = [
+            _serialize_lesson(lesson, completed_ids, accessible=True)
+            for lesson in visible
+        ]
         for lesson in visible:
             accessible_ids.add(str(lesson.id))
+        global_lesson_idx += len(published_lessons)
 
         modules.append(
             {
@@ -124,33 +176,46 @@ def _build_flat_lesson_list(course, paywall_position, enrolled_at, now, complete
 
     Returns (lessons, accessible_lesson_ids) where accessible_lesson_ids is the
     set of lesson IDs included in the response (used as the progress denominator).
+
+    ``paywall_position`` is interpreted as a global lesson count.
     """
     flat_lessons = []
     accessible_ids: set[str] = set()
 
-    # Flatten all lessons from all modules into one ordered list
-    all_lessons = []
+    # Flatten lessons in module order, then by within-module position so the
+    # global index matches what the studio outline shows.
+    ordered_lessons: list[tuple[int, object]] = []
     for module in course.modules:
-        all_lessons.extend(module.lessons)
-    all_lessons.sort(key=lambda l: l.position)
+        for lesson in sorted(module.lessons, key=lambda x: x.position):
+            ordered_lessons.append((module.position, lesson))
+    ordered_lessons.sort(key=lambda pair: (pair[0], pair[1].position))
 
-    for lesson in all_lessons:
+    global_idx = -1
+    for _module_pos, lesson in ordered_lessons:
         # Only published lessons are visible
         if not lesson.published:
             continue
+        global_idx += 1
 
         # Calculate accessibility
         is_accessible, locked_until = course_service.calculate_lesson_accessibility(
-            lesson, paywall_position, enrolled_at, now
+            lesson,
+            paywall_position,
+            enrolled_at,
+            now,
+            global_lesson_index=global_idx,
         )
 
         locked = not is_accessible
         locked_until_str = locked_until.isoformat() if locked_until else None
 
-        lesson_data = _serialize_lesson(lesson, completed_ids)
+        # Free-preview lessons inside locked modules stay fully accessible.
+        accessible = is_accessible or lesson.is_free_preview
+        lesson_data = _serialize_lesson(
+            lesson, completed_ids, accessible=accessible
+        )
         lesson_data["locked"] = locked
         lesson_data["locked_until"] = locked_until_str
-        lesson_data["description"] = lesson.description
 
         flat_lessons.append(lesson_data)
 
@@ -460,18 +525,18 @@ async def mark_lesson_complete(
     session: AsyncSession = Depends(get_db_session),
 ) -> None:
     customer_id = get_customer_id(auth_subject)
-    enrollment = await course_service.get_enrollment_for_customer(
-        session, customer_id, course_id
+    enrollment, lesson = await _verify_lesson_in_enrolled_course(
+        session, customer_id, course_id, lesson_id
     )
-    if enrollment is None:
-        raise HTTPException(status_code=404, detail="Course not found or not enrolled")
-
-    # Verify the lesson is published and belongs to this course before recording progress.
-    lesson_repo = CourseLessonRepository.from_session(session)
-    lesson = await lesson_repo.get_by_id(lesson_id)
-    if lesson is None or not lesson.published:
-        raise HTTPException(status_code=404, detail="Lesson not found")
-
+    # Quiz lessons must be completed via the quiz-attempt endpoint so the
+    # passing-grade rule (prevent_complete_without_passing) is enforced.
+    if lesson.content_type == "quiz":
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Quiz lessons can only be completed by submitting a quiz attempt"
+            ),
+        )
     await course_service.mark_lesson_complete(
         session, enrollment_id=enrollment.id, lesson_id=lesson_id
     )
@@ -601,16 +666,10 @@ async def get_course_landing(
             else:
                 is_free = False
 
-            lesson_data = _serialize_lesson(lesson, set())
+            lesson_data = _serialize_lesson(lesson, set(), accessible=is_free)
             lesson_data["is_free_preview"] = is_free
             lesson_data["locked"] = not is_free
             lesson_data["locked_until"] = None
-            lesson_data["description"] = lesson.description if is_free else None
-            if not is_free:
-                # Strip content from locked lessons so non-enrolled users
-                # can't read paid material via the public endpoint.
-                lesson_data["content"] = None
-                lesson_data["mux_playback_id"] = None
             flat_lessons.append(lesson_data)
         has_access = False
 
@@ -659,6 +718,8 @@ async def get_course_landing(
         "landing_overrides": course.landing_overrides,
         "lessons": flat_lessons,
         "modules": modules_public,
+        "paywall_enabled": bool(course.paywall_enabled),
+        "paywall_position": course.paywall_position,
         "has_access": has_access,
     }
 
@@ -713,6 +774,12 @@ async def check_lesson_access(
     course = await course_service.get_by_id(session, course_id)
     if course is None:
         raise HTTPException(status_code=404, detail="Course not found")
+
+    # Reject if the lesson belongs to a different course (prevents probing
+    # other courses' lesson ids through this endpoint).
+    module_course_id = getattr(getattr(lesson, "module", None), "course_id", None)
+    if module_course_id is None or module_course_id != course.id:
+        raise HTTPException(status_code=404, detail="Lesson not found")
 
     # Check if lesson is published
     if not lesson.published:
@@ -788,17 +855,32 @@ async def _verify_lesson_in_enrolled_course(
     return enrollment, lesson
 
 
+def _resolve_author_name(name: str | None, email: str | None) -> str | None:
+    if name:
+        stripped = name.strip()
+        if stripped:
+            return stripped
+    if email:
+        local_part = email.split("@", 1)[0].strip()
+        if local_part:
+            return local_part
+    return None
+
+
 async def _load_authors(
     session: AsyncSession, enrollment_ids: set[UUID]
 ) -> dict[UUID, LessonCommentAuthor]:
     if not enrollment_ids:
         return {}
-    stmt = select(CourseEnrollment.id, Customer.name).join(
+    stmt = select(CourseEnrollment.id, Customer.name, Customer.email).join(
         Customer, Customer.id == CourseEnrollment.customer_id
     ).where(CourseEnrollment.id.in_(enrollment_ids))
     result = await session.execute(stmt)
     return {
-        row.id: LessonCommentAuthor(enrollment_id=row.id, name=row.name)
+        row.id: LessonCommentAuthor(
+            enrollment_id=row.id,
+            name=_resolve_author_name(row.name, row.email),
+        )
         for row in result
     }
 
@@ -815,9 +897,13 @@ async def list_lesson_comments(
     session: AsyncSession = Depends(get_db_session),
 ) -> list[LessonCommentRead]:
     customer_id = get_customer_id(auth_subject)
-    enrollment, _ = await _verify_lesson_in_enrolled_course(
+    enrollment, lesson = await _verify_lesson_in_enrolled_course(
         session, customer_id, course_id, lesson_id
     )
+    if getattr(lesson, "comments_mode", "visible") == "hidden":
+        raise HTTPException(
+            status_code=403, detail="Comments are disabled for this lesson"
+        )
     comments = await course_service.list_lesson_comments(
         session, lesson_id=lesson_id
     )
@@ -853,9 +939,19 @@ async def create_lesson_comment(
     session: AsyncSession = Depends(get_db_session),
 ) -> LessonCommentRead:
     customer_id = get_customer_id(auth_subject)
-    enrollment, _ = await _verify_lesson_in_enrolled_course(
+    enrollment, lesson = await _verify_lesson_in_enrolled_course(
         session, customer_id, course_id, lesson_id
     )
+    mode = getattr(lesson, "comments_mode", "visible")
+    if mode != "visible":
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Comments are disabled for this lesson"
+                if mode == "hidden"
+                else "Comments are locked for this lesson"
+            ),
+        )
     try:
         comment = await course_service.create_lesson_comment(
             session,

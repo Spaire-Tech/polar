@@ -108,6 +108,8 @@ class CourseModuleCreate(Schema):
     description: str | None = None
     position: int = 0
     status: str = "draft"
+    release_at: datetime | None = None
+    drip_days: int | None = None
     lessons: list[CourseLessonCreate] = Field(default_factory=list)
 
 
@@ -270,6 +272,8 @@ class CourseLandingPageRead(TimestampedSchema):
     lesson_count: int
     total_duration_seconds: int
     lessons: list[CourseLessonPublicRead]
+    paywall_enabled: bool = False
+    paywall_position: int | None = None
     has_access: bool = False
 
 

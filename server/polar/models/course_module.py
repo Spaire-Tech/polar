@@ -43,10 +43,17 @@ class CourseModule(RecordModel):
 
     @declared_attr
     def lessons(cls) -> Mapped[list["CourseLesson"]]:
+        # Hide soft-deleted lessons from the relationship. The customer
+        # portal walks course.modules[*].lessons, so without this filter a
+        # soft-deleted lesson would still appear to enrolled students.
         return relationship(
             "CourseLesson",
             lazy="selectin",
             order_by="CourseLesson.position",
             cascade="all, delete-orphan",
             back_populates="module",
+            primaryjoin=(
+                "and_(CourseModule.id == CourseLesson.module_id, "
+                "CourseLesson.deleted_at.is_(None))"
+            ),
         )

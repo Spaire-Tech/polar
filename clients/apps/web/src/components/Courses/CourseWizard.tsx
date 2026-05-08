@@ -126,9 +126,7 @@ export default function CourseWizard({
     nameBold: true,
     nameUppercase: true,
   })
-  const [editOpen, setEditOpen] = useState(false)
   const [generateError, setGenerateError] = useState<string | null>(null)
-  const thumbPosition: string | null = null
 
   // The wizard hosts the same react-hook-form instance that ProductPricing
   // Section + ProductMediaSection bind to — every choice the user makes there
@@ -262,6 +260,15 @@ export default function CourseWizard({
   const finalizeCourse = async (wizardData?: WizardFinalizationData) => {
     const outline = partialOutline as PartialOutline | undefined
     if (!outline?.modules?.length) return
+    // Idempotent: a double-click can fire two onPublish calls before
+    // setScreen flushes. Bail if we're already creating so we don't
+    // create the product twice.
+    if (screen === 'creating') return
+    // Stop any in-flight AI generation so we stop paying for tokens we no
+    // longer care about, and so onFinish can't fire setScreen() after we've
+    // moved on to the create flow.
+    stopOutline()
+    stopLanding()
     setScreen('creating')
 
     try {
@@ -347,7 +354,7 @@ export default function CourseWizard({
         ai_generated: true,
         description: humanDescription,
         thumbnail_url: thumbnailUrl,
-        thumbnail_object_position: thumbPosition,
+        thumbnail_object_position: null,
         instructor_name: draft.name || instructor.name || null,
         instructor_bio: instructor.bio || null,
         instructor_name_italic: false,
