@@ -25,20 +25,10 @@ export const StorefrontLivePreview = ({
 
   // Filter by featured product IDs if set
   const featuredIds = organization.storefront_settings?.featured_product_ids ?? []
-  const products = featuredIds.length > 0
-    ? allProducts.filter((p) => featuredIds.includes(p.id))
-    : allProducts
+  const products =
+    featuredIds.length > 0
+      ? allProducts.filter((p) => featuredIds.includes(p.id))
+      : allProducts
 
-  const showCardProducts = (storefrontSettings as any)?.show_card_products ?? true
-
-  return (
-    <ProfileCard
-      organization={organization}
-      products={showCardProducts ? products : []}
-      preview
-    />
-  )
+  return <ProfileCard organization={organization} products={products} preview />
 }
-
-// Keep backward-compat export
-export const StorefrontPreview = StorefrontLivePreview
