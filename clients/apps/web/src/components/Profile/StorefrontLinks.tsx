@@ -2,6 +2,7 @@
 
 import LinkOutlined from '@mui/icons-material/LinkOutlined'
 import OpenInNewOutlined from '@mui/icons-material/OpenInNewOutlined'
+import { getDomain } from './linkPlatforms'
 
 export type StorefrontLinkItem = {
   id: string
@@ -14,14 +15,6 @@ export type StorefrontLinkItem = {
 }
 
 export type LinksLayout = 'classic' | 'carousel' | 'image_grid' | 'card'
-
-function getDomain(url: string): string {
-  try {
-    return new URL(url).hostname.replace('www.', '')
-  } catch {
-    return url
-  }
-}
 
 function buildEmbedUrl(url: string, platform: string): string | null {
   switch (platform) {

@@ -26,29 +26,11 @@ import { useCallback, useRef, useState } from 'react'
 import { useFormContext } from 'react-hook-form'
 import { twMerge } from 'tailwind-merge'
 
-// ─── Platform helpers ────────────────────────────────────────────────────────
-
-function detectPlatform(url: string): string | null {
-  try {
-    const host = new URL(url).hostname.replace('www.', '')
-    if (host === 'youtube.com' || host === 'youtu.be') return 'youtube'
-    if (host === 'open.spotify.com') return 'spotify'
-    if (host === 'tiktok.com') return 'tiktok'
-    if (host === 'soundcloud.com') return 'soundcloud'
-    if (host === 'instagram.com') return 'instagram'
-  } catch {}
-  return null
-}
-
-const EMBEDDABLE = new Set(['youtube', 'spotify', 'soundcloud'])
-
-function getDomain(url: string): string {
-  try {
-    return new URL(url).hostname.replace('www.', '')
-  } catch {
-    return url
-  }
-}
+import {
+  detectPlatform,
+  getDomain,
+  isEmbeddablePlatform,
+} from '../../Profile/linkPlatforms'
 
 const TikTokIcon = () => (
   <svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em">
@@ -407,7 +389,7 @@ export const StorefrontLinksPanel = ({
     }
 
     const platform = detectPlatform(url)
-    const isEmbeddable = Boolean(platform && EMBEDDABLE.has(platform))
+    const isEmbeddable = isEmbeddablePlatform(platform)
 
     if (mode === 'embed' && !isEmbeddable) {
       setAddError(
@@ -417,7 +399,7 @@ export const StorefrontLinksPanel = ({
     }
 
     const type = mode === 'embed' ? 'embedded' : 'standard'
-    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+    const id = crypto.randomUUID()
     const newLink: StorefrontLinkItem = {
       id,
       url,
