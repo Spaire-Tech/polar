@@ -1,8 +1,8 @@
 """Add unique constraints + indexes for course enrollments and lessons
 
-Revision ID: y4z5a6b7c8d9
-Revises: x3y4z5a6b7c8
-Create Date: 2026-05-08 12:00:00.000000
+Revision ID: 9cd1e0a4f81b
+Revises: f1m2d3e4a5b6
+Create Date: 2026-05-09 12:00:00.000000
 
 Adds a partial unique index on course_enrollments(customer_id, course_id)
 where deleted_at IS NULL — race-safe single-active-enrollment per course
@@ -15,8 +15,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = "y4z5a6b7c8d9"
-down_revision = "x3y4z5a6b7c8"
+revision = "9cd1e0a4f81b"
+down_revision = "f1m2d3e4a5b6"
 branch_labels: tuple[str] | None = None
 depends_on: tuple[str] | None = None
 
