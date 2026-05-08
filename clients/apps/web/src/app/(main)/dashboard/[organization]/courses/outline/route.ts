@@ -7,7 +7,7 @@ import { streamObject } from 'ai'
 
 const systemPrompt = `You are an expert instructional designer. Create well-structured, comprehensive course outlines.
 Guidelines:
-- Create 3-7 modules that build progressively on each other
+- Create EXACTLY 4 modules — no more, no fewer. The "Sections" roadmap on the landing page is built around four sections, so the outline must always have four. If the topic is small, tighten lessons rather than collapsing modules; if the topic is large, group rather than adding a fifth module.
 - Each module should have 2-6 focused lessons
 - Modules should have clear, descriptive titles that communicate the learning objective
 - Lessons should have specific, actionable titles (e.g. "Setting Up Your Development Environment" not just "Setup")

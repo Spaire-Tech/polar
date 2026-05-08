@@ -43,6 +43,7 @@ router = APIRouter(prefix="/courses", tags=["customer_portal_courses", APITag.pu
 def _serialize_lesson(lesson, completed_ids: set[str]) -> dict:
     return {
         "id": str(lesson.id),
+        "module_id": str(lesson.module_id),
         "title": lesson.title,
         "description": getattr(lesson, "description", None),
         "content_type": lesson.content_type,

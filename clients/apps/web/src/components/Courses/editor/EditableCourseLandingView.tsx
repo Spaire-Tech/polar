@@ -948,7 +948,7 @@ function SectionCard({
       }}
     >
       {isAbove && thumb}
-      <div style={{ padding: '18px 20px 20px' }}>
+      <div style={{ padding: '20px 24px 22px' }}>
         <div
           style={{
             fontSize: 12,
@@ -1003,10 +1003,156 @@ function SectionCard({
   )
 }
 
+function SectionZigzagRow({
+  modules,
+  startIndex,
+  totalColumns,
+}: {
+  modules: CourseRead['modules']
+  startIndex: number
+  totalColumns: number
+}) {
+  // Always lay out `totalColumns` cells so cards keep the same width
+  // whether the row is fully populated or only partially filled. Empty
+  // cells render as spacers; the dotted spine only spans the active
+  // portion of the row.
+  const columns = totalColumns
+  const filled = modules.length
+  const halfCol = 100 / columns / 2
+  const lineLeft = halfCol
+  const lineRight = (columns - filled + 0.5) * (100 / columns)
+  return (
+    <div style={{ position: 'relative' }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+          gap: 20,
+          minHeight: 360,
+          alignItems: 'end',
+        }}
+      >
+        {Array.from({ length: columns }).map((_, i) => {
+          const mod = modules[i]
+          if (!mod) return <div key={`top-empty-${i}`} />
+          const absoluteIndex = startIndex + i
+          return absoluteIndex % 2 === 0 ? (
+            <div
+              key={mod.id}
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'flex-end',
+              }}
+            >
+              <SectionCard
+                module={mod}
+                index={absoluteIndex}
+                pointer="bottom"
+              />
+            </div>
+          ) : (
+            <div key={mod.id} />
+          )
+        })}
+      </div>
+
+      <div
+        style={{
+          position: 'relative',
+          display: 'grid',
+          gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+          gap: 20,
+          height: 24,
+          alignItems: 'center',
+          margin: '6px 0',
+        }}
+      >
+        <div
+          style={{
+            position: 'absolute',
+            left: `calc(${lineLeft}% - 6px)`,
+            right: `calc(${lineRight}% - 6px)`,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            height: 1.5,
+            background: 'oklch(0.92 0.003 280)',
+          }}
+        />
+        {Array.from({ length: columns }).map((_, i) => {
+          const mod = modules[i]
+          if (!mod) return <div key={`dot-empty-${i}`} />
+          return (
+            <div
+              key={mod.id}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                position: 'relative',
+                zIndex: 1,
+              }}
+            >
+              <div
+                style={{
+                  width: 12,
+                  height: 12,
+                  borderRadius: '50%',
+                  background: 'var(--bg-0, #fff)',
+                  border: '1.5px solid oklch(0.66 0.006 280)',
+                }}
+              />
+            </div>
+          )
+        })}
+      </div>
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+          gap: 20,
+          minHeight: 360,
+          alignItems: 'start',
+        }}
+      >
+        {Array.from({ length: columns }).map((_, i) => {
+          const mod = modules[i]
+          if (!mod) return <div key={`bot-empty-${i}`} />
+          const absoluteIndex = startIndex + i
+          return absoluteIndex % 2 !== 0 ? (
+            <div
+              key={mod.id}
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'flex-start',
+              }}
+            >
+              <SectionCard module={mod} index={absoluteIndex} pointer="top" />
+            </div>
+          ) : (
+            <div key={mod.id} />
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 function CourseSections({ course }: { course: CourseRead }) {
   const modules = [...course.modules].sort((a, b) => a.position - b.position)
   if (modules.length === 0) return null
-  const columns = modules.length
+  // Cap each row at 4 cards so the cards stay readable. With more modules,
+  // the zigzag stacks into multiple rows — but every row reuses the same
+  // column count so cards stay the same width whether a row is full or
+  // only partially populated.
+  const MAX_PER_ROW = 4
+  const rowColumns = Math.min(modules.length, MAX_PER_ROW)
+  const chunks: (typeof modules)[] = []
+  for (let i = 0; i < modules.length; i += MAX_PER_ROW) {
+    chunks.push(modules.slice(i, i + MAX_PER_ROW))
+  }
 
   return (
     <section
@@ -1074,106 +1220,15 @@ function CourseSections({ course }: { course: CourseRead }) {
         />
       </div>
 
-      <div style={{ position: 'relative' }}>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-            gap: 28,
-            minHeight: 320,
-            alignItems: 'end',
-          }}
-        >
-          {modules.map((mod, i) =>
-            i % 2 === 0 ? (
-              <div
-                key={mod.id}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'flex-end',
-                }}
-              >
-                <SectionCard module={mod} index={i} pointer="bottom" />
-              </div>
-            ) : (
-              <div key={mod.id} />
-            ),
-          )}
-        </div>
-
-        <div
-          style={{
-            position: 'relative',
-            display: 'grid',
-            gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-            gap: 28,
-            height: 24,
-            alignItems: 'center',
-            margin: '6px 0',
-          }}
-        >
-          <div
-            style={{
-              position: 'absolute',
-              left: `calc(${100 / columns / 2}% - 6px)`,
-              right: `calc(${100 / columns / 2}% - 6px)`,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              height: 1.5,
-              background: 'oklch(0.92 0.003 280)',
-            }}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 48 }}>
+        {chunks.map((chunk, ci) => (
+          <SectionZigzagRow
+            key={ci}
+            modules={chunk}
+            startIndex={ci * MAX_PER_ROW}
+            totalColumns={rowColumns}
           />
-          {modules.map((mod) => (
-            <div
-              key={mod.id}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                position: 'relative',
-                zIndex: 1,
-              }}
-            >
-              <div
-                style={{
-                  width: 12,
-                  height: 12,
-                  borderRadius: '50%',
-                  background: 'var(--bg-0, #fff)',
-                  border: '1.5px solid oklch(0.66 0.006 280)',
-                }}
-              />
-            </div>
-          ))}
-        </div>
-
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-            gap: 28,
-            minHeight: 320,
-            alignItems: 'start',
-          }}
-        >
-          {modules.map((mod, i) =>
-            i % 2 !== 0 ? (
-              <div
-                key={mod.id}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'flex-start',
-                }}
-              >
-                <SectionCard module={mod} index={i} pointer="top" />
-              </div>
-            ) : (
-              <div key={mod.id} />
-            ),
-          )}
-        </div>
+        ))}
       </div>
     </section>
   )

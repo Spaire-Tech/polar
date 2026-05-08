@@ -3,8 +3,23 @@
 import { Upload } from '@/components/FileUpload/Upload'
 import CloseIcon from '@mui/icons-material/Close'
 import { enums, schemas } from '@spaire/client'
+import MoneyInput from '@spaire/ui/components/atoms/MoneyInput'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from '@spaire/ui/components/atoms/Select'
+import { Tabs, TabsList, TabsTrigger } from '@spaire/ui/components/atoms/Tabs'
+import { Label } from '@spaire/ui/components/ui/label'
+import {
+  RadioGroup,
+  RadioGroupItem,
+} from '@spaire/ui/components/ui/radio-group'
+import { PlusIcon } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFieldArray, useFormContext } from 'react-hook-form'
+import { twMerge } from 'tailwind-merge'
 
 // Local form type — the wizard's shared react-hook-form holds a discriminated
 // `ProductCreate | ProductUpdate`, but we only touch a flat subset of fields
@@ -170,7 +185,7 @@ export function SpaireOnboardingStyles() {
         margin-bottom: 36px;
       }
 
-      /* Fields */
+      /* Fields — Apple-style floating label boxes (no grey fill, indigo focus). */
       .so-fields {
         display: flex;
         flex-direction: column;
@@ -178,48 +193,75 @@ export function SpaireOnboardingStyles() {
         margin-bottom: 32px;
       }
       .so-field {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
+        position: relative;
+        display: block;
+        background: #ffffff;
+        border: 1.5px solid var(--so-gray2);
+        border-radius: 12px;
+        transition: border-color 0.15s;
       }
-      .so-label {
-        font-size: 11px;
-        font-weight: 500;
-        letter-spacing: 0.07em;
-        color: var(--so-gray4);
-        text-transform: uppercase;
+      .so-field:focus-within {
+        border-color: oklch(0.62 0.21 265);
       }
       .so-input,
       .so-textarea {
         width: 100%;
-        padding: 13px 16px;
-        background: var(--so-gray1);
-        border: 1.5px solid var(--so-gray2);
-        border-radius: 10px;
+        padding: 22px 16px 10px 16px;
+        background: transparent;
+        border: 0;
+        outline: 0;
+        box-shadow: none;
+        border-radius: inherit;
         font-family: var(--font-poppins), system-ui, sans-serif;
-        font-size: 15px;
+        font-size: 16px;
         font-weight: 400;
         color: var(--so-black);
-        outline: none;
-        transition:
-          border-color 0.2s,
-          background 0.2s,
-          box-shadow 0.2s;
         -webkit-appearance: none;
       }
       .so-textarea {
         resize: none;
-        line-height: 1.6;
+        line-height: 1.5;
+        display: block;
       }
       .so-input::placeholder,
       .so-textarea::placeholder {
-        color: var(--so-gray3);
+        color: transparent;
       }
-      .so-input:focus,
-      .so-textarea:focus {
-        border-color: var(--so-black);
-        background: var(--so-white);
-        box-shadow: 0 0 0 3px rgba(10, 10, 10, 0.07);
+      .so-label {
+        position: absolute;
+        left: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 16px;
+        font-weight: 400;
+        color: var(--so-gray3);
+        letter-spacing: normal;
+        text-transform: none;
+        pointer-events: none;
+        background: transparent;
+        transition:
+          transform 0.15s ease,
+          font-size 0.15s ease,
+          color 0.15s ease,
+          top 0.15s ease;
+      }
+      /* Multi-line fields anchor the label to the top so it doesn't sit
+         awkwardly in the middle of an empty textarea. */
+      .so-field.so-field--multiline .so-label {
+        top: 18px;
+        transform: none;
+      }
+      /* Float the label up when the field is focused or the input has a
+         value. We rely on the input's placeholder being a single space so
+         :placeholder-shown only matches when the field is empty. */
+      .so-input:focus ~ .so-label,
+      .so-input:not(:placeholder-shown) ~ .so-label,
+      .so-textarea:focus ~ .so-label,
+      .so-textarea:not(:placeholder-shown) ~ .so-label {
+        top: 10px;
+        transform: none;
+        font-size: 11px;
+        color: var(--so-gray4);
       }
       .so-hint {
         font-size: 12px;
@@ -277,14 +319,15 @@ export function SpaireOnboardingStyles() {
         color: var(--so-black);
       }
 
-      /* Intro */
+      /* Intro — fill the viewport (minus the fixed top bar) so the
+         headline sits in the optical center of the visible area. */
       .so-intro-stage {
-        flex: 1;
+        min-height: 100vh;
         display: flex;
         align-items: center;
         justify-content: center;
         background: var(--so-white);
-        padding: 80px 40px;
+        padding: 56px 40px 40px;
       }
       .so-intro-headline {
         font-family: var(--font-poppins), system-ui, sans-serif;
@@ -412,7 +455,7 @@ export function SpaireOnboardingStyles() {
         gap: 10px;
         padding: 16px 20px;
         background: var(--so-white);
-        border: 1.5px dashed var(--so-gray2);
+        border: 1.5px solid var(--so-gray2);
         border-radius: 12px;
         cursor: pointer;
         font-size: 13px;
@@ -582,7 +625,10 @@ export function StepShell({
       <ProgressBar pct={(step / total) * 100} />
       <TopBar step={step} total={total} onClose={onClose} />
       <div className="so-stage">
-        <div className="so-screen" style={wide ? { maxWidth: 1200 } : undefined}>
+        <div
+          className="so-screen"
+          style={wide ? { maxWidth: 1200 } : undefined}
+        >
           {!wide && (
             <>
               <div className="so-eyebrow">
@@ -651,12 +697,11 @@ export function StepInstructor({
       nextDisabled={!data.name.trim()}
     >
       <div className="so-fields">
-        <div className="so-field">
-          <label className="so-label">Instructor name</label>
+        <label className="so-field">
           <input
             className="so-input"
             type="text"
-            placeholder="e.g. Alex Rivera"
+            placeholder=" "
             autoFocus
             value={data.name}
             onChange={(e) => onChange({ ...data, name: e.target.value })}
@@ -664,18 +709,19 @@ export function StepInstructor({
               if (e.key === 'Enter' && data.name.trim()) onNext()
             }}
           />
-        </div>
-        <div className="so-field">
-          <label className="so-label">Short bio</label>
+          <span className="so-label">Instructor name</span>
+        </label>
+        <label className="so-field so-field--multiline">
           <textarea
             className="so-textarea"
             rows={2}
-            placeholder="e.g. Designer & educator helping 50K+ creators build their brand."
+            placeholder=" "
             value={data.bio}
             onChange={(e) => onChange({ ...data, bio: e.target.value })}
           />
-          <span className="so-hint">One sentence max.</span>
-        </div>
+          <span className="so-label">Short bio</span>
+        </label>
+        <span className="so-hint">One sentence max.</span>
       </div>
     </StepShell>
   )
@@ -707,12 +753,11 @@ export function StepCourse({
       nextDisabled={!data.title.trim()}
     >
       <div className="so-fields">
-        <div className="so-field">
-          <label className="so-label">Course title</label>
+        <label className="so-field">
           <input
             className="so-input"
             type="text"
-            placeholder="e.g. The YouTube Growth Blueprint"
+            placeholder=" "
             autoFocus
             value={data.title}
             onChange={(e) => onChange({ ...data, title: e.target.value })}
@@ -720,17 +765,18 @@ export function StepCourse({
               if (e.key === 'Enter' && data.title.trim()) onNext()
             }}
           />
-        </div>
-        <div className="so-field">
-          <label className="so-label">Short description</label>
+          <span className="so-label">Course title</span>
+        </label>
+        <label className="so-field so-field--multiline">
           <textarea
             className="so-textarea"
             rows={3}
-            placeholder="Summarize what students will learn in one sentence."
+            placeholder=" "
             value={data.desc}
             onChange={(e) => onChange({ ...data, desc: e.target.value })}
           />
-        </div>
+          <span className="so-label">Short description</span>
+        </label>
       </div>
     </StepShell>
   )
@@ -1078,7 +1124,7 @@ function PFSegmented<T extends string>({
         <button
           key={o.value}
           type="button"
-          className={`pf-seg-btn${value === o.value ? ' active' : ''}`}
+          className={`pf-seg-btn${value === o.value ? 'active' : ''}`}
           onClick={() => onChange(o.value)}
         >
           {o.label}
@@ -1103,17 +1149,91 @@ function PFChoiceCard({
   return (
     <button
       type="button"
-      className={`pf-choice${active ? ' active' : ''}`}
+      className={`pf-choice${active ? 'active' : ''}`}
       onClick={onClick}
     >
-      <span className="pf-choice-radio">
-        <span className="pf-choice-radio-dot" />
-      </span>
-      <span className="pf-choice-body">
+      <span className="pf-choice-row">
+        <span className="pf-choice-radio">
+          <span className="pf-choice-radio-dot" />
+        </span>
         <span className="pf-choice-title">{title}</span>
-        <span className="pf-choice-desc">{description}</span>
       </span>
+      <span className="pf-choice-desc">{description}</span>
     </button>
+  )
+}
+
+// ── Currency tabs — clone of CurrencyTabs in ProductPricingSection ──────────
+function CourseCurrencyTabs({
+  activeCurrencies,
+  selectedCurrency,
+  onSelectCurrency,
+  onAddCurrency,
+  onRemoveCurrency,
+  defaultCurrency,
+}: {
+  activeCurrencies: string[]
+  selectedCurrency: string
+  onSelectCurrency: (currency: string) => void
+  onAddCurrency: (currency: string) => void
+  onRemoveCurrency: (currency: string) => void
+  defaultCurrency: string
+}) {
+  const availableCurrencies = enums.presentmentCurrencyValues.filter(
+    (c: string) => !activeCurrencies.includes(c),
+  )
+  return (
+    <div className="flex flex-row items-center gap-2">
+      <Tabs value={selectedCurrency} onValueChange={onSelectCurrency}>
+        <TabsList>
+          {activeCurrencies.map((currency) => (
+            <TabsTrigger
+              key={currency}
+              value={currency}
+              className="flex h-8 items-center gap-1"
+            >
+              <span>{currency.toUpperCase()}</span>
+              {currency !== defaultCurrency &&
+                selectedCurrency === currency && (
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onRemoveCurrency(currency)
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        onRemoveCurrency(currency)
+                      }
+                    }}
+                    className="cursor-pointer text-gray-400 hover:text-gray-600"
+                  >
+                    <CloseIcon className="h-3.5 w-3.5" />
+                  </span>
+                )}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
+      {availableCurrencies.length > 0 && (
+        <Select onValueChange={onAddCurrency}>
+          <SelectTrigger className="h-8 w-auto gap-1 border-none bg-transparent px-2 shadow-none">
+            <PlusIcon className="h-3.5 w-3.5" />
+            <span className="text-sm">Add Currency</span>
+          </SelectTrigger>
+          <SelectContent>
+            {availableCurrencies.map((currency: string) => (
+              <SelectItem key={currency} value={currency}>
+                {currency.toUpperCase()}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+    </div>
   )
 }
 
@@ -1135,7 +1255,7 @@ function PFToggle({
         type="button"
         role="switch"
         aria-checked={checked}
-        className={`pf-toggle${checked ? ' on' : ''}`}
+        className={`pf-toggle${checked ? 'on' : ''}`}
         onClick={() => onChange(!checked)}
       >
         <span className="pf-toggle-knob" />
@@ -1244,9 +1364,7 @@ function PFPriceRow({
           setValue(`prices.${index}.id`, '')
         }}
       />
-      {cadenceLabel && (
-        <span className="pf-price-cadence">{cadenceLabel}</span>
-      )}
+      {cadenceLabel && <span className="pf-price-cadence">{cadenceLabel}</span>}
       <button
         type="button"
         className="pf-price-cur-right"
@@ -1277,8 +1395,8 @@ function PFPriceRow({
                 key={c.code}
                 disabled={isDisabled}
                 className={`pf-cur-item${
-                  c.code === currency ? ' active' : ''
-                }${isDisabled ? ' disabled' : ''}`}
+                  c.code === currency ? 'active' : ''
+                }${isDisabled ? 'disabled' : ''}`}
                 onClick={() => {
                   if (isDisabled) return
                   setValue(
@@ -1355,7 +1473,7 @@ function PFMediaDrop({
 
   return (
     <div
-      className={`pf-media-drop${dragOver ? ' drag-over' : ''}`}
+      className={`pf-media-drop${dragOver ? 'drag-over' : ''}`}
       onClick={() => inputRef.current?.click()}
       onDragOver={(e) => {
         e.preventDefault()
@@ -1468,9 +1586,7 @@ function PFCheckoutPreview({
             Online course · {courseLessons} lessons
           </div>
           <h3 className="pf-preview-title">{courseTitle}</h3>
-          {courseDesc && (
-            <p className="pf-preview-desc">{courseDesc}</p>
-          )}
+          {courseDesc && <p className="pf-preview-desc">{courseDesc}</p>}
           <div className="pf-preview-price">
             <span className="pf-preview-amount">{amount}</span>
             {cycleLabel && (
@@ -1572,6 +1688,28 @@ export function StepPricingWizard({
     [prices],
   )
 
+  // Which currency the price input is editing right now. Mirrors the
+  // product-create form: a Tabs row at the top of the price box switches
+  // between configured currencies, and "+ Add Currency" appends a new one.
+  const [selectedCurrency, setSelectedCurrency] = useState<string>(
+    () => prices[0]?.price_currency ?? defaultCurrency,
+  )
+  useEffect(() => {
+    if (!usedCurrencies.includes(selectedCurrency) && usedCurrencies.length) {
+      setSelectedCurrency(usedCurrencies[0])
+    }
+  }, [usedCurrencies, selectedCurrency])
+  const selectedIndex = useMemo(() => {
+    const i = prices.findIndex((p) => p?.price_currency === selectedCurrency)
+    return i >= 0 ? i : 0
+  }, [prices, selectedCurrency])
+  const removeCurrency = (code: string) => {
+    if (code === defaultCurrency) return
+    const i = prices.findIndex((p) => p?.price_currency === code)
+    if (i > 0) remove(i)
+    if (selectedCurrency === code) setSelectedCurrency(defaultCurrency)
+  }
+
   const setCycle = (next: 'onetime' | 'recurring') => {
     if (next === 'onetime') {
       setValue('recurring_interval', null)
@@ -1599,9 +1737,12 @@ export function StepPricingWizard({
     replace(updated)
   }
 
-  const addCurrency = () => {
+  const addCurrency = (code?: string) => {
     const used = new Set(usedCurrencies)
-    const next = CURRENCIES.find((c) => !used.has(c.code))?.code ?? 'usd'
+    const next =
+      code && !used.has(code)
+        ? code
+        : (CURRENCIES.find((c) => !used.has(c.code))?.code ?? 'usd')
     if (priceModel === 'free') {
       append({
         amount_type: 'free',
@@ -1614,6 +1755,7 @@ export function StepPricingWizard({
         price_currency: next as schemas['PresentmentCurrency'],
       })
     }
+    setSelectedCurrency(next)
   }
 
   const trialEnabled = trialInterval != null && trialIntervalCount != null
@@ -1682,173 +1824,202 @@ export function StepPricingWizard({
               title="How students pay"
               description="Sell your course once, or charge a recurring fee for ongoing access. Add other currencies for international students."
             >
-              <div className="pf-stack">
-                {/* Free vs paid — choice cards first */}
-                <div className="pf-choice-grid">
-                  <PFChoiceCard
-                    active={priceModel === 'fixed'}
-                    onClick={() => setPriceModel('fixed')}
-                    title="Paid course"
-                    description="Charge a fixed amount per enrolment."
-                  />
-                  <PFChoiceCard
-                    active={priceModel === 'free'}
-                    onClick={() => setPriceModel('free')}
-                    title="Free course"
-                    description="No charge — open to anyone who enrols."
-                  />
-                </div>
-
-                {/* Prices + billing — only when paid */}
-                {priceModel === 'fixed' && fields.length > 0 && (
-                  <div className="pf-paid-block">
-                    {/* Price rows */}
-                    <div className="pf-field">
-                      <div className="pf-price-label-row">
-                        <span className="pf-label">Price</span>
-                        <span className="pf-price-hint">
-                          {cycle === 'recurring'
-                            ? `Charged every ${recurringIntervalCount > 1 ? `${recurringIntervalCount} ${recurringInterval ?? 'month'}s` : (recurringInterval ?? 'month')}`
-                            : 'Charged once at enrolment'}
-                        </span>
-                      </div>
-                      <div className="pf-prices">
-                        <PFPriceRow
-                          index={0}
-                          primary
-                          disabledCurrencies={usedCurrencies}
-                          cycle={cycle}
-                          every={recurringIntervalCount}
-                          period={recurringInterval ?? 'month'}
-                        />
-                        {additionalIndices.map((i) => (
-                          <PFPriceRow
-                            key={i}
-                            index={i}
-                            disabledCurrencies={usedCurrencies}
-                            onRemove={() => remove(i)}
-                            cycle={cycle}
-                            every={recurringIntervalCount}
-                            period={recurringInterval ?? 'month'}
-                          />
-                        ))}
-                        <button
-                          type="button"
-                          className="pf-add-currency"
-                          onClick={addCurrency}
-                          disabled={usedCurrencies.length >= CURRENCIES.length}
-                        >
-                          + Add another currency
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Billing cadence — below price rows */}
-                    <div className="pf-field">
-                      <span className="pf-label">Billing</span>
-                      <div className="pf-choice-grid">
-                        <PFChoiceCard
-                          active={cycle === 'onetime'}
-                          onClick={() => setCycle('onetime')}
-                          title="Pay once"
-                          description="Charge a one-time fee at enrolment."
-                        />
-                        <PFChoiceCard
-                          active={cycle === 'recurring'}
-                          onClick={() => setCycle('recurring')}
-                          title="Recurring"
-                          description="Charge students on a regular schedule."
-                        />
-                      </div>
-                      {cycle === 'recurring' && (
-                        <div className="pf-recurring">
-                          <span>Renew every</span>
-                          <input
-                            type="number"
-                            min={1}
-                            className="pf-num"
-                            value={recurringIntervalCount}
-                            onChange={(e) =>
-                              setValue(
-                                'recurring_interval_count',
-                                Math.max(
-                                  1,
-                                  parseInt(e.target.value || '1', 10),
-                                ),
-                              )
-                            }
-                          />
-                          <PFSelect
-                            value={recurringInterval ?? 'month'}
-                            onChange={(v) =>
-                              setValue(
-                                'recurring_interval',
-                                v as schemas['SubscriptionRecurringInterval'],
-                              )
-                            }
-                            options={[
-                              {
-                                value: 'day',
-                                label:
-                                  recurringIntervalCount > 1 ? 'days' : 'day',
-                              },
-                              {
-                                value: 'week',
-                                label:
-                                  recurringIntervalCount > 1
-                                    ? 'weeks'
-                                    : 'week',
-                              },
-                              {
-                                value: 'month',
-                                label:
-                                  recurringIntervalCount > 1
-                                    ? 'months'
-                                    : 'month',
-                              },
-                              {
-                                value: 'year',
-                                label:
-                                  recurringIntervalCount > 1
-                                    ? 'years'
-                                    : 'year',
-                              },
-                            ]}
-                          />
-                        </div>
+              <div className="flex w-full flex-col gap-10">
+                {/* Cycle — same Label/RadioGroup pattern as the product
+                    create form's "One-time / Recurring" cards. */}
+                <RadioGroup
+                  value={cycle}
+                  onValueChange={(v) => setCycle(v as 'onetime' | 'recurring')}
+                  className="grid grid-cols-2 gap-4"
+                >
+                  {(
+                    [
+                      {
+                        value: 'onetime',
+                        title: 'Pay once',
+                        desc: 'Charge a one-time fee at enrolment.',
+                      },
+                      {
+                        value: 'recurring',
+                        title: 'Recurring',
+                        desc: 'Charge students on a regular schedule.',
+                      },
+                    ] as const
+                  ).map((opt) => (
+                    <Label
+                      key={opt.value}
+                      htmlFor={`pf-cycle-${opt.value}`}
+                      className={twMerge(
+                        'flex cursor-pointer flex-col gap-3 rounded-2xl border border-[1.5px] p-5 font-normal transition-colors',
+                        cycle === opt.value
+                          ? 'border-[oklch(0.62_0.21_265)] bg-gray-50'
+                          : 'border-gray-100 text-gray-500 hover:border-gray-200',
                       )}
-                    </div>
-
-                    {/* Trial — only when recurring */}
-                    {cycle === 'recurring' && (
-                      <div className="pf-trial">
-                        <PFToggle
-                          checked={trialEnabled}
-                          onChange={setTrialEnabled}
-                          label="Free trial period"
-                          description="Let students explore the course before being charged."
+                    >
+                      <div className="flex items-center gap-2.5 font-medium">
+                        <RadioGroupItem
+                          value={opt.value}
+                          id={`pf-cycle-${opt.value}`}
                         />
-                        {trialEnabled && (
-                          <div className="pf-trial-row">
-                            <span>Trial length</span>
-                            <input
-                              type="number"
-                              min={1}
-                              className="pf-num"
-                              value={trialIntervalCount ?? 7}
-                              onChange={(e) =>
-                                setValue(
-                                  'trial_interval_count',
-                                  Math.max(
-                                    1,
-                                    parseInt(e.target.value || '1', 10),
-                                  ),
-                                )
-                              }
-                            />
-                            <span>days</span>
-                          </div>
-                        )}
+                        {opt.title}
+                      </div>
+                      <p className="text-sm text-gray-500">{opt.desc}</p>
+                    </Label>
+                  ))}
+                </RadioGroup>
+
+                <hr className="border-gray-200" />
+
+                {/* Pricing model — Fixed price / Free, same Label markup. */}
+                <RadioGroup
+                  value={priceModel}
+                  onValueChange={(v) => setPriceModel(v as 'fixed' | 'free')}
+                  className="grid grid-cols-2 gap-4"
+                >
+                  {(
+                    [
+                      {
+                        value: 'fixed',
+                        title: 'Fixed price',
+                        desc: 'Charge a set amount per enrolment.',
+                      },
+                      {
+                        value: 'free',
+                        title: 'Free',
+                        desc: 'No charge — open to anyone who enrols.',
+                      },
+                    ] as const
+                  ).map((opt) => (
+                    <Label
+                      key={opt.value}
+                      htmlFor={`pf-model-${opt.value}`}
+                      className={twMerge(
+                        'flex cursor-pointer flex-col gap-3 rounded-2xl border border-[1.5px] p-5 font-normal transition-colors',
+                        priceModel === opt.value
+                          ? 'border-[oklch(0.62_0.21_265)] bg-gray-50'
+                          : 'border-gray-100 text-gray-500 hover:border-gray-200',
+                      )}
+                    >
+                      <div className="flex items-center gap-2.5 font-medium">
+                        <RadioGroupItem
+                          value={opt.value}
+                          id={`pf-model-${opt.value}`}
+                        />
+                        {opt.title}
+                      </div>
+                      <p className="text-sm text-gray-500">{opt.desc}</p>
+                    </Label>
+                  ))}
+                </RadioGroup>
+
+                {/* Price input + currency tabs — same wrapper / MoneyInput
+                    + CurrencyTabs combo as the product create form. Only
+                    shown for the "Fixed price" model. */}
+                {priceModel === 'fixed' && prices[selectedIndex] && (
+                  <div className="flex flex-col gap-3 rounded-2xl border border-gray-200 p-4">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1">
+                        <MoneyInput
+                          name={`prices.${selectedIndex}.price_amount`}
+                          currency={selectedCurrency}
+                          value={
+                            prices[selectedIndex]?.price_amount ?? undefined
+                          }
+                          onChange={(v) =>
+                            setValue(
+                              `prices.${selectedIndex}.price_amount`,
+                              typeof v === 'number' ? v : Number(v) || 0,
+                            )
+                          }
+                          placeholder={0}
+                        />
+                      </div>
+                      <div className="shrink-0">
+                        <CourseCurrencyTabs
+                          activeCurrencies={usedCurrencies}
+                          selectedCurrency={selectedCurrency}
+                          defaultCurrency={defaultCurrency}
+                          onSelectCurrency={setSelectedCurrency}
+                          onAddCurrency={(c) => addCurrency(c)}
+                          onRemoveCurrency={removeCurrency}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Recurring details */}
+                {priceModel === 'fixed' && cycle === 'recurring' && (
+                  <div className="pf-recurring">
+                    <span>Renew every</span>
+                    <input
+                      type="number"
+                      min={1}
+                      className="pf-num"
+                      value={recurringIntervalCount}
+                      onChange={(e) =>
+                        setValue(
+                          'recurring_interval_count',
+                          Math.max(1, parseInt(e.target.value || '1', 10)),
+                        )
+                      }
+                    />
+                    <PFSelect
+                      value={recurringInterval ?? 'month'}
+                      onChange={(v) =>
+                        setValue(
+                          'recurring_interval',
+                          v as schemas['SubscriptionRecurringInterval'],
+                        )
+                      }
+                      options={[
+                        {
+                          value: 'day',
+                          label: recurringIntervalCount > 1 ? 'days' : 'day',
+                        },
+                        {
+                          value: 'week',
+                          label: recurringIntervalCount > 1 ? 'weeks' : 'week',
+                        },
+                        {
+                          value: 'month',
+                          label:
+                            recurringIntervalCount > 1 ? 'months' : 'month',
+                        },
+                        {
+                          value: 'year',
+                          label: recurringIntervalCount > 1 ? 'years' : 'year',
+                        },
+                      ]}
+                    />
+                  </div>
+                )}
+
+                {/* Trial — only when recurring */}
+                {priceModel === 'fixed' && cycle === 'recurring' && (
+                  <div className="pf-trial">
+                    <PFToggle
+                      checked={trialEnabled}
+                      onChange={setTrialEnabled}
+                      label="Free trial period"
+                      description="Let students explore the course before being charged."
+                    />
+                    {trialEnabled && (
+                      <div className="pf-trial-row">
+                        <span>Trial length</span>
+                        <input
+                          type="number"
+                          min={1}
+                          className="pf-num"
+                          value={trialIntervalCount ?? 7}
+                          onChange={(e) =>
+                            setValue(
+                              'trial_interval_count',
+                              Math.max(1, parseInt(e.target.value || '1', 10)),
+                            )
+                          }
+                        />
+                        <span>days</span>
                       </div>
                     )}
                   </div>
@@ -2117,43 +2288,50 @@ export function StepPricingWizard({
           grid-template-columns: 1fr 1fr;
           gap: 10px;
         }
+        /* Radio card — same visual as the product-create pricing form:
+           rounded-2xl card with the radio + title on row 1 and a small
+           gray description on row 2. White by default, gray-50 wash with a
+           1.5px indigo border when active. No halo, no double edge. */
         .pf-choice {
           display: flex;
-          flex-direction: row;
-          align-items: flex-start;
+          flex-direction: column;
+          align-items: stretch;
           gap: 12px;
-          padding: 16px 18px;
+          padding: 20px;
           text-align: left;
           width: 100%;
           background: #fff;
-          border: 1px solid var(--hair);
-          border-radius: 14px;
+          border: 1.5px solid oklch(0.94 0.004 280);
+          border-radius: 16px;
           cursor: pointer;
-          transition: all 0.15s;
+          transition:
+            border-color 0.15s,
+            background 0.15s;
           color: var(--ink);
         }
         .pf-choice:hover {
-          border-color: var(--hair-strong);
+          border-color: oklch(0.88 0.005 280);
         }
         .pf-choice.active {
-          background: var(--accent-soft);
-          border-color: var(--accent);
-          box-shadow: 0 0 0 3px var(--accent-ring);
+          background: oklch(0.975 0.002 280);
+          border-color: oklch(0.62 0.21 265);
+        }
+        .pf-choice-row {
+          display: flex;
+          flex-direction: row;
+          align-items: center;
+          gap: 10px;
         }
         .pf-choice-radio {
           width: 18px;
           height: 18px;
           border-radius: 50%;
-          border: 1.5px solid var(--hair-strong);
+          border: 1.5px solid oklch(0.62 0.21 265);
           display: flex;
           align-items: center;
           justify-content: center;
           flex-shrink: 0;
-          margin-top: 2px;
-          transition: border-color 0.15s;
-        }
-        .pf-choice.active .pf-choice-radio {
-          border-color: var(--accent);
+          background: #fff;
         }
         .pf-choice-radio-dot {
           width: 9px;
@@ -2163,21 +2341,18 @@ export function StepPricingWizard({
           transition: background 0.15s;
         }
         .pf-choice.active .pf-choice-radio-dot {
-          background: var(--accent);
-        }
-        .pf-choice-body {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-          flex: 1;
+          background: oklch(0.62 0.21 265);
         }
         .pf-choice-title {
-          font-size: 14px;
-          font-weight: 600;
+          font-size: 15px;
+          font-weight: 500;
           color: var(--ink);
         }
+        .pf-choice.active .pf-choice-title {
+          color: oklch(0.18 0.012 270);
+        }
         .pf-choice-desc {
-          font-size: 12.5px;
+          font-size: 13px;
           color: var(--muted);
           line-height: 1.45;
         }
@@ -2210,18 +2385,15 @@ export function StepPricingWizard({
         .pf-price-row {
           display: flex;
           align-items: center;
-          border: 1px solid var(--hair);
+          border: 1.5px solid var(--hair);
           border-radius: 12px;
           background: #fff;
           position: relative;
           overflow: visible;
-          transition:
-            border-color 0.15s,
-            box-shadow 0.15s;
+          transition: border-color 0.15s;
         }
         .pf-price-row:focus-within {
-          border-color: var(--accent);
-          box-shadow: 0 0 0 4px var(--accent-ring);
+          border-color: oklch(0.62 0.21 265);
         }
         .pf-price-sym {
           padding: 12px 0 12px 16px;
@@ -2357,10 +2529,17 @@ export function StepPricingWizard({
           font-size: 13px;
           font-weight: 500;
           background: transparent;
-          border: 1px dashed var(--hair-strong);
-          color: var(--ink-2);
-          border-radius: 8px;
+          border: 1.5px solid oklch(0.94 0.004 280);
+          color: var(--ink);
+          border-radius: 10px;
           cursor: pointer;
+          transition:
+            border-color 0.15s,
+            background 0.15s;
+        }
+        .pf-add-currency:hover:not(:disabled) {
+          border-color: oklch(0.62 0.21 265);
+          background: oklch(0.975 0.002 280);
         }
         .pf-add-currency:disabled {
           opacity: 0.5;
@@ -2440,18 +2619,20 @@ export function StepPricingWizard({
           justify-content: center;
           gap: 10px;
           padding: 44px 24px;
-          border: 1.5px dashed var(--hair-strong);
+          border: 1.5px solid oklch(0.94 0.004 280);
           border-radius: 14px;
-          background: var(--surface-2);
+          background: #fff;
           cursor: pointer;
-          transition: border-color 0.15s, background 0.15s;
+          transition:
+            border-color 0.15s,
+            background 0.15s;
           aspect-ratio: 16 / 9;
           text-align: center;
         }
         .pf-media-drop:hover,
         .pf-media-drop.drag-over {
-          border-color: var(--accent);
-          background: var(--accent-soft);
+          border-color: oklch(0.62 0.21 265);
+          background: oklch(0.975 0.002 280);
         }
         .pf-media-title {
           font-size: 14px;
