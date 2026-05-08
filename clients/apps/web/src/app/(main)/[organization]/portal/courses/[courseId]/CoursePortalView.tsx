@@ -119,27 +119,53 @@ const IconLock = ({ size = 16 }: { size?: number }) => (
   </SvgIcon>
 )
 // ── Helper: figure out which lesson to "Continue" with ─────────────────────
-function pickContinueLesson(modules: CustomerModuleRead[]): {
-  module: CustomerModuleRead
-  lesson: CustomerLessonRead
-  moduleIndex: number
-} | null {
+type ContinueState =
+  | {
+      kind: 'continue' | 'replay' | 'start'
+      module: CustomerModuleRead
+      lesson: CustomerLessonRead
+      moduleIndex: number
+    }
+  | { kind: 'complete' }
+  | null
+
+function pickContinueLesson(modules: CustomerModuleRead[]): ContinueState {
+  let firstAccessible: {
+    module: CustomerModuleRead
+    lesson: CustomerLessonRead
+    moduleIndex: number
+  } | null = null
+  let totalAccessible = 0
+  let totalCompleted = 0
+
   for (let i = 0; i < modules.length; i++) {
     const m = modules[i]!
     if (m.locked) continue
     for (const lesson of m.lessons) {
-      if (!lesson.completed && !lesson.locked) {
-        return { module: m, lesson, moduleIndex: i }
+      if (lesson.locked) continue
+      totalAccessible += 1
+      if (lesson.completed) {
+        totalCompleted += 1
+        continue
+      }
+      if (!firstAccessible) {
+        firstAccessible = { module: m, lesson, moduleIndex: i }
       }
     }
   }
-  // Course is fully complete or every lesson is locked — fall back to first.
-  for (let i = 0; i < modules.length; i++) {
-    const m = modules[i]!
-    if (m.lessons.length > 0) {
-      return { module: m, lesson: m.lessons[0]!, moduleIndex: i }
-    }
+
+  // Found an unwatched accessible lesson — that's where Continue points.
+  if (firstAccessible) {
+    const isStart = totalCompleted === 0
+    return { ...firstAccessible, kind: isStart ? 'start' : 'continue' }
   }
+
+  // Every accessible lesson is complete → course done.
+  if (totalAccessible > 0 && totalCompleted === totalAccessible) {
+    return { kind: 'complete' }
+  }
+
+  // Nothing accessible (everything locked behind paywall/drip).
   return null
 }
 
@@ -678,6 +704,7 @@ function Hero({
   continueLesson,
   continueModuleTitle,
   continueLessonNumber,
+  continuePill,
   instructorName,
   tagline,
   heroHue,
@@ -690,6 +717,7 @@ function Hero({
   continueLesson: CustomerLessonRead | null
   continueModuleTitle: string | null
   continueLessonNumber: number | null
+  continuePill: string | null
   instructorName: string | null
   tagline: string
   heroHue: number
@@ -726,7 +754,7 @@ function Hero({
       <div style={heroStyles.contentWrap}>
         <div style={heroStyles.metaRow}>
           <span style={heroStyles.metaPill}>
-            {continueLesson ? 'CONTINUE WATCHING' : 'START LEARNING'}
+            {continuePill ?? 'START LEARNING'}
           </span>
           <span style={heroStyles.metaText}>{totalLessons} lessons</span>
           <span style={heroStyles.metaDot}>·</span>
@@ -773,15 +801,19 @@ function Hero({
               type="button"
               style={heroStyles.ctaPlay}
               onClick={onResume}
-              disabled={!continueLesson}
+              disabled={
+                !continueLesson && continuePill !== 'COURSE COMPLETE'
+              }
             >
               <span style={heroStyles.ctaPlayIcon}>
                 <IconPlay size={14} />
               </span>
               <span style={heroStyles.ctaPlayLabel}>
-                {continueLesson
-                  ? `Play lesson ${continueLessonNumber}`
-                  : 'Start course'}
+                {continuePill === 'COURSE COMPLETE'
+                  ? 'Replay course'
+                  : continueLesson
+                    ? `Play lesson ${continueLessonNumber}`
+                    : 'Start course'}
               </span>
             </button>
             <button type="button" style={heroStyles.ctaGhost} title="My List">
@@ -823,7 +855,7 @@ function LessonThumb({
   const src =
     thumbnailUrl ||
     (muxPlaybackId
-      ? `https://image.mux.com/${muxPlaybackId}/thumbnail.jpg?time=0`
+      ? `https://image.mux.com/${muxPlaybackId}/thumbnail.jpg?time=1`
       : null) ||
     fallbackThumbnailUrl ||
     null
@@ -970,20 +1002,21 @@ function LessonCard({
           </div>
         )}
 
-        {/* Top-left badge: WATCHED pill if completed, otherwise episode number */}
-        {isWatched && !isLocked ? (
+        {/* Top-left badge: WATCHED if completed (even when locked), else
+            the lesson number — always shown so locked cards still
+            communicate their position in the sequence. */}
+        {isWatched ? (
           <div style={lessonStyles.watchedPill}>
             <IconCheck size={10} />
             <span>Watched</span>
           </div>
         ) : (
-          !isLocked && (
-            <div style={lessonStyles.epBadge}>LESSON {globalIndex}</div>
-          )
+          <div style={lessonStyles.epBadge}>LESSON {globalIndex}</div>
         )}
 
-        {/* Bottom-right duration badge — always visible like the landing */}
-        {!isLocked && lesson.duration_seconds ? (
+        {/* Bottom-right duration badge — show even on locked cards so
+            customers know how long the lesson runs before unlocking. */}
+        {lesson.duration_seconds ? (
           <div style={lessonStyles.durBadge}>
             <IconClock size={10} />
             <span>{formatMinSec(lesson.duration_seconds)}</span>
@@ -1135,11 +1168,22 @@ export function CoursePortalView({
   const overallPct = Math.round(data.progress.completion_percent)
 
   const cont = pickContinueLesson(modules)
-  const continueLesson = cont?.lesson ?? null
-  const continueModuleTitle = cont?.module.title ?? null
+  const courseComplete = cont?.kind === 'complete'
+  const continueLesson =
+    cont && cont.kind !== 'complete' ? cont.lesson : null
+  const continueModuleTitle =
+    cont && cont.kind !== 'complete' ? cont.module.title : null
   const continueLessonNumber = continueLesson
     ? (positionToGlobalIndex.get(continueLesson.id) ?? null)
     : null
+  const continuePill =
+    cont?.kind === 'complete'
+      ? 'COURSE COMPLETE'
+      : cont?.kind === 'start'
+        ? 'START LEARNING'
+        : cont?.kind === 'continue'
+          ? 'CONTINUE WATCHING'
+          : null
 
   const inProgressLessonId =
     continueLesson && !continueLesson.completed ? continueLesson.id : null
@@ -1175,11 +1219,14 @@ export function CoursePortalView({
         continueLesson={continueLesson}
         continueModuleTitle={continueModuleTitle}
         continueLessonNumber={continueLessonNumber}
+        continuePill={continuePill}
         instructorName={course.instructor_name ?? null}
         tagline={tagline}
         heroHue={heroHue}
         onResume={() => {
           if (continueLesson) onSelectLesson(continueLesson)
+          else if (courseComplete && modules[0]?.lessons[0])
+            onSelectLesson(modules[0].lessons[0])
         }}
       />
 
