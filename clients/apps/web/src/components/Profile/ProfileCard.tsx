@@ -4,6 +4,12 @@ import { useStorefrontSubscribe } from '@/hooks/queries/emailMarketing'
 import { focalPointToObjectPosition } from '@/components/Customization/Storefront/StorefrontSidebar'
 import { schemas } from '@spaire/client'
 import Avatar from '@spaire/ui/components/atoms/Avatar'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@spaire/ui/components/ui/tooltip'
 import TranslateOutlined from '@mui/icons-material/TranslateOutlined'
 import Link from 'next/link'
 import { useState } from 'react'
@@ -50,8 +56,6 @@ export const ProfileCard = ({
   const [subscribed, setSubscribed] = useState(false)
   const [subscribing, setSubscribing] = useState(false)
   const [subscribeError, setSubscribeError] = useState<string | null>(null)
-  const [showLanguagesTooltip, setShowLanguagesTooltip] = useState(false)
-  const [showSkillsTooltip, setShowSkillsTooltip] = useState(false)
   const subscribe = useStorefrontSubscribe()
 
   // Same RFC 5322-ish check Chromium uses for type=email.
@@ -105,6 +109,7 @@ export const ProfileCard = ({
     : []
 
   return (
+    <TooltipProvider delayDuration={200}>
     <div className="flex w-full flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
       {/* Banner */}
       {showHeader && (
@@ -185,25 +190,26 @@ export const ProfileCard = ({
                   Available for work
                 </span>
               ))}
-            {languages.length > 0 && (
-              <button
-                type="button"
-                className="group relative flex flex-row items-center gap-x-1.5 rounded-full border border-gray-200 px-3 py-1 text-[12px] text-gray-500"
-                onClick={() => setShowLanguagesTooltip(!showLanguagesTooltip)}
-                onMouseEnter={() => setShowLanguagesTooltip(true)}
-                onMouseLeave={() => setShowLanguagesTooltip(false)}
-              >
-                <TranslateOutlined style={{ fontSize: 14 }} />
-                {languages.length <= 2
-                  ? languages.join(', ')
-                  : `${languages[0]}, ${languages.length - 1} more`}
-                {languages.length > 2 && showLanguagesTooltip && (
-                  <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-gray-900 px-3 py-1.5 text-[11px] text-white shadow-lg">
-                    {languages.join(', ')}
-                  </span>
-                )}
-              </button>
-            )}
+            {languages.length > 0 &&
+              (languages.length <= 2 ? (
+                <span className="flex flex-row items-center gap-x-1.5 rounded-full border border-gray-200 px-3 py-1 text-[12px] text-gray-500">
+                  <TranslateOutlined style={{ fontSize: 14 }} />
+                  {languages.join(', ')}
+                </span>
+              ) : (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      className="flex flex-row items-center gap-x-1.5 rounded-full border border-gray-200 px-3 py-1 text-[12px] text-gray-500"
+                    >
+                      <TranslateOutlined style={{ fontSize: 14 }} />
+                      {languages[0]}, {languages.length - 1} more
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>{languages.join(', ')}</TooltipContent>
+                </Tooltip>
+              ))}
           </div>
         )}
 
@@ -219,20 +225,19 @@ export const ProfileCard = ({
               </span>
             ))}
             {skills.length > MAX_VISIBLE_SKILLS && (
-              <button
-                type="button"
-                className="group relative rounded-full border border-gray-200 px-3 py-1 text-[12px] text-gray-400"
-                onClick={() => setShowSkillsTooltip(!showSkillsTooltip)}
-                onMouseEnter={() => setShowSkillsTooltip(true)}
-                onMouseLeave={() => setShowSkillsTooltip(false)}
-              >
-                +{skills.length - MAX_VISIBLE_SKILLS}
-                {showSkillsTooltip && (
-                  <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-gray-900 px-3 py-1.5 text-[11px] text-white shadow-lg">
-                    {skills.slice(MAX_VISIBLE_SKILLS).join(', ')}
-                  </span>
-                )}
-              </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    className="rounded-full border border-gray-200 px-3 py-1 text-[12px] text-gray-400"
+                  >
+                    +{skills.length - MAX_VISIBLE_SKILLS}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {skills.slice(MAX_VISIBLE_SKILLS).join(', ')}
+                </TooltipContent>
+              </Tooltip>
             )}
           </div>
         )}
@@ -333,5 +338,6 @@ export const ProfileCard = ({
         </div>
       </div>
     </div>
+    </TooltipProvider>
   )
 }
