@@ -1321,11 +1321,11 @@ function EpisodeGrid({
             style={{
               position: 'relative',
               width: '100%',
-              maxWidth: 620,
-              borderRadius: 'calc(24px * var(--radius-mul, 1))',
+              maxWidth: 1080,
+              borderRadius: 'calc(28px * var(--radius-mul, 1))',
               overflow: 'hidden',
               isolation: 'isolate',
-              padding: '36px 40px 28px',
+              padding: '64px 64px 56px',
               background: `
                 linear-gradient(180deg, rgba(255,255,255,0.78) 0%, rgba(255,255,255,0.55) 100%),
                 radial-gradient(140% 100% at 12% -10%, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 55%),
@@ -1437,12 +1437,12 @@ function EpisodeGrid({
                 multiline
                 style={{
                   fontSize:
-                    'calc(clamp(22px, 2.4vw, 28px) * var(--type-scale, 1))',
+                    'calc(clamp(28px, 3.2vw, 40px) * var(--type-scale, 1))',
                   fontWeight: 'var(--h-weight, 600)',
-                  letterSpacing: 'calc(var(--h-tracking, 0em) - 0.025em)',
-                  lineHeight: 1.15,
+                  letterSpacing: 'calc(var(--h-tracking, 0em) - 0.03em)',
+                  lineHeight: 1.1,
                   color: 'oklch(0.18 0.008 280)',
-                  marginBottom: 10,
+                  marginBottom: 12,
                   display: 'block',
                   fontFamily: HEADING_VAR,
                 }}
@@ -1452,10 +1452,10 @@ function EpisodeGrid({
                 defaultValue="Lifetime access. Workshops with feedback. Certificate. 30-day refund."
                 multiline
                 style={{
-                  fontSize: 13.5,
+                  fontSize: 15,
                   color: 'oklch(0.52 0.008 280)',
                   lineHeight: 1.55,
-                  maxWidth: 440,
+                  maxWidth: 540,
                   margin: '0 auto',
                   display: 'block',
                 }}
@@ -1468,7 +1468,7 @@ function EpisodeGrid({
                 position: 'relative',
                 zIndex: 1,
                 height: 1,
-                margin: '4px -40px 22px',
+                margin: '4px -64px 22px',
                 background:
                   'linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.07) 50%, transparent 100%)',
               }}
