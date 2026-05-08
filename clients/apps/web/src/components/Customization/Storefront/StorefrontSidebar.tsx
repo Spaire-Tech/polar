@@ -13,17 +13,11 @@ import ChevronRightOutlined from '@mui/icons-material/ChevronRightOutlined'
 import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined'
 import DeleteOutlined from '@mui/icons-material/DeleteOutlined'
 import GridViewOutlined from '@mui/icons-material/GridViewOutlined'
+import OpenInNewOutlined from '@mui/icons-material/OpenInNewOutlined'
+import Public from '@mui/icons-material/Public'
 import ViewAgendaOutlined from '@mui/icons-material/ViewAgendaOutlined'
 import ViewCarouselOutlined from '@mui/icons-material/ViewCarouselOutlined'
 import ViewListOutlined from '@mui/icons-material/ViewListOutlined'
-import Facebook from '@mui/icons-material/Facebook'
-import GitHub from '@mui/icons-material/GitHub'
-import Instagram from '@mui/icons-material/Instagram'
-import LinkedIn from '@mui/icons-material/LinkedIn'
-import OpenInNewOutlined from '@mui/icons-material/OpenInNewOutlined'
-import Public from '@mui/icons-material/Public'
-import X from '@mui/icons-material/X'
-import YouTube from '@mui/icons-material/YouTube'
 import { schemas } from '@spaire/client'
 import {
   Select,
@@ -38,26 +32,10 @@ import { FileRejection } from 'react-dropzone'
 import { useFormContext } from 'react-hook-form'
 import { twMerge } from 'tailwind-merge'
 import { FileObject, useFileUpload } from '../../FileUpload'
-
-// TikTok SVG icon (not available in MUI)
-const TikTokIcon = ({
-  className,
-  style,
-}: {
-  className?: string
-  style?: React.CSSProperties
-}) => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="currentColor"
-    className={className}
-    style={style}
-    width="1em"
-    height="1em"
-  >
-    <path d="M16.6 5.82s.51.5 0 0A4.278 4.278 0 0 1 15.54 3h-3.09v12.4a2.592 2.592 0 0 1-2.59 2.5c-1.42 0-2.6-1.16-2.6-2.6 0-1.72 1.66-3.01 3.37-2.48V9.66c-3.45-.46-6.47 2.22-6.47 5.64 0 3.33 2.76 5.7 5.69 5.7 3.14 0 5.69-2.55 5.69-5.7V9.01a7.35 7.35 0 0 0 4.3 1.38V7.3s-1.88.09-3.24-1.48z" />
-  </svg>
-)
+import {
+  SOCIAL_PLATFORMS,
+  getSocialPlatform,
+} from '../../Profile/socialPlatforms'
 
 // Predefined options
 const SKILL_OPTIONS = [
@@ -147,17 +125,6 @@ const PROFILE_TITLE_OPTIONS = [
   'UI/UX Designer',
   'Graphic Designer',
   'Motion Designer',
-]
-
-const SOCIAL_PLATFORMS = [
-  { value: 'instagram', label: 'Instagram', icon: Instagram },
-  { value: 'x', label: 'X', icon: X },
-  { value: 'linkedin', label: 'LinkedIn', icon: LinkedIn },
-  { value: 'youtube', label: 'YouTube', icon: YouTube },
-  { value: 'github', label: 'GitHub', icon: GitHub },
-  { value: 'facebook', label: 'Facebook', icon: Facebook },
-  { value: 'tiktok', label: 'TikTok', icon: TikTokIcon },
-  { value: 'other', label: 'Website', icon: Public },
 ]
 
 // --- Focal point helpers ---
@@ -301,10 +268,8 @@ const SocialLinkRow = ({
   onUpdate: (social: SocialLink) => void
   onRemove: () => void
 }) => {
-  const currentPlatform = SOCIAL_PLATFORMS.find(
-    (p) => p.value === social.platform,
-  )
-  const Icon = currentPlatform?.icon ?? Public
+  const currentPlatform = getSocialPlatform(social.platform)
+  const Icon = currentPlatform?.Icon ?? Public
 
   return (
     <div className="flex flex-row items-center gap-2">
@@ -314,17 +279,19 @@ const SocialLinkRow = ({
           onUpdate({ ...social, platform: v as SocialLink['platform'] })
         }
       >
-        <SelectTrigger className="h-10 w-[120px] shrink-0">
+        <SelectTrigger className="h-10 w-[140px] shrink-0">
           <div className="flex items-center gap-x-2">
-            <Icon style={{ fontSize: 16 }} />
-            <span className="text-xs">{currentPlatform?.label ?? 'Other'}</span>
+            <Icon className="h-4 w-4" />
+            <span className="truncate text-xs">
+              {currentPlatform?.label ?? 'Other'}
+            </span>
           </div>
         </SelectTrigger>
         <SelectContent>
           {SOCIAL_PLATFORMS.map((p) => (
             <SelectItem key={p.value} value={p.value}>
               <div className="flex items-center gap-x-2">
-                <p.icon style={{ fontSize: 16 }} />
+                <p.Icon className="h-4 w-4" />
                 <span>{p.label}</span>
               </div>
             </SelectItem>

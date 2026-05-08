@@ -21802,6 +21802,16 @@ export interface components {
       | 'youtube'
       | 'tiktok'
       | 'linkedin'
+      | 'whatsapp'
+      | 'spotify'
+      | 'threads'
+      | 'soundcloud'
+      | 'snapchat'
+      | 'pinterest'
+      | 'patreon'
+      | 'twitch'
+      | 'apple_music'
+      | 'website'
       | 'other'
     /**
      * OrganizationSortProperty
