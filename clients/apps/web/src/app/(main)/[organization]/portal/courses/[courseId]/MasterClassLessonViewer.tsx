@@ -6,6 +6,8 @@ import { MemoizedMarkdown } from '@/components/Markdown/MemoizedMarkdown'
 import { useLessonNote, useUpsertLessonNote } from '@/hooks/queries/courses'
 import Bookmark from '@mui/icons-material/Bookmark'
 import BookmarkBorderOutlined from '@mui/icons-material/BookmarkBorderOutlined'
+import CheckCircle from '@mui/icons-material/CheckCircle'
+import CheckCircleOutline from '@mui/icons-material/CheckCircleOutline'
 import DownloadOutlined from '@mui/icons-material/DownloadOutlined'
 import IosShareOutlined from '@mui/icons-material/IosShareOutlined'
 import KeyboardArrowLeft from '@mui/icons-material/KeyboardArrowLeft'
@@ -198,6 +200,9 @@ export const MasterClassLessonViewer = ({
               playbackUrl={lesson.mux_playback_url}
               poster={thumbnailSrc ?? undefined}
               autoPlay
+              onEnded={() => {
+                if (!lesson.completed) onMarkComplete()
+              }}
             />
           </div>
         )
@@ -420,6 +425,23 @@ export const MasterClassLessonViewer = ({
                   label={shareCopied ? 'Link copied' : 'Share'}
                   onClick={handleShare}
                 />
+                {mode === 'portal' && lesson.content_type !== 'quiz' && (
+                  <ActionBtn
+                    icon={
+                      lesson.completed ? (
+                        <CheckCircle sx={{ fontSize: 16 }} />
+                      ) : (
+                        <CheckCircleOutline sx={{ fontSize: 16 }} />
+                      )
+                    }
+                    label={lesson.completed ? 'Completed' : 'Mark complete'}
+                    active={lesson.completed}
+                    disabled={lesson.completed}
+                    onClick={() => {
+                      if (!lesson.completed) onMarkComplete()
+                    }}
+                  />
+                )}
                 {mode === 'portal' && (
                   <>
                     {firstAttachment ? (

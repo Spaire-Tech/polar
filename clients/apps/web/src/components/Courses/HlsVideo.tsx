@@ -12,6 +12,7 @@ export const HlsVideo = ({
   autoPlay = false,
   muted = false,
   loop = false,
+  onEnded,
 }: {
   playbackId?: string | null
   playbackUrl?: string | null
@@ -21,6 +22,7 @@ export const HlsVideo = ({
   autoPlay?: boolean
   muted?: boolean
   loop?: boolean
+  onEnded?: () => void
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null)
   // Prefer the server-signed playback URL. Fall back to building one from
@@ -68,6 +70,7 @@ export const HlsVideo = ({
       playsInline
       poster={poster ?? undefined}
       className={twMerge('h-full w-full', className)}
+      onEnded={onEnded}
     />
   )
 }
