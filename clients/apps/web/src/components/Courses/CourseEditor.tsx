@@ -24,7 +24,7 @@ import { LessonContentType } from './editor/ModuleCard'
 import { OutlineTab } from './editor/OutlineTab'
 import { PricingTab } from './editor/PricingTab'
 import { QuizDetail, QuizSaveBody } from './editor/QuizDetail'
-import { CourseSettingsEdits } from './editor/SettingsTab'
+import { CourseSettingsEdits, SettingsTab } from './editor/SettingsTab'
 
 async function streamLessonContent(
   organizationSlug: string,
@@ -72,11 +72,13 @@ export default function CourseEditor({
   const initialTab: TabId =
     (searchParams.get('tab') as TabId) === 'customize'
       ? 'customize'
-      : (searchParams.get('tab') as TabId) === 'pricing'
-        ? 'pricing'
-        : (searchParams.get('tab') as TabId) === 'customers'
-          ? 'customers'
-          : 'outline'
+      : (searchParams.get('tab') as TabId) === 'settings'
+        ? 'settings'
+        : (searchParams.get('tab') as TabId) === 'pricing'
+          ? 'pricing'
+          : (searchParams.get('tab') as TabId) === 'customers'
+            ? 'customers'
+            : 'outline'
   const [activeTab, setActiveTab] = useState<TabId>(initialTab)
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
@@ -136,7 +138,6 @@ export default function CourseEditor({
     }
   }
 
-
   const handleReorderLessons = async (
     moduleId: string,
     orderedIds: string[],
@@ -154,6 +155,16 @@ export default function CourseEditor({
       await updateCourse.mutateAsync({
         courseId: course.id,
         body: {
+          ...(edits.title !== undefined ? { title: edits.title } : {}),
+          ...(edits.description !== undefined
+            ? { description: edits.description }
+            : {}),
+          ...(edits.instructor_name !== undefined
+            ? { instructor_name: edits.instructor_name }
+            : {}),
+          ...(edits.instructor_bio !== undefined
+            ? { instructor_bio: edits.instructor_bio }
+            : {}),
           paywall_enabled: edits.paywall_enabled,
           paywall_position: edits.paywall_position,
           thumbnail_object_position: edits.thumbnail_object_position,
@@ -165,7 +176,6 @@ export default function CourseEditor({
       toast({ title: 'Failed to save settings' })
     }
   }
-
 
   const handleSaveLesson = async (edits: LessonEdits) => {
     if (!selectedLessonInfo) return
@@ -321,6 +331,14 @@ export default function CourseEditor({
     }
   } else if (activeTab === 'customize') {
     mainContent = <CustomizeTab course={course} organization={organization} />
+  } else if (activeTab === 'settings') {
+    mainContent = (
+      <SettingsTab
+        course={course}
+        onSave={handleSaveSettings}
+        isSaving={updateCourse.isPending}
+      />
+    )
   } else if (activeTab === 'pricing') {
     mainContent = (
       <PricingTab

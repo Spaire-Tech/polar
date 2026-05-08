@@ -8,17 +8,19 @@
 // affordances. So the same component tree is used for both modes.
 
 import type { LandingMedia } from '@/hooks/queries/courses'
-import { toast } from '../../Toast/use-toast'
-import { useEditor } from './EditorContext'
 import {
   forwardRef,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type CSSProperties,
   type ElementType,
   type ReactNode,
 } from 'react'
+import { createPortal } from 'react-dom'
+import { toast } from '../../Toast/use-toast'
+import { useEditor } from './EditorContext'
 
 // ── EditText ────────────────────────────────────────────────────────────────
 
@@ -161,6 +163,58 @@ export const EditMedia = forwardRef<
   const [busy, setBusy] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const replaceBtnRef = useRef<HTMLButtonElement>(null)
+  const [popoverPos, setPopoverPos] = useState<{
+    top: number
+    left: number
+  } | null>(null)
+
+  // Recompute the popover position (anchored to the Replace button) whenever
+  // it opens or the layout shifts. Using a portal + position:fixed lets the
+  // popover escape clipped ancestors (e.g. the rounded section thumb).
+  useLayoutEffect(() => {
+    if (!popoverOpen) return
+    const measure = () => {
+      const r = replaceBtnRef.current?.getBoundingClientRect()
+      if (!r) return
+      const POP_W = 240
+      const margin = 8
+      const left = Math.max(
+        margin,
+        Math.min(r.right - POP_W, window.innerWidth - POP_W - margin),
+      )
+      setPopoverPos({ top: r.bottom + 8, left })
+    }
+    measure()
+    window.addEventListener('scroll', measure, true)
+    window.addEventListener('resize', measure)
+    return () => {
+      window.removeEventListener('scroll', measure, true)
+      window.removeEventListener('resize', measure)
+    }
+  }, [popoverOpen])
+
+  // Close on outside click / Escape.
+  useEffect(() => {
+    if (!popoverOpen) return
+    const onDown = (e: MouseEvent) => {
+      const target = e.target as Node | null
+      if (!target) return
+      if (replaceBtnRef.current?.contains(target)) return
+      const pop = document.querySelector(`[data-spaire-edit-media-pop="${id}"]`)
+      if (pop && pop.contains(target)) return
+      setPopoverOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setPopoverOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [popoverOpen, id])
 
   // Reset load-error state whenever the media URL changes so a successful
   // re-upload clears any prior failure banner.
@@ -187,7 +241,11 @@ export const EditMedia = forwardRef<
         return
       }
       // eslint-disable-next-line no-console
-      console.log('[EditMedia] upload ok', { id, url: next.url, kind: next.kind })
+      console.log('[EditMedia] upload ok', {
+        id,
+        url: next.url,
+        kind: next.kind,
+      })
       ed.setMedia(id, { ...next, name: f.name })
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
@@ -251,59 +309,67 @@ export const EditMedia = forwardRef<
           only visual at the base of the stack. */}
       {!m && placeholder}
       {/* Uploaded media — host can render its own */}
-      {m && (renderMedia ? renderMedia(m) : m.kind === 'image' ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={m.url}
-          alt=""
-          style={cover}
-          onLoad={() => {
-            // eslint-disable-next-line no-console
-            console.log('[EditMedia] image loaded', { id, url: m.url })
-          }}
-          onError={(e) => {
-            const img = e.currentTarget
-            // eslint-disable-next-line no-console
-            console.error('[EditMedia] image failed to load', {
-              id,
-              url: m.url,
-              naturalWidth: img.naturalWidth,
-              naturalHeight: img.naturalHeight,
-            })
-            setLoadError(
-              `Image blocked or unreachable. Open ${m.url} in a new tab to test.`,
-            )
-          }}
-        />
-      ) : (
-        <video
-          src={m.url}
-          autoPlay
-          muted
-          loop
-          playsInline
-          style={cover}
-          onLoadedData={() => {
-            // eslint-disable-next-line no-console
-            console.log('[EditMedia] video loaded', { id, url: m.url })
-          }}
-          onError={(e) => {
-            const v = e.currentTarget
-            // eslint-disable-next-line no-console
-            console.error('[EditMedia] video failed to load', {
-              id,
-              url: m.url,
-              code: v.error?.code,
-              message: v.error?.message,
-              networkState: v.networkState,
-              readyState: v.readyState,
-            })
-            setLoadError(
-              `Video blocked or unreachable (code ${v.error?.code ?? '?'}).`,
-            )
-          }}
-        />
-      ))}
+      {m &&
+        (renderMedia ? (
+          renderMedia(m)
+        ) : m.kind === 'image' ? (
+          // Keying on the URL forces React to remount the <img> when the
+          // media URL changes (e.g. after a Replace), bypassing browser
+          // image caching that would otherwise show the previous frame.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={m.url}
+            src={m.url}
+            alt=""
+            style={cover}
+            onLoad={() => {
+              // eslint-disable-next-line no-console
+              console.log('[EditMedia] image loaded', { id, url: m.url })
+            }}
+            onError={(e) => {
+              const img = e.currentTarget
+              // eslint-disable-next-line no-console
+              console.error('[EditMedia] image failed to load', {
+                id,
+                url: m.url,
+                naturalWidth: img.naturalWidth,
+                naturalHeight: img.naturalHeight,
+              })
+              setLoadError(
+                `Image blocked or unreachable. Open ${m.url} in a new tab to test.`,
+              )
+            }}
+          />
+        ) : (
+          <video
+            key={m.url}
+            src={m.url}
+            autoPlay
+            muted
+            loop
+            playsInline
+            style={cover}
+            onLoadedData={() => {
+              // eslint-disable-next-line no-console
+              console.log('[EditMedia] video loaded', { id, url: m.url })
+            }}
+            onError={(e) => {
+              const v = e.currentTarget
+              // eslint-disable-next-line no-console
+              console.error('[EditMedia] video failed to load', {
+                id,
+                url: m.url,
+                code: v.error?.code,
+                message: v.error?.message,
+                networkState: v.networkState,
+                readyState: v.readyState,
+              })
+              setLoadError(
+                `Video blocked or unreachable (code ${v.error?.code ?? '?'}).`,
+              )
+            }}
+          />
+        ))}
       {loadError && ed.mode === 'edit' && (
         <div
           style={{
@@ -377,6 +443,7 @@ export const EditMedia = forwardRef<
               }}
             >
               <button
+                ref={replaceBtnRef}
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation()
@@ -401,73 +468,78 @@ export const EditMedia = forwardRef<
               )}
             </div>
           )}
-          {popoverOpen && (
-            <div
-              style={{
-                position: 'absolute',
-                right: 12,
-                top: 52,
-                zIndex: 7,
-                width: 240,
-                background: 'white',
-                color: '#111',
-                border: '1px solid rgba(0,0,0,0.08)',
-                borderRadius: 12,
-                padding: 10,
-                boxShadow:
-                  '0 16px 40px rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.08)',
-                fontFamily: 'Inter, system-ui, sans-serif',
-              }}
-            >
+          {popoverOpen &&
+            popoverPos &&
+            typeof document !== 'undefined' &&
+            createPortal(
               <div
+                data-spaire-edit-media-pop={id}
                 style={{
-                  fontSize: 12,
-                  fontWeight: 600,
-                  marginBottom: 6,
-                  padding: '0 4px',
+                  position: 'fixed',
+                  top: popoverPos.top,
+                  left: popoverPos.left,
+                  zIndex: 1000,
+                  width: 240,
+                  background: 'white',
+                  color: '#111',
+                  border: '1px solid rgba(0,0,0,0.08)',
+                  borderRadius: 12,
+                  padding: 10,
+                  boxShadow:
+                    '0 16px 40px rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.08)',
+                  fontFamily: 'Inter, system-ui, sans-serif',
                 }}
               >
-                Replace {label}
-              </div>
-              <button
-                type="button"
-                style={popoverBtn}
-                onClick={() => fileRef.current?.click()}
-              >
-                ⬆ Upload from device
-              </button>
-              <button type="button" style={popoverBtn} onClick={onPasteUrl}>
-                🔗 Paste URL
-              </button>
-              <button
-                type="button"
-                style={popoverBtn}
-                onClick={() => {
-                  ed.setMedia(id, null)
-                  setPopoverOpen(false)
-                }}
-              >
-                ↺ Use placeholder
-              </button>
-              {m?.name && (
                 <div
                   style={{
-                    fontSize: 11,
-                    color: '#666',
-                    marginTop: 6,
-                    padding: '6px 8px',
-                    background: '#f4f4f5',
-                    borderRadius: 6,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    marginBottom: 6,
+                    padding: '0 4px',
                   }}
                 >
-                  {m.name}
+                  Replace {label}
                 </div>
-              )}
-            </div>
-          )}
+                <button
+                  type="button"
+                  style={popoverBtn}
+                  onClick={() => fileRef.current?.click()}
+                >
+                  ⬆ Upload from device
+                </button>
+                <button type="button" style={popoverBtn} onClick={onPasteUrl}>
+                  🔗 Paste URL
+                </button>
+                <button
+                  type="button"
+                  style={popoverBtn}
+                  onClick={() => {
+                    ed.setMedia(id, null)
+                    setPopoverOpen(false)
+                  }}
+                >
+                  ↺ Use placeholder
+                </button>
+                {m?.name && (
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: '#666',
+                      marginTop: 6,
+                      padding: '6px 8px',
+                      background: '#f4f4f5',
+                      borderRadius: 6,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {m.name}
+                  </div>
+                )}
+              </div>,
+              document.body,
+            )}
         </>
       )}
     </div>

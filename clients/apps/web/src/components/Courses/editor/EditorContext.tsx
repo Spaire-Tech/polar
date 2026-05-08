@@ -12,7 +12,11 @@
 // The shape mirrors landing_overrides on the course; persisting is the host's
 // responsibility — it subscribes via onChange.
 
-import type { LandingMedia, LandingOverrides, LandingTheme } from '@/hooks/queries/courses'
+import type {
+  LandingMedia,
+  LandingOverrides,
+  LandingTheme,
+} from '@/hooks/queries/courses'
 import {
   createContext,
   useCallback,
@@ -164,6 +168,7 @@ export const DEFAULT_THEME: LandingTheme = {
 
 export const SECTION_ORDER_DEFAULT = [
   'hero',
+  'sections',
   'value',
   'trailer',
   'curriculum',
@@ -189,6 +194,7 @@ export const DEFAULT_OVERRIDES: ResolvedOverrides = {
     value: true,
     trailer: true,
     curriculum: true,
+    sections: true,
     lessons: true,
     instructor: true,
     reviews: true,
@@ -201,9 +207,11 @@ export const DEFAULT_OVERRIDES: ResolvedOverrides = {
 export function mergeOverrides(
   ov: LandingOverrides | null | undefined,
 ): ResolvedOverrides {
-  // Sanitize the saved order: keep only known section ids, drop dupes,
-  // append any missing ones at the end so old data still renders the new
-  // sections we add later.
+  // Sanitize the saved order: keep only known section ids, drop dupes, and
+  // splice any missing ones into the slot they occupy in SECTION_ORDER_DEFAULT
+  // (rather than dumping them at the end). That way new sections we add later
+  // — like `sections`, which sits right after `hero` — show up in the right
+  // position for users with an existing saved order.
   const knownIds = new Set<string>(SECTION_ORDER_DEFAULT)
   const seen = new Set<string>()
   const cleaned: string[] = []
@@ -213,8 +221,21 @@ export function mergeOverrides(
       seen.add(id)
     }
   }
-  for (const id of SECTION_ORDER_DEFAULT) {
-    if (!seen.has(id)) cleaned.push(id)
+  for (let i = 0; i < SECTION_ORDER_DEFAULT.length; i++) {
+    const id = SECTION_ORDER_DEFAULT[i]
+    if (seen.has(id)) continue
+    // Find the nearest preceding default id that is already in `cleaned`,
+    // and insert this id right after it. If none, prepend.
+    let insertAt = 0
+    for (let j = i - 1; j >= 0; j--) {
+      const idx = cleaned.indexOf(SECTION_ORDER_DEFAULT[j])
+      if (idx !== -1) {
+        insertAt = idx + 1
+        break
+      }
+    }
+    cleaned.splice(insertAt, 0, id)
+    seen.add(id)
   }
   return {
     text: { ...DEFAULT_OVERRIDES.text, ...(ov?.text ?? {}) },
@@ -289,8 +310,8 @@ export function EditorProvider({
 
   // Stable seed: only re-seed when course changes (we don't want to clobber
   // local edits because of an unrelated re-render).
-  const [overrides, setOverridesState] = useState<ResolvedOverrides>(
-    () => mergeOverrides(initialOverrides),
+  const [overrides, setOverridesState] = useState<ResolvedOverrides>(() =>
+    mergeOverrides(initialOverrides),
   )
 
   // Re-seed when host swaps in a new initial blob (e.g. course refresh after
@@ -495,7 +516,11 @@ export function EditorProvider({
 
   // device class for responsive overrides
   useEffect(() => {
-    document.body.classList.remove('spaire-device-desktop', 'spaire-device-tablet', 'spaire-device-mobile')
+    document.body.classList.remove(
+      'spaire-device-desktop',
+      'spaire-device-tablet',
+      'spaire-device-mobile',
+    )
     document.body.classList.add(`spaire-device-${device}`)
     return () => {
       document.body.classList.remove(`spaire-device-${device}`)
@@ -550,5 +575,7 @@ export function EditorProvider({
     ],
   )
 
-  return <EditorContext.Provider value={value}>{children}</EditorContext.Provider>
+  return (
+    <EditorContext.Provider value={value}>{children}</EditorContext.Provider>
+  )
 }

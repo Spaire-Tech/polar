@@ -5,11 +5,17 @@ import AddOutlined from '@mui/icons-material/AddOutlined'
 import ChevronLeftOutlined from '@mui/icons-material/ChevronLeftOutlined'
 import { cn } from '@spaire/ui/lib/utils'
 
-export type TabId = 'outline' | 'customize' | 'pricing' | 'customers'
+export type TabId =
+  | 'outline'
+  | 'customize'
+  | 'settings'
+  | 'pricing'
+  | 'customers'
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'outline', label: 'Outline' },
   { id: 'customize', label: 'Customize' },
+  { id: 'settings', label: 'Settings' },
   { id: 'pricing', label: 'Pricing' },
   { id: 'customers', label: 'Customers' },
 ]

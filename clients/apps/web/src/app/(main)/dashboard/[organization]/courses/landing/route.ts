@@ -35,6 +35,13 @@ Curriculum label: "CURRICULUM"
 Curriculum heading: "Six chapters, built to compound." (≤ 6 words, ends with period)
 Curriculum subheading: "Every chapter assumes the last. Watch in order or skip ahead — the lessons unlock the moment you enroll."
 
+SECTIONS MODULE — IMPORTANT
+The landing has a dedicated "sections module" rendered as a zigzag roadmap (alternating cards above/below a dotted spine). Each card shows a section number, the section title, and a replaceable image. There is one card per actual course module — the count of "sections" you generate MUST match "Total modules" in the input.
+Sections label (eyebrow): "The course" (or a 1-3 word equivalent)
+Sections heading: "Six sections, in order" (use the ACTUAL module count spelled out, e.g. "Four sections, in order"; ≤ 6 words; ends WITHOUT a period for this one)
+Sections subheading: "Each section builds on the last — from the underlying mechanics of persuasion to writing under pressure." (one sentence, ≤ 160 chars)
+Sections array: one entry per module, each with a "title" (2-6 words, editorial — NOT generic like "Section 1"). Each title should re-state what that module is about in the brand voice. Order matches the input module order.
+
 Lessons label: "EVERY LESSON"
 Lessons heading: "The full arc." (1-3 words, ends with period)
 Lessons subheading (paywall on): "The first three lessons are free to preview. Enroll to unlock the remaining nineteen."
@@ -49,6 +56,13 @@ Reviews (2-3 testimonials; "name" first + last, "role" 2-4 words, "text" 200-380
 - "Marisol Quan" / "Communications lead" / "I came in skeptical and left rewriting an email I'd been avoiding for three weeks. Sent it. Got the reply I wanted. Lesson one alone paid for the course."
 - "Theo Vance" / "Founder, early-stage" / "The 'three-beat' framing has quietly reorganized how I plan every memo, fundraising email, and difficult Slack message. The concession lesson is worth the whole class."
 
+PAYWALL / UNLOCK-LESSONS CARD — Apple liquid-glass card on the landing.
+- "paywall_eyebrow": 1-3 words, uppercase. Default "MEMBERS ONLY".
+- "paywall_title": 6-12 words. Reference the locked lesson count if paywall is on (the UI will substitute the real number — generate a sentence like "More lessons, unlocked when you enroll" or restate it editorially in your voice). Should END without a period.
+- "paywall_subtitle": one sentence ≤ 100 chars. Names the value of enrolling (e.g. "Lifetime access. Workshops with feedback. Certificate. 30-day refund.").
+- "paywall_price_sub": tiny line under the price. ≤ 30 chars. e.g. "one-time · lifetime access" or "or 9/mo · lifetime access". NEVER include a price number here.
+- "paywall_cta": button label. 1-2 words. Default "Enroll now".
+
 Final CTA label: "READY WHEN YOU ARE" (≤ 3 words, uppercase)
 Final CTA title (≤ 70 chars total, end with a period; you may use a single \\n for a line break):
 - paywall on: "Start free.\\nContinue when you're ready."
@@ -58,6 +72,7 @@ Final CTA subtitle (one sentence ≤ 140 chars):
 - paywall off: "Every lesson is open. No checkout, no signup wall."
 Final CTA primary button label: "Enroll" (paywall on) or "Start watching" (paywall off). 1-2 words.
 Final CTA secondary button label: "Watch trailer" or "Preview free". 1-2 words.
+Final CTA guarantee strip: array of 4 tiny pills shown under the CTA buttons. Each item is 1-3 words. Defaults: ["30-day refund", "Lifetime access", "Any device", "Certificate"]. For free courses use ["Open access", "Any device", "No card", "Certificate"].
 
 CONSTRAINTS PER FIELD
 - "eyebrow": 1-3 words, uppercase. Default "SPAIRE ORIGINAL" unless the brand voice demands something different.
@@ -70,6 +85,8 @@ CONSTRAINTS PER FIELD
 - "instructor_pull_quote": one sentence, ≤ 180 chars. Sounds like the instructor's actual voice, grounded in their bio.
 - "reviews": 2-3 items. Names should be plausible and varied. Roles match the course's likely audience.
 - "final_cta_title": may include a \\n for a line break. ≤ 70 chars total.
+- "sections": array length MUST equal the input "Total modules". Every entry's "title" rewrites that module's title in the brand voice (do NOT echo the user's raw module titles verbatim; tighten and editorialize).
+- "final_cta_guarantees": array of exactly 4 short strings (1-3 words each).
 
 PAYWALL AWARENESS
 - If paywall is enabled, you may reference free preview lessons, "enroll to unlock", and frame the final CTA around a free start. Never name a price.
@@ -93,6 +110,7 @@ export async function POST(req: Request) {
     instructorName,
     instructorBio,
     moduleCount,
+    moduleTitles,
     lessonCount,
     paywallEnabled,
     freePreviewLessons,
@@ -110,6 +128,11 @@ export async function POST(req: Request) {
     instructorName ? `Instructor name: ${instructorName}` : null,
     instructorBio ? `Instructor bio: ${instructorBio}` : null,
     typeof moduleCount === 'number' ? `Total modules: ${moduleCount}` : null,
+    Array.isArray(moduleTitles) && moduleTitles.length > 0
+      ? `Module titles (in order, one per line — rewrite each editorially in your voice for the "sections" array):\n${moduleTitles
+          .map((t: string, i: number) => `  ${i + 1}. ${t}`)
+          .join('\n')}`
+      : null,
     typeof lessonCount === 'number' ? `Total lessons: ${lessonCount}` : null,
     typeof paywallEnabled === 'boolean'
       ? `Paywall enabled: ${paywallEnabled ? 'yes — first lessons preview free, rest unlocks on purchase' : 'no — this course is fully free'}`

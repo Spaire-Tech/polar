@@ -4,19 +4,19 @@
 // course landing data and renders the v2 landing view in preview mode. For
 // non-course products falls back to the regular ProductDetailPage.
 
-import type {
-  CourseLandingPageData,
-  CourseLessonRead,
-  CourseRead,
-} from '@/hooks/queries/courses'
-import { schemas } from '@spaire/client'
-import { useEffect, useState } from 'react'
 import { EditableCourseLandingView } from '@/components/Courses/editor/EditableCourseLandingView'
 import {
   EditorProvider,
   mergeOverrides,
 } from '@/components/Courses/editor/EditorContext'
-import type { LandingMedia } from '@/hooks/queries/courses'
+import type {
+  CourseLandingPageData,
+  CourseLessonRead,
+  CourseRead,
+  LandingMedia,
+} from '@/hooks/queries/courses'
+import { schemas } from '@spaire/client'
+import { useEffect, useState } from 'react'
 import { ProductDetailPage } from './ProductDetailPage'
 
 export function ProductLandingPage({
@@ -139,7 +139,22 @@ function CourseLandingShell({
     landing_overrides:
       (landing as { landing_overrides?: CourseRead['landing_overrides'] })
         .landing_overrides ?? null,
-    modules: [],
+    // Public modules carry id + title + position only — that's all the
+    // Sections roadmap needs. Lessons are intentionally empty here because
+    // the public page reads them from `flatLessons` instead.
+    modules: (landing.modules ?? []).map((m) => ({
+      id: m.id,
+      course_id: landing.id,
+      title: m.title,
+      description: m.description ?? null,
+      position: m.position,
+      status: 'published',
+      release_at: null,
+      drip_days: null,
+      lessons: [],
+      created_at: '',
+      modified_at: null,
+    })),
     created_at: '',
     modified_at: null,
   }

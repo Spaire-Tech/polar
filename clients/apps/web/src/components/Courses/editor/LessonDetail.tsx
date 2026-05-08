@@ -92,6 +92,29 @@ export function LessonDetail({
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(
     lesson.thumbnail_url ?? null,
   )
+  // Local object URL for the just-uploaded video file. Mux takes ~30s to
+  // transcode and surface a `mux_playback_id`; until then we render the raw
+  // file via a <video src=blob:…> so the creator sees what they uploaded
+  // instead of an empty processing card.
+  const [localVideoUrl, setLocalVideoUrl] = useState<string | null>(null)
+  useEffect(
+    () => () => {
+      if (localVideoUrl) URL.revokeObjectURL(localVideoUrl)
+    },
+    [localVideoUrl],
+  )
+  // Once Mux finishes processing, drop the local preview so the HLS player
+  // takes over.
+  useEffect(() => {
+    if (
+      lesson.mux_playback_id &&
+      lesson.mux_status === 'ready' &&
+      localVideoUrl
+    ) {
+      URL.revokeObjectURL(localVideoUrl)
+      setLocalVideoUrl(null)
+    }
+  }, [lesson.mux_playback_id, lesson.mux_status, localVideoUrl])
   const attachmentInputRef = useRef<HTMLInputElement>(null)
   const initialAttachments =
     (lesson.content?.attachments as LessonAttachment[] | undefined) ?? []
@@ -192,6 +215,10 @@ export function LessonDetail({
   ) => {
     const file = e.target.files?.[0]
     if (!file) return
+    // Show the file immediately via an object URL so the editor doesn't
+    // look empty while Mux transcodes. Revoked once Mux is ready.
+    if (localVideoUrl) URL.revokeObjectURL(localVideoUrl)
+    setLocalVideoUrl(URL.createObjectURL(file))
     try {
       const { upload_url } = await createMuxUpload.mutateAsync(lesson.id)
       await new Promise<void>((resolve, reject) => {
@@ -260,229 +287,268 @@ export function LessonDetail({
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Main column — centered 560px max */}
+        {/* Main column — centered, generous reading width */}
         <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto flex w-full max-w-[640px] flex-col gap-2.5 px-6 pt-6 pb-20">
-          <Card>
-            <CardHeader title="Lesson Details" />
+          <div className="mx-auto flex w-full max-w-[820px] flex-col gap-2.5 px-6 pt-6 pb-20">
+            <Card>
+              <CardHeader title="Lesson Details" />
 
-            <Field label="Title">
-              <input
-                type="text"
-                required
-                value={edits.title}
-                onChange={(e) => update('title', e.target.value)}
-                aria-invalid={titleError}
-                className={cn(
-                  'w-full rounded-xl border px-3.5 py-2.5 text-sm text-gray-900 focus:ring-2 focus:ring-gray-100 focus:outline-none',
-                  titleError
-                    ? 'border-red-400 focus:border-red-500'
-                    : 'border-gray-300 focus:border-gray-900',
-                )}
-              />
-              {titleError && (
-                <p className="mt-1 text-xs text-red-500">
-                  Title is required.
-                </p>
-              )}
-            </Field>
-
-            <Field label="Description">
-              <textarea
-                value={edits.description}
-                onChange={(e) => update('description', e.target.value)}
-                placeholder="Brief overview of this lesson (optional)"
-                className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:border-gray-900 focus:ring-2 focus:ring-gray-100 focus:outline-none"
-                rows={3}
-              />
-            </Field>
-
-            <div className="mb-5">
-              <h3 className="mb-2 text-base font-bold text-gray-900">Media</h3>
-              <div className="grid grid-cols-2 gap-3">
-                {(['none', 'video'] as const).map((m) => {
-                  const active = edits.media === m
-                  const label = m[0].toUpperCase() + m.slice(1)
-                  const Icon = m === 'video' ? OndemandVideoOutlined : null
-                  return (
-                    <button
-                      key={m}
-                      onClick={() => update('media', m)}
-                      className={cn(
-                        'flex items-center justify-center gap-2 rounded-2xl border-2 py-4 text-sm font-medium transition-colors',
-                        active
-                          ? 'border-gray-900 bg-white text-gray-900'
-                          : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300',
-                      )}
-                    >
-                      {Icon && <Icon fontSize="small" />}
-                      {label}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            {edits.media === 'video' && (
-              <div className="mb-5">
-                <label className="mb-2 block text-sm font-bold text-gray-900">
-                  Video
-                </label>
+              <Field label="Title">
                 <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="video/*"
-                  className="hidden"
-                  onChange={handleVideoFileChange}
+                  type="text"
+                  required
+                  value={edits.title}
+                  onChange={(e) => update('title', e.target.value)}
+                  aria-invalid={titleError}
+                  className={cn(
+                    'w-full rounded-xl border px-3.5 py-2.5 text-sm text-gray-900 focus:ring-2 focus:ring-gray-100 focus:outline-none',
+                    titleError
+                      ? 'border-red-400 focus:border-red-500'
+                      : 'border-gray-300 focus:border-gray-900',
+                  )}
                 />
-                {lesson.mux_playback_id && lesson.mux_status === 'ready' ? (
-                  <div className="flex flex-col gap-3">
-                    <div className="aspect-video overflow-hidden rounded-xl bg-black">
-                      <HlsVideo playbackId={lesson.mux_playback_id} />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="w-fit rounded-full border border-gray-300 px-4 py-2 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
-                    >
-                      Replace video
-                    </button>
-                  </div>
-                ) : lesson.mux_status && lesson.mux_status !== 'errored' ? (
-                  <div className="flex items-center gap-3 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-700">
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
-                    {uploadProgress !== null
-                      ? `Uploading… ${uploadProgress}%`
-                      : 'Processing video…'}
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-3">
-                    {lesson.mux_status === 'errored' && (
-                      <p className="text-xs text-red-600">
-                        Upload failed — try again.
-                      </p>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={
-                        createMuxUpload.isPending || uploadProgress !== null
-                      }
-                      className="flex items-center gap-2 rounded-xl border-2 border-dashed border-gray-300 px-6 py-8 text-sm font-medium text-gray-500 transition-colors hover:border-gray-400 hover:text-gray-700 disabled:opacity-50"
-                    >
-                      <OndemandVideoOutlined fontSize="small" />
-                      {uploadProgress !== null
-                        ? `Uploading… ${uploadProgress}%`
-                        : createMuxUpload.isPending
-                          ? 'Preparing…'
-                          : 'Upload video file'}
-                    </button>
-                    <p className="text-xs text-gray-400">
-                      MP4, MOV, or WebM. Mux will transcode and deliver via HLS.
-                    </p>
-                  </div>
+                {titleError && (
+                  <p className="mt-1 text-xs text-red-500">
+                    Title is required.
+                  </p>
                 )}
+              </Field>
+
+              <Field label="Description">
+                <textarea
+                  value={edits.description}
+                  onChange={(e) => update('description', e.target.value)}
+                  placeholder="Brief overview of this lesson (optional)"
+                  className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:border-gray-900 focus:ring-2 focus:ring-gray-100 focus:outline-none"
+                  rows={3}
+                />
+              </Field>
+
+              <div className="mb-5">
+                <h3 className="mb-2 text-base font-bold text-gray-900">
+                  Media
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {(['none', 'video'] as const).map((m) => {
+                    const active = edits.media === m
+                    const label = m[0].toUpperCase() + m.slice(1)
+                    const Icon = m === 'video' ? OndemandVideoOutlined : null
+                    return (
+                      <button
+                        key={m}
+                        onClick={() => update('media', m)}
+                        className={cn(
+                          'flex items-center justify-center gap-2 rounded-2xl border-2 py-4 text-sm font-medium transition-colors',
+                          active
+                            ? 'border-gray-900 bg-white text-gray-900'
+                            : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300',
+                        )}
+                      >
+                        {Icon && <Icon fontSize="small" />}
+                        {label}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
-            )}
 
-            <RichTextEditor
-              value={edits.textContent}
-              onChange={(md) => update('textContent', md)}
-              isGenerating={isGenerating}
-              onGenerate={
-                onGenerateAI && edits.media === 'none'
-                  ? handleGenerate
-                  : undefined
-              }
-              onStop={onStopAI}
-            />
-
-            <div className="mt-6">
-              <h3 className="mb-1 text-base font-bold text-gray-900">
-                Attachments
-              </h3>
-              <p className="mb-3 text-xs text-gray-500">
-                Files attached to this lesson — shown to students alongside the
-                lesson content.
-              </p>
-              <input
-                ref={attachmentInputRef}
-                type="file"
-                className="hidden"
-                onChange={handleAttachmentFileChange}
-              />
-              {attachments.length > 0 && (
-                <div className="mb-3 flex flex-col gap-2">
-                  {attachments.map((a) => (
-                    <div
-                      key={a.id}
-                      className="flex items-center gap-3 rounded-xl border border-gray-200 px-3 py-2.5"
-                    >
-                      <AttachFileOutlined
-                        sx={{ fontSize: 16 }}
-                        className="text-gray-400"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <a
-                          href={a.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="block truncate text-sm font-medium text-gray-900 hover:underline"
-                        >
-                          {a.filename}
-                        </a>
-                        <p className="text-xs text-gray-400">
-                          {formatBytes(a.size)}
-                        </p>
+              {edits.media === 'video' && (
+                <div className="mb-5">
+                  <label className="mb-2 block text-sm font-bold text-gray-900">
+                    Video
+                  </label>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="video/*"
+                    className="hidden"
+                    onChange={handleVideoFileChange}
+                  />
+                  {lesson.mux_playback_id && lesson.mux_status === 'ready' ? (
+                    <div className="flex flex-col gap-3">
+                      <div className="aspect-video overflow-hidden rounded-xl bg-black">
+                        <HlsVideo playbackId={lesson.mux_playback_id} />
                       </div>
                       <button
                         type="button"
-                        onClick={() => handleAttachmentDelete(a.id)}
-                        disabled={deleteAttachment.isPending}
-                        className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-300 transition-colors hover:bg-red-50 hover:text-red-500 disabled:opacity-50"
-                        title="Remove file"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-fit rounded-full border border-gray-300 px-4 py-2 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
                       >
-                        <DeleteOutlineOutlined sx={{ fontSize: 14 }} />
+                        Replace video
                       </button>
                     </div>
-                  ))}
+                  ) : localVideoUrl ? (
+                    <div className="flex flex-col gap-3">
+                      <div className="aspect-video overflow-hidden rounded-xl bg-black">
+                        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+                        <video
+                          src={localVideoUrl}
+                          controls
+                          playsInline
+                          className="h-full w-full"
+                        />
+                      </div>
+                      {lesson.mux_status &&
+                      lesson.mux_status !== 'ready' &&
+                      lesson.mux_status !== 'errored' ? (
+                        <div className="flex items-center gap-2 text-xs text-indigo-700">
+                          <div className="h-3 w-3 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
+                          {uploadProgress !== null
+                            ? `Uploading… ${uploadProgress}%`
+                            : 'Mux is processing — playback will switch to HLS once ready.'}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-400">
+                          Local preview — Mux will take over once processing
+                          finishes.
+                        </p>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-fit rounded-full border border-gray-300 px-4 py-2 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                      >
+                        Replace video
+                      </button>
+                    </div>
+                  ) : lesson.mux_status && lesson.mux_status !== 'errored' ? (
+                    <div className="flex items-center gap-3 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-700">
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
+                      {uploadProgress !== null
+                        ? `Uploading… ${uploadProgress}%`
+                        : 'Processing video…'}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-3">
+                      {lesson.mux_status === 'errored' && (
+                        <p className="text-xs text-red-600">
+                          Upload failed — try again.
+                        </p>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={
+                          createMuxUpload.isPending || uploadProgress !== null
+                        }
+                        className="flex items-center gap-2 rounded-xl border-2 border-dashed border-gray-300 px-6 py-8 text-sm font-medium text-gray-500 transition-colors hover:border-gray-400 hover:text-gray-700 disabled:opacity-50"
+                      >
+                        <OndemandVideoOutlined fontSize="small" />
+                        {uploadProgress !== null
+                          ? `Uploading… ${uploadProgress}%`
+                          : createMuxUpload.isPending
+                            ? 'Preparing…'
+                            : 'Upload video file'}
+                      </button>
+                      <p className="text-xs text-gray-400">
+                        MP4, MOV, or WebM. Mux will transcode and deliver via
+                        HLS.
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
-              <button
-                type="button"
-                onClick={() => attachmentInputRef.current?.click()}
-                disabled={uploadAttachment.isPending}
-                className="flex items-center gap-1.5 rounded-full border border-gray-300 px-3.5 py-2 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
-              >
-                <AddOutlined sx={{ fontSize: 16 }} />
-                {uploadAttachment.isPending ? 'Uploading…' : 'Add Files'}
-              </button>
-            </div>
-          </Card>
 
-          <Card>
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-gray-900">Automations</h3>
-              <button className="flex items-center gap-1.5 rounded-full bg-gray-900 px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:bg-gray-800">
-                <AddOutlined sx={{ fontSize: 16 }} />
-                New automation
-              </button>
-            </div>
-            <p className="mt-4 text-sm text-gray-500">
-              Automations using this{' '}
-              <span className="font-semibold text-gray-900">{edits.title}</span>{' '}
-              will appear here.
-            </p>
-            <p className="mt-12 text-center text-sm text-gray-400">
-              This resource is not used as a trigger or action within any
-              workflow.
-            </p>
-          </Card>
-        </div>
+              <RichTextEditor
+                value={edits.textContent}
+                onChange={(md) => update('textContent', md)}
+                isGenerating={isGenerating}
+                onGenerate={
+                  onGenerateAI && edits.media === 'none'
+                    ? handleGenerate
+                    : undefined
+                }
+                onStop={onStopAI}
+              />
+
+              <div className="mt-6">
+                <h3 className="mb-1 text-base font-bold text-gray-900">
+                  Attachments
+                </h3>
+                <p className="mb-3 text-xs text-gray-500">
+                  Files attached to this lesson — shown to students alongside
+                  the lesson content.
+                </p>
+                <input
+                  ref={attachmentInputRef}
+                  type="file"
+                  className="hidden"
+                  onChange={handleAttachmentFileChange}
+                />
+                {attachments.length > 0 && (
+                  <div className="mb-3 flex flex-col gap-2">
+                    {attachments.map((a) => (
+                      <div
+                        key={a.id}
+                        className="flex items-center gap-3 rounded-xl border border-gray-200 px-3 py-2.5"
+                      >
+                        <AttachFileOutlined
+                          sx={{ fontSize: 16 }}
+                          className="text-gray-400"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <a
+                            href={a.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block truncate text-sm font-medium text-gray-900 hover:underline"
+                          >
+                            {a.filename}
+                          </a>
+                          <p className="text-xs text-gray-400">
+                            {formatBytes(a.size)}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleAttachmentDelete(a.id)}
+                          disabled={deleteAttachment.isPending}
+                          className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-300 transition-colors hover:bg-red-50 hover:text-red-500 disabled:opacity-50"
+                          title="Remove file"
+                        >
+                          <DeleteOutlineOutlined sx={{ fontSize: 14 }} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => attachmentInputRef.current?.click()}
+                  disabled={uploadAttachment.isPending}
+                  className="flex items-center gap-1.5 rounded-full border border-gray-300 px-3.5 py-2 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
+                >
+                  <AddOutlined sx={{ fontSize: 16 }} />
+                  {uploadAttachment.isPending ? 'Uploading…' : 'Add Files'}
+                </button>
+              </div>
+            </Card>
+
+            <Card>
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold text-gray-900">Automations</h3>
+                <button className="flex items-center gap-1.5 rounded-full bg-gray-900 px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:bg-gray-800">
+                  <AddOutlined sx={{ fontSize: 16 }} />
+                  New automation
+                </button>
+              </div>
+              <p className="mt-4 text-sm text-gray-500">
+                Automations using this{' '}
+                <span className="font-semibold text-gray-900">
+                  {edits.title}
+                </span>{' '}
+                will appear here.
+              </p>
+              <p className="mt-12 text-center text-sm text-gray-400">
+                This resource is not used as a trigger or action within any
+                workflow.
+              </p>
+            </Card>
+          </div>
         </div>
 
-        {/* Right sidebar — flush right, fixed 240px */}
-        <div className="flex w-60 flex-shrink-0 flex-col gap-6 overflow-y-auto border-l border-gray-200 bg-white px-4 pt-4 pb-10">
+        {/* Right sidebar — flush right */}
+        <div className="flex w-80 flex-shrink-0 flex-col gap-6 overflow-y-auto border-l border-gray-200 bg-white px-5 pt-4 pb-10">
           <SbSection label="Status">
             <div className="overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
               <StatusOpt
@@ -528,9 +594,7 @@ export function LessonDetail({
                 <ThumbnailPositioner
                   src={thumbnailUrl}
                   value={edits.thumbnailObjectPosition}
-                  onChange={(next) =>
-                    update('thumbnailObjectPosition', next)
-                  }
+                  onChange={(next) => update('thumbnailObjectPosition', next)}
                 />
                 <p className="text-xs text-gray-500">
                   Drag the image to reposition it inside the card.
@@ -613,7 +677,7 @@ function SbSection({
 }) {
   return (
     <div className="flex flex-col gap-2.5">
-      <div className="text-[11px] font-semibold uppercase tracking-[0.05em] text-gray-500">
+      <div className="text-[11px] font-semibold tracking-[0.05em] text-gray-500 uppercase">
         {label}
       </div>
       {children}
@@ -648,7 +712,9 @@ function StatusOpt({
           selected ? 'border-gray-900' : 'border-gray-400',
         )}
       >
-        {selected && <span className="h-[7px] w-[7px] rounded-full bg-gray-900" />}
+        {selected && (
+          <span className="h-[7px] w-[7px] rounded-full bg-gray-900" />
+        )}
       </span>
       <span className="flex-1 text-[12.5px] tracking-tight text-gray-900">
         {label}
@@ -685,7 +751,9 @@ function CommentOpt({
       >
         {selected && <span className="h-1.5 w-1.5 rounded-full bg-gray-900" />}
       </span>
-      <span className="text-[12.5px] tracking-tight text-gray-900">{label}</span>
+      <span className="text-[12.5px] tracking-tight text-gray-900">
+        {label}
+      </span>
     </div>
   )
 }
@@ -768,4 +836,3 @@ function Field({
     </div>
   )
 }
-
