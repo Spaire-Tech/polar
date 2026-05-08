@@ -181,33 +181,32 @@ export function SpaireOnboardingStyles() {
         position: relative;
         display: block;
         background: #ffffff;
-        border: 1px solid var(--so-gray2);
+        border: 1.5px solid var(--so-gray2);
         border-radius: 12px;
-        transition:
-          border-color 0.15s,
-          box-shadow 0.15s;
+        transition: border-color 0.15s;
       }
       .so-field:focus-within {
-        border-color: oklch(0.55 0.2 265);
-        box-shadow: 0 0 0 3px oklch(0.55 0.2 265 / 0.18);
+        border-color: oklch(0.62 0.21 265);
       }
       .so-input,
       .so-textarea {
         width: 100%;
         padding: 22px 16px 10px 16px;
         background: transparent;
-        border: none;
+        border: 0;
+        outline: 0;
+        box-shadow: none;
         border-radius: inherit;
         font-family: var(--font-poppins), system-ui, sans-serif;
         font-size: 16px;
         font-weight: 400;
         color: var(--so-black);
-        outline: none;
         -webkit-appearance: none;
       }
       .so-textarea {
         resize: none;
         line-height: 1.5;
+        display: block;
       }
       .so-input::placeholder,
       .so-textarea::placeholder {
@@ -305,14 +304,15 @@ export function SpaireOnboardingStyles() {
         color: var(--so-black);
       }
 
-      /* Intro */
+      /* Intro — fill the viewport (minus the fixed top bar) so the
+         headline sits in the optical center of the visible area. */
       .so-intro-stage {
-        flex: 1;
+        min-height: 100vh;
         display: flex;
         align-items: center;
         justify-content: center;
         background: var(--so-white);
-        padding: 80px 40px;
+        padding: 56px 40px 40px;
       }
       .so-intro-headline {
         font-family: var(--font-poppins), system-ui, sans-serif;
@@ -2140,53 +2140,59 @@ export function StepPricingWizard({
           grid-template-columns: 1fr 1fr;
           gap: 10px;
         }
+        /* Apple-style radio card: a single clean border (no halo / box-shadow),
+           a thin light gray-50 wash on the active card, and an indigo radio
+           dot inside an indigo ring. The border width stays constant so
+           toggling the active state doesn't shift layout. */
         .pf-choice {
           display: flex;
           flex-direction: row;
-          align-items: flex-start;
-          gap: 12px;
-          padding: 16px 18px;
+          align-items: center;
+          gap: 14px;
+          padding: 18px 20px;
           text-align: left;
           width: 100%;
           background: #fff;
-          border: 1px solid var(--hair);
+          border: 1.5px solid var(--hair);
           border-radius: 14px;
           cursor: pointer;
-          transition: all 0.15s;
+          transition:
+            border-color 0.15s,
+            background 0.15s;
           color: var(--ink);
         }
         .pf-choice:hover {
           border-color: var(--hair-strong);
         }
         .pf-choice.active {
-          background: var(--accent-soft);
-          border-color: var(--accent);
-          box-shadow: 0 0 0 3px var(--accent-ring);
+          background: oklch(0.975 0.002 280);
+          border-color: oklch(0.62 0.21 265);
         }
         .pf-choice-radio {
-          width: 18px;
-          height: 18px;
+          width: 20px;
+          height: 20px;
           border-radius: 50%;
           border: 1.5px solid var(--hair-strong);
           display: flex;
           align-items: center;
           justify-content: center;
           flex-shrink: 0;
-          margin-top: 2px;
+          margin-top: 1px;
+          background: #fff;
           transition: border-color 0.15s;
         }
         .pf-choice.active .pf-choice-radio {
-          border-color: var(--accent);
+          border-color: oklch(0.62 0.21 265);
         }
         .pf-choice-radio-dot {
-          width: 9px;
-          height: 9px;
+          width: 10px;
+          height: 10px;
           border-radius: 50%;
           background: transparent;
           transition: background 0.15s;
         }
         .pf-choice.active .pf-choice-radio-dot {
-          background: var(--accent);
+          background: oklch(0.62 0.21 265);
         }
         .pf-choice-body {
           display: flex;
@@ -2233,18 +2239,15 @@ export function StepPricingWizard({
         .pf-price-row {
           display: flex;
           align-items: center;
-          border: 1px solid var(--hair);
+          border: 1.5px solid var(--hair);
           border-radius: 12px;
           background: #fff;
           position: relative;
           overflow: visible;
-          transition:
-            border-color 0.15s,
-            box-shadow 0.15s;
+          transition: border-color 0.15s;
         }
         .pf-price-row:focus-within {
-          border-color: var(--accent);
-          box-shadow: 0 0 0 4px var(--accent-ring);
+          border-color: oklch(0.62 0.21 265);
         }
         .pf-price-sym {
           padding: 12px 0 12px 16px;
