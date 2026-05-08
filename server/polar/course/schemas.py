@@ -280,6 +280,20 @@ class CourseLandingPageRead(TimestampedSchema):
     has_access: bool = False
 
 
+class CourseEnrollmentCustomer(Schema):
+    id: UUID4
+    email: str | None = None
+    name: str | None = None
+    avatar_url: str | None = None
+
+
+class CourseEnrollmentRead(Schema):
+    id: UUID4
+    customer_id: UUID4
+    enrolled_at: datetime
+    customer: CourseEnrollmentCustomer | None = None
+
+
 class CourseNoteUpsert(Schema):
     content: str
 

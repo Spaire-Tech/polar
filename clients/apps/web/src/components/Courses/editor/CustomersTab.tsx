@@ -71,7 +71,8 @@ export function CustomersTab({
 }) {
   const { currentUser } = useAuth()
   const [query, setQuery] = useState('')
-  const { data: enrollments, isLoading } = useCourseEnrollments(courseId)
+  const { data: enrollmentsPage, isLoading } = useCourseEnrollments(courseId)
+  const enrollments = enrollmentsPage?.items
   const revoke = useRevokeCourseEnrollment(courseId)
 
   const adminRow: CustomerRow | null = currentUser

@@ -311,6 +311,22 @@ class CourseService:
         )
         return await repo.get_all(statement)
 
+    async def paginate_enrollments_for_course(
+        self,
+        session: AsyncSession,
+        course_id: UUID,
+        *,
+        limit: int,
+        page: int,
+    ) -> tuple[Sequence[CourseEnrollment], int]:
+        repo = CourseEnrollmentRepository.from_session(session)
+        statement = (
+            repo.get_base_statement()
+            .where(CourseEnrollment.course_id == course_id)
+            .order_by(CourseEnrollment.enrolled_at.desc())
+        )
+        return await repo.paginate(statement, limit=limit, page=page)
+
     async def get_enrollment_by_id(
         self,
         session: AsyncSession,

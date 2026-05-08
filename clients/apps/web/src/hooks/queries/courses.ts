@@ -409,15 +409,26 @@ export type CourseEnrollmentRead = {
   } | null
 }
 
-export const useCourseEnrollments = (courseId: string | undefined) =>
-  useQuery<CourseEnrollmentRead[]>({
-    queryKey: ['course-enrollments', courseId],
+type EnrollmentsListResource = {
+  items: CourseEnrollmentRead[]
+  pagination: { page: number; total_count: number }
+}
+
+export const useCourseEnrollments = (
+  courseId: string | undefined,
+  options?: { page?: number; limit?: number },
+) => {
+  const page = options?.page ?? 1
+  const limit = options?.limit ?? 50
+  return useQuery<EnrollmentsListResource>({
+    queryKey: ['course-enrollments', courseId, page, limit],
     queryFn: () =>
-      courseApiFetch<CourseEnrollmentRead[]>(
-        `/v1/courses/${courseId}/enrollments`,
+      courseApiFetch<EnrollmentsListResource>(
+        `/v1/courses/${courseId}/enrollments?page=${page}&limit=${limit}`,
       ),
     enabled: !!courseId,
   })
+}
 
 export const useRevokeCourseEnrollment = (courseId: string | undefined) =>
   useMutation({
