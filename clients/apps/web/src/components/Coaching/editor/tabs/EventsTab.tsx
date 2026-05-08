@@ -203,7 +203,26 @@ export function EventsTab({ course }: { course: CourseRead }) {
                   onUpdate={(patch) =>
                     updateEvent.mutate({ eventId: event.id, body: patch })
                   }
-                  onDelete={() => deleteEvent.mutate(event.id)}
+                  onCancel={() =>
+                    updateEvent.mutate({
+                      eventId: event.id,
+                      body: { status: 'cancelled' },
+                    })
+                  }
+                  onUncancel={() =>
+                    updateEvent.mutate({
+                      eventId: event.id,
+                      body: { status: 'scheduled' },
+                    })
+                  }
+                  onDelete={() => {
+                    if (
+                      confirm(
+                        'Delete this event permanently? Members lose access to its details and any uploaded recording. To preserve history, cancel instead.',
+                      )
+                    )
+                      deleteEvent.mutate(event.id)
+                  }}
                   onUploadRecording={(file) =>
                     handleUploadRecording(event.id, file, recordingUpload)
                   }
@@ -229,7 +248,26 @@ export function EventsTab({ course }: { course: CourseRead }) {
                   onUpdate={(patch) =>
                     updateEvent.mutate({ eventId: event.id, body: patch })
                   }
-                  onDelete={() => deleteEvent.mutate(event.id)}
+                  onCancel={() =>
+                    updateEvent.mutate({
+                      eventId: event.id,
+                      body: { status: 'cancelled' },
+                    })
+                  }
+                  onUncancel={() =>
+                    updateEvent.mutate({
+                      eventId: event.id,
+                      body: { status: 'scheduled' },
+                    })
+                  }
+                  onDelete={() => {
+                    if (
+                      confirm(
+                        'Delete this event permanently? Members lose access to its details and any uploaded recording. To preserve history, cancel instead.',
+                      )
+                    )
+                      deleteEvent.mutate(event.id)
+                  }}
                   onUploadRecording={(file) =>
                     handleUploadRecording(event.id, file, recordingUpload)
                   }
@@ -397,6 +435,8 @@ function EventRow({
   expanded,
   onToggle,
   onUpdate,
+  onCancel,
+  onUncancel,
   onDelete,
   onUploadRecording,
   openMenu,
@@ -407,6 +447,8 @@ function EventRow({
   expanded: boolean
   onToggle: () => void
   onUpdate: (patch: { meeting_url?: string | null; title?: string }) => void
+  onCancel: () => void
+  onUncancel: () => void
   onDelete: () => void
   onUploadRecording: (file: File) => void
   openMenu: string | null
@@ -414,7 +456,8 @@ function EventRow({
 }) {
   const dt = fmtDate(event.starts_at)
   const isPast = status === 'past'
-  const needsLink = !event.meeting_url
+  const isCancelled = event.status === 'cancelled'
+  const needsLink = !event.meeting_url && !isCancelled
   const hasRecording = !!event.recording_mux_playback_id
 
   const [linkDraft, setLinkDraft] = useState(event.meeting_url ?? '')
@@ -424,13 +467,23 @@ function EventRow({
       <div
         className={'ce-event-row' + (expanded ? ' expanded' : '')}
         onClick={onToggle}
+        style={isCancelled ? { opacity: 0.55 } : undefined}
       >
         <div className="ce-date-block">
           <div className="mon">{dt.mon}</div>
           <div className="day">{dt.day}</div>
         </div>
         <div>
-          <div className="ce-event-title">{event.title}</div>
+          <div
+            className="ce-event-title"
+            style={
+              isCancelled
+                ? { textDecoration: 'line-through', color: 'var(--ink-3)' }
+                : undefined
+            }
+          >
+            {event.title}
+          </div>
           <div className="ce-event-meta">
             <span>
               {dt.weekday} · {dt.time}
@@ -446,7 +499,8 @@ function EventRow({
           </div>
         </div>
         <div className="ce-row" style={{ gap: 8 }}>
-          {!isPast && needsLink && (
+          {isCancelled && <Pill tone="warn">Cancelled</Pill>}
+          {!isCancelled && !isPast && needsLink && (
             <Pill tone="warn">
               <span
                 className="ce-dot-warn"
@@ -499,9 +553,18 @@ function EventRow({
             <button onClick={onToggle}>
               <Ic.Edit size={13} /> Edit details
             </button>
+            {!isCancelled ? (
+              <button onClick={onCancel}>
+                <Ic.Hide size={13} /> Cancel session
+              </button>
+            ) : (
+              <button onClick={onUncancel}>
+                <Ic.Eye size={13} /> Restore session
+              </button>
+            )}
             <div className="menu-divider" />
             <button className="danger" onClick={onDelete}>
-              <Ic.Trash size={13} /> Cancel session
+              <Ic.Trash size={13} /> Delete permanently
             </button>
           </Menu>
         </div>
