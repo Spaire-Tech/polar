@@ -148,8 +148,7 @@ export function EditableCourseLandingView({
       : null
   const freeLessons =
     paywallAt != null ? flatLessons.slice(0, paywallAt) : flatLessons
-  const paidLessons =
-    paywallAt != null ? flatLessons.slice(paywallAt) : []
+  const paidLessons = paywallAt != null ? flatLessons.slice(paywallAt) : []
   const lockedCount = paidLessons.length
 
   const sectionMap: Record<string, { label: string; node: React.ReactNode }> = {
@@ -166,6 +165,10 @@ export function EditableCourseLandingView({
           canEnroll={canEnroll}
         />
       ),
+    },
+    sections: {
+      label: 'Sections',
+      node: <CourseSections course={course} />,
     },
     lessons: {
       label: 'Free preview',
@@ -273,8 +276,7 @@ function Hero({
         background: '#000',
         isolation: 'isolate',
         border: '1px solid oklch(0.92 0.003 280)',
-        boxShadow:
-          '0 2px 6px rgba(0,0,0,0.06), 0 24px 60px rgba(0,0,0,0.10)',
+        boxShadow: '0 2px 6px rgba(0,0,0,0.06), 0 24px 60px rgba(0,0,0,0.10)',
       }}
     >
       <EditMedia
@@ -384,7 +386,8 @@ function Hero({
             }}
           />
           <span style={{ color: 'rgba(255,255,255,0.6)' }}>
-            {flatLessons.length} {plural(flatLessons.length, 'lesson', 'lessons')}
+            {flatLessons.length}{' '}
+            {plural(flatLessons.length, 'lesson', 'lessons')}
           </span>
           <span style={{ color: 'rgba(255,255,255,0.3)' }}>·</span>
           <span style={{ color: 'rgba(255,255,255,0.6)' }}>
@@ -433,7 +436,8 @@ function Hero({
           />
           {course.instructor_name && (
             <span style={{ color: 'rgba(255,255,255,0.5)' }}>
-              {' '}— with{' '}
+              {' '}
+              — with{' '}
               <EditText
                 path="hero.instructor"
                 defaultValue={course.instructor_name}
@@ -482,7 +486,10 @@ function Hero({
               ▶
             </span>
             <span style={{ fontSize: 14, fontWeight: 600, lineHeight: 1 }}>
-              <EditText path="hero.cta_secondary" defaultValue="Watch trailer" />
+              <EditText
+                path="hero.cta_secondary"
+                defaultValue="Watch trailer"
+              />
             </span>
           </button>
           <button
@@ -656,8 +663,7 @@ function HeroMediaControls() {
   const heroTrailer = ed.m('hero.trailer')
   const hasImage = !!heroImage && heroImage.kind === 'image'
   const hasTrailer =
-    !!heroTrailer ||
-    (!!heroImage && heroImage.kind === 'video')
+    !!heroTrailer || (!!heroImage && heroImage.kind === 'video')
 
   const upload = async (slotId: string, file: File) => {
     const uploader = ed.uploaderForSlot?.(slotId) ?? ed.uploadMedia
@@ -843,6 +849,336 @@ function HeroMediaControls() {
   )
 }
 
+// ── Course Sections (zigzag roadmap) ──────────────────────────────────────
+//
+// Apple-TV-styled section roadmap that mirrors the course's actual modules.
+// Each card shows the module title with a replaceable image (per-module slot
+// `sections.module.<id>.image`). Cards alternate above/below a dotted spine.
+// Below the lg breakpoint we collapse to a stacked column so it stays
+// readable on narrow viewports.
+
+function SectionThumbPlaceholder({ hue, n }: { hue: number; n: number }) {
+  return (
+    <>
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: `linear-gradient(135deg, oklch(0.32 0.06 ${hue}) 0%, oklch(0.18 0.04 ${(hue + 30) % 360}) 100%)`,
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          backgroundImage:
+            'repeating-linear-gradient(45deg, rgba(255,255,255,0.04) 0 8px, transparent 8px 16px)',
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          left: '15%',
+          top: '10%',
+          width: '55%',
+          height: '70%',
+          background: `radial-gradient(ellipse, oklch(0.85 0.06 ${hue} / 0.18), transparent 70%)`,
+          filter: 'blur(20px)',
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace',
+          fontSize: 9.5,
+          letterSpacing: '0.10em',
+          textTransform: 'uppercase',
+          color: 'rgba(255,255,255,0.50)',
+          fontWeight: 500,
+        }}
+      >
+        portrait · §{n}
+      </div>
+    </>
+  )
+}
+
+function SectionCard({
+  module: mod,
+  index,
+  pointer,
+}: {
+  module: CourseRead['modules'][number]
+  index: number
+  pointer: 'top' | 'bottom'
+}) {
+  const isAbove = pointer === 'bottom'
+  const hue = [35, 195, 285, 145, 25, 320][index % 6]
+  const thumbRadius = isAbove ? '13px 13px 0 0' : '0 0 13px 13px'
+  const thumb = (
+    <EditMedia
+      id={`sections.module.${mod.id}.image`}
+      label={`Section ${index + 1} image`}
+      style={{
+        position: 'relative',
+        aspectRatio: '4 / 3',
+        overflow: 'hidden',
+        borderRadius: thumbRadius,
+        background: '#111',
+      }}
+      placeholder={<SectionThumbPlaceholder hue={hue} n={index + 1} />}
+    />
+  )
+  return (
+    <div
+      style={{
+        position: 'relative',
+        width: '100%',
+        background: 'white',
+        borderRadius: 16,
+        overflow: 'visible',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.04), 0 12px 32px rgba(0,0,0,0.08)',
+        border: '1px solid oklch(0.945 0.003 280)',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      {isAbove && thumb}
+      <div style={{ padding: '18px 20px 20px' }}>
+        <div
+          style={{
+            fontSize: 12,
+            fontWeight: 500,
+            color: 'oklch(0.66 0.006 280)',
+            marginBottom: 8,
+            letterSpacing: '-0.005em',
+          }}
+        >
+          Section {index + 1}
+        </div>
+        <EditText
+          path={`sections.module.${mod.id}.title`}
+          defaultValue={mod.title}
+          style={{
+            fontSize: 16,
+            fontWeight: 700,
+            letterSpacing: '-0.018em',
+            color: 'oklch(0.18 0.008 280)',
+            lineHeight: 1.3,
+            display: 'block',
+            fontFamily: HEADING_VAR,
+          }}
+        />
+      </div>
+      {!isAbove && thumb}
+      <div
+        style={{
+          position: 'absolute',
+          left: 36,
+          width: 0,
+          height: 0,
+          borderLeft: '9px solid transparent',
+          borderRight: '9px solid transparent',
+          filter: 'drop-shadow(0 1px 0 oklch(0.945 0.003 280))',
+          ...(isAbove
+            ? {
+                bottom: -9,
+                top: 'auto',
+                borderTop: '9px solid white',
+                borderBottom: 'none',
+              }
+            : {
+                top: -9,
+                bottom: 'auto',
+                borderBottom: '9px solid white',
+                borderTop: 'none',
+              }),
+        }}
+      />
+    </div>
+  )
+}
+
+function CourseSections({ course }: { course: CourseRead }) {
+  const modules = [...course.modules].sort((a, b) => a.position - b.position)
+  if (modules.length === 0) return null
+  const columns = modules.length
+
+  return (
+    <section
+      style={{
+        padding: '88px 32px 24px',
+        maxWidth: 1480,
+        margin: '0 auto',
+        fontFamily: FONT_VAR,
+      }}
+    >
+      <div style={{ marginBottom: 56, maxWidth: 640 }}>
+        <EditText
+          path="sections.eyebrow"
+          defaultValue="The course"
+          style={{
+            display: 'block',
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: '0.18em',
+            textTransform: 'uppercase',
+            color: 'oklch(0.66 0.006 280)',
+            marginBottom: 14,
+          }}
+        />
+        <EditText
+          as="h2"
+          path="sections.heading"
+          defaultValue={`${
+            modules.length === 1
+              ? 'One section'
+              : modules.length === 2
+                ? 'Two sections'
+                : modules.length === 3
+                  ? 'Three sections'
+                  : modules.length === 4
+                    ? 'Four sections'
+                    : modules.length === 5
+                      ? 'Five sections'
+                      : modules.length === 6
+                        ? 'Six sections'
+                        : `${modules.length} sections`
+          }, in order`}
+          style={{
+            fontSize: 'calc(clamp(26px, 3vw, 38px) * var(--type-scale, 1))',
+            fontWeight: 'var(--h-weight, 600)',
+            letterSpacing: 'calc(var(--h-tracking, 0em) - 0.03em)',
+            lineHeight: 1.05,
+            margin: '0 0 10px',
+            color: 'oklch(0.18 0.008 280)',
+            fontFamily: HEADING_VAR,
+          }}
+        />
+        <EditText
+          as="p"
+          path="sections.subheading"
+          defaultValue="Each section builds on the last — watch in order or skip ahead once you enroll."
+          multiline
+          style={{
+            fontSize: 14.5,
+            color: 'oklch(0.52 0.008 280)',
+            margin: 0,
+            fontWeight: 400,
+            lineHeight: 1.55,
+          }}
+        />
+      </div>
+
+      <div style={{ position: 'relative' }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+            gap: 28,
+            minHeight: 320,
+            alignItems: 'end',
+          }}
+        >
+          {modules.map((mod, i) =>
+            i % 2 === 0 ? (
+              <div
+                key={mod.id}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'flex-end',
+                }}
+              >
+                <SectionCard module={mod} index={i} pointer="bottom" />
+              </div>
+            ) : (
+              <div key={mod.id} />
+            ),
+          )}
+        </div>
+
+        <div
+          style={{
+            position: 'relative',
+            display: 'grid',
+            gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+            gap: 28,
+            height: 24,
+            alignItems: 'center',
+            margin: '6px 0',
+          }}
+        >
+          <div
+            style={{
+              position: 'absolute',
+              left: `calc(${100 / columns / 2}% - 6px)`,
+              right: `calc(${100 / columns / 2}% - 6px)`,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              height: 1.5,
+              background: 'oklch(0.92 0.003 280)',
+            }}
+          />
+          {modules.map((mod) => (
+            <div
+              key={mod.id}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                position: 'relative',
+                zIndex: 1,
+              }}
+            >
+              <div
+                style={{
+                  width: 12,
+                  height: 12,
+                  borderRadius: '50%',
+                  background: 'var(--bg-0, #fff)',
+                  border: '1.5px solid oklch(0.66 0.006 280)',
+                }}
+              />
+            </div>
+          ))}
+        </div>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+            gap: 28,
+            minHeight: 320,
+            alignItems: 'start',
+          }}
+        >
+          {modules.map((mod, i) =>
+            i % 2 !== 0 ? (
+              <div
+                key={mod.id}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'flex-start',
+                }}
+              >
+                <SectionCard module={mod} index={i} pointer="top" />
+              </div>
+            ) : (
+              <div key={mod.id} />
+            ),
+          )}
+        </div>
+      </div>
+    </section>
+  )
+}
+
 // ── Episode grid (free preview) + paywall ─────────────────────────────────
 
 function EpisodeGrid({
@@ -971,49 +1307,126 @@ function EpisodeGrid({
         </div>
       )}
 
-      {/* Paywall block */}
+      {/* Paywall — Apple liquid-glass card. Light, dimensional, glass-on-glass. */}
       {course.paywall_enabled && lockedCount > 0 && (
         <div
           style={{
-            background: 'oklch(0.18 0.008 280)',
-            borderRadius: 'calc(20px * var(--radius-mul, 1))',
-            overflow: 'hidden',
+            display: 'flex',
+            justifyContent: 'center',
             marginBottom: 72,
-            boxShadow:
-              '0 2px 6px rgba(0,0,0,0.06), 0 12px 32px rgba(0,0,0,0.08)',
-            position: 'relative',
+            marginTop: 24,
           }}
         >
           <div
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 20,
-              padding: '26px 28px',
-              borderBottom: '1px solid rgba(255,255,255,0.07)',
-              flexWrap: 'wrap',
-              background:
-                'radial-gradient(ellipse at 80% 50%, oklch(0.40 0.18 265 / 0.35), transparent 60%)',
+              position: 'relative',
+              width: '100%',
+              maxWidth: 620,
+              borderRadius: 'calc(24px * var(--radius-mul, 1))',
+              overflow: 'hidden',
+              isolation: 'isolate',
+              padding: '36px 40px 28px',
+              background: `
+                linear-gradient(180deg, rgba(255,255,255,0.78) 0%, rgba(255,255,255,0.55) 100%),
+                radial-gradient(140% 100% at 12% -10%, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 55%),
+                radial-gradient(120% 90% at 100% 110%, oklch(0.96 0.003 280) 0%, oklch(0.92 0.004 280) 80%)
+              `,
+              backdropFilter: 'blur(30px) saturate(170%)',
+              WebkitBackdropFilter: 'blur(30px) saturate(170%)',
+              border: '1px solid rgba(255,255,255,0.75)',
+              boxShadow: `
+                inset 0 1px 0 rgba(255,255,255,1),
+                inset 0 0 0 1px rgba(255,255,255,0.55),
+                inset 0 -1px 0 rgba(255,255,255,0.55),
+                inset 0 -20px 40px rgba(0,0,0,0.02),
+                0 1px 1px rgba(0,0,0,0.04),
+                0 2px 6px rgba(0,0,0,0.05),
+                0 12px 28px rgba(20,18,40,0.08),
+                0 36px 80px rgba(20,18,40,0.10),
+                0 60px 120px rgba(20,18,40,0.06)
+              `,
             }}
           >
             <div
+              aria-hidden
               style={{
-                width: 46,
-                height: 46,
-                borderRadius: 12,
-                background: 'rgba(255,255,255,0.10)',
-                border: '1px solid rgba(255,255,255,0.15)',
-                color: 'white',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-                fontSize: 18,
+                position: 'absolute',
+                left: '-15%',
+                top: '-50%',
+                width: '70%',
+                height: '160%',
+                background:
+                  'radial-gradient(ellipse, rgba(255,255,255,0.7) 0%, transparent 60%)',
+                filter: 'blur(36px)',
+                pointerEvents: 'none',
+                zIndex: 0,
+              }}
+            />
+            <div
+              aria-hidden
+              style={{
+                position: 'absolute',
+                right: '-20%',
+                bottom: '-50%',
+                width: '60%',
+                height: '150%',
+                background:
+                  'radial-gradient(ellipse, rgba(255,255,255,0.35) 0%, transparent 65%)',
+                filter: 'blur(28px)',
+                pointerEvents: 'none',
+                zIndex: 0,
+              }}
+            />
+            <div
+              aria-hidden
+              style={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                top: 0,
+                height: 1.5,
+                background:
+                  'linear-gradient(90deg, transparent 0%, rgba(255,255,255,1) 25%, rgba(255,255,255,1) 75%, transparent 100%)',
+                pointerEvents: 'none',
+                zIndex: 2,
+              }}
+            />
+            <div
+              aria-hidden
+              style={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                bottom: 0,
+                height: 1,
+                background:
+                  'linear-gradient(90deg, transparent 0%, rgba(40,30,80,0.06) 50%, transparent 100%)',
+                pointerEvents: 'none',
+                zIndex: 2,
+              }}
+            />
+
+            <div
+              style={{
+                position: 'relative',
+                zIndex: 1,
+                textAlign: 'center',
+                marginBottom: 24,
               }}
             >
-              🔒
-            </div>
-            <div style={{ flex: 1, minWidth: 200 }}>
+              <EditText
+                path="paywall.eyebrow"
+                defaultValue="Members only"
+                style={{
+                  display: 'block',
+                  fontSize: 10.5,
+                  fontWeight: 600,
+                  letterSpacing: '0.20em',
+                  textTransform: 'uppercase',
+                  color: 'oklch(0.66 0.006 280)',
+                  marginBottom: 16,
+                }}
+              />
               <EditText
                 path="paywall.title"
                 defaultValue={`${lockedCount} more ${plural(
@@ -1021,137 +1434,189 @@ function EpisodeGrid({
                   'lesson',
                   'lessons',
                 )}, unlocked when you enroll`}
+                multiline
                 style={{
-                  fontSize: 16,
-                  fontWeight: 600,
-                  letterSpacing: '-0.015em',
-                  color: 'white',
+                  fontSize:
+                    'calc(clamp(22px, 2.4vw, 28px) * var(--type-scale, 1))',
+                  fontWeight: 'var(--h-weight, 600)',
+                  letterSpacing: 'calc(var(--h-tracking, 0em) - 0.025em)',
+                  lineHeight: 1.15,
+                  color: 'oklch(0.18 0.008 280)',
+                  marginBottom: 10,
                   display: 'block',
-                  marginBottom: 4,
+                  fontFamily: HEADING_VAR,
                 }}
               />
               <EditText
                 path="paywall.subtitle"
-                defaultValue="Lifetime access · Workshops · Certificate · 30-day refund"
+                defaultValue="Lifetime access. Workshops with feedback. Certificate. 30-day refund."
+                multiline
                 style={{
-                  fontSize: 12,
-                  color: 'rgba(255,255,255,0.5)',
+                  fontSize: 13.5,
+                  color: 'oklch(0.52 0.008 280)',
+                  lineHeight: 1.55,
+                  maxWidth: 440,
+                  margin: '0 auto',
                   display: 'block',
-                  lineHeight: 1.4,
                 }}
               />
             </div>
+
+            <div
+              aria-hidden
+              style={{
+                position: 'relative',
+                zIndex: 1,
+                height: 1,
+                margin: '4px -40px 22px',
+                background:
+                  'linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.07) 50%, transparent 100%)',
+              }}
+            />
+
             <div
               style={{
+                position: 'relative',
+                zIndex: 1,
                 display: 'flex',
                 alignItems: 'center',
-                gap: 18,
-                flexShrink: 0,
+                justifyContent: 'space-between',
+                gap: 20,
+                marginBottom: 26,
+                flexWrap: 'wrap',
               }}
             >
-              {priceLabel && (
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'flex-end',
-                  }}
-                >
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                }}
+              >
+                {priceLabel && (
                   <span
                     style={{
-                      fontSize: 24,
+                      fontSize: 32,
                       fontWeight: 700,
-                      letterSpacing: '-0.025em',
-                      color: 'white',
+                      letterSpacing: '-0.03em',
+                      color: 'oklch(0.18 0.008 280)',
+                      lineHeight: 1,
                     }}
                   >
                     {priceLabel}
                   </span>
-                </div>
-              )}
+                )}
+                <EditText
+                  path="paywall.priceSub"
+                  defaultValue="one-time · lifetime access"
+                  style={{
+                    fontSize: 12,
+                    color: 'oklch(0.66 0.006 280)',
+                    marginTop: 6,
+                    display: 'block',
+                  }}
+                />
+              </div>
               <button
                 type="button"
                 onClick={onEnroll}
                 disabled={!canEnroll || enrolling}
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '12px 20px',
+                  padding: '14px 28px',
                   borderRadius: 999,
-                  background: 'white',
-                  color: 'oklch(0.18 0.008 280)',
-                  fontSize: 13,
+                  background:
+                    'linear-gradient(180deg, oklch(0.28 0.008 280) 0%, oklch(0.16 0.008 280) 100%)',
+                  color: 'white',
+                  fontSize: 14,
                   fontWeight: 600,
+                  letterSpacing: '-0.01em',
                   border: 'none',
-                  cursor: canEnroll ? (enrolling ? 'wait' : 'pointer') : 'default',
+                  cursor: canEnroll
+                    ? enrolling
+                      ? 'wait'
+                      : 'pointer'
+                    : 'default',
                   fontFamily: 'inherit',
                   opacity: enrolling ? 0.7 : 1,
+                  boxShadow: `
+                    inset 0 1px 0 rgba(255,255,255,0.18),
+                    inset 0 -1px 0 rgba(0,0,0,0.4),
+                    0 1px 2px rgba(0,0,0,0.15),
+                    0 6px 16px rgba(0,0,0,0.18),
+                    0 12px 30px rgba(0,0,0,0.10)
+                  `,
                 }}
               >
                 {enrolling ? (
                   'Loading…'
                 ) : (
-                  <>
-                    <EditText path="paywall.cta" defaultValue="Enroll" /> →
-                  </>
+                  <EditText path="paywall.cta" defaultValue="Enroll now" />
                 )}
               </button>
             </div>
-          </div>
 
-          {/* Locked episode previews */}
-          <div
-            style={{
-              display: 'flex',
-              gap: 0,
-              padding: '20px 28px 22px',
-              overflowX: 'auto',
-              alignItems: 'flex-start',
-              background: 'rgba(255,255,255,0.03)',
-            }}
-          >
-            {paidLessons.slice(0, 5).map((lesson, i) => (
-              <LockedRowItem
-                key={lesson.id}
-                lesson={lesson}
-                index={freeLessons.length + i + 1}
-                hue={thumbHues[i % thumbHues.length]}
-              />
-            ))}
-            {lockedCount > 5 && (
-              <div
-                style={{
-                  flex: '0 0 auto',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 3,
-                  paddingLeft: 4,
-                  alignSelf: 'center',
-                }}
-              >
+            {/* Locked episode strip — glass on glass */}
+            <div
+              style={{
+                position: 'relative',
+                zIndex: 1,
+                display: 'grid',
+                gridTemplateColumns: `repeat(${Math.min(paidLessons.length, 4)}, minmax(0, 1fr))${lockedCount > 4 ? ' auto' : ''}`,
+                gap: 14,
+                padding: '16px 18px',
+                borderRadius: 14,
+                background: 'rgba(255,255,255,0.45)',
+                border: '1px solid rgba(255,255,255,0.7)',
+                boxShadow:
+                  'inset 0 1px 0 rgba(255,255,255,0.9), 0 1px 2px rgba(0,0,0,0.03)',
+                alignItems: 'center',
+              }}
+            >
+              {paidLessons.slice(0, 4).map((lesson, i) => (
+                <LockedGlassItem
+                  key={lesson.id}
+                  lesson={lesson}
+                  index={freeLessons.length + i + 1}
+                  hue={thumbHues[i % thumbHues.length]}
+                />
+              ))}
+              {lockedCount > 4 && (
                 <div
                   style={{
-                    fontSize: 20,
-                    fontWeight: 600,
-                    color: 'rgba(255,255,255,0.28)',
-                    letterSpacing: '-0.02em',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 3,
+                    padding: '0 10px',
+                    alignSelf: 'stretch',
+                    borderLeft: '1px solid rgba(0,0,0,0.06)',
                   }}
                 >
-                  +{lockedCount - 5}
+                  <div
+                    style={{
+                      fontSize: 22,
+                      fontWeight: 600,
+                      color: 'oklch(0.32 0.008 280)',
+                      letterSpacing: '-0.025em',
+                      lineHeight: 1,
+                    }}
+                  >
+                    +{lockedCount - 4}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 10,
+                      color: 'oklch(0.66 0.006 280)',
+                      textAlign: 'center',
+                      lineHeight: 1.3,
+                    }}
+                  >
+                    more {plural(lockedCount - 4, 'lesson', 'lessons')}
+                  </div>
                 </div>
-                <div
-                  style={{
-                    fontSize: 10.5,
-                    color: 'rgba(255,255,255,0.20)',
-                  }}
-                >
-                  more {plural(lockedCount - 5, 'lesson', 'lessons')}
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -1933,8 +2398,7 @@ function EpisodeInfo({
               onBlur={persistDesc}
               onKeyDown={(e) => {
                 if (e.key === 'Escape') {
-                  if (descRef.current)
-                    descRef.current.innerText = lessonDesc
+                  if (descRef.current) descRef.current.innerText = lessonDesc
                   ;(e.target as HTMLElement).blur()
                 }
               }}
@@ -1979,7 +2443,14 @@ function EpisodeInfo({
           />
         )}
         {ed.mode === 'edit' && (
-          <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div
+            style={{
+              marginTop: 6,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
             <button
               type="button"
               onClick={generate}
@@ -2026,7 +2497,7 @@ function EpisodeInfo({
   )
 }
 
-function LockedRowItem({
+function LockedGlassItem({
   lesson,
   index,
   hue,
@@ -2038,55 +2509,49 @@ function LockedRowItem({
   return (
     <div
       style={{
-        flex: '0 0 200px',
         display: 'flex',
-        gap: 11,
-        alignItems: 'flex-start',
-        paddingRight: 20,
-        borderRight: '1px solid rgba(255,255,255,0.07)',
-        marginRight: 20,
+        flexDirection: 'column',
+        gap: 8,
+        minWidth: 0,
       }}
     >
       <div
         style={{
           position: 'relative',
-          width: 68,
-          height: 44,
-          borderRadius: 7,
+          width: '100%',
+          aspectRatio: '16 / 10',
+          borderRadius: 8,
           overflow: 'hidden',
-          flexShrink: 0,
-          background: 'rgba(255,255,255,0.06)',
+          background: 'rgba(0,0,0,0.04)',
+          border: '1px solid rgba(255,255,255,0.7)',
+          boxShadow:
+            'inset 0 1px 0 rgba(255,255,255,0.7), 0 1px 2px rgba(0,0,0,0.04)',
         }}
       >
         <div
           style={{
             position: 'absolute',
             inset: 0,
-            background: `linear-gradient(150deg, oklch(0.80 0.06 ${hue}) 0%, oklch(0.88 0.02 280) 100%)`,
+            background: `linear-gradient(150deg, oklch(0.78 0.05 ${hue}) 0%, oklch(0.86 0.02 280) 100%)`,
           }}
         />
         <div
           style={{
             position: 'absolute',
             inset: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'rgba(0,0,0,0.25)',
-            color: 'rgba(255,255,255,0.85)',
-            fontSize: 11,
+            background: 'rgba(255,255,255,0.45)',
+            backdropFilter: 'blur(10px) saturate(150%)',
+            WebkitBackdropFilter: 'blur(10px) saturate(150%)',
           }}
-        >
-          🔒
-        </div>
+        />
       </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ minWidth: 0 }}>
         <div
           style={{
             fontSize: 9.5,
             fontWeight: 600,
-            letterSpacing: '0.06em',
-            color: 'rgba(255,255,255,0.28)',
+            letterSpacing: '0.08em',
+            color: 'oklch(0.66 0.006 280)',
             textTransform: 'uppercase',
             marginBottom: 3,
           }}
@@ -2095,29 +2560,18 @@ function LockedRowItem({
         </div>
         <div
           style={{
-            fontSize: 11.5,
+            fontSize: 12,
             fontWeight: 500,
-            color: 'rgba(255,255,255,0.45)',
+            color: 'oklch(0.32 0.008 280)',
             lineHeight: 1.3,
-            marginBottom: 4,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
           }}
         >
           {lesson.title}
-        </div>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4,
-            fontSize: 10.5,
-            color: 'rgba(255,255,255,0.24)',
-            fontVariantNumeric: 'tabular-nums',
-          }}
-        >
-          ⏱ <span>{fmtLessonTime(lesson.duration_seconds)}</span>
         </div>
       </div>
     </div>
@@ -2276,9 +2730,7 @@ function Instructor({ course }: { course: CourseRead }) {
                   flex: 1,
                   paddingLeft: i === 1 ? 0 : 32,
                   borderLeft:
-                    i === 1
-                      ? 'none'
-                      : '1px solid oklch(0.92 0.003 280)',
+                    i === 1 ? 'none' : '1px solid oklch(0.92 0.003 280)',
                 }}
               >
                 <EditText
@@ -2332,183 +2784,272 @@ function FinalCta({
   return (
     <section
       style={{
-        position: 'relative',
-        margin: '0 20px 0',
-        padding: '88px 48px 80px',
-        background: 'oklch(0.18 0.008 280)',
-        borderRadius: 'calc(28px * var(--radius-mul, 1))',
-        overflow: 'hidden',
-        isolation: 'isolate',
-        textAlign: 'center',
+        display: 'flex',
+        justifyContent: 'center',
+        padding: '0 32px',
+        margin: '40px 0 80px',
         fontFamily: FONT_VAR,
       }}
     >
-      <EditMedia
-        id="finalCta.backdrop"
-        label="CTA backdrop"
-        style={{
-          position: 'absolute',
-          inset: 0,
-          zIndex: 0,
-          borderRadius: 'inherit',
-          overflow: 'hidden',
-        }}
-        placeholder={
-          <>
-            <div
-              style={{
-                position: 'absolute',
-                left: '-10%',
-                top: '-40%',
-                width: '70%',
-                height: '130%',
-                background:
-                  'radial-gradient(ellipse, oklch(0.45 0.18 265 / 0.50) 0%, transparent 60%)',
-                filter: 'blur(40px)',
-              }}
-            />
-            <div
-              style={{
-                position: 'absolute',
-                right: '-10%',
-                bottom: '-40%',
-                width: '60%',
-                height: '130%',
-                background:
-                  'radial-gradient(ellipse, oklch(0.50 0.15 25 / 0.32) 0%, transparent 60%)',
-                filter: 'blur(40px)',
-              }}
-            />
-          </>
-        }
-      />
-      {/* CTA backdrop EditMedia is self-closing — it has only a placeholder. */}
-
       <div
         style={{
           position: 'relative',
-          zIndex: 1,
-          maxWidth: 640,
-          margin: '0 auto',
+          width: '100%',
+          maxWidth: 1080,
+          borderRadius: 'calc(28px * var(--radius-mul, 1))',
+          overflow: 'hidden',
+          isolation: 'isolate',
+          padding: '88px 64px 72px',
+          textAlign: 'center',
+          background: `
+            linear-gradient(180deg, rgba(255,255,255,0.78) 0%, rgba(255,255,255,0.55) 100%),
+            radial-gradient(140% 100% at 12% -10%, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 55%),
+            radial-gradient(120% 90% at 100% 110%, oklch(0.96 0.003 280) 0%, oklch(0.92 0.004 280) 80%)
+          `,
+          backdropFilter: 'blur(30px) saturate(170%)',
+          WebkitBackdropFilter: 'blur(30px) saturate(170%)',
+          border: '1px solid rgba(255,255,255,0.75)',
+          boxShadow: `
+            inset 0 1px 0 rgba(255,255,255,1),
+            inset 0 0 0 1px rgba(255,255,255,0.55),
+            inset 0 -1px 0 rgba(255,255,255,0.55),
+            inset 0 -20px 40px rgba(0,0,0,0.02),
+            0 1px 1px rgba(0,0,0,0.04),
+            0 2px 6px rgba(0,0,0,0.05),
+            0 12px 28px rgba(20,18,40,0.08),
+            0 36px 80px rgba(20,18,40,0.10),
+            0 60px 120px rgba(20,18,40,0.06)
+          `,
         }}
       >
-        <div
+        <EditMedia
+          id="finalCta.backdrop"
+          label="CTA backdrop"
           style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            fontSize: 10.5,
-            letterSpacing: '0.20em',
-            fontWeight: 600,
-            color: 'rgba(255,255,255,0.45)',
-            marginBottom: 28,
+            position: 'absolute',
+            inset: 0,
+            zIndex: 0,
+            borderRadius: 'inherit',
+            overflow: 'hidden',
           }}
-        >
-          <span
+          placeholder={
+            <>
+              <div
+                style={{
+                  position: 'absolute',
+                  left: '-15%',
+                  top: '-50%',
+                  width: '70%',
+                  height: '160%',
+                  background:
+                    'radial-gradient(ellipse, rgba(255,255,255,0.7) 0%, transparent 60%)',
+                  filter: 'blur(36px)',
+                }}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  right: '-20%',
+                  bottom: '-50%',
+                  width: '60%',
+                  height: '150%',
+                  background:
+                    'radial-gradient(ellipse, rgba(255,255,255,0.35) 0%, transparent 65%)',
+                  filter: 'blur(28px)',
+                }}
+              />
+            </>
+          }
+        />
+        <div
+          aria-hidden
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            top: 0,
+            height: 1.5,
+            background:
+              'linear-gradient(90deg, transparent 0%, rgba(255,255,255,1) 25%, rgba(255,255,255,1) 75%, transparent 100%)',
+            pointerEvents: 'none',
+            zIndex: 2,
+          }}
+        />
+        <div
+          aria-hidden
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: 1,
+            background:
+              'linear-gradient(90deg, transparent 0%, rgba(40,30,80,0.06) 50%, transparent 100%)',
+            pointerEvents: 'none',
+            zIndex: 2,
+          }}
+        />
+
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <EditText
+            path="finalCta.label"
+            defaultValue="READY WHEN YOU ARE"
             style={{
-              width: 5,
-              height: 5,
-              borderRadius: '50%',
-              background: 'oklch(0.72 0.16 25)',
-              boxShadow: '0 0 10px oklch(0.72 0.16 25)',
+              display: 'block',
+              fontSize: 10.5,
+              fontWeight: 600,
+              letterSpacing: '0.20em',
+              textTransform: 'uppercase',
+              color: 'oklch(0.66 0.006 280)',
+              marginBottom: 22,
             }}
           />
-          <EditText path="finalCta.label" defaultValue="READY WHEN YOU ARE" />
-        </div>
-        <EditText
-          as="h2"
-          path="finalCta.title"
-          defaultValue="Start free. Continue when you're ready."
-          multiline
-          style={{
-            fontSize: 'calc(clamp(36px, 5vw, 64px) * var(--type-scale, 1))',
-            fontWeight: 'var(--h-weight, 600)',
-            letterSpacing: 'calc(var(--h-tracking, 0em) - 0.04em)',
-            lineHeight: 1.02,
-            margin: '0 0 14px',
-            color: 'white',
-            fontFamily: HEADING_VAR,
-          }}
-        />
-        <EditText
-          as="p"
-          path="finalCta.subtitle"
-          defaultValue={
-            freeCount > 0
-              ? `The first ${freeCount} ${plural(
-                  freeCount,
-                  'lesson is',
-                  'lessons are',
-                )} free to preview. No card required.`
-              : 'Enroll any time. No card required to peek.'
-          }
-          multiline
-          style={{
-            fontSize: 15,
-            color: 'rgba(255,255,255,0.50)',
-            margin: '0 0 36px',
-            lineHeight: 1.55,
-          }}
-        />
-        <div
-          style={{
-            display: 'flex',
-            gap: 10,
-            justifyContent: 'center',
-            marginBottom: 32,
-            flexWrap: 'wrap',
-          }}
-        >
-          <button
-            type="button"
-            onClick={onEnroll}
-            disabled={!canEnroll || enrolling}
+          <EditText
+            as="h2"
+            path="finalCta.title"
+            defaultValue="Start free. Continue when you're ready."
+            multiline
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              padding: '14px 24px',
-              borderRadius: 999,
-              background: 'white',
+              fontSize: 'calc(clamp(36px, 5vw, 60px) * var(--type-scale, 1))',
+              fontWeight: 'var(--h-weight, 600)',
+              letterSpacing: 'calc(var(--h-tracking, 0em) - 0.04em)',
+              lineHeight: 1.02,
+              margin: '0 0 18px',
               color: 'oklch(0.18 0.008 280)',
-              fontSize: 14,
-              fontWeight: 600,
-              border: 'none',
-              boxShadow: '0 8px 28px rgba(0,0,0,0.35)',
-              cursor: canEnroll ? (enrolling ? 'wait' : 'pointer') : 'default',
-              fontFamily: 'inherit',
-              opacity: enrolling ? 0.7 : 1,
+              fontFamily: HEADING_VAR,
             }}
-          >
-            {enrolling
-              ? 'Loading…'
-              : `Enroll${priceLabel ? ` for ${priceLabel}` : ''} →`}
-          </button>
-          <button
-            type="button"
+          />
+          <EditText
+            as="p"
+            path="finalCta.subtitle"
+            defaultValue={
+              freeCount > 0
+                ? `The first ${freeCount} ${plural(
+                    freeCount,
+                    'lesson is',
+                    'lessons are',
+                  )} free to preview. No card required.`
+                : 'Enroll any time. No card required to peek.'
+            }
+            multiline
+            style={{
+              fontSize: 15.5,
+              color: 'oklch(0.52 0.008 280)',
+              margin: '0 auto 36px',
+              lineHeight: 1.55,
+              maxWidth: 480,
+              display: 'block',
+            }}
+          />
+          <div
             style={{
               display: 'flex',
-              alignItems: 'center',
-              gap: 7,
-              padding: '14px 22px',
-              borderRadius: 999,
-              background: 'rgba(255,255,255,0.10)',
-              backdropFilter: 'blur(20px)',
-              WebkitBackdropFilter: 'blur(20px)',
-              border: '1px solid rgba(255,255,255,0.16)',
-              color: 'white',
-              fontSize: 13,
-              fontWeight: 500,
-              cursor: 'default',
-              fontFamily: 'inherit',
+              gap: 10,
+              justifyContent: 'center',
+              marginBottom: 26,
+              flexWrap: 'wrap',
             }}
           >
-            ▶{' '}
-            <EditText
-              path="finalCta.secondary"
-              defaultValue="Start free preview"
+            <button
+              type="button"
+              onClick={onEnroll}
+              disabled={!canEnroll || enrolling}
+              style={{
+                padding: '14px 28px',
+                borderRadius: 999,
+                background:
+                  'linear-gradient(180deg, oklch(0.28 0.008 280) 0%, oklch(0.16 0.008 280) 100%)',
+                color: 'white',
+                fontSize: 14,
+                fontWeight: 600,
+                letterSpacing: '-0.01em',
+                border: 'none',
+                cursor: canEnroll
+                  ? enrolling
+                    ? 'wait'
+                    : 'pointer'
+                  : 'default',
+                fontFamily: 'inherit',
+                opacity: enrolling ? 0.7 : 1,
+                boxShadow: `
+                  inset 0 1px 0 rgba(255,255,255,0.18),
+                  inset 0 -1px 0 rgba(0,0,0,0.4),
+                  0 1px 2px rgba(0,0,0,0.15),
+                  0 6px 16px rgba(0,0,0,0.18),
+                  0 12px 30px rgba(0,0,0,0.10)
+                `,
+              }}
+            >
+              {enrolling
+                ? 'Loading…'
+                : `Enroll${priceLabel ? ` for ${priceLabel}` : ''}`}
+            </button>
+            <button
+              type="button"
+              style={{
+                padding: '14px 24px',
+                borderRadius: 999,
+                background:
+                  'linear-gradient(180deg, rgba(255,255,255,0.85), rgba(255,255,255,0.55))',
+                border: '1px solid rgba(255,255,255,0.9)',
+                color: 'oklch(0.18 0.008 280)',
+                fontSize: 13.5,
+                fontWeight: 500,
+                cursor: 'default',
+                fontFamily: 'inherit',
+                boxShadow:
+                  'inset 0 1px 0 rgba(255,255,255,1), 0 1px 2px rgba(0,0,0,0.04), 0 4px 14px rgba(0,0,0,0.06)',
+              }}
+            >
+              <EditText
+                path="finalCta.secondary"
+                defaultValue="Start free preview"
+              />
+            </button>
+          </div>
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 12,
+              justifyContent: 'center',
+              alignItems: 'center',
+              fontSize: 12,
+              color: 'oklch(0.66 0.006 280)',
+            }}
+          >
+            <EditText path="finalCta.guarantee1" defaultValue="30-day refund" />
+            <span
+              style={{
+                width: 3,
+                height: 3,
+                borderRadius: '50%',
+                background: 'oklch(0.92 0.003 280)',
+              }}
             />
-          </button>
+            <EditText
+              path="finalCta.guarantee2"
+              defaultValue="Lifetime access"
+            />
+            <span
+              style={{
+                width: 3,
+                height: 3,
+                borderRadius: '50%',
+                background: 'oklch(0.92 0.003 280)',
+              }}
+            />
+            <EditText path="finalCta.guarantee3" defaultValue="Any device" />
+            <span
+              style={{
+                width: 3,
+                height: 3,
+                borderRadius: '50%',
+                background: 'oklch(0.92 0.003 280)',
+              }}
+            />
+            <EditText path="finalCta.guarantee4" defaultValue="Certificate" />
+          </div>
         </div>
       </div>
     </section>
@@ -2560,4 +3101,3 @@ function Footer({ organizationName }: { organizationName: string }) {
     </footer>
   )
 }
-

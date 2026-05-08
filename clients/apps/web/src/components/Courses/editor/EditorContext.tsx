@@ -12,7 +12,11 @@
 // The shape mirrors landing_overrides on the course; persisting is the host's
 // responsibility — it subscribes via onChange.
 
-import type { LandingMedia, LandingOverrides, LandingTheme } from '@/hooks/queries/courses'
+import type {
+  LandingMedia,
+  LandingOverrides,
+  LandingTheme,
+} from '@/hooks/queries/courses'
 import {
   createContext,
   useCallback,
@@ -167,6 +171,7 @@ export const SECTION_ORDER_DEFAULT = [
   'value',
   'trailer',
   'curriculum',
+  'sections',
   'lessons',
   'instructor',
   'reviews',
@@ -189,6 +194,7 @@ export const DEFAULT_OVERRIDES: ResolvedOverrides = {
     value: true,
     trailer: true,
     curriculum: true,
+    sections: true,
     lessons: true,
     instructor: true,
     reviews: true,
@@ -289,8 +295,8 @@ export function EditorProvider({
 
   // Stable seed: only re-seed when course changes (we don't want to clobber
   // local edits because of an unrelated re-render).
-  const [overrides, setOverridesState] = useState<ResolvedOverrides>(
-    () => mergeOverrides(initialOverrides),
+  const [overrides, setOverridesState] = useState<ResolvedOverrides>(() =>
+    mergeOverrides(initialOverrides),
   )
 
   // Re-seed when host swaps in a new initial blob (e.g. course refresh after
@@ -495,7 +501,11 @@ export function EditorProvider({
 
   // device class for responsive overrides
   useEffect(() => {
-    document.body.classList.remove('spaire-device-desktop', 'spaire-device-tablet', 'spaire-device-mobile')
+    document.body.classList.remove(
+      'spaire-device-desktop',
+      'spaire-device-tablet',
+      'spaire-device-mobile',
+    )
     document.body.classList.add(`spaire-device-${device}`)
     return () => {
       document.body.classList.remove(`spaire-device-${device}`)
@@ -550,5 +560,7 @@ export function EditorProvider({
     ],
   )
 
-  return <EditorContext.Provider value={value}>{children}</EditorContext.Provider>
+  return (
+    <EditorContext.Provider value={value}>{children}</EditorContext.Provider>
+  )
 }

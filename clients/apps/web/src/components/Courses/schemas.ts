@@ -46,6 +46,26 @@ export const landingSchema = z.object({
   curriculum_heading: z.string(),
   curriculum_subheading: z.string(),
 
+  // Sections module (roadmap of modules — title + per-module image)
+  sections_label: z.string(),
+  sections_heading: z.string(),
+  sections_subheading: z.string(),
+  sections: z.array(
+    z.object({
+      title: z.string(),
+    }),
+  ),
+
+  // Paywall / unlock-lessons card
+  paywall_eyebrow: z.string(),
+  paywall_title: z.string(),
+  paywall_subtitle: z.string(),
+  paywall_price_sub: z.string(),
+  paywall_cta: z.string(),
+
+  // Final CTA guarantee strip (4 short pills)
+  final_cta_guarantees: z.array(z.string()),
+
   // Full lesson list
   lessons_label: z.string(),
   lessons_heading: z.string(),

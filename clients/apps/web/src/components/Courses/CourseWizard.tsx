@@ -236,6 +236,10 @@ export default function CourseWizard({
       instructorName: instructor.name || null,
       instructorBio: instructor.bio || null,
       moduleCount: outline?.modules?.length ?? 0,
+      moduleTitles:
+        outline?.modules
+          ?.map((m) => (m?.title ?? '').trim())
+          .filter((t): t is string => !!t) ?? [],
       lessonCount,
       paywallEnabled: paywall.paywallEnabled,
       freePreviewLessons: paywall.paywallEnabled
@@ -427,6 +431,30 @@ export default function CourseWizard({
             )
           }
         }
+        // Map AI-generated section titles (from the "sections" array) onto
+        // the actual created modules by position. The wizard preview only has
+        // a single fake module so this can't run there — we only know the real
+        // module ids once the course exists.
+        const aiSections = (partialLanding as { sections?: unknown } | null)
+          ?.sections
+        if (Array.isArray(aiSections) && created.modules.length > 0) {
+          ov.text = { ...ov.text }
+          const sortedModules = [...created.modules].sort(
+            (a, b) => a.position - b.position,
+          )
+          aiSections.forEach((entry, i) => {
+            const mod = sortedModules[i]
+            if (!mod) return
+            const t =
+              entry && typeof entry === 'object' && 'title' in entry
+                ? (entry as { title?: unknown }).title
+                : null
+            if (typeof t === 'string' && t.trim()) {
+              ov.text![`sections.module.${mod.id}.title`] = t.trim()
+            }
+          })
+        }
+
         try {
           await updateCourse.mutateAsync({
             courseId: created.id,
@@ -492,9 +520,8 @@ export default function CourseWizard({
             // when the webhook lands.
             if (edit.videoFile) {
               try {
-                const { upload_url } = await createMuxUploadMutation.mutateAsync(
-                  realLesson.id,
-                )
+                const { upload_url } =
+                  await createMuxUploadMutation.mutateAsync(realLesson.id)
                 await new Promise<void>((resolve, reject) => {
                   const xhr = new XMLHttpRequest()
                   xhr.onload = () =>
@@ -640,41 +667,42 @@ export default function CourseWizard({
               phase="landing"
             />
           )}
-          {screen === 'preview' && (() => {
-            const wizardPrice = form.getValues('prices')?.[0]
-            const priceCents =
-              wizardPrice && 'price_amount' in wizardPrice
-                ? (wizardPrice.price_amount as number)
-                : null
-            const priceCurrency =
-              (wizardPrice && 'price_currency' in wizardPrice
-                ? (wizardPrice.price_currency as string)
-                : null) ?? defaultCurrency
-            return (
-              <WizardLandingEditor
-                organization={organization}
-                draft={{
-                  name: draft.name || instructor.name,
-                  courseTitle: draft.courseTitle || course.title,
-                  desc: draft.desc || course.desc,
-                  priceCents,
-                  priceCurrency,
-                  paywallEnabled: paywall.paywallEnabled,
-                  paywallPosition: paywall.paywallEnabled
-                    ? paywall.freePreviewLessons
-                    : null,
-                }}
-                outline={partialOutlineSafe}
-                initialLanding={
-                  (partialLanding as Record<string, unknown> | null) ?? null
-                }
-                initialThumbFile={null}
-                initialThumbName=""
-                onPublish={finalizeCourse}
-                onBack={() => setScreen('outline')}
-              />
-            )
-          })()}
+          {screen === 'preview' &&
+            (() => {
+              const wizardPrice = form.getValues('prices')?.[0]
+              const priceCents =
+                wizardPrice && 'price_amount' in wizardPrice
+                  ? (wizardPrice.price_amount as number)
+                  : null
+              const priceCurrency =
+                (wizardPrice && 'price_currency' in wizardPrice
+                  ? (wizardPrice.price_currency as string)
+                  : null) ?? defaultCurrency
+              return (
+                <WizardLandingEditor
+                  organization={organization}
+                  draft={{
+                    name: draft.name || instructor.name,
+                    courseTitle: draft.courseTitle || course.title,
+                    desc: draft.desc || course.desc,
+                    priceCents,
+                    priceCurrency,
+                    paywallEnabled: paywall.paywallEnabled,
+                    paywallPosition: paywall.paywallEnabled
+                      ? paywall.freePreviewLessons
+                      : null,
+                  }}
+                  outline={partialOutlineSafe}
+                  initialLanding={
+                    (partialLanding as Record<string, unknown> | null) ?? null
+                  }
+                  initialThumbFile={null}
+                  initialThumbName=""
+                  onPublish={finalizeCourse}
+                  onBack={() => setScreen('outline')}
+                />
+              )
+            })()}
           {screen === 'creating' && <CreatingScreen onClose={handleClose} />}
         </div>
       </form>

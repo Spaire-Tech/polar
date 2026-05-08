@@ -118,17 +118,51 @@ export function WizardLandingEditor({
     const merged = mergeOverrides(null)
     const text = (initialLanding ?? {}) as Record<string, unknown>
     if (draft.courseTitle) merged.text['hero.title'] = draft.courseTitle
-    if (typeof text.tagline === 'string') merged.text['hero.tagline'] = text.tagline
-    if (typeof text.eyebrow === 'string') merged.text['hero.eyebrow'] = text.eyebrow
-    if (typeof text.series_label === 'string') merged.text['hero.series_label'] = text.series_label
+    if (typeof text.tagline === 'string')
+      merged.text['hero.tagline'] = text.tagline
+    if (typeof text.eyebrow === 'string')
+      merged.text['hero.eyebrow'] = text.eyebrow
+    if (typeof text.series_label === 'string')
+      merged.text['hero.series_label'] = text.series_label
     if (typeof text.level === 'string') merged.text['hero.level'] = text.level
-    if (typeof text.lessons_heading === 'string') merged.text['lessons.heading'] = text.lessons_heading
-    if (typeof text.lessons_subheading === 'string') merged.text['lessons.subheading'] = text.lessons_subheading
-    if (typeof text.instructor_pull_quote === 'string') merged.text['instructor.quote'] = text.instructor_pull_quote
-    if (typeof text.final_cta_label === 'string') merged.text['finalCta.label'] = text.final_cta_label
-    if (typeof text.final_cta_title === 'string') merged.text['finalCta.title'] = text.final_cta_title
-    if (typeof text.final_cta_subtitle === 'string') merged.text['finalCta.subtitle'] = text.final_cta_subtitle
-    if (typeof text.final_cta_secondary === 'string') merged.text['finalCta.secondary'] = text.final_cta_secondary
+    if (typeof text.lessons_heading === 'string')
+      merged.text['lessons.heading'] = text.lessons_heading
+    if (typeof text.lessons_subheading === 'string')
+      merged.text['lessons.subheading'] = text.lessons_subheading
+    if (typeof text.instructor_pull_quote === 'string')
+      merged.text['instructor.quote'] = text.instructor_pull_quote
+    if (typeof text.sections_label === 'string')
+      merged.text['sections.eyebrow'] = text.sections_label
+    if (typeof text.sections_heading === 'string')
+      merged.text['sections.heading'] = text.sections_heading
+    if (typeof text.sections_subheading === 'string')
+      merged.text['sections.subheading'] = text.sections_subheading
+    if (typeof text.paywall_eyebrow === 'string')
+      merged.text['paywall.eyebrow'] = text.paywall_eyebrow
+    if (typeof text.paywall_title === 'string')
+      merged.text['paywall.title'] = text.paywall_title
+    if (typeof text.paywall_subtitle === 'string')
+      merged.text['paywall.subtitle'] = text.paywall_subtitle
+    if (typeof text.paywall_price_sub === 'string')
+      merged.text['paywall.priceSub'] = text.paywall_price_sub
+    if (typeof text.paywall_cta === 'string')
+      merged.text['paywall.cta'] = text.paywall_cta
+    if (typeof text.final_cta_label === 'string')
+      merged.text['finalCta.label'] = text.final_cta_label
+    if (typeof text.final_cta_title === 'string')
+      merged.text['finalCta.title'] = text.final_cta_title
+    if (typeof text.final_cta_subtitle === 'string')
+      merged.text['finalCta.subtitle'] = text.final_cta_subtitle
+    if (typeof text.final_cta_secondary === 'string')
+      merged.text['finalCta.secondary'] = text.final_cta_secondary
+    if (Array.isArray(text.final_cta_guarantees)) {
+      const g = text.final_cta_guarantees as unknown[]
+      g.slice(0, 4).forEach((item, i) => {
+        if (typeof item === 'string') {
+          merged.text[`finalCta.guarantee${i + 1}`] = item
+        }
+      })
+    }
     if (draft.name) merged.text['hero.instructor'] = draft.name
     if (initialThumbFile) {
       const url = URL.createObjectURL(initialThumbFile)
@@ -140,7 +174,13 @@ export function WizardLandingEditor({
       }
     }
     return merged
-  }, [draft.courseTitle, draft.name, initialLanding, initialThumbFile, initialThumbName])
+  }, [
+    draft.courseTitle,
+    draft.name,
+    initialLanding,
+    initialThumbFile,
+    initialThumbName,
+  ])
 
   const [overrides, setOverrides] = useState(initialOverrides)
   const overridesRef = useRef(overrides)
@@ -153,10 +193,7 @@ export function WizardLandingEditor({
   )
   const lessonEditsRef = useRef(lessonEdits)
 
-  const updateLessonEdit = (
-    id: string,
-    patch: Partial<WizardLessonEdit>,
-  ) => {
+  const updateLessonEdit = (id: string, patch: Partial<WizardLessonEdit>) => {
     setLessonEdits((prev) => {
       const next = new Map(prev)
       const merged = { ...(next.get(id) ?? {}), ...patch }
@@ -166,16 +203,22 @@ export function WizardLandingEditor({
     })
   }
 
-  useEffect(() => () => {
-    objectUrlsRef.current.forEach((u) => URL.revokeObjectURL(u))
-  }, [])
+  useEffect(
+    () => () => {
+      objectUrlsRef.current.forEach((u) => URL.revokeObjectURL(u))
+    },
+    [],
+  )
 
   const handleChange = (next: ResolvedOverrides) => {
     setOverrides(next)
     overridesRef.current = next
   }
 
-  const wizardUpload = async (slotId: string, file: File): Promise<LandingMedia> => {
+  const wizardUpload = async (
+    slotId: string,
+    file: File,
+  ): Promise<LandingMedia> => {
     const url = URL.createObjectURL(file)
     objectUrlsRef.current.push(url)
     pendingFilesRef.current.set(slotId, file)
@@ -188,7 +231,9 @@ export function WizardLandingEditor({
     ) {
       pendingTrailerFileRef.current = file
     }
-    const kind: LandingMedia['kind'] = file.type.startsWith('video') ? 'video' : 'image'
+    const kind: LandingMedia['kind'] = file.type.startsWith('video')
+      ? 'video'
+      : 'image'
     return { kind, url, name: file.name }
   }
 
@@ -228,7 +273,7 @@ export function WizardLandingEditor({
     }
     const paywallEnabled = !!draft.paywallEnabled
     const paywallPosition = paywallEnabled
-      ? draft.paywallPosition ?? null
+      ? (draft.paywallPosition ?? null)
       : null
     return {
       id: 'wizard-course',
@@ -292,7 +337,9 @@ export function WizardLandingEditor({
         ...lesson,
         title: edit.title ?? lesson.title,
         description:
-          edit.description !== undefined ? edit.description : lesson.description,
+          edit.description !== undefined
+            ? edit.description
+            : lesson.description,
         thumbnail_url: edit.thumbnailObjectUrl ?? lesson.thumbnail_url,
       }
     })
