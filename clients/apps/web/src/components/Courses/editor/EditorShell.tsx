@@ -202,7 +202,16 @@ function Toolbar({
         {onReset && (
           <button
             type="button"
-            onClick={onReset}
+            onClick={() => {
+              if (
+                typeof window === 'undefined' ||
+                window.confirm(
+                  'Reset will discard every unsaved customize change. Continue?',
+                )
+              ) {
+                onReset()
+              }
+            }}
             className="rounded-md px-3 py-[7px] text-[12px] font-medium text-white/70 transition-colors hover:text-white"
           >
             Reset
