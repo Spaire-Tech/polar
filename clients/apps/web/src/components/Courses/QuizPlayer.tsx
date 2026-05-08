@@ -67,6 +67,9 @@ export const QuizPlayer = ({
     })
   }
 
+  // Short-answer is not graded server-side yet; for now we skip it for the
+  // "all answered" gate so a quiz containing one isn't permanently blocked.
+  // The editor warns instructors about this.
   const allAnswered = questions.every(
     (q) => q.type === 'short_answer' || (selected[q.id]?.size ?? 0) > 0,
   )
@@ -222,12 +225,10 @@ export const QuizPlayer = ({
               {q.text || 'Question'}
             </p>
             {isShort ? (
-              <textarea
-                rows={3}
-                placeholder="Your answer"
-                disabled
-                className="mt-3 w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-400"
-              />
+              <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                Short-answer questions aren't graded automatically yet — they
+                won't count toward your score.
+              </div>
             ) : (
               <div className="mt-3 flex flex-col gap-1.5">
                 {q.options.map((option) => {

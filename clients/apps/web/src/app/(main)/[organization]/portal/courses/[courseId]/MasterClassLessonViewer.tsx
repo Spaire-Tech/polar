@@ -496,6 +496,7 @@ export const MasterClassLessonViewer = ({
                 )}
                 {isQuiz && (
                   <QuizPlayer
+                    key={lesson.id}
                     lesson={lesson as any}
                     token={token}
                     courseId={courseId}
