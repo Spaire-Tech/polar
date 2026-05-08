@@ -240,12 +240,6 @@ export const EditMedia = forwardRef<
         })
         return
       }
-      // eslint-disable-next-line no-console
-      console.log('[EditMedia] upload ok', {
-        id,
-        url: next.url,
-        kind: next.kind,
-      })
       ed.setMedia(id, { ...next, name: f.name })
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
@@ -322,10 +316,6 @@ export const EditMedia = forwardRef<
             src={m.url}
             alt=""
             style={cover}
-            onLoad={() => {
-              // eslint-disable-next-line no-console
-              console.log('[EditMedia] image loaded', { id, url: m.url })
-            }}
             onError={(e) => {
               const img = e.currentTarget
               // eslint-disable-next-line no-console
@@ -349,10 +339,6 @@ export const EditMedia = forwardRef<
             loop
             playsInline
             style={cover}
-            onLoadedData={() => {
-              // eslint-disable-next-line no-console
-              console.log('[EditMedia] video loaded', { id, url: m.url })
-            }}
             onError={(e) => {
               const v = e.currentTarget
               // eslint-disable-next-line no-console

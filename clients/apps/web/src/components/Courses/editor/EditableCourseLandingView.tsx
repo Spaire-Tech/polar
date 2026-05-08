@@ -681,12 +681,6 @@ function HeroMediaControls() {
         })
         return
       }
-      // eslint-disable-next-line no-console
-      console.log('[HeroMediaControls] upload ok', {
-        slotId,
-        url: next.url,
-        kind: next.kind,
-      })
       ed.setMedia(slotId, { ...next, name: file.name })
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)

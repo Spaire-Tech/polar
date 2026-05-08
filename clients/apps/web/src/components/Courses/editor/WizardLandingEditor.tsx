@@ -241,15 +241,26 @@ export function WizardLandingEditor({
   // course shape) renders correctly. Lessons + paywall flow from the wizard
   // draft so the customize preview matches what's saved on Create.
   const fakeCourse: CourseRead = useMemo(() => {
-    const flatLessons: CourseLessonRead[] = []
+    type WizardModule = {
+      id: string
+      title: string
+      lessons: CourseLessonRead[]
+    }
+    const wizardModules: WizardModule[] = []
     let pos = 0
     let lessonIdx = 1
+    let moduleIdx = 0
     for (const m of outline.modules ?? []) {
+      const moduleId = `wizard-module-${moduleIdx}`
+      const moduleTitle =
+        (typeof m?.title === 'string' && m.title.trim()) ||
+        `Section ${moduleIdx + 1}`
+      const moduleLessons: CourseLessonRead[] = []
       for (const l of m?.lessons ?? []) {
         if (!l?.title) continue
-        flatLessons.push({
+        moduleLessons.push({
           id: `wizard-${lessonIdx}`,
-          module_id: 'wizard-module',
+          module_id: moduleId,
           title: l.title,
           content_type: l.content_type ?? 'text',
           content: null,
@@ -270,6 +281,21 @@ export function WizardLandingEditor({
         })
         lessonIdx += 1
       }
+      wizardModules.push({
+        id: moduleId,
+        title: moduleTitle,
+        lessons: moduleLessons,
+      })
+      moduleIdx += 1
+    }
+    // Outline streams in incrementally; until anything resolves, fall back to
+    // a single "Module" placeholder so the canvas isn't empty mid-stream.
+    if (wizardModules.length === 0) {
+      wizardModules.push({
+        id: 'wizard-module-0',
+        title: 'Module',
+        lessons: [],
+      })
     }
     const paywallEnabled = !!draft.paywallEnabled
     const paywallPosition = paywallEnabled
@@ -296,21 +322,19 @@ export function WizardLandingEditor({
       instructor_name_bold: true,
       instructor_name_uppercase: true,
       landing_overrides: null,
-      modules: [
-        {
-          id: 'wizard-module',
-          course_id: 'wizard-course',
-          title: 'Module',
-          description: null,
-          position: 0,
-          status: 'draft',
-          release_at: null,
-          drip_days: null,
-          lessons: flatLessons,
-          created_at: new Date().toISOString(),
-          modified_at: null,
-        },
-      ],
+      modules: wizardModules.map((m, i) => ({
+        id: m.id,
+        course_id: 'wizard-course',
+        title: m.title,
+        description: null,
+        position: i,
+        status: 'draft',
+        release_at: null,
+        drip_days: null,
+        lessons: m.lessons,
+        created_at: new Date().toISOString(),
+        modified_at: null,
+      })),
       created_at: new Date().toISOString(),
       modified_at: null,
     }
@@ -328,7 +352,7 @@ export function WizardLandingEditor({
   // reflects them live (title, description, thumbnail). Video previews are
   // wired through getLocalVideoUrl on the lesson handlers below.
   const flatLessons = useMemo<CourseLessonRead[]>(() => {
-    const base = fakeCourse.modules[0].lessons
+    const base = fakeCourse.modules.flatMap((m) => m.lessons)
     if (lessonEdits.size === 0) return base
     return base.map((lesson) => {
       const edit = lessonEdits.get(lesson.id)

@@ -30,15 +30,26 @@ export function ProductLandingPage({
 }) {
   const [landing, setLanding] = useState<CourseLandingPageData | null>(null)
   const [resolved, setResolved] = useState(false)
+  // Distinguish "no course for this product" (404 → fall back to the
+  // generic product page) from "the API is unhappy" (5xx / network →
+  // surface a real error so the customer doesn't silently get the
+  // wrong UI and click Buy without seeing the course landing).
+  const [serverError, setServerError] = useState(false)
 
   useEffect(() => {
     let cancelled = false
+    setServerError(false)
     fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/v1/customer-portal/courses/by-product/${product.id}/landing`,
       { credentials: 'include', cache: 'no-store' },
     )
       .then(async (r) => {
-        if (!r.ok) return null
+        if (cancelled) return null
+        if (r.status === 404 || r.status === 403) return null
+        if (!r.ok) {
+          setServerError(true)
+          return null
+        }
         return (await r.json()) as CourseLandingPageData
       })
       .then((data) => {
@@ -48,6 +59,7 @@ export function ProductLandingPage({
       })
       .catch(() => {
         if (cancelled) return
+        setServerError(true)
         setResolved(true)
       })
     return () => {
@@ -59,6 +71,27 @@ export function ProductLandingPage({
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="h-6 w-32 animate-pulse rounded-full bg-gray-100" />
+      </div>
+    )
+  }
+
+  if (serverError) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 px-6 text-center">
+        <p className="text-base font-medium text-gray-900">
+          Couldn't load this course right now
+        </p>
+        <p className="max-w-sm text-sm text-gray-500">
+          Please refresh the page in a moment. If the problem persists,
+          contact support.
+        </p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="rounded-full bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
+        >
+          Try again
+        </button>
       </div>
     )
   }
