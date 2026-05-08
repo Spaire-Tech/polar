@@ -873,6 +873,9 @@ export type LessonCommentRead = {
   created_at: string
   is_own: boolean
   author: { enrollment_id: string; name: string | null }
+  // Soft-deleted parents come back as tombstones so their replies stay in
+  // the tree. The frontend renders them as "Comment deleted" placeholders.
+  deleted?: boolean
 }
 
 export const useLessonComments = (

@@ -230,6 +230,9 @@ class LessonCommentRead(Schema):
     created_at: datetime
     is_own: bool
     author: LessonCommentAuthor
+    # True when the comment has been soft-deleted but is included in the
+    # response as a tombstone so its replies remain renderable.
+    deleted: bool = False
 
 
 class CourseRead(TimestampedSchema):

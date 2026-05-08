@@ -368,11 +368,35 @@ class CourseService:
         *,
         lesson_id: UUID,
     ) -> Sequence[LessonComment]:
+        """List visible comments for a lesson, plus soft-deleted parents
+        whose replies are still visible. The frontend renders deleted
+        parents as tombstones so the reply tree stays reachable.
+        """
+        from sqlalchemy import select
+
         repo = LessonCommentRepository.from_session(session)
         statement = repo.get_by_lesson_statement(lesson_id).order_by(
             LessonComment.created_at.asc()
         )
-        return await repo.get_all(statement)
+        visible = list(await repo.get_all(statement))
+
+        # Find any visible reply whose parent is missing from the visible
+        # set (most likely soft-deleted) and pull the deleted parent in too.
+        visible_ids = {c.id for c in visible}
+        orphan_parent_ids = {
+            c.parent_id
+            for c in visible
+            if c.parent_id is not None and c.parent_id not in visible_ids
+        }
+        if orphan_parent_ids:
+            tombstone_stmt = select(LessonComment).where(
+                LessonComment.id.in_(orphan_parent_ids),
+                LessonComment.lesson_id == lesson_id,
+            )
+            tombstones = (await session.execute(tombstone_stmt)).scalars().all()
+            visible.extend(tombstones)
+            visible.sort(key=lambda c: c.created_at)
+        return visible
 
     async def create_lesson_comment(
         self,
