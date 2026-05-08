@@ -106,10 +106,17 @@ class Course(RecordModel):
 
     @declared_attr
     def modules(cls) -> Mapped[list["CourseModule"]]:
+        # primaryjoin filters out soft-deleted modules so the customer
+        # portal never serves a deleted module / its lessons. The cascade
+        # only kicks in on hard-delete.
         return relationship(
             "CourseModule",
             lazy="selectin",
             order_by="CourseModule.position",
             cascade="all, delete-orphan",
             back_populates="course",
+            primaryjoin=(
+                "and_(Course.id == CourseModule.course_id, "
+                "CourseModule.deleted_at.is_(None))"
+            ),
         )

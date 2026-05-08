@@ -257,6 +257,16 @@ class CourseService:
         customer: Customer,
         product_id: UUID | None = None,
     ) -> CourseEnrollment:
+        """Enroll a customer in a course.
+
+        Idempotent: if an active enrollment already exists, return it.
+        Soft-deleted enrollments are ignored by the lookup so a customer
+        who was revoked can re-enroll cleanly. The partial unique index
+        on (customer_id, course_id) where deleted_at IS NULL prevents
+        duplicate active rows under concurrent grants — a losing
+        transaction will surface as IntegrityError and the caller (a
+        Dramatiq actor for benefit grant) will retry.
+        """
         repo = CourseEnrollmentRepository.from_session(session)
         statement = repo.get_by_customer_and_course_statement(customer.id, course_id)
         existing = await repo.get_one_or_none(statement)
