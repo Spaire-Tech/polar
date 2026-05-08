@@ -157,6 +157,7 @@ const Customization = ({
                 <ProfileCard
                   organization={storefrontData?.organization ?? organization}
                   products={storefrontData?.products ?? []}
+                  preview
                 />
               </aside>
               {/* Right — products */}
@@ -164,6 +165,7 @@ const Customization = ({
                 <Storefront
                   organization={storefrontData?.organization ?? organization}
                   products={storefrontData?.products ?? []}
+                  preview
                 />
               </main>
             </div>

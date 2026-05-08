@@ -71,6 +71,12 @@ const AppleMusicIcon = ({ className }: { className?: string }) => (
 interface ProfileCardProps {
   organization: schemas['Organization']
   products?: schemas['ProductStorefront'][] | schemas['Product'][]
+  /**
+   * Render in editor-preview mode: external links don't navigate, the
+   * subscribe form is disabled. Mutations would otherwise fire against
+   * the live API while the org is just looking at their preview.
+   */
+  preview?: boolean
 }
 
 const getSocialIcon = (platform: string) => {
@@ -113,7 +119,11 @@ const getSocialIcon = (platform: string) => {
   }
 }
 
-export const ProfileCard = ({ organization, products = [] }: ProfileCardProps) => {
+export const ProfileCard = ({
+  organization,
+  products = [],
+  preview = false,
+}: ProfileCardProps) => {
   const settings = organization.storefront_settings
   const showHeader = settings?.show_header ?? true
   const showLogo = settings?.show_logo ?? true
@@ -130,19 +140,48 @@ export const ProfileCard = ({ organization, products = [] }: ProfileCardProps) =
   const [email, setEmail] = useState('')
   const [subscribed, setSubscribed] = useState(false)
   const [subscribing, setSubscribing] = useState(false)
+  const [subscribeError, setSubscribeError] = useState<string | null>(null)
   const [showLanguagesTooltip, setShowLanguagesTooltip] = useState(false)
   const [showSkillsTooltip, setShowSkillsTooltip] = useState(false)
   const subscribe = useStorefrontSubscribe()
 
-  const handleSubscribe = async () => {
-    if (!email.trim() || subscribing) return
+  // Same RFC 5322-ish check Chromium uses for type=email.
+  const EMAIL_REGEX =
+    /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/
+
+  const handleSubscribe = async (e?: React.FormEvent) => {
+    e?.preventDefault()
+    if (preview) return
+    const trimmed = email.trim()
+    if (subscribing) return
+    if (!trimmed) {
+      setSubscribeError('Please enter your email.')
+      return
+    }
+    if (!EMAIL_REGEX.test(trimmed)) {
+      setSubscribeError('Please enter a valid email address.')
+      return
+    }
+    setSubscribeError(null)
     setSubscribing(true)
     try {
-      await subscribe.mutateAsync({ slug: organization.slug, email: email.trim() })
+      const { error } = await subscribe.mutateAsync({
+        slug: organization.slug,
+        email: trimmed,
+      })
+      if (error) {
+        const detail = (error as { detail?: unknown }).detail
+        setSubscribeError(
+          typeof detail === 'string'
+            ? detail
+            : 'Could not subscribe. Please try again.',
+        )
+        return
+      }
       setSubscribed(true)
       setEmail('')
     } catch {
-      // silently fail
+      setSubscribeError('Could not subscribe. Please try again.')
     } finally {
       setSubscribing(false)
     }
@@ -283,17 +322,27 @@ export const ProfileCard = ({ organization, products = [] }: ProfileCardProps) =
         {/* Social icons */}
         {organization.socials.length > 0 && (
           <div className="mt-4 flex flex-row items-center gap-x-3">
-            {organization.socials.map((social, i) => (
-              <Link
-                key={i}
-                href={social.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-gray-800 transition-colors hover:text-gray-950"
-              >
-                {getSocialIcon(social.platform)}
-              </Link>
-            ))}
+            {organization.socials.map((social, i) =>
+              preview ? (
+                <span
+                  key={i}
+                  className="text-gray-800"
+                  aria-label={social.platform}
+                >
+                  {getSocialIcon(social.platform)}
+                </span>
+              ) : (
+                <Link
+                  key={i}
+                  href={social.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-gray-800 transition-colors hover:text-gray-950"
+                >
+                  {getSocialIcon(social.platform)}
+                </Link>
+              ),
+            )}
           </div>
         )}
 
@@ -318,24 +367,45 @@ export const ProfileCard = ({ organization, products = [] }: ProfileCardProps) =
             You&apos;re subscribed!
           </div>
         ) : (
-          <div className="mt-5 flex flex-row gap-2">
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSubscribe()}
-              placeholder="Enter your email address..."
-              className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] text-gray-900 placeholder:text-gray-400 focus:border-gray-300 focus:outline-none"
-            />
-            <button
-              type="button"
-              onClick={handleSubscribe}
-              disabled={subscribing || !email.trim()}
-              className="shrink-0 rounded-xl bg-blue-500 px-5 py-2.5 text-[13px] font-medium text-white transition-opacity hover:opacity-85 disabled:opacity-50"
-            >
-              {subscribing ? 'Subscribing...' : 'Subscribe'}
-            </button>
-          </div>
+          <form onSubmit={handleSubscribe} className="mt-5 flex flex-col gap-1.5">
+            <div className="flex flex-row gap-2">
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value)
+                  if (subscribeError) setSubscribeError(null)
+                }}
+                placeholder={
+                  preview
+                    ? 'Subscribe (disabled in preview)'
+                    : 'Enter your email address...'
+                }
+                disabled={preview}
+                aria-invalid={subscribeError ? true : undefined}
+                aria-describedby={
+                  subscribeError ? 'subscribe-error' : undefined
+                }
+                className={`min-w-0 flex-1 rounded-xl border bg-white px-4 py-2.5 text-[13px] text-gray-900 placeholder:text-gray-400 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400 ${
+                  subscribeError
+                    ? 'border-red-300 focus:border-red-400'
+                    : 'border-gray-200 focus:border-gray-300'
+                }`}
+              />
+              <button
+                type="submit"
+                disabled={preview || subscribing || !email.trim()}
+                className="shrink-0 rounded-xl bg-blue-500 px-5 py-2.5 text-[13px] font-medium text-white transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {subscribing ? 'Subscribing...' : 'Subscribe'}
+              </button>
+            </div>
+            {subscribeError && (
+              <p id="subscribe-error" className="text-[12px] text-red-500">
+                {subscribeError}
+              </p>
+            )}
+          </form>
         )}
 
         {/* Powered by Spaire */}

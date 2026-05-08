@@ -32,7 +32,11 @@ export const StorefrontLivePreview = ({
   const showCardProducts = (storefrontSettings as any)?.show_card_products ?? true
 
   return (
-    <ProfileCard organization={organization} products={showCardProducts ? products : []} />
+    <ProfileCard
+      organization={organization}
+      products={showCardProducts ? products : []}
+      preview
+    />
   )
 }
 

@@ -27,9 +27,15 @@ const CATEGORY_ORDER = Object.keys(CATEGORY_LABELS)
 export const Storefront = ({
   organization,
   products,
+  preview = false,
 }: {
   organization: schemas['Organization'] | schemas['CustomerOrganization']
   products: schemas['ProductStorefront'][]
+  /**
+   * Editor-preview mode: product cards don't navigate. The card still
+   * looks live, but clicking it doesn't take the org out of the editor.
+   */
+  preview?: boolean
 }) => {
   const showDetails =
     'storefront_settings' in organization
@@ -150,18 +156,28 @@ export const Storefront = ({
             </span>
           </div>
           <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-2">
-            {section.items.map((product) => (
-              <Link
-                key={product.id}
-                href={`/${organization.slug}/products/${product.id}`}
-              >
-                <ProductCard
-                  product={product}
-                  showDetails={showDetails}
-                  thumbnailSize={thumbnailSize}
-                />
-              </Link>
-            ))}
+            {section.items.map((product) =>
+              preview ? (
+                <div key={product.id}>
+                  <ProductCard
+                    product={product}
+                    showDetails={showDetails}
+                    thumbnailSize={thumbnailSize}
+                  />
+                </div>
+              ) : (
+                <Link
+                  key={product.id}
+                  href={`/${organization.slug}/products/${product.id}`}
+                >
+                  <ProductCard
+                    product={product}
+                    showDetails={showDetails}
+                    thumbnailSize={thumbnailSize}
+                  />
+                </Link>
+              ),
+            )}
           </div>
         </section>
       ))}
