@@ -5,7 +5,11 @@ import HiveOutlined from '@mui/icons-material/HiveOutlined'
 import { schemas } from '@spaire/client'
 import Link from 'next/link'
 import { useMemo } from 'react'
-import { StorefrontLinkItem, StorefrontLinks } from './StorefrontLinks'
+import {
+  LinksLayout,
+  StorefrontLinkItem,
+  StorefrontLinks,
+} from './StorefrontLinks'
 
 const CATEGORY_LABELS: Record<string, string> = {
   ebook: 'eBooks',
@@ -67,6 +71,12 @@ export const Storefront = ({
           'after_products') as 'before_products' | 'after_products')
       : 'after_products'
 
+  const linksLayout: LinksLayout =
+    'storefront_settings' in organization
+      ? ((organization.storefront_settings?.links_layout ??
+          'classic') as LinksLayout)
+      : 'classic'
+
   // Products scoped by featuredIds (creator curation)
   const scopedProducts = useMemo(() => {
     if (featuredIds.length > 0) {
@@ -127,7 +137,7 @@ export const Storefront = ({
   return (
     <div className="flex w-full flex-col gap-12">
       {storefrontLinks.length > 0 && linksPosition === 'before_products' && (
-        <StorefrontLinks links={storefrontLinks} />
+        <StorefrontLinks links={storefrontLinks} layout={linksLayout} />
       )}
 
       {products.length > 0 && (
@@ -178,7 +188,7 @@ export const Storefront = ({
       ))}
 
       {storefrontLinks.length > 0 && linksPosition === 'after_products' && (
-        <StorefrontLinks links={storefrontLinks} />
+        <StorefrontLinks links={storefrontLinks} layout={linksLayout} />
       )}
     </div>
   )

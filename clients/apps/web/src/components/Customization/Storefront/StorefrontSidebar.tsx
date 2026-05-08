@@ -12,6 +12,10 @@ import CheckOutlined from '@mui/icons-material/CheckOutlined'
 import ChevronRightOutlined from '@mui/icons-material/ChevronRightOutlined'
 import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined'
 import DeleteOutlined from '@mui/icons-material/DeleteOutlined'
+import GridViewOutlined from '@mui/icons-material/GridViewOutlined'
+import ViewAgendaOutlined from '@mui/icons-material/ViewAgendaOutlined'
+import ViewCarouselOutlined from '@mui/icons-material/ViewCarouselOutlined'
+import ViewListOutlined from '@mui/icons-material/ViewListOutlined'
 import Facebook from '@mui/icons-material/Facebook'
 import GitHub from '@mui/icons-material/GitHub'
 import Instagram from '@mui/icons-material/Instagram'
@@ -429,6 +433,10 @@ export const StorefrontEditorForm = ({
   const storefrontLinks: StorefrontLinkItem[] =
     (settings?.storefront_links as StorefrontLinkItem[] | undefined) ?? []
   const linksPosition: string = settings?.links_position ?? 'after_products'
+  const linksLayout: NonNullable<
+    schemas['OrganizationStorefrontSettings']['links_layout']
+  > = settings?.links_layout ?? 'classic'
+  const hasUrlLinks = storefrontLinks.some((l) => l.type !== 'embedded')
 
   // Avatar upload
   const avatarUrl = watch('avatar_url') ?? organization.avatar_url
@@ -915,11 +923,54 @@ export const StorefrontEditorForm = ({
 
         {storefrontLinks.length > 0 && (
           <>
-            {/* Layout hint — layout is now auto-chosen per link type */}
-            <p className="text-xs text-gray-400">
-              URL links render as a clean list. Embeds render as full-width
-              cards.
-            </p>
+            {/* Layout picker — only applies to URL-typed links. Embeds
+                always render full-width regardless. */}
+            {hasUrlLinks && (
+              <div className="flex flex-col gap-y-2">
+                <span className="text-xs font-medium text-gray-500">
+                  URL link layout
+                </span>
+                <div className="grid grid-cols-4 gap-2">
+                  {(
+                    [
+                      { value: 'classic', label: 'List', Icon: ViewListOutlined },
+                      { value: 'card', label: 'Cards', Icon: ViewAgendaOutlined },
+                      {
+                        value: 'image_grid',
+                        label: 'Grid',
+                        Icon: GridViewOutlined,
+                      },
+                      {
+                        value: 'carousel',
+                        label: 'Carousel',
+                        Icon: ViewCarouselOutlined,
+                      },
+                    ] as const
+                  ).map(({ value, label, Icon }) => {
+                    const active = linksLayout === value
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => updateSetting('links_layout', value)}
+                        className={twMerge(
+                          'flex flex-col items-center justify-center gap-1 rounded-xl border px-2 py-3 text-xs font-medium transition-colors',
+                          active
+                            ? 'border-blue-500 bg-blue-50 text-blue-600'
+                            : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300',
+                        )}
+                      >
+                        <Icon style={{ fontSize: 18 }} />
+                        {label}
+                      </button>
+                    )
+                  })}
+                </div>
+                <p className="text-xs text-gray-400">
+                  Embeds always render full-width, regardless of layout.
+                </p>
+              </div>
+            )}
 
             {/* Position toggle */}
             <div className="flex flex-col divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200">

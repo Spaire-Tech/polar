@@ -154,13 +154,119 @@ const UrlRow = ({ link }: { link: StorefrontLinkItem }) => (
   </a>
 )
 
-const UrlList = ({ links }: { links: StorefrontLinkItem[] }) => (
+const ClassicList = ({ links }: { links: StorefrontLinkItem[] }) => (
   <div className="flex flex-col gap-3">
     {links.map((link) => (
       <UrlRow key={link.id} link={link} />
     ))}
   </div>
 )
+
+// ─── Card layout (large image + meta below) ──────────────────────────────────
+
+const UrlCard = ({ link }: { link: StorefrontLinkItem }) => (
+  <a
+    href={link.url}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-all hover:shadow-md"
+  >
+    <Thumb link={link} className="aspect-[16/9] w-full object-cover" />
+    <div className="flex flex-col gap-1 p-4">
+      <p className="truncate text-base font-semibold text-gray-900">
+        {link.title || getDomain(link.url)}
+      </p>
+      {link.description && (
+        <p className="line-clamp-2 text-sm text-gray-500">{link.description}</p>
+      )}
+      <p className="mt-1 truncate text-[11px] text-gray-400">
+        {getDomain(link.url)}
+      </p>
+    </div>
+  </a>
+)
+
+const CardList = ({ links }: { links: StorefrontLinkItem[] }) => (
+  <div className="flex flex-col gap-4">
+    {links.map((link) => (
+      <UrlCard key={link.id} link={link} />
+    ))}
+  </div>
+)
+
+// ─── Image grid layout (2-col square thumbs) ─────────────────────────────────
+
+const UrlGridTile = ({ link }: { link: StorefrontLinkItem }) => (
+  <a
+    href={link.url}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="group relative block aspect-square overflow-hidden rounded-2xl bg-gray-100 shadow-sm transition-all hover:shadow-md"
+  >
+    <Thumb
+      link={link}
+      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+    />
+    <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/60 via-black/10 to-transparent p-3">
+      <p className="line-clamp-2 text-sm font-semibold text-white">
+        {link.title || getDomain(link.url)}
+      </p>
+      <p className="truncate text-[10px] text-white/70">
+        {getDomain(link.url)}
+      </p>
+    </div>
+  </a>
+)
+
+const ImageGrid = ({ links }: { links: StorefrontLinkItem[] }) => (
+  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+    {links.map((link) => (
+      <UrlGridTile key={link.id} link={link} />
+    ))}
+  </div>
+)
+
+// ─── Carousel layout (horizontal scroll snap) ────────────────────────────────
+
+const UrlCarouselCard = ({ link }: { link: StorefrontLinkItem }) => (
+  <a
+    href={link.url}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="flex w-[240px] shrink-0 snap-start flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-all hover:shadow-md"
+  >
+    <Thumb link={link} className="aspect-[4/3] w-full object-cover" />
+    <div className="flex flex-col gap-1 p-3">
+      <p className="line-clamp-2 text-sm font-semibold text-gray-900">
+        {link.title || getDomain(link.url)}
+      </p>
+      <p className="truncate text-[11px] text-gray-400">
+        {getDomain(link.url)}
+      </p>
+    </div>
+  </a>
+)
+
+const Carousel = ({ links }: { links: StorefrontLinkItem[] }) => (
+  <div
+    className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-2"
+    style={{ scrollbarWidth: 'thin' }}
+  >
+    {links.map((link) => (
+      <UrlCarouselCard key={link.id} link={link} />
+    ))}
+  </div>
+)
+
+const URL_LAYOUTS: Record<
+  LinksLayout,
+  React.ComponentType<{ links: StorefrontLinkItem[] }>
+> = {
+  classic: ClassicList,
+  card: CardList,
+  image_grid: ImageGrid,
+  carousel: Carousel,
+}
 
 // ─── Embed card (full-width) ─────────────────────────────────────────────────
 // Embeds always take the full container width so they make full use of the
@@ -214,12 +320,13 @@ const SectionLabel = ({ children }: { children: React.ReactNode }) => (
 )
 
 // ─── Main export ─────────────────────────────────────────────────────────────
-// Each link's rendering is derived from its type: URLs render as classic
-// rows, embeds as full-width cards. The legacy `layout` prop is accepted for
-// backwards compatibility but ignored.
+// URL-typed links render in the chosen layout (classic, card, image_grid,
+// carousel). Embedded links always render full-width because they need to
+// play inline — a YouTube grid would just be tiny iframes.
 
 export const StorefrontLinks = ({
   links,
+  layout = 'classic',
 }: {
   links: StorefrontLinkItem[]
   layout?: LinksLayout
@@ -228,6 +335,8 @@ export const StorefrontLinks = ({
 
   const urlLinks = links.filter((l) => l.type !== 'embedded')
   const embedLinks = links.filter((l) => l.type === 'embedded')
+
+  const UrlRenderer = URL_LAYOUTS[layout] ?? ClassicList
 
   return (
     <div className="flex w-full flex-col gap-8">
@@ -240,7 +349,7 @@ export const StorefrontLinks = ({
       {urlLinks.length > 0 && (
         <div className="flex flex-col gap-4">
           <SectionLabel>Links</SectionLabel>
-          <UrlList links={urlLinks} />
+          <UrlRenderer links={urlLinks} />
         </div>
       )}
     </div>
