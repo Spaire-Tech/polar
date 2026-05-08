@@ -938,22 +938,38 @@ export interface CourseNoteRead {
   modified_at: string | null
 }
 
+// Single fetch of every note in the course; per-lesson selection happens
+// client-side via useLessonNote. Previously each lesson had its own
+// query that re-downloaded the whole notes collection on every mount.
+const courseNotesQueryKey = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+) => ['course-notes', token, courseId]
+
+export const useCourseNotes = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+) =>
+  useQuery<CourseNoteRead[]>({
+    queryKey: courseNotesQueryKey(token, courseId),
+    queryFn: () =>
+      portalApiFetch<CourseNoteRead[]>(
+        `/v1/customer-portal/courses/${courseId}/notes`,
+        token!,
+      ),
+    enabled: !!token && !!courseId,
+  })
+
 export const useLessonNote = (
   token: string | null | undefined,
   courseId: string | undefined,
   lessonId: string | null | undefined,
-) =>
-  useQuery<CourseNoteRead | null>({
-    queryKey: ['lesson-note', token, courseId, lessonId],
-    queryFn: async () => {
-      const notes = await portalApiFetch<CourseNoteRead[]>(
-        `/v1/customer-portal/courses/${courseId}/notes`,
-        token!,
-      )
-      return notes.find((n) => n.lesson_id === lessonId) ?? null
-    },
-    enabled: !!token && !!courseId && !!lessonId,
-  })
+) => {
+  const { data, isLoading } = useCourseNotes(token, courseId)
+  const note =
+    data && lessonId ? (data.find((n) => n.lesson_id === lessonId) ?? null) : null
+  return { data: data ? note : undefined, isLoading }
+}
 
 export const useUpsertLessonNote = (
   token: string | null | undefined,
@@ -969,7 +985,7 @@ export const useUpsertLessonNote = (
       ),
     onSuccess: () => {
       getQueryClient().invalidateQueries({
-        queryKey: ['lesson-note', token, courseId, lessonId],
+        queryKey: courseNotesQueryKey(token, courseId),
       })
     },
   })

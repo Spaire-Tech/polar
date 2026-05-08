@@ -8,8 +8,6 @@ import {
 } from '@/hooks/queries/courses'
 import DeleteOutlined from '@mui/icons-material/DeleteOutlined'
 import KeyboardArrowDown from '@mui/icons-material/KeyboardArrowDown'
-import ThumbDownOutlined from '@mui/icons-material/ThumbDownOutlined'
-import ThumbUpOutlined from '@mui/icons-material/ThumbUpOutlined'
 import { useMemo, useState } from 'react'
 
 type CommentNode = LessonCommentRead & { replies: CommentNode[] }
@@ -160,12 +158,13 @@ export function CommentThread({
         <div style={{ display: 'flex', gap: 12, marginBottom: 28 }}>
           <Avatar name={selfName} size={40} />
           <div style={{ flex: 1 }}>
-            <input
-              type="text"
+            <textarea
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onFocus={() => setFocused(true)}
               placeholder="Add a comment…"
+              disabled={create.isPending}
+              rows={focused || draft ? 3 : 1}
               style={{
                 width: '100%',
                 background: 'transparent',
@@ -177,11 +176,16 @@ export function CommentThread({
                 color: COLORS.fg0,
                 fontSize: 14,
                 outline: 'none',
+                resize: 'none',
                 transition: 'border-color 150ms ease',
                 fontFamily: fontStack,
+                opacity: create.isPending ? 0.6 : 1,
               }}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') submitTopLevel()
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                  e.preventDefault()
+                  submitTopLevel()
+                }
                 if (e.key === 'Escape') {
                   setDraft('')
                   setFocused(false)
@@ -198,7 +202,7 @@ export function CommentThread({
                 }}
               >
                 <span style={{ fontSize: 11.5, color: COLORS.fg3 }}>
-                  Be kind. Specific feedback helps everyone.
+                  Be kind. Cmd/Ctrl+Enter to submit.
                 </span>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <BtnGhost
@@ -282,7 +286,6 @@ function CommentItem({
   repliesDisabled: boolean
 }) {
   const showReplyBox = activeReplyId === comment.id
-  const [liked, setLiked] = useState(false)
   const [showReplies, setShowReplies] = useState(true)
   const authorName = comment.author.name?.trim() || 'Anonymous'
 
@@ -319,44 +322,6 @@ function CommentItem({
         </p>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <button
-            type="button"
-            onClick={() => setLiked((v) => !v)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '6px 10px',
-              borderRadius: 999,
-              background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              color: liked ? COLORS.accent : COLORS.fg2,
-              fontSize: 12.5,
-              fontWeight: 500,
-              fontFamily: fontStack,
-            }}
-          >
-            <ThumbUpOutlined sx={{ fontSize: 16 }} />
-            {liked ? 1 : 0}
-          </button>
-          <button
-            type="button"
-            style={{
-              width: 32,
-              height: 32,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: 999,
-              background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              color: COLORS.fg2,
-            }}
-          >
-            <ThumbDownOutlined sx={{ fontSize: 16 }} />
-          </button>
           {depth < 2 && !repliesDisabled && (
             <button
               type="button"
@@ -405,12 +370,13 @@ function CommentItem({
           <div style={{ display: 'flex', gap: 12, marginTop: 12 }}>
             <Avatar name={selfName} size={32} />
             <div style={{ flex: 1 }}>
-              <input
-                type="text"
+              <textarea
                 value={replyDraft}
                 onChange={(e) => setReplyDraft(e.target.value)}
                 placeholder={`Reply to ${authorName}…`}
                 autoFocus
+                rows={2}
+                disabled={isPosting}
                 style={{
                   width: '100%',
                   background: 'transparent',
@@ -420,10 +386,15 @@ function CommentItem({
                   color: COLORS.fg0,
                   fontSize: 14,
                   outline: 'none',
+                  resize: 'none',
                   fontFamily: fontStack,
+                  opacity: isPosting ? 0.6 : 1,
                 }}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') onSubmitReply(comment.id)
+                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                    e.preventDefault()
+                    onSubmitReply(comment.id)
+                  }
                   if (e.key === 'Escape') {
                     setReplyDraft('')
                     onReply(comment.id)

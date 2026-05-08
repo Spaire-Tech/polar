@@ -154,7 +154,6 @@ function CourseLandingShell({
     }
   }
 
-  const paywallPosition = flatLessons.findIndex((l) => !l.is_free_preview)
   const fakeCourse: CourseRead = {
     id: landing.id,
     product_id: product.id,
