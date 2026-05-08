@@ -15,6 +15,10 @@ class EmailSequenceStepCreate(Schema):
     reply_to_email: str | None = None
     content_html: str | None = None
     content_json: dict | None = None
+    # Stable client-authored id linking this row to a node in the flow_doc.
+    # The editor sets it on every new step; the server stores it so future
+    # saves can align desired<->existing steps by id rather than array index.
+    flow_step_id: str | None = Field(default=None, max_length=64)
 
 
 class EmailSequenceStepUpdate(Schema):
@@ -26,6 +30,7 @@ class EmailSequenceStepUpdate(Schema):
     reply_to_email: str | None = None
     content_html: str | None = None
     content_json: dict | None = None
+    flow_step_id: str | None = Field(default=None, max_length=64)
 
 
 class EmailSequenceStep(TimestampedSchema, IDSchema):
@@ -39,6 +44,7 @@ class EmailSequenceStep(TimestampedSchema, IDSchema):
     reply_to_email: str | None = None
     content_html: str | None = None
     content_json: dict | None = None
+    flow_step_id: str | None = None
 
 
 class EmailSequenceReorderItem(Schema):
@@ -51,6 +57,13 @@ class EmailSequenceCreate(Schema):
     description: str | None = None
     trigger_type: EmailSequenceTriggerType = EmailSequenceTriggerType.manual
     trigger_config: dict = Field(default_factory=dict)
+    # Optional authored flow document. The editor sends this on first save so
+    # a fresh sequence can ship with audience filters / waits / branches
+    # already in place; without it the user has to PATCH right after creating.
+    # Stored on `trigger_config.flow_doc` (the server's source of truth for
+    # the flow walker) — the field is duplicated up to the top level here
+    # purely so the JSON shape is obvious at the API surface.
+    flow_doc: dict | None = None
 
 
 class EmailSequenceUpdate(Schema):
@@ -82,6 +95,10 @@ class EmailSequenceEnrollment(TimestampedSchema, IDSchema):
     enrolled_at: datetime
     next_step_at: datetime | None = None
     completed_at: datetime | None = None
+    # Tree cursor (Phase 3b). Surface read-only so observability tools and
+    # the dashboard can show "this enrollment is parked at step XYZ" even
+    # when we walk through nested branch arms.
+    flow_next_step_id: str | None = None
 
 
 class EmailSequenceEnrollRequest(Schema):

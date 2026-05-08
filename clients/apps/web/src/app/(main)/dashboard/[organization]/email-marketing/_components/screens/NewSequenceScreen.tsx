@@ -1,8 +1,11 @@
+'use client'
+
 import {
   useCreateEmailSequence,
   useCreateSequenceStep,
   useDeleteSequenceStep,
   useEmailSequence,
+  useEmailSequences,
   useReorderSequenceSteps,
   useSendTestSequenceStep,
   useSequenceSteps,
@@ -12,16 +15,19 @@ import {
 } from '@/hooks/queries/emailMarketing'
 import { useProducts } from '@/hooks/queries/products'
 import { schemas } from '@spaire/client'
+import { useQueryClient } from '@tanstack/react-query'
+import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { BroadcastEditor } from '../blockEditor/BroadcastEditor'
 import { renderBlocksToHtml } from '../blockEditor/render'
 import {
   Block,
   ContentDoc,
   isContentDoc,
   newId as newBlockId,
+  normalizeContentDoc,
 } from '../blockEditor/types'
-import { Composer } from '../composer/Composer'
 import {
   ActionStepValue,
   BranchStepValue,
@@ -33,12 +39,24 @@ import {
   StepNode,
   WaitStepValue,
   adoptFlowDoc,
+  appendStep,
+  blankStepNode,
+  blankStepNodeWithValue,
+  countEmailsInTree,
+  deepCloneStep,
   estimateDays,
+  findStepById,
+  insertAfterInTree,
   materializeEmailsFromFlow,
+  moveSiblingInTree,
   newId,
+  removeStepById,
+  reorderSiblingTree,
+  replaceStepInTree,
   stepSummary,
   stepTitle,
 } from '../flow'
+import { useDialogs } from '../dialogs'
 import { Icon } from '../Icon'
 import { MARK_BY_NAME } from '../MarkIcons'
 import { SequenceFlowPreview } from '../SequenceFlowPreview'
@@ -144,6 +162,7 @@ type ServerStep = {
   subject: string
   sender_name: string
   sender_email: string | null
+  flow_step_id?: string | null
   reply_to_email: string | null
   content_html: string | null
   content_json: Record<string, unknown> | null
@@ -163,12 +182,14 @@ const STARTER_DOC = (): ContentDoc => ({
 
 const adoptContentJson = (raw: unknown): ContentDoc => {
   if (isContentDoc(raw)) {
-    return {
-      version: 1,
+    const withIds = {
+      version: 1 as const,
+      accent: raw.accent,
       blocks: raw.blocks.map((b) =>
         'id' in b && b.id ? b : ({ ...b, id: newBlockId() } as Block),
       ),
     }
+    return normalizeContentDoc(withIds)
   }
   return STARTER_DOC()
 }
@@ -293,59 +314,84 @@ const SequenceEditorInner = ({
   const upd = (patch: Partial<FlowDoc>) => setFlow((f) => ({ ...f, ...patch }))
   const updSteps = (next: StepNode[]) => setFlow((f) => ({ ...f, steps: next }))
 
+  // Tree-aware step helpers (Phase 3b — branches now carry yes/no children
+  // recursively, so manipulations need to walk into both arms instead of
+  // just the top-level array).
+
   const updateStep = <T extends StepNode['type']>(
     id: string,
     type: T,
     value: Extract<StepNode, { type: T }>['value'],
   ) => {
-    updSteps(
-      flow.steps.map((s) =>
-        s.id === id ? ({ ...s, type, value } as StepNode) : s,
-      ),
-    )
+    setFlow((f) => ({
+      ...f,
+      steps: replaceStepInTree(f.steps, id, (existing) => {
+        if (existing.type === 'branch' && type === 'branch') {
+          return {
+            ...existing,
+            value: value as BranchStepValue,
+          }
+        }
+        // Non-branch types swap shape entirely. The cast is a deliberate
+        // widening — TypeScript can't reduce `Extract<StepNode, { type: T }>`
+        // when T is itself a generic, so we route through unknown and let
+        // the runtime contract enforce the right value shape per type.
+        return blankStepNodeWithValue<StepNode['type']>(
+          id,
+          type,
+          value as unknown as Extract<
+            StepNode,
+            { type: StepNode['type'] }
+          >['value'],
+        )
+      }),
+    }))
   }
 
-  const addStep = (type: StepNode['type']) => {
-    const value = DEFAULT_STEP_VALUES[type]() as StepNode['value']
-    const node = { id: newId(), type, value } as StepNode
-    updSteps([...flow.steps, node])
+  /**
+   * Insert a fresh step under either the root list or a specific branch arm.
+   * Without `parentBranchId` the new step appends at the end of the root.
+   */
+  const addStep = (
+    type: StepNode['type'],
+    parentBranchId: string | null = null,
+    arm: 'yes' | 'no' | null = null,
+  ) => {
+    const node = blankStepNode(type)
+    setFlow((f) => ({
+      ...f,
+      steps: appendStep(f.steps, node, parentBranchId, arm),
+    }))
     setExpandedId(node.id)
   }
 
   const removeStep = (id: string) =>
-    updSteps(flow.steps.filter((s) => s.id !== id))
+    setFlow((f) => ({ ...f, steps: removeStepById(f.steps, id) }))
 
   const duplicateStep = (id: string) => {
-    const idx = flow.steps.findIndex((s) => s.id === id)
-    if (idx < 0) return
-    const copy = { ...flow.steps[idx], id: newId() } as StepNode
-    const next = [...flow.steps]
-    next.splice(idx + 1, 0, copy)
-    updSteps(next)
+    const target = findStepById(flow.steps, id)
+    if (!target) return
+    const copy = deepCloneStep(target)
+    setFlow((f) => ({ ...f, steps: insertAfterInTree(f.steps, id, copy) }))
   }
 
   const moveStep = (id: string, dir: -1 | 1) => {
-    const i = flow.steps.findIndex((s) => s.id === id)
-    if (i < 0) return
-    const j = i + dir
-    if (j < 0 || j >= flow.steps.length) return
-    const next = [...flow.steps]
-    ;[next[i], next[j]] = [next[j], next[i]]
-    updSteps(next)
+    setFlow((f) => ({ ...f, steps: moveSiblingInTree(f.steps, id, dir) }))
   }
 
   const handleDragOver = (overId: string) => {
+    // Drag-and-drop within the tree only swaps siblings of the same parent
+    // for now. Cross-arm drag is intentionally deferred — moving a step
+    // between branch arms changes its semantic context, so we'd want a
+    // confirmation dialog in a follow-up.
     if (!draggingId || draggingId === overId) return
-    const fromIdx = flow.steps.findIndex((s) => s.id === draggingId)
-    const toIdx = flow.steps.findIndex((s) => s.id === overId)
-    if (fromIdx < 0 || toIdx < 0) return
-    const next = [...flow.steps]
-    const [moved] = next.splice(fromIdx, 1)
-    next.splice(toIdx, 0, moved)
-    updSteps(next)
+    setFlow((f) => ({
+      ...f,
+      steps: reorderSiblingTree(f.steps, draggingId, overId),
+    }))
   }
 
-  const totalEmails = flow.steps.filter((s) => s.type === 'email').length
+  const totalEmails = countEmailsInTree(flow.steps)
   const totalDays = estimateDays(flow.steps)
 
   const buildTriggerConfig = (): Record<string, unknown> => {
@@ -393,8 +439,10 @@ const SequenceEditorInner = ({
   const updateStepMutation = useUpdateSequenceStep(persistedId ?? '')
   const deleteStepMutation = useDeleteSequenceStep(persistedId ?? '')
   const reorderMutation = useReorderSequenceSteps(persistedId ?? '')
+  const queryClient = useQueryClient()
 
   const sendTestMutation = useSendTestSequenceStep()
+  const dialogs = useDialogs()
 
   const ensurePersisted = async (): Promise<string> => {
     if (persistedIdRef.current) return persistedIdRef.current
@@ -403,48 +451,120 @@ const SequenceEditorInner = ({
       description: description || undefined,
       trigger_type: trigger,
       trigger_config: buildTriggerConfig(),
+      // Ship the authored flow on first save so a freshly-created sequence
+      // already has the audience filters, waits, and goal in place — without
+      // this the editor used to PATCH a second time, which raced with
+      // syncEmailSteps and risked dropping flow nodes (audit issue #27).
+      flow_doc: flow as unknown as Record<string, unknown>,
     })
     persistedIdRef.current = created.id
     onOpened?.(created.id)
     return created.id
   }
 
-  const syncEmailSteps = async (sequenceIdNow: string) => {
+  /**
+   * Align the server's email step rows with the flow's email nodes by
+   * stable `flow_step_id` (audit issue #5).
+   *
+   * Previously this aligned by array index against `existingSteps`, a
+   * snapshot captured at mount time. After the first save the indices
+   * drifted because newly-created rows weren't reflected in the snapshot;
+   * subsequent saves wrote to the wrong row, double-created, or deleted
+   * something they didn't mean to.
+   *
+   * The new pipeline:
+   *   1. Refetch the live server rows (don't trust the captured snapshot).
+   *   2. Build a `flow_step_id → ServerStep` map.
+   *   3. For each desired email node:
+   *        - row missing → CREATE (capture the new id)
+   *        - row exists → UPDATE
+   *      For each server row whose flow_step_id no longer appears in
+   *      `desired` → DELETE.
+   *   4. POST the final positional ordering in one reorder call.
+   *
+   * Legacy rows persisted before flow_step_id existed have `flow_step_id ===
+   * null`; we adopt them in order until exhausted, attaching the next
+   * desired flow_step_id. After one save they're fully migrated.
+   */
+  const syncEmailSteps = async (sequenceIdNow: string): Promise<void> => {
     const desired = materializeEmailsFromFlow(flow.steps)
-    const server = [...existingSteps].sort((a, b) => a.position - b.position)
-    const max = Math.max(desired.length, server.length)
-    for (let i = 0; i < max; i++) {
+
+    // 1. Refetch live server state. The cache may be stale right after a
+    // mutation we issued ourselves earlier in this save sequence.
+    const fresh = await queryClient.fetchQuery<ServerStep[]>({
+      queryKey: ['email_sequence_steps', sequenceIdNow],
+    })
+
+    // 2. Build the map. Legacy rows (flow_step_id = null) are queued
+    // separately and adopted by the next un-mapped desired entry.
+    const byFlowId = new Map<string, ServerStep>()
+    const legacyRows: ServerStep[] = []
+    for (const row of fresh) {
+      if (row.flow_step_id) byFlowId.set(row.flow_step_id, row)
+      else legacyRows.push(row)
+    }
+    legacyRows.sort((a, b) => a.position - b.position)
+
+    const seen = new Set<string>()
+    type SyncedRow = { serverId: string; flowStepId: string }
+    const synced: SyncedRow[] = []
+
+    // 3a. Create / update each desired email in flow order. The position
+    // we send is the desired index; the reorder call below normalises any
+    // drift if the server picked a different position for a fresh insert.
+    for (let i = 0; i < desired.length; i++) {
       const want = desired[i]
-      const have = server[i]
-      if (want && have) {
+      const flowStepId = want.step.id
+      seen.add(flowStepId)
+
+      const payload = {
+        delay_hours: Math.round(want.delayHours),
+        subject: want.step.value.subject,
+        sender_name: want.step.value.fromName,
+        content_html:
+          want.step.value.content_html ?? renderEmailFallback(want.step.value),
+        flow_step_id: flowStepId,
+      }
+
+      let row = byFlowId.get(flowStepId)
+      if (!row && legacyRows.length > 0) {
+        // Adopt a legacy un-mapped row in arrival order so existing data
+        // doesn't get duplicated on the first id-aware save.
+        row = legacyRows.shift()
+      }
+
+      if (row) {
         await updateStepMutation.mutateAsync({
-          stepId: have.id,
-          delay_hours: Math.round(want.delayHours),
-          subject: want.step.value.subject,
-          sender_name: want.step.value.fromName,
-          content_html:
-            want.step.value.content_html ??
-            renderEmailFallback(want.step.value),
+          stepId: row.id,
+          ...payload,
         })
-      } else if (want && !have) {
-        await createStepMutation.mutateAsync({
-          delay_hours: Math.round(want.delayHours),
-          subject: want.step.value.subject,
-          sender_name: want.step.value.fromName,
-          content_html:
-            want.step.value.content_html ??
-            renderEmailFallback(want.step.value),
-        })
-      } else if (!want && have) {
-        await deleteStepMutation.mutateAsync(have.id)
+        synced.push({ serverId: row.id, flowStepId })
+      } else {
+        const created = await createStepMutation.mutateAsync(payload)
+        synced.push({ serverId: created.id, flowStepId })
       }
     }
-    if (desired.length > 1) {
-      // Position stays sequential; reorder by index in case server diverged.
-      // Skip the call if nothing actually moved.
+
+    // 3b. Delete server rows that have no corresponding desired flow node.
+    // Includes leftover legacy rows that didn't get adopted above.
+    for (const row of fresh) {
+      const stillWanted =
+        (row.flow_step_id !== null &&
+          row.flow_step_id !== undefined &&
+          seen.has(row.flow_step_id)) ||
+        synced.some((s) => s.serverId === row.id)
+      if (!stillWanted) {
+        await deleteStepMutation.mutateAsync(row.id)
+      }
     }
-    void sequenceIdNow
-    void reorderMutation
+
+    // 4. Persist the final ordering (audit issue #6 — reorder used to be a
+    // dead void branch). Skip the round-trip when nothing's reorderable.
+    if (synced.length > 1) {
+      await reorderMutation.mutateAsync(
+        synced.map((s, i) => ({ id: s.serverId, position: i })),
+      )
+    }
   }
 
   const onSaveDraft = async () => {
@@ -462,7 +582,11 @@ const SequenceEditorInner = ({
 
   const onActivate = async () => {
     if (totalEmails === 0) {
-      window.alert('Add at least one email step before activating.')
+      await dialogs.alert({
+        title: 'Add an email first',
+        message:
+          'A sequence needs at least one email step before it can go live.',
+      })
       return
     }
     const id = await ensurePersisted()
@@ -485,10 +609,22 @@ const SequenceEditorInner = ({
   const productsQuery = useProducts(organization.id, { limit: 100 })
   const products = productsQuery.data?.items ?? []
   const productOptions = products.map((p) => ({ id: p.id, label: p.name }))
+  // Sequences in the same org so the "Enrol in another sequence" action
+  // step has a non-empty dropdown (audit issue #10 / fix-list #40 — the
+  // option used to ship hardcoded `[]`). Filter out the current sequence
+  // so we don't suggest enrolling into ourselves (would loop forever).
+  const sequencesQuery = useEmailSequences(organization.id, { limit: 100 })
+  const sequenceOptions = (sequencesQuery.data?.items ?? [])
+    .filter((s: { id: string }) => s.id !== sequenceId)
+    .map((s: { id: string; name: string }) => ({ id: s.id, label: s.name }))
 
-  const editingEmail = flow.steps.find(
-    (s) => s.id === editingEmailId && s.type === 'email',
-  ) as Extract<StepNode, { type: 'email' }> | undefined
+  // Tree-aware lookup so emails authored inside branch arms still open in
+  // the editor modal (the previous flat-array `find` missed nested ones).
+  const editingEmailNode = editingEmailId
+    ? findStepById(flow.steps, editingEmailId)
+    : undefined
+  const editingEmail =
+    editingEmailNode?.type === 'email' ? editingEmailNode : undefined
 
   if (previewing) {
     return (
@@ -963,7 +1099,7 @@ const SequenceEditorInner = ({
                         filters: [
                           ...flow.audience.filters,
                           {
-                            id: Date.now(),
+                            id: newBlockId(),
                             field: 'tag',
                             op: 'is',
                             value: '',
@@ -1050,13 +1186,32 @@ const SequenceEditorInner = ({
                       type="button"
                       className="btn btn-ghost btn-sm"
                       style={{ fontSize: 11.5 }}
-                      onClick={() => {
-                        const t = window.prompt('Tag to exclude:')
+                      onClick={async () => {
+                        const t = await dialogs.prompt({
+                          title: 'Exclude a tag',
+                          message:
+                            'Subscribers carrying this tag will be skipped.',
+                          placeholder: 'engaged',
+                          validate: (v) => {
+                            const trimmed = v.trim()
+                            if (!trimmed) return 'Tag cannot be empty.'
+                            if (trimmed.length > 64)
+                              return 'Tag is too long (max 64 chars).'
+                            if (
+                              flow.audience.excludeTags.includes(trimmed)
+                            )
+                              return 'That tag is already excluded.'
+                            return null
+                          },
+                        })
                         if (t)
                           upd({
                             audience: {
                               ...flow.audience,
-                              excludeTags: [...flow.audience.excludeTags, t],
+                              excludeTags: [
+                                ...flow.audience.excludeTags,
+                                t.trim(),
+                              ],
                             },
                           })
                       }}
@@ -1093,115 +1248,27 @@ const SequenceEditorInner = ({
                   below.
                 </div>
               )}
-              {flow.steps.map((step, idx) => {
-                const expanded = expandedId === step.id
-                return (
-                  <StepCard
-                    key={step.id}
-                    type={step.type}
-                    dragging={draggingId === step.id}
-                    onDragStart={() => setDraggingId(step.id)}
-                    onDragEnd={() => setDraggingId(null)}
-                    onDragOver={() => handleDragOver(step.id)}
-                    onDrop={() => setDraggingId(null)}
-                    title={stepTitle(step)}
-                    summary={stepSummary(step)}
-                    expanded={expanded}
-                    onToggleExpand={() =>
-                      setExpandedId(expanded ? null : step.id)
-                    }
-                    onRemove={() => removeStep(step.id)}
-                    onDuplicate={() => duplicateStep(step.id)}
-                    onMove={(dir) => moveStep(step.id, dir)}
-                    canMoveUp={idx > 0}
-                    canMoveDown={idx < flow.steps.length - 1}
-                  >
-                    {step.type === 'email' && (
-                      <EmailStepBody
-                        value={step.value}
-                        onChange={(v) =>
-                          updateStep(step.id, 'email', v as EmailStepValue)
-                        }
-                        onOpenEditor={() => setEditingEmailId(step.id)}
-                      />
-                    )}
-                    {step.type === 'wait' && (
-                      <WaitStepBody
-                        value={step.value}
-                        onChange={(v) =>
-                          updateStep(step.id, 'wait', v as WaitStepValue)
-                        }
-                      />
-                    )}
-                    {step.type === 'branch' && (
-                      <BranchStepBody
-                        value={step.value}
-                        onChange={(v) =>
-                          updateStep(step.id, 'branch', v as BranchStepValue)
-                        }
-                        productOptions={productOptions}
-                      />
-                    )}
-                    {step.type === 'action' && (
-                      <ActionStepBody
-                        value={step.value}
-                        onChange={(v) =>
-                          updateStep(step.id, 'action', v as ActionStepValue)
-                        }
-                        sequenceOptions={[]}
-                      />
-                    )}
-                    {step.type === 'goal' && (
-                      <GoalStepBody
-                        value={step.value}
-                        onChange={(v) =>
-                          updateStep(step.id, 'goal', v as GoalStepValue)
-                        }
-                      />
-                    )}
-                  </StepCard>
-                )
-              })}
+              <StepList
+                steps={flow.steps}
+                parentBranchId={null}
+                arm={null}
+                expandedId={expandedId}
+                draggingId={draggingId}
+                productOptions={productOptions}
+                sequenceOptions={sequenceOptions}
+                setEditingEmailId={setEditingEmailId}
+                setExpandedId={setExpandedId}
+                setDraggingId={setDraggingId}
+                handleDragOver={handleDragOver}
+                updateStep={updateStep}
+                addStep={addStep}
+                removeStep={removeStep}
+                duplicateStep={duplicateStep}
+                moveStep={moveStep}
+              />
             </div>
-
-            <div
-              style={{
-                marginTop: 16,
-                padding: 14,
-                border: '1px dashed var(--line-2)',
-                borderRadius: 12,
-                background: '#fafafa',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 12,
-              }}
-            >
-              <span style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>
-                Add a step
-              </span>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {(
-                  [
-                    { t: 'email', icon: 'mail', label: 'Email' },
-                    { t: 'wait', icon: 'clock', label: 'Wait' },
-                    { t: 'branch', icon: 'split', label: 'Branch' },
-                    { t: 'action', icon: 'tag', label: 'Action' },
-                    { t: 'goal', icon: 'target', label: 'Goal' },
-                  ] as const
-                ).map((b) => (
-                  <button
-                    key={b.t}
-                    type="button"
-                    className="btn btn-secondary btn-sm"
-                    onClick={() => addStep(b.t)}
-                  >
-                    <Icon name={b.icon} size={12} />
-                    {b.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+            {/* StepList renders its own AddStepDock at every level (root and
+                each branch arm) so we no longer need a separate dock here. */}
           </FormSection>
 
           {/* === 05 Goal === */}
@@ -1450,7 +1517,14 @@ const SequenceEditorInner = ({
                 {
                   num: '03',
                   label: 'Audience filter',
-                  done: flow.audience.mode === 'all',
+                  // Either "everyone" is a valid finished state, or the
+                  // user has authored at least one filter rule. The
+                  // previous condition only honoured "all" — filtered
+                  // audiences were marked incomplete (audit issue #13,
+                  // logic was inverted).
+                  done:
+                    flow.audience.mode === 'all' ||
+                    flow.audience.filters.length > 0,
                 },
                 {
                   num: '04',
@@ -1464,9 +1538,16 @@ const SequenceEditorInner = ({
                 },
                 { num: '06', label: 'Send settings', done: true },
               ].map((item) => (
-                <a
+                <button
                   key={item.num}
-                  href="#"
+                  type="button"
+                  // Step nav is a checklist for now — clicking a row doesn't
+                  // jump to a section yet (FormSections lack scroll anchors).
+                  // Render as a non-interactive item via aria-disabled so
+                  // assistive tech doesn't promise scroll behaviour we
+                  // haven't built. Fix in Phase 8 when adding section ids.
+                  aria-disabled="true"
+                  onClick={(e) => e.preventDefault()}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -1476,6 +1557,11 @@ const SequenceEditorInner = ({
                     fontSize: 13,
                     color: 'var(--ink-2)',
                     textDecoration: 'none',
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'default',
+                    textAlign: 'left',
+                    width: '100%',
                   }}
                 >
                   <span
@@ -1506,7 +1592,7 @@ const SequenceEditorInner = ({
                     {item.num}
                   </span>
                   <span>{item.label}</span>
-                </a>
+                </button>
               ))}
             </nav>
           </div>
@@ -1559,12 +1645,28 @@ const SequenceEditorInner = ({
           organization={organization}
           step={editingEmail}
           emailNum={
-            flow.steps
-              .slice(
-                0,
-                flow.steps.findIndex((s) => s.id === editingEmail.id) + 1,
-              )
-              .filter((s) => s.type === 'email').length
+            // Tree-aware ordinal: pre-order walk counts nested emails too,
+            // including those inside branch arms (audit issue #7 follow-on
+            // — flat-array slice undercounted once nested authoring landed).
+            (() => {
+              const target = editingEmail.id
+              let n = 0
+              const visit = (nodes: StepNode[]): boolean => {
+                for (const node of nodes) {
+                  if (node.type === 'email') {
+                    n += 1
+                    if (node.id === target) return true
+                  }
+                  if (node.type === 'branch') {
+                    if (visit(node.yes)) return true
+                    if (visit(node.no)) return true
+                  }
+                }
+                return false
+              }
+              visit(flow.steps)
+              return n
+            })()
           }
           sequenceName={name}
           onChange={(v) => updateStep(editingEmail.id, 'email', v)}
@@ -1572,12 +1674,15 @@ const SequenceEditorInner = ({
           onSendTest={async (email) => {
             const id = await ensurePersisted()
             await syncEmailSteps(id)
-            const desired = materializeEmailsFromFlow(flow.steps)
-            const ord = desired.findIndex((d) => d.step.id === editingEmail.id)
-            const sorted = [...existingSteps].sort(
-              (a, b) => a.position - b.position,
+            // Look up the server step by stable flow_step_id rather than
+            // the previous ordinal-against-stale-snapshot dance (audit
+            // issue #20). syncEmailSteps already invalidated the cache.
+            const fresh = await queryClient.fetchQuery<ServerStep[]>({
+              queryKey: ['email_sequence_steps', id],
+            })
+            const target = fresh.find(
+              (s) => s.flow_step_id === editingEmail.id,
             )
-            const target = sorted[ord]
             if (target) {
               await sendTestMutation.mutateAsync({
                 sequenceId: id,
@@ -1913,7 +2018,7 @@ const SequenceEmailComposerModal = ({
         }}
       >
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <Composer
+          <BroadcastEditor
             embedded
             doc={doc}
             setDoc={setDoc}
@@ -1942,3 +2047,315 @@ const renderEmailFallback = (v: EmailStepValue): string => {
   const safePreview = (v.preview ?? '').replace(/</g, '&lt;')
   return `<h2>${safeSubject}</h2><p>${safePreview}</p>`
 }
+
+export const NewSequenceRoute = ({
+  organization,
+  sequenceId,
+}: {
+  organization: schemas['Organization']
+  sequenceId: string | null
+}) => {
+  const router = useRouter()
+  const base = `/dashboard/${organization.slug}/email-marketing/sequences`
+  return (
+    <NewSequenceScreen
+      organization={organization}
+      sequenceId={sequenceId}
+      onBack={() => router.push(base)}
+      onOpened={(id) => {
+        if (sequenceId !== id) {
+          router.replace(`${base}/${id}/edit`)
+        }
+      }}
+    />
+  )
+}
+
+// ── Recursive step list ──────────────────────────────────────────────────────
+// Renders the editor's step cards. Each branch's yes/no arms render a nested
+// StepList (with their own "+ add step" affordances) so authoring multi-step
+// arms and nested branches works natively (audit issue #7).
+
+type StepListProps = {
+  steps: StepNode[]
+  parentBranchId: string | null
+  arm: 'yes' | 'no' | null
+  expandedId: string | null
+  draggingId: string | null
+  productOptions: { id: string; label: string }[]
+  sequenceOptions: { id: string; label: string }[]
+  setEditingEmailId: (id: string | null) => void
+  setExpandedId: (id: string | null) => void
+  setDraggingId: (id: string | null) => void
+  handleDragOver: (overId: string) => void
+  // Non-generic form here so the prop type doesn't need to unify the
+  // generic instantiation; consumers cast at the call site.
+  updateStep: (
+    id: string,
+    type: StepNode['type'],
+    value: StepNode['value'],
+  ) => void
+  addStep: (
+    type: StepNode['type'],
+    parentBranchId?: string | null,
+    arm?: 'yes' | 'no' | null,
+  ) => void
+  removeStep: (id: string) => void
+  duplicateStep: (id: string) => void
+  moveStep: (id: string, dir: -1 | 1) => void
+}
+
+const StepList = (props: StepListProps) => {
+  const {
+    steps,
+    parentBranchId,
+    arm,
+    expandedId,
+    draggingId,
+    productOptions,
+    sequenceOptions,
+    setEditingEmailId,
+    setExpandedId,
+    setDraggingId,
+    handleDragOver,
+    updateStep,
+    addStep,
+    removeStep,
+    duplicateStep,
+    moveStep,
+  } = props
+  return (
+    <>
+      {steps.map((step, idx) => {
+        const expanded = expandedId === step.id
+        return (
+          <div key={step.id}>
+            <StepCard
+              type={step.type}
+              dragging={draggingId === step.id}
+              onDragStart={() => setDraggingId(step.id)}
+              onDragEnd={() => setDraggingId(null)}
+              onDragOver={() => handleDragOver(step.id)}
+              onDrop={() => setDraggingId(null)}
+              title={stepTitle(step)}
+              summary={stepSummary(step)}
+              expanded={expanded}
+              onToggleExpand={() =>
+                setExpandedId(expanded ? null : step.id)
+              }
+              onRemove={() => removeStep(step.id)}
+              onDuplicate={() => duplicateStep(step.id)}
+              onMove={(dir) => moveStep(step.id, dir)}
+              canMoveUp={idx > 0}
+              canMoveDown={idx < steps.length - 1}
+            >
+              {step.type === 'email' && (
+                <EmailStepBody
+                  value={step.value}
+                  onChange={(v) =>
+                    updateStep(step.id, 'email', v as EmailStepValue)
+                  }
+                  onOpenEditor={() => setEditingEmailId(step.id)}
+                />
+              )}
+              {step.type === 'wait' && (
+                <WaitStepBody
+                  value={step.value}
+                  onChange={(v) =>
+                    updateStep(step.id, 'wait', v as WaitStepValue)
+                  }
+                />
+              )}
+              {step.type === 'branch' && (
+                <BranchStepBody
+                  value={step.value}
+                  onChange={(v) =>
+                    updateStep(step.id, 'branch', v as BranchStepValue)
+                  }
+                  productOptions={productOptions}
+                />
+              )}
+              {step.type === 'action' && (
+                <ActionStepBody
+                  value={step.value}
+                  onChange={(v) =>
+                    updateStep(step.id, 'action', v as ActionStepValue)
+                  }
+                  sequenceOptions={sequenceOptions}
+                />
+              )}
+              {step.type === 'goal' && (
+                <GoalStepBody
+                  value={step.value}
+                  onChange={(v) =>
+                    updateStep(step.id, 'goal', v as GoalStepValue)
+                  }
+                />
+              )}
+            </StepCard>
+
+            {step.type === 'branch' && (
+              <BranchArms
+                branchId={step.id}
+                yes={step.yes}
+                no={step.no}
+                listProps={props}
+              />
+            )}
+          </div>
+        )
+      })}
+
+      <AddStepDock
+        parentBranchId={parentBranchId}
+        arm={arm}
+        onAdd={(type) => addStep(type, parentBranchId, arm)}
+      />
+    </>
+  )
+}
+
+const BranchArms = ({
+  branchId,
+  yes,
+  no,
+  listProps,
+}: {
+  branchId: string
+  yes: StepNode[]
+  no: StepNode[]
+  listProps: StepListProps
+}) => (
+  <div
+    style={{
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: 16,
+      marginTop: 12,
+      marginBottom: 12,
+      paddingLeft: 24,
+      borderLeft: '2px dashed var(--indigo-line)',
+    }}
+  >
+    <BranchArmColumn
+      label="Yes"
+      tone="success"
+      branchId={branchId}
+      arm="yes"
+      steps={yes}
+      listProps={listProps}
+    />
+    <BranchArmColumn
+      label="No"
+      tone="muted"
+      branchId={branchId}
+      arm="no"
+      steps={no}
+      listProps={listProps}
+    />
+  </div>
+)
+
+const BranchArmColumn = ({
+  label,
+  tone,
+  branchId,
+  arm,
+  steps,
+  listProps,
+}: {
+  label: 'Yes' | 'No'
+  tone: 'success' | 'muted'
+  branchId: string
+  arm: 'yes' | 'no'
+  steps: StepNode[]
+  listProps: StepListProps
+}) => {
+  const palette = {
+    success: {
+      bg: 'var(--green-soft)',
+      color: 'var(--green)',
+      border: 'rgba(26,122,62,0.25)',
+    },
+    muted: {
+      bg: 'var(--bg-softer)',
+      color: 'var(--ink-3)',
+      border: 'var(--line-2)',
+    },
+  } as const
+  const p = palette[tone]
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <span
+        style={{
+          alignSelf: 'flex-start',
+          padding: '3px 10px',
+          borderRadius: 999,
+          fontSize: 11,
+          background: p.bg,
+          color: p.color,
+          border: `1px solid ${p.border}`,
+        }}
+      >
+        {label}
+      </span>
+      <StepList
+        {...listProps}
+        steps={steps}
+        parentBranchId={branchId}
+        arm={arm}
+      />
+    </div>
+  )
+}
+
+const AddStepDock = ({
+  parentBranchId,
+  arm,
+  onAdd,
+}: {
+  parentBranchId: string | null
+  arm: 'yes' | 'no' | null
+  onAdd: (type: StepNode['type']) => void
+}) => (
+  <div
+    style={{
+      marginTop: 12,
+      padding: 10,
+      border: '1px dashed var(--line-2)',
+      borderRadius: 10,
+      background: '#fafafa',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+    }}
+  >
+    <span style={{ fontSize: 11.5, color: 'var(--ink-4)' }}>
+      {parentBranchId == null
+        ? 'Add a step'
+        : `Add to ${arm === 'yes' ? 'Yes' : 'No'} arm`}
+    </span>
+    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+      {(
+        [
+          { t: 'email', icon: 'mail', label: 'Email' },
+          { t: 'wait', icon: 'clock', label: 'Wait' },
+          { t: 'branch', icon: 'split', label: 'Branch' },
+          { t: 'action', icon: 'tag', label: 'Action' },
+          { t: 'goal', icon: 'target', label: 'Goal' },
+        ] as const
+      ).map((b) => (
+        <button
+          key={b.t}
+          type="button"
+          className="btn btn-secondary btn-sm"
+          onClick={() => onAdd(b.t)}
+        >
+          <Icon name={b.icon} size={11} />
+          {b.label}
+        </button>
+      ))}
+    </div>
+  </div>
+)

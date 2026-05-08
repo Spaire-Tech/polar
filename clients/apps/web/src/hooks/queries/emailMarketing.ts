@@ -201,6 +201,57 @@ export const useBulkCreateEmailSubscribers = (organizationId: string) =>
     },
   })
 
+export type SubscribersImportResult = {
+  created: number
+  updated: number
+  skipped: number
+  errors: { row: number; message: string }[]
+}
+
+/**
+ * Multipart upload to the server-side CSV importer (audit #36 / fix-list
+ * #36). The previous flow parsed the file in the browser with a naive
+ * comma-split, dropping any row with quoted fields, embedded newlines,
+ * or a BOM. The endpoint uses Python's csv.DictReader and returns
+ * row-level error messages so the dashboard can show what failed.
+ */
+export const useImportEmailSubscribersCsv = (organizationId: string) =>
+  useMutation({
+    mutationFn: async (
+      file: File,
+    ): Promise<SubscribersImportResult> => {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch(
+        getServerURL(
+          `/v1/email-subscribers/import-csv?organization_id=${organizationId}`,
+        ),
+        {
+          method: 'POST',
+          body: form,
+          credentials: 'include',
+        },
+      )
+      if (!res.ok) {
+        let detail = `${res.status} ${res.statusText}`
+        try {
+          const body = (await res.json()) as { detail?: string }
+          if (body.detail) detail = body.detail
+        } catch {
+          // body wasn't JSON — keep status as the message.
+        }
+        throw new Error(detail)
+      }
+      return (await res.json()) as SubscribersImportResult
+    },
+    onSuccess: () => {
+      getQueryClient().invalidateQueries({ queryKey: ['email_subscribers'] })
+      getQueryClient().invalidateQueries({
+        queryKey: ['email_subscriber_stats'],
+      })
+    },
+  })
+
 // ── Broadcasts ──
 
 export type BroadcastAggregateMetrics = {
@@ -209,21 +260,36 @@ export type BroadcastAggregateMetrics = {
   opened: number
   clicked: number
   unsubscribed: number
-  open_rate: number
-  click_rate: number
-  unsub_rate: number
+  // Audit issue #11 / fix-list #30: rates are null when we have no
+  // delivery signal (Resend webhooks not wired). Tiles show "—" in that
+  // case; previously the backend silently fell back to total_sent and
+  // displayed inflated rates.
+  open_rate: number | null
+  click_rate: number | null
+  unsub_rate: number | null
+  // True when the org has at least one webhook-confirmed delivery, so
+  // rates above can be trusted. False means the dashboard is showing
+  // raw send counts only and the Resend webhook hasn't fired yet.
+  webhook_signal_present: boolean
 }
 
 export type BroadcastAggregateAnalytics = {
   current: BroadcastAggregateMetrics
   prior: BroadcastAggregateMetrics | null
   delta: {
-    total_sent_pct?: number
-    open_rate_pt?: number
-    click_rate_pt?: number
-    unsub_rate_pt?: number
+    total_sent_pct?: number | null
+    open_rate_pt?: number | null
+    click_rate_pt?: number | null
+    unsub_rate_pt?: number | null
   }
-  industry: { open_rate: number; click_rate: number }
+  industry: {
+    slug: string
+    label: string
+    source: string
+    open_rate: number
+    click_rate: number
+    unsub_rate: number
+  }
 }
 
 export const useBroadcastAggregateAnalytics = (
@@ -532,6 +598,10 @@ export type BroadcastWritePayload = {
   subject?: string
   preview_text?: string | null
   sender_name?: string
+  // Optional From-address. The server falls back to the org's notifications
+  // sender when omitted; phase 4 plumbed this through Create as well so the
+  // editor's From input can write a real value.
+  sender_email?: string | null
   reply_to_email?: string | null
   content_html?: string | null
   content_json?: Record<string, unknown> | null
@@ -824,6 +894,10 @@ export const useCreateEmailSequence = (organizationId: string) =>
       description?: string
       trigger_type?: string
       trigger_config?: Record<string, unknown>
+      // Optional flow_doc — server merges it into trigger_config.flow_doc.
+      // The editor uses this so a fresh sequence can ship with the full
+      // authored flow on first save (audit issue #27).
+      flow_doc?: Record<string, unknown>
     }) =>
       seqMutate<any>(
         `/v1/email-sequences/?organization_id=${organizationId}`,
@@ -884,8 +958,13 @@ export const useCreateSequenceStep = (sequenceId: string) =>
       sender_email?: string
       reply_to_email?: string
       content_html?: string
+      flow_step_id?: string
     }) =>
-      seqMutate<any>(`/v1/email-sequences/${sequenceId}/steps`, 'POST', body),
+      seqMutate<{ id: string; flow_step_id: string | null }>(
+        `/v1/email-sequences/${sequenceId}/steps`,
+        'POST',
+        body,
+      ),
     onSuccess: () => {
       getQueryClient().invalidateQueries({
         queryKey: ['email_sequence_steps', sequenceId],
@@ -906,6 +985,7 @@ export const useUpdateSequenceStep = (sequenceId: string) =>
       sender_email?: string
       reply_to_email?: string
       content_html?: string
+      flow_step_id?: string
     }) =>
       seqMutate<any>(
         `/v1/email-sequences/${sequenceId}/steps/${stepId}`,

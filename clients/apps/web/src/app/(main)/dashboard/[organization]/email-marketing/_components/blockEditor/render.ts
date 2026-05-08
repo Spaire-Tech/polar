@@ -20,13 +20,19 @@ const DIVIDER_STYLE = 'border:none;border-top:1px solid #e8e8ed;margin:28px 0'
 const VIDEO_THUMB_STYLE =
   'max-width:100%;height:auto;display:block;border-radius:10px;border:1px solid #e8e8ed'
 
-const escape = (raw: string): string =>
-  raw
+const escape = (raw: unknown): string => {
+  // Defensive coerce: blocks loaded from the API may be missing fields the
+  // renderer assumes are present (older drafts, partial migrations, bad
+  // server data). String(undefined) → "undefined" which is worse than empty,
+  // so we explicitly null/undefined-coerce to "".
+  const s = raw == null ? '' : typeof raw === 'string' ? raw : String(raw)
+  return s
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;')
+}
 
 const safeUrl = (url: string | undefined): string | null => {
   if (!url) return null
@@ -56,6 +62,24 @@ const buttonStyle = (size: string | undefined, accent: string): string => {
 }
 
 const renderBlock = (block: Block, accent: string): string => {
+  // Defensive: a malformed block from the API shouldn't crash the renderer
+  // (and therefore the entire dashboard preview). Wrap each case so an
+  // unexpected error in one block produces an empty render for *that*
+  // block, not a thrown exception.
+  try {
+    return renderBlockUnsafe(block, accent)
+  } catch (err) {
+    if (typeof console !== 'undefined') {
+      console.warn('[email-marketing] render skipped malformed block', {
+        type: (block as { type?: unknown })?.type,
+        err,
+      })
+    }
+    return ''
+  }
+}
+
+const renderBlockUnsafe = (block: Block, accent: string): string => {
   switch (block.type) {
     case 'eyebrow':
       return `<div style="font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:${accent};font-weight:600;margin:0 0 8px">${escape(block.text || '')}</div>`
@@ -102,7 +126,11 @@ const renderBlock = (block: Block, accent: string): string => {
     case 'list': {
       const tag = block.ordered ? 'ol' : 'ul'
       const items = (block.items ?? [])
-        .map((it) => `<li style="margin-bottom:4px">${escape(it)}</li>`)
+        .map((it) => {
+          // Tolerate legacy string[] payloads still on disk pre-migration.
+          const text = typeof it === 'string' ? it : (it?.text ?? '')
+          return `<li style="margin-bottom:4px">${escape(text)}</li>`
+        })
         .join('')
       return `<${tag} style="margin:0 0 14px;padding-left:20px;color:#3a3a3c;font-size:14px;line-height:1.7">${items}</${tag}>`
     }
@@ -161,6 +189,8 @@ const renderBlock = (block: Block, accent: string): string => {
     }
     case 'digest-item':
       return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:14px 0;width:100%"><tr><td valign="top" style="width:48px;font-size:20px;font-weight:700;color:${accent};font-family:monospace;line-height:1">${escape(block.num)}</td><td style="padding-left:14px"><div style="font-size:15px;font-weight:600;color:#1d1d1f;letter-spacing:-0.01em;margin-bottom:3px;line-height:1.3">${escape(block.title)}</div><div style="font-size:11px;color:#86868b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px">${escape(block.meta)}</div><div style="font-size:13px;color:#3a3a3c;line-height:1.55">${escape(block.body)}</div></td></tr></table>`
+    default:
+      return ''
   }
 }
 

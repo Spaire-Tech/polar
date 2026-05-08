@@ -1,6 +1,9 @@
+'use client'
+
 import {
   SubscriberRow,
   useBulkCreateEmailSubscribers,
+  useImportEmailSubscribersCsv,
   useCreateEmailSubscriber,
   useEmailSubscribers,
   useEmailSubscriberStats,
@@ -9,8 +12,24 @@ import {
 } from '@/hooks/queries/emailMarketing'
 import { getServerURL } from '@/utils/api'
 import { schemas } from '@spaire/client'
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+
+/**
+ * Tiny in-file debounce so the search input doesn't fire a list query on
+ * every keystroke. We keep this colocated rather than promoting it to a
+ * shared util for now; if a second screen needs the same shape we can
+ * lift it.
+ */
+function useDebouncedValue<T>(value: T, delayMs: number): T {
+  const [debounced, setDebounced] = useState(value)
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebounced(value), delayMs)
+    return () => window.clearTimeout(t)
+  }, [value, delayMs])
+  return debounced
+}
 import { ActionMenu } from '../ActionMenu'
+import { useDialogs } from '../dialogs'
 import { Icon } from '../Icon'
 import { Modal } from '../Modal'
 import { MetricTile } from '../shared'
@@ -75,11 +94,17 @@ export const SubscribersScreen = ({
   const [importing, setImporting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // Debounce the search input by 300ms (audit issue #36 / fix-list #36).
+  // The previous implementation only reset the page on each keystroke
+  // and re-issued the API request immediately, so a five-character search
+  // fired five subscriber-list queries before the user finished typing.
+  const debouncedQuery = useDebouncedValue(query, 300)
+
   const apiStatus = FILTERS.find((f) => f.id === filter)?.api
 
   const subscribersQuery = useEmailSubscribers(orgId, {
     status: apiStatus,
-    q: query.trim() || undefined,
+    q: debouncedQuery.trim() || undefined,
     page,
     limit: PAGE_SIZE,
   })
@@ -88,7 +113,9 @@ export const SubscribersScreen = ({
   const updateMutation = useUpdateEmailSubscriber()
   const createMutation = useCreateEmailSubscriber(orgId)
   const deleteForeverMutation = usePermanentlyDeleteEmailSubscriber()
+  const dialogs = useDialogs()
   const bulkMutation = useBulkCreateEmailSubscribers(orgId)
+  const importCsvMutation = useImportEmailSubscribersCsv(orgId)
 
   const items = subscribersQuery.data?.items ?? []
   const totalCount = subscribersQuery.data?.pagination.total_count ?? 0
@@ -105,17 +132,43 @@ export const SubscribersScreen = ({
     setPage(1)
   }, [])
 
-  const setStatus = (id: string, status: SubscriberRow['status']) =>
-    updateMutation.mutate({ subscriberId: id, body: { status } })
-
-  const onDeleteForever = (s: SubscriberRow) => {
-    if (
-      window.confirm(
-        `Permanently delete ${s.email}? This frees the email slot and cannot be undone.`,
+  const setStatus = (id: string, status: SubscriberRow['status']) => {
+    // Audit issue #35 / fix-list #34: status changes used to fire-and-
+    // forget. Surface API failures via the dialog instead of silently
+    // letting the cache re-fetch and revert.
+    updateMutation
+      .mutateAsync({ subscriberId: id, body: { status } })
+      .catch((err: unknown) =>
+        dialogs.alert({
+          title: "Couldn't update subscriber",
+          message: err instanceof Error ? err.message : 'Please try again.',
+          tone: 'danger',
+        }),
       )
-    ) {
-      deleteForeverMutation.mutate(s.id)
-    }
+  }
+
+  const onDeleteForever = async (s: SubscriberRow) => {
+    const ok = await dialogs.confirm({
+      title: 'Delete forever?',
+      message: (
+        <>
+          Permanently delete <strong>{s.email}</strong>? This frees the email
+          slot and can&rsquo;t be undone.
+        </>
+      ),
+      confirmLabel: 'Delete forever',
+      tone: 'danger',
+    })
+    if (!ok) return
+    deleteForeverMutation
+      .mutateAsync(s.id)
+      .catch((err: unknown) =>
+        dialogs.alert({
+          title: "Couldn't delete subscriber",
+          message: err instanceof Error ? err.message : 'Please try again.',
+          tone: 'danger',
+        }),
+      )
   }
 
   const onExport = () => {
@@ -132,20 +185,44 @@ export const SubscribersScreen = ({
     if (!file) return
     setImporting(true)
     try {
-      const text = await file.text()
-      const lines = text.split(/\r?\n/).filter((l) => l.trim())
-      const startIdx = lines[0]?.toLowerCase().includes('email') ? 1 : 0
-      const rows: { email: string; name?: string }[] = []
-      for (let i = startIdx; i < lines.length; i++) {
-        const cols = lines[i]
-          .split(',')
-          .map((c) => c.trim().replace(/^"|"$/g, ''))
-        const [email, name] = cols
-        if (email) rows.push({ email, name: name || undefined })
+      // The previous client-side parser (text.split(/\r?\n/).split(','))
+      // silently dropped any row with quoted fields, embedded newlines,
+      // or a BOM (audit #36 / fix-list #36). Hand the whole file to the
+      // server, which uses csv.DictReader and returns per-row errors.
+      const result = await importCsvMutation.mutateAsync(file)
+      const summary = `${result.created} created · ${result.updated} updated · ${result.skipped} skipped`
+      if (result.errors.length > 0) {
+        const preview = result.errors
+          .slice(0, 5)
+          .map((err) => `· Row ${err.row}: ${err.message}`)
+          .join('\n')
+        const more =
+          result.errors.length > 5
+            ? `\n…and ${result.errors.length - 5} more.`
+            : ''
+        await dialogs.alert({
+          title: 'Import finished with issues',
+          message: (
+            <div style={{ whiteSpace: 'pre-wrap' }}>
+              {summary}
+              {'\n\n'}
+              {preview}
+              {more}
+            </div>
+          ),
+        })
+      } else {
+        await dialogs.alert({
+          title: 'Import complete',
+          message: summary,
+        })
       }
-      if (rows.length) {
-        await bulkMutation.mutateAsync({ rows, import_source: file.name })
-      }
+    } catch (err: unknown) {
+      await dialogs.alert({
+        title: "Couldn't import that file",
+        message: err instanceof Error ? err.message : 'Please try again.',
+        tone: 'danger',
+      })
     } finally {
       setImporting(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -463,8 +540,17 @@ export const SubscribersScreen = ({
         open={showAdd}
         onClose={() => setShowAdd(false)}
         onSubmit={async ({ email, name }) => {
-          await createMutation.mutateAsync({ email, name })
-          setShowAdd(false)
+          try {
+            await createMutation.mutateAsync({ email, name })
+            setShowAdd(false)
+          } catch (err: unknown) {
+            await dialogs.alert({
+              title: "Couldn't add subscriber",
+              message:
+                err instanceof Error ? err.message : 'Please try again.',
+              tone: 'danger',
+            })
+          }
         }}
         submitting={createMutation.isPending}
       />

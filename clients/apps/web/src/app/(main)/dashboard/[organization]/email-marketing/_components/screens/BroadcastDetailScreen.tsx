@@ -1,3 +1,5 @@
+'use client'
+
 import {
   useArchiveEmailBroadcast,
   useCancelScheduledEmailBroadcast,
@@ -7,9 +9,12 @@ import {
   useEmailBroadcastAnalytics,
   useEmailBroadcastSends,
 } from '@/hooks/queries/emailMarketing'
+import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { ActionMenu } from '../ActionMenu'
+import { useDialogs } from '../dialogs'
 import { Icon } from '../Icon'
+import { sanitizeEmailHtml } from '../sanitize'
 import { MetricTile } from '../shared'
 
 const PAGE_SIZE = 20
@@ -94,6 +99,7 @@ export const BroadcastDetailScreen = ({
   const duplicateMutation = useDuplicateEmailBroadcast()
   const cancelMutation = useCancelScheduledEmailBroadcast()
   const archiveMutation = useArchiveEmailBroadcast()
+  const dialogs = useDialogs()
 
   const broadcast = broadcastQuery.data
   const analytics = analyticsQuery.data
@@ -101,11 +107,21 @@ export const BroadcastDetailScreen = ({
   const sendsTotal = sendsQuery.data?.pagination.total_count ?? 0
   const sendsMaxPage = sendsQuery.data?.pagination.max_page ?? 1
 
-  const onArchive = () => {
-    if (broadcast && window.confirm(`Archive "${broadcast.subject}"?`)) {
-      archiveMutation.mutate(broadcastId)
-      onBack()
-    }
+  const onArchive = async () => {
+    if (!broadcast) return
+    const ok = await dialogs.confirm({
+      title: 'Archive broadcast?',
+      message: (
+        <>
+          Archive <strong>{broadcast.subject || 'this broadcast'}</strong>?
+          You can still find it in the archive list later.
+        </>
+      ),
+      confirmLabel: 'Archive',
+    })
+    if (!ok) return
+    archiveMutation.mutate(broadcastId)
+    onBack()
   }
 
   return (
@@ -248,7 +264,9 @@ export const BroadcastDetailScreen = ({
             }}
             // Email content is HTML produced by the org owner inside our composer.
             // It still goes through the same render pipeline used by the email worker.
-            dangerouslySetInnerHTML={{ __html: broadcast.content_html }}
+            dangerouslySetInnerHTML={{
+              __html: sanitizeEmailHtml(broadcast.content_html),
+            }}
           />
         </div>
       )}
@@ -577,5 +595,23 @@ const ABVariantBlock = ({
           : 'No data yet'}
       </div>
     </div>
+  )
+}
+
+export const BroadcastDetailRoute = ({
+  organizationSlug,
+  broadcastId,
+}: {
+  organizationSlug: string
+  broadcastId: string
+}) => {
+  const router = useRouter()
+  return (
+    <BroadcastDetailScreen
+      broadcastId={broadcastId}
+      onBack={() =>
+        router.push(`/dashboard/${organizationSlug}/email-marketing/broadcasts`)
+      }
+    />
   )
 }

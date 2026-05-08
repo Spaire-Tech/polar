@@ -1,5 +1,10 @@
-/* Spaire Email Marketing — Poppins, Stripe-style slate + violet. Scoped to .spaire-email-app. */
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=League+Spartan:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+/* Email Marketing — slate-leaning palette and tokens. Scoped to
+   .spaire-email-app so the existing screens keep their look while we
+   incrementally migrate them onto the project design system in later
+   phases. The Google Fonts @import was removed (render-blocking, ignores
+   Next.js's font-optimisation pipeline); we now inherit the application's
+   stack. The body `zoom: 0.9` was removed — it broke browser zoom,
+   keyboard-driven scaling, and pointer hit-testing. */
 
 .spaire-email-app {
   /* Stripe-style palette — cool slate neutrals, single violet accent. */
@@ -43,11 +48,7 @@
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.06);
   --shadow-lg: 0 24px 48px -12px rgba(0, 0, 0, 0.12);
 
-  font-family:
-    'Poppins',
-    system-ui,
-    -apple-system,
-    sans-serif;
+  font-family: inherit;
   font-optical-sizing: auto;
   background: var(--bg);
   color: var(--ink);
@@ -57,7 +58,6 @@
   font-weight: 400;
   min-height: 100vh;
   position: relative;
-  zoom: 0.9;
 }
 
 /* Subtle slate wash at the top of the page — Stripe-style cool neutral. */
@@ -553,4 +553,14 @@
 
 .spaire-email-app .modal-fade-in {
   animation: spaire-email-fade-in 0.18s ease-out;
+}
+
+/* Empty contentEditable placeholder for the EditableText primitive. The
+   placeholder lives in a data attribute so it never enters the editable DOM
+   (and never gets typed into / saved to state). */
+.spaire-email-app
+  [contenteditable][data-placeholder][data-empty]:empty::before {
+  content: attr(data-placeholder);
+  color: var(--ink-4);
+  pointer-events: none;
 }

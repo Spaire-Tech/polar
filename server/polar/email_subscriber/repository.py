@@ -1,8 +1,7 @@
+from datetime import date, timedelta
 from uuid import UUID
 
-from datetime import date, timedelta
-
-from sqlalchemy import Select, cast, Date, func, or_, select
+from sqlalchemy import Date, Select, cast, func, or_, select
 
 from polar.auth.models import AuthSubject, Organization, User, is_organization, is_user
 from polar.kit.repository import (
@@ -154,6 +153,25 @@ class EmailSubscriberRepository(
             EmailSubscriber.deleted_at.is_(None),
         )
         return await self.get_one_or_none(statement)
+
+    async def list_by_emails_and_organization(
+        self, emails: list[str], organization_id: UUID
+    ) -> list[EmailSubscriber]:
+        """Batch lookup of subscribers in this org whose lowercased email is
+        in the given set. Used by bulk_create to differentiate "new" from
+        "existing-and-reactivated" in a single round-trip rather than
+        N round-trips with the modified_at heuristic the audit (#44 / fix-
+        list #44) flagged as unreliable.
+        """
+        if not emails:
+            return []
+        normalized = sorted({e.lower().strip() for e in emails if e})
+        statement = self.get_base_statement().where(
+            EmailSubscriber.organization_id == organization_id,
+            EmailSubscriber.deleted_at.is_(None),
+            func.lower(EmailSubscriber.email).in_(normalized),
+        )
+        return await self.get_all(statement)
 
     async def count_by_organization(self, organization_id: UUID) -> int:
         statement = select(func.count(EmailSubscriber.id)).where(

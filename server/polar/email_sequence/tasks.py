@@ -3,7 +3,6 @@ from uuid import UUID
 
 import structlog
 
-from polar.config import settings
 from polar.email.react import render_email_template
 from polar.email.schemas import MarketingEmail, MarketingEmailProps
 from polar.email.sender import email_sender
@@ -32,10 +31,76 @@ from polar.worker import (
 log = structlog.get_logger()
 
 
+@actor(actor_name="email_sequence.send_test_step", priority=TaskPriority.MEDIUM)
+async def send_test_step(step_id: UUID, to_email: str) -> None:
+    """Render and deliver a single test send of a sequence step.
+
+    Wired from `EmailSequenceService.send_test_step`. Runs in the worker
+    rather than on the API request thread (audit issue #50) so we don't
+    block callers on the Resend roundtrip and gain retry-on-failure.
+    """
+    from polar.email_subscriber.unsubscribe_token import (
+        build_test_unsubscribe_url,
+    )
+
+    async with AsyncSessionMaker() as session:
+        step = await session.get(EmailSequenceStep, step_id)
+        if step is None:
+            return
+        sequence = await session.get(EmailSequence, step.sequence_id)
+        organization = (
+            await session.get(Organization, sequence.organization_id)
+            if sequence is not None
+            else None
+        )
+
+        unsubscribe_url = build_test_unsubscribe_url()
+        wrapped_html = render_email_template(
+            MarketingEmail(
+                props=MarketingEmailProps(
+                    organization_name=(
+                        organization.name if organization else step.sender_name
+                    ),
+                    organization_logo_url=(
+                        organization.avatar_url if organization else None
+                    ),
+                    organization_website=(
+                        organization.website if organization else None
+                    ),
+                    html_content=step.content_html or "<p>No content</p>",
+                    unsubscribe_url=unsubscribe_url,
+                )
+            )
+        )
+        try:
+            await email_sender.send(
+                to_email_addr=to_email,
+                subject=f"[TEST] {step.subject}",
+                html_content=wrapped_html,
+                from_name=step.sender_name,
+                from_email_addr=step.sender_email
+                or "noreply@notifications.spairehq.com",
+                email_headers={
+                    "List-Unsubscribe": f"<{unsubscribe_url}>",
+                    "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+                },
+                reply_to_name=step.sender_name if step.reply_to_email else None,
+                reply_to_email_addr=step.reply_to_email,
+            )
+        except Exception:
+            log.exception(
+                "email_sequence.send_test_step_failed",
+                step_id=str(step_id),
+                to_email=to_email,
+            )
+            raise
+
+
 @actor(actor_name="email_sequence.enroll_subscriber", priority=TaskPriority.MEDIUM)
 async def enroll_subscriber(sequence_id: UUID, subscriber_id: UUID) -> None:
     """Create an enrollment for a subscriber in a sequence."""
-    from .service import AlreadyEnrolled, email_sequence as sequence_service
+    from .service import AlreadyEnrolled
+    from .service import email_sequence as sequence_service
 
     async with AsyncSessionMaker() as session:
         sequence = await session.get(EmailSequence, sequence_id)
@@ -134,8 +199,8 @@ async def _process_with_flow_engine(
         _seq: EmailSequence,
         enr: EmailSequenceEnrollment,
         value: dict,
-    ) -> None:
-        await _send_email_node(
+    ) -> dict | None:
+        return await _send_email_node(
             session,
             sequence=sequence,
             enrollment=enr,
@@ -324,9 +389,9 @@ async def _send_email_step(
     organization: Organization | None,
     step: EmailSequenceStep,
 ) -> None:
-    unsubscribe_url = (
-        f"{settings.FRONTEND_BASE_URL}/email/unsubscribe?sid={enrollment.subscriber_id}"
-    )
+    from polar.email_subscriber.unsubscribe_token import build_unsubscribe_url
+
+    unsubscribe_url = build_unsubscribe_url(enrollment.subscriber_id)
     try:
         wrapped_html = render_email_template(
             MarketingEmail(
@@ -396,9 +461,9 @@ async def _send_inline(
     sender_email: str | None,
     content_html: str,
 ) -> None:
-    unsubscribe_url = (
-        f"{settings.FRONTEND_BASE_URL}/email/unsubscribe?sid={enrollment.subscriber_id}"
-    )
+    from polar.email_subscriber.unsubscribe_token import build_unsubscribe_url
+
+    unsubscribe_url = build_unsubscribe_url(enrollment.subscriber_id)
     try:
         wrapped_html = render_email_template(
             MarketingEmail(

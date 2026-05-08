@@ -1,3 +1,5 @@
+'use client'
+
 import {
   BroadcastRow,
   useArchiveEmailBroadcast,
@@ -8,9 +10,11 @@ import {
   useEmailSubscriberStats,
 } from '@/hooks/queries/emailMarketing'
 import { schemas } from '@spaire/client'
+import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { ActionMenu } from '../ActionMenu'
 import { fmtPctDelta, fmtPtDelta } from '../analyticsFormat'
+import { useDialogs } from '../dialogs'
 import { Icon } from '../Icon'
 import { MetricTile, Stat } from '../shared'
 
@@ -71,6 +75,7 @@ export const BroadcastsScreen = ({
   const duplicateMutation = useDuplicateEmailBroadcast()
   const cancelMutation = useCancelScheduledEmailBroadcast()
   const archiveMutation = useArchiveEmailBroadcast()
+  const dialogs = useDialogs()
 
   const items = broadcastsQuery.data?.items ?? []
   const totalCount = broadcastsQuery.data?.pagination.total_count ?? 0
@@ -80,8 +85,18 @@ export const BroadcastsScreen = ({
   const aggregateIndustry = aggregateQuery.data?.industry
   const subStats = subStatsQuery.data
 
-  const onArchive = (b: BroadcastRow) => {
-    if (window.confirm(`Archive "${b.subject}"?`)) archiveMutation.mutate(b.id)
+  const onArchive = async (b: BroadcastRow) => {
+    const ok = await dialogs.confirm({
+      title: 'Archive broadcast?',
+      message: (
+        <>
+          Archive <strong>{b.subject || 'this broadcast'}</strong>? You can
+          still find it in the archive list later.
+        </>
+      ),
+      confirmLabel: 'Archive',
+    })
+    if (ok) archiveMutation.mutate(b.id)
   }
 
   return (
@@ -131,25 +146,37 @@ export const BroadcastsScreen = ({
           down={(aggregateDelta?.total_sent_pct ?? 0) < 0}
         />
         <MetricTile
-          value={`${(aggregate?.open_rate ?? 0).toFixed(1)}%`}
+          value={
+            aggregate?.open_rate == null
+              ? '—'
+              : `${aggregate.open_rate.toFixed(1)}%`
+          }
           label="Avg. open rate"
           delta={fmtPtDelta(aggregateDelta?.open_rate_pt)}
           deltaLabel={
             aggregateIndustry
-              ? `vs industry ${aggregateIndustry.open_rate.toFixed(0)}%`
+              ? `vs ${aggregateIndustry.label} (${aggregateIndustry.open_rate.toFixed(0)}%)`
               : 'vs prior 30d'
           }
           down={(aggregateDelta?.open_rate_pt ?? 0) < 0}
         />
         <MetricTile
-          value={`${(aggregate?.click_rate ?? 0).toFixed(1)}%`}
+          value={
+            aggregate?.click_rate == null
+              ? '—'
+              : `${aggregate.click_rate.toFixed(1)}%`
+          }
           label="Avg. click rate"
           delta={fmtPtDelta(aggregateDelta?.click_rate_pt)}
           deltaLabel="vs prior 30d"
           down={(aggregateDelta?.click_rate_pt ?? 0) < 0}
         />
         <MetricTile
-          value={`${(aggregate?.unsub_rate ?? 0).toFixed(2)}%`}
+          value={
+            aggregate?.unsub_rate == null
+              ? '—'
+              : `${aggregate.unsub_rate.toFixed(2)}%`
+          }
           label="Avg. unsub rate"
           delta={
             aggregateDelta?.unsub_rate_pt !== undefined
@@ -453,5 +480,26 @@ const BroadcastListRow = ({
         />
       </div>
     </div>
+  )
+}
+
+/**
+ * Route wrapper: translates the screen's callback API into URL navigation
+ * so the back button, refresh, and share-link all behave correctly.
+ */
+export const BroadcastsRoute = ({
+  organization,
+}: {
+  organization: schemas['Organization']
+}) => {
+  const router = useRouter()
+  const base = `/dashboard/${organization.slug}/email-marketing/broadcasts`
+  return (
+    <BroadcastsScreen
+      organization={organization}
+      onNew={() => router.push(`${base}/new`)}
+      onOpen={(id) => router.push(`${base}/${id}`)}
+      onEdit={(id) => router.push(`${base}/${id}/edit`)}
+    />
   )
 }

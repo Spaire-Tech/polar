@@ -56,6 +56,14 @@ class EmailSubscriberBulkResult(Schema):
     created: int = 0
     updated: int = 0
     skipped: int = 0
+    # Optional row-level errors so callers (CSV import in particular) can
+    # surface "row 14: missing email" instead of a single opaque count.
+    errors: list["EmailSubscriberImportRowError"] = Field(default_factory=list)
+
+
+class EmailSubscriberImportRowError(Schema):
+    row: int = Field(description="1-based row index in the source file.")
+    message: str
 
 
 class EmailSubscriberFilterPreview(Schema):

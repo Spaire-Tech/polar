@@ -4,14 +4,15 @@ from uuid import UUID
 from sqlalchemy import asc, desc
 
 from polar.auth.models import AuthSubject, Organization, User
-from polar.postgres import AsyncReadSession, AsyncSession
 from polar.kit.pagination import PaginationParams
 from polar.kit.sorting import Sorting
+from polar.kit.utils import utc_now
 from polar.models.email_subscriber import (
     EmailSubscriber,
     EmailSubscriberSource,
     EmailSubscriberStatus,
 )
+from polar.postgres import AsyncReadSession, AsyncSession
 
 from .repository import EmailSubscriberRepository
 from .sorting import EmailSubscriberSortProperty
@@ -83,6 +84,21 @@ class EmailSubscriberService:
     ) -> EmailSubscriber:
         repository = EmailSubscriberRepository.from_session(session)
 
+        # Audit issue #23: the model carries email_verified_at but the
+        # service never populated it. Treat the email as verified when the
+        # subscriber arrives through a path that already proved control of
+        # the address — checkout completion (customer_id is set), purchase
+        # webhooks, or admin-confirmed manual creation. Imports / signup
+        # forms stay unverified until a separate confirmation step ships.
+        verified_now = (
+            utc_now()
+            if (
+                customer_id is not None
+                or source == EmailSubscriberSource.purchase
+            )
+            else None
+        )
+
         # Check for existing subscriber
         existing = await repository.get_by_email_and_organization(
             email, organization_id
@@ -99,6 +115,15 @@ class EmailSubscriberService:
                     existing.name = name
                 if customer_id and not existing.customer_id:
                     existing.customer_id = customer_id
+                # Promote to verified if this signal beats what we had.
+                if verified_now and existing.email_verified_at is None:
+                    existing.email_verified_at = verified_now
+                await repository.update(existing)
+            elif verified_now and existing.email_verified_at is None:
+                # Active row, never verified, now we have a signal — record
+                # it so the dashboard can distinguish form opt-ins from
+                # confirmed addresses.
+                existing.email_verified_at = verified_now
                 await repository.update(existing)
             return existing
 
@@ -110,6 +135,7 @@ class EmailSubscriberService:
             source=source,
             import_source=import_source,
             customer_id=customer_id,
+            email_verified_at=verified_now,
         )
         return await repository.create(subscriber, flush=True)
 
@@ -258,28 +284,84 @@ class EmailSubscriberService:
         source: str = EmailSubscriberSource.import_,
         import_source: str | None = None,
     ) -> dict[str, int]:
-        """Create many subscribers in one go. Returns counts of created/updated/skipped."""
-        created = 0
-        updated = 0
+        """Create many subscribers in one go.
+
+        Returns a count breakdown:
+          - created: rows that produced a new EmailSubscriber row
+          - updated: rows that hit an existing row that was reactivated
+              (status flipped from unsubscribed/archived back to active),
+              or had its name backfilled
+          - skipped: rows that were malformed (missing email / no '@')
+              or duplicates of an already-active subscriber
+
+        Audit issue #44 / fix-list #44: the previous implementation used
+        a `modified_at > created_at` heuristic to detect "updated" rows.
+        That always returned True for fresh rows because RecordModel sets
+        modified_at on every update including the just-after-insert flush,
+        making the count meaningless. We now pre-fetch the org's existing
+        emails in one round-trip and classify deterministically.
+        """
+        # Normalize + dedupe rows up front; track skips for malformed input.
+        cleaned: list[tuple[str, str | None]] = []
+        seen_in_input: set[str] = set()
         skipped = 0
         for email, name in rows:
-            email = (email or "").strip().lower()
-            if not email or "@" not in email:
+            email_norm = (email or "").strip().lower()
+            if not email_norm or "@" not in email_norm:
                 skipped += 1
                 continue
-            existing = await self.create(
-                session,
-                organization_id=organization_id,
-                email=email,
-                name=name,
-                source=source,
-                import_source=import_source,
-            )
-            # `create` reactivates existing subscribers; we treat the second case as updated.
-            if existing.created_at and existing.modified_at and existing.modified_at > existing.created_at:
+            if email_norm in seen_in_input:
+                # Duplicate within the same import — count as skipped so the
+                # final number matches what actually got processed.
+                skipped += 1
+                continue
+            seen_in_input.add(email_norm)
+            cleaned.append((email_norm, name))
+
+        if not cleaned:
+            return {"created": 0, "updated": 0, "skipped": skipped}
+
+        repository = EmailSubscriberRepository.from_session(session)
+        existing_rows = await repository.list_by_emails_and_organization(
+            [e for e, _ in cleaned], organization_id
+        )
+        existing_by_email = {r.email.lower(): r for r in existing_rows}
+
+        created = 0
+        updated = 0
+        for email_norm, name in cleaned:
+            existing = existing_by_email.get(email_norm)
+            if existing is None:
+                # New row.
+                await self.create(
+                    session,
+                    organization_id=organization_id,
+                    email=email_norm,
+                    name=name,
+                    source=source,
+                    import_source=import_source,
+                )
+                created += 1
+                continue
+
+            # Pre-existing row: classify as updated if reactivation or
+            # name-backfill happens, otherwise it's a no-op skip.
+            mutated = False
+            if existing.status in (
+                EmailSubscriberStatus.unsubscribed,
+                EmailSubscriberStatus.archived,
+            ):
+                existing.status = EmailSubscriberStatus.active
+                existing.unsubscribed_at = None
+                mutated = True
+            if name and not existing.name:
+                existing.name = name
+                mutated = True
+            if mutated:
+                await repository.update(existing)
                 updated += 1
             else:
-                created += 1
+                skipped += 1
         return {"created": created, "updated": updated, "skipped": skipped}
 
     async def preview_filter(

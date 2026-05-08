@@ -1,3 +1,5 @@
+'use client'
+
 import {
   SequenceTemplate,
   useCreateSequenceFromTemplate,
@@ -8,8 +10,10 @@ import {
   useUpdateEmailSequence,
 } from '@/hooks/queries/emailMarketing'
 import { schemas } from '@spaire/client'
+import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { ActionMenu } from '../ActionMenu'
+import { useDialogs } from '../dialogs'
 import { StepNode } from '../flow'
 import { Icon } from '../Icon'
 import { Modal } from '../Modal'
@@ -190,6 +194,7 @@ const MySequences = ({
   onNew: () => void
 }) => {
   const updateMutation = useUpdateEmailSequence()
+  const dialogs = useDialogs()
   const duplicateMutation = useDuplicateEmailSequence()
   const deleteMutation = useDeleteEmailSequence()
 
@@ -335,14 +340,19 @@ const MySequences = ({
                     label: 'Archive',
                     icon: 'trash',
                     destructive: true,
-                    onClick: () => {
-                      if (
-                        window.confirm(
-                          `Archive "${s.name}"? Active enrolments will stop.`,
-                        )
-                      ) {
-                        deleteMutation.mutate(s.id)
-                      }
+                    onClick: async () => {
+                      const ok = await dialogs.confirm({
+                        title: 'Archive sequence?',
+                        message: (
+                          <>
+                            Archive <strong>{s.name}</strong>? Active
+                            enrolments will stop receiving emails.
+                          </>
+                        ),
+                        confirmLabel: 'Archive',
+                        tone: 'danger',
+                      })
+                      if (ok) deleteMutation.mutate(s.id)
                     },
                   },
                 ]}
@@ -441,7 +451,13 @@ const TemplateGallery = ({
                 size={11}
                 style={{ verticalAlign: '-1px', marginRight: 6 }}
               />
-              Most-used template
+              {/* Audit issue #41 / fix-list #41: the previous label
+                  was "Most-used template" but the hero card simply
+                  picked templates[0]. Until template usage is tracked
+                  on the backend (a `template_slug` column on
+                  email_sequences would let us COUNT(*) GROUP BY), call
+                  it "Featured template" so the copy isn't a lie. */}
+              Featured template
             </div>
             <div
               style={{
@@ -1147,5 +1163,21 @@ const FlowMiniature = ({
         NO
       </text>
     </svg>
+  )
+}
+
+export const SequencesRoute = ({
+  organization,
+}: {
+  organization: schemas['Organization']
+}) => {
+  const router = useRouter()
+  const base = `/dashboard/${organization.slug}/email-marketing/sequences`
+  return (
+    <SequencesScreen
+      organization={organization}
+      onNew={() => router.push(`${base}/new`)}
+      onEdit={(id) => router.push(`${base}/${id}/edit`)}
+    />
   )
 }

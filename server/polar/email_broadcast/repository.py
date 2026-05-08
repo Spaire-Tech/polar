@@ -222,16 +222,27 @@ class EmailBroadcastRepository(
     async def get_top_links(
         self, organization_id: UUID, days: int, limit: int = 10
     ) -> list[dict]:
-        """Aggregate click counts across stored clicked_links across the org."""
+        """Aggregate click counts across the org's stored clicked_links.
+
+        CTR is computed per-link against the deliveries on the broadcasts
+        that contained that link (audit issue #21 / fix-list #21). The
+        previous denominator was the org's total deliveries in the
+        window — a link sent in a 100-recipient broadcast that got 5
+        clicks read "0.05% CTR" instead of "5%". Even when "broadcasts
+        that contained the link" can only be approximated from the click
+        log (we don't index every URL in `content_html`), the per-link
+        denominator captures the right order of magnitude.
+        """
         from datetime import timedelta
 
         from polar.kit.utils import utc_now
 
         cutoff = utc_now() - timedelta(days=days)
-        # Unnest the JSONB array of click events on each send so we can group
-        # by URL across the whole org.
+        # Unnest each send's clicked_links array, attaching the parent
+        # broadcast_id so we can group both clicks AND deliveries by url.
         unnested = (
             select(
+                EmailBroadcastSend.broadcast_id.label("broadcast_id"),
                 func.jsonb_array_elements(EmailBroadcastSend.clicked_links).label(
                     "evt"
                 ),
@@ -249,8 +260,17 @@ class EmailBroadcastRepository(
         )
 
         url_col = unnested.c.evt.op("->>")("url").label("url")
+        # `broadcasts_with_link` for each url is a Postgres array of distinct
+        # broadcast ids in which we observed at least one click on that
+        # url; we use it as the per-link denominator scope below.
         statement = (
-            select(url_col, func.count().label("clicks"))
+            select(
+                url_col,
+                func.count().label("clicks"),
+                func.array_agg(unnested.c.broadcast_id.distinct()).label(
+                    "broadcasts_with_link"
+                ),
+            )
             .where(url_col.is_not(None))
             .group_by(url_col)
             .order_by(func.count().desc())
@@ -259,35 +279,50 @@ class EmailBroadcastRepository(
         result = await self.session.execute(statement)
         rows = list(result.all())
 
-        delivered_subq = await self.session.execute(
-            select(func.count(EmailBroadcastSend.id))
-            .join(
-                EmailBroadcast,
-                EmailBroadcastSend.broadcast_id == EmailBroadcast.id,
-            )
-            .where(
-                EmailBroadcast.organization_id == organization_id,
-                EmailBroadcastSend.deleted_at.is_(None),
-                EmailBroadcastSend.created_at >= cutoff,
-                EmailBroadcastSend.status.in_(
-                    [
-                        EmailBroadcastSendStatus.delivered,
-                        EmailBroadcastSendStatus.opened,
-                        EmailBroadcastSendStatus.clicked,
-                    ]
-                ),
-            )
-        )
-        delivered = delivered_subq.scalar_one() or 0
+        # Pre-compute deliveries per broadcast in the window so the per-
+        # link CTRs only need a dict lookup. One query, not N+1.
+        deliveries_per_broadcast: dict[UUID, int] = {}
+        if rows:
+            broadcast_ids: set[UUID] = set()
+            for row in rows:
+                ids = row[2] or []
+                for bid in ids:
+                    if bid is not None:
+                        broadcast_ids.add(bid)
+            if broadcast_ids:
+                delivery_q = (
+                    select(
+                        EmailBroadcastSend.broadcast_id,
+                        func.count(EmailBroadcastSend.id),
+                    )
+                    .where(
+                        EmailBroadcastSend.broadcast_id.in_(broadcast_ids),
+                        EmailBroadcastSend.deleted_at.is_(None),
+                        EmailBroadcastSend.status.in_(
+                            [
+                                EmailBroadcastSendStatus.delivered,
+                                EmailBroadcastSendStatus.opened,
+                                EmailBroadcastSendStatus.clicked,
+                            ]
+                        ),
+                    )
+                    .group_by(EmailBroadcastSend.broadcast_id)
+                )
+                delivery_rows = await self.session.execute(delivery_q)
+                for bid, n in delivery_rows.all():
+                    deliveries_per_broadcast[bid] = int(n or 0)
 
-        return [
-            {
-                "url": row[0],
-                "clicks": row[1],
-                "ctr": round((row[1] / delivered * 100), 2) if delivered else 0.0,
-            }
-            for row in rows
-        ]
+        out: list[dict] = []
+        for row in rows:
+            url = row[0]
+            clicks = int(row[1] or 0)
+            broadcast_ids_for_link = [b for b in (row[2] or []) if b is not None]
+            denom = sum(
+                deliveries_per_broadcast.get(b, 0) for b in broadcast_ids_for_link
+            )
+            ctr = round((clicks / denom * 100), 2) if denom > 0 else 0.0
+            out.append({"url": url, "clicks": clicks, "ctr": ctr})
+        return out
 
     async def get_device_share(
         self, organization_id: UUID, days: int

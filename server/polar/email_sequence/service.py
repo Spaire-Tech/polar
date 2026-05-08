@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from datetime import datetime, time, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 import structlog
@@ -86,19 +86,19 @@ def apply_send_window(
     start_hour = max(0, min(23, start_hour))
     end_hour = max(start_hour + 1, min(24, end_hour))
 
-    target_tz = timezone.utc
+    target_tz = UTC
     if window.get("respect_timezone") and subscriber_timezone:
         try:
             from zoneinfo import ZoneInfo
 
             target_tz = ZoneInfo(subscriber_timezone)
         except Exception:
-            target_tz = timezone.utc
+            target_tz = UTC
 
     moment = (
         candidate.astimezone(target_tz)
         if candidate.tzinfo
-        else candidate.replace(tzinfo=timezone.utc).astimezone(target_tz)
+        else candidate.replace(tzinfo=UTC).astimezone(target_tz)
     )
     for _ in range(14):  # 2-week safety bound; windows always recur weekly
         if moment.weekday() in days_set:
@@ -109,9 +109,9 @@ def apply_send_window(
                 hour=0, minute=0, second=0, microsecond=0
             ) + timedelta(hours=end_hour)
             if moment < window_start:
-                return window_start.astimezone(timezone.utc)
+                return window_start.astimezone(UTC)
             if moment < window_end:
-                return moment.astimezone(timezone.utc)
+                return moment.astimezone(UTC)
         moment = (
             moment.replace(hour=0, minute=0, second=0, microsecond=0)
             + timedelta(days=1)
@@ -322,6 +322,7 @@ class EmailSequenceService:
         reply_to_email: str | None = None,
         content_html: str | None = None,
         content_json: dict | None = None,
+        flow_step_id: str | None = None,
     ) -> EmailSequenceStep:
         repository = EmailSequenceRepository.from_session(session)
 
@@ -339,6 +340,7 @@ class EmailSequenceService:
             reply_to_email=reply_to_email,
             content_html=content_html,
             content_json=content_json,
+            flow_step_id=flow_step_id,
         )
         session.add(step)
         await session.flush()
@@ -357,6 +359,7 @@ class EmailSequenceService:
         reply_to_email: str | None = None,
         content_html: str | None = None,
         content_json: dict | None = None,
+        flow_step_id: str | None = None,
     ) -> EmailSequenceStep:
         if position is not None:
             step.position = position
@@ -374,6 +377,8 @@ class EmailSequenceService:
             step.content_html = content_html
         if content_json is not None:
             step.content_json = content_json
+        if flow_step_id is not None:
+            step.flow_step_id = flow_step_id
         await session.flush()
         return step
 
@@ -408,22 +413,31 @@ class EmailSequenceService:
         # tree via flow_index. The initial next_step_at honours an opening
         # wait node so first emails don't fire mid-night for time-of-day
         # gated flows.
+        # Resolve subscriber tz (best-effort) so the first send respects it.
+        from polar.models.email_subscriber import EmailSubscriber
+
         from .flow_engine import (
             get_flow_doc,
             initial_flow_index,
             initial_send_at,
         )
 
-        # Resolve subscriber tz (best-effort) so the first send respects it.
-        from polar.models.email_subscriber import EmailSubscriber
-
         sub = await session.get(EmailSubscriber, subscriber_id)
         sub_tz = getattr(sub, "timezone", None) if sub is not None else None
 
         flow = get_flow_doc(sequence)
         flow_index: int | None = None
+        flow_next_step_id: str | None = None
         if flow is not None:
             flow_index = initial_flow_index(flow)
+            # Tree cursor: the first step's id. Tree-shaped flows always set
+            # this so the walker uses tree traversal from the start; legacy
+            # flat docs also have ids on each step, so it works there too.
+            steps = flow.get("steps") or []
+            if steps and isinstance(steps[0], dict):
+                first_id = steps[0].get("id")
+                if isinstance(first_id, str) and first_id:
+                    flow_next_step_id = first_id
             first_send = initial_send_at(
                 flow,
                 sequence.trigger_config,
@@ -441,6 +455,7 @@ class EmailSequenceService:
             status=EmailSequenceEnrollmentStatus.active,
             current_step_position=0,
             flow_index=flow_index,
+            flow_next_step_id=flow_next_step_id,
             enrolled_at=now,
             next_step_at=first_send,
         )
@@ -654,56 +669,16 @@ class EmailSequenceService:
         *,
         to_email: str,
     ) -> None:
-        """Render this step exactly as the worker would and ship it to
-        a single inbox. Doesn't touch step_sends or enrollments — purely
-        a preview send."""
-        from polar.config import settings as app_settings
-        from polar.email.react import render_email_template
-        from polar.email.schemas import MarketingEmail, MarketingEmailProps
-        from polar.email.sender import email_sender
-        from polar.models.email_sequence import EmailSequence
-        from polar.models.organization import Organization
+        """Enqueue a test-send of this step to a single inbox.
 
-        sequence = await session.get(EmailSequence, step.sequence_id)
-        organization = (
-            await session.get(Organization, sequence.organization_id)
-            if sequence is not None
-            else None
-        )
-
-        unsubscribe_url = (
-            f"{app_settings.FRONTEND_BASE_URL}/email/unsubscribe?test=1"
-        )
-        wrapped_html = render_email_template(
-            MarketingEmail(
-                props=MarketingEmailProps(
-                    organization_name=(
-                        organization.name if organization else step.sender_name
-                    ),
-                    organization_logo_url=(
-                        organization.avatar_url if organization else None
-                    ),
-                    organization_website=(
-                        organization.website if organization else None
-                    ),
-                    html_content=step.content_html or "<p>No content</p>",
-                    unsubscribe_url=unsubscribe_url,
-                )
-            )
-        )
-        await email_sender.send(
-            to_email_addr=to_email,
-            subject=f"[TEST] {step.subject}",
-            html_content=wrapped_html,
-            from_name=step.sender_name,
-            from_email_addr=step.sender_email
-            or "noreply@notifications.spairehq.com",
-            email_headers={
-                "List-Unsubscribe": f"<{unsubscribe_url}>",
-                "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-            },
-            reply_to_name=step.sender_name if step.reply_to_email else None,
-            reply_to_email_addr=step.reply_to_email,
+        Routed through Dramatiq (audit issue #50) so the API request returns
+        without waiting on Resend; transient delivery failures get the
+        worker's retry policy.
+        """
+        enqueue_job(
+            "email_sequence.send_test_step",
+            step_id=step.id,
+            to_email=to_email,
         )
 
     async def get_steps(

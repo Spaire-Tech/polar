@@ -41,8 +41,24 @@ async def fire_event(
     were resumed so callers / tests can assert on the result.
     """
     event_name = (event_name or "").strip()
-    if not event_name:
+    if not event_name or len(event_name) > 120:
         return []
+
+    from polar.models.email_subscriber import EmailSubscriber
+
+    # Defense in depth: refuse to wake any enrolment unless the (subscriber,
+    # organization) pair we were handed actually exists. The endpoint already
+    # scopes this via get_readable_statement, but cross-module callers could
+    # bypass it; the repository SQL also filters on organization_id below.
+    subscriber = await session.get(EmailSubscriber, subscriber_id)
+    if subscriber is None or subscriber.organization_id != organization_id:
+        log.warning(
+            "email_sequence.event.subscriber_org_mismatch",
+            organization_id=str(organization_id),
+            subscriber_id=str(subscriber_id),
+        )
+        return []
+    subscriber_tz = getattr(subscriber, "timezone", None)
 
     repository = EmailSequenceRepository.from_session(session)
     parked = await repository.list_parked_enrolments_for_subscriber(
@@ -50,13 +66,6 @@ async def fire_event(
     )
     if not parked:
         return []
-
-    from polar.models.email_subscriber import EmailSubscriber
-
-    subscriber = await session.get(EmailSubscriber, subscriber_id)
-    subscriber_tz = (
-        getattr(subscriber, "timezone", None) if subscriber is not None else None
-    )
 
     woken: list[EmailSequenceEnrollment] = []
     for enrolment, sequence in parked:
