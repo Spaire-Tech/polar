@@ -35,7 +35,7 @@ export function ProductLandingPage({
     let cancelled = false
     fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/v1/customer-portal/courses/by-product/${product.id}/landing`,
-      { credentials: 'include' },
+      { credentials: 'include', cache: 'no-store' },
     )
       .then(async (r) => {
         if (!r.ok) return null
@@ -95,7 +95,7 @@ function CourseLandingShell({
   // EditableCourseLandingView (preview mode) can render it untouched.
   const flatLessons: CourseLessonRead[] = landing.lessons.map((l, i) => ({
     id: l.id,
-    module_id: 'public',
+    module_id: l.module_id ?? 'public',
     title: l.title,
     content_type: l.content_type,
     content: null,
@@ -127,6 +127,34 @@ function CourseLandingShell({
   const paywallPosition =
     landing.paywall_position ??
     (inferredPaywallPosition >= 0 ? inferredPaywallPosition : null)
+  // Modules for the Sections roadmap. Prefer the explicit `landing.modules`
+  // payload when the backend returns it; otherwise fall back to deriving a
+  // module list from the lessons' module_id (in the order each module first
+  // appears) so the Sections block still renders even if the API response
+  // didn't include the modules field.
+  type PublicModule = { id: string; title: string; position: number }
+  const explicit = (landing.modules ?? []).map<PublicModule>((m) => ({
+    id: m.id,
+    title: m.title,
+    position: m.position,
+  }))
+  let modulesPublic: PublicModule[] = explicit
+  if (modulesPublic.length === 0) {
+    const seen = new Set<string>()
+    modulesPublic = []
+    for (const l of landing.lessons) {
+      const mid = l.module_id
+      if (!mid || mid === 'public' || seen.has(mid)) continue
+      seen.add(mid)
+      modulesPublic.push({
+        id: mid,
+        title: `Section ${modulesPublic.length + 1}`,
+        position: modulesPublic.length,
+      })
+    }
+  }
+
+  const paywallPosition = flatLessons.findIndex((l) => !l.is_free_preview)
   const fakeCourse: CourseRead = {
     id: landing.id,
     product_id: product.id,
@@ -153,11 +181,11 @@ function CourseLandingShell({
     // Public modules carry id + title + position only — that's all the
     // Sections roadmap needs. Lessons are intentionally empty here because
     // the public page reads them from `flatLessons` instead.
-    modules: (landing.modules ?? []).map((m) => ({
+    modules: modulesPublic.map((m) => ({
       id: m.id,
       course_id: landing.id,
       title: m.title,
-      description: m.description ?? null,
+      description: null,
       position: m.position,
       status: 'published',
       release_at: null,

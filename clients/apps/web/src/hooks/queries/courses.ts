@@ -547,6 +547,7 @@ export type CustomerCourseDetail = {
 
 export type CourseLandingLesson = {
   id: string
+  module_id?: string
   title: string
   description: string | null
   content_type: string

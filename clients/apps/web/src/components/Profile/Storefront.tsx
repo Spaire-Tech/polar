@@ -5,7 +5,12 @@ import HiveOutlined from '@mui/icons-material/HiveOutlined'
 import { schemas } from '@spaire/client'
 import Link from 'next/link'
 import { useMemo } from 'react'
-import { StorefrontLinkItem, StorefrontLinks } from './StorefrontLinks'
+import { SectionLabel } from './SectionLabel'
+import {
+  LinksLayout,
+  StorefrontLinkItem,
+  StorefrontLinks,
+} from './StorefrontLinks'
 
 const CATEGORY_LABELS: Record<string, string> = {
   ebook: 'eBooks',
@@ -27,27 +32,30 @@ const CATEGORY_ORDER = Object.keys(CATEGORY_LABELS)
 export const Storefront = ({
   organization,
   products,
+  preview = false,
 }: {
   organization: schemas['Organization'] | schemas['CustomerOrganization']
   products: schemas['ProductStorefront'][]
+  /**
+   * Editor-preview mode: product cards don't navigate. The card still
+   * looks live, but clicking it doesn't take the org out of the editor.
+   */
+  preview?: boolean
 }) => {
   const showDetails =
     'storefront_settings' in organization
       ? (organization.storefront_settings?.show_product_details ?? true)
       : true
 
-  const enableReviews =
-    'storefront_settings' in organization
-      ? (organization.storefront_settings?.enable_reviews ?? false)
-      : false
-
   const thumbnailSize =
+    ('storefront_settings' in organization
+      ? organization.storefront_settings?.thumbnail_size
+      : null) ?? 'medium'
+
+  const featuredMode: 'all' | 'curated' =
     'storefront_settings' in organization
-      ? ((organization.storefront_settings?.thumbnail_size as
-          | 'small'
-          | 'medium'
-          | 'large') ?? 'medium')
-      : 'medium'
+      ? (organization.storefront_settings?.featured_mode ?? 'all')
+      : 'all'
 
   const featuredIds =
     'storefront_settings' in organization
@@ -60,19 +68,25 @@ export const Storefront = ({
           []) as StorefrontLinkItem[])
       : []
 
-  const linksPosition: 'before_products' | 'after_products' =
-    'storefront_settings' in organization
-      ? ((organization.storefront_settings?.links_position ??
-          'after_products') as 'before_products' | 'after_products')
-      : 'after_products'
+  const linksPosition =
+    ('storefront_settings' in organization
+      ? organization.storefront_settings?.links_position
+      : null) ?? 'after_products'
 
-  // Products scoped by featuredIds (creator curation)
+  const linksLayout: LinksLayout =
+    ('storefront_settings' in organization
+      ? organization.storefront_settings?.links_layout
+      : null) ?? 'classic'
+
+  // Products scoped by featured_mode. In 'all' mode every active product
+  // is shown (including ones created after curation was set up); in
+  // 'curated' mode only the IDs in featuredIds are shown.
   const scopedProducts = useMemo(() => {
-    if (featuredIds.length > 0) {
+    if (featuredMode === 'curated') {
       return products.filter((p) => featuredIds.includes(p.id))
     }
     return products
-  }, [products, featuredIds])
+  }, [products, featuredMode, featuredIds])
 
   // Group products by category in CATEGORY_ORDER order. Products with no
   // category (or an unknown one) fall into the trailing "Other" section.
@@ -80,7 +94,7 @@ export const Storefront = ({
     const buckets: Record<string, schemas['ProductStorefront'][]> = {}
     const uncategorized: schemas['ProductStorefront'][] = []
     for (const p of scopedProducts) {
-      const cat = (p as any).category as string | null | undefined
+      const cat = p.category
       if (cat && cat in CATEGORY_LABELS) {
         ;(buckets[cat] ??= []).push(p)
       } else {
@@ -126,7 +140,7 @@ export const Storefront = ({
   return (
     <div className="flex w-full flex-col gap-12">
       {storefrontLinks.length > 0 && linksPosition === 'before_products' && (
-        <StorefrontLinks links={storefrontLinks} />
+        <StorefrontLinks links={storefrontLinks} layout={linksLayout} />
       )}
 
       {products.length > 0 && (
@@ -141,53 +155,38 @@ export const Storefront = ({
           id={`section-${section.key}`}
           className="flex scroll-mt-24 flex-col gap-6"
         >
-          <div className="inline-flex items-center gap-2 self-start rounded-full border border-white/60 bg-white/40 px-3.5 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_2px_rgba(0,0,0,0.04)] backdrop-blur-xl">
-            <span className="text-[11px] font-semibold tracking-[0.14em] text-gray-700 uppercase">
-              {section.label}
-            </span>
-            <span className="text-[11px] font-medium text-gray-400 tabular-nums">
-              {section.items.length}
-            </span>
-          </div>
+          <SectionLabel count={section.items.length}>
+            {section.label}
+          </SectionLabel>
           <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-2">
-            {section.items.map((product) => (
-              <Link
-                key={product.id}
-                href={`/${organization.slug}/products/${product.id}`}
-              >
-                <ProductCard
-                  product={product}
-                  showDetails={showDetails}
-                  thumbnailSize={thumbnailSize}
-                />
-              </Link>
-            ))}
+            {section.items.map((product) =>
+              preview ? (
+                <div key={product.id}>
+                  <ProductCard
+                    product={product}
+                    showDetails={showDetails}
+                    thumbnailSize={thumbnailSize}
+                  />
+                </div>
+              ) : (
+                <Link
+                  key={product.id}
+                  href={`/${organization.slug}/products/${product.id}`}
+                >
+                  <ProductCard
+                    product={product}
+                    showDetails={showDetails}
+                    thumbnailSize={thumbnailSize}
+                  />
+                </Link>
+              ),
+            )}
           </div>
         </section>
       ))}
 
       {storefrontLinks.length > 0 && linksPosition === 'after_products' && (
-        <StorefrontLinks links={storefrontLinks} />
-      )}
-
-      {/* Reviews section — shown when enabled */}
-      {enableReviews && (
-        <section className="flex flex-col gap-6">
-          <div className="inline-flex items-center gap-2 self-start rounded-full border border-white/60 bg-white/40 px-3.5 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_2px_rgba(0,0,0,0.04)] backdrop-blur-xl">
-            <span className="text-[11px] font-semibold tracking-[0.14em] text-gray-700 uppercase">
-              Reviews
-            </span>
-          </div>
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-gray-100 bg-white/60 py-10 text-center">
-            <span className="text-2xl">★★★★★</span>
-            <p className="mt-3 text-sm font-medium text-gray-700">
-              Reviews from your customers will appear here
-            </p>
-            <p className="mt-1 text-xs text-gray-400">
-              Share your products to start collecting reviews
-            </p>
-          </div>
-        </section>
+        <StorefrontLinks links={storefrontLinks} layout={linksLayout} />
       )}
     </div>
   )

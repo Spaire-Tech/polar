@@ -54,9 +54,9 @@ class OrganizationStorefrontSettings(TypedDict, total=False):
     skills: list[str]
     languages: list[str]
     available_for_work: bool
+    contact_url: str | None  # mailto: or https:// for the "Available for work" CTA
+    featured_mode: str  # "all" | "curated"
     featured_product_ids: list[str]
-    show_card_products: bool
-    enable_reviews: bool
     show_card_products: bool
     storefront_links: list[dict]  # list of StorefrontLink dicts
     links_position: str  # "before_products" | "after_products"
@@ -78,9 +78,9 @@ _default_storefront_settings: OrganizationStorefrontSettings = {
     "skills": [],
     "languages": [],
     "available_for_work": False,
+    "contact_url": None,
+    "featured_mode": "all",
     "featured_product_ids": [],
-    "show_card_products": True,
-    "enable_reviews": False,
     "show_card_products": True,
     "storefront_links": [],
     "links_position": "after_products",

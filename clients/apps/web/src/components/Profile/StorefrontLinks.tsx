@@ -2,6 +2,8 @@
 
 import LinkOutlined from '@mui/icons-material/LinkOutlined'
 import OpenInNewOutlined from '@mui/icons-material/OpenInNewOutlined'
+import { SectionLabel } from './SectionLabel'
+import { getDomain } from './linkPlatforms'
 
 export type StorefrontLinkItem = {
   id: string
@@ -15,19 +17,7 @@ export type StorefrontLinkItem = {
 
 export type LinksLayout = 'classic' | 'carousel' | 'image_grid' | 'card'
 
-function getDomain(url: string): string {
-  try {
-    return new URL(url).hostname.replace('www.', '')
-  } catch {
-    return url
-  }
-}
-
-function buildEmbedUrl(
-  url: string,
-  platform: string,
-  autoplay: boolean,
-): string | null {
+function buildEmbedUrl(url: string, platform: string): string | null {
   switch (platform) {
     case 'youtube': {
       const videoId = url.match(
@@ -35,10 +25,6 @@ function buildEmbedUrl(
       )?.[1]
       if (!videoId) return null
       const p = new URLSearchParams({ rel: '0', modestbranding: '1' })
-      if (autoplay) {
-        p.set('autoplay', '1')
-        p.set('mute', '1')
-      }
       return `https://www.youtube.com/embed/${videoId}?${p}`
     }
     case 'spotify': {
@@ -47,14 +33,13 @@ function buildEmbedUrl(
       )
       if (!m) return null
       const p = new URLSearchParams({ utm_source: 'generator' })
-      if (autoplay) p.set('autoplay', '1')
       return `https://open.spotify.com/embed/${m[1]}/${m[2]}?${p}`
     }
     case 'soundcloud': {
       const p = new URLSearchParams({
         url,
         color: '#ff5500',
-        auto_play: autoplay ? 'true' : 'false',
+        auto_play: 'false',
         hide_related: 'true',
         show_comments: 'false',
         show_user: 'true',
@@ -70,17 +55,9 @@ function buildEmbedUrl(
 
 // ─── Embed iframe ───────────────────────────────────────────────────────────
 
-const EmbedFrame = ({
-  link,
-  autoplay = false,
-  fullHeight = false,
-}: {
-  link: StorefrontLinkItem
-  autoplay?: boolean
-  fullHeight?: boolean
-}) => {
+const EmbedFrame = ({ link }: { link: StorefrontLinkItem }) => {
   const platform = link.platform ?? ''
-  const src = buildEmbedUrl(link.url, platform, autoplay)
+  const src = buildEmbedUrl(link.url, platform)
   if (!src) return null
 
   // Embeds render at full container width. YouTube keeps a 16:9 aspect ratio,
@@ -89,7 +66,6 @@ const EmbedFrame = ({
     return (
       <div className="relative w-full overflow-hidden pt-[56.25%]">
         <iframe
-          key={autoplay ? 'play' : 'pause'}
           src={src}
           frameBorder="0"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
@@ -106,11 +82,10 @@ const EmbedFrame = ({
     spotify: 80,
     soundcloud: 116,
   }
-  const h = heights[platform] ?? (fullHeight ? 240 : 180)
+  const h = heights[platform] ?? 180
 
   return (
     <iframe
-      key={autoplay ? 'play' : 'pause'}
       src={src}
       width="100%"
       height={h}
@@ -173,13 +148,119 @@ const UrlRow = ({ link }: { link: StorefrontLinkItem }) => (
   </a>
 )
 
-const UrlList = ({ links }: { links: StorefrontLinkItem[] }) => (
+const ClassicList = ({ links }: { links: StorefrontLinkItem[] }) => (
   <div className="flex flex-col gap-3">
     {links.map((link) => (
       <UrlRow key={link.id} link={link} />
     ))}
   </div>
 )
+
+// ─── Card layout (large image + meta below) ──────────────────────────────────
+
+const UrlCard = ({ link }: { link: StorefrontLinkItem }) => (
+  <a
+    href={link.url}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-all hover:shadow-md"
+  >
+    <Thumb link={link} className="aspect-[16/9] w-full object-cover" />
+    <div className="flex flex-col gap-1 p-4">
+      <p className="truncate text-base font-semibold text-gray-900">
+        {link.title || getDomain(link.url)}
+      </p>
+      {link.description && (
+        <p className="line-clamp-2 text-sm text-gray-500">{link.description}</p>
+      )}
+      <p className="mt-1 truncate text-[11px] text-gray-400">
+        {getDomain(link.url)}
+      </p>
+    </div>
+  </a>
+)
+
+const CardList = ({ links }: { links: StorefrontLinkItem[] }) => (
+  <div className="flex flex-col gap-4">
+    {links.map((link) => (
+      <UrlCard key={link.id} link={link} />
+    ))}
+  </div>
+)
+
+// ─── Image grid layout (2-col square thumbs) ─────────────────────────────────
+
+const UrlGridTile = ({ link }: { link: StorefrontLinkItem }) => (
+  <a
+    href={link.url}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="group relative block aspect-square overflow-hidden rounded-2xl bg-gray-100 shadow-sm transition-all hover:shadow-md"
+  >
+    <Thumb
+      link={link}
+      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+    />
+    <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/60 via-black/10 to-transparent p-3">
+      <p className="line-clamp-2 text-sm font-semibold text-white">
+        {link.title || getDomain(link.url)}
+      </p>
+      <p className="truncate text-[10px] text-white/70">
+        {getDomain(link.url)}
+      </p>
+    </div>
+  </a>
+)
+
+const ImageGrid = ({ links }: { links: StorefrontLinkItem[] }) => (
+  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+    {links.map((link) => (
+      <UrlGridTile key={link.id} link={link} />
+    ))}
+  </div>
+)
+
+// ─── Carousel layout (horizontal scroll snap) ────────────────────────────────
+
+const UrlCarouselCard = ({ link }: { link: StorefrontLinkItem }) => (
+  <a
+    href={link.url}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="flex w-[240px] shrink-0 snap-start flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-all hover:shadow-md"
+  >
+    <Thumb link={link} className="aspect-[4/3] w-full object-cover" />
+    <div className="flex flex-col gap-1 p-3">
+      <p className="line-clamp-2 text-sm font-semibold text-gray-900">
+        {link.title || getDomain(link.url)}
+      </p>
+      <p className="truncate text-[11px] text-gray-400">
+        {getDomain(link.url)}
+      </p>
+    </div>
+  </a>
+)
+
+const Carousel = ({ links }: { links: StorefrontLinkItem[] }) => (
+  <div
+    className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-2"
+    style={{ scrollbarWidth: 'thin' }}
+  >
+    {links.map((link) => (
+      <UrlCarouselCard key={link.id} link={link} />
+    ))}
+  </div>
+)
+
+const URL_LAYOUTS: Record<
+  LinksLayout,
+  React.ComponentType<{ links: StorefrontLinkItem[] }>
+> = {
+  classic: ClassicList,
+  card: CardList,
+  image_grid: ImageGrid,
+  carousel: Carousel,
+}
 
 // ─── Embed card (full-width) ─────────────────────────────────────────────────
 // Embeds always take the full container width so they make full use of the
@@ -189,7 +270,7 @@ const EmbedCard = ({ link }: { link: StorefrontLinkItem }) => {
   const canEmbed =
     link.type === 'embedded' &&
     link.platform &&
-    buildEmbedUrl(link.url, link.platform, false)
+    buildEmbedUrl(link.url, link.platform)
 
   return (
     <div className="w-full overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
@@ -222,23 +303,14 @@ const EmbedList = ({ links }: { links: StorefrontLinkItem[] }) => (
   </div>
 )
 
-// ─── Section label ───────────────────────────────────────────────────────────
-
-const SectionLabel = ({ children }: { children: React.ReactNode }) => (
-  <div className="inline-flex items-center gap-2 self-start rounded-full border border-white/60 bg-white/40 px-3.5 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_2px_rgba(0,0,0,0.04)] backdrop-blur-xl">
-    <span className="text-[11px] font-semibold tracking-[0.14em] text-gray-700 uppercase">
-      {children}
-    </span>
-  </div>
-)
-
 // ─── Main export ─────────────────────────────────────────────────────────────
-// Each link's rendering is derived from its type: URLs render as classic
-// rows, embeds as full-width cards. The legacy `layout` prop is accepted for
-// backwards compatibility but ignored.
+// URL-typed links render in the chosen layout (classic, card, image_grid,
+// carousel). Embedded links always render full-width because they need to
+// play inline — a YouTube grid would just be tiny iframes.
 
 export const StorefrontLinks = ({
   links,
+  layout = 'classic',
 }: {
   links: StorefrontLinkItem[]
   layout?: LinksLayout
@@ -247,6 +319,8 @@ export const StorefrontLinks = ({
 
   const urlLinks = links.filter((l) => l.type !== 'embedded')
   const embedLinks = links.filter((l) => l.type === 'embedded')
+
+  const UrlRenderer = URL_LAYOUTS[layout] ?? ClassicList
 
   return (
     <div className="flex w-full flex-col gap-8">
@@ -259,7 +333,7 @@ export const StorefrontLinks = ({
       {urlLinks.length > 0 && (
         <div className="flex flex-col gap-4">
           <SectionLabel>Links</SectionLabel>
-          <UrlList links={urlLinks} />
+          <UrlRenderer links={urlLinks} />
         </div>
       )}
     </div>

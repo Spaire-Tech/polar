@@ -52,6 +52,7 @@ def _serialize_lesson(
     """
     base = {
         "id": str(lesson.id),
+        "module_id": str(lesson.module_id),
         "title": lesson.title,
         "content_type": lesson.content_type,
         "position": lesson.position,

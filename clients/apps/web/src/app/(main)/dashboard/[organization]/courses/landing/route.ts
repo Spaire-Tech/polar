@@ -36,11 +36,11 @@ Curriculum heading: "Six chapters, built to compound." (≤ 6 words, ends with p
 Curriculum subheading: "Every chapter assumes the last. Watch in order or skip ahead — the lessons unlock the moment you enroll."
 
 SECTIONS MODULE — IMPORTANT
-The landing has a dedicated "sections module" rendered as a zigzag roadmap (alternating cards above/below a dotted spine). Each card shows a section number, the section title, and a replaceable image. There is one card per actual course module — the count of "sections" you generate MUST match "Total modules" in the input.
+The landing has a dedicated "sections module" rendered as a zigzag roadmap (alternating cards above/below a dotted spine). Each card shows a section number, the section title, and a replaceable image. The course outline ALWAYS has exactly four modules, so the "sections" array MUST have exactly four entries.
 Sections label (eyebrow): "The course" (or a 1-3 word equivalent)
-Sections heading: "Six sections, in order" (use the ACTUAL module count spelled out, e.g. "Four sections, in order"; ≤ 6 words; ends WITHOUT a period for this one)
+Sections heading: "Four sections, in order" (≤ 6 words; ends WITHOUT a period for this one)
 Sections subheading: "Each section builds on the last — from the underlying mechanics of persuasion to writing under pressure." (one sentence, ≤ 160 chars)
-Sections array: one entry per module, each with a "title" (2-6 words, editorial — NOT generic like "Section 1"). Each title should re-state what that module is about in the brand voice. Order matches the input module order.
+Sections array: exactly four entries, each with a "title" (2-6 words, editorial — NOT generic like "Section 1"). Each title should re-state what that module is about in the brand voice. Order matches the input module order.
 
 Lessons label: "EVERY LESSON"
 Lessons heading: "The full arc." (1-3 words, ends with period)

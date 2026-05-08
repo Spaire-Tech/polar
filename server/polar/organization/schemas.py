@@ -8,6 +8,7 @@ from pydantic import (
     BeforeValidator,
     Field,
     StringConstraints,
+    field_validator,
     model_validator,
 )
 from pydantic.json_schema import SkipJsonSchema
@@ -155,11 +156,33 @@ class OrganizationStorefrontSettings(Schema):
     available_for_work: bool = Field(
         False, description="Show 'Available for work' badge on the profile"
     )
-    featured_product_ids: list[str] = Field(
-        default_factory=list, description="Product IDs to feature on the storefront (empty = show all)"
+    contact_url: Annotated[
+        str | None,
+        Field(
+            max_length=400,
+            description=(
+                "Where the 'Available for work' badge sends visitors. Accepts "
+                "an https:// URL (e.g. a contact form, calendar booking link) "
+                "or a mailto: URL. When unset, the badge is non-interactive."
+            ),
+        ),
+        EmptyStrToNoneValidator,
+    ] = None
+    featured_mode: Literal["all", "curated"] = Field(
+        "all",
+        description=(
+            "How to choose which products appear on the storefront. 'all' "
+            "(default) shows every active product, including ones created "
+            "after the storefront was set up. 'curated' shows only the IDs "
+            "in featured_product_ids."
+        ),
     )
-    enable_reviews: bool = Field(
-        False, description="Allow customers to leave reviews on products"
+    featured_product_ids: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Product IDs to feature on the storefront when featured_mode is "
+            "'curated'. Ignored when featured_mode is 'all'."
+        ),
     )
     show_card_products: bool = Field(
         True, description="Show product images in the profile card"
@@ -180,6 +203,18 @@ class OrganizationStorefrontSettings(Schema):
         None,
         description="CSS object-position value for the cover image focal point (e.g. '50% 30%')",
     )
+
+    @field_validator("contact_url")
+    @classmethod
+    def _validate_contact_url(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        scheme = v.split(":", 1)[0].lower() if ":" in v else ""
+        if scheme not in {"http", "https", "mailto"}:
+            raise ValueError(
+                "contact_url must start with https://, http://, or mailto:"
+            )
+        return v
 
 
 class OrganizationSubscribePromoteSettings(Schema):

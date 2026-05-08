@@ -106,8 +106,12 @@ export const useUpdateOrganization = () =>
       if (error) {
         return
       }
-      getQueryClient().invalidateQueries({
+      const queryClient = getQueryClient()
+      queryClient.invalidateQueries({
         queryKey: ['organizations', data.id],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ['storefront', { organizationSlug: data.slug }],
       })
       await revalidate(`organizations:${data.id}`)
       await revalidate(`organizations:${data.slug}`)

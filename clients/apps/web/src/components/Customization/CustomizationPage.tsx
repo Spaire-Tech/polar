@@ -8,11 +8,13 @@ import { toast } from '@/components/Toast/use-toast'
 import { useUpdateOrganization } from '@/hooks/queries'
 import { useStorefront } from '@/hooks/queries/storefront'
 import { setValidationErrors } from '@/utils/api/errors'
+import { spacePageLink } from '@/utils/nav'
 import { isValidationError, schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import { Form } from '@spaire/ui/components/ui/form'
+import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { StorefrontLinksPanel } from './Storefront/StorefrontLinksPanel'
 import { StorefrontLivePreview } from './Storefront/StorefrontPreview'
@@ -36,6 +38,7 @@ const Customization = ({
   organization: schemas['Organization']
 }) => {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const updateOrganization = useUpdateOrganization()
   const [publishing, setPublishing] = useState(false)
   const [linksMode, setLinksMode] = useState(false)
@@ -52,6 +55,20 @@ const Customization = ({
       storefront_settings: organization.storefront_settings,
     },
   })
+
+  const isDirty = form.formState.isDirty
+
+  // Warn before navigating away (or closing the tab) with unpublished
+  // edits. Only for the editor, not the published-preview branch.
+  useEffect(() => {
+    if (!isDirty || !isEditing) return
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = '' // required by some browsers to show the prompt
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [isDirty, isEditing])
 
   const handlePublish = useCallback(async () => {
     if (publishing) return
@@ -101,6 +118,12 @@ const Customization = ({
         storefront_settings: org.storefront_settings,
       })
 
+      // Wait for the storefront query to refetch so the published-preview
+      // branch below renders the new data instead of a stale cache hit.
+      await queryClient.refetchQueries({
+        queryKey: ['storefront', { organizationSlug: org.slug }],
+      })
+
       // After publishing, switch to preview mode if space is enabled
       if (org.storefront_settings?.enabled) {
         setIsEditing(false)
@@ -132,7 +155,7 @@ const Customization = ({
             </button>
             <div className="flex items-center gap-3">
               <a
-                href={`https://space.spairehq.com/${organization.slug}`}
+                href={spacePageLink(organization)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="rounded-full border border-gray-200 px-6 py-2 text-[14px] font-medium text-gray-700 transition-colors hover:bg-gray-50"
@@ -157,6 +180,7 @@ const Customization = ({
                 <ProfileCard
                   organization={storefrontData?.organization ?? organization}
                   products={storefrontData?.products ?? []}
+                  preview
                 />
               </aside>
               {/* Right — products */}
@@ -164,6 +188,7 @@ const Customization = ({
                 <Storefront
                   organization={storefrontData?.organization ?? organization}
                   products={storefrontData?.products ?? []}
+                  preview
                 />
               </main>
             </div>
@@ -183,6 +208,14 @@ const Customization = ({
           <button
             type="button"
             onClick={() => {
+              if (
+                isDirty &&
+                !window.confirm(
+                  'You have unpublished changes. Leave without publishing?',
+                )
+              ) {
+                return
+              }
               if (isSpaceEnabled) {
                 setIsEditing(false)
               } else {
@@ -191,17 +224,16 @@ const Customization = ({
             }}
             className="text-[14px] text-gray-500 transition-colors hover:text-gray-700"
           >
-            {isSpaceEnabled
-              ? '\u2190 Back to preview'
-              : '\u2190 Back to dashboard'}
+            {isSpaceEnabled ? '\u2190 Back to preview' : '\u2190 Back to dashboard'}
           </button>
           <Button
             className="rounded-full px-6"
             type="button"
             onClick={handlePublish}
             loading={publishing}
+            disabled={!isDirty}
           >
-            Publish Changes
+            {isDirty ? 'Publish Changes' : 'Published'}
           </Button>
         </div>
 
@@ -246,12 +278,32 @@ const Customization = ({
             </div>
           </div>
 
-          {/* Right — form sections (full width on mobile) */}
+          {/* Right — form sections on desktop, full-width on mobile.
+              On mobile we swap in the StorefrontLinksPanel when
+              linksMode is on, since the left column (where the panel
+              normally renders on desktop) is hidden below md. */}
           <div className="w-full shrink-0 overflow-y-auto border-l border-gray-200 bg-white shadow-sm md:w-[700px]">
-            <StorefrontEditorForm
-              organization={organization}
-              onEnterLinksMode={() => setLinksMode(true)}
-            />
+            {linksMode && (
+              <div className="block px-4 py-6 md:hidden">
+                <button
+                  type="button"
+                  onClick={() => setLinksMode(false)}
+                  className="mb-4 text-sm text-gray-500 transition-colors hover:text-gray-700"
+                >
+                  &larr; Back to editor
+                </button>
+                <StorefrontLinksPanel
+                  organization={organization}
+                  onBack={() => setLinksMode(false)}
+                />
+              </div>
+            )}
+            <div className={linksMode ? 'hidden md:block' : 'block'}>
+              <StorefrontEditorForm
+                organization={organization}
+                onEnterLinksMode={() => setLinksMode(true)}
+              />
+            </div>
           </div>
         </div>
       </div>

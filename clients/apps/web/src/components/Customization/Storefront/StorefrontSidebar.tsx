@@ -1,25 +1,22 @@
 'use client'
 
+import { ConfirmModal } from '@/components/Modal/ConfirmModal'
 import { InlineModal } from '@/components/Modal/InlineModal'
 import { CreateProductPage } from '@/components/Products/CreateProductPage'
 import { StorefrontLinkItem } from '@/components/Profile/StorefrontLinks'
 import { toast } from '@/components/Toast/use-toast'
 import { useProducts } from '@/hooks/queries'
-import { CONFIG } from '@/utils/config'
+import { spacePageLink } from '@/utils/nav'
 import AddOutlined from '@mui/icons-material/AddOutlined'
 import AddPhotoAlternateOutlined from '@mui/icons-material/AddPhotoAlternateOutlined'
 import CheckOutlined from '@mui/icons-material/CheckOutlined'
 import ChevronRightOutlined from '@mui/icons-material/ChevronRightOutlined'
 import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined'
-import DeleteOutlined from '@mui/icons-material/DeleteOutlined'
-import Facebook from '@mui/icons-material/Facebook'
-import GitHub from '@mui/icons-material/GitHub'
-import Instagram from '@mui/icons-material/Instagram'
-import LinkedIn from '@mui/icons-material/LinkedIn'
+import GridViewOutlined from '@mui/icons-material/GridViewOutlined'
 import OpenInNewOutlined from '@mui/icons-material/OpenInNewOutlined'
-import Public from '@mui/icons-material/Public'
-import X from '@mui/icons-material/X'
-import YouTube from '@mui/icons-material/YouTube'
+import ViewAgendaOutlined from '@mui/icons-material/ViewAgendaOutlined'
+import ViewCarouselOutlined from '@mui/icons-material/ViewCarouselOutlined'
+import ViewListOutlined from '@mui/icons-material/ViewListOutlined'
 import { schemas } from '@spaire/client'
 import {
   Select,
@@ -34,316 +31,19 @@ import { FileRejection } from 'react-dropzone'
 import { useFormContext } from 'react-hook-form'
 import { twMerge } from 'tailwind-merge'
 import { FileObject, useFileUpload } from '../../FileUpload'
+import {
+  LANGUAGE_OPTIONS,
+  PROFILE_TITLE_OPTIONS,
+  SKILL_OPTIONS,
+} from './StorefrontSidebar/constants'
+import { SocialLinkRow } from './StorefrontSidebar/SocialLinkRow'
+import { TagInput } from './StorefrontSidebar/TagInput'
+import { parseFocalPosition } from './StorefrontSidebar/utils'
 
-// TikTok SVG icon (not available in MUI)
-const TikTokIcon = ({
-  className,
-  style,
-}: {
-  className?: string
-  style?: React.CSSProperties
-}) => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="currentColor"
-    className={className}
-    style={style}
-    width="1em"
-    height="1em"
-  >
-    <path d="M16.6 5.82s.51.5 0 0A4.278 4.278 0 0 1 15.54 3h-3.09v12.4a2.592 2.592 0 0 1-2.59 2.5c-1.42 0-2.6-1.16-2.6-2.6 0-1.72 1.66-3.01 3.37-2.48V9.66c-3.45-.46-6.47 2.22-6.47 5.64 0 3.33 2.76 5.7 5.69 5.7 3.14 0 5.69-2.55 5.69-5.7V9.01a7.35 7.35 0 0 0 4.3 1.38V7.3s-1.88.09-3.24-1.48z" />
-  </svg>
-)
+// Re-export so ProfileCard's existing import path stays valid.
+export { focalPointToObjectPosition } from './StorefrontSidebar/utils'
 
-// Predefined options
-const SKILL_OPTIONS = [
-  '2D Design',
-  '3D Design',
-  '3D Modeling',
-  '2D Animation',
-  '3D Animation',
-  'Game Art',
-  'Illustration',
-  'Digital Art',
-  'Graphic Design',
-  'UI/UX Design',
-  'Motion Graphics',
-  'Video Editing',
-  'Photography',
-  'Ebook',
-  'Templates',
-  'Fonts',
-  'Icons',
-  'Mockups',
-  'Textures',
-  'Audio',
-  'Music',
-  'Sound Effects',
-  'Presets',
-  'LUTs',
-  'Brushes',
-  'Plugins',
-  'WordPress Themes',
-  'Notion Templates',
-  'Figma',
-  'Adobe Photoshop',
-  'Adobe Illustrator',
-  'After Effects',
-  'Blender',
-  'Cinema 4D',
-  'Unity',
-  'Unreal Engine',
-]
-
-const LANGUAGE_OPTIONS = [
-  'English',
-  'French',
-  'Spanish',
-  'German',
-  'Portuguese',
-  'Italian',
-  'Dutch',
-  'Russian',
-  'Arabic',
-  'Chinese',
-  'Japanese',
-  'Korean',
-  'Hindi',
-  'Turkish',
-  'Polish',
-  'Swedish',
-  'Norwegian',
-  'Danish',
-  'Finnish',
-  'Greek',
-  'Czech',
-  'Romanian',
-  'Hungarian',
-  'Thai',
-  'Vietnamese',
-  'Indonesian',
-  'Malay',
-  'Filipino',
-  'Hebrew',
-  'Ukrainian',
-]
-
-const PROFILE_TITLE_OPTIONS = [
-  'Designer',
-  '3D Artist',
-  'Illustrator',
-  'Photographer',
-  'Animator',
-  'Video Editor',
-  'Developer',
-  'Writer',
-  'Creator',
-  'Music Producer',
-  'Game Developer',
-  'UI/UX Designer',
-  'Graphic Designer',
-  'Motion Designer',
-]
-
-const SOCIAL_PLATFORMS = [
-  { value: 'instagram', label: 'Instagram', icon: Instagram },
-  { value: 'x', label: 'X', icon: X },
-  { value: 'linkedin', label: 'LinkedIn', icon: LinkedIn },
-  { value: 'youtube', label: 'YouTube', icon: YouTube },
-  { value: 'github', label: 'GitHub', icon: GitHub },
-  { value: 'facebook', label: 'Facebook', icon: Facebook },
-  { value: 'tiktok', label: 'TikTok', icon: TikTokIcon },
-  { value: 'other', label: 'Website', icon: Public },
-]
-
-// --- Focal point helpers ---
-export const focalPointToObjectPosition = (focal: string): string => {
-  // "X% Y%" is stored directly as CSS object-position
-  if (focal.includes('%')) return focal
-  // Legacy named values
-  const map: Record<string, string> = {
-    'top-left': 'left top',
-    top: 'center top',
-    'top-right': 'right top',
-    left: 'left center',
-    center: 'center center',
-    right: 'right center',
-    'bottom-left': 'left bottom',
-    bottom: 'center bottom',
-    'bottom-right': 'right bottom',
-  }
-  return map[focal] ?? 'center center'
-}
-
-const parseFocalPosition = (raw: string): { x: number; y: number } => {
-  if (raw.includes('%') && raw.includes(' ')) {
-    const [px, py] = raw.split(' ')
-    return { x: parseFloat(px), y: parseFloat(py) }
-  }
-  const named: Record<string, { x: number; y: number }> = {
-    'top-left': { x: 0, y: 0 },
-    top: { x: 50, y: 0 },
-    'top-right': { x: 100, y: 0 },
-    left: { x: 0, y: 50 },
-    center: { x: 50, y: 50 },
-    right: { x: 100, y: 50 },
-    'bottom-left': { x: 0, y: 100 },
-    bottom: { x: 50, y: 100 },
-    'bottom-right': { x: 100, y: 100 },
-  }
-  return named[raw] ?? { x: 50, y: 50 }
-}
-
-// --- Tag input with full scrollable dropdown ---
-const TagInput = ({
-  value,
-  onChange,
-  options,
-  placeholder,
-  allowCustom = false,
-}: {
-  value: string[]
-  onChange: (tags: string[]) => void
-  options: string[]
-  placeholder: string
-  allowCustom?: boolean
-}) => {
-  const [search, setSearch] = useState('')
-  const [showDropdown, setShowDropdown] = useState(false)
-
-  const filtered = options.filter(
-    (o) => !value.includes(o) && o.toLowerCase().includes(search.toLowerCase()),
-  )
-
-  const addTag = (tag: string) => {
-    const trimmed = tag.trim()
-    if (trimmed && !value.includes(trimmed)) {
-      onChange([...value, trimmed])
-      setSearch('')
-    }
-  }
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (allowCustom && e.key === 'Enter' && search.trim()) {
-      e.preventDefault()
-      addTag(search)
-    }
-  }
-
-  return (
-    <div className="relative">
-      {value.length > 0 && (
-        <div className="mb-2 flex flex-row flex-wrap gap-1.5">
-          {value.map((tag) => (
-            <span
-              key={tag}
-              className="flex items-center gap-x-1 rounded-full bg-gray-100 px-2.5 py-1 text-[12px] text-gray-700"
-            >
-              {tag}
-              <button
-                type="button"
-                onClick={() => onChange(value.filter((t) => t !== tag))}
-                className="ml-0.5 text-gray-400 hover:text-gray-600"
-              >
-                &times;
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
-      <div className="relative">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          onFocus={() => setShowDropdown(true)}
-          onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholder}
-          className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-gray-300 focus:outline-none"
-        />
-      </div>
-      {showDropdown && filtered.length > 0 && (
-        <div className="absolute z-10 mt-1 max-h-52 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg">
-          {filtered.map((option) => (
-            <button
-              key={option}
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => {
-                onChange([...value, option])
-                setSearch('')
-              }}
-              className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
-            >
-              {option}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// --- Social Link Row ---
 type SocialLink = schemas['OrganizationSocialLink']
-
-const SocialLinkRow = ({
-  social,
-  onUpdate,
-  onRemove,
-}: {
-  social: SocialLink
-  onUpdate: (social: SocialLink) => void
-  onRemove: () => void
-}) => {
-  const currentPlatform = SOCIAL_PLATFORMS.find(
-    (p) => p.value === social.platform,
-  )
-  const Icon = currentPlatform?.icon ?? Public
-
-  return (
-    <div className="flex flex-row items-center gap-2">
-      <Select
-        value={social.platform}
-        onValueChange={(v) =>
-          onUpdate({ ...social, platform: v as SocialLink['platform'] })
-        }
-      >
-        <SelectTrigger className="h-10 w-[120px] shrink-0">
-          <div className="flex items-center gap-x-2">
-            <Icon style={{ fontSize: 16 }} />
-            <span className="text-xs">{currentPlatform?.label ?? 'Other'}</span>
-          </div>
-        </SelectTrigger>
-        <SelectContent>
-          {SOCIAL_PLATFORMS.map((p) => (
-            <SelectItem key={p.value} value={p.value}>
-              <div className="flex items-center gap-x-2">
-                <p.icon style={{ fontSize: 16 }} />
-                <span>{p.label}</span>
-              </div>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <input
-        type="url"
-        value={social.url}
-        onChange={(e) => onUpdate({ ...social, url: e.target.value })}
-        placeholder="https://example.com"
-        className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-gray-300 focus:outline-none"
-      />
-      <button
-        type="button"
-        onClick={onRemove}
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
-      >
-        <DeleteOutlined style={{ fontSize: 18 }} />
-      </button>
-    </div>
-  )
-}
 
 // --- Main editor form ---
 export const StorefrontEditorForm = ({
@@ -357,7 +57,7 @@ export const StorefrontEditorForm = ({
   const settings = watch('storefront_settings')
   const [copied, setCopied] = useState(false)
 
-  const spaceUrl = `${CONFIG.SPACE_BASE_URL}/${organization.slug}`
+  const spaceUrl = spacePageLink(organization).replace(/\/$/, '')
 
   const updateSetting = useCallback(
     <K extends keyof NonNullable<schemas['OrganizationStorefrontSettings']>>(
@@ -425,10 +125,38 @@ export const StorefrontEditorForm = ({
     )
   }
 
+  // Confirm before removing a social row that has a non-empty URL — an
+  // empty row has no value to lose.
+  const [pendingSocialRemoval, setPendingSocialRemoval] = useState<
+    number | null
+  >(null)
+  const requestRemoveSocial = (idx: number) => {
+    if (!socials[idx]?.url?.trim()) {
+      removeSocial(idx)
+      return
+    }
+    setPendingSocialRemoval(idx)
+  }
+
+  // Confirm before disabling the Space — flipping it off makes the
+  // public URL 404 instantly, with no other warning.
+  const [pendingSpaceDisable, setPendingSpaceDisable] = useState(false)
+  const handleEnabledChange = (v: boolean) => {
+    if (!v && (settings?.enabled ?? false)) {
+      setPendingSpaceDisable(true)
+      return
+    }
+    updateSetting('enabled', v)
+  }
+
   // Storefront links
   const storefrontLinks: StorefrontLinkItem[] =
     (settings?.storefront_links as StorefrontLinkItem[] | undefined) ?? []
   const linksPosition: string = settings?.links_position ?? 'after_products'
+  const linksLayout: NonNullable<
+    schemas['OrganizationStorefrontSettings']['links_layout']
+  > = settings?.links_layout ?? 'classic'
+  const hasUrlLinks = storefrontLinks.some((l) => l.type !== 'embedded')
 
   // Avatar upload
   const avatarUrl = watch('avatar_url') ?? organization.avatar_url
@@ -512,31 +240,37 @@ export const StorefrontEditorForm = ({
   // Products — for featured selection
   const allProducts =
     useProducts(organization.id, { is_archived: false }).data?.items ?? []
+  const featuredMode: 'all' | 'curated' = settings?.featured_mode ?? 'all'
   const featuredIds: string[] = settings?.featured_product_ids ?? []
+  const isCurated = featuredMode === 'curated'
+
+  const setFeaturedMode = (mode: 'all' | 'curated') => {
+    if (mode === featuredMode) return
+    if (mode === 'all') {
+      updateSetting('featured_mode', 'all')
+    } else {
+      updateSetting('featured_mode', 'curated')
+      // Seed the curated list with whatever is already there. If empty,
+      // pre-select everything so flipping the toggle isn't immediately
+      // destructive.
+      if (featuredIds.length === 0 && allProducts.length > 0) {
+        updateSetting(
+          'featured_product_ids',
+          allProducts.map((p) => p.id),
+        )
+      }
+    }
+  }
 
   const toggleProduct = (productId: string) => {
-    if (featuredIds.length === 0) {
-      // Currently showing all — user wants to hide this one product
-      // Set featured to all product IDs except the unchecked one
+    if (!isCurated) return
+    if (featuredIds.includes(productId)) {
       updateSetting(
         'featured_product_ids',
-        allProducts.map((p) => p.id).filter((id) => id !== productId),
-      )
-    } else if (featuredIds.includes(productId)) {
-      const remaining = featuredIds.filter((id) => id !== productId)
-      // If removing the last one, clear the list (show all)
-      updateSetting(
-        'featured_product_ids',
-        remaining.length === 0 ? [] : remaining,
+        featuredIds.filter((id) => id !== productId),
       )
     } else {
-      // Check if adding this would select all — if so, clear the list
-      const updated = [...featuredIds, productId]
-      if (updated.length === allProducts.length) {
-        updateSetting('featured_product_ids', [])
-      } else {
-        updateSetting('featured_product_ids', updated)
-      }
+      updateSetting('featured_product_ids', [...featuredIds, productId])
     }
   }
 
@@ -544,7 +278,9 @@ export const StorefrontEditorForm = ({
   const headerFocalRaw = settings?.header_focal_point ?? '50% 50%'
   const coverPos = parseFocalPosition(headerFocalRaw)
 
-  // Drag-to-reposition cover image
+  // Drag-to-reposition cover image. Math is size-relative: dragging the
+  // image one container-width to the right shifts focal point 100%.
+  // Pointer events handle mouse, touch, and pen with one path.
   const [isCoverDragging, setIsCoverDragging] = useState(false)
   const [createProductOpen, setCreateProductOpen] = useState(false)
   const coverDragRef = useRef<{
@@ -552,28 +288,45 @@ export const StorefrontEditorForm = ({
     startY: number
     posX: number
     posY: number
+    width: number
+    height: number
+    pointerId: number
   } | null>(null)
 
-  const startCoverDrag = (clientX: number, clientY: number) => {
+  const startCoverDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    if (rect.width === 0 || rect.height === 0) return
+    e.currentTarget.setPointerCapture(e.pointerId)
     setIsCoverDragging(true)
     coverDragRef.current = {
-      startX: clientX,
-      startY: clientY,
+      startX: e.clientX,
+      startY: e.clientY,
       posX: coverPos.x,
       posY: coverPos.y,
+      width: rect.width,
+      height: rect.height,
+      pointerId: e.pointerId,
     }
   }
-  const moveCoverDrag = (clientX: number, clientY: number) => {
-    if (!coverDragRef.current) return
-    const { startX, startY, posX, posY } = coverDragRef.current
-    const newX = Math.max(0, Math.min(100, posX - (clientX - startX) * 0.5))
-    const newY = Math.max(0, Math.min(100, posY - (clientY - startY) * 1.5))
+
+  const moveCoverDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = coverDragRef.current
+    if (!drag || drag.pointerId !== e.pointerId) return
+    const dxPct = ((e.clientX - drag.startX) / drag.width) * 100
+    const dyPct = ((e.clientY - drag.startY) / drag.height) * 100
+    const newX = Math.max(0, Math.min(100, drag.posX - dxPct))
+    const newY = Math.max(0, Math.min(100, drag.posY - dyPct))
     updateSetting(
       'header_focal_point',
       `${newX.toFixed(1)}% ${newY.toFixed(1)}%`,
     )
   }
-  const endCoverDrag = () => {
+
+  const endCoverDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = coverDragRef.current
+    if (drag && e.currentTarget.hasPointerCapture(drag.pointerId)) {
+      e.currentTarget.releasePointerCapture(drag.pointerId)
+    }
     setIsCoverDragging(false)
     coverDragRef.current = null
   }
@@ -594,7 +347,7 @@ export const StorefrontEditorForm = ({
             </div>
             <Switch
               checked={isEnabled}
-              onCheckedChange={(v) => updateSetting('enabled', v)}
+              onCheckedChange={handleEnabledChange}
             />
           </div>
         </div>
@@ -687,13 +440,18 @@ export const StorefrontEditorForm = ({
                 Profile Title
               </label>
               <Select
-                value={settings?.profile_title ?? ''}
-                onValueChange={(v) => updateSetting('profile_title', v || null)}
+                value={settings?.profile_title ?? '__none__'}
+                onValueChange={(v) =>
+                  updateSetting('profile_title', v === '__none__' ? null : v)
+                }
               >
                 <SelectTrigger className="h-[42px] rounded-xl">
-                  <SelectValue />
+                  <SelectValue placeholder="None" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="__none__">
+                    <span className="text-gray-400">None</span>
+                  </SelectItem>
                   {PROFILE_TITLE_OPTIONS.map((title) => (
                     <SelectItem key={title} value={title}>
                       {title}
@@ -748,27 +506,18 @@ export const StorefrontEditorForm = ({
                   {/* Drag-to-reposition when image is set */}
                   <div
                     className={twMerge(
-                      'group relative h-[120px] overflow-hidden rounded-xl select-none',
+                      'group relative h-[120px] touch-none overflow-hidden rounded-xl select-none',
                       isCoverDragging ? 'cursor-grabbing' : 'cursor-grab',
                     )}
-                    onMouseDown={(e) => {
+                    onPointerDown={(e) => {
                       e.preventDefault()
-                      startCoverDrag(e.clientX, e.clientY)
+                      startCoverDrag(e)
                     }}
-                    onMouseMove={(e) =>
-                      isCoverDragging && moveCoverDrag(e.clientX, e.clientY)
-                    }
-                    onMouseUp={endCoverDrag}
-                    onMouseLeave={endCoverDrag}
-                    onTouchStart={(e) => {
-                      const t = e.touches[0]
-                      startCoverDrag(t.clientX, t.clientY)
+                    onPointerMove={(e) => {
+                      if (isCoverDragging) moveCoverDrag(e)
                     }}
-                    onTouchMove={(e) => {
-                      const t = e.touches[0]
-                      moveCoverDrag(t.clientX, t.clientY)
-                    }}
-                    onTouchEnd={endCoverDrag}
+                    onPointerUp={endCoverDrag}
+                    onPointerCancel={endCoverDrag}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
@@ -871,7 +620,7 @@ export const StorefrontEditorForm = ({
               key={idx}
               social={social}
               onUpdate={(s) => updateSocial(idx, s)}
-              onRemove={() => removeSocial(idx)}
+              onRemove={() => requestRemoveSocial(idx)}
             />
           ))}
           <button
@@ -915,11 +664,54 @@ export const StorefrontEditorForm = ({
 
         {storefrontLinks.length > 0 && (
           <>
-            {/* Layout hint — layout is now auto-chosen per link type */}
-            <p className="text-xs text-gray-400">
-              URL links render as a clean list. Embeds render as full-width
-              cards.
-            </p>
+            {/* Layout picker — only applies to URL-typed links. Embeds
+                always render full-width regardless. */}
+            {hasUrlLinks && (
+              <div className="flex flex-col gap-y-2">
+                <span className="text-xs font-medium text-gray-500">
+                  URL link layout
+                </span>
+                <div className="grid grid-cols-4 gap-2">
+                  {(
+                    [
+                      { value: 'classic', label: 'List', Icon: ViewListOutlined },
+                      { value: 'card', label: 'Cards', Icon: ViewAgendaOutlined },
+                      {
+                        value: 'image_grid',
+                        label: 'Grid',
+                        Icon: GridViewOutlined,
+                      },
+                      {
+                        value: 'carousel',
+                        label: 'Carousel',
+                        Icon: ViewCarouselOutlined,
+                      },
+                    ] as const
+                  ).map(({ value, label, Icon }) => {
+                    const active = linksLayout === value
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => updateSetting('links_layout', value)}
+                        className={twMerge(
+                          'flex flex-col items-center justify-center gap-1 rounded-xl border px-2 py-3 text-xs font-medium transition-colors',
+                          active
+                            ? 'border-blue-500 bg-blue-50 text-blue-600'
+                            : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300',
+                        )}
+                      >
+                        <Icon style={{ fontSize: 18 }} />
+                        {label}
+                      </button>
+                    )
+                  })}
+                </div>
+                <p className="text-xs text-gray-400">
+                  Embeds always render full-width, regardless of layout.
+                </p>
+              </div>
+            )}
 
             {/* Position toggle */}
             <div className="flex flex-col divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200">
@@ -952,53 +744,73 @@ export const StorefrontEditorForm = ({
         <h3 className="text-sm font-semibold text-gray-900">
           Products to Display
         </h3>
-        <p className="text-xs text-gray-500">
-          Select which products appear on your storefront.
-        </p>
-        {allProducts.length > 0 ? (
-          <div className="flex flex-col divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200">
-            {allProducts.map((product) => (
-              <label
-                key={product.id}
-                className="flex cursor-pointer items-center gap-x-3 px-4 py-3 transition-colors hover:bg-gray-50"
-              >
-                <input
-                  type="checkbox"
-                  checked={
-                    featuredIds.length === 0 || featuredIds.includes(product.id)
-                  }
-                  onChange={() => toggleProduct(product.id)}
-                  className="h-4 w-4 rounded border-gray-300 text-blue-600 accent-blue-600 focus:ring-blue-500"
-                />
-                <div className="flex min-w-0 flex-1 items-center gap-x-3">
-                  {product.medias?.[0] && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={product.medias[0].public_url}
-                      alt=""
-                      className="h-10 w-10 shrink-0 rounded-lg object-cover"
-                    />
-                  )}
-                  <div className="min-w-0">
-                    <span className="block truncate text-sm font-medium text-gray-900">
-                      {product.name}
-                    </span>
-                    {product.prices?.[0] &&
-                      'price_amount' in product.prices[0] && (
-                        <span className="text-xs text-gray-500">
-                          $
-                          {(
-                            (product.prices[0] as { price_amount: number })
-                              .price_amount / 100
-                          ).toFixed(2)}
-                        </span>
-                      )}
-                  </div>
-                </div>
-              </label>
-            ))}
+
+        {/* Mode toggle */}
+        <div className="flex flex-col divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200">
+          <div className="flex items-center justify-between px-4 py-3.5 transition-colors hover:bg-gray-50">
+            <div>
+              <span className="text-sm font-medium text-gray-900">
+                Curate which products appear
+              </span>
+              <p className="text-xs text-gray-500">
+                {isCurated
+                  ? 'Only the products you check below appear on your Space.'
+                  : 'All your active products appear automatically — including new ones you create.'}
+              </p>
+            </div>
+            <Switch
+              checked={isCurated}
+              onCheckedChange={(v) => setFeaturedMode(v ? 'curated' : 'all')}
+            />
           </div>
-        ) : null}
+        </div>
+
+        {isCurated && allProducts.length > 0 && (
+          <div className="flex flex-col divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200">
+            {allProducts.map((product) => {
+              const checked = featuredIds.includes(product.id)
+              return (
+                <label
+                  key={product.id}
+                  className="flex cursor-pointer items-center gap-x-3 px-4 py-3 transition-colors hover:bg-gray-50"
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleProduct(product.id)}
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 accent-blue-600 focus:ring-blue-500"
+                  />
+                  <div className="flex min-w-0 flex-1 items-center gap-x-3">
+                    {product.medias?.[0] && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={product.medias[0].public_url}
+                        alt=""
+                        className="h-10 w-10 shrink-0 rounded-lg object-cover"
+                      />
+                    )}
+                    <div className="min-w-0">
+                      <span className="block truncate text-sm font-medium text-gray-900">
+                        {product.name}
+                      </span>
+                      {product.prices?.[0] &&
+                        'price_amount' in product.prices[0] && (
+                          <span className="text-xs text-gray-500">
+                            $
+                            {(
+                              (product.prices[0] as { price_amount: number })
+                                .price_amount / 100
+                            ).toFixed(2)}
+                          </span>
+                        )}
+                    </div>
+                  </div>
+                </label>
+              )
+            })}
+          </div>
+        )}
+
         <button
           type="button"
           onClick={() => setCreateProductOpen(true)}
@@ -1027,7 +839,86 @@ export const StorefrontEditorForm = ({
         }
       />
 
+      <ConfirmModal
+        isShown={pendingSocialRemoval !== null}
+        hide={() => setPendingSocialRemoval(null)}
+        title="Remove social link?"
+        description={
+          pendingSocialRemoval !== null
+            ? `This will remove ${
+                socials[pendingSocialRemoval]?.url || 'this link'
+              } from your Space card.`
+            : ''
+        }
+        destructive
+        destructiveText="Remove"
+        onConfirm={() => {
+          if (pendingSocialRemoval !== null) {
+            removeSocial(pendingSocialRemoval)
+          }
+          setPendingSocialRemoval(null)
+        }}
+      />
+
+      <ConfirmModal
+        isShown={pendingSpaceDisable}
+        hide={() => setPendingSpaceDisable(false)}
+        title="Disable your Space?"
+        description="Your public Space URL will return 404 to visitors until you re-enable it. Your products and links are not deleted."
+        destructive
+        destructiveText="Disable Space"
+        onConfirm={() => {
+          updateSetting('enabled', false)
+          setPendingSpaceDisable(false)
+        }}
+      />
+
       {/* Display Settings — always visible, not collapsible */}
+      {/* Available for work — its own section because it has an optional
+          contact URL sub-input. */}
+      <div className="flex flex-col gap-y-2">
+        <h3 className="text-sm font-semibold text-gray-900">
+          Available for work
+        </h3>
+        <div className="flex flex-col divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200">
+          <div className="flex items-center justify-between px-4 py-3.5 transition-colors hover:bg-gray-50">
+            <div>
+              <span className="text-sm font-medium text-gray-900">
+                Show the badge
+              </span>
+              <p className="text-xs text-gray-500">
+                A green &ldquo;Available for work&rdquo; pill on your Space
+                card.
+              </p>
+            </div>
+            <Switch
+              checked={settings?.available_for_work ?? false}
+              onCheckedChange={(v) => updateSetting('available_for_work', v)}
+            />
+          </div>
+          {(settings?.available_for_work ?? false) && (
+            <div className="flex flex-col gap-y-1.5 px-4 py-3.5">
+              <label className="text-xs font-medium text-gray-700">
+                Contact link (optional)
+              </label>
+              <input
+                type="text"
+                value={settings?.contact_url ?? ''}
+                onChange={(e) =>
+                  updateSetting('contact_url', e.target.value || null)
+                }
+                placeholder="mailto:hello@example.com  or  https://cal.com/me"
+                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-gray-300 focus:outline-none"
+              />
+              <p className="text-[11px] text-gray-400">
+                When set, the badge becomes a clickable link. Leave empty to
+                show the badge without a link.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
       <div className="flex flex-col gap-y-2">
         <h3 className="text-sm font-semibold text-gray-900">
           Display Settings
@@ -1054,11 +945,6 @@ export const StorefrontEditorForm = ({
               key: 'show_product_details' as const,
               label: 'Show product details',
               def: true,
-            },
-            {
-              key: 'available_for_work' as const,
-              label: 'Available for work',
-              def: false,
             },
           ].map(({ key, label, def }) => (
             <div
@@ -1105,29 +991,6 @@ export const StorefrontEditorForm = ({
         </div>
       </div>
 
-      {/* Reviews */}
-      <div className="flex flex-col gap-y-2">
-        <h3 className="text-sm font-semibold text-gray-900">Reviews</h3>
-        <div className="flex flex-col divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200">
-          <div className="flex items-center justify-between px-4 py-3.5 transition-colors hover:bg-gray-50">
-            <div>
-              <span className="text-sm font-medium text-gray-900">
-                Enable Reviews
-              </span>
-              <p className="text-xs text-gray-500">
-                Allow customers to leave reviews on your products.
-              </p>
-            </div>
-            <Switch
-              checked={settings?.enable_reviews ?? false}
-              onCheckedChange={(v) => updateSetting('enable_reviews', v)}
-            />
-          </div>
-        </div>
-      </div>
     </div>
   )
 }
-
-// Backward-compat export
-export const StorefrontSidebar = StorefrontEditorForm
