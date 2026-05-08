@@ -1,15 +1,22 @@
 from uuid import UUID
 
-from fastapi import Depends, Query
+from fastapi import Depends, HTTPException, Query
 from pydantic import UUID4
 
 from polar.email_subscriber.auth import EmailSubscribersRead, EmailSubscribersWrite
 from polar.exceptions import ResourceNotFound
-from polar.postgres import AsyncReadSession, AsyncSession, get_db_read_session, get_db_session
+from polar.postgres import (
+    AsyncReadSession,
+    AsyncSession,
+    get_db_read_session,
+    get_db_session,
+)
 from polar.routing import APIRouter
 
 from .schemas import (
     EmailSegment as EmailSegmentSchema,
+)
+from .schemas import (
     EmailSegmentCreate,
     EmailSegmentSubscriberAction,
     EmailSegmentUpdate,
@@ -36,14 +43,19 @@ async def create_email_segment(
     organization_id: UUID = Query(),
     session: AsyncSession = Depends(get_db_session),
 ) -> EmailSegmentSchema:
-    segment = await email_segment_service.create(
-        session,
-        organization_id=organization_id,
-        name=segment_create.name,
-        slug=segment_create.slug,
-        type=segment_create.type,
-        product_id=segment_create.product_id,
-    )
+    from .service import EmailSegmentSlugTaken
+
+    try:
+        segment = await email_segment_service.create(
+            session,
+            organization_id=organization_id,
+            name=segment_create.name,
+            slug=segment_create.slug,
+            type=segment_create.type,
+            product_id=segment_create.product_id,
+        )
+    except EmailSegmentSlugTaken as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
     return EmailSegmentSchema(
         id=segment.id,
         organization_id=segment.organization_id,

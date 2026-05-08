@@ -201,6 +201,57 @@ export const useBulkCreateEmailSubscribers = (organizationId: string) =>
     },
   })
 
+export type SubscribersImportResult = {
+  created: number
+  updated: number
+  skipped: number
+  errors: { row: number; message: string }[]
+}
+
+/**
+ * Multipart upload to the server-side CSV importer (audit #36 / fix-list
+ * #36). The previous flow parsed the file in the browser with a naive
+ * comma-split, dropping any row with quoted fields, embedded newlines,
+ * or a BOM. The endpoint uses Python's csv.DictReader and returns
+ * row-level error messages so the dashboard can show what failed.
+ */
+export const useImportEmailSubscribersCsv = (organizationId: string) =>
+  useMutation({
+    mutationFn: async (
+      file: File,
+    ): Promise<SubscribersImportResult> => {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch(
+        getServerURL(
+          `/v1/email-subscribers/import-csv?organization_id=${organizationId}`,
+        ),
+        {
+          method: 'POST',
+          body: form,
+          credentials: 'include',
+        },
+      )
+      if (!res.ok) {
+        let detail = `${res.status} ${res.statusText}`
+        try {
+          const body = (await res.json()) as { detail?: string }
+          if (body.detail) detail = body.detail
+        } catch {
+          // body wasn't JSON — keep status as the message.
+        }
+        throw new Error(detail)
+      }
+      return (await res.json()) as SubscribersImportResult
+    },
+    onSuccess: () => {
+      getQueryClient().invalidateQueries({ queryKey: ['email_subscribers'] })
+      getQueryClient().invalidateQueries({
+        queryKey: ['email_subscriber_stats'],
+      })
+    },
+  })
+
 // ── Broadcasts ──
 
 export type BroadcastAggregateMetrics = {

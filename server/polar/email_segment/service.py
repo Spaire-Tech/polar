@@ -1,13 +1,29 @@
-from collections.abc import Sequence
 from uuid import UUID
 
 from polar.auth.models import AuthSubject, Organization, User
-from polar.postgres import AsyncReadSession, AsyncSession
+from polar.exceptions import PolarError
 from polar.kit.utils import utc_now
 from polar.models.email_segment import EmailSegment, EmailSegmentType
 from polar.models.email_segment_subscriber import EmailSegmentSubscriber
+from polar.postgres import AsyncReadSession, AsyncSession
 
 from .repository import EmailSegmentRepository
+
+
+class EmailSegmentSlugTaken(PolarError):
+    """Raised when a segment create / rename would collide with an
+    existing segment in the same organization on `slug`. The DB has a
+    unique constraint on (organization_id, slug, deleted_at) that would
+    otherwise surface as an opaque IntegrityError → 500; pre-checking
+    here lets the endpoint return 409 with a friendly message instead
+    (audit issue #24 / fix-list #24).
+    """
+
+    def __init__(self, slug: str) -> None:
+        super().__init__(
+            f"A segment with slug '{slug}' already exists in this organization."
+        )
+        self.slug = slug
 
 
 class EmailSegmentService:
@@ -91,6 +107,16 @@ class EmailSegmentService:
         product_id: UUID | None = None,
     ) -> EmailSegment:
         repository = EmailSegmentRepository.from_session(session)
+
+        # Pre-check the (org, slug) uniqueness so we can raise a domain-
+        # level exception the endpoint can map to 409, instead of letting
+        # the DB constraint surface as a 500 IntegrityError.
+        existing = await repository.get_by_slug_and_organization(
+            slug, organization_id
+        )
+        if existing is not None:
+            raise EmailSegmentSlugTaken(slug)
+
         segment = EmailSegment(
             organization_id=organization_id,
             name=name,

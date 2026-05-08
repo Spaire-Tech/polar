@@ -74,7 +74,15 @@ export default function EmailMarketingLayout({ children }: PropsWithChildren) {
         </div>
       </div>
 
-      <div className="container pt-14 pb-24">{children}</div>
+      {/* `.spaire-email-app .container { padding: 0 64px }` in styles.css
+          uses the shorthand which clobbers top/bottom padding to 0 — that
+          selector outweighs Tailwind utilities on specificity. So we set
+          the vertical padding inline (matching the original
+          EmailMarketingApp.tsx values) to keep the breathing room above
+          AUDIENCE / SUBSCRIBERS / etc. */}
+      <div className="container" style={{ paddingTop: 56, paddingBottom: 96 }}>
+        {children}
+      </div>
       <DialogsRoot />
     </div>
   )
