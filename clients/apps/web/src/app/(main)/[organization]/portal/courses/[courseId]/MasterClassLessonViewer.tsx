@@ -105,6 +105,10 @@ export const MasterClassLessonViewer = ({
   const [bookmarked, setBookmarked] = useState(false)
   const [shareCopied, setShareCopied] = useState(false)
   const noteDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Track whether the user has typed since the lesson switched. Prevents
+  // the savedNote effect below from clobbering in-flight typing if the
+  // server response arrives mid-keystroke.
+  const noteDirtyRef = useRef(false)
 
   const { data: savedNote } = useLessonNote(token, courseId, lesson.id)
   const upsertNote = useUpsertLessonNote(token, courseId, lesson.id)
@@ -113,6 +117,14 @@ export const MasterClassLessonViewer = ({
 
   useEffect(() => {
     setPlaying(false)
+    // Cancel any pending debounced save from the previous lesson before
+    // we swap state — otherwise the timer fires after the lesson change
+    // and writes the previous draft into the new lesson's note.
+    if (noteDebounceRef.current) {
+      clearTimeout(noteDebounceRef.current)
+      noteDebounceRef.current = null
+    }
+    noteDirtyRef.current = false
     setNoteText('')
     if (typeof window !== 'undefined') {
       setBookmarked(window.localStorage.getItem(bookmarkKey) !== null)
@@ -120,12 +132,16 @@ export const MasterClassLessonViewer = ({
   }, [lesson.id, bookmarkKey])
 
   useEffect(() => {
-    if (savedNote !== undefined) {
-      setNoteText(savedNote?.content ?? '')
-    }
+    if (savedNote === undefined) return
+    // Don't overwrite typing-in-progress with the server value — this
+    // covers the race where the user starts a new note before the GET
+    // for the saved note resolves.
+    if (noteDirtyRef.current) return
+    setNoteText(savedNote?.content ?? '')
   }, [savedNote, lesson.id])
 
   const handleNoteChange = (text: string) => {
+    noteDirtyRef.current = true
     setNoteText(text)
     if (noteDebounceRef.current) clearTimeout(noteDebounceRef.current)
     noteDebounceRef.current = setTimeout(() => {
@@ -135,9 +151,18 @@ export const MasterClassLessonViewer = ({
 
   const handleClearNote = () => {
     if (noteDebounceRef.current) clearTimeout(noteDebounceRef.current)
+    noteDirtyRef.current = true
     setNoteText('')
     upsertNote.mutate('')
   }
+
+  // Clear any pending debounce when the component unmounts so we never
+  // fire a save against a stale lesson id.
+  useEffect(() => {
+    return () => {
+      if (noteDebounceRef.current) clearTimeout(noteDebounceRef.current)
+    }
+  }, [])
 
   const handleShare = async () => {
     if (typeof window === 'undefined') return
