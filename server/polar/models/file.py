@@ -31,6 +31,7 @@ class FileServiceTypes(StrEnum):
     product_media = "product_media"
     organization_avatar = "organization_avatar"
     storefront_header = "storefront_header"
+    storefront_link = "storefront_link"
 
 
 class File(RecordModel):
@@ -96,4 +97,10 @@ class OrganizationAvatarFile(File):
 class StorefrontHeaderFile(File):
     __mapper_args__ = {
         "polymorphic_identity": FileServiceTypes.storefront_header,
+    }
+
+
+class StorefrontLinkFile(File):
+    __mapper_args__ = {
+        "polymorphic_identity": FileServiceTypes.storefront_link,
     }

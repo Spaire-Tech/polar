@@ -73,15 +73,14 @@ function uploadImageFile(
   return new Promise((resolve) => {
     const upload = new Upload({
       organization,
-      service: 'organization_avatar',
+      service: 'storefront_link',
       file,
       onFileProcessing: () => {},
       onFileCreate: () => {},
       onFileUploadProgress: () => {},
       onFileUploaded: (response) => {
         resolve(
-          (response as schemas['OrganizationAvatarFileRead']).public_url ??
-            null,
+          (response as schemas['StorefrontLinkFileRead']).public_url ?? null,
         )
       },
       onFileError: () => resolve(null),

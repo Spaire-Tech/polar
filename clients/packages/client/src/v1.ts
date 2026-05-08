@@ -17782,6 +17782,7 @@ export interface components {
       | components['schemas']['ProductMediaFileCreate']
       | components['schemas']['OrganizationAvatarFileCreate']
       | components['schemas']['StorefrontHeaderFileCreate']
+      | components['schemas']['StorefrontLinkFileCreate']
     /** FileDownload */
     FileDownload: {
       /**
@@ -17833,7 +17834,12 @@ export interface components {
      * FileServiceTypes
      * @enum {string}
      */
-    FileServiceTypes: 'downloadable' | 'product_media' | 'organization_avatar' | 'storefront_header'
+    FileServiceTypes:
+      | 'downloadable'
+      | 'product_media'
+      | 'organization_avatar'
+      | 'storefront_header'
+      | 'storefront_link'
     /** FileUpload */
     FileUpload: {
       /**
@@ -18735,6 +18741,8 @@ export interface components {
         | components['schemas']['DownloadableFileRead']
         | components['schemas']['ProductMediaFileRead']
         | components['schemas']['OrganizationAvatarFileRead']
+        | components['schemas']['StorefrontHeaderFileRead']
+        | components['schemas']['StorefrontLinkFileRead']
       )[]
       pagination: components['schemas']['Pagination']
     }
@@ -21423,6 +21431,89 @@ export interface components {
        * @enum {string}
        */
       service: 'storefront_header'
+      /** Is Uploaded */
+      is_uploaded: boolean
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string
+      /** Size Readable */
+      readonly size_readable: string
+      /** Public Url */
+      readonly public_url: string
+    }
+    /**
+     * StorefrontLinkFileCreate
+     * @description Schema to create a file to be used as a storefront link cover image.
+     */
+    StorefrontLinkFileCreate: {
+      /** Organization Id */
+      organization_id?: string | null
+      /** Name */
+      name: string
+      /**
+       * Mime Type
+       * @description MIME type of the file. Only images are supported for this type of file.
+       */
+      mime_type: string
+      /**
+       * Size
+       * @description Size of the file. A maximum of 5 MB is allowed for this type of file.
+       */
+      size: number
+      /** Checksum Sha256 Base64 */
+      checksum_sha256_base64?: string | null
+      upload: components['schemas']['S3FileCreateMultipart']
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      service: 'storefront_link'
+      /** Version */
+      version?: string | null
+    }
+    /**
+     * StorefrontLinkFileRead
+     * @description File to be used as a storefront link cover image.
+     */
+    StorefrontLinkFileRead: {
+      /**
+       * Id
+       * Format: uuid4
+       * @description The ID of the object.
+       */
+      id: string
+      /**
+       * Organization Id
+       * Format: uuid4
+       */
+      organization_id: string
+      /** Name */
+      name: string
+      /** Path */
+      path: string
+      /** Mime Type */
+      mime_type: string
+      /** Size */
+      size: number
+      /** Storage Version */
+      storage_version: string | null
+      /** Checksum Etag */
+      checksum_etag: string | null
+      /** Checksum Sha256 Base64 */
+      checksum_sha256_base64: string | null
+      /** Checksum Sha256 Hex */
+      checksum_sha256_hex: string | null
+      /** Last Modified At */
+      last_modified_at: string | null
+      /** Version */
+      version: string | null
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      service: 'storefront_link'
       /** Is Uploaded */
       is_uploaded: boolean
       /**

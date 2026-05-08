@@ -82,11 +82,30 @@ class StorefrontHeaderFileCreate(FileCreateBase):
     )
 
 
+class StorefrontLinkFileCreate(FileCreateBase):
+    """Schema to create a file to be used as a storefront link cover image."""
+
+    service: Literal[FileServiceTypes.storefront_link]
+    mime_type: str = Field(
+        description=(
+            "MIME type of the file. Only images are supported for this type of file."
+        ),
+        pattern=r"^image\/(jpeg|png|gif|webp|svg\+xml)$",
+    )
+    size: int = Field(
+        description=(
+            "Size of the file. A maximum of 5 MB is allowed for this type of file."
+        ),
+        le=5 * 1024 * 1024,
+    )
+
+
 FileCreate = Annotated[
     DownloadableFileCreate
     | ProductMediaFileCreate
     | OrganizationAvatarFileCreate
-    | StorefrontHeaderFileCreate,
+    | StorefrontHeaderFileCreate
+    | StorefrontLinkFileCreate,
     Discriminator("service"),
     SetSchemaReference("FileCreate"),
 ]
@@ -130,11 +149,18 @@ class StorefrontHeaderFileRead(PublicFileReadBase):
     service: Literal[FileServiceTypes.storefront_header]
 
 
+class StorefrontLinkFileRead(PublicFileReadBase):
+    """File to be used as a storefront link cover image."""
+
+    service: Literal[FileServiceTypes.storefront_link]
+
+
 FileRead = Annotated[
     DownloadableFileRead
     | ProductMediaFileRead
     | OrganizationAvatarFileRead
-    | StorefrontHeaderFileRead,
+    | StorefrontHeaderFileRead
+    | StorefrontLinkFileRead,
     Discriminator("service"),
     MergeJSONSchema({"title": "FileRead"}),
     ClassName("FileRead"),
