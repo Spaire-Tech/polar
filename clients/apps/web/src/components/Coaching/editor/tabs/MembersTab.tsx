@@ -9,14 +9,15 @@ import {
   useCoachingMembers,
   useCreateCoachingCohort,
   useDeleteCoachingCohort,
+  useUpdateCoachingCohort,
   type CoachingCohortRead,
   type CoachingMemberRead,
 } from '@/hooks/queries/coaching'
 import type { CourseRead } from '@/hooks/queries/courses'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { toast } from '../../../Toast/use-toast'
 import { Ic } from '../icons'
-import { Avatar, Btn, Menu, Modal, Pill, SectionHead } from '../ui'
+import { Avatar, Btn, Menu, Modal, Pill, SectionHead, Toggle } from '../ui'
 
 const COHORTS_ALL = 'all' as const
 type CohortFilter = string | typeof COHORTS_ALL
@@ -28,8 +29,10 @@ export function MembersTab({ course }: { course: CourseRead }) {
   const { data: members = [], isLoading: membersLoading } =
     useCoachingMembers(courseId)
   const createCohort = useCreateCoachingCohort(courseId)
+  const updateCohort = useUpdateCoachingCohort(courseId)
   const deleteCohort = useDeleteCoachingCohort(courseId)
   const assignCohort = useAssignMemberCohort(courseId)
+  const [editing, setEditing] = useState<CoachingCohortRead | null>(null)
 
   const [activeCohort, setActiveCohort] = useState<CohortFilter>(COHORTS_ALL)
   const [search, setSearch] = useState('')
@@ -96,11 +99,7 @@ export function MembersTab({ course }: { course: CourseRead }) {
             cohort={cohort}
             active={activeCohort === cohort.id}
             onSelect={() => setActiveCohort(cohort.id)}
-            onDelete={
-              cohort.is_default
-                ? undefined
-                : () => deleteCohort.mutate(cohort.id)
-            }
+            onEdit={() => setEditing(cohort)}
           />
         ))}
         <button
@@ -260,7 +259,218 @@ export function MembersTab({ course }: { course: CourseRead }) {
           </div>
         </div>
       </Modal>
+
+      <EditCohortModal
+        cohort={editing}
+        onClose={() => setEditing(null)}
+        onSave={async (patch) => {
+          if (!editing) return
+          try {
+            await updateCohort.mutateAsync({
+              cohortId: editing.id,
+              body: patch,
+            })
+            setEditing(null)
+          } catch (e) {
+            toast({
+              title: 'Could not save cohort',
+              description: e instanceof Error ? e.message : 'Unknown error',
+            })
+          }
+        }}
+        onDelete={
+          editing && !editing.is_default
+            ? async () => {
+                if (!editing) return
+                if (
+                  !confirm(
+                    `Delete the "${editing.name}" cohort? Members get unassigned.`,
+                  )
+                )
+                  return
+                try {
+                  await deleteCohort.mutateAsync(editing.id)
+                  setEditing(null)
+                  if (activeCohort === editing.id) setActiveCohort(COHORTS_ALL)
+                } catch (e) {
+                  toast({
+                    title: 'Could not delete cohort',
+                    description:
+                      e instanceof Error ? e.message : 'Unknown error',
+                  })
+                }
+              }
+            : undefined
+        }
+        saving={updateCohort.isPending || deleteCohort.isPending}
+      />
     </>
+  )
+}
+
+function EditCohortModal({
+  cohort,
+  onClose,
+  onSave,
+  onDelete,
+  saving,
+}: {
+  cohort: CoachingCohortRead | null
+  onClose: () => void
+  onSave: (patch: {
+    name?: string
+    starts_at?: string | null
+    ends_at?: string | null
+    capacity?: number | null
+    enrollment_open?: boolean
+  }) => void
+  onDelete?: () => void
+  saving: boolean
+}) {
+  const [draft, setDraft] = useState<{
+    name: string
+    startDate: string
+    endDate: string
+    capacity: string
+    enrollment_open: boolean
+  } | null>(null)
+
+  // Re-seed from the cohort whenever the modal opens with a new target.
+  useEffect(() => {
+    if (cohort) {
+      setDraft({
+        name: cohort.name,
+        startDate: cohort.starts_at ? cohort.starts_at.slice(0, 10) : '',
+        endDate: cohort.ends_at ? cohort.ends_at.slice(0, 10) : '',
+        capacity: cohort.capacity != null ? String(cohort.capacity) : '',
+        enrollment_open: cohort.enrollment_open,
+      })
+    } else {
+      setDraft(null)
+    }
+  }, [cohort?.id])
+
+  const open = !!cohort && !!draft
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={cohort ? `Edit ${cohort.name}` : 'Edit cohort'}
+      subtitle={
+        cohort?.is_default
+          ? 'This is the default cohort and cannot be deleted.'
+          : 'Capacity is informational; purchases are never blocked.'
+      }
+      footer={
+        draft ? (
+          <>
+            {onDelete && (
+              <Btn
+                variant="ghost"
+                onClick={onDelete}
+                style={{ marginRight: 'auto', color: 'var(--danger)' }}
+                disabled={saving}
+              >
+                Delete cohort
+              </Btn>
+            )}
+            <Btn variant="ghost" onClick={onClose}>
+              Cancel
+            </Btn>
+            <Btn
+              variant="primary"
+              disabled={saving || !draft.name.trim()}
+              onClick={() =>
+                onSave({
+                  name: draft.name.trim(),
+                  starts_at: draft.startDate
+                    ? new Date(`${draft.startDate}T00:00:00`).toISOString()
+                    : null,
+                  ends_at: draft.endDate
+                    ? new Date(`${draft.endDate}T23:59:59`).toISOString()
+                    : null,
+                  capacity: draft.capacity
+                    ? Math.max(1, parseInt(draft.capacity, 10))
+                    : null,
+                  enrollment_open: draft.enrollment_open,
+                })
+              }
+            >
+              {saving ? 'Saving…' : 'Save changes'}
+            </Btn>
+          </>
+        ) : null
+      }
+    >
+      {draft && (
+        <div className="ce-stack-16">
+          <div>
+            <label className="ce-label">Name</label>
+            <input
+              className="ce-input"
+              autoFocus
+              value={draft.name}
+              onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+            />
+          </div>
+          <div className="ce-grid-2">
+            <div>
+              <label className="ce-label">Starts</label>
+              <input
+                className="ce-input"
+                type="date"
+                value={draft.startDate}
+                onChange={(e) =>
+                  setDraft({ ...draft, startDate: e.target.value })
+                }
+              />
+            </div>
+            <div>
+              <label className="ce-label">Ends</label>
+              <input
+                className="ce-input"
+                type="date"
+                value={draft.endDate}
+                onChange={(e) =>
+                  setDraft({ ...draft, endDate: e.target.value })
+                }
+              />
+            </div>
+          </div>
+          <div>
+            <label className="ce-label">Capacity (optional)</label>
+            <input
+              className="ce-input"
+              type="number"
+              min={1}
+              placeholder="e.g. 25"
+              value={draft.capacity}
+              onChange={(e) =>
+                setDraft({ ...draft, capacity: e.target.value })
+              }
+              style={{ maxWidth: 200 }}
+            />
+          </div>
+          <div className="ce-card-pad" style={{ padding: 0 }}>
+            <div className="ce-row-between">
+              <div>
+                <div style={{ fontWeight: 500, fontSize: 13.5 }}>
+                  Enrollment
+                </div>
+                <div className="ce-mini" style={{ marginTop: 2 }}>
+                  When closed, the storefront shows this cohort as full.
+                </div>
+              </div>
+              <Toggle
+                on={draft.enrollment_open}
+                onChange={(v) => setDraft({ ...draft, enrollment_open: v })}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </Modal>
   )
 }
 
@@ -268,12 +478,12 @@ function CohortCard({
   cohort,
   active,
   onSelect,
-  onDelete,
+  onEdit,
 }: {
   cohort: CoachingCohortRead
   active: boolean
   onSelect: () => void
-  onDelete?: () => void
+  onEdit: () => void
 }) {
   const pct =
     cohort.capacity != null && cohort.capacity > 0
@@ -283,7 +493,7 @@ function CohortCard({
     <div
       className={'ce-cohort-card' + (active ? ' active' : '')}
       onClick={onSelect}
-      style={{ cursor: 'pointer' }}
+      style={{ cursor: 'pointer', position: 'relative' }}
     >
       <div className="ce-row" style={{ justifyContent: 'space-between' }}>
         <div className="title">{cohort.name}</div>
@@ -316,19 +526,17 @@ function CohortCard({
           <span style={{ width: `${pct}%` }} />
         </div>
       )}
-      {onDelete && (
-        <Btn
-          variant="ghost"
-          size="sm"
-          onClick={(e) => {
-            e.stopPropagation()
-            if (confirm(`Delete the "${cohort.name}" cohort?`)) onDelete()
-          }}
-          style={{ alignSelf: 'flex-start' }}
-        >
-          Delete
-        </Btn>
-      )}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          onEdit()
+        }}
+        className="ce-btn ce-btn-ghost ce-btn-sm"
+        style={{ alignSelf: 'flex-start', padding: '2px 0' }}
+      >
+        Edit
+      </button>
     </div>
   )
 }
