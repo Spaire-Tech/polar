@@ -248,6 +248,7 @@ async def create_email_broadcast(
         subject=broadcast_create.subject,
         preview_text=broadcast_create.preview_text,
         sender_name=broadcast_create.sender_name,
+        sender_email=broadcast_create.sender_email,
         reply_to_email=broadcast_create.reply_to_email,
         content_json=broadcast_create.content_json,
         content_html=broadcast_create.content_html,

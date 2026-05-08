@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useParams, usePathname } from 'next/navigation'
 import { PropsWithChildren } from 'react'
+import { DialogsRoot } from './_components/dialogs'
 import { Icon } from './_components/Icon'
 import {
   MarkAnalytics,
@@ -74,6 +75,7 @@ export default function EmailMarketingLayout({ children }: PropsWithChildren) {
       </div>
 
       <div className="container pt-14 pb-24">{children}</div>
+      <DialogsRoot />
     </div>
   )
 }

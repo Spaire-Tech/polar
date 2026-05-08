@@ -12,6 +12,7 @@ import {
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { ActionMenu } from '../ActionMenu'
+import { useDialogs } from '../dialogs'
 import { Icon } from '../Icon'
 import { sanitizeEmailHtml } from '../sanitize'
 import { MetricTile } from '../shared'
@@ -98,6 +99,7 @@ export const BroadcastDetailScreen = ({
   const duplicateMutation = useDuplicateEmailBroadcast()
   const cancelMutation = useCancelScheduledEmailBroadcast()
   const archiveMutation = useArchiveEmailBroadcast()
+  const dialogs = useDialogs()
 
   const broadcast = broadcastQuery.data
   const analytics = analyticsQuery.data
@@ -105,11 +107,21 @@ export const BroadcastDetailScreen = ({
   const sendsTotal = sendsQuery.data?.pagination.total_count ?? 0
   const sendsMaxPage = sendsQuery.data?.pagination.max_page ?? 1
 
-  const onArchive = () => {
-    if (broadcast && window.confirm(`Archive "${broadcast.subject}"?`)) {
-      archiveMutation.mutate(broadcastId)
-      onBack()
-    }
+  const onArchive = async () => {
+    if (!broadcast) return
+    const ok = await dialogs.confirm({
+      title: 'Archive broadcast?',
+      message: (
+        <>
+          Archive <strong>{broadcast.subject || 'this broadcast'}</strong>?
+          You can still find it in the archive list later.
+        </>
+      ),
+      confirmLabel: 'Archive',
+    })
+    if (!ok) return
+    archiveMutation.mutate(broadcastId)
+    onBack()
   }
 
   return (

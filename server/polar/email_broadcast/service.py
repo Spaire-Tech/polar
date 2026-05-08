@@ -242,6 +242,7 @@ class EmailBroadcastService:
         organization_id: UUID,
         subject: str,
         sender_name: str,
+        sender_email: str | None = None,
         preview_text: str | None = None,
         reply_to_email: str | None = None,
         content_json: dict | None = None,
@@ -255,18 +256,25 @@ class EmailBroadcastService:
             content_html = render_blocks_to_html(content_json) or content_html
 
         repository = EmailBroadcastRepository.from_session(session)
-        broadcast = EmailBroadcast(
-            organization_id=organization_id,
-            subject=subject,
-            preview_text=preview_text,
-            sender_name=sender_name,
-            reply_to_email=reply_to_email,
-            content_json=content_json,
-            content_html=content_html,
-            segment_id=segment_id,
-            filter_rules=filter_rules,
-            status=EmailBroadcastStatus.draft,
-        )
+        broadcast_kwargs: dict[str, object] = {
+            "organization_id": organization_id,
+            "subject": subject,
+            "preview_text": preview_text,
+            "sender_name": sender_name,
+            "reply_to_email": reply_to_email,
+            "content_json": content_json,
+            "content_html": content_html,
+            "segment_id": segment_id,
+            "filter_rules": filter_rules,
+            "status": EmailBroadcastStatus.draft,
+        }
+        # The model has a column-level default for sender_email; only
+        # override it when the caller explicitly passes a value, so existing
+        # callers that didn't know about the field continue to fall back to
+        # the platform's notifications sender.
+        if sender_email is not None:
+            broadcast_kwargs["sender_email"] = sender_email
+        broadcast = EmailBroadcast(**broadcast_kwargs)
         return await repository.create(broadcast, flush=True)
 
     async def update(

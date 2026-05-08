@@ -56,6 +56,7 @@ import {
   stepSummary,
   stepTitle,
 } from '../flow'
+import { useDialogs } from '../dialogs'
 import { Icon } from '../Icon'
 import { MARK_BY_NAME } from '../MarkIcons'
 import { SequenceFlowPreview } from '../SequenceFlowPreview'
@@ -441,6 +442,7 @@ const SequenceEditorInner = ({
   const queryClient = useQueryClient()
 
   const sendTestMutation = useSendTestSequenceStep()
+  const dialogs = useDialogs()
 
   const ensurePersisted = async (): Promise<string> => {
     if (persistedIdRef.current) return persistedIdRef.current
@@ -580,7 +582,11 @@ const SequenceEditorInner = ({
 
   const onActivate = async () => {
     if (totalEmails === 0) {
-      window.alert('Add at least one email step before activating.')
+      await dialogs.alert({
+        title: 'Add an email first',
+        message:
+          'A sequence needs at least one email step before it can go live.',
+      })
       return
     }
     const id = await ensurePersisted()
@@ -1180,13 +1186,32 @@ const SequenceEditorInner = ({
                       type="button"
                       className="btn btn-ghost btn-sm"
                       style={{ fontSize: 11.5 }}
-                      onClick={() => {
-                        const t = window.prompt('Tag to exclude:')
+                      onClick={async () => {
+                        const t = await dialogs.prompt({
+                          title: 'Exclude a tag',
+                          message:
+                            'Subscribers carrying this tag will be skipped.',
+                          placeholder: 'engaged',
+                          validate: (v) => {
+                            const trimmed = v.trim()
+                            if (!trimmed) return 'Tag cannot be empty.'
+                            if (trimmed.length > 64)
+                              return 'Tag is too long (max 64 chars).'
+                            if (
+                              flow.audience.excludeTags.includes(trimmed)
+                            )
+                              return 'That tag is already excluded.'
+                            return null
+                          },
+                        })
                         if (t)
                           upd({
                             audience: {
                               ...flow.audience,
-                              excludeTags: [...flow.audience.excludeTags, t],
+                              excludeTags: [
+                                ...flow.audience.excludeTags,
+                                t.trim(),
+                              ],
                             },
                           })
                       }}

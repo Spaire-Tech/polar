@@ -532,6 +532,10 @@ export type BroadcastWritePayload = {
   subject?: string
   preview_text?: string | null
   sender_name?: string
+  // Optional From-address. The server falls back to the org's notifications
+  // sender when omitted; phase 4 plumbed this through Create as well so the
+  // editor's From input can write a real value.
+  sender_email?: string | null
   reply_to_email?: string | null
   content_html?: string | null
   content_json?: Record<string, unknown> | null

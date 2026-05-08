@@ -13,6 +13,7 @@ import { schemas } from '@spaire/client'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { ActionMenu } from '../ActionMenu'
+import { useDialogs } from '../dialogs'
 import { StepNode } from '../flow'
 import { Icon } from '../Icon'
 import { Modal } from '../Modal'
@@ -193,6 +194,7 @@ const MySequences = ({
   onNew: () => void
 }) => {
   const updateMutation = useUpdateEmailSequence()
+  const dialogs = useDialogs()
   const duplicateMutation = useDuplicateEmailSequence()
   const deleteMutation = useDeleteEmailSequence()
 
@@ -338,14 +340,19 @@ const MySequences = ({
                     label: 'Archive',
                     icon: 'trash',
                     destructive: true,
-                    onClick: () => {
-                      if (
-                        window.confirm(
-                          `Archive "${s.name}"? Active enrolments will stop.`,
-                        )
-                      ) {
-                        deleteMutation.mutate(s.id)
-                      }
+                    onClick: async () => {
+                      const ok = await dialogs.confirm({
+                        title: 'Archive sequence?',
+                        message: (
+                          <>
+                            Archive <strong>{s.name}</strong>? Active
+                            enrolments will stop receiving emails.
+                          </>
+                        ),
+                        confirmLabel: 'Archive',
+                        tone: 'danger',
+                      })
+                      if (ok) deleteMutation.mutate(s.id)
                     },
                   },
                 ]}

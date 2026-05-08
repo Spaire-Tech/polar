@@ -5,6 +5,7 @@ import {
   BroadcastWritePayload,
   FilterRule,
   FilterRules,
+  useBroadcastEngagementHeatmap,
   useCreateEmailBroadcast,
   useDeleteEmailBroadcastABTest,
   useEmailBroadcast,
@@ -21,7 +22,7 @@ import {
 } from '@/hooks/queries/emailMarketing'
 import { schemas } from '@spaire/client'
 import { useRouter } from 'next/navigation'
-import { useRef, useState } from 'react'
+import { memo, useMemo, useRef, useState } from 'react'
 import { BroadcastEditor } from '../blockEditor/BroadcastEditor'
 import { renderBlocksToHtml } from '../blockEditor/render'
 import {
@@ -31,6 +32,7 @@ import {
   newId,
   normalizeContentDoc,
 } from '../blockEditor/types'
+import { useDialogs } from '../dialogs'
 import { Icon } from '../Icon'
 import { sanitizeEmailHtml } from '../sanitize'
 import { KV, Section, Toggle } from '../shared'
@@ -49,6 +51,10 @@ type Draft = {
   subject: string
   preview_text: string
   sender_name: string
+  // From-address. Empty string means "use the org default"; on save we map
+  // empty → null so the server keeps its notifications-domain default
+  // (audit issue #49).
+  sender_email: string
   reply_to_email: string
   // Block document is the editable shape. content_html is regenerated from
   // the document each render and sent to the API alongside the JSON.
@@ -109,23 +115,89 @@ const blankDraft = (organization: schemas['Organization']): Draft => ({
   subject: '',
   preview_text: '',
   sender_name: organization.name,
+  sender_email: '',
   reply_to_email: '',
   content_doc: STARTER_DOC,
   segment_id: null,
   filter_rules: null,
 })
 
-// Next Tuesday at 08:42 in the user's local timezone — used as our Phase 3 stub
-// for "optimal send time" until the real heuristic lands (Phase 4+).
-const computeOptimalTime = () => {
-  const d = new Date()
-  d.setSeconds(0, 0)
-  d.setMinutes(42)
-  d.setHours(8)
-  const day = d.getDay() // 0=Sun..6=Sat
-  const daysToTuesday = (2 - day + 7) % 7 || 7
-  d.setDate(d.getDate() + daysToTuesday)
-  return d
+/**
+ * Pick a "best time to send" from the org's engagement heatmap, falling
+ * back to a Tuesday-9am rule when we don't have enough signal yet.
+ *
+ * Audit issue #25 / fix-list #2: the previous implementation hardcoded
+ * "next Tuesday at 08:42 local" and surfaced it under the "Optimal time"
+ * radio as if it were ML-derived, even though `useBroadcastEngagementHeatmap`
+ * had been available all along. We now read the matrix, find the highest-
+ * engagement (day-of-week, hour) cell, and project it to the next future
+ * occurrence in the user's timezone.
+ *
+ * Returns `{ date, source }` so the UI can label the recommendation as
+ * either "from your last 90 days" or "default (not enough data yet)".
+ */
+const MIN_HEATMAP_SAMPLE = 30
+
+type OptimalTime = {
+  date: Date
+  source: 'heatmap' | 'default'
+}
+
+const computeOptimalTime = (
+  heatmap: { matrix: (number | null)[][]; sample_size: number } | undefined,
+): OptimalTime => {
+  const fallback = (): OptimalTime => {
+    const d = new Date()
+    d.setSeconds(0, 0)
+    d.setMinutes(0)
+    d.setHours(9)
+    const day = d.getDay() // 0=Sun..6=Sat
+    const daysToTuesday = (2 - day + 7) % 7 || 7
+    d.setDate(d.getDate() + daysToTuesday)
+    return { date: d, source: 'default' }
+  }
+
+  if (!heatmap || heatmap.sample_size < MIN_HEATMAP_SAMPLE) {
+    return fallback()
+  }
+  const matrix = heatmap.matrix
+  if (!Array.isArray(matrix) || matrix.length === 0) {
+    return fallback()
+  }
+
+  // The backend exposes a 7×24 grid keyed by Postgres extract(dow):
+  //   row 0 = Sunday, row 1 = Monday, … row 6 = Saturday.
+  // JS Date.getDay() is also 0=Sun..6=Sat so the indexing is direct.
+  let bestVal = -Infinity
+  let bestDow = 2
+  let bestHour = 9
+  for (let dow = 0; dow < matrix.length; dow++) {
+    const row = matrix[dow]
+    if (!Array.isArray(row)) continue
+    for (let hour = 0; hour < row.length; hour++) {
+      const val = row[hour]
+      if (typeof val !== 'number') continue
+      if (val > bestVal) {
+        bestVal = val
+        bestDow = dow
+        bestHour = hour
+      }
+    }
+  }
+  if (bestVal === -Infinity) return fallback()
+
+  // Project (bestDow, bestHour) to the next future occurrence.
+  const now = new Date()
+  const target = new Date(now)
+  target.setSeconds(0, 0)
+  target.setMinutes(0)
+  target.setHours(bestHour)
+  let daysAhead = (bestDow - now.getDay() + 7) % 7
+  if (daysAhead === 0 && target.getTime() <= now.getTime()) {
+    daysAhead = 7
+  }
+  target.setDate(target.getDate() + daysAhead)
+  return { date: target, source: 'heatmap' }
 }
 
 const toLocalDateTimeInputValue = (d: Date) => {
@@ -142,6 +214,8 @@ const draftFromExisting = (
   subject: existing.subject ?? '',
   preview_text: (existing as { preview_text?: string }).preview_text ?? '',
   sender_name: existing.sender_name ?? organization.name,
+  sender_email:
+    (existing as { sender_email?: string | null }).sender_email ?? '',
   reply_to_email: existing.reply_to_email ?? '',
   content_doc: adoptContentJson(existing.content_json),
   segment_id: existing.segment_id ?? null,
@@ -227,6 +301,7 @@ const ComposerInner = ({
 
   const upsertAb = useUpsertEmailBroadcastABTest()
   const deleteAb = useDeleteEmailBroadcastABTest()
+  const dialogs = useDialogs()
 
   const updateDraft = (patch: Partial<Draft>) =>
     setDraft((d) => ({ ...d, ...patch }))
@@ -258,6 +333,9 @@ const ComposerInner = ({
     subject: draft.subject,
     preview_text: draft.preview_text || null,
     sender_name: draft.sender_name,
+    // Empty string → null so the server keeps its column-level default
+    // instead of overwriting it with an invalid empty address.
+    sender_email: draft.sender_email.trim() || null,
     reply_to_email: draft.reply_to_email || null,
     content_html: renderedHtml,
     content_json: draft.content_doc as unknown as Record<string, unknown>,
@@ -265,8 +343,40 @@ const ComposerInner = ({
     filter_rules: draft.filter_rules,
   })
 
-  // Returns the persisted broadcast id (creates first if needed).
-  const persist = async (): Promise<string | null> => {
+  // Skip the round-trip when neither the draft nor the A/B config has
+  // changed since the last persist (audit issue #38 / fix-list #38). Each
+  // step transition used to fire a PATCH unconditionally — clicking
+  // through Details → Content → Audience → Preview → Review issued four
+  // empty saves.
+  const lastPersistedSig = useRef<string | null>(null)
+  const currentSig = (): string =>
+    JSON.stringify({
+      d: persistableUpdate(),
+      ab:
+        abDraft && abDraft.subject_b.trim().length > 0
+          ? {
+              s: abDraft.subject_b.trim(),
+              p: abDraft.slice_pct,
+              w: abDraft.decide_after_minutes,
+              m: abDraft.winner_metric,
+            }
+          : null,
+    })
+
+  // Returns the persisted broadcast id (creates first if needed). When
+  // `force` is false (the default) and nothing has changed since the last
+  // successful persist, this returns the existing id without firing.
+  const persist = async (
+    options: { force?: boolean } = {},
+  ): Promise<string | null> => {
+    const sig = currentSig()
+    if (
+      !options.force &&
+      broadcastId &&
+      lastPersistedSig.current === sig
+    ) {
+      return broadcastId
+    }
     let id = broadcastId
     if (id) {
       await updateMutation.mutateAsync({
@@ -278,6 +388,7 @@ const ComposerInner = ({
       const created = await createMutation.mutateAsync({
         subject: draft.subject,
         sender_name: draft.sender_name,
+        sender_email: draft.sender_email.trim() || null,
         preview_text: draft.preview_text || null,
         reply_to_email: draft.reply_to_email || null,
         content_html: renderedHtml,
@@ -307,6 +418,7 @@ const ComposerInner = ({
     }
 
     setSavedAt(new Date())
+    lastPersistedSig.current = sig
     return id
   }
 
@@ -321,14 +433,24 @@ const ComposerInner = ({
   }
 
   const onSendNow = async () => {
+    // Confirm BEFORE persisting (audit issue #24 / fix-list #33). The
+    // previous order was persist → confirm: cancelling the dialog still
+    // mutated the draft on the server, leaving the user with an
+    // unintended save and a confusing edit history.
+    const ok = await dialogs.confirm({
+      title: 'Send now?',
+      message: (
+        <>
+          Send <strong>{draft.subject || 'this broadcast'}</strong> to your
+          audience now? This can&rsquo;t be undone.
+        </>
+      ),
+      confirmLabel: 'Send now',
+      tone: 'danger',
+    })
+    if (!ok) return
     const id = await persist()
     if (!id) return
-    if (
-      !window.confirm(
-        `Send "${draft.subject}" to your audience now? This can't be undone.`,
-      )
-    )
-      return
     await sendMutation.mutateAsync(id)
     onBack()
   }
@@ -556,6 +678,19 @@ const DetailsSection = ({
           />
         </div>
         <div>
+          <label className="label">From address</label>
+          <input
+            className="input"
+            type="email"
+            value={draft.sender_email}
+            onChange={(e) => setDraft({ sender_email: e.target.value })}
+            placeholder="hi@yourdomain.com (optional)"
+          />
+          <div style={{ fontSize: 11, color: 'var(--ink-4)', marginTop: 4 }}>
+            Leave blank to use your default notifications sender.
+          </div>
+        </div>
+        <div>
           <label className="label">Reply-to email</label>
           <input
             className="input"
@@ -611,12 +746,27 @@ const DetailsSection = ({
             >
               A
             </span>
-            <input
+            {/* Variant A IS the broadcast's canonical subject — that's
+                how the backend's A/B test reads it (`subject_b` is the
+                only variant-specific column). Show it read-only here so
+                users edit it in one place (the main Subject field above)
+                and don't think they're authoring two independent fields
+                that happen to share state. Audit issue #27 / fix-list #32:
+                the previous implementation re-rendered an editable input
+                that wrote back to draft.subject, making it look like a
+                truly distinct variant when it wasn't. */}
+            <div
               className="input"
-              value={draft.subject}
-              onChange={(e) => setDraft({ subject: e.target.value })}
-              placeholder="Subject A"
-            />
+              style={{
+                background: 'var(--bg-softer)',
+                color: draft.subject ? 'var(--ink)' : 'var(--ink-4)',
+                cursor: 'default',
+              }}
+              aria-readonly="true"
+              title="Variant A uses the broadcast's main subject above."
+            >
+              {draft.subject || 'Edit the subject above'}
+            </div>
           </div>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
             <span
@@ -876,14 +1026,10 @@ const AudienceSection = ({
           >
             Custom segment
           </button>
-          <button
-            className="tab"
-            disabled
-            style={{ flex: 1, opacity: 0.5, cursor: 'not-allowed' }}
-            title="Coming soon"
-          >
-            Upload list
-          </button>
+          {/* The legacy "Upload list" tab was a permanently disabled dead
+              affordance (audit issue #31 / fix-list #26). CSV import lives
+              under Subscribers; we'll surface a deeper link in Phase 5
+              instead of teasing a button that does nothing. */}
         </div>
       </div>
 
@@ -1279,22 +1425,10 @@ const PreviewSection = ({
           {device === 'inbox' && <InboxPreview draft={draft} />}
         </div>
       </div>
-      <div
-        style={{
-          marginTop: 12,
-          fontSize: 12,
-          color: 'var(--ink-4)',
-        }}
-      >
-        Persist guard:{' '}
-        <button
-          className="btn btn-ghost btn-sm"
-          onClick={() => persist()}
-          style={{ display: 'inline-flex', padding: '2px 8px' }}
-        >
-          Save current draft
-        </button>
-      </div>
+      {/* "Persist guard: Save current draft" debug button removed
+          (audit issue #28 / fix-list #41) — that was a leftover
+          developer affordance, not user-facing. Continue / Send /
+          Schedule already trigger persistence. */}
     </Section>
   )
 }
@@ -1305,7 +1439,14 @@ const SF_FONT =
 // MacBook preview — lid + screen + base/hinge — to match the design's
 // realistic desktop frame. Inside the screen we render a Mail.app window
 // chrome (menu bar + traffic lights + email body).
-const DesktopPreview = ({ draft }: { draft: Draft }) => {
+//
+// Wrapped in React.memo with a custom comparator (audit issue #22 / fix-
+// list #60): the parent recreates `draft` on every keystroke, so default
+// shallow compare wouldn't help. We compare only the fields the preview
+// actually reads, so typing anywhere outside the email body (audience
+// rules, segment id, filter rules, etc.) doesn't repaint the 200-line
+// MacBook chrome.
+const DesktopPreviewBase = ({ draft }: { draft: Draft }) => {
   const html = renderBlocksToHtml(draft.content_doc)
   const initials = draft.sender_name
     .split(' ')
@@ -1541,8 +1682,22 @@ const DesktopPreview = ({ draft }: { draft: Draft }) => {
   )
 }
 
+const draftPreviewFieldsEqual = (
+  a: { draft: Draft },
+  b: { draft: Draft },
+): boolean =>
+  a.draft.subject === b.draft.subject &&
+  a.draft.preview_text === b.draft.preview_text &&
+  a.draft.sender_name === b.draft.sender_name &&
+  a.draft.sender_email === b.draft.sender_email &&
+  a.draft.reply_to_email === b.draft.reply_to_email &&
+  a.draft.content_doc === b.draft.content_doc
+
+const DesktopPreview = memo(DesktopPreviewBase, draftPreviewFieldsEqual)
+
 // iPhone-style preview — Dynamic Island + status bar + Mail app chrome.
-const MobilePreview = ({ draft }: { draft: Draft }) => {
+// Same memoization story as DesktopPreview above.
+const MobilePreviewBase = ({ draft }: { draft: Draft }) => {
   const html = renderBlocksToHtml(draft.content_doc)
   const initials = draft.sender_name
     .split(' ')
@@ -1726,6 +1881,8 @@ const MobilePreview = ({ draft }: { draft: Draft }) => {
   )
 }
 
+const MobilePreview = memo(MobilePreviewBase, draftPreviewFieldsEqual)
+
 const InboxPreview = ({ draft }: { draft: Draft }) => (
   <div
     style={{
@@ -1820,15 +1977,24 @@ const ReviewSection = ({
   const [scheduleType, setScheduleType] = useState<
     'now' | 'optimal' | 'custom'
   >('optimal')
-  const [optimal] = useState(() => computeOptimalTime())
+  // Pull the engagement heatmap (~90 days). When sample_size clears
+  // MIN_HEATMAP_SAMPLE we use the highest-engagement (dow, hour) cell;
+  // otherwise we fall back to a Tuesday-9am default and the option
+  // copy says so explicitly so the user knows it's not ML-derived.
+  const heatmapQuery = useBroadcastEngagementHeatmap(organization.id, 90)
+  const optimal = useMemo(
+    () => computeOptimalTime(heatmapQuery.data),
+    [heatmapQuery.data],
+  )
   const [customWhen, setCustomWhen] = useState(() =>
-    toLocalDateTimeInputValue(optimal),
+    toLocalDateTimeInputValue(optimal.date),
   )
   const [customMin] = useState(() =>
     toLocalDateTimeInputValue(new Date(Date.now() + 5 * 60_000)),
   )
   const subStatsQuery = useEmailSubscriberStats(organization.id)
   const segmentsQuery = useEmailSegments(organization.id)
+  const dialogs = useDialogs()
   const segment = (segmentsQuery.data ?? []).find(
     (s) => s.id === draft.segment_id,
   )
@@ -1860,11 +2026,20 @@ const ReviewSection = ({
   const onConfirm = async () => {
     if (!isReadyToSend) return
     if (scheduleType === 'now') return onSendNow()
-    if (scheduleType === 'optimal') return onSchedule(optimal)
+    if (scheduleType === 'optimal') return onSchedule(optimal.date)
     const date = new Date(customWhen)
-    if (Number.isNaN(date.getTime())) return
+    if (Number.isNaN(date.getTime())) {
+      await dialogs.alert({
+        title: 'Invalid date',
+        message: "We couldn't read that date. Please pick another.",
+      })
+      return
+    }
     if (date.getTime() <= Date.now()) {
-      window.alert('Pick a date in the future.')
+      await dialogs.alert({
+        title: 'Pick a future time',
+        message: 'Scheduled sends have to be at least one minute in the future.',
+      })
       return
     }
     return onSchedule(date)
@@ -1899,8 +2074,16 @@ const ReviewSection = ({
             current={scheduleType}
             onClick={setScheduleType}
             icon="sparkles"
-            title="Optimal time"
-            sub={fmtFull(optimal)}
+            title={
+              optimal.source === 'heatmap'
+                ? 'Optimal time'
+                : 'Suggested time'
+            }
+            sub={
+              optimal.source === 'heatmap'
+                ? fmtFull(optimal.date)
+                : `${fmtFull(optimal.date)} · default until you have more sends`
+            }
           />
           <ScheduleOption
             id="custom"
@@ -1952,7 +2135,9 @@ const ReviewSection = ({
               scheduleType === 'now'
                 ? 'Right away'
                 : scheduleType === 'optimal'
-                  ? `${fmtFull(optimal)} (optimal)`
+                  ? `${fmtFull(optimal.date)} (${
+                      optimal.source === 'heatmap' ? 'optimal' : 'suggested'
+                    })`
                   : customWhen
                     ? fmtFull(new Date(customWhen))
                     : '—'

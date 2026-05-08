@@ -171,7 +171,7 @@ describe('flow tree helpers', () => {
       'b',
       [mkEmail('y1'), mkEmail('y2')],
       [mkEmail('n1')],
-    )
+    ) as Extract<StepNode, { type: 'branch' }>
     const cloned = deepCloneStep(original) as Extract<
       StepNode,
       { type: 'branch' }
@@ -181,7 +181,7 @@ describe('flow tree helpers', () => {
     expect(cloned.yes[1].id).not.toBe('y2')
     expect(cloned.no[0].id).not.toBe('n1')
     // Original untouched.
-    expect(original.yes.map((s) => s.id)).toEqual(['y1', 'y2'])
+    expect(original.yes.map((s: StepNode) => s.id)).toEqual(['y1', 'y2'])
   })
 })
 

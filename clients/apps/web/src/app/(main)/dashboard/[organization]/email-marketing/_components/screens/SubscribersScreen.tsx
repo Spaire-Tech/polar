@@ -13,6 +13,7 @@ import { getServerURL } from '@/utils/api'
 import { schemas } from '@spaire/client'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { ActionMenu } from '../ActionMenu'
+import { useDialogs } from '../dialogs'
 import { Icon } from '../Icon'
 import { Modal } from '../Modal'
 import { MetricTile } from '../shared'
@@ -90,6 +91,7 @@ export const SubscribersScreen = ({
   const updateMutation = useUpdateEmailSubscriber()
   const createMutation = useCreateEmailSubscriber(orgId)
   const deleteForeverMutation = usePermanentlyDeleteEmailSubscriber()
+  const dialogs = useDialogs()
   const bulkMutation = useBulkCreateEmailSubscribers(orgId)
 
   const items = subscribersQuery.data?.items ?? []
@@ -110,14 +112,19 @@ export const SubscribersScreen = ({
   const setStatus = (id: string, status: SubscriberRow['status']) =>
     updateMutation.mutate({ subscriberId: id, body: { status } })
 
-  const onDeleteForever = (s: SubscriberRow) => {
-    if (
-      window.confirm(
-        `Permanently delete ${s.email}? This frees the email slot and cannot be undone.`,
-      )
-    ) {
-      deleteForeverMutation.mutate(s.id)
-    }
+  const onDeleteForever = async (s: SubscriberRow) => {
+    const ok = await dialogs.confirm({
+      title: 'Delete forever?',
+      message: (
+        <>
+          Permanently delete <strong>{s.email}</strong>? This frees the email
+          slot and can&rsquo;t be undone.
+        </>
+      ),
+      confirmLabel: 'Delete forever',
+      tone: 'danger',
+    })
+    if (ok) deleteForeverMutation.mutate(s.id)
   }
 
   const onExport = () => {

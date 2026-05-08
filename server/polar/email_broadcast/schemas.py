@@ -14,6 +14,19 @@ class EmailBroadcastCreate(Schema):
         max_length=150,
     )
     sender_name: str = Field(description="Sender display name", max_length=100)
+    # The sender column is non-nullable on the model so creates have to set it
+    # somehow; previously the API surface forced callers to leave it to a DB
+    # default they couldn't see (audit issue #49 / fix-list #49). Optional
+    # here so existing callers don't break — the service falls back to the
+    # organization's notifications domain when None.
+    sender_email: str | None = Field(
+        default=None,
+        description=(
+            "Sender email address (the From). When omitted, the service "
+            "uses the org's configured notifications sender."
+        ),
+        max_length=255,
+    )
     reply_to_email: str | None = Field(default=None, description="Reply-to email address")
     content_json: dict | None = Field(default=None, description="Structured editor content")
     content_html: str | None = Field(default=None, description="HTML content for sending")
@@ -28,6 +41,7 @@ class EmailBroadcastUpdate(Schema):
     subject: str | None = None
     preview_text: str | None = None
     sender_name: str | None = None
+    sender_email: str | None = None
     reply_to_email: str | None = None
     content_json: dict | None = None
     content_html: str | None = None
