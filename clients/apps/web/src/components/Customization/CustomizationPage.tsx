@@ -8,9 +8,11 @@ import { toast } from '@/components/Toast/use-toast'
 import { useUpdateOrganization } from '@/hooks/queries'
 import { useStorefront } from '@/hooks/queries/storefront'
 import { setValidationErrors } from '@/utils/api/errors'
+import { spacePageLink } from '@/utils/nav'
 import { isValidationError, schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import { Form } from '@spaire/ui/components/ui/form'
+import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { useCallback, useState } from 'react'
 import { useForm } from 'react-hook-form'
@@ -36,6 +38,7 @@ const Customization = ({
   organization: schemas['Organization']
 }) => {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const updateOrganization = useUpdateOrganization()
   const [publishing, setPublishing] = useState(false)
   const [linksMode, setLinksMode] = useState(false)
@@ -101,6 +104,12 @@ const Customization = ({
         storefront_settings: org.storefront_settings,
       })
 
+      // Wait for the storefront query to refetch so the published-preview
+      // branch below renders the new data instead of a stale cache hit.
+      await queryClient.refetchQueries({
+        queryKey: ['storefront', { organizationSlug: org.slug }],
+      })
+
       // After publishing, switch to preview mode if space is enabled
       if (org.storefront_settings?.enabled) {
         setIsEditing(false)
@@ -132,7 +141,7 @@ const Customization = ({
             </button>
             <div className="flex items-center gap-3">
               <a
-                href={`https://space.spairehq.com/${organization.slug}`}
+                href={spacePageLink(organization)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="rounded-full border border-gray-200 px-6 py-2 text-[14px] font-medium text-gray-700 transition-colors hover:bg-gray-50"
