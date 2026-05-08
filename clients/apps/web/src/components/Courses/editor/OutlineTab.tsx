@@ -291,25 +291,27 @@ export function OutlineTab({
         </button>
       </div>
 
-      {/* Section: Free preview (or All when searching) */}
-      <SectionPill
-        text={showPaywall ? 'Free Preview' : 'Lessons'}
-        count={freeItems.length}
-      />
-      <ModuleGroups
-        groups={freeGroups}
-        locked={false}
-        selectedLessonId={selectedLessonId}
-        onSelectLesson={onSelectLesson}
-        onAddLesson={onAddLesson}
-        onDeleteLesson={onDeleteLesson}
-        onRenameModule={onRenameModule}
-        onDeleteModule={onDeleteModule}
-      />
-
-      {showPaywall && <PaywallRow onEditSettings={onEditPaywall} />}
-
-      {showPaywall && paidItems.length > 0 && (
+      {showEmptyCourseState ? (
+        <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-gray-200 bg-white px-6 py-16 text-center">
+          <p className="text-[15px] font-semibold text-gray-900">
+            No modules yet
+          </p>
+          <p className="max-w-[360px] text-[13px] text-gray-500">
+            Modules group your lessons. Create one to start building the
+            course outline.
+          </p>
+          {onAddModule && (
+            <button
+              type="button"
+              onClick={onAddModule}
+              className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-gray-900 px-4 py-2 text-[12.5px] font-semibold text-white hover:bg-gray-800"
+            >
+              <AddOutlined sx={{ fontSize: 14 }} />
+              Create first module
+            </button>
+          )}
+        </div>
+      ) : (
         <>
           {/* Section: Free preview (or All when searching) */}
           <SectionPill
@@ -327,27 +329,55 @@ export function OutlineTab({
             onDeleteModule={onDeleteModule}
           />
 
-      {!trimmed && onAddModule && (
-        <button
-          type="button"
-          onClick={onAddModule}
-          className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-2xl border border-dashed border-gray-300 bg-white px-4 py-4 text-[13px] font-medium text-gray-600 transition-colors hover:border-gray-400 hover:bg-gray-50"
-        >
-          <AddOutlined sx={{ fontSize: 16 }} />
-          Add module
-        </button>
-      )}
+          {showPaywall && <PaywallRow onEditSettings={onEditPaywall} />}
 
-      {trimmed && filtered.length === 0 && (
-        <div className="flex flex-col items-center gap-2 py-12 text-[13px] text-gray-500">
-          No lessons match "{query}"
-        </div>
-      )}
+          {showPaywall && paidItems.length > 0 && (
+            <>
+              <SectionPill text="Members Only" count={paidItems.length} />
+              <ModuleGroups
+                groups={paidGroups}
+                locked
+                selectedLessonId={selectedLessonId}
+                onSelectLesson={onSelectLesson}
+                onAddLesson={onAddLesson}
+                onDeleteLesson={onDeleteLesson}
+                onRenameModule={onRenameModule}
+                onDeleteModule={onDeleteModule}
+              />
+            </>
+          )}
 
-      {!trimmed && allLessons.length === 0 && (
-        <div className="flex flex-col items-center gap-2 py-12 text-[13px] text-gray-500">
-          No lessons yet. Use "Add lesson" or "Add module" to start building.
-        </div>
+          {/* Modules with no lessons — show only when not searching. */}
+          {!trimmed && emptyModules.length > 0 && (
+            <ModuleGroups
+              groups={emptyModules}
+              locked={false}
+              selectedLessonId={selectedLessonId}
+              onSelectLesson={onSelectLesson}
+              onAddLesson={onAddLesson}
+              onDeleteLesson={onDeleteLesson}
+              onRenameModule={onRenameModule}
+              onDeleteModule={onDeleteModule}
+            />
+          )}
+
+          {!trimmed && onAddModule && (
+            <button
+              type="button"
+              onClick={onAddModule}
+              className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-2xl border border-dashed border-gray-300 bg-white px-4 py-4 text-[13px] font-medium text-gray-600 transition-colors hover:border-gray-400 hover:bg-gray-50"
+            >
+              <AddOutlined sx={{ fontSize: 16 }} />
+              Add module
+            </button>
+          )}
+
+          {trimmed && filtered.length === 0 && (
+            <div className="flex flex-col items-center gap-2 py-12 text-[13px] text-gray-500">
+              No lessons match "{query}"
+            </div>
+          )}
+        </>
       )}
     </div>
   )
