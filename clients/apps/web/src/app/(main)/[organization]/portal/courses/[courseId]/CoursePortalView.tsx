@@ -823,7 +823,7 @@ function LessonThumb({
   const src =
     thumbnailUrl ||
     (muxPlaybackId
-      ? `https://image.mux.com/${muxPlaybackId}/thumbnail.jpg?time=0`
+      ? `https://image.mux.com/${muxPlaybackId}/thumbnail.jpg?time=1`
       : null) ||
     fallbackThumbnailUrl ||
     null

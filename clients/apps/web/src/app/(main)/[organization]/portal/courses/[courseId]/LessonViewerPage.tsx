@@ -7,7 +7,7 @@ import {
 } from '@/hooks/queries/courses'
 import { schemas } from '@spaire/client'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { CoursePortalView } from './CoursePortalView'
 import { MasterClassLessonViewer } from './MasterClassLessonViewer'
 
@@ -52,9 +52,19 @@ const LessonViewerPage = ({
   )
   const markComplete = useMarkLessonComplete(customerSessionToken, courseId)
 
+  // Source of truth: ?lesson= in the URL. Keeps browser back/forward in sync
+  // with the rendered lesson — previously a router.replace built the URL but
+  // the React state ignored later searchParams changes, so back-navigation
+  // appeared to do nothing while the URL kept drifting.
+  const lessonParam = searchParams.get('lesson')
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(
-    initialLessonId ?? null,
+    lessonParam ?? initialLessonId ?? null,
   )
+
+  useEffect(() => {
+    const next = searchParams.get('lesson')
+    setSelectedLessonId(next)
+  }, [searchParams])
 
   // Flatten lessons from modules into a single array (or use flat lessons if available)
   const flatLessons: FlatLesson[] = data
@@ -87,14 +97,16 @@ const LessonViewerPage = ({
     setSelectedLessonId(lesson.id)
     const params = new URLSearchParams(searchParams.toString())
     params.set('lesson', lesson.id)
-    router.replace(`?${params.toString()}`, { scroll: false })
+    // push (not replace) so the browser back button returns to the
+    // previous lesson / the course overview instead of blowing past it.
+    router.push(`?${params.toString()}`, { scroll: false })
   }
 
   const handleBack = () => {
     setSelectedLessonId(null)
     const params = new URLSearchParams(searchParams.toString())
     params.delete('lesson')
-    router.replace(`?${params.toString()}`, { scroll: false })
+    router.push(`?${params.toString()}`, { scroll: false })
   }
 
   const handleMarkComplete = () => {

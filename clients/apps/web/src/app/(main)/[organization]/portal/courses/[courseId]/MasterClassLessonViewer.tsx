@@ -183,7 +183,7 @@ export const MasterClassLessonViewer = ({
           const thumbnail =
             lesson.thumbnail_url ||
             (lesson.mux_playback_id
-              ? `https://image.mux.com/${lesson.mux_playback_id}/thumbnail.jpg?time=0`
+              ? `https://image.mux.com/${lesson.mux_playback_id}/thumbnail.jpg?time=1`
               : null)
           const payload = {
             lessonId: lesson.id,
@@ -207,7 +207,7 @@ export const MasterClassLessonViewer = ({
   const thumbnailSrc =
     lesson.thumbnail_url ||
     (lesson.mux_playback_id
-      ? `https://image.mux.com/${lesson.mux_playback_id}/thumbnail.jpg?time=0`
+      ? `https://image.mux.com/${lesson.mux_playback_id}/thumbnail.jpg?time=1`
       : null)
 
   const isQuiz = lesson.content_type === 'quiz'
@@ -757,7 +757,7 @@ export const MasterClassLessonViewer = ({
                         const thumb =
                           l.thumbnail_url ||
                           (l.mux_playback_id
-                            ? `https://image.mux.com/${l.mux_playback_id}/thumbnail.jpg?time=0`
+                            ? `https://image.mux.com/${l.mux_playback_id}/thumbnail.jpg?time=1`
                             : null)
                         return (
                           <button
