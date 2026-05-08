@@ -438,10 +438,17 @@ class CourseService:
         paywall_position: int | None,
         enrolled_at: datetime,
         now: datetime,
+        *,
+        global_lesson_index: int | None = None,
     ) -> tuple[bool, datetime | None]:
         """Calculate if a lesson is accessible given paywall/drip settings.
 
         Returns (is_accessible, locked_until_timestamp).
+
+        ``paywall_position`` is the number of lessons (in global course
+        order) that are visible before the paywall — lessons whose
+        ``global_lesson_index`` is >= paywall_position are locked.
+
         Accessibility rules:
         - Trailer (is_free_preview=true): always accessible
         - Non-trailer + enrolled: check paywall position and drip schedule
@@ -453,12 +460,21 @@ class CourseService:
         if lesson.is_free_preview:
             return True, None
 
-        # Check paywall: lesson at position >= paywall_position is locked
-        if paywall_position is not None and lesson.position >= paywall_position:
-            return False, None
+        # Check paywall against the global lesson index (number of lessons
+        # before this one in the whole course). Falls back to the
+        # module-relative position only when no index is supplied — that
+        # matches the legacy behaviour for callers that haven't been
+        # updated yet.
+        if paywall_position is not None:
+            position = (
+                global_lesson_index
+                if global_lesson_index is not None
+                else lesson.position
+            )
+            if position >= paywall_position:
+                return False, None
 
         # Check drip: release_at or drip_days
-        locked_until = None
         if lesson.release_at and now < lesson.release_at:
             return False, lesson.release_at
         if lesson.drip_days is not None:

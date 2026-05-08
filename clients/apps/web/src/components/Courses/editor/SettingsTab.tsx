@@ -35,9 +35,13 @@ export function SettingsTab({
   const [instructorBio, setInstructorBio] = useState(
     course.instructor_bio ?? '',
   )
+  const totalLessons = course.modules.reduce(
+    (sum, m) => sum + m.lessons.length,
+    0,
+  )
   const [enabled, setEnabled] = useState(course.paywall_enabled)
   const [position, setPosition] = useState<number | null>(
-    course.paywall_position ?? (course.modules.length > 1 ? 1 : null),
+    course.paywall_position ?? (totalLessons > 1 ? 1 : null),
   )
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(
     course.thumbnail_url ?? null,
@@ -100,9 +104,7 @@ export function SettingsTab({
     (thumbnailPosition ?? null) !== (course.thumbnail_object_position ?? null)
 
   const lockedCount =
-    enabled && position != null
-      ? Math.max(0, course.modules.length - position)
-      : 0
+    enabled && position != null ? Math.max(0, totalLessons - position) : 0
 
   const handleSave = () => {
     if (titleError) return
@@ -318,7 +320,7 @@ export function SettingsTab({
           <div className="flex-1">
             <h2 className="text-base font-bold text-gray-900">Paywall</h2>
             <p className="mt-0.5 text-sm text-gray-500">
-              Place a paywall between modules. Modules above the paywall are
+              Place a paywall between lessons. Lessons before the paywall are
               free preview; everything after is locked until purchase.
             </p>
           </div>
@@ -331,59 +333,32 @@ export function SettingsTab({
               Paywall position
             </label>
             <p className="mt-0.5 text-xs text-gray-500">
-              Number of modules visible before the paywall. Modules after this
+              Number of lessons visible before the paywall. Lessons after this
               count are locked.
             </p>
             <div className="mt-3 flex items-center gap-3">
               <input
                 type="number"
                 min={0}
-                max={course.modules.length}
+                max={totalLessons}
                 value={position ?? 0}
-                onChange={(e) => setPosition(parseInt(e.target.value || '0'))}
+                onChange={(e) => {
+                  const parsed = parseInt(e.target.value, 10)
+                  const next = Number.isFinite(parsed)
+                    ? Math.max(0, Math.min(totalLessons, parsed))
+                    : 0
+                  setPosition(next)
+                }}
                 className="w-24 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
               />
               <span className="text-sm text-gray-600">
-                of {course.modules.length} modules visible
+                of {totalLessons} lessons visible
               </span>
             </div>
 
-            {course.modules.length > 0 && position != null && (
-              <div className="mt-4 flex flex-col gap-1">
-                {course.modules.map((m, idx) => {
-                  const locked = idx >= position
-                  return (
-                    <div
-                      key={m.id}
-                      className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm"
-                      style={{
-                        backgroundColor: locked
-                          ? 'rgb(254 242 242)'
-                          : 'rgb(240 253 244)',
-                      }}
-                    >
-                      <span className="text-xs text-gray-400">{idx + 1}.</span>
-                      <span className="flex-1 truncate text-gray-900">
-                        {m.title}
-                      </span>
-                      <span
-                        className={
-                          locked
-                            ? 'text-xs font-medium text-red-700'
-                            : 'text-xs font-medium text-green-700'
-                        }
-                      >
-                        {locked ? 'Locked' : 'Free preview'}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-
             {lockedCount === 0 && position != null && (
               <p className="mt-3 text-xs text-amber-600">
-                With this position, no modules are locked — every module is a
+                With this position, no lessons are locked — everything is a
                 free preview.
               </p>
             )}
