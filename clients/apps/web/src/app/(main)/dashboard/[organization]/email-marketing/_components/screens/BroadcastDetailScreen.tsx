@@ -1,3 +1,5 @@
+'use client'
+
 import {
   useArchiveEmailBroadcast,
   useCancelScheduledEmailBroadcast,
@@ -7,6 +9,7 @@ import {
   useEmailBroadcastAnalytics,
   useEmailBroadcastSends,
 } from '@/hooks/queries/emailMarketing'
+import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { ActionMenu } from '../ActionMenu'
 import { Icon } from '../Icon'
@@ -580,5 +583,23 @@ const ABVariantBlock = ({
           : 'No data yet'}
       </div>
     </div>
+  )
+}
+
+export const BroadcastDetailRoute = ({
+  organizationSlug,
+  broadcastId,
+}: {
+  organizationSlug: string
+  broadcastId: string
+}) => {
+  const router = useRouter()
+  return (
+    <BroadcastDetailScreen
+      broadcastId={broadcastId}
+      onBack={() =>
+        router.push(`/dashboard/${organizationSlug}/email-marketing/broadcasts`)
+      }
+    />
   )
 }

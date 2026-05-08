@@ -1,3 +1,5 @@
+'use client'
+
 import { getServerURL } from '@/utils/api'
 import {
   useBroadcastAggregateAnalytics,
@@ -10,6 +12,7 @@ import {
   useSubscriberDailyGrowth,
 } from '@/hooks/queries/emailMarketing'
 import { schemas } from '@spaire/client'
+import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { ActionMenu } from '../ActionMenu'
 import { fmtPctDelta, fmtPtDelta } from '../analyticsFormat'
@@ -885,5 +888,23 @@ const Heatmap = ({
         ))}
       </div>
     </div>
+  )
+}
+
+export const AnalyticsRoute = ({
+  organization,
+}: {
+  organization: schemas['Organization']
+}) => {
+  const router = useRouter()
+  return (
+    <AnalyticsScreen
+      organization={organization}
+      onOpenBroadcast={(id) =>
+        router.push(
+          `/dashboard/${organization.slug}/email-marketing/broadcasts/${id}`,
+        )
+      }
+    />
   )
 }

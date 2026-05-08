@@ -1,3 +1,5 @@
+'use client'
+
 import {
   useCreateEmailSequence,
   useCreateSequenceStep,
@@ -12,6 +14,7 @@ import {
 } from '@/hooks/queries/emailMarketing'
 import { useProducts } from '@/hooks/queries/products'
 import { schemas } from '@spaire/client'
+import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { BroadcastEditor } from '../blockEditor/BroadcastEditor'
@@ -1467,9 +1470,16 @@ const SequenceEditorInner = ({
                 },
                 { num: '06', label: 'Send settings', done: true },
               ].map((item) => (
-                <a
+                <button
                   key={item.num}
-                  href="#"
+                  type="button"
+                  // Step nav is a checklist for now — clicking a row doesn't
+                  // jump to a section yet (FormSections lack scroll anchors).
+                  // Render as a non-interactive item via aria-disabled so
+                  // assistive tech doesn't promise scroll behaviour we
+                  // haven't built. Fix in Phase 8 when adding section ids.
+                  aria-disabled="true"
+                  onClick={(e) => e.preventDefault()}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -1479,6 +1489,11 @@ const SequenceEditorInner = ({
                     fontSize: 13,
                     color: 'var(--ink-2)',
                     textDecoration: 'none',
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'default',
+                    textAlign: 'left',
+                    width: '100%',
                   }}
                 >
                   <span
@@ -1509,7 +1524,7 @@ const SequenceEditorInner = ({
                     {item.num}
                   </span>
                   <span>{item.label}</span>
-                </a>
+                </button>
               ))}
             </nav>
           </div>
@@ -1944,4 +1959,27 @@ const renderEmailFallback = (v: EmailStepValue): string => {
   const safeSubject = (v.subject ?? '').replace(/</g, '&lt;')
   const safePreview = (v.preview ?? '').replace(/</g, '&lt;')
   return `<h2>${safeSubject}</h2><p>${safePreview}</p>`
+}
+
+export const NewSequenceRoute = ({
+  organization,
+  sequenceId,
+}: {
+  organization: schemas['Organization']
+  sequenceId: string | null
+}) => {
+  const router = useRouter()
+  const base = `/dashboard/${organization.slug}/email-marketing/sequences`
+  return (
+    <NewSequenceScreen
+      organization={organization}
+      sequenceId={sequenceId}
+      onBack={() => router.push(base)}
+      onOpened={(id) => {
+        if (sequenceId !== id) {
+          router.replace(`${base}/${id}/edit`)
+        }
+      }}
+    />
+  )
 }

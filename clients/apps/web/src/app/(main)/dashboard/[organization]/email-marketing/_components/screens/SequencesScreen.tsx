@@ -1,3 +1,5 @@
+'use client'
+
 import {
   SequenceTemplate,
   useCreateSequenceFromTemplate,
@@ -8,6 +10,7 @@ import {
   useUpdateEmailSequence,
 } from '@/hooks/queries/emailMarketing'
 import { schemas } from '@spaire/client'
+import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { ActionMenu } from '../ActionMenu'
 import { StepNode } from '../flow'
@@ -1147,5 +1150,21 @@ const FlowMiniature = ({
         NO
       </text>
     </svg>
+  )
+}
+
+export const SequencesRoute = ({
+  organization,
+}: {
+  organization: schemas['Organization']
+}) => {
+  const router = useRouter()
+  const base = `/dashboard/${organization.slug}/email-marketing/sequences`
+  return (
+    <SequencesScreen
+      organization={organization}
+      onNew={() => router.push(`${base}/new`)}
+      onEdit={(id) => router.push(`${base}/${id}/edit`)}
+    />
   )
 }

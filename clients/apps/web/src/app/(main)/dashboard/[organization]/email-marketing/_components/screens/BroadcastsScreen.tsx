@@ -1,3 +1,5 @@
+'use client'
+
 import {
   BroadcastRow,
   useArchiveEmailBroadcast,
@@ -8,6 +10,7 @@ import {
   useEmailSubscriberStats,
 } from '@/hooks/queries/emailMarketing'
 import { schemas } from '@spaire/client'
+import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { ActionMenu } from '../ActionMenu'
 import { fmtPctDelta, fmtPtDelta } from '../analyticsFormat'
@@ -453,5 +456,26 @@ const BroadcastListRow = ({
         />
       </div>
     </div>
+  )
+}
+
+/**
+ * Route wrapper: translates the screen's callback API into URL navigation
+ * so the back button, refresh, and share-link all behave correctly.
+ */
+export const BroadcastsRoute = ({
+  organization,
+}: {
+  organization: schemas['Organization']
+}) => {
+  const router = useRouter()
+  const base = `/dashboard/${organization.slug}/email-marketing/broadcasts`
+  return (
+    <BroadcastsScreen
+      organization={organization}
+      onNew={() => router.push(`${base}/new`)}
+      onOpen={(id) => router.push(`${base}/${id}`)}
+      onEdit={(id) => router.push(`${base}/${id}/edit`)}
+    />
   )
 }
