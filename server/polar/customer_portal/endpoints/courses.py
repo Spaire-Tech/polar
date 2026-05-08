@@ -481,18 +481,18 @@ async def mark_lesson_complete(
     session: AsyncSession = Depends(get_db_session),
 ) -> None:
     customer_id = get_customer_id(auth_subject)
-    enrollment = await course_service.get_enrollment_for_customer(
-        session, customer_id, course_id
+    enrollment, lesson = await _verify_lesson_in_enrolled_course(
+        session, customer_id, course_id, lesson_id
     )
-    if enrollment is None:
-        raise HTTPException(status_code=404, detail="Course not found or not enrolled")
-
-    # Verify the lesson is published and belongs to this course before recording progress.
-    lesson_repo = CourseLessonRepository.from_session(session)
-    lesson = await lesson_repo.get_by_id(lesson_id)
-    if lesson is None or not lesson.published:
-        raise HTTPException(status_code=404, detail="Lesson not found")
-
+    # Quiz lessons must be completed via the quiz-attempt endpoint so the
+    # passing-grade rule (prevent_complete_without_passing) is enforced.
+    if lesson.content_type == "quiz":
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Quiz lessons can only be completed by submitting a quiz attempt"
+            ),
+        )
     await course_service.mark_lesson_complete(
         session, enrollment_id=enrollment.id, lesson_id=lesson_id
     )
@@ -734,6 +734,12 @@ async def check_lesson_access(
     course = await course_service.get_by_id(session, course_id)
     if course is None:
         raise HTTPException(status_code=404, detail="Course not found")
+
+    # Reject if the lesson belongs to a different course (prevents probing
+    # other courses' lesson ids through this endpoint).
+    module_course_id = getattr(getattr(lesson, "module", None), "course_id", None)
+    if module_course_id is None or module_course_id != course.id:
+        raise HTTPException(status_code=404, detail="Lesson not found")
 
     # Check if lesson is published
     if not lesson.published:
