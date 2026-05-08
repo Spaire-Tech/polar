@@ -115,7 +115,18 @@ function CourseLandingShell({
     modified_at: null,
   }))
 
-  const paywallPosition = flatLessons.findIndex((l) => !l.is_free_preview)
+  // Trust the backend's paywall settings rather than reverse-engineering
+  // them from is_free_preview flags. Falls back to inference only when the
+  // backend doesn't report paywall_enabled (older landing payload).
+  const inferredPaywallPosition = flatLessons.findIndex(
+    (l) => !l.is_free_preview,
+  )
+  const paywallEnabled =
+    landing.paywall_enabled ??
+    (inferredPaywallPosition >= 0)
+  const paywallPosition =
+    landing.paywall_position ??
+    (inferredPaywallPosition >= 0 ? inferredPaywallPosition : null)
   const fakeCourse: CourseRead = {
     id: landing.id,
     product_id: product.id,
@@ -123,9 +134,9 @@ function CourseLandingShell({
     title: landing.title ?? product.name,
     slug: null,
     course_type: landing.course_type,
-    paywall_enabled: paywallPosition >= 0,
+    paywall_enabled: paywallEnabled,
     paywall_lesson_id: null,
-    paywall_position: paywallPosition >= 0 ? paywallPosition : null,
+    paywall_position: paywallPosition,
     ai_generated: false,
     description: landing.description,
     thumbnail_url: landing.thumbnail_url,

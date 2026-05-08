@@ -583,6 +583,8 @@ export type CourseLandingPageData = {
     description?: string | null
     position: number
   }[]
+  paywall_enabled?: boolean
+  paywall_position?: number | null
   has_access: boolean
 }
 

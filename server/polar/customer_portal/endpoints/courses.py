@@ -626,16 +626,10 @@ async def get_course_landing(
             else:
                 is_free = False
 
-            lesson_data = _serialize_lesson(lesson, set())
+            lesson_data = _serialize_lesson(lesson, set(), accessible=is_free)
             lesson_data["is_free_preview"] = is_free
             lesson_data["locked"] = not is_free
             lesson_data["locked_until"] = None
-            lesson_data["description"] = lesson.description if is_free else None
-            if not is_free:
-                # Strip content from locked lessons so non-enrolled users
-                # can't read paid material via the public endpoint.
-                lesson_data["content"] = None
-                lesson_data["mux_playback_id"] = None
             flat_lessons.append(lesson_data)
         has_access = False
 
@@ -684,6 +678,8 @@ async def get_course_landing(
         "landing_overrides": course.landing_overrides,
         "lessons": flat_lessons,
         "modules": modules_public,
+        "paywall_enabled": bool(course.paywall_enabled),
+        "paywall_position": course.paywall_position,
         "has_access": has_access,
     }
 

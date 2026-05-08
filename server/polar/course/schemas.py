@@ -270,6 +270,8 @@ class CourseLandingPageRead(TimestampedSchema):
     lesson_count: int
     total_duration_seconds: int
     lessons: list[CourseLessonPublicRead]
+    paywall_enabled: bool = False
+    paywall_position: int | None = None
     has_access: bool = False
 
 
