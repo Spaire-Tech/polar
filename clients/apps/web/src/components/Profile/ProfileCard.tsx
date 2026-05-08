@@ -42,6 +42,7 @@ export const ProfileCard = ({
   const skills = settings?.skills ?? []
   const languages = settings?.languages ?? []
   const availableForWork = settings?.available_for_work ?? false
+  const contactUrl = settings?.contact_url ?? null
 
   const headerFocal = (settings as any)?.header_focal_point ?? '50% 50%'
 
@@ -167,11 +168,23 @@ export const ProfileCard = ({
         {/* Available for work + Languages */}
         {(availableForWork || languages.length > 0) && (
           <div className="mt-4 flex flex-row flex-wrap items-center gap-2">
-            {availableForWork && (
-              <span className="rounded-full border border-green-200 bg-green-50 px-3 py-1 text-[12px] font-medium text-green-600">
-                Available for work
-              </span>
-            )}
+            {availableForWork &&
+              (contactUrl && !preview ? (
+                <a
+                  href={contactUrl}
+                  target={
+                    contactUrl.startsWith('mailto:') ? undefined : '_blank'
+                  }
+                  rel="noopener noreferrer"
+                  className="rounded-full border border-green-200 bg-green-50 px-3 py-1 text-[12px] font-medium text-green-600 transition-colors hover:bg-green-100"
+                >
+                  Available for work →
+                </a>
+              ) : (
+                <span className="rounded-full border border-green-200 bg-green-50 px-3 py-1 text-[12px] font-medium text-green-600">
+                  Available for work
+                </span>
+              ))}
             {languages.length > 0 && (
               <button
                 type="button"

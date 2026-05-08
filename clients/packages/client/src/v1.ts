@@ -21300,6 +21300,11 @@ export interface components {
        */
       available_for_work?: boolean
       /**
+       * Contact Url
+       * @description Where the 'Available for work' badge sends visitors. Accepts an https:// URL (e.g. a contact form, calendar booking link) or a mailto: URL. When unset, the badge is non-interactive.
+       */
+      contact_url?: string | null
+      /**
        * Featured Mode
        * @description How to choose which products appear on the storefront. 'all' (default) shows every active product, including ones created after the storefront was set up. 'curated' shows only the IDs in featured_product_ids.
        * @default all

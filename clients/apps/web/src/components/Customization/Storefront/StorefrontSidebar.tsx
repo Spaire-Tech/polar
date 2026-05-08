@@ -1072,6 +1072,51 @@ export const StorefrontEditorForm = ({
       />
 
       {/* Display Settings — always visible, not collapsible */}
+      {/* Available for work — its own section because it has an optional
+          contact URL sub-input. */}
+      <div className="flex flex-col gap-y-2">
+        <h3 className="text-sm font-semibold text-gray-900">
+          Available for work
+        </h3>
+        <div className="flex flex-col divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200">
+          <div className="flex items-center justify-between px-4 py-3.5 transition-colors hover:bg-gray-50">
+            <div>
+              <span className="text-sm font-medium text-gray-900">
+                Show the badge
+              </span>
+              <p className="text-xs text-gray-500">
+                A green &ldquo;Available for work&rdquo; pill on your Space
+                card.
+              </p>
+            </div>
+            <Switch
+              checked={settings?.available_for_work ?? false}
+              onCheckedChange={(v) => updateSetting('available_for_work', v)}
+            />
+          </div>
+          {(settings?.available_for_work ?? false) && (
+            <div className="flex flex-col gap-y-1.5 px-4 py-3.5">
+              <label className="text-xs font-medium text-gray-700">
+                Contact link (optional)
+              </label>
+              <input
+                type="text"
+                value={settings?.contact_url ?? ''}
+                onChange={(e) =>
+                  updateSetting('contact_url', e.target.value || null)
+                }
+                placeholder="mailto:hello@example.com  or  https://cal.com/me"
+                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-gray-300 focus:outline-none"
+              />
+              <p className="text-[11px] text-gray-400">
+                When set, the badge becomes a clickable link. Leave empty to
+                show the badge without a link.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
       <div className="flex flex-col gap-y-2">
         <h3 className="text-sm font-semibold text-gray-900">
           Display Settings
@@ -1098,11 +1143,6 @@ export const StorefrontEditorForm = ({
               key: 'show_product_details' as const,
               label: 'Show product details',
               def: true,
-            },
-            {
-              key: 'available_for_work' as const,
-              label: 'Available for work',
-              def: false,
             },
           ].map(({ key, label, def }) => (
             <div
