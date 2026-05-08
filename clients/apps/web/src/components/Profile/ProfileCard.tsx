@@ -11,6 +11,7 @@ import {
   TooltipTrigger,
 } from '@spaire/ui/components/ui/tooltip'
 import TranslateOutlined from '@mui/icons-material/TranslateOutlined'
+import Verified from '@mui/icons-material/Verified'
 import Link from 'next/link'
 import { useState } from 'react'
 import LogoType from '../Brand/LogoType'
@@ -157,9 +158,12 @@ export const ProfileCard = ({
                 {profileTitle}
               </span>
             )}
-            <h1 className="text-[26px] font-bold leading-tight text-gray-950">
-              {organization.name}
-            </h1>
+            <div className="flex flex-row items-center gap-x-1.5">
+              <h1 className="text-[26px] font-bold leading-tight text-gray-950">
+                {organization.name}
+              </h1>
+              <Verified className="h-5 w-5 text-blue-500" />
+            </div>
           </div>
         )}
 
