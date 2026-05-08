@@ -366,6 +366,7 @@ async def get_enrolled_course(
             "course_type": course.course_type,
             "program_format": course.program_format,
             "community_enabled": course.community_enabled,
+            "lifecycle": course.lifecycle,
             "paywall_enabled": course.paywall_enabled,
             "paywall_position": course.paywall_position,
             "landing_overrides": course.landing_overrides,
@@ -565,6 +566,15 @@ async def get_course_landing(
             session, customer_id, course_id
         )
 
+    # Drafts are not public. Members keep access (they enrolled before
+    # the merchant moved the program to draft, e.g. for editing); the
+    # public storefront 404s.
+    if (
+        course.lifecycle in ("draft", "archived")
+        and enrollment is None
+    ):
+        raise HTTPException(status_code=404, detail="Course not found")
+
     # Build lesson list based on enrollment
     if enrollment:
         # Enrolled: show all accessible lessons with gating info
@@ -660,6 +670,7 @@ async def get_course_landing(
         "course_type": course.course_type,
         "program_format": course.program_format,
         "community_enabled": course.community_enabled,
+        "lifecycle": course.lifecycle,
         "lesson_count": len(flat_lessons),
         "total_duration_seconds": total_duration,
         "landing_overrides": course.landing_overrides,

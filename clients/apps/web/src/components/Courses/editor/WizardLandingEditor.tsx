@@ -239,6 +239,7 @@ export function WizardLandingEditor({
       course_type: 'evergreen',
       program_format: 'standard',
       community_enabled: false,
+      lifecycle: 'draft',
       paywall_enabled: paywallEnabled,
       paywall_lesson_id: null,
       paywall_position: paywallPosition,

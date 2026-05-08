@@ -140,6 +140,7 @@ class CourseCreate(Schema):
     course_type: Literal["evergreen", "cohort"] = "evergreen"
     program_format: Literal["standard", "coaching"] = "standard"
     community_enabled: bool | None = None
+    lifecycle: Literal["draft", "live", "wrapped", "archived"] | None = None
     paywall_enabled: bool = False
     paywall_lesson_id: UUID4 | None = None
     paywall_position: int | None = None
@@ -163,6 +164,7 @@ class CourseUpdate(Schema):
     course_type: Literal["evergreen", "cohort"] | None = None
     program_format: Literal["standard", "coaching"] | None = None
     community_enabled: bool | None = None
+    lifecycle: Literal["draft", "live", "wrapped", "archived"] | None = None
     paywall_enabled: bool | None = None
     paywall_lesson_id: UUID4 | None = None
     paywall_position: int | None = None
@@ -242,6 +244,7 @@ class CourseRead(TimestampedSchema):
     slug: str | None
     course_type: str
     program_format: str = "standard"
+    lifecycle: str = "live"
     community_enabled: bool = False
     paywall_enabled: bool
     paywall_lesson_id: UUID4 | None

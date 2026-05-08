@@ -69,6 +69,18 @@ class CourseService:
                 if create_schema.community_enabled is not None
                 else create_schema.program_format == "coaching"
             ),
+            # Coaching programs land in 'draft' until the merchant
+            # explicitly publishes from the editor; standard courses
+            # default to 'live' so the existing flow is unaffected.
+            lifecycle=(
+                create_schema.lifecycle
+                if create_schema.lifecycle is not None
+                else (
+                    "draft"
+                    if create_schema.program_format == "coaching"
+                    else "live"
+                )
+            ),
             paywall_enabled=create_schema.paywall_enabled,
             paywall_lesson_id=create_schema.paywall_lesson_id,
             ai_generated=create_schema.ai_generated,

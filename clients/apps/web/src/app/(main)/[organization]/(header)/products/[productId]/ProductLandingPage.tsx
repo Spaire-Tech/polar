@@ -126,6 +126,7 @@ function CourseLandingShell({
     course_type: landing.course_type,
     program_format: landing.program_format ?? 'standard',
     community_enabled: landing.community_enabled ?? false,
+    lifecycle: 'live',
     paywall_enabled: paywallPosition >= 0,
     paywall_lesson_id: null,
     paywall_position: paywallPosition >= 0 ? paywallPosition : null,

@@ -6,7 +6,7 @@ import {
   useCoachingMembers,
   useCoachingPosts,
 } from '@/hooks/queries/coaching'
-import type { CourseRead } from '@/hooks/queries/courses'
+import { useUpdateCourse, type CourseRead } from '@/hooks/queries/courses'
 import { schemas } from '@spaire/client'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useMemo, useState } from 'react'
@@ -20,23 +20,13 @@ import { PricingTab } from './tabs/PricingTab'
 import { Btn } from './ui'
 import { Ic } from './icons'
 
-type Lifecycle = 'draft' | 'live' | 'wrapped'
-
-function deriveLifecycle(
-  events: ReadonlyArray<{ starts_at: string; status: string }>,
-): Lifecycle {
-  if (events.length === 0) return 'draft'
-  const now = Date.now()
-  const hasFuture = events.some(
-    (e) => e.status !== 'cancelled' && new Date(e.starts_at).getTime() >= now,
-  )
-  return hasFuture ? 'live' : 'wrapped'
-}
+type Lifecycle = 'draft' | 'live' | 'wrapped' | 'archived'
 
 const LIFECYCLE_LABEL: Record<Lifecycle, string> = {
   draft: 'Draft',
   live: 'Live',
   wrapped: 'Wrapped',
+  archived: 'Archived',
 }
 
 function buildMeta(
@@ -181,8 +171,14 @@ function ProgramHeader({
   const { data: members = [] } = useCoachingMembers(course.id)
   const { data: posts = [] } = useCoachingPosts(course.id)
   const { data: responses = [] } = useCoachingIntakeResponses(course.id)
-  const lifecycle = useMemo(() => deriveLifecycle(events), [events])
+  const updateCourse = useUpdateCourse()
+  const lifecycle: Lifecycle = (course.lifecycle ?? 'live') as Lifecycle
   const meta = useMemo(() => buildMeta(events), [events])
+
+  const publish = () =>
+    updateCourse.mutate({ courseId: course.id, body: { lifecycle: 'live' } })
+  const unpublish = () =>
+    updateCourse.mutate({ courseId: course.id, body: { lifecycle: 'draft' } })
 
   const badges: Record<TabId, number | undefined> = {
     events: events.filter((e) => e.status !== 'cancelled').length || undefined,
@@ -225,18 +221,20 @@ function ProgramHeader({
           </div>
         </div>
         <div className="ce-row">
-          <Btn
-            variant="ghost"
-            icon={<Ic.External size={14} />}
-            onClick={() =>
-              window.open(
-                `/${organization.slug}/products/${course.product_id}`,
-                '_blank',
-              )
-            }
-          >
-            View public page
-          </Btn>
+          {lifecycle !== 'draft' && (
+            <Btn
+              variant="ghost"
+              icon={<Ic.External size={14} />}
+              onClick={() =>
+                window.open(
+                  `/${organization.slug}/products/${course.product_id}`,
+                  '_blank',
+                )
+              }
+            >
+              View public page
+            </Btn>
+          )}
           <Btn
             icon={<Ic.Eye size={14} />}
             onClick={() =>
@@ -248,6 +246,24 @@ function ProgramHeader({
           >
             Preview as member
           </Btn>
+          {lifecycle === 'draft' ? (
+            <Btn
+              variant="primary"
+              icon={<Ic.Sparkles size={14} />}
+              disabled={updateCourse.isPending}
+              onClick={publish}
+            >
+              {updateCourse.isPending ? 'Publishing…' : 'Publish program'}
+            </Btn>
+          ) : lifecycle === 'live' ? (
+            <Btn
+              variant="ghost"
+              disabled={updateCourse.isPending}
+              onClick={unpublish}
+            >
+              Unpublish
+            </Btn>
+          ) : null}
         </div>
       </div>
       <div style={{ height: 8 }} />

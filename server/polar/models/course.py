@@ -64,6 +64,16 @@ class Course(RecordModel):
         server_default="false",
     )
 
+    # "draft" | "live" | "wrapped" | "archived". Drives whether the
+    # storefront product page renders, whether new buyers can enroll,
+    # and the lifecycle pill in the editor.
+    lifecycle: Mapped[str] = mapped_column(
+        String(16),
+        nullable=False,
+        default="live",
+        server_default="live",
+    )
+
     paywall_enabled: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False
     )
