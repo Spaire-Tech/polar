@@ -219,6 +219,22 @@ export function CommunityTab({ course }: { course: CourseRead }) {
                     moderate.mutate({ postId: t.id, hidden: !t.hidden })
                   }
                   onDelete={() => remove.mutate(t.id)}
+                  onReply={async (content) => {
+                    try {
+                      await create.mutateAsync({
+                        content,
+                        parent_id: t.id,
+                      })
+                    } catch (e) {
+                      toast({
+                        title: 'Could not post reply',
+                        description:
+                          e instanceof Error ? e.message : 'Unknown error',
+                      })
+                      throw e
+                    }
+                  }}
+                  replying={create.isPending}
                 />
               ))
             )}
@@ -234,12 +250,29 @@ function Thread({
   onPin,
   onHide,
   onDelete,
+  onReply,
+  replying,
 }: {
   thread: CoachingThreadRead
   onPin: () => void
   onHide: () => void
   onDelete: () => void
+  onReply: (content: string) => Promise<void>
+  replying: boolean
 }) {
+  const [showReply, setShowReply] = useState(false)
+  const [replyDraft, setReplyDraft] = useState('')
+  const submitReply = async () => {
+    const content = replyDraft.trim()
+    if (!content) return
+    try {
+      await onReply(content)
+      setReplyDraft('')
+      setShowReply(false)
+    } catch {
+      // toast handled upstream
+    }
+  }
   return (
     <div className="ce-thread">
       {thread.pinned && (
@@ -266,7 +299,10 @@ function Thread({
           </div>
           <div className="ce-thread-body">{thread.content}</div>
           <div className="ce-thread-actions">
-            <button className="ce-thread-action">
+            <button
+              className="ce-thread-action"
+              onClick={() => setShowReply((v) => !v)}
+            >
               <Ic.Reply size={12} style={{ verticalAlign: -2, marginRight: 4 }} />
               {thread.reply_count} repl{thread.reply_count === 1 ? 'y' : 'ies'}
             </button>
@@ -325,6 +361,50 @@ function Thread({
           </div>
         </div>
       ))}
+      {showReply && (
+        <div className="ce-reply" style={{ background: 'var(--bg)' }}>
+          <div className="ce-row" style={{ gap: 10, alignItems: 'flex-start' }}>
+            <Avatar name="Coach" size={24} />
+            <div style={{ flex: 1 }}>
+              <textarea
+                className="ce-textarea"
+                rows={2}
+                autoFocus
+                placeholder="Reply as coach…"
+                value={replyDraft}
+                onChange={(e) => setReplyDraft(e.target.value)}
+              />
+              <div
+                className="ce-row"
+                style={{
+                  marginTop: 8,
+                  justifyContent: 'flex-end',
+                  gap: 6,
+                }}
+              >
+                <Btn
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setShowReply(false)
+                    setReplyDraft('')
+                  }}
+                >
+                  Cancel
+                </Btn>
+                <Btn
+                  variant="primary"
+                  size="sm"
+                  onClick={submitReply}
+                  disabled={!replyDraft.trim() || replying}
+                >
+                  {replying ? 'Posting…' : 'Reply as coach'}
+                </Btn>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
