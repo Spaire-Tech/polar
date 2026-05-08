@@ -3,8 +3,23 @@
 import { Upload } from '@/components/FileUpload/Upload'
 import CloseIcon from '@mui/icons-material/Close'
 import { enums, schemas } from '@spaire/client'
+import MoneyInput from '@spaire/ui/components/atoms/MoneyInput'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from '@spaire/ui/components/atoms/Select'
+import { Tabs, TabsList, TabsTrigger } from '@spaire/ui/components/atoms/Tabs'
+import { Label } from '@spaire/ui/components/ui/label'
+import {
+  RadioGroup,
+  RadioGroupItem,
+} from '@spaire/ui/components/ui/radio-group'
+import { PlusIcon } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFieldArray, useFormContext } from 'react-hook-form'
+import { twMerge } from 'tailwind-merge'
 
 // Local form type — the wizard's shared react-hook-form holds a discriminated
 // `ProductCreate | ProductUpdate`, but we only touch a flat subset of fields
@@ -1148,6 +1163,80 @@ function PFChoiceCard({
   )
 }
 
+// ── Currency tabs — clone of CurrencyTabs in ProductPricingSection ──────────
+function CourseCurrencyTabs({
+  activeCurrencies,
+  selectedCurrency,
+  onSelectCurrency,
+  onAddCurrency,
+  onRemoveCurrency,
+  defaultCurrency,
+}: {
+  activeCurrencies: string[]
+  selectedCurrency: string
+  onSelectCurrency: (currency: string) => void
+  onAddCurrency: (currency: string) => void
+  onRemoveCurrency: (currency: string) => void
+  defaultCurrency: string
+}) {
+  const availableCurrencies = enums.presentmentCurrencyValues.filter(
+    (c: string) => !activeCurrencies.includes(c),
+  )
+  return (
+    <div className="flex flex-row items-center gap-2">
+      <Tabs value={selectedCurrency} onValueChange={onSelectCurrency}>
+        <TabsList>
+          {activeCurrencies.map((currency) => (
+            <TabsTrigger
+              key={currency}
+              value={currency}
+              className="flex h-8 items-center gap-1"
+            >
+              <span>{currency.toUpperCase()}</span>
+              {currency !== defaultCurrency &&
+                selectedCurrency === currency && (
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onRemoveCurrency(currency)
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        onRemoveCurrency(currency)
+                      }
+                    }}
+                    className="cursor-pointer text-gray-400 hover:text-gray-600"
+                  >
+                    <CloseIcon className="h-3.5 w-3.5" />
+                  </span>
+                )}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
+      {availableCurrencies.length > 0 && (
+        <Select onValueChange={onAddCurrency}>
+          <SelectTrigger className="h-8 w-auto gap-1 border-none bg-transparent px-2 shadow-none">
+            <PlusIcon className="h-3.5 w-3.5" />
+            <span className="text-sm">Add Currency</span>
+          </SelectTrigger>
+          <SelectContent>
+            {availableCurrencies.map((currency: string) => (
+              <SelectItem key={currency} value={currency}>
+                {currency.toUpperCase()}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+    </div>
+  )
+}
+
 // ── Toggle (from components.jsx) ───────────────────────────────────────────
 function PFToggle({
   checked,
@@ -1599,6 +1688,28 @@ export function StepPricingWizard({
     [prices],
   )
 
+  // Which currency the price input is editing right now. Mirrors the
+  // product-create form: a Tabs row at the top of the price box switches
+  // between configured currencies, and "+ Add Currency" appends a new one.
+  const [selectedCurrency, setSelectedCurrency] = useState<string>(
+    () => prices[0]?.price_currency ?? defaultCurrency,
+  )
+  useEffect(() => {
+    if (!usedCurrencies.includes(selectedCurrency) && usedCurrencies.length) {
+      setSelectedCurrency(usedCurrencies[0])
+    }
+  }, [usedCurrencies, selectedCurrency])
+  const selectedIndex = useMemo(() => {
+    const i = prices.findIndex((p) => p?.price_currency === selectedCurrency)
+    return i >= 0 ? i : 0
+  }, [prices, selectedCurrency])
+  const removeCurrency = (code: string) => {
+    if (code === defaultCurrency) return
+    const i = prices.findIndex((p) => p?.price_currency === code)
+    if (i > 0) remove(i)
+    if (selectedCurrency === code) setSelectedCurrency(defaultCurrency)
+  }
+
   const setCycle = (next: 'onetime' | 'recurring') => {
     if (next === 'onetime') {
       setValue('recurring_interval', null)
@@ -1626,9 +1737,12 @@ export function StepPricingWizard({
     replace(updated)
   }
 
-  const addCurrency = () => {
+  const addCurrency = (code?: string) => {
     const used = new Set(usedCurrencies)
-    const next = CURRENCIES.find((c) => !used.has(c.code))?.code ?? 'usd'
+    const next =
+      code && !used.has(code)
+        ? code
+        : (CURRENCIES.find((c) => !used.has(c.code))?.code ?? 'usd')
     if (priceModel === 'free') {
       append({
         amount_type: 'free',
@@ -1641,6 +1755,7 @@ export function StepPricingWizard({
         price_currency: next as schemas['PresentmentCurrency'],
       })
     }
+    setSelectedCurrency(next)
   }
 
   const trialEnabled = trialInterval != null && trialIntervalCount != null
@@ -1709,169 +1824,202 @@ export function StepPricingWizard({
               title="How students pay"
               description="Sell your course once, or charge a recurring fee for ongoing access. Add other currencies for international students."
             >
-              <div className="pf-stack">
-                {/* Free vs paid — choice cards first */}
-                <div className="pf-choice-grid">
-                  <PFChoiceCard
-                    active={priceModel === 'fixed'}
-                    onClick={() => setPriceModel('fixed')}
-                    title="Paid course"
-                    description="Charge a fixed amount per enrolment."
-                  />
-                  <PFChoiceCard
-                    active={priceModel === 'free'}
-                    onClick={() => setPriceModel('free')}
-                    title="Free course"
-                    description="No charge — open to anyone who enrols."
-                  />
-                </div>
-
-                {/* Prices + billing — only when paid */}
-                {priceModel === 'fixed' && fields.length > 0 && (
-                  <div className="pf-paid-block">
-                    {/* Price rows */}
-                    <div className="pf-field">
-                      <div className="pf-price-label-row">
-                        <span className="pf-label">Price</span>
-                        <span className="pf-price-hint">
-                          {cycle === 'recurring'
-                            ? `Charged every ${recurringIntervalCount > 1 ? `${recurringIntervalCount} ${recurringInterval ?? 'month'}s` : (recurringInterval ?? 'month')}`
-                            : 'Charged once at enrolment'}
-                        </span>
-                      </div>
-                      <div className="pf-prices">
-                        <PFPriceRow
-                          index={0}
-                          primary
-                          disabledCurrencies={usedCurrencies}
-                          cycle={cycle}
-                          every={recurringIntervalCount}
-                          period={recurringInterval ?? 'month'}
-                        />
-                        {additionalIndices.map((i) => (
-                          <PFPriceRow
-                            key={i}
-                            index={i}
-                            disabledCurrencies={usedCurrencies}
-                            onRemove={() => remove(i)}
-                            cycle={cycle}
-                            every={recurringIntervalCount}
-                            period={recurringInterval ?? 'month'}
-                          />
-                        ))}
-                        <button
-                          type="button"
-                          className="pf-add-currency"
-                          onClick={addCurrency}
-                          disabled={usedCurrencies.length >= CURRENCIES.length}
-                        >
-                          + Add another currency
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Billing cadence — below price rows */}
-                    <div className="pf-field">
-                      <span className="pf-label">Billing</span>
-                      <div className="pf-choice-grid">
-                        <PFChoiceCard
-                          active={cycle === 'onetime'}
-                          onClick={() => setCycle('onetime')}
-                          title="Pay once"
-                          description="Charge a one-time fee at enrolment."
-                        />
-                        <PFChoiceCard
-                          active={cycle === 'recurring'}
-                          onClick={() => setCycle('recurring')}
-                          title="Recurring"
-                          description="Charge students on a regular schedule."
-                        />
-                      </div>
-                      {cycle === 'recurring' && (
-                        <div className="pf-recurring">
-                          <span>Renew every</span>
-                          <input
-                            type="number"
-                            min={1}
-                            className="pf-num"
-                            value={recurringIntervalCount}
-                            onChange={(e) =>
-                              setValue(
-                                'recurring_interval_count',
-                                Math.max(
-                                  1,
-                                  parseInt(e.target.value || '1', 10),
-                                ),
-                              )
-                            }
-                          />
-                          <PFSelect
-                            value={recurringInterval ?? 'month'}
-                            onChange={(v) =>
-                              setValue(
-                                'recurring_interval',
-                                v as schemas['SubscriptionRecurringInterval'],
-                              )
-                            }
-                            options={[
-                              {
-                                value: 'day',
-                                label:
-                                  recurringIntervalCount > 1 ? 'days' : 'day',
-                              },
-                              {
-                                value: 'week',
-                                label:
-                                  recurringIntervalCount > 1 ? 'weeks' : 'week',
-                              },
-                              {
-                                value: 'month',
-                                label:
-                                  recurringIntervalCount > 1
-                                    ? 'months'
-                                    : 'month',
-                              },
-                              {
-                                value: 'year',
-                                label:
-                                  recurringIntervalCount > 1 ? 'years' : 'year',
-                              },
-                            ]}
-                          />
-                        </div>
+              <div className="flex w-full flex-col gap-10">
+                {/* Cycle — same Label/RadioGroup pattern as the product
+                    create form's "One-time / Recurring" cards. */}
+                <RadioGroup
+                  value={cycle}
+                  onValueChange={(v) => setCycle(v as 'onetime' | 'recurring')}
+                  className="grid grid-cols-2 gap-4"
+                >
+                  {(
+                    [
+                      {
+                        value: 'onetime',
+                        title: 'Pay once',
+                        desc: 'Charge a one-time fee at enrolment.',
+                      },
+                      {
+                        value: 'recurring',
+                        title: 'Recurring',
+                        desc: 'Charge students on a regular schedule.',
+                      },
+                    ] as const
+                  ).map((opt) => (
+                    <Label
+                      key={opt.value}
+                      htmlFor={`pf-cycle-${opt.value}`}
+                      className={twMerge(
+                        'flex cursor-pointer flex-col gap-3 rounded-2xl border border-[1.5px] p-5 font-normal transition-colors',
+                        cycle === opt.value
+                          ? 'border-[oklch(0.62_0.21_265)] bg-gray-50'
+                          : 'border-gray-100 text-gray-500 hover:border-gray-200',
                       )}
-                    </div>
-
-                    {/* Trial — only when recurring */}
-                    {cycle === 'recurring' && (
-                      <div className="pf-trial">
-                        <PFToggle
-                          checked={trialEnabled}
-                          onChange={setTrialEnabled}
-                          label="Free trial period"
-                          description="Let students explore the course before being charged."
+                    >
+                      <div className="flex items-center gap-2.5 font-medium">
+                        <RadioGroupItem
+                          value={opt.value}
+                          id={`pf-cycle-${opt.value}`}
                         />
-                        {trialEnabled && (
-                          <div className="pf-trial-row">
-                            <span>Trial length</span>
-                            <input
-                              type="number"
-                              min={1}
-                              className="pf-num"
-                              value={trialIntervalCount ?? 7}
-                              onChange={(e) =>
-                                setValue(
-                                  'trial_interval_count',
-                                  Math.max(
-                                    1,
-                                    parseInt(e.target.value || '1', 10),
-                                  ),
-                                )
-                              }
-                            />
-                            <span>days</span>
-                          </div>
-                        )}
+                        {opt.title}
+                      </div>
+                      <p className="text-sm text-gray-500">{opt.desc}</p>
+                    </Label>
+                  ))}
+                </RadioGroup>
+
+                <hr className="border-gray-200" />
+
+                {/* Pricing model — Fixed price / Free, same Label markup. */}
+                <RadioGroup
+                  value={priceModel}
+                  onValueChange={(v) => setPriceModel(v as 'fixed' | 'free')}
+                  className="grid grid-cols-2 gap-4"
+                >
+                  {(
+                    [
+                      {
+                        value: 'fixed',
+                        title: 'Fixed price',
+                        desc: 'Charge a set amount per enrolment.',
+                      },
+                      {
+                        value: 'free',
+                        title: 'Free',
+                        desc: 'No charge — open to anyone who enrols.',
+                      },
+                    ] as const
+                  ).map((opt) => (
+                    <Label
+                      key={opt.value}
+                      htmlFor={`pf-model-${opt.value}`}
+                      className={twMerge(
+                        'flex cursor-pointer flex-col gap-3 rounded-2xl border border-[1.5px] p-5 font-normal transition-colors',
+                        priceModel === opt.value
+                          ? 'border-[oklch(0.62_0.21_265)] bg-gray-50'
+                          : 'border-gray-100 text-gray-500 hover:border-gray-200',
+                      )}
+                    >
+                      <div className="flex items-center gap-2.5 font-medium">
+                        <RadioGroupItem
+                          value={opt.value}
+                          id={`pf-model-${opt.value}`}
+                        />
+                        {opt.title}
+                      </div>
+                      <p className="text-sm text-gray-500">{opt.desc}</p>
+                    </Label>
+                  ))}
+                </RadioGroup>
+
+                {/* Price input + currency tabs — same wrapper / MoneyInput
+                    + CurrencyTabs combo as the product create form. Only
+                    shown for the "Fixed price" model. */}
+                {priceModel === 'fixed' && prices[selectedIndex] && (
+                  <div className="flex flex-col gap-3 rounded-2xl border border-gray-200 p-4">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1">
+                        <MoneyInput
+                          name={`prices.${selectedIndex}.price_amount`}
+                          currency={selectedCurrency}
+                          value={
+                            prices[selectedIndex]?.price_amount ?? undefined
+                          }
+                          onChange={(v) =>
+                            setValue(
+                              `prices.${selectedIndex}.price_amount`,
+                              typeof v === 'number' ? v : Number(v) || 0,
+                            )
+                          }
+                          placeholder={0}
+                        />
+                      </div>
+                      <div className="shrink-0">
+                        <CourseCurrencyTabs
+                          activeCurrencies={usedCurrencies}
+                          selectedCurrency={selectedCurrency}
+                          defaultCurrency={defaultCurrency}
+                          onSelectCurrency={setSelectedCurrency}
+                          onAddCurrency={(c) => addCurrency(c)}
+                          onRemoveCurrency={removeCurrency}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Recurring details */}
+                {priceModel === 'fixed' && cycle === 'recurring' && (
+                  <div className="pf-recurring">
+                    <span>Renew every</span>
+                    <input
+                      type="number"
+                      min={1}
+                      className="pf-num"
+                      value={recurringIntervalCount}
+                      onChange={(e) =>
+                        setValue(
+                          'recurring_interval_count',
+                          Math.max(1, parseInt(e.target.value || '1', 10)),
+                        )
+                      }
+                    />
+                    <PFSelect
+                      value={recurringInterval ?? 'month'}
+                      onChange={(v) =>
+                        setValue(
+                          'recurring_interval',
+                          v as schemas['SubscriptionRecurringInterval'],
+                        )
+                      }
+                      options={[
+                        {
+                          value: 'day',
+                          label: recurringIntervalCount > 1 ? 'days' : 'day',
+                        },
+                        {
+                          value: 'week',
+                          label: recurringIntervalCount > 1 ? 'weeks' : 'week',
+                        },
+                        {
+                          value: 'month',
+                          label:
+                            recurringIntervalCount > 1 ? 'months' : 'month',
+                        },
+                        {
+                          value: 'year',
+                          label: recurringIntervalCount > 1 ? 'years' : 'year',
+                        },
+                      ]}
+                    />
+                  </div>
+                )}
+
+                {/* Trial — only when recurring */}
+                {priceModel === 'fixed' && cycle === 'recurring' && (
+                  <div className="pf-trial">
+                    <PFToggle
+                      checked={trialEnabled}
+                      onChange={setTrialEnabled}
+                      label="Free trial period"
+                      description="Let students explore the course before being charged."
+                    />
+                    {trialEnabled && (
+                      <div className="pf-trial-row">
+                        <span>Trial length</span>
+                        <input
+                          type="number"
+                          min={1}
+                          className="pf-num"
+                          value={trialIntervalCount ?? 7}
+                          onChange={(e) =>
+                            setValue(
+                              'trial_interval_count',
+                              Math.max(1, parseInt(e.target.value || '1', 10)),
+                            )
+                          }
+                        />
+                        <span>days</span>
                       </div>
                     )}
                   </div>
