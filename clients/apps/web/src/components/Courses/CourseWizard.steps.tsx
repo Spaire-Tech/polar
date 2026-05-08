@@ -170,7 +170,7 @@ export function SpaireOnboardingStyles() {
         margin-bottom: 36px;
       }
 
-      /* Fields */
+      /* Fields — Apple-style floating label boxes (no grey fill, indigo focus). */
       .so-fields {
         display: flex;
         flex-direction: column;
@@ -178,48 +178,76 @@ export function SpaireOnboardingStyles() {
         margin-bottom: 32px;
       }
       .so-field {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
+        position: relative;
+        display: block;
+        background: #ffffff;
+        border: 1px solid var(--so-gray2);
+        border-radius: 12px;
+        transition:
+          border-color 0.15s,
+          box-shadow 0.15s;
       }
-      .so-label {
-        font-size: 11px;
-        font-weight: 500;
-        letter-spacing: 0.07em;
-        color: var(--so-gray4);
-        text-transform: uppercase;
+      .so-field:focus-within {
+        border-color: oklch(0.55 0.2 265);
+        box-shadow: 0 0 0 3px oklch(0.55 0.2 265 / 0.18);
       }
       .so-input,
       .so-textarea {
         width: 100%;
-        padding: 13px 16px;
-        background: var(--so-gray1);
-        border: 1.5px solid var(--so-gray2);
-        border-radius: 10px;
+        padding: 22px 16px 10px 16px;
+        background: transparent;
+        border: none;
+        border-radius: inherit;
         font-family: var(--font-poppins), system-ui, sans-serif;
-        font-size: 15px;
+        font-size: 16px;
         font-weight: 400;
         color: var(--so-black);
         outline: none;
-        transition:
-          border-color 0.2s,
-          background 0.2s,
-          box-shadow 0.2s;
         -webkit-appearance: none;
       }
       .so-textarea {
         resize: none;
-        line-height: 1.6;
+        line-height: 1.5;
       }
       .so-input::placeholder,
       .so-textarea::placeholder {
-        color: var(--so-gray3);
+        color: transparent;
       }
-      .so-input:focus,
-      .so-textarea:focus {
-        border-color: var(--so-black);
-        background: var(--so-white);
-        box-shadow: 0 0 0 3px rgba(10, 10, 10, 0.07);
+      .so-label {
+        position: absolute;
+        left: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 16px;
+        font-weight: 400;
+        color: var(--so-gray3);
+        letter-spacing: normal;
+        text-transform: none;
+        pointer-events: none;
+        background: transparent;
+        transition:
+          transform 0.15s ease,
+          font-size 0.15s ease,
+          color 0.15s ease,
+          top 0.15s ease;
+      }
+      /* Multi-line fields anchor the label to the top so it doesn't sit
+         awkwardly in the middle of an empty textarea. */
+      .so-field.so-field--multiline .so-label {
+        top: 18px;
+        transform: none;
+      }
+      /* Float the label up when the field is focused or the input has a
+         value. We rely on the input's placeholder being a single space so
+         :placeholder-shown only matches when the field is empty. */
+      .so-input:focus ~ .so-label,
+      .so-input:not(:placeholder-shown) ~ .so-label,
+      .so-textarea:focus ~ .so-label,
+      .so-textarea:not(:placeholder-shown) ~ .so-label {
+        top: 10px;
+        transform: none;
+        font-size: 11px;
+        color: var(--so-gray4);
       }
       .so-hint {
         font-size: 12px;
@@ -582,7 +610,10 @@ export function StepShell({
       <ProgressBar pct={(step / total) * 100} />
       <TopBar step={step} total={total} onClose={onClose} />
       <div className="so-stage">
-        <div className="so-screen" style={wide ? { maxWidth: 1200 } : undefined}>
+        <div
+          className="so-screen"
+          style={wide ? { maxWidth: 1200 } : undefined}
+        >
           {!wide && (
             <>
               <div className="so-eyebrow">
@@ -651,12 +682,11 @@ export function StepInstructor({
       nextDisabled={!data.name.trim()}
     >
       <div className="so-fields">
-        <div className="so-field">
-          <label className="so-label">Instructor name</label>
+        <label className="so-field">
           <input
             className="so-input"
             type="text"
-            placeholder="e.g. Alex Rivera"
+            placeholder=" "
             autoFocus
             value={data.name}
             onChange={(e) => onChange({ ...data, name: e.target.value })}
@@ -664,18 +694,19 @@ export function StepInstructor({
               if (e.key === 'Enter' && data.name.trim()) onNext()
             }}
           />
-        </div>
-        <div className="so-field">
-          <label className="so-label">Short bio</label>
+          <span className="so-label">Instructor name</span>
+        </label>
+        <label className="so-field so-field--multiline">
           <textarea
             className="so-textarea"
             rows={2}
-            placeholder="e.g. Designer & educator helping 50K+ creators build their brand."
+            placeholder=" "
             value={data.bio}
             onChange={(e) => onChange({ ...data, bio: e.target.value })}
           />
-          <span className="so-hint">One sentence max.</span>
-        </div>
+          <span className="so-label">Short bio</span>
+        </label>
+        <span className="so-hint">One sentence max.</span>
       </div>
     </StepShell>
   )
@@ -707,12 +738,11 @@ export function StepCourse({
       nextDisabled={!data.title.trim()}
     >
       <div className="so-fields">
-        <div className="so-field">
-          <label className="so-label">Course title</label>
+        <label className="so-field">
           <input
             className="so-input"
             type="text"
-            placeholder="e.g. The YouTube Growth Blueprint"
+            placeholder=" "
             autoFocus
             value={data.title}
             onChange={(e) => onChange({ ...data, title: e.target.value })}
@@ -720,17 +750,18 @@ export function StepCourse({
               if (e.key === 'Enter' && data.title.trim()) onNext()
             }}
           />
-        </div>
-        <div className="so-field">
-          <label className="so-label">Short description</label>
+          <span className="so-label">Course title</span>
+        </label>
+        <label className="so-field so-field--multiline">
           <textarea
             className="so-textarea"
             rows={3}
-            placeholder="Summarize what students will learn in one sentence."
+            placeholder=" "
             value={data.desc}
             onChange={(e) => onChange({ ...data, desc: e.target.value })}
           />
-        </div>
+          <span className="so-label">Short description</span>
+        </label>
       </div>
     </StepShell>
   )
@@ -1078,7 +1109,7 @@ function PFSegmented<T extends string>({
         <button
           key={o.value}
           type="button"
-          className={`pf-seg-btn${value === o.value ? ' active' : ''}`}
+          className={`pf-seg-btn${value === o.value ? 'active' : ''}`}
           onClick={() => onChange(o.value)}
         >
           {o.label}
@@ -1103,7 +1134,7 @@ function PFChoiceCard({
   return (
     <button
       type="button"
-      className={`pf-choice${active ? ' active' : ''}`}
+      className={`pf-choice${active ? 'active' : ''}`}
       onClick={onClick}
     >
       <span className="pf-choice-radio">
@@ -1135,7 +1166,7 @@ function PFToggle({
         type="button"
         role="switch"
         aria-checked={checked}
-        className={`pf-toggle${checked ? ' on' : ''}`}
+        className={`pf-toggle${checked ? 'on' : ''}`}
         onClick={() => onChange(!checked)}
       >
         <span className="pf-toggle-knob" />
@@ -1244,9 +1275,7 @@ function PFPriceRow({
           setValue(`prices.${index}.id`, '')
         }}
       />
-      {cadenceLabel && (
-        <span className="pf-price-cadence">{cadenceLabel}</span>
-      )}
+      {cadenceLabel && <span className="pf-price-cadence">{cadenceLabel}</span>}
       <button
         type="button"
         className="pf-price-cur-right"
@@ -1277,8 +1306,8 @@ function PFPriceRow({
                 key={c.code}
                 disabled={isDisabled}
                 className={`pf-cur-item${
-                  c.code === currency ? ' active' : ''
-                }${isDisabled ? ' disabled' : ''}`}
+                  c.code === currency ? 'active' : ''
+                }${isDisabled ? 'disabled' : ''}`}
                 onClick={() => {
                   if (isDisabled) return
                   setValue(
@@ -1355,7 +1384,7 @@ function PFMediaDrop({
 
   return (
     <div
-      className={`pf-media-drop${dragOver ? ' drag-over' : ''}`}
+      className={`pf-media-drop${dragOver ? 'drag-over' : ''}`}
       onClick={() => inputRef.current?.click()}
       onDragOver={(e) => {
         e.preventDefault()
@@ -1468,9 +1497,7 @@ function PFCheckoutPreview({
             Online course · {courseLessons} lessons
           </div>
           <h3 className="pf-preview-title">{courseTitle}</h3>
-          {courseDesc && (
-            <p className="pf-preview-desc">{courseDesc}</p>
-          )}
+          {courseDesc && <p className="pf-preview-desc">{courseDesc}</p>}
           <div className="pf-preview-price">
             <span className="pf-preview-amount">{amount}</span>
             {cycleLabel && (
@@ -1795,9 +1822,7 @@ export function StepPricingWizard({
                               {
                                 value: 'week',
                                 label:
-                                  recurringIntervalCount > 1
-                                    ? 'weeks'
-                                    : 'week',
+                                  recurringIntervalCount > 1 ? 'weeks' : 'week',
                               },
                               {
                                 value: 'month',
@@ -1809,9 +1834,7 @@ export function StepPricingWizard({
                               {
                                 value: 'year',
                                 label:
-                                  recurringIntervalCount > 1
-                                    ? 'years'
-                                    : 'year',
+                                  recurringIntervalCount > 1 ? 'years' : 'year',
                               },
                             ]}
                           />
@@ -2444,7 +2467,9 @@ export function StepPricingWizard({
           border-radius: 14px;
           background: var(--surface-2);
           cursor: pointer;
-          transition: border-color 0.15s, background 0.15s;
+          transition:
+            border-color 0.15s,
+            background 0.15s;
           aspect-ratio: 16 / 9;
           text-align: center;
         }

@@ -450,6 +450,11 @@ function ModuleHeader({
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commit}
+          onFocus={(e) => {
+            // Place caret at the end so the user can keep typing.
+            const v = e.currentTarget.value
+            e.currentTarget.setSelectionRange(v.length, v.length)
+          }}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               e.preventDefault()
@@ -459,6 +464,14 @@ function ModuleHeader({
               setEditing(false)
               setDraft(mod.title)
             }
+          }}
+          // Grow with the title so the user can read the whole name. `ch` is
+          // roughly the width of a character at the current font; we add a
+          // small buffer plus the input's horizontal padding.
+          style={{
+            width: `calc(${
+              Math.max(draft.length, mod.title.length, 8) + 2
+            }ch + 1.25rem)`,
           }}
           className="rounded-md border border-gray-300 bg-white px-2 py-0.5 text-[11px] font-semibold tracking-[0.06em] text-gray-700 uppercase focus:border-gray-900 focus:outline-none"
         />
