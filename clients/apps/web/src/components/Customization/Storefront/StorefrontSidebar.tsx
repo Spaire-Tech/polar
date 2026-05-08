@@ -5,7 +5,7 @@ import { CreateProductPage } from '@/components/Products/CreateProductPage'
 import { StorefrontLinkItem } from '@/components/Profile/StorefrontLinks'
 import { toast } from '@/components/Toast/use-toast'
 import { useProducts } from '@/hooks/queries'
-import { CONFIG } from '@/utils/config'
+import { spacePageLink } from '@/utils/nav'
 import AddOutlined from '@mui/icons-material/AddOutlined'
 import AddPhotoAlternateOutlined from '@mui/icons-material/AddPhotoAlternateOutlined'
 import CheckOutlined from '@mui/icons-material/CheckOutlined'
@@ -357,7 +357,7 @@ export const StorefrontEditorForm = ({
   const settings = watch('storefront_settings')
   const [copied, setCopied] = useState(false)
 
-  const spaceUrl = `${CONFIG.SPACE_BASE_URL}/${organization.slug}`
+  const spaceUrl = spacePageLink(organization).replace(/\/$/, '')
 
   const updateSetting = useCallback(
     <K extends keyof NonNullable<schemas['OrganizationStorefrontSettings']>>(
