@@ -117,7 +117,7 @@ class CoachingService:
             meeting_url=create_schema.meeting_url,
             meeting_provider=create_schema.meeting_provider,
         )
-        return await repo.create(event)
+        return await repo.create(event, flush=True)
 
     async def update_event(
         self,

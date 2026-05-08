@@ -4,6 +4,7 @@ import ProgramEditor from '@/components/Coaching/editor/ProgramEditor'
 import CourseEditor from '@/components/Courses/CourseEditor'
 import { useCourseById } from '@/hooks/queries/courses'
 import { schemas } from '@spaire/client'
+import { useSearchParams } from 'next/navigation'
 
 export default function CourseEditorWrapper({
   organization,
@@ -13,6 +14,7 @@ export default function CourseEditorWrapper({
   courseId: string
 }) {
   const { data: course, isLoading, error } = useCourseById(courseId)
+  const searchParams = useSearchParams()
 
   if (isLoading) {
     return (
@@ -30,9 +32,16 @@ export default function CourseEditorWrapper({
     )
   }
 
-  // Coaching programs get the Claude Design-spec'd editor; standard
-  // courses keep the existing CourseEditor.
-  if (course.program_format === 'coaching') {
+  // Coaching programs render the new ProgramEditor in normal use, BUT
+  // when a deep link sets ?lesson=... (clicked from the Modules tab),
+  // fall through to the original CourseEditor — it has the full lesson
+  // detail surface (video upload, content editor, thumbnails) which
+  // hasn't been ported into the new design yet. Coaching-friendly
+  // labelling on the course editor is a small follow-up.
+  if (
+    course.program_format === 'coaching' &&
+    !searchParams.get('lesson')
+  ) {
     return <ProgramEditor organization={organization} course={course} />
   }
 

@@ -65,7 +65,7 @@ export function CourseHeader({
             className="flex items-center gap-0.5 py-1 text-[13px] tracking-tight text-blue-600 transition-opacity hover:opacity-70"
           >
             <ChevronLeftOutlined sx={{ fontSize: 16 }} />
-            Courses
+            {course.program_format === 'coaching' ? 'Programs' : 'Courses'}
           </button>
         </div>
         <div className="flex flex-col items-center">

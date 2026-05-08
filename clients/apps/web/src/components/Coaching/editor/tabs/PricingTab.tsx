@@ -58,7 +58,7 @@ export function PricingTab({ course }: { course: CourseRead }) {
             icon={<Ic.External size={14} />}
             onClick={() =>
               window.open(
-                `/dashboard/${orgSlug}/products/${course.product_id}`,
+                `/dashboard/${orgSlug}/products/${course.product_id}/edit#pricing`,
                 '_blank',
               )
             }

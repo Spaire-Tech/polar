@@ -4,7 +4,7 @@ import { Metadata } from 'next'
 import CourseEditorWrapper from './CourseEditorWrapper'
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: 'Course Editor' }
+  return { title: 'Editor' }
 }
 
 export default async function Page(props: {
