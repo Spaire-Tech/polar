@@ -440,7 +440,7 @@ export function SpaireOnboardingStyles() {
         gap: 10px;
         padding: 16px 20px;
         background: var(--so-white);
-        border: 1.5px dashed var(--so-gray2);
+        border: 1.5px solid var(--so-gray2);
         border-radius: 12px;
         cursor: pointer;
         font-size: 13px;
@@ -1137,13 +1137,13 @@ function PFChoiceCard({
       className={`pf-choice${active ? 'active' : ''}`}
       onClick={onClick}
     >
-      <span className="pf-choice-radio">
-        <span className="pf-choice-radio-dot" />
-      </span>
-      <span className="pf-choice-body">
+      <span className="pf-choice-row">
+        <span className="pf-choice-radio">
+          <span className="pf-choice-radio-dot" />
+        </span>
         <span className="pf-choice-title">{title}</span>
-        <span className="pf-choice-desc">{description}</span>
       </span>
+      <span className="pf-choice-desc">{description}</span>
     </button>
   )
 }
@@ -2140,21 +2140,21 @@ export function StepPricingWizard({
           grid-template-columns: 1fr 1fr;
           gap: 10px;
         }
-        /* Apple-style radio card: a single clean border (no halo / box-shadow),
-           a thin light gray-50 wash on the active card, and an indigo radio
-           dot inside an indigo ring. The border width stays constant so
-           toggling the active state doesn't shift layout. */
+        /* Radio card — same visual as the product-create pricing form:
+           rounded-2xl card with the radio + title on row 1 and a small
+           gray description on row 2. White by default, gray-50 wash with a
+           1.5px indigo border when active. No halo, no double edge. */
         .pf-choice {
           display: flex;
-          flex-direction: row;
-          align-items: center;
-          gap: 14px;
-          padding: 18px 20px;
+          flex-direction: column;
+          align-items: stretch;
+          gap: 12px;
+          padding: 20px;
           text-align: left;
           width: 100%;
           background: #fff;
-          border: 1.5px solid var(--hair);
-          border-radius: 14px;
+          border: 1.5px solid oklch(0.94 0.004 280);
+          border-radius: 16px;
           cursor: pointer;
           transition:
             border-color 0.15s,
@@ -2162,31 +2162,32 @@ export function StepPricingWizard({
           color: var(--ink);
         }
         .pf-choice:hover {
-          border-color: var(--hair-strong);
+          border-color: oklch(0.88 0.005 280);
         }
         .pf-choice.active {
           background: oklch(0.975 0.002 280);
           border-color: oklch(0.62 0.21 265);
         }
+        .pf-choice-row {
+          display: flex;
+          flex-direction: row;
+          align-items: center;
+          gap: 10px;
+        }
         .pf-choice-radio {
-          width: 20px;
-          height: 20px;
+          width: 18px;
+          height: 18px;
           border-radius: 50%;
-          border: 1.5px solid var(--hair-strong);
+          border: 1.5px solid oklch(0.62 0.21 265);
           display: flex;
           align-items: center;
           justify-content: center;
           flex-shrink: 0;
-          margin-top: 1px;
           background: #fff;
-          transition: border-color 0.15s;
-        }
-        .pf-choice.active .pf-choice-radio {
-          border-color: oklch(0.62 0.21 265);
         }
         .pf-choice-radio-dot {
-          width: 10px;
-          height: 10px;
+          width: 9px;
+          height: 9px;
           border-radius: 50%;
           background: transparent;
           transition: background 0.15s;
@@ -2194,19 +2195,16 @@ export function StepPricingWizard({
         .pf-choice.active .pf-choice-radio-dot {
           background: oklch(0.62 0.21 265);
         }
-        .pf-choice-body {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-          flex: 1;
-        }
         .pf-choice-title {
-          font-size: 14px;
-          font-weight: 600;
+          font-size: 15px;
+          font-weight: 500;
           color: var(--ink);
         }
+        .pf-choice.active .pf-choice-title {
+          color: oklch(0.18 0.012 270);
+        }
         .pf-choice-desc {
-          font-size: 12.5px;
+          font-size: 13px;
           color: var(--muted);
           line-height: 1.45;
         }
@@ -2383,10 +2381,17 @@ export function StepPricingWizard({
           font-size: 13px;
           font-weight: 500;
           background: transparent;
-          border: 1px dashed var(--hair-strong);
-          color: var(--ink-2);
-          border-radius: 8px;
+          border: 1.5px solid oklch(0.94 0.004 280);
+          color: var(--ink);
+          border-radius: 10px;
           cursor: pointer;
+          transition:
+            border-color 0.15s,
+            background 0.15s;
+        }
+        .pf-add-currency:hover:not(:disabled) {
+          border-color: oklch(0.62 0.21 265);
+          background: oklch(0.975 0.002 280);
         }
         .pf-add-currency:disabled {
           opacity: 0.5;
@@ -2466,9 +2471,9 @@ export function StepPricingWizard({
           justify-content: center;
           gap: 10px;
           padding: 44px 24px;
-          border: 1.5px dashed var(--hair-strong);
+          border: 1.5px solid oklch(0.94 0.004 280);
           border-radius: 14px;
-          background: var(--surface-2);
+          background: #fff;
           cursor: pointer;
           transition:
             border-color 0.15s,
@@ -2478,8 +2483,8 @@ export function StepPricingWizard({
         }
         .pf-media-drop:hover,
         .pf-media-drop.drag-over {
-          border-color: var(--accent);
-          background: var(--accent-soft);
+          border-color: oklch(0.62 0.21 265);
+          background: oklch(0.975 0.002 280);
         }
         .pf-media-title {
           font-size: 14px;
