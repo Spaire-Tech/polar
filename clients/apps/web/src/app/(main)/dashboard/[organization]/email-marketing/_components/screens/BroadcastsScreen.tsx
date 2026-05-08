@@ -146,25 +146,37 @@ export const BroadcastsScreen = ({
           down={(aggregateDelta?.total_sent_pct ?? 0) < 0}
         />
         <MetricTile
-          value={`${(aggregate?.open_rate ?? 0).toFixed(1)}%`}
+          value={
+            aggregate?.open_rate == null
+              ? '—'
+              : `${aggregate.open_rate.toFixed(1)}%`
+          }
           label="Avg. open rate"
           delta={fmtPtDelta(aggregateDelta?.open_rate_pt)}
           deltaLabel={
             aggregateIndustry
-              ? `vs industry ${aggregateIndustry.open_rate.toFixed(0)}%`
+              ? `vs ${aggregateIndustry.label} (${aggregateIndustry.open_rate.toFixed(0)}%)`
               : 'vs prior 30d'
           }
           down={(aggregateDelta?.open_rate_pt ?? 0) < 0}
         />
         <MetricTile
-          value={`${(aggregate?.click_rate ?? 0).toFixed(1)}%`}
+          value={
+            aggregate?.click_rate == null
+              ? '—'
+              : `${aggregate.click_rate.toFixed(1)}%`
+          }
           label="Avg. click rate"
           delta={fmtPtDelta(aggregateDelta?.click_rate_pt)}
           deltaLabel="vs prior 30d"
           down={(aggregateDelta?.click_rate_pt ?? 0) < 0}
         />
         <MetricTile
-          value={`${(aggregate?.unsub_rate ?? 0).toFixed(2)}%`}
+          value={
+            aggregate?.unsub_rate == null
+              ? '—'
+              : `${aggregate.unsub_rate.toFixed(2)}%`
+          }
           label="Avg. unsub rate"
           delta={
             aggregateDelta?.unsub_rate_pt !== undefined

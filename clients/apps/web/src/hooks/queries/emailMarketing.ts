@@ -260,21 +260,36 @@ export type BroadcastAggregateMetrics = {
   opened: number
   clicked: number
   unsubscribed: number
-  open_rate: number
-  click_rate: number
-  unsub_rate: number
+  // Audit issue #11 / fix-list #30: rates are null when we have no
+  // delivery signal (Resend webhooks not wired). Tiles show "—" in that
+  // case; previously the backend silently fell back to total_sent and
+  // displayed inflated rates.
+  open_rate: number | null
+  click_rate: number | null
+  unsub_rate: number | null
+  // True when the org has at least one webhook-confirmed delivery, so
+  // rates above can be trusted. False means the dashboard is showing
+  // raw send counts only and the Resend webhook hasn't fired yet.
+  webhook_signal_present: boolean
 }
 
 export type BroadcastAggregateAnalytics = {
   current: BroadcastAggregateMetrics
   prior: BroadcastAggregateMetrics | null
   delta: {
-    total_sent_pct?: number
-    open_rate_pt?: number
-    click_rate_pt?: number
-    unsub_rate_pt?: number
+    total_sent_pct?: number | null
+    open_rate_pt?: number | null
+    click_rate_pt?: number | null
+    unsub_rate_pt?: number | null
   }
-  industry: { open_rate: number; click_rate: number }
+  industry: {
+    slug: string
+    label: string
+    source: string
+    open_rate: number
+    click_rate: number
+    unsub_rate: number
+  }
 }
 
 export const useBroadcastAggregateAnalytics = (

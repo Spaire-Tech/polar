@@ -58,9 +58,31 @@ export const AnalyticsScreen = ({
 
   const growthQuery = useSubscriberDailyGrowth(organization.id, days)
   const growthSeries = growthQuery.data ?? []
+  // Compare against the immediately-prior window of the same length so
+  // the tile can show "+24 vs prior 14d" instead of just "+24" with no
+  // baseline (audit issue #46 / fix-list #37). We pull 2× the window
+  // and split it locally — the hook only supports a single days
+  // parameter, so a second hook with `days * 2` is the cheapest way
+  // to land this without a new endpoint.
+  const growthDoubleQuery = useSubscriberDailyGrowth(
+    organization.id,
+    days * 2,
+  )
+  const growthDoubleSeries = growthDoubleQuery.data ?? []
   const subStatsQuery = useEmailSubscriberStats(organization.id)
   const totalSubscribers = subStatsQuery.data?.total ?? 0
-  const growthDelta = growthSeries.reduce((acc, p) => acc + p.count, 0)
+  // Net new in the current window. The label below now reads "vs prior
+  // {N}d" so it's clear this is a delta, not a one-off count (audit
+  // issue #46 / fix-list #37 — the previous tile rendered the sum with
+  // no comparison and treated it as a delta).
+  const currentNetNew = growthSeries.reduce((acc, p) => acc + p.count, 0)
+  const priorWindowSeries = growthDoubleSeries.slice(
+    0,
+    Math.max(0, growthDoubleSeries.length - growthSeries.length),
+  )
+  const priorNetNew = priorWindowSeries.reduce((acc, p) => acc + p.count, 0)
+  const growthDelta = currentNetNew
+  const growthVsPrior = currentNetNew - priorNetNew
 
   const topLinksQuery = useBroadcastTopLinks(organization.id, days, 5)
   const topLinks = topLinksQuery.data ?? []
@@ -143,23 +165,33 @@ export const AnalyticsScreen = ({
           down={(aggregateDelta?.total_sent_pct ?? 0) < 0}
         />
         <MetricTile
-          value={`${(aggregate?.open_rate ?? 0).toFixed(1)}%`}
+          value={
+            // "—" when the backend has no webhook signal (audit issue #11
+            // / fix-list #30) — better than rendering a fabricated 0%.
+            aggregate?.open_rate == null
+              ? '—'
+              : `${aggregate.open_rate.toFixed(1)}%`
+          }
           label="Open rate"
           delta={fmtPtDelta(aggregateDelta?.open_rate_pt)}
           deltaLabel={
             aggregateIndustry
-              ? `vs industry ${aggregateIndustry.open_rate.toFixed(0)}%`
+              ? `vs ${aggregateIndustry.label} (${aggregateIndustry.open_rate.toFixed(0)}%)`
               : `vs prior ${days}d`
           }
           down={(aggregateDelta?.open_rate_pt ?? 0) < 0}
         />
         <MetricTile
-          value={`${(aggregate?.click_rate ?? 0).toFixed(1)}%`}
+          value={
+            aggregate?.click_rate == null
+              ? '—'
+              : `${aggregate.click_rate.toFixed(1)}%`
+          }
           label="Click rate"
           delta={fmtPtDelta(aggregateDelta?.click_rate_pt)}
           deltaLabel={
             aggregateIndustry
-              ? `vs industry ${aggregateIndustry.click_rate.toFixed(1)}%`
+              ? `vs ${aggregateIndustry.label} (${aggregateIndustry.click_rate.toFixed(1)}%)`
               : `vs prior ${days}d`
           }
           down={(aggregateDelta?.click_rate_pt ?? 0) < 0}
@@ -246,8 +278,19 @@ export const AnalyticsScreen = ({
                 fontWeight: 500,
                 color: '#4f46e5',
               }}
+              title={`Net new in the last ${days} days. Prior ${days}d: ${priorNetNew >= 0 ? '+' : ''}${priorNetNew}.`}
             >
               {growthDelta >= 0 ? `+${growthDelta}` : growthDelta}
+              <span
+                style={{
+                  fontSize: 11,
+                  color: 'var(--ink-4)',
+                  marginLeft: 6,
+                  fontWeight: 400,
+                }}
+              >
+                {growthVsPrior >= 0 ? `▲ ${growthVsPrior}` : `▼ ${Math.abs(growthVsPrior)}`} vs prior {days}d
+              </span>
             </span>
           </div>
           {growthSeries.length === 0 && !growthQuery.isLoading ? (
@@ -500,43 +543,58 @@ export const AnalyticsScreen = ({
                 Not enough open data yet.
               </div>
             )}
-            {devices.map((d, i) => (
-              <div key={i}>
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    marginBottom: 5,
-                    fontSize: 13,
-                  }}
-                >
-                  <span style={{ color: 'var(--ink-2)' }}>{d.name}</span>
-                  <span style={{ color: 'var(--ink)', fontWeight: 500 }}>
-                    {d.share}%
-                  </span>
-                </div>
-                <div
-                  style={{
-                    height: 6,
-                    background: 'var(--bg-softer)',
-                    borderRadius: 3,
-                    overflow: 'hidden',
-                  }}
-                >
-                  <div
-                    style={{
-                      height: '100%',
-                      width: `${d.share * 2.2}%`,
-                      background:
-                        ['#4f46e5', '#6366f1', '#818cf8', '#a5b4fc', '#c7d2fe'][
-                          i
-                        ] || '#c7d2fe',
-                      borderRadius: 3,
-                    }}
-                  />
-                </div>
-              </div>
-            ))}
+            {(() => {
+              // Audit issue #47 / fix-list #35: the previous bar width was
+              // `d.share * 2.2`, a magic factor that pushed a 50% share to
+              // 110% width and overflowed the track. Normalize each bar
+              // against the largest share in the set so the leader fills
+              // the row and everything else scales proportionally — that's
+              // what the * 2.2 was reaching for, just done correctly.
+              const maxShare = devices.reduce(
+                (m, d) => Math.max(m, d.share || 0),
+                0,
+              )
+              return devices.map((d, i) => {
+                const ratio = maxShare > 0 ? Math.min(1, d.share / maxShare) : 0
+                return (
+                  <div key={i}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        marginBottom: 5,
+                        fontSize: 13,
+                      }}
+                    >
+                      <span style={{ color: 'var(--ink-2)' }}>{d.name}</span>
+                      <span style={{ color: 'var(--ink)', fontWeight: 500 }}>
+                        {d.share}%
+                      </span>
+                    </div>
+                    <div
+                      style={{
+                        height: 6,
+                        background: 'var(--bg-softer)',
+                        borderRadius: 3,
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <div
+                        style={{
+                          height: '100%',
+                          width: `${(ratio * 100).toFixed(2)}%`,
+                          background:
+                            ['#4f46e5', '#6366f1', '#818cf8', '#a5b4fc', '#c7d2fe'][
+                              i
+                            ] || '#c7d2fe',
+                          borderRadius: 3,
+                        }}
+                      />
+                    </div>
+                  </div>
+                )
+              })
+            })()}
           </div>
         </div>
 
@@ -563,7 +621,13 @@ export const AnalyticsScreen = ({
           >
             <span>Lower</span>
             <div style={{ display: 'flex', gap: 2 }}>
-              {[0.1, 0.3, 0.5, 0.7, 0.9].map((o) => (
+              {/* Match the matrix's actual opacity scale (Math.max(0.05,
+                  Math.min(0.95, value / max))) — audit issue #51 / fix-
+                  list #4. The previous alphas (0.1 / 0.3 / 0.5 / 0.7 / 0.9)
+                  diverged from what the heatmap renders, so the legend
+                  said "this shade = X" but cells of the same value had
+                  a different shade. */}
+              {[0.05, 0.275, 0.5, 0.725, 0.95].map((o) => (
                 <div
                   key={o}
                   style={{
@@ -637,10 +701,17 @@ const LineChart = ({
     (_, i) =>
       P + (data.length === 1 ? 0.5 : i / (data.length - 1)) * (W - 2 * P),
   )
-  const max = Math.max(
-    70,
-    ...data.map((d) => Math.max(d.open_rate, d.click_rate)),
+  // Audit issue #48 / fix-list #2: previously the y-axis was clamped to a
+  // floor of 70 — fine for open rates that hover around 30-50%, but it
+  // pinned the click-rate line (typically 1-10%) to the bottom of the
+  // chart and made all engagement movement invisible. Compute the floor
+  // from the data with a small headroom so both lines have room to
+  // breathe; cap the upper bound at 100 since these are percentages.
+  const dataMax = data.reduce(
+    (m, d) => Math.max(m, d.open_rate, d.click_rate),
+    0,
   )
+  const max = dataMax > 0 ? Math.min(100, dataMax * 1.2) : 10
   const yOpen = data.map((d) => H - P - (d.open_rate / max) * (H - 2 * P))
   const yClick = data.map((d) => H - P - (d.click_rate / max) * (H - 2 * P))
 
@@ -710,21 +781,25 @@ const LineChart = ({
           />
         </>
       )}
-      {xs.map(
-        (x, i) =>
-          i % 2 === 0 && (
-            <text
-              key={i}
-              x={x}
-              y={H - 4}
-              fontSize="10"
-              fill="var(--ink-4)"
-              textAnchor="middle"
-            >
-              {data[i].day}
-            </text>
-          ),
-      )}
+      {/* Adaptive label density (audit issue #49 / fix-list #4): hard-
+          coded `i % 2` looked fine on a 14d window but overlapped on
+          90d. Aim for at most ~12 labels regardless of data length. */}
+      {xs.map((x, i) => {
+        const stride = Math.max(1, Math.ceil(data.length / 12))
+        if (i % stride !== 0 && i !== data.length - 1) return null
+        return (
+          <text
+            key={i}
+            x={x}
+            y={H - 4}
+            fontSize="10"
+            fill="var(--ink-4)"
+            textAnchor="middle"
+          >
+            {data[i].day}
+          </text>
+        )
+      })}
     </svg>
   )
 }
@@ -741,14 +816,24 @@ const AreaChart = ({ data }: { data: { day: string; count: number }[] }) => {
     running += d.count
     cumulative.push(running)
   }
-  const min = Math.min(0, ...cumulative)
-  const max = Math.max(1, ...cumulative)
+  // Audit issue #50 / fix-list #6: when cumulative is all-zero (no
+  // growth in the window), `min = 0`, `max = max(1, ...) = 1`, but
+  // every cumulative value is 0 — so every point lands at the very top
+  // of the chart, which looked like a flat line at full height. Anchor
+  // the all-zero case to the chart's bottom (where 0 belongs) instead.
+  const rawMax = Math.max(...cumulative)
+  const rawMin = Math.min(0, ...cumulative)
+  const allZero = rawMax === 0 && rawMin === 0
+  const min = allZero ? 0 : rawMin
+  const max = allZero ? 1 : Math.max(1, rawMax)
   const xs = data.map(
     (_, i) =>
       P + (data.length === 1 ? 0.5 : i / (data.length - 1)) * (W - 2 * P),
   )
-  const ys = cumulative.map(
-    (v) => H - P - ((v - min) / (max - min || 1)) * (H - 2 * P),
+  const ys = cumulative.map((v) =>
+    allZero
+      ? H - P
+      : H - P - ((v - min) / (max - min || 1)) * (H - 2 * P),
   )
   const path = xs.map((x, i) => `${i === 0 ? 'M' : 'L'}${x},${ys[i]}`).join(' ')
   return (
@@ -859,7 +944,13 @@ const Heatmap = ({
             }}
           >
             {Array.from({ length: 24 }).map((_, hi) => {
-              const value = matrix?.[dow]?.[hi]
+              // Defensive lookup (audit issue #52 / fix-list #11): the
+              // server contract is "7 rows of 24 cells", but a partial
+              // backfill or migration could ship a shorter row. Fall
+              // back to null so we render a blank cell instead of
+              // throwing on `.[hi]` of undefined.
+              const row = Array.isArray(matrix) ? matrix[dow] : undefined
+              const value = Array.isArray(row) ? row[hi] : null
               const filled = value != null
               const alpha =
                 filled && max > 0

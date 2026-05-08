@@ -451,7 +451,13 @@ const TemplateGallery = ({
                 size={11}
                 style={{ verticalAlign: '-1px', marginRight: 6 }}
               />
-              Most-used template
+              {/* Audit issue #41 / fix-list #41: the previous label
+                  was "Most-used template" but the hero card simply
+                  picked templates[0]. Until template usage is tracked
+                  on the backend (a `template_slug` column on
+                  email_sequences would let us COUNT(*) GROUP BY), call
+                  it "Featured template" so the copy isn't a lie. */}
+              Featured template
             </div>
             <div
               style={{

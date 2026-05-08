@@ -29,15 +29,17 @@ from .render import render_blocks_to_html
 from .repository import EmailBroadcastABTestRepository, EmailBroadcastRepository
 
 
-def _pct_delta(current: float | int, prior: float | int) -> float:
+def _pct_delta(current: float | int, prior: float | int) -> float | None:
     """Percent-change of `current` relative to `prior`.
 
-    Returns 0 when both sides are 0; returns 100 when `prior` is 0 and
-    `current` is positive (avoids division by zero while still
-    surfacing the growth direction).
+    Audit issue #20 / fix-list #20: returning 100.0 when prior=0 was
+    dishonest — that's "+100% growth" regardless of whether `current`
+    is 1 or 1,000,000. We return None instead and let the UI render
+    "—" so users don't read meaning into a fabricated number. Returns
+    0.0 when both are zero (no change).
     """
     if not prior:
-        return 100.0 if current else 0.0
+        return None if current else 0.0
     return float(current - prior) / float(prior) * 100.0
 
 
@@ -492,35 +494,34 @@ class EmailBroadcastService:
         }
 
 
-    # Industry baselines surfaced on the analytics tiles. These are
-    # generic creator-newsletter benchmarks (Mailchimp/ConvertKit
-    # publish similar numbers); we expose them on the response so the
-    # frontend can render "+2.1pt vs industry 21%" without baking
-    # constants into the UI.
-    _INDUSTRY_OPEN_RATE = 21.0
-    _INDUSTRY_CLICK_RATE = 2.5
-
     @staticmethod
-    def _shape_aggregate(counts: dict[str, int]) -> dict[str, int | float]:
+    def _shape_aggregate(counts: dict[str, int]) -> dict[str, int | float | None]:
         total_sent = counts["total_sent"]
         delivered = counts["delivered"]
         opened = counts["opened"]
         clicked = counts["clicked"]
         unsubscribed = counts["unsubscribed"]
-        # Use `delivered` as the denominator when we have webhook
-        # confirmations; otherwise fall back to `total_sent` so a
-        # workspace whose Resend webhooks haven't wired up still sees
-        # honest open/click rates rather than 0%.
-        denom = delivered if delivered > 0 else total_sent
-        open_rate = (opened / denom * 100) if denom > 0 else 0.0
-        click_rate = (clicked / denom * 100) if denom > 0 else 0.0
-        unsub_rate = (unsubscribed / denom * 100) if denom > 0 else 0.0
+        # Audit issue #11 / fix-list #30: previously we silently fell back
+        # from `delivered` to `total_sent` when delivered was zero, so an
+        # org whose Resend webhooks weren't wired up saw inflated open /
+        # click rates (opens divided by sends rather than confirmed
+        # deliveries). Now we use delivered when we have it, and surface
+        # null rates when we don't — the UI already renders "—" for
+        # missing values, which beats a fabricated number.
+        denom = delivered if delivered > 0 else None
+        open_rate = (opened / denom * 100) if denom else None
+        click_rate = (clicked / denom * 100) if denom else None
+        unsub_rate = (unsubscribed / denom * 100) if denom else None
         return {
             "total_sent": total_sent,
             "delivered": delivered,
             "opened": opened,
             "clicked": clicked,
             "unsubscribed": unsubscribed,
+            # `webhook_signal_present` lets the UI render a "Connect
+            # Resend webhooks for accurate rates" prompt instead of
+            # silent dashes when delivered is zero but sends exist.
+            "webhook_signal_present": delivered > 0,
             "open_rate": open_rate,
             "click_rate": click_rate,
             "unsub_rate": unsub_rate,
@@ -577,13 +578,31 @@ class EmailBroadcastService:
                 - float(prior["unsub_rate"]),
             }
 
+        # Industry benchmark (audit issue #10 / fix-list #29). The legacy
+        # implementation hardcoded two unsourced constants (21% / 2.5%);
+        # the new table is sourced from Mailchimp's 2024 industry
+        # benchmarks and exposes a `source` string so the UI can label
+        # the comparison ("vs Mailchimp 2024 benchmark") instead of
+        # presenting fabricated numbers. Per-org category overrides are
+        # follow-on work — Organization doesn't carry a marketing-
+        # settings column today, so we ship the cross-industry median
+        # (`all_industries`) as the default and let admins pick a
+        # category once the settings UI lands.
+        from .industry_benchmarks import get_industry_benchmark
+
+        benchmark = get_industry_benchmark(None)
+
         return {
             "current": current,
             "prior": prior,
             "delta": delta,
             "industry": {
-                "open_rate": self._INDUSTRY_OPEN_RATE,
-                "click_rate": self._INDUSTRY_CLICK_RATE,
+                "slug": benchmark.slug,
+                "label": benchmark.label,
+                "source": "Mailchimp 2024 industry benchmarks",
+                "open_rate": benchmark.open_rate,
+                "click_rate": benchmark.click_rate,
+                "unsub_rate": benchmark.unsub_rate,
             },
         }
 
