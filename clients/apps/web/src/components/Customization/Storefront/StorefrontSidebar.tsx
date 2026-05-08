@@ -525,7 +525,9 @@ export const StorefrontEditorForm = ({
   const headerFocalRaw = settings?.header_focal_point ?? '50% 50%'
   const coverPos = parseFocalPosition(headerFocalRaw)
 
-  // Drag-to-reposition cover image
+  // Drag-to-reposition cover image. Math is size-relative: dragging the
+  // image one container-width to the right shifts focal point 100%.
+  // Pointer events handle mouse, touch, and pen with one path.
   const [isCoverDragging, setIsCoverDragging] = useState(false)
   const [createProductOpen, setCreateProductOpen] = useState(false)
   const coverDragRef = useRef<{
@@ -533,28 +535,45 @@ export const StorefrontEditorForm = ({
     startY: number
     posX: number
     posY: number
+    width: number
+    height: number
+    pointerId: number
   } | null>(null)
 
-  const startCoverDrag = (clientX: number, clientY: number) => {
+  const startCoverDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    if (rect.width === 0 || rect.height === 0) return
+    e.currentTarget.setPointerCapture(e.pointerId)
     setIsCoverDragging(true)
     coverDragRef.current = {
-      startX: clientX,
-      startY: clientY,
+      startX: e.clientX,
+      startY: e.clientY,
       posX: coverPos.x,
       posY: coverPos.y,
+      width: rect.width,
+      height: rect.height,
+      pointerId: e.pointerId,
     }
   }
-  const moveCoverDrag = (clientX: number, clientY: number) => {
-    if (!coverDragRef.current) return
-    const { startX, startY, posX, posY } = coverDragRef.current
-    const newX = Math.max(0, Math.min(100, posX - (clientX - startX) * 0.5))
-    const newY = Math.max(0, Math.min(100, posY - (clientY - startY) * 1.5))
+
+  const moveCoverDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = coverDragRef.current
+    if (!drag || drag.pointerId !== e.pointerId) return
+    const dxPct = ((e.clientX - drag.startX) / drag.width) * 100
+    const dyPct = ((e.clientY - drag.startY) / drag.height) * 100
+    const newX = Math.max(0, Math.min(100, drag.posX - dxPct))
+    const newY = Math.max(0, Math.min(100, drag.posY - dyPct))
     updateSetting(
       'header_focal_point',
       `${newX.toFixed(1)}% ${newY.toFixed(1)}%`,
     )
   }
-  const endCoverDrag = () => {
+
+  const endCoverDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = coverDragRef.current
+    if (drag && e.currentTarget.hasPointerCapture(drag.pointerId)) {
+      e.currentTarget.releasePointerCapture(drag.pointerId)
+    }
     setIsCoverDragging(false)
     coverDragRef.current = null
   }
@@ -729,27 +748,18 @@ export const StorefrontEditorForm = ({
                   {/* Drag-to-reposition when image is set */}
                   <div
                     className={twMerge(
-                      'group relative h-[120px] overflow-hidden rounded-xl select-none',
+                      'group relative h-[120px] touch-none overflow-hidden rounded-xl select-none',
                       isCoverDragging ? 'cursor-grabbing' : 'cursor-grab',
                     )}
-                    onMouseDown={(e) => {
+                    onPointerDown={(e) => {
                       e.preventDefault()
-                      startCoverDrag(e.clientX, e.clientY)
+                      startCoverDrag(e)
                     }}
-                    onMouseMove={(e) =>
-                      isCoverDragging && moveCoverDrag(e.clientX, e.clientY)
-                    }
-                    onMouseUp={endCoverDrag}
-                    onMouseLeave={endCoverDrag}
-                    onTouchStart={(e) => {
-                      const t = e.touches[0]
-                      startCoverDrag(t.clientX, t.clientY)
+                    onPointerMove={(e) => {
+                      if (isCoverDragging) moveCoverDrag(e)
                     }}
-                    onTouchMove={(e) => {
-                      const t = e.touches[0]
-                      moveCoverDrag(t.clientX, t.clientY)
-                    }}
-                    onTouchEnd={endCoverDrag}
+                    onPointerUp={endCoverDrag}
+                    onPointerCancel={endCoverDrag}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
