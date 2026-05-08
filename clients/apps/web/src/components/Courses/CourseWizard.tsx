@@ -260,6 +260,15 @@ export default function CourseWizard({
   const finalizeCourse = async (wizardData?: WizardFinalizationData) => {
     const outline = partialOutline as PartialOutline | undefined
     if (!outline?.modules?.length) return
+    // Idempotent: a double-click can fire two onPublish calls before
+    // setScreen flushes. Bail if we're already creating so we don't
+    // create the product twice.
+    if (screen === 'creating') return
+    // Stop any in-flight AI generation so we stop paying for tokens we no
+    // longer care about, and so onFinish can't fire setScreen() after we've
+    // moved on to the create flow.
+    stopOutline()
+    stopLanding()
     setScreen('creating')
 
     try {
