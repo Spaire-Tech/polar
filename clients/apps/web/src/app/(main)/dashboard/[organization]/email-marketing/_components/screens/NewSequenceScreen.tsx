@@ -39,9 +39,20 @@ import {
   StepNode,
   WaitStepValue,
   adoptFlowDoc,
+  appendStep,
+  blankStepNode,
+  blankStepNodeWithValue,
+  countEmailsInTree,
+  deepCloneStep,
   estimateDays,
+  findStepById,
+  insertAfterInTree,
   materializeEmailsFromFlow,
+  moveSiblingInTree,
   newId,
+  removeStepById,
+  reorderSiblingTree,
+  replaceStepInTree,
   stepSummary,
   stepTitle,
 } from '../flow'
@@ -302,59 +313,84 @@ const SequenceEditorInner = ({
   const upd = (patch: Partial<FlowDoc>) => setFlow((f) => ({ ...f, ...patch }))
   const updSteps = (next: StepNode[]) => setFlow((f) => ({ ...f, steps: next }))
 
+  // Tree-aware step helpers (Phase 3b — branches now carry yes/no children
+  // recursively, so manipulations need to walk into both arms instead of
+  // just the top-level array).
+
   const updateStep = <T extends StepNode['type']>(
     id: string,
     type: T,
     value: Extract<StepNode, { type: T }>['value'],
   ) => {
-    updSteps(
-      flow.steps.map((s) =>
-        s.id === id ? ({ ...s, type, value } as StepNode) : s,
-      ),
-    )
+    setFlow((f) => ({
+      ...f,
+      steps: replaceStepInTree(f.steps, id, (existing) => {
+        if (existing.type === 'branch' && type === 'branch') {
+          return {
+            ...existing,
+            value: value as BranchStepValue,
+          }
+        }
+        // Non-branch types swap shape entirely. The cast is a deliberate
+        // widening — TypeScript can't reduce `Extract<StepNode, { type: T }>`
+        // when T is itself a generic, so we route through unknown and let
+        // the runtime contract enforce the right value shape per type.
+        return blankStepNodeWithValue<StepNode['type']>(
+          id,
+          type,
+          value as unknown as Extract<
+            StepNode,
+            { type: StepNode['type'] }
+          >['value'],
+        )
+      }),
+    }))
   }
 
-  const addStep = (type: StepNode['type']) => {
-    const value = DEFAULT_STEP_VALUES[type]() as StepNode['value']
-    const node = { id: newId(), type, value } as StepNode
-    updSteps([...flow.steps, node])
+  /**
+   * Insert a fresh step under either the root list or a specific branch arm.
+   * Without `parentBranchId` the new step appends at the end of the root.
+   */
+  const addStep = (
+    type: StepNode['type'],
+    parentBranchId: string | null = null,
+    arm: 'yes' | 'no' | null = null,
+  ) => {
+    const node = blankStepNode(type)
+    setFlow((f) => ({
+      ...f,
+      steps: appendStep(f.steps, node, parentBranchId, arm),
+    }))
     setExpandedId(node.id)
   }
 
   const removeStep = (id: string) =>
-    updSteps(flow.steps.filter((s) => s.id !== id))
+    setFlow((f) => ({ ...f, steps: removeStepById(f.steps, id) }))
 
   const duplicateStep = (id: string) => {
-    const idx = flow.steps.findIndex((s) => s.id === id)
-    if (idx < 0) return
-    const copy = { ...flow.steps[idx], id: newId() } as StepNode
-    const next = [...flow.steps]
-    next.splice(idx + 1, 0, copy)
-    updSteps(next)
+    const target = findStepById(flow.steps, id)
+    if (!target) return
+    const copy = deepCloneStep(target)
+    setFlow((f) => ({ ...f, steps: insertAfterInTree(f.steps, id, copy) }))
   }
 
   const moveStep = (id: string, dir: -1 | 1) => {
-    const i = flow.steps.findIndex((s) => s.id === id)
-    if (i < 0) return
-    const j = i + dir
-    if (j < 0 || j >= flow.steps.length) return
-    const next = [...flow.steps]
-    ;[next[i], next[j]] = [next[j], next[i]]
-    updSteps(next)
+    setFlow((f) => ({ ...f, steps: moveSiblingInTree(f.steps, id, dir) }))
   }
 
   const handleDragOver = (overId: string) => {
+    // Drag-and-drop within the tree only swaps siblings of the same parent
+    // for now. Cross-arm drag is intentionally deferred — moving a step
+    // between branch arms changes its semantic context, so we'd want a
+    // confirmation dialog in a follow-up.
     if (!draggingId || draggingId === overId) return
-    const fromIdx = flow.steps.findIndex((s) => s.id === draggingId)
-    const toIdx = flow.steps.findIndex((s) => s.id === overId)
-    if (fromIdx < 0 || toIdx < 0) return
-    const next = [...flow.steps]
-    const [moved] = next.splice(fromIdx, 1)
-    next.splice(toIdx, 0, moved)
-    updSteps(next)
+    setFlow((f) => ({
+      ...f,
+      steps: reorderSiblingTree(f.steps, draggingId, overId),
+    }))
   }
 
-  const totalEmails = flow.steps.filter((s) => s.type === 'email').length
+  const totalEmails = countEmailsInTree(flow.steps)
   const totalDays = estimateDays(flow.steps)
 
   const buildTriggerConfig = (): Record<string, unknown> => {
@@ -576,9 +612,13 @@ const SequenceEditorInner = ({
     .filter((s: { id: string }) => s.id !== sequenceId)
     .map((s: { id: string; name: string }) => ({ id: s.id, label: s.name }))
 
-  const editingEmail = flow.steps.find(
-    (s) => s.id === editingEmailId && s.type === 'email',
-  ) as Extract<StepNode, { type: 'email' }> | undefined
+  // Tree-aware lookup so emails authored inside branch arms still open in
+  // the editor modal (the previous flat-array `find` missed nested ones).
+  const editingEmailNode = editingEmailId
+    ? findStepById(flow.steps, editingEmailId)
+    : undefined
+  const editingEmail =
+    editingEmailNode?.type === 'email' ? editingEmailNode : undefined
 
   if (previewing) {
     return (
@@ -1183,115 +1223,27 @@ const SequenceEditorInner = ({
                   below.
                 </div>
               )}
-              {flow.steps.map((step, idx) => {
-                const expanded = expandedId === step.id
-                return (
-                  <StepCard
-                    key={step.id}
-                    type={step.type}
-                    dragging={draggingId === step.id}
-                    onDragStart={() => setDraggingId(step.id)}
-                    onDragEnd={() => setDraggingId(null)}
-                    onDragOver={() => handleDragOver(step.id)}
-                    onDrop={() => setDraggingId(null)}
-                    title={stepTitle(step)}
-                    summary={stepSummary(step)}
-                    expanded={expanded}
-                    onToggleExpand={() =>
-                      setExpandedId(expanded ? null : step.id)
-                    }
-                    onRemove={() => removeStep(step.id)}
-                    onDuplicate={() => duplicateStep(step.id)}
-                    onMove={(dir) => moveStep(step.id, dir)}
-                    canMoveUp={idx > 0}
-                    canMoveDown={idx < flow.steps.length - 1}
-                  >
-                    {step.type === 'email' && (
-                      <EmailStepBody
-                        value={step.value}
-                        onChange={(v) =>
-                          updateStep(step.id, 'email', v as EmailStepValue)
-                        }
-                        onOpenEditor={() => setEditingEmailId(step.id)}
-                      />
-                    )}
-                    {step.type === 'wait' && (
-                      <WaitStepBody
-                        value={step.value}
-                        onChange={(v) =>
-                          updateStep(step.id, 'wait', v as WaitStepValue)
-                        }
-                      />
-                    )}
-                    {step.type === 'branch' && (
-                      <BranchStepBody
-                        value={step.value}
-                        onChange={(v) =>
-                          updateStep(step.id, 'branch', v as BranchStepValue)
-                        }
-                        productOptions={productOptions}
-                      />
-                    )}
-                    {step.type === 'action' && (
-                      <ActionStepBody
-                        value={step.value}
-                        onChange={(v) =>
-                          updateStep(step.id, 'action', v as ActionStepValue)
-                        }
-                        sequenceOptions={sequenceOptions}
-                      />
-                    )}
-                    {step.type === 'goal' && (
-                      <GoalStepBody
-                        value={step.value}
-                        onChange={(v) =>
-                          updateStep(step.id, 'goal', v as GoalStepValue)
-                        }
-                      />
-                    )}
-                  </StepCard>
-                )
-              })}
+              <StepList
+                steps={flow.steps}
+                parentBranchId={null}
+                arm={null}
+                expandedId={expandedId}
+                draggingId={draggingId}
+                productOptions={productOptions}
+                sequenceOptions={sequenceOptions}
+                setEditingEmailId={setEditingEmailId}
+                setExpandedId={setExpandedId}
+                setDraggingId={setDraggingId}
+                handleDragOver={handleDragOver}
+                updateStep={updateStep}
+                addStep={addStep}
+                removeStep={removeStep}
+                duplicateStep={duplicateStep}
+                moveStep={moveStep}
+              />
             </div>
-
-            <div
-              style={{
-                marginTop: 16,
-                padding: 14,
-                border: '1px dashed var(--line-2)',
-                borderRadius: 12,
-                background: '#fafafa',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 12,
-              }}
-            >
-              <span style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>
-                Add a step
-              </span>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {(
-                  [
-                    { t: 'email', icon: 'mail', label: 'Email' },
-                    { t: 'wait', icon: 'clock', label: 'Wait' },
-                    { t: 'branch', icon: 'split', label: 'Branch' },
-                    { t: 'action', icon: 'tag', label: 'Action' },
-                    { t: 'goal', icon: 'target', label: 'Goal' },
-                  ] as const
-                ).map((b) => (
-                  <button
-                    key={b.t}
-                    type="button"
-                    className="btn btn-secondary btn-sm"
-                    onClick={() => addStep(b.t)}
-                  >
-                    <Icon name={b.icon} size={12} />
-                    {b.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+            {/* StepList renders its own AddStepDock at every level (root and
+                each branch arm) so we no longer need a separate dock here. */}
           </FormSection>
 
           {/* === 05 Goal === */}
@@ -1668,12 +1620,28 @@ const SequenceEditorInner = ({
           organization={organization}
           step={editingEmail}
           emailNum={
-            flow.steps
-              .slice(
-                0,
-                flow.steps.findIndex((s) => s.id === editingEmail.id) + 1,
-              )
-              .filter((s) => s.type === 'email').length
+            // Tree-aware ordinal: pre-order walk counts nested emails too,
+            // including those inside branch arms (audit issue #7 follow-on
+            // — flat-array slice undercounted once nested authoring landed).
+            (() => {
+              const target = editingEmail.id
+              let n = 0
+              const visit = (nodes: StepNode[]): boolean => {
+                for (const node of nodes) {
+                  if (node.type === 'email') {
+                    n += 1
+                    if (node.id === target) return true
+                  }
+                  if (node.type === 'branch') {
+                    if (visit(node.yes)) return true
+                    if (visit(node.no)) return true
+                  }
+                }
+                return false
+              }
+              visit(flow.steps)
+              return n
+            })()
           }
           sequenceName={name}
           onChange={(v) => updateStep(editingEmail.id, 'email', v)}
@@ -1681,12 +1649,15 @@ const SequenceEditorInner = ({
           onSendTest={async (email) => {
             const id = await ensurePersisted()
             await syncEmailSteps(id)
-            const desired = materializeEmailsFromFlow(flow.steps)
-            const ord = desired.findIndex((d) => d.step.id === editingEmail.id)
-            const sorted = [...existingSteps].sort(
-              (a, b) => a.position - b.position,
+            // Look up the server step by stable flow_step_id rather than
+            // the previous ordinal-against-stale-snapshot dance (audit
+            // issue #20). syncEmailSteps already invalidated the cache.
+            const fresh = await queryClient.fetchQuery<ServerStep[]>({
+              queryKey: ['email_sequence_steps', id],
+            })
+            const target = fresh.find(
+              (s) => s.flow_step_id === editingEmail.id,
             )
-            const target = sorted[ord]
             if (target) {
               await sendTestMutation.mutateAsync({
                 sequenceId: id,
@@ -2074,3 +2045,292 @@ export const NewSequenceRoute = ({
     />
   )
 }
+
+// ── Recursive step list ──────────────────────────────────────────────────────
+// Renders the editor's step cards. Each branch's yes/no arms render a nested
+// StepList (with their own "+ add step" affordances) so authoring multi-step
+// arms and nested branches works natively (audit issue #7).
+
+type StepListProps = {
+  steps: StepNode[]
+  parentBranchId: string | null
+  arm: 'yes' | 'no' | null
+  expandedId: string | null
+  draggingId: string | null
+  productOptions: { id: string; label: string }[]
+  sequenceOptions: { id: string; label: string }[]
+  setEditingEmailId: (id: string | null) => void
+  setExpandedId: (id: string | null) => void
+  setDraggingId: (id: string | null) => void
+  handleDragOver: (overId: string) => void
+  // Non-generic form here so the prop type doesn't need to unify the
+  // generic instantiation; consumers cast at the call site.
+  updateStep: (
+    id: string,
+    type: StepNode['type'],
+    value: StepNode['value'],
+  ) => void
+  addStep: (
+    type: StepNode['type'],
+    parentBranchId?: string | null,
+    arm?: 'yes' | 'no' | null,
+  ) => void
+  removeStep: (id: string) => void
+  duplicateStep: (id: string) => void
+  moveStep: (id: string, dir: -1 | 1) => void
+}
+
+const StepList = (props: StepListProps) => {
+  const {
+    steps,
+    parentBranchId,
+    arm,
+    expandedId,
+    draggingId,
+    productOptions,
+    sequenceOptions,
+    setEditingEmailId,
+    setExpandedId,
+    setDraggingId,
+    handleDragOver,
+    updateStep,
+    addStep,
+    removeStep,
+    duplicateStep,
+    moveStep,
+  } = props
+  return (
+    <>
+      {steps.map((step, idx) => {
+        const expanded = expandedId === step.id
+        return (
+          <div key={step.id}>
+            <StepCard
+              type={step.type}
+              dragging={draggingId === step.id}
+              onDragStart={() => setDraggingId(step.id)}
+              onDragEnd={() => setDraggingId(null)}
+              onDragOver={() => handleDragOver(step.id)}
+              onDrop={() => setDraggingId(null)}
+              title={stepTitle(step)}
+              summary={stepSummary(step)}
+              expanded={expanded}
+              onToggleExpand={() =>
+                setExpandedId(expanded ? null : step.id)
+              }
+              onRemove={() => removeStep(step.id)}
+              onDuplicate={() => duplicateStep(step.id)}
+              onMove={(dir) => moveStep(step.id, dir)}
+              canMoveUp={idx > 0}
+              canMoveDown={idx < steps.length - 1}
+            >
+              {step.type === 'email' && (
+                <EmailStepBody
+                  value={step.value}
+                  onChange={(v) =>
+                    updateStep(step.id, 'email', v as EmailStepValue)
+                  }
+                  onOpenEditor={() => setEditingEmailId(step.id)}
+                />
+              )}
+              {step.type === 'wait' && (
+                <WaitStepBody
+                  value={step.value}
+                  onChange={(v) =>
+                    updateStep(step.id, 'wait', v as WaitStepValue)
+                  }
+                />
+              )}
+              {step.type === 'branch' && (
+                <BranchStepBody
+                  value={step.value}
+                  onChange={(v) =>
+                    updateStep(step.id, 'branch', v as BranchStepValue)
+                  }
+                  productOptions={productOptions}
+                />
+              )}
+              {step.type === 'action' && (
+                <ActionStepBody
+                  value={step.value}
+                  onChange={(v) =>
+                    updateStep(step.id, 'action', v as ActionStepValue)
+                  }
+                  sequenceOptions={sequenceOptions}
+                />
+              )}
+              {step.type === 'goal' && (
+                <GoalStepBody
+                  value={step.value}
+                  onChange={(v) =>
+                    updateStep(step.id, 'goal', v as GoalStepValue)
+                  }
+                />
+              )}
+            </StepCard>
+
+            {step.type === 'branch' && (
+              <BranchArms
+                branchId={step.id}
+                yes={step.yes}
+                no={step.no}
+                listProps={props}
+              />
+            )}
+          </div>
+        )
+      })}
+
+      <AddStepDock
+        parentBranchId={parentBranchId}
+        arm={arm}
+        onAdd={(type) => addStep(type, parentBranchId, arm)}
+      />
+    </>
+  )
+}
+
+const BranchArms = ({
+  branchId,
+  yes,
+  no,
+  listProps,
+}: {
+  branchId: string
+  yes: StepNode[]
+  no: StepNode[]
+  listProps: StepListProps
+}) => (
+  <div
+    style={{
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: 16,
+      marginTop: 12,
+      marginBottom: 12,
+      paddingLeft: 24,
+      borderLeft: '2px dashed var(--indigo-line)',
+    }}
+  >
+    <BranchArmColumn
+      label="Yes"
+      tone="success"
+      branchId={branchId}
+      arm="yes"
+      steps={yes}
+      listProps={listProps}
+    />
+    <BranchArmColumn
+      label="No"
+      tone="muted"
+      branchId={branchId}
+      arm="no"
+      steps={no}
+      listProps={listProps}
+    />
+  </div>
+)
+
+const BranchArmColumn = ({
+  label,
+  tone,
+  branchId,
+  arm,
+  steps,
+  listProps,
+}: {
+  label: 'Yes' | 'No'
+  tone: 'success' | 'muted'
+  branchId: string
+  arm: 'yes' | 'no'
+  steps: StepNode[]
+  listProps: StepListProps
+}) => {
+  const palette = {
+    success: {
+      bg: 'var(--green-soft)',
+      color: 'var(--green)',
+      border: 'rgba(26,122,62,0.25)',
+    },
+    muted: {
+      bg: 'var(--bg-softer)',
+      color: 'var(--ink-3)',
+      border: 'var(--line-2)',
+    },
+  } as const
+  const p = palette[tone]
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <span
+        style={{
+          alignSelf: 'flex-start',
+          padding: '3px 10px',
+          borderRadius: 999,
+          fontSize: 11,
+          background: p.bg,
+          color: p.color,
+          border: `1px solid ${p.border}`,
+        }}
+      >
+        {label}
+      </span>
+      <StepList
+        {...listProps}
+        steps={steps}
+        parentBranchId={branchId}
+        arm={arm}
+      />
+    </div>
+  )
+}
+
+const AddStepDock = ({
+  parentBranchId,
+  arm,
+  onAdd,
+}: {
+  parentBranchId: string | null
+  arm: 'yes' | 'no' | null
+  onAdd: (type: StepNode['type']) => void
+}) => (
+  <div
+    style={{
+      marginTop: 12,
+      padding: 10,
+      border: '1px dashed var(--line-2)',
+      borderRadius: 10,
+      background: '#fafafa',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+    }}
+  >
+    <span style={{ fontSize: 11.5, color: 'var(--ink-4)' }}>
+      {parentBranchId == null
+        ? 'Add a step'
+        : `Add to ${arm === 'yes' ? 'Yes' : 'No'} arm`}
+    </span>
+    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+      {(
+        [
+          { t: 'email', icon: 'mail', label: 'Email' },
+          { t: 'wait', icon: 'clock', label: 'Wait' },
+          { t: 'branch', icon: 'split', label: 'Branch' },
+          { t: 'action', icon: 'tag', label: 'Action' },
+          { t: 'goal', icon: 'target', label: 'Goal' },
+        ] as const
+      ).map((b) => (
+        <button
+          key={b.t}
+          type="button"
+          className="btn btn-secondary btn-sm"
+          onClick={() => onAdd(b.t)}
+        >
+          <Icon name={b.icon} size={11} />
+          {b.label}
+        </button>
+      ))}
+    </div>
+  </div>
+)

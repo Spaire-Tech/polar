@@ -56,6 +56,15 @@ class EmailSequenceEnrollment(RecordModel):
     flow_index: Mapped[int | None] = mapped_column(
         Integer, nullable=True, default=None
     )
+    # Tree cursor (Phase 3b): id of the next step to visit in the flow_doc
+    # tree. Replaces flow_index for tree-shaped flows where branches carry
+    # nested yes/no children — flow_index can't represent "we're inside the
+    # No arm of the third branch". Legacy enrollments authored before this
+    # column landed leave flow_next_step_id NULL and continue using
+    # flow_index against the (now-migrated-on-load) tree.
+    flow_next_step_id: Mapped[str | None] = mapped_column(
+        String(64), nullable=True, default=None, index=True
+    )
     enrolled_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), nullable=False
     )

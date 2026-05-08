@@ -22,30 +22,12 @@ const TRIGGER_META: Record<string, { label: string; icon: string }> = {
   manual: { label: 'Manual / API', icon: 'mouse-pointer' },
 }
 
-type RenderedNode =
-  | { kind: 'single'; step: StepNode }
-  | {
-      kind: 'branch'
-      step: Extract<StepNode, { type: 'branch' }>
-      yes: StepNode | null
-      no: StepNode | null
-    }
-
-const groupSteps = (steps: StepNode[]): RenderedNode[] => {
-  const out: RenderedNode[] = []
-  for (let i = 0; i < steps.length; i++) {
-    const s = steps[i]
-    if (s.type === 'branch') {
-      const yes = steps[i + 1] ?? null
-      const no = steps[i + 2] ?? null
-      out.push({ kind: 'branch', step: s, yes, no })
-      i += 2
-    } else {
-      out.push({ kind: 'single', step: s })
-    }
-  }
-  return out
-}
+// Tree-shaped flow_doc.steps: branches carry their own `yes` / `no` arrays
+// of StepNodes (audit issue #7). The previous heuristic assumed branches'
+// children sat at i+1/i+2 in the parent's array, which collapsed everything
+// past the first child into "unrepresentable" — multi-step arms, nested
+// branches, even a wait between a branch and its first arm step were lost.
+// We now just walk the tree recursively.
 
 export const SequenceFlowPreview = ({
   steps,
@@ -65,8 +47,21 @@ export const SequenceFlowPreview = ({
   compact?: boolean
 }) => {
   const triggerObj = TRIGGER_META[trigger] ?? TRIGGER_META.manual
-  const rendered = groupSteps(steps)
-  const totalEmails = steps.filter((s) => s.type === 'email').length
+  // Count emails across the whole tree, including both arms of every branch.
+  const totalEmails = ((): number => {
+    let n = 0
+    const visit = (nodes: StepNode[]) => {
+      for (const node of nodes) {
+        if (node.type === 'email') n += 1
+        if (node.type === 'branch') {
+          visit(node.yes)
+          visit(node.no)
+        }
+      }
+    }
+    visit(steps)
+    return n
+  })()
   const totalDays = estimateDays(steps)
 
   return (
@@ -192,19 +187,8 @@ export const SequenceFlowPreview = ({
             </div>
           </div>
 
-          {rendered.map((node, i) => (
-            <Fragment key={i}>
-              <DashedLine height={28} />
-              {node.kind === 'single' && <FlowNode step={node.step} />}
-              {node.kind === 'branch' && (
-                <BranchSplit
-                  branchStep={node.step}
-                  yes={node.yes}
-                  no={node.no}
-                />
-              )}
-            </Fragment>
-          ))}
+          <FlowSubtree steps={steps} />
+          {steps.length === 0 && <DashedLine height={28} />}
 
           <DashedLine height={28} />
 
@@ -257,6 +241,33 @@ const DashedLine = ({ height = 24 }: { height?: number }) => (
         'repeating-linear-gradient(180deg, var(--indigo-line) 0, var(--indigo-line) 4px, transparent 4px, transparent 8px)',
     }}
   />
+)
+
+/**
+ * Recursive renderer: walks the steps tree depth-first. Each non-branch
+ * node renders as a single card or pill; each branch node renders as a
+ * BranchSplit whose Yes / No children are themselves subtrees, so nested
+ * branches and multi-step arms work without changes here.
+ */
+const FlowSubtree = ({
+  steps,
+  compact,
+}: {
+  steps: StepNode[]
+  compact?: boolean
+}) => (
+  <>
+    {steps.map((step) => (
+      <Fragment key={step.id}>
+        <DashedLine height={28} />
+        {step.type === 'branch' ? (
+          <BranchSplit branchStep={step} compact={compact} />
+        ) : (
+          <FlowNode step={step} compact={compact} />
+        )}
+      </Fragment>
+    ))}
+  </>
 )
 
 const FlowNode = ({ step, compact }: { step: StepNode; compact?: boolean }) => {
@@ -439,14 +450,14 @@ const GoalPill = ({ step }: { step: Extract<StepNode, { type: 'goal' }> }) => (
 
 const BranchSplit = ({
   branchStep,
-  yes,
-  no,
+  compact,
 }: {
   branchStep: Extract<StepNode, { type: 'branch' }>
-  yes: StepNode | null
-  no: StepNode | null
+  compact?: boolean
 }) => {
   const v = branchStep.value
+  const yes = branchStep.yes
+  const no = branchStep.no
   return (
     <div
       style={{
@@ -539,10 +550,18 @@ const BranchSplit = ({
         />
 
         <BranchPath label="Yes" tone="success">
-          {yes ? <FlowNode step={yes} compact /> : <EmptyBranch />}
+          {yes.length > 0 ? (
+            <FlowSubtree steps={yes} compact={compact} />
+          ) : (
+            <EmptyBranch />
+          )}
         </BranchPath>
         <BranchPath label="No" tone="muted">
-          {no ? <FlowNode step={no} compact /> : <EmptyBranch />}
+          {no.length > 0 ? (
+            <FlowSubtree steps={no} compact={compact} />
+          ) : (
+            <EmptyBranch />
+          )}
         </BranchPath>
       </div>
     </div>

@@ -95,6 +95,10 @@ class EmailSequenceEnrollment(TimestampedSchema, IDSchema):
     enrolled_at: datetime
     next_step_at: datetime | None = None
     completed_at: datetime | None = None
+    # Tree cursor (Phase 3b). Surface read-only so observability tools and
+    # the dashboard can show "this enrollment is parked at step XYZ" even
+    # when we walk through nested branch arms.
+    flow_next_step_id: str | None = None
 
 
 class EmailSequenceEnrollRequest(Schema):

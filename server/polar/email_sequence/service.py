@@ -427,8 +427,17 @@ class EmailSequenceService:
 
         flow = get_flow_doc(sequence)
         flow_index: int | None = None
+        flow_next_step_id: str | None = None
         if flow is not None:
             flow_index = initial_flow_index(flow)
+            # Tree cursor: the first step's id. Tree-shaped flows always set
+            # this so the walker uses tree traversal from the start; legacy
+            # flat docs also have ids on each step, so it works there too.
+            steps = flow.get("steps") or []
+            if steps and isinstance(steps[0], dict):
+                first_id = steps[0].get("id")
+                if isinstance(first_id, str) and first_id:
+                    flow_next_step_id = first_id
             first_send = initial_send_at(
                 flow,
                 sequence.trigger_config,
@@ -446,6 +455,7 @@ class EmailSequenceService:
             status=EmailSequenceEnrollmentStatus.active,
             current_step_position=0,
             flow_index=flow_index,
+            flow_next_step_id=flow_next_step_id,
             enrolled_at=now,
             next_step_at=first_send,
         )

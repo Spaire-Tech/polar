@@ -55,6 +55,11 @@ def get_flow_doc(sequence: EmailSequence) -> dict | None:
 
 
 def get_node(flow: dict, index: int) -> dict | None:
+    """Look up a step by 0-based index in the *root* steps list.
+
+    Retained for the legacy linear walker. Tree-shaped flow_docs use
+    `find_step_in_tree` and friends below.
+    """
     steps = flow.get("steps") or []
     if 0 <= index < len(steps):
         node = steps[index]
@@ -65,6 +70,94 @@ def get_node(flow: dict, index: int) -> dict | None:
 
 def is_flow_terminal(flow: dict, index: int) -> bool:
     return get_node(flow, index) is None
+
+
+# ── Tree traversal (Phase 3b) ────────────────────────────────────────────────
+
+
+def _arm_children(node: dict, arm: str) -> list[dict]:
+    """Return the `yes` or `no` children of a branch node."""
+    raw = node.get(arm)
+    if isinstance(raw, list):
+        return [c for c in raw if isinstance(c, dict)]
+    return []
+
+
+def find_step_in_tree(
+    steps: list[dict] | None, target_id: str
+) -> dict | None:
+    """Depth-first lookup of a step by id, including branch arm children.
+
+    Returns the step dict or None. Used by the engine when an enrollment
+    has `flow_next_step_id` set and we need to know what to execute.
+    """
+    if not steps:
+        return None
+    for node in steps:
+        if not isinstance(node, dict):
+            continue
+        if node.get("id") == target_id:
+            return node
+        if node.get("type") == "branch":
+            for arm in ("yes", "no"):
+                found = find_step_in_tree(_arm_children(node, arm), target_id)
+                if found is not None:
+                    return found
+    return None
+
+
+def next_after(
+    steps: list[dict] | None, target_id: str
+) -> str | None:
+    """Find the step that follows `target_id` in pre-order traversal,
+    crossing branch arm boundaries: when `target_id` is the last step in a
+    branch arm we resume at the next sibling of the branch in the parent
+    list (not at the start of the No arm — that path is for a different
+    subscriber).
+
+    Returns the next step's id, or None when the traversal would walk past
+    the end of the entire tree.
+    """
+    if not steps:
+        return None
+
+    def walk(nodes: list[dict], parent_next: str | None) -> tuple[bool, str | None]:
+        for i, node in enumerate(nodes):
+            if not isinstance(node, dict):
+                continue
+            sibling_next = (
+                nodes[i + 1].get("id")
+                if i + 1 < len(nodes)
+                and isinstance(nodes[i + 1], dict)
+                else parent_next
+            )
+            if node.get("id") == target_id:
+                return True, sibling_next
+            if node.get("type") == "branch":
+                # Both arms resume at sibling_next on completion.
+                for arm in ("yes", "no"):
+                    found, after = walk(
+                        _arm_children(node, arm), sibling_next
+                    )
+                    if found:
+                        return True, after
+        return False, None
+
+    found, after = walk(steps, None)
+    return after if found else None
+
+
+def first_in_arm(
+    branch_node: dict, arm: str, parent_next: str | None
+) -> str | None:
+    """Return the id of the first step in a branch arm; if the arm is
+    empty, fall through to whatever comes after the branch in its parent.
+    """
+    arm_steps = _arm_children(branch_node, arm)
+    for node in arm_steps:
+        if isinstance(node, dict) and node.get("id"):
+            return node["id"]
+    return parent_next
 
 
 # ── Wait helpers ──────────────────────────────────────────────────────────────
@@ -428,12 +521,19 @@ async def process_one_step(
 ) -> None:
     """Walk a single iteration of the flow for `enrollment`.
 
-    Returns control to the caller, which is expected to commit the session
-    so the cursor moves forward atomically with whatever side-effects fire
-    (e.g. step_send rows for emails).
+    Two cursor models in flight (Phase 3b):
 
-    The caller wires `send_email_node` so this module stays decoupled from
-    the email-rendering machinery.
+    - Tree cursor: `enrollment.flow_next_step_id` points at the next
+      step.id in flow_doc. Used for any sequence whose flow_doc has tree-
+      shaped branches (yes/no children) or that was authored after the
+      Phase 3b migration.
+    - Legacy linear cursor: `enrollment.flow_index` is an index into
+      the *root* steps list. Retained for in-flight enrollments that
+      haven't been advanced past the migration yet — the helper below
+      derives a `flow_next_step_id` from the index on first contact.
+
+    The caller commits the session after this returns; the cursor and
+    any send-side effects move forward atomically.
     """
     flow = get_flow_doc(sequence)
     if flow is None:
@@ -444,6 +544,181 @@ async def process_one_step(
         )
         return
 
+    # Resolve which cursor we're working with.
+    cursor_id = enrollment.flow_next_step_id
+    use_tree = cursor_id is not None
+    if not use_tree:
+        # Translate legacy flow_index → first-step-id for one-shot
+        # forward migration. After we land here once, subsequent saves
+        # will use flow_next_step_id directly.
+        idx = enrollment.flow_index if enrollment.flow_index is not None else 0
+        node = get_node(flow, idx)
+        if node is None:
+            enrollment.status = EmailSequenceEnrollmentStatus.completed
+            enrollment.completed_at = utc_now()
+            enrollment.next_step_at = None
+            return
+        cursor_id = node.get("id")
+        if cursor_id is not None:
+            enrollment.flow_next_step_id = cursor_id
+
+    if cursor_id is None:
+        # Defensive: no id at all means we can't traverse. Mark complete.
+        enrollment.status = EmailSequenceEnrollmentStatus.completed
+        enrollment.completed_at = utc_now()
+        enrollment.next_step_at = None
+        return
+
+    await _process_one_step_tree(
+        session,
+        enrollment=enrollment,
+        sequence=sequence,
+        flow=flow,
+        cursor_id=cursor_id,
+        send_email_node=send_email_node,
+    )
+
+
+async def _process_one_step_tree(
+    session: AsyncSession,
+    *,
+    enrollment: EmailSequenceEnrollment,
+    sequence: EmailSequence,
+    flow: dict,
+    cursor_id: str,
+    send_email_node: Callable[
+        [EmailSequence, EmailSequenceEnrollment, dict],
+        Awaitable[dict | None],
+    ],
+) -> None:
+    """Tree-walking advancement (Phase 3b)."""
+    steps = flow.get("steps") or []
+    visited = 0
+    while visited < 64:
+        visited += 1
+        node = find_step_in_tree(steps, cursor_id)
+        if node is None:
+            # Cursor points at nothing — flow drifted or completed.
+            enrollment.status = EmailSequenceEnrollmentStatus.completed
+            enrollment.completed_at = utc_now()
+            enrollment.next_step_at = None
+            enrollment.flow_next_step_id = None
+            return
+
+        node_type = node.get("type")
+        value = node.get("value") or {}
+        after_id = next_after(steps, cursor_id)
+
+        if node_type == "email":
+            outcome = await send_email_node(sequence, enrollment, value)
+            if isinstance(outcome, dict) and "deferred_until" in outcome:
+                deferred = outcome["deferred_until"]
+                if isinstance(deferred, datetime):
+                    enrollment.next_step_at = deferred
+                # Park on the same node — we'll retry the send next tick.
+                enrollment.flow_next_step_id = cursor_id
+                return
+            enrollment.flow_next_step_id = after_id
+            enrollment.next_step_at = utc_now() if after_id else None
+            if after_id is None:
+                enrollment.status = EmailSequenceEnrollmentStatus.completed
+                enrollment.completed_at = utc_now()
+            return
+
+        if node_type == "wait":
+            subscriber_tz = await _subscriber_timezone(
+                session, enrollment.subscriber_id
+            )
+            next_at = schedule_wait(
+                value,
+                base=utc_now(),
+                sequence_config=sequence.trigger_config,
+                subscriber_timezone=subscriber_tz,
+            )
+            enrollment.flow_next_step_id = after_id
+            enrollment.next_step_at = next_at
+            if after_id is None and next_at is None:
+                enrollment.status = EmailSequenceEnrollmentStatus.completed
+                enrollment.completed_at = utc_now()
+            return
+
+        if node_type == "branch":
+            took_yes = await evaluate_branch(session, enrollment, value)
+            arm_first = first_in_arm(node, "yes" if took_yes else "no", after_id)
+            if arm_first is None:
+                # Empty arm + no after-branch sibling → flow ends.
+                enrollment.status = EmailSequenceEnrollmentStatus.completed
+                enrollment.completed_at = utc_now()
+                enrollment.next_step_at = None
+                enrollment.flow_next_step_id = None
+                return
+            cursor_id = arm_first
+            enrollment.flow_next_step_id = cursor_id
+            continue
+
+        if node_type == "action":
+            await execute_action(
+                session,
+                enrollment,
+                value,
+                organization_id=sequence.organization_id,
+            )
+            if after_id is None:
+                enrollment.status = EmailSequenceEnrollmentStatus.completed
+                enrollment.completed_at = utc_now()
+                enrollment.next_step_at = None
+                enrollment.flow_next_step_id = None
+                return
+            cursor_id = after_id
+            enrollment.flow_next_step_id = cursor_id
+            continue
+
+        if node_type == "goal":
+            await execute_goal_node(session, enrollment, value)
+            enrollment.flow_next_step_id = None
+            return
+
+        log.warning(
+            "email_sequence.flow.unknown_node_type",
+            node_type=node_type,
+            enrollment_id=str(enrollment.id),
+        )
+        if after_id is None:
+            enrollment.status = EmailSequenceEnrollmentStatus.completed
+            enrollment.completed_at = utc_now()
+            enrollment.next_step_at = None
+            enrollment.flow_next_step_id = None
+            return
+        cursor_id = after_id
+        enrollment.flow_next_step_id = cursor_id
+
+    log.warning(
+        "email_sequence.flow.advance_cap_hit",
+        enrollment_id=str(enrollment.id),
+        sequence_id=str(sequence.id),
+    )
+
+
+# ── Legacy linear walker (retained for in-flight enrollments) ────────────────
+
+
+async def _legacy_process_linear(
+    session: AsyncSession,
+    enrollment: EmailSequenceEnrollment,
+    sequence: EmailSequence,
+    flow: dict,
+    send_email_node: Callable[
+        [EmailSequence, EmailSequenceEnrollment, dict],
+        Awaitable[dict | None],
+    ],
+) -> None:
+    """Untouched flat-array walker. Reachable only when an enrollment has
+    `flow_index` set but `flow_next_step_id` unset *and* the caller routes
+    here explicitly — the new entry point migrates to the tree cursor on
+    first contact, so this path is dead code in practice. Kept for one
+    release in case we discover an edge case in the migration we need to
+    revert to the old behaviour.
+    """
     index = enrollment.flow_index if enrollment.flow_index is not None else 0
     visited = 0
     # Defensive cap: long action/goal chains advance synchronously, but a
