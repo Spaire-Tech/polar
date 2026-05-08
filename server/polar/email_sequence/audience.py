@@ -105,14 +105,7 @@ async def _evaluate_rule(
         score = await _engagement_score(session, subscriber.id)
         return _eval_numeric(score, op, value)
     if field == "country":
-        # Subscribers don't carry country yet — treat as pass-through so
-        # authored filters don't lock everyone out. When the column lands,
-        # this branch flips to a real comparison.
-        log.debug(
-            "email_sequence.audience.country_unsupported",
-            subscriber_id=str(subscriber.id),
-        )
-        return True
+        return await _eval_country(session, subscriber, op, value)
 
     log.debug(
         "email_sequence.audience.unknown_field",
@@ -120,6 +113,35 @@ async def _evaluate_rule(
         subscriber_id=str(subscriber.id),
     )
     return True
+
+
+async def _eval_country(
+    session: AsyncSession,
+    subscriber: EmailSubscriber,
+    op: str,
+    value: Any,
+) -> bool:
+    """Country filter — resolves the subscriber's country from the linked
+    Customer's billing_address, since EmailSubscriber itself doesn't store
+    a country column. ISO-alpha-2 strings are compared case-insensitively.
+
+    Pass-through when the subscriber has no linked customer or no billing
+    address — without a signal we don't have grounds to exclude them.
+    `is-not` returns True in that case for the same reason (filtering out
+    "not US" against an unknown country is meaningless).
+    """
+    if subscriber.customer_id is None:
+        return True
+    from polar.models.customer import Customer
+
+    customer = await session.get(Customer, subscriber.customer_id)
+    if customer is None:
+        return True
+    address = getattr(customer, "billing_address", None)
+    actual = getattr(address, "country", None) if address is not None else None
+    if not actual:
+        return True
+    return _eval_string(actual, op, value)
 
 
 async def _eval_tag(

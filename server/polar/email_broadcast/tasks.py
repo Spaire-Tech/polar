@@ -171,6 +171,41 @@ async def send_emails(
             broadcast.sent_at = utc_now()
 
 
+@actor(actor_name="email_broadcast.send_test", priority=TaskPriority.MEDIUM)
+async def send_test_broadcast(broadcast_id: UUID, to_email: str) -> None:
+    """Render and deliver a single test send of a broadcast.
+
+    Wired from `EmailBroadcastService.send_test`. Runs in the worker so the
+    API request returns immediately and we get Dramatiq retries on transient
+    Resend failures.
+    """
+    from polar.email_subscriber.unsubscribe_token import (
+        build_test_unsubscribe_url,
+    )
+
+    async with AsyncSessionMaker() as session:
+        broadcast = await session.get(EmailBroadcast, broadcast_id)
+        if broadcast is None:
+            return
+        organization = await session.get(Organization, broadcast.organization_id)
+
+        try:
+            await send_broadcast_email(
+                broadcast,
+                organization,
+                to_email=to_email,
+                unsubscribe_url=build_test_unsubscribe_url(),
+                extra_subject_prefix="[TEST] ",
+            )
+        except Exception:
+            log.exception(
+                "email_broadcast.send_test_failed",
+                broadcast_id=str(broadcast_id),
+                to_email=to_email,
+            )
+            raise
+
+
 @actor(
     actor_name="email_broadcast.process_scheduled",
     cron_trigger=CronTrigger(minute="*"),
@@ -230,9 +265,36 @@ async def process_ab_winners() -> None:
         )
 
 
+# Minimum opens/clicks per variant before we'll commit to a winner.
+# 30 events per arm is the rule-of-thumb floor for ~95% CI on a typical
+# 5-percentage-point open-rate diff; anything less and the rate signal is
+# essentially noise. Audit issue #4 / fix-list item: previously the cron
+# committed a winner the moment `decide_after_minutes` elapsed regardless
+# of how many opens had landed (zero-data tests defaulted to A).
+N_MIN_OPENS_PER_VARIANT = 30
+
+
 @actor(actor_name="email_broadcast.pick_ab_winner", priority=TaskPriority.MEDIUM)
 async def pick_ab_winner(ab_test_id: UUID) -> None:
-    """Compute which variant won and release the remainder of the audience."""
+    """Compute which variant won and release the remainder of the audience.
+
+    Sample-size guard:
+      - Each arm must have at least `N_MIN_OPENS_PER_VARIANT` events of the
+        winner-metric (opens for open_rate, clicks for click_rate). If
+        either arm hasn't crossed the floor yet, leave winner_picked_at
+        unset and let the cron re-evaluate next minute.
+      - We give up waiting after 2× decide_after_minutes — that's a full
+        extra window past the original schedule. At that point we force a
+        pick using whatever we have, logging
+        `ab_test.forced_pick_insufficient_data` so it surfaces in obs.
+
+    Tie-break:
+      - On a measurable difference, the higher rate wins.
+      - On a true tie within the same window, defer once (return without
+        committing). After 2× decide_after_minutes elapsed and still tied,
+        award variant A and log `ab_test.tie_break_default_a` so we can
+        audit it later.
+    """
     async with AsyncSessionMaker() as session:
         from .repository import EmailBroadcastABTestRepository
 
@@ -240,6 +302,17 @@ async def pick_ab_winner(ab_test_id: UUID) -> None:
         ab_test = await session.get(EmailBroadcastABTest, ab_test_id)
         if ab_test is None or ab_test.winner_picked_at is not None:
             return
+
+        # How long the test has been in flight. The cron filters by
+        # `test_sent_at + decide_after_minutes <= now` so this is at least
+        # one window. Past 2x we force a decision regardless of sample.
+        decide_after = ab_test.decide_after_minutes or 0
+        elapsed_minutes = (
+            (utc_now() - ab_test.test_sent_at).total_seconds() / 60.0
+            if ab_test.test_sent_at is not None
+            else 0.0
+        )
+        max_wait_elapsed = elapsed_minutes >= 2 * decide_after
 
         analytics = await repo.variant_analytics(ab_test.broadcast_id)
         a = analytics.get("a", {})
@@ -249,9 +322,58 @@ async def pick_ab_winner(ab_test_id: UUID) -> None:
             if ab_test.winner_metric == "click_rate"
             else "open_rate"
         )
-        winner = (
-            "b" if (b.get(metric_key, 0.0) or 0) > (a.get(metric_key, 0.0) or 0) else "a"
+        events_key = "clicked" if metric_key == "click_rate" else "opened"
+        a_events = int(a.get(events_key, 0) or 0)
+        b_events = int(b.get(events_key, 0) or 0)
+
+        insufficient = (
+            a_events < N_MIN_OPENS_PER_VARIANT
+            or b_events < N_MIN_OPENS_PER_VARIANT
         )
+        if insufficient and not max_wait_elapsed:
+            log.info(
+                "email_broadcast.ab_winner_deferred_insufficient_data",
+                broadcast_id=str(ab_test.broadcast_id),
+                metric=ab_test.winner_metric,
+                a_events=a_events,
+                b_events=b_events,
+                min_required=N_MIN_OPENS_PER_VARIANT,
+                elapsed_minutes=elapsed_minutes,
+            )
+            return
+        if insufficient and max_wait_elapsed:
+            log.warning(
+                "email_broadcast.ab_winner_forced_pick_insufficient_data",
+                broadcast_id=str(ab_test.broadcast_id),
+                metric=ab_test.winner_metric,
+                a_events=a_events,
+                b_events=b_events,
+                min_required=N_MIN_OPENS_PER_VARIANT,
+                elapsed_minutes=elapsed_minutes,
+            )
+
+        a_rate = float(a.get(metric_key, 0.0) or 0.0)
+        b_rate = float(b.get(metric_key, 0.0) or 0.0)
+        # Tied within 0.05 percentage points — treat as a true tie and
+        # either defer (first time) or fall back to variant A. Authors who
+        # care can pick a tighter threshold by tuning N_MIN.
+        is_tie = abs(a_rate - b_rate) < 0.05
+        tie_break_default = False
+        if is_tie and not max_wait_elapsed:
+            log.info(
+                "email_broadcast.ab_winner_deferred_tie",
+                broadcast_id=str(ab_test.broadcast_id),
+                metric=ab_test.winner_metric,
+                a_rate=a_rate,
+                b_rate=b_rate,
+                elapsed_minutes=elapsed_minutes,
+            )
+            return
+        if is_tie and max_wait_elapsed:
+            tie_break_default = True
+            winner = "a"
+        else:
+            winner = "b" if b_rate > a_rate else "a"
 
         ab_test.winner_variant = winner
         ab_test.winner_picked_at = utc_now()
@@ -259,13 +381,24 @@ async def pick_ab_winner(ab_test_id: UUID) -> None:
         # Backfill the remainder rows so the worker knows which subject to use.
         await repo.assign_remainder_variant(ab_test.broadcast_id, winner)
 
+        if tie_break_default:
+            log.warning(
+                "email_broadcast.ab_winner_tie_break_default_a",
+                broadcast_id=str(ab_test.broadcast_id),
+                metric=ab_test.winner_metric,
+                a_rate=a_rate,
+                b_rate=b_rate,
+            )
         log.info(
             "email_broadcast.ab_winner_picked",
             broadcast_id=str(ab_test.broadcast_id),
             winner=winner,
             metric=ab_test.winner_metric,
-            a=a.get(metric_key),
-            b=b.get(metric_key),
+            a_rate=a_rate,
+            b_rate=b_rate,
+            a_events=a_events,
+            b_events=b_events,
+            tie_break_default_a=tie_break_default,
         )
 
         # Release the remainder. The send worker will only pick up rows that

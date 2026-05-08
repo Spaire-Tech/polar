@@ -142,9 +142,13 @@ async def evaluate_branch(
     """Return True for the Yes path, False for No.
 
     Supports `opened-prev`, `clicked-prev` (against EmailSequenceStepSend),
-    and `has-tag` (against the email_subscriber_tags table). The remaining
-    branch types (product-bought, engagement) fall back to True so authored
-    flows still execute end-to-end; they'll land in their own follow-up.
+    `has-tag` (against email_subscriber_tags), `product-bought` (against
+    the orders table), and `engagement` (rolling-window send activity).
+
+    Unknown fields fail closed to the No path (audit issue #14 — the
+    previous default-Yes silently routed every subscriber down the
+    success branch on a typo, which usually meant "send everyone the
+    happy-path email").
     """
     field = branch_value.get("field")
     if field == "opened-prev":
@@ -164,14 +168,98 @@ async def evaluate_branch(
 
         tag = (branch_value.get("tag") or "").strip()
         if not tag:
-            return True
+            return False
         return await has_tag(session, enrollment.subscriber_id, tag)
-    log.debug(
-        "email_sequence.flow.branch_default_yes",
+    if field == "product-bought":
+        return await _evaluate_product_bought(
+            session, enrollment.subscriber_id, branch_value
+        )
+    if field == "engagement":
+        return await _evaluate_engagement(
+            session, enrollment.subscriber_id, branch_value
+        )
+    log.warning(
+        "email_sequence.flow.branch_unknown_field",
         field=field,
         enrollment_id=str(enrollment.id),
     )
-    return True
+    return False
+
+
+async def _evaluate_product_bought(
+    session: AsyncSession,
+    subscriber_id: UUID,
+    branch_value: dict,
+) -> bool:
+    """True iff the subscriber has at least one paid order for the named
+    product. Resolves the subscriber's customer_id then checks Order rows.
+
+    `product` is a UUID string in the branch_value (the editor stores the
+    selected product id). Empty/missing product means "any product" — the
+    branch yes-path then triggers when the subscriber has any paid order.
+    """
+    from polar.models.email_subscriber import EmailSubscriber
+    from polar.models.order import Order, OrderStatus
+
+    subscriber = await session.get(EmailSubscriber, subscriber_id)
+    if subscriber is None or subscriber.customer_id is None:
+        return False
+
+    product_id_raw = (branch_value.get("product") or "").strip()
+    statement = select(Order.id).where(
+        Order.customer_id == subscriber.customer_id,
+        Order.status == OrderStatus.paid,
+        Order.deleted_at.is_(None),
+    )
+    if product_id_raw:
+        try:
+            product_uuid = UUID(product_id_raw)
+        except ValueError:
+            log.warning(
+                "email_sequence.flow.product_bought_invalid_uuid",
+                product=product_id_raw,
+            )
+            return False
+        statement = statement.where(Order.product_id == product_uuid)
+    statement = statement.limit(1)
+    row = (await session.execute(statement)).first()
+    return row is not None
+
+
+async def _evaluate_engagement(
+    session: AsyncSession,
+    subscriber_id: UUID,
+    branch_value: dict,
+) -> bool:
+    """Branch on the subscriber's recent engagement signal.
+
+    Re-uses the audience-side `_engagement_score` (0-100, neutral 50 for
+    subscribers we have no data on). The branch's `op` and `threshold`
+    determine the predicate; defaults are `op=gte` and `threshold=50`,
+    which matches the editor's "engaged subscribers" template copy.
+    """
+    from .audience import _engagement_score
+
+    score = await _engagement_score(session, subscriber_id)
+    op = (branch_value.get("op") or "gte").lower()
+    try:
+        threshold = float(branch_value.get("threshold", 50))
+    except (TypeError, ValueError):
+        threshold = 50.0
+
+    if op in ("gte", "ge", ">="):
+        return score >= threshold
+    if op in ("lte", "le", "<="):
+        return score <= threshold
+    if op in ("gt", ">"):
+        return score > threshold
+    if op in ("lt", "<"):
+        return score < threshold
+    if op in ("eq", "is", "=="):
+        return abs(score - threshold) < 0.5
+    if op in ("ne", "is-not", "!="):
+        return abs(score - threshold) >= 0.5
+    return score >= threshold
 
 
 _STATUS_RANK = {

@@ -308,27 +308,15 @@ class EmailBroadcastService:
     ) -> None:
         """Send a one-off test of this broadcast to a single inbox.
 
-        Doesn't create EmailBroadcastSend rows or change status — it's just
-        meant to render the same template the worker will render and drop it
-        into the requester's inbox.
+        Enqueues the send through Dramatiq rather than calling the Resend
+        client inline (audit issue #5 / #50): a synchronous HTTP roundtrip
+        on the request thread blocked the API and offered no retry on
+        Resend failure.
         """
-        from polar.email_subscriber.unsubscribe_token import (
-            build_test_unsubscribe_url,
-        )
-        from polar.models.organization import Organization
-
-        from .tasks import send_broadcast_email
-
-        organization = await session.get(Organization, broadcast.organization_id)
-        # Test sends don't have a real subscriber id; the unsubscribe page
-        # treats `?test=1` as a no-op so the link still resolves cleanly.
-        unsubscribe_url = build_test_unsubscribe_url()
-        await send_broadcast_email(
-            broadcast,
-            organization,
+        enqueue_job(
+            "email_broadcast.send_test",
+            broadcast_id=broadcast.id,
             to_email=to_email,
-            unsubscribe_url=unsubscribe_url,
-            extra_subject_prefix="[TEST] ",
         )
 
     async def send(

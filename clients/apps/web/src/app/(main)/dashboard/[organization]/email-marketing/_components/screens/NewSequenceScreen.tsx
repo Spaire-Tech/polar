@@ -5,6 +5,7 @@ import {
   useCreateSequenceStep,
   useDeleteSequenceStep,
   useEmailSequence,
+  useEmailSequences,
   useReorderSequenceSteps,
   useSendTestSequenceStep,
   useSequenceSteps,
@@ -14,6 +15,7 @@ import {
 } from '@/hooks/queries/emailMarketing'
 import { useProducts } from '@/hooks/queries/products'
 import { schemas } from '@spaire/client'
+import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -148,6 +150,7 @@ type ServerStep = {
   subject: string
   sender_name: string
   sender_email: string | null
+  flow_step_id?: string | null
   reply_to_email: string | null
   content_html: string | null
   content_json: Record<string, unknown> | null
@@ -399,6 +402,7 @@ const SequenceEditorInner = ({
   const updateStepMutation = useUpdateSequenceStep(persistedId ?? '')
   const deleteStepMutation = useDeleteSequenceStep(persistedId ?? '')
   const reorderMutation = useReorderSequenceSteps(persistedId ?? '')
+  const queryClient = useQueryClient()
 
   const sendTestMutation = useSendTestSequenceStep()
 
@@ -409,48 +413,120 @@ const SequenceEditorInner = ({
       description: description || undefined,
       trigger_type: trigger,
       trigger_config: buildTriggerConfig(),
+      // Ship the authored flow on first save so a freshly-created sequence
+      // already has the audience filters, waits, and goal in place — without
+      // this the editor used to PATCH a second time, which raced with
+      // syncEmailSteps and risked dropping flow nodes (audit issue #27).
+      flow_doc: flow as unknown as Record<string, unknown>,
     })
     persistedIdRef.current = created.id
     onOpened?.(created.id)
     return created.id
   }
 
-  const syncEmailSteps = async (sequenceIdNow: string) => {
+  /**
+   * Align the server's email step rows with the flow's email nodes by
+   * stable `flow_step_id` (audit issue #5).
+   *
+   * Previously this aligned by array index against `existingSteps`, a
+   * snapshot captured at mount time. After the first save the indices
+   * drifted because newly-created rows weren't reflected in the snapshot;
+   * subsequent saves wrote to the wrong row, double-created, or deleted
+   * something they didn't mean to.
+   *
+   * The new pipeline:
+   *   1. Refetch the live server rows (don't trust the captured snapshot).
+   *   2. Build a `flow_step_id → ServerStep` map.
+   *   3. For each desired email node:
+   *        - row missing → CREATE (capture the new id)
+   *        - row exists → UPDATE
+   *      For each server row whose flow_step_id no longer appears in
+   *      `desired` → DELETE.
+   *   4. POST the final positional ordering in one reorder call.
+   *
+   * Legacy rows persisted before flow_step_id existed have `flow_step_id ===
+   * null`; we adopt them in order until exhausted, attaching the next
+   * desired flow_step_id. After one save they're fully migrated.
+   */
+  const syncEmailSteps = async (sequenceIdNow: string): Promise<void> => {
     const desired = materializeEmailsFromFlow(flow.steps)
-    const server = [...existingSteps].sort((a, b) => a.position - b.position)
-    const max = Math.max(desired.length, server.length)
-    for (let i = 0; i < max; i++) {
+
+    // 1. Refetch live server state. The cache may be stale right after a
+    // mutation we issued ourselves earlier in this save sequence.
+    const fresh = await queryClient.fetchQuery<ServerStep[]>({
+      queryKey: ['email_sequence_steps', sequenceIdNow],
+    })
+
+    // 2. Build the map. Legacy rows (flow_step_id = null) are queued
+    // separately and adopted by the next un-mapped desired entry.
+    const byFlowId = new Map<string, ServerStep>()
+    const legacyRows: ServerStep[] = []
+    for (const row of fresh) {
+      if (row.flow_step_id) byFlowId.set(row.flow_step_id, row)
+      else legacyRows.push(row)
+    }
+    legacyRows.sort((a, b) => a.position - b.position)
+
+    const seen = new Set<string>()
+    type SyncedRow = { serverId: string; flowStepId: string }
+    const synced: SyncedRow[] = []
+
+    // 3a. Create / update each desired email in flow order. The position
+    // we send is the desired index; the reorder call below normalises any
+    // drift if the server picked a different position for a fresh insert.
+    for (let i = 0; i < desired.length; i++) {
       const want = desired[i]
-      const have = server[i]
-      if (want && have) {
+      const flowStepId = want.step.id
+      seen.add(flowStepId)
+
+      const payload = {
+        delay_hours: Math.round(want.delayHours),
+        subject: want.step.value.subject,
+        sender_name: want.step.value.fromName,
+        content_html:
+          want.step.value.content_html ?? renderEmailFallback(want.step.value),
+        flow_step_id: flowStepId,
+      }
+
+      let row = byFlowId.get(flowStepId)
+      if (!row && legacyRows.length > 0) {
+        // Adopt a legacy un-mapped row in arrival order so existing data
+        // doesn't get duplicated on the first id-aware save.
+        row = legacyRows.shift()
+      }
+
+      if (row) {
         await updateStepMutation.mutateAsync({
-          stepId: have.id,
-          delay_hours: Math.round(want.delayHours),
-          subject: want.step.value.subject,
-          sender_name: want.step.value.fromName,
-          content_html:
-            want.step.value.content_html ??
-            renderEmailFallback(want.step.value),
+          stepId: row.id,
+          ...payload,
         })
-      } else if (want && !have) {
-        await createStepMutation.mutateAsync({
-          delay_hours: Math.round(want.delayHours),
-          subject: want.step.value.subject,
-          sender_name: want.step.value.fromName,
-          content_html:
-            want.step.value.content_html ??
-            renderEmailFallback(want.step.value),
-        })
-      } else if (!want && have) {
-        await deleteStepMutation.mutateAsync(have.id)
+        synced.push({ serverId: row.id, flowStepId })
+      } else {
+        const created = await createStepMutation.mutateAsync(payload)
+        synced.push({ serverId: created.id, flowStepId })
       }
     }
-    if (desired.length > 1) {
-      // Position stays sequential; reorder by index in case server diverged.
-      // Skip the call if nothing actually moved.
+
+    // 3b. Delete server rows that have no corresponding desired flow node.
+    // Includes leftover legacy rows that didn't get adopted above.
+    for (const row of fresh) {
+      const stillWanted =
+        (row.flow_step_id !== null &&
+          row.flow_step_id !== undefined &&
+          seen.has(row.flow_step_id)) ||
+        synced.some((s) => s.serverId === row.id)
+      if (!stillWanted) {
+        await deleteStepMutation.mutateAsync(row.id)
+      }
     }
-    void sequenceIdNow
-    void reorderMutation
+
+    // 4. Persist the final ordering (audit issue #6 — reorder used to be a
+    // dead void branch). Skip the round-trip when nothing's reorderable.
+    if (synced.length > 1) {
+      await reorderMutation.mutateAsync(
+        synced.map((s, i) => ({ id: s.serverId, position: i })),
+      )
+    }
   }
 
   const onSaveDraft = async () => {
@@ -491,6 +567,14 @@ const SequenceEditorInner = ({
   const productsQuery = useProducts(organization.id, { limit: 100 })
   const products = productsQuery.data?.items ?? []
   const productOptions = products.map((p) => ({ id: p.id, label: p.name }))
+  // Sequences in the same org so the "Enrol in another sequence" action
+  // step has a non-empty dropdown (audit issue #10 / fix-list #40 — the
+  // option used to ship hardcoded `[]`). Filter out the current sequence
+  // so we don't suggest enrolling into ourselves (would loop forever).
+  const sequencesQuery = useEmailSequences(organization.id, { limit: 100 })
+  const sequenceOptions = (sequencesQuery.data?.items ?? [])
+    .filter((s: { id: string }) => s.id !== sequenceId)
+    .map((s: { id: string; name: string }) => ({ id: s.id, label: s.name }))
 
   const editingEmail = flow.steps.find(
     (s) => s.id === editingEmailId && s.type === 'email',
@@ -969,7 +1053,7 @@ const SequenceEditorInner = ({
                         filters: [
                           ...flow.audience.filters,
                           {
-                            id: Date.now(),
+                            id: newBlockId(),
                             field: 'tag',
                             op: 'is',
                             value: '',
@@ -1154,7 +1238,7 @@ const SequenceEditorInner = ({
                         onChange={(v) =>
                           updateStep(step.id, 'action', v as ActionStepValue)
                         }
-                        sequenceOptions={[]}
+                        sequenceOptions={sequenceOptions}
                       />
                     )}
                     {step.type === 'goal' && (
@@ -1456,7 +1540,14 @@ const SequenceEditorInner = ({
                 {
                   num: '03',
                   label: 'Audience filter',
-                  done: flow.audience.mode === 'all',
+                  // Either "everyone" is a valid finished state, or the
+                  // user has authored at least one filter rule. The
+                  // previous condition only honoured "all" — filtered
+                  // audiences were marked incomplete (audit issue #13,
+                  // logic was inverted).
+                  done:
+                    flow.audience.mode === 'all' ||
+                    flow.audience.filters.length > 0,
                 },
                 {
                   num: '04',

@@ -93,7 +93,10 @@ export type FlowDoc = {
 
 export type AudienceConfig = {
   mode: 'all' | 'filtered'
-  filters: { id: number; field: string; op: string; value: string }[]
+  // Filter row id is opaque; new rows mint a UUID so two clicks within the
+  // same millisecond don't collide (audit issue #12 — `Date.now()` keys
+  // could produce duplicates and break React reconciliation).
+  filters: { id: string; field: string; op: string; value: string }[]
   excludeTags: string[]
 }
 

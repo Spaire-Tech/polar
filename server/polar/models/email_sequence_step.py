@@ -30,6 +30,14 @@ class EmailSequenceStep(RecordModel):
     content_html: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
     # Reserved for future rich editor (Tiptap/Lexical JSON)
     content_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True, default=None)
+    # Stable client-authored id linking this row to a node in the flow_doc.
+    # The editor materialises flow_doc email nodes into rows; we use this id
+    # to align desired↔server steps on save (instead of array position, which
+    # silently drifts after the first reorder/delete). Optional for legacy
+    # rows authored before flow_doc existed; new rows always set it.
+    flow_step_id: Mapped[str | None] = mapped_column(
+        String(64), nullable=True, default=None, index=True
+    )
 
     @declared_attr
     def sequence(cls) -> Mapped["EmailSequence"]:  # type: ignore[name-defined]  # noqa: F821

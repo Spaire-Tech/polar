@@ -322,6 +322,7 @@ class EmailSequenceService:
         reply_to_email: str | None = None,
         content_html: str | None = None,
         content_json: dict | None = None,
+        flow_step_id: str | None = None,
     ) -> EmailSequenceStep:
         repository = EmailSequenceRepository.from_session(session)
 
@@ -339,6 +340,7 @@ class EmailSequenceService:
             reply_to_email=reply_to_email,
             content_html=content_html,
             content_json=content_json,
+            flow_step_id=flow_step_id,
         )
         session.add(step)
         await session.flush()
@@ -357,6 +359,7 @@ class EmailSequenceService:
         reply_to_email: str | None = None,
         content_html: str | None = None,
         content_json: dict | None = None,
+        flow_step_id: str | None = None,
     ) -> EmailSequenceStep:
         if position is not None:
             step.position = position
@@ -374,6 +377,8 @@ class EmailSequenceService:
             step.content_html = content_html
         if content_json is not None:
             step.content_json = content_json
+        if flow_step_id is not None:
+            step.flow_step_id = flow_step_id
         await session.flush()
         return step
 
@@ -654,57 +659,16 @@ class EmailSequenceService:
         *,
         to_email: str,
     ) -> None:
-        """Render this step exactly as the worker would and ship it to
-        a single inbox. Doesn't touch step_sends or enrollments — purely
-        a preview send."""
-        from polar.email.react import render_email_template
-        from polar.email.schemas import MarketingEmail, MarketingEmailProps
-        from polar.email.sender import email_sender
-        from polar.models.email_sequence import EmailSequence
-        from polar.models.organization import Organization
+        """Enqueue a test-send of this step to a single inbox.
 
-        sequence = await session.get(EmailSequence, step.sequence_id)
-        organization = (
-            await session.get(Organization, sequence.organization_id)
-            if sequence is not None
-            else None
-        )
-
-        from polar.email_subscriber.unsubscribe_token import (
-            build_test_unsubscribe_url,
-        )
-
-        unsubscribe_url = build_test_unsubscribe_url()
-        wrapped_html = render_email_template(
-            MarketingEmail(
-                props=MarketingEmailProps(
-                    organization_name=(
-                        organization.name if organization else step.sender_name
-                    ),
-                    organization_logo_url=(
-                        organization.avatar_url if organization else None
-                    ),
-                    organization_website=(
-                        organization.website if organization else None
-                    ),
-                    html_content=step.content_html or "<p>No content</p>",
-                    unsubscribe_url=unsubscribe_url,
-                )
-            )
-        )
-        await email_sender.send(
-            to_email_addr=to_email,
-            subject=f"[TEST] {step.subject}",
-            html_content=wrapped_html,
-            from_name=step.sender_name,
-            from_email_addr=step.sender_email
-            or "noreply@notifications.spairehq.com",
-            email_headers={
-                "List-Unsubscribe": f"<{unsubscribe_url}>",
-                "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-            },
-            reply_to_name=step.sender_name if step.reply_to_email else None,
-            reply_to_email_addr=step.reply_to_email,
+        Routed through Dramatiq (audit issue #50) so the API request returns
+        without waiting on Resend; transient delivery failures get the
+        worker's retry policy.
+        """
+        enqueue_job(
+            "email_sequence.send_test_step",
+            step_id=step.id,
+            to_email=to_email,
         )
 
     async def get_steps(

@@ -824,6 +824,10 @@ export const useCreateEmailSequence = (organizationId: string) =>
       description?: string
       trigger_type?: string
       trigger_config?: Record<string, unknown>
+      // Optional flow_doc — server merges it into trigger_config.flow_doc.
+      // The editor uses this so a fresh sequence can ship with the full
+      // authored flow on first save (audit issue #27).
+      flow_doc?: Record<string, unknown>
     }) =>
       seqMutate<any>(
         `/v1/email-sequences/?organization_id=${organizationId}`,
@@ -884,8 +888,13 @@ export const useCreateSequenceStep = (sequenceId: string) =>
       sender_email?: string
       reply_to_email?: string
       content_html?: string
+      flow_step_id?: string
     }) =>
-      seqMutate<any>(`/v1/email-sequences/${sequenceId}/steps`, 'POST', body),
+      seqMutate<{ id: string; flow_step_id: string | null }>(
+        `/v1/email-sequences/${sequenceId}/steps`,
+        'POST',
+        body,
+      ),
     onSuccess: () => {
       getQueryClient().invalidateQueries({
         queryKey: ['email_sequence_steps', sequenceId],
@@ -906,6 +915,7 @@ export const useUpdateSequenceStep = (sequenceId: string) =>
       sender_email?: string
       reply_to_email?: string
       content_html?: string
+      flow_step_id?: string
     }) =>
       seqMutate<any>(
         `/v1/email-sequences/${sequenceId}/steps/${stepId}`,

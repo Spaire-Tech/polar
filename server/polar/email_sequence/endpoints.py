@@ -75,13 +75,19 @@ async def create_email_sequence(
     organization_id: UUID = Query(),
     session: AsyncSession = Depends(get_db_session),
 ) -> EmailSequenceSchema:
+    # Merge an optional top-level flow_doc into trigger_config so the editor
+    # can ship a fully-authored flow on first save (audit issue #27).
+    trigger_config = dict(sequence_create.trigger_config or {})
+    if sequence_create.flow_doc is not None:
+        trigger_config["flow_doc"] = sequence_create.flow_doc
+
     sequence = await sequence_service.create(
         session,
         organization_id=organization_id,
         name=sequence_create.name,
         description=sequence_create.description,
         trigger_type=sequence_create.trigger_type,
-        trigger_config=sequence_create.trigger_config,
+        trigger_config=trigger_config,
     )
     return EmailSequenceSchema.model_validate(sequence, from_attributes=True)
 
@@ -252,6 +258,7 @@ async def add_sequence_step(
         reply_to_email=step_create.reply_to_email,
         content_html=step_create.content_html,
         content_json=step_create.content_json,
+        flow_step_id=step_create.flow_step_id,
     )
     return EmailSequenceStepSchema.model_validate(step, from_attributes=True)
 
@@ -301,6 +308,7 @@ async def update_sequence_step(
         reply_to_email=step_update.reply_to_email,
         content_html=step_update.content_html,
         content_json=step_update.content_json,
+        flow_step_id=step_update.flow_step_id,
     )
     return EmailSequenceStepSchema.model_validate(updated_step, from_attributes=True)
 
