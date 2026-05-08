@@ -126,9 +126,7 @@ export default function CourseWizard({
     nameBold: true,
     nameUppercase: true,
   })
-  const [editOpen, setEditOpen] = useState(false)
   const [generateError, setGenerateError] = useState<string | null>(null)
-  const thumbPosition: string | null = null
 
   // The wizard hosts the same react-hook-form instance that ProductPricing
   // Section + ProductMediaSection bind to — every choice the user makes there
@@ -347,7 +345,7 @@ export default function CourseWizard({
         ai_generated: true,
         description: humanDescription,
         thumbnail_url: thumbnailUrl,
-        thumbnail_object_position: thumbPosition,
+        thumbnail_object_position: null,
         instructor_name: draft.name || instructor.name || null,
         instructor_bio: instructor.bio || null,
         instructor_name_italic: false,

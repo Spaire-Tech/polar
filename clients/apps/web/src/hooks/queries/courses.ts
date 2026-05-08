@@ -144,9 +144,8 @@ export type LandingOverrides = {
   visible?: Record<string, boolean>
   order?: string[]
   theme?: Partial<LandingTheme>
-  // The full AI-generated landing payload. Stored here (rather than appended
-  // onto course.description with a sentinel marker) so the human description
-  // stays clean. See `StoredLanding` in landingStorage.ts for the shape.
+  // The full AI-generated landing payload, stored here so the human-facing
+  // description stays clean.
   ai_landing?: Record<string, unknown> | null
 }
 
