@@ -9,7 +9,6 @@ import GitHub from '@mui/icons-material/GitHub'
 import Instagram from '@mui/icons-material/Instagram'
 import LinkedIn from '@mui/icons-material/LinkedIn'
 import Public from '@mui/icons-material/Public'
-import Verified from '@mui/icons-material/Verified'
 import X from '@mui/icons-material/X'
 import YouTube from '@mui/icons-material/YouTube'
 import TranslateOutlined from '@mui/icons-material/TranslateOutlined'
@@ -129,6 +128,7 @@ export const ProfileCard = ({
   const showLogo = settings?.show_logo ?? true
   const showName = settings?.show_name ?? true
   const showDescription = settings?.show_description ?? true
+  const showCardProducts = settings?.show_card_products ?? true
   const description = settings?.description ?? null
   const profileTitle = settings?.profile_title ?? null
   const skills = settings?.skills ?? []
@@ -191,9 +191,9 @@ export const ProfileCard = ({
   const MAX_HIGHLIGHTS = 7
 
   // Get product images for highlights row
-  const highlights = products
-    .filter((p) => p.medias.length > 0)
-    .slice(0, MAX_HIGHLIGHTS)
+  const highlights = showCardProducts
+    ? products.filter((p) => p.medias.length > 0).slice(0, MAX_HIGHLIGHTS)
+    : []
 
   return (
     <div className="flex w-full flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
@@ -243,12 +243,9 @@ export const ProfileCard = ({
                 {profileTitle}
               </span>
             )}
-            <div className="flex flex-row items-center gap-x-1.5">
-              <h1 className="text-[26px] font-bold leading-tight text-gray-950">
-                {organization.name}
-              </h1>
-              <Verified className="h-5 w-5 text-blue-500" />
-            </div>
+            <h1 className="text-[26px] font-bold leading-tight text-gray-950">
+              {organization.name}
+            </h1>
           </div>
         )}
 
