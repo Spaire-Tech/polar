@@ -1006,11 +1006,21 @@ function SectionCard({
 function SectionZigzagRow({
   modules,
   startIndex,
+  totalColumns,
 }: {
   modules: CourseRead['modules']
   startIndex: number
+  totalColumns: number
 }) {
-  const columns = modules.length
+  // Always lay out `totalColumns` cells so cards keep the same width
+  // whether the row is fully populated or only partially filled. Empty
+  // cells render as spacers; the dotted spine only spans the active
+  // portion of the row.
+  const columns = totalColumns
+  const filled = modules.length
+  const halfCol = 100 / columns / 2
+  const lineLeft = halfCol
+  const lineRight = (columns - filled + 0.5) * (100 / columns)
   return (
     <div style={{ position: 'relative' }}>
       <div
@@ -1022,7 +1032,9 @@ function SectionZigzagRow({
           alignItems: 'end',
         }}
       >
-        {modules.map((mod, i) => {
+        {Array.from({ length: columns }).map((_, i) => {
+          const mod = modules[i]
+          if (!mod) return <div key={`top-empty-${i}`} />
           const absoluteIndex = startIndex + i
           return absoluteIndex % 2 === 0 ? (
             <div
@@ -1059,36 +1071,40 @@ function SectionZigzagRow({
         <div
           style={{
             position: 'absolute',
-            left: `calc(${100 / columns / 2}% - 6px)`,
-            right: `calc(${100 / columns / 2}% - 6px)`,
+            left: `calc(${lineLeft}% - 6px)`,
+            right: `calc(${lineRight}% - 6px)`,
             top: '50%',
             transform: 'translateY(-50%)',
             height: 1.5,
             background: 'oklch(0.92 0.003 280)',
           }}
         />
-        {modules.map((mod) => (
-          <div
-            key={mod.id}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              position: 'relative',
-              zIndex: 1,
-            }}
-          >
+        {Array.from({ length: columns }).map((_, i) => {
+          const mod = modules[i]
+          if (!mod) return <div key={`dot-empty-${i}`} />
+          return (
             <div
+              key={mod.id}
               style={{
-                width: 12,
-                height: 12,
-                borderRadius: '50%',
-                background: 'var(--bg-0, #fff)',
-                border: '1.5px solid oklch(0.66 0.006 280)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                position: 'relative',
+                zIndex: 1,
               }}
-            />
-          </div>
-        ))}
+            >
+              <div
+                style={{
+                  width: 12,
+                  height: 12,
+                  borderRadius: '50%',
+                  background: 'var(--bg-0, #fff)',
+                  border: '1.5px solid oklch(0.66 0.006 280)',
+                }}
+              />
+            </div>
+          )
+        })}
       </div>
 
       <div
@@ -1100,7 +1116,9 @@ function SectionZigzagRow({
           alignItems: 'start',
         }}
       >
-        {modules.map((mod, i) => {
+        {Array.from({ length: columns }).map((_, i) => {
+          const mod = modules[i]
+          if (!mod) return <div key={`bot-empty-${i}`} />
           const absoluteIndex = startIndex + i
           return absoluteIndex % 2 !== 0 ? (
             <div
@@ -1126,8 +1144,11 @@ function CourseSections({ course }: { course: CourseRead }) {
   const modules = [...course.modules].sort((a, b) => a.position - b.position)
   if (modules.length === 0) return null
   // Cap each row at 4 cards so the cards stay readable. With more modules,
-  // the zigzag stacks into multiple rows.
+  // the zigzag stacks into multiple rows — but every row reuses the same
+  // column count so cards stay the same width whether a row is full or
+  // only partially populated.
   const MAX_PER_ROW = 4
+  const rowColumns = Math.min(modules.length, MAX_PER_ROW)
   const chunks: (typeof modules)[] = []
   for (let i = 0; i < modules.length; i += MAX_PER_ROW) {
     chunks.push(modules.slice(i, i + MAX_PER_ROW))
@@ -1205,6 +1226,7 @@ function CourseSections({ course }: { course: CourseRead }) {
             key={ci}
             modules={chunk}
             startIndex={ci * MAX_PER_ROW}
+            totalColumns={rowColumns}
           />
         ))}
       </div>
