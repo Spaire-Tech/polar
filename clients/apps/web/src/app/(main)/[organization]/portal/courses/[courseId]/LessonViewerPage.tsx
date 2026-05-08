@@ -10,6 +10,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import { CoursePortalView } from './CoursePortalView'
 import { MasterClassLessonViewer } from './MasterClassLessonViewer'
+import { ProgramPortalView } from './ProgramPortalView'
 
 interface FlatLesson {
   id: string
@@ -173,8 +174,19 @@ const LessonViewerPage = ({
     )
   }
 
-  // No lesson selected — render the redesigned course portal (cinematic
-  // hero, Apple-TV-style module rows, achievements + instructor).
+  // Coaching programs get the program-shaped portal: next-call hero,
+  // schedule, recordings, community, intake. Standard courses keep the
+  // existing cinematic CoursePortalView.
+  if (data.course.program_format === 'coaching') {
+    return (
+      <ProgramPortalView
+        data={data}
+        organizationName={organization.name}
+        onSelectLesson={handleSelectCustomerLesson}
+      />
+    )
+  }
+
   return (
     <CoursePortalView
       data={data}
