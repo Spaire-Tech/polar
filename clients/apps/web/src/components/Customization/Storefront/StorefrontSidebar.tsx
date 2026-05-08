@@ -1,5 +1,6 @@
 'use client'
 
+import { ConfirmModal } from '@/components/Modal/ConfirmModal'
 import { InlineModal } from '@/components/Modal/InlineModal'
 import { CreateProductPage } from '@/components/Products/CreateProductPage'
 import { StorefrontLinkItem } from '@/components/Profile/StorefrontLinks'
@@ -440,6 +441,30 @@ export const StorefrontEditorForm = ({
     )
   }
 
+  // Confirm before removing a social row that has a non-empty URL — an
+  // empty row has no value to lose.
+  const [pendingSocialRemoval, setPendingSocialRemoval] = useState<
+    number | null
+  >(null)
+  const requestRemoveSocial = (idx: number) => {
+    if (!socials[idx]?.url?.trim()) {
+      removeSocial(idx)
+      return
+    }
+    setPendingSocialRemoval(idx)
+  }
+
+  // Confirm before disabling the Space — flipping it off makes the
+  // public URL 404 instantly, with no other warning.
+  const [pendingSpaceDisable, setPendingSpaceDisable] = useState(false)
+  const handleEnabledChange = (v: boolean) => {
+    if (!v && (settings?.enabled ?? false)) {
+      setPendingSpaceDisable(true)
+      return
+    }
+    updateSetting('enabled', v)
+  }
+
   // Storefront links
   const storefrontLinks: StorefrontLinkItem[] =
     (settings?.storefront_links as StorefrontLinkItem[] | undefined) ?? []
@@ -638,7 +663,7 @@ export const StorefrontEditorForm = ({
             </div>
             <Switch
               checked={isEnabled}
-              onCheckedChange={(v) => updateSetting('enabled', v)}
+              onCheckedChange={handleEnabledChange}
             />
           </div>
         </div>
@@ -911,7 +936,7 @@ export const StorefrontEditorForm = ({
               key={idx}
               social={social}
               onUpdate={(s) => updateSocial(idx, s)}
-              onRemove={() => removeSocial(idx)}
+              onRemove={() => requestRemoveSocial(idx)}
             />
           ))}
           <button
@@ -1128,6 +1153,40 @@ export const StorefrontEditorForm = ({
             <div />
           )
         }
+      />
+
+      <ConfirmModal
+        isShown={pendingSocialRemoval !== null}
+        hide={() => setPendingSocialRemoval(null)}
+        title="Remove social link?"
+        description={
+          pendingSocialRemoval !== null
+            ? `This will remove ${
+                socials[pendingSocialRemoval]?.url || 'this link'
+              } from your Space card.`
+            : ''
+        }
+        destructive
+        destructiveText="Remove"
+        onConfirm={() => {
+          if (pendingSocialRemoval !== null) {
+            removeSocial(pendingSocialRemoval)
+          }
+          setPendingSocialRemoval(null)
+        }}
+      />
+
+      <ConfirmModal
+        isShown={pendingSpaceDisable}
+        hide={() => setPendingSpaceDisable(false)}
+        title="Disable your Space?"
+        description="Your public Space URL will return 404 to visitors until you re-enable it. Your products and links are not deleted."
+        destructive
+        destructiveText="Disable Space"
+        onConfirm={() => {
+          updateSetting('enabled', false)
+          setPendingSpaceDisable(false)
+        }}
       />
 
       {/* Display Settings — always visible, not collapsible */}

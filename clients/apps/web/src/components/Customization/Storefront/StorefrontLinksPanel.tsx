@@ -1,6 +1,7 @@
 'use client'
 
 import { Upload } from '@/components/FileUpload/Upload'
+import { ConfirmModal } from '@/components/Modal/ConfirmModal'
 import { StorefrontLinkItem } from '@/components/Profile/StorefrontLinks'
 import AddOutlined from '@mui/icons-material/AddOutlined'
 import AddPhotoAlternateOutlined from '@mui/icons-material/AddPhotoAlternateOutlined'
@@ -476,6 +477,17 @@ export const StorefrontLinksPanel = ({
     [getValues, setLinks],
   )
 
+  // Confirm before removing a link. The delete button (h-7 w-7 next to
+  // the chevron) is easy to mis-tap, and the link's metadata + cover are
+  // not recoverable.
+  const [pendingLinkRemoval, setPendingLinkRemoval] = useState<string | null>(
+    null,
+  )
+  const pendingLink =
+    pendingLinkRemoval !== null
+      ? storefrontLinks.find((l) => l.id === pendingLinkRemoval)
+      : null
+
   const toggleExpanded = (id: string) => {
     let opening = false
     setExpandedIds((prev) => {
@@ -661,7 +673,7 @@ export const StorefrontLinksPanel = ({
                     isExpanded={expandedIds.has(link.id)}
                     onToggle={() => toggleExpanded(link.id)}
                     onUpdate={updateLink}
-                    onRemove={() => removeLink(link.id)}
+                    onRemove={() => setPendingLinkRemoval(link.id)}
                     registerRef={(el) => {
                       if (el) cardRefs.current.set(link.id, el)
                       else cardRefs.current.delete(link.id)
@@ -703,6 +715,23 @@ export const StorefrontLinksPanel = ({
           )}
         </div>
       </div>
+
+      <ConfirmModal
+        isShown={pendingLinkRemoval !== null}
+        hide={() => setPendingLinkRemoval(null)}
+        title="Remove this link?"
+        description={
+          pendingLink
+            ? `${pendingLink.title || getDomain(pendingLink.url)} will be removed from your Space along with its cover image and metadata.`
+            : ''
+        }
+        destructive
+        destructiveText="Remove link"
+        onConfirm={() => {
+          if (pendingLinkRemoval) removeLink(pendingLinkRemoval)
+          setPendingLinkRemoval(null)
+        }}
+      />
     </>
   )
 }
