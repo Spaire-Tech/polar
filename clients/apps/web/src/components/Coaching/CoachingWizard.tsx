@@ -199,6 +199,7 @@ export default function CoachingWizard({
         ...rest,
         name: program.title || 'Untitled Program',
         description: program.transformation || null,
+        category: 'coaching',
         medias: mediaIds,
         metadata: metadata.reduce<Record<string, string | number | boolean>>(
           (acc, { key, value }) => ({ ...acc, [key]: value }),
