@@ -52,6 +52,9 @@ export function IntakeTab({ course }: { course: CourseRead }) {
 
   const [enabled, setEnabled] = useState<boolean>(!!form)
   const [fields, setFields] = useState<DraftField[]>([])
+  const [formTitle, setFormTitle] = useState<string>('Intake form')
+  const [formDescription, setFormDescription] = useState<string>('')
+  const [requiredForAccess, setRequiredForAccess] = useState<boolean>(false)
   const [showFormEditor, setShowFormEditor] = useState(false)
   const [showAddType, setShowAddType] = useState(false)
   const [selectedSub, setSelectedSub] = useState<
@@ -68,6 +71,9 @@ export function IntakeTab({ course }: { course: CourseRead }) {
           _key: f.id,
         })),
       )
+      setFormTitle(form?.title ?? 'Intake form')
+      setFormDescription(form?.description ?? '')
+      setRequiredForAccess(form?.required_for_access ?? false)
     }
   }, [form?.id])
 
@@ -94,9 +100,9 @@ export function IntakeTab({ course }: { course: CourseRead }) {
     try {
       await upsert.mutateAsync({
         course_id: courseId,
-        title: form?.title ?? 'Intake form',
-        description: form?.description ?? null,
-        required_for_access: form?.required_for_access ?? false,
+        title: formTitle.trim() || 'Intake form',
+        description: formDescription.trim() || null,
+        required_for_access: requiredForAccess,
         schema_json,
       })
       setShowFormEditor(false)
@@ -355,7 +361,7 @@ export function IntakeTab({ course }: { course: CourseRead }) {
         open={showFormEditor}
         onClose={() => setShowFormEditor(false)}
         title="Edit intake form"
-        subtitle="Drag to reorder. Members fill this out the first time they open their portal."
+        subtitle="Members fill this out the first time they open their portal."
         footer={
           <>
             <Btn variant="ghost" onClick={() => setShowFormEditor(false)}>
@@ -372,10 +378,59 @@ export function IntakeTab({ course }: { course: CourseRead }) {
         }
       >
         <div>
-          {fields.map((f) => (
+          <div className="ce-stack-16" style={{ marginBottom: 24 }}>
+            <div>
+              <label className="ce-label">Form title</label>
+              <input
+                className="ce-input"
+                value={formTitle}
+                onChange={(e) => setFormTitle(e.target.value)}
+                placeholder="Intake form"
+              />
+            </div>
+            <div>
+              <label className="ce-label">Description</label>
+              <textarea
+                className="ce-textarea"
+                rows={2}
+                value={formDescription}
+                onChange={(e) => setFormDescription(e.target.value)}
+                placeholder="A short note explaining what you'll do with the answers."
+              />
+            </div>
+            <label
+              className="ce-row"
+              style={{ gap: 8, fontSize: 13, color: 'var(--ink-2)' }}
+            >
+              <input
+                type="checkbox"
+                checked={requiredForAccess}
+                onChange={(e) => setRequiredForAccess(e.target.checked)}
+              />
+              Show a banner prompting members to fill it out
+              <span className="ce-mini" style={{ marginLeft: 4 }}>
+                (never blocks access)
+              </span>
+            </label>
+          </div>
+          <hr className="ce-divider" style={{ margin: '0 0 16px' }} />
+          <div className="ce-label" style={{ marginBottom: 12 }}>
+            Fields
+          </div>
+          {fields.map((f, idx) => (
             <FieldBlock
               key={f._key}
               field={f}
+              canMoveUp={idx > 0}
+              canMoveDown={idx < fields.length - 1}
+              onMove={(dir) => {
+                const j = dir === 'up' ? idx - 1 : idx + 1
+                if (j < 0 || j >= fields.length) return
+                const next = fields.slice()
+                next.splice(idx, 1)
+                next.splice(j, 0, f)
+                setFields(next)
+              }}
               onUpdate={(u) =>
                 setFields(
                   fields.map((x) => (x._key === f._key ? { ...u, _key: x._key } : x)),
@@ -451,10 +506,16 @@ export function IntakeTab({ course }: { course: CourseRead }) {
 
 function FieldBlock({
   field,
+  canMoveUp,
+  canMoveDown,
+  onMove,
   onUpdate,
   onDelete,
 }: {
   field: IntakeField
+  canMoveUp: boolean
+  canMoveDown: boolean
+  onMove: (dir: 'up' | 'down') => void
   onUpdate: (next: IntakeField) => void
   onDelete: () => void
 }) {
@@ -462,8 +523,42 @@ function FieldBlock({
     field.type === 'select' || field.type === 'multiselect'
   return (
     <div className="ce-field-block">
-      <div className="ce-field-handle">
-        <Ic.Drag size={14} />
+      <div
+        className="ce-field-handle"
+        style={{ flexDirection: 'column', gap: 0 }}
+      >
+        <button
+          type="button"
+          aria-label="Move up"
+          onClick={() => onMove('up')}
+          disabled={!canMoveUp}
+          style={{
+            background: 'transparent',
+            border: 0,
+            color: canMoveUp ? 'var(--ink-3)' : 'var(--ink-5)',
+            cursor: canMoveUp ? 'pointer' : 'not-allowed',
+            padding: 0,
+            lineHeight: 1,
+          }}
+        >
+          <Ic.ChevronDown size={14} style={{ transform: 'rotate(180deg)' }} />
+        </button>
+        <button
+          type="button"
+          aria-label="Move down"
+          onClick={() => onMove('down')}
+          disabled={!canMoveDown}
+          style={{
+            background: 'transparent',
+            border: 0,
+            color: canMoveDown ? 'var(--ink-3)' : 'var(--ink-5)',
+            cursor: canMoveDown ? 'pointer' : 'not-allowed',
+            padding: 0,
+            lineHeight: 1,
+          }}
+        >
+          <Ic.ChevronDown size={14} />
+        </button>
       </div>
       <div style={{ flex: 1 }}>
         <div className="ce-row" style={{ gap: 8, marginBottom: 8 }}>
