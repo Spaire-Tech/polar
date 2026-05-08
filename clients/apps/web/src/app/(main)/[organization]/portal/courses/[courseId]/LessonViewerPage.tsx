@@ -27,6 +27,7 @@ interface FlatLesson {
   locked_until?: string | null
   content_type: string
   content: Record<string, unknown> | null
+  comments_mode?: 'visible' | 'hidden' | 'locked'
 }
 
 interface LessonViewerPageProps {
@@ -138,6 +139,7 @@ const LessonViewerPage = ({
           mux_status: currentLesson.mux_status,
           completed: currentLesson.completed,
           content: currentLesson.content,
+          comments_mode: currentLesson.comments_mode,
         }}
         lessonIndex={flatLessons.findIndex((l) => l.id === currentLesson.id)}
         totalLessons={flatLessons.length}
@@ -169,6 +171,7 @@ const LessonViewerPage = ({
         token={customerSessionToken}
         courseId={courseId}
         organizationSlug={organization.slug}
+        customerName={data.customer_name ?? null}
       />
     )
   }

@@ -497,6 +497,7 @@ export type CustomerLessonRead = {
   thumbnail_object_position?: string | null
   completed: boolean
   description?: string | null
+  comments_mode?: 'visible' | 'hidden' | 'locked'
   locked?: boolean
   locked_until?: string | null
 }

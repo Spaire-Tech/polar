@@ -26,6 +26,7 @@ export interface MasterClassLessonViewerProps {
     mux_status?: string | null
     completed: boolean
     content?: Record<string, unknown> | null
+    comments_mode?: 'visible' | 'hidden' | 'locked'
   }
   lessonIndex: number
   totalLessons: number
@@ -51,6 +52,7 @@ export interface MasterClassLessonViewerProps {
   token: string
   courseId: string
   organizationSlug: string
+  customerName?: string | null
   // 'portal' = signed-in customer, full toolbar (Share + Class Guide + Bookmark)
   // 'landing' = public preview, only Share is shown
   mode?: 'portal' | 'landing'
@@ -91,6 +93,7 @@ export const MasterClassLessonViewer = ({
   token,
   courseId,
   organizationSlug,
+  customerName,
   mode = 'portal',
 }: MasterClassLessonViewerProps) => {
   const [playing, setPlaying] = useState(false)
@@ -492,6 +495,8 @@ export const MasterClassLessonViewer = ({
               token={token}
               courseId={courseId}
               lessonId={lesson.id}
+              customerName={customerName ?? null}
+              commentsMode={lesson.comments_mode ?? 'visible'}
             />
           </div>
 

@@ -65,6 +65,10 @@ def _lesson_read(lesson) -> CourseLessonRead:
         description=getattr(lesson, "description", None),
         release_at=getattr(lesson, "release_at", None),
         drip_days=getattr(lesson, "drip_days", None),
+        comments_mode=getattr(lesson, "comments_mode", "visible"),
+        thumbnail_object_position=getattr(
+            lesson, "thumbnail_object_position", None
+        ),
         created_at=lesson.created_at,
         modified_at=lesson.modified_at,
     )

@@ -40,24 +40,40 @@ from ..utils import get_customer_id
 router = APIRouter(prefix="/courses", tags=["customer_portal_courses", APITag.public])
 
 
-def _serialize_lesson(lesson, completed_ids: set[str]) -> dict:
-    return {
+def _serialize_lesson(
+    lesson, completed_ids: set[str], *, accessible: bool = True
+) -> dict:
+    """Serialize a lesson for the customer portal.
+
+    When ``accessible`` is False (paywall- or drip-locked), strip body fields
+    that would let a client bypass the lock (content, mux playback id,
+    description, attachments).
+    """
+    base = {
         "id": str(lesson.id),
         "title": lesson.title,
-        "description": getattr(lesson, "description", None),
         "content_type": lesson.content_type,
-        "content": lesson.content,
         "position": lesson.position,
         "duration_seconds": lesson.duration_seconds,
         "is_free_preview": lesson.is_free_preview,
-        "mux_playback_id": getattr(lesson, "mux_playback_id", None),
-        "mux_status": getattr(lesson, "mux_status", None),
         "thumbnail_url": getattr(lesson, "thumbnail_url", None),
         "thumbnail_object_position": getattr(
             lesson, "thumbnail_object_position", None
         ),
+        "comments_mode": getattr(lesson, "comments_mode", "visible"),
         "completed": str(lesson.id) in completed_ids,
     }
+    if accessible:
+        base["description"] = getattr(lesson, "description", None)
+        base["content"] = lesson.content
+        base["mux_playback_id"] = getattr(lesson, "mux_playback_id", None)
+        base["mux_status"] = getattr(lesson, "mux_status", None)
+    else:
+        base["description"] = None
+        base["content"] = None
+        base["mux_playback_id"] = None
+        base["mux_status"] = None
+    return base
 
 
 def _build_module_list(course, paywall_position, enrolled_at, now, completed_ids):
@@ -100,7 +116,10 @@ def _build_module_list(course, paywall_position, enrolled_at, now, completed_ids
             # Locked module: surface free-preview lessons only.
             visible = [lesson for lesson in published_lessons if lesson.is_free_preview]
 
-        lessons = [_serialize_lesson(lesson, completed_ids) for lesson in visible]
+        lessons = [
+            _serialize_lesson(lesson, completed_ids, accessible=True)
+            for lesson in visible
+        ]
         for lesson in visible:
             accessible_ids.add(str(lesson.id))
 
@@ -146,10 +165,13 @@ def _build_flat_lesson_list(course, paywall_position, enrolled_at, now, complete
         locked = not is_accessible
         locked_until_str = locked_until.isoformat() if locked_until else None
 
-        lesson_data = _serialize_lesson(lesson, completed_ids)
+        # Free-preview lessons inside locked modules stay fully accessible.
+        accessible = is_accessible or lesson.is_free_preview
+        lesson_data = _serialize_lesson(
+            lesson, completed_ids, accessible=accessible
+        )
         lesson_data["locked"] = locked
         lesson_data["locked_until"] = locked_until_str
-        lesson_data["description"] = lesson.description
 
         flat_lessons.append(lesson_data)
 
@@ -787,17 +809,32 @@ async def _verify_lesson_in_enrolled_course(
     return enrollment, lesson
 
 
+def _resolve_author_name(name: str | None, email: str | None) -> str | None:
+    if name:
+        stripped = name.strip()
+        if stripped:
+            return stripped
+    if email:
+        local_part = email.split("@", 1)[0].strip()
+        if local_part:
+            return local_part
+    return None
+
+
 async def _load_authors(
     session: AsyncSession, enrollment_ids: set[UUID]
 ) -> dict[UUID, LessonCommentAuthor]:
     if not enrollment_ids:
         return {}
-    stmt = select(CourseEnrollment.id, Customer.name).join(
+    stmt = select(CourseEnrollment.id, Customer.name, Customer.email).join(
         Customer, Customer.id == CourseEnrollment.customer_id
     ).where(CourseEnrollment.id.in_(enrollment_ids))
     result = await session.execute(stmt)
     return {
-        row.id: LessonCommentAuthor(enrollment_id=row.id, name=row.name)
+        row.id: LessonCommentAuthor(
+            enrollment_id=row.id,
+            name=_resolve_author_name(row.name, row.email),
+        )
         for row in result
     }
 
@@ -814,9 +851,13 @@ async def list_lesson_comments(
     session: AsyncSession = Depends(get_db_session),
 ) -> list[LessonCommentRead]:
     customer_id = get_customer_id(auth_subject)
-    enrollment, _ = await _verify_lesson_in_enrolled_course(
+    enrollment, lesson = await _verify_lesson_in_enrolled_course(
         session, customer_id, course_id, lesson_id
     )
+    if getattr(lesson, "comments_mode", "visible") == "hidden":
+        raise HTTPException(
+            status_code=403, detail="Comments are disabled for this lesson"
+        )
     comments = await course_service.list_lesson_comments(
         session, lesson_id=lesson_id
     )
@@ -852,9 +893,19 @@ async def create_lesson_comment(
     session: AsyncSession = Depends(get_db_session),
 ) -> LessonCommentRead:
     customer_id = get_customer_id(auth_subject)
-    enrollment, _ = await _verify_lesson_in_enrolled_course(
+    enrollment, lesson = await _verify_lesson_in_enrolled_course(
         session, customer_id, course_id, lesson_id
     )
+    mode = getattr(lesson, "comments_mode", "visible")
+    if mode != "visible":
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Comments are disabled for this lesson"
+                if mode == "hidden"
+                else "Comments are locked for this lesson"
+            ),
+        )
     try:
         comment = await course_service.create_lesson_comment(
             session,
