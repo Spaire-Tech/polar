@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from datetime import datetime, time, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 import structlog
@@ -86,19 +86,19 @@ def apply_send_window(
     start_hour = max(0, min(23, start_hour))
     end_hour = max(start_hour + 1, min(24, end_hour))
 
-    target_tz = timezone.utc
+    target_tz = UTC
     if window.get("respect_timezone") and subscriber_timezone:
         try:
             from zoneinfo import ZoneInfo
 
             target_tz = ZoneInfo(subscriber_timezone)
         except Exception:
-            target_tz = timezone.utc
+            target_tz = UTC
 
     moment = (
         candidate.astimezone(target_tz)
         if candidate.tzinfo
-        else candidate.replace(tzinfo=timezone.utc).astimezone(target_tz)
+        else candidate.replace(tzinfo=UTC).astimezone(target_tz)
     )
     for _ in range(14):  # 2-week safety bound; windows always recur weekly
         if moment.weekday() in days_set:
@@ -109,9 +109,9 @@ def apply_send_window(
                 hour=0, minute=0, second=0, microsecond=0
             ) + timedelta(hours=end_hour)
             if moment < window_start:
-                return window_start.astimezone(timezone.utc)
+                return window_start.astimezone(UTC)
             if moment < window_end:
-                return moment.astimezone(timezone.utc)
+                return moment.astimezone(UTC)
         moment = (
             moment.replace(hour=0, minute=0, second=0, microsecond=0)
             + timedelta(days=1)
@@ -408,14 +408,14 @@ class EmailSequenceService:
         # tree via flow_index. The initial next_step_at honours an opening
         # wait node so first emails don't fire mid-night for time-of-day
         # gated flows.
+        # Resolve subscriber tz (best-effort) so the first send respects it.
+        from polar.models.email_subscriber import EmailSubscriber
+
         from .flow_engine import (
             get_flow_doc,
             initial_flow_index,
             initial_send_at,
         )
-
-        # Resolve subscriber tz (best-effort) so the first send respects it.
-        from polar.models.email_subscriber import EmailSubscriber
 
         sub = await session.get(EmailSubscriber, subscriber_id)
         sub_tz = getattr(sub, "timezone", None) if sub is not None else None
@@ -657,7 +657,6 @@ class EmailSequenceService:
         """Render this step exactly as the worker would and ship it to
         a single inbox. Doesn't touch step_sends or enrollments — purely
         a preview send."""
-        from polar.config import settings as app_settings
         from polar.email.react import render_email_template
         from polar.email.schemas import MarketingEmail, MarketingEmailProps
         from polar.email.sender import email_sender
@@ -671,9 +670,11 @@ class EmailSequenceService:
             else None
         )
 
-        unsubscribe_url = (
-            f"{app_settings.FRONTEND_BASE_URL}/email/unsubscribe?test=1"
+        from polar.email_subscriber.unsubscribe_token import (
+            build_test_unsubscribe_url,
         )
+
+        unsubscribe_url = build_test_unsubscribe_url()
         wrapped_html = render_email_template(
             MarketingEmail(
                 props=MarketingEmailProps(

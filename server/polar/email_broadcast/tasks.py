@@ -3,17 +3,25 @@ from uuid import UUID, uuid4
 import structlog
 from sqlalchemy import select
 
-from polar.config import settings
 from polar.email.react import render_email_template
 from polar.email.schemas import MarketingEmail, MarketingEmailProps
 from polar.email.sender import email_sender
 from polar.kit.utils import utc_now
 from polar.models.email_broadcast import EmailBroadcast, EmailBroadcastStatus
 from polar.models.email_broadcast_ab_test import EmailBroadcastABTest
-from polar.models.email_broadcast_send import EmailBroadcastSend, EmailBroadcastSendStatus
+from polar.models.email_broadcast_send import (
+    EmailBroadcastSend,
+    EmailBroadcastSendStatus,
+)
 from polar.models.email_subscriber import EmailSubscriber
 from polar.models.organization import Organization
-from polar.worker import AsyncSessionMaker, CronTrigger, TaskPriority, actor, enqueue_job
+from polar.worker import (
+    AsyncSessionMaker,
+    CronTrigger,
+    TaskPriority,
+    actor,
+    enqueue_job,
+)
 
 log = structlog.get_logger()
 
@@ -125,9 +133,11 @@ async def send_emails(
                 subject_override = ab_test.subject_b
 
             try:
-                unsubscribe_url = (
-                    f"{settings.FRONTEND_BASE_URL}/email/unsubscribe?sid={send.subscriber_id}"
+                from polar.email_subscriber.unsubscribe_token import (
+                    build_unsubscribe_url,
                 )
+
+                unsubscribe_url = build_unsubscribe_url(send.subscriber_id)
                 resend_email_id = await send_broadcast_email(
                     broadcast,
                     organization,

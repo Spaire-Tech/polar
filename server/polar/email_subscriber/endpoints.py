@@ -331,7 +331,11 @@ async def delete_email_subscriber_permanently(
 
 @router.api_route("/unsubscribe", methods=["GET", "POST"], status_code=200)
 async def unsubscribe_email_subscriber(
-    sid: str = Query(..., description="Subscriber id from the email link."),
+    token: str | None = Query(
+        default=None,
+        description="Signed unsubscribe token from the email link.",
+    ),
+    test: str | None = Query(default=None),
     session: AsyncSession = Depends(get_db_session),
 ) -> dict[str, bool]:
     """Public, no-auth unsubscribe endpoint.
@@ -341,17 +345,27 @@ async def unsubscribe_email_subscriber(
     email works on click) and POST (so RFC 8058 one-click unsubscribe via
     `List-Unsubscribe-Post: List-Unsubscribe=One-Click` works).
 
-    Idempotent — returns `{ ok: true }` whether or not the subscriber was
-    already unsubscribed.
+    The token is HMAC-signed with the server secret and binds the unsubscribe
+    URL to a specific subscriber id. Without it, anyone who could guess a
+    subscriber UUID could unsubscribe arbitrary users.
+
+    Idempotent — always returns `{ ok: true }` for any well-formed signed
+    token (even if the subscriber is already unsubscribed or no longer
+    exists), so we don't leak existence to attackers probing tokens.
     """
-    if sid in ("", "preview", "test", "1"):
+    from .unsubscribe_token import verify_unsubscribe_token
+
+    if test is not None:
         return {"ok": True}
-    try:
-        subscriber_id = UUID(sid)
-    except (ValueError, TypeError):
-        return {"ok": False}
-    ok = await email_subscriber_service.unsubscribe_by_id(session, subscriber_id)
-    return {"ok": ok}
+    if not token:
+        return {"ok": True}
+    subscriber_id = verify_unsubscribe_token(token)
+    if subscriber_id is None:
+        # Treat invalid/expired tokens as success to avoid leaking signal
+        # about whether a token is valid or which subscribers exist.
+        return {"ok": True}
+    await email_subscriber_service.unsubscribe_by_id(session, subscriber_id)
+    return {"ok": True}
 
 
 @router.post(

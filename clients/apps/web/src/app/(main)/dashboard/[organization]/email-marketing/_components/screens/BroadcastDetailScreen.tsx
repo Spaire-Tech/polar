@@ -10,6 +10,7 @@ import {
 import { useState } from 'react'
 import { ActionMenu } from '../ActionMenu'
 import { Icon } from '../Icon'
+import { sanitizeEmailHtml } from '../sanitize'
 import { MetricTile } from '../shared'
 
 const PAGE_SIZE = 20
@@ -248,7 +249,9 @@ export const BroadcastDetailScreen = ({
             }}
             // Email content is HTML produced by the org owner inside our composer.
             // It still goes through the same render pipeline used by the email worker.
-            dangerouslySetInnerHTML={{ __html: broadcast.content_html }}
+            dangerouslySetInnerHTML={{
+              __html: sanitizeEmailHtml(broadcast.content_html),
+            }}
           />
         </div>
       )}

@@ -293,14 +293,37 @@ export const blockLibrary: { type: BlockType; label: string; icon: string }[] =
     { type: 'divider', label: 'Divider', icon: 'divider' },
   ]
 
+const KNOWN_BLOCK_TYPES = new Set<string>([
+  'eyebrow',
+  'heading',
+  'subheading',
+  'paragraph',
+  'badge',
+  'image',
+  'button',
+  'divider',
+  'video',
+  'list',
+  'quote',
+  'columns',
+  'checklist',
+  'event-card',
+  'receipt',
+  'digest-item',
+])
+
 export const isContentDoc = (value: unknown): value is ContentDoc => {
   if (typeof value !== 'object' || value === null) return false
   const v = value as { version?: unknown; blocks?: unknown }
-  return (
-    v.version === 1 &&
-    Array.isArray(v.blocks) &&
-    v.blocks.every(
-      (b) => typeof b === 'object' && b !== null && 'type' in b && 'id' in b,
+  if (v.version !== 1 || !Array.isArray(v.blocks)) return false
+  return v.blocks.every((b) => {
+    if (typeof b !== 'object' || b === null) return false
+    const block = b as { type?: unknown; id?: unknown }
+    return (
+      typeof block.type === 'string' &&
+      KNOWN_BLOCK_TYPES.has(block.type) &&
+      typeof block.id === 'string' &&
+      block.id.length > 0
     )
-  )
+  })
 }

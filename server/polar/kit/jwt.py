@@ -25,6 +25,7 @@ TYPE = Literal[
     "auth",
     "github_repository_benefit_oauth",
     "customer_oauth",
+    "email_unsubscribe",
 ]
 
 

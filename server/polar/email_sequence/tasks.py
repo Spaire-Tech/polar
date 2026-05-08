@@ -3,7 +3,6 @@ from uuid import UUID
 
 import structlog
 
-from polar.config import settings
 from polar.email.react import render_email_template
 from polar.email.schemas import MarketingEmail, MarketingEmailProps
 from polar.email.sender import email_sender
@@ -35,7 +34,8 @@ log = structlog.get_logger()
 @actor(actor_name="email_sequence.enroll_subscriber", priority=TaskPriority.MEDIUM)
 async def enroll_subscriber(sequence_id: UUID, subscriber_id: UUID) -> None:
     """Create an enrollment for a subscriber in a sequence."""
-    from .service import AlreadyEnrolled, email_sequence as sequence_service
+    from .service import AlreadyEnrolled
+    from .service import email_sequence as sequence_service
 
     async with AsyncSessionMaker() as session:
         sequence = await session.get(EmailSequence, sequence_id)
@@ -134,8 +134,8 @@ async def _process_with_flow_engine(
         _seq: EmailSequence,
         enr: EmailSequenceEnrollment,
         value: dict,
-    ) -> None:
-        await _send_email_node(
+    ) -> dict | None:
+        return await _send_email_node(
             session,
             sequence=sequence,
             enrollment=enr,
@@ -324,9 +324,9 @@ async def _send_email_step(
     organization: Organization | None,
     step: EmailSequenceStep,
 ) -> None:
-    unsubscribe_url = (
-        f"{settings.FRONTEND_BASE_URL}/email/unsubscribe?sid={enrollment.subscriber_id}"
-    )
+    from polar.email_subscriber.unsubscribe_token import build_unsubscribe_url
+
+    unsubscribe_url = build_unsubscribe_url(enrollment.subscriber_id)
     try:
         wrapped_html = render_email_template(
             MarketingEmail(
@@ -396,9 +396,9 @@ async def _send_inline(
     sender_email: str | None,
     content_html: str,
 ) -> None:
-    unsubscribe_url = (
-        f"{settings.FRONTEND_BASE_URL}/email/unsubscribe?sid={enrollment.subscriber_id}"
-    )
+    from polar.email_subscriber.unsubscribe_token import build_unsubscribe_url
+
+    unsubscribe_url = build_unsubscribe_url(enrollment.subscriber_id)
     try:
         wrapped_html = render_email_template(
             MarketingEmail(

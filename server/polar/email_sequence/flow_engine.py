@@ -13,6 +13,7 @@ walker here. The cursor lives in `EmailSequenceEnrollment.flow_index`.
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from datetime import datetime, time, timedelta, timezone
 from typing import Any
 from uuid import UUID
@@ -93,10 +94,11 @@ def _wait_until_time(value: dict, base: datetime) -> datetime:
     """Return the next datetime matching `time` on the requested day offset."""
     offset_map = {"next": 1, "+2": 2, "+3": 3, "+7": 7}
     days = offset_map.get(value.get("dayOffset", "next"), 1)
-    hh, mm = (value.get("time") or "09:00").split(":") + ["0"]
+    raw = value.get("time") or "09:00"
+    parts = raw.split(":") if isinstance(raw, str) else []
     try:
-        hour = max(0, min(23, int(hh)))
-        minute = max(0, min(59, int(mm)))
+        hour = max(0, min(23, int(parts[0]))) if len(parts) >= 1 else 9
+        minute = max(0, min(59, int(parts[1]))) if len(parts) >= 2 else 0
     except (TypeError, ValueError):
         hour, minute = 9, 0
     target = base + timedelta(days=days)
@@ -331,7 +333,10 @@ async def process_one_step(
     enrollment: EmailSequenceEnrollment,
     sequence: EmailSequence,
     *,
-    send_email_node: callable[[EmailSequence, EmailSequenceEnrollment, dict], dict | None],
+    send_email_node: Callable[
+        [EmailSequence, EmailSequenceEnrollment, dict],
+        Awaitable[dict | None],
+    ],
 ) -> None:
     """Walk a single iteration of the flow for `enrollment`.
 

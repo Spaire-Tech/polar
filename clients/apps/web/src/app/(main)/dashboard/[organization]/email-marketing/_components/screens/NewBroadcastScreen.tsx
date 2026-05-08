@@ -23,6 +23,7 @@ import { renderBlocksToHtml } from '../blockEditor/render'
 import { Block, ContentDoc, isContentDoc, newId } from '../blockEditor/types'
 import { Composer } from '../composer/Composer'
 import { Icon } from '../Icon'
+import { sanitizeEmailHtml } from '../sanitize'
 import { KV, Section, Toggle } from '../shared'
 
 type Step = 'details' | 'content' | 'audience' | 'preview' | 'review'
@@ -1494,7 +1495,7 @@ const DesktopPreview = ({ draft }: { draft: Draft }) => {
             </h3>
             <div
               style={{ fontSize: 14, lineHeight: 1.65, color: '#000' }}
-              dangerouslySetInnerHTML={{ __html: html }}
+              dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(html) }}
             />
           </div>
         </div>
@@ -1704,7 +1705,7 @@ const MobilePreview = ({ draft }: { draft: Draft }) => {
               color: '#000',
               fontFamily: SF_FONT,
             }}
-            dangerouslySetInnerHTML={{ __html: html }}
+            dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(html) }}
           />
         </div>
       </div>
