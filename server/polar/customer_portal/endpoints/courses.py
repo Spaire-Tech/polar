@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 log = logging.getLogger(__name__)
 
 from polar.auth.models import is_customer, is_member
+from polar.course import mux as mux_client
 from polar.course.repository import CourseLessonRepository
 from polar.course.schemas import (
     CourseLessonFlatRead,
@@ -66,12 +67,15 @@ def _serialize_lesson(
     if accessible:
         base["description"] = getattr(lesson, "description", None)
         base["content"] = lesson.content
-        base["mux_playback_id"] = getattr(lesson, "mux_playback_id", None)
+        playback_id = getattr(lesson, "mux_playback_id", None)
+        base["mux_playback_id"] = playback_id
+        base["mux_playback_url"] = mux_client.playback_url(playback_id)
         base["mux_status"] = getattr(lesson, "mux_status", None)
     else:
         base["description"] = None
         base["content"] = None
         base["mux_playback_id"] = None
+        base["mux_playback_url"] = None
         base["mux_status"] = None
     return base
 

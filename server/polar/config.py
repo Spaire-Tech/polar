@@ -232,6 +232,12 @@ class Settings(BaseSettings):
     MUX_TOKEN_ID: str = ""
     MUX_TOKEN_SECRET: str = ""
     MUX_WEBHOOK_SECRET: str = ""
+    # Signing key used to mint short-lived JWTs for signed playback URLs
+    # (https://docs.mux.com/guides/secure-video-playback). When set, new
+    # uploads use playback_policy=signed; legacy public assets keep working.
+    MUX_SIGNING_KEY_ID: str = ""
+    MUX_SIGNING_KEY_PRIVATE: str = ""  # PEM-encoded RSA private key
+    MUX_SIGNED_URL_TTL_SECONDS: int = 3600
 
     # Numeral
     NUMERAL_API_KEY: str | None = None

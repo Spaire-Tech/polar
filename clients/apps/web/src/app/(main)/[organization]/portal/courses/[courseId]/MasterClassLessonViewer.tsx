@@ -23,6 +23,7 @@ export interface MasterClassLessonViewerProps {
     thumbnail_url?: string | null
     thumbnail_object_position?: string | null
     mux_playback_id?: string | null
+    mux_playback_url?: string | null
     mux_status?: string | null
     completed: boolean
     content?: Record<string, unknown> | null
@@ -194,6 +195,7 @@ export const MasterClassLessonViewer = ({
           <div className="w-full bg-black" style={{ aspectRatio: '16/9' }}>
             <HlsVideo
               playbackId={lesson.mux_playback_id}
+              playbackUrl={lesson.mux_playback_url}
               poster={thumbnailSrc ?? undefined}
               autoPlay
             />

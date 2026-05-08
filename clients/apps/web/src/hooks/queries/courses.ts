@@ -492,6 +492,7 @@ export type CustomerLessonRead = {
   duration_seconds: number | null
   is_free_preview: boolean
   mux_playback_id: string | null
+  mux_playback_url?: string | null
   mux_status: string | null
   thumbnail_url: string | null
   thumbnail_object_position?: string | null

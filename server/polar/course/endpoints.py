@@ -854,3 +854,30 @@ async def mux_webhook(
                 await lesson_repo.update(
                     lesson, update_dict={"mux_status": "errored"}
                 )
+
+    elif event_type in (
+        "video.asset.created",
+        "video.upload.asset_created",
+        "video.asset.preparing",
+    ):
+        upload_id = data.get("upload_id") or data.get("id")
+        if upload_id:
+            lesson = await _find_lesson_by_upload(upload_id)
+            if lesson and lesson.mux_status != "ready":
+                await lesson_repo.update(
+                    lesson, update_dict={"mux_status": "processing"}
+                )
+
+    elif event_type == "video.asset.deleted":
+        upload_id = data.get("upload_id")
+        if upload_id:
+            lesson = await _find_lesson_by_upload(upload_id)
+            if lesson:
+                await lesson_repo.update(
+                    lesson,
+                    update_dict={
+                        "mux_status": "deleted",
+                        "mux_playback_id": None,
+                        "mux_asset_id": None,
+                    },
+                )

@@ -20,6 +20,7 @@ interface FlatLesson {
   thumbnail_url?: string | null
   thumbnail_object_position?: string | null
   mux_playback_id?: string | null
+  mux_playback_url?: string | null
   mux_status?: string | null
   completed: boolean
   is_free_preview: boolean
@@ -137,6 +138,7 @@ const LessonViewerPage = ({
           thumbnail_object_position: currentLesson.thumbnail_object_position,
           mux_playback_id: currentLesson.mux_playback_id,
           mux_status: currentLesson.mux_status,
+          mux_playback_url: currentLesson.mux_playback_url,
           completed: currentLesson.completed,
           content: currentLesson.content,
           comments_mode: currentLesson.comments_mode,
