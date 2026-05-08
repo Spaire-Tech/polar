@@ -5,6 +5,7 @@ import HiveOutlined from '@mui/icons-material/HiveOutlined'
 import { schemas } from '@spaire/client'
 import Link from 'next/link'
 import { useMemo } from 'react'
+import { SectionLabel } from './SectionLabel'
 import {
   LinksLayout,
   StorefrontLinkItem,
@@ -47,12 +48,9 @@ export const Storefront = ({
       : true
 
   const thumbnailSize =
-    'storefront_settings' in organization
-      ? ((organization.storefront_settings?.thumbnail_size as
-          | 'small'
-          | 'medium'
-          | 'large') ?? 'medium')
-      : 'medium'
+    ('storefront_settings' in organization
+      ? organization.storefront_settings?.thumbnail_size
+      : null) ?? 'medium'
 
   const featuredMode: 'all' | 'curated' =
     'storefront_settings' in organization
@@ -70,17 +68,15 @@ export const Storefront = ({
           []) as StorefrontLinkItem[])
       : []
 
-  const linksPosition: 'before_products' | 'after_products' =
-    'storefront_settings' in organization
-      ? ((organization.storefront_settings?.links_position ??
-          'after_products') as 'before_products' | 'after_products')
-      : 'after_products'
+  const linksPosition =
+    ('storefront_settings' in organization
+      ? organization.storefront_settings?.links_position
+      : null) ?? 'after_products'
 
   const linksLayout: LinksLayout =
-    'storefront_settings' in organization
-      ? ((organization.storefront_settings?.links_layout ??
-          'classic') as LinksLayout)
-      : 'classic'
+    ('storefront_settings' in organization
+      ? organization.storefront_settings?.links_layout
+      : null) ?? 'classic'
 
   // Products scoped by featured_mode. In 'all' mode every active product
   // is shown (including ones created after curation was set up); in
@@ -98,7 +94,7 @@ export const Storefront = ({
     const buckets: Record<string, schemas['ProductStorefront'][]> = {}
     const uncategorized: schemas['ProductStorefront'][] = []
     for (const p of scopedProducts) {
-      const cat = (p as any).category as string | null | undefined
+      const cat = p.category
       if (cat && cat in CATEGORY_LABELS) {
         ;(buckets[cat] ??= []).push(p)
       } else {
@@ -159,14 +155,9 @@ export const Storefront = ({
           id={`section-${section.key}`}
           className="flex scroll-mt-24 flex-col gap-6"
         >
-          <div className="inline-flex items-center gap-2 self-start rounded-full border border-white/60 bg-white/40 px-3.5 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_2px_rgba(0,0,0,0.04)] backdrop-blur-xl">
-            <span className="text-[11px] font-semibold tracking-[0.14em] text-gray-700 uppercase">
-              {section.label}
-            </span>
-            <span className="text-[11px] font-medium text-gray-400 tabular-nums">
-              {section.items.length}
-            </span>
-          </div>
+          <SectionLabel count={section.items.length}>
+            {section.label}
+          </SectionLabel>
           <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-2">
             {section.items.map((product) =>
               preview ? (
