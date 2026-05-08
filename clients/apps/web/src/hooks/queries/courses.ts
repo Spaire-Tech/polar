@@ -576,6 +576,12 @@ export type CourseLandingPageData = {
   lesson_count: number
   total_duration_seconds: number
   lessons: CourseLandingLesson[]
+  modules?: {
+    id: string
+    title: string
+    description?: string | null
+    position: number
+  }[]
   has_access: boolean
 }
 

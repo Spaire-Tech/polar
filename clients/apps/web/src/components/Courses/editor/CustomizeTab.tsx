@@ -17,7 +17,7 @@ import {
 } from '@/hooks/queries/courses'
 import { useProduct } from '@/hooks/queries/products'
 import { schemas } from '@spaire/client'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { toast } from '../../Toast/use-toast'
 import {
   EditableCourseLandingView,
@@ -74,7 +74,17 @@ export function CustomizeTab({
     [updateLessonMut, uploadLessonThumbMut, createMuxUpload],
   )
 
-  const initial = useMemo(() => {
+  // Seed the editor once per course. If we recomputed `initial` whenever
+  // course.landing_overrides / thumbnail_url / trailer_url changed (which
+  // happens after every successful upload that invalidates the course
+  // query), the EditorProvider would re-seed mid-edit and clobber unsaved
+  // local changes — text edits, freshly uploaded images, etc. Pinning the
+  // seed to course.id keeps the editor's local state authoritative until
+  // the user navigates away or swaps courses.
+  const seedRef = useRef<{ courseId: string; value: ResolvedOverrides } | null>(
+    null,
+  )
+  if (seedRef.current?.courseId !== course.id) {
     const merged = mergeOverrides(course.landing_overrides ?? null)
     if (course.thumbnail_url && !merged.media['hero.backdrop']) {
       merged.media['hero.backdrop'] = {
@@ -88,26 +98,14 @@ export function CustomizeTab({
         url: course.trailer_url,
       }
     }
-    return merged
-  }, [
-    course.id,
-    course.landing_overrides,
-    course.thumbnail_url,
-    course.trailer_url,
-  ])
+    seedRef.current = { courseId: course.id, value: merged }
+  }
+  const initial = seedRef.current.value
 
-  const [overrides, setOverrides] = useState(initial)
   const [dirty, setDirty] = useState(false)
-  const overridesRef = useRef(overrides)
-
-  useEffect(() => {
-    setOverrides(initial)
-    overridesRef.current = initial
-    setDirty(false)
-  }, [initial])
+  const overridesRef = useRef<ResolvedOverrides>(initial)
 
   const handleChange = (next: ResolvedOverrides) => {
-    setOverrides(next)
     overridesRef.current = next
     setDirty(true)
   }
@@ -185,7 +183,7 @@ export function CustomizeTab({
 
   return (
     <EditorProvider
-      initialOverrides={overrides}
+      initialOverrides={initial}
       onChange={handleChange}
       uploadMedia={slotUpload}
       uploaderForSlot={uploaderForSlot}

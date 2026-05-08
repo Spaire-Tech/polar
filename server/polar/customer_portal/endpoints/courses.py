@@ -627,6 +627,19 @@ async def get_course_landing(
             "lesson_ids": [l.get("id") for l in flat_lessons],
         },
     )
+    # Modules (id + title + position) so the public landing's "Sections"
+    # roadmap can render the same one-card-per-module layout the dashboard
+    # customize tab shows. We don't include lessons here — `flat_lessons`
+    # already covers what the public page needs.
+    modules_public = [
+        {
+            "id": str(m.id),
+            "title": m.title,
+            "description": m.description,
+            "position": m.position,
+        }
+        for m in sorted(course.modules, key=lambda m: m.position)
+    ]
     return {
         "id": str(course.id),
         "title": course.title,
@@ -644,6 +657,7 @@ async def get_course_landing(
         "total_duration_seconds": total_duration,
         "landing_overrides": course.landing_overrides,
         "lessons": flat_lessons,
+        "modules": modules_public,
         "has_access": has_access,
     }
 

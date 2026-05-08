@@ -2,11 +2,17 @@
 
 import { CourseRead, useUploadCourseThumbnail } from '@/hooks/queries/courses'
 import ImageOutlined from '@mui/icons-material/ImageOutlined'
+import InfoOutlined from '@mui/icons-material/InfoOutlined'
 import LockOutlined from '@mui/icons-material/LockOutlined'
+import PersonOutline from '@mui/icons-material/PersonOutline'
 import { useEffect, useRef, useState } from 'react'
 import { ThumbnailPositioner } from './ThumbnailPositioner'
 
 export type CourseSettingsEdits = {
+  title?: string | null
+  description?: string | null
+  instructor_name?: string | null
+  instructor_bio?: string | null
   paywall_enabled: boolean
   paywall_position: number | null
   thumbnail_object_position?: string | null
@@ -21,6 +27,14 @@ export function SettingsTab({
   onSave: (edits: CourseSettingsEdits) => void
   isSaving: boolean
 }) {
+  const [title, setTitle] = useState(course.title ?? '')
+  const [description, setDescription] = useState(course.description ?? '')
+  const [instructorName, setInstructorName] = useState(
+    course.instructor_name ?? '',
+  )
+  const [instructorBio, setInstructorBio] = useState(
+    course.instructor_bio ?? '',
+  )
   const [enabled, setEnabled] = useState(course.paywall_enabled)
   const [position, setPosition] = useState<number | null>(
     course.paywall_position ?? (course.modules.length > 1 ? 1 : null),
@@ -35,12 +49,20 @@ export function SettingsTab({
   const uploadThumbnail = useUploadCourseThumbnail()
 
   useEffect(() => {
+    setTitle(course.title ?? '')
+    setDescription(course.description ?? '')
+    setInstructorName(course.instructor_name ?? '')
+    setInstructorBio(course.instructor_bio ?? '')
     setEnabled(course.paywall_enabled)
     setPosition(course.paywall_position)
     setThumbnailUrl(course.thumbnail_url ?? null)
     setThumbnailPosition(course.thumbnail_object_position ?? null)
   }, [
     course.id,
+    course.title,
+    course.description,
+    course.instructor_name,
+    course.instructor_bio,
     course.paywall_enabled,
     course.paywall_position,
     course.thumbnail_url,
@@ -64,23 +86,153 @@ export function SettingsTab({
     e.target.value = ''
   }
 
+  const titleTrim = title.trim()
+  const titleError = titleTrim.length === 0
+  const detailsDirty =
+    titleTrim !== (course.title ?? '').trim() ||
+    description.trim() !== (course.description ?? '').trim() ||
+    instructorName.trim() !== (course.instructor_name ?? '').trim() ||
+    instructorBio.trim() !== (course.instructor_bio ?? '').trim()
   const dirty =
+    detailsDirty ||
     enabled !== course.paywall_enabled ||
     position !== course.paywall_position ||
     (thumbnailPosition ?? null) !== (course.thumbnail_object_position ?? null)
 
-  const lockedCount = enabled && position != null
-    ? Math.max(0, course.modules.length - position)
-    : 0
+  const lockedCount =
+    enabled && position != null
+      ? Math.max(0, course.modules.length - position)
+      : 0
+
+  const handleSave = () => {
+    if (titleError) return
+    onSave({
+      title: titleTrim,
+      description: description.trim() || null,
+      instructor_name: instructorName.trim() || null,
+      instructor_bio: instructorBio.trim() || null,
+      paywall_enabled: enabled,
+      paywall_position: enabled ? position : null,
+      thumbnail_object_position: thumbnailPosition,
+    })
+  }
+
+  const handleReset = () => {
+    setTitle(course.title ?? '')
+    setDescription(course.description ?? '')
+    setInstructorName(course.instructor_name ?? '')
+    setInstructorBio(course.instructor_bio ?? '')
+    setEnabled(course.paywall_enabled)
+    setPosition(course.paywall_position)
+    setThumbnailPosition(course.thumbnail_object_position ?? null)
+  }
 
   return (
     <div className="mx-auto w-full max-w-3xl px-8 py-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">Course settings</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Control how students access content in this course.
+          The course title, description, instructor and thumbnail used on the
+          landing page, plus paywall and access controls.
         </p>
       </div>
+
+      <section className="mb-6 rounded-2xl border border-gray-200 bg-white p-6">
+        <div className="mb-4 flex items-start gap-3">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+            <InfoOutlined sx={{ fontSize: 18 }} />
+          </span>
+          <div className="flex-1">
+            <h2 className="text-base font-bold text-gray-900">Details</h2>
+            <p className="mt-0.5 text-sm text-gray-500">
+              Shown on the course landing and student portal.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-4">
+          <div>
+            <label className="block text-sm font-bold text-gray-900">
+              Course title
+            </label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              aria-invalid={titleError}
+              className={
+                'mt-2 w-full rounded-xl border px-3.5 py-2.5 text-sm text-gray-900 focus:ring-2 focus:ring-gray-100 focus:outline-none ' +
+                (titleError
+                  ? 'border-red-400 focus:border-red-500'
+                  : 'border-gray-300 focus:border-gray-900')
+              }
+              placeholder="e.g. The Art of Persuasive Writing"
+            />
+            {titleError && (
+              <p className="mt-1 text-xs text-red-500">Title is required.</p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-bold text-gray-900">
+              Course description
+            </label>
+            <p className="mt-0.5 text-xs text-gray-500">
+              A short paragraph describing what the course covers — shown in
+              meta tags and product previews.
+            </p>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={4}
+              className="mt-2 w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:border-gray-900 focus:ring-2 focus:ring-gray-100 focus:outline-none"
+              placeholder="What learners walk away with."
+            />
+          </div>
+        </div>
+      </section>
+
+      <section className="mb-6 rounded-2xl border border-gray-200 bg-white p-6">
+        <div className="mb-4 flex items-start gap-3">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+            <PersonOutline sx={{ fontSize: 18 }} />
+          </span>
+          <div className="flex-1">
+            <h2 className="text-base font-bold text-gray-900">Instructor</h2>
+            <p className="mt-0.5 text-sm text-gray-500">
+              Used in the hero, instructor section, and pull-quote attribution.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-4">
+          <div>
+            <label className="block text-sm font-bold text-gray-900">
+              Instructor name
+            </label>
+            <input
+              type="text"
+              value={instructorName}
+              onChange={(e) => setInstructorName(e.target.value)}
+              className="mt-2 w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:border-gray-900 focus:ring-2 focus:ring-gray-100 focus:outline-none"
+              placeholder="e.g. Dr. Lena Marchetti"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-bold text-gray-900">
+              Instructor bio
+            </label>
+            <textarea
+              value={instructorBio}
+              onChange={(e) => setInstructorBio(e.target.value)}
+              rows={4}
+              className="mt-2 w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:border-gray-900 focus:ring-2 focus:ring-gray-100 focus:outline-none"
+              placeholder="Short third-person bio."
+            />
+          </div>
+        </div>
+      </section>
 
       <section className="mb-6 rounded-2xl border border-gray-200 bg-white p-6">
         <div className="mb-4 flex items-start gap-3">
@@ -115,8 +267,8 @@ export function SettingsTab({
               onChange={setThumbnailPosition}
             />
             <p className="text-xs text-gray-500">
-              Drag the image to choose the focal point shown on the landing
-              page hero.
+              Drag the image to choose the focal point shown on the landing page
+              hero.
             </p>
             <div className="flex justify-end">
               <button
@@ -210,9 +362,7 @@ export function SettingsTab({
                           : 'rgb(240 253 244)',
                       }}
                     >
-                      <span className="text-xs text-gray-400">
-                        {idx + 1}.
-                      </span>
+                      <span className="text-xs text-gray-400">{idx + 1}.</span>
                       <span className="flex-1 truncate text-gray-900">
                         {m.title}
                       </span>
@@ -239,34 +389,27 @@ export function SettingsTab({
             )}
           </div>
         )}
-
-        <div className="mt-6 flex justify-end gap-2 border-t border-gray-100 pt-4">
-          <button
-            disabled={!dirty || isSaving}
-            onClick={() => {
-              setEnabled(course.paywall_enabled)
-              setPosition(course.paywall_position)
-              setThumbnailPosition(course.thumbnail_object_position ?? null)
-            }}
-            className="rounded-full border border-gray-300 px-4 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-          >
-            Reset
-          </button>
-          <button
-            disabled={!dirty || isSaving}
-            onClick={() =>
-              onSave({
-                paywall_enabled: enabled,
-                paywall_position: enabled ? position : null,
-                thumbnail_object_position: thumbnailPosition,
-              })
-            }
-            className="rounded-full bg-gray-900 px-4 py-2 text-xs font-semibold text-white hover:bg-gray-800 disabled:opacity-50"
-          >
-            {isSaving ? 'Saving…' : 'Save'}
-          </button>
-        </div>
       </section>
+
+      <div className="sticky bottom-0 z-10 -mx-2 mt-6 flex justify-end gap-2 rounded-2xl border border-gray-200 bg-white/85 px-4 py-3 backdrop-blur">
+        <button
+          type="button"
+          disabled={!dirty || isSaving}
+          onClick={handleReset}
+          className="rounded-full border border-gray-300 px-4 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+        >
+          Reset
+        </button>
+        <button
+          type="button"
+          disabled={!dirty || isSaving || titleError}
+          onClick={handleSave}
+          title={titleError ? 'Title is required' : undefined}
+          className="rounded-full bg-gray-900 px-4 py-2 text-xs font-semibold text-white hover:bg-gray-800 disabled:opacity-50"
+        >
+          {isSaving ? 'Saving…' : 'Save'}
+        </button>
+      </div>
     </div>
   )
 }

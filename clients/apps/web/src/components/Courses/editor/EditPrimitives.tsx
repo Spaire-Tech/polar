@@ -313,8 +313,12 @@ export const EditMedia = forwardRef<
         (renderMedia ? (
           renderMedia(m)
         ) : m.kind === 'image' ? (
+          // Keying on the URL forces React to remount the <img> when the
+          // media URL changes (e.g. after a Replace), bypassing browser
+          // image caching that would otherwise show the previous frame.
           // eslint-disable-next-line @next/next/no-img-element
           <img
+            key={m.url}
             src={m.url}
             alt=""
             style={cover}
@@ -338,6 +342,7 @@ export const EditMedia = forwardRef<
           />
         ) : (
           <video
+            key={m.url}
             src={m.url}
             autoPlay
             muted
