@@ -166,6 +166,9 @@ const LessonViewerPage = ({
           thumbnail_url: l.thumbnail_url,
           thumbnail_object_position: l.thumbnail_object_position,
           mux_playback_id: l.mux_playback_id,
+          locked: l.locked,
+          locked_until: l.locked_until,
+          is_free_preview: l.is_free_preview,
         }))}
         courseTitle={data.course.title}
         courseDescription={data.course.description}

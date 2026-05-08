@@ -42,6 +42,9 @@ export interface MasterClassLessonViewerProps {
     thumbnail_url?: string | null
     thumbnail_object_position?: string | null
     mux_playback_id?: string | null
+    locked?: boolean
+    locked_until?: string | null
+    is_free_preview?: boolean
   }>
   courseTitle: string | null
   courseDescription: string | null
@@ -752,140 +755,221 @@ export const MasterClassLessonViewer = ({
                         marginTop: 14,
                       }}
                     >
-                      {lessons.map((l, idx) => {
-                        const isActive = lesson.id === l.id
-                        const thumb =
-                          l.thumbnail_url ||
-                          (l.mux_playback_id
-                            ? `https://image.mux.com/${l.mux_playback_id}/thumbnail.jpg?time=1`
-                            : null)
-                        return (
-                          <button
-                            key={l.id}
-                            onClick={() => onSelectLesson(l.id)}
-                            className="group"
-                            style={{
-                              display: 'flex',
-                              alignItems: 'flex-start',
-                              gap: 12,
-                              padding: 8,
-                              borderRadius: 10,
-                              textAlign: 'left',
-                              transition: 'background 120ms ease',
-                              width: '100%',
-                              background: isActive
-                                ? 'oklch(0.975 0.002 280)'
-                                : 'transparent',
-                              border: 'none',
-                              cursor: 'pointer',
-                              fontFamily: fontStack,
-                            }}
-                            onMouseEnter={(e) => {
-                              if (!isActive)
-                                e.currentTarget.style.background =
-                                  'oklch(0.975 0.002 280)'
-                            }}
-                            onMouseLeave={(e) => {
-                              if (!isActive)
-                                e.currentTarget.style.background = 'transparent'
-                            }}
-                          >
-                            <div
-                              style={{
-                                position: 'relative',
-                                width: 104,
-                                height: 62,
-                                flexShrink: 0,
-                                borderRadius: 8,
-                                overflow: 'hidden',
-                                background: '#1c1c1c',
-                                boxShadow: '0 1px 2px oklch(0 0 0 / 0.08)',
+                      {(() => {
+                        // The "Up next" pill should only mark the genuine next
+                        // accessible unwatched lesson — previously every
+                        // unwatched item in the sidebar said "Up next", which
+                        // is meaningless when there are 12 of them.
+                        const activeIdx = lessons.findIndex(
+                          (l) => l.id === lesson.id,
+                        )
+                        const nextUpId =
+                          lessons.find(
+                            (l, i) =>
+                              i > activeIdx && !l.completed && !l.locked,
+                          )?.id ??
+                          lessons.find((l) => !l.completed && !l.locked)?.id ??
+                          null
+                        return lessons.map((l, idx) => {
+                          const isActive = lesson.id === l.id
+                          const isLocked = !!l.locked
+                          const isNext = !isActive && l.id === nextUpId
+                          const unlockDate = l.locked_until
+                            ? new Date(l.locked_until)
+                            : null
+                          const unlockLabel =
+                            unlockDate &&
+                            !Number.isNaN(unlockDate.getTime())
+                              ? unlockDate.toLocaleDateString()
+                              : null
+                          const status = isActive
+                            ? 'Now playing'
+                            : l.completed
+                              ? 'Watched'
+                              : isLocked
+                                ? unlockLabel
+                                  ? `Unlocks ${unlockLabel}`
+                                  : 'Locked'
+                                : isNext
+                                  ? 'Up next'
+                                  : l.duration_seconds
+                                    ? formatDuration(l.duration_seconds)
+                                    : `Lesson ${idx + 1}`
+                          const thumb =
+                            l.thumbnail_url ||
+                            (l.mux_playback_id
+                              ? `https://image.mux.com/${l.mux_playback_id}/thumbnail.jpg?time=1`
+                              : null)
+                          return (
+                            <button
+                              key={l.id}
+                              onClick={() => {
+                                if (!isLocked) onSelectLesson(l.id)
                               }}
-                            >
-                              {thumb ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                  src={thumb}
-                                  alt={l.title}
-                                  className="absolute inset-0 h-full w-full object-cover"
-                                  style={{
-                                    objectPosition:
-                                      l.thumbnail_object_position ?? '50% 50%',
-                                  }}
-                                />
-                              ) : null}
-                              {isActive && (
-                                <div
-                                  style={{
-                                    position: 'absolute',
-                                    inset: 0,
-                                    background: 'rgba(0,0,0,0.4)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    color: 'white',
-                                  }}
-                                >
-                                  <PlayArrow sx={{ fontSize: 18 }} />
-                                </div>
-                              )}
-                              {l.duration_seconds ? (
-                                <span
-                                  style={{
-                                    position: 'absolute',
-                                    right: 4,
-                                    bottom: 4,
-                                    fontSize: 10.5,
-                                    fontWeight: 600,
-                                    color: 'white',
-                                    background: 'rgba(0,0,0,0.75)',
-                                    padding: '2px 5px',
-                                    borderRadius: 3,
-                                    fontVariantNumeric: 'tabular-nums',
-                                  }}
-                                >
-                                  {formatDuration(l.duration_seconds)}
-                                </span>
-                              ) : null}
-                            </div>
-                            <div
+                              disabled={isLocked}
+                              className="group"
+                              title={
+                                isLocked
+                                  ? unlockLabel
+                                    ? `Unlocks ${unlockLabel}`
+                                    : 'Locked'
+                                  : undefined
+                              }
                               style={{
                                 display: 'flex',
-                                flexDirection: 'column',
-                                gap: 3,
-                                paddingTop: 2,
-                                minWidth: 0,
+                                alignItems: 'flex-start',
+                                gap: 12,
+                                padding: 8,
+                                borderRadius: 10,
+                                textAlign: 'left',
+                                transition: 'background 120ms ease',
+                                width: '100%',
+                                background: isActive
+                                  ? 'oklch(0.975 0.002 280)'
+                                  : 'transparent',
+                                border: 'none',
+                                cursor: isLocked ? 'not-allowed' : 'pointer',
+                                opacity: isLocked ? 0.55 : 1,
+                                fontFamily: fontStack,
+                              }}
+                              onMouseEnter={(e) => {
+                                if (!isActive && !isLocked)
+                                  e.currentTarget.style.background =
+                                    'oklch(0.975 0.002 280)'
+                              }}
+                              onMouseLeave={(e) => {
+                                if (!isActive && !isLocked)
+                                  e.currentTarget.style.background =
+                                    'transparent'
                               }}
                             >
                               <div
                                 style={{
-                                  fontSize: 13.5,
-                                  fontWeight: 500,
-                                  lineHeight: 1.35,
-                                  textWrap: 'pretty' as any,
-                                  color: isActive
-                                    ? 'oklch(0.55 0.20 265)'
-                                    : 'oklch(0.18 0.008 280)',
+                                  position: 'relative',
+                                  width: 104,
+                                  height: 62,
+                                  flexShrink: 0,
+                                  borderRadius: 8,
+                                  overflow: 'hidden',
+                                  background: '#1c1c1c',
+                                  boxShadow: '0 1px 2px oklch(0 0 0 / 0.08)',
                                 }}
                               >
-                                {idx + 1}. {l.title}
+                                {thumb ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img
+                                    src={thumb}
+                                    alt={l.title}
+                                    className="absolute inset-0 h-full w-full object-cover"
+                                    style={{
+                                      objectPosition:
+                                        l.thumbnail_object_position ??
+                                        '50% 50%',
+                                    }}
+                                  />
+                                ) : null}
+                                {isActive && (
+                                  <div
+                                    style={{
+                                      position: 'absolute',
+                                      inset: 0,
+                                      background: 'rgba(0,0,0,0.4)',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      color: 'white',
+                                    }}
+                                  >
+                                    <PlayArrow sx={{ fontSize: 18 }} />
+                                  </div>
+                                )}
+                                {isLocked && (
+                                  <div
+                                    style={{
+                                      position: 'absolute',
+                                      inset: 0,
+                                      background: 'rgba(0,0,0,0.55)',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      color: 'white',
+                                    }}
+                                  >
+                                    <svg
+                                      width="18"
+                                      height="18"
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth="2"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                    >
+                                      <rect
+                                        x="3"
+                                        y="11"
+                                        width="18"
+                                        height="11"
+                                        rx="2"
+                                      />
+                                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                                    </svg>
+                                  </div>
+                                )}
+                                {l.duration_seconds ? (
+                                  <span
+                                    style={{
+                                      position: 'absolute',
+                                      right: 4,
+                                      bottom: 4,
+                                      fontSize: 10.5,
+                                      fontWeight: 600,
+                                      color: 'white',
+                                      background: 'rgba(0,0,0,0.75)',
+                                      padding: '2px 5px',
+                                      borderRadius: 3,
+                                      fontVariantNumeric: 'tabular-nums',
+                                    }}
+                                  >
+                                    {formatDuration(l.duration_seconds)}
+                                  </span>
+                                ) : null}
                               </div>
                               <div
                                 style={{
-                                  fontSize: 11.5,
-                                  color: 'oklch(0.66 0.006 280)',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: 3,
+                                  paddingTop: 2,
+                                  minWidth: 0,
                                 }}
                               >
-                                {isActive
-                                  ? 'Now playing'
-                                  : l.completed
-                                    ? 'Watched'
-                                    : 'Up next'}
+                                <div
+                                  style={{
+                                    fontSize: 13.5,
+                                    fontWeight: 500,
+                                    lineHeight: 1.35,
+                                    textWrap: 'pretty' as any,
+                                    color: isActive
+                                      ? 'oklch(0.55 0.20 265)'
+                                      : 'oklch(0.18 0.008 280)',
+                                  }}
+                                >
+                                  {idx + 1}. {l.title}
+                                </div>
+                                <div
+                                  style={{
+                                    fontSize: 11.5,
+                                    color: 'oklch(0.66 0.006 280)',
+                                  }}
+                                >
+                                  {status}
+                                </div>
                               </div>
-                            </div>
-                          </button>
-                        )
-                      })}
+                            </button>
+                          )
+                        })
+                      })()}
                     </div>
                   </div>
                 ) : (
