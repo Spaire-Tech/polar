@@ -5,11 +5,14 @@ import {
   CourseModuleRead,
   CourseRead,
   useAddCourseLesson,
+  useAddCourseModule,
   useCourseById,
   useDeleteCourseLesson,
+  useDeleteCourseModule,
   useReorderLessons,
   useUpdateCourse,
   useUpdateCourseLesson,
+  useUpdateCourseModule,
 } from '@/hooks/queries/courses'
 import { getQueryClient } from '@/utils/api/query'
 import { schemas } from '@spaire/client'
@@ -90,6 +93,9 @@ export default function CourseEditor({
   const deleteLesson = useDeleteCourseLesson()
   const updateCourse = useUpdateCourse()
   const reorderLessons = useReorderLessons()
+  const addModule = useAddCourseModule()
+  const updateModule = useUpdateCourseModule()
+  const deleteModule = useDeleteCourseModule()
 
   const invalidateCourse = useCallback(() => {
     getQueryClient().invalidateQueries({ queryKey: ['courses', { courseId }] })
@@ -135,6 +141,45 @@ export default function CourseEditor({
       invalidateCourse()
     } catch {
       toast({ title: 'Failed to delete lesson' })
+    }
+  }
+
+  const handleAddModule = async () => {
+    const title = window.prompt('New module title:', 'New module')
+    if (!title || !title.trim()) return
+    try {
+      await addModule.mutateAsync({
+        courseId: course.id,
+        body: { title: title.trim(), position: course.modules.length },
+      })
+      invalidateCourse()
+    } catch {
+      toast({ title: 'Failed to add module' })
+    }
+  }
+
+  const handleRenameModule = async (mod: CourseModuleRead, title: string) => {
+    try {
+      await updateModule.mutateAsync({
+        moduleId: mod.id,
+        body: { title },
+      })
+      invalidateCourse()
+    } catch {
+      toast({ title: 'Failed to rename module' })
+    }
+  }
+
+  const handleDeleteModule = async (mod: CourseModuleRead) => {
+    try {
+      await deleteModule.mutateAsync(mod.id)
+      // Clear lesson selection if it pointed at one of this module's lessons.
+      if (mod.lessons.some((l) => l.id === selectedLessonId)) {
+        setSelectedLessonId(null)
+      }
+      invalidateCourse()
+    } catch {
+      toast({ title: 'Failed to delete module' })
     }
   }
 
@@ -320,12 +365,16 @@ export default function CourseEditor({
       mainContent = (
         <OutlineTab
           course={course}
+          organizationSlug={organization.slug}
           selectedLessonId={selectedLessonId}
           onSelectLesson={setSelectedLessonId}
           onAddLesson={(mod, ct) => handleAddLesson(mod, ct)}
           onDeleteLesson={handleDeleteLesson}
           onReorderLessons={handleReorderLessons}
           onEditPaywall={() => setActiveTab('pricing')}
+          onAddModule={handleAddModule}
+          onRenameModule={handleRenameModule}
+          onDeleteModule={handleDeleteModule}
         />
       )
     }
