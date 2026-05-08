@@ -23,11 +23,7 @@ function getDomain(url: string): string {
   }
 }
 
-function buildEmbedUrl(
-  url: string,
-  platform: string,
-  autoplay: boolean,
-): string | null {
+function buildEmbedUrl(url: string, platform: string): string | null {
   switch (platform) {
     case 'youtube': {
       const videoId = url.match(
@@ -35,10 +31,6 @@ function buildEmbedUrl(
       )?.[1]
       if (!videoId) return null
       const p = new URLSearchParams({ rel: '0', modestbranding: '1' })
-      if (autoplay) {
-        p.set('autoplay', '1')
-        p.set('mute', '1')
-      }
       return `https://www.youtube.com/embed/${videoId}?${p}`
     }
     case 'spotify': {
@@ -47,14 +39,13 @@ function buildEmbedUrl(
       )
       if (!m) return null
       const p = new URLSearchParams({ utm_source: 'generator' })
-      if (autoplay) p.set('autoplay', '1')
       return `https://open.spotify.com/embed/${m[1]}/${m[2]}?${p}`
     }
     case 'soundcloud': {
       const p = new URLSearchParams({
         url,
         color: '#ff5500',
-        auto_play: autoplay ? 'true' : 'false',
+        auto_play: 'false',
         hide_related: 'true',
         show_comments: 'false',
         show_user: 'true',
@@ -70,17 +61,9 @@ function buildEmbedUrl(
 
 // ─── Embed iframe ───────────────────────────────────────────────────────────
 
-const EmbedFrame = ({
-  link,
-  autoplay = false,
-  fullHeight = false,
-}: {
-  link: StorefrontLinkItem
-  autoplay?: boolean
-  fullHeight?: boolean
-}) => {
+const EmbedFrame = ({ link }: { link: StorefrontLinkItem }) => {
   const platform = link.platform ?? ''
-  const src = buildEmbedUrl(link.url, platform, autoplay)
+  const src = buildEmbedUrl(link.url, platform)
   if (!src) return null
 
   // Embeds render at full container width. YouTube keeps a 16:9 aspect ratio,
@@ -89,7 +72,6 @@ const EmbedFrame = ({
     return (
       <div className="relative w-full overflow-hidden pt-[56.25%]">
         <iframe
-          key={autoplay ? 'play' : 'pause'}
           src={src}
           frameBorder="0"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
@@ -106,11 +88,10 @@ const EmbedFrame = ({
     spotify: 80,
     soundcloud: 116,
   }
-  const h = heights[platform] ?? (fullHeight ? 240 : 180)
+  const h = heights[platform] ?? 180
 
   return (
     <iframe
-      key={autoplay ? 'play' : 'pause'}
       src={src}
       width="100%"
       height={h}
@@ -189,7 +170,7 @@ const EmbedCard = ({ link }: { link: StorefrontLinkItem }) => {
   const canEmbed =
     link.type === 'embedded' &&
     link.platform &&
-    buildEmbedUrl(link.url, link.platform, false)
+    buildEmbedUrl(link.url, link.platform)
 
   return (
     <div className="w-full overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">

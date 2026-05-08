@@ -21305,11 +21305,6 @@ export interface components {
        */
       featured_product_ids?: string[]
       /**
-       * Enable Reviews
-       * @description Allow customers to leave reviews on products
-       */
-      enable_reviews?: boolean
-      /**
        * Show Card Products
        * @description Show product images in the profile card
        */

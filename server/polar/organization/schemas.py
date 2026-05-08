@@ -158,9 +158,6 @@ class OrganizationStorefrontSettings(Schema):
     featured_product_ids: list[str] = Field(
         default_factory=list, description="Product IDs to feature on the storefront (empty = show all)"
     )
-    enable_reviews: bool = Field(
-        False, description="Allow customers to leave reviews on products"
-    )
     show_card_products: bool = Field(
         True, description="Show product images in the profile card"
     )
