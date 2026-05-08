@@ -1,7 +1,7 @@
 """Add flow_step_id to email_sequence_steps
 
-Revision ID: v1w2x3y4z5a6
-Revises: u0v1w2x3y4z5
+Revision ID: y4z5a6b7c8d9
+Revises: x3y4z5a6b7c8
 Create Date: 2026-05-08 00:00:00.000000
 
 flow_step_id is the client-authored stable identifier for a node in the
@@ -14,8 +14,8 @@ which drifted after the first reorder or delete (Phase 3a / audit issue
 import sqlalchemy as sa
 from alembic import op
 
-revision = "v1w2x3y4z5a6"
-down_revision = "u0v1w2x3y4z5"
+revision = "y4z5a6b7c8d9"
+down_revision = "x3y4z5a6b7c8"
 branch_labels: tuple[str] | None = None
 depends_on: tuple[str] | None = None
 
