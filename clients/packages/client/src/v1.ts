@@ -21300,8 +21300,15 @@ export interface components {
        */
       available_for_work?: boolean
       /**
+       * Featured Mode
+       * @description How to choose which products appear on the storefront. 'all' (default) shows every active product, including ones created after the storefront was set up. 'curated' shows only the IDs in featured_product_ids.
+       * @default all
+       * @enum {string}
+       */
+      featured_mode?: 'all' | 'curated'
+      /**
        * Featured Product Ids
-       * @description Product IDs to feature on the storefront (empty = show all)
+       * @description Product IDs to feature on the storefront when featured_mode is 'curated'. Ignored when featured_mode is 'all'.
        */
       featured_product_ids?: string[]
       /**

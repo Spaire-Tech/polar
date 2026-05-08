@@ -23,10 +23,13 @@ export const StorefrontLivePreview = ({
   const allProducts =
     useProducts(organization.id, { is_archived: false }).data?.items ?? []
 
-  // Filter by featured product IDs if set
-  const featuredIds = organization.storefront_settings?.featured_product_ids ?? []
+  // Honor featured_mode: 'all' shows every product, 'curated' shows only
+  // the IDs the user has explicitly selected.
+  const featuredMode = organization.storefront_settings?.featured_mode ?? 'all'
+  const featuredIds =
+    organization.storefront_settings?.featured_product_ids ?? []
   const products =
-    featuredIds.length > 0
+    featuredMode === 'curated'
       ? allProducts.filter((p) => featuredIds.includes(p.id))
       : allProducts
 

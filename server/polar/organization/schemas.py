@@ -155,8 +155,21 @@ class OrganizationStorefrontSettings(Schema):
     available_for_work: bool = Field(
         False, description="Show 'Available for work' badge on the profile"
     )
+    featured_mode: Literal["all", "curated"] = Field(
+        "all",
+        description=(
+            "How to choose which products appear on the storefront. 'all' "
+            "(default) shows every active product, including ones created "
+            "after the storefront was set up. 'curated' shows only the IDs "
+            "in featured_product_ids."
+        ),
+    )
     featured_product_ids: list[str] = Field(
-        default_factory=list, description="Product IDs to feature on the storefront (empty = show all)"
+        default_factory=list,
+        description=(
+            "Product IDs to feature on the storefront when featured_mode is "
+            "'curated'. Ignored when featured_mode is 'all'."
+        ),
     )
     show_card_products: bool = Field(
         True, description="Show product images in the profile card"

@@ -487,31 +487,37 @@ export const StorefrontEditorForm = ({
   // Products — for featured selection
   const allProducts =
     useProducts(organization.id, { is_archived: false }).data?.items ?? []
+  const featuredMode: 'all' | 'curated' = settings?.featured_mode ?? 'all'
   const featuredIds: string[] = settings?.featured_product_ids ?? []
+  const isCurated = featuredMode === 'curated'
+
+  const setFeaturedMode = (mode: 'all' | 'curated') => {
+    if (mode === featuredMode) return
+    if (mode === 'all') {
+      updateSetting('featured_mode', 'all')
+    } else {
+      updateSetting('featured_mode', 'curated')
+      // Seed the curated list with whatever is already there. If empty,
+      // pre-select everything so flipping the toggle isn't immediately
+      // destructive.
+      if (featuredIds.length === 0 && allProducts.length > 0) {
+        updateSetting(
+          'featured_product_ids',
+          allProducts.map((p) => p.id),
+        )
+      }
+    }
+  }
 
   const toggleProduct = (productId: string) => {
-    if (featuredIds.length === 0) {
-      // Currently showing all — user wants to hide this one product
-      // Set featured to all product IDs except the unchecked one
+    if (!isCurated) return
+    if (featuredIds.includes(productId)) {
       updateSetting(
         'featured_product_ids',
-        allProducts.map((p) => p.id).filter((id) => id !== productId),
-      )
-    } else if (featuredIds.includes(productId)) {
-      const remaining = featuredIds.filter((id) => id !== productId)
-      // If removing the last one, clear the list (show all)
-      updateSetting(
-        'featured_product_ids',
-        remaining.length === 0 ? [] : remaining,
+        featuredIds.filter((id) => id !== productId),
       )
     } else {
-      // Check if adding this would select all — if so, clear the list
-      const updated = [...featuredIds, productId]
-      if (updated.length === allProducts.length) {
-        updateSetting('featured_product_ids', [])
-      } else {
-        updateSetting('featured_product_ids', updated)
-      }
+      updateSetting('featured_product_ids', [...featuredIds, productId])
     }
   }
 
@@ -970,53 +976,73 @@ export const StorefrontEditorForm = ({
         <h3 className="text-sm font-semibold text-gray-900">
           Products to Display
         </h3>
-        <p className="text-xs text-gray-500">
-          Select which products appear on your storefront.
-        </p>
-        {allProducts.length > 0 ? (
-          <div className="flex flex-col divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200">
-            {allProducts.map((product) => (
-              <label
-                key={product.id}
-                className="flex cursor-pointer items-center gap-x-3 px-4 py-3 transition-colors hover:bg-gray-50"
-              >
-                <input
-                  type="checkbox"
-                  checked={
-                    featuredIds.length === 0 || featuredIds.includes(product.id)
-                  }
-                  onChange={() => toggleProduct(product.id)}
-                  className="h-4 w-4 rounded border-gray-300 text-blue-600 accent-blue-600 focus:ring-blue-500"
-                />
-                <div className="flex min-w-0 flex-1 items-center gap-x-3">
-                  {product.medias?.[0] && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={product.medias[0].public_url}
-                      alt=""
-                      className="h-10 w-10 shrink-0 rounded-lg object-cover"
-                    />
-                  )}
-                  <div className="min-w-0">
-                    <span className="block truncate text-sm font-medium text-gray-900">
-                      {product.name}
-                    </span>
-                    {product.prices?.[0] &&
-                      'price_amount' in product.prices[0] && (
-                        <span className="text-xs text-gray-500">
-                          $
-                          {(
-                            (product.prices[0] as { price_amount: number })
-                              .price_amount / 100
-                          ).toFixed(2)}
-                        </span>
-                      )}
-                  </div>
-                </div>
-              </label>
-            ))}
+
+        {/* Mode toggle */}
+        <div className="flex flex-col divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200">
+          <div className="flex items-center justify-between px-4 py-3.5 transition-colors hover:bg-gray-50">
+            <div>
+              <span className="text-sm font-medium text-gray-900">
+                Curate which products appear
+              </span>
+              <p className="text-xs text-gray-500">
+                {isCurated
+                  ? 'Only the products you check below appear on your Space.'
+                  : 'All your active products appear automatically — including new ones you create.'}
+              </p>
+            </div>
+            <Switch
+              checked={isCurated}
+              onCheckedChange={(v) => setFeaturedMode(v ? 'curated' : 'all')}
+            />
           </div>
-        ) : null}
+        </div>
+
+        {isCurated && allProducts.length > 0 && (
+          <div className="flex flex-col divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200">
+            {allProducts.map((product) => {
+              const checked = featuredIds.includes(product.id)
+              return (
+                <label
+                  key={product.id}
+                  className="flex cursor-pointer items-center gap-x-3 px-4 py-3 transition-colors hover:bg-gray-50"
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleProduct(product.id)}
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 accent-blue-600 focus:ring-blue-500"
+                  />
+                  <div className="flex min-w-0 flex-1 items-center gap-x-3">
+                    {product.medias?.[0] && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={product.medias[0].public_url}
+                        alt=""
+                        className="h-10 w-10 shrink-0 rounded-lg object-cover"
+                      />
+                    )}
+                    <div className="min-w-0">
+                      <span className="block truncate text-sm font-medium text-gray-900">
+                        {product.name}
+                      </span>
+                      {product.prices?.[0] &&
+                        'price_amount' in product.prices[0] && (
+                          <span className="text-xs text-gray-500">
+                            $
+                            {(
+                              (product.prices[0] as { price_amount: number })
+                                .price_amount / 100
+                            ).toFixed(2)}
+                          </span>
+                        )}
+                    </div>
+                  </div>
+                </label>
+              )
+            })}
+          </div>
+        )}
+
         <button
           type="button"
           onClick={() => setCreateProductOpen(true)}

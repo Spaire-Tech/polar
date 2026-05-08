@@ -54,6 +54,11 @@ export const Storefront = ({
           | 'large') ?? 'medium')
       : 'medium'
 
+  const featuredMode: 'all' | 'curated' =
+    'storefront_settings' in organization
+      ? (organization.storefront_settings?.featured_mode ?? 'all')
+      : 'all'
+
   const featuredIds =
     'storefront_settings' in organization
       ? (organization.storefront_settings?.featured_product_ids ?? [])
@@ -77,13 +82,15 @@ export const Storefront = ({
           'classic') as LinksLayout)
       : 'classic'
 
-  // Products scoped by featuredIds (creator curation)
+  // Products scoped by featured_mode. In 'all' mode every active product
+  // is shown (including ones created after curation was set up); in
+  // 'curated' mode only the IDs in featuredIds are shown.
   const scopedProducts = useMemo(() => {
-    if (featuredIds.length > 0) {
+    if (featuredMode === 'curated') {
       return products.filter((p) => featuredIds.includes(p.id))
     }
     return products
-  }, [products, featuredIds])
+  }, [products, featuredMode, featuredIds])
 
   // Group products by category in CATEGORY_ORDER order. Products with no
   // category (or an unknown one) fall into the trailing "Other" section.
