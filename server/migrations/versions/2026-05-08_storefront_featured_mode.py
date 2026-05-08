@@ -1,7 +1,7 @@
 """Backfill storefront_settings.featured_mode
 
 Revision ID: f1m2d3e4a5b6
-Revises: x3y4z5a6b7c8
+Revises: c8d9e0f1g2h3
 Create Date: 2026-05-08 12:00:00.000000
 
 Adds an explicit featured_mode key to organizations.storefront_settings.
@@ -16,13 +16,17 @@ Backfill rule:
 - Otherwise → featured_mode = 'curated'
 
 The column is JSONB, so this is a single UPDATE.
+
+Revises c8d9e0f1g2h3 (the last orphan stub from the parallel
+coaching-programs branch — see stub_c8d9e0f1g2h3.py) so production,
+which is stamped at that revision, can advance through this chain.
 """
 
 from alembic import op
 
 
 revision = "f1m2d3e4a5b6"
-down_revision = "x3y4z5a6b7c8"
+down_revision = "c8d9e0f1g2h3"
 branch_labels: tuple[str] | None = None
 depends_on: tuple[str] | None = None
 
