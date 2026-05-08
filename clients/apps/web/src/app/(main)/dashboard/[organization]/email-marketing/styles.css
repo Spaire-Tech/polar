@@ -554,3 +554,13 @@
 .spaire-email-app .modal-fade-in {
   animation: spaire-email-fade-in 0.18s ease-out;
 }
+
+/* Empty contentEditable placeholder for the EditableText primitive. The
+   placeholder lives in a data attribute so it never enters the editable DOM
+   (and never gets typed into / saved to state). */
+.spaire-email-app
+  [contenteditable][data-placeholder][data-empty]:empty::before {
+  content: attr(data-placeholder);
+  color: var(--ink-4);
+  pointer-events: none;
+}

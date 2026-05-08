@@ -78,7 +78,15 @@ def _render_heading(block: dict[str, Any]) -> str:
     level = block.get("level") or 1
     if level not in (1, 2, 3):
         level = 1
-    style = _HEADING_STYLES[level]
+    if block.get("huge"):
+        # The TS renderer swaps to a 32px hero variant when `huge` is set;
+        # the email needs to match the on-screen preview the author saw.
+        style = (
+            "font-size:32px;font-weight:600;letter-spacing:-0.02em;"
+            "line-height:1.15;color:#1d1d1f;margin:8px 0 16px"
+        )
+    else:
+        style = _HEADING_STYLES[level]
     text = _esc(block.get("text") or "")
     return f'<h{level} style="{style}">{text}</h{level}>'
 
@@ -164,8 +172,21 @@ def _render_list(block: dict[str, Any]) -> str:
     items = block.get("items") or []
     if not isinstance(items, list):
         return ""
+
+    def _item_text(it: Any) -> str:
+        # Tolerate the legacy `string[]` shape and the canonical
+        # `{id, text}` object shape — both still round-trip through saved
+        # drafts on disk pre-migration.
+        if isinstance(it, str):
+            return it
+        if isinstance(it, dict):
+            text = it.get("text")
+            return text if isinstance(text, str) else ""
+        return ""
+
     cells = "".join(
-        f'<li style="margin-bottom:4px">{_esc(it)}</li>' for it in items
+        f'<li style="margin-bottom:4px">{_esc(_item_text(it))}</li>'
+        for it in items
     )
     return (
         f'<{tag} style="margin:0 0 14px;padding-left:20px;color:#3a3a3c;'

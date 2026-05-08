@@ -72,10 +72,15 @@ export type VideoBlock = {
   thumbnail?: string
 }
 
+export type ListItem = {
+  id: string
+  text: string
+}
+
 export type ListBlock = {
   id: BlockId
   type: 'list'
-  items: string[]
+  items: ListItem[]
   ordered?: boolean
 }
 
@@ -89,6 +94,7 @@ export type QuoteBlock = {
 // Compact stat / feature columns. Each column is freeform: it can carry an
 // icon + title + body (feature trio) or a label + value (event meta block).
 export type ColumnsBlockColumn = {
+  id: string
   icon?: string
   title?: string
   body?: string
@@ -103,6 +109,7 @@ export type ColumnsBlock = {
 }
 
 export type ChecklistBlockItem = {
+  id: string
   title: string
   body?: string
 }
@@ -123,6 +130,7 @@ export type EventCardBlock = {
 }
 
 export type ReceiptBlockItem = {
+  id: string
   name: string
   sub?: string
   price: string
@@ -221,7 +229,11 @@ export const blankBlock = (type: BlockType): Block => {
       return {
         id: newId(),
         type: 'list',
-        items: ['First point', 'Second point', 'Third point'],
+        items: [
+          { id: newId(), text: 'First point' },
+          { id: newId(), text: 'Second point' },
+          { id: newId(), text: 'Third point' },
+        ],
       }
     case 'quote':
       return {
@@ -235,9 +247,24 @@ export const blankBlock = (type: BlockType): Block => {
         id: newId(),
         type: 'columns',
         cols: [
-          { icon: 'sparkles', title: 'Title one', body: 'Body copy.' },
-          { icon: 'users', title: 'Title two', body: 'Body copy.' },
-          { icon: 'book', title: 'Title three', body: 'Body copy.' },
+          {
+            id: newId(),
+            icon: 'sparkles',
+            title: 'Title one',
+            body: 'Body copy.',
+          },
+          {
+            id: newId(),
+            icon: 'users',
+            title: 'Title two',
+            body: 'Body copy.',
+          },
+          {
+            id: newId(),
+            icon: 'book',
+            title: 'Title three',
+            body: 'Body copy.',
+          },
         ],
       }
     case 'checklist':
@@ -245,8 +272,16 @@ export const blankBlock = (type: BlockType): Block => {
         id: newId(),
         type: 'checklist',
         items: [
-          { title: 'First step', body: 'Description of step one.' },
-          { title: 'Second step', body: 'Description of step two.' },
+          {
+            id: newId(),
+            title: 'First step',
+            body: 'Description of step one.',
+          },
+          {
+            id: newId(),
+            title: 'Second step',
+            body: 'Description of step two.',
+          },
         ],
       }
     case 'event-card':
@@ -262,7 +297,7 @@ export const blankBlock = (type: BlockType): Block => {
       return {
         id: newId(),
         type: 'receipt',
-        items: [{ name: 'Item', sub: '', price: '$0.00' }],
+        items: [{ id: newId(), name: 'Item', sub: '', price: '$0.00' }],
         total: '$0.00',
       }
     case 'digest-item':
@@ -311,6 +346,70 @@ const KNOWN_BLOCK_TYPES = new Set<string>([
   'receipt',
   'digest-item',
 ])
+
+/**
+ * Coerce a freshly-loaded ContentDoc into the canonical shape.
+ *
+ * Older drafts on disk carry list items as `string[]` and column / checklist
+ * / receipt items without per-item ids. Migrating in-place on load lets the
+ * rest of the editor assume every nested item has a stable id (which keeps
+ * React's reconciliation correct when the user reorders or deletes items).
+ */
+export function normalizeContentDoc(doc: ContentDoc): ContentDoc {
+  return {
+    ...doc,
+    blocks: doc.blocks.map((b): Block => normalizeBlock(b)),
+  }
+}
+
+function normalizeBlock(block: Block): Block {
+  switch (block.type) {
+    case 'list': {
+      const raw = block.items as unknown
+      if (Array.isArray(raw)) {
+        const items = raw.map((it) => {
+          if (typeof it === 'string') return { id: newId(), text: it }
+          if (it && typeof it === 'object') {
+            const obj = it as { id?: unknown; text?: unknown }
+            return {
+              id: typeof obj.id === 'string' && obj.id ? obj.id : newId(),
+              text: typeof obj.text === 'string' ? obj.text : '',
+            }
+          }
+          return { id: newId(), text: '' }
+        })
+        return { ...block, items }
+      }
+      return { ...block, items: [] }
+    }
+    case 'columns':
+      return {
+        ...block,
+        cols: (block.cols ?? []).map((c) => ({
+          ...c,
+          id: c.id || newId(),
+        })),
+      }
+    case 'checklist':
+      return {
+        ...block,
+        items: (block.items ?? []).map((it) => ({
+          ...it,
+          id: it.id || newId(),
+        })),
+      }
+    case 'receipt':
+      return {
+        ...block,
+        items: (block.items ?? []).map((it) => ({
+          ...it,
+          id: it.id || newId(),
+        })),
+      }
+    default:
+      return block
+  }
+}
 
 export const isContentDoc = (value: unknown): value is ContentDoc => {
   if (typeof value !== 'object' || value === null) return false

@@ -14,14 +14,15 @@ import { useProducts } from '@/hooks/queries/products'
 import { schemas } from '@spaire/client'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { BroadcastEditor } from '../blockEditor/BroadcastEditor'
 import { renderBlocksToHtml } from '../blockEditor/render'
 import {
   Block,
   ContentDoc,
   isContentDoc,
   newId as newBlockId,
+  normalizeContentDoc,
 } from '../blockEditor/types'
-import { Composer } from '../composer/Composer'
 import {
   ActionStepValue,
   BranchStepValue,
@@ -163,12 +164,14 @@ const STARTER_DOC = (): ContentDoc => ({
 
 const adoptContentJson = (raw: unknown): ContentDoc => {
   if (isContentDoc(raw)) {
-    return {
-      version: 1,
+    const withIds = {
+      version: 1 as const,
+      accent: raw.accent,
       blocks: raw.blocks.map((b) =>
         'id' in b && b.id ? b : ({ ...b, id: newBlockId() } as Block),
       ),
     }
+    return normalizeContentDoc(withIds)
   }
   return STARTER_DOC()
 }
@@ -1913,7 +1916,7 @@ const SequenceEmailComposerModal = ({
         }}
       >
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <Composer
+          <BroadcastEditor
             embedded
             doc={doc}
             setDoc={setDoc}

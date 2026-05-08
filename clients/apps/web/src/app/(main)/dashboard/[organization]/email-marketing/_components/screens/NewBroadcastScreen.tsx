@@ -19,9 +19,15 @@ import {
 } from '@/hooks/queries/emailMarketing'
 import { schemas } from '@spaire/client'
 import { useRef, useState } from 'react'
+import { BroadcastEditor } from '../blockEditor/BroadcastEditor'
 import { renderBlocksToHtml } from '../blockEditor/render'
-import { Block, ContentDoc, isContentDoc, newId } from '../blockEditor/types'
-import { Composer } from '../composer/Composer'
+import {
+  Block,
+  ContentDoc,
+  isContentDoc,
+  newId,
+  normalizeContentDoc,
+} from '../blockEditor/types'
 import { Icon } from '../Icon'
 import { sanitizeEmailHtml } from '../sanitize'
 import { KV, Section, Toggle } from '../shared'
@@ -67,13 +73,17 @@ const STARTER_DOC: ContentDoc = {
 
 const adoptContentJson = (raw: unknown): ContentDoc => {
   if (isContentDoc(raw)) {
-    // Defensive: ensure each block has an id even if a legacy doc didn't.
-    return {
-      version: 1,
+    // Defensive: ensure each block has an id even if a legacy doc didn't,
+    // and migrate string[] list items / id-less columns to the canonical
+    // shape so the editor's React keys stay stable.
+    const withIds = {
+      version: 1 as const,
+      accent: raw.accent,
       blocks: raw.blocks.map((b) =>
         'id' in b && b.id ? b : ({ ...b, id: newId() } as Block),
       ),
     }
+    return normalizeContentDoc(withIds)
   }
   return STARTER_DOC
 }
@@ -735,14 +745,14 @@ const ContentSection = ({
   organization: schemas['Organization']
 }) => {
   const uploadMutation = useUploadEmailImage(organization.id)
-  // Wrap the mutation in a stable async function so the BlockEditor doesn't
+  // Wrap the mutation in a stable async function so the editor doesn't
   // reach into TanStack Query directly.
   const uploadImage = async (file: File): Promise<string> => {
     const result = await uploadMutation.mutateAsync(file)
     return result.url
   }
   return (
-    <Composer
+    <BroadcastEditor
       doc={draft.content_doc}
       setDoc={(next) => setDraft({ content_doc: next })}
       uploadImage={uploadImage}

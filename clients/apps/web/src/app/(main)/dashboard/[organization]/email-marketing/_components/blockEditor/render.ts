@@ -126,7 +126,11 @@ const renderBlockUnsafe = (block: Block, accent: string): string => {
     case 'list': {
       const tag = block.ordered ? 'ol' : 'ul'
       const items = (block.items ?? [])
-        .map((it) => `<li style="margin-bottom:4px">${escape(it)}</li>`)
+        .map((it) => {
+          // Tolerate legacy string[] payloads still on disk pre-migration.
+          const text = typeof it === 'string' ? it : (it?.text ?? '')
+          return `<li style="margin-bottom:4px">${escape(text)}</li>`
+        })
         .join('')
       return `<${tag} style="margin:0 0 14px;padding-left:20px;color:#3a3a3c;font-size:14px;line-height:1.7">${items}</${tag}>`
     }
