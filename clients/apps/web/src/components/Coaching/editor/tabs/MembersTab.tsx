@@ -16,6 +16,7 @@ import {
 import type { CourseRead } from '@/hooks/queries/courses'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from '../../../Toast/use-toast'
+import { MemberDetailDrawer } from '../MemberDetailDrawer'
 import { Ic } from '../icons'
 import { Avatar, Btn, Menu, Modal, Pill, SectionHead, Toggle } from '../ui'
 
@@ -39,6 +40,9 @@ export function MembersTab({ course }: { course: CourseRead }) {
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [newCohortOpen, setNewCohortOpen] = useState(false)
   const [draftCohort, setDraftCohort] = useState({ name: '', capacity: '' })
+  const [drawerMember, setDrawerMember] = useState<CoachingMemberRead | null>(
+    null,
+  )
 
   const filtered = useMemo(() => {
     return members
@@ -193,6 +197,7 @@ export function MembersTab({ course }: { course: CourseRead }) {
                   cohorts={cohorts}
                   openMenu={openMenu}
                   setOpenMenu={setOpenMenu}
+                  onOpenDetail={() => setDrawerMember(m)}
                   onAssignCohort={(cohortId) =>
                     assignCohort.mutate({
                       enrollmentId: m.enrollment_id,
@@ -259,6 +264,27 @@ export function MembersTab({ course }: { course: CourseRead }) {
           </div>
         </div>
       </Modal>
+
+      <MemberDetailDrawer
+        open={!!drawerMember}
+        member={
+          drawerMember
+            ? members.find(
+                (m) => m.enrollment_id === drawerMember.enrollment_id,
+              ) ?? drawerMember
+            : null
+        }
+        cohorts={cohorts}
+        courseId={courseId}
+        onClose={() => setDrawerMember(null)}
+        onAssignCohort={(cohortId) => {
+          if (!drawerMember) return
+          assignCohort.mutate({
+            enrollmentId: drawerMember.enrollment_id,
+            cohortId,
+          })
+        }}
+      />
 
       <EditCohortModal
         cohort={editing}
@@ -570,12 +596,14 @@ function MemberRow({
   openMenu,
   setOpenMenu,
   onAssignCohort,
+  onOpenDetail,
 }: {
   member: CoachingMemberRead
   cohorts: CoachingCohortRead[]
   openMenu: string | null
   setOpenMenu: (id: string | null) => void
   onAssignCohort: (cohortId: string) => void
+  onOpenDetail: () => void
 }) {
   const pct =
     member.total_lessons > 0
@@ -586,7 +614,7 @@ function MemberRow({
     cohorts.find((c) => c.id === member.cohort_id)?.name ||
     'Unassigned'
   return (
-    <tr>
+    <tr onClick={onOpenDetail} style={{ cursor: 'pointer' }}>
       <td style={{ paddingLeft: 22 }}>
         <div className="ce-member-cell">
           <Avatar
@@ -628,7 +656,10 @@ function MemberRow({
       <td>
         <Pill>{cohortName}</Pill>
       </td>
-      <td style={{ position: 'relative', textAlign: 'right' }}>
+      <td
+        style={{ position: 'relative', textAlign: 'right' }}
+        onClick={(e) => e.stopPropagation()}
+      >
         <Btn
           variant="ghost"
           size="icon"
