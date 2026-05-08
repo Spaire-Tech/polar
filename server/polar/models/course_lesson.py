@@ -50,9 +50,10 @@ class CourseLesson(RecordModel):
         Boolean, nullable=False, default=False
     )
 
-    # Mux video fields
+    # Mux video fields. mux_upload_id is unique so the webhook handler's
+    # scalar_one_or_none() lookup can never raise MultipleResultsFound.
     mux_upload_id: Mapped[str | None] = mapped_column(
-        String(255), nullable=True, default=None, index=True
+        String(255), nullable=True, default=None, index=True, unique=True
     )
     mux_asset_id: Mapped[str | None] = mapped_column(
         String(255), nullable=True, default=None

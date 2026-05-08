@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import TIMESTAMP, ForeignKey, Uuid
+from sqlalchemy import TIMESTAMP, ForeignKey, Index, Uuid
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
 
 from polar.kit.db.models import RecordModel
@@ -14,6 +14,17 @@ if TYPE_CHECKING:
 
 class CourseEnrollment(RecordModel):
     __tablename__ = "course_enrollments"
+    __table_args__ = (
+        # One active enrollment per (customer, course). Soft-deleted rows are
+        # excluded so a refunded customer can re-buy and re-enroll cleanly.
+        Index(
+            "ix_course_enrollments_customer_course_active",
+            "customer_id",
+            "course_id",
+            unique=True,
+            postgresql_where="deleted_at IS NULL",
+        ),
+    )
 
     customer_id: Mapped[UUID] = mapped_column(
         Uuid,
