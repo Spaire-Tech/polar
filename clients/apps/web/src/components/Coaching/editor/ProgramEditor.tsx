@@ -1,6 +1,11 @@
 'use client'
 
-import { useCoachingEvents } from '@/hooks/queries/coaching'
+import {
+  useCoachingEvents,
+  useCoachingIntakeResponses,
+  useCoachingMembers,
+  useCoachingPosts,
+} from '@/hooks/queries/coaching'
 import type { CourseRead } from '@/hooks/queries/courses'
 import { schemas } from '@spaire/client'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
@@ -173,8 +178,22 @@ function ProgramHeader({
   onTabChange: (next: TabId) => void
 }) {
   const { data: events = [] } = useCoachingEvents(course.id)
+  const { data: members = [] } = useCoachingMembers(course.id)
+  const { data: posts = [] } = useCoachingPosts(course.id)
+  const { data: responses = [] } = useCoachingIntakeResponses(course.id)
   const lifecycle = useMemo(() => deriveLifecycle(events), [events])
   const meta = useMemo(() => buildMeta(events), [events])
+
+  const badges: Record<TabId, number | undefined> = {
+    events: events.filter((e) => e.status !== 'cancelled').length || undefined,
+    modules: undefined,
+    community: posts.filter((p) => !p.hidden).length || undefined,
+    intake: responses.length || undefined,
+    members: members.length || undefined,
+    customize: undefined,
+    pricing: undefined,
+  }
+
   return (
     <>
       <div className="ce-prog-header">
@@ -233,17 +252,21 @@ function ProgramHeader({
       </div>
       <div style={{ height: 8 }} />
       <div className="ce-tabs" role="tablist">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            role="tab"
-            type="button"
-            onClick={() => onTabChange(t.id)}
-            className={'ce-tab' + (activeTab === t.id ? ' active' : '')}
-          >
-            {t.label}
-          </button>
-        ))}
+        {TABS.map((t) => {
+          const badge = badges[t.id]
+          return (
+            <button
+              key={t.id}
+              role="tab"
+              type="button"
+              onClick={() => onTabChange(t.id)}
+              className={'ce-tab' + (activeTab === t.id ? ' active' : '')}
+            >
+              {t.label}
+              {badge != null && <span className="ce-badge">{badge}</span>}
+            </button>
+          )
+        })}
       </div>
     </>
   )
