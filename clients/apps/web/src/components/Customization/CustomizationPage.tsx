@@ -4,6 +4,7 @@ import { CustomizationProvider } from '@/components/Customization/CustomizationP
 import { ForceLightMode } from '@/components/Profile/ForceLightMode'
 import { ProfileCard } from '@/components/Profile/ProfileCard'
 import { Storefront } from '@/components/Profile/Storefront'
+import { StorefrontLinkItem } from '@/components/Profile/StorefrontLinks'
 import { toast } from '@/components/Toast/use-toast'
 import { useUpdateOrganization } from '@/hooks/queries'
 import { useStorefront } from '@/hooks/queries/storefront'
@@ -16,6 +17,10 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import {
+  AddToSpacePicker,
+  AddToSpacePickerCallbacks,
+} from './Storefront/AddToSpacePicker'
 import { StorefrontLinksPanel } from './Storefront/StorefrontLinksPanel'
 import { StorefrontLivePreview } from './Storefront/StorefrontPreview'
 import { StorefrontEditorForm } from './Storefront/StorefrontSidebar'
@@ -42,6 +47,7 @@ const Customization = ({
   const updateOrganization = useUpdateOrganization()
   const [publishing, setPublishing] = useState(false)
   const [linksMode, setLinksMode] = useState(false)
+  const [pickerOpen, setPickerOpen] = useState(false)
   const isSpaceEnabled = organization.storefront_settings?.enabled ?? false
   const [isEditing, setIsEditing] = useState(!isSpaceEnabled)
 
@@ -57,6 +63,97 @@ const Customization = ({
   })
 
   const isDirty = form.formState.isDirty
+
+  // ── Add-to-Space picker callbacks ─────────────────────────────────
+  // The picker is form-context-agnostic; it just hands us payloads and
+  // we write them into the form here. Each callback flips the form's
+  // dirty state so the Publish button activates.
+
+  const appendStorefrontLink = useCallback(
+    (link: StorefrontLinkItem) => {
+      const settings = form.getValues('storefront_settings') ?? {}
+      const links =
+        ((settings as { storefront_links?: StorefrontLinkItem[] })
+          .storefront_links ?? []).slice()
+      links.push(link)
+      form.setValue(
+        'storefront_settings',
+        { ...settings, storefront_links: links },
+        { shouldDirty: true },
+      )
+      toast({
+        title: 'Added to your Space',
+        description: link.title || link.url,
+      })
+    },
+    [form],
+  )
+
+  const pickerCallbacks: AddToSpacePickerCallbacks = {
+    onAddLink: (payload) => {
+      appendStorefrontLink({
+        id: crypto.randomUUID(),
+        url: payload.url,
+        title: payload.title,
+        description: payload.description,
+        image_url: payload.image_url,
+        type: 'standard',
+        platform: null,
+      })
+    },
+    onAddEmbed: ({ url, platform }) => {
+      appendStorefrontLink({
+        id: crypto.randomUUID(),
+        url,
+        title: platform.label,
+        description: null,
+        image_url: null,
+        // Platforms we can render inline → 'embedded'. The rest fall
+        // back to a stylized standard card; the renderer keys off
+        // `platform` for branding either way.
+        type: platform.canEmbed ? 'embedded' : 'standard',
+        platform: platform.id,
+      })
+    },
+    onAddProducts: (productIds) => {
+      const settings = form.getValues('storefront_settings') ?? {}
+      const existing = (settings as { featured_product_ids?: string[] })
+        .featured_product_ids ?? []
+      const merged = Array.from(new Set([...existing, ...productIds]))
+      form.setValue(
+        'storefront_settings',
+        {
+          ...settings,
+          featured_mode: 'curated',
+          featured_product_ids: merged,
+        },
+        { shouldDirty: true },
+      )
+      toast({
+        title: `Added ${productIds.length} product${productIds.length === 1 ? '' : 's'} to your Space`,
+        description: 'Switched to curated mode.',
+      })
+    },
+    onCreateProduct: () => {
+      router.push(`/dashboard/${organization.slug}/products/new?type=digital`)
+    },
+    onCreateCourse: () => {
+      router.push(`/dashboard/${organization.slug}/products/new?type=course`)
+    },
+  }
+
+  // ⌘K / Ctrl+K opens the Add-to-Space picker from anywhere in the editor.
+  useEffect(() => {
+    if (!isEditing) return
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setPickerOpen(true)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [isEditing])
 
   // Warn before navigating away (or closing the tab) with unpublished
   // edits. Only for the editor, not the published-preview branch.
@@ -226,16 +323,34 @@ const Customization = ({
           >
             {isSpaceEnabled ? '\u2190 Back to preview' : '\u2190 Back to dashboard'}
           </button>
-          <Button
-            className="rounded-full px-6"
-            type="button"
-            onClick={handlePublish}
-            loading={publishing}
-            disabled={!isDirty}
-          >
-            {isDirty ? 'Publish Changes' : 'Published'}
-          </Button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setPickerOpen(true)}
+              className="flex h-10 items-center gap-2 rounded-full bg-blue-600 px-5 text-sm font-medium text-white shadow-sm transition-opacity hover:opacity-90"
+            >
+              <span className="text-lg leading-none">+</span>
+              Add to Space
+            </button>
+            <Button
+              className="rounded-full px-6"
+              type="button"
+              onClick={handlePublish}
+              loading={publishing}
+              disabled={!isDirty}
+            >
+              {isDirty ? 'Publish Changes' : 'Published'}
+            </Button>
+          </div>
         </div>
+
+        {pickerOpen && (
+          <AddToSpacePicker
+            organization={organization}
+            onClose={() => setPickerOpen(false)}
+            callbacks={pickerCallbacks}
+          />
+        )}
 
         {/* Two-column: preview left, form right */}
         <div className="flex min-h-0 grow flex-row overflow-hidden">
