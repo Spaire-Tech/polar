@@ -17,12 +17,12 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { SpaceEditorCanvas } from './SpaceEditorShell'
 import {
   AddToSpacePicker,
   AddToSpacePickerCallbacks,
 } from './Storefront/AddToSpacePicker'
 import { StorefrontLinksPanel } from './Storefront/StorefrontLinksPanel'
-import { StorefrontLivePreview } from './Storefront/StorefrontPreview'
 import { StorefrontEditorForm } from './Storefront/StorefrontSidebar'
 
 export const CustomizationPage = ({
@@ -48,6 +48,7 @@ const Customization = ({
   const [publishing, setPublishing] = useState(false)
   const [linksMode, setLinksMode] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const isSpaceEnabled = organization.storefront_settings?.enabled ?? false
   const [isEditing, setIsEditing] = useState(!isSpaceEnabled)
 
@@ -233,7 +234,7 @@ const Customization = ({
     } finally {
       setPublishing(false)
     }
-  }, [form, organization, updateOrganization, publishing])
+  }, [form, organization, updateOrganization, publishing, queryClient])
 
   // Published preview mode — card centered with Edit Space button
   if (!isEditing && isSpaceEnabled) {
@@ -295,53 +296,202 @@ const Customization = ({
     )
   }
 
-  // Editor mode — two-column layout
+  // ── Editor mode — single-canvas WYSIWYG ─────────────────────────
+  // Toolbar (back / status / settings / publish) sticks to the top.
+  // Canvas renders ProfileCard (left, sticky) + Storefront content
+  // blocks (right) using our existing public-Space components for
+  // visual fidelity. A floating "+ Add to Space" FAB sits at the
+  // bottom. The Settings (gear) button toggles a slide-in panel that
+  // wraps the existing StorefrontEditorForm for now; PR D ships the
+  // redesigned panel and PR C wires inline-edit on the canvas itself.
+
+  const handleBack = () => {
+    if (
+      isDirty &&
+      !window.confirm(
+        'You have unpublished changes. Leave without publishing?',
+      )
+    ) {
+      return
+    }
+    if (isSpaceEnabled) {
+      setIsEditing(false)
+    } else {
+      router.push(`/dashboard/${organization.slug}`)
+    }
+  }
+
+  const discardChanges = () => {
+    if (
+      window.confirm(
+        'Discard all unpublished edits and revert to the published version?',
+      )
+    ) {
+      form.reset({
+        name: organization.name,
+        avatar_url: organization.avatar_url,
+        socials: organization.socials,
+        storefront_settings: organization.storefront_settings,
+      })
+    }
+  }
+
   return (
     <Form {...form}>
       <ForceLightMode />
-      <div className="flex h-full flex-col bg-gray-50">
-        {/* Top bar */}
-        <div className="flex flex-row items-center justify-between border-b border-gray-200 bg-white px-8 py-4">
-          <button
-            type="button"
-            onClick={() => {
-              if (
-                isDirty &&
-                !window.confirm(
-                  'You have unpublished changes. Leave without publishing?',
-                )
-              ) {
-                return
-              }
-              if (isSpaceEnabled) {
-                setIsEditing(false)
-              } else {
-                router.push(`/dashboard/${organization.slug}`)
-              }
-            }}
-            className="text-[14px] text-gray-500 transition-colors hover:text-gray-700"
-          >
-            {isSpaceEnabled ? '\u2190 Back to preview' : '\u2190 Back to dashboard'}
-          </button>
-          <div className="flex items-center gap-2">
+      <div className="spaire-editor">
+        <div className="toolbar">
+          <div className="tb-left">
+            <button type="button" className="tb-back" onClick={handleBack}>
+              {'←'} {isSpaceEnabled ? 'Back to preview' : 'Dashboard'}
+            </button>
+          </div>
+          <div className="tb-center">
+            <span
+              className="tb-status"
+              data-pub={!isDirty && isSpaceEnabled ? '1' : '0'}
+            >
+              <span className="dot" />
+              {isDirty
+                ? 'Unsaved'
+                : isSpaceEnabled
+                  ? 'Published'
+                  : 'Draft'}
+            </span>
+          </div>
+          <div className="tb-right">
             <button
               type="button"
-              onClick={() => setPickerOpen(true)}
-              className="flex h-10 items-center gap-2 rounded-full bg-blue-600 px-5 text-sm font-medium text-white shadow-sm transition-opacity hover:opacity-90"
+              className="tb-icon-btn"
+              onClick={() => {
+                if (isSpaceEnabled) setIsEditing(false)
+              }}
+              disabled={!isSpaceEnabled}
+              title={
+                isSpaceEnabled
+                  ? 'Open the public preview'
+                  : 'Enable your Space to preview'
+              }
             >
-              <span className="text-lg leading-none">+</span>
-              Add to Space
+              Preview
             </button>
-            <Button
-              className="rounded-full px-6"
+            <button
               type="button"
-              onClick={handlePublish}
-              loading={publishing}
-              disabled={!isDirty}
+              className="tb-icon-btn"
+              onClick={() => setSettingsOpen((o) => !o)}
+              aria-pressed={settingsOpen}
             >
-              {isDirty ? 'Publish Changes' : 'Published'}
-            </Button>
+              Settings
+            </button>
+            <button
+              type="button"
+              className="tb-publish"
+              onClick={handlePublish}
+              disabled={!isDirty || publishing}
+            >
+              {publishing
+                ? 'Publishing…'
+                : isDirty
+                  ? 'Publish changes'
+                  : 'Published'}
+            </button>
           </div>
+        </div>
+
+        {/* Unsaved-changes banner */}
+        {isDirty && (
+          <div className="unsaved-banner">
+            <div>
+              <b>You have unpublished changes.</b>
+              <button type="button" onClick={handlePublish}>
+                Publish now
+              </button>
+              <button
+                type="button"
+                className="discard"
+                onClick={discardChanges}
+              >
+                Discard
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Canvas — ProfileCard + Storefront content blocks */}
+        <SpaceEditorCanvas
+          organization={organization}
+          hasSettingsPanel={settingsOpen || linksMode}
+        />
+
+        {/* Settings side panel — wraps the existing form until PR D
+            ships the redesigned panel. */}
+        <aside
+          className={`side-panel${settingsOpen ? ' open' : ''}`}
+          aria-hidden={!settingsOpen}
+        >
+          <div className="sp-head">
+            <h2>Space settings</h2>
+            <button
+              type="button"
+              className="tb-icon-btn"
+              onClick={() => setSettingsOpen(false)}
+              aria-label="Close settings"
+            >
+              {'×'}
+            </button>
+          </div>
+          <div className="sp-body">
+            <StorefrontEditorForm
+              organization={organization}
+              onEnterLinksMode={() => {
+                setSettingsOpen(false)
+                setLinksMode(true)
+              }}
+            />
+          </div>
+        </aside>
+
+        {/* Manage Links side panel — opens from the Settings form's
+            "Manage links" button. PR D folds this into the new panel. */}
+        {linksMode && (
+          <aside
+            className="side-panel open"
+            style={{ width: 'min(540px, 100vw)' }}
+            aria-label="Manage links"
+          >
+            <div className="sp-head">
+              <h2>Manage links</h2>
+              <button
+                type="button"
+                className="tb-icon-btn"
+                onClick={() => setLinksMode(false)}
+                aria-label="Close links panel"
+              >
+                {'×'}
+              </button>
+            </div>
+            <div className="sp-body" style={{ padding: '20px 24px 80px' }}>
+              <StorefrontLinksPanel
+                organization={organization}
+                onBack={() => setLinksMode(false)}
+              />
+            </div>
+          </aside>
+        )}
+
+        {/* Floating Add-to-Space FAB */}
+        <div
+          className={`add-fab-wrap${settingsOpen || linksMode ? ' has-panel' : ''}`}
+        >
+          <button
+            type="button"
+            className="add-fab"
+            onClick={() => setPickerOpen(true)}
+          >
+            <span className="plus">+</span>
+            Add to Space
+            <span className="kbd">{'⌘'}K</span>
+          </button>
         </div>
 
         {pickerOpen && (
@@ -351,76 +501,6 @@ const Customization = ({
             callbacks={pickerCallbacks}
           />
         )}
-
-        {/* Two-column: preview left, form right */}
-        <div className="flex min-h-0 grow flex-row overflow-hidden">
-          {/* Left — heading + live card preview (hidden on mobile) */}
-          <div
-            className={`hidden flex-1 flex-col items-center overflow-y-auto p-10 md:flex ${
-              linksMode ? 'justify-start' : 'justify-center'
-            }`}
-          >
-            <div className="flex w-full max-w-[500px] flex-col items-center">
-              {!linksMode && (
-                <>
-                  <h1 className="text-center text-[28px] font-bold text-gray-950">
-                    {isSpaceEnabled
-                      ? 'Edit your Space Card'
-                      : 'Let\u2019s Create your Space Card'}
-                  </h1>
-                  <p className="mt-1 text-center text-[15px] text-gray-500">
-                    Introduce yourself and design your personal Space ID card.
-                  </p>
-                </>
-              )}
-
-              <div
-                className={
-                  linksMode
-                    ? 'w-full max-w-[460px]'
-                    : 'mt-8 w-full max-w-[460px]'
-                }
-              >
-                {linksMode ? (
-                  <StorefrontLinksPanel
-                    organization={organization}
-                    onBack={() => setLinksMode(false)}
-                  />
-                ) : (
-                  <StorefrontLivePreview organization={organization} />
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Right — form sections on desktop, full-width on mobile.
-              On mobile we swap in the StorefrontLinksPanel when
-              linksMode is on, since the left column (where the panel
-              normally renders on desktop) is hidden below md. */}
-          <div className="w-full shrink-0 overflow-y-auto border-l border-gray-200 bg-white shadow-sm md:w-[700px]">
-            {linksMode && (
-              <div className="block px-4 py-6 md:hidden">
-                <button
-                  type="button"
-                  onClick={() => setLinksMode(false)}
-                  className="mb-4 text-sm text-gray-500 transition-colors hover:text-gray-700"
-                >
-                  &larr; Back to editor
-                </button>
-                <StorefrontLinksPanel
-                  organization={organization}
-                  onBack={() => setLinksMode(false)}
-                />
-              </div>
-            )}
-            <div className={linksMode ? 'hidden md:block' : 'block'}>
-              <StorefrontEditorForm
-                organization={organization}
-                onEnterLinksMode={() => setLinksMode(true)}
-              />
-            </div>
-          </div>
-        </div>
       </div>
     </Form>
   )
