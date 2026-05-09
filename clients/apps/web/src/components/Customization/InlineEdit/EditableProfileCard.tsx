@@ -515,7 +515,10 @@ export const EditableProfileCard = ({
           <SelectTrigger className="h-11 rounded-xl">
             <SelectValue placeholder="None" />
           </SelectTrigger>
-          <SelectContent>
+          {/* z-[100] sits above EditPopover (z-90) so the dropdown
+              opens IN FRONT of the popover instead of being hidden
+              behind it. Radix portals SelectContent to body. */}
+          <SelectContent className="z-[100]">
             <SelectItem value="__none__">
               <span className="text-gray-400">None</span>
             </SelectItem>

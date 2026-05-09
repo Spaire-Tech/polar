@@ -36,12 +36,14 @@
 .picker-backdrop {
   position: fixed;
   inset: 0;
-  /* Almost-transparent fill so the page behind shows through; the
-     frost effect comes from backdrop-filter blurring whatever the
-     editor canvas was painting. */
-  background: rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(40px) saturate(140%);
-  -webkit-backdrop-filter: blur(40px) saturate(140%);
+  /* The ONLY layer doing the blur. Transparent fill so the page
+     stays visible underneath, but heavily blurred. The surface on
+     top doesn't compete with its own backdrop-filter (browsers
+     handle a single backdrop-filter cleanly; nested ones can
+     cancel each other out). */
+  background: transparent;
+  backdrop-filter: blur(48px) saturate(160%);
+  -webkit-backdrop-filter: blur(48px) saturate(160%);
   z-index: 70;
   display: flex;
   align-items: center;
@@ -70,16 +72,18 @@
   flex-direction: column;
   border-radius: 36px;
   padding: 32px 32px 36px;
+  /* Surface: solid-enough cream so it reads cleanly on top of the
+     blurred backdrop. No backdrop-filter here — the backdrop layer
+     does the blur, and stacking two backdrop-filter elements can
+     cancel out in some browsers. */
   background:
     linear-gradient(
       180deg,
-      rgba(255, 255, 255, 0.55) 0%,
-      rgba(255, 255, 255, 0.32) 100%
+      rgba(255, 255, 255, 0.82) 0%,
+      rgba(255, 255, 255, 0.66) 100%
     ),
-    rgba(248, 246, 242, 0.62);
-  backdrop-filter: blur(40px) saturate(180%);
-  -webkit-backdrop-filter: blur(40px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.55);
+    rgba(248, 246, 242, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.7);
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.7) inset,
     0 -1px 0 rgba(0, 0, 0, 0.04) inset,

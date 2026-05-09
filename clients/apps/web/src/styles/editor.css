@@ -223,10 +223,14 @@
 
 .spaire-editor .canvas {
   width: 100%;
-  max-width: 1180px;
+  /* Match the public Spaire Space layout
+     (clients/apps/web/src/app/(main)/[organization]/(header)/layout.tsx).
+     Same max-width, same aside width, same gap. The canvas should
+     visually equal what visitors see — no canvas-only sizing. */
+  max-width: 1100px;
   display: grid;
-  grid-template-columns: 408px 1fr;
-  gap: 28px;
+  grid-template-columns: 420px 1fr;
+  gap: 48px;
   align-items: start;
 }
 
@@ -240,6 +244,12 @@
   display: flex;
   flex-direction: column;
   gap: 28px;
+  /* Critical: without min-width:0, a child whose intrinsic width is
+     larger than the column allocation (e.g. the Links carousel
+     layout, which has overflow-x but unbounded min-content) will
+     blow up the grid track. min-width:0 lets the grid clip
+     correctly and overflow-x:auto inside takes over. */
+  min-width: 0;
 }
 
 @media (max-width: 920px) {
@@ -868,9 +878,9 @@
 .spaire-editor .edit-pop-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(40px) saturate(140%);
-  -webkit-backdrop-filter: blur(40px) saturate(140%);
+  background: transparent;
+  backdrop-filter: blur(48px) saturate(160%);
+  -webkit-backdrop-filter: blur(48px) saturate(160%);
   z-index: 70;
   animation: pk-fade-in 0.18s ease;
 }
@@ -882,21 +892,22 @@
   transform: translate(-50%, -50%);
   width: min(440px, calc(100vw - 32px));
   max-height: min(80vh, 720px);
-  z-index: 71;
+  /* Above 70 (backdrop) and 80 (Radix popper SelectContent we bump). */
+  z-index: 90;
   display: flex;
   flex-direction: column;
   border-radius: 24px;
   padding: 22px 22px 20px;
+  /* Solid-enough cream surface; backdrop layer behind handles the
+     blur (matches picker treatment so the two stay consistent). */
   background:
     linear-gradient(
       180deg,
-      rgba(255, 255, 255, 0.7) 0%,
-      rgba(255, 255, 255, 0.5) 100%
+      rgba(255, 255, 255, 0.85) 0%,
+      rgba(255, 255, 255, 0.7) 100%
     ),
-    rgba(248, 246, 242, 0.7);
-  backdrop-filter: blur(40px) saturate(180%);
-  -webkit-backdrop-filter: blur(40px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.55);
+    rgba(248, 246, 242, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.7);
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.7) inset,
     0 24px 48px -16px rgba(20, 18, 30, 0.3),

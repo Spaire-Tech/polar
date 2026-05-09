@@ -240,6 +240,13 @@ const LinksBlock = ({
     )
   }
 
+  // Embeds and URL links render as separate sections — same split the
+  // public StorefrontLinks renderer uses. Embeds always go full-width,
+  // URL links honor the chosen layout. The layout picker only applies
+  // to URL links because the picker label says so.
+  const urlLinks = links.filter((l) => l.type !== 'embedded')
+  const embedLinks = links.filter((l) => l.type === 'embedded')
+
   const layoutClass: Record<LinksLayout, string> = {
     classic: 'flex flex-col gap-3',
     card: 'flex flex-col gap-4',
@@ -248,30 +255,59 @@ const LinksBlock = ({
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-2">
-        <SectionLabel>Links</SectionLabel>
-        <LayoutPicker value={layout} onChange={onLayoutChange} />
-      </div>
-      <div className={layoutClass[layout]}>
-        {links.map((link) => (
-          <div key={link.id} className="item-hover">
-            <LinkRow link={link} layout={layout} />
-            <div className="item-actions">
-              <button
-                type="button"
-                className="item-action danger"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onRemove(link.id)
-                }}
-              >
-                Remove
-              </button>
-            </div>
+    <div className="flex flex-col gap-8">
+      {embedLinks.length > 0 && (
+        <div className="flex flex-col gap-4">
+          <SectionLabel>Featured</SectionLabel>
+          <div className="flex w-full flex-col gap-5">
+            {embedLinks.map((link) => (
+              <div key={link.id} className="item-hover">
+                <LinkRow link={link} layout="card" embedded />
+                <div className="item-actions">
+                  <button
+                    type="button"
+                    className="item-action danger"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onRemove(link.id)
+                    }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </div>
+      )}
+
+      {urlLinks.length > 0 && (
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-2">
+            <SectionLabel>Links</SectionLabel>
+            <LayoutPicker value={layout} onChange={onLayoutChange} />
+          </div>
+          <div className={layoutClass[layout]}>
+            {urlLinks.map((link) => (
+              <div key={link.id} className="item-hover">
+                <LinkRow link={link} layout={layout} />
+                <div className="item-actions">
+                  <button
+                    type="button"
+                    className="item-action danger"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onRemove(link.id)
+                    }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -286,18 +322,23 @@ const getDomain = (url: string): string => {
 
 // Lightweight link card per layout — click does nothing in edit mode
 // (preview-only). Hover reveals the Remove button via .item-hover.
+// The `embedded` flag forces the card layout regardless of `layout`
+// because embeds always render full-width on the public Space.
 const LinkRow = ({
   link,
   layout,
+  embedded = false,
 }: {
   link: StorefrontLinkItem
   layout: LinksLayout
+  embedded?: boolean
 }) => {
+  const effectiveLayout = embedded ? 'card' : layout
   const title = link.title || getDomain(link.url)
   const host = getDomain(link.url)
   const cover = link.image_url
 
-  if (layout === 'classic') {
+  if (effectiveLayout === 'classic') {
     return (
       <div className="flex items-center gap-4 rounded-2xl border border-gray-200 bg-white px-4 py-3.5 shadow-sm">
         <div
@@ -322,7 +363,7 @@ const LinkRow = ({
     )
   }
 
-  if (layout === 'image_grid') {
+  if (effectiveLayout === 'image_grid') {
     return (
       <div
         className="relative aspect-square overflow-hidden rounded-2xl bg-gray-100 shadow-sm"
@@ -345,7 +386,7 @@ const LinkRow = ({
     )
   }
 
-  if (layout === 'carousel') {
+  if (effectiveLayout === 'carousel') {
     return (
       <div className="flex w-[240px] shrink-0 snap-start flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
         <div

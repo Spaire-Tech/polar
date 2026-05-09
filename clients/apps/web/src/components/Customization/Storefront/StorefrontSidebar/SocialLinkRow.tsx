@@ -50,7 +50,9 @@ export const SocialLinkRow = ({
               </span>
             </div>
           </SelectTrigger>
-          <SelectContent>
+          {/* z-[100] so the dropdown opens above the editor's
+              EditPopover (z-90) when this row is rendered inside one. */}
+          <SelectContent className="z-[100]">
             {SOCIAL_PLATFORMS.map((p) => (
               <SelectItem key={p.value} value={p.value}>
                 <div className="flex items-center gap-x-2">
