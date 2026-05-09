@@ -23,6 +23,7 @@ import EditOutlined from '@mui/icons-material/EditOutlined'
 import TranslateOutlined from '@mui/icons-material/TranslateOutlined'
 import Verified from '@mui/icons-material/Verified'
 import { schemas } from '@spaire/client'
+import Avatar from '@spaire/ui/components/atoms/Avatar'
 import {
   Select,
   SelectContent,
@@ -39,6 +40,8 @@ import { EditPopover } from './EditPopover'
 
 type SocialLink = schemas['OrganizationSocialLink']
 
+const MAX_VISIBLE_SKILLS = 4
+
 const parseFocalPosition = (raw: string): { x: number; y: number } => {
   if (raw.includes('%') && raw.includes(' ')) {
     const [px, py] = raw.split(' ')
@@ -48,20 +51,20 @@ const parseFocalPosition = (raw: string): { x: number; y: number } => {
 }
 
 /**
- * Inline-editable mirror of ProfileCard. Same layout / classes as the
- * public ProfileCard so the visual stays identical, but every editable
- * surface is wrapped in a click-to-edit affordance:
+ * Editable variant of ProfileCard. Mirrors ProfileCard.tsx structure
+ * 1:1 — same wrapper div, same banner / avatar / body grid, same
+ * Tailwind classes, same gap math. The ONLY differences are:
  *
- * - Cover image — click "Replace" to upload, drag to reposition focal
- *   point.
- * - Avatar — click "Replace" to upload.
- * - Name, Profile title, Description — contentEditable text.
- * - Skills, Languages, Socials — open a popover (blurred backdrop).
- * - Available-for-work badge — popover with toggle + contact URL.
+ *   - Cover image is wrapped in a hover-zone with a Replace button
+ *     and a pointer-event drag handler for focal-point reposition.
+ *   - Avatar is wrapped in a hover-zone with a Replace button.
+ *   - Name + Description swap their <h1>/<p> for an <Editable> that
+ *     keeps the same className so the visual is identical at rest.
+ *   - Profile title + Skills + Languages + Available-for-work +
+ *     Socials open EditPopovers when clicked.
  *
- * Reads/writes via the surrounding react-hook-form context so the
- * canvas's published-preview branch and the Publish button stay in
- * sync.
+ * No bespoke layout, no bespoke margins. The card on the canvas is
+ * the same card visitors see — just live.
  */
 export const EditableProfileCard = ({
   organization: org,
@@ -72,20 +75,22 @@ export const EditableProfileCard = ({
   const watched = watch()
   const settings = watched.storefront_settings ?? org.storefront_settings ?? {}
 
-  const name = watched.name ?? org.name
-  const avatarUrl = watched.avatar_url ?? org.avatar_url
+  // Read mirrors ProfileCard's read order so the visual rendering is
+  // pixel-stable across both components.
+  const showHeader = settings?.show_header ?? true
+  const showLogo = settings?.show_logo ?? true
+  const showName = settings?.show_name ?? true
+  const showDescription = settings?.show_description ?? true
   const description = settings?.description ?? null
   const profileTitle = settings?.profile_title ?? null
   const skills = settings?.skills ?? []
   const languages = settings?.languages ?? []
   const availableForWork = settings?.available_for_work ?? false
-  const contactUrl = settings?.contact_url ?? null
-  const headerUrl = settings?.header_image_url ?? null
   const headerFocal = settings?.header_focal_point ?? '50% 50%'
-  const showHeader = settings?.show_header ?? true
-  const showLogo = settings?.show_logo ?? true
-  const showName = settings?.show_name ?? true
-  const showDescription = settings?.show_description ?? true
+
+  const name = watched.name ?? org.name
+  const avatarUrl = watched.avatar_url ?? org.avatar_url
+  const headerUrl = settings?.header_image_url ?? null
   const socials: SocialLink[] = (watched.socials ??
     org.socials ??
     []) as SocialLink[]
@@ -128,7 +133,6 @@ export const EditableProfileCard = ({
   }, [])
 
   const {
-    getRootProps: getBannerRootProps,
     getInputProps: getBannerInputProps,
     open: openBannerPicker,
   } = useFileUpload({
@@ -158,7 +162,6 @@ export const EditableProfileCard = ({
   )
 
   const {
-    getRootProps: getAvatarRootProps,
     getInputProps: getAvatarInputProps,
     open: openAvatarPicker,
   } = useFileUpload({
@@ -239,52 +242,52 @@ export const EditableProfileCard = ({
     | 'socials'
     | null
   const [popover, setPopover] = useState<PopoverKey>(null)
+  const contactUrl = settings?.contact_url ?? ''
+  const [contactDraft, setContactDraft] = useState(contactUrl)
 
-  // Local draft for the available-for-work popover so the contact URL
-  // doesn't write on every keystroke (we commit on Done).
-  const [contactDraft, setContactDraft] = useState(contactUrl ?? '')
-
+  // ─────────────────────────────────────────────────────────────────
+  // Layout MUST match Profile/ProfileCard.tsx 1:1. Any wrapper / class
+  // change here and the editor canvas drifts from the public render.
+  // ─────────────────────────────────────────────────────────────────
   return (
     <div className="flex w-full flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
-      {/* Cover image — hover reveals Replace + Reposition buttons. The
-          surrounding div hosts both the file picker (via dropzone) and
-          the pointer-event drag for focal point. */}
+      {/* Banner — same aspect ratio + classes as ProfileCard. The
+          hover-zone wraps the same <div className="relative"> so
+          ProfileCard's 16/5 aspect stays intact; the file input is
+          sibling so it doesn't affect layout. */}
       {showHeader && (
         <div
           className="hover-zone editable-image relative"
-          {...getBannerRootProps({
-            // Don't let dropzone hijack the click — we want the
-            // explicit "Replace" button to drive uploads so the user
-            // can also drag without immediately popping a file picker.
-            onClick: (e) => e.stopPropagation(),
-          })}
+          onPointerDown={onCoverPointerDown}
+          onPointerMove={onCoverPointerMove}
+          onPointerUp={onCoverPointerUp}
+          onPointerCancel={onCoverPointerUp}
+          style={{
+            cursor: headerUrl
+              ? isDragging
+                ? 'grabbing'
+                : 'grab'
+              : 'pointer',
+          }}
         >
           <input {...getBannerInputProps()} />
           {headerUrl ? (
-            <div
-              className="aspect-[16/5] w-full touch-none select-none"
-              style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
-              onPointerDown={onCoverPointerDown}
-              onPointerMove={onCoverPointerMove}
-              onPointerUp={onCoverPointerUp}
-              onPointerCancel={onCoverPointerUp}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={headerUrl}
-                alt=""
-                className="pointer-events-none h-full w-full object-cover"
-                style={{ objectPosition: focalPointToObjectPosition(headerFocal) }}
-                draggable={false}
-              />
-            </div>
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={headerUrl}
+              alt=""
+              className="aspect-[16/5] w-full object-cover"
+              style={{ objectPosition: focalPointToObjectPosition(headerFocal) }}
+              draggable={false}
+            />
           ) : (
-            <div
-              className="flex aspect-[16/5] w-full cursor-pointer items-center justify-center bg-gradient-to-br from-gray-800 to-gray-950 text-sm text-white/70"
+            <button
+              type="button"
               onClick={openBannerPicker}
+              className="flex aspect-[16/5] w-full items-center justify-center bg-gradient-to-br from-gray-800 to-gray-950 text-sm text-white/70"
             >
               + Add a cover image
-            </div>
+            </button>
           )}
           <div className="hover-controls">
             <button
@@ -298,78 +301,76 @@ export const EditableProfileCard = ({
               <EditOutlined style={{ fontSize: 14 }} />
               Replace
             </button>
-            {headerUrl && (
-              <span
-                className="hc-btn"
-                style={{ pointerEvents: 'none' }}
-              >
-                Drag to reposition
-              </span>
-            )}
           </div>
         </div>
       )}
 
       <div className="relative flex flex-col px-6 pb-6">
-        {/* Avatar — overlapping cover when shown */}
+        {/* Avatar — overlapping banner. Same -mt-10 / mt-6 logic and
+            same h-20 w-20 dimensions as ProfileCard. The hover-zone
+            wrapper doesn't change layout because it has display:
+            inline-block (default) at the avatar's natural size. */}
         {showLogo && (
-          <div
-            className={
-              showHeader
-                ? '-mt-10 hover-zone editable-image relative inline-block'
-                : 'mt-6 hover-zone editable-image relative inline-block'
-            }
-            style={{ width: 80, height: 80 }}
-            {...getAvatarRootProps({
-              onClick: (e) => e.stopPropagation(),
-            })}
-          >
-            <input {...getAvatarInputProps()} />
-            {avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={avatarUrl}
-                alt={name}
-                className="h-20 w-20 cursor-pointer rounded-xl border-4 border-white object-cover shadow-sm"
-                onClick={openAvatarPicker}
-              />
-            ) : (
-              <button
-                type="button"
-                onClick={openAvatarPicker}
-                className="flex h-20 w-20 cursor-pointer items-center justify-center rounded-xl border-4 border-white bg-gray-100 text-2xl text-gray-400 shadow-sm"
-              >
-                {name?.[0]?.toUpperCase() ?? '·'}
-              </button>
-            )}
-            <div className="hover-controls">
-              <button
-                type="button"
-                className="hc-btn"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  openAvatarPicker()
-                }}
-              >
-                <EditOutlined style={{ fontSize: 14 }} />
-              </button>
+          <div className={showHeader ? '-mt-10' : 'mt-6'}>
+            <div className="hover-zone editable-image relative inline-block">
+              <input {...getAvatarInputProps()} />
+              {avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={avatarUrl}
+                  alt={name}
+                  className="h-20 w-20 cursor-pointer rounded-xl border-4 border-white object-cover shadow-sm"
+                  onClick={openAvatarPicker}
+                />
+              ) : (
+                <button type="button" onClick={openAvatarPicker}>
+                  <Avatar
+                    className="h-20 w-20 rounded-xl border-4 border-white text-lg shadow-sm"
+                    name={name}
+                    avatar_url={null}
+                  />
+                </button>
+              )}
+              <div className="hover-controls">
+                <button
+                  type="button"
+                  className="hc-btn"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    openAvatarPicker()
+                  }}
+                >
+                  <EditOutlined style={{ fontSize: 14 }} />
+                </button>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Profile title (eyebrow) + Display name */}
+        {/* Profile title label + Name + Verified.
+            ProfileCard renders the eyebrow only when profileTitle is
+            set. We add a dashed placeholder when empty so creators
+            can discover the field. The container's gap-y-0.5 + mt is
+            preserved. */}
         {showName && (
           <div className={`flex flex-col gap-y-0.5 ${showLogo ? 'mt-5' : 'mt-6'}`}>
-            <button
-              type="button"
-              className="self-start text-[11px] font-semibold tracking-widest text-emerald-600 uppercase"
-              style={{ minHeight: 16 }}
-              onClick={() => setPopover('profileTitle')}
-            >
-              {profileTitle || (
-                <span className="text-gray-300">+ Add a title</span>
-              )}
-            </button>
+            {profileTitle ? (
+              <button
+                type="button"
+                onClick={() => setPopover('profileTitle')}
+                className="self-start text-[11px] font-semibold tracking-widest text-emerald-600 uppercase"
+              >
+                {profileTitle}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setPopover('profileTitle')}
+                className="self-start text-[11px] font-semibold tracking-widest text-gray-300 uppercase"
+              >
+                + Add a title
+              </button>
+            )}
             <div className="flex flex-row items-center gap-x-1.5">
               <Editable
                 as="h1"
@@ -383,7 +384,9 @@ export const EditableProfileCard = ({
           </div>
         )}
 
-        {/* Description */}
+        {/* Description — same mt-4, same text-[14px] leading-relaxed
+            text-gray-500. Editable swaps the underlying <p> for a
+            contentEditable but inherits the same classes. */}
         {showDescription && (
           <Editable
             as="p"
@@ -396,92 +399,129 @@ export const EditableProfileCard = ({
           />
         )}
 
-        {/* Available for work + Languages */}
+        {/* Available-for-work + Languages row.
+            ProfileCard hides this row entirely when both are empty;
+            the editor always shows it so creators can discover both
+            affordances. Pills use the SAME chip styling as
+            ProfileCard. */}
         <div className="mt-4 flex flex-row flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              setContactDraft(contactUrl ?? '')
-              setPopover('available')
-            }}
-            className={
-              availableForWork
-                ? 'rounded-full border border-green-200 bg-green-50 px-3 py-1 text-[12px] font-medium text-green-600 transition-colors hover:bg-green-100'
-                : 'rounded-full border border-dashed border-gray-300 px-3 py-1 text-[12px] text-gray-400 hover:border-gray-400'
-            }
-          >
-            {availableForWork ? 'Available for work' : '+ Available for work'}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setPopover('languages')}
-            className="flex flex-row items-center gap-x-1.5 rounded-full border border-gray-200 px-3 py-1 text-[12px] text-gray-500 hover:border-gray-300"
-          >
-            <TranslateOutlined style={{ fontSize: 14 }} />
-            {languages.length === 0
-              ? '+ Languages'
-              : languages.length <= 2
+          {availableForWork ? (
+            <button
+              type="button"
+              onClick={() => {
+                setContactDraft(contactUrl)
+                setPopover('available')
+              }}
+              className="rounded-full border border-green-200 bg-green-50 px-3 py-1 text-[12px] font-medium text-green-600 transition-colors hover:bg-green-100"
+            >
+              Available for work
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setContactDraft(contactUrl)
+                setPopover('available')
+              }}
+              className="rounded-full border border-dashed border-gray-300 px-3 py-1 text-[12px] text-gray-400 hover:border-gray-400"
+            >
+              + Available for work
+            </button>
+          )}
+          {languages.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => setPopover('languages')}
+              className="flex flex-row items-center gap-x-1.5 rounded-full border border-gray-200 px-3 py-1 text-[12px] text-gray-500 hover:border-gray-300"
+            >
+              <TranslateOutlined style={{ fontSize: 14 }} />
+              {languages.length <= 2
                 ? languages.join(', ')
                 : `${languages[0]}, ${languages.length - 1} more`}
-          </button>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setPopover('languages')}
+              className="flex flex-row items-center gap-x-1.5 rounded-full border border-dashed border-gray-300 px-3 py-1 text-[12px] text-gray-400 hover:border-gray-400"
+            >
+              <TranslateOutlined style={{ fontSize: 14 }} />
+              Languages
+            </button>
+          )}
         </div>
 
-        {/* Skills */}
-        <button
-          type="button"
-          onClick={() => setPopover('skills')}
-          className="mt-3 flex flex-row flex-wrap items-center gap-2 self-start text-left"
-        >
-          {skills.length === 0 ? (
+        {/* Skill tags — mirror ProfileCard's mt-3 + flex layout +
+            individual chips. Each chip is the same size/border, but
+            the row is wrapped in a button click target that opens the
+            popover. */}
+        {skills.length > 0 ? (
+          <button
+            type="button"
+            onClick={() => setPopover('skills')}
+            className="mt-3 flex flex-row flex-wrap gap-2 self-start text-left"
+          >
+            {skills.slice(0, MAX_VISIBLE_SKILLS).map((skill: string) => (
+              <span
+                key={skill}
+                className="rounded-full border border-gray-200 px-3 py-1 text-[12px] text-gray-600"
+              >
+                {skill}
+              </span>
+            ))}
+            {skills.length > MAX_VISIBLE_SKILLS && (
+              <span className="rounded-full border border-gray-200 px-3 py-1 text-[12px] text-gray-400">
+                +{skills.length - MAX_VISIBLE_SKILLS}
+              </span>
+            )}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setPopover('skills')}
+            className="mt-3 flex flex-row gap-2 self-start"
+          >
             <span className="rounded-full border border-dashed border-gray-300 px-3 py-1 text-[12px] text-gray-400">
               + Add skills
             </span>
-          ) : (
-            <>
-              {skills.slice(0, 4).map((s) => (
-                <span
-                  key={s}
-                  className="rounded-full border border-gray-200 px-3 py-1 text-[12px] text-gray-600"
-                >
-                  {s}
-                </span>
-              ))}
-              {skills.length > 4 && (
-                <span className="rounded-full border border-gray-200 px-3 py-1 text-[12px] text-gray-400">
-                  +{skills.length - 4}
-                </span>
-              )}
-            </>
-          )}
-        </button>
+          </button>
+        )}
 
-        {/* Socials */}
-        <div className="mt-4 hover-zone relative flex flex-row items-center gap-x-3">
+        {/* Social icons — same mt-4 + flex-row + gap-x-3. Read-only
+            icons (popover handles add/edit/remove) plus a + chip. */}
+        <div className="mt-4 flex flex-row items-center gap-x-3">
           {socials.map((social, i) => {
             const Icon = getSocialIcon(social.platform)
             return (
-              <span key={i} className="text-gray-800" aria-label={social.platform}>
+              <button
+                key={i}
+                type="button"
+                onClick={() => setPopover('socials')}
+                className="text-gray-800 transition-colors hover:text-gray-950"
+                aria-label={social.platform}
+              >
                 <Icon className="h-6 w-6" />
-              </span>
+              </button>
             )
           })}
           <button
             type="button"
             onClick={() => setPopover('socials')}
-            className="ml-1 flex h-6 w-6 items-center justify-center rounded-md border border-dashed border-gray-300 text-gray-400 hover:border-gray-400 hover:text-gray-600"
-            aria-label="Edit social links"
+            className="flex h-6 w-6 items-center justify-center rounded-md border border-dashed border-gray-300 text-gray-400 hover:border-gray-400 hover:text-gray-600"
+            aria-label="Add or edit social links"
           >
             <AddOutlined style={{ fontSize: 14 }} />
           </button>
         </div>
 
-        {/* Subscribe form (not editable in canvas) */}
+        {/* Subscribe form — disabled-but-styled exactly like
+            ProfileCard's preview state, so the canvas matches the
+            visitor view. */}
         <div className="mt-5 flex flex-row gap-2">
           <input
             type="email"
             disabled
-            placeholder="Subscribe (disabled in editor)"
+            placeholder="Subscribe (disabled in preview)"
             className="min-w-0 flex-1 cursor-not-allowed rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-[13px] text-gray-400 placeholder:text-gray-400"
           />
           <button
@@ -515,9 +555,6 @@ export const EditableProfileCard = ({
           <SelectTrigger className="h-11 rounded-xl">
             <SelectValue placeholder="None" />
           </SelectTrigger>
-          {/* z-[100] sits above EditPopover (z-90) so the dropdown
-              opens IN FRONT of the popover instead of being hidden
-              behind it. Radix portals SelectContent to body. */}
           <SelectContent className="z-[100]">
             <SelectItem value="__none__">
               <span className="text-gray-400">None</span>
