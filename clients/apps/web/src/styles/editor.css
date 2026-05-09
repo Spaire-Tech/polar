@@ -329,11 +329,11 @@
   pointer-events: auto;
   height: 52px;
   padding: 0 22px 0 18px;
-  /* Hex value (not oklch) so there's zero ambiguity about which
-     'indigo' this is — matches the design hand-off's --accent. */
-  background: #6e56ff;
+  /* Solid ink — matches the toolbar Publish CTA so the FAB reads as
+     the primary action of the editor. */
+  background: var(--ink);
   color: white;
-  border: 1px solid #6e56ff;
+  border: 1px solid var(--ink);
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
@@ -343,8 +343,8 @@
   font-family: inherit;
   cursor: pointer;
   box-shadow:
-    0 12px 32px -10px rgba(110, 86, 255, 0.5),
-    0 2px 0 rgba(255, 255, 255, 0.1) inset;
+    0 12px 32px -10px rgba(12, 12, 20, 0.5),
+    0 2px 0 rgba(255, 255, 255, 0.08) inset;
   transition:
     transform 0.15s,
     box-shadow 0.15s;
@@ -352,11 +352,11 @@
 
 .spaire-editor .add-fab:hover {
   transform: translateY(-1px);
-  background: #5d44f5;
-  border-color: #5d44f5;
+  background: #1a1a22;
+  border-color: #1a1a22;
   box-shadow:
-    0 16px 40px -10px rgba(110, 86, 255, 0.6),
-    0 2px 0 rgba(255, 255, 255, 0.1) inset;
+    0 16px 40px -10px rgba(12, 12, 20, 0.6),
+    0 2px 0 rgba(255, 255, 255, 0.08) inset;
 }
 
 .spaire-editor .add-fab .plus {
@@ -754,6 +754,49 @@
 .spaire-editor .item-action.danger:hover {
   color: #b00020;
   border-color: #f5c6c6;
+}
+
+/* Per-item drag handle — sits next to the Remove button in the
+   item-actions cluster. Same chrome as `.item-action` so the row
+   reads as one toolbar. */
+.spaire-editor .item-drag-handle {
+  height: 30px;
+  min-width: 30px;
+  padding: 0 8px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: white;
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 500;
+  font-family: inherit;
+  letter-spacing: -0.05em;
+  line-height: 1;
+  cursor: grab;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow:
+    0 1px 0 rgba(15, 15, 30, 0.04),
+    0 4px 10px -4px rgba(15, 15, 30, 0.18);
+  touch-action: none;
+}
+
+.spaire-editor .item-drag-handle:hover {
+  color: var(--ink-2);
+  border-color: var(--line-strong);
+}
+
+.spaire-editor .item-drag-handle:active {
+  cursor: grabbing;
+}
+
+.spaire-editor .item-host {
+  position: relative;
+}
+
+.spaire-editor .item-host.dragging {
+  opacity: 0.5;
 }
 
 /* ── Layout picker on the Links section heading ──────────────────

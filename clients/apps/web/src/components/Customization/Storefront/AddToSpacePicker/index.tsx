@@ -14,7 +14,12 @@ export type { EmbedPickPayload, UrlPickPayload }
 export type AddToSpacePickerCallbacks = {
   onAddLink: (payload: UrlPickPayload) => void
   onAddEmbed: (payload: EmbedPickPayload) => void
-  onAddProducts: (productIds: string[]) => void
+  // Diff-based product callback: `addIds` are newly-selected items in
+  // this picker session, `removeIds` are items that were in
+  // `alreadySelectedProductIds` but the creator de-selected. This lets
+  // the picker double as a remove-from-Space tool — the displayed
+  // selection state reflects what's actually featured.
+  onChangeProducts: (addIds: string[], removeIds: string[]) => void
   onCreateProduct: () => void
   onCreateCourse: () => void
 }
@@ -25,11 +30,16 @@ type Tab = (typeof TABS)[number]
 export const AddToSpacePicker = ({
   organization,
   initialTab = 'URL',
+  alreadySelectedProductIds = [],
   onClose,
   callbacks,
 }: {
   organization: schemas['Organization']
   initialTab?: Tab
+  // Product IDs already featured on the Space — both Catalog and
+  // Course tabs seed their selection set with these so creators see
+  // what's already in. Toggling off and clicking Save removes them.
+  alreadySelectedProductIds?: string[]
   onClose: () => void
   callbacks: AddToSpacePickerCallbacks
 }) => {
@@ -100,7 +110,11 @@ export const AddToSpacePicker = ({
           {tab === 'Digital Product' && (
             <CatalogTab
               organization={organization}
-              onAddProducts={wrap(callbacks.onAddProducts)}
+              alreadySelectedIds={alreadySelectedProductIds}
+              onSubmit={(addIds, removeIds) => {
+                callbacks.onChangeProducts(addIds, removeIds)
+                onClose()
+              }}
               onCreateNew={() => {
                 onClose()
                 callbacks.onCreateProduct()
@@ -110,7 +124,11 @@ export const AddToSpacePicker = ({
           {tab === 'Course' && (
             <CourseTab
               organization={organization}
-              onAddProducts={wrap(callbacks.onAddProducts)}
+              alreadySelectedIds={alreadySelectedProductIds}
+              onSubmit={(addIds, removeIds) => {
+                callbacks.onChangeProducts(addIds, removeIds)
+                onClose()
+              }}
               onCreateNew={() => {
                 onClose()
                 callbacks.onCreateCourse()

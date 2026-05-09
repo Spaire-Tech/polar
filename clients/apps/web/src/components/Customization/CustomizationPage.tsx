@@ -119,33 +119,41 @@ const Customization = ({
         platform: platform.id,
       })
     },
-    onAddProducts: (productIds) => {
-      // Append the picked IDs to featured_product_ids. We only flip
-      // featured_mode to 'curated' if the user already had it
-      // 'curated' (in which case they expect explicit picks). When
-      // mode is 'all', everything shows automatically — adding via
-      // the picker is essentially a no-op in that mode, so we leave
-      // it alone instead of trapping the user in curated mode (the
-      // bug from the audit).
+    onChangeProducts: (addIds, removeIds) => {
+      // Diff-based update. The picker shows already-featured products
+      // pre-selected; toggling them off becomes a `removeIds` entry.
+      // We respect the current featured_mode — adding via the picker
+      // shouldn't trap the user in curated mode if they're in 'all'.
       const settings = form.getValues('storefront_settings') ?? {}
       const typed = settings as {
         featured_product_ids?: string[]
         featured_mode?: 'all' | 'curated'
       }
       const existing = typed.featured_product_ids ?? []
-      const merged = Array.from(new Set([...existing, ...productIds]))
+      const removed = new Set(removeIds)
+      const next = Array.from(
+        new Set([
+          ...existing.filter((id) => !removed.has(id)),
+          ...addIds,
+        ]),
+      )
       const mode = typed.featured_mode ?? 'all'
       form.setValue(
         'storefront_settings',
-        { ...settings, featured_product_ids: merged },
+        { ...settings, featured_product_ids: next },
         { shouldDirty: true },
       )
+      const parts: string[] = []
+      if (addIds.length > 0)
+        parts.push(`Added ${addIds.length} to your Space`)
+      if (removeIds.length > 0)
+        parts.push(`Removed ${removeIds.length} from your Space`)
       toast({
-        title: `Added ${productIds.length} product${productIds.length === 1 ? '' : 's'} to your Space`,
+        title: parts.join(' · ') || 'Selection updated',
         description:
           mode === 'curated'
             ? 'Featured in your curated list.'
-            : 'Showing alongside your other products.',
+            : 'Publish to apply.',
       })
     },
     onCreateProduct: () => {
@@ -497,6 +505,11 @@ const Customization = ({
         {pickerOpen && (
           <AddToSpacePicker
             organization={organization}
+            alreadySelectedProductIds={
+              ((form.getValues('storefront_settings') ?? {}) as {
+                featured_product_ids?: string[]
+              }).featured_product_ids ?? []
+            }
             onClose={() => setPickerOpen(false)}
             callbacks={pickerCallbacks}
           />

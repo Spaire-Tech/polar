@@ -51,7 +51,12 @@ const getBlockOrder = (
   return DEFAULT_ORDER
 }
 
-// ─── Sortable wrapper ─────────────────────────────────────────────
+// ─── ID prefixes so the single DndContext can route by type ───────
+const BLOCK_PREFIX = 'block:'
+const PRODUCT_PREFIX = 'product:'
+const LINK_PREFIX = 'link:'
+
+// ─── Sortable wrapper for blocks ──────────────────────────────────
 
 const SortableBlock = ({
   id,
@@ -70,7 +75,7 @@ const SortableBlock = ({
     isDragging,
     listeners,
     attributes,
-  } = useSortable({ id })
+  } = useSortable({ id: BLOCK_PREFIX + id })
   return (
     <div
       ref={setNodeRef}
@@ -84,6 +89,64 @@ const SortableBlock = ({
     </div>
   )
 }
+
+// ─── Sortable wrapper for individual items (products / links) ─────
+
+const SortableItem = ({
+  id,
+  prefix,
+  children,
+}: {
+  id: string
+  prefix: string
+  children: (handleProps: {
+    listeners: ReturnType<typeof useSortable>['listeners']
+    attributes: ReturnType<typeof useSortable>['attributes']
+    isDragging: boolean
+  }) => React.ReactNode
+}) => {
+  const {
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+    listeners,
+    attributes,
+  } = useSortable({ id: prefix + id })
+  return (
+    <div
+      ref={setNodeRef}
+      className={`item-host${isDragging ? ' dragging' : ''}`}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+      }}
+    >
+      {children({ listeners, attributes, isDragging })}
+    </div>
+  )
+}
+
+// Drag handle button shared by item types.
+const ItemDragHandle = ({
+  listeners,
+  attributes,
+  label,
+}: {
+  listeners: ReturnType<typeof useSortable>['listeners']
+  attributes: ReturnType<typeof useSortable>['attributes']
+  label: string
+}) => (
+  <button
+    type="button"
+    className="item-drag-handle"
+    aria-label={label}
+    {...listeners}
+    {...attributes}
+  >
+    ⋮⋮
+  </button>
+)
 
 // ─── Layout picker (Links heading) ────────────────────────────────
 
@@ -117,17 +180,16 @@ const LayoutPicker = ({
 )
 
 // ─── Products block (canvas) ──────────────────────────────────────
-// Renders products grouped by category, with hover-zone delete/hide
-// affordances on each card. Reads featured_mode/featured_product_ids
-// from the form so changes write back live.
 
 const ProductsBlock = ({
   organization,
   products,
+  productOrder,
   onUnfeature,
 }: {
   organization: schemas['Organization']
   products: schemas['ProductStorefront'][]
+  productOrder: string[]
   onUnfeature: (productId: string) => void
 }) => {
   const settings = organization.storefront_settings
@@ -144,10 +206,23 @@ const ProductsBlock = ({
     return products
   }, [products, featuredMode, featuredIds])
 
+  // Apply the creator's manual product_order as a ranking hint.
+  // Products not yet ranked (newly added) fall through to the back in
+  // their original server order.
+  const orderedVisible = useMemo(() => {
+    if (productOrder.length === 0) return visible
+    const rank = new Map(productOrder.map((id, i) => [id, i]))
+    const ranked = visible
+      .filter((p) => rank.has(p.id))
+      .sort((a, b) => (rank.get(a.id)! - rank.get(b.id)!))
+    const unranked = visible.filter((p) => !rank.has(p.id))
+    return [...ranked, ...unranked]
+  }, [visible, productOrder])
+
   const sections = useMemo(() => {
     const buckets: Record<string, schemas['ProductStorefront'][]> = {}
     const uncat: schemas['ProductStorefront'][] = []
-    for (const p of visible) {
+    for (const p of orderedVisible) {
       const cat = p.category
       if (cat && cat in CATEGORY_LABELS) (buckets[cat] ??= []).push(p)
       else uncat.push(p)
@@ -160,7 +235,7 @@ const ProductsBlock = ({
       ordered.push({ key: 'other', label: CATEGORY_LABELS.other, items: otherItems })
     }
     return ordered
-  }, [visible])
+  }, [orderedVisible])
 
   if (visible.length === 0) {
     if (featuredMode === 'curated') {
@@ -188,31 +263,49 @@ const ProductsBlock = ({
           <SectionLabel count={section.items.length}>
             {section.label}
           </SectionLabel>
-          <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-2">
-            {section.items.map((product) => (
-              <div key={product.id} className="item-hover">
-                <ProductCard
-                  product={product}
-                  showDetails={showDetails}
-                  thumbnailSize={
-                    thumbnailSize as 'small' | 'medium' | 'large'
-                  }
-                />
-                <div className="item-actions">
-                  <button
-                    type="button"
-                    className="item-action"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onUnfeature(product.id)
-                    }}
-                  >
-                    {featuredMode === 'curated' ? 'Remove' : 'Hide'}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+          <SortableContext
+            items={section.items.map((p) => PRODUCT_PREFIX + p.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-2">
+              {section.items.map((product) => (
+                <SortableItem
+                  key={product.id}
+                  id={product.id}
+                  prefix={PRODUCT_PREFIX}
+                >
+                  {({ listeners, attributes }) => (
+                    <div className="item-hover">
+                      <ProductCard
+                        product={product}
+                        showDetails={showDetails}
+                        thumbnailSize={
+                          thumbnailSize as 'small' | 'medium' | 'large'
+                        }
+                      />
+                      <div className="item-actions">
+                        <ItemDragHandle
+                          listeners={listeners}
+                          attributes={attributes}
+                          label={`Drag ${product.name} to reorder`}
+                        />
+                        <button
+                          type="button"
+                          className="item-action"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onUnfeature(product.id)
+                          }}
+                        >
+                          {featuredMode === 'curated' ? 'Remove' : 'Hide'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </SortableItem>
+              ))}
+            </div>
+          </SortableContext>
         </section>
       ))}
     </div>
@@ -241,9 +334,8 @@ const LinksBlock = ({
   }
 
   // Embeds and URL links render as separate sections — same split the
-  // public StorefrontLinks renderer uses. Embeds always go full-width,
-  // URL links honor the chosen layout. The layout picker only applies
-  // to URL links because the picker label says so.
+  // public StorefrontLinks renderer uses. Each list is its own
+  // SortableContext so dragging only reorders within that list.
   const urlLinks = links.filter((l) => l.type !== 'embedded')
   const embedLinks = links.filter((l) => l.type === 'embedded')
 
@@ -259,25 +351,43 @@ const LinksBlock = ({
       {embedLinks.length > 0 && (
         <div className="flex flex-col gap-4">
           <SectionLabel>Featured</SectionLabel>
-          <div className="flex w-full flex-col gap-5">
-            {embedLinks.map((link) => (
-              <div key={link.id} className="item-hover">
-                <LinkRow link={link} layout="card" embedded />
-                <div className="item-actions">
-                  <button
-                    type="button"
-                    className="item-action danger"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onRemove(link.id)
-                    }}
-                  >
-                    Remove
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+          <SortableContext
+            items={embedLinks.map((l) => LINK_PREFIX + l.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="flex w-full flex-col gap-5">
+              {embedLinks.map((link) => (
+                <SortableItem
+                  key={link.id}
+                  id={link.id}
+                  prefix={LINK_PREFIX}
+                >
+                  {({ listeners, attributes }) => (
+                    <div className="item-hover">
+                      <LinkRow link={link} layout="card" embedded />
+                      <div className="item-actions">
+                        <ItemDragHandle
+                          listeners={listeners}
+                          attributes={attributes}
+                          label="Drag embed to reorder"
+                        />
+                        <button
+                          type="button"
+                          className="item-action danger"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onRemove(link.id)
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </SortableItem>
+              ))}
+            </div>
+          </SortableContext>
         </div>
       )}
 
@@ -287,25 +397,43 @@ const LinksBlock = ({
             <SectionLabel>Links</SectionLabel>
             <LayoutPicker value={layout} onChange={onLayoutChange} />
           </div>
-          <div className={layoutClass[layout]}>
-            {urlLinks.map((link) => (
-              <div key={link.id} className="item-hover">
-                <LinkRow link={link} layout={layout} />
-                <div className="item-actions">
-                  <button
-                    type="button"
-                    className="item-action danger"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onRemove(link.id)
-                    }}
-                  >
-                    Remove
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+          <SortableContext
+            items={urlLinks.map((l) => LINK_PREFIX + l.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className={layoutClass[layout]}>
+              {urlLinks.map((link) => (
+                <SortableItem
+                  key={link.id}
+                  id={link.id}
+                  prefix={LINK_PREFIX}
+                >
+                  {({ listeners, attributes }) => (
+                    <div className="item-hover">
+                      <LinkRow link={link} layout={layout} />
+                      <div className="item-actions">
+                        <ItemDragHandle
+                          listeners={listeners}
+                          attributes={attributes}
+                          label="Drag link to reorder"
+                        />
+                        <button
+                          type="button"
+                          className="item-action danger"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onRemove(link.id)
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </SortableItem>
+              ))}
+            </div>
+          </SortableContext>
         </div>
       )}
     </div>
@@ -322,8 +450,6 @@ const getDomain = (url: string): string => {
 
 // Lightweight link card per layout — click does nothing in edit mode
 // (preview-only). Hover reveals the Remove button via .item-hover.
-// The `embedded` flag forces the card layout regardless of `layout`
-// because embeds always render full-width on the public Space.
 const LinkRow = ({
   link,
   layout,
@@ -457,9 +583,12 @@ export const DraggableBlocks = ({
   const links =
     ((settings as { storefront_links?: StorefrontLinkItem[] } | undefined)
       ?.storefront_links ?? []) as StorefrontLinkItem[]
+  // Per-item product ordering. Reuses featured_product_ids as the
+  // ranking hint — its declared order is the on-canvas order. Items
+  // not in the list (newly created products, or products in 'all'
+  // mode that haven't been touched) fall through to server order.
+  const productOrder = settings?.featured_product_ids ?? []
 
-  // Synthesize the org passed into ProductsBlock so it sees the
-  // latest watched settings (featured_mode, etc) without a double-watch.
   const orgWithSettings = { ...org, storefront_settings: settings ?? {} } as schemas['Organization']
 
   // ── Mutations ──
@@ -491,7 +620,6 @@ export const DraggableBlocks = ({
     const featuredIds = settings?.featured_product_ids ?? []
 
     if (featuredMode === 'curated') {
-      // In curated mode, "Remove" pulls the ID out of featured_product_ids.
       setValue(
         'storefront_settings',
         {
@@ -502,9 +630,6 @@ export const DraggableBlocks = ({
       )
       toast({ title: 'Removed from your Space' })
     } else {
-      // In 'all' mode, "Hide" flips us into curated mode and seeds
-      // featured_product_ids with everything except this product, so
-      // visually nothing else changes.
       const allIds = products.map((p) => p.id)
       const next = allIds.filter((id) => id !== productId)
       setValue(
@@ -531,24 +656,72 @@ export const DraggableBlocks = ({
     }),
   )
 
-  const [activeId, setActiveId] = useState<BlockKind | null>(null)
+  const [activeBlock, setActiveBlock] = useState<BlockKind | null>(null)
 
   const handleDragStart = (e: DragStartEvent) => {
-    setActiveId(e.active.id as BlockKind)
+    const id = String(e.active.id)
+    if (id.startsWith(BLOCK_PREFIX)) {
+      setActiveBlock(id.slice(BLOCK_PREFIX.length) as BlockKind)
+    }
   }
 
   const handleDragEnd = (event: DragEndEvent) => {
-    setActiveId(null)
+    setActiveBlock(null)
     const { active, over } = event
-    if (!over || active.id === over.id) return
-    const from = blockOrder.indexOf(active.id as BlockKind)
-    const to = blockOrder.indexOf(over.id as BlockKind)
-    if (from < 0 || to < 0) return
-    const next = arrayMove(blockOrder, from, to)
-    updateSetting(
-      'block_order',
-      next as NonNullable<schemas['OrganizationStorefrontSettings']>['block_order'],
-    )
+    if (!over) return
+    const activeId = String(active.id)
+    const overId = String(over.id)
+    if (activeId === overId) return
+
+    // ── Block reorder ──
+    if (activeId.startsWith(BLOCK_PREFIX) && overId.startsWith(BLOCK_PREFIX)) {
+      const a = activeId.slice(BLOCK_PREFIX.length) as BlockKind
+      const b = overId.slice(BLOCK_PREFIX.length) as BlockKind
+      const from = blockOrder.indexOf(a)
+      const to = blockOrder.indexOf(b)
+      if (from < 0 || to < 0) return
+      const next = arrayMove(blockOrder, from, to)
+      updateSetting(
+        'block_order',
+        next as NonNullable<schemas['OrganizationStorefrontSettings']>['block_order'],
+      )
+      return
+    }
+
+    // ── Product reorder (within section: arrayMove on the global
+    //    featured_product_ids ranking, ensuring the active id ends up
+    //    next to the target) ──
+    if (activeId.startsWith(PRODUCT_PREFIX) && overId.startsWith(PRODUCT_PREFIX)) {
+      const aId = activeId.slice(PRODUCT_PREFIX.length)
+      const bId = overId.slice(PRODUCT_PREFIX.length)
+      // Build a ranked list from current productOrder + any visible
+      // products missing from it, then move within.
+      const seen = new Set(productOrder)
+      const tail = products.map((p) => p.id).filter((id) => !seen.has(id))
+      const full = [...productOrder, ...tail]
+      const from = full.indexOf(aId)
+      const to = full.indexOf(bId)
+      if (from < 0 || to < 0) return
+      const next = arrayMove(full, from, to)
+      updateSetting('featured_product_ids', next)
+      return
+    }
+
+    // ── Link reorder ──
+    if (activeId.startsWith(LINK_PREFIX) && overId.startsWith(LINK_PREFIX)) {
+      const aId = activeId.slice(LINK_PREFIX.length)
+      const bId = overId.slice(LINK_PREFIX.length)
+      const from = links.findIndex((l) => l.id === aId)
+      const to = links.findIndex((l) => l.id === bId)
+      if (from < 0 || to < 0) return
+      const next = arrayMove(links, from, to)
+      setValue(
+        'storefront_settings',
+        { ...(settings ?? {}), storefront_links: next } as schemas['OrganizationStorefrontSettings'],
+        { shouldDirty: true },
+      )
+      return
+    }
   }
 
   // ── Block renderers ──
@@ -558,6 +731,7 @@ export const DraggableBlocks = ({
         <ProductsBlock
           organization={orgWithSettings}
           products={products}
+          productOrder={productOrder}
           onUnfeature={onUnfeatureProduct}
         />
       )
@@ -575,8 +749,6 @@ export const DraggableBlocks = ({
     return null
   }
 
-  // dnd-kit gets confused if SortableContext items don't match the
-  // rendered children — register only blocks that we actually render.
   const renderableOrder = blockOrder.filter((k) => k === 'products' || k === 'links')
 
   return (
@@ -586,7 +758,10 @@ export const DraggableBlocks = ({
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <SortableContext items={renderableOrder} strategy={verticalListSortingStrategy}>
+      <SortableContext
+        items={renderableOrder.map((k) => BLOCK_PREFIX + k)}
+        strategy={verticalListSortingStrategy}
+      >
         <div className="flex flex-col gap-12">
           {renderableOrder.map((kind) => (
             <SortableBlock key={kind} id={kind}>
@@ -609,14 +784,14 @@ export const DraggableBlocks = ({
         </div>
       </SortableContext>
 
-      {/* DragOverlay shows a floating clone of the dragged block while
-          dragging. Portaled to body so it doesn't get clipped. */}
+      {/* DragOverlay — only renders for block-level drag (item drag is
+          smaller and renders in place). */}
       <Portal>
         <DragOverlay>
-          {activeId ? (
+          {activeBlock ? (
             <div className="spaire-editor">
               <div className="drag-overlay">
-                <div className="canvas-card">{renderBlockBody(activeId)}</div>
+                <div className="canvas-card">{renderBlockBody(activeBlock)}</div>
               </div>
             </div>
           ) : null}

@@ -3,7 +3,7 @@
 import { useProducts } from '@/hooks/queries'
 import { useOrganizationCourses } from '@/hooks/queries/courses'
 import { schemas } from '@spaire/client'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { twMerge } from 'tailwind-merge'
 
 type Product = schemas['Product']
@@ -19,11 +19,15 @@ const formatPrice = (product: Product): string => {
 
 export const CatalogTab = ({
   organization,
-  onAddProducts,
+  alreadySelectedIds = [],
+  onSubmit,
   onCreateNew,
 }: {
   organization: schemas['Organization']
-  onAddProducts: (productIds: string[]) => void
+  alreadySelectedIds?: string[]
+  // (addIds, removeIds) — diff vs alreadySelectedIds. Empty arrays
+  // mean "no change in this dimension".
+  onSubmit: (addIds: string[], removeIds: string[]) => void
   onCreateNew: () => void
 }) => {
   const { data, isLoading } = useProducts(organization.id, {
@@ -40,7 +44,19 @@ export const CatalogTab = ({
     )
   }, [data, courses])
 
+  // Seed selection with whatever the creator already has on their Space
+  // — but only IDs that belong to *this* tab's universe (catalog
+  // products, not courses). Otherwise toggling visible items would
+  // appear to re-feature hidden course items.
+  const visibleIds = useMemo(() => new Set(products.map((p) => p.id)), [products])
+  const [seeded, setSeeded] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  useEffect(() => {
+    // Wait until products load, then seed once.
+    if (seeded || products.length === 0) return
+    setSelected(new Set(alreadySelectedIds.filter((id) => visibleIds.has(id))))
+    setSeeded(true)
+  }, [seeded, products.length, alreadySelectedIds, visibleIds])
 
   const toggle = (id: string) => {
     setSelected((prev) => {
@@ -51,9 +67,23 @@ export const CatalogTab = ({
     })
   }
 
+  const initial = useMemo(
+    () => new Set(alreadySelectedIds.filter((id) => visibleIds.has(id))),
+    [alreadySelectedIds, visibleIds],
+  )
+  const addIds = useMemo(
+    () => Array.from(selected).filter((id) => !initial.has(id)),
+    [selected, initial],
+  )
+  const removeIds = useMemo(
+    () => Array.from(initial).filter((id) => !selected.has(id)),
+    [selected, initial],
+  )
+  const dirty = addIds.length > 0 || removeIds.length > 0
+
   const submit = () => {
-    if (selected.size === 0) return
-    onAddProducts(Array.from(selected))
+    if (!dirty) return
+    onSubmit(addIds, removeIds)
   }
 
   return (
@@ -69,22 +99,28 @@ export const CatalogTab = ({
       </p>
 
       {isLoading ? (
-        <div className="wg-grid three">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="wg-skeleton" />
+        <div className="wg-grid one">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div
+              key={i}
+              className="wg-card"
+              style={{ background: 'rgba(0,0,0,0.04)', minHeight: 68 }}
+            />
           ))}
         </div>
       ) : (
-        <div className="wg-grid three">
-          {/* Always-first 'create' tile — same vertical-tile shape as
-              the design hand-off so creators can scan their catalog
-              uniformly. */}
-          <button type="button" className="wg-tile create" onClick={onCreateNew}>
-            <div className="wg-tile-art empty">+</div>
-            <div className="wg-tile-meta">
-              <div className="wg-tile-title">New product</div>
-              <div className="wg-tile-sub">Start blank · ebook, asset, anything</div>
+        <div className="wg-grid one">
+          <button type="button" className="wg-card create" onClick={onCreateNew}>
+            <div className="wg-art dashed">+</div>
+            <div className="wg-meta">
+              <div className="wg-card-title">New product</div>
+              <div className="wg-card-sub">
+                Start blank · ebook, asset, anything
+              </div>
             </div>
+            <span className="wg-add-btn small ghost" aria-hidden>
+              →
+            </span>
           </button>
 
           {products.map((product) => {
@@ -97,23 +133,23 @@ export const CatalogTab = ({
                 type="button"
                 onClick={() => toggle(product.id)}
                 aria-pressed={isSelected}
-                className={twMerge('wg-tile', isSelected && 'selected')}
+                className={twMerge('wg-card', isSelected && 'selected')}
               >
                 <div
-                  className="wg-tile-art"
-                  style={{
-                    backgroundImage: cover
-                      ? `url(${cover})`
-                      : 'linear-gradient(135deg, #cdd, #abb)',
-                  }}
+                  className="wg-art"
+                  style={
+                    cover
+                      ? { backgroundImage: `url(${cover})` }
+                      : { background: 'linear-gradient(135deg, #cdd, #abb)' }
+                  }
                 >
                   {!cover && (product.name?.[0]?.toUpperCase() ?? '·')}
                 </div>
-                <div className="wg-tile-meta">
-                  <div className="wg-tile-title">{product.name}</div>
-                  {price && <div className="wg-tile-sub">{price}</div>}
+                <div className="wg-meta">
+                  <div className="wg-card-title">{product.name}</div>
+                  {price && <div className="wg-card-sub">{price}</div>}
                 </div>
-                <span className="wg-tile-check" aria-hidden>
+                <span className="wg-add-btn small" aria-hidden>
                   {isSelected ? '✓' : '+'}
                 </span>
               </button>
@@ -126,10 +162,14 @@ export const CatalogTab = ({
         <p className="wg-help">No products yet — create your first one.</p>
       )}
 
-      {selected.size > 0 && (
+      {dirty && (
         <div className="wg-footer">
           <button type="button" className="wg-cta" onClick={submit}>
-            Add {selected.size} to Space
+            {removeIds.length > 0 && addIds.length === 0
+              ? `Remove ${removeIds.length}`
+              : addIds.length > 0 && removeIds.length === 0
+                ? `Add ${addIds.length} to Space`
+                : `Save (${addIds.length} added, ${removeIds.length} removed)`}
           </button>
         </div>
       )}

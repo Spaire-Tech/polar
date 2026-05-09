@@ -3,7 +3,7 @@
 import { useProducts } from '@/hooks/queries'
 import { useOrganizationCourses } from '@/hooks/queries/courses'
 import { schemas } from '@spaire/client'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { twMerge } from 'tailwind-merge'
 
 type Product = schemas['Product']
@@ -19,11 +19,13 @@ const formatPrice = (product: Product): string => {
 
 export const CourseTab = ({
   organization,
-  onAddProducts,
+  alreadySelectedIds = [],
+  onSubmit,
   onCreateNew,
 }: {
   organization: schemas['Organization']
-  onAddProducts: (productIds: string[]) => void
+  alreadySelectedIds?: string[]
+  onSubmit: (addIds: string[], removeIds: string[]) => void
   onCreateNew: () => void
 }) => {
   const { data: courses, isLoading } = useOrganizationCourses(organization.id)
@@ -38,7 +40,20 @@ export const CourseTab = ({
     return map
   }, [productsData])
 
+  // Scope already-selected to product IDs that map to a course in this
+  // tab — otherwise non-course featured items would be invisibly held
+  // in the diff when the creator de-selects nothing.
+  const visibleIds = useMemo(
+    () => new Set((courses ?? []).map((c) => c.product_id)),
+    [courses],
+  )
+  const [seeded, setSeeded] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  useEffect(() => {
+    if (seeded || !courses || courses.length === 0) return
+    setSelected(new Set(alreadySelectedIds.filter((id) => visibleIds.has(id))))
+    setSeeded(true)
+  }, [seeded, courses, alreadySelectedIds, visibleIds])
 
   const toggle = (productId: string) => {
     setSelected((prev) => {
@@ -49,9 +64,23 @@ export const CourseTab = ({
     })
   }
 
+  const initial = useMemo(
+    () => new Set(alreadySelectedIds.filter((id) => visibleIds.has(id))),
+    [alreadySelectedIds, visibleIds],
+  )
+  const addIds = useMemo(
+    () => Array.from(selected).filter((id) => !initial.has(id)),
+    [selected, initial],
+  )
+  const removeIds = useMemo(
+    () => Array.from(initial).filter((id) => !selected.has(id)),
+    [selected, initial],
+  )
+  const dirty = addIds.length > 0 || removeIds.length > 0
+
   const submit = () => {
-    if (selected.size === 0) return
-    onAddProducts(Array.from(selected))
+    if (!dirty) return
+    onSubmit(addIds, removeIds)
   }
 
   return (
@@ -67,19 +96,28 @@ export const CourseTab = ({
       </p>
 
       {isLoading ? (
-        <div className="wg-grid three">
+        <div className="wg-grid one">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="wg-skeleton" />
+            <div
+              key={i}
+              className="wg-card"
+              style={{ background: 'rgba(0,0,0,0.04)', minHeight: 68 }}
+            />
           ))}
         </div>
       ) : (
-        <div className="wg-grid three">
-          <button type="button" className="wg-tile create" onClick={onCreateNew}>
-            <div className="wg-tile-art empty">+</div>
-            <div className="wg-tile-meta">
-              <div className="wg-tile-title">New course</div>
-              <div className="wg-tile-sub">Multi-lesson, drip, paid or free</div>
+        <div className="wg-grid one">
+          <button type="button" className="wg-card create" onClick={onCreateNew}>
+            <div className="wg-art dashed">+</div>
+            <div className="wg-meta">
+              <div className="wg-card-title">New course</div>
+              <div className="wg-card-sub">
+                Multi-lesson, drip, paid or free
+              </div>
             </div>
+            <span className="wg-add-btn small ghost" aria-hidden>
+              →
+            </span>
           </button>
 
           {(courses ?? []).map((course) => {
@@ -104,23 +142,26 @@ export const CourseTab = ({
                 type="button"
                 onClick={() => toggle(course.product_id)}
                 aria-pressed={isSelected}
-                className={twMerge('wg-tile', isSelected && 'selected')}
+                className={twMerge('wg-card', isSelected && 'selected')}
               >
                 <div
-                  className="wg-tile-art"
-                  style={{
-                    backgroundImage: cover
-                      ? `url(${cover})`
-                      : 'linear-gradient(135deg, #5c4e7a, #2c2240)',
-                  }}
+                  className="wg-art"
+                  style={
+                    cover
+                      ? { backgroundImage: `url(${cover})` }
+                      : {
+                          background:
+                            'linear-gradient(135deg, #5c4e7a, #2c2240)',
+                        }
+                  }
                 >
                   {!cover && (title[0]?.toUpperCase() ?? '·')}
                 </div>
-                <div className="wg-tile-meta">
-                  <div className="wg-tile-title">{title}</div>
-                  {sub && <div className="wg-tile-sub">{sub}</div>}
+                <div className="wg-meta">
+                  <div className="wg-card-title">{title}</div>
+                  {sub && <div className="wg-card-sub">{sub}</div>}
                 </div>
-                <span className="wg-tile-check" aria-hidden>
+                <span className="wg-add-btn small" aria-hidden>
                   {isSelected ? '✓' : '+'}
                 </span>
               </button>
@@ -133,10 +174,14 @@ export const CourseTab = ({
         <p className="wg-help">No courses yet — create your first one.</p>
       )}
 
-      {selected.size > 0 && (
+      {dirty && (
         <div className="wg-footer">
           <button type="button" className="wg-cta" onClick={submit}>
-            Add {selected.size} to Space
+            {removeIds.length > 0 && addIds.length === 0
+              ? `Remove ${removeIds.length}`
+              : addIds.length > 0 && removeIds.length === 0
+                ? `Add ${addIds.length} to Space`
+                : `Save (${addIds.length} added, ${removeIds.length} removed)`}
           </button>
         </div>
       )}
