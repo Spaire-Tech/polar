@@ -1,7 +1,7 @@
 """Add flow_next_step_id to email_sequence_enrollments
 
-Revision ID: z5a6b7c8d9e0
-Revises: y4z5a6b7c8d9
+Revision ID: f4d5e9b2c1a7
+Revises: e8c7f1a3d2b6
 Create Date: 2026-05-08 00:01:00.000000
 
 flow_next_step_id is the tree-cursor for the new flow walker (Phase 3b).
@@ -14,8 +14,8 @@ shape continue to work; new enrollments populate flow_next_step_id.
 import sqlalchemy as sa
 from alembic import op
 
-revision = "z5a6b7c8d9e0"
-down_revision = "y4z5a6b7c8d9"
+revision = "f4d5e9b2c1a7"
+down_revision = "e8c7f1a3d2b6"
 branch_labels: tuple[str] | None = None
 depends_on: tuple[str] | None = None
 
