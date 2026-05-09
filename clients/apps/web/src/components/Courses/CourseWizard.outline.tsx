@@ -11,9 +11,351 @@ type PartialModule = {
 }
 type PartialOutline = { modules?: PartialModule[] }
 
-// ─── Horizontal journey + click-to-open module modal ─────────────────────────
+const MAX_PER_ROW = 4
 
-function JourneyOutline({
+// Same hue palette as EditableCourseLandingView's SectionCard so the
+// wizard preview matches the published landing 1:1.
+const HUES = [35, 195, 285, 145, 25, 320]
+
+// ─── Apple-TV-styled colored stripe placeholder (mirrors landing) ────────────
+
+function SectionThumbPlaceholder({
+  hue,
+  n,
+  aspect = '4 / 3',
+  radius,
+}: {
+  hue: number
+  n: number
+  aspect?: string
+  radius: string
+}) {
+  return (
+    <div
+      style={{
+        position: 'relative',
+        aspectRatio: aspect,
+        overflow: 'hidden',
+        borderRadius: radius,
+        background: '#111',
+      }}
+    >
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: `linear-gradient(135deg, oklch(0.32 0.06 ${hue}) 0%, oklch(0.18 0.04 ${(hue + 30) % 360}) 100%)`,
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          backgroundImage:
+            'repeating-linear-gradient(45deg, rgba(255,255,255,0.04) 0 8px, transparent 8px 16px)',
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          left: '15%',
+          top: '10%',
+          width: '55%',
+          height: '70%',
+          background: `radial-gradient(ellipse, oklch(0.85 0.06 ${hue} / 0.18), transparent 70%)`,
+          filter: 'blur(20px)',
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace',
+          fontSize: 9.5,
+          letterSpacing: '0.10em',
+          textTransform: 'uppercase',
+          color: 'rgba(255,255,255,0.50)',
+          fontWeight: 500,
+        }}
+      >
+        portrait · §{n}
+      </div>
+    </div>
+  )
+}
+
+// ─── Single zigzag card (mirrors SectionCard from the landing) ───────────────
+
+function SectionCard({
+  module: mod,
+  index,
+  pointer,
+  onClick,
+  streaming,
+}: {
+  module: PartialModule
+  index: number
+  pointer: 'top' | 'bottom'
+  onClick: () => void
+  streaming: boolean
+}) {
+  const isAbove = pointer === 'bottom'
+  const hue = HUES[index % HUES.length]
+  const thumbRadius = isAbove ? '13px 13px 0 0' : '0 0 13px 13px'
+  const thumb = (
+    <SectionThumbPlaceholder
+      hue={hue}
+      n={index + 1}
+      aspect="4 / 3"
+      radius={thumbRadius}
+    />
+  )
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={`Open module ${index + 1}`}
+      className={`so-card${streaming ? ' streaming' : ''}`}
+      style={{
+        position: 'relative',
+        width: '100%',
+        background: 'white',
+        borderRadius: 16,
+        overflow: 'visible',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.04), 0 12px 32px rgba(0,0,0,0.08)',
+        border: '1px solid oklch(0.945 0.003 280)',
+        display: 'flex',
+        flexDirection: 'column',
+        padding: 0,
+        cursor: 'pointer',
+        textAlign: 'left',
+        fontFamily: 'var(--font-poppins), system-ui, sans-serif',
+        transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+      }}
+    >
+      {isAbove && thumb}
+      <div style={{ padding: '20px 24px 22px' }}>
+        <div
+          style={{
+            fontSize: 12,
+            fontWeight: 500,
+            color: 'oklch(0.66 0.006 280)',
+            marginBottom: 8,
+            letterSpacing: '-0.005em',
+          }}
+        >
+          Section {index + 1}
+        </div>
+        <div
+          style={{
+            fontSize: 16,
+            fontWeight: 700,
+            letterSpacing: '-0.018em',
+            color: 'oklch(0.18 0.008 280)',
+            lineHeight: 1.3,
+            fontFamily: 'var(--font-poppins), system-ui, sans-serif',
+          }}
+        >
+          {mod.title || (
+            <span
+              style={{
+                display: 'inline-block',
+                height: 16,
+                width: 160,
+                background: 'oklch(0.92 0.006 280)',
+                borderRadius: 4,
+                animation: 'soPulseBg 1.4s ease-in-out infinite',
+              }}
+            />
+          )}
+        </div>
+      </div>
+      {!isAbove && thumb}
+      <div
+        style={{
+          position: 'absolute',
+          left: 36,
+          width: 0,
+          height: 0,
+          borderLeft: '9px solid transparent',
+          borderRight: '9px solid transparent',
+          filter: 'drop-shadow(0 1px 0 oklch(0.945 0.003 280))',
+          ...(isAbove
+            ? {
+                bottom: -9,
+                top: 'auto',
+                borderTop: '9px solid white',
+                borderBottom: 'none',
+              }
+            : {
+                top: -9,
+                bottom: 'auto',
+                borderBottom: '9px solid white',
+                borderTop: 'none',
+              }),
+        }}
+      />
+    </button>
+  )
+}
+
+// ─── Zigzag row (mirrors SectionZigzagRow from the landing) ──────────────────
+
+function SectionZigzagRow({
+  modules,
+  startIndex,
+  totalColumns,
+  onOpen,
+  streamingIdx,
+}: {
+  modules: PartialModule[]
+  startIndex: number
+  totalColumns: number
+  onOpen: (idx: number) => void
+  streamingIdx: number | null
+}) {
+  const columns = totalColumns
+  const filled = modules.length
+  const halfCol = 100 / columns / 2
+  const lineLeft = halfCol
+  const lineRight = (columns - filled + 0.5) * (100 / columns)
+
+  return (
+    <div style={{ position: 'relative' }}>
+      {/* Top cards (even-indexed within row, pointing down) */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+          gap: 20,
+          minHeight: 360,
+          alignItems: 'end',
+        }}
+      >
+        {Array.from({ length: columns }).map((_, i) => {
+          const mod = modules[i]
+          if (!mod) return <div key={`top-empty-${i}`} />
+          const absoluteIndex = startIndex + i
+          return absoluteIndex % 2 === 0 ? (
+            <div
+              key={`top-${absoluteIndex}`}
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'flex-end',
+              }}
+            >
+              <SectionCard
+                module={mod}
+                index={absoluteIndex}
+                pointer="bottom"
+                onClick={() => onOpen(absoluteIndex)}
+                streaming={streamingIdx === absoluteIndex}
+              />
+            </div>
+          ) : (
+            <div key={`top-spacer-${absoluteIndex}`} />
+          )
+        })}
+      </div>
+
+      {/* Spine: dotted line + dots */}
+      <div
+        style={{
+          position: 'relative',
+          display: 'grid',
+          gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+          gap: 20,
+          height: 24,
+          alignItems: 'center',
+          margin: '6px 0',
+        }}
+      >
+        <div
+          style={{
+            position: 'absolute',
+            left: `calc(${lineLeft}% - 6px)`,
+            right: `calc(${lineRight}% - 6px)`,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            height: 1.5,
+            background: 'oklch(0.92 0.003 280)',
+          }}
+        />
+        {Array.from({ length: columns }).map((_, i) => {
+          const mod = modules[i]
+          if (!mod) return <div key={`dot-empty-${i}`} />
+          return (
+            <div
+              key={`dot-${startIndex + i}`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                position: 'relative',
+                zIndex: 1,
+              }}
+            >
+              <div
+                style={{
+                  width: 12,
+                  height: 12,
+                  borderRadius: '50%',
+                  background: '#fff',
+                  border: '1.5px solid oklch(0.66 0.006 280)',
+                }}
+              />
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Bottom cards (odd-indexed within row, pointing up) */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+          gap: 20,
+          minHeight: 360,
+          alignItems: 'start',
+        }}
+      >
+        {Array.from({ length: columns }).map((_, i) => {
+          const mod = modules[i]
+          if (!mod) return <div key={`bot-empty-${i}`} />
+          const absoluteIndex = startIndex + i
+          return absoluteIndex % 2 !== 0 ? (
+            <div
+              key={`bot-${absoluteIndex}`}
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'flex-start',
+              }}
+            >
+              <SectionCard
+                module={mod}
+                index={absoluteIndex}
+                pointer="top"
+                onClick={() => onOpen(absoluteIndex)}
+                streaming={streamingIdx === absoluteIndex}
+              />
+            </div>
+          ) : (
+            <div key={`bot-spacer-${absoluteIndex}`} />
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ─── Outline as zigzag rows + click-to-open module modal ─────────────────────
+
+function ZigzagOutline({
   outline,
   isStreaming,
 }: {
@@ -23,7 +365,6 @@ function JourneyOutline({
   const modules = outline.modules ?? []
   const [openIdx, setOpenIdx] = useState<number | null>(null)
 
-  // Close on Escape
   useEffect(() => {
     if (openIdx === null) return
     const onKey = (e: KeyboardEvent) => {
@@ -33,49 +374,43 @@ function JourneyOutline({
     return () => window.removeEventListener('keydown', onKey)
   }, [openIdx])
 
+  if (modules.length === 0 && !isStreaming) {
+    return null
+  }
+
+  const rowColumns = Math.min(Math.max(modules.length, 1), MAX_PER_ROW)
+  const chunks: PartialModule[][] = []
+  for (let i = 0; i < modules.length; i += MAX_PER_ROW) {
+    chunks.push(modules.slice(i, i + MAX_PER_ROW))
+  }
+
+  const streamingIdx =
+    isStreaming && modules.length > 0 ? modules.length - 1 : null
+
   const openModule = openIdx !== null ? modules[openIdx] : null
 
   return (
-    <div className="so-journey">
-      <div className="so-journey-scroll">
-        <div className="so-journey-track">
-          {/* Dashed connector behind the nodes */}
-          <div className="so-journey-line" aria-hidden="true" />
-
-          {modules.map((mod, i) => {
-            const lessons = mod.lessons ?? []
-            const isLast = i === modules.length - 1
-            const streaming = isStreaming && isLast
-            return (
-              <button
-                key={i}
-                type="button"
-                onClick={() => setOpenIdx(i)}
-                className={`so-node${streaming ? ' streaming' : ''}`}
-                aria-label={`Open module ${i + 1}`}
-              >
-                <span className="so-node-bubble">{i + 1}</span>
-                <span className="so-node-title">
-                  {mod.title || (
-                    <span className="so-skel" style={{ width: 110 }} />
-                  )}
-                </span>
-                <span className="so-node-meta">
-                  {lessons.length} lesson{lessons.length !== 1 ? 's' : ''}
-                </span>
-              </button>
-            )
-          })}
-
-          {isStreaming && (
-            <div className="so-journey-streaming" aria-live="polite">
-              <span className="so-pulse" />
-              Writing
-              {modules.length > 0 ? ` module ${modules.length + 1}` : ''}…
-            </div>
-          )}
-        </div>
+    <div className="so-zigzag">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 48 }}>
+        {chunks.map((chunk, ci) => (
+          <SectionZigzagRow
+            key={ci}
+            modules={chunk}
+            startIndex={ci * MAX_PER_ROW}
+            totalColumns={rowColumns}
+            onOpen={(i) => setOpenIdx(i)}
+            streamingIdx={streamingIdx}
+          />
+        ))}
       </div>
+
+      {isStreaming && (
+        <div className="so-streaming-pill" aria-live="polite">
+          <span className="so-pulse" />
+          Writing
+          {modules.length > 0 ? ` module ${modules.length + 1}` : ''}…
+        </div>
+      )}
 
       {openModule !== null && openIdx !== null && (
         <ModuleOverlay
@@ -85,10 +420,12 @@ function JourneyOutline({
         />
       )}
 
-      <JourneyStyles />
+      <ZigzagStyles />
     </div>
   )
 }
+
+// ─── Modal overlay (PFCheckoutPreview-styled card with same placeholder) ─────
 
 function ModuleOverlay({
   index,
@@ -100,6 +437,7 @@ function ModuleOverlay({
   onClose: () => void
 }) {
   const lessons = mod.lessons ?? []
+  const hue = HUES[index % HUES.length]
   return (
     <div className="so-overlay" role="dialog" aria-modal="true">
       <button
@@ -118,15 +456,16 @@ function ModuleOverlay({
           <CloseIcon style={{ fontSize: 18 }} />
         </button>
 
-        {/* 16:9 hero / cover placeholder */}
-        <div className="so-modal-hero">
-          <span className="so-modal-hero-badge">Module {index + 1}</span>
-          <span className="so-modal-hero-placeholder">module cover · 16:9</span>
-        </div>
+        {/* Same colored placeholder as the zigzag card, 16:9 cover */}
+        <SectionThumbPlaceholder
+          hue={hue}
+          n={index + 1}
+          aspect="16 / 9"
+          radius="16px 16px 0 0"
+        />
 
-        {/* Body */}
         <div className="so-modal-body">
-          <div className="so-modal-eyebrow">Module {index + 1}</div>
+          <div className="so-modal-eyebrow">Section {index + 1}</div>
           <h2 className="so-modal-title">
             {mod.title || `Module ${index + 1}`}
           </h2>
@@ -208,13 +547,13 @@ export function OutlineScreen({
         style={{
           flex: 1,
           width: '100%',
-          maxWidth: 1080,
+          maxWidth: 1480,
           margin: '0 auto',
-          padding: '96px 24px 64px',
+          padding: '96px 32px 64px',
           background: '#fff',
         }}
       >
-        <div style={{ marginBottom: 28, textAlign: 'center' }}>
+        <div style={{ marginBottom: 40, textAlign: 'center' }}>
           <h1
             style={{
               fontFamily: 'var(--font-poppins), system-ui, sans-serif',
@@ -251,20 +590,22 @@ export function OutlineScreen({
               color: '#dc2626',
               fontSize: 13,
               fontFamily: 'var(--font-poppins), system-ui, sans-serif',
+              maxWidth: 640,
+              margin: '0 auto 16px',
             }}
           >
             {error}
           </div>
         )}
 
-        <JourneyOutline
+        <ZigzagOutline
           outline={partialOutline}
           isStreaming={isStreaming}
         />
 
         <div
           style={{
-            marginTop: 28,
+            marginTop: 40,
             padding: '12px 16px',
             borderRadius: 10,
             border: '1.5px solid #e8e8e8',
@@ -273,6 +614,9 @@ export function OutlineScreen({
             color: '#a0a0a0',
             fontFamily: 'var(--font-poppins), system-ui, sans-serif',
             textAlign: 'center',
+            maxWidth: 640,
+            marginLeft: 'auto',
+            marginRight: 'auto',
           }}
         >
           This outline is just a starting point — you can edit modules, lessons,
@@ -286,6 +630,9 @@ export function OutlineScreen({
             alignItems: 'center',
             justifyContent: 'space-between',
             gap: 12,
+            maxWidth: 640,
+            marginLeft: 'auto',
+            marginRight: 'auto',
           }}
         >
           <button
@@ -326,10 +673,10 @@ export function OutlineScreen({
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-function JourneyStyles() {
+function ZigzagStyles() {
   return (
     <style jsx global>{`
-      .so-journey {
+      .so-zigzag {
         --so-ink: oklch(0.18 0.012 270);
         --so-ink-2: oklch(0.36 0.012 270);
         --so-muted: oklch(0.56 0.014 270);
@@ -339,128 +686,46 @@ function JourneyStyles() {
         --so-surface: #ffffff;
         --so-surface-2: oklch(0.975 0.004 270);
         --so-surface-3: oklch(0.955 0.006 270);
-        --so-shadow-md: 0 1px 2px oklch(0.2 0.02 270 / 0.04),
-          0 8px 24px oklch(0.2 0.02 270 / 0.06);
         --so-shadow-lg: 0 4px 12px oklch(0.2 0.02 270 / 0.06),
           0 24px 60px oklch(0.2 0.02 270 / 0.18);
         font-family: var(--font-poppins), system-ui, sans-serif;
       }
 
-      .so-journey-scroll {
-        overflow-x: auto;
-        overflow-y: visible;
-        padding: 16px 8px 24px;
-        margin: 0 -8px;
-        -webkit-overflow-scrolling: touch;
-        scrollbar-width: thin;
+      .so-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06),
+          0 18px 44px rgba(0, 0, 0, 0.12) !important;
       }
-      .so-journey-track {
-        position: relative;
-        display: flex;
-        align-items: flex-start;
-        justify-content: center;
-        gap: 28px;
-        min-width: max-content;
-        padding: 24px 16px 12px;
+      .so-card.streaming {
+        animation: soCardPulse 1.6s ease-in-out infinite;
       }
-
-      /* Dashed connector behind the nodes */
-      .so-journey-line {
-        position: absolute;
-        top: 48px;
-        left: 24px;
-        right: 24px;
-        height: 0;
-        border-top: 1.5px dashed var(--so-hair-strong);
-        z-index: 0;
-        pointer-events: none;
-      }
-
-      /* Node = numbered bubble + title + meta, all clickable */
-      .so-node {
-        position: relative;
-        z-index: 1;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 10px;
-        background: transparent;
-        border: none;
-        padding: 0;
-        cursor: pointer;
-        font-family: inherit;
-        width: 132px;
-        flex-shrink: 0;
-      }
-      .so-node-bubble {
-        width: 48px;
-        height: 48px;
-        border-radius: 50%;
-        background: #ffffff;
-        border: 1.5px solid var(--so-hair-strong);
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 15px;
-        font-weight: 600;
-        color: var(--so-ink);
-        font-variant-numeric: tabular-nums;
-        box-shadow: var(--so-shadow-md);
-        transition: transform 0.15s ease, border-color 0.15s ease,
-          box-shadow 0.15s ease;
-      }
-      .so-node:hover .so-node-bubble {
-        border-color: var(--so-ink);
-        transform: translateY(-2px);
-        box-shadow: 0 2px 4px oklch(0.2 0.02 270 / 0.06),
-          0 12px 32px oklch(0.2 0.02 270 / 0.1);
-      }
-      .so-node.streaming .so-node-bubble {
-        border-color: var(--so-ink);
-        animation: soNodePulse 1.6s ease-in-out infinite;
-      }
-      @keyframes soNodePulse {
+      @keyframes soCardPulse {
         0%,
         100% {
-          box-shadow: 0 0 0 0 oklch(0.18 0.012 270 / 0.18);
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04),
+            0 12px 32px rgba(0, 0, 0, 0.08), 0 0 0 0 oklch(0.18 0.012 270 / 0.18);
         }
         50% {
-          box-shadow: 0 0 0 8px oklch(0.18 0.012 270 / 0);
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04),
+            0 12px 32px rgba(0, 0, 0, 0.08),
+            0 0 0 6px oklch(0.18 0.012 270 / 0);
         }
       }
-      .so-node-title {
-        font-size: 13px;
-        font-weight: 500;
-        color: var(--so-ink);
-        text-align: center;
-        line-height: 1.35;
-        max-width: 132px;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-      }
-      .so-node-meta {
-        font-size: 11px;
-        color: var(--so-muted-2);
-        letter-spacing: 0.02em;
-      }
 
-      /* Streaming "writing module N…" pill at the end */
-      .so-journey-streaming {
-        position: relative;
-        z-index: 1;
-        align-self: center;
+      .so-streaming-pill {
+        margin: 24px auto 0;
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        padding: 8px 12px;
+        padding: 8px 14px;
         font-size: 12px;
         color: var(--so-muted);
         background: var(--so-surface-2);
         border: 1px dashed var(--so-hair-strong);
         border-radius: 999px;
-        flex-shrink: 0;
+      }
+      .so-zigzag {
+        text-align: center;
       }
       .so-pulse {
         width: 6px;
@@ -469,7 +734,6 @@ function JourneyStyles() {
         background: var(--so-ink);
         animation: soPulseBg 1s ease-in-out infinite;
       }
-
       .so-skel {
         display: inline-block;
         height: 12px;
@@ -478,7 +742,6 @@ function JourneyStyles() {
         animation: soPulseBg 1.4s ease-in-out infinite;
         vertical-align: middle;
       }
-
       @keyframes soPulseBg {
         0%,
         100% {
@@ -499,6 +762,7 @@ function JourneyStyles() {
         justify-content: center;
         padding: 24px;
         animation: soFadeIn 0.18s ease;
+        text-align: left;
       }
       .so-overlay-backdrop {
         position: absolute;
@@ -540,41 +804,6 @@ function JourneyStyles() {
         color: var(--so-ink);
         border-color: var(--so-hair-strong);
       }
-      /* 16:9 hero matching PFCheckoutPreview placeholder */
-      .so-modal-hero {
-        position: relative;
-        aspect-ratio: 16 / 9;
-        background-color: var(--so-surface-3);
-        background-image: repeating-linear-gradient(
-          135deg,
-          var(--so-surface-3) 0px,
-          var(--so-surface-3) 6px,
-          var(--so-surface-2) 6px,
-          var(--so-surface-2) 12px
-        );
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-      .so-modal-hero-badge {
-        position: absolute;
-        top: 12px;
-        left: 12px;
-        font-size: 11px;
-        font-weight: 600;
-        color: var(--so-ink-2);
-        background: rgba(255, 255, 255, 0.96);
-        border: 1px solid var(--so-hair);
-        padding: 4px 10px;
-        border-radius: 999px;
-        letter-spacing: 0.02em;
-      }
-      .so-modal-hero-placeholder {
-        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-        font-size: 11px;
-        color: var(--so-muted);
-      }
-
       .so-modal-body {
         padding: 18px 20px 22px;
       }
@@ -588,9 +817,9 @@ function JourneyStyles() {
       .so-modal-title {
         margin: 6px 0 0;
         font-size: 20px;
-        font-weight: 600;
+        font-weight: 700;
         color: var(--so-ink);
-        letter-spacing: -0.012em;
+        letter-spacing: -0.018em;
         line-height: 1.25;
       }
       .so-modal-desc {
@@ -599,7 +828,6 @@ function JourneyStyles() {
         color: var(--so-muted);
         line-height: 1.55;
       }
-
       .so-modal-lessons-head {
         margin-top: 18px;
         padding-bottom: 8px;
