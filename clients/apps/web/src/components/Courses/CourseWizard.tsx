@@ -639,17 +639,7 @@ export default function CourseWizard({
             />
           )}
           {screen === 'generating-outline' && (
-            <GeneratingScreen
-              title={draft.courseTitle || course.title}
-              modulesCount={partialOutlineSafe.modules?.length ?? 0}
-              lessonsCount={
-                partialOutlineSafe.modules?.reduce(
-                  (acc, m) => acc + (m?.lessons?.length ?? 0),
-                  0,
-                ) ?? 0
-              }
-              onClose={handleClose}
-            />
+            <GeneratingScreen onClose={handleClose} />
           )}
           {screen === 'outline' && (
             <OutlineScreen
@@ -666,18 +656,7 @@ export default function CourseWizard({
             />
           )}
           {screen === 'generating-landing' && (
-            <GeneratingScreen
-              title={draft.courseTitle || course.title}
-              modulesCount={partialOutlineSafe.modules?.length ?? 0}
-              lessonsCount={
-                partialOutlineSafe.modules?.reduce(
-                  (acc, m) => acc + (m?.lessons?.length ?? 0),
-                  0,
-                ) ?? 0
-              }
-              onClose={handleClose}
-              phase="landing"
-            />
+            <GeneratingScreen onClose={handleClose} phase="landing" />
           )}
           {screen === 'preview' &&
             (() => {
