@@ -34,6 +34,7 @@ function SectionThumbPlaceholder({
     <div
       style={{
         position: 'relative',
+        width: '100%',
         aspectRatio: aspect,
         overflow: 'hidden',
         borderRadius: radius,
@@ -231,7 +232,6 @@ function SectionZigzagRow({
           display: 'grid',
           gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
           gap: 20,
-          minHeight: 360,
           alignItems: 'end',
         }}
       >
@@ -319,7 +319,6 @@ function SectionZigzagRow({
           display: 'grid',
           gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
           gap: 20,
-          minHeight: 360,
           alignItems: 'start',
         }}
       >
@@ -391,7 +390,7 @@ function ZigzagOutline({
 
   return (
     <div className="so-zigzag">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 48 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
         {chunks.map((chunk, ci) => (
           <SectionZigzagRow
             key={ci}
@@ -549,11 +548,11 @@ export function OutlineScreen({
           width: '100%',
           maxWidth: 1480,
           margin: '0 auto',
-          padding: '96px 32px 64px',
+          padding: '88px 32px 40px',
           background: '#fff',
         }}
       >
-        <div style={{ marginBottom: 40, textAlign: 'center' }}>
+        <div style={{ marginBottom: 24, textAlign: 'center' }}>
           <h1
             style={{
               fontFamily: 'var(--font-poppins), system-ui, sans-serif',
@@ -605,7 +604,7 @@ export function OutlineScreen({
 
         <div
           style={{
-            marginTop: 40,
+            marginTop: 28,
             padding: '12px 16px',
             borderRadius: 10,
             border: '1.5px solid #e8e8e8',
@@ -625,7 +624,7 @@ export function OutlineScreen({
 
         <div
           style={{
-            marginTop: 24,
+            marginTop: 20,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
