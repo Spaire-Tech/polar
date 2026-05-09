@@ -785,14 +785,22 @@ async def get_preview_access(
         raise HTTPException(status_code=404, detail="Organization not found")
 
     customer_repo = CustomerRepository.from_session(session)
+    # Use a deterministic preview-only email tied to the org user, NOT the
+    # user's real email. Reusing a real customer record by email would mint
+    # a customer-session token that also unlocks that customer's other
+    # purchases / orders / PII — so we route every preview through a
+    # sandboxed customer scoped to (org_user, organization) instead.
+    # The .invalid TLD is RFC-reserved and guaranteed to never match a
+    # real address, so this can't collide with checkout-created customers.
+    preview_email = f"preview+{user.id}@course-preview.invalid"
     customer = await customer_repo.get_by_email_and_organization(
-        user.email, course.organization_id
+        preview_email, course.organization_id
     )
     if customer is None:
         customer = await customer_repo.create(
             Customer(
-                email=user.email,
-                name=user.email.split("@")[0],
+                email=preview_email,
+                name=f"{user.email.split('@')[0]} (preview)",
                 organization_id=course.organization_id,
             ),
             flush=True,

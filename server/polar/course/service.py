@@ -228,7 +228,15 @@ class CourseService:
     async def delete_lesson(
         self, session: AsyncSession, lesson: CourseLesson
     ) -> None:
+        # Enqueue Mux asset cleanup before soft-delete so we still have
+        # the asset id available. The worker is idempotent (404 from Mux
+        # counts as success), so a failed enqueue is safe to retry later.
+        from polar.worker import enqueue_job
+
         lesson_repo = CourseLessonRepository.from_session(session)
+        asset_id = getattr(lesson, "mux_asset_id", None)
+        if asset_id:
+            enqueue_job("course.mux_delete_asset", asset_id=asset_id)
         await lesson_repo.soft_delete(lesson)
 
     async def reorder_lessons(

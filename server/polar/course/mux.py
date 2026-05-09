@@ -183,3 +183,23 @@ def verify_webhook_signature(body: bytes, signature_header: str) -> bool:
         return hmac.compare_digest(mac.hexdigest(), expected_sig)
     except Exception:
         return False
+
+
+async def delete_asset(asset_id: str) -> bool:
+    """Delete a Mux video asset. Returns True on success or 404 (already
+    gone), False on transient failures so the caller can retry."""
+    if not asset_id or not settings.MUX_TOKEN_ID or not settings.MUX_TOKEN_SECRET:
+        return False
+    async with _client() as client:
+        try:
+            resp = await client.delete(f"/video/v1/assets/{asset_id}")
+        except httpx.HTTPError:
+            log.exception("Failed to call Mux delete asset", extra={"asset_id": asset_id})
+            return False
+    if resp.status_code in (200, 204, 404):
+        return True
+    log.warning(
+        "Mux delete returned non-success status",
+        extra={"asset_id": asset_id, "status": resp.status_code},
+    )
+    return False
