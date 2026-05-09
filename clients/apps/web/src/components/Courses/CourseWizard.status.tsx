@@ -154,7 +154,7 @@ function GeneratingStyles() {
   return (
     <style jsx global>{`
       .cg-stage {
-        --cg-bg: #f5f5f7;
+        --cg-bg: #ffffff;
         --cg-fg: #1d1d1f;
         --cg-fg-soft: #6e6e73;
         position: fixed;
@@ -162,13 +162,12 @@ function GeneratingStyles() {
         z-index: 200;
         background: var(--cg-bg);
         color: var(--cg-fg);
-        min-height: 100%;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
         padding: 48px 24px;
-        gap: 56px;
+        gap: 40px;
         overflow-y: auto;
         font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display',
           'SF Pro Text', 'Helvetica Neue', Helvetica, Arial, sans-serif;
@@ -177,9 +176,10 @@ function GeneratingStyles() {
       }
 
       .cg-ring-wrap {
-        width: min(420px, 70vw);
+        width: min(360px, 60vw);
         aspect-ratio: 1 / 1;
         position: relative;
+        flex-shrink: 0;
       }
       .cg-ring-wrap svg {
         width: 100%;
