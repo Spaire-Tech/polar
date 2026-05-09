@@ -138,13 +138,13 @@ function SectionCard({
       }}
     >
       {isAbove && thumb}
-      <div style={{ padding: '20px 24px 22px' }}>
+      <div style={{ padding: '14px 16px 16px' }}>
         <div
           style={{
-            fontSize: 12,
+            fontSize: 11,
             fontWeight: 500,
             color: 'oklch(0.66 0.006 280)',
-            marginBottom: 8,
+            marginBottom: 4,
             letterSpacing: '-0.005em',
           }}
         >
@@ -152,7 +152,7 @@ function SectionCard({
         </div>
         <div
           style={{
-            fontSize: 16,
+            fontSize: 14,
             fontWeight: 700,
             letterSpacing: '-0.018em',
             color: 'oklch(0.18 0.008 280)',
@@ -164,8 +164,8 @@ function SectionCard({
             <span
               style={{
                 display: 'inline-block',
-                height: 16,
-                width: 160,
+                height: 14,
+                width: 140,
                 background: 'oklch(0.92 0.006 280)',
                 borderRadius: 4,
                 animation: 'soPulseBg 1.4s ease-in-out infinite',
@@ -178,23 +178,23 @@ function SectionCard({
       <div
         style={{
           position: 'absolute',
-          left: 36,
+          left: 24,
           width: 0,
           height: 0,
-          borderLeft: '9px solid transparent',
-          borderRight: '9px solid transparent',
+          borderLeft: '8px solid transparent',
+          borderRight: '8px solid transparent',
           filter: 'drop-shadow(0 1px 0 oklch(0.945 0.003 280))',
           ...(isAbove
             ? {
-                bottom: -9,
+                bottom: -8,
                 top: 'auto',
-                borderTop: '9px solid white',
+                borderTop: '8px solid white',
                 borderBottom: 'none',
               }
             : {
-                top: -9,
+                top: -8,
                 bottom: 'auto',
-                borderBottom: '9px solid white',
+                borderBottom: '8px solid white',
                 borderTop: 'none',
               }),
         }}
@@ -546,13 +546,13 @@ export function OutlineScreen({
         style={{
           flex: 1,
           width: '100%',
-          maxWidth: 1480,
+          maxWidth: 880,
           margin: '0 auto',
-          padding: '88px 32px 40px',
+          padding: '88px 32px 64px',
           background: '#fff',
         }}
       >
-        <div style={{ marginBottom: 24, textAlign: 'center' }}>
+        <div style={{ marginBottom: 20, textAlign: 'center' }}>
           <h1
             style={{
               fontFamily: 'var(--font-poppins), system-ui, sans-serif',
@@ -604,7 +604,7 @@ export function OutlineScreen({
 
         <div
           style={{
-            marginTop: 28,
+            marginTop: 40,
             padding: '12px 16px',
             borderRadius: 10,
             border: '1.5px solid #e8e8e8',
@@ -624,7 +624,7 @@ export function OutlineScreen({
 
         <div
           style={{
-            marginTop: 20,
+            marginTop: 24,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
