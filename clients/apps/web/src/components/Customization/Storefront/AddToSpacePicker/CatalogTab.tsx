@@ -1,7 +1,7 @@
 'use client'
 
-import { useOrganizationCourses } from '@/hooks/queries/courses'
 import { useProducts } from '@/hooks/queries'
+import { useOrganizationCourses } from '@/hooks/queries/courses'
 import { schemas } from '@spaire/client'
 import { useMemo, useState } from 'react'
 import { twMerge } from 'tailwind-merge'
@@ -31,15 +31,11 @@ export const CatalogTab = ({
   })
   const { data: courses } = useOrganizationCourses(organization.id)
 
-  // Exclude any product that has a row in the courses table (course
-  // products belong to the Course tab). Belt-and-suspenders: also
-  // exclude products with category === 'course' in case a course was
-  // created without a courses-row write.
   const products = useMemo(() => {
     const courseProductIds = new Set((courses ?? []).map((c) => c.product_id))
     const all = data?.items ?? []
     return all.filter(
-      (p) => !courseProductIds.has(p.id) && (p as Product).category !== 'course',
+      (p) => !courseProductIds.has(p.id) && p.category !== 'course',
     )
   }, [data, courses])
 
@@ -60,8 +56,8 @@ export const CatalogTab = ({
   }
 
   return (
-    <div className="atsp-tab-panel">
-      <p className="atsp-help">
+    <div className="wg-tab">
+      <p className="wg-help">
         Pick from your catalog or start a new one.
         {selected.size > 0 && (
           <>
@@ -72,18 +68,22 @@ export const CatalogTab = ({
       </p>
 
       {isLoading ? (
-        <div className="atsp-grid three">
+        <div className="wg-grid three">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="atsp-skeleton" />
+            <div key={i} className="wg-skeleton" />
           ))}
         </div>
       ) : (
-        <div className="atsp-grid three">
-          <button type="button" className="atsp-tile create" onClick={onCreateNew}>
-            <div className="atsp-tile-art empty">+</div>
-            <div className="atsp-tile-meta">
-              <div className="atsp-tile-title">New product</div>
-              <div className="atsp-tile-sub">
+        <div className="wg-grid three">
+          <button
+            type="button"
+            className="wg-tile create"
+            onClick={onCreateNew}
+          >
+            <div className="wg-tile-art empty">+</div>
+            <div className="wg-tile-meta">
+              <div className="wg-tile-title">New product</div>
+              <div className="wg-tile-sub">
                 Start blank · ebook, asset, anything
               </div>
             </div>
@@ -99,13 +99,10 @@ export const CatalogTab = ({
                 type="button"
                 onClick={() => toggle(product.id)}
                 aria-pressed={isSelected}
-                className={twMerge(
-                  'atsp-tile',
-                  isSelected && 'selected',
-                )}
+                className={twMerge('wg-tile', isSelected && 'selected')}
               >
                 <div
-                  className="atsp-tile-art"
+                  className="wg-tile-art"
                   style={{
                     backgroundImage: cover
                       ? `url(${cover})`
@@ -114,11 +111,11 @@ export const CatalogTab = ({
                 >
                   {!cover && (product.name?.[0]?.toUpperCase() ?? '·')}
                 </div>
-                <div className="atsp-tile-meta">
-                  <div className="atsp-tile-title">{product.name}</div>
-                  {price && <div className="atsp-tile-sub">{price}</div>}
+                <div className="wg-tile-meta">
+                  <div className="wg-tile-title">{product.name}</div>
+                  {price && <div className="wg-tile-sub">{price}</div>}
                 </div>
-                <span className="atsp-tile-check" aria-hidden>
+                <span className="wg-tile-check" aria-hidden>
                   {isSelected ? '✓' : '+'}
                 </span>
               </button>
@@ -128,17 +125,12 @@ export const CatalogTab = ({
       )}
 
       {!isLoading && products.length === 0 && (
-        <p
-          className="atsp-help"
-          style={{ color: 'var(--atsp-muted-2)' }}
-        >
-          No products yet — create your first one.
-        </p>
+        <p className="wg-help">No products yet — create your first one.</p>
       )}
 
       {selected.size > 0 && (
-        <div className="atsp-footer">
-          <button type="button" className="atsp-cta" onClick={submit}>
+        <div className="wg-footer">
+          <button type="button" className="wg-cta" onClick={submit}>
             Add {selected.size} to Space
           </button>
         </div>

@@ -17,11 +17,6 @@ const formatPrice = (product: Product): string => {
   return ''
 }
 
-// The Course tab lists courses (rows in the `courses` table) and lets
-// the user feature them on their Space. Each course belongs to a
-// product 1:1 — we display the course's title/thumbnail but write the
-// course's product_id into featured_product_ids.
-
 export const CourseTab = ({
   organization,
   onAddProducts,
@@ -36,10 +31,6 @@ export const CourseTab = ({
     is_archived: false,
   })
 
-  // Build a lookup so we can show the course's parent product cover and
-  // price (the course row only stores a thumbnail_url override; falling
-  // back to the product cover keeps things visually consistent with the
-  // public Space).
   const productById = useMemo(() => {
     const map = new Map<string, Product>()
     for (const p of productsData?.items ?? []) map.set(p.id, p)
@@ -63,8 +54,8 @@ export const CourseTab = ({
   }
 
   return (
-    <div className="atsp-tab-panel">
-      <p className="atsp-help">
+    <div className="wg-tab">
+      <p className="wg-help">
         Pick from your courses or start a new one.
         {selected.size > 0 && (
           <>
@@ -75,18 +66,22 @@ export const CourseTab = ({
       </p>
 
       {isLoading ? (
-        <div className="atsp-grid three">
+        <div className="wg-grid three">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="atsp-skeleton" />
+            <div key={i} className="wg-skeleton" />
           ))}
         </div>
       ) : (
-        <div className="atsp-grid three">
-          <button type="button" className="atsp-tile create" onClick={onCreateNew}>
-            <div className="atsp-tile-art empty">+</div>
-            <div className="atsp-tile-meta">
-              <div className="atsp-tile-title">New course</div>
-              <div className="atsp-tile-sub">
+        <div className="wg-grid three">
+          <button
+            type="button"
+            className="wg-tile create"
+            onClick={onCreateNew}
+          >
+            <div className="wg-tile-art empty">+</div>
+            <div className="wg-tile-meta">
+              <div className="wg-tile-title">New course</div>
+              <div className="wg-tile-sub">
                 Multi-lesson, drip, paid or free
               </div>
             </div>
@@ -114,10 +109,10 @@ export const CourseTab = ({
                 type="button"
                 onClick={() => toggle(course.product_id)}
                 aria-pressed={isSelected}
-                className={twMerge('atsp-tile', isSelected && 'selected')}
+                className={twMerge('wg-tile', isSelected && 'selected')}
               >
                 <div
-                  className="atsp-tile-art"
+                  className="wg-tile-art"
                   style={{
                     backgroundImage: cover
                       ? `url(${cover})`
@@ -126,11 +121,11 @@ export const CourseTab = ({
                 >
                   {!cover && (title[0]?.toUpperCase() ?? '·')}
                 </div>
-                <div className="atsp-tile-meta">
-                  <div className="atsp-tile-title">{title}</div>
-                  {sub && <div className="atsp-tile-sub">{sub}</div>}
+                <div className="wg-tile-meta">
+                  <div className="wg-tile-title">{title}</div>
+                  {sub && <div className="wg-tile-sub">{sub}</div>}
                 </div>
-                <span className="atsp-tile-check" aria-hidden>
+                <span className="wg-tile-check" aria-hidden>
                   {isSelected ? '✓' : '+'}
                 </span>
               </button>
@@ -140,14 +135,12 @@ export const CourseTab = ({
       )}
 
       {!isLoading && (courses ?? []).length === 0 && (
-        <p className="atsp-help" style={{ color: 'var(--atsp-muted-2)' }}>
-          No courses yet — create your first one.
-        </p>
+        <p className="wg-help">No courses yet — create your first one.</p>
       )}
 
       {selected.size > 0 && (
-        <div className="atsp-footer">
-          <button type="button" className="atsp-cta" onClick={submit}>
+        <div className="wg-footer">
+          <button type="button" className="wg-cta" onClick={submit}>
             Add {selected.size} to Space
           </button>
         </div>

@@ -1,6 +1,5 @@
 'use client'
 
-import ArrowBackOutlined from '@mui/icons-material/ArrowBackOutlined'
 import { useState } from 'react'
 import {
   EMBED_PLATFORMS,
@@ -39,34 +38,31 @@ export const EmbedTab = ({
     }
 
     return (
-      <div className="atsp-tab-panel">
+      <div className="wg-tab">
         <button
           type="button"
-          className="atsp-back"
+          className="wg-back"
           onClick={() => {
             setPicked(null)
             setUrl('')
             setError(null)
           }}
         >
-          <ArrowBackOutlined style={{ fontSize: 16 }} />
-          All platforms
+          ← All platforms
         </button>
-
-        <div className="atsp-pill-card static">
-          <div className="atsp-art" style={{ background: picked.bg }}>
+        <div className="wg-card" style={{ cursor: 'default', marginTop: 8 }}>
+          <div className="wg-art" style={{ background: picked.bg }}>
             <picked.Icon className="h-5 w-5" />
           </div>
-          <div className="min-w-0 flex-1">
-            <div className="atsp-tile-title">{picked.label}</div>
-            <div className="atsp-tile-sub">
+          <div className="wg-meta">
+            <div className="wg-card-title">{picked.label}</div>
+            <div className="wg-card-sub">
               {picked.sub}
               {!picked.canEmbed && ' · renders as a stylized link card'}
             </div>
           </div>
         </div>
-
-        <div className="atsp-input-pill">
+        <div className="wg-input-pill" style={{ marginTop: 14 }}>
           <input
             autoFocus
             value={url}
@@ -81,7 +77,7 @@ export const EmbedTab = ({
           />
           <button
             type="button"
-            className="atsp-add-btn"
+            className="wg-add-btn"
             disabled={!url.trim()}
             onClick={submit}
             aria-label="Embed"
@@ -89,9 +85,8 @@ export const EmbedTab = ({
             +
           </button>
         </div>
-
         {error && (
-          <p className="atsp-help" style={{ color: '#b00020' }}>
+          <p className="wg-help" style={{ color: '#b00020' }}>
             {error}
           </p>
         )}
@@ -100,26 +95,26 @@ export const EmbedTab = ({
   }
 
   return (
-    <div className="atsp-tab-panel">
-      <p className="atsp-help">
+    <div className="wg-tab">
+      <p className="wg-help">
         Pick a platform — videos, posts, tracks all embed live where supported.
       </p>
-      <div className="atsp-grid two">
+      <div className="wg-grid two embed">
         {EMBED_PLATFORMS.map((p) => (
           <button
             key={p.id}
             type="button"
-            className="atsp-pill-card"
+            className="wg-card"
             onClick={() => setPicked(p)}
           >
-            <div className="atsp-art" style={{ background: p.bg }}>
+            <div className="wg-art" style={{ background: p.bg }}>
               <p.Icon className="h-5 w-5" />
             </div>
-            <div className="min-w-0 flex-1">
-              <div className="atsp-tile-title">{p.label}</div>
-              <div className="atsp-tile-sub">{p.sub}</div>
+            <div className="wg-meta">
+              <div className="wg-card-title">{p.label}</div>
+              <div className="wg-card-sub">{p.sub}</div>
             </div>
-            <span className="atsp-add-btn small ghost" aria-hidden>
+            <span className="wg-add-btn small ghost" aria-hidden>
               +
             </span>
           </button>

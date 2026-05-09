@@ -9,6 +9,7 @@ type Preview = {
   title: string | null
   description: string | null
   image_url: string | null
+  glyph: string
 }
 
 export type UrlPickPayload = {
@@ -36,41 +37,45 @@ export const UrlTab = ({ onPick }: { onPick: (p: UrlPickPayload) => void }) => {
   const [raw, setRaw] = useState('')
   const [preview, setPreview] = useState<Preview | null>(null)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
-  // Debounced preview fetch as the user types.
   useEffect(() => {
     const url = normalize(raw)
     if (!url) {
       setPreview(null)
-      setError(null)
       return
     }
     const controller = new AbortController()
     const handle = window.setTimeout(async () => {
       setLoading(true)
-      setError(null)
       try {
         const res = await fetch(
           `/api/link-preview?url=${encodeURIComponent(url)}`,
           { signal: controller.signal },
         )
-        if (!res.ok) {
-          setError('Could not fetch preview')
-          setPreview(null)
-        } else {
+        if (res.ok) {
           const meta = await res.json()
+          const host = getDomain(url)
           setPreview({
             url,
-            host: getDomain(url),
+            host,
             title: meta.title ?? null,
             description: meta.description ?? null,
             image_url: meta.image_url ?? null,
+            glyph: host[0]?.toUpperCase() ?? '•',
+          })
+        } else {
+          const host = getDomain(url)
+          setPreview({
+            url,
+            host,
+            title: null,
+            description: null,
+            image_url: null,
+            glyph: host[0]?.toUpperCase() ?? '•',
           })
         }
       } catch (e) {
         if ((e as Error).name !== 'AbortError') {
-          setError('Could not fetch preview')
           setPreview(null)
         }
       } finally {
@@ -97,12 +102,11 @@ export const UrlTab = ({ onPick }: { onPick: (p: UrlPickPayload) => void }) => {
   const ready = !!normalize(raw)
 
   return (
-    <div className="atsp-tab-panel">
-      <p className="atsp-help">
-        Paste a URL — Spaire fetches the title, description and cover.
+    <div className="wg-tab">
+      <p className="wg-help">
+        Paste a URL — Spaire fetches the title, favicon and preview.
       </p>
-
-      <div className="atsp-input-pill">
+      <div className="wg-input-pill">
         <input
           autoFocus
           value={raw}
@@ -114,70 +118,52 @@ export const UrlTab = ({ onPick }: { onPick: (p: UrlPickPayload) => void }) => {
         />
         <button
           type="button"
-          className="atsp-add-btn"
+          className="wg-add-btn"
           disabled={!ready}
           onClick={submit}
-          aria-label="Add link"
+          aria-label="Add"
           title={ready ? 'Add link' : 'Enter a URL first'}
         >
           +
         </button>
       </div>
-
-      {loading && (
-        <div
-          className="atsp-pill-card static"
-          style={{ opacity: 0.6, pointerEvents: 'none' }}
+      {preview && !loading && (
+        <button
+          type="button"
+          className="wg-card preview-card"
+          onClick={submit}
+          style={{ cursor: 'pointer' }}
         >
-          <div className="atsp-art dashed">…</div>
-          <div className="min-w-0 flex-1">
-            <div className="atsp-tile-title">Fetching preview…</div>
-          </div>
-        </div>
-      )}
-
-      {!loading && preview && (
-        <button type="button" onClick={submit} className="atsp-pill-card">
           <div
-            className="atsp-art"
+            className="wg-art"
             style={
               preview.image_url
-                ? {
-                    backgroundImage: `url(${preview.image_url})`,
-                  }
-                : undefined
+                ? { backgroundImage: `url(${preview.image_url})` }
+                : { background: 'linear-gradient(135deg, #c9c5bb, #7d7a73)' }
             }
           >
-            {!preview.image_url && (preview.host[0]?.toUpperCase() ?? '•')}
+            {!preview.image_url && preview.glyph}
           </div>
-          <div className="min-w-0 flex-1">
-            <div className="atsp-tile-title">
-              {preview.title || preview.host}
-            </div>
-            {preview.description && (
-              <div className="atsp-tile-sub">{preview.description}</div>
-            )}
-            <div
-              className="atsp-tile-sub"
-              style={{ fontSize: 11, marginTop: 2 }}
-            >
-              {preview.host}
-            </div>
+          <div className="wg-meta">
+            <div className="wg-card-title">{preview.title || preview.host}</div>
+            <div className="wg-card-sub">{preview.host}</div>
           </div>
-          <span className="atsp-add-btn small">+</span>
+          <span className="wg-add-btn small" aria-label="Add">
+            +
+          </span>
         </button>
       )}
-
-      {!loading && !preview && !error && raw && !ready && (
-        <p className="atsp-help" style={{ color: 'var(--atsp-muted-2)' }}>
-          That doesn&apos;t look like a URL yet.
-        </p>
+      {!preview && !loading && (
+        <div className="wg-empty">
+          <div className="wg-empty-shape" />
+          <div>A clean preview will appear here.</div>
+        </div>
       )}
-
-      {error && (
-        <p className="atsp-help" style={{ color: '#b00020' }}>
-          {error}
-        </p>
+      {loading && (
+        <div className="wg-empty">
+          <div className="wg-empty-shape" />
+          <div>Fetching preview…</div>
+        </div>
       )}
     </div>
   )

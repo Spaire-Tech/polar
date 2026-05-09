@@ -1,6 +1,5 @@
 'use client'
 
-import CloseOutlined from '@mui/icons-material/CloseOutlined'
 import { schemas } from '@spaire/client'
 import { useEffect, useState } from 'react'
 import { CatalogTab } from './CatalogTab'
@@ -12,43 +11,29 @@ import { UrlPickPayload, UrlTab } from './UrlTab'
 export type { EmbedPickPayload, UrlPickPayload }
 
 export type AddToSpacePickerCallbacks = {
-  // The user pasted a URL and confirmed → add a standard storefront link.
   onAddLink: (payload: UrlPickPayload) => void
-  // The user picked a platform and entered a URL → add an embedded link
-  // (or a stylized fallback card if the platform doesn't support inline
-  // embedding).
   onAddEmbed: (payload: EmbedPickPayload) => void
-  // The user selected one or more existing products to feature.
   onAddProducts: (productIds: string[]) => void
-  // The user clicked "+ New product" / "+ New course". The parent opens
-  // its existing product / course creation flow.
   onCreateProduct: () => void
   onCreateCourse: () => void
 }
 
-const TABS = [
-  { id: 'url', label: 'URL' },
-  { id: 'embed', label: 'Embed' },
-  { id: 'product', label: 'Digital Product' },
-  { id: 'course', label: 'Course' },
-  { id: 'form', label: 'Form' },
-] as const
-type TabId = (typeof TABS)[number]['id']
+const TABS = ['URL', 'Embed', 'Digital Product', 'Course', 'Form'] as const
+type Tab = (typeof TABS)[number]
 
 export const AddToSpacePicker = ({
   organization,
-  initialTab = 'url',
+  initialTab = 'URL',
   onClose,
   callbacks,
 }: {
   organization: schemas['Organization']
-  initialTab?: TabId
+  initialTab?: Tab
   onClose: () => void
   callbacks: AddToSpacePickerCallbacks
 }) => {
-  const [tab, setTab] = useState<TabId>(initialTab)
+  const [tab, setTab] = useState<Tab>(initialTab)
 
-  // Escape closes the modal. Click outside is handled by the backdrop.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
@@ -66,45 +51,42 @@ export const AddToSpacePicker = ({
     }
 
   return (
-    <div className="atsp-root">
-      <div className="atsp-backdrop" onClick={onClose} />
+    <>
+      <div className="picker-backdrop" onClick={onClose} />
       <div
-        className="atsp-surface"
+        className="pk-library waterglass"
         role="dialog"
         aria-label="Add to your Space"
         aria-modal="true"
       >
-        <div className="atsp-head">
-          <div className="atsp-title">Add to your Space</div>
+        <div className="wg-head">
+          <div className="wg-title">Add to your Space</div>
           <button
             type="button"
+            className="wg-close"
             onClick={onClose}
             aria-label="Close"
-            className="atsp-close"
           >
-            <CloseOutlined style={{ fontSize: 18 }} />
+            ×
           </button>
         </div>
-
-        <div className="atsp-tabs" role="tablist">
+        <div className="wg-tabs" role="tablist">
           {TABS.map((t) => (
             <button
-              key={t.id}
-              role="tab"
+              key={t}
               type="button"
-              aria-selected={tab === t.id}
-              onClick={() => setTab(t.id)}
-              className="atsp-tab"
+              role="tab"
+              aria-selected={tab === t}
+              onClick={() => setTab(t)}
             >
-              {t.label}
+              {t}
             </button>
           ))}
         </div>
-
-        <div className="atsp-body">
-          {tab === 'url' && <UrlTab onPick={wrap(callbacks.onAddLink)} />}
-          {tab === 'embed' && <EmbedTab onPick={wrap(callbacks.onAddEmbed)} />}
-          {tab === 'product' && (
+        <div className="wg-body">
+          {tab === 'URL' && <UrlTab onPick={wrap(callbacks.onAddLink)} />}
+          {tab === 'Embed' && <EmbedTab onPick={wrap(callbacks.onAddEmbed)} />}
+          {tab === 'Digital Product' && (
             <CatalogTab
               organization={organization}
               onAddProducts={wrap(callbacks.onAddProducts)}
@@ -114,7 +96,7 @@ export const AddToSpacePicker = ({
               }}
             />
           )}
-          {tab === 'course' && (
+          {tab === 'Course' && (
             <CourseTab
               organization={organization}
               onAddProducts={wrap(callbacks.onAddProducts)}
@@ -124,9 +106,9 @@ export const AddToSpacePicker = ({
               }}
             />
           )}
-          {tab === 'form' && <FormTab />}
+          {tab === 'Form' && <FormTab />}
         </div>
       </div>
-    </div>
+    </>
   )
 }
