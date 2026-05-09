@@ -4,10 +4,10 @@ import CloseOutlined from '@mui/icons-material/CloseOutlined'
 import { schemas } from '@spaire/client'
 import { useEffect, useState } from 'react'
 import { CatalogTab } from './CatalogTab'
+import { CourseTab } from './CourseTab'
 import { EmbedPickPayload, EmbedTab } from './EmbedTab'
 import { FormTab } from './FormTab'
 import { UrlPickPayload, UrlTab } from './UrlTab'
-import './styles.css'
 
 export type { EmbedPickPayload, UrlPickPayload }
 
@@ -21,7 +21,7 @@ export type AddToSpacePickerCallbacks = {
   // The user selected one or more existing products to feature.
   onAddProducts: (productIds: string[]) => void
   // The user clicked "+ New product" / "+ New course". The parent opens
-  // its existing product-create flow.
+  // its existing product / course creation flow.
   onCreateProduct: () => void
   onCreateCourse: () => void
 }
@@ -66,27 +66,23 @@ export const AddToSpacePicker = ({
     }
 
   return (
-    <>
+    <div className="atsp-root">
       <div className="atsp-backdrop" onClick={onClose} />
       <div
         className="atsp-surface"
         role="dialog"
         aria-label="Add to your Space"
         aria-modal="true"
-        // Use our blue as the picker accent (overrides the design's purple).
-        style={{ ['--atsp-accent' as string]: '#0067ff' }}
       >
-        <div className="flex items-center justify-between px-2 pt-1 pb-3">
-          <div className="text-[22px] font-medium tracking-tight text-gray-900">
-            Add to your Space
-          </div>
+        <div className="atsp-head">
+          <div className="atsp-title">Add to your Space</div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-black/5 bg-white/60 text-gray-500 transition-colors hover:bg-black/5 hover:text-gray-900"
+            className="atsp-close"
           >
-            <CloseOutlined className="h-4 w-4" />
+            <CloseOutlined style={{ fontSize: 18 }} />
           </button>
         </div>
 
@@ -105,13 +101,12 @@ export const AddToSpacePicker = ({
           ))}
         </div>
 
-        <div className="mt-5 flex-1 overflow-y-auto px-1">
+        <div className="atsp-body">
           {tab === 'url' && <UrlTab onPick={wrap(callbacks.onAddLink)} />}
           {tab === 'embed' && <EmbedTab onPick={wrap(callbacks.onAddEmbed)} />}
           {tab === 'product' && (
             <CatalogTab
               organization={organization}
-              variant="product"
               onAddProducts={wrap(callbacks.onAddProducts)}
               onCreateNew={() => {
                 onClose()
@@ -120,9 +115,8 @@ export const AddToSpacePicker = ({
             />
           )}
           {tab === 'course' && (
-            <CatalogTab
+            <CourseTab
               organization={organization}
-              variant="course"
               onAddProducts={wrap(callbacks.onAddProducts)}
               onCreateNew={() => {
                 onClose()
@@ -133,6 +127,6 @@ export const AddToSpacePicker = ({
           {tab === 'form' && <FormTab />}
         </div>
       </div>
-    </>
+    </div>
   )
 }

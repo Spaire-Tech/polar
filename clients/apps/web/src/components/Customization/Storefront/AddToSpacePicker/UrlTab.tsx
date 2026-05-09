@@ -1,8 +1,6 @@
 'use client'
 
 import { getDomain } from '@/components/Profile/linkPlatforms'
-import AddOutlined from '@mui/icons-material/AddOutlined'
-import LinkOutlined from '@mui/icons-material/LinkOutlined'
 import { useEffect, useState } from 'react'
 
 type Preview = {
@@ -40,7 +38,7 @@ export const UrlTab = ({ onPick }: { onPick: (p: UrlPickPayload) => void }) => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Debounced fetch as the user types.
+  // Debounced preview fetch as the user types.
   useEffect(() => {
     const url = normalize(raw)
     if (!url) {
@@ -99,13 +97,12 @@ export const UrlTab = ({ onPick }: { onPick: (p: UrlPickPayload) => void }) => {
   const ready = !!normalize(raw)
 
   return (
-    <div className="flex flex-col gap-5 px-1 pt-2">
-      <p className="text-sm text-gray-500">
+    <div className="atsp-tab-panel">
+      <p className="atsp-help">
         Paste a URL — Spaire fetches the title, description and cover.
       </p>
 
       <div className="atsp-input-pill">
-        <LinkOutlined className="h-5 w-5 shrink-0 text-gray-400" />
         <input
           autoFocus
           value={raw}
@@ -117,37 +114,36 @@ export const UrlTab = ({ onPick }: { onPick: (p: UrlPickPayload) => void }) => {
         />
         <button
           type="button"
-          className="atsp-add-btn bg-blue-600"
+          className="atsp-add-btn"
           disabled={!ready}
           onClick={submit}
           aria-label="Add link"
           title={ready ? 'Add link' : 'Enter a URL first'}
         >
-          <AddOutlined className="h-5 w-5" />
+          +
         </button>
       </div>
 
       {loading && (
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 text-sm text-gray-500">
-          Fetching preview…
+        <div
+          className="atsp-pill-card static"
+          style={{ opacity: 0.6, pointerEvents: 'none' }}
+        >
+          <div className="atsp-art dashed">…</div>
+          <div className="min-w-0 flex-1">
+            <div className="atsp-tile-title">Fetching preview…</div>
+          </div>
         </div>
       )}
 
       {!loading && preview && (
-        <button
-          type="button"
-          onClick={submit}
-          className="atsp-pill-card"
-          style={{ minHeight: 84 }}
-        >
+        <button type="button" onClick={submit} className="atsp-pill-card">
           <div
-            className="atsp-art bg-gray-100"
+            className="atsp-art"
             style={
               preview.image_url
                 ? {
                     backgroundImage: `url(${preview.image_url})`,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
                   }
                 : undefined
             }
@@ -155,32 +151,33 @@ export const UrlTab = ({ onPick }: { onPick: (p: UrlPickPayload) => void }) => {
             {!preview.image_url && (preview.host[0]?.toUpperCase() ?? '•')}
           </div>
           <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-medium text-gray-900">
+            <div className="atsp-tile-title">
               {preview.title || preview.host}
             </div>
             {preview.description && (
-              <div className="truncate text-[12.5px] text-gray-500">
-                {preview.description}
-              </div>
+              <div className="atsp-tile-sub">{preview.description}</div>
             )}
-            <div className="truncate text-[11px] text-gray-400">
+            <div
+              className="atsp-tile-sub"
+              style={{ fontSize: 11, marginTop: 2 }}
+            >
               {preview.host}
             </div>
           </div>
-          <span className="atsp-add-btn small bg-blue-600">
-            <AddOutlined className="h-4 w-4" />
-          </span>
+          <span className="atsp-add-btn small">+</span>
         </button>
       )}
 
       {!loading && !preview && !error && raw && !ready && (
-        <p className="text-xs text-gray-400">
+        <p className="atsp-help" style={{ color: 'var(--atsp-muted-2)' }}>
           That doesn&apos;t look like a URL yet.
         </p>
       )}
 
       {error && (
-        <p className="text-xs text-red-500">{error}</p>
+        <p className="atsp-help" style={{ color: '#b00020' }}>
+          {error}
+        </p>
       )}
     </div>
   )
