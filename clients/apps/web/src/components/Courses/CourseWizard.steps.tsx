@@ -1731,7 +1731,7 @@ export function StepPricingWizard({
       return {
         ...base,
         amount_type: 'fixed',
-        price_amount: p?.price_amount ?? 0,
+        price_amount: p?.price_amount ?? null,
       }
     })
     replace(updated)
@@ -1751,7 +1751,7 @@ export function StepPricingWizard({
     } else {
       append({
         amount_type: 'fixed',
-        price_amount: 0,
+        price_amount: null,
         price_currency: next as schemas['PresentmentCurrency'],
       })
     }
@@ -1928,7 +1928,7 @@ export function StepPricingWizard({
                           onChange={(v) =>
                             setValue(
                               `prices.${selectedIndex}.price_amount`,
-                              typeof v === 'number' ? v : Number(v) || 0,
+                              v,
                             )
                           }
                           placeholder={0}
