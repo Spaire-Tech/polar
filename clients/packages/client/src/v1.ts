@@ -21475,6 +21475,11 @@ export interface components {
        */
       links_position?: 'before_products' | 'after_products'
       /**
+       * Block Order
+       * @description Explicit ordering for the storefront's content blocks. The renderer iterates this list top-to-bottom.
+       */
+      block_order?: ('products' | 'links' | 'forms')[]
+      /**
        * Links Layout
        * @description Visual layout for the links section
        * @enum {string}

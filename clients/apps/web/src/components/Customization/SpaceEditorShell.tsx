@@ -1,10 +1,10 @@
 'use client'
 
 import { ProfileCard } from '@/components/Profile/ProfileCard'
-import { Storefront } from '@/components/Profile/Storefront'
 import { useProducts } from '@/hooks/queries'
 import { schemas } from '@spaire/client'
 import { useFormContext } from 'react-hook-form'
+import { DraggableBlocks } from './InlineEdit/DraggableBlocks'
 import { EditableProfileCard } from './InlineEdit/EditableProfileCard'
 
 // Renders the live preview of the user's Spaire Space inside the
@@ -43,13 +43,10 @@ export const SpaceEditorCanvas = ({
           </div>
         </aside>
         <main className="col-right">
-          <div className="canvas-card">
-            <Storefront
-              organization={organization}
-              products={products}
-              preview
-            />
-          </div>
+          <DraggableBlocks
+            organization={organization}
+            products={products}
+          />
           <div className="footer-note">That&apos;s everything on your Space.</div>
         </main>
       </div>

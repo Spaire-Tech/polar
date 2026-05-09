@@ -571,6 +571,74 @@
   position: relative;
 }
 
+/* ── Block-level drag handles ─────────────────────────────────────
+   The drag handle sits in the gutter to the left of each content
+   block on the canvas. Hidden until the block is hovered. */
+.spaire-editor .block-host {
+  position: relative;
+}
+
+.spaire-editor .block-drag-handle {
+  position: absolute;
+  left: -28px;
+  top: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition:
+    opacity 0.15s,
+    background 0.15s,
+    border-color 0.15s;
+  cursor: grab;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.spaire-editor .block-host:hover .block-drag-handle,
+.spaire-editor .block-drag-handle:focus {
+  opacity: 1;
+}
+
+.spaire-editor .block-drag-handle:hover {
+  background: white;
+  border-color: var(--line);
+  color: var(--ink-2);
+}
+
+.spaire-editor .block-drag-handle:active {
+  cursor: grabbing;
+}
+
+.spaire-editor .block-host.dragging > .canvas-card {
+  opacity: 0.5;
+}
+
+.spaire-editor .drop-line {
+  height: 0;
+  position: relative;
+  margin: -10px 0;
+}
+
+.spaire-editor .drop-line.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 999px;
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 16%, transparent);
+}
+
 .spaire-editor .footer-note {
   padding: 20px 0 0;
   color: var(--muted);
@@ -701,9 +769,9 @@
 .spaire-editor .edit-pop-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 15, 30, 0.18);
-  backdrop-filter: blur(24px) saturate(140%);
-  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(40px) saturate(140%);
+  -webkit-backdrop-filter: blur(40px) saturate(140%);
   z-index: 70;
   animation: pk-fade-in 0.18s ease;
 }
