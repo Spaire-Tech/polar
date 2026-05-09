@@ -12,22 +12,7 @@ import {
   StorefrontLinks,
 } from './StorefrontLinks'
 
-const CATEGORY_LABELS: Record<string, string> = {
-  ebook: 'eBooks',
-  template: 'Templates',
-  assets: 'Assets',
-  course: 'Courses',
-  guide: 'Guides',
-  music: 'Music',
-  video: 'Video',
-  photo: 'Photo',
-  software: 'Software',
-  coaching: 'Coaching',
-  membership: 'Memberships',
-  other: 'Other',
-}
-
-const CATEGORY_ORDER = Object.keys(CATEGORY_LABELS)
+import { CATEGORY_LABELS, CATEGORY_ORDER } from './categoryLabels'
 
 export const Storefront = ({
   organization,

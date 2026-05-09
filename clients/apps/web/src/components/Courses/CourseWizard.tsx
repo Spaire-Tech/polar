@@ -310,6 +310,11 @@ export default function CourseWizard({
         ...rest,
         name: draft.courseTitle || course.title || 'Untitled Course',
         description: draft.desc || course.desc || null,
+        // Tag the underlying product as a course so the public Spaire
+        // Space buckets it under "Courses" instead of "Other", and so
+        // the editor's Course tab can filter the catalog without
+        // hitting useOrganizationCourses for every render.
+        category: 'course',
         medias: mediaIds,
         metadata: metadata.reduce<Record<string, string | number | boolean>>(
           (acc, { key, value }) => ({ ...acc, [key]: value }),

@@ -1,5 +1,6 @@
 'use client'
 
+import { Portal } from '@/components/Customization/InlineEdit/Portal'
 import { schemas } from '@spaire/client'
 import { useEffect, useState } from 'react'
 import { CatalogTab } from './CatalogTab'
@@ -51,7 +52,7 @@ export const AddToSpacePicker = ({
     }
 
   return (
-    <>
+    <Portal>
       <div className="picker-backdrop" onClick={onClose} />
       <div
         className="pk-library waterglass"
@@ -109,6 +110,6 @@ export const AddToSpacePicker = ({
           {tab === 'Form' && <FormTab />}
         </div>
       </div>
-    </>
+    </Portal>
   )
 }

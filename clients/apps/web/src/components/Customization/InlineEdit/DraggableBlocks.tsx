@@ -1,32 +1,45 @@
 'use client'
 
-import { Storefront } from '@/components/Profile/Storefront'
-import { StorefrontLinks } from '@/components/Profile/StorefrontLinks'
+import { ProductCard } from '@/components/Products/ProductCard'
+import { CATEGORY_LABELS } from '@/components/Profile/categoryLabels'
+import { SectionLabel } from '@/components/Profile/SectionLabel'
 import {
-  DndContext,
-  DragEndEvent,
-  PointerSensor,
+  type LinksLayout,
+  StorefrontLinkItem,
+} from '@/components/Profile/StorefrontLinks'
+import { toast } from '@/components/Toast/use-toast'
+import {
   closestCenter,
+  DndContext,
+  type DragEndEvent,
+  DragOverlay,
+  type DragStartEvent,
+  KeyboardSensor,
+  PointerSensor,
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
 import {
-  SortableContext,
   arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import GridViewOutlined from '@mui/icons-material/GridViewOutlined'
+import ViewAgendaOutlined from '@mui/icons-material/ViewAgendaOutlined'
+import ViewCarouselOutlined from '@mui/icons-material/ViewCarouselOutlined'
+import ViewListOutlined from '@mui/icons-material/ViewListOutlined'
 import { schemas } from '@spaire/client'
+import { useMemo, useState } from 'react'
 import { useFormContext } from 'react-hook-form'
+import { Portal } from './Portal'
 
 type BlockKind = 'products' | 'links' | 'forms'
 
 const DEFAULT_ORDER: BlockKind[] = ['products', 'links']
 
-// Pull block_order off settings (with the same backfill from
-// links_position the renderer uses, so a fresh org with no
-// block_order set still drags from a sensible state).
 const getBlockOrder = (
   settings: schemas['OrganizationStorefrontSettings'] | undefined | null,
 ): BlockKind[] => {
@@ -38,7 +51,9 @@ const getBlockOrder = (
   return DEFAULT_ORDER
 }
 
-const Sortable = ({
+// ─── Sortable wrapper ─────────────────────────────────────────────
+
+const SortableBlock = ({
   id,
   children,
 }: {
@@ -70,19 +85,321 @@ const Sortable = ({
   )
 }
 
-/**
- * Editor-only wrapper around the public Storefront renderer that
- * exposes block-level drag-to-reorder. The user's block_order is the
- * source of truth — whatever order they leave the canvas in is what
- * visitors will see when published.
- *
- * Per-item drag (reordering products within a category, links within
- * their layout) is a follow-up; this PR ships block-level reorder
- * because that's the highest-value bit and the smallest contract
- * change.
- */
-export const DraggableBlocks = ({
+// ─── Layout picker (Links heading) ────────────────────────────────
+
+const LAYOUTS: { value: LinksLayout; label: string; Icon: React.ComponentType<{ style?: React.CSSProperties }> }[] = [
+  { value: 'classic', label: 'List', Icon: ViewListOutlined },
+  { value: 'card', label: 'Cards', Icon: ViewAgendaOutlined },
+  { value: 'image_grid', label: 'Grid', Icon: GridViewOutlined },
+  { value: 'carousel', label: 'Carousel', Icon: ViewCarouselOutlined },
+]
+
+const LayoutPicker = ({
+  value,
+  onChange,
+}: {
+  value: LinksLayout
+  onChange: (next: LinksLayout) => void
+}) => (
+  <span className="layout-picker">
+    {LAYOUTS.map(({ value: v, label, Icon }) => (
+      <button
+        key={v}
+        type="button"
+        aria-pressed={value === v}
+        onClick={() => onChange(v)}
+        title={label}
+      >
+        <Icon style={{ fontSize: 14 }} />
+      </button>
+    ))}
+  </span>
+)
+
+// ─── Products block (canvas) ──────────────────────────────────────
+// Renders products grouped by category, with hover-zone delete/hide
+// affordances on each card. Reads featured_mode/featured_product_ids
+// from the form so changes write back live.
+
+const ProductsBlock = ({
   organization,
+  products,
+  onUnfeature,
+}: {
+  organization: schemas['Organization']
+  products: schemas['ProductStorefront'][]
+  onUnfeature: (productId: string) => void
+}) => {
+  const settings = organization.storefront_settings
+  const featuredMode = settings?.featured_mode ?? 'all'
+  const featuredIds = settings?.featured_product_ids ?? []
+  const showDetails = settings?.show_product_details ?? true
+  const thumbnailSize = settings?.thumbnail_size ?? 'medium'
+
+  // Show ALL products in 'all' mode; only featured IDs in curated mode.
+  const visible = useMemo(() => {
+    if (featuredMode === 'curated') {
+      return products.filter((p) => featuredIds.includes(p.id))
+    }
+    return products
+  }, [products, featuredMode, featuredIds])
+
+  const sections = useMemo(() => {
+    const buckets: Record<string, schemas['ProductStorefront'][]> = {}
+    const uncat: schemas['ProductStorefront'][] = []
+    for (const p of visible) {
+      const cat = p.category
+      if (cat && cat in CATEGORY_LABELS) (buckets[cat] ??= []).push(p)
+      else uncat.push(p)
+    }
+    const ordered = (Object.keys(CATEGORY_LABELS) as Array<keyof typeof CATEGORY_LABELS>)
+      .filter((k) => k !== 'other' && (buckets[k]?.length ?? 0) > 0)
+      .map((k) => ({ key: k, label: CATEGORY_LABELS[k], items: buckets[k] }))
+    const otherItems = [...(buckets.other ?? []), ...uncat]
+    if (otherItems.length > 0) {
+      ordered.push({ key: 'other', label: CATEGORY_LABELS.other, items: otherItems })
+    }
+    return ordered
+  }, [visible])
+
+  if (visible.length === 0) {
+    if (featuredMode === 'curated') {
+      return (
+        <div className="rounded-2xl border border-dashed border-gray-300 bg-white/50 p-8 text-center text-sm text-gray-500">
+          You&apos;re curating which products appear, but haven&apos;t selected any yet.
+          Open <b>Add to Space</b> → Digital Product to feature some.
+        </div>
+      )
+    }
+    return (
+      <div className="rounded-2xl border border-dashed border-gray-300 bg-white/50 p-8 text-center text-sm text-gray-500">
+        No products yet. Click <b>+ Add to Space</b> to create one.
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-12">
+      {sections.map((section) => (
+        <section
+          key={section.key}
+          className="flex scroll-mt-24 flex-col gap-6"
+        >
+          <SectionLabel count={section.items.length}>
+            {section.label}
+          </SectionLabel>
+          <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-2">
+            {section.items.map((product) => (
+              <div key={product.id} className="item-hover">
+                <ProductCard
+                  product={product}
+                  showDetails={showDetails}
+                  thumbnailSize={
+                    thumbnailSize as 'small' | 'medium' | 'large'
+                  }
+                />
+                <div className="item-actions">
+                  <button
+                    type="button"
+                    className="item-action"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onUnfeature(product.id)
+                    }}
+                  >
+                    {featuredMode === 'curated' ? 'Remove' : 'Hide'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  )
+}
+
+// ─── Links block (canvas) ─────────────────────────────────────────
+
+const LinksBlock = ({
+  links,
+  layout,
+  onLayoutChange,
+  onRemove,
+}: {
+  links: StorefrontLinkItem[]
+  layout: LinksLayout
+  onLayoutChange: (next: LinksLayout) => void
+  onRemove: (id: string) => void
+}) => {
+  if (links.length === 0) {
+    return (
+      <div className="rounded-2xl border border-dashed border-gray-300 bg-white/50 p-8 text-center text-sm text-gray-500">
+        No links yet. Click <b>+ Add to Space</b> → URL or Embed to add one.
+      </div>
+    )
+  }
+
+  const layoutClass: Record<LinksLayout, string> = {
+    classic: 'flex flex-col gap-3',
+    card: 'flex flex-col gap-4',
+    image_grid: 'grid grid-cols-2 gap-3 sm:grid-cols-3',
+    carousel: '-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-2',
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-2">
+        <SectionLabel>Links</SectionLabel>
+        <LayoutPicker value={layout} onChange={onLayoutChange} />
+      </div>
+      <div className={layoutClass[layout]}>
+        {links.map((link) => (
+          <div key={link.id} className="item-hover">
+            <LinkRow link={link} layout={layout} />
+            <div className="item-actions">
+              <button
+                type="button"
+                className="item-action danger"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onRemove(link.id)
+                }}
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+const getDomain = (url: string): string => {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return url
+  }
+}
+
+// Lightweight link card per layout — click does nothing in edit mode
+// (preview-only). Hover reveals the Remove button via .item-hover.
+const LinkRow = ({
+  link,
+  layout,
+}: {
+  link: StorefrontLinkItem
+  layout: LinksLayout
+}) => {
+  const title = link.title || getDomain(link.url)
+  const host = getDomain(link.url)
+  const cover = link.image_url
+
+  if (layout === 'classic') {
+    return (
+      <div className="flex items-center gap-4 rounded-2xl border border-gray-200 bg-white px-4 py-3.5 shadow-sm">
+        <div
+          className="h-12 w-12 shrink-0 rounded-xl bg-gray-100"
+          style={
+            cover
+              ? {
+                  backgroundImage: `url(${cover})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                }
+              : undefined
+          }
+        />
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-semibold text-gray-900">
+            {title}
+          </div>
+          <div className="truncate text-[11px] text-gray-400">{host}</div>
+        </div>
+      </div>
+    )
+  }
+
+  if (layout === 'image_grid') {
+    return (
+      <div
+        className="relative aspect-square overflow-hidden rounded-2xl bg-gray-100 shadow-sm"
+        style={
+          cover
+            ? {
+                backgroundImage: `url(${cover})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }
+            : undefined
+        }
+      >
+        <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/60 to-transparent p-3">
+          <p className="line-clamp-2 text-sm font-semibold text-white">
+            {title}
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  if (layout === 'carousel') {
+    return (
+      <div className="flex w-[240px] shrink-0 snap-start flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div
+          className="aspect-[4/3] w-full bg-gray-100"
+          style={
+            cover
+              ? {
+                  backgroundImage: `url(${cover})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                }
+              : undefined
+          }
+        />
+        <div className="p-3">
+          <div className="line-clamp-2 text-sm font-semibold text-gray-900">
+            {title}
+          </div>
+          <div className="truncate text-[11px] text-gray-400">{host}</div>
+        </div>
+      </div>
+    )
+  }
+
+  // card layout
+  return (
+    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+      <div
+        className="aspect-[16/9] w-full bg-gray-100"
+        style={
+          cover
+            ? {
+                backgroundImage: `url(${cover})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }
+            : undefined
+        }
+      />
+      <div className="p-4">
+        <div className="text-base font-bold text-gray-900">{title}</div>
+        {link.description && (
+          <p className="line-clamp-2 text-sm text-gray-500">{link.description}</p>
+        )}
+        <div className="mt-1 truncate text-[11px] text-gray-400">{host}</div>
+      </div>
+    </div>
+  )
+}
+
+// ─── DraggableBlocks export ───────────────────────────────────────
+
+export const DraggableBlocks = ({
+  organization: org,
   products,
 }: {
   organization: schemas['Organization']
@@ -90,108 +407,180 @@ export const DraggableBlocks = ({
 }) => {
   const { watch, setValue } = useFormContext<schemas['OrganizationUpdate']>()
   const settings = (watch('storefront_settings') ??
-    organization.storefront_settings) as
+    org.storefront_settings) as
     | schemas['OrganizationStorefrontSettings']
     | undefined
 
   const blockOrder = getBlockOrder(settings)
+  const linksLayout: LinksLayout = (settings?.links_layout ?? 'classic') as LinksLayout
+  const links =
+    ((settings as { storefront_links?: StorefrontLinkItem[] } | undefined)
+      ?.storefront_links ?? []) as StorefrontLinkItem[]
 
-  // Filter blocks down to ones that have content. Empty blocks render
-  // nothing; we still allow dragging them so the user's intended order
-  // is preserved when they later add content.
-  const linksLayout = settings?.links_layout ?? 'classic'
-  const storefrontLinks =
-    (settings as { storefront_links?: Parameters<typeof StorefrontLinks>[0]['links'] } | undefined)
-      ?.storefront_links ?? []
+  // Synthesize the org passed into ProductsBlock so it sees the
+  // latest watched settings (featured_mode, etc) without a double-watch.
+  const orgWithSettings = { ...org, storefront_settings: settings ?? {} } as schemas['Organization']
 
+  // ── Mutations ──
+  const updateSetting = <
+    K extends keyof NonNullable<schemas['OrganizationStorefrontSettings']>,
+  >(
+    key: K,
+    value: NonNullable<schemas['OrganizationStorefrontSettings']>[K],
+  ) => {
+    setValue(
+      'storefront_settings',
+      { ...(settings ?? {}), [key]: value },
+      { shouldDirty: true },
+    )
+  }
+
+  const onRemoveLink = (id: string) => {
+    const next = links.filter((l) => l.id !== id)
+    setValue(
+      'storefront_settings',
+      { ...(settings ?? {}), storefront_links: next } as schemas['OrganizationStorefrontSettings'],
+      { shouldDirty: true },
+    )
+    toast({ title: 'Link removed', description: 'Publish to update your Space.' })
+  }
+
+  const onUnfeatureProduct = (productId: string) => {
+    const featuredMode = settings?.featured_mode ?? 'all'
+    const featuredIds = settings?.featured_product_ids ?? []
+
+    if (featuredMode === 'curated') {
+      // In curated mode, "Remove" pulls the ID out of featured_product_ids.
+      setValue(
+        'storefront_settings',
+        {
+          ...(settings ?? {}),
+          featured_product_ids: featuredIds.filter((id) => id !== productId),
+        },
+        { shouldDirty: true },
+      )
+      toast({ title: 'Removed from your Space' })
+    } else {
+      // In 'all' mode, "Hide" flips us into curated mode and seeds
+      // featured_product_ids with everything except this product, so
+      // visually nothing else changes.
+      const allIds = products.map((p) => p.id)
+      const next = allIds.filter((id) => id !== productId)
+      setValue(
+        'storefront_settings',
+        {
+          ...(settings ?? {}),
+          featured_mode: 'curated',
+          featured_product_ids: next,
+        },
+        { shouldDirty: true },
+      )
+      toast({
+        title: 'Hidden from your Space',
+        description: 'Switched to curated mode — toggle off in Settings to show all again.',
+      })
+    }
+  }
+
+  // ── DnD ──
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      // Tiny activation distance so a click on an inline-editable
-      // target doesn't accidentally start a drag.
-      activationConstraint: { distance: 4 },
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
     }),
   )
 
+  const [activeId, setActiveId] = useState<BlockKind | null>(null)
+
+  const handleDragStart = (e: DragStartEvent) => {
+    setActiveId(e.active.id as BlockKind)
+  }
+
   const handleDragEnd = (event: DragEndEvent) => {
+    setActiveId(null)
     const { active, over } = event
     if (!over || active.id === over.id) return
     const from = blockOrder.indexOf(active.id as BlockKind)
     const to = blockOrder.indexOf(over.id as BlockKind)
     if (from < 0 || to < 0) return
     const next = arrayMove(blockOrder, from, to)
-    setValue(
-      'storefront_settings',
-      { ...(settings ?? {}), block_order: next },
-      { shouldDirty: true },
+    updateSetting(
+      'block_order',
+      next as NonNullable<schemas['OrganizationStorefrontSettings']>['block_order'],
     )
   }
 
-  // Render helpers for each block. We delegate the actual rendering
-  // back to Storefront for products (so categorization + featured_mode
-  // logic stays in one place) and StorefrontLinks for links.
-  const renderBlock = (kind: BlockKind) => {
+  // ── Block renderers ──
+  const renderBlockBody = (kind: BlockKind) => {
     if (kind === 'products') {
-      // Reuse Storefront with a synthetic block_order containing only
-      // 'products' so it renders just the product sections.
-      const orgWithProductsOnly = {
-        ...organization,
-        storefront_settings: {
-          ...(settings ?? {}),
-          block_order: ['products'],
-        },
-      } as schemas['Organization']
       return (
-        <Storefront
-          organization={orgWithProductsOnly}
+        <ProductsBlock
+          organization={orgWithSettings}
           products={products}
-          preview
+          onUnfeature={onUnfeatureProduct}
         />
       )
     }
     if (kind === 'links') {
-      if (storefrontLinks.length === 0) return null
       return (
-        <StorefrontLinks
-          links={storefrontLinks}
+        <LinksBlock
+          links={links}
           layout={linksLayout}
+          onLayoutChange={(v) => updateSetting('links_layout', v)}
+          onRemove={onRemoveLink}
         />
       )
     }
     return null
   }
 
+  // dnd-kit gets confused if SortableContext items don't match the
+  // rendered children — register only blocks that we actually render.
+  const renderableOrder = blockOrder.filter((k) => k === 'products' || k === 'links')
+
   return (
     <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <SortableContext items={blockOrder} strategy={verticalListSortingStrategy}>
+      <SortableContext items={renderableOrder} strategy={verticalListSortingStrategy}>
         <div className="flex flex-col gap-12">
-          {blockOrder.map((kind) => {
-            const content = renderBlock(kind)
-            if (!content) return null
-            return (
-              <Sortable key={kind} id={kind}>
-                {({ listeners, attributes }) => (
-                  <>
-                    <button
-                      type="button"
-                      className="block-drag-handle"
-                      aria-label={`Drag ${kind} block`}
-                      {...listeners}
-                      {...attributes}
-                    >
-                      ⋮⋮
-                    </button>
-                    <div className="canvas-card">{content}</div>
-                  </>
-                )}
-              </Sortable>
-            )
-          })}
+          {renderableOrder.map((kind) => (
+            <SortableBlock key={kind} id={kind}>
+              {({ listeners, attributes }) => (
+                <>
+                  <button
+                    type="button"
+                    className="block-drag-handle"
+                    aria-label={`Drag ${kind === 'products' ? 'products' : 'links'} block to reorder`}
+                    {...listeners}
+                    {...attributes}
+                  >
+                    ⋮⋮
+                  </button>
+                  <div className="canvas-card">{renderBlockBody(kind)}</div>
+                </>
+              )}
+            </SortableBlock>
+          ))}
         </div>
       </SortableContext>
+
+      {/* DragOverlay shows a floating clone of the dragged block while
+          dragging. Portaled to body so it doesn't get clipped. */}
+      <Portal>
+        <DragOverlay>
+          {activeId ? (
+            <div className="spaire-editor">
+              <div className="drag-overlay">
+                <div className="canvas-card">{renderBlockBody(activeId)}</div>
+              </div>
+            </div>
+          ) : null}
+        </DragOverlay>
+      </Portal>
     </DndContext>
   )
 }

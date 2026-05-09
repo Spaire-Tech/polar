@@ -31,7 +31,13 @@ export const SpaceEditorCanvas = ({
     storefront_settings: watched.storefront_settings ?? org.storefront_settings,
   } as schemas['Organization']
 
-  const { data: productsData } = useProducts(org.id, { is_archived: false })
+  // Bumped limit so the canvas + picker show the full catalog instead
+  // of paginating at 10. 100 covers the long tail; users with more
+  // than that can curate via the picker.
+  const { data: productsData } = useProducts(org.id, {
+    is_archived: false,
+    limit: 100,
+  })
   const products = (productsData?.items ?? []) as unknown as schemas['ProductStorefront'][]
 
   return (
