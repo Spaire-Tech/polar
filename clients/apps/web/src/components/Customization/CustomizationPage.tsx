@@ -291,19 +291,19 @@ const Customization = ({
             </div>
           </div>
 
-          {/* Full storefront preview — mirrors the public layout */}
-          <div className="flex flex-1 overflow-y-auto p-10">
-            <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-8 md:flex-row md:gap-12">
-              {/* Left — sticky profile card */}
-              <aside className="w-full shrink-0 md:sticky md:top-0 md:w-[460px] md:self-start">
+          {/* Full storefront preview — on desktop, the left card stays
+              fixed while only the right column scrolls. On mobile, the
+              whole page scrolls normally (stacked). */}
+          <div className="flex min-h-0 flex-1 justify-center overflow-y-auto px-10 md:overflow-hidden">
+            <div className="flex w-full max-w-[1100px] flex-col gap-8 py-10 md:h-full md:flex-row md:gap-12 md:py-0">
+              <aside className="w-full shrink-0 md:w-[460px] md:py-10">
                 <ProfileCard
                   organization={storefrontData?.organization ?? organization}
                   products={storefrontData?.products ?? []}
                   preview
                 />
               </aside>
-              {/* Right — products */}
-              <main className="flex min-w-0 flex-1 flex-col">
+              <main className="flex min-w-0 flex-1 flex-col md:min-h-0 md:overflow-y-auto md:py-10">
                 <Storefront
                   organization={storefrontData?.organization ?? organization}
                   products={storefrontData?.products ?? []}

@@ -96,28 +96,19 @@ export const CourseTab = ({
       </p>
 
       {isLoading ? (
-        <div className="wg-grid one">
+        <div className="wg-grid three">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div
-              key={i}
-              className="wg-card"
-              style={{ background: 'rgba(0,0,0,0.04)', minHeight: 68 }}
-            />
+            <div key={i} className="wg-skeleton" />
           ))}
         </div>
       ) : (
-        <div className="wg-grid one">
-          <button type="button" className="wg-card create" onClick={onCreateNew}>
-            <div className="wg-art dashed">+</div>
-            <div className="wg-meta">
-              <div className="wg-card-title">New course</div>
-              <div className="wg-card-sub">
-                Multi-lesson, drip, paid or free
-              </div>
+        <div className="wg-grid three">
+          <button type="button" className="wg-tile create" onClick={onCreateNew}>
+            <div className="wg-tile-art empty">+</div>
+            <div className="wg-tile-meta">
+              <div className="wg-tile-title">New course</div>
+              <div className="wg-tile-sub">Multi-lesson, drip, paid or free</div>
             </div>
-            <span className="wg-add-btn small ghost" aria-hidden>
-              →
-            </span>
           </button>
 
           {(courses ?? []).map((course) => {
@@ -142,26 +133,23 @@ export const CourseTab = ({
                 type="button"
                 onClick={() => toggle(course.product_id)}
                 aria-pressed={isSelected}
-                className={twMerge('wg-card', isSelected && 'selected')}
+                className={twMerge('wg-tile', isSelected && 'selected')}
               >
                 <div
-                  className="wg-art"
-                  style={
-                    cover
-                      ? { backgroundImage: `url(${cover})` }
-                      : {
-                          background:
-                            'linear-gradient(135deg, #5c4e7a, #2c2240)',
-                        }
-                  }
+                  className="wg-tile-art"
+                  style={{
+                    backgroundImage: cover
+                      ? `url(${cover})`
+                      : 'linear-gradient(135deg, #5c4e7a, #2c2240)',
+                  }}
                 >
                   {!cover && (title[0]?.toUpperCase() ?? '·')}
                 </div>
-                <div className="wg-meta">
-                  <div className="wg-card-title">{title}</div>
-                  {sub && <div className="wg-card-sub">{sub}</div>}
+                <div className="wg-tile-meta">
+                  <div className="wg-tile-title">{title}</div>
+                  {sub && <div className="wg-tile-sub">{sub}</div>}
                 </div>
-                <span className="wg-add-btn small" aria-hidden>
+                <span className="wg-tile-check" aria-hidden>
                   {isSelected ? '✓' : '+'}
                 </span>
               </button>
