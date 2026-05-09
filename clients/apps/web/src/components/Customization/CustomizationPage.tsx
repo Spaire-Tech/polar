@@ -17,13 +17,13 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { SpaceSettingsPanel } from './InlineEdit/SpaceSettingsPanel'
 import { SpaceEditorCanvas } from './SpaceEditorShell'
 import {
   AddToSpacePicker,
   AddToSpacePickerCallbacks,
 } from './Storefront/AddToSpacePicker'
 import { StorefrontLinksPanel } from './Storefront/StorefrontLinksPanel'
-import { StorefrontEditorForm } from './Storefront/StorefrontSidebar'
 
 export const CustomizationPage = ({
   organization,
@@ -423,33 +423,20 @@ const Customization = ({
           hasSettingsPanel={settingsOpen || linksMode}
         />
 
-        {/* Settings side panel — wraps the existing form until PR D
-            ships the redesigned panel. */}
-        <aside
-          className={`side-panel${settingsOpen ? ' open' : ''}`}
-          aria-hidden={!settingsOpen}
-        >
-          <div className="sp-head">
-            <h2>Space settings</h2>
-            <button
-              type="button"
-              className="tb-icon-btn"
-              onClick={() => setSettingsOpen(false)}
-              aria-label="Close settings"
-            >
-              {'×'}
-            </button>
-          </div>
-          <div className="sp-body">
-            <StorefrontEditorForm
-              organization={organization}
-              onEnterLinksMode={() => {
-                setSettingsOpen(false)
-                setLinksMode(true)
-              }}
-            />
-          </div>
-        </aside>
+        {/* Settings side panel (PR D — redesigned to match the
+            design hand-off: Visibility, Available for Work, Display,
+            Blocks). All inline-editable profile fields live on the
+            canvas itself (PR C) so this panel only carries the
+            page-level settings. */}
+        <SpaceSettingsPanel
+          organization={organization}
+          open={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          onOpenLinks={() => {
+            setSettingsOpen(false)
+            setLinksMode(true)
+          }}
+        />
 
         {/* Manage Links side panel — opens from the Settings form's
             "Manage links" button. PR D folds this into the new panel. */}

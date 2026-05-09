@@ -368,6 +368,199 @@
 .spaire-editor .sp-body {
   flex: 1;
   overflow-y: auto;
+  padding: 18px 20px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.spaire-editor .sp-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.spaire-editor .sp-section h3 {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 10px;
+  font-weight: 500;
+}
+
+.spaire-editor .sp-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+
+.spaire-editor .sp-row + .sp-row {
+  margin-top: 8px;
+}
+
+.spaire-editor .sp-row .lbl {
+  font-size: 13.5px;
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.spaire-editor .sp-row .sub {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.spaire-editor .sp-input {
+  width: 100%;
+  height: 40px;
+  border: 1px solid var(--line);
+  background: white;
+  border-radius: var(--r-sm);
+  padding: 0 14px;
+  outline: none;
+  font-size: 14px;
+  color: var(--ink);
+  font-family: inherit;
+  transition:
+    border-color 0.12s,
+    box-shadow 0.12s;
+}
+
+.spaire-editor .sp-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.spaire-editor .sp-input::placeholder {
+  color: var(--muted-2);
+}
+
+.spaire-editor .sp-share-btns {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.spaire-editor .sp-share-btn {
+  height: 40px;
+  border: 1px solid var(--line);
+  background: white;
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-2);
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.12s;
+}
+
+.spaire-editor .sp-share-btn:hover {
+  border-color: var(--line-strong);
+}
+
+.spaire-editor .sp-url-row {
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.spaire-editor .sp-url-row input {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  height: 40px;
+  padding: 0 14px;
+  outline: none;
+  font-size: 13px;
+  color: var(--ink-2);
+  font-family: inherit;
+}
+
+.spaire-editor .sp-url-row .sp-url-act {
+  width: 44px;
+  border: 0;
+  border-left: 1px solid var(--line);
+  background: white;
+  font-size: 14px;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.spaire-editor .sp-url-row .sp-url-act:hover {
+  color: var(--ink);
+}
+
+/* Toggle (used in panel rows) — purple track when on, white knob. */
+.spaire-editor .sp-toggle {
+  position: relative;
+  width: 38px;
+  height: 22px;
+  border: 0;
+  border-radius: 999px;
+  background: #d6d6dd;
+  transition: background 0.15s;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.spaire-editor .sp-toggle[data-on='1'] {
+  background: var(--accent);
+}
+
+.spaire-editor .sp-toggle i {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform 0.15s;
+}
+
+.spaire-editor .sp-toggle[data-on='1'] i {
+  transform: translateX(16px);
+}
+
+.spaire-editor .sp-section-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.spaire-editor .sp-secondary-btn {
+  height: 40px;
+  padding: 0 16px;
+  background: white;
+  color: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  font-weight: 500;
+  font-size: 13.5px;
+  font-family: inherit;
+  cursor: pointer;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.spaire-editor .sp-secondary-btn:hover {
+  border-color: var(--line-strong);
+  color: var(--ink);
 }
 
 /* ── Profile/content card chrome on the canvas. The actual content
@@ -508,9 +701,9 @@
 .spaire-editor .edit-pop-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 15, 30, 0.32);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  background: rgba(15, 15, 30, 0.18);
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
   z-index: 70;
   animation: pk-fade-in 0.18s ease;
 }
