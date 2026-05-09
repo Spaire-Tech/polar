@@ -4,6 +4,7 @@ import { CustomizationProvider } from '@/components/Customization/CustomizationP
 import { ForceLightMode } from '@/components/Profile/ForceLightMode'
 import { ProfileCard } from '@/components/Profile/ProfileCard'
 import { Storefront } from '@/components/Profile/Storefront'
+import { StorefrontLinkItem } from '@/components/Profile/StorefrontLinks'
 import { toast } from '@/components/Toast/use-toast'
 import { useUpdateOrganization } from '@/hooks/queries'
 import { useStorefront } from '@/hooks/queries/storefront'
@@ -16,9 +17,13 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { SpaceSettingsPanel } from './InlineEdit/SpaceSettingsPanel'
+import { SpaceEditorCanvas } from './SpaceEditorShell'
+import {
+  AddToSpacePicker,
+  AddToSpacePickerCallbacks,
+} from './Storefront/AddToSpacePicker'
 import { StorefrontLinksPanel } from './Storefront/StorefrontLinksPanel'
-import { StorefrontLivePreview } from './Storefront/StorefrontPreview'
-import { StorefrontEditorForm } from './Storefront/StorefrontSidebar'
 
 export const CustomizationPage = ({
   organization,
@@ -42,6 +47,8 @@ const Customization = ({
   const updateOrganization = useUpdateOrganization()
   const [publishing, setPublishing] = useState(false)
   const [linksMode, setLinksMode] = useState(false)
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const isSpaceEnabled = organization.storefront_settings?.enabled ?? false
   const [isEditing, setIsEditing] = useState(!isSpaceEnabled)
 
@@ -57,6 +64,118 @@ const Customization = ({
   })
 
   const isDirty = form.formState.isDirty
+
+  // ── Add-to-Space picker callbacks ─────────────────────────────────
+  // The picker is form-context-agnostic; it just hands us payloads and
+  // we write them into the form here. Each callback flips the form's
+  // dirty state so the Publish button activates.
+
+  const appendStorefrontLink = useCallback(
+    (link: StorefrontLinkItem) => {
+      const settings = form.getValues('storefront_settings') ?? {}
+      const links =
+        ((settings as { storefront_links?: StorefrontLinkItem[] })
+          .storefront_links ?? []).slice()
+      links.push(link)
+      form.setValue(
+        'storefront_settings',
+        { ...settings, storefront_links: links },
+        { shouldDirty: true },
+      )
+      toast({
+        title: 'Added to your Space',
+        description: link.title || link.url,
+      })
+    },
+    [form],
+  )
+
+  const pickerCallbacks: AddToSpacePickerCallbacks = {
+    onAddLink: (payload) => {
+      appendStorefrontLink({
+        id: crypto.randomUUID(),
+        url: payload.url,
+        title: payload.title,
+        description: payload.description,
+        image_url: payload.image_url,
+        type: 'standard',
+        platform: null,
+      })
+    },
+    onAddEmbed: ({ url, platform, title, description, image_url }) => {
+      appendStorefrontLink({
+        id: crypto.randomUUID(),
+        url,
+        // Use whatever the creator typed in the edit form; fall back
+        // to the platform label so embeds always have a sensible
+        // title even if the auto-fetch returned nothing.
+        title: title ?? platform.label,
+        description: description ?? null,
+        image_url: image_url ?? null,
+        // Platforms we can render inline → 'embedded'. The rest fall
+        // back to a stylized standard card; the renderer keys off
+        // `platform` for branding either way.
+        type: platform.canEmbed ? 'embedded' : 'standard',
+        platform: platform.id,
+      })
+    },
+    onChangeProducts: (addIds, removeIds) => {
+      // Diff-based update. The picker shows already-featured products
+      // pre-selected; toggling them off becomes a `removeIds` entry.
+      // We respect the current featured_mode — adding via the picker
+      // shouldn't trap the user in curated mode if they're in 'all'.
+      const settings = form.getValues('storefront_settings') ?? {}
+      const typed = settings as {
+        featured_product_ids?: string[]
+        featured_mode?: 'all' | 'curated'
+      }
+      const existing = typed.featured_product_ids ?? []
+      const removed = new Set(removeIds)
+      const next = Array.from(
+        new Set([
+          ...existing.filter((id) => !removed.has(id)),
+          ...addIds,
+        ]),
+      )
+      const mode = typed.featured_mode ?? 'all'
+      form.setValue(
+        'storefront_settings',
+        { ...settings, featured_product_ids: next },
+        { shouldDirty: true },
+      )
+      const parts: string[] = []
+      if (addIds.length > 0)
+        parts.push(`Added ${addIds.length} to your Space`)
+      if (removeIds.length > 0)
+        parts.push(`Removed ${removeIds.length} from your Space`)
+      toast({
+        title: parts.join(' · ') || 'Selection updated',
+        description:
+          mode === 'curated'
+            ? 'Featured in your curated list.'
+            : 'Publish to apply.',
+      })
+    },
+    onCreateProduct: () => {
+      router.push(`/dashboard/${organization.slug}/products/new?type=digital`)
+    },
+    onCreateCourse: () => {
+      router.push(`/dashboard/${organization.slug}/products/new?type=course`)
+    },
+  }
+
+  // ⌘K / Ctrl+K opens the Add-to-Space picker from anywhere in the editor.
+  useEffect(() => {
+    if (!isEditing) return
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setPickerOpen(true)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [isEditing])
 
   // Warn before navigating away (or closing the tab) with unpublished
   // edits. Only for the editor, not the published-preview branch.
@@ -136,7 +255,7 @@ const Customization = ({
     } finally {
       setPublishing(false)
     }
-  }, [form, organization, updateOrganization, publishing])
+  }, [form, organization, updateOrganization, publishing, queryClient])
 
   // Published preview mode — card centered with Edit Space button
   if (!isEditing && isSpaceEnabled) {
@@ -172,19 +291,19 @@ const Customization = ({
             </div>
           </div>
 
-          {/* Full storefront preview — mirrors the public layout */}
-          <div className="flex flex-1 overflow-y-auto p-10">
-            <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-8 md:flex-row md:gap-12">
-              {/* Left — sticky profile card */}
-              <aside className="w-full shrink-0 md:sticky md:top-0 md:w-[460px] md:self-start">
+          {/* Full storefront preview — on desktop, the left card stays
+              fixed while only the right column scrolls. On mobile, the
+              whole page scrolls normally (stacked). */}
+          <div className="flex min-h-0 flex-1 justify-center overflow-y-auto px-10 md:overflow-hidden">
+            <div className="flex w-full max-w-[1100px] flex-col gap-8 py-10 md:h-full md:flex-row md:gap-12 md:py-0">
+              <aside className="w-full shrink-0 md:w-[460px] md:py-10">
                 <ProfileCard
                   organization={storefrontData?.organization ?? organization}
                   products={storefrontData?.products ?? []}
                   preview
                 />
               </aside>
-              {/* Right — products */}
-              <main className="flex min-w-0 flex-1 flex-col">
+              <main className="flex min-w-0 flex-1 flex-col md:min-h-0 md:overflow-y-auto md:py-10">
                 <Storefront
                   organization={storefrontData?.organization ?? organization}
                   products={storefrontData?.products ?? []}
@@ -198,114 +317,203 @@ const Customization = ({
     )
   }
 
-  // Editor mode — two-column layout
+  // ── Editor mode — single-canvas WYSIWYG ─────────────────────────
+  // Toolbar (back / status / settings / publish) sticks to the top.
+  // Canvas renders ProfileCard (left, sticky) + Storefront content
+  // blocks (right) using our existing public-Space components for
+  // visual fidelity. A floating "+ Add to Space" FAB sits at the
+  // bottom. The Settings (gear) button toggles a slide-in panel that
+  // wraps the existing StorefrontEditorForm for now; PR D ships the
+  // redesigned panel and PR C wires inline-edit on the canvas itself.
+
+  const handleBack = () => {
+    if (
+      isDirty &&
+      !window.confirm(
+        'You have unpublished changes. Leave without publishing?',
+      )
+    ) {
+      return
+    }
+    if (isSpaceEnabled) {
+      setIsEditing(false)
+    } else {
+      router.push(`/dashboard/${organization.slug}`)
+    }
+  }
+
+  const discardChanges = () => {
+    if (
+      window.confirm(
+        'Discard all unpublished edits and revert to the published version?',
+      )
+    ) {
+      form.reset({
+        name: organization.name,
+        avatar_url: organization.avatar_url,
+        socials: organization.socials,
+        storefront_settings: organization.storefront_settings,
+      })
+    }
+  }
+
   return (
     <Form {...form}>
       <ForceLightMode />
-      <div className="flex h-full flex-col bg-gray-50">
-        {/* Top bar */}
-        <div className="flex flex-row items-center justify-between border-b border-gray-200 bg-white px-8 py-4">
-          <button
-            type="button"
-            onClick={() => {
-              if (
-                isDirty &&
-                !window.confirm(
-                  'You have unpublished changes. Leave without publishing?',
-                )
-              ) {
-                return
+      <div className="spaire-editor">
+        <div className="toolbar">
+          <div className="tb-left">
+            <button type="button" className="tb-back" onClick={handleBack}>
+              {'←'} {isSpaceEnabled ? 'Back to preview' : 'Dashboard'}
+            </button>
+          </div>
+          <div className="tb-center">
+            <span
+              className="tb-status"
+              data-pub={!isDirty && isSpaceEnabled ? '1' : '0'}
+            >
+              <span className="dot" />
+              {isDirty
+                ? 'Unsaved'
+                : isSpaceEnabled
+                  ? 'Published'
+                  : 'Draft'}
+            </span>
+          </div>
+          <div className="tb-right">
+            <button
+              type="button"
+              className="tb-icon-btn"
+              onClick={() => {
+                if (isSpaceEnabled) setIsEditing(false)
+              }}
+              disabled={!isSpaceEnabled}
+              title={
+                isSpaceEnabled
+                  ? 'Open the public preview'
+                  : 'Enable your Space to preview'
               }
-              if (isSpaceEnabled) {
-                setIsEditing(false)
-              } else {
-                router.push(`/dashboard/${organization.slug}`)
-              }
-            }}
-            className="text-[14px] text-gray-500 transition-colors hover:text-gray-700"
-          >
-            {isSpaceEnabled ? '\u2190 Back to preview' : '\u2190 Back to dashboard'}
-          </button>
-          <Button
-            className="rounded-full px-6"
-            type="button"
-            onClick={handlePublish}
-            loading={publishing}
-            disabled={!isDirty}
-          >
-            {isDirty ? 'Publish Changes' : 'Published'}
-          </Button>
+            >
+              Preview
+            </button>
+            <button
+              type="button"
+              className="tb-icon-btn"
+              onClick={() => setSettingsOpen((o) => !o)}
+              aria-pressed={settingsOpen}
+            >
+              Settings
+            </button>
+            <button
+              type="button"
+              className="tb-publish"
+              onClick={handlePublish}
+              disabled={!isDirty || publishing}
+            >
+              {publishing
+                ? 'Publishing…'
+                : isDirty
+                  ? 'Publish changes'
+                  : 'Published'}
+            </button>
+          </div>
         </div>
 
-        {/* Two-column: preview left, form right */}
-        <div className="flex min-h-0 grow flex-row overflow-hidden">
-          {/* Left — heading + live card preview (hidden on mobile) */}
-          <div
-            className={`hidden flex-1 flex-col items-center overflow-y-auto p-10 md:flex ${
-              linksMode ? 'justify-start' : 'justify-center'
-            }`}
-          >
-            <div className="flex w-full max-w-[500px] flex-col items-center">
-              {!linksMode && (
-                <>
-                  <h1 className="text-center text-[28px] font-bold text-gray-950">
-                    {isSpaceEnabled
-                      ? 'Edit your Space Card'
-                      : 'Let\u2019s Create your Space Card'}
-                  </h1>
-                  <p className="mt-1 text-center text-[15px] text-gray-500">
-                    Introduce yourself and design your personal Space ID card.
-                  </p>
-                </>
-              )}
-
-              <div
-                className={
-                  linksMode
-                    ? 'w-full max-w-[460px]'
-                    : 'mt-8 w-full max-w-[460px]'
-                }
+        {/* Unsaved-changes banner */}
+        {isDirty && (
+          <div className="unsaved-banner">
+            <div>
+              <b>You have unpublished changes.</b>
+              <button type="button" onClick={handlePublish}>
+                Publish now
+              </button>
+              <button
+                type="button"
+                className="discard"
+                onClick={discardChanges}
               >
-                {linksMode ? (
-                  <StorefrontLinksPanel
-                    organization={organization}
-                    onBack={() => setLinksMode(false)}
-                  />
-                ) : (
-                  <StorefrontLivePreview organization={organization} />
-                )}
-              </div>
+                Discard
+              </button>
             </div>
           </div>
+        )}
 
-          {/* Right — form sections on desktop, full-width on mobile.
-              On mobile we swap in the StorefrontLinksPanel when
-              linksMode is on, since the left column (where the panel
-              normally renders on desktop) is hidden below md. */}
-          <div className="w-full shrink-0 overflow-y-auto border-l border-gray-200 bg-white shadow-sm md:w-[700px]">
-            {linksMode && (
-              <div className="block px-4 py-6 md:hidden">
-                <button
-                  type="button"
-                  onClick={() => setLinksMode(false)}
-                  className="mb-4 text-sm text-gray-500 transition-colors hover:text-gray-700"
-                >
-                  &larr; Back to editor
-                </button>
-                <StorefrontLinksPanel
-                  organization={organization}
-                  onBack={() => setLinksMode(false)}
-                />
-              </div>
-            )}
-            <div className={linksMode ? 'hidden md:block' : 'block'}>
-              <StorefrontEditorForm
+        {/* Canvas — ProfileCard + Storefront content blocks */}
+        <SpaceEditorCanvas
+          organization={organization}
+          hasSettingsPanel={settingsOpen || linksMode}
+        />
+
+        {/* Settings side panel (PR D — redesigned to match the
+            design hand-off: Visibility, Available for Work, Display,
+            Blocks). All inline-editable profile fields live on the
+            canvas itself (PR C) so this panel only carries the
+            page-level settings. */}
+        <SpaceSettingsPanel
+          organization={organization}
+          open={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          onOpenLinks={() => {
+            setSettingsOpen(false)
+            setLinksMode(true)
+          }}
+        />
+
+        {/* Manage Links side panel — opens from the Settings form's
+            "Manage links" button. PR D folds this into the new panel. */}
+        {linksMode && (
+          <aside
+            className="side-panel open"
+            style={{ width: 'min(540px, 100vw)' }}
+            aria-label="Manage links"
+          >
+            <div className="sp-head">
+              <h2>Manage links</h2>
+              <button
+                type="button"
+                className="tb-icon-btn"
+                onClick={() => setLinksMode(false)}
+                aria-label="Close links panel"
+              >
+                {'×'}
+              </button>
+            </div>
+            <div className="sp-body" style={{ padding: '20px 24px 80px' }}>
+              <StorefrontLinksPanel
                 organization={organization}
-                onEnterLinksMode={() => setLinksMode(true)}
+                onBack={() => setLinksMode(false)}
               />
             </div>
-          </div>
+          </aside>
+        )}
+
+        {/* Floating Add-to-Space FAB */}
+        <div
+          className={`add-fab-wrap${settingsOpen || linksMode ? ' has-panel' : ''}`}
+        >
+          <button
+            type="button"
+            className="add-fab"
+            onClick={() => setPickerOpen(true)}
+          >
+            <span className="plus">+</span>
+            Add to Space
+            <span className="kbd">{'⌘'}K</span>
+          </button>
         </div>
+
+        {pickerOpen && (
+          <AddToSpacePicker
+            organization={organization}
+            alreadySelectedProductIds={
+              ((form.getValues('storefront_settings') ?? {}) as {
+                featured_product_ids?: string[]
+              }).featured_product_ids ?? []
+            }
+            onClose={() => setPickerOpen(false)}
+            callbacks={pickerCallbacks}
+          />
+        )}
       </div>
     </Form>
   )

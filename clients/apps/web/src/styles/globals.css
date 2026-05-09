@@ -1,5 +1,7 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
+@import './editor.css';
+@import './picker.css';
 
 @source '../../../../packages/ui/src';
 @source '../../../../packages/checkout/src';

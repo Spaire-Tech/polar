@@ -10275,6 +10275,24 @@ export interface components {
        * @description The description of the product.
        */
       description: string | null
+      /**
+       * Category
+       * @description The digital product category.
+       */
+      category:
+        | 'ebook'
+        | 'template'
+        | 'assets'
+        | 'course'
+        | 'guide'
+        | 'music'
+        | 'video'
+        | 'photo'
+        | 'software'
+        | 'coaching'
+        | 'membership'
+        | 'other'
+        | null
       /** @description The visibility of the product. */
       visibility: components['schemas']['ProductVisibility']
       /** @description The recurring interval of the product. If `None`, the product is a one-time purchase. */
@@ -10614,6 +10632,24 @@ export interface components {
        * @description The description of the product.
        */
       description: string | null
+      /**
+       * Category
+       * @description The digital product category.
+       */
+      category:
+        | 'ebook'
+        | 'template'
+        | 'assets'
+        | 'course'
+        | 'guide'
+        | 'music'
+        | 'video'
+        | 'photo'
+        | 'software'
+        | 'coaching'
+        | 'membership'
+        | 'other'
+        | null
       /** @description The visibility of the product. */
       visibility: components['schemas']['ProductVisibility']
       /** @description The recurring interval of the product. If `None`, the product is a one-time purchase. */
@@ -14070,6 +14106,24 @@ export interface components {
        * @description The description of the product.
        */
       description: string | null
+      /**
+       * Category
+       * @description The digital product category.
+       */
+      category:
+        | 'ebook'
+        | 'template'
+        | 'assets'
+        | 'course'
+        | 'guide'
+        | 'music'
+        | 'video'
+        | 'photo'
+        | 'software'
+        | 'coaching'
+        | 'membership'
+        | 'other'
+        | null
       /** @description The visibility of the product. */
       visibility: components['schemas']['ProductVisibility']
       /** @description The recurring interval of the product. If `None`, the product is a one-time purchase. */
@@ -14551,6 +14605,24 @@ export interface components {
        * @description The description of the product.
        */
       description: string | null
+      /**
+       * Category
+       * @description The digital product category.
+       */
+      category:
+        | 'ebook'
+        | 'template'
+        | 'assets'
+        | 'course'
+        | 'guide'
+        | 'music'
+        | 'video'
+        | 'photo'
+        | 'software'
+        | 'coaching'
+        | 'membership'
+        | 'other'
+        | null
       /** @description The visibility of the product. */
       visibility: components['schemas']['ProductVisibility']
       /** @description The recurring interval of the product. If `None`, the product is a one-time purchase. */
@@ -15488,6 +15560,24 @@ export interface components {
        * @description The description of the product.
        */
       description: string | null
+      /**
+       * Category
+       * @description The digital product category.
+       */
+      category:
+        | 'ebook'
+        | 'template'
+        | 'assets'
+        | 'course'
+        | 'guide'
+        | 'music'
+        | 'video'
+        | 'photo'
+        | 'software'
+        | 'coaching'
+        | 'membership'
+        | 'other'
+        | null
       /** @description The visibility of the product. */
       visibility: components['schemas']['ProductVisibility']
       /** @description The recurring interval of the product. If `None`, the product is a one-time purchase. */
@@ -16826,6 +16916,24 @@ export interface components {
        * @description The description of the product.
        */
       description: string | null
+      /**
+       * Category
+       * @description The digital product category.
+       */
+      category:
+        | 'ebook'
+        | 'template'
+        | 'assets'
+        | 'course'
+        | 'guide'
+        | 'music'
+        | 'video'
+        | 'photo'
+        | 'software'
+        | 'coaching'
+        | 'membership'
+        | 'other'
+        | null
       /** @description The visibility of the product. */
       visibility: components['schemas']['ProductVisibility']
       /** @description The recurring interval of the product. If `None`, the product is a one-time purchase. */
@@ -20682,6 +20790,24 @@ export interface components {
        * @description The description of the product.
        */
       description: string | null
+      /**
+       * Category
+       * @description The digital product category.
+       */
+      category:
+        | 'ebook'
+        | 'template'
+        | 'assets'
+        | 'course'
+        | 'guide'
+        | 'music'
+        | 'video'
+        | 'photo'
+        | 'software'
+        | 'coaching'
+        | 'membership'
+        | 'other'
+        | null
       /** @description The visibility of the product. */
       visibility: components['schemas']['ProductVisibility']
       /** @description The recurring interval of the product. If `None`, the product is a one-time purchase. */
@@ -21348,6 +21474,11 @@ export interface components {
        * @enum {string}
        */
       links_position?: 'before_products' | 'after_products'
+      /**
+       * Block Order
+       * @description Explicit ordering for the storefront's content blocks. The renderer iterates this list top-to-bottom.
+       */
+      block_order?: ('products' | 'links' | 'forms')[]
       /**
        * Links Layout
        * @description Visual layout for the links section
@@ -22576,6 +22707,24 @@ export interface components {
        * @description The description of the product.
        */
       description: string | null
+      /**
+       * Category
+       * @description The digital product category.
+       */
+      category:
+        | 'ebook'
+        | 'template'
+        | 'assets'
+        | 'course'
+        | 'guide'
+        | 'music'
+        | 'video'
+        | 'photo'
+        | 'software'
+        | 'coaching'
+        | 'membership'
+        | 'other'
+        | null
       /** @description The visibility of the product. */
       visibility: components['schemas']['ProductVisibility']
       /** @description The recurring interval of the product. If `None`, the product is a one-time purchase. */

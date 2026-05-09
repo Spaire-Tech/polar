@@ -6,7 +6,6 @@ import { useParams, usePathname } from 'next/navigation'
 import { PropsWithChildren } from 'react'
 
 const catalogTabs = [
-  { title: 'Spaire Space', suffix: '__storefront__' },
   { title: 'Products', suffix: '' },
   { title: 'Payment Links', suffix: '/checkout-links' },
   { title: 'Discounts', suffix: '/discounts' },
@@ -17,7 +16,6 @@ export default function CatalogLayout({ children }: PropsWithChildren) {
   const params = useParams<{ organization: string }>()
   const pathname = usePathname()
   const base = `/dashboard/${params.organization}/products`
-  const storefrontLink = `/dashboard/${params.organization}/storefront`
 
   // Hide tabs on detail pages (new product, product edit, checkout-links/new, etc.)
   const isDetailPage =
@@ -29,12 +27,11 @@ export default function CatalogLayout({ children }: PropsWithChildren) {
   }
 
   const activeTab =
-    catalogTabs.find((t) => {
-      if (t.suffix === '__storefront__') return false
-      return t.suffix === ''
+    catalogTabs.find((t) =>
+      t.suffix === ''
         ? pathname === base || pathname === `${base}/`
-        : pathname.startsWith(`${base}${t.suffix}`)
-    }) ?? catalogTabs.find((t) => t.suffix === '') ?? catalogTabs[0]
+        : pathname.startsWith(`${base}${t.suffix}`),
+    ) ?? catalogTabs[0]
 
   return (
     <div className="flex h-full flex-col">
@@ -44,7 +41,7 @@ export default function CatalogLayout({ children }: PropsWithChildren) {
             {catalogTabs.map((tab) => (
               <Link
                 key={tab.title}
-                href={tab.suffix === '__storefront__' ? storefrontLink : `${base}${tab.suffix}`}
+                href={`${base}${tab.suffix}`}
                 prefetch={true}
               >
                 <TabsTrigger

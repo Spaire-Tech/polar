@@ -16,6 +16,7 @@ import { PHASE_PRODUCTION_BUILD } from 'next/constants'
 import {
   Barlow_Condensed,
   DM_Sans,
+  Inter,
   Instrument_Serif,
   Poppins,
 } from 'next/font/google'
@@ -26,6 +27,13 @@ import {
   PolarPostHogProvider,
   PolarQueryClientProvider,
 } from './providers'
+
+// Inter — used by the Add-to-Space picker (matches the design hand-off)
+const inter = Inter({
+  subsets: ['latin'],
+  weight: ['400', '500', '600'],
+  variable: '--font-inter',
+})
 
 const instrumentSerif = Instrument_Serif({
   subsets: ['latin'],
@@ -150,7 +158,7 @@ export default async function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`antialiased ${GeistSans.variable} ${GeistMono.variable} ${instrumentSerif.variable} ${dmSans.variable} ${barlowCondensed.variable} ${poppins.variable}`}
+      className={`antialiased ${GeistSans.variable} ${GeistMono.variable} ${inter.variable} ${instrumentSerif.variable} ${dmSans.variable} ${barlowCondensed.variable} ${poppins.variable}`}
     >
       <head>
         {CONFIG.ENVIRONMENT === 'development' ? (

@@ -12,22 +12,7 @@ import {
   StorefrontLinks,
 } from './StorefrontLinks'
 
-const CATEGORY_LABELS: Record<string, string> = {
-  ebook: 'eBooks',
-  template: 'Templates',
-  assets: 'Assets',
-  course: 'Courses',
-  guide: 'Guides',
-  music: 'Music',
-  video: 'Video',
-  photo: 'Photo',
-  software: 'Software',
-  coaching: 'Coaching',
-  membership: 'Memberships',
-  other: 'Other',
-}
-
-const CATEGORY_ORDER = Object.keys(CATEGORY_LABELS)
+import { CATEGORY_LABELS, CATEGORY_ORDER } from './categoryLabels'
 
 export const Storefront = ({
   organization,
@@ -77,6 +62,22 @@ export const Storefront = ({
     ('storefront_settings' in organization
       ? organization.storefront_settings?.links_layout
       : null) ?? 'classic'
+
+  // block_order is the new explicit ordering; we keep a backfill from
+  // links_position so old rows that never persisted block_order still
+  // render in the right order.
+  const blockOrder: ('products' | 'links' | 'forms')[] =
+    ('storefront_settings' in organization
+      ? (organization.storefront_settings as { block_order?: ('products' | 'links' | 'forms')[] } | undefined)
+          ?.block_order
+      : null) ??
+    (linksPosition === 'before_products'
+      ? (['links', 'products'] as const)
+      : (['products', 'links'] as const)).slice() as (
+        | 'products'
+        | 'links'
+        | 'forms'
+      )[]
 
   // Products scoped by featured_mode. In 'all' mode every active product
   // is shown (including ones created after curation was set up); in
@@ -137,57 +138,78 @@ export const Storefront = ({
     )
   }
 
+  // ── Per-block renderers ──
+  // Each block type renders to a fragment so the parent can iterate
+  // blockOrder and place them in sequence.
+  const renderProductsBlock = () => {
+    if (sections.length === 0) return null
+    return (
+      <div key="products" className="flex flex-col gap-12">
+        {products.length > 0 && (
+          <h2 className="text-lg font-semibold text-gray-900 md:hidden">
+            Products
+          </h2>
+        )}
+        {sections.map((section) => (
+          <section
+            key={section.key}
+            id={`section-${section.key}`}
+            className="flex scroll-mt-24 flex-col gap-6"
+          >
+            <SectionLabel count={section.items.length}>
+              {section.label}
+            </SectionLabel>
+            <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-2">
+              {section.items.map((product) =>
+                preview ? (
+                  <div key={product.id}>
+                    <ProductCard
+                      product={product}
+                      showDetails={showDetails}
+                      thumbnailSize={thumbnailSize}
+                    />
+                  </div>
+                ) : (
+                  <Link
+                    key={product.id}
+                    href={`/${organization.slug}/products/${product.id}`}
+                  >
+                    <ProductCard
+                      product={product}
+                      showDetails={showDetails}
+                      thumbnailSize={thumbnailSize}
+                    />
+                  </Link>
+                ),
+              )}
+            </div>
+          </section>
+        ))}
+      </div>
+    )
+  }
+
+  const renderLinksBlock = () => {
+    if (storefrontLinks.length === 0) return null
+    return (
+      <div key="links">
+        <StorefrontLinks links={storefrontLinks} layout={linksLayout} />
+      </div>
+    )
+  }
+
+  const renderBlock = (kind: 'products' | 'links' | 'forms') => {
+    if (kind === 'products') return renderProductsBlock()
+    if (kind === 'links') return renderLinksBlock()
+    return null // forms: not shipping yet
+  }
+
+  // Render in block_order, but only blocks that actually have content.
+  const orderedBlocks = blockOrder
+    .map((kind) => renderBlock(kind))
+    .filter(Boolean)
+
   return (
-    <div className="flex w-full flex-col gap-12">
-      {storefrontLinks.length > 0 && linksPosition === 'before_products' && (
-        <StorefrontLinks links={storefrontLinks} layout={linksLayout} />
-      )}
-
-      {products.length > 0 && (
-        <h2 className="text-lg font-semibold text-gray-900 md:hidden">
-          Products
-        </h2>
-      )}
-
-      {sections.map((section) => (
-        <section
-          key={section.key}
-          id={`section-${section.key}`}
-          className="flex scroll-mt-24 flex-col gap-6"
-        >
-          <SectionLabel count={section.items.length}>
-            {section.label}
-          </SectionLabel>
-          <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-2">
-            {section.items.map((product) =>
-              preview ? (
-                <div key={product.id}>
-                  <ProductCard
-                    product={product}
-                    showDetails={showDetails}
-                    thumbnailSize={thumbnailSize}
-                  />
-                </div>
-              ) : (
-                <Link
-                  key={product.id}
-                  href={`/${organization.slug}/products/${product.id}`}
-                >
-                  <ProductCard
-                    product={product}
-                    showDetails={showDetails}
-                    thumbnailSize={thumbnailSize}
-                  />
-                </Link>
-              ),
-            )}
-          </div>
-        </section>
-      ))}
-
-      {storefrontLinks.length > 0 && linksPosition === 'after_products' && (
-        <StorefrontLinks links={storefrontLinks} layout={linksLayout} />
-      )}
-    </div>
+    <div className="flex w-full flex-col gap-12">{orderedBlocks}</div>
   )
 }

@@ -193,7 +193,19 @@ class OrganizationStorefrontSettings(Schema):
     )
     links_position: Literal["before_products", "after_products"] = Field(
         "after_products",
-        description="Where to show the links carousel relative to products",
+        description=(
+            "DEPRECATED — use block_order. Where to show the links section "
+            "relative to products. Kept so existing rows still validate."
+        ),
+    )
+    block_order: list[Literal["products", "links", "forms"]] = Field(
+        default_factory=lambda: ["products", "links"],
+        description=(
+            "Explicit ordering for the storefront's content blocks. The "
+            "renderer iterates this list top-to-bottom, so creators can "
+            "drag-reorder Products / Links / Forms freely. Backfilled from "
+            "links_position for existing rows."
+        ),
     )
     links_layout: Literal["classic", "carousel", "image_grid", "card"] = Field(
         "carousel",

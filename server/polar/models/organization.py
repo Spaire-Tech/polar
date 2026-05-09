@@ -59,7 +59,8 @@ class OrganizationStorefrontSettings(TypedDict, total=False):
     featured_product_ids: list[str]
     show_card_products: bool
     storefront_links: list[dict]  # list of StorefrontLink dicts
-    links_position: str  # "before_products" | "after_products"
+    links_position: str  # "before_products" | "after_products" — DEPRECATED, see block_order
+    block_order: list[str]  # explicit ordering, e.g. ["products", "links", "forms"]
     links_layout: str  # "classic" | "carousel" | "image_grid" | "card"
     header_focal_point: str | None  # e.g. "50% 30%"
 
@@ -84,6 +85,7 @@ _default_storefront_settings: OrganizationStorefrontSettings = {
     "show_card_products": True,
     "storefront_links": [],
     "links_position": "after_products",
+    "block_order": ["products", "links"],
     "links_layout": "carousel",
     "header_focal_point": None,
 }
