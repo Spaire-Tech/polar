@@ -5,13 +5,13 @@ import { Storefront } from '@/components/Profile/Storefront'
 import { useProducts } from '@/hooks/queries'
 import { schemas } from '@spaire/client'
 import { useFormContext } from 'react-hook-form'
+import { EditableProfileCard } from './InlineEdit/EditableProfileCard'
 
 // Renders the live preview of the user's Spaire Space inside the
-// editor canvas. Reads from the form's watched values so any inline
-// edits in PR C reflect immediately. Until those land, the canvas is
-// view-only and edits happen via the side-panel form (PR D wires the
-// real settings panel; for now it's the existing StorefrontEditorForm
-// in a slide-in).
+// editor canvas. The ProfileCard column uses the inline-editable
+// variant so click-to-edit affordances are wired up; the Storefront
+// content blocks stay read-only for now (drag + per-block edits land
+// in PR E).
 
 export const SpaceEditorCanvas = ({
   organization: org,
@@ -23,8 +23,6 @@ export const SpaceEditorCanvas = ({
   const { watch } = useFormContext<schemas['OrganizationUpdate']>()
   const watched = watch()
 
-  // Merge form-watched values back over the original organization so
-  // the canvas always renders the latest in-progress edits.
   const organization = {
     ...org,
     name: watched.name ?? org.name,
@@ -33,30 +31,17 @@ export const SpaceEditorCanvas = ({
     storefront_settings: watched.storefront_settings ?? org.storefront_settings,
   } as schemas['Organization']
 
-  // The public storefront API 404s when the Space isn't enabled. Inside
-  // the editor we always have a product list to draw from; the
-  // Storefront component will filter by featured_mode/featured_product_ids.
   const { data: productsData } = useProducts(org.id, { is_archived: false })
   const products = (productsData?.items ?? []) as unknown as schemas['ProductStorefront'][]
 
   return (
     <div className={`canvas-wrap${hasSettingsPanel ? ' has-panel' : ''}`}>
       <div className="canvas">
-        {/* Left — sticky ProfileCard. We pass `preview` so external
-            social/product links don't navigate the editor away. */}
         <aside className="col-left">
           <div className="canvas-card">
-            <ProfileCard
-              organization={organization}
-              products={products}
-              preview
-            />
+            <EditableProfileCard organization={organization} />
           </div>
         </aside>
-
-        {/* Right — content blocks (Products + Links + future Forms),
-            rendered with our existing public Space components for
-            visual fidelity. */}
         <main className="col-right">
           <div className="canvas-card">
             <Storefront
@@ -71,3 +56,8 @@ export const SpaceEditorCanvas = ({
     </div>
   )
 }
+
+// Re-exported so we don't accidentally tree-shake out the read-only
+// ProfileCard (used by the published-preview branch elsewhere).
+export { ProfileCard }
+

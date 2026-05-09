@@ -384,3 +384,214 @@
   font-size: 12px;
   text-align: center;
 }
+
+/* ── Inline edit primitives ────────────────────────────────────────
+   .editable wraps a contentEditable text node — outline lights up on
+   hover (dashed) / focus (solid). Matches the design hand-off. */
+.spaire-editor .editable {
+  cursor: text;
+  border-radius: 6px;
+  outline: 1px dashed transparent;
+  outline-offset: 3px;
+  transition:
+    outline-color 0.12s,
+    background 0.12s;
+  display: inline-block;
+  min-width: 1ch;
+}
+
+.spaire-editor .editable[data-block='true'] {
+  display: block;
+}
+
+.spaire-editor .editable:hover {
+  outline-color: color-mix(in oklab, var(--accent) 50%, white);
+}
+
+.spaire-editor .editable:focus {
+  outline: 1px solid var(--accent);
+  background: var(--accent-soft);
+}
+
+.spaire-editor .editable[data-empty='true']::before {
+  content: attr(data-placeholder);
+  color: var(--muted-2);
+  pointer-events: none;
+}
+
+/* Hover-revealed click affordance for non-text targets (cover, avatar,
+   pills, social row). Hidden until the parent .hover-zone is hovered. */
+.spaire-editor .hover-zone {
+  position: relative;
+}
+
+.spaire-editor .hover-controls {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.spaire-editor .hover-zone:hover .hover-controls,
+.spaire-editor .hover-zone:focus-within .hover-controls {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.spaire-editor .hc-btn {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: white;
+  font-size: 12px;
+  color: var(--ink-2);
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow:
+    0 1px 0 rgba(15, 15, 30, 0.04),
+    0 1px 2px rgba(15, 15, 30, 0.04);
+}
+
+.spaire-editor .hc-btn:hover {
+  border-color: var(--line-strong);
+}
+
+.spaire-editor .hc-btn.danger:hover {
+  color: #b00020;
+  border-color: #f5c6c6;
+}
+
+/* The cover-image and avatar specifically: a soft dark scrim appears
+   on hover so the action buttons are legible regardless of the
+   underlying image. */
+.spaire-editor .editable-image {
+  position: relative;
+  cursor: pointer;
+}
+
+.spaire-editor .editable-image::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 15, 30, 0.32);
+  opacity: 0;
+  transition: opacity 0.15s;
+  pointer-events: none;
+}
+
+.spaire-editor .editable-image:hover::after {
+  opacity: 1;
+}
+
+.spaire-editor .editable-image .hover-controls {
+  opacity: 0;
+}
+
+.spaire-editor .editable-image:hover .hover-controls {
+  opacity: 1;
+}
+
+/* ── Edit popover ──────────────────────────────────────────────────
+   Shared overlay used for tag editors, social row, profile-title
+   select, available-for-work, etc. Backdrop is blurred per the
+   editor's "anything modal blurs the background" principle. */
+.spaire-editor .edit-pop-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 15, 30, 0.32);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 70;
+  animation: pk-fade-in 0.18s ease;
+}
+
+.spaire-editor .edit-pop {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(440px, calc(100vw - 32px));
+  max-height: min(80vh, 720px);
+  z-index: 71;
+  display: flex;
+  flex-direction: column;
+  border-radius: 24px;
+  padding: 22px 22px 20px;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.7) 0%,
+      rgba(255, 255, 255, 0.5) 100%
+    ),
+    rgba(248, 246, 242, 0.7);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.7) inset,
+    0 24px 48px -16px rgba(20, 18, 30, 0.3),
+    0 6px 18px -6px rgba(20, 18, 30, 0.18);
+  animation: wgIn 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.spaire-editor .edit-pop-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.spaire-editor .edit-pop-title {
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.spaire-editor .edit-pop-body {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.spaire-editor .edit-pop-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.spaire-editor .edit-pop-cta {
+  height: 38px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: white;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: 0 4px 12px -4px color-mix(in oklab, var(--accent) 60%, transparent);
+}
+
+.spaire-editor .edit-pop-cta.ghost {
+  background: transparent;
+  color: var(--muted);
+  box-shadow: none;
+}
+
