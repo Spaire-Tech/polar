@@ -1,7 +1,9 @@
 'use client'
 
 import { getDomain } from '@/components/Profile/linkPlatforms'
+import { schemas } from '@spaire/client'
 import { useEffect, useState } from 'react'
+import { LinkDraft, LinkEditForm } from './LinkEditForm'
 
 type Preview = {
   url: string
@@ -33,12 +35,20 @@ const normalize = (raw: string): string | null => {
   }
 }
 
-export const UrlTab = ({ onPick }: { onPick: (p: UrlPickPayload) => void }) => {
+export const UrlTab = ({
+  organization,
+  onPick,
+}: {
+  organization: schemas['Organization']
+  onPick: (p: UrlPickPayload) => void
+}) => {
   const [raw, setRaw] = useState('')
   const [preview, setPreview] = useState<Preview | null>(null)
   const [loading, setLoading] = useState(false)
+  const [stage, setStage] = useState<'paste' | 'edit'>('paste')
 
   useEffect(() => {
+    if (stage !== 'paste') return
     const url = normalize(raw)
     if (!url) {
       setPreview(null)
@@ -86,19 +96,40 @@ export const UrlTab = ({ onPick }: { onPick: (p: UrlPickPayload) => void }) => {
       controller.abort()
       window.clearTimeout(handle)
     }
-  }, [raw])
+  }, [raw, stage])
 
-  const submit = () => {
-    const url = normalize(raw)
-    if (!url) return
-    onPick({
-      url,
-      title: preview?.title ?? null,
-      description: preview?.description ?? null,
-      image_url: preview?.image_url ?? null,
-    })
+  const goToEdit = () => {
+    if (!preview) return
+    setStage('edit')
   }
 
+  // Stage 2: edit form. Pre-filled with auto-fetched values; the
+  // creator can override anything before committing.
+  if (stage === 'edit' && preview) {
+    const initial: LinkDraft = {
+      url: preview.url,
+      title: preview.title ?? preview.host,
+      description: preview.description ?? '',
+      image_url: preview.image_url,
+    }
+    return (
+      <LinkEditForm
+        organization={organization}
+        initial={initial}
+        onBack={() => setStage('paste')}
+        onSubmit={(draft) =>
+          onPick({
+            url: draft.url,
+            title: draft.title || null,
+            description: draft.description || null,
+            image_url: draft.image_url,
+          })
+        }
+      />
+    )
+  }
+
+  // Stage 1: paste a URL → see auto-fetched preview → 'Continue'.
   const ready = !!normalize(raw)
 
   return (
@@ -112,27 +143,27 @@ export const UrlTab = ({ onPick }: { onPick: (p: UrlPickPayload) => void }) => {
           value={raw}
           onChange={(e) => setRaw(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && ready) submit()
+            if (e.key === 'Enter' && ready && preview) goToEdit()
           }}
           placeholder="https://"
         />
         <button
           type="button"
           className="wg-add-btn"
-          disabled={!ready}
-          onClick={submit}
-          aria-label="Add"
-          title={ready ? 'Add link' : 'Enter a URL first'}
+          disabled={!preview}
+          onClick={goToEdit}
+          aria-label="Continue"
+          title={preview ? 'Continue to edit' : 'Enter a URL first'}
         >
-          +
+          →
         </button>
       </div>
+
       {preview && !loading && (
         <button
           type="button"
           className="wg-card preview-card"
-          onClick={submit}
-          style={{ cursor: 'pointer' }}
+          onClick={goToEdit}
         >
           <div
             className="wg-art"
@@ -148,17 +179,19 @@ export const UrlTab = ({ onPick }: { onPick: (p: UrlPickPayload) => void }) => {
             <div className="wg-card-title">{preview.title || preview.host}</div>
             <div className="wg-card-sub">{preview.host}</div>
           </div>
-          <span className="wg-add-btn small" aria-label="Add">
-            +
+          <span className="wg-add-btn small" aria-label="Continue">
+            →
           </span>
         </button>
       )}
+
       {!preview && !loading && (
         <div className="wg-empty">
           <div className="wg-empty-shape" />
           <div>A clean preview will appear here.</div>
         </div>
       )}
+
       {loading && (
         <div className="wg-empty">
           <div className="wg-empty-shape" />

@@ -55,13 +55,24 @@
 
 .spaire-editor .tb-left,
 .spaire-editor .tb-right {
+  /* Equal widths so the centered status pill is actually screen-
+     centered regardless of how wide the buttons on either side are. */
+  flex: 1;
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
+.spaire-editor .tb-left {
+  justify-content: flex-start;
+}
+
+.spaire-editor .tb-right {
+  justify-content: flex-end;
+}
+
 .spaire-editor .tb-center {
-  flex: 1;
+  flex: 0 0 auto;
   display: flex;
   justify-content: center;
 }
@@ -291,9 +302,9 @@
   pointer-events: auto;
   height: 52px;
   padding: 0 22px 0 18px;
-  background: var(--ink);
+  background: oklch(0.62 0.21 265);
   color: white;
-  border: 1px solid var(--ink);
+  border: 1px solid oklch(0.62 0.21 265);
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
@@ -303,8 +314,8 @@
   font-family: inherit;
   cursor: pointer;
   box-shadow:
-    0 12px 32px -10px rgba(15, 15, 30, 0.5),
-    0 2px 0 rgba(255, 255, 255, 0.05) inset;
+    0 12px 32px -10px oklch(0.62 0.21 265 / 0.5),
+    0 2px 0 rgba(255, 255, 255, 0.1) inset;
   transition:
     transform 0.15s,
     box-shadow 0.15s;
@@ -312,7 +323,9 @@
 
 .spaire-editor .add-fab:hover {
   transform: translateY(-1px);
-  box-shadow: 0 16px 40px -10px rgba(15, 15, 30, 0.6);
+  box-shadow:
+    0 16px 40px -10px oklch(0.62 0.21 265 / 0.6),
+    0 2px 0 rgba(255, 255, 255, 0.1) inset;
 }
 
 .spaire-editor .add-fab .plus {

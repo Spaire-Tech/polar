@@ -102,13 +102,16 @@ const Customization = ({
         platform: null,
       })
     },
-    onAddEmbed: ({ url, platform }) => {
+    onAddEmbed: ({ url, platform, title, description, image_url }) => {
       appendStorefrontLink({
         id: crypto.randomUUID(),
         url,
-        title: platform.label,
-        description: null,
-        image_url: null,
+        // Use whatever the creator typed in the edit form; fall back
+        // to the platform label so embeds always have a sensible
+        // title even if the auto-fetch returned nothing.
+        title: title ?? platform.label,
+        description: description ?? null,
+        image_url: image_url ?? null,
         // Platforms we can render inline → 'embedded'. The rest fall
         // back to a stylized standard card; the renderer keys off
         // `platform` for branding either way.

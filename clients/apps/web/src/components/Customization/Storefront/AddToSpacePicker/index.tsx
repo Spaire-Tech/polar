@@ -85,8 +85,18 @@ export const AddToSpacePicker = ({
           ))}
         </div>
         <div className="wg-body">
-          {tab === 'URL' && <UrlTab onPick={wrap(callbacks.onAddLink)} />}
-          {tab === 'Embed' && <EmbedTab onPick={wrap(callbacks.onAddEmbed)} />}
+          {tab === 'URL' && (
+            <UrlTab
+              organization={organization}
+              onPick={wrap(callbacks.onAddLink)}
+            />
+          )}
+          {tab === 'Embed' && (
+            <EmbedTab
+              organization={organization}
+              onPick={wrap(callbacks.onAddEmbed)}
+            />
+          )}
           {tab === 'Digital Product' && (
             <CatalogTab
               organization={organization}

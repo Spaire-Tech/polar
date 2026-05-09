@@ -1,6 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { schemas } from '@spaire/client'
+import { useEffect, useState } from 'react'
+import { LinkDraft, LinkEditForm } from './LinkEditForm'
 import {
   EMBED_PLATFORMS,
   EmbedPlatform,
@@ -10,19 +12,116 @@ import {
 export type EmbedPickPayload = {
   url: string
   platform: EmbedPlatform
+  title: string | null
+  description: string | null
+  image_url: string | null
 }
 
 export const EmbedTab = ({
+  organization,
   onPick,
 }: {
+  organization: schemas['Organization']
   onPick: (p: EmbedPickPayload) => void
 }) => {
   const [picked, setPicked] = useState<EmbedPlatform | null>(null)
   const [url, setUrl] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [stage, setStage] = useState<'select' | 'paste' | 'edit'>('select')
 
-  if (picked) {
-    const submit = () => {
+  // Auto-fetched preview seeds the edit form. Some platforms don't
+  // return useful oEmbed metadata; we still let the user submit a
+  // clean URL with no auto-fill if the fetch fails.
+  const [preview, setPreview] = useState<{
+    title: string | null
+    description: string | null
+    image_url: string | null
+  } | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (stage !== 'paste' || !picked || !url.trim()) {
+      setPreview(null)
+      return
+    }
+    const candidate = /^https?:\/\//i.test(url.trim())
+      ? url.trim()
+      : `https://${url.trim()}`
+    const detected = detectEmbedPlatform(candidate)
+    if (!detected || detected.id !== picked.id) {
+      setPreview(null)
+      return
+    }
+    const controller = new AbortController()
+    const handle = window.setTimeout(async () => {
+      setLoading(true)
+      try {
+        const res = await fetch(
+          `/api/link-preview?url=${encodeURIComponent(candidate)}`,
+          { signal: controller.signal },
+        )
+        if (res.ok) {
+          const meta = await res.json()
+          setPreview({
+            title: meta.title ?? null,
+            description: meta.description ?? null,
+            image_url: meta.image_url ?? null,
+          })
+        } else {
+          setPreview({ title: null, description: null, image_url: null })
+        }
+      } catch (e) {
+        if ((e as Error).name !== 'AbortError') setPreview(null)
+      } finally {
+        setLoading(false)
+      }
+    }, 350)
+    return () => {
+      controller.abort()
+      window.clearTimeout(handle)
+    }
+  }, [stage, picked, url])
+
+  // Stage 1 — pick a platform.
+  if (stage === 'select') {
+    return (
+      <div className="wg-tab">
+        <p className="wg-help">
+          Pick a platform — videos, posts, tracks all embed live where supported.
+        </p>
+        <div className="wg-grid two embed">
+          {EMBED_PLATFORMS.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              className="wg-card"
+              onClick={() => {
+                setPicked(p)
+                setUrl('')
+                setError(null)
+                setStage('paste')
+              }}
+            >
+              <div className="wg-art" style={{ background: p.bg }}>
+                <p.Icon style={{ fontSize: 22 }} />
+              </div>
+              <div className="wg-meta">
+                <div className="wg-card-title">{p.label}</div>
+                <div className="wg-card-sub">{p.sub}</div>
+              </div>
+              <span className="wg-add-btn small ghost" aria-hidden>
+                →
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  // Stage 2 — paste the URL.
+  if (stage === 'paste' && picked) {
+    const goToEdit = () => {
       const trimmed = url.trim()
       if (!trimmed) return
       const candidate = /^https?:\/\//i.test(trimmed)
@@ -34,7 +133,7 @@ export const EmbedTab = ({
         return
       }
       setError(null)
-      onPick({ url: candidate, platform: picked })
+      setStage('edit')
     }
 
     return (
@@ -46,13 +145,14 @@ export const EmbedTab = ({
             setPicked(null)
             setUrl('')
             setError(null)
+            setStage('select')
           }}
         >
           ← All platforms
         </button>
         <div className="wg-card" style={{ cursor: 'default', marginTop: 8 }}>
           <div className="wg-art" style={{ background: picked.bg }}>
-            <picked.Icon className="h-5 w-5" />
+            <picked.Icon style={{ fontSize: 22 }} />
           </div>
           <div className="wg-meta">
             <div className="wg-card-title">{picked.label}</div>
@@ -71,7 +171,7 @@ export const EmbedTab = ({
               if (error) setError(null)
             }}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') submit()
+              if (e.key === 'Enter') goToEdit()
             }}
             placeholder={`Paste a ${picked.label} URL`}
           />
@@ -79,12 +179,17 @@ export const EmbedTab = ({
             type="button"
             className="wg-add-btn"
             disabled={!url.trim()}
-            onClick={submit}
-            aria-label="Embed"
+            onClick={goToEdit}
+            aria-label="Continue"
           >
-            +
+            →
           </button>
         </div>
+        {loading && (
+          <p className="wg-help" style={{ marginTop: 10 }}>
+            Fetching preview…
+          </p>
+        )}
         {error && (
           <p className="wg-help" style={{ color: '#b00020' }}>
             {error}
@@ -94,32 +199,35 @@ export const EmbedTab = ({
     )
   }
 
-  return (
-    <div className="wg-tab">
-      <p className="wg-help">
-        Pick a platform — videos, posts, tracks all embed live where supported.
-      </p>
-      <div className="wg-grid two embed">
-        {EMBED_PLATFORMS.map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            className="wg-card"
-            onClick={() => setPicked(p)}
-          >
-            <div className="wg-art" style={{ background: p.bg }}>
-              <p.Icon className="h-5 w-5" />
-            </div>
-            <div className="wg-meta">
-              <div className="wg-card-title">{p.label}</div>
-              <div className="wg-card-sub">{p.sub}</div>
-            </div>
-            <span className="wg-add-btn small ghost" aria-hidden>
-              +
-            </span>
-          </button>
-        ))}
-      </div>
-    </div>
-  )
+  // Stage 3 — edit form.
+  if (stage === 'edit' && picked) {
+    const candidate = /^https?:\/\//i.test(url.trim())
+      ? url.trim()
+      : `https://${url.trim()}`
+    const initial: LinkDraft = {
+      url: candidate,
+      title: preview?.title ?? picked.label,
+      description: preview?.description ?? '',
+      image_url: preview?.image_url ?? null,
+    }
+    return (
+      <LinkEditForm
+        organization={organization}
+        initial={initial}
+        ctaLabel="Embed in Space"
+        onBack={() => setStage('paste')}
+        onSubmit={(draft) =>
+          onPick({
+            url: draft.url,
+            platform: picked,
+            title: draft.title || null,
+            description: draft.description || null,
+            image_url: draft.image_url,
+          })
+        }
+      />
+    )
+  }
+
+  return null
 }

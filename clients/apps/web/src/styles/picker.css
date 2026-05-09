@@ -560,19 +560,74 @@
     0 0 0 1.5px var(--accent);
 }
 
-.pk-library .wg-input-pill input {
+.pk-library .wg-input-pill input,
+.pk-library .wg-input-pill input:focus,
+.pk-library .wg-input-pill input:focus-visible,
+.pk-library .wg-input-pill input:active {
   flex: 1;
-  border: 0;
-  outline: 0;
-  background: transparent;
+  /* Belt-and-suspenders: kill EVERY native border / focus-ring layer
+     the browser AND @tailwindcss/forms might paint inside the pill.
+     The forms plugin sets --tw-ring-* CSS vars and a box-shadow
+     on focus that produced the inner darker rectangle. */
+  border: 0 !important;
+  outline: 0 !important;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent !important;
+  box-shadow: none !important;
+  --tw-ring-shadow: 0 0 #0000;
+  --tw-ring-offset-shadow: 0 0 #0000;
+  --tw-ring-color: transparent;
+  --tw-ring-offset-width: 0px;
+  --tw-ring-offset-color: transparent;
   font-size: 15px;
   color: var(--ink);
   font-family: inherit;
   min-width: 0;
+  padding: 0;
+}
+
+/* Webkit autofill paints its own yellow background — neutralize it. */
+.pk-library .wg-input-pill input:-webkit-autofill,
+.pk-library .wg-input-pill input:-webkit-autofill:hover,
+.pk-library .wg-input-pill input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--ink);
+  -webkit-box-shadow: 0 0 0 100px transparent inset;
+  caret-color: var(--ink);
+  transition: background-color 9999s ease-out 0s;
 }
 
 .pk-library .wg-input-pill input::placeholder {
   color: var(--muted-2);
+}
+
+/* Form inputs (used by LinkEditForm after URL/embed is detected). */
+.pk-library .atsp-form-input,
+.pk-library .atsp-form-input:focus,
+.pk-library .atsp-form-input:focus-visible {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.85) !important;
+  border: 1.5px solid var(--line-strong) !important;
+  border-radius: 14px !important;
+  padding: 10px 14px !important;
+  font-size: 14px;
+  color: var(--ink);
+  font-family: inherit;
+  outline: 0 !important;
+  -webkit-appearance: none;
+  appearance: none;
+  --tw-ring-shadow: 0 0 #0000;
+  --tw-ring-offset-shadow: 0 0 #0000;
+  box-shadow: none !important;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+
+.pk-library .atsp-form-input:focus {
+  border-color: var(--accent) !important;
+  box-shadow:
+    0 0 0 4px color-mix(in oklab, var(--accent) 18%, transparent) !important;
 }
 
 .pk-library .preview-card {

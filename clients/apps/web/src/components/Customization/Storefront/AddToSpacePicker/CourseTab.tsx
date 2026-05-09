@@ -29,6 +29,7 @@ export const CourseTab = ({
   const { data: courses, isLoading } = useOrganizationCourses(organization.id)
   const { data: productsData } = useProducts(organization.id, {
     is_archived: false,
+    limit: 100,
   })
 
   const productById = useMemo(() => {
@@ -66,25 +67,31 @@ export const CourseTab = ({
       </p>
 
       {isLoading ? (
-        <div className="wg-grid three">
+        <div className="flex flex-col gap-2.5">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="wg-skeleton" />
+            <div
+              key={i}
+              className="h-[68px] animate-pulse rounded-full bg-black/[0.04]"
+            />
           ))}
         </div>
       ) : (
-        <div className="wg-grid three">
+        <div className="flex flex-col gap-2.5">
           <button
             type="button"
-            className="wg-tile create"
+            className="wg-card create"
             onClick={onCreateNew}
           >
-            <div className="wg-tile-art empty">+</div>
-            <div className="wg-tile-meta">
-              <div className="wg-tile-title">New course</div>
-              <div className="wg-tile-sub">
+            <div className="wg-art dashed">+</div>
+            <div className="wg-meta">
+              <div className="wg-card-title">New course</div>
+              <div className="wg-card-sub">
                 Multi-lesson, drip, paid or free
               </div>
             </div>
+            <span className="wg-add-btn small ghost" aria-hidden>
+              ›
+            </span>
           </button>
 
           {(courses ?? []).map((course) => {
@@ -109,10 +116,10 @@ export const CourseTab = ({
                 type="button"
                 onClick={() => toggle(course.product_id)}
                 aria-pressed={isSelected}
-                className={twMerge('wg-tile', isSelected && 'selected')}
+                className={twMerge('wg-card', isSelected && 'selected')}
               >
                 <div
-                  className="wg-tile-art"
+                  className="wg-art"
                   style={{
                     backgroundImage: cover
                       ? `url(${cover})`
@@ -121,11 +128,17 @@ export const CourseTab = ({
                 >
                   {!cover && (title[0]?.toUpperCase() ?? '·')}
                 </div>
-                <div className="wg-tile-meta">
-                  <div className="wg-tile-title">{title}</div>
-                  {sub && <div className="wg-tile-sub">{sub}</div>}
+                <div className="wg-meta">
+                  <div className="wg-card-title">{title}</div>
+                  {sub && <div className="wg-card-sub">{sub}</div>}
                 </div>
-                <span className="wg-tile-check" aria-hidden>
+                <span
+                  className={twMerge(
+                    'wg-add-btn small',
+                    !isSelected && 'ghost',
+                  )}
+                  aria-hidden
+                >
                   {isSelected ? '✓' : '+'}
                 </span>
               </button>

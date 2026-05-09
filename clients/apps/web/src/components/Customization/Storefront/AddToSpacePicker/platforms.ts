@@ -1,11 +1,14 @@
-import Apple from '@mui/icons-material/Apple'
-import GraphicEqOutlined from '@mui/icons-material/GraphicEqOutlined'
-import Instagram from '@mui/icons-material/Instagram'
-import MailOutlineOutlined from '@mui/icons-material/MailOutlineOutlined'
-import MusicNoteOutlined from '@mui/icons-material/MusicNoteOutlined'
-import PlayArrowOutlined from '@mui/icons-material/PlayArrowOutlined'
-import VideoLibraryOutlined from '@mui/icons-material/VideoLibraryOutlined'
-import X from '@mui/icons-material/X'
+import {
+  AppleMusicLogo,
+  InstagramLogo,
+  SoundCloudLogo,
+  SpotifyLogo,
+  SubstackLogo,
+  TikTokLogo,
+  VimeoLogo,
+  XLogo,
+  YouTubeLogo,
+} from './PlatformLogos'
 
 // Platforms shown in the Embed tab of the Add-to-Space picker. Mirrors
 // the design hand-off (8 tiles). Some embed inline (canEmbed: true);
@@ -26,10 +29,13 @@ export type EmbedPlatform = {
   id: EmbedPlatformId
   label: string
   sub: string
-  Icon: React.ComponentType<{ className?: string }>
+  Icon: React.ComponentType<{
+    className?: string
+    style?: React.CSSProperties
+  }>
   bg: string
   // True if the renderer plays this platform inline. False = falls back
-  // to a branded link card.
+  // to a stylized link card.
   canEmbed: boolean
   hosts: string[]
 }
@@ -39,8 +45,8 @@ export const EMBED_PLATFORMS: ReadonlyArray<EmbedPlatform> = [
     id: 'youtube',
     label: 'YouTube',
     sub: 'Videos & shorts',
-    Icon: PlayArrowOutlined,
-    bg: 'linear-gradient(135deg, #1a1a22 0%, #ff0033 130%)',
+    Icon: YouTubeLogo,
+    bg: '#FF0000',
     canEmbed: true,
     hosts: ['youtube.com', 'youtu.be', 'm.youtube.com', 'music.youtube.com'],
   },
@@ -48,8 +54,8 @@ export const EMBED_PLATFORMS: ReadonlyArray<EmbedPlatform> = [
     id: 'spotify',
     label: 'Spotify',
     sub: 'Tracks, episodes, playlists',
-    Icon: MusicNoteOutlined,
-    bg: 'linear-gradient(135deg, #0c8a3e, #1ED760)',
+    Icon: SpotifyLogo,
+    bg: '#1ED760',
     canEmbed: true,
     hosts: ['open.spotify.com', 'spotify.com'],
   },
@@ -57,8 +63,8 @@ export const EMBED_PLATFORMS: ReadonlyArray<EmbedPlatform> = [
     id: 'soundcloud',
     label: 'SoundCloud',
     sub: 'Tracks & sets',
-    Icon: GraphicEqOutlined,
-    bg: 'linear-gradient(135deg, #ff5500, #ff7700)',
+    Icon: SoundCloudLogo,
+    bg: '#FF5500',
     canEmbed: true,
     hosts: ['soundcloud.com', 'm.soundcloud.com', 'on.soundcloud.com'],
   },
@@ -66,8 +72,8 @@ export const EMBED_PLATFORMS: ReadonlyArray<EmbedPlatform> = [
     id: 'vimeo',
     label: 'Vimeo',
     sub: 'Videos',
-    Icon: VideoLibraryOutlined,
-    bg: 'linear-gradient(135deg, #19B7EA, #006B8A)',
+    Icon: VimeoLogo,
+    bg: '#1AB7EA',
     canEmbed: true,
     hosts: ['vimeo.com', 'player.vimeo.com'],
   },
@@ -75,8 +81,8 @@ export const EMBED_PLATFORMS: ReadonlyArray<EmbedPlatform> = [
     id: 'apple_music',
     label: 'Apple Music',
     sub: 'Tracks & playlists',
-    Icon: Apple,
-    bg: 'linear-gradient(135deg, #FA243C, #BB001B)',
+    Icon: AppleMusicLogo,
+    bg: '#FA243C',
     canEmbed: true,
     hosts: ['music.apple.com', 'embed.music.apple.com'],
   },
@@ -84,8 +90,8 @@ export const EMBED_PLATFORMS: ReadonlyArray<EmbedPlatform> = [
     id: 'tiktok',
     label: 'TikTok',
     sub: 'Videos',
-    Icon: MusicNoteOutlined,
-    bg: 'linear-gradient(135deg, #000, #25F4EE)',
+    Icon: TikTokLogo,
+    bg: '#000000',
     canEmbed: true,
     hosts: ['tiktok.com', 'm.tiktok.com', 'vm.tiktok.com', 'vt.tiktok.com'],
   },
@@ -93,8 +99,8 @@ export const EMBED_PLATFORMS: ReadonlyArray<EmbedPlatform> = [
     id: 'substack',
     label: 'Substack',
     sub: 'Newsletter posts',
-    Icon: MailOutlineOutlined,
-    bg: 'linear-gradient(135deg, #ff6719, #ffb085)',
+    Icon: SubstackLogo,
+    bg: '#FF6719',
     canEmbed: false,
     hosts: ['substack.com'],
   },
@@ -102,7 +108,7 @@ export const EMBED_PLATFORMS: ReadonlyArray<EmbedPlatform> = [
     id: 'instagram',
     label: 'Instagram',
     sub: 'Posts & reels',
-    Icon: Instagram,
+    Icon: InstagramLogo,
     bg: 'linear-gradient(135deg, #E4405F, #FCAF45)',
     canEmbed: false,
     hosts: ['instagram.com'],
@@ -111,8 +117,8 @@ export const EMBED_PLATFORMS: ReadonlyArray<EmbedPlatform> = [
     id: 'x',
     label: 'X',
     sub: 'Posts & threads',
-    Icon: X,
-    bg: 'linear-gradient(135deg, #000, #444)',
+    Icon: XLogo,
+    bg: '#000000',
     canEmbed: false,
     hosts: ['x.com', 'twitter.com'],
   },
