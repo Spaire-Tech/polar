@@ -69,33 +69,22 @@ export const CatalogTab = ({
       </p>
 
       {isLoading ? (
-        <div className="flex flex-col gap-2.5">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div
-              key={i}
-              className="h-[68px] animate-pulse rounded-full bg-black/[0.04]"
-            />
+        <div className="wg-grid three">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="wg-skeleton" />
           ))}
         </div>
       ) : (
-        <div className="flex flex-col gap-2.5">
-          {/* Always-first 'create' pill — same row layout as the
-              other items so they all line up. */}
-          <button
-            type="button"
-            className="wg-card create"
-            onClick={onCreateNew}
-          >
-            <div className="wg-art dashed">+</div>
-            <div className="wg-meta">
-              <div className="wg-card-title">New product</div>
-              <div className="wg-card-sub">
-                Start blank · ebook, asset, anything
-              </div>
+        <div className="wg-grid three">
+          {/* Always-first 'create' tile — same vertical-tile shape as
+              the design hand-off so creators can scan their catalog
+              uniformly. */}
+          <button type="button" className="wg-tile create" onClick={onCreateNew}>
+            <div className="wg-tile-art empty">+</div>
+            <div className="wg-tile-meta">
+              <div className="wg-tile-title">New product</div>
+              <div className="wg-tile-sub">Start blank · ebook, asset, anything</div>
             </div>
-            <span className="wg-add-btn small ghost" aria-hidden>
-              ›
-            </span>
           </button>
 
           {products.map((product) => {
@@ -108,10 +97,10 @@ export const CatalogTab = ({
                 type="button"
                 onClick={() => toggle(product.id)}
                 aria-pressed={isSelected}
-                className={twMerge('wg-card', isSelected && 'selected')}
+                className={twMerge('wg-tile', isSelected && 'selected')}
               >
                 <div
-                  className="wg-art"
+                  className="wg-tile-art"
                   style={{
                     backgroundImage: cover
                       ? `url(${cover})`
@@ -120,17 +109,11 @@ export const CatalogTab = ({
                 >
                   {!cover && (product.name?.[0]?.toUpperCase() ?? '·')}
                 </div>
-                <div className="wg-meta">
-                  <div className="wg-card-title">{product.name}</div>
-                  {price && <div className="wg-card-sub">{price}</div>}
+                <div className="wg-tile-meta">
+                  <div className="wg-tile-title">{product.name}</div>
+                  {price && <div className="wg-tile-sub">{price}</div>}
                 </div>
-                <span
-                  className={twMerge(
-                    'wg-add-btn small',
-                    !isSelected && 'ghost',
-                  )}
-                  aria-hidden
-                >
+                <span className="wg-tile-check" aria-hidden>
                   {isSelected ? '✓' : '+'}
                 </span>
               </button>
