@@ -8,6 +8,7 @@ from sqlalchemy import select
 from polar.auth.models import is_organization, is_user
 from polar.customer.repository import CustomerRepository
 from polar.customer_session.service import customer_session
+from polar.kit.pagination import ListResource, Pagination, PaginationParamsQuery
 from polar.models import Organization, UserOrganization
 from polar.models.course_lesson import CourseLesson
 from polar.models.customer import Customer
@@ -24,6 +25,8 @@ from .repository import (
 )
 from .schemas import (
     CourseCreate,
+    CourseEnrollmentCustomer,
+    CourseEnrollmentRead,
     CourseLessonCreate,
     CourseLessonRead,
     CourseLessonUpdate,
@@ -325,18 +328,25 @@ async def delete_lesson(
     await course_service.delete_lesson(session, lesson)
 
 
-@router.get("/{course_id}/enrollments")
+@router.get(
+    "/{course_id}/enrollments",
+    response_model=ListResource[CourseEnrollmentRead],
+)
 async def list_course_enrollments(
     course_id: UUID,
     auth_subject: auth.CoursesRead,
+    pagination: PaginationParamsQuery,
     session: AsyncSession = Depends(get_db_session),
-) -> list[dict]:
+) -> ListResource[CourseEnrollmentRead]:
     repo = CourseRepository.from_session(session)
     course = await repo.get_readable_by_id(course_id, auth_subject)
     if course is None:
         raise HTTPException(status_code=404, detail="Course not found")
-    enrollments = await course_service.list_enrollments_for_course(
-        session, course_id
+    enrollments, total = await course_service.paginate_enrollments_for_course(
+        session,
+        course_id,
+        limit=pagination.limit,
+        page=pagination.page,
     )
     customer_ids = {e.customer_id for e in enrollments}
     customers_by_id: dict[UUID, Customer] = {}
@@ -345,26 +355,30 @@ async def list_course_enrollments(
         result = await session.execute(stmt)
         for customer in result.scalars():
             customers_by_id[customer.id] = customer
-    return [
-        {
-            "id": str(e.id),
-            "customer_id": str(e.customer_id),
-            "enrolled_at": e.enrolled_at.isoformat(),
-            "customer": (
-                {
-                    "id": str(customers_by_id[e.customer_id].id),
-                    "email": customers_by_id[e.customer_id].email,
-                    "name": customers_by_id[e.customer_id].name,
-                    "avatar_url": getattr(
-                        customers_by_id[e.customer_id], "avatar_url", None
-                    ),
-                }
-                if e.customer_id in customers_by_id
-                else None
-            ),
-        }
-        for e in enrollments
-    ]
+    items: list[CourseEnrollmentRead] = []
+    for e in enrollments:
+        c = customers_by_id.get(e.customer_id)
+        items.append(
+            CourseEnrollmentRead(
+                id=e.id,
+                customer_id=e.customer_id,
+                enrolled_at=e.enrolled_at,
+                customer=(
+                    CourseEnrollmentCustomer(
+                        id=c.id,
+                        email=c.email,
+                        name=c.name,
+                        avatar_url=getattr(c, "avatar_url", None),
+                    )
+                    if c is not None
+                    else None
+                ),
+            )
+        )
+    return ListResource(
+        items=items,
+        pagination=Pagination(page=pagination.page, total_count=total),
+    )
 
 
 @router.delete("/{course_id}/enrollments/{enrollment_id}", status_code=204)
@@ -771,14 +785,22 @@ async def get_preview_access(
         raise HTTPException(status_code=404, detail="Organization not found")
 
     customer_repo = CustomerRepository.from_session(session)
+    # Use a deterministic preview-only email tied to the org user, NOT the
+    # user's real email. Reusing a real customer record by email would mint
+    # a customer-session token that also unlocks that customer's other
+    # purchases / orders / PII — so we route every preview through a
+    # sandboxed customer scoped to (org_user, organization) instead.
+    # The .invalid TLD is RFC-reserved and guaranteed to never match a
+    # real address, so this can't collide with checkout-created customers.
+    preview_email = f"preview+{user.id}@course-preview.invalid"
     customer = await customer_repo.get_by_email_and_organization(
-        user.email, course.organization_id
+        preview_email, course.organization_id
     )
     if customer is None:
         customer = await customer_repo.create(
             Customer(
-                email=user.email,
-                name=user.email.split("@")[0],
+                email=preview_email,
+                name=f"{user.email.split('@')[0]} (preview)",
                 organization_id=course.organization_id,
             ),
             flush=True,

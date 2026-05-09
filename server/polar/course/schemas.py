@@ -230,6 +230,9 @@ class LessonCommentRead(Schema):
     created_at: datetime
     is_own: bool
     author: LessonCommentAuthor
+    # True when the comment has been soft-deleted but is included in the
+    # response as a tombstone so its replies remain renderable.
+    deleted: bool = False
 
 
 class CourseRead(TimestampedSchema):
@@ -275,6 +278,20 @@ class CourseLandingPageRead(TimestampedSchema):
     paywall_enabled: bool = False
     paywall_position: int | None = None
     has_access: bool = False
+
+
+class CourseEnrollmentCustomer(Schema):
+    id: UUID4
+    email: str | None = None
+    name: str | None = None
+    avatar_url: str | None = None
+
+
+class CourseEnrollmentRead(Schema):
+    id: UUID4
+    customer_id: UUID4
+    enrolled_at: datetime
+    customer: CourseEnrollmentCustomer | None = None
 
 
 class CourseNoteUpsert(Schema):

@@ -228,7 +228,15 @@ class CourseService:
     async def delete_lesson(
         self, session: AsyncSession, lesson: CourseLesson
     ) -> None:
+        # Enqueue Mux asset cleanup before soft-delete so we still have
+        # the asset id available. The worker is idempotent (404 from Mux
+        # counts as success), so a failed enqueue is safe to retry later.
+        from polar.worker import enqueue_job
+
         lesson_repo = CourseLessonRepository.from_session(session)
+        asset_id = getattr(lesson, "mux_asset_id", None)
+        if asset_id:
+            enqueue_job("course.mux_delete_asset", asset_id=asset_id)
         await lesson_repo.soft_delete(lesson)
 
     async def reorder_lessons(
@@ -311,6 +319,22 @@ class CourseService:
         )
         return await repo.get_all(statement)
 
+    async def paginate_enrollments_for_course(
+        self,
+        session: AsyncSession,
+        course_id: UUID,
+        *,
+        limit: int,
+        page: int,
+    ) -> tuple[Sequence[CourseEnrollment], int]:
+        repo = CourseEnrollmentRepository.from_session(session)
+        statement = (
+            repo.get_base_statement()
+            .where(CourseEnrollment.course_id == course_id)
+            .order_by(CourseEnrollment.enrolled_at.desc())
+        )
+        return await repo.paginate(statement, limit=limit, page=page)
+
     async def get_enrollment_by_id(
         self,
         session: AsyncSession,
@@ -368,11 +392,35 @@ class CourseService:
         *,
         lesson_id: UUID,
     ) -> Sequence[LessonComment]:
+        """List visible comments for a lesson, plus soft-deleted parents
+        whose replies are still visible. The frontend renders deleted
+        parents as tombstones so the reply tree stays reachable.
+        """
+        from sqlalchemy import select
+
         repo = LessonCommentRepository.from_session(session)
         statement = repo.get_by_lesson_statement(lesson_id).order_by(
             LessonComment.created_at.asc()
         )
-        return await repo.get_all(statement)
+        visible = list(await repo.get_all(statement))
+
+        # Find any visible reply whose parent is missing from the visible
+        # set (most likely soft-deleted) and pull the deleted parent in too.
+        visible_ids = {c.id for c in visible}
+        orphan_parent_ids = {
+            c.parent_id
+            for c in visible
+            if c.parent_id is not None and c.parent_id not in visible_ids
+        }
+        if orphan_parent_ids:
+            tombstone_stmt = select(LessonComment).where(
+                LessonComment.id.in_(orphan_parent_ids),
+                LessonComment.lesson_id == lesson_id,
+            )
+            tombstones = (await session.execute(tombstone_stmt)).scalars().all()
+            visible.extend(tombstones)
+            visible.sort(key=lambda c: c.created_at)
+        return visible
 
     async def create_lesson_comment(
         self,

@@ -913,13 +913,17 @@ async def list_lesson_comments(
             id=c.id,
             lesson_id=c.lesson_id,
             parent_id=c.parent_id,
-            content=c.content,
+            # Soft-deleted comments come back as tombstones so their
+            # replies remain in the tree — strip the body so the deleted
+            # message itself is not surfaced.
+            content="" if c.deleted_at is not None else c.content,
             created_at=c.created_at,
-            is_own=c.enrollment_id == enrollment.id,
+            is_own=c.enrollment_id == enrollment.id and c.deleted_at is None,
             author=authors.get(
                 c.enrollment_id,
                 LessonCommentAuthor(enrollment_id=c.enrollment_id, name=None),
             ),
+            deleted=c.deleted_at is not None,
         )
         for c in comments
     ]

@@ -287,7 +287,10 @@ function CommentItem({
 }) {
   const showReplyBox = activeReplyId === comment.id
   const [showReplies, setShowReplies] = useState(true)
-  const authorName = comment.author.name?.trim() || 'Anonymous'
+  const isDeleted = !!comment.deleted
+  const authorName = isDeleted
+    ? 'Deleted'
+    : (comment.author.name?.trim() || 'Anonymous')
 
   return (
     <div style={{ display: 'flex', gap: 12 }}>
@@ -311,18 +314,19 @@ function CommentItem({
         <p
           style={{
             fontSize: 14,
-            color: COLORS.fg1,
+            color: isDeleted ? COLORS.fg3 : COLORS.fg1,
+            fontStyle: isDeleted ? 'italic' : 'normal',
             lineHeight: 1.55,
             margin: '4px 0 8px',
             whiteSpace: 'pre-wrap',
             textWrap: 'pretty' as any,
           }}
         >
-          {comment.content}
+          {isDeleted ? 'Comment deleted' : comment.content}
         </p>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          {depth < 2 && !repliesDisabled && (
+          {!isDeleted && depth < 2 && !repliesDisabled && (
             <button
               type="button"
               onClick={() => onReply(comment.id)}

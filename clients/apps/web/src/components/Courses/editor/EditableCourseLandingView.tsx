@@ -496,6 +496,11 @@ function Hero({
             type="button"
             onClick={onEnroll}
             disabled={!canEnroll || enrolling}
+            title={
+              !canEnroll
+                ? 'Enroll is disabled in edit mode — switch to preview to test the checkout flow.'
+                : undefined
+            }
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -511,7 +516,7 @@ function Hero({
               fontWeight: 600,
               cursor: canEnroll ? (enrolling ? 'wait' : 'pointer') : 'default',
               fontFamily: 'inherit',
-              opacity: enrolling ? 0.7 : 1,
+              opacity: enrolling ? 0.7 : !canEnroll ? 0.55 : 1,
             }}
           >
             {enrolling
@@ -681,12 +686,6 @@ function HeroMediaControls() {
         })
         return
       }
-      // eslint-disable-next-line no-console
-      console.log('[HeroMediaControls] upload ok', {
-        slotId,
-        url: next.url,
-        kind: next.kind,
-      })
       ed.setMedia(slotId, { ...next, name: file.name })
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
@@ -1576,6 +1575,11 @@ function EpisodeGrid({
                 type="button"
                 onClick={onEnroll}
                 disabled={!canEnroll || enrolling}
+                title={
+                  !canEnroll
+                    ? 'Enroll is disabled in edit mode — switch to preview to test the checkout flow.'
+                    : undefined
+                }
                 style={{
                   padding: '14px 28px',
                   borderRadius: 999,
@@ -1592,7 +1596,7 @@ function EpisodeGrid({
                       : 'pointer'
                     : 'default',
                   fontFamily: 'inherit',
-                  opacity: enrolling ? 0.7 : 1,
+                  opacity: enrolling ? 0.7 : !canEnroll ? 0.55 : 1,
                   boxShadow: `
                     inset 0 1px 0 rgba(255,255,255,0.18),
                     inset 0 -1px 0 rgba(0,0,0,0.4),
