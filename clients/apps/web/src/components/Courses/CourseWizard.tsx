@@ -114,7 +114,7 @@ export default function CourseWizard({
   // primitives as the regular product create flow. The wizard tracks only the
   // course-specific paywall toggle + free preview lesson count.
   const [paywall, setPaywall] = useState<WizardPaywallState>({
-    paywallEnabled: false,
+    paywallEnabled: true,
     freePreviewLessons: 3,
   })
   const [draft, setDraft] = useState<DraftState>({

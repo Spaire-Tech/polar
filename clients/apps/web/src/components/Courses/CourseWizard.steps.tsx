@@ -1735,6 +1735,10 @@ export function StepPricingWizard({
       }
     })
     replace(updated)
+    // The paywall only makes sense on paid courses. Keep the flag in sync
+    // with the price model so the user doesn't have to drag the slider just
+    // to flip it on.
+    onPaywallChange({ ...paywall, paywallEnabled: next === 'fixed' })
   }
 
   const addCurrency = (code?: string) => {
