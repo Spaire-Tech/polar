@@ -1,168 +1,194 @@
 'use client'
 
 import { DashboardBody } from '@/components/Layout/DashboardLayout'
-import { CourseRead, useOrganizationCourses } from '@/hooks/queries/courses'
-import AutoStoriesOutlined from '@mui/icons-material/AutoStoriesOutlined'
-import SearchOutlined from '@mui/icons-material/SearchOutlined'
+import Pagination from '@/components/Pagination/Pagination'
+import { ProductListItem } from '@/components/Products/ProductListItem'
+import { useOrganizationCourses } from '@/hooks/queries/courses'
+import { useProducts } from '@/hooks/queries/products'
+import { useDebouncedCallback } from '@/hooks/utils'
+import ArrowBackOutlined from '@mui/icons-material/ArrowBackOutlined'
+import Search from '@mui/icons-material/Search'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
-import { List, ListItem } from '@spaire/ui/components/atoms/List'
-import { ShadowBoxOnMd } from '@spaire/ui/components/atoms/ShadowBox'
-import Link from 'next/link'
+import Input from '@spaire/ui/components/atoms/Input'
+import { List } from '@spaire/ui/components/atoms/List'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@spaire/ui/components/atoms/Select'
 import { useRouter } from 'next/navigation'
-import { useMemo, useState } from 'react'
+import { useQueryState } from 'nuqs'
+import { useCallback, useMemo, useState } from 'react'
 
-function CourseCard({
-  course,
-  organization,
-}: {
-  course: CourseRead
-  organization: schemas['Organization']
-}) {
-  const moduleCount = course.modules.length
-  const lessonCount = course.modules.reduce((acc, m) => acc + m.lessons.length, 0)
+type SortValue =
+  | 'name'
+  | '-name'
+  | '-created_at'
+  | 'created_at'
+  | 'price_amount'
+  | '-price_amount'
 
-  return (
-    <Link href={`/dashboard/${organization.slug}/courses/${course.id}`}>
-      <ListItem className="flex flex-row items-center justify-between gap-x-6">
-        <div className="flex min-w-0 grow flex-row items-center gap-x-4">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50">
-            <AutoStoriesOutlined className="text-blue-500" fontSize="small" />
-          </div>
-          <div className="flex min-w-0 flex-col gap-0.5">
-            <span className="truncate font-medium text-gray-900">
-              {course.title ?? 'Untitled Course'}
-            </span>
-            <span className="text-xs text-gray-400">
-              {moduleCount} module{moduleCount !== 1 ? 's' : ''} ·{' '}
-              {lessonCount} lesson{lessonCount !== 1 ? 's' : ''}
-            </span>
-          </div>
-        </div>
-        <div className="shrink-0">
-          <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
-            {course.ai_generated ? 'AI Generated' : 'Manual'}
-          </span>
-        </div>
-      </ListItem>
-    </Link>
-  )
-}
-
-type SortOption = 'recent' | 'oldest' | 'title'
-type FilterOption = 'all' | 'ai' | 'manual'
+const PAGE_SIZE_OPTIONS = [20, 50, 100] as const
 
 export default function CoursesPage({
-  organization,
+  organization: org,
 }: {
   organization: schemas['Organization']
 }) {
   const router = useRouter()
-  const { data: courses, isLoading } = useOrganizationCourses(organization.id)
   const [query, setQuery] = useState('')
-  const [filter, setFilter] = useState<FilterOption>('all')
-  const [sort, setSort] = useState<SortOption>('recent')
+  const [debouncedQuery, setDebouncedQuery] = useState('')
+  const [show, setShow] = useQueryState('show', { defaultValue: 'active' })
+  const [sort, setSort] = useState<SortValue>('name')
+  const [pageSize, setPageSize] = useState<number>(20)
+  const [page, setPage] = useState(1)
 
-  const handleCreate = () => {
-    router.push(`/dashboard/${organization.slug}/products/new?type=course`)
+  const debouncedQueryChange = useDebouncedCallback(
+    (q: string) => setDebouncedQuery(q),
+    500,
+    [],
+  )
+
+  const onQueryChange = useCallback(
+    (q: string) => {
+      setQuery(q)
+      debouncedQueryChange(q)
+      setPage(1)
+    },
+    [debouncedQueryChange],
+  )
+
+  const handleCreate = useCallback(() => {
+    router.push(`/dashboard/${org.slug}/products/new?type=course`)
+  }, [router, org.slug])
+
+  const handleBackToDashboard = useCallback(() => {
+    router.push(`/dashboard/${org.slug}`)
+  }, [router, org.slug])
+
+  const courses = useOrganizationCourses(org.id)
+  const courseProductIds = useMemo(
+    () => new Set((courses.data ?? []).map((c) => c.product_id)),
+    [courses.data],
+  )
+  const courseIdByProductId = useMemo(
+    () => new Map((courses.data ?? []).map((c) => [c.product_id, c.id])),
+    [courses.data],
+  )
+
+  const products = useProducts(org.id, {
+    query: debouncedQuery || undefined,
+    page: 1,
+    limit: 100,
+    sorting: [sort],
+    is_archived: show === 'all' ? null : show === 'active' ? false : true,
+  })
+
+  const courseProducts = useMemo(() => {
+    return (products.data?.items ?? []).filter((p) =>
+      courseProductIds.has(p.id),
+    )
+  }, [products.data, courseProductIds])
+
+  const totalCount = courseProducts.length
+  const pagedItems = useMemo(() => {
+    const start = (page - 1) * pageSize
+    return courseProducts.slice(start, start + pageSize)
+  }, [courseProducts, page, pageSize])
+
+  const isInitialLoading = courses.isLoading || products.isLoading
+  const hasAnyCourses = (courses.data?.length ?? 0) > 0
+  const showEmptyHero = !courses.isLoading && !hasAnyCourses
+
+  if (showEmptyHero) {
+    return <CoursesEmptyHero onBack={handleBackToDashboard} />
   }
-
-  const filtered = useMemo(() => {
-    if (!courses) return []
-    const trimmed = query.trim().toLowerCase()
-    let out = courses
-    if (trimmed) {
-      out = out.filter((c) =>
-        (c.title ?? 'Untitled Course').toLowerCase().includes(trimmed),
-      )
-    }
-    if (filter === 'ai') out = out.filter((c) => c.ai_generated)
-    else if (filter === 'manual') out = out.filter((c) => !c.ai_generated)
-    const sorted = [...out]
-    if (sort === 'recent') {
-      sorted.sort((a, b) =>
-        (b.modified_at ?? b.created_at ?? '').localeCompare(
-          a.modified_at ?? a.created_at ?? '',
-        ),
-      )
-    } else if (sort === 'oldest') {
-      sorted.sort((a, b) =>
-        (a.created_at ?? '').localeCompare(b.created_at ?? ''),
-      )
-    } else {
-      sorted.sort((a, b) =>
-        (a.title ?? 'Untitled Course').localeCompare(
-          b.title ?? 'Untitled Course',
-        ),
-      )
-    }
-    return sorted
-  }, [courses, query, filter, sort])
-
-  const showEmptyOriginal = !isLoading && !courses?.length
-  const showNoMatches =
-    !isLoading && (courses?.length ?? 0) > 0 && filtered.length === 0
 
   return (
     <DashboardBody>
       <div className="flex flex-col gap-y-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Courses</h1>
-            <p className="mt-1 text-sm text-gray-500">
-              Create and manage your course content
-            </p>
+        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center">
+            <Input
+              className="w-full md:max-w-64"
+              preSlot={<Search fontSize="small" />}
+              placeholder="Search Courses"
+              value={query}
+              onChange={(e) => onQueryChange(e.target.value)}
+            />
+            <Select value={show} onValueChange={setShow}>
+              <SelectTrigger className="w-full md:max-w-fit">
+                <SelectValue placeholder="Show archived courses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="archived">Archived</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select
+              value={sort}
+              onValueChange={(v) => setSort(v as SortValue)}
+            >
+              <SelectTrigger className="w-full md:max-w-fit">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="name">Name A-Z</SelectItem>
+                <SelectItem value="-name">Name Z-A</SelectItem>
+                <SelectItem value="-created_at">Newest</SelectItem>
+                <SelectItem value="created_at">Oldest</SelectItem>
+                <SelectItem value="price_amount">
+                  Price: Low to High
+                </SelectItem>
+                <SelectItem value="-price_amount">
+                  Price: High to Low
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            {totalCount > 20 && (
+              <Select
+                value={pageSize.toString()}
+                onValueChange={(v) => {
+                  setPageSize(parseInt(v))
+                  setPage(1)
+                }}
+              >
+                <SelectTrigger className="w-full md:max-w-fit">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAGE_SIZE_OPTIONS.map((n) => (
+                    <SelectItem key={n} value={n.toString()}>
+                      Show {n}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
-          <Button onClick={handleCreate} wrapperClassNames="gap-x-2">
-            <AutoStoriesOutlined className="h-4 w-4" />
-            <span>New Course</span>
+          <Button
+            wrapperClassNames="md:w-fit"
+            className="w-full md:w-fit"
+            onClick={handleCreate}
+          >
+            <span>New</span>
           </Button>
         </div>
 
-        {!showEmptyOriginal && (
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex flex-1 min-w-[220px] items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 shadow-sm">
-              <SearchOutlined className="text-gray-400" sx={{ fontSize: 16 }} />
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search courses…"
-                className="flex-1 border-0 bg-transparent text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
+        {isInitialLoading ? (
+          <List size="small">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="h-16 animate-pulse rounded-xl bg-gray-100"
               />
-            </div>
-            <select
-              value={filter}
-              onChange={(e) => setFilter(e.target.value as FilterOption)}
-              className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-gray-900 focus:outline-none"
-            >
-              <option value="all">All</option>
-              <option value="ai">AI Generated</option>
-              <option value="manual">Manual</option>
-            </select>
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value as SortOption)}
-              className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-gray-900 focus:outline-none"
-            >
-              <option value="recent">Recently updated</option>
-              <option value="oldest">Oldest first</option>
-              <option value="title">A → Z</option>
-            </select>
-          </div>
-        )}
-
-        {isLoading ? (
-          <ShadowBoxOnMd>
-            <div className="flex flex-col gap-3 p-4">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-16 animate-pulse rounded-xl bg-gray-100" />
-              ))}
-            </div>
-          </ShadowBoxOnMd>
-        ) : showEmptyOriginal ? (
-          <CoursesEmptyHero onStart={handleCreate} />
-        ) : showNoMatches ? (
+            ))}
+          </List>
+        ) : pagedItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
             <p className="text-sm font-medium text-gray-900">
               No courses match your filters
@@ -172,17 +198,29 @@ export default function CoursesPage({
             </p>
           </div>
         ) : (
-          <ShadowBoxOnMd>
+          <Pagination
+            currentPage={page}
+            pageSize={pageSize}
+            totalCount={totalCount}
+            currentURL={new URLSearchParams()}
+            onPageChange={setPage}
+          >
             <List size="small">
-              {filtered.map((course) => (
-                <CourseCard
-                  key={course.id}
-                  course={course}
-                  organization={organization}
-                />
-              ))}
+              {pagedItems
+                .sort((a, b) => {
+                  if (a.is_archived === b.is_archived) return 0
+                  return a.is_archived ? 1 : -1
+                })
+                .map((product) => (
+                  <ProductListItem
+                    key={product.id}
+                    organization={org}
+                    product={product}
+                    courseId={courseIdByProductId.get(product.id)}
+                  />
+                ))}
             </List>
-          </ShadowBoxOnMd>
+          </Pagination>
         )}
       </div>
     </DashboardBody>
@@ -192,22 +230,43 @@ export default function CoursesPage({
 const FONT_VAR = 'var(--font-body, "Poppins", system-ui, sans-serif)'
 const HEADING_VAR = `var(--font-heading, ${FONT_VAR})`
 
-function CoursesEmptyHero({ onStart }: { onStart: () => void }) {
+function CoursesEmptyHero({ onBack }: { onBack: () => void }) {
   return (
-    <section
+    <div
       style={{
-        position: 'relative',
-        height: 'min(72vh, 620px)',
-        minHeight: 480,
-        borderRadius: 'calc(28px * var(--radius-mul, 1))',
-        overflow: 'hidden',
+        position: 'fixed',
+        inset: 0,
+        zIndex: 60,
         background: '#000',
-        isolation: 'isolate',
-        border: '1px solid oklch(0.92 0.003 280)',
-        boxShadow:
-          '0 2px 6px rgba(0,0,0,0.06), 0 24px 60px rgba(0,0,0,0.10)',
       }}
     >
+      <button
+        type="button"
+        onClick={onBack}
+        aria-label="Back to dashboard"
+        style={{
+          position: 'absolute',
+          left: 24,
+          top: 24,
+          zIndex: 5,
+          width: 40,
+          height: 40,
+          borderRadius: 999,
+          background: 'rgba(255,255,255,0.10)',
+          backdropFilter: 'blur(20px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+          border: '1px solid rgba(255,255,255,0.18)',
+          color: 'white',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+        }}
+      >
+        <ArrowBackOutlined sx={{ fontSize: 20 }} />
+      </button>
+
       <img
         src="/assets/courses-empty-hero.jpg"
         alt=""
@@ -241,6 +300,7 @@ function CoursesEmptyHero({ onStart }: { onStart: () => void }) {
           display: 'flex',
           alignItems: 'center',
           gap: 8,
+          paddingLeft: 60,
         }}
       >
         <span
@@ -272,7 +332,7 @@ function CoursesEmptyHero({ onStart }: { onStart: () => void }) {
           right: 0,
           bottom: 0,
           zIndex: 3,
-          padding: '40px 48px 52px',
+          padding: 'clamp(40px, 6vw, 72px) clamp(32px, 6vw, 80px) clamp(48px, 7vw, 84px)',
           color: 'white',
           fontFamily: FONT_VAR,
         }}
@@ -302,7 +362,7 @@ function CoursesEmptyHero({ onStart }: { onStart: () => void }) {
               color: 'white',
             }}
           >
-            YOUR NEXT MASTERCLASS
+            COURSE BUILDER
           </span>
           <span style={{ color: 'rgba(255,255,255,0.6)' }}>Built with Spaire</span>
           <span style={{ color: 'rgba(255,255,255,0.3)' }}>·</span>
@@ -311,19 +371,19 @@ function CoursesEmptyHero({ onStart }: { onStart: () => void }) {
 
         <h1
           style={{
-            fontSize: 'calc(clamp(48px, 6.5vw, 84px) * var(--type-scale, 1))',
+            fontSize: 'calc(clamp(52px, 7.5vw, 96px) * var(--type-scale, 1))',
             fontWeight: 'var(--h-weight, 700)',
             fontStyle: 'var(--h-italic, normal)',
             letterSpacing: 'calc(var(--h-tracking, 0em) - 0.045em)',
             lineHeight: 'calc(var(--h-leading, 1) * 0.95)',
             margin: '0 0 18px',
             color: 'white',
-            maxWidth: '16ch',
+            maxWidth: '14ch',
             textShadow: '0 2px 30px oklch(0 0 0 / 0.35)',
             fontFamily: HEADING_VAR,
           }}
         >
-          Turn your craft into a course
+          Launch your own masterclass
         </h1>
 
         <div
@@ -331,40 +391,39 @@ function CoursesEmptyHero({ onStart }: { onStart: () => void }) {
             fontSize: 'clamp(14px, 1.3vw, 18px)',
             fontWeight: 400,
             color: 'rgba(255,255,255,0.88)',
-            maxWidth: 560,
+            maxWidth: 640,
             marginBottom: 30,
-            lineHeight: 1.4,
+            lineHeight: 1.5,
           }}
         >
-          A landing page like this — built around your story, lessons, and
-          students. Ready in minutes.
+          Spaire gives creators the tools to package their knowledge into
+          beautiful, high-value courses. Design immersive learning experiences,
+          grow your audience, and monetize your expertise.
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button
-            type="button"
-            onClick={onStart}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              padding: '13px 22px 13px 22px',
-              background: 'white',
-              color: 'oklch(0.14 0.006 280)',
-              borderRadius: 999,
-              boxShadow: '0 8px 28px oklch(0 0 0 / 0.4)',
-              border: 'none',
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              fontSize: 14,
-              fontWeight: 600,
-              lineHeight: 1,
-            }}
-          >
-            Start your free trial →
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => {}}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 10,
+            padding: '13px 22px',
+            background: 'white',
+            color: 'oklch(0.14 0.006 280)',
+            borderRadius: 999,
+            boxShadow: '0 8px 28px oklch(0 0 0 / 0.4)',
+            border: 'none',
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            fontSize: 14,
+            fontWeight: 600,
+            lineHeight: 1,
+          }}
+        >
+          Start your free trial →
+        </button>
       </div>
-    </section>
+    </div>
   )
 }
