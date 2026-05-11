@@ -161,20 +161,7 @@ export default function CoursesPage({
             </div>
           </ShadowBoxOnMd>
         ) : showEmptyOriginal ? (
-          <div className="flex flex-col items-center justify-center gap-6 py-24">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50">
-              <AutoStoriesOutlined className="text-blue-500" sx={{ fontSize: 32 }} />
-            </div>
-            <div className="text-center">
-              <p className="text-lg font-semibold text-gray-900">No courses yet</p>
-              <p className="mt-1 text-sm text-gray-500">
-                Create your first course to get started
-              </p>
-            </div>
-            <Button onClick={handleCreate}>
-              Create Your First Course
-            </Button>
-          </div>
+          <CoursesEmptyHero onStart={handleCreate} />
         ) : showNoMatches ? (
           <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
             <p className="text-sm font-medium text-gray-900">
@@ -199,5 +186,185 @@ export default function CoursesPage({
         )}
       </div>
     </DashboardBody>
+  )
+}
+
+const FONT_VAR = 'var(--font-body, "Poppins", system-ui, sans-serif)'
+const HEADING_VAR = `var(--font-heading, ${FONT_VAR})`
+
+function CoursesEmptyHero({ onStart }: { onStart: () => void }) {
+  return (
+    <section
+      style={{
+        position: 'relative',
+        height: 'min(72vh, 620px)',
+        minHeight: 480,
+        borderRadius: 'calc(28px * var(--radius-mul, 1))',
+        overflow: 'hidden',
+        background: '#000',
+        isolation: 'isolate',
+        border: '1px solid oklch(0.92 0.003 280)',
+        boxShadow:
+          '0 2px 6px rgba(0,0,0,0.06), 0 24px 60px rgba(0,0,0,0.10)',
+      }}
+    >
+      <img
+        src="/assets/courses-empty-hero.jpg"
+        alt=""
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+        }}
+      />
+
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          zIndex: 2,
+          pointerEvents: 'none',
+          background:
+            'linear-gradient(180deg, oklch(0 0 0 / 0.2) 0%, oklch(0 0 0 / 0) 30%, oklch(0 0 0 / 0) 45%, oklch(0 0 0 / 0.6) 80%, oklch(0 0 0 / 0.92) 100%)',
+        }}
+      />
+
+      <div
+        style={{
+          position: 'absolute',
+          left: 32,
+          top: 28,
+          zIndex: 3,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+        }}
+      >
+        <span
+          style={{
+            width: 6,
+            height: 6,
+            borderRadius: '50%',
+            background: 'oklch(0.72 0.16 25)',
+            boxShadow: '0 0 12px oklch(0.72 0.16 25)',
+          }}
+        />
+        <span
+          style={{
+            fontSize: 11,
+            letterSpacing: '0.18em',
+            fontWeight: 600,
+            color: 'rgba(255,255,255,0.85)',
+            fontFamily: FONT_VAR,
+          }}
+        >
+          SPAIRE ORIGINAL
+        </span>
+      </div>
+
+      <div
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 3,
+          padding: '40px 48px 52px',
+          color: 'white',
+          fontFamily: FONT_VAR,
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            marginBottom: 16,
+            fontSize: 12,
+            color: 'rgba(255,255,255,0.65)',
+            fontWeight: 500,
+          }}
+        >
+          <span
+            style={{
+              padding: '3px 10px',
+              background: 'rgba(255,255,255,0.12)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              borderRadius: 999,
+              border: '1px solid rgba(255,255,255,0.18)',
+              fontSize: 10,
+              letterSpacing: '0.12em',
+              fontWeight: 600,
+              color: 'white',
+            }}
+          >
+            YOUR NEXT MASTERCLASS
+          </span>
+          <span style={{ color: 'rgba(255,255,255,0.6)' }}>Built with Spaire</span>
+          <span style={{ color: 'rgba(255,255,255,0.3)' }}>·</span>
+          <span style={{ color: 'rgba(255,255,255,0.6)' }}>2 min setup</span>
+        </div>
+
+        <h1
+          style={{
+            fontSize: 'calc(clamp(48px, 6.5vw, 84px) * var(--type-scale, 1))',
+            fontWeight: 'var(--h-weight, 700)',
+            fontStyle: 'var(--h-italic, normal)',
+            letterSpacing: 'calc(var(--h-tracking, 0em) - 0.045em)',
+            lineHeight: 'calc(var(--h-leading, 1) * 0.95)',
+            margin: '0 0 18px',
+            color: 'white',
+            maxWidth: '16ch',
+            textShadow: '0 2px 30px oklch(0 0 0 / 0.35)',
+            fontFamily: HEADING_VAR,
+          }}
+        >
+          Turn your craft into a course
+        </h1>
+
+        <div
+          style={{
+            fontSize: 'clamp(14px, 1.3vw, 18px)',
+            fontWeight: 400,
+            color: 'rgba(255,255,255,0.88)',
+            maxWidth: 560,
+            marginBottom: 30,
+            lineHeight: 1.4,
+          }}
+        >
+          A landing page like this — built around your story, lessons, and
+          students. Ready in minutes.
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button
+            type="button"
+            onClick={onStart}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '13px 22px 13px 22px',
+              background: 'white',
+              color: 'oklch(0.14 0.006 280)',
+              borderRadius: 999,
+              boxShadow: '0 8px 28px oklch(0 0 0 / 0.4)',
+              border: 'none',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              fontSize: 14,
+              fontWeight: 600,
+              lineHeight: 1,
+            }}
+          >
+            Start your free trial →
+          </button>
+        </div>
+      </div>
+    </section>
   )
 }

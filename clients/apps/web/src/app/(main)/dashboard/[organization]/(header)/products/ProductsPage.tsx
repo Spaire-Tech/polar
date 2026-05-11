@@ -143,10 +143,14 @@ export default function ClientPage({
     (courses.data ?? []).map((c) => [c.product_id, c.id] as const),
   )
 
+  const nonCourseItems = (products.data?.items ?? []).filter(
+    (product) => !courseIdByProductId.has(product.id),
+  )
+
   return (
     <DashboardBody>
       <div className="flex flex-col gap-y-8">
-        {products.data && products.data.items.length > 0 ? (
+        {products.data && nonCourseItems.length > 0 ? (
           <>
             <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
               <div className="flex flex-col gap-4 md:flex-row md:items-center">
@@ -220,7 +224,7 @@ export default function ClientPage({
               onPageChange={onPageChange}
             >
               <List size="small">
-                {products.data.items
+                {nonCourseItems
                   .sort((a, b) => {
                     if (a.is_archived === b.is_archived) return 0
                     return a.is_archived ? 1 : -1
