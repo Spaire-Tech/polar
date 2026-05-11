@@ -13,14 +13,17 @@ import {
   DndContext,
   type DragEndEvent,
   DragOverlay,
+  type DragOverEvent,
   type DragStartEvent,
   KeyboardSensor,
+  MeasuringStrategy,
   PointerSensor,
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
 import {
   arrayMove,
+  rectSortingStrategy,
   SortableContext,
   sortableKeyboardCoordinates,
   useSortable,
@@ -265,7 +268,7 @@ const ProductsBlock = ({
           </SectionLabel>
           <SortableContext
             items={section.items.map((p) => PRODUCT_PREFIX + p.id)}
-            strategy={verticalListSortingStrategy}
+            strategy={rectSortingStrategy}
           >
             <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-2">
               {section.items.map((product) => (
@@ -649,8 +652,12 @@ export const DraggableBlocks = ({
   }
 
   // ── DnD ──
+  // Lower activation distance + small tolerance makes the drag pick
+  // up the moment the pointer commits to a direction.
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 4, tolerance: 4 },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     }),
@@ -665,21 +672,18 @@ export const DraggableBlocks = ({
     }
   }
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    setActiveBlock(null)
-    const { active, over } = event
-    if (!over) return
-    const activeId = String(active.id)
-    const overId = String(over.id)
+  // Live reorder while the pointer is still down: as the active item
+  // crosses another item we commit the swap into form state so the
+  // canvas reflows in real time. onDragEnd is just bookkeeping.
+  const applyReorder = (activeId: string, overId: string) => {
     if (activeId === overId) return
 
-    // ── Block reorder ──
     if (activeId.startsWith(BLOCK_PREFIX) && overId.startsWith(BLOCK_PREFIX)) {
       const a = activeId.slice(BLOCK_PREFIX.length) as BlockKind
       const b = overId.slice(BLOCK_PREFIX.length) as BlockKind
       const from = blockOrder.indexOf(a)
       const to = blockOrder.indexOf(b)
-      if (from < 0 || to < 0) return
+      if (from < 0 || to < 0 || from === to) return
       const next = arrayMove(blockOrder, from, to)
       updateSetting(
         'block_order',
@@ -688,40 +692,43 @@ export const DraggableBlocks = ({
       return
     }
 
-    // ── Product reorder (within section: arrayMove on the global
-    //    featured_product_ids ranking, ensuring the active id ends up
-    //    next to the target) ──
     if (activeId.startsWith(PRODUCT_PREFIX) && overId.startsWith(PRODUCT_PREFIX)) {
       const aId = activeId.slice(PRODUCT_PREFIX.length)
       const bId = overId.slice(PRODUCT_PREFIX.length)
-      // Build a ranked list from current productOrder + any visible
-      // products missing from it, then move within.
       const seen = new Set(productOrder)
       const tail = products.map((p) => p.id).filter((id) => !seen.has(id))
       const full = [...productOrder, ...tail]
       const from = full.indexOf(aId)
       const to = full.indexOf(bId)
-      if (from < 0 || to < 0) return
+      if (from < 0 || to < 0 || from === to) return
       const next = arrayMove(full, from, to)
       updateSetting('featured_product_ids', next)
       return
     }
 
-    // ── Link reorder ──
     if (activeId.startsWith(LINK_PREFIX) && overId.startsWith(LINK_PREFIX)) {
       const aId = activeId.slice(LINK_PREFIX.length)
       const bId = overId.slice(LINK_PREFIX.length)
       const from = links.findIndex((l) => l.id === aId)
       const to = links.findIndex((l) => l.id === bId)
-      if (from < 0 || to < 0) return
+      if (from < 0 || to < 0 || from === to) return
       const next = arrayMove(links, from, to)
       setValue(
         'storefront_settings',
         { ...(settings ?? {}), storefront_links: next } as schemas['OrganizationStorefrontSettings'],
         { shouldDirty: true },
       )
-      return
     }
+  }
+
+  const handleDragOver = (event: DragOverEvent) => {
+    const { active, over } = event
+    if (!over) return
+    applyReorder(String(active.id), String(over.id))
+  }
+
+  const handleDragEnd = (_event: DragEndEvent) => {
+    setActiveBlock(null)
   }
 
   // ── Block renderers ──
@@ -755,8 +762,11 @@ export const DraggableBlocks = ({
     <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
+      measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
       onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
+      onDragCancel={() => setActiveBlock(null)}
     >
       <SortableContext
         items={renderableOrder.map((k) => BLOCK_PREFIX + k)}
