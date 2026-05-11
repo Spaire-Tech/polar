@@ -16,9 +16,11 @@ import { EditableProfileCard } from './InlineEdit/EditableProfileCard'
 export const SpaceEditorCanvas = ({
   organization: org,
   hasSettingsPanel,
+  onAddToSpace,
 }: {
   organization: schemas['Organization']
   hasSettingsPanel: boolean
+  onAddToSpace?: () => void
 }) => {
   const { watch } = useFormContext<schemas['OrganizationUpdate']>()
   const watched = watch()
@@ -52,6 +54,7 @@ export const SpaceEditorCanvas = ({
           <DraggableBlocks
             organization={organization}
             products={products}
+            onAddToSpace={onAddToSpace}
           />
           <div className="footer-note">That&apos;s everything on your Space.</div>
         </main>

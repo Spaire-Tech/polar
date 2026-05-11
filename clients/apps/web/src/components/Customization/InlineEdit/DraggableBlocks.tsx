@@ -43,6 +43,111 @@ type BlockKind = 'products' | 'links' | 'forms'
 
 const DEFAULT_ORDER: BlockKind[] = ['products', 'links']
 
+// ─── Empty-state hero (shared by every "nothing here yet" surface) ─
+
+const SpaceEmptyHero = ({ onAddToSpace }: { onAddToSpace?: () => void }) => (
+  <section
+    style={{
+      position: 'relative',
+      width: '100%',
+      height: 'min(70vh, 560px)',
+      minHeight: 420,
+      borderRadius: 'calc(28px * var(--radius-mul, 1))',
+      overflow: 'hidden',
+      background: '#000',
+      isolation: 'isolate',
+      border: '1px solid oklch(0.92 0.003 280)',
+      boxShadow:
+        '0 2px 6px rgba(0,0,0,0.06), 0 24px 60px rgba(0,0,0,0.10)',
+    }}
+  >
+    <img
+      src="/assets/space-empty-hero.jpg"
+      alt=""
+      aria-hidden="true"
+      style={{
+        position: 'absolute',
+        inset: 0,
+        width: '100%',
+        height: '100%',
+        objectFit: 'cover',
+      }}
+    />
+    <div
+      style={{
+        position: 'absolute',
+        inset: 0,
+        zIndex: 2,
+        pointerEvents: 'none',
+        background:
+          'linear-gradient(180deg, oklch(0 0 0 / 0.2) 0%, oklch(0 0 0 / 0) 30%, oklch(0 0 0 / 0) 45%, oklch(0 0 0 / 0.6) 80%, oklch(0 0 0 / 0.92) 100%)',
+      }}
+    />
+    <div
+      style={{
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 3,
+        padding: '32px 36px 40px',
+        color: 'white',
+      }}
+    >
+      <h2
+        style={{
+          fontSize: 'clamp(32px, 4.2vw, 52px)',
+          fontWeight: 'var(--h-weight, 700)',
+          fontStyle: 'var(--h-italic, normal)',
+          letterSpacing: 'calc(var(--h-tracking, 0em) - 0.04em)',
+          lineHeight: 'calc(var(--h-leading, 1) * 0.98)',
+          margin: '0 0 14px',
+          color: 'white',
+          maxWidth: '14ch',
+          textShadow: '0 2px 30px oklch(0 0 0 / 0.35)',
+        }}
+      >
+        Everything in one space
+      </h2>
+      <p
+        style={{
+          fontSize: 'clamp(13px, 1.1vw, 16px)',
+          fontWeight: 400,
+          color: 'rgba(255,255,255,0.88)',
+          maxWidth: 520,
+          margin: '0 0 24px',
+          lineHeight: 1.5,
+        }}
+      >
+        Create a space where your audience can discover and buy what you
+        offer.
+      </p>
+      <button
+        type="button"
+        onClick={onAddToSpace}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 10,
+          padding: '12px 20px',
+          background: 'white',
+          color: 'oklch(0.14 0.006 280)',
+          borderRadius: 999,
+          boxShadow: '0 8px 28px oklch(0 0 0 / 0.4)',
+          border: 'none',
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+          fontSize: 14,
+          fontWeight: 600,
+          lineHeight: 1,
+        }}
+      >
+        Add to Space →
+      </button>
+    </div>
+  </section>
+)
+
 const getBlockOrder = (
   settings: schemas['OrganizationStorefrontSettings'] | undefined | null,
 ): BlockKind[] => {
@@ -189,11 +294,13 @@ const ProductsBlock = ({
   products,
   productOrder,
   onUnfeature,
+  onAddToSpace,
 }: {
   organization: schemas['Organization']
   products: schemas['ProductStorefront'][]
   productOrder: string[]
   onUnfeature: (productId: string) => void
+  onAddToSpace?: () => void
 }) => {
   const settings = organization.storefront_settings
   const featuredMode = settings?.featured_mode ?? 'all'
@@ -241,19 +348,7 @@ const ProductsBlock = ({
   }, [orderedVisible])
 
   if (visible.length === 0) {
-    if (featuredMode === 'curated') {
-      return (
-        <div className="rounded-2xl border border-dashed border-gray-300 bg-white/50 p-8 text-center text-sm text-gray-500">
-          You&apos;re curating which products appear, but haven&apos;t selected any yet.
-          Open <b>Add to Space</b> → Digital Product to feature some.
-        </div>
-      )
-    }
-    return (
-      <div className="rounded-2xl border border-dashed border-gray-300 bg-white/50 p-8 text-center text-sm text-gray-500">
-        No products yet. Click <b>+ Add to Space</b> to create one.
-      </div>
-    )
+    return <SpaceEmptyHero onAddToSpace={onAddToSpace} />
   }
 
   return (
@@ -322,18 +417,16 @@ const LinksBlock = ({
   layout,
   onLayoutChange,
   onRemove,
+  onAddToSpace,
 }: {
   links: StorefrontLinkItem[]
   layout: LinksLayout
   onLayoutChange: (next: LinksLayout) => void
   onRemove: (id: string) => void
+  onAddToSpace?: () => void
 }) => {
   if (links.length === 0) {
-    return (
-      <div className="rounded-2xl border border-dashed border-gray-300 bg-white/50 p-8 text-center text-sm text-gray-500">
-        No links yet. Click <b>+ Add to Space</b> → URL or Embed to add one.
-      </div>
-    )
+    return <SpaceEmptyHero onAddToSpace={onAddToSpace} />
   }
 
   // Embeds and URL links render as separate sections — same split the
@@ -571,9 +664,11 @@ const LinkRow = ({
 export const DraggableBlocks = ({
   organization: org,
   products,
+  onAddToSpace,
 }: {
   organization: schemas['Organization']
   products: schemas['ProductStorefront'][]
+  onAddToSpace?: () => void
 }) => {
   const { watch, setValue } = useFormContext<schemas['OrganizationUpdate']>()
   const settings = (watch('storefront_settings') ??
@@ -740,6 +835,7 @@ export const DraggableBlocks = ({
           products={products}
           productOrder={productOrder}
           onUnfeature={onUnfeatureProduct}
+          onAddToSpace={onAddToSpace}
         />
       )
     }
@@ -750,6 +846,7 @@ export const DraggableBlocks = ({
           layout={linksLayout}
           onLayoutChange={(v) => updateSetting('links_layout', v)}
           onRemove={onRemoveLink}
+          onAddToSpace={onAddToSpace}
         />
       )
     }
@@ -757,6 +854,22 @@ export const DraggableBlocks = ({
   }
 
   const renderableOrder = blockOrder.filter((k) => k === 'products' || k === 'links')
+
+  // If the whole canvas is empty, collapse the per-block heroes into a
+  // single one — two stacked heroes would just be noise.
+  const featuredMode = settings?.featured_mode ?? 'all'
+  const featuredIds = settings?.featured_product_ids ?? []
+  const visibleProductCount =
+    featuredMode === 'curated'
+      ? products.filter((p) => featuredIds.includes(p.id)).length
+      : products.length
+  if (visibleProductCount === 0 && links.length === 0) {
+    return (
+      <div className="canvas-card">
+        <SpaceEmptyHero onAddToSpace={onAddToSpace} />
+      </div>
+    )
+  }
 
   return (
     <DndContext
