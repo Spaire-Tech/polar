@@ -44,12 +44,14 @@ const DashboardLayout = (
   return (
     <DashboardProvider organization={organization}>
       <div className="relative flex h-full w-full flex-col bg-white md:flex-row">
-        <MobileNav
-          organization={organization}
-          organizations={organizations ?? []}
-          type={props.type}
-        />
-        <div className="hidden md:flex">
+        <div data-dashboard-mobile-nav="true">
+          <MobileNav
+            organization={organization}
+            organizations={organizations ?? []}
+            type={props.type}
+          />
+        </div>
+        <div className="hidden md:flex" data-dashboard-sidebar="true">
           <DashboardSidebar
             organization={organization}
             organizations={organizations ?? []}

@@ -270,44 +270,50 @@ function ProductsEmptyHero({
   onStart: () => void
 }) {
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 60,
-        background: 'oklch(0.985 0.001 280)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        overflow: 'auto',
-        padding: '20px',
-      }}
-    >
-      <button
-        type="button"
-        onClick={onBack}
-        aria-label="Back to dashboard"
+    <>
+      <style>{`
+        [data-dashboard-sidebar],
+        [data-dashboard-mobile-nav],
+        [data-catalog-tabs] { display: none !important; }
+      `}</style>
+      <div
         style={{
-          position: 'absolute',
-          left: 24,
-          top: 20,
-          zIndex: 5,
-          width: 40,
-          height: 40,
-          borderRadius: 999,
-          background: 'white',
-          border: '1px solid oklch(0.92 0.003 280)',
-          color: 'oklch(0.14 0.006 280)',
+          position: 'fixed',
+          inset: 0,
+          zIndex: 60,
+          background: 'oklch(0.985 0.001 280)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          cursor: 'pointer',
-          fontFamily: 'inherit',
-          boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+          overflow: 'auto',
+          padding: '20px',
         }}
       >
-        <ArrowBackOutlined sx={{ fontSize: 20 }} />
-      </button>
+        <button
+          type="button"
+          onClick={onBack}
+          aria-label="Back to dashboard"
+          style={{
+            position: 'absolute',
+            left: 24,
+            top: 20,
+            zIndex: 5,
+            width: 40,
+            height: 40,
+            borderRadius: 999,
+            background: 'white',
+            border: '1px solid oklch(0.92 0.003 280)',
+            color: 'oklch(0.14 0.006 280)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+          }}
+        >
+          <ArrowBackOutlined sx={{ fontSize: 20 }} />
+        </button>
 
       <div
         style={{
@@ -464,6 +470,7 @@ function ProductsEmptyHero({
           </div>
         </section>
       </div>
-    </div>
+      </div>
+    </>
   )
 }
