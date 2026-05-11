@@ -80,20 +80,17 @@ const SpaceEmptyHero = ({ onAddToSpace }: { onAddToSpace?: () => void }) => (
         zIndex: 2,
         pointerEvents: 'none',
         background:
-          'linear-gradient(180deg, oklch(0 0 0 / 0.35) 0%, oklch(0 0 0 / 0.45) 50%, oklch(0 0 0 / 0.55) 100%)',
+          'linear-gradient(180deg, oklch(0 0 0 / 0.2) 0%, oklch(0 0 0 / 0) 30%, oklch(0 0 0 / 0) 45%, oklch(0 0 0 / 0.6) 80%, oklch(0 0 0 / 0.92) 100%)',
       }}
     />
     <div
       style={{
         position: 'absolute',
-        inset: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
         zIndex: 3,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        textAlign: 'center',
-        padding: '36px 40px',
+        padding: '32px 36px 40px',
         color: 'white',
       }}
     >
@@ -871,8 +868,22 @@ export const DraggableBlocks = ({
       : products.length
   if (visibleProductCount === 0 && links.length === 0) {
     return (
-      <div className="canvas-card">
-        <SpaceEmptyHero onAddToSpace={onAddToSpace} />
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          // Stretch to roughly the visible canvas height so the hero
+          // box sits in the vertical middle of the right pane instead
+          // of hugging the top. 220px ≈ sticky toolbar + canvas-wrap
+          // padding (28 top / 140 bottom) + a bit of breathing room.
+          minHeight: 'calc(100dvh - 220px)',
+          width: '100%',
+        }}
+      >
+        <div className="canvas-card" style={{ width: '100%' }}>
+          <SpaceEmptyHero onAddToSpace={onAddToSpace} />
+        </div>
       </div>
     )
   }
