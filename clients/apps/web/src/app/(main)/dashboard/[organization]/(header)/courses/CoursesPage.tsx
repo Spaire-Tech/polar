@@ -426,7 +426,7 @@ function CoursesEmptyHero({
                 fontFamily: HEADING_VAR,
               }}
             >
-              Launch your own masterclass
+              Launch your own Masterclass
             </h1>
 
             <div
