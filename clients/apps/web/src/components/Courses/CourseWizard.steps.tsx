@@ -1731,10 +1731,14 @@ export function StepPricingWizard({
       return {
         ...base,
         amount_type: 'fixed',
-        price_amount: p?.price_amount ?? 0,
+        price_amount: p?.price_amount ?? null,
       }
     })
     replace(updated)
+    // The paywall only makes sense on paid courses. Keep the flag in sync
+    // with the price model so the user doesn't have to drag the slider just
+    // to flip it on.
+    onPaywallChange({ ...paywall, paywallEnabled: next === 'fixed' })
   }
 
   const addCurrency = (code?: string) => {
@@ -1751,7 +1755,7 @@ export function StepPricingWizard({
     } else {
       append({
         amount_type: 'fixed',
-        price_amount: 0,
+        price_amount: null,
         price_currency: next as schemas['PresentmentCurrency'],
       })
     }
@@ -1928,7 +1932,7 @@ export function StepPricingWizard({
                           onChange={(v) =>
                             setValue(
                               `prices.${selectedIndex}.price_amount`,
-                              typeof v === 'number' ? v : Number(v) || 0,
+                              v,
                             )
                           }
                           placeholder={0}
