@@ -11,7 +11,6 @@ type CatalogTab = {
 
 const catalogTabs: CatalogTab[] = [
   { title: 'Products', path: '/products' },
-  { title: 'Courses', path: '/courses' },
   { title: 'Payment Links', path: '/products/checkout-links' },
   { title: 'Discounts', path: '/products/discounts' },
   { title: 'Files', path: '/products/benefits' },
