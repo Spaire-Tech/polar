@@ -137,6 +137,8 @@ async def create_email_sequence_from_template(
         session,
         organization_id=organization_id,
         template=dict(template),
+        course_id=body.course_id,
+        lesson_id=body.lesson_id,
     )
     return EmailSequenceSchema.model_validate(sequence, from_attributes=True)
 

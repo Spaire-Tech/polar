@@ -153,6 +153,8 @@ class EmailSequenceTemplate(Schema):
 
 class EmailSequenceFromTemplate(Schema):
     slug: str
+    course_id: UUID4 | None = None
+    lesson_id: UUID4 | None = None
 
 
 class EmailSequenceAnalytics(Schema):

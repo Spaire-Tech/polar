@@ -252,6 +252,8 @@ class EmailSequenceService:
         *,
         organization_id: UUID,
         template: dict,
+        course_id: UUID | None = None,
+        lesson_id: UUID | None = None,
     ) -> EmailSequence:
         repository = EmailSequenceRepository.from_session(session)
         # The template can ship a rich `flow_doc` with wait/branch/action/goal
@@ -269,6 +271,8 @@ class EmailSequenceService:
             trigger_type=template["trigger_type"],
             trigger_config=trigger_config,
             status=EmailSequenceStatus.draft,
+            course_id=course_id,
+            lesson_id=lesson_id,
         )
         sequence = await repository.create(sequence, flush=True)
 

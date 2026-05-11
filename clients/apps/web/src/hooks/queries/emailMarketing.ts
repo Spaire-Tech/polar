@@ -865,7 +865,12 @@ const seqMutate = async <T>(
 
 export const useEmailSequences = (
   organizationId: string,
-  params?: { page?: number; limit?: number },
+  params?: {
+    page?: number
+    limit?: number
+    courseId?: string
+    lessonId?: string
+  },
 ) =>
   useQuery({
     queryKey: ['email_sequences', { organizationId, ...(params ?? {}) }],
@@ -873,6 +878,8 @@ export const useEmailSequences = (
       const qs = new URLSearchParams({ organization_id: organizationId })
       if (params?.page) qs.set('page', String(params.page))
       if (params?.limit) qs.set('limit', String(params.limit))
+      if (params?.courseId) qs.set('course_id', params.courseId)
+      if (params?.lessonId) qs.set('lesson_id', params.lessonId)
       return seqFetch<any>(`/v1/email-sequences/?${qs}`)
     },
     retry: defaultRetry,
@@ -898,6 +905,8 @@ export const useCreateEmailSequence = (organizationId: string) =>
       // The editor uses this so a fresh sequence can ship with the full
       // authored flow on first save (audit issue #27).
       flow_doc?: Record<string, unknown>
+      course_id?: string
+      lesson_id?: string
     }) =>
       seqMutate<any>(
         `/v1/email-sequences/?organization_id=${organizationId}`,
@@ -1173,11 +1182,15 @@ export const useEmailSequenceTemplates = () =>
 
 export const useCreateSequenceFromTemplate = (organizationId: string) =>
   useMutation({
-    mutationFn: (slug: string) =>
+    mutationFn: (body: {
+      slug: string
+      course_id?: string
+      lesson_id?: string
+    }) =>
       seqMutate<any>(
         `/v1/email-sequences/from-template?organization_id=${organizationId}`,
         'POST',
-        { slug },
+        body,
       ),
     onSuccess: () => {
       getQueryClient().invalidateQueries({ queryKey: ['email_sequences'] })

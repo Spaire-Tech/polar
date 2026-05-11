@@ -16,7 +16,7 @@ import {
 import { useProducts } from '@/hooks/queries/products'
 import { schemas } from '@spaire/client'
 import { useQueryClient } from '@tanstack/react-query'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { BroadcastEditor } from '../blockEditor/BroadcastEditor'
@@ -199,6 +199,10 @@ export const NewSequenceScreen = (props: {
   sequenceId: string | null
   onBack: () => void
   onOpened?: (id: string) => void
+  /** Scope this sequence to a specific course when first persisted. */
+  courseId?: string
+  /** Scope this sequence to a specific lesson when first persisted. */
+  lessonId?: string
 }) => {
   const { sequenceId } = props
   const sequenceQuery = useEmailSequence(sequenceId ?? '')
@@ -456,6 +460,8 @@ const SequenceEditorInner = ({
       // this the editor used to PATCH a second time, which raced with
       // syncEmailSteps and risked dropping flow nodes (audit issue #27).
       flow_doc: flow as unknown as Record<string, unknown>,
+      course_id: props.courseId,
+      lesson_id: props.lessonId,
     })
     persistedIdRef.current = created.id
     onOpened?.(created.id)
@@ -2056,18 +2062,56 @@ export const NewSequenceRoute = ({
   sequenceId: string | null
 }) => {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const base = `/dashboard/${organization.slug}/email-marketing/sequences`
+
+  const embed = searchParams.get('embed') === '1'
+  const courseId = searchParams.get('course_id') ?? undefined
+  const lessonId = searchParams.get('lesson_id') ?? undefined
+
+  const handleBack = () => {
+    if (embed && typeof window !== 'undefined') {
+      // Posted from the iframe to the host page so the modal can close
+      // and refresh its sequence list. Hosts listen on window 'message'.
+      window.parent.postMessage(
+        { type: 'spaire.sequence-editor.close' },
+        window.location.origin,
+      )
+      return
+    }
+    router.push(base)
+  }
+
   return (
-    <NewSequenceScreen
-      organization={organization}
-      sequenceId={sequenceId}
-      onBack={() => router.push(base)}
-      onOpened={(id) => {
-        if (sequenceId !== id) {
-          router.replace(`${base}/${id}/edit`)
-        }
-      }}
-    />
+    <>
+      {embed ? (
+        <style>{`
+          [data-dashboard-sidebar],
+          [data-dashboard-mobile-nav],
+          [data-email-marketing-chrome] { display: none !important; }
+          .spaire-email-app .container { max-width: none; padding: 0 !important; }
+        `}</style>
+      ) : null}
+      <NewSequenceScreen
+        organization={organization}
+        sequenceId={sequenceId}
+        courseId={courseId}
+        lessonId={lessonId}
+        onBack={handleBack}
+        onOpened={(id) => {
+          if (sequenceId !== id) {
+            // Preserve embed + scoping params so the URL stays consistent
+            // for any refresh inside the iframe.
+            const next = new URLSearchParams()
+            if (embed) next.set('embed', '1')
+            if (courseId) next.set('course_id', courseId)
+            if (lessonId) next.set('lesson_id', lessonId)
+            const qs = next.toString()
+            router.replace(`${base}/${id}/edit${qs ? `?${qs}` : ''}`)
+          }
+        }}
+      />
+    </>
   )
 }
 
