@@ -154,6 +154,16 @@ class EmailSubscriberRepository(
         )
         return await self.get_one_or_none(statement)
 
+    async def get_by_customer_and_organization(
+        self, customer_id: UUID, organization_id: UUID
+    ) -> EmailSubscriber | None:
+        statement = self.get_base_statement().where(
+            EmailSubscriber.customer_id == customer_id,
+            EmailSubscriber.organization_id == organization_id,
+            EmailSubscriber.deleted_at.is_(None),
+        )
+        return await self.get_one_or_none(statement)
+
     async def list_by_emails_and_organization(
         self, emails: list[str], organization_id: UUID
     ) -> list[EmailSubscriber]:

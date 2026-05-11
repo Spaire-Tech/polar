@@ -4,13 +4,15 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from polar.email_sequence.events import fire_event
+from polar.email_subscriber.repository import EmailSubscriberRepository
 from polar.models.course import Course
 from polar.models.course_enrollment import CourseEnrollment
 from polar.models.course_lesson import CourseLesson
 from polar.models.course_lesson_progress import CourseLessonProgress
 from polar.models.course_module import CourseModule
-from polar.models.customer import Customer
 from polar.models.course_note import CourseNote
+from polar.models.customer import Customer
 from polar.models.lesson_comment import LessonComment
 
 from .repository import (
@@ -287,7 +289,14 @@ class CourseService:
             product_id=product_id,
             enrolled_at=datetime.now(tz=UTC),
         )
-        return await repo.create(enrollment, flush=True)
+        enrollment = await repo.create(enrollment, flush=True)
+        await self._fire_course_event(
+            session,
+            course_id=course_id,
+            customer_id=customer.id,
+            event_name="course.enrolled",
+        )
+        return enrollment
 
     async def revoke_enrollment(
         self,
@@ -373,7 +382,91 @@ class CourseService:
             lesson_id=lesson_id,
             completed_at=datetime.now(tz=UTC),
         )
-        return await repo.create(progress, flush=True)
+        progress = await repo.create(progress, flush=True)
+        await self._fire_lesson_completion_events(
+            session, enrollment_id=enrollment_id, lesson_id=lesson_id
+        )
+        return progress
+
+    # --- Automation event firing ---
+
+    async def _fire_course_event(
+        self,
+        session: AsyncSession,
+        *,
+        course_id: UUID,
+        customer_id: UUID,
+        event_name: str,
+        lesson_id: UUID | None = None,
+    ) -> None:
+        course = await CourseRepository.from_session(session).get_by_id(course_id)
+        if course is None:
+            return
+        subscriber_repo = EmailSubscriberRepository.from_session(session)
+        subscriber = await subscriber_repo.get_by_customer_and_organization(
+            customer_id, course.organization_id
+        )
+        if subscriber is None:
+            return
+        await fire_event(
+            session,
+            organization_id=course.organization_id,
+            subscriber_id=subscriber.id,
+            event_name=event_name,
+            course_id=course_id,
+            lesson_id=lesson_id,
+        )
+
+    async def _fire_lesson_completion_events(
+        self,
+        session: AsyncSession,
+        *,
+        enrollment_id: UUID,
+        lesson_id: UUID,
+    ) -> None:
+        """Fire automation events triggered by a lesson completion: the
+        per-lesson event, plus derived events (first lesson, mid-course
+        checkpoint, course complete) when their thresholds are crossed.
+        """
+        enrollment = await CourseEnrollmentRepository.from_session(
+            session
+        ).get_by_id(enrollment_id)
+        if enrollment is None:
+            return
+
+        progress_repo = CourseLessonProgressRepository.from_session(session)
+        lesson_repo = CourseLessonRepository.from_session(session)
+        completed_count = await progress_repo.count_by_enrollment(enrollment_id)
+        total_count = await lesson_repo.count_by_course(enrollment.course_id)
+
+        common = {
+            "course_id": enrollment.course_id,
+            "customer_id": enrollment.customer_id,
+        }
+
+        await self._fire_course_event(
+            session,
+            event_name="course.lesson_completed",
+            lesson_id=lesson_id,
+            **common,
+        )
+
+        if completed_count == 1:
+            await self._fire_course_event(
+                session, event_name="course.first_lesson_completed", **common
+            )
+
+        if total_count > 0:
+            prev_pct = (completed_count - 1) / total_count
+            cur_pct = completed_count / total_count
+            if prev_pct < 0.5 <= cur_pct:
+                await self._fire_course_event(
+                    session, event_name="course.mid_checkpoint", **common
+                )
+            if completed_count >= total_count:
+                await self._fire_course_event(
+                    session, event_name="course.completed", **common
+                )
 
     async def get_progress_for_enrollment(
         self,

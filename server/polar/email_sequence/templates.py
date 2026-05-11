@@ -492,6 +492,173 @@ TEMPLATES: list[SequenceTemplate] = [
             ),
         ],
     },
+    # ── Course-scoped automations ────────────────────────────────────────────
+    # All six templates trigger on the matching product purchase, so they
+    # enrol the new student the moment they're added to a course. Wait nodes
+    # use `until-event` to listen for events fired by the course service:
+    #   - course.first_lesson_completed
+    #   - course.lesson_completed
+    #   - course.mid_checkpoint
+    #   - course.completed
+    # Scope is enforced at fire_event time by the sequence's course_id column.
+    {
+        "slug": "course_welcome_enrollment",
+        "name": "Welcome / Enrollment Email",
+        "description": "A single welcome email sent the moment a student enrols in the course.",
+        "category": "Course",
+        "trigger_type": EmailSequenceTriggerType.on_purchase,
+        "trigger_config": {},
+        "steps": [
+            _step(
+                delay_hours=0,
+                subject="Welcome to the course",
+                sender_name="Course Team",
+                blocks=[
+                    _heading("You're in!"),
+                    _para(
+                        "Thanks for enrolling. Your first lesson is ready whenever "
+                        "you are — block out 30 minutes and dive in."
+                    ),
+                    _button("Open the course", "https://example.com/course"),
+                ],
+            ),
+        ],
+    },
+    {
+        "slug": "course_first_lesson_nudge",
+        "name": "First Lesson Started",
+        "description": (
+            "Nudge students who enrolled but haven't started yet. Sends 24h "
+            "after enrolment, then exits the sequence as soon as they complete "
+            "their first lesson."
+        ),
+        "category": "Course",
+        "trigger_type": EmailSequenceTriggerType.on_purchase,
+        "trigger_config": {},
+        "steps": [
+            _step(
+                delay_hours=24,
+                subject="Ready to begin?",
+                sender_name="Course Team",
+                blocks=[
+                    _heading("Day one starts now"),
+                    _para(
+                        "You enrolled yesterday but haven't started lesson 1 yet. "
+                        "The hardest part is opening it — once you press play the "
+                        "rest follows."
+                    ),
+                    _button("Start lesson 1", "https://example.com/lesson-1"),
+                ],
+            ),
+        ],
+    },
+    {
+        "slug": "course_first_lesson_completed",
+        "name": "First Lesson Completed",
+        "description": (
+            "Celebrate the first lesson finished and tee up momentum into lesson "
+            "two. Waits for the course.first_lesson_completed event."
+        ),
+        "category": "Course",
+        "trigger_type": EmailSequenceTriggerType.on_purchase,
+        "trigger_config": {},
+        "steps": [
+            _step(
+                delay_hours=0,
+                subject="One down. Let's keep going.",
+                sender_name="Course Team",
+                blocks=[
+                    _heading("First lesson — done"),
+                    _para(
+                        "Nice work. Lesson two builds directly on what you just "
+                        "learned, so it's worth doing while it's fresh."
+                    ),
+                    _button("Open lesson 2", "https://example.com/lesson-2"),
+                ],
+            ),
+        ],
+    },
+    {
+        "slug": "course_inactivity_pickup",
+        "name": "Inactivity Reminder",
+        "description": (
+            "Pick-up-where-you-left-off email sent 14 days after enrolment. "
+            "Students who finish the course before then skip past it."
+        ),
+        "category": "Course",
+        "trigger_type": EmailSequenceTriggerType.on_purchase,
+        "trigger_config": {},
+        "steps": [
+            _step(
+                delay_hours=336,
+                subject="Pick up where you left off",
+                sender_name="Course Team",
+                blocks=[
+                    _heading("Still here?"),
+                    _para(
+                        "Life happens. Your spot is saved — jump back in whenever "
+                        "you have 20 minutes. We'll drop you right where you "
+                        "stopped."
+                    ),
+                    _button("Resume the course", "https://example.com/course"),
+                ],
+            ),
+        ],
+    },
+    {
+        "slug": "course_mid_checkpoint",
+        "name": "Mid-Course Checkpoint",
+        "description": (
+            "Halfway-there encouragement. Waits for the course.mid_checkpoint "
+            "event fired when the student crosses 50% completion."
+        ),
+        "category": "Course",
+        "trigger_type": EmailSequenceTriggerType.on_purchase,
+        "trigger_config": {},
+        "steps": [
+            _step(
+                delay_hours=0,
+                subject="Halfway there — nice work",
+                sender_name="Course Team",
+                blocks=[
+                    _heading("50% complete"),
+                    _para(
+                        "Most people who hit halfway finish. The hardest stretch "
+                        "is behind you — the second half is where the patterns "
+                        "start to click."
+                    ),
+                    _button("Continue the course", "https://example.com/course"),
+                ],
+            ),
+        ],
+    },
+    {
+        "slug": "course_completion",
+        "name": "Course Completion",
+        "description": (
+            "Sent when the student completes every lesson. Use it for "
+            "congratulations, a certificate link, or a next-step upsell."
+        ),
+        "category": "Course",
+        "trigger_type": EmailSequenceTriggerType.on_purchase,
+        "trigger_config": {},
+        "steps": [
+            _step(
+                delay_hours=0,
+                subject="You finished. Congrats.",
+                sender_name="Course Team",
+                blocks=[
+                    _heading("Course complete"),
+                    _para(
+                        "Every lesson, done. That puts you ahead of the 80% who "
+                        "enrol and never finish. If you want a next step, here's "
+                        "what we'd suggest."
+                    ),
+                    _button("See what's next", "https://example.com/next"),
+                ],
+            ),
+        ],
+    },
 ]
 
 
@@ -543,6 +710,10 @@ def _goal_node(event: str) -> dict:
     return _node("goal", {"event": event})
 
 
+def _wait_until_event_node(event: str) -> dict:
+    return _node("wait", {"mode": "until-event", "event": event})
+
+
 # Custom flow docs for templates whose value is more than a flat email list:
 # course welcome and trial→paid both benefit from an engagement branch part-way
 # through; cart recovery uses a goal node to stop on purchase.
@@ -550,6 +721,64 @@ def _flow_for(template: SequenceTemplate) -> dict:
     steps_iter = template["steps"]
     nodes: list[dict] = []
     slug = template["slug"]
+
+    # Event-driven course templates: wait for the relevant lesson/course event
+    # to fire (set by polar.course.service), then send the single email. The
+    # sequence's course_id column scopes the wake so course A's event never
+    # triggers course B's sequence.
+    event_for_slug = {
+        "course_first_lesson_completed": "course.first_lesson_completed",
+        "course_mid_checkpoint": "course.mid_checkpoint",
+        "course_completion": "course.completed",
+    }
+    if slug in event_for_slug and steps_iter:
+        return {
+            "version": 1,
+            "category": _categoryToFlowKey(template["category"]),
+            "audience": {"mode": "all", "filters": [], "excludeTags": []},
+            "goal": {"event": "none", "window": "14"},
+            "send": {
+                "window": "weekdays",
+                "start": "09:00",
+                "end": "17:00",
+                "respectTimezone": True,
+                "pauseOnUnsub": True,
+                "skipIfInOther": True,
+                "frequencyCap": True,
+            },
+            "steps": [
+                _wait_until_event_node(event_for_slug[slug]),
+                _email_node(steps_iter[0]),
+            ],
+        }
+
+    # Duration-only single-step course templates (nudge, inactivity): the
+    # first step's delay_hours becomes a leading wait so the email lands
+    # later than enrolment. The default branch below skips delay on step 0.
+    if (
+        slug in ("course_first_lesson_nudge", "course_inactivity_pickup")
+        and steps_iter
+    ):
+        first = steps_iter[0]
+        return {
+            "version": 1,
+            "category": _categoryToFlowKey(template["category"]),
+            "audience": {"mode": "all", "filters": [], "excludeTags": []},
+            "goal": {"event": "none", "window": "14"},
+            "send": {
+                "window": "weekdays",
+                "start": "09:00",
+                "end": "17:00",
+                "respectTimezone": True,
+                "pauseOnUnsub": True,
+                "skipIfInOther": True,
+                "frequencyCap": True,
+            },
+            "steps": [
+                _wait_node(first["delay_hours"]),
+                _email_node(first),
+            ],
+        }
 
     # Default: alternating wait + email, with a final action/goal where useful.
     for i, step in enumerate(steps_iter):
