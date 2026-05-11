@@ -319,15 +319,15 @@ export function SpaireOnboardingStyles() {
         color: var(--so-black);
       }
 
-      /* Intro — fill the viewport (minus the fixed top bar) so the
-         headline sits in the optical center of the visible area. */
+      /* Intro — fill the viewport and ignore the top bar so the headline
+         sits in the true visual center. */
       .so-intro-stage {
         min-height: 100vh;
         display: flex;
         align-items: center;
         justify-content: center;
         background: var(--so-white);
-        padding: 56px 40px 40px;
+        padding: 40px;
       }
       .so-intro-headline {
         font-family: var(--font-poppins), system-ui, sans-serif;
