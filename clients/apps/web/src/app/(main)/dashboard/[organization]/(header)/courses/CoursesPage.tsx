@@ -237,192 +237,230 @@ function CoursesEmptyHero({ onBack }: { onBack: () => void }) {
         position: 'fixed',
         inset: 0,
         zIndex: 60,
-        background: '#000',
+        background: 'oklch(0.985 0.001 280)',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'auto',
       }}
     >
-      <button
-        type="button"
-        onClick={onBack}
-        aria-label="Back to dashboard"
-        style={{
-          position: 'absolute',
-          left: 24,
-          top: 24,
-          zIndex: 5,
-          width: 40,
-          height: 40,
-          borderRadius: 999,
-          background: 'rgba(255,255,255,0.10)',
-          backdropFilter: 'blur(20px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-          border: '1px solid rgba(255,255,255,0.18)',
-          color: 'white',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          fontFamily: 'inherit',
-        }}
-      >
-        <ArrowBackOutlined sx={{ fontSize: 20 }} />
-      </button>
-
-      <img
-        src="/assets/courses-empty-hero.jpg"
-        alt=""
-        aria-hidden="true"
-        style={{
-          position: 'absolute',
-          inset: 0,
-          width: '100%',
-          height: '100%',
-          objectFit: 'cover',
-        }}
-      />
-
       <div
         style={{
-          position: 'absolute',
-          inset: 0,
-          zIndex: 2,
-          pointerEvents: 'none',
-          background:
-            'linear-gradient(180deg, oklch(0 0 0 / 0.2) 0%, oklch(0 0 0 / 0) 30%, oklch(0 0 0 / 0) 45%, oklch(0 0 0 / 0.6) 80%, oklch(0 0 0 / 0.92) 100%)',
-        }}
-      />
-
-      <div
-        style={{
-          position: 'absolute',
-          left: 32,
-          top: 28,
-          zIndex: 3,
+          padding: '20px 24px 0',
           display: 'flex',
           alignItems: 'center',
-          gap: 8,
-          paddingLeft: 60,
         }}
       >
-        <span
+        <button
+          type="button"
+          onClick={onBack}
+          aria-label="Back to dashboard"
           style={{
-            width: 6,
-            height: 6,
-            borderRadius: '50%',
-            background: 'oklch(0.72 0.16 25)',
-            boxShadow: '0 0 12px oklch(0.72 0.16 25)',
-          }}
-        />
-        <span
-          style={{
-            fontSize: 11,
-            letterSpacing: '0.18em',
-            fontWeight: 600,
-            color: 'rgba(255,255,255,0.85)',
-            fontFamily: FONT_VAR,
+            width: 40,
+            height: 40,
+            borderRadius: 999,
+            background: 'white',
+            border: '1px solid oklch(0.92 0.003 280)',
+            color: 'oklch(0.14 0.006 280)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
           }}
         >
-          SPAIRE ORIGINAL
-        </span>
+          <ArrowBackOutlined sx={{ fontSize: 20 }} />
+        </button>
       </div>
 
       <div
         style={{
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 3,
-          padding: 'clamp(40px, 6vw, 72px) clamp(32px, 6vw, 80px) clamp(48px, 7vw, 84px)',
-          color: 'white',
-          fontFamily: FONT_VAR,
+          flex: 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px',
+          minHeight: 0,
         }}
       >
-        <div
+        <section
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            marginBottom: 16,
-            fontSize: 12,
-            color: 'rgba(255,255,255,0.65)',
-            fontWeight: 500,
+            position: 'relative',
+            width: '100%',
+            maxWidth: 1280,
+            height: 'min(78vh, 720px)',
+            minHeight: 520,
+            borderRadius: 'calc(28px * var(--radius-mul, 1))',
+            overflow: 'hidden',
+            background: '#000',
+            isolation: 'isolate',
+            border: '1px solid oklch(0.92 0.003 280)',
+            boxShadow:
+              '0 2px 6px rgba(0,0,0,0.06), 0 24px 60px rgba(0,0,0,0.10)',
           }}
         >
-          <span
+          <img
+            src="/assets/courses-empty-hero.jpg"
+            alt=""
+            aria-hidden="true"
             style={{
-              padding: '3px 10px',
-              background: 'rgba(255,255,255,0.12)',
-              backdropFilter: 'blur(20px)',
-              WebkitBackdropFilter: 'blur(20px)',
-              borderRadius: 999,
-              border: '1px solid rgba(255,255,255,0.18)',
-              fontSize: 10,
-              letterSpacing: '0.12em',
-              fontWeight: 600,
-              color: 'white',
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+            }}
+          />
+
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              zIndex: 2,
+              pointerEvents: 'none',
+              background:
+                'linear-gradient(180deg, oklch(0 0 0 / 0.2) 0%, oklch(0 0 0 / 0) 30%, oklch(0 0 0 / 0) 45%, oklch(0 0 0 / 0.6) 80%, oklch(0 0 0 / 0.92) 100%)',
+            }}
+          />
+
+          <div
+            style={{
+              position: 'absolute',
+              left: 32,
+              top: 28,
+              zIndex: 3,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
             }}
           >
-            COURSE BUILDER
-          </span>
-          <span style={{ color: 'rgba(255,255,255,0.6)' }}>Built with Spaire</span>
-          <span style={{ color: 'rgba(255,255,255,0.3)' }}>·</span>
-          <span style={{ color: 'rgba(255,255,255,0.6)' }}>2 min setup</span>
-        </div>
+            <span
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: '50%',
+                background: 'oklch(0.72 0.16 25)',
+                boxShadow: '0 0 12px oklch(0.72 0.16 25)',
+              }}
+            />
+            <span
+              style={{
+                fontSize: 11,
+                letterSpacing: '0.18em',
+                fontWeight: 600,
+                color: 'rgba(255,255,255,0.85)',
+                fontFamily: FONT_VAR,
+              }}
+            >
+              SPAIRE ORIGINAL
+            </span>
+          </div>
 
-        <h1
-          style={{
-            fontSize: 'calc(clamp(52px, 7.5vw, 96px) * var(--type-scale, 1))',
-            fontWeight: 'var(--h-weight, 700)',
-            fontStyle: 'var(--h-italic, normal)',
-            letterSpacing: 'calc(var(--h-tracking, 0em) - 0.045em)',
-            lineHeight: 'calc(var(--h-leading, 1) * 0.95)',
-            margin: '0 0 18px',
-            color: 'white',
-            maxWidth: '14ch',
-            textShadow: '0 2px 30px oklch(0 0 0 / 0.35)',
-            fontFamily: HEADING_VAR,
-          }}
-        >
-          Launch your own masterclass
-        </h1>
+          <div
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 3,
+              padding: '40px 48px 52px',
+              color: 'white',
+              fontFamily: FONT_VAR,
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                marginBottom: 16,
+                fontSize: 12,
+                color: 'rgba(255,255,255,0.65)',
+                fontWeight: 500,
+              }}
+            >
+              <span
+                style={{
+                  padding: '3px 10px',
+                  background: 'rgba(255,255,255,0.12)',
+                  backdropFilter: 'blur(20px)',
+                  WebkitBackdropFilter: 'blur(20px)',
+                  borderRadius: 999,
+                  border: '1px solid rgba(255,255,255,0.18)',
+                  fontSize: 10,
+                  letterSpacing: '0.12em',
+                  fontWeight: 600,
+                  color: 'white',
+                }}
+              >
+                COURSE BUILDER
+              </span>
+              <span style={{ color: 'rgba(255,255,255,0.6)' }}>
+                Built with Spaire
+              </span>
+              <span style={{ color: 'rgba(255,255,255,0.3)' }}>·</span>
+              <span style={{ color: 'rgba(255,255,255,0.6)' }}>
+                2 min setup
+              </span>
+            </div>
 
-        <div
-          style={{
-            fontSize: 'clamp(14px, 1.3vw, 18px)',
-            fontWeight: 400,
-            color: 'rgba(255,255,255,0.88)',
-            maxWidth: 640,
-            marginBottom: 30,
-            lineHeight: 1.5,
-          }}
-        >
-          Spaire gives creators the tools to package their knowledge into
-          beautiful, high-value courses. Design immersive learning experiences,
-          grow your audience, and monetize your expertise.
-        </div>
+            <h1
+              style={{
+                fontSize:
+                  'calc(clamp(48px, 6.5vw, 84px) * var(--type-scale, 1))',
+                fontWeight: 'var(--h-weight, 700)',
+                fontStyle: 'var(--h-italic, normal)',
+                letterSpacing: 'calc(var(--h-tracking, 0em) - 0.045em)',
+                lineHeight: 'calc(var(--h-leading, 1) * 0.95)',
+                margin: '0 0 18px',
+                color: 'white',
+                maxWidth: '14ch',
+                textShadow: '0 2px 30px oklch(0 0 0 / 0.35)',
+                fontFamily: HEADING_VAR,
+              }}
+            >
+              Launch your own masterclass
+            </h1>
 
-        <button
-          type="button"
-          onClick={() => {}}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 10,
-            padding: '13px 22px',
-            background: 'white',
-            color: 'oklch(0.14 0.006 280)',
-            borderRadius: 999,
-            boxShadow: '0 8px 28px oklch(0 0 0 / 0.4)',
-            border: 'none',
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-            fontSize: 14,
-            fontWeight: 600,
-            lineHeight: 1,
-          }}
-        >
-          Start your free trial →
-        </button>
+            <div
+              style={{
+                fontSize: 'clamp(14px, 1.3vw, 18px)',
+                fontWeight: 400,
+                color: 'rgba(255,255,255,0.88)',
+                maxWidth: 640,
+                marginBottom: 30,
+                lineHeight: 1.5,
+              }}
+            >
+              Spaire gives creators the tools to package their knowledge into
+              beautiful, high-value courses. Design immersive learning
+              experiences, grow your audience, and monetize your expertise.
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {}}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 10,
+                padding: '13px 22px',
+                background: 'white',
+                color: 'oklch(0.14 0.006 280)',
+                borderRadius: 999,
+                boxShadow: '0 8px 28px oklch(0 0 0 / 0.4)',
+                border: 'none',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                fontSize: 14,
+                fontWeight: 600,
+                lineHeight: 1,
+              }}
+            >
+              Start your free trial →
+            </button>
+          </div>
+        </section>
       </div>
     </div>
   )
