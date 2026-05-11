@@ -1,19 +1,20 @@
 import { useOrganizationAccount } from '@/hooks/queries'
 import { PolarHog, usePostHog } from '@/hooks/posthog'
-import AttachMoneyOutlined from '@mui/icons-material/AttachMoneyOutlined'
-import AutoStoriesOutlined from '@mui/icons-material/AutoStoriesOutlined'
-import CodeOutlined from '@mui/icons-material/CodeOutlined'
-import ExtensionOutlined from '@mui/icons-material/ExtensionOutlined'
-import HiveOutlined from '@mui/icons-material/HiveOutlined'
-import MailOutlined from '@mui/icons-material/MailOutlined'
-import PeopleAltOutlined from '@mui/icons-material/PeopleAltOutlined'
-import LayersOutlined from '@mui/icons-material/LayersOutlined'
-import ReceiptLongOutlined from '@mui/icons-material/ReceiptLongOutlined'
-import ShoppingBagOutlined from '@mui/icons-material/ShoppingBagOutlined'
-import SpaceDashboardOutlined from '@mui/icons-material/SpaceDashboardOutlined'
-import StorefrontOutlined from '@mui/icons-material/StorefrontOutlined'
-import TrendingUp from '@mui/icons-material/TrendingUp'
-import TuneOutlined from '@mui/icons-material/TuneOutlined'
+import {
+  MarkAnalytics,
+  MarkBook,
+  MarkCart,
+  MarkCode,
+  MarkCoin,
+  MarkGrid,
+  MarkLayers,
+  MarkMailOpen,
+  MarkPackage,
+  MarkPeople,
+  MarkSliders,
+  MarkStore,
+  MarkZap,
+} from '@/components/Icons/MarkIcons'
 import { schemas } from '@spaire/client'
 import { usePathname } from 'next/navigation'
 import { useCallback, useMemo } from 'react'
@@ -45,6 +46,8 @@ export type RouteWithActive = Route & {
   readonly isActive: boolean
   readonly subs?: SubRouteWithActive[]
 }
+
+const NAV_ICON_SIZE = 20
 
 const applySubRouteIsActive = (
   path: string,
@@ -174,7 +177,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
   {
     id: 'home',
     title: 'Overview',
-    icon: <SpaceDashboardOutlined fontSize="inherit" />,
+    icon: <MarkGrid size={NAV_ICON_SIZE} />,
     link: `/dashboard/${org?.slug}`,
     checkIsActive: (currentRoute: string) =>
       currentRoute === `/dashboard/${org?.slug}`,
@@ -183,7 +186,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
   {
     id: 'space',
     title: 'Space',
-    icon: <StorefrontOutlined fontSize="inherit" />,
+    icon: <MarkStore size={NAV_ICON_SIZE} />,
     link: `/dashboard/${org?.slug}/storefront`,
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/storefront`)
@@ -193,7 +196,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
   {
     id: 'catalog',
     title: 'Products',
-    icon: <HiveOutlined fontSize="inherit" />,
+    icon: <MarkPackage size={NAV_ICON_SIZE} />,
     link: `/dashboard/${org?.slug}/products`,
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/products`)
@@ -210,7 +213,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
   {
     id: 'courses',
     title: 'Courses',
-    icon: <AutoStoriesOutlined fontSize="inherit" />,
+    icon: <MarkBook size={NAV_ICON_SIZE} />,
     link: `/dashboard/${org?.slug}/courses`,
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/courses`)
@@ -220,7 +223,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
   {
     id: 'customers',
     title: 'Customers',
-    icon: <PeopleAltOutlined fontSize="inherit" />,
+    icon: <MarkPeople size={NAV_ICON_SIZE} />,
     link: `/dashboard/${org?.slug}/customers`,
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/customers`)
@@ -230,7 +233,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
   {
     id: 'invoices',
     title: 'Invoices',
-    icon: <ReceiptLongOutlined fontSize="inherit" />,
+    icon: <MarkMailOpen size={NAV_ICON_SIZE} />,
     link: `/dashboard/${org?.slug}/invoices`,
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/invoices`)
@@ -240,7 +243,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
   {
     id: 'analytics',
     title: 'Analytics',
-    icon: <TrendingUp fontSize="inherit" />,
+    icon: <MarkAnalytics size={NAV_ICON_SIZE} />,
     link: `/dashboard/${org?.slug}/analytics`,
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/analytics`)
@@ -250,7 +253,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
   {
     id: 'sales',
     title: 'Sales',
-    icon: <ShoppingBagOutlined fontSize="inherit" />,
+    icon: <MarkCart size={NAV_ICON_SIZE} />,
     link: `/dashboard/${org?.slug}/sales`,
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/sales`)
@@ -260,7 +263,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
   {
     id: 'marketing',
     title: 'Marketing',
-    icon: <MailOutlined fontSize="inherit" />,
+    icon: <MarkMailOpen size={NAV_ICON_SIZE} />,
     link: `/dashboard/${org?.slug}/email-marketing`,
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/email-marketing`)
@@ -270,7 +273,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
   {
     id: 'developers',
     title: 'Developers',
-    icon: <ExtensionOutlined fontSize="inherit" />,
+    icon: <MarkZap size={NAV_ICON_SIZE} />,
     link: `/dashboard/${org?.slug}/developers`,
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/developers`)
@@ -280,7 +283,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
   {
     id: 'founder-tools',
     title: 'Founder Tools',
-    icon: <LayersOutlined fontSize="inherit" />,
+    icon: <MarkLayers size={NAV_ICON_SIZE} />,
     link: `/dashboard/${org?.slug}/founder-tools`,
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/founder-tools`)
@@ -300,7 +303,7 @@ const accountRoutesList = (): Route[] => [
     id: 'preferences',
     title: 'Preferences',
     link: `/dashboard/account/preferences`,
-    icon: <TuneOutlined className="h-5 w-5" fontSize="inherit" />,
+    icon: <MarkSliders size={NAV_ICON_SIZE} />,
     if: true,
     subs: undefined,
   },
@@ -308,7 +311,7 @@ const accountRoutesList = (): Route[] => [
     id: 'developer',
     title: 'Developer',
     link: `/dashboard/account/developer`,
-    icon: <CodeOutlined fontSize="inherit" />,
+    icon: <MarkCode size={NAV_ICON_SIZE} />,
     if: true,
   },
 ]
@@ -326,7 +329,7 @@ const organizationRoutesList = (
       payoutsReady === false
         ? `/dashboard/${org?.slug}/finance/account`
         : `/dashboard/${org?.slug}/finance/income`,
-    icon: <AttachMoneyOutlined fontSize="inherit" />,
+    icon: <MarkCoin size={NAV_ICON_SIZE} />,
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/finance`)
     },
@@ -336,7 +339,7 @@ const organizationRoutesList = (
     id: 'settings',
     title: 'Settings',
     link: `/dashboard/${org?.slug}/settings`,
-    icon: <TuneOutlined fontSize="inherit" />,
+    icon: <MarkSliders size={NAV_ICON_SIZE} />,
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/settings`)
     },

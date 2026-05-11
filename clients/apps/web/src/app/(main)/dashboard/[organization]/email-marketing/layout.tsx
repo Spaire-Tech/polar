@@ -10,7 +10,7 @@ import {
   MarkBroadcast,
   MarkPeople,
   MarkSequences,
-} from './_components/MarkIcons'
+} from '@/components/Icons/MarkIcons'
 import './styles.css'
 
 const TABS = [
