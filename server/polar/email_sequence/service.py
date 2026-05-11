@@ -160,12 +160,18 @@ class EmailSequenceService:
         auth_subject: AuthSubject[User | Organization],
         *,
         organization_id: UUID | None = None,
+        course_id: UUID | None = None,
+        lesson_id: UUID | None = None,
         pagination: PaginationParams,
     ) -> tuple[Sequence[EmailSequence], int]:
         repository = EmailSequenceRepository.from_session(session)
         statement = repository.get_readable_statement(auth_subject)
         if organization_id is not None:
             statement = statement.where(EmailSequence.organization_id == organization_id)
+        if course_id is not None:
+            statement = statement.where(EmailSequence.course_id == course_id)
+        if lesson_id is not None:
+            statement = statement.where(EmailSequence.lesson_id == lesson_id)
         statement = statement.order_by(EmailSequence.created_at.desc())
         return await repository.paginate(statement, limit=pagination.limit, page=pagination.page)
 
@@ -190,6 +196,8 @@ class EmailSequenceService:
         description: str | None = None,
         trigger_type: EmailSequenceTriggerType = EmailSequenceTriggerType.manual,
         trigger_config: dict | None = None,
+        course_id: UUID | None = None,
+        lesson_id: UUID | None = None,
     ) -> EmailSequence:
         repository = EmailSequenceRepository.from_session(session)
         sequence = EmailSequence(
@@ -199,6 +207,8 @@ class EmailSequenceService:
             trigger_type=trigger_type,
             trigger_config=trigger_config or {},
             status=EmailSequenceStatus.draft,
+            course_id=course_id,
+            lesson_id=lesson_id,
         )
         return await repository.create(sequence, flush=True)
 
@@ -212,6 +222,8 @@ class EmailSequenceService:
         trigger_type: EmailSequenceTriggerType | None = None,
         trigger_config: dict | None = None,
         status: EmailSequenceStatus | None = None,
+        course_id: UUID | None = None,
+        lesson_id: UUID | None = None,
     ) -> EmailSequence:
         repository = EmailSequenceRepository.from_session(session)
         if name is not None:
@@ -224,6 +236,10 @@ class EmailSequenceService:
             sequence.trigger_config = trigger_config
         if status is not None:
             sequence.status = status
+        if course_id is not None:
+            sequence.course_id = course_id
+        if lesson_id is not None:
+            sequence.lesson_id = lesson_id
         return await repository.update(sequence)
 
     async def delete(self, session: AsyncSession, sequence: EmailSequence) -> None:
