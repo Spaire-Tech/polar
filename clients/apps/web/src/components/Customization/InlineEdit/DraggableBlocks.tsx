@@ -747,11 +747,13 @@ export const DraggableBlocks = ({
   }
 
   // ── DnD ──
-  // Lower activation distance + small tolerance makes the drag pick
-  // up the moment the pointer commits to a direction.
+  // Small activation distance so the drag picks up the moment the
+  // pointer commits to a direction. (Don't combine with `tolerance` —
+  // that field is paired with `delay`, not `distance`, and including
+  // it silently invalidates the constraint.)
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      activationConstraint: { distance: 4, tolerance: 4 },
+      activationConstraint: { distance: 4 },
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
