@@ -50,8 +50,8 @@ const SpaceEmptyHero = ({ onAddToSpace }: { onAddToSpace?: () => void }) => (
     style={{
       position: 'relative',
       width: '100%',
-      height: 'min(70vh, 560px)',
-      minHeight: 420,
+      height: 'min(56vh, 440px)',
+      minHeight: 340,
       borderRadius: 'calc(28px * var(--radius-mul, 1))',
       overflow: 'hidden',
       background: '#000',
@@ -80,47 +80,51 @@ const SpaceEmptyHero = ({ onAddToSpace }: { onAddToSpace?: () => void }) => (
         zIndex: 2,
         pointerEvents: 'none',
         background:
-          'linear-gradient(180deg, oklch(0 0 0 / 0.2) 0%, oklch(0 0 0 / 0) 30%, oklch(0 0 0 / 0) 45%, oklch(0 0 0 / 0.6) 80%, oklch(0 0 0 / 0.92) 100%)',
+          'linear-gradient(180deg, oklch(0 0 0 / 0.35) 0%, oklch(0 0 0 / 0.45) 50%, oklch(0 0 0 / 0.55) 100%)',
       }}
     />
     <div
       style={{
         position: 'absolute',
-        left: 0,
-        right: 0,
-        bottom: 0,
+        inset: 0,
         zIndex: 3,
-        padding: '32px 36px 40px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        textAlign: 'center',
+        padding: '36px 40px',
         color: 'white',
       }}
     >
       <h2
         style={{
-          fontSize: 'clamp(32px, 4.2vw, 52px)',
+          fontSize: 'clamp(30px, 3.8vw, 48px)',
           fontWeight: 'var(--h-weight, 700)',
           fontStyle: 'var(--h-italic, normal)',
           letterSpacing: 'calc(var(--h-tracking, 0em) - 0.04em)',
           lineHeight: 'calc(var(--h-leading, 1) * 0.98)',
           margin: '0 0 14px',
           color: 'white',
-          maxWidth: '14ch',
+          maxWidth: '16ch',
           textShadow: '0 2px 30px oklch(0 0 0 / 0.35)',
         }}
       >
-        Everything in one space
+        Everything in one Space
       </h2>
       <p
         style={{
-          fontSize: 'clamp(13px, 1.1vw, 16px)',
+          fontSize: 'clamp(13px, 1.05vw, 16px)',
           fontWeight: 400,
           color: 'rgba(255,255,255,0.88)',
-          maxWidth: 520,
+          maxWidth: 560,
           margin: '0 0 24px',
           lineHeight: 1.5,
         }}
       >
-        Create a space where your audience can discover and buy what you
-        offer.
+        Create a space where everything you offer is clearly presented,
+        easily discovered, and ready for your audience to buy whenever
+        they&rsquo;re interested.
       </p>
       <button
         type="button"
