@@ -1,8 +1,5 @@
 // Stripe-style mark icons — geometric overlapping shapes, multiply blend, muted palette.
-// Used for sequence category chips and the Spaire suggests sparkle.
-//
-// Each Mark is a self-contained SVG. Colours come from MARK_PALETTE so we can
-// keep the look consistent across surfaces (light bg, dark gradient bg, etc.).
+// Used across the dashboard nav, email marketing tabs, and sequence category chips.
 
 import { ReactElement } from 'react'
 

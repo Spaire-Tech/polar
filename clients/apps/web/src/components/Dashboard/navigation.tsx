@@ -1,13 +1,13 @@
 import { useOrganizationAccount } from '@/hooks/queries'
 import { PolarHog, usePostHog } from '@/hooks/posthog'
 import AttachMoneyOutlined from '@mui/icons-material/AttachMoneyOutlined'
-import AutoStoriesOutlined from '@mui/icons-material/AutoStoriesOutlined'
 import CodeOutlined from '@mui/icons-material/CodeOutlined'
 import ExtensionOutlined from '@mui/icons-material/ExtensionOutlined'
 import HiveOutlined from '@mui/icons-material/HiveOutlined'
-import MailOutlined from '@mui/icons-material/MailOutlined'
-import PeopleAltOutlined from '@mui/icons-material/PeopleAltOutlined'
 import LayersOutlined from '@mui/icons-material/LayersOutlined'
+import MailOutlined from '@mui/icons-material/MailOutlined'
+import OndemandVideoOutlined from '@mui/icons-material/OndemandVideoOutlined'
+import PeopleAltOutlined from '@mui/icons-material/PeopleAltOutlined'
 import ReceiptLongOutlined from '@mui/icons-material/ReceiptLongOutlined'
 import ShoppingBagOutlined from '@mui/icons-material/ShoppingBagOutlined'
 import SpaceDashboardOutlined from '@mui/icons-material/SpaceDashboardOutlined'
@@ -210,7 +210,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
   {
     id: 'courses',
     title: 'Courses',
-    icon: <AutoStoriesOutlined fontSize="inherit" />,
+    icon: <OndemandVideoOutlined fontSize="inherit" />,
     link: `/dashboard/${org?.slug}/courses`,
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/courses`)

@@ -58,7 +58,7 @@ import {
 } from '../flow'
 import { useDialogs } from '../dialogs'
 import { Icon } from '../Icon'
-import { MARK_BY_NAME } from '../MarkIcons'
+import { MARK_BY_NAME } from '@/components/Icons/MarkIcons'
 import { SequenceFlowPreview } from '../SequenceFlowPreview'
 import {
   Field,

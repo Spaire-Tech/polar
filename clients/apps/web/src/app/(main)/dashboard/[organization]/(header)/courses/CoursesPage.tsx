@@ -104,7 +104,12 @@ export default function CoursesPage({
   const showEmptyHero = !courses.isLoading && !hasAnyCourses
 
   if (showEmptyHero) {
-    return <CoursesEmptyHero onBack={handleBackToDashboard} />
+    return (
+      <CoursesEmptyHero
+        onBack={handleBackToDashboard}
+        onStart={handleCreate}
+      />
+    )
   }
 
   return (
@@ -230,7 +235,13 @@ export default function CoursesPage({
 const FONT_VAR = 'var(--font-body, "Poppins", system-ui, sans-serif)'
 const HEADING_VAR = `var(--font-heading, ${FONT_VAR})`
 
-function CoursesEmptyHero({ onBack }: { onBack: () => void }) {
+function CoursesEmptyHero({
+  onBack,
+  onStart,
+}: {
+  onBack: () => void
+  onStart: () => void
+}) {
   return (
     <div
       style={{
@@ -239,48 +250,44 @@ function CoursesEmptyHero({ onBack }: { onBack: () => void }) {
         zIndex: 60,
         background: 'oklch(0.985 0.001 280)',
         display: 'flex',
-        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
         overflow: 'auto',
+        padding: '20px',
       }}
     >
-      <div
+      <button
+        type="button"
+        onClick={onBack}
+        aria-label="Back to dashboard"
         style={{
-          padding: '20px 24px 0',
-          display: 'flex',
-          alignItems: 'center',
-        }}
-      >
-        <button
-          type="button"
-          onClick={onBack}
-          aria-label="Back to dashboard"
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 999,
-            background: 'white',
-            border: '1px solid oklch(0.92 0.003 280)',
-            color: 'oklch(0.14 0.006 280)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
-          }}
-        >
-          <ArrowBackOutlined sx={{ fontSize: 20 }} />
-        </button>
-      </div>
-
-      <div
-        style={{
-          flex: 1,
+          position: 'absolute',
+          left: 24,
+          top: 20,
+          zIndex: 5,
+          width: 40,
+          height: 40,
+          borderRadius: 999,
+          background: 'white',
+          border: '1px solid oklch(0.92 0.003 280)',
+          color: 'oklch(0.14 0.006 280)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '20px',
-          minHeight: 0,
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+          boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+        }}
+      >
+        <ArrowBackOutlined sx={{ fontSize: 20 }} />
+      </button>
+
+      <div
+        style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
         }}
       >
         <section
@@ -288,8 +295,8 @@ function CoursesEmptyHero({ onBack }: { onBack: () => void }) {
             position: 'relative',
             width: '100%',
             maxWidth: 1280,
-            height: 'min(78vh, 720px)',
-            minHeight: 520,
+            height: 'min(90vh, 820px)',
+            minHeight: 600,
             borderRadius: 'calc(28px * var(--radius-mul, 1))',
             overflow: 'hidden',
             background: '#000',
@@ -419,7 +426,7 @@ function CoursesEmptyHero({ onBack }: { onBack: () => void }) {
                 fontFamily: HEADING_VAR,
               }}
             >
-              Launch your own masterclass
+              Launch your own Masterclass
             </h1>
 
             <div
@@ -439,7 +446,7 @@ function CoursesEmptyHero({ onBack }: { onBack: () => void }) {
 
             <button
               type="button"
-              onClick={() => {}}
+              onClick={onStart}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
