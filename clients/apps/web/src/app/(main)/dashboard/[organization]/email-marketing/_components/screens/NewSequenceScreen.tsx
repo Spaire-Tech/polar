@@ -233,6 +233,8 @@ const SequenceEditorInner = ({
   sequenceId,
   onBack,
   onOpened,
+  courseId,
+  lessonId,
   existing,
   existingSteps,
 }: {
@@ -240,6 +242,8 @@ const SequenceEditorInner = ({
   sequenceId: string | null
   onBack: () => void
   onOpened?: (id: string) => void
+  courseId?: string
+  lessonId?: string
   existing: SequenceShape | null
   existingSteps: ServerStep[]
 }) => {
@@ -460,8 +464,8 @@ const SequenceEditorInner = ({
       // this the editor used to PATCH a second time, which raced with
       // syncEmailSteps and risked dropping flow nodes (audit issue #27).
       flow_doc: flow as unknown as Record<string, unknown>,
-      course_id: props.courseId,
-      lesson_id: props.lessonId,
+      course_id: courseId,
+      lesson_id: lessonId,
     })
     persistedIdRef.current = created.id
     onOpened?.(created.id)
