@@ -18,6 +18,7 @@ import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { ArrangePanel } from './InlineEdit/ArrangePanel'
+import { MobilePreview } from './MobilePreview'
 import { SpaceSettingsPanel } from './InlineEdit/SpaceSettingsPanel'
 import { SpaceEditorCanvas } from './SpaceEditorShell'
 import {
@@ -51,6 +52,9 @@ const Customization = ({
   const [pickerOpen, setPickerOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [arrangeOpen, setArrangeOpen] = useState(false)
+  const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>(
+    'desktop',
+  )
   const isSpaceEnabled = organization.storefront_settings?.enabled ?? false
   const [isEditing, setIsEditing] = useState(!isSpaceEnabled)
 
@@ -394,11 +398,16 @@ const Customization = ({
             <button type="button" className="tb-back" onClick={handleBack}>
               {'←'} {isSpaceEnabled ? 'Back to preview' : 'Dashboard'}
             </button>
-          </div>
-          <div className="tb-center">
             <span
               className="tb-status"
               data-pub={!isDirty && isSpaceEnabled ? '1' : '0'}
+              title={
+                isDirty
+                  ? 'Unpublished changes'
+                  : isSpaceEnabled
+                    ? 'Published'
+                    : 'Draft'
+              }
             >
               <span className="dot" />
               {isDirty
@@ -407,6 +416,60 @@ const Customization = ({
                   ? 'Published'
                   : 'Draft'}
             </span>
+          </div>
+          <div className="tb-center">
+            <div className="tb-device" role="tablist" aria-label="Preview device">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={previewDevice === 'desktop'}
+                className="tb-device-btn"
+                data-active={previewDevice === 'desktop' ? '1' : '0'}
+                onClick={() => setPreviewDevice('desktop')}
+                title="Desktop preview"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <rect x="2" y="3" width="20" height="14" rx="2" />
+                  <path d="M8 21h8M12 17v4" />
+                </svg>
+                <span>Desktop</span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={previewDevice === 'mobile'}
+                className="tb-device-btn"
+                data-active={previewDevice === 'mobile' ? '1' : '0'}
+                onClick={() => setPreviewDevice('mobile')}
+                title="Mobile preview (iPhone)"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <rect x="6" y="2" width="12" height="20" rx="3" />
+                  <path d="M11 18h2" />
+                </svg>
+                <span>Mobile</span>
+              </button>
+            </div>
           </div>
           <div className="tb-right">
             <button
@@ -496,12 +559,27 @@ const Customization = ({
           </div>
         )}
 
-        {/* Canvas — ProfileCard + Storefront content blocks */}
-        <SpaceEditorCanvas
-          organization={organization}
-          hasSettingsPanel={settingsOpen || linksMode || arrangeOpen}
-          onAddToSpace={() => setPickerOpen(true)}
-        />
+        {/* Canvas — desktop uses the editable WYSIWYG canvas; mobile
+            uses a real iPhone-framed read-only preview (same components
+            the public Space renders, fed by watched form state so
+            edits made via the Arrange / Settings / inline editors
+            reflect live). */}
+        {previewDevice === 'desktop' ? (
+          <SpaceEditorCanvas
+            organization={organization}
+            hasSettingsPanel={settingsOpen || linksMode || arrangeOpen}
+            onAddToSpace={() => setPickerOpen(true)}
+          />
+        ) : (
+          <MobilePreview
+            organization={organization}
+            products={
+              (storefrontData?.products ??
+                []) as schemas['ProductStorefront'][]
+            }
+            hasSettingsPanel={settingsOpen || linksMode || arrangeOpen}
+          />
+        )}
 
         {/* Arrange panel — single source of truth for reordering every
             item in the Space (products, categories, links). The

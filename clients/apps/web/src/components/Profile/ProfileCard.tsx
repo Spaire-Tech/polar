@@ -302,8 +302,10 @@ export const ProfileCard = ({
               className="profile-card-marquee-track"
               style={
                 {
-                  // ~6s per visible item — slow, calm pacing.
-                  '--marquee-duration': `${Math.max(20, highlights.length * 6)}s`,
+                  // ~3.5s per item, floored at 8s so a single-product
+                  // strip still has perceptible motion. The track is
+                  // duplicated in markup so the loop is seamless.
+                  '--marquee-duration': `${Math.max(8, highlights.length * 3.5)}s`,
                 } as React.CSSProperties
               }
             >

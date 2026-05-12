@@ -706,23 +706,16 @@
 
 /* Profile-card product carousel — looping marquee of the products
    that appear on the user's Space. Track is duplicated in markup
-   (so the loop appears seamless) and shifts -50% over the duration. */
+   (so the loop appears seamless) and shifts -50% over the duration.
+   iOS-Safari quirks worked around:
+     - Use translate3d so the animation is GPU-accelerated (otherwise
+       mobile Safari can freeze it after a few frames).
+     - Drop mask-image: on some webkit versions it pauses the
+       descendant's transform animation entirely.
+     - will-change + backface-visibility help iOS keep the layer hot. */
 .profile-card-marquee {
   overflow: hidden;
-  mask-image: linear-gradient(
-    to right,
-    transparent 0,
-    black 24px,
-    black calc(100% - 24px),
-    transparent 100%
-  );
-  -webkit-mask-image: linear-gradient(
-    to right,
-    transparent 0,
-    black 24px,
-    black calc(100% - 24px),
-    transparent 100%
-  );
+  position: relative;
 }
 
 .profile-card-marquee-track {
@@ -730,12 +723,19 @@
   flex-direction: row;
   gap: 0.5rem;
   width: max-content;
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translate3d(0, 0, 0);
   animation: profile-card-marquee-scroll
     var(--marquee-duration, 30s) linear infinite;
 }
 
-.profile-card-marquee:hover .profile-card-marquee-track {
-  animation-play-state: paused;
+/* Pause on hover (desktop only — hover doesn't fire on touch). */
+@media (hover: hover) {
+  .profile-card-marquee:hover .profile-card-marquee-track {
+    animation-play-state: paused;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -746,10 +746,10 @@
 
 @keyframes profile-card-marquee-scroll {
   from {
-    transform: translateX(0);
+    transform: translate3d(0, 0, 0);
   }
   to {
-    transform: translateX(-50%);
+    transform: translate3d(-50%, 0, 0);
   }
 }
 
@@ -1450,4 +1450,252 @@
 .spaire-editor .arrange-panel .ap-row-action-danger:hover {
   background: #fee2e2;
   color: #b91c1c;
+}
+
+/* ── Toolbar device toggle (desktop / mobile preview) ───────────── */
+.spaire-editor .tb-device {
+  display: inline-flex;
+  background: var(--surface-2, #f4f4f7);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.spaire-editor .tb-device-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  letter-spacing: 0;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    box-shadow 0.15s;
+}
+
+.spaire-editor .tb-device-btn:hover {
+  color: var(--ink-2);
+}
+
+.spaire-editor .tb-device-btn[data-active='1'] {
+  background: white;
+  color: var(--ink);
+  box-shadow:
+    0 1px 2px rgba(15, 15, 30, 0.06),
+    0 0 0 1px var(--line);
+}
+
+/* ── Mobile preview frame (iPhone-shaped, scrollable) ───────────── */
+.spaire-editor .mobile-preview-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  /* canvas-wrap already has overflow-y: auto; we just center inside. */
+  min-height: 0;
+  transition: padding-right 0.25s ease;
+}
+
+.spaire-editor .mobile-preview-wrap.has-panel {
+  padding-right: 460px;
+}
+
+.spaire-editor .mobile-frame {
+  position: relative;
+  /* iPhone 14 logical size: 390 × 844 (9 : 19.5). Cap height so the
+     frame fits viewports comfortably; the inner scroll handles the
+     overflow. */
+  width: clamp(320px, 90vw, 390px);
+  aspect-ratio: 390 / 844;
+  max-height: calc(100vh - 160px);
+  background: #0c0c14;
+  border-radius: 56px;
+  padding: 11px;
+  box-shadow:
+    0 30px 60px -20px rgba(12, 12, 20, 0.45),
+    0 8px 20px -8px rgba(12, 12, 20, 0.3),
+    inset 0 0 0 1.5px #2a2a35;
+}
+
+/* Dynamic island. */
+.spaire-editor .mobile-frame-island {
+  position: absolute;
+  left: 50%;
+  top: 18px;
+  transform: translateX(-50%);
+  width: 110px;
+  height: 30px;
+  background: #0c0c14;
+  border-radius: 999px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Home indicator. */
+.spaire-editor .mobile-frame-home {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  width: 130px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.55);
+  border-radius: 2px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* The actual phone "screen": white inner panel that clips the content. */
+.spaire-editor .mobile-frame-screen {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: white;
+  border-radius: 46px;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* Scrollable container — own scroll, momentum on iOS-like trackpads. */
+.spaire-editor .mobile-frame-scroll {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  /* Top padding clears the dynamic island; bottom padding clears the
+     home indicator. Side padding matches a real iPhone safe area. */
+  padding: 56px 16px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  /* The mobile-targeted utilities inside ProfileCard / Storefront
+     stretch to 100% width by default — perfect for the narrow column. */
+}
+
+/* Hide the toolbar's scrollbar for the mobile frame's inner scroll
+   to keep the device chrome looking like a phone. */
+.spaire-editor .mobile-frame-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.spaire-editor .mobile-frame-scroll {
+  scrollbar-width: none;
+}
+
+/* ── Mobile preview: force REAL mobile rendering ────────────────────
+   The iPhone frame sits inside a desktop-viewport browser, so
+   Tailwind's `md:` utilities (active at ≥ 768 px) fire even though
+   the visible canvas is ~390 px. These overrides cancel the `md:`
+   modifiers that affect layout — collapsing the public page's
+   two-column desktop layout into the single-column mobile layout
+   the user actually sees on their phone.
+
+   Only the layout-affecting classes are reset. Spacing/colour
+   utilities (md:py-8, md:gap-12) get pinned to their mobile
+   equivalents (py-4, gap-8) so vertical rhythm matches a real
+   phone's rendering of the same Tailwind code.
+
+   Limited to .mobile-frame-scroll so the rest of the editor is
+   untouched. */
+
+/* Reset the page-wrapper paddings to the mobile defaults. */
+.spaire-editor .mobile-frame-scroll .mp-page-wrap {
+  /* PublicLayout normally adds md:py-8; mobile gets py-4. Match
+     the smaller value here since `md:` would otherwise apply. */
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+  width: 100%;
+}
+
+/* Two-column → single column. */
+.spaire-editor .mobile-frame-scroll .md\:flex-row {
+  flex-direction: column !important;
+}
+.spaire-editor .mobile-frame-scroll .md\:gap-12 {
+  gap: 2rem !important; /* same as gap-8 mobile default */
+}
+
+/* Profile card aside: full-width, not sticky, no fixed pixel width. */
+.spaire-editor .mobile-frame-scroll .md\:sticky {
+  position: static !important;
+}
+.spaire-editor .mobile-frame-scroll .md\:top-8 {
+  top: auto !important;
+}
+.spaire-editor .mobile-frame-scroll .md\:self-start {
+  align-self: auto !important;
+}
+.spaire-editor .mobile-frame-scroll .md\:w-\[420px\] {
+  width: 100% !important;
+}
+
+/* Product grid: one column on mobile. */
+.spaire-editor .mobile-frame-scroll .md\:grid-cols-2 {
+  grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+}
+.spaire-editor .mobile-frame-scroll .md\:grid-cols-3 {
+  grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+}
+.spaire-editor .mobile-frame-scroll .md\:grid-cols-4 {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+/* Re-show elements that the public page hides past `md:`. */
+.spaire-editor .mobile-frame-scroll .md\:hidden {
+  display: revert !important;
+}
+/* And re-hide elements that the public page only shows past `md:`. */
+.spaire-editor .mobile-frame-scroll .md\:block {
+  display: none !important;
+}
+.spaire-editor .mobile-frame-scroll .md\:flex {
+  display: none !important;
+}
+.spaire-editor .mobile-frame-scroll .md\:inline-flex {
+  display: none !important;
+}
+
+/* PublicLayout-style page paddings: pin to mobile values. */
+.spaire-editor .mobile-frame-scroll .md\:py-8 {
+  padding-top: 1rem !important;
+  padding-bottom: 1rem !important;
+}
+.spaire-editor .mobile-frame-scroll .md\:px-8 {
+  padding-left: 1rem !important;
+  padding-right: 1rem !important;
+}
+.spaire-editor .mobile-frame-scroll .md\:pt-8 {
+  padding-top: 1rem !important;
+}
+
+/* Banner aspect: tame the desktop 16:5 a bit on phones. */
+.spaire-editor .mobile-frame-scroll .md\:aspect-\[16\/5\] {
+  aspect-ratio: 16 / 9 !important;
+}
+
+/* min-h utilities that are desktop-only. */
+.spaire-editor .mobile-frame-scroll .md\:overflow-hidden {
+  overflow: visible !important;
+}
+.spaire-editor .mobile-frame-scroll .md\:overflow-y-auto {
+  overflow-y: visible !important;
+}
+.spaire-editor .mobile-frame-scroll .md\:h-full {
+  height: auto !important;
+}
+.spaire-editor .mobile-frame-scroll .md\:min-h-0 {
+  min-height: 0 !important;
 }
