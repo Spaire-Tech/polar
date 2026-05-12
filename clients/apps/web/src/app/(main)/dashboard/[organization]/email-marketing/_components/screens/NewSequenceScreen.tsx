@@ -13,6 +13,7 @@ import {
   useUpdateSequenceStep,
   useUploadSequenceImage,
 } from '@/hooks/queries/emailMarketing'
+import { useCourseById } from '@/hooks/queries/courses'
 import { useProducts } from '@/hooks/queries/products'
 import { schemas } from '@spaire/client'
 import { useQueryClient } from '@tanstack/react-query'
@@ -145,6 +146,71 @@ const CATEGORIES = [
   { id: 'winback', label: 'Win-back', icon: 'mail-open' },
   { id: 'transactional', label: 'Transactional', icon: 'check-circle' },
 ]
+
+// ── Course-flavoured trigger choices ──────────────────────────────────────
+// Each maps to a backend on_purchase trigger (product locked to the course)
+// plus a specific leading flow shape. See seedFlowForCourseTrigger below.
+type CourseTriggerChoice =
+  | 'enrolled'
+  | 'lesson_completed'
+  | 'first_lesson_completed'
+  | 'mid_checkpoint'
+  | 'course_completed'
+  | 'inactive'
+
+const COURSE_TRIGGER_TILES: {
+  id: CourseTriggerChoice
+  label: string
+  desc: string
+  icon: string
+}[] = [
+  {
+    id: 'enrolled',
+    label: 'Student enrols',
+    desc: 'Send the moment they get access to the course.',
+    icon: 'user',
+  },
+  {
+    id: 'lesson_completed',
+    label: 'Lesson completed',
+    desc: 'Pick a specific lesson — fires when a student finishes it.',
+    icon: 'check-circle',
+  },
+  {
+    id: 'first_lesson_completed',
+    label: 'First lesson completed',
+    desc: 'Celebrate momentum the first time they finish any lesson.',
+    icon: 'sparkles',
+  },
+  {
+    id: 'mid_checkpoint',
+    label: 'Halfway through',
+    desc: 'Fires when the student crosses 50% of the course.',
+    icon: 'rotate',
+  },
+  {
+    id: 'course_completed',
+    label: 'Course completed',
+    desc: 'Wrap up — fires when every lesson is done.',
+    icon: 'check-circle',
+  },
+  {
+    id: 'inactive',
+    label: 'Inactive for N days',
+    desc: 'Pick up where they left off after a quiet stretch.',
+    icon: 'mail-open',
+  },
+]
+
+const COURSE_TRIGGER_EVENT: Record<
+  Exclude<CourseTriggerChoice, 'enrolled' | 'inactive'>,
+  string
+> = {
+  lesson_completed: 'course.lesson_completed',
+  first_lesson_completed: 'course.first_lesson_completed',
+  mid_checkpoint: 'course.mid_checkpoint',
+  course_completed: 'course.completed',
+}
 
 type SequenceShape = {
   id: string
@@ -313,6 +379,31 @@ const SequenceEditorInner = ({
   const [savedAt, setSavedAt] = useState<Date | null>(null)
   const [editingEmailId, setEditingEmailId] = useState<string | null>(null)
 
+  // ── Course-aware authoring ──────────────────────────────────────────────
+  // When a courseId is passed (the editor was opened from the course
+  // Automations panel), we swap the generic trigger picker for a course-
+  // friendly one: pick a moment in the student's journey, the editor
+  // wires the underlying on_purchase trigger + flow shape automatically.
+  const courseMode = Boolean(courseId)
+  const courseQuery = useCourseById(courseMode ? courseId : undefined)
+  const course = courseQuery.data ?? null
+  const [courseTriggerChoice, setCourseTriggerChoice] =
+    useState<CourseTriggerChoice | null>(null)
+  const [selectedLessonId, setSelectedLessonId] = useState<string | undefined>(
+    lessonId,
+  )
+  const [inactiveDays, setInactiveDays] = useState<number>(7)
+
+  // Lock the underlying trigger + product to the course's product as soon
+  // as we know what the course is. The user never sees this — they pick
+  // "When student enrols" / "When lesson is completed" etc., which all run
+  // on top of on_purchase + this product_id.
+  useEffect(() => {
+    if (!courseMode || !course) return
+    if (trigger !== 'on_purchase') setTrigger('on_purchase')
+    if (triggerProduct !== course.product_id) setTriggerProduct(course.product_id)
+  }, [courseMode, course, trigger, triggerProduct])
+
   const persistedIdRef = useRef<string | null>(sequenceId)
   const persistedId = persistedIdRef.current
 
@@ -321,6 +412,65 @@ const SequenceEditorInner = ({
 
   const upd = (patch: Partial<FlowDoc>) => setFlow((f) => ({ ...f, ...patch }))
   const updSteps = (next: StepNode[]) => setFlow((f) => ({ ...f, steps: next }))
+
+  // Drop a fresh starter flow shaped to the chosen course trigger:
+  //   - "enrolled"        → just one starter email
+  //   - "inactive"        → leading duration wait + email
+  //   - event-based ones  → leading until-event wait + email
+  // The wait nodes are wired to the events fired from course/service.py.
+  // Sequence's course_id/lesson_id columns scope the wakes to this course
+  // / lesson so a completion in course A never fires sequence B.
+  const seedFlowForCourseTrigger = (choice: CourseTriggerChoice) => {
+    const starterEmail: StepNode = {
+      id: newBlockId(),
+      type: 'email',
+      value: {
+        subject: 'Untitled',
+        preview: '',
+        fromName: organization.name ?? 'Course Team',
+        fromEmail: 'hello@yoursite.com',
+        template: 'plain',
+        abTest: false,
+        trackClicks: true,
+        content_html: null,
+        content_json: null,
+      },
+    }
+    let steps: StepNode[]
+    if (choice === 'enrolled') {
+      steps = [starterEmail]
+    } else if (choice === 'inactive') {
+      steps = [
+        {
+          id: newBlockId(),
+          type: 'wait',
+          value: {
+            mode: 'duration',
+            amount: Math.max(1, inactiveDays),
+            unit: 'day',
+          },
+        },
+        starterEmail,
+      ]
+    } else {
+      const event = COURSE_TRIGGER_EVENT[choice]
+      steps = [
+        {
+          id: newBlockId(),
+          type: 'wait',
+          value: { mode: 'until-event', amount: 1, unit: 'day', event },
+        },
+        starterEmail,
+      ]
+    }
+    setFlow((f) => ({ ...f, steps }))
+    setExpandedId(starterEmail.id)
+  }
+
+  const onCourseTriggerPick = (choice: CourseTriggerChoice) => {
+    setCourseTriggerChoice(choice)
+    seedFlowForCourseTrigger(choice)
+  }
 
   // Tree-aware step helpers (Phase 3b — branches now carry yes/no children
   // recursively, so manipulations need to walk into both arms instead of
@@ -465,7 +615,10 @@ const SequenceEditorInner = ({
       // syncEmailSteps and risked dropping flow nodes (audit issue #27).
       flow_doc: flow as unknown as Record<string, unknown>,
       course_id: courseId,
-      lesson_id: lessonId,
+      // Prefer the lesson picked inside the editor (course mode) over the
+      // hint that came in via URL — so picking a different lesson in the
+      // trigger inspector wins.
+      lesson_id: selectedLessonId ?? lessonId,
     })
     persistedIdRef.current = created.id
     onOpened?.(created.id)
@@ -860,27 +1013,82 @@ const SequenceEditorInner = ({
             status="complete"
           >
             <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(3, 1fr)',
-                  gap: 10,
-                }}
-              >
-                {TRIGGERS.map((t) => (
-                  <TileOption
-                    key={t.id}
-                    active={trigger === t.id}
-                    onClick={() => setTrigger(t.id)}
-                    icon={t.icon}
-                    title={t.label}
-                    desc={t.desc}
-                    badge={t.badge}
-                  />
-                ))}
-              </div>
-              {(trigger === 'on_purchase' ||
-                trigger === 'on_subscription_created') && (
+              {courseMode && sequenceId ? (
+                <div
+                  style={{
+                    background: 'var(--indigo-soft)',
+                    border: '1px solid var(--indigo-line)',
+                    borderRadius: 12,
+                    padding: '14px 18px',
+                    fontSize: 13,
+                    color: 'var(--indigo-2)',
+                    lineHeight: 1.5,
+                  }}
+                >
+                  This automation is linked to
+                  {course?.title ? ` "${course.title}"` : ' a course'}. Edit
+                  the leading wait step below to change when it fires.
+                </div>
+              ) : courseMode ? (
+                <CourseTriggerSection
+                  choice={courseTriggerChoice}
+                  onPick={onCourseTriggerPick}
+                  lessons={
+                    course?.modules?.flatMap((m) => m.lessons ?? []) ?? []
+                  }
+                  selectedLessonId={selectedLessonId}
+                  onSelectLesson={setSelectedLessonId}
+                  inactiveDays={inactiveDays}
+                  onChangeInactiveDays={(n) => {
+                    setInactiveDays(n)
+                    // Keep the leading wait node in sync if the user is
+                    // editing days after picking "Inactive". Without this
+                    // the picker would say "10 days" but the seeded wait
+                    // would still say 7.
+                    if (courseTriggerChoice === 'inactive') {
+                      setFlow((f) => {
+                        const next = [...f.steps]
+                        const lead = next[0]
+                        if (
+                          lead &&
+                          lead.type === 'wait' &&
+                          lead.value.mode === 'duration'
+                        ) {
+                          next[0] = {
+                            ...lead,
+                            value: { ...lead.value, amount: Math.max(1, n) },
+                          }
+                        }
+                        return { ...f, steps: next }
+                      })
+                    }
+                  }}
+                  courseTitle={course?.title ?? null}
+                />
+              ) : (
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(3, 1fr)',
+                    gap: 10,
+                  }}
+                >
+                  {TRIGGERS.map((t) => (
+                    <TileOption
+                      key={t.id}
+                      active={trigger === t.id}
+                      onClick={() => setTrigger(t.id)}
+                      icon={t.icon}
+                      title={t.label}
+                      desc={t.desc}
+                      badge={t.badge}
+                    />
+                  ))}
+                </div>
+              )}
+              {!courseMode &&
+                (trigger === 'on_purchase' ||
+                  trigger === 'on_subscription_created') && (
                 <div
                   style={{
                     background: '#fafafa',
@@ -1702,6 +1910,123 @@ const SequenceEditorInner = ({
             }
           }}
         />
+      )}
+    </div>
+  )
+}
+
+// ── Course trigger picker ──────────────────────────────────────────────────
+// Rendered in place of the generic 3x2 TRIGGERS grid when the editor is
+// opened from a course's Automations panel. Speaks course-language; under
+// the hood every choice maps to on_purchase + a leading wait shape in the
+// flow_doc (see seedFlowForCourseTrigger).
+const CourseTriggerSection = ({
+  choice,
+  onPick,
+  lessons,
+  selectedLessonId,
+  onSelectLesson,
+  inactiveDays,
+  onChangeInactiveDays,
+  courseTitle,
+}: {
+  choice: CourseTriggerChoice | null
+  onPick: (choice: CourseTriggerChoice) => void
+  lessons: { id: string; title: string | null }[]
+  selectedLessonId: string | undefined
+  onSelectLesson: (id: string) => void
+  inactiveDays: number
+  onChangeInactiveDays: (n: number) => void
+  courseTitle: string | null
+}) => {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div
+        style={{
+          fontSize: 12.5,
+          color: 'var(--ink-3)',
+          lineHeight: 1.5,
+        }}
+      >
+        Pick a moment in the student&rsquo;s journey through
+        {courseTitle ? ` "${courseTitle}"` : ' this course'}. The automation
+        enrols every buyer on purchase and waits for the moment you pick
+        before sending.
+      </div>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: 10,
+        }}
+      >
+        {COURSE_TRIGGER_TILES.map((t) => (
+          <TileOption
+            key={t.id}
+            active={choice === t.id}
+            onClick={() => onPick(t.id)}
+            icon={t.icon}
+            title={t.label}
+            desc={t.desc}
+            badge={null}
+          />
+        ))}
+      </div>
+
+      {choice === 'lesson_completed' && (
+        <div
+          style={{
+            background: '#fafafa',
+            border: '1px solid var(--line)',
+            borderRadius: 12,
+            padding: 20,
+          }}
+        >
+          <Field
+            label="Which lesson?"
+            hint="Fires when a student marks this lesson complete."
+          >
+            <SelectField
+              value={selectedLessonId ?? ''}
+              onChange={(v) => onSelectLesson(v)}
+              placeholder="Choose a lesson…"
+              options={lessons.map((l) => ({
+                id: l.id,
+                label: l.title ?? 'Untitled lesson',
+              }))}
+            />
+          </Field>
+        </div>
+      )}
+
+      {choice === 'inactive' && (
+        <div
+          style={{
+            background: '#fafafa',
+            border: '1px solid var(--line)',
+            borderRadius: 12,
+            padding: 20,
+          }}
+        >
+          <Field
+            label="Days of inactivity"
+            hint="Sent this many days after the student enrolled if they haven't been around."
+          >
+            <input
+              type="number"
+              min={1}
+              max={365}
+              value={inactiveDays}
+              onChange={(e) => {
+                const n = parseInt(e.target.value, 10)
+                if (!Number.isFinite(n)) return
+                onChangeInactiveDays(Math.max(1, Math.min(365, n)))
+              }}
+              className="input"
+              style={{ maxWidth: 160 }}
+            />
+          </Field>
+        </div>
       )}
     </div>
   )
