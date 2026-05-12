@@ -4,6 +4,7 @@ import { useProduct } from '@/hooks/queries'
 import { schemas } from '@spaire/client'
 import ArrowBackOutlined from '@mui/icons-material/ArrowBackOutlined'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import { CreateProductPage } from './CreateProductPage'
 import { ProductPreviewPanel } from './ProductPreviewPanel'
@@ -24,6 +25,17 @@ const CreateProductSplitPageInner = ({
   organization: schemas['Organization']
   sourceProduct?: schemas['Product']
 }) => {
+  const searchParams = useSearchParams()
+  const rawReturnTo = searchParams?.get('returnTo') ?? null
+  const returnTo =
+    rawReturnTo && rawReturnTo.startsWith('/')
+      ? rawReturnTo
+      : `/dashboard/${organization.slug}/products`
+  const backLabel =
+    returnTo === `/dashboard/${organization.slug}/products`
+      ? 'Back to Products'
+      : 'Back to Space'
+
   const [previewPrice, setPreviewPrice] = useState<{
     amount: number | null
     currency: string
@@ -44,11 +56,11 @@ const CreateProductSplitPageInner = ({
       <div className="flex flex-1 min-w-0 flex-col overflow-hidden border-r border-gray-200 bg-white ">
         <div className="border-b border-gray-200 px-6 py-4">
           <Link
-            href={`/dashboard/${organization.slug}/products`}
+            href={returnTo}
             className="flex items-center gap-2 text-sm text-gray-500 transition-colors hover:text-black "
           >
             <ArrowBackOutlined fontSize="small" />
-            <span>Back to Products</span>
+            <span>{backLabel}</span>
           </Link>
         </div>
         <div className="overflow-y-auto">

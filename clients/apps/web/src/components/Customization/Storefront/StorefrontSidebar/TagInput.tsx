@@ -1,8 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 // Tag input with full scrollable dropdown. Used for skills + languages.
+// The dropdown is portaled to document.body so it isn't clipped by the
+// EditPopover body's `overflow-y: auto`.
 
 export const TagInput = ({
   value,
@@ -19,6 +22,12 @@ export const TagInput = ({
 }) => {
   const [search, setSearch] = useState('')
   const [showDropdown, setShowDropdown] = useState(false)
+  const [coords, setCoords] = useState<{
+    left: number
+    top: number
+    width: number
+  } | null>(null)
+  const inputRef = useRef<HTMLInputElement | null>(null)
 
   const filtered = options.filter(
     (o) => !value.includes(o) && o.toLowerCase().includes(search.toLowerCase()),
@@ -38,6 +47,29 @@ export const TagInput = ({
       addTag(search)
     }
   }
+
+  // Track input position so the portaled dropdown follows it through
+  // scroll / resize / popover layout shifts.
+  useLayoutEffect(() => {
+    if (!showDropdown) return
+    const update = () => {
+      const el = inputRef.current
+      if (!el) return
+      const rect = el.getBoundingClientRect()
+      setCoords({ left: rect.left, top: rect.bottom, width: rect.width })
+    }
+    update()
+    window.addEventListener('resize', update)
+    window.addEventListener('scroll', update, true)
+    return () => {
+      window.removeEventListener('resize', update)
+      window.removeEventListener('scroll', update, true)
+    }
+  }, [showDropdown])
+
+  // Avoid SSR portal errors.
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
 
   return (
     <div className="relative">
@@ -62,6 +94,7 @@ export const TagInput = ({
       )}
       <div className="relative">
         <input
+          ref={inputRef}
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -72,24 +105,38 @@ export const TagInput = ({
           className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-gray-300 focus:outline-none"
         />
       </div>
-      {showDropdown && filtered.length > 0 && (
-        <div className="absolute z-10 mt-1 max-h-52 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg">
-          {filtered.map((option) => (
-            <button
-              key={option}
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => {
-                onChange([...value, option])
-                setSearch('')
-              }}
-              className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
-            >
-              {option}
-            </button>
-          ))}
-        </div>
-      )}
+      {mounted &&
+        showDropdown &&
+        filtered.length > 0 &&
+        coords &&
+        createPortal(
+          <div
+            style={{
+              position: 'fixed',
+              left: coords.left,
+              top: coords.top + 4,
+              width: coords.width,
+              zIndex: 1000,
+            }}
+            className="max-h-52 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg"
+          >
+            {filtered.map((option) => (
+              <button
+                key={option}
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  onChange([...value, option])
+                  setSearch('')
+                }}
+                className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+              >
+                {option}
+              </button>
+            ))}
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }

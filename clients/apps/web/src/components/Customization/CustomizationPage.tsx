@@ -65,6 +65,15 @@ const Customization = ({
 
   const isDirty = form.formState.isDirty
 
+  // Live (form-watched) view of `enabled` for UI elements that should
+  // reflect pending toggles before publish. `isSpaceEnabled` (above)
+  // stays bound to persisted org state so flows that depend on what's
+  // actually published (preview, "Back to preview") behave correctly.
+  const watchedEnabled =
+    (form.watch('storefront_settings') as
+      | { enabled?: boolean }
+      | undefined)?.enabled ?? isSpaceEnabled
+
   // ── Add-to-Space picker callbacks ─────────────────────────────────
   // The picker is form-context-agnostic; it just hands us payloads and
   // we write them into the form here. Each callback flips the form's
@@ -157,10 +166,16 @@ const Customization = ({
       })
     },
     onCreateProduct: () => {
-      router.push(`/dashboard/${organization.slug}/products/new?type=digital`)
+      const returnTo = `/dashboard/${organization.slug}/storefront`
+      router.push(
+        `/dashboard/${organization.slug}/products/new?type=digital&returnTo=${encodeURIComponent(returnTo)}`,
+      )
     },
     onCreateCourse: () => {
-      router.push(`/dashboard/${organization.slug}/products/new?type=course`)
+      const returnTo = `/dashboard/${organization.slug}/storefront`
+      router.push(
+        `/dashboard/${organization.slug}/products/new?type=course&returnTo=${encodeURIComponent(returnTo)}`,
+      )
     },
   }
 
@@ -383,18 +398,33 @@ const Customization = ({
           <div className="tb-right">
             <button
               type="button"
-              className="tb-icon-btn"
+              className="tb-enable-toggle"
+              data-on={watchedEnabled ? '1' : '0'}
               onClick={() => {
-                if (isSpaceEnabled) setIsEditing(false)
+                const next = !watchedEnabled
+                if (!next) {
+                  if (
+                    !window.confirm(
+                      'Disable your Space? Your public URL will return 404 to visitors until you re-enable it.',
+                    )
+                  ) {
+                    return
+                  }
+                }
+                const current = form.getValues('storefront_settings') ?? {}
+                form.setValue(
+                  'storefront_settings',
+                  { ...current, enabled: next },
+                  { shouldDirty: true },
+                )
               }}
-              disabled={!isSpaceEnabled}
-              title={
-                isSpaceEnabled
-                  ? 'Open the public preview'
-                  : 'Enable your Space to preview'
-              }
+              aria-pressed={watchedEnabled}
+              title={watchedEnabled ? 'Disable Store' : 'Enable Store'}
             >
-              Preview
+              <span className="sp-toggle" data-on={watchedEnabled ? '1' : '0'}>
+                <i />
+              </span>
+              {watchedEnabled ? 'Store enabled' : 'Enable Store'}
             </button>
             <button
               type="button"

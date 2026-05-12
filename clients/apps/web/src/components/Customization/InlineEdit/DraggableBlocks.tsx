@@ -35,7 +35,7 @@ import ViewAgendaOutlined from '@mui/icons-material/ViewAgendaOutlined'
 import ViewCarouselOutlined from '@mui/icons-material/ViewCarouselOutlined'
 import ViewListOutlined from '@mui/icons-material/ViewListOutlined'
 import { schemas } from '@spaire/client'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useFormContext } from 'react-hook-form'
 import { Portal } from './Portal'
 
@@ -45,13 +45,19 @@ const DEFAULT_ORDER: BlockKind[] = ['products', 'links']
 
 // ─── Empty-state hero (shared by every "nothing here yet" surface) ─
 
-const SpaceEmptyHero = ({ onAddToSpace }: { onAddToSpace?: () => void }) => (
+const SpaceEmptyHero = ({
+  onAddToSpace,
+  fill = false,
+}: {
+  onAddToSpace?: () => void
+  fill?: boolean
+}) => (
   <section
     style={{
       position: 'relative',
       width: '100%',
-      height: 'min(56vh, 440px)',
-      minHeight: 340,
+      height: fill ? '100%' : 'min(56vh, 440px)',
+      minHeight: fill ? undefined : 340,
       borderRadius: 'calc(28px * var(--radius-mul, 1))',
       overflow: 'hidden',
       background: '#000',
@@ -866,24 +872,36 @@ export const DraggableBlocks = ({
     featuredMode === 'curated'
       ? products.filter((p) => featuredIds.includes(p.id)).length
       : products.length
-  if (visibleProductCount === 0 && links.length === 0) {
+  const isFullyEmpty = visibleProductCount === 0 && links.length === 0
+
+  // Match the empty-state hero height to the left ProfileCard so the
+  // two columns visually line up. Falls back to a sensible viewport
+  // calc until the measurement lands.
+  const [leftCardHeight, setLeftCardHeight] = useState<number | null>(null)
+  useEffect(() => {
+    if (!isFullyEmpty || typeof window === 'undefined') return
+    const leftCard = document.querySelector(
+      '.spaire-editor .col-left .canvas-card',
+    ) as HTMLElement | null
+    if (!leftCard) return
+    const update = () =>
+      setLeftCardHeight(leftCard.getBoundingClientRect().height)
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(leftCard)
+    return () => ro.disconnect()
+  }, [isFullyEmpty])
+
+  if (isFullyEmpty) {
     return (
       <div
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          // Stretch to roughly the visible canvas height so the hero
-          // box sits in the vertical middle of the right pane instead
-          // of hugging the top. 220px ≈ sticky toolbar + canvas-wrap
-          // padding (28 top / 140 bottom) + a bit of breathing room.
-          minHeight: 'calc(100dvh - 220px)',
+          height: leftCardHeight ?? undefined,
+          minHeight: leftCardHeight ? undefined : 'calc(100dvh - 220px)',
           width: '100%',
         }}
       >
-        <div className="canvas-card" style={{ width: '100%' }}>
-          <SpaceEmptyHero onAddToSpace={onAddToSpace} />
-        </div>
+        <SpaceEmptyHero onAddToSpace={onAddToSpace} fill />
       </div>
     )
   }
