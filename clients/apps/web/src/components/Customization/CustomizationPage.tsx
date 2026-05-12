@@ -442,6 +442,7 @@ const Customization = ({
         <SpaceEditorCanvas
           organization={organization}
           hasSettingsPanel={settingsOpen || linksMode}
+          onAddToSpace={() => setPickerOpen(true)}
         />
 
         {/* Settings side panel (PR D — redesigned to match the

@@ -13,14 +13,17 @@ import {
   DndContext,
   type DragEndEvent,
   DragOverlay,
+  type DragOverEvent,
   type DragStartEvent,
   KeyboardSensor,
+  MeasuringStrategy,
   PointerSensor,
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
 import {
   arrayMove,
+  rectSortingStrategy,
   SortableContext,
   sortableKeyboardCoordinates,
   useSortable,
@@ -39,6 +42,112 @@ import { Portal } from './Portal'
 type BlockKind = 'products' | 'links' | 'forms'
 
 const DEFAULT_ORDER: BlockKind[] = ['products', 'links']
+
+// ─── Empty-state hero (shared by every "nothing here yet" surface) ─
+
+const SpaceEmptyHero = ({ onAddToSpace }: { onAddToSpace?: () => void }) => (
+  <section
+    style={{
+      position: 'relative',
+      width: '100%',
+      height: 'min(56vh, 440px)',
+      minHeight: 340,
+      borderRadius: 'calc(28px * var(--radius-mul, 1))',
+      overflow: 'hidden',
+      background: '#000',
+      isolation: 'isolate',
+      border: '1px solid oklch(0.92 0.003 280)',
+      boxShadow:
+        '0 2px 6px rgba(0,0,0,0.06), 0 24px 60px rgba(0,0,0,0.10)',
+    }}
+  >
+    <img
+      src="/assets/space-empty-hero.jpg"
+      alt=""
+      aria-hidden="true"
+      style={{
+        position: 'absolute',
+        inset: 0,
+        width: '100%',
+        height: '100%',
+        objectFit: 'cover',
+      }}
+    />
+    <div
+      style={{
+        position: 'absolute',
+        inset: 0,
+        zIndex: 2,
+        pointerEvents: 'none',
+        background:
+          'linear-gradient(180deg, oklch(0 0 0 / 0.2) 0%, oklch(0 0 0 / 0) 30%, oklch(0 0 0 / 0) 45%, oklch(0 0 0 / 0.6) 80%, oklch(0 0 0 / 0.92) 100%)',
+      }}
+    />
+    <div
+      style={{
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 3,
+        padding: '32px 36px 40px',
+        color: 'white',
+      }}
+    >
+      <h2
+        style={{
+          fontSize: 'clamp(30px, 3.8vw, 48px)',
+          fontWeight: 'var(--h-weight, 700)',
+          fontStyle: 'var(--h-italic, normal)',
+          letterSpacing: 'calc(var(--h-tracking, 0em) - 0.04em)',
+          lineHeight: 'calc(var(--h-leading, 1) * 0.98)',
+          margin: '0 0 14px',
+          color: 'white',
+          maxWidth: '16ch',
+          textShadow: '0 2px 30px oklch(0 0 0 / 0.35)',
+        }}
+      >
+        Everything in one Space
+      </h2>
+      <p
+        style={{
+          fontSize: 'clamp(13px, 1.05vw, 16px)',
+          fontWeight: 400,
+          color: 'rgba(255,255,255,0.88)',
+          maxWidth: 560,
+          margin: '0 0 24px',
+          lineHeight: 1.5,
+        }}
+      >
+        Create a space where everything you offer is clearly presented,
+        easily discovered, and ready for your audience to buy whenever
+        they&rsquo;re interested.
+      </p>
+      <button
+        type="button"
+        onClick={onAddToSpace}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 10,
+          padding: '12px 20px',
+          background: 'white',
+          color: 'oklch(0.14 0.006 280)',
+          borderRadius: 999,
+          boxShadow: '0 8px 28px oklch(0 0 0 / 0.4)',
+          border: 'none',
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+          fontSize: 14,
+          fontWeight: 600,
+          lineHeight: 1,
+        }}
+      >
+        Add to Space →
+      </button>
+    </div>
+  </section>
+)
 
 const getBlockOrder = (
   settings: schemas['OrganizationStorefrontSettings'] | undefined | null,
@@ -186,11 +295,13 @@ const ProductsBlock = ({
   products,
   productOrder,
   onUnfeature,
+  onAddToSpace,
 }: {
   organization: schemas['Organization']
   products: schemas['ProductStorefront'][]
   productOrder: string[]
   onUnfeature: (productId: string) => void
+  onAddToSpace?: () => void
 }) => {
   const settings = organization.storefront_settings
   const featuredMode = settings?.featured_mode ?? 'all'
@@ -238,19 +349,7 @@ const ProductsBlock = ({
   }, [orderedVisible])
 
   if (visible.length === 0) {
-    if (featuredMode === 'curated') {
-      return (
-        <div className="rounded-2xl border border-dashed border-gray-300 bg-white/50 p-8 text-center text-sm text-gray-500">
-          You&apos;re curating which products appear, but haven&apos;t selected any yet.
-          Open <b>Add to Space</b> → Digital Product to feature some.
-        </div>
-      )
-    }
-    return (
-      <div className="rounded-2xl border border-dashed border-gray-300 bg-white/50 p-8 text-center text-sm text-gray-500">
-        No products yet. Click <b>+ Add to Space</b> to create one.
-      </div>
-    )
+    return <SpaceEmptyHero onAddToSpace={onAddToSpace} />
   }
 
   return (
@@ -265,7 +364,7 @@ const ProductsBlock = ({
           </SectionLabel>
           <SortableContext
             items={section.items.map((p) => PRODUCT_PREFIX + p.id)}
-            strategy={verticalListSortingStrategy}
+            strategy={rectSortingStrategy}
           >
             <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-2">
               {section.items.map((product) => (
@@ -319,18 +418,16 @@ const LinksBlock = ({
   layout,
   onLayoutChange,
   onRemove,
+  onAddToSpace,
 }: {
   links: StorefrontLinkItem[]
   layout: LinksLayout
   onLayoutChange: (next: LinksLayout) => void
   onRemove: (id: string) => void
+  onAddToSpace?: () => void
 }) => {
   if (links.length === 0) {
-    return (
-      <div className="rounded-2xl border border-dashed border-gray-300 bg-white/50 p-8 text-center text-sm text-gray-500">
-        No links yet. Click <b>+ Add to Space</b> → URL or Embed to add one.
-      </div>
-    )
+    return <SpaceEmptyHero onAddToSpace={onAddToSpace} />
   }
 
   // Embeds and URL links render as separate sections — same split the
@@ -568,9 +665,11 @@ const LinkRow = ({
 export const DraggableBlocks = ({
   organization: org,
   products,
+  onAddToSpace,
 }: {
   organization: schemas['Organization']
   products: schemas['ProductStorefront'][]
+  onAddToSpace?: () => void
 }) => {
   const { watch, setValue } = useFormContext<schemas['OrganizationUpdate']>()
   const settings = (watch('storefront_settings') ??
@@ -649,8 +748,14 @@ export const DraggableBlocks = ({
   }
 
   // ── DnD ──
+  // Small activation distance so the drag picks up the moment the
+  // pointer commits to a direction. (Don't combine with `tolerance` —
+  // that field is paired with `delay`, not `distance`, and including
+  // it silently invalidates the constraint.)
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 4 },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     }),
@@ -665,21 +770,18 @@ export const DraggableBlocks = ({
     }
   }
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    setActiveBlock(null)
-    const { active, over } = event
-    if (!over) return
-    const activeId = String(active.id)
-    const overId = String(over.id)
+  // Live reorder while the pointer is still down: as the active item
+  // crosses another item we commit the swap into form state so the
+  // canvas reflows in real time. onDragEnd is just bookkeeping.
+  const applyReorder = (activeId: string, overId: string) => {
     if (activeId === overId) return
 
-    // ── Block reorder ──
     if (activeId.startsWith(BLOCK_PREFIX) && overId.startsWith(BLOCK_PREFIX)) {
       const a = activeId.slice(BLOCK_PREFIX.length) as BlockKind
       const b = overId.slice(BLOCK_PREFIX.length) as BlockKind
       const from = blockOrder.indexOf(a)
       const to = blockOrder.indexOf(b)
-      if (from < 0 || to < 0) return
+      if (from < 0 || to < 0 || from === to) return
       const next = arrayMove(blockOrder, from, to)
       updateSetting(
         'block_order',
@@ -688,40 +790,43 @@ export const DraggableBlocks = ({
       return
     }
 
-    // ── Product reorder (within section: arrayMove on the global
-    //    featured_product_ids ranking, ensuring the active id ends up
-    //    next to the target) ──
     if (activeId.startsWith(PRODUCT_PREFIX) && overId.startsWith(PRODUCT_PREFIX)) {
       const aId = activeId.slice(PRODUCT_PREFIX.length)
       const bId = overId.slice(PRODUCT_PREFIX.length)
-      // Build a ranked list from current productOrder + any visible
-      // products missing from it, then move within.
       const seen = new Set(productOrder)
       const tail = products.map((p) => p.id).filter((id) => !seen.has(id))
       const full = [...productOrder, ...tail]
       const from = full.indexOf(aId)
       const to = full.indexOf(bId)
-      if (from < 0 || to < 0) return
+      if (from < 0 || to < 0 || from === to) return
       const next = arrayMove(full, from, to)
       updateSetting('featured_product_ids', next)
       return
     }
 
-    // ── Link reorder ──
     if (activeId.startsWith(LINK_PREFIX) && overId.startsWith(LINK_PREFIX)) {
       const aId = activeId.slice(LINK_PREFIX.length)
       const bId = overId.slice(LINK_PREFIX.length)
       const from = links.findIndex((l) => l.id === aId)
       const to = links.findIndex((l) => l.id === bId)
-      if (from < 0 || to < 0) return
+      if (from < 0 || to < 0 || from === to) return
       const next = arrayMove(links, from, to)
       setValue(
         'storefront_settings',
         { ...(settings ?? {}), storefront_links: next } as schemas['OrganizationStorefrontSettings'],
         { shouldDirty: true },
       )
-      return
     }
+  }
+
+  const handleDragOver = (event: DragOverEvent) => {
+    const { active, over } = event
+    if (!over) return
+    applyReorder(String(active.id), String(over.id))
+  }
+
+  const handleDragEnd = (_event: DragEndEvent) => {
+    setActiveBlock(null)
   }
 
   // ── Block renderers ──
@@ -733,6 +838,7 @@ export const DraggableBlocks = ({
           products={products}
           productOrder={productOrder}
           onUnfeature={onUnfeatureProduct}
+          onAddToSpace={onAddToSpace}
         />
       )
     }
@@ -743,6 +849,7 @@ export const DraggableBlocks = ({
           layout={linksLayout}
           onLayoutChange={(v) => updateSetting('links_layout', v)}
           onRemove={onRemoveLink}
+          onAddToSpace={onAddToSpace}
         />
       )
     }
@@ -751,12 +858,45 @@ export const DraggableBlocks = ({
 
   const renderableOrder = blockOrder.filter((k) => k === 'products' || k === 'links')
 
+  // If the whole canvas is empty, collapse the per-block heroes into a
+  // single one — two stacked heroes would just be noise.
+  const featuredMode = settings?.featured_mode ?? 'all'
+  const featuredIds = settings?.featured_product_ids ?? []
+  const visibleProductCount =
+    featuredMode === 'curated'
+      ? products.filter((p) => featuredIds.includes(p.id)).length
+      : products.length
+  if (visibleProductCount === 0 && links.length === 0) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          // Stretch to roughly the visible canvas height so the hero
+          // box sits in the vertical middle of the right pane instead
+          // of hugging the top. 220px ≈ sticky toolbar + canvas-wrap
+          // padding (28 top / 140 bottom) + a bit of breathing room.
+          minHeight: 'calc(100dvh - 220px)',
+          width: '100%',
+        }}
+      >
+        <div className="canvas-card" style={{ width: '100%' }}>
+          <SpaceEmptyHero onAddToSpace={onAddToSpace} />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
+      measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
       onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
+      onDragCancel={() => setActiveBlock(null)}
     >
       <SortableContext
         items={renderableOrder.map((k) => BLOCK_PREFIX + k)}
