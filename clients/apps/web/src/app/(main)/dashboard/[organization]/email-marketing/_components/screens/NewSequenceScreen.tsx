@@ -472,6 +472,23 @@ const SequenceEditorInner = ({
     seedFlowForCourseTrigger(choice)
   }
 
+  // Lesson-context default: when the editor is opened from a specific lesson
+  // (lessonId is set on top of courseId), pre-select "Lesson completed" with
+  // that lesson highlighted and seed the flow with the until-event wait.
+  // Cuts the number of clicks from 3 → 0 in the most common path for
+  // lesson-scoped automations.
+  const lessonDefaultAppliedRef = useRef(false)
+  useEffect(() => {
+    if (lessonDefaultAppliedRef.current) return
+    if (!courseMode || sequenceId) return
+    if (!lessonId) return
+    if (courseTriggerChoice) return
+    // Wait until the course query has loaded so the lesson dropdown has data.
+    if (!course) return
+    lessonDefaultAppliedRef.current = true
+    onCourseTriggerPick('lesson_completed')
+  }, [courseMode, sequenceId, lessonId, courseTriggerChoice, course])
+
   // Tree-aware step helpers (Phase 3b — branches now carry yes/no children
   // recursively, so manipulations need to walk into both arms instead of
   // just the top-level array).
