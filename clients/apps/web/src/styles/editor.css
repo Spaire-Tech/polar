@@ -1594,3 +1594,108 @@
 .spaire-editor .mobile-frame-scroll {
   scrollbar-width: none;
 }
+
+/* ── Mobile preview: force REAL mobile rendering ────────────────────
+   The iPhone frame sits inside a desktop-viewport browser, so
+   Tailwind's `md:` utilities (active at ≥ 768 px) fire even though
+   the visible canvas is ~390 px. These overrides cancel the `md:`
+   modifiers that affect layout — collapsing the public page's
+   two-column desktop layout into the single-column mobile layout
+   the user actually sees on their phone.
+
+   Only the layout-affecting classes are reset. Spacing/colour
+   utilities (md:py-8, md:gap-12) get pinned to their mobile
+   equivalents (py-4, gap-8) so vertical rhythm matches a real
+   phone's rendering of the same Tailwind code.
+
+   Limited to .mobile-frame-scroll so the rest of the editor is
+   untouched. */
+
+/* Reset the page-wrapper paddings to the mobile defaults. */
+.spaire-editor .mobile-frame-scroll .mp-page-wrap {
+  /* PublicLayout normally adds md:py-8; mobile gets py-4. Match
+     the smaller value here since `md:` would otherwise apply. */
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+  width: 100%;
+}
+
+/* Two-column → single column. */
+.spaire-editor .mobile-frame-scroll .md\:flex-row {
+  flex-direction: column !important;
+}
+.spaire-editor .mobile-frame-scroll .md\:gap-12 {
+  gap: 2rem !important; /* same as gap-8 mobile default */
+}
+
+/* Profile card aside: full-width, not sticky, no fixed pixel width. */
+.spaire-editor .mobile-frame-scroll .md\:sticky {
+  position: static !important;
+}
+.spaire-editor .mobile-frame-scroll .md\:top-8 {
+  top: auto !important;
+}
+.spaire-editor .mobile-frame-scroll .md\:self-start {
+  align-self: auto !important;
+}
+.spaire-editor .mobile-frame-scroll .md\:w-\[420px\] {
+  width: 100% !important;
+}
+
+/* Product grid: one column on mobile. */
+.spaire-editor .mobile-frame-scroll .md\:grid-cols-2 {
+  grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+}
+.spaire-editor .mobile-frame-scroll .md\:grid-cols-3 {
+  grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+}
+.spaire-editor .mobile-frame-scroll .md\:grid-cols-4 {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+/* Re-show elements that the public page hides past `md:`. */
+.spaire-editor .mobile-frame-scroll .md\:hidden {
+  display: revert !important;
+}
+/* And re-hide elements that the public page only shows past `md:`. */
+.spaire-editor .mobile-frame-scroll .md\:block {
+  display: none !important;
+}
+.spaire-editor .mobile-frame-scroll .md\:flex {
+  display: none !important;
+}
+.spaire-editor .mobile-frame-scroll .md\:inline-flex {
+  display: none !important;
+}
+
+/* PublicLayout-style page paddings: pin to mobile values. */
+.spaire-editor .mobile-frame-scroll .md\:py-8 {
+  padding-top: 1rem !important;
+  padding-bottom: 1rem !important;
+}
+.spaire-editor .mobile-frame-scroll .md\:px-8 {
+  padding-left: 1rem !important;
+  padding-right: 1rem !important;
+}
+.spaire-editor .mobile-frame-scroll .md\:pt-8 {
+  padding-top: 1rem !important;
+}
+
+/* Banner aspect: tame the desktop 16:5 a bit on phones. */
+.spaire-editor .mobile-frame-scroll .md\:aspect-\[16\/5\] {
+  aspect-ratio: 16 / 9 !important;
+}
+
+/* min-h utilities that are desktop-only. */
+.spaire-editor .mobile-frame-scroll .md\:overflow-hidden {
+  overflow: visible !important;
+}
+.spaire-editor .mobile-frame-scroll .md\:overflow-y-auto {
+  overflow-y: visible !important;
+}
+.spaire-editor .mobile-frame-scroll .md\:h-full {
+  height: auto !important;
+}
+.spaire-editor .mobile-frame-scroll .md\:min-h-0 {
+  min-height: 0 !important;
+}
