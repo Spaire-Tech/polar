@@ -689,18 +689,41 @@ export const EditableProfileCard = ({
             if (!over || active.id === over.id) return
             const aId = String(active.id)
             const bId = String(over.id)
-            const seen = new Set(featuredIds)
-            const tail = products.map((p) => p.id).filter((id) => !seen.has(id))
-            const full = [...featuredIds, ...tail]
-            const from = full.indexOf(aId)
-            const to = full.indexOf(bId)
+            // Reorder ONLY within the already-visible carousel set. We
+            // must never expand featured_product_ids with products that
+            // weren't already in the Space — in curated mode that field
+            // doubles as the visibility list, so adding ids un-curates
+            // hidden products. (The bug: dragging used to dump every
+            // product id into featured_product_ids.)
+            const visibleIds = withImages.map((p) => p.id)
+            const from = visibleIds.indexOf(aId)
+            const to = visibleIds.indexOf(bId)
             if (from < 0 || to < 0) return
-            const next = arrayMove(full, from, to)
+            const newVisibleOrder = arrayMove(visibleIds, from, to)
+            const visibleSet = new Set(visibleIds)
+            // Walk featuredIds, swapping visible slots with the new
+            // order in turn. Non-image curated items keep their slots.
+            const queue = [...newVisibleOrder]
+            const woven: string[] = []
+            for (const id of featuredIds) {
+              if (visibleSet.has(id)) {
+                const next = queue.shift()
+                if (next) woven.push(next)
+              } else {
+                woven.push(id)
+              }
+            }
+            // Any visible ids not previously in featuredIds (e.g.
+            // 'all' mode with an empty ranking hint) get appended in
+            // their new order. Hidden / non-Space products are NEVER
+            // added.
+            for (const id of queue) woven.push(id)
+
             setValue(
               'storefront_settings',
               {
                 ...(settings ?? {}),
-                featured_product_ids: next,
+                featured_product_ids: woven,
               } as schemas['OrganizationStorefrontSettings'],
               { shouldDirty: true },
             )

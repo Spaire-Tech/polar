@@ -774,14 +774,44 @@ export const DraggableBlocks = ({
     if (activeId.startsWith(PRODUCT_PREFIX) && overId.startsWith(PRODUCT_PREFIX)) {
       const aId = activeId.slice(PRODUCT_PREFIX.length)
       const bId = overId.slice(PRODUCT_PREFIX.length)
-      const seen = new Set(productOrder)
-      const tail = products.map((p) => p.id).filter((id) => !seen.has(id))
-      const full = [...productOrder, ...tail]
-      const from = full.indexOf(aId)
-      const to = full.indexOf(bId)
+      // Reorder only within the currently-visible set. In curated mode
+      // featured_product_ids doubles as the visibility list, so we
+      // mustn't expand it with hidden products — that would silently
+      // un-curate everything. In 'all' mode the visible set is every
+      // product, so this collapses to the same arrayMove.
+      const featuredMode = settings?.featured_mode ?? 'all'
+      const visibleIds =
+        featuredMode === 'curated'
+          ? productOrder.filter((id) => products.some((p) => p.id === id))
+          : products.map((p) => p.id)
+      // Apply ranking hint to derive the same on-canvas ordering the
+      // user sees: ranked ids first (in productOrder), then unranked.
+      const rank = new Map(productOrder.map((id, i) => [id, i]))
+      const ordered = [...visibleIds].sort((a, b) => {
+        const ra = rank.has(a) ? rank.get(a)! : Number.POSITIVE_INFINITY
+        const rb = rank.has(b) ? rank.get(b)! : Number.POSITIVE_INFINITY
+        return ra - rb
+      })
+      const from = ordered.indexOf(aId)
+      const to = ordered.indexOf(bId)
       if (from < 0 || to < 0 || from === to) return
-      const next = arrayMove(full, from, to)
-      updateSetting('featured_product_ids', next)
+      const newVisibleOrder = arrayMove(ordered, from, to)
+      // Weave the new order back into productOrder. Visible ids
+      // already present in productOrder keep their slots; new visible
+      // ids (e.g. 'all' mode + empty ranking hint) get appended.
+      const visibleSet = new Set(visibleIds)
+      const queue = [...newVisibleOrder]
+      const woven: string[] = []
+      for (const id of productOrder) {
+        if (visibleSet.has(id)) {
+          const next = queue.shift()
+          if (next) woven.push(next)
+        } else {
+          woven.push(id)
+        }
+      }
+      for (const id of queue) woven.push(id)
+      updateSetting('featured_product_ids', woven)
       return
     }
 
