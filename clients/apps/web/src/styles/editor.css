@@ -1496,7 +1496,7 @@
 }
 
 /* ── Mobile preview frame (iPhone-shaped, scrollable) ───────────── */
-.spaire-editor .mobile-preview-wrap {
+.mobile-preview-wrap {
   flex: 1;
   display: flex;
   align-items: center;
@@ -1507,11 +1507,11 @@
   transition: padding-right 0.25s ease;
 }
 
-.spaire-editor .mobile-preview-wrap.has-panel {
+.mobile-preview-wrap.has-panel {
   padding-right: 460px;
 }
 
-.spaire-editor .mobile-frame {
+.mobile-frame {
   position: relative;
   /* iPhone 14 logical size: 390 × 844 (9 : 19.5). Cap height so the
      frame fits viewports comfortably; the inner scroll handles the
@@ -1529,7 +1529,7 @@
 }
 
 /* Dynamic island. */
-.spaire-editor .mobile-frame-island {
+.mobile-frame-island {
   position: absolute;
   left: 50%;
   top: 18px;
@@ -1543,7 +1543,7 @@
 }
 
 /* Home indicator. */
-.spaire-editor .mobile-frame-home {
+.mobile-frame-home {
   position: absolute;
   left: 50%;
   bottom: 8px;
@@ -1557,7 +1557,7 @@
 }
 
 /* The actual phone "screen": white inner panel that clips the content. */
-.spaire-editor .mobile-frame-screen {
+.mobile-frame-screen {
   position: relative;
   width: 100%;
   height: 100%;
@@ -1568,7 +1568,7 @@
 }
 
 /* Scrollable container — own scroll, momentum on iOS-like trackpads. */
-.spaire-editor .mobile-frame-scroll {
+.mobile-frame-scroll {
   width: 100%;
   height: 100%;
   overflow-y: auto;
@@ -1586,12 +1586,12 @@
 
 /* Hide the toolbar's scrollbar for the mobile frame's inner scroll
    to keep the device chrome looking like a phone. */
-.spaire-editor .mobile-frame-scroll::-webkit-scrollbar {
+.mobile-frame-scroll::-webkit-scrollbar {
   width: 0;
   height: 0;
 }
 
-.spaire-editor .mobile-frame-scroll {
+.mobile-frame-scroll {
   scrollbar-width: none;
 }
 
@@ -1612,7 +1612,7 @@
    untouched. */
 
 /* Reset the page-wrapper paddings to the mobile defaults. */
-.spaire-editor .mobile-frame-scroll .mp-page-wrap {
+.mobile-frame-scroll .mp-page-wrap {
   /* PublicLayout normally adds md:py-8; mobile gets py-4. Match
      the smaller value here since `md:` would otherwise apply. */
   padding-top: 1rem;
@@ -1621,81 +1621,123 @@
 }
 
 /* Two-column → single column. */
-.spaire-editor .mobile-frame-scroll .md\:flex-row {
+.mobile-frame-scroll .md\:flex-row {
   flex-direction: column !important;
 }
-.spaire-editor .mobile-frame-scroll .md\:gap-12 {
+.mobile-frame-scroll .md\:gap-12 {
   gap: 2rem !important; /* same as gap-8 mobile default */
 }
 
 /* Profile card aside: full-width, not sticky, no fixed pixel width. */
-.spaire-editor .mobile-frame-scroll .md\:sticky {
+.mobile-frame-scroll .md\:sticky {
   position: static !important;
 }
-.spaire-editor .mobile-frame-scroll .md\:top-8 {
+.mobile-frame-scroll .md\:top-8 {
   top: auto !important;
 }
-.spaire-editor .mobile-frame-scroll .md\:self-start {
+.mobile-frame-scroll .md\:self-start {
   align-self: auto !important;
 }
-.spaire-editor .mobile-frame-scroll .md\:w-\[420px\] {
+.mobile-frame-scroll .md\:w-\[420px\] {
   width: 100% !important;
 }
 
 /* Product grid: one column on mobile. */
-.spaire-editor .mobile-frame-scroll .md\:grid-cols-2 {
+.mobile-frame-scroll .md\:grid-cols-2 {
   grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
 }
-.spaire-editor .mobile-frame-scroll .md\:grid-cols-3 {
+.mobile-frame-scroll .md\:grid-cols-3 {
   grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
 }
-.spaire-editor .mobile-frame-scroll .md\:grid-cols-4 {
+.mobile-frame-scroll .md\:grid-cols-4 {
   grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
 }
 
 /* Re-show elements that the public page hides past `md:`. */
-.spaire-editor .mobile-frame-scroll .md\:hidden {
+.mobile-frame-scroll .md\:hidden {
   display: revert !important;
 }
 /* And re-hide elements that the public page only shows past `md:`. */
-.spaire-editor .mobile-frame-scroll .md\:block {
+.mobile-frame-scroll .md\:block {
   display: none !important;
 }
-.spaire-editor .mobile-frame-scroll .md\:flex {
+.mobile-frame-scroll .md\:flex {
   display: none !important;
 }
-.spaire-editor .mobile-frame-scroll .md\:inline-flex {
+.mobile-frame-scroll .md\:inline-flex {
   display: none !important;
 }
 
 /* PublicLayout-style page paddings: pin to mobile values. */
-.spaire-editor .mobile-frame-scroll .md\:py-8 {
+.mobile-frame-scroll .md\:py-8 {
   padding-top: 1rem !important;
   padding-bottom: 1rem !important;
 }
-.spaire-editor .mobile-frame-scroll .md\:px-8 {
+.mobile-frame-scroll .md\:px-8 {
   padding-left: 1rem !important;
   padding-right: 1rem !important;
 }
-.spaire-editor .mobile-frame-scroll .md\:pt-8 {
+.mobile-frame-scroll .md\:pt-8 {
   padding-top: 1rem !important;
 }
 
 /* Banner aspect: tame the desktop 16:5 a bit on phones. */
-.spaire-editor .mobile-frame-scroll .md\:aspect-\[16\/5\] {
+.mobile-frame-scroll .md\:aspect-\[16\/5\] {
   aspect-ratio: 16 / 9 !important;
 }
 
 /* min-h utilities that are desktop-only. */
-.spaire-editor .mobile-frame-scroll .md\:overflow-hidden {
+.mobile-frame-scroll .md\:overflow-hidden {
   overflow: visible !important;
 }
-.spaire-editor .mobile-frame-scroll .md\:overflow-y-auto {
+.mobile-frame-scroll .md\:overflow-y-auto {
   overflow-y: visible !important;
 }
-.spaire-editor .mobile-frame-scroll .md\:h-full {
+.mobile-frame-scroll .md\:h-full {
   height: auto !important;
 }
-.spaire-editor .mobile-frame-scroll .md\:min-h-0 {
+.mobile-frame-scroll .md\:min-h-0 {
   min-height: 0 !important;
+}
+
+/* ── Preview-mode device toggle ─────────────────────────────────── */
+.preview-device {
+  display: inline-flex;
+  background: #f4f4f7;
+  border: 1px solid #e6e6ec;
+  border-radius: 999px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.preview-device-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #6b6b78;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    box-shadow 0.15s;
+}
+
+.preview-device-btn:hover {
+  color: #2a2a35;
+}
+
+.preview-device-btn[data-active='1'] {
+  background: white;
+  color: #0c0c14;
+  box-shadow:
+    0 1px 2px rgba(15, 15, 30, 0.06),
+    0 0 0 1px #e6e6ec;
 }
