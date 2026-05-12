@@ -18,7 +18,8 @@ import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { ArrangePanel } from './InlineEdit/ArrangePanel'
-import { MobilePreview } from './MobilePreview'
+import { MobilePreviewFrame } from './MobilePreviewFrame'
+import { SpaceEmptyHero } from './SpaceEmptyHero'
 import { SpaceSettingsPanel } from './InlineEdit/SpaceSettingsPanel'
 import { SpaceEditorCanvas } from './SpaceEditorShell'
 import {
@@ -291,6 +292,27 @@ const Customization = ({
 
   // Published preview mode — card centered with Edit Space button
   if (!isEditing && isSpaceEnabled) {
+    const previewOrg = storefrontData?.organization ?? organization
+    const previewProducts = (storefrontData?.products ?? []) as schemas['ProductStorefront'][]
+    const previewSettings = previewOrg.storefront_settings ?? {}
+    const previewFeaturedMode = previewSettings?.featured_mode ?? 'all'
+    const previewFeaturedIds = previewSettings?.featured_product_ids ?? []
+    const previewLinks = previewSettings?.storefront_links ?? []
+    const visiblePreviewProductCount =
+      previewFeaturedMode === 'curated'
+        ? previewFeaturedIds.length
+        : previewProducts.length
+    const isPreviewSpaceEmpty =
+      visiblePreviewProductCount === 0 && previewLinks.length === 0
+
+    // Jump back into the editor with the picker already open — the
+    // empty-state CTA in preview should land the creator straight on
+    // the "add products / links" surface.
+    const openEditorAtPicker = () => {
+      setIsEditing(true)
+      setPickerOpen(true)
+    }
+
     return (
       <>
         <ForceLightMode />
@@ -304,6 +326,65 @@ const Customization = ({
             >
               &larr; Back to dashboard
             </button>
+
+            {/* Centered device toggle — preview only. */}
+            <div
+              className="preview-device"
+              role="tablist"
+              aria-label="Preview device"
+            >
+              <button
+                type="button"
+                role="tab"
+                aria-selected={previewDevice === 'desktop'}
+                className="preview-device-btn"
+                data-active={previewDevice === 'desktop' ? '1' : '0'}
+                onClick={() => setPreviewDevice('desktop')}
+                title="Desktop preview"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <rect x="2" y="3" width="20" height="14" rx="2" />
+                  <path d="M8 21h8M12 17v4" />
+                </svg>
+                <span>Desktop</span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={previewDevice === 'mobile'}
+                className="preview-device-btn"
+                data-active={previewDevice === 'mobile' ? '1' : '0'}
+                onClick={() => setPreviewDevice('mobile')}
+                title="Mobile preview (iPhone)"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <rect x="6" y="2" width="12" height="20" rx="3" />
+                  <path d="M11 18h2" />
+                </svg>
+                <span>Mobile</span>
+              </button>
+            </div>
+
             <div className="flex items-center gap-3">
               <a
                 href={spacePageLink(organization)}
@@ -323,27 +404,71 @@ const Customization = ({
             </div>
           </div>
 
-          {/* Full storefront preview — on desktop, the left card stays
-              fixed while only the right column scrolls. On mobile, the
-              whole page scrolls normally (stacked). */}
-          <div className="flex min-h-0 flex-1 justify-center overflow-y-auto px-10 md:overflow-hidden">
-            <div className="flex w-full max-w-[1100px] flex-col gap-8 py-10 md:h-full md:flex-row md:gap-12 md:py-0">
-              <aside className="w-full shrink-0 md:w-[460px] md:py-10">
-                <ProfileCard
-                  organization={storefrontData?.organization ?? organization}
-                  products={storefrontData?.products ?? []}
-                  preview
-                />
-              </aside>
-              <main className="flex min-w-0 flex-1 flex-col md:min-h-0 md:overflow-y-auto md:py-10">
-                <Storefront
-                  organization={storefrontData?.organization ?? organization}
-                  products={storefrontData?.products ?? []}
-                  preview
-                />
-              </main>
+          {previewDevice === 'desktop' ? (
+            /* Desktop preview — same layout the public Space renders
+               on a wide viewport. */
+            <div className="flex min-h-0 flex-1 justify-center overflow-y-auto px-10 md:overflow-hidden">
+              <div className="flex w-full max-w-[1100px] flex-col gap-8 py-10 md:h-full md:flex-row md:gap-12 md:py-0">
+                <aside className="w-full shrink-0 md:w-[460px] md:py-10">
+                  <ProfileCard
+                    organization={previewOrg}
+                    products={previewProducts}
+                    preview
+                  />
+                </aside>
+                <main className="flex min-w-0 flex-1 flex-col md:min-h-0 md:overflow-y-auto md:py-10">
+                  {isPreviewSpaceEmpty ? (
+                    <div className="py-10">
+                      <SpaceEmptyHero onAddToSpace={openEditorAtPicker} />
+                    </div>
+                  ) : (
+                    <Storefront
+                      organization={previewOrg}
+                      products={previewProducts}
+                      preview
+                    />
+                  )}
+                </main>
+              </div>
             </div>
-          </div>
+          ) : (
+            /* Mobile preview — iPhone-shaped frame. Same components,
+               but the .mobile-frame-scroll CSS overrides collapse the
+               public layout to its mobile rendering. */
+            <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto px-4 py-6">
+              <MobilePreviewFrame>
+                <div className="mp-page-wrap">
+                  <div className="flex flex-col gap-8 md:flex-row md:gap-12">
+                    <aside
+                      data-profile-card
+                      className="w-full shrink-0 md:sticky md:top-8 md:w-[420px] md:self-start"
+                    >
+                      <ProfileCard
+                        organization={previewOrg}
+                        products={previewProducts}
+                        preview
+                      />
+                    </aside>
+                    <main className="flex min-w-0 flex-1 flex-col">
+                      <div className="flex h-full grow flex-col">
+                        {isPreviewSpaceEmpty ? (
+                          <SpaceEmptyHero
+                            onAddToSpace={openEditorAtPicker}
+                          />
+                        ) : (
+                          <Storefront
+                            organization={previewOrg}
+                            products={previewProducts}
+                            preview
+                          />
+                        )}
+                      </div>
+                    </main>
+                  </div>
+                </div>
+              </MobilePreviewFrame>
+            </div>
+          )}
         </div>
       </>
     )
@@ -398,16 +523,11 @@ const Customization = ({
             <button type="button" className="tb-back" onClick={handleBack}>
               {'←'} {isSpaceEnabled ? 'Back to preview' : 'Dashboard'}
             </button>
+          </div>
+          <div className="tb-center">
             <span
               className="tb-status"
               data-pub={!isDirty && isSpaceEnabled ? '1' : '0'}
-              title={
-                isDirty
-                  ? 'Unpublished changes'
-                  : isSpaceEnabled
-                    ? 'Published'
-                    : 'Draft'
-              }
             >
               <span className="dot" />
               {isDirty
@@ -416,60 +536,6 @@ const Customization = ({
                   ? 'Published'
                   : 'Draft'}
             </span>
-          </div>
-          <div className="tb-center">
-            <div className="tb-device" role="tablist" aria-label="Preview device">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={previewDevice === 'desktop'}
-                className="tb-device-btn"
-                data-active={previewDevice === 'desktop' ? '1' : '0'}
-                onClick={() => setPreviewDevice('desktop')}
-                title="Desktop preview"
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden
-                >
-                  <rect x="2" y="3" width="20" height="14" rx="2" />
-                  <path d="M8 21h8M12 17v4" />
-                </svg>
-                <span>Desktop</span>
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={previewDevice === 'mobile'}
-                className="tb-device-btn"
-                data-active={previewDevice === 'mobile' ? '1' : '0'}
-                onClick={() => setPreviewDevice('mobile')}
-                title="Mobile preview (iPhone)"
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden
-                >
-                  <rect x="6" y="2" width="12" height="20" rx="3" />
-                  <path d="M11 18h2" />
-                </svg>
-                <span>Mobile</span>
-              </button>
-            </div>
           </div>
           <div className="tb-right">
             <button
@@ -559,27 +625,12 @@ const Customization = ({
           </div>
         )}
 
-        {/* Canvas — desktop uses the editable WYSIWYG canvas; mobile
-            uses a real iPhone-framed read-only preview (same components
-            the public Space renders, fed by watched form state so
-            edits made via the Arrange / Settings / inline editors
-            reflect live). */}
-        {previewDevice === 'desktop' ? (
-          <SpaceEditorCanvas
-            organization={organization}
-            hasSettingsPanel={settingsOpen || linksMode || arrangeOpen}
-            onAddToSpace={() => setPickerOpen(true)}
-          />
-        ) : (
-          <MobilePreview
-            organization={organization}
-            products={
-              (storefrontData?.products ??
-                []) as schemas['ProductStorefront'][]
-            }
-            hasSettingsPanel={settingsOpen || linksMode || arrangeOpen}
-          />
-        )}
+        {/* Canvas — ProfileCard + Storefront content blocks */}
+        <SpaceEditorCanvas
+          organization={organization}
+          hasSettingsPanel={settingsOpen || linksMode || arrangeOpen}
+          onAddToSpace={() => setPickerOpen(true)}
+        />
 
         {/* Arrange panel — single source of truth for reordering every
             item in the Space (products, categories, links). The
