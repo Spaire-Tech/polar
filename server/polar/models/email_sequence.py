@@ -27,6 +27,8 @@ class EmailSequence(RecordModel):
     __tablename__ = "email_sequences"
     __table_args__ = (
         Index("ix_email_sequences_organization_id_status", "organization_id", "status"),
+        Index("ix_email_sequences_course_id", "course_id"),
+        Index("ix_email_sequences_lesson_id", "lesson_id"),
     )
 
     organization_id: Mapped[UUID] = mapped_column(
@@ -44,6 +46,20 @@ class EmailSequence(RecordModel):
     trigger_config: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default=EmailSequenceStatus.draft
+    )
+    # Optional links so a sequence can be scoped to a specific course or lesson.
+    # When set, the Automations panel on the course/lesson surface lists this sequence.
+    course_id: Mapped[UUID | None] = mapped_column(
+        Uuid,
+        ForeignKey("courses.id", ondelete="set null"),
+        nullable=True,
+        default=None,
+    )
+    lesson_id: Mapped[UUID | None] = mapped_column(
+        Uuid,
+        ForeignKey("course_lessons.id", ondelete="set null"),
+        nullable=True,
+        default=None,
     )
 
     @declared_attr

@@ -396,7 +396,7 @@ const TemplateGallery = ({
   const featured = templates[0]
 
   const onUse = async (slug: string) => {
-    const created = await fromTemplate.mutateAsync(slug)
+    const created = await fromTemplate.mutateAsync({ slug })
     if (created?.id) onCreated(created.id)
   }
 

@@ -32,6 +32,7 @@ export default function EmailMarketingLayout({ children }: PropsWithChildren) {
     <div className="spaire-email-app">
       <div
         className="sticky top-0 z-50 border-b border-[var(--line)] bg-white/85 backdrop-blur-md"
+        data-email-marketing-chrome="true"
         style={{ WebkitBackdropFilter: 'saturate(180%) blur(20px)' }}
       >
         <div className="container flex h-[78px] items-center justify-between">

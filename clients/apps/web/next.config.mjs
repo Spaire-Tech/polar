@@ -34,7 +34,7 @@ const baseCSP = `
 const nonEmbeddedCSP = `
   ${baseCSP}
   form-action 'self' ${process.env.NEXT_PUBLIC_API_URL};
-  frame-ancestors 'none';
+  frame-ancestors 'self';
 `
 const embeddedCSP = `
   ${baseCSP}
@@ -379,7 +379,7 @@ const nextConfig = {
       },
       {
         key: 'X-Frame-Options',
-        value: 'DENY',
+        value: 'SAMEORIGIN',
       },
     ]
 

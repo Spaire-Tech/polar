@@ -19,6 +19,7 @@ import { schemas } from '@spaire/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useRef, useState } from 'react'
 import { toast } from '../Toast/use-toast'
+import { AutomationsPanel } from './editor/AutomationsPanel'
 import { CourseHeader, TabId } from './editor/CourseHeader'
 import { CustomersTab } from './editor/CustomersTab'
 import { CustomizeTab } from './editor/CustomizeTab'
@@ -75,13 +76,15 @@ export default function CourseEditor({
   const initialTab: TabId =
     (searchParams.get('tab') as TabId) === 'customize'
       ? 'customize'
-      : (searchParams.get('tab') as TabId) === 'settings'
-        ? 'settings'
-        : (searchParams.get('tab') as TabId) === 'pricing'
-          ? 'pricing'
-          : (searchParams.get('tab') as TabId) === 'customers'
-            ? 'customers'
-            : 'outline'
+      : (searchParams.get('tab') as TabId) === 'automations'
+        ? 'automations'
+        : (searchParams.get('tab') as TabId) === 'settings'
+          ? 'settings'
+          : (searchParams.get('tab') as TabId) === 'pricing'
+            ? 'pricing'
+            : (searchParams.get('tab') as TabId) === 'customers'
+              ? 'customers'
+              : 'outline'
   const [activeTab, setActiveTab] = useState<TabId>(initialTab)
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
@@ -369,6 +372,7 @@ export default function CourseEditor({
             lesson={selectedLessonInfo.lesson}
             module={selectedLessonInfo.module}
             course={course}
+            organization={organization}
             organizationSlug={organization.slug}
             onSave={handleSaveLesson}
             onDelete={() => handleDeleteLesson(selectedLessonInfo.lesson)}
@@ -397,6 +401,25 @@ export default function CourseEditor({
     }
   } else if (activeTab === 'customize') {
     mainContent = <CustomizeTab course={course} organization={organization} />
+  } else if (activeTab === 'automations') {
+    mainContent = (
+      <div className="mx-auto w-full max-w-5xl px-6 py-8">
+        <div className="mb-6 flex flex-col gap-1">
+          <h2 className="text-2xl font-bold tracking-tight text-gray-900">
+            Automations
+          </h2>
+          <p className="text-sm text-gray-500">
+            Email sequences that fire on course enrolment, lesson completion,
+            and other course events. Pick a template or start from scratch.
+          </p>
+        </div>
+        <AutomationsPanel
+          organization={organization}
+          courseId={course.id}
+          scopeLabel="course"
+        />
+      </div>
+    )
   } else if (activeTab === 'settings') {
     mainContent = (
       <SettingsTab

@@ -30,7 +30,10 @@ export function CatalogTabs() {
       }) ?? catalogTabs[0]
 
   return (
-    <div className="overflow-x-auto px-4 pt-6 md:px-8">
+    <div
+      className="overflow-x-auto px-4 pt-6 md:px-8"
+      data-catalog-tabs="true"
+    >
       <Tabs value={activeTab.title}>
         <TabsList className="flex min-w-max flex-row bg-transparent ring-0 ">
           {catalogTabs.map((tab) => (

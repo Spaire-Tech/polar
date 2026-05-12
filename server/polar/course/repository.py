@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import Select, select
+from sqlalchemy import Select, func, select
 
 from polar.auth.models import AuthSubject, Organization, User, is_organization, is_user
 from polar.kit.repository import (
@@ -106,6 +106,15 @@ class CourseLessonRepository(
             .order_by(CourseLesson.position)
         )
 
+    async def count_by_course(self, course_id: UUID) -> int:
+        statement = select(func.count(CourseLesson.id)).where(
+            CourseLesson.module_id.in_(
+                select(CourseModule.id).where(CourseModule.course_id == course_id)
+            ),
+            CourseLesson.deleted_at.is_(None),
+        )
+        return (await self.session.execute(statement)).scalar_one()
+
     async def get_readable_by_id(
         self,
         lesson_id: UUID,
@@ -159,6 +168,13 @@ class CourseLessonProgressRepository(
         return self.get_base_statement().where(
             CourseLessonProgress.enrollment_id == enrollment_id
         )
+
+    async def count_by_enrollment(self, enrollment_id: UUID) -> int:
+        statement = select(func.count(CourseLessonProgress.id)).where(
+            CourseLessonProgress.enrollment_id == enrollment_id,
+            CourseLessonProgress.deleted_at.is_(None),
+        )
+        return (await self.session.execute(statement)).scalar_one()
 
     def get_by_enrollment_and_lesson_statement(
         self, enrollment_id: UUID, lesson_id: UUID

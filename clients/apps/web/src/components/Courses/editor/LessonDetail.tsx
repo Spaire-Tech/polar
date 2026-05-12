@@ -18,8 +18,10 @@ import HelpOutlineOutlined from '@mui/icons-material/HelpOutlineOutlined'
 import ImageOutlined from '@mui/icons-material/ImageOutlined'
 import OndemandVideoOutlined from '@mui/icons-material/OndemandVideoOutlined'
 import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined'
+import { schemas } from '@spaire/client'
 import { cn } from '@spaire/ui/lib/utils'
 import { useEffect, useRef, useState } from 'react'
+import { AutomationsPanel } from './AutomationsPanel'
 import { toast } from '../../Toast/use-toast'
 import { HlsVideo } from '../HlsVideo'
 import { RichTextEditor } from './RichTextEditor'
@@ -43,6 +45,7 @@ export function LessonDetail({
   lesson,
   module,
   course,
+  organization,
   organizationSlug,
   onSave,
   onDelete,
@@ -54,6 +57,7 @@ export function LessonDetail({
   lesson: CourseLessonRead
   module: CourseModuleRead
   course: CourseRead
+  organization: schemas['Organization']
   organizationSlug: string
   onSave: (edits: LessonEdits) => void
   onDelete: () => void
@@ -543,22 +547,16 @@ export function LessonDetail({
             <Card>
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-bold text-gray-900">Automations</h3>
-                <button className="flex items-center gap-1.5 rounded-full bg-gray-900 px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:bg-gray-800">
-                  <AddOutlined sx={{ fontSize: 16 }} />
-                  New automation
-                </button>
               </div>
-              <p className="mt-4 text-sm text-gray-500">
-                Automations using this{' '}
-                <span className="font-semibold text-gray-900">
-                  {edits.title}
-                </span>{' '}
-                will appear here.
+              <p className="mt-2 mb-5 text-sm text-gray-500">
+                Sequences that fire when a student completes this lesson, or
+                templates you can adapt.
               </p>
-              <p className="mt-12 text-center text-sm text-gray-400">
-                This resource is not used as a trigger or action within any
-                workflow.
-              </p>
+              <AutomationsPanel
+                organization={organization}
+                lessonId={lesson.id}
+                scopeLabel="lesson"
+              />
             </Card>
           </div>
         </div>

@@ -56,10 +56,17 @@ async def list_email_sequences(
     auth_subject: EmailSequencesRead,
     pagination: PaginationParamsQuery,
     organization_id: UUID | None = Query(default=None),
+    course_id: UUID | None = Query(default=None),
+    lesson_id: UUID | None = Query(default=None),
     session: AsyncReadSession = Depends(get_db_read_session),
 ) -> ListResource[EmailSequenceSchema]:
     results, count = await sequence_service.list(
-        session, auth_subject, organization_id=organization_id, pagination=pagination
+        session,
+        auth_subject,
+        organization_id=organization_id,
+        course_id=course_id,
+        lesson_id=lesson_id,
+        pagination=pagination,
     )
     return ListResource.from_paginated_results(
         [EmailSequenceSchema.model_validate(r, from_attributes=True) for r in results],
@@ -88,6 +95,8 @@ async def create_email_sequence(
         description=sequence_create.description,
         trigger_type=sequence_create.trigger_type,
         trigger_config=trigger_config,
+        course_id=sequence_create.course_id,
+        lesson_id=sequence_create.lesson_id,
     )
     return EmailSequenceSchema.model_validate(sequence, from_attributes=True)
 
@@ -128,6 +137,8 @@ async def create_email_sequence_from_template(
         session,
         organization_id=organization_id,
         template=dict(template),
+        course_id=body.course_id,
+        lesson_id=body.lesson_id,
     )
     return EmailSequenceSchema.model_validate(sequence, from_attributes=True)
 
@@ -193,6 +204,8 @@ async def update_email_sequence(
         trigger_type=sequence_update.trigger_type,
         trigger_config=sequence_update.trigger_config,
         status=sequence_update.status,
+        course_id=sequence_update.course_id,
+        lesson_id=sequence_update.lesson_id,
     )
     return EmailSequenceSchema.model_validate(updated, from_attributes=True)
 
