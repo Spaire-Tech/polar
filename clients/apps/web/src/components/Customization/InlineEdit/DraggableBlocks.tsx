@@ -231,14 +231,12 @@ const ProductsBlock = ({
   productOrder,
   categoryOrder,
   onUnfeature,
-  onAddToSpace,
 }: {
   organization: schemas['Organization']
   products: schemas['ProductStorefront'][]
   productOrder: string[]
   categoryOrder: string[]
   onUnfeature: (productId: string) => void
-  onAddToSpace?: () => void
 }) => {
   const settings = organization.storefront_settings
   const featuredMode = settings?.featured_mode ?? 'all'
@@ -307,9 +305,10 @@ const ProductsBlock = ({
     return ordered
   }, [orderedVisible, categoryOrder])
 
-  if (visible.length === 0) {
-    return <SpaceEmptyHero onAddToSpace={onAddToSpace} />
-  }
+  // The fully-empty case is handled at the canvas level (single hero,
+  // see below). Returning null here keeps a partial canvas (links but
+  // no products) from rendering a redundant empty state.
+  if (visible.length === 0) return null
 
   return (
     <SortableContext
@@ -394,17 +393,15 @@ const LinksBlock = ({
   layout,
   onLayoutChange,
   onRemove,
-  onAddToSpace,
 }: {
   links: StorefrontLinkItem[]
   layout: LinksLayout
   onLayoutChange: (next: LinksLayout) => void
   onRemove: (id: string) => void
-  onAddToSpace?: () => void
 }) => {
-  if (links.length === 0) {
-    return <SpaceEmptyHero onAddToSpace={onAddToSpace} />
-  }
+  // Canvas-level hero (see below) handles the fully-empty case. Skip
+  // the per-block hero here so we don't stack two empty states.
+  if (links.length === 0) return null
 
   // Embeds and URL links render as separate sections — same split the
   // public StorefrontLinks renderer uses. Each list is its own
@@ -811,7 +808,13 @@ export const DraggableBlocks = ({
         }
       }
       for (const id of queue) woven.push(id)
-      updateSetting('featured_product_ids', woven)
+      // Defense: never persist ids that no longer correspond to a
+      // real, in-catalog product (e.g. archived between sessions).
+      const valid = new Set(products.map((p) => p.id))
+      updateSetting(
+        'featured_product_ids',
+        woven.filter((id) => valid.has(id)),
+      )
       return
     }
 
@@ -881,7 +884,6 @@ export const DraggableBlocks = ({
           productOrder={productOrder}
           categoryOrder={categoryOrder}
           onUnfeature={onUnfeatureProduct}
-          onAddToSpace={onAddToSpace}
         />
       )
     }
@@ -892,7 +894,6 @@ export const DraggableBlocks = ({
           layout={linksLayout}
           onLayoutChange={(v) => updateSetting('links_layout', v)}
           onRemove={onRemoveLink}
-          onAddToSpace={onAddToSpace}
         />
       )
     }

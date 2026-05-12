@@ -718,12 +718,17 @@ export const EditableProfileCard = ({
             // their new order. Hidden / non-Space products are NEVER
             // added.
             for (const id of queue) woven.push(id)
+            // Defense: drop any ids that no longer correspond to a
+            // real product (archived / deleted) so the carousel can
+            // never resurrect them.
+            const valid = new Set(products.map((p) => p.id))
+            const clean = woven.filter((id) => valid.has(id))
 
             setValue(
               'storefront_settings',
               {
                 ...(settings ?? {}),
-                featured_product_ids: woven,
+                featured_product_ids: clean,
               } as schemas['OrganizationStorefrontSettings'],
               { shouldDirty: true },
             )
