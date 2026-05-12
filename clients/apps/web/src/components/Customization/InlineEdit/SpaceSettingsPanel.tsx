@@ -68,8 +68,6 @@ export const SpaceSettingsPanel = ({
 
   const isEnabled = settings.enabled ?? false
   const availableForWork = settings.available_for_work ?? false
-  const featuredMode = settings.featured_mode ?? 'all'
-  const isCurated = featuredMode === 'curated'
   const contactUrl = settings.contact_url ?? ''
   const thumbnailSize = settings.thumbnail_size ?? 'medium'
 
@@ -307,37 +305,6 @@ export const SpaceSettingsPanel = ({
             'all'. The toggle here lets them flip back. The actual
             curated checklist still lives on the canvas (hover a
             product → hide button) for inline editing. */}
-        <section className="sp-section">
-          <h3>Products to display</h3>
-          <div className="sp-section-stack">
-            <div className="sp-row">
-              <div>
-                <div className="lbl">Curate which products appear</div>
-                <div className="sub">
-                  {isCurated
-                    ? 'Only the products you keep visible appear on your Space.'
-                    : 'All your active products appear automatically — including new ones you create.'}
-                </div>
-              </div>
-              <button
-                type="button"
-                className="sp-toggle"
-                data-on={isCurated ? '1' : '0'}
-                onClick={() =>
-                  updateSetting(
-                    'featured_mode',
-                    isCurated ? 'all' : 'curated',
-                  )
-                }
-                aria-pressed={isCurated}
-                aria-label="Curate which products appear"
-              >
-                <i />
-              </button>
-            </div>
-          </div>
-        </section>
-
         {/* ── Links / blocks shortcuts ───────────────────────────── */}
         <section className="sp-section">
           <h3>Blocks</h3>

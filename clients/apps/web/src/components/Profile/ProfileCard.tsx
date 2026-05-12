@@ -102,12 +102,30 @@ export const ProfileCard = ({
   }
 
   const MAX_VISIBLE_SKILLS = 4
-  const MAX_HIGHLIGHTS = 7
 
-  // Get product images for highlights row
-  const highlights = showCardProducts
-    ? products.filter((p) => p.medias.length > 0).slice(0, MAX_HIGHLIGHTS)
-    : []
+  // Carousel of products in the user's Space. Scoped exactly like the
+  // canvas: 'curated' mode filters to featured_product_ids, otherwise
+  // all active products show up. featured_product_ids is also the
+  // ranking hint, so the strip honors the order the creator set when
+  // dragging. Only products with images are shown.
+  const featuredMode: 'all' | 'curated' = settings?.featured_mode ?? 'all'
+  const featuredIds = settings?.featured_product_ids ?? []
+  const highlights = (() => {
+    if (!showCardProducts) return []
+    const scoped =
+      featuredMode === 'curated'
+        ? products.filter((p) => featuredIds.includes(p.id))
+        : products
+    if (featuredIds.length > 0) {
+      const rank = new Map(featuredIds.map((id, i) => [id, i]))
+      const ranked = scoped
+        .filter((p) => rank.has(p.id))
+        .sort((a, b) => rank.get(a.id)! - rank.get(b.id)!)
+      const unranked = scoped.filter((p) => !rank.has(p.id))
+      return [...ranked, ...unranked].filter((p) => p.medias.length > 0)
+    }
+    return scoped.filter((p) => p.medias.length > 0)
+  })()
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -273,18 +291,33 @@ export const ProfileCard = ({
           </div>
         )}
 
-        {/* Highlights — product thumbnail row */}
+        {/* Highlights — slow auto-scrolling carousel of products that
+            live on the Space. Loops by duplicating the track. */}
         {highlights.length > 0 && (
-          <div className="mt-5 flex flex-row gap-2 overflow-hidden">
-            {highlights.map((product) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                key={product.id}
-                src={product.medias[0].public_url}
-                alt={product.name}
-                className="h-16 w-16 shrink-0 rounded-lg object-cover"
-              />
-            ))}
+          <div
+            className="profile-card-marquee mt-5"
+            aria-label="Featured products"
+          >
+            <div
+              className="profile-card-marquee-track"
+              style={
+                {
+                  // ~6s per visible item — slow, calm pacing.
+                  '--marquee-duration': `${Math.max(20, highlights.length * 6)}s`,
+                } as React.CSSProperties
+              }
+            >
+              {[...highlights, ...highlights].map((product, idx) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={`${product.id}-${idx}`}
+                  src={product.medias[0].public_url}
+                  alt={product.name}
+                  aria-hidden={idx >= highlights.length}
+                  className="h-16 w-16 shrink-0 rounded-lg object-cover"
+                />
+              ))}
+            </div>
           </div>
         )}
 

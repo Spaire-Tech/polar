@@ -9,7 +9,7 @@ import {
 } from '@/components/Profile/StorefrontLinks'
 import { toast } from '@/components/Toast/use-toast'
 import {
-  closestCenter,
+  closestCorners,
   DndContext,
   type DragEndEvent,
   DragOverlay,
@@ -193,14 +193,14 @@ const ProductsBlock = ({
   organization,
   products,
   productOrder,
+  categoryOrder,
   onUnfeature,
-  onAddToSpace,
 }: {
   organization: schemas['Organization']
   products: schemas['ProductStorefront'][]
   productOrder: string[]
+  categoryOrder: string[]
   onUnfeature: (productId: string) => void
-  onAddToSpace?: () => void
 }) => {
   const settings = organization.storefront_settings
   const featuredMode = settings?.featured_mode ?? 'all'
@@ -237,19 +237,42 @@ const ProductsBlock = ({
       if (cat && cat in CATEGORY_LABELS) (buckets[cat] ??= []).push(p)
       else uncat.push(p)
     }
-    const ordered = (Object.keys(CATEGORY_LABELS) as Array<keyof typeof CATEGORY_LABELS>)
-      .filter((k) => k !== 'other' && (buckets[k]?.length ?? 0) > 0)
-      .map((k) => ({ key: k, label: CATEGORY_LABELS[k], items: buckets[k] }))
+    // Categories present in this storefront (excluding the bucket that
+    // will become "Other").
+    const presentKeys = Object.keys(buckets).filter(
+      (k) => k !== 'other' && buckets[k].length > 0 && k in CATEGORY_LABELS,
+    )
+    // User's preferred order first, then any unranked categories in the
+    // default catalog order.
+    const rank = new Map(categoryOrder.map((k, i) => [k, i]))
+    const ranked = presentKeys
+      .filter((k) => rank.has(k))
+      .sort((a, b) => rank.get(a)! - rank.get(b)!)
+    const unranked = (
+      Object.keys(CATEGORY_LABELS) as Array<keyof typeof CATEGORY_LABELS>
+    )
+      .filter((k) => k !== 'other' && presentKeys.includes(k) && !rank.has(k))
+    const orderedKeys = [...ranked, ...unranked]
+    const ordered = orderedKeys.map((k) => ({
+      key: k,
+      label: CATEGORY_LABELS[k],
+      items: buckets[k],
+    }))
     const otherItems = [...(buckets.other ?? []), ...uncat]
     if (otherItems.length > 0) {
-      ordered.push({ key: 'other', label: CATEGORY_LABELS.other, items: otherItems })
+      ordered.push({
+        key: 'other',
+        label: CATEGORY_LABELS.other,
+        items: otherItems,
+      })
     }
     return ordered
-  }, [orderedVisible])
+  }, [orderedVisible, categoryOrder])
 
-  if (visible.length === 0) {
-    return <SpaceEmptyHero onAddToSpace={onAddToSpace} />
-  }
+  // The fully-empty case is handled at the canvas level (single hero,
+  // see below). Returning null here keeps a partial canvas (links but
+  // no products) from rendering a redundant empty state.
+  if (visible.length === 0) return null
 
   return (
     <div className="flex flex-col gap-12">
@@ -317,17 +340,15 @@ const LinksBlock = ({
   layout,
   onLayoutChange,
   onRemove,
-  onAddToSpace,
 }: {
   links: StorefrontLinkItem[]
   layout: LinksLayout
   onLayoutChange: (next: LinksLayout) => void
   onRemove: (id: string) => void
-  onAddToSpace?: () => void
 }) => {
-  if (links.length === 0) {
-    return <SpaceEmptyHero onAddToSpace={onAddToSpace} />
-  }
+  // Canvas-level hero (see below) handles the fully-empty case. Skip
+  // the per-block hero here so we don't stack two empty states.
+  if (links.length === 0) return null
 
   // Embeds and URL links render as separate sections — same split the
   // public StorefrontLinks renderer uses. Each list is its own
@@ -586,6 +607,11 @@ export const DraggableBlocks = ({
   // not in the list (newly created products, or products in 'all'
   // mode that haven't been touched) fall through to server order.
   const productOrder = settings?.featured_product_ids ?? []
+  // User-defined ordering for the category sections themselves.
+  // Categories not in the list fall through to CATEGORY_LABELS order.
+  const categoryOrder =
+    ((settings as { category_order?: string[] } | undefined)?.category_order ??
+      []) as string[]
 
   const orgWithSettings = { ...org, storefront_settings: settings ?? {} } as schemas['Organization']
 
@@ -692,14 +718,50 @@ export const DraggableBlocks = ({
     if (activeId.startsWith(PRODUCT_PREFIX) && overId.startsWith(PRODUCT_PREFIX)) {
       const aId = activeId.slice(PRODUCT_PREFIX.length)
       const bId = overId.slice(PRODUCT_PREFIX.length)
-      const seen = new Set(productOrder)
-      const tail = products.map((p) => p.id).filter((id) => !seen.has(id))
-      const full = [...productOrder, ...tail]
-      const from = full.indexOf(aId)
-      const to = full.indexOf(bId)
+      // Reorder only within the currently-visible set. In curated mode
+      // featured_product_ids doubles as the visibility list, so we
+      // mustn't expand it with hidden products — that would silently
+      // un-curate everything. In 'all' mode the visible set is every
+      // product, so this collapses to the same arrayMove.
+      const featuredMode = settings?.featured_mode ?? 'all'
+      const visibleIds =
+        featuredMode === 'curated'
+          ? productOrder.filter((id) => products.some((p) => p.id === id))
+          : products.map((p) => p.id)
+      // Apply ranking hint to derive the same on-canvas ordering the
+      // user sees: ranked ids first (in productOrder), then unranked.
+      const rank = new Map(productOrder.map((id, i) => [id, i]))
+      const ordered = [...visibleIds].sort((a, b) => {
+        const ra = rank.has(a) ? rank.get(a)! : Number.POSITIVE_INFINITY
+        const rb = rank.has(b) ? rank.get(b)! : Number.POSITIVE_INFINITY
+        return ra - rb
+      })
+      const from = ordered.indexOf(aId)
+      const to = ordered.indexOf(bId)
       if (from < 0 || to < 0 || from === to) return
-      const next = arrayMove(full, from, to)
-      updateSetting('featured_product_ids', next)
+      const newVisibleOrder = arrayMove(ordered, from, to)
+      // Weave the new order back into productOrder. Visible ids
+      // already present in productOrder keep their slots; new visible
+      // ids (e.g. 'all' mode + empty ranking hint) get appended.
+      const visibleSet = new Set(visibleIds)
+      const queue = [...newVisibleOrder]
+      const woven: string[] = []
+      for (const id of productOrder) {
+        if (visibleSet.has(id)) {
+          const next = queue.shift()
+          if (next) woven.push(next)
+        } else {
+          woven.push(id)
+        }
+      }
+      for (const id of queue) woven.push(id)
+      // Defense: never persist ids that no longer correspond to a
+      // real, in-catalog product (e.g. archived between sessions).
+      const valid = new Set(products.map((p) => p.id))
+      updateSetting(
+        'featured_product_ids',
+        woven.filter((id) => valid.has(id)),
+      )
       return
     }
 
@@ -715,7 +777,11 @@ export const DraggableBlocks = ({
         { ...(settings ?? {}), storefront_links: next } as schemas['OrganizationStorefrontSettings'],
         { shouldDirty: true },
       )
+      return
     }
+
+    // Category reorder lives in the Arrange panel (↑/↓ buttons) — no
+    // canvas drag for sections, so no branch here.
   }
 
   const handleDragOver = (event: DragOverEvent) => {
@@ -736,8 +802,8 @@ export const DraggableBlocks = ({
           organization={orgWithSettings}
           products={products}
           productOrder={productOrder}
+          categoryOrder={categoryOrder}
           onUnfeature={onUnfeatureProduct}
-          onAddToSpace={onAddToSpace}
         />
       )
     }
@@ -748,7 +814,6 @@ export const DraggableBlocks = ({
           layout={linksLayout}
           onLayoutChange={(v) => updateSetting('links_layout', v)}
           onRemove={onRemoveLink}
-          onAddToSpace={onAddToSpace}
         />
       )
     }
@@ -802,7 +867,7 @@ export const DraggableBlocks = ({
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCenter}
+      collisionDetection={closestCorners}
       measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}

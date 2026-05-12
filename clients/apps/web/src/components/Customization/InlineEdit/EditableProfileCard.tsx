@@ -24,19 +24,156 @@ import TranslateOutlined from '@mui/icons-material/TranslateOutlined'
 import Verified from '@mui/icons-material/Verified'
 import { schemas } from '@spaire/client'
 import Avatar from '@spaire/ui/components/atoms/Avatar'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@spaire/ui/components/atoms/Select'
 import Switch from '@spaire/ui/components/atoms/Switch'
-import { useCallback, useRef, useState } from 'react'
+import {
+  closestCorners,
+  DndContext,
+  type DragEndEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  horizontalListSortingStrategy,
+  SortableContext,
+  useSortable,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { type FileRejection } from 'react-dropzone'
 import { useFormContext } from 'react-hook-form'
 import { Editable } from './Editable'
 import { EditPopover } from './EditPopover'
+
+// Draggable thumbnail used in the highlights strip.
+const DraggableHighlight = ({
+  product,
+}: {
+  product: schemas['ProductStorefront']
+}) => {
+  const {
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+    listeners,
+    attributes,
+  } = useSortable({ id: product.id })
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      ref={setNodeRef}
+      src={product.medias[0].public_url}
+      alt={product.name}
+      className="h-16 w-16 shrink-0 cursor-grab rounded-lg object-cover"
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.6 : 1,
+        touchAction: 'none',
+      }}
+      draggable={false}
+      {...listeners}
+      {...attributes}
+    />
+  )
+}
+
+// Free-text title combo: user can pick from suggestions or type a
+// custom title. Dropdown is portaled to document.body so the
+// EditPopover's overflow: auto doesn't clip it (same fix as TagInput).
+const ProfileTitleCombo = ({
+  value,
+  onChange,
+  options,
+  placeholder = 'e.g. Designer, Composer, Wedding photographer…',
+}: {
+  value: string
+  onChange: (next: string) => void
+  options: string[]
+  placeholder?: string
+}) => {
+  const [showDropdown, setShowDropdown] = useState(false)
+  const [coords, setCoords] = useState<{
+    left: number
+    top: number
+    width: number
+  } | null>(null)
+  const inputRef = useRef<HTMLInputElement | null>(null)
+
+  const filtered = options.filter((o) =>
+    o.toLowerCase().includes(value.toLowerCase()),
+  )
+
+  useLayoutEffect(() => {
+    if (!showDropdown) return
+    const update = () => {
+      const el = inputRef.current
+      if (!el) return
+      const rect = el.getBoundingClientRect()
+      setCoords({ left: rect.left, top: rect.bottom, width: rect.width })
+    }
+    update()
+    window.addEventListener('resize', update)
+    window.addEventListener('scroll', update, true)
+    return () => {
+      window.removeEventListener('resize', update)
+      window.removeEventListener('scroll', update, true)
+    }
+  }, [showDropdown])
+
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+
+  return (
+    <div className="relative">
+      <input
+        ref={inputRef}
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onFocus={() => setShowDropdown(true)}
+        onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+        placeholder={placeholder}
+        className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-gray-300 focus:outline-none"
+      />
+      {mounted &&
+        showDropdown &&
+        filtered.length > 0 &&
+        coords &&
+        createPortal(
+          <div
+            style={{
+              position: 'fixed',
+              left: coords.left,
+              top: coords.top + 4,
+              width: coords.width,
+              zIndex: 1000,
+            }}
+            className="max-h-52 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg"
+          >
+            {filtered.map((option) => (
+              <button
+                key={option}
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  onChange(option)
+                  setShowDropdown(false)
+                }}
+                className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+              >
+                {option}
+              </button>
+            ))}
+          </div>,
+          document.body,
+        )}
+    </div>
+  )
+}
 
 type SocialLink = schemas['OrganizationSocialLink']
 
@@ -68,12 +205,20 @@ const parseFocalPosition = (raw: string): { x: number; y: number } => {
  */
 export const EditableProfileCard = ({
   organization: org,
+  products = [],
 }: {
   organization: schemas['Organization']
+  products?: schemas['ProductStorefront'][]
 }) => {
   const { watch, setValue } = useFormContext<schemas['OrganizationUpdate']>()
   const watched = watch()
   const settings = watched.storefront_settings ?? org.storefront_settings ?? {}
+
+  // Sensors for the highlights-strip DnD context. Small activation
+  // distance so the drag picks up the moment the pointer commits.
+  const highlightSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+  )
 
   // Read mirrors ProfileCard's read order so the visual rendering is
   // pixel-stable across both components.
@@ -514,6 +659,101 @@ export const EditableProfileCard = ({
           </button>
         </div>
 
+        {/* Highlights — scoped to in-Space products, draggable to
+            reorder. Writes back to featured_product_ids, the same
+            ranking hint the canvas drag uses. */}
+        {(() => {
+          const showCardProducts = settings?.show_card_products ?? true
+          if (!showCardProducts) return null
+          const featuredMode =
+            (settings?.featured_mode as 'all' | 'curated' | undefined) ?? 'all'
+          const featuredIds = (settings?.featured_product_ids ?? []) as string[]
+          const scoped =
+            featuredMode === 'curated'
+              ? products.filter((p) => featuredIds.includes(p.id))
+              : products
+          let ordered = scoped
+          if (featuredIds.length > 0) {
+            const rank = new Map(featuredIds.map((id, i) => [id, i]))
+            const ranked = scoped
+              .filter((p) => rank.has(p.id))
+              .sort((a, b) => rank.get(a.id)! - rank.get(b.id)!)
+            const unranked = scoped.filter((p) => !rank.has(p.id))
+            ordered = [...ranked, ...unranked]
+          }
+          const withImages = ordered.filter((p) => p.medias.length > 0)
+          if (withImages.length === 0) return null
+
+          const handleDragEnd = (event: DragEndEvent) => {
+            const { active, over } = event
+            if (!over || active.id === over.id) return
+            const aId = String(active.id)
+            const bId = String(over.id)
+            // Reorder ONLY within the already-visible carousel set. We
+            // must never expand featured_product_ids with products that
+            // weren't already in the Space — in curated mode that field
+            // doubles as the visibility list, so adding ids un-curates
+            // hidden products. (The bug: dragging used to dump every
+            // product id into featured_product_ids.)
+            const visibleIds = withImages.map((p) => p.id)
+            const from = visibleIds.indexOf(aId)
+            const to = visibleIds.indexOf(bId)
+            if (from < 0 || to < 0) return
+            const newVisibleOrder = arrayMove(visibleIds, from, to)
+            const visibleSet = new Set(visibleIds)
+            // Walk featuredIds, swapping visible slots with the new
+            // order in turn. Non-image curated items keep their slots.
+            const queue = [...newVisibleOrder]
+            const woven: string[] = []
+            for (const id of featuredIds) {
+              if (visibleSet.has(id)) {
+                const next = queue.shift()
+                if (next) woven.push(next)
+              } else {
+                woven.push(id)
+              }
+            }
+            // Any visible ids not previously in featuredIds (e.g.
+            // 'all' mode with an empty ranking hint) get appended in
+            // their new order. Hidden / non-Space products are NEVER
+            // added.
+            for (const id of queue) woven.push(id)
+            // Defense: drop any ids that no longer correspond to a
+            // real product (archived / deleted) so the carousel can
+            // never resurrect them.
+            const valid = new Set(products.map((p) => p.id))
+            const clean = woven.filter((id) => valid.has(id))
+
+            setValue(
+              'storefront_settings',
+              {
+                ...(settings ?? {}),
+                featured_product_ids: clean,
+              } as schemas['OrganizationStorefrontSettings'],
+              { shouldDirty: true },
+            )
+          }
+
+          return (
+            <DndContext
+              sensors={highlightSensors}
+              collisionDetection={closestCorners}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={withImages.map((p) => p.id)}
+                strategy={horizontalListSortingStrategy}
+              >
+                <div className="mt-5 flex flex-row gap-2 overflow-x-auto pb-1">
+                  {withImages.map((product) => (
+                    <DraggableHighlight key={product.id} product={product} />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+          )
+        })()}
+
         {/* Subscribe form — disabled-but-styled exactly like
             ProfileCard's preview state, so the canvas matches the
             visitor view. */}
@@ -546,28 +786,16 @@ export const EditableProfileCard = ({
         open={popover === 'profileTitle'}
         onClose={() => setPopover(null)}
       >
-        <Select
-          value={profileTitle ?? '__none__'}
-          onValueChange={(v) =>
-            updateSetting('profile_title', v === '__none__' ? null : v)
+        <ProfileTitleCombo
+          value={profileTitle ?? ''}
+          onChange={(next) =>
+            updateSetting('profile_title', next.trim() === '' ? null : next)
           }
-        >
-          <SelectTrigger className="h-11 rounded-xl">
-            <SelectValue placeholder="None" />
-          </SelectTrigger>
-          <SelectContent className="z-[100]">
-            <SelectItem value="__none__">
-              <span className="text-gray-400">None</span>
-            </SelectItem>
-            {PROFILE_TITLE_OPTIONS.map((title) => (
-              <SelectItem key={title} value={title}>
-                {title}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          options={PROFILE_TITLE_OPTIONS as unknown as string[]}
+        />
         <p className="text-xs text-gray-500">
-          Shown above your name in small caps.
+          Pick from suggestions or type your own. Shown above your name in
+          small caps.
         </p>
       </EditPopover>
 

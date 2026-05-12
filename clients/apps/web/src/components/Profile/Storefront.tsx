@@ -47,6 +47,12 @@ export const Storefront = ({
       ? (organization.storefront_settings?.featured_product_ids ?? [])
       : []
 
+  const categoryOrder: string[] =
+    'storefront_settings' in organization
+      ? ((organization.storefront_settings as { category_order?: string[] } | null)
+          ?.category_order ?? [])
+      : []
+
   const storefrontLinks: StorefrontLinkItem[] =
     'storefront_settings' in organization
       ? ((organization.storefront_settings?.storefront_links ??
@@ -82,11 +88,21 @@ export const Storefront = ({
   // Products scoped by featured_mode. In 'all' mode every active product
   // is shown (including ones created after curation was set up); in
   // 'curated' mode only the IDs in featuredIds are shown.
+  // featured_product_ids doubles as a ranking hint (same approach the
+  // editor uses) — products listed there render in declared order;
+  // anything missing falls through to the back in server order.
   const scopedProducts = useMemo(() => {
-    if (featuredMode === 'curated') {
-      return products.filter((p) => featuredIds.includes(p.id))
-    }
-    return products
+    const visible =
+      featuredMode === 'curated'
+        ? products.filter((p) => featuredIds.includes(p.id))
+        : products
+    if (featuredIds.length === 0) return visible
+    const rank = new Map(featuredIds.map((id, i) => [id, i]))
+    const ranked = visible
+      .filter((p) => rank.has(p.id))
+      .sort((a, b) => rank.get(a.id)! - rank.get(b.id)!)
+    const unranked = visible.filter((p) => !rank.has(p.id))
+    return [...ranked, ...unranked]
   }, [products, featuredMode, featuredIds])
 
   // Group products by category in CATEGORY_ORDER order. Products with no
@@ -103,9 +119,18 @@ export const Storefront = ({
       }
     }
 
-    const ordered = CATEGORY_ORDER.filter(
-      (key) => key !== 'other' && (buckets[key]?.length ?? 0) > 0,
-    ).map((key) => ({
+    const presentKeys = Object.keys(buckets).filter(
+      (key) => key !== 'other' && buckets[key].length > 0 && key in CATEGORY_LABELS,
+    )
+    const rank = new Map(categoryOrder.map((k, i) => [k, i]))
+    const ranked = presentKeys
+      .filter((k) => rank.has(k))
+      .sort((a, b) => rank.get(a)! - rank.get(b)!)
+    const unranked = CATEGORY_ORDER.filter(
+      (key) => key !== 'other' && presentKeys.includes(key) && !rank.has(key),
+    )
+    const orderedKeys = [...ranked, ...unranked]
+    const ordered = orderedKeys.map((key) => ({
       key,
       label: CATEGORY_LABELS[key],
       items: buckets[key],
@@ -120,7 +145,7 @@ export const Storefront = ({
       })
     }
     return ordered
-  }, [scopedProducts])
+  }, [scopedProducts, categoryOrder])
 
   const hasContent = products.length > 0 || storefrontLinks.length > 0
 

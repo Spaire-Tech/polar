@@ -704,6 +704,55 @@
   cursor: grabbing;
 }
 
+/* Profile-card product carousel — looping marquee of the products
+   that appear on the user's Space. Track is duplicated in markup
+   (so the loop appears seamless) and shifts -50% over the duration. */
+.profile-card-marquee {
+  overflow: hidden;
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    black 24px,
+    black calc(100% - 24px),
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    black 24px,
+    black calc(100% - 24px),
+    transparent 100%
+  );
+}
+
+.profile-card-marquee-track {
+  display: flex;
+  flex-direction: row;
+  gap: 0.5rem;
+  width: max-content;
+  animation: profile-card-marquee-scroll
+    var(--marquee-duration, 30s) linear infinite;
+}
+
+.profile-card-marquee:hover .profile-card-marquee-track {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .profile-card-marquee-track {
+    animation: none;
+  }
+}
+
+@keyframes profile-card-marquee-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
 .spaire-editor .block-host.dragging .canvas-card {
   opacity: 0.4;
 }
@@ -1085,3 +1134,320 @@
   box-shadow: none;
 }
 
+
+/* ── Arrange panel ─────────────────────────────────────────────────
+   Floating side panel for reordering Space contents in one place. */
+.spaire-editor .arrange-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18px 20px 80px;
+  gap: 18px;
+}
+
+.spaire-editor .arrange-panel .ap-header {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+}
+
+.spaire-editor .arrange-panel h2 {
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  margin: 0;
+}
+
+.spaire-editor .arrange-panel .ap-sub {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+  line-height: 1.45;
+}
+
+.spaire-editor .arrange-panel .ap-close {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.spaire-editor .arrange-panel .ap-close:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.spaire-editor .arrange-panel .ap-empty {
+  padding: 32px 12px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+}
+
+.spaire-editor .arrange-panel .ap-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.spaire-editor .arrange-panel .ap-section h3 {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0;
+}
+
+.spaire-editor .arrange-panel .ap-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.spaire-editor .arrange-panel .ap-mini-action {
+  font-size: 11px;
+  color: var(--ink-2);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.spaire-editor .arrange-panel .ap-mini-action:hover {
+  background: white;
+  color: var(--ink);
+}
+
+.spaire-editor .arrange-panel .ap-cat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.spaire-editor .arrange-panel .ap-cat {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px;
+  background: white;
+}
+
+.spaire-editor .arrange-panel .ap-cat-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 8px;
+  margin-bottom: 6px;
+  border-bottom: 1px dashed var(--line);
+}
+
+.spaire-editor .arrange-panel .ap-cat-label {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: 0.02em;
+}
+
+.spaire-editor .arrange-panel .ap-count {
+  font-size: 11px;
+  color: var(--muted);
+  background: var(--surface-2);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.spaire-editor .arrange-panel .ap-row-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.spaire-editor .arrange-panel .ap-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px;
+  border-radius: 8px;
+  background: white;
+  transition: background 0.12s;
+}
+
+.spaire-editor .arrange-panel .ap-row:hover {
+  background: var(--surface-2);
+}
+
+.spaire-editor .arrange-panel .ap-row-muted {
+  opacity: 0.6;
+}
+
+.spaire-editor .arrange-panel .ap-grip {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: grab;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+  flex-shrink: 0;
+}
+
+.spaire-editor .arrange-panel .ap-grip:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+}
+
+.spaire-editor .arrange-panel .ap-grip:active {
+  cursor: grabbing;
+}
+
+.spaire-editor .arrange-panel .ap-thumb {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--surface-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+}
+
+.spaire-editor .arrange-panel .ap-thumb-empty {
+  border: 1px dashed var(--line);
+}
+
+.spaire-editor .arrange-panel .ap-row-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.spaire-editor .arrange-panel .ap-row-action {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.spaire-editor .arrange-panel .ap-row-action:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.spaire-editor .arrange-panel .ap-hidden {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.spaire-editor .arrange-panel .ap-hidden summary {
+  cursor: pointer;
+  padding: 8px 4px;
+  border-radius: 8px;
+}
+
+.spaire-editor .arrange-panel .ap-hidden summary:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+/* ── Arrange panel — additions ─────────────────────────────────── */
+.spaire-editor .arrange-panel .ap-status {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  font-size: 12px;
+  color: var(--ink-2);
+  line-height: 1.45;
+}
+
+.spaire-editor .arrange-panel .ap-status[data-mode='curated'] {
+  background: #eef2ff;
+  color: #3730a3;
+}
+
+.spaire-editor .arrange-panel .ap-cat-move {
+  display: inline-flex;
+  flex-direction: row;
+  gap: 2px;
+}
+
+.spaire-editor .arrange-panel .ap-arrow {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.spaire-editor .arrange-panel .ap-arrow:hover:not(:disabled) {
+  background: white;
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+.spaire-editor .arrange-panel .ap-arrow:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* dnd-kit clears its own transforms on drop, but we want a visible
+   lift during the drag itself. */
+.spaire-editor .arrange-panel .ap-sortable.ap-is-dragging {
+  z-index: 50;
+}
+
+.spaire-editor .arrange-panel .ap-sortable.ap-is-dragging .ap-row {
+  background: white;
+  box-shadow:
+    0 10px 24px -8px rgba(15, 15, 30, 0.18),
+    0 0 0 1px var(--line);
+  transform: scale(1.01);
+}
+
+.spaire-editor .arrange-panel .ap-row-action-danger:hover {
+  background: #fee2e2;
+  color: #b91c1c;
+}

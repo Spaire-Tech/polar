@@ -47,7 +47,10 @@ export const SpaceEditorCanvas = ({
       <div className="canvas">
         <aside className="col-left">
           <div className="canvas-card">
-            <EditableProfileCard organization={organization} />
+            <EditableProfileCard
+              organization={organization}
+              products={products}
+            />
           </div>
         </aside>
         <main className="col-right">

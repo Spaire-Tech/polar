@@ -17,6 +17,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { ArrangePanel } from './InlineEdit/ArrangePanel'
 import { SpaceSettingsPanel } from './InlineEdit/SpaceSettingsPanel'
 import { SpaceEditorCanvas } from './SpaceEditorShell'
 import {
@@ -49,6 +50,7 @@ const Customization = ({
   const [linksMode, setLinksMode] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [arrangeOpen, setArrangeOpen] = useState(false)
   const isSpaceEnabled = organization.storefront_settings?.enabled ?? false
   const [isEditing, setIsEditing] = useState(!isSpaceEnabled)
 
@@ -232,9 +234,20 @@ const Customization = ({
         if (isValidationError(error.detail)) {
           setValidationErrors(error.detail, form.setError)
         } else {
+          // Stringify safely so the toast never shows "[object Object]".
+          const detail =
+            typeof error.detail === 'string'
+              ? error.detail
+              : (() => {
+                  try {
+                    return JSON.stringify(error.detail, null, 2)
+                  } catch {
+                    return 'Unknown error. Please try again.'
+                  }
+                })()
           toast({
             title: 'Publish Failed',
-            description: `Error: ${typeof error.detail === 'string' ? error.detail : JSON.stringify(error.detail)}`,
+            description: detail,
           })
         }
         return
@@ -429,6 +442,21 @@ const Customization = ({
             <button
               type="button"
               className="tb-icon-btn"
+              onClick={() => {
+                setArrangeOpen((o) => !o)
+                if (!arrangeOpen) {
+                  setSettingsOpen(false)
+                  setLinksMode(false)
+                }
+              }}
+              aria-pressed={arrangeOpen}
+              title="Arrange products and links"
+            >
+              Arrange
+            </button>
+            <button
+              type="button"
+              className="tb-icon-btn"
               onClick={() => setSettingsOpen((o) => !o)}
               aria-pressed={settingsOpen}
             >
@@ -471,9 +499,28 @@ const Customization = ({
         {/* Canvas — ProfileCard + Storefront content blocks */}
         <SpaceEditorCanvas
           organization={organization}
-          hasSettingsPanel={settingsOpen || linksMode}
+          hasSettingsPanel={settingsOpen || linksMode || arrangeOpen}
           onAddToSpace={() => setPickerOpen(true)}
         />
+
+        {/* Arrange panel — single source of truth for reordering every
+            item in the Space (products, categories, links). The
+            per-item drag handles in the canvas still work, but this
+            panel is the recommended way for users who find inline
+            drag confusing. */}
+        {arrangeOpen && (
+          <aside
+            className="side-panel open"
+            style={{ width: 'min(440px, 100vw)' }}
+            aria-label="Arrange items"
+          >
+            <ArrangePanel
+              organization={organization}
+              products={(storefrontData?.products ?? []) as schemas['ProductStorefront'][]}
+              onClose={() => setArrangeOpen(false)}
+            />
+          </aside>
+        )}
 
         {/* Settings side panel (PR D — redesigned to match the
             design hand-off: Visibility, Available for Work, Display,
@@ -518,20 +565,40 @@ const Customization = ({
           </aside>
         )}
 
-        {/* Floating Add-to-Space FAB */}
-        <div
-          className={`add-fab-wrap${settingsOpen || linksMode ? ' has-panel' : ''}`}
-        >
-          <button
-            type="button"
-            className="add-fab"
-            onClick={() => setPickerOpen(true)}
-          >
-            <span className="plus">+</span>
-            Add to Space
-            <span className="kbd">{'⌘'}K</span>
-          </button>
-        </div>
+        {/* Floating Add-to-Space FAB — hidden when the canvas is fully
+            empty (the SpaceEmptyHero already shows its own CTA). */}
+        {(() => {
+          const liveSettings = (form.watch('storefront_settings') as
+            | {
+                featured_product_ids?: string[]
+                storefront_links?: unknown[]
+                featured_mode?: 'all' | 'curated'
+              }
+            | undefined) ?? {}
+          const featuredMode = liveSettings.featured_mode ?? 'all'
+          const featuredIds = liveSettings.featured_product_ids ?? []
+          const visibleProductCount =
+            featuredMode === 'curated'
+              ? featuredIds.length
+              : storefrontData?.products?.length ?? 0
+          const linkCount = liveSettings.storefront_links?.length ?? 0
+          if (visibleProductCount === 0 && linkCount === 0) return null
+          return (
+            <div
+              className={`add-fab-wrap${settingsOpen || linksMode || arrangeOpen ? ' has-panel' : ''}`}
+            >
+              <button
+                type="button"
+                className="add-fab"
+                onClick={() => setPickerOpen(true)}
+              >
+                <span className="plus">+</span>
+                Add to Space
+                <span className="kbd">{'⌘'}K</span>
+              </button>
+            </div>
+          )
+        })()}
 
         {pickerOpen && (
           <AddToSpacePicker
