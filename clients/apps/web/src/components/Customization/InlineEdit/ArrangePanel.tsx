@@ -7,6 +7,7 @@ import DragIndicatorOutlined from '@mui/icons-material/DragIndicatorOutlined'
 import KeyboardArrowDownOutlined from '@mui/icons-material/KeyboardArrowDownOutlined'
 import KeyboardArrowUpOutlined from '@mui/icons-material/KeyboardArrowUpOutlined'
 import LinkOutlined from '@mui/icons-material/LinkOutlined'
+import OndemandVideoOutlined from '@mui/icons-material/OndemandVideoOutlined'
 import VisibilityOffOutlined from '@mui/icons-material/VisibilityOffOutlined'
 import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined'
 import {
@@ -51,6 +52,7 @@ type Settings = NonNullable<schemas['OrganizationStorefrontSettings']>
 
 const PRODUCT_PREFIX = 'p:'
 const LINK_PREFIX = 'l:'
+const EMBED_PREFIX = 'e:'
 
 // ─── Generic sortable row ────────────────────────────────────────
 const SortableRow = ({
@@ -238,11 +240,26 @@ export const ArrangePanel = ({
     writeSettings({ featured_product_ids: cleanFeaturedIds(woven) })
   }
 
-  const reorderLinks = (fromId: string, toId: string) => {
-    const from = links.findIndex((l) => l.id === fromId)
-    const to = links.findIndex((l) => l.id === toId)
+  const reorderLinks = (kind: 'standard' | 'embedded', fromId: string, toId: string) => {
+    // Reorder within a single kind ('standard' or 'embedded'). The
+    // other kind's items keep their absolute slots in storefront_links
+    // — same weaving pattern we use for products inside a category.
+    const sameKind = links
+      .map((l, i) => ({ link: l, i }))
+      .filter((x) => x.link.type === kind)
+    const ids = sameKind.map((x) => x.link.id)
+    const from = ids.indexOf(fromId)
+    const to = ids.indexOf(toId)
     if (from < 0 || to < 0 || from === to) return
-    writeSettings({ storefront_links: arrayMove(links, from, to) })
+    const newOrder = arrayMove(ids, from, to)
+    const idToLink = new Map(links.map((l) => [l.id, l]))
+    const queue = [...newOrder]
+    const next: StorefrontLinkItem[] = links.map((l) => {
+      if (l.type !== kind) return l
+      const replacementId = queue.shift()
+      return replacementId ? (idToLink.get(replacementId) ?? l) : l
+    })
+    writeSettings({ storefront_links: next })
   }
 
   const moveCategory = (key: string, direction: -1 | 1) => {
@@ -392,69 +409,25 @@ export const ArrangePanel = ({
         </section>
       )}
 
-      {/* ── Links ────────────────────────────────────────────── */}
-      {links.length > 0 && (
-        <section className="ap-section">
-          <h3>Links</h3>
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={(e: DragEndEvent) => {
-              const { active, over } = e
-              if (!over || active.id === over.id) return
-              const a = String(active.id)
-              const b = String(over.id)
-              if (!a.startsWith(LINK_PREFIX) || !b.startsWith(LINK_PREFIX)) return
-              reorderLinks(
-                a.slice(LINK_PREFIX.length),
-                b.slice(LINK_PREFIX.length),
-              )
-            }}
-          >
-            <SortableContext
-              items={links.map((l) => LINK_PREFIX + l.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              <div className="ap-row-list">
-                {links.map((link) => (
-                  <SortableRow
-                    key={link.id}
-                    id={LINK_PREFIX + link.id}
-                  >
-                    {({ listeners, attributes }) => (
-                      <div className="ap-row">
-                        <Grip
-                          listeners={listeners}
-                          attributes={attributes}
-                          label={`Drag ${link.title || 'link'}`}
-                        />
-                        <span className="ap-thumb ap-thumb-empty">
-                          <LinkOutlined style={{ fontSize: 18 }} />
-                        </span>
-                        <span
-                          className="ap-row-name"
-                          title={link.title || link.url}
-                        >
-                          {link.title || link.url}
-                        </span>
-                        <button
-                          type="button"
-                          className="ap-row-action ap-row-action-danger"
-                          onClick={() => deleteLink(link.id)}
-                          title="Delete link"
-                          aria-label={`Delete ${link.title || 'link'}`}
-                        >
-                          <DeleteOutlineOutlined style={{ fontSize: 16 }} />
-                        </button>
-                      </div>
-                    )}
-                  </SortableRow>
-                ))}
-              </div>
-            </SortableContext>
-          </DndContext>
-        </section>
-      )}
+      {/* ── Links (URL links) ────────────────────────────────── */}
+      <LinksSection
+        title="Links"
+        items={links.filter((l) => l.type === 'standard')}
+        sensors={sensors}
+        prefix={LINK_PREFIX}
+        onReorder={(fromId, toId) => reorderLinks('standard', fromId, toId)}
+        onDelete={deleteLink}
+      />
+
+      {/* ── Embeds (YouTube, Spotify, etc.) ──────────────────── */}
+      <LinksSection
+        title="Embeds"
+        items={links.filter((l) => l.type === 'embedded')}
+        sensors={sensors}
+        prefix={EMBED_PREFIX}
+        onReorder={(fromId, toId) => reorderLinks('embedded', fromId, toId)}
+        onDelete={deleteLink}
+      />
     </div>
   )
 }
@@ -611,5 +584,85 @@ const HiddenProductsList = ({
         ))}
       </div>
     </details>
+  )
+}
+
+// ─── Single-kind link section (URL links OR embeds) ─────────────
+const LinksSection = ({
+  title,
+  items,
+  sensors,
+  prefix,
+  onReorder,
+  onDelete,
+}: {
+  title: string
+  items: StorefrontLinkItem[]
+  sensors: ReturnType<typeof useSensors>
+  prefix: string
+  onReorder: (fromId: string, toId: string) => void
+  onDelete: (linkId: string) => void
+}) => {
+  if (items.length === 0) return null
+  const isEmbed = title === 'Embeds'
+  return (
+    <section className="ap-section">
+      <h3>{title}</h3>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={(e: DragEndEvent) => {
+          const { active, over } = e
+          if (!over || active.id === over.id) return
+          const a = String(active.id)
+          const b = String(over.id)
+          if (!a.startsWith(prefix) || !b.startsWith(prefix)) return
+          onReorder(a.slice(prefix.length), b.slice(prefix.length))
+        }}
+      >
+        <SortableContext
+          items={items.map((l) => prefix + l.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          <div className="ap-row-list">
+            {items.map((link) => (
+              <SortableRow key={link.id} id={prefix + link.id}>
+                {({ listeners, attributes }) => (
+                  <div className="ap-row">
+                    <Grip
+                      listeners={listeners}
+                      attributes={attributes}
+                      label={`Drag ${link.title || (isEmbed ? 'embed' : 'link')}`}
+                    />
+                    <span className="ap-thumb ap-thumb-empty">
+                      {isEmbed ? (
+                        <OndemandVideoOutlined style={{ fontSize: 18 }} />
+                      ) : (
+                        <LinkOutlined style={{ fontSize: 18 }} />
+                      )}
+                    </span>
+                    <span
+                      className="ap-row-name"
+                      title={link.title || link.url}
+                    >
+                      {link.title || link.url}
+                    </span>
+                    <button
+                      type="button"
+                      className="ap-row-action ap-row-action-danger"
+                      onClick={() => onDelete(link.id)}
+                      title={`Delete ${isEmbed ? 'embed' : 'link'}`}
+                      aria-label={`Delete ${link.title || (isEmbed ? 'embed' : 'link')}`}
+                    >
+                      <DeleteOutlineOutlined style={{ fontSize: 16 }} />
+                    </button>
+                  </div>
+                )}
+              </SortableRow>
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
+    </section>
   )
 }

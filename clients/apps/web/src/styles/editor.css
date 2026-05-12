@@ -706,23 +706,16 @@
 
 /* Profile-card product carousel — looping marquee of the products
    that appear on the user's Space. Track is duplicated in markup
-   (so the loop appears seamless) and shifts -50% over the duration. */
+   (so the loop appears seamless) and shifts -50% over the duration.
+   iOS-Safari quirks worked around:
+     - Use translate3d so the animation is GPU-accelerated (otherwise
+       mobile Safari can freeze it after a few frames).
+     - Drop mask-image: on some webkit versions it pauses the
+       descendant's transform animation entirely.
+     - will-change + backface-visibility help iOS keep the layer hot. */
 .profile-card-marquee {
   overflow: hidden;
-  mask-image: linear-gradient(
-    to right,
-    transparent 0,
-    black 24px,
-    black calc(100% - 24px),
-    transparent 100%
-  );
-  -webkit-mask-image: linear-gradient(
-    to right,
-    transparent 0,
-    black 24px,
-    black calc(100% - 24px),
-    transparent 100%
-  );
+  position: relative;
 }
 
 .profile-card-marquee-track {
@@ -730,12 +723,19 @@
   flex-direction: row;
   gap: 0.5rem;
   width: max-content;
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translate3d(0, 0, 0);
   animation: profile-card-marquee-scroll
     var(--marquee-duration, 30s) linear infinite;
 }
 
-.profile-card-marquee:hover .profile-card-marquee-track {
-  animation-play-state: paused;
+/* Pause on hover (desktop only — hover doesn't fire on touch). */
+@media (hover: hover) {
+  .profile-card-marquee:hover .profile-card-marquee-track {
+    animation-play-state: paused;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -746,10 +746,10 @@
 
 @keyframes profile-card-marquee-scroll {
   from {
-    transform: translateX(0);
+    transform: translate3d(0, 0, 0);
   }
   to {
-    transform: translateX(-50%);
+    transform: translate3d(-50%, 0, 0);
   }
 }
 
