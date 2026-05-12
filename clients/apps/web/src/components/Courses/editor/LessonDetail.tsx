@@ -554,6 +554,7 @@ export function LessonDetail({
               </p>
               <AutomationsPanel
                 organization={organization}
+                courseId={course.id}
                 lessonId={lesson.id}
                 scopeLabel="lesson"
               />
