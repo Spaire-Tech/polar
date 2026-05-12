@@ -63,7 +63,6 @@ const getBlockOrder = (
 const BLOCK_PREFIX = 'block:'
 const PRODUCT_PREFIX = 'product:'
 const LINK_PREFIX = 'link:'
-const CATEGORY_PREFIX = 'category:'
 
 // ─── Sortable wrapper for blocks ──────────────────────────────────
 
@@ -190,41 +189,6 @@ const LayoutPicker = ({
 
 // ─── Products block (canvas) ──────────────────────────────────────
 
-// Wrapper that makes a whole category section draggable. Section moves
-// with its products as a unit; the SortableContext for products inside
-// stays put.
-const SortableSection = ({
-  id,
-  children,
-}: {
-  id: string
-  children: (handleProps: {
-    listeners: ReturnType<typeof useSortable>['listeners']
-    attributes: ReturnType<typeof useSortable>['attributes']
-  }) => React.ReactNode
-}) => {
-  const {
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-    listeners,
-    attributes,
-  } = useSortable({ id: CATEGORY_PREFIX + id })
-  return (
-    <section
-      ref={setNodeRef}
-      className={`flex scroll-mt-24 flex-col gap-6${isDragging ? ' dragging' : ''}`}
-      style={{
-        transform: CSS.Transform.toString(transform),
-        transition,
-      }}
-    >
-      {children({ listeners, attributes })}
-    </section>
-  )
-}
-
 const ProductsBlock = ({
   organization,
   products,
@@ -311,78 +275,61 @@ const ProductsBlock = ({
   if (visible.length === 0) return null
 
   return (
-    <SortableContext
-      items={sections.map((s) => CATEGORY_PREFIX + s.key)}
-      strategy={verticalListSortingStrategy}
-    >
-      <div className="flex flex-col gap-12">
-        {sections.map((section) => (
-          <SortableSection key={section.key} id={section.key}>
-            {({ listeners, attributes }) => (
-              <>
-                <div className="category-head">
-                  <button
-                    type="button"
-                    className="category-drag-handle"
-                    aria-label={`Drag ${section.label} section to reorder`}
-                    {...listeners}
-                    {...attributes}
-                  >
-                    ⋮⋮
-                  </button>
-                  <SectionLabel count={section.items.length}>
-                    {section.label}
-                  </SectionLabel>
-                </div>
-                <SortableContext
-                  items={section.items.map((p) => PRODUCT_PREFIX + p.id)}
-                  strategy={rectSortingStrategy}
+    <div className="flex flex-col gap-12">
+      {sections.map((section) => (
+        <section
+          key={section.key}
+          className="flex scroll-mt-24 flex-col gap-6"
+        >
+          <SectionLabel count={section.items.length}>
+            {section.label}
+          </SectionLabel>
+          <SortableContext
+            items={section.items.map((p) => PRODUCT_PREFIX + p.id)}
+            strategy={rectSortingStrategy}
+          >
+            <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-2">
+              {section.items.map((product) => (
+                <SortableItem
+                  key={product.id}
+                  id={product.id}
+                  prefix={PRODUCT_PREFIX}
                 >
-                  <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-2">
-                    {section.items.map((product) => (
-                      <SortableItem
-                        key={product.id}
-                        id={product.id}
-                        prefix={PRODUCT_PREFIX}
-                      >
-                        {({ listeners, attributes }) => (
-                          <div className="item-hover">
-                            <ProductCard
-                              product={product}
-                              showDetails={showDetails}
-                              thumbnailSize={
-                                thumbnailSize as 'small' | 'medium' | 'large'
-                              }
-                            />
-                            <div className="item-actions">
-                              <ItemDragHandle
-                                listeners={listeners}
-                                attributes={attributes}
-                                label={`Drag ${product.name} to reorder`}
-                              />
-                              <button
-                                type="button"
-                                className="item-action"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  onUnfeature(product.id)
-                                }}
-                              >
-                                {featuredMode === 'curated' ? 'Remove' : 'Hide'}
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </SortableItem>
-                    ))}
-                  </div>
-                </SortableContext>
-              </>
-            )}
-          </SortableSection>
-        ))}
-      </div>
-    </SortableContext>
+                  {({ listeners, attributes }) => (
+                    <div className="item-hover">
+                      <ProductCard
+                        product={product}
+                        showDetails={showDetails}
+                        thumbnailSize={
+                          thumbnailSize as 'small' | 'medium' | 'large'
+                        }
+                      />
+                      <div className="item-actions">
+                        <ItemDragHandle
+                          listeners={listeners}
+                          attributes={attributes}
+                          label={`Drag ${product.name} to reorder`}
+                        />
+                        <button
+                          type="button"
+                          className="item-action"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onUnfeature(product.id)
+                          }}
+                        >
+                          {featuredMode === 'curated' ? 'Remove' : 'Hide'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </SortableItem>
+              ))}
+            </div>
+          </SortableContext>
+        </section>
+      ))}
+    </div>
   )
 }
 
@@ -833,35 +780,8 @@ export const DraggableBlocks = ({
       return
     }
 
-    if (
-      activeId.startsWith(CATEGORY_PREFIX) &&
-      overId.startsWith(CATEGORY_PREFIX)
-    ) {
-      const aKey = activeId.slice(CATEGORY_PREFIX.length)
-      const bKey = overId.slice(CATEGORY_PREFIX.length)
-      // Seed category_order from current visible categories (in their
-      // current canvas order) if the user hasn't reordered before, so a
-      // first drag has a meaningful list to mutate.
-      const seen = new Set(categoryOrder)
-      const presentInCanvas: string[] = []
-      for (const p of products) {
-        const cat = p.category
-        if (cat && cat in CATEGORY_LABELS && !presentInCanvas.includes(cat)) {
-          presentInCanvas.push(cat)
-        }
-      }
-      const tail = presentInCanvas.filter((k) => !seen.has(k))
-      const full = [...categoryOrder, ...tail]
-      const from = full.indexOf(aKey)
-      const to = full.indexOf(bKey)
-      if (from < 0 || to < 0 || from === to) return
-      const next = arrayMove(full, from, to)
-      setValue(
-        'storefront_settings',
-        { ...(settings ?? {}), category_order: next } as schemas['OrganizationStorefrontSettings'],
-        { shouldDirty: true },
-      )
-    }
+    // Category reorder lives in the Arrange panel (↑/↓ buttons) — no
+    // canvas drag for sections, so no branch here.
   }
 
   const handleDragOver = (event: DragOverEvent) => {

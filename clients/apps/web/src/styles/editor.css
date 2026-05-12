@@ -704,50 +704,6 @@
   cursor: grabbing;
 }
 
-/* Category section drag handle — sits next to the section label and
-   reorders the whole category as a unit. */
-.spaire-editor .category-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.spaire-editor .category-drag-handle {
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
-  border: 1px solid transparent;
-  background: transparent;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0.35;
-  transition:
-    opacity 0.15s,
-    background 0.15s,
-    border-color 0.15s;
-  cursor: grab;
-  color: var(--muted);
-  font-family: inherit;
-  font-size: 13px;
-  line-height: 1;
-  letter-spacing: -0.05em;
-  touch-action: none;
-}
-
-.spaire-editor .category-head:hover .category-drag-handle,
-.spaire-editor .category-drag-handle:focus,
-.spaire-editor .category-drag-handle:hover {
-  opacity: 1;
-  background: white;
-  border-color: var(--line);
-  color: var(--ink-2);
-}
-
-.spaire-editor .category-drag-handle:active {
-  cursor: grabbing;
-}
-
 /* Profile-card product carousel — looping marquee of the products
    that appear on the user's Space. Track is duplicated in markup
    (so the loop appears seamless) and shifts -50% over the duration. */
@@ -1424,4 +1380,74 @@
 .spaire-editor .arrange-panel .ap-hidden summary:hover {
   background: var(--surface-2);
   color: var(--ink);
+}
+
+/* ── Arrange panel — additions ─────────────────────────────────── */
+.spaire-editor .arrange-panel .ap-status {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  font-size: 12px;
+  color: var(--ink-2);
+  line-height: 1.45;
+}
+
+.spaire-editor .arrange-panel .ap-status[data-mode='curated'] {
+  background: #eef2ff;
+  color: #3730a3;
+}
+
+.spaire-editor .arrange-panel .ap-cat-move {
+  display: inline-flex;
+  flex-direction: row;
+  gap: 2px;
+}
+
+.spaire-editor .arrange-panel .ap-arrow {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.spaire-editor .arrange-panel .ap-arrow:hover:not(:disabled) {
+  background: white;
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+.spaire-editor .arrange-panel .ap-arrow:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* dnd-kit clears its own transforms on drop, but we want a visible
+   lift during the drag itself. */
+.spaire-editor .arrange-panel .ap-sortable.ap-is-dragging {
+  z-index: 50;
+}
+
+.spaire-editor .arrange-panel .ap-sortable.ap-is-dragging .ap-row {
+  background: white;
+  box-shadow:
+    0 10px 24px -8px rgba(15, 15, 30, 0.18),
+    0 0 0 1px var(--line);
+  transform: scale(1.01);
+}
+
+.spaire-editor .arrange-panel .ap-row-action-danger:hover {
+  background: #fee2e2;
+  color: #b91c1c;
 }
