@@ -1,7 +1,7 @@
 'use client'
 
+import { SpaceEmptyHero } from '@/components/Customization/SpaceEmptyHero'
 import { ProductCard } from '@/components/Products/ProductCard'
-import HiveOutlined from '@mui/icons-material/HiveOutlined'
 import { schemas } from '@spaire/client'
 import Link from 'next/link'
 import { useMemo } from 'react'
@@ -125,17 +125,7 @@ export const Storefront = ({
   const hasContent = products.length > 0 || storefrontLinks.length > 0
 
   if (!hasContent) {
-    return (
-      <div className="flex flex-col items-center justify-center py-24">
-        <HiveOutlined className="text-5xl text-gray-300" fontSize="large" />
-        <div className="mt-6 flex flex-col items-center gap-y-2">
-          <h3 className="text-lg font-medium text-gray-900">No products yet</h3>
-          <p className="text-gray-500">
-            {organization.name} is not offering any products yet
-          </p>
-        </div>
-      </div>
-    )
+    return <SpaceEmptyHero />
   }
 
   // ── Per-block renderers ──
