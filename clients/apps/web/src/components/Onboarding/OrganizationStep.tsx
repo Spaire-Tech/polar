@@ -86,7 +86,7 @@ export const OrganizationStep = ({
   const createOrganization = useCreateOrganization()
   const updateOrganization = useUpdateOrganization()
   const [editedSlug, setEditedSlug] = useState(false)
-  const [navigating, setNavigating] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [currency, setCurrency] = useState<PresentmentCurrency>('usd')
 
   // Avatar / logo upload
@@ -169,6 +169,9 @@ export const OrganizationStep = ({
     slug: string
     description: string
   }) => {
+    if (submitting) return
+    setSubmitting(true)
+
     const params = {
       name: data.name,
       slug: slug as string,
@@ -183,6 +186,7 @@ export const OrganizationStep = ({
       if (error.detail) {
         setValidationErrors(error.detail, setError)
       }
+      setSubmitting(false)
       return
     }
 
@@ -254,7 +258,6 @@ export const OrganizationStep = ({
       await trackStepCompleted('org', organization.id)
     }
 
-    setNavigating(true)
     if (hasExistingOrg) {
       router.push(
         getStatusRedirect(
@@ -273,7 +276,7 @@ export const OrganizationStep = ({
       {/* Progress bar */}
       {!hasExistingOrg && (
         <div className="mb-12 w-full max-w-lg">
-          <OnboardingProgressBar currentStep={2} totalSteps={3} />
+          <OnboardingProgressBar currentStep={1} totalSteps={2} />
         </div>
       )}
 
@@ -508,12 +511,11 @@ export const OrganizationStep = ({
                 disabled={
                   name.length === 0 ||
                   slug.length === 0 ||
-                  createOrganization.isPending ||
-                  navigating
+                  submitting
                 }
                 className="w-full rounded-full bg-blue-600 py-4 text-sm font-semibold text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
               >
-                {createOrganization.isPending || navigating ? 'Creating…' : 'Continue'}
+                {submitting ? 'Creating…' : 'Continue'}
               </button>
               {hasExistingOrg ? (
                 <Link href="/dashboard" className="w-full">

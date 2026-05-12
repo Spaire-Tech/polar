@@ -1,14 +1,12 @@
 'use client'
 
 import revalidate from '@/app/actions'
-import { StorefrontLinksPanel } from '@/components/Customization/Storefront/StorefrontLinksPanel'
-import { StorefrontLivePreview } from '@/components/Customization/Storefront/StorefrontPreview'
-import { StorefrontEditorForm } from '@/components/Customization/Storefront/StorefrontSidebar'
+import { EditableProfileCard } from '@/components/Customization/InlineEdit/EditableProfileCard'
 import { ForceLightMode } from '@/components/Profile/ForceLightMode'
 import { toast } from '@/components/Toast/use-toast'
-import { useUpdateOrganization } from '@/hooks/queries'
+import { useProducts, useUpdateOrganization } from '@/hooks/queries'
 import { OrganizationContext } from '@/providers/maintainerOrganization'
-import { isValidationError, schemas } from '@spaire/client'
+import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import { Form } from '@spaire/ui/components/ui/form'
 import { useRouter } from 'next/navigation'
@@ -20,7 +18,12 @@ export default function ReviewPage() {
   const router = useRouter()
   const updateOrganization = useUpdateOrganization()
   const [publishing, setPublishing] = useState(false)
-  const [linksMode, setLinksMode] = useState(false)
+
+  const { data: productsData } = useProducts(organization.id, {
+    is_archived: false,
+    limit: 100,
+  })
+  const products = (productsData?.items ?? []) as unknown as schemas['ProductStorefront'][]
 
   const form = useForm<schemas['OrganizationUpdate']>({
     defaultValues: {
@@ -61,13 +64,11 @@ export default function ReviewPage() {
       })
 
       if (error) {
-        if (isValidationError(error.detail)) {
-          // setValidationErrors handled inline
-        }
         toast({
           title: 'Publish Failed',
           description: `Error: ${typeof error.detail === 'string' ? error.detail : JSON.stringify(error.detail)}`,
         })
+        setPublishing(false)
         return
       }
 
@@ -81,7 +82,6 @@ export default function ReviewPage() {
         title: 'Publish Failed',
         description: `Unexpected error: ${err instanceof Error ? err.message : String(err)}`,
       })
-    } finally {
       setPublishing(false)
     }
   }, [form, organization, updateOrganization, publishing, router])
@@ -89,18 +89,12 @@ export default function ReviewPage() {
   return (
     <Form {...form}>
       <ForceLightMode />
-      <div className="flex h-full w-full flex-col bg-gray-50">
-        {/* Top bar — identical to dashboard Space Card editor */}
+      <div className="spaire-editor flex h-full w-full flex-col bg-white">
+        {/* Top bar — minimal: just the publish action. No settings tab. */}
         <div className="flex flex-row items-center justify-between border-b border-gray-200 bg-white px-8 py-4">
-          <button
-            type="button"
-            onClick={() =>
-              router.push(`/dashboard/${organization.slug}/onboarding`)
-            }
-            className="text-[14px] text-gray-500 transition-colors hover:text-gray-700"
-          >
-            ← Back
-          </button>
+          <div className="text-[14px] font-medium text-gray-900">
+            Create your Space Card
+          </div>
           <Button
             className="rounded-full px-6"
             type="button"
@@ -111,50 +105,23 @@ export default function ReviewPage() {
           </Button>
         </div>
 
-        {/* Two-column layout: preview left, form right */}
-        <div className="flex min-h-0 grow flex-row overflow-hidden">
-          {/* Left — live card preview */}
-          <div
-            className={`hidden flex-1 flex-col items-center overflow-y-auto p-10 md:flex ${
-              linksMode ? 'justify-start' : 'justify-center'
-            }`}
-          >
-            <div className="flex w-full max-w-[500px] flex-col items-center">
-              {!linksMode && (
-                <>
-                  <h1 className="text-center text-[28px] font-bold text-gray-950">
-                    Let&apos;s Create your Space Card
-                  </h1>
-                  <p className="mt-1 text-center text-[15px] text-gray-500">
-                    Introduce yourself and design your personal Space ID card.
-                  </p>
-                </>
-              )}
-              <div
-                className={
-                  linksMode
-                    ? 'w-full max-w-[460px]'
-                    : 'mt-8 w-full max-w-[460px]'
-                }
-              >
-                {linksMode ? (
-                  <StorefrontLinksPanel
-                    organization={organization}
-                    onBack={() => setLinksMode(false)}
-                  />
-                ) : (
-                  <StorefrontLivePreview organization={organization} />
-                )}
-              </div>
+        {/* Centered card-only canvas */}
+        <div className="flex min-h-0 flex-1 justify-center overflow-y-auto px-4 py-10">
+          <div className="flex w-full max-w-[460px] flex-col items-center gap-6">
+            <div className="flex flex-col items-center gap-2 text-center">
+              <h1 className="text-[28px] font-bold text-gray-950">
+                Let&apos;s create your Space Card
+              </h1>
+              <p className="text-[15px] text-gray-500">
+                Click anything on the card to edit it directly.
+              </p>
             </div>
-          </div>
-
-          {/* Right — the exact same form as the dashboard */}
-          <div className="w-full shrink-0 overflow-y-auto border-l border-gray-200 bg-white shadow-sm md:w-[700px]">
-            <StorefrontEditorForm
-              organization={organization}
-              onEnterLinksMode={() => setLinksMode(true)}
-            />
+            <div className="canvas-card w-full">
+              <EditableProfileCard
+                organization={organization}
+                products={products}
+              />
+            </div>
           </div>
         </div>
       </div>
