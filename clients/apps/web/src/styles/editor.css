@@ -164,6 +164,38 @@
   background: #fafafc;
 }
 
+.spaire-editor .tb-enable-toggle {
+  height: 36px;
+  padding: 0 14px 0 6px;
+  border: 1px solid var(--line);
+  background: white;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--ink-2);
+  font-weight: 500;
+  white-space: nowrap;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.spaire-editor .tb-enable-toggle:hover {
+  border-color: var(--line-strong);
+  background: #fafafc;
+}
+
+.spaire-editor .tb-enable-toggle[data-on='1'] {
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+.spaire-editor .tb-enable-toggle .sp-toggle {
+  display: inline-block;
+  pointer-events: none;
+}
+
 .spaire-editor .tb-publish {
   height: 36px;
   padding: 0 18px;

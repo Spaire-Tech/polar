@@ -9,7 +9,7 @@ import { ProductEditOrCreateForm, productToCreateForm } from '@/utils/product'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import { Form } from '@spaire/ui/components/ui/form'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { DashboardBody } from '../Layout/DashboardLayout'
@@ -67,6 +67,12 @@ export const CreateProductPage = ({
   onPriceChange,
 }: CreateProductPageProps) => {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  // Same-origin path the caller wants us to bounce back to after a
+  // successful create (e.g. the Space editor's "+ Add to Space" flow).
+  const rawReturnTo = searchParams?.get('returnTo') ?? null
+  const returnTo =
+    rawReturnTo && rawReturnTo.startsWith('/') ? rawReturnTo : null
   const [isSubmitting, setIsSubmitting] = useState(false)
   const benefitsQuery = useBenefits(organization.id, {
     limit: 200,
@@ -229,9 +235,10 @@ export const CreateProductPage = ({
           })
           onClose()
         } else {
+          const destination = returnTo ?? `/dashboard/${organization.slug}/products`
           router.push(
             getStatusRedirect(
-              `/dashboard/${organization.slug}/products`,
+              destination,
               'Product Created',
               `Product ${product.name} was created successfully`,
             ),
