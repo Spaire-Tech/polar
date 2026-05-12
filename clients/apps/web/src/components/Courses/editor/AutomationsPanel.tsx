@@ -8,12 +8,7 @@
 // editor context. The iframe runs the regular /email-marketing/sequences
 // route with ?embed=1, which hides the email marketing chrome.
 
-import {
-  useCreateSequenceFromTemplate,
-  useEmailSequences,
-  useEmailSequenceTemplates,
-  type SequenceTemplate,
-} from '@/hooks/queries/emailMarketing'
+import { useEmailSequences } from '@/hooks/queries/emailMarketing'
 import AddOutlined from '@mui/icons-material/AddOutlined'
 import CloseOutlined from '@mui/icons-material/CloseOutlined'
 import { schemas } from '@spaire/client'
@@ -48,13 +43,6 @@ export function AutomationsPanel({
     lessonId,
     limit: 50,
   })
-  const templatesQuery = useEmailSequenceTemplates()
-  const fromTemplate = useCreateSequenceFromTemplate(organization.id)
-
-  const templates: SequenceTemplate[] = useMemo(() => {
-    const all = templatesQuery.data ?? []
-    return all.filter((t) => t.category === 'Course')
-  }, [templatesQuery.data])
 
   const sequences: SequenceRow[] = (sequencesQuery.data?.items ?? []) as SequenceRow[]
 
@@ -62,28 +50,9 @@ export function AutomationsPanel({
   const openEdit = (sequenceId: string) =>
     setEditing({ mode: 'edit', sequenceId })
 
-  const onUseTemplate = async (slug: string) => {
-    const created = await fromTemplate.mutateAsync({
-      slug,
-      course_id: courseId,
-      lesson_id: lessonId,
-    })
-    if (created?.id) openEdit(created.id)
-  }
-
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <NewCard onClick={openNew} />
-        {templates.map((t) => (
-          <TemplateCard
-            key={t.slug}
-            template={t}
-            busy={fromTemplate.isPending}
-            onUse={() => onUseTemplate(t.slug)}
-          />
-        ))}
-      </div>
+      <NewCard onClick={openNew} />
 
       <div className="flex flex-col gap-2">
         <div className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
@@ -93,7 +62,7 @@ export function AutomationsPanel({
           <div className="h-16 animate-pulse rounded-xl bg-gray-100" />
         ) : sequences.length === 0 ? (
           <p className="text-sm text-gray-500">
-            No automations yet. Pick a template above or start from scratch.
+            No automations yet. Create one above to get started.
           </p>
         ) : (
           <div className="flex flex-col gap-2">
@@ -130,41 +99,18 @@ function NewCard({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="group flex flex-col items-start gap-2 rounded-xl border-2 border-dashed border-gray-300 bg-white p-5 text-left transition-colors hover:border-gray-900 hover:bg-gray-50"
+      className="group flex w-full items-center gap-4 rounded-xl border border-gray-200 bg-white p-5 text-left transition-colors hover:border-gray-300 hover:bg-gray-50"
     >
-      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-900 text-white transition-transform group-hover:scale-105">
+      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gray-900 text-white transition-transform group-hover:scale-105">
         <AddOutlined sx={{ fontSize: 18 }} />
       </div>
-      <div className="text-sm font-semibold text-gray-900">New automation</div>
-      <div className="text-xs text-gray-500">
-        Build a sequence from a blank canvas.
-      </div>
-    </button>
-  )
-}
-
-function TemplateCard({
-  template,
-  busy,
-  onUse,
-}: {
-  template: SequenceTemplate
-  busy: boolean
-  onUse: () => void
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onUse}
-      disabled={busy}
-      className="flex flex-col items-start gap-2 rounded-xl border border-gray-200 bg-white p-5 text-left transition-colors hover:border-gray-300 hover:bg-gray-50 disabled:cursor-progress disabled:opacity-60"
-    >
-      <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold tracking-wider text-blue-700 uppercase">
-        Template
-      </span>
-      <div className="text-sm font-semibold text-gray-900">{template.name}</div>
-      <div className="text-xs leading-relaxed text-gray-500">
-        {template.description}
+      <div className="flex min-w-0 flex-col">
+        <span className="text-sm font-semibold text-gray-900">
+          New automation
+        </span>
+        <span className="text-xs text-gray-500">
+          Build a sequence from a blank canvas.
+        </span>
       </div>
     </button>
   )
@@ -261,31 +207,40 @@ function SequenceEditorModal({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'flex-end',
-          padding: '12px 16px',
-          borderBottom: '1px solid oklch(0.92 0.003 280)',
-          background: 'white',
+          padding: '14px 20px',
+          background: 'oklch(0.985 0.001 280)',
         }}
       >
         <button
           type="button"
           onClick={onClose}
           aria-label="Close automation editor"
-          className="flex h-9 w-9 items-center justify-center rounded-full text-gray-700 transition-colors hover:bg-gray-100"
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-gray-700 shadow-sm ring-1 ring-gray-200 transition-colors hover:bg-gray-50"
         >
           <CloseOutlined sx={{ fontSize: 18 }} />
         </button>
       </div>
-      <iframe
-        title="Automation editor"
-        src={src}
+      <div
         style={{
           flex: 1,
-          width: '100%',
-          height: '100%',
-          border: 'none',
-          background: 'white',
+          minHeight: 0,
+          padding: '0 20px 20px',
         }}
-      />
+      >
+        <iframe
+          title="Automation editor"
+          src={src}
+          style={{
+            width: '100%',
+            height: '100%',
+            border: 'none',
+            background: 'white',
+            borderRadius: 12,
+            boxShadow:
+              '0 1px 2px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.06)',
+          }}
+        />
+      </div>
     </div>
   )
 }
