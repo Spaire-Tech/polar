@@ -1451,3 +1451,146 @@
   background: #fee2e2;
   color: #b91c1c;
 }
+
+/* ── Toolbar device toggle (desktop / mobile preview) ───────────── */
+.spaire-editor .tb-device {
+  display: inline-flex;
+  background: var(--surface-2, #f4f4f7);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.spaire-editor .tb-device-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  letter-spacing: 0;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    box-shadow 0.15s;
+}
+
+.spaire-editor .tb-device-btn:hover {
+  color: var(--ink-2);
+}
+
+.spaire-editor .tb-device-btn[data-active='1'] {
+  background: white;
+  color: var(--ink);
+  box-shadow:
+    0 1px 2px rgba(15, 15, 30, 0.06),
+    0 0 0 1px var(--line);
+}
+
+/* ── Mobile preview frame (iPhone-shaped, scrollable) ───────────── */
+.spaire-editor .mobile-preview-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  /* canvas-wrap already has overflow-y: auto; we just center inside. */
+  min-height: 0;
+  transition: padding-right 0.25s ease;
+}
+
+.spaire-editor .mobile-preview-wrap.has-panel {
+  padding-right: 460px;
+}
+
+.spaire-editor .mobile-frame {
+  position: relative;
+  /* iPhone 14 logical size: 390 × 844 (9 : 19.5). Cap height so the
+     frame fits viewports comfortably; the inner scroll handles the
+     overflow. */
+  width: clamp(320px, 90vw, 390px);
+  aspect-ratio: 390 / 844;
+  max-height: calc(100vh - 160px);
+  background: #0c0c14;
+  border-radius: 56px;
+  padding: 11px;
+  box-shadow:
+    0 30px 60px -20px rgba(12, 12, 20, 0.45),
+    0 8px 20px -8px rgba(12, 12, 20, 0.3),
+    inset 0 0 0 1.5px #2a2a35;
+}
+
+/* Dynamic island. */
+.spaire-editor .mobile-frame-island {
+  position: absolute;
+  left: 50%;
+  top: 18px;
+  transform: translateX(-50%);
+  width: 110px;
+  height: 30px;
+  background: #0c0c14;
+  border-radius: 999px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Home indicator. */
+.spaire-editor .mobile-frame-home {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  width: 130px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.55);
+  border-radius: 2px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* The actual phone "screen": white inner panel that clips the content. */
+.spaire-editor .mobile-frame-screen {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: white;
+  border-radius: 46px;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* Scrollable container — own scroll, momentum on iOS-like trackpads. */
+.spaire-editor .mobile-frame-scroll {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  /* Top padding clears the dynamic island; bottom padding clears the
+     home indicator. Side padding matches a real iPhone safe area. */
+  padding: 56px 16px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  /* The mobile-targeted utilities inside ProfileCard / Storefront
+     stretch to 100% width by default — perfect for the narrow column. */
+}
+
+/* Hide the toolbar's scrollbar for the mobile frame's inner scroll
+   to keep the device chrome looking like a phone. */
+.spaire-editor .mobile-frame-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.spaire-editor .mobile-frame-scroll {
+  scrollbar-width: none;
+}
