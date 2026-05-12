@@ -704,6 +704,99 @@
   cursor: grabbing;
 }
 
+/* Category section drag handle — sits next to the section label and
+   reorders the whole category as a unit. */
+.spaire-editor .category-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.spaire-editor .category-drag-handle {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.35;
+  transition:
+    opacity 0.15s,
+    background 0.15s,
+    border-color 0.15s;
+  cursor: grab;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1;
+  letter-spacing: -0.05em;
+  touch-action: none;
+}
+
+.spaire-editor .category-head:hover .category-drag-handle,
+.spaire-editor .category-drag-handle:focus,
+.spaire-editor .category-drag-handle:hover {
+  opacity: 1;
+  background: white;
+  border-color: var(--line);
+  color: var(--ink-2);
+}
+
+.spaire-editor .category-drag-handle:active {
+  cursor: grabbing;
+}
+
+/* Profile-card product carousel — looping marquee of the products
+   that appear on the user's Space. Track is duplicated in markup
+   (so the loop appears seamless) and shifts -50% over the duration. */
+.profile-card-marquee {
+  overflow: hidden;
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    black 24px,
+    black calc(100% - 24px),
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    black 24px,
+    black calc(100% - 24px),
+    transparent 100%
+  );
+}
+
+.profile-card-marquee-track {
+  display: flex;
+  flex-direction: row;
+  gap: 0.5rem;
+  width: max-content;
+  animation: profile-card-marquee-scroll
+    var(--marquee-duration, 30s) linear infinite;
+}
+
+.profile-card-marquee:hover .profile-card-marquee-track {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .profile-card-marquee-track {
+    animation: none;
+  }
+}
+
+@keyframes profile-card-marquee-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
 .spaire-editor .block-host.dragging .canvas-card {
   opacity: 0.4;
 }

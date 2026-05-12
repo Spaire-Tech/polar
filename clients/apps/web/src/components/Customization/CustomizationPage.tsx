@@ -518,20 +518,40 @@ const Customization = ({
           </aside>
         )}
 
-        {/* Floating Add-to-Space FAB */}
-        <div
-          className={`add-fab-wrap${settingsOpen || linksMode ? ' has-panel' : ''}`}
-        >
-          <button
-            type="button"
-            className="add-fab"
-            onClick={() => setPickerOpen(true)}
-          >
-            <span className="plus">+</span>
-            Add to Space
-            <span className="kbd">{'⌘'}K</span>
-          </button>
-        </div>
+        {/* Floating Add-to-Space FAB — hidden when the canvas is fully
+            empty (the SpaceEmptyHero already shows its own CTA). */}
+        {(() => {
+          const liveSettings = (form.watch('storefront_settings') as
+            | {
+                featured_product_ids?: string[]
+                storefront_links?: unknown[]
+                featured_mode?: 'all' | 'curated'
+              }
+            | undefined) ?? {}
+          const featuredMode = liveSettings.featured_mode ?? 'all'
+          const featuredIds = liveSettings.featured_product_ids ?? []
+          const visibleProductCount =
+            featuredMode === 'curated'
+              ? featuredIds.length
+              : storefrontData?.products?.length ?? 0
+          const linkCount = liveSettings.storefront_links?.length ?? 0
+          if (visibleProductCount === 0 && linkCount === 0) return null
+          return (
+            <div
+              className={`add-fab-wrap${settingsOpen || linksMode ? ' has-panel' : ''}`}
+            >
+              <button
+                type="button"
+                className="add-fab"
+                onClick={() => setPickerOpen(true)}
+              >
+                <span className="plus">+</span>
+                Add to Space
+                <span className="kbd">{'⌘'}K</span>
+              </button>
+            </div>
+          )
+        })()}
 
         {pickerOpen && (
           <AddToSpacePicker
