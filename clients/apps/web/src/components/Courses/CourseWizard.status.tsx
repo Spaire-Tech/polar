@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { memo, useMemo } from 'react'
 
 // ─── Generating screen ────────────────────────────────────────────────────────
 
@@ -24,7 +24,13 @@ const COPY: Record<
   },
 }
 
-export function GeneratingScreen({
+// The wizard re-renders many times per second while the AI SDK streams
+// chunks back. The ring animation has nothing to do with the streamed
+// payload, so we memoize the screen + the ring layer to keep React from
+// reconciling 84 SVG <circle>s every tick — that bookkeeping was eating
+// enough main-thread time to stall the GPU compositor and make the rings
+// look frozen.
+export const GeneratingScreen = memo(function GeneratingScreen({
   onClose: _onClose,
   phase = 'outline',
 }: {
@@ -35,30 +41,7 @@ export function GeneratingScreen({
 
   return (
     <div className="cg-stage">
-      <div className="cg-ring-wrap" aria-hidden="true">
-        <svg viewBox="-200 -200 400 400">
-          <g className="cg-ring">
-            <RingDots
-              count={36}
-              radius={150}
-              baseSize={6.5}
-              sizeJitter={3}
-              hueOffset={30}
-              delayOffset={0}
-            />
-          </g>
-          <g className="cg-ring cg-ring-rev">
-            <RingDots
-              count={48}
-              radius={122}
-              baseSize={3.8}
-              sizeJitter={2}
-              hueOffset={35}
-              delayOffset={1.3}
-            />
-          </g>
-        </svg>
-      </div>
+      <RingArt />
 
       <section className="cg-copy" role="status" aria-live="polite">
         <h1 className="cg-headline">
@@ -79,11 +62,44 @@ export function GeneratingScreen({
       <GeneratingStyles />
     </div>
   )
-}
+})
+
+// The SVG itself is fully static — pinning it behind memo() means React
+// never reconciles the 84 dots once they're mounted, so the CSS animations
+// stay on the compositor uninterrupted while the rest of the wizard
+// re-renders on each streamed chunk.
+const RingArt = memo(function RingArt() {
+  return (
+    <div className="cg-ring-wrap" aria-hidden="true">
+      <svg viewBox="-200 -200 400 400">
+        <g className="cg-ring">
+          <RingDots
+            count={36}
+            radius={150}
+            baseSize={6.5}
+            sizeJitter={3}
+            hueOffset={30}
+            delayOffset={0}
+          />
+        </g>
+        <g className="cg-ring cg-ring-rev">
+          <RingDots
+            count={48}
+            radius={122}
+            baseSize={3.8}
+            sizeJitter={2}
+            hueOffset={35}
+            delayOffset={1.3}
+          />
+        </g>
+      </svg>
+    </div>
+  )
+})
 
 // ─── Ring of dots ─────────────────────────────────────────────────────────────
 
-function RingDots({
+const RingDots = memo(function RingDots({
   count,
   radius,
   baseSize,
@@ -146,7 +162,7 @@ function RingDots({
       ))}
     </>
   )
-}
+})
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
