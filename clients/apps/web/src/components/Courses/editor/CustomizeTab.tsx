@@ -255,10 +255,10 @@ function CustomizeBar({
         <button
           type="button"
           onClick={onSave}
-          disabled={saving || !dirty}
+          disabled={saving}
           className="rounded-md bg-gray-900 px-3.5 py-[7px] text-[12px] font-semibold text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {saving ? 'Saving…' : 'Save & publish'}
+          {saving ? 'Saving…' : dirty ? 'Save & publish' : 'Republish'}
         </button>
       </div>
     </div>
