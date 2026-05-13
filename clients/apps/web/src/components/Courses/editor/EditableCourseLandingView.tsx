@@ -13,10 +13,19 @@
 import type { CourseLessonRead, CourseRead } from '@/hooks/queries/courses'
 import { api } from '@/utils/client'
 import { CONFIG } from '@/utils/config'
+import { useIsMobile } from '@/utils/mobile'
 import type { schemas } from '@spaire/client'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from '../../Toast/use-toast'
 import { HlsVideo } from '../HlsVideo'
+import {
+  MobileEpisodes,
+  MobileFinalCta,
+  MobileFooter,
+  MobileHero,
+  MobileInstructor,
+  MobileSectionsRoadmap,
+} from './EditableCourseLandingViewMobile'
 import { useEditor } from './EditorContext'
 import { EditBlock, EditMedia, EditText } from './EditPrimitives'
 import { HeroMedia } from './HeroMedia'
@@ -141,6 +150,14 @@ export function EditableCourseLandingView({
   const ed = useEditor()
   const priceLabel = formatProductPrice(product)
   const { enroll, busy: enrolling, enabled: canEnroll } = useEnroll(product?.id)
+  // Mobile layout kicks in when the studio device toggle is set to mobile OR
+  // when the page is being viewed on a real phone (public storefront). The
+  // viewport check is intentionally skipped while the studio is forcing a
+  // non-default device so the desktop preview stays available at any width.
+  const viewportIsMobile = useIsMobile().isMobile
+  const isMobile =
+    ed.device === 'mobile' ||
+    (ed.device === 'desktop' && viewportIsMobile)
 
   const paywallAt =
     course.paywall_enabled && course.paywall_position != null
@@ -151,56 +168,109 @@ export function EditableCourseLandingView({
   const paidLessons = paywallAt != null ? flatLessons.slice(paywallAt) : []
   const lockedCount = paidLessons.length
 
-  const sectionMap: Record<string, { label: string; node: React.ReactNode }> = {
-    hero: {
-      label: 'Hero',
-      node: (
-        <Hero
-          course={course}
-          flatLessons={flatLessons}
-          freeCount={freeLessons.length}
-          priceLabel={priceLabel}
-          onEnroll={enroll}
-          enrolling={enrolling}
-          canEnroll={canEnroll}
-        />
-      ),
-    },
-    sections: {
-      label: 'Sections',
-      node: <CourseSections course={course} />,
-    },
-    lessons: {
-      label: 'Free preview',
-      node: (
-        <EpisodeGrid
-          course={course}
-          freeLessons={freeLessons}
-          paidLessons={paidLessons}
-          lockedCount={lockedCount}
-          priceLabel={priceLabel}
-          organizationSlug={organizationSlug}
-          onEnroll={enroll}
-          enrolling={enrolling}
-          canEnroll={canEnroll}
-          lessonHandlers={lessonHandlers}
-        />
-      ),
-    },
-    instructor: { label: 'Instructor', node: <Instructor course={course} /> },
-    finalCta: {
-      label: 'Final CTA',
-      node: (
-        <FinalCta
-          freeCount={freeLessons.length}
-          priceLabel={priceLabel}
-          onEnroll={enroll}
-          enrolling={enrolling}
-          canEnroll={canEnroll}
-        />
-      ),
-    },
-  }
+  const sectionMap: Record<string, { label: string; node: React.ReactNode }> =
+    isMobile
+      ? {
+          hero: {
+            label: 'Hero',
+            node: (
+              <MobileHero
+                course={course}
+                flatLessons={flatLessons}
+                priceLabel={priceLabel}
+                onEnroll={enroll}
+                enrolling={enrolling}
+                canEnroll={canEnroll}
+              />
+            ),
+          },
+          sections: {
+            label: 'Sections',
+            node: <MobileSectionsRoadmap course={course} />,
+          },
+          lessons: {
+            label: 'Free preview',
+            node: (
+              <MobileEpisodes
+                freeLessons={freeLessons}
+                paidLessons={paidLessons}
+                lockedCount={lockedCount}
+                priceLabel={priceLabel}
+                onEnroll={enroll}
+                enrolling={enrolling}
+                canEnroll={canEnroll}
+              />
+            ),
+          },
+          instructor: {
+            label: 'Instructor',
+            node: <MobileInstructor course={course} />,
+          },
+          finalCta: {
+            label: 'Final CTA',
+            node: (
+              <MobileFinalCta
+                priceLabel={priceLabel}
+                onEnroll={enroll}
+                enrolling={enrolling}
+                canEnroll={canEnroll}
+              />
+            ),
+          },
+        }
+      : {
+          hero: {
+            label: 'Hero',
+            node: (
+              <Hero
+                course={course}
+                flatLessons={flatLessons}
+                freeCount={freeLessons.length}
+                priceLabel={priceLabel}
+                onEnroll={enroll}
+                enrolling={enrolling}
+                canEnroll={canEnroll}
+              />
+            ),
+          },
+          sections: {
+            label: 'Sections',
+            node: <CourseSections course={course} />,
+          },
+          lessons: {
+            label: 'Free preview',
+            node: (
+              <EpisodeGrid
+                course={course}
+                freeLessons={freeLessons}
+                paidLessons={paidLessons}
+                lockedCount={lockedCount}
+                priceLabel={priceLabel}
+                organizationSlug={organizationSlug}
+                onEnroll={enroll}
+                enrolling={enrolling}
+                canEnroll={canEnroll}
+                lessonHandlers={lessonHandlers}
+              />
+            ),
+          },
+          instructor: {
+            label: 'Instructor',
+            node: <Instructor course={course} />,
+          },
+          finalCta: {
+            label: 'Final CTA',
+            node: (
+              <FinalCta
+                freeCount={freeLessons.length}
+                priceLabel={priceLabel}
+                onEnroll={enroll}
+                enrolling={enrolling}
+                canEnroll={canEnroll}
+              />
+            ),
+          },
+        }
 
   return (
     <div
@@ -222,7 +292,11 @@ export function EditableCourseLandingView({
             </EditBlock>
           )
         })}
-      <Footer organizationName={organizationName} />
+      {isMobile ? (
+        <MobileFooter organizationName={organizationName} />
+      ) : (
+        <Footer organizationName={organizationName} />
+      )}
     </div>
   )
 }
@@ -535,7 +609,13 @@ function Hero({
 // Fullscreen trailer player. Mounts a fixed overlay with the video; tries
 // to enter the browser's Fullscreen API on open and falls back to the
 // 100vw/100vh overlay if the browser refuses (e.g. iOS Safari).
-function TrailerModal({ url, onClose }: { url: string; onClose: () => void }) {
+export function TrailerModal({
+  url,
+  onClose,
+}: {
+  url: string
+  onClose: () => void
+}) {
   const videoRef = useRef<HTMLVideoElement>(null)
 
   useEffect(() => {
