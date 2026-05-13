@@ -1,3 +1,4 @@
+import hashlib
 import json
 import logging
 from uuid import UUID, uuid4
@@ -518,7 +519,11 @@ async def upload_lesson_thumbnail(
     if ext not in {"jpg", "jpeg", "png", "webp", "gif"}:
         ext = "jpg"
 
-    path = f"course-thumbnails/{lesson_id}.{ext}"
+    # Content-addressed path so re-uploading a new image yields a fresh URL
+    # — without this the studio kept showing the previous thumbnail because
+    # the browser cached the bytes under an unchanging URL.
+    digest = hashlib.sha256(data).hexdigest()[:12]
+    path = f"course-thumbnails/{lesson_id}/{digest}.{ext}"
     s3 = S3Service(bucket=settings.S3_FILES_PUBLIC_BUCKET_NAME)
     s3.upload(data, path, content_type)
     thumbnail_url = s3.get_public_url(path)
@@ -558,7 +563,10 @@ async def upload_course_thumbnail(
     if ext not in {"jpg", "jpeg", "png", "webp", "gif"}:
         ext = "jpg"
 
-    path = f"course-thumbnails/courses/{course_id}.{ext}"
+    # Content-addressed path so re-uploading a new image yields a fresh URL
+    # — see upload_lesson_thumbnail.
+    digest = hashlib.sha256(data).hexdigest()[:12]
+    path = f"course-thumbnails/courses/{course_id}/{digest}.{ext}"
     s3 = S3Service(bucket=settings.S3_FILES_PUBLIC_BUCKET_NAME)
     s3.upload(data, path, content_type)
     thumbnail_url = s3.get_public_url(path)
