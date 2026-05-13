@@ -2433,15 +2433,25 @@ function EpisodeInfo({
     }
   }
 
+  // Keep `titleEditing` true until the mutation + refetch complete. Flipping
+  // it false before the refetch lets the DOM-sync effect run while
+  // `lessonTitle` still holds the stale value, which clobbers the user's edit
+  // visually and looks like "the save didn't take". Same shape for description.
   const persistTitle = async () => {
-    setTitleEditing(false)
-    if (!persistsToLesson || !lessonHandlers) return
+    if (!persistsToLesson || !lessonHandlers) {
+      setTitleEditing(false)
+      return
+    }
     const next = (titleRef.current?.innerText ?? '').trim()
     if (!next) {
       if (titleRef.current) titleRef.current.innerText = lessonTitle
+      setTitleEditing(false)
       return
     }
-    if (next === lessonTitle) return
+    if (next === lessonTitle) {
+      setTitleEditing(false)
+      return
+    }
     try {
       await lessonHandlers.updateLesson(lesson.id, { title: next })
     } catch (e) {
@@ -2449,14 +2459,21 @@ function EpisodeInfo({
         title: 'Failed to save title',
         description: (e as Error).message ?? '',
       })
+    } finally {
+      setTitleEditing(false)
     }
   }
 
   const persistDesc = async () => {
-    setDescEditing(false)
-    if (!persistsToLesson || !lessonHandlers) return
+    if (!persistsToLesson || !lessonHandlers) {
+      setDescEditing(false)
+      return
+    }
     const next = (descRef.current?.innerText ?? '').replace(/\n+$/, '')
-    if (next === lessonDesc) return
+    if (next === lessonDesc) {
+      setDescEditing(false)
+      return
+    }
     try {
       await lessonHandlers.updateLesson(lesson.id, {
         description: next.length > 0 ? next : null,
@@ -2466,6 +2483,8 @@ function EpisodeInfo({
         title: 'Failed to save description',
         description: (e as Error).message ?? '',
       })
+    } finally {
+      setDescEditing(false)
     }
   }
 

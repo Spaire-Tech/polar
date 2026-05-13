@@ -48,10 +48,57 @@ export function CustomizeTab({
   const lessonHandlers = useMemo<LessonHandlers>(
     () => ({
       updateLesson: async (lessonId, patch) => {
-        await updateLessonMut.mutateAsync({ lessonId, body: patch })
+        // eslint-disable-next-line no-console
+        console.info('[CustomizeTab] lesson update → PATCH', { lessonId, patch })
+        try {
+          const result = await updateLessonMut.mutateAsync({
+            lessonId,
+            body: patch,
+          })
+          // eslint-disable-next-line no-console
+          console.info('[CustomizeTab] lesson update ← ok', {
+            lessonId,
+            title: result.title,
+            description: result.description,
+          })
+          toast({ title: 'Lesson updated' })
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error('[CustomizeTab] lesson update ← FAILED', err)
+          toast({
+            title: 'Lesson update failed',
+            description: err instanceof Error ? err.message : String(err),
+          })
+          throw err
+        }
       },
       uploadThumbnail: async (lessonId, file) => {
-        await uploadLessonThumbMut.mutateAsync({ lessonId, file })
+        // eslint-disable-next-line no-console
+        console.info('[CustomizeTab] lesson thumbnail → POST', {
+          lessonId,
+          fileName: file.name,
+          fileSize: file.size,
+        })
+        try {
+          const result = await uploadLessonThumbMut.mutateAsync({
+            lessonId,
+            file,
+          })
+          // eslint-disable-next-line no-console
+          console.info('[CustomizeTab] lesson thumbnail ← ok', {
+            lessonId,
+            thumbnail_url: result.thumbnail_url,
+          })
+          toast({ title: 'Thumbnail uploaded' })
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error('[CustomizeTab] lesson thumbnail ← FAILED', err)
+          toast({
+            title: 'Thumbnail upload failed',
+            description: err instanceof Error ? err.message : String(err),
+          })
+          throw err
+        }
       },
       uploadVideo: async (lessonId, file, onProgress) => {
         const { upload_url } = await createMuxUpload.mutateAsync(lessonId)
