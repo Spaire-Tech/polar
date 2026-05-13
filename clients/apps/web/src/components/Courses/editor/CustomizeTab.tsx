@@ -48,10 +48,57 @@ export function CustomizeTab({
   const lessonHandlers = useMemo<LessonHandlers>(
     () => ({
       updateLesson: async (lessonId, patch) => {
-        await updateLessonMut.mutateAsync({ lessonId, body: patch })
+        // eslint-disable-next-line no-console
+        console.info('[CustomizeTab] lesson update → PATCH', { lessonId, patch })
+        try {
+          const result = await updateLessonMut.mutateAsync({
+            lessonId,
+            body: patch,
+          })
+          // eslint-disable-next-line no-console
+          console.info('[CustomizeTab] lesson update ← ok', {
+            lessonId,
+            title: result.title,
+            description: result.description,
+          })
+          toast({ title: 'Lesson updated' })
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error('[CustomizeTab] lesson update ← FAILED', err)
+          toast({
+            title: 'Lesson update failed',
+            description: err instanceof Error ? err.message : String(err),
+          })
+          throw err
+        }
       },
       uploadThumbnail: async (lessonId, file) => {
-        await uploadLessonThumbMut.mutateAsync({ lessonId, file })
+        // eslint-disable-next-line no-console
+        console.info('[CustomizeTab] lesson thumbnail → POST', {
+          lessonId,
+          fileName: file.name,
+          fileSize: file.size,
+        })
+        try {
+          const result = await uploadLessonThumbMut.mutateAsync({
+            lessonId,
+            file,
+          })
+          // eslint-disable-next-line no-console
+          console.info('[CustomizeTab] lesson thumbnail ← ok', {
+            lessonId,
+            thumbnail_url: result.thumbnail_url,
+          })
+          toast({ title: 'Thumbnail uploaded' })
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error('[CustomizeTab] lesson thumbnail ← FAILED', err)
+          toast({
+            title: 'Thumbnail upload failed',
+            description: err instanceof Error ? err.message : String(err),
+          })
+          throw err
+        }
       },
       uploadVideo: async (lessonId, file, onProgress) => {
         const { upload_url } = await createMuxUpload.mutateAsync(lessonId)
@@ -148,28 +195,47 @@ export function CustomizeTab({
   }
 
   const handleSave = async () => {
+    const persistedMedia = { ...overridesRef.current.media }
+    // hero image / trailer are mirrored onto course columns, so don't
+    // double-store them in landing_overrides.
+    delete persistedMedia['hero.backdrop']
+    delete persistedMedia['hero.trailer']
+    delete persistedMedia['trailer.video']
+    const body = {
+      landing_overrides: {
+        ...overridesRef.current,
+        media: persistedMedia,
+      },
+    }
+    // Surface what's being sent so the user can confirm in the network
+    // tab that their edits made it into the PATCH payload.
+    // eslint-disable-next-line no-console
+    console.info('[CustomizeTab] save → PATCH /v1/courses/' + course.id, body)
     try {
-      const persistedMedia = { ...overridesRef.current.media }
-      // hero image / trailer are mirrored onto course columns, so don't
-      // double-store them in landing_overrides.
-      delete persistedMedia['hero.backdrop']
-      delete persistedMedia['hero.trailer']
-      delete persistedMedia['trailer.video']
-      await updateCourse.mutateAsync({
+      const result = await updateCourse.mutateAsync({
         courseId: course.id,
-        body: {
-          landing_overrides: {
-            ...overridesRef.current,
-            media: persistedMedia,
-          },
-        },
+        body,
+      })
+      // eslint-disable-next-line no-console
+      console.info('[CustomizeTab] save ← ok', {
+        id: result.id,
+        landing_overrides_keys: Object.keys(result.landing_overrides ?? {}),
+        text_keys: Object.keys(
+          (result.landing_overrides as { text?: Record<string, string> } | null)
+            ?.text ?? {},
+        ),
+        media_keys: Object.keys(
+          (result.landing_overrides as {
+            media?: Record<string, unknown>
+          } | null)?.media ?? {},
+        ),
       })
       setDirty(false)
       toast({ title: 'Landing saved' })
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       // eslint-disable-next-line no-console
-      console.error('[CustomizeTab] failed to save landing', err)
+      console.error('[CustomizeTab] save ← FAILED', err)
       toast({ title: 'Failed to save', description: message })
     }
   }
@@ -255,10 +321,10 @@ function CustomizeBar({
         <button
           type="button"
           onClick={onSave}
-          disabled={saving || !dirty}
+          disabled={saving}
           className="rounded-md bg-gray-900 px-3.5 py-[7px] text-[12px] font-semibold text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {saving ? 'Saving…' : 'Save & publish'}
+          {saving ? 'Saving…' : dirty ? 'Save & publish' : 'Republish'}
         </button>
       </div>
     </div>
