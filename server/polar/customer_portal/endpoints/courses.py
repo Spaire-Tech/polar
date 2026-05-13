@@ -604,20 +604,27 @@ async def get_course_landing(
         # Not enrolled: return every published lesson so the public landing
         # can render both the free preview grid and the paywall CTA (with
         # locked-lesson previews). Sensitive fields are stripped from
-        # locked lessons. A lesson is considered free preview if it's
-        # explicitly flagged, OR if it sits before the course's
-        # paywall_position (the customize landing UI treats the
-        # pre-paywall lessons as the implicit free preview).
+        # locked lessons.
         flat_lessons = []
-        published_lessons = [
-            lesson
-            for module in course.modules
-            for lesson in module.lessons
-            if lesson.published
-        ]
-        published_lessons.sort(key=lambda l: l.position)
+        # Flatten in (module.position, lesson.position) order so the global
+        # index used by the paywall slice matches what the studio outline
+        # shows. Sorting by `lesson.position` alone scrambled cross-module
+        # ordering because lesson positions reset per module — that meant
+        # paywall_position=3 could pick the wrong three lessons.
+        published_lessons = []
+        for module in sorted(course.modules, key=lambda m: m.position):
+            for lesson in sorted(module.lessons, key=lambda l: l.position):
+                if lesson.published:
+                    published_lessons.append(lesson)
 
-        any_explicit_free = any(l.is_free_preview for l in published_lessons)
+        # Paywall always drives the free-preview slice for the storefront,
+        # even when an individual lesson has `is_free_preview=True`. The
+        # previous behaviour was: if *any* lesson had the flag set, paywall
+        # was ignored entirely and only flagged lessons appeared as free.
+        # That made setting paywall_position=3 silently regress to "only
+        # the trailer lesson is free" once a single lesson somewhere on the
+        # course had the explicit flag — confusing in the studio because
+        # the customize tab kept showing all three free-preview cards.
         paywall_at = (
             course.paywall_position
             if course.paywall_position is not None and course.paywall_position > 0
@@ -625,12 +632,10 @@ async def get_course_landing(
         )
 
         for idx, lesson in enumerate(published_lessons):
-            if any_explicit_free:
-                is_free = lesson.is_free_preview
-            elif paywall_at is not None:
+            if paywall_at is not None:
                 is_free = idx < paywall_at
             else:
-                is_free = False
+                is_free = bool(lesson.is_free_preview)
 
             lesson_data = _serialize_lesson(lesson, set(), accessible=is_free)
             lesson_data["is_free_preview"] = is_free

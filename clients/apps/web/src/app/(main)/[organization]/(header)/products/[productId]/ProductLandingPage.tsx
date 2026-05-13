@@ -54,6 +54,24 @@ export function ProductLandingPage({
       })
       .then((data) => {
         if (cancelled) return
+        if (data) {
+          // eslint-disable-next-line no-console
+          console.info('[ProductLandingPage] /landing ← ok', {
+            paywall_enabled: data.paywall_enabled,
+            paywall_position: data.paywall_position,
+            lesson_count: data.lessons?.length,
+            lessons: data.lessons?.map((l, i) => ({
+              i,
+              id: l.id,
+              title: l.title,
+              is_free_preview: l.is_free_preview,
+              locked: (l as { locked?: boolean }).locked,
+              has_thumbnail: !!l.thumbnail_url,
+              has_description: !!l.description,
+              has_mux_playback_id: !!l.mux_playback_id,
+            })),
+          })
+        }
         setLanding(data)
         setResolved(true)
       })
