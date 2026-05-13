@@ -205,7 +205,7 @@ export function MobileHero({
             fontFamily: HEADING_VAR,
           }}
         >
-          <EditText path="hero.title" defaultValue={course.title} multiline />
+          <EditText path="hero.title" defaultValue={course.title ?? ''} multiline />
         </h1>
 
         <div
@@ -229,7 +229,7 @@ export function MobileHero({
               {' — with '}
               <EditText
                 path="hero.instructor"
-                defaultValue={course.instructor_name}
+                defaultValue={course.instructor_name ?? ''}
               />
             </span>
           )}
@@ -1434,7 +1434,7 @@ export function MobileInstructor({ course }: { course: CourseRead }) {
         >
           <EditText
             path="instructor.bio"
-            defaultValue={course.instructor_bio}
+            defaultValue={course.instructor_bio ?? ''}
             multiline
           />
         </p>
