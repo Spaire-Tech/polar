@@ -411,6 +411,7 @@ export default function CourseWizard({
       if (wizardData) {
         const ov = { ...wizardData.overrides }
         ov.media = { ...ov.media }
+        ov.text = { ...ov.text }
         // Drop the hero blob URL — the canonical hero lives on
         // course.thumbnail_url which we just set.
         delete ov.media['hero.backdrop']
@@ -443,26 +444,49 @@ export default function CourseWizard({
             )
           }
         }
+
+        // Rewrite any section-keyed overrides the wizard staged under the
+        // fake `wizard-module-N` ids onto the real module ids the create
+        // endpoint just minted. Without this, section thumbnails (and any
+        // user-edited section titles) uploaded during onboarding live under
+        // dead keys that nothing on the published landing reads.
+        const sortedRealModules = [...created.modules].sort(
+          (a, b) => a.position - b.position,
+        )
+        const wizardSectionKey = /^sections\.module\.wizard-module-(\d+)\.(.+)$/
+        const remapSectionKeys = (bag: Record<string, unknown>) => {
+          for (const key of Object.keys(bag)) {
+            const match = wizardSectionKey.exec(key)
+            if (!match) continue
+            const idx = parseInt(match[1], 10)
+            const realMod = sortedRealModules[idx]
+            const value = bag[key]
+            delete bag[key]
+            if (!realMod) continue
+            const nextKey = `sections.module.${realMod.id}.${match[2]}`
+            // Don't clobber a value the AI-section mapping below will write.
+            if (!(nextKey in bag)) bag[nextKey] = value
+          }
+        }
+        remapSectionKeys(ov.media as Record<string, unknown>)
+        remapSectionKeys(ov.text as Record<string, unknown>)
+
         // Map AI-generated section titles (from the "sections" array) onto
-        // the actual created modules by position. The wizard preview only has
-        // a single fake module so this can't run there — we only know the real
-        // module ids once the course exists.
+        // the actual created modules by position, but only where the user
+        // hasn't already provided one through the wizard preview.
         const aiSections = (partialLanding as { sections?: unknown } | null)
           ?.sections
-        if (Array.isArray(aiSections) && created.modules.length > 0) {
-          ov.text = { ...ov.text }
-          const sortedModules = [...created.modules].sort(
-            (a, b) => a.position - b.position,
-          )
+        if (Array.isArray(aiSections) && sortedRealModules.length > 0) {
           aiSections.forEach((entry, i) => {
-            const mod = sortedModules[i]
+            const mod = sortedRealModules[i]
             if (!mod) return
             const t =
               entry && typeof entry === 'object' && 'title' in entry
                 ? (entry as { title?: unknown }).title
                 : null
-            if (typeof t === 'string' && t.trim()) {
-              ov.text![`sections.module.${mod.id}.title`] = t.trim()
+            const key = `sections.module.${mod.id}.title`
+            if (typeof t === 'string' && t.trim() && !(key in ov.text!)) {
+              ov.text![key] = t.trim()
             }
           })
         }
