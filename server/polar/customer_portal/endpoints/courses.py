@@ -82,23 +82,20 @@ def _serialize_lesson(
 
 
 def _build_module_list(course, paywall_position, enrolled_at, now, completed_ids):
-    """Build module list with paywall/drip locks and only published lessons.
+    """Build module list for an enrolled customer.
 
     Returns (modules, accessible_lesson_ids) where accessible_lesson_ids is the
     set of lesson IDs included in the response (used as the progress denominator).
 
-    ``paywall_position`` is interpreted as a count of LESSONS in global
-    course order (not modules) — matches the customize-tab semantics
-    where instructors set "first N lessons free, then paywall".
+    Enrolled customers see every published lesson — the paywall only gates
+    *non-enrolled* visitors and is enforced in the landing endpoint. Drip
+    locking still applies: a module under drip release only exposes its
+    free-preview lessons until the unlock date.
     """
+    del paywall_position  # paywall is irrelevant for enrolled customers
     modules = []
     accessible_ids: set[str] = set()
-    paywall_at = paywall_position if course.paywall_enabled else None
-    # Track global lesson index across modules so the paywall slice
-    # cuts by lesson count rather than module index.
-    global_lesson_idx = 0
     for m in course.modules:
-        # Drip: unlock based on release_at or drip_days since enrollment.
         drip_locked = False
         locked_until = None
         if m.release_at and now < m.release_at:
@@ -110,42 +107,12 @@ def _build_module_list(course, paywall_position, enrolled_at, now, completed_ids
                 drip_locked = True
                 locked_until = unlock_at.isoformat()
 
-        # Only published lessons are visible to students.
         published_lessons = [lesson for lesson in m.lessons if lesson.published]
 
-        # Paywall is per-lesson: a module is "paywall_locked" iff every
-        # one of its published lessons sits at or beyond the paywall.
-        module_paywall_first = global_lesson_idx
-        module_paywall_last = global_lesson_idx + len(published_lessons) - 1
-        paywall_locked = (
-            paywall_at is not None and module_paywall_first >= paywall_at
-        )
-        # Mixed paywall: some lessons before, some after.
-        paywall_partial = (
-            paywall_at is not None
-            and not paywall_locked
-            and module_paywall_last >= paywall_at
-        )
-
-        locked = paywall_locked or drip_locked
-
         if drip_locked:
-            # Drip-locked: only free-preview lessons are visible.
             visible = [
                 lesson for lesson in published_lessons if lesson.is_free_preview
             ]
-        elif paywall_locked:
-            # Whole module behind paywall: free-preview lessons only.
-            visible = [
-                lesson for lesson in published_lessons if lesson.is_free_preview
-            ]
-        elif paywall_partial and paywall_at is not None:
-            # Free until the paywall lesson, free previews after.
-            visible = []
-            for offset, lesson in enumerate(published_lessons):
-                idx = module_paywall_first + offset
-                if idx < paywall_at or lesson.is_free_preview:
-                    visible.append(lesson)
         else:
             visible = published_lessons
 
@@ -155,7 +122,6 @@ def _build_module_list(course, paywall_position, enrolled_at, now, completed_ids
         ]
         for lesson in visible:
             accessible_ids.add(str(lesson.id))
-        global_lesson_idx += len(published_lessons)
 
         modules.append(
             {
@@ -163,7 +129,7 @@ def _build_module_list(course, paywall_position, enrolled_at, now, completed_ids
                 "title": m.title,
                 "description": m.description,
                 "position": m.position,
-                "locked": locked,
+                "locked": drip_locked,
                 "locked_until": locked_until,
                 "lessons": lessons,
             }

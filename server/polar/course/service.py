@@ -582,40 +582,22 @@ class CourseService:
         *,
         global_lesson_index: int | None = None,
     ) -> tuple[bool, datetime | None]:
-        """Calculate if a lesson is accessible given paywall/drip settings.
+        """Calculate if a lesson is accessible for an enrolled customer.
 
         Returns (is_accessible, locked_until_timestamp).
 
-        ``paywall_position`` is the number of lessons (in global course
-        order) that are visible before the paywall — lessons whose
-        ``global_lesson_index`` is >= paywall_position are locked.
+        Paywall is intentionally NOT considered here: once a customer is
+        enrolled, every lesson past the paywall is theirs. The
+        ``paywall_position`` parameter is kept for call-site compatibility.
+        The only gating left is drip schedule (release_at / drip_days).
 
-        Accessibility rules:
-        - Trailer (is_free_preview=true): always accessible
-        - Non-trailer + enrolled: check paywall position and drip schedule
-        - Non-trailer + not enrolled: only accessible if is_free_preview=true
-
-        Note: Enrollment status is handled by caller (this assumes enrolled=True).
+        Free previews are always accessible regardless of drip.
         """
-        # Free previews (trailers) are always accessible
+        del paywall_position, global_lesson_index  # enrolled → paywall n/a
+
         if lesson.is_free_preview:
             return True, None
 
-        # Check paywall against the global lesson index (number of lessons
-        # before this one in the whole course). Falls back to the
-        # module-relative position only when no index is supplied — that
-        # matches the legacy behaviour for callers that haven't been
-        # updated yet.
-        if paywall_position is not None:
-            position = (
-                global_lesson_index
-                if global_lesson_index is not None
-                else lesson.position
-            )
-            if position >= paywall_position:
-                return False, None
-
-        # Check drip: release_at or drip_days
         if lesson.release_at and now < lesson.release_at:
             return False, lesson.release_at
         if lesson.drip_days is not None:

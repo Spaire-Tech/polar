@@ -146,7 +146,7 @@ class TestSerializeLesson:
 
 
 # ──────────────────────────────────────────────────────────────────────────
-# calculate_lesson_accessibility — paywall counted in lessons, drip on time
+# calculate_lesson_accessibility — enrolled-only check; only drip gates access
 # ──────────────────────────────────────────────────────────────────────────
 
 
@@ -163,26 +163,20 @@ class TestCalculateLessonAccessibility:
         assert ok is True
         assert until is None
 
-    def test_paywall_uses_global_index(self) -> None:
-        lesson = _lesson(position=0)  # module-relative position 0
-        # paywall_position=2 → first 2 lessons globally are free
-        ok, _ = course_service.calculate_lesson_accessibility(
+    def test_paywall_does_not_lock_enrolled_customers(self) -> None:
+        # The function is called only for enrolled customers; paywall is
+        # enforced separately for anonymous visitors at the endpoint level.
+        # A lesson sitting well past the paywall must still be accessible.
+        lesson = _lesson(position=5)
+        ok, until = course_service.calculate_lesson_accessibility(
             lesson,
             paywall_position=2,
             enrolled_at=datetime.now(UTC),
             now=datetime.now(UTC),
-            global_lesson_index=1,
+            global_lesson_index=10,
         )
         assert ok is True
-
-        ok2, _ = course_service.calculate_lesson_accessibility(
-            lesson,
-            paywall_position=2,
-            enrolled_at=datetime.now(UTC),
-            now=datetime.now(UTC),
-            global_lesson_index=2,
-        )
-        assert ok2 is False
+        assert until is None
 
     def test_drip_blocks_until_unlock(self) -> None:
         enrolled = datetime.now(UTC) - timedelta(days=1)
@@ -214,34 +208,13 @@ class TestCalculateLessonAccessibility:
 
 
 # ──────────────────────────────────────────────────────────────────────────
-# _build_module_list — paywall slices by global lesson index
+# _build_module_list — enrolled customers see everything past the paywall;
+# only drip schedules gate access.
 # ──────────────────────────────────────────────────────────────────────────
 
 
 class TestBuildModuleList:
-    def test_paywall_at_zero_locks_everything(self) -> None:
-        modules = [
-            _module(
-                position=0,
-                lessons=[_lesson(position=0), _lesson(position=1)],
-            ),
-        ]
-        course = _course(
-            modules=modules, paywall_enabled=True, paywall_position=0
-        )
-        result, accessible = _build_module_list(
-            course,
-            paywall_position=0,
-            enrolled_at=datetime.now(UTC),
-            now=datetime.now(UTC),
-            completed_ids=set(),
-        )
-        assert len(result) == 1
-        assert result[0]["locked"] is True
-        assert result[0]["lessons"] == []
-        assert accessible == set()
-
-    def test_paywall_at_n_keeps_first_n_lessons(self) -> None:
+    def test_paywall_is_irrelevant_for_enrolled_customers(self) -> None:
         modules = [
             _module(
                 position=0,
@@ -253,46 +226,43 @@ class TestBuildModuleList:
             ),
         ]
         course = _course(
-            modules=modules, paywall_enabled=True, paywall_position=3
+            modules=modules, paywall_enabled=True, paywall_position=1
         )
         result, accessible = _build_module_list(
             course,
-            paywall_position=3,
+            paywall_position=1,
             enrolled_at=datetime.now(UTC),
             now=datetime.now(UTC),
             completed_ids=set(),
         )
-        # Module 0: 2 lessons (global idx 0,1) — both accessible.
-        # Module 1: 2 lessons (global idx 2,3) — first one accessible, second
-        # behind paywall (partial lock).
-        assert len(result[0]["lessons"]) == 2
-        assert len(result[1]["lessons"]) == 1
-        assert len(accessible) == 3
+        # Both modules — and every published lesson — must be visible.
+        assert [len(m["lessons"]) for m in result] == [2, 2]
+        assert all(m["locked"] is False for m in result)
+        assert len(accessible) == 4
 
-    def test_free_preview_lesson_visible_past_paywall(self) -> None:
+    def test_drip_locked_module_shows_only_free_previews(self) -> None:
         modules = [
             _module(
                 position=0,
+                drip_days=7,
                 lessons=[
                     _lesson(position=0, is_free_preview=True),
-                    _lesson(position=1, is_free_preview=True),
+                    _lesson(position=1),
                 ],
             ),
         ]
-        # Paywall at 0 should still show free-preview lessons.
-        course = _course(
-            modules=modules, paywall_enabled=True, paywall_position=0
-        )
+        course = _course(modules=modules)
         result, accessible = _build_module_list(
             course,
-            paywall_position=0,
+            paywall_position=None,
             enrolled_at=datetime.now(UTC),
             now=datetime.now(UTC),
             completed_ids=set(),
         )
         assert result[0]["locked"] is True
-        assert len(result[0]["lessons"]) == 2  # both free previews
-        assert len(accessible) == 2
+        assert result[0]["locked_until"] is not None
+        assert len(result[0]["lessons"]) == 1  # only the free preview
+        assert len(accessible) == 1
 
     def test_unpublished_lessons_are_hidden(self) -> None:
         modules = [
@@ -317,12 +287,13 @@ class TestBuildModuleList:
 
 
 # ──────────────────────────────────────────────────────────────────────────
-# _build_flat_lesson_list — locked lessons strip content but stay in the list
+# _build_flat_lesson_list — enrolled customers see content past the paywall;
+# drip is the only gate.
 # ──────────────────────────────────────────────────────────────────────────
 
 
 class TestBuildFlatLessonList:
-    def test_locked_lesson_strips_content(self) -> None:
+    def test_paywall_does_not_strip_content_for_enrolled(self) -> None:
         modules = [
             _module(
                 position=0,
@@ -343,14 +314,34 @@ class TestBuildFlatLessonList:
             completed_ids=set(),
         )
         assert len(flat) == 2
-        # First lesson accessible
-        assert flat[0]["locked"] is False
+        assert all(l["locked"] is False for l in flat)
         assert flat[0]["content"] == "public content"
-        assert flat[0]["mux_playback_id"] == "abc"
-        # Second lesson locked → content stripped
+        assert flat[1]["content"] == "paid content"
+        assert len(accessible) == 2
+
+    def test_drip_locked_lesson_strips_content(self) -> None:
+        modules = [
+            _module(
+                position=0,
+                lessons=[
+                    _lesson(position=0, content="immediate"),
+                    _lesson(position=1, content="dripped", drip_days=7),
+                ],
+            ),
+        ]
+        course = _course(modules=modules)
+        flat, accessible = _build_flat_lesson_list(
+            course,
+            paywall_position=None,
+            enrolled_at=datetime.now(UTC),
+            now=datetime.now(UTC),
+            completed_ids=set(),
+        )
+        assert len(flat) == 2
+        assert flat[0]["locked"] is False
+        assert flat[0]["content"] == "immediate"
         assert flat[1]["locked"] is True
         assert flat[1]["content"] is None
         assert flat[1]["mux_playback_id"] is None
         assert flat[1]["mux_playback_url"] is None
-        # Accessibility set excludes locked
         assert len(accessible) == 1
