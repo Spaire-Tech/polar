@@ -148,28 +148,47 @@ export function CustomizeTab({
   }
 
   const handleSave = async () => {
+    const persistedMedia = { ...overridesRef.current.media }
+    // hero image / trailer are mirrored onto course columns, so don't
+    // double-store them in landing_overrides.
+    delete persistedMedia['hero.backdrop']
+    delete persistedMedia['hero.trailer']
+    delete persistedMedia['trailer.video']
+    const body = {
+      landing_overrides: {
+        ...overridesRef.current,
+        media: persistedMedia,
+      },
+    }
+    // Surface what's being sent so the user can confirm in the network
+    // tab that their edits made it into the PATCH payload.
+    // eslint-disable-next-line no-console
+    console.info('[CustomizeTab] save → PATCH /v1/courses/' + course.id, body)
     try {
-      const persistedMedia = { ...overridesRef.current.media }
-      // hero image / trailer are mirrored onto course columns, so don't
-      // double-store them in landing_overrides.
-      delete persistedMedia['hero.backdrop']
-      delete persistedMedia['hero.trailer']
-      delete persistedMedia['trailer.video']
-      await updateCourse.mutateAsync({
+      const result = await updateCourse.mutateAsync({
         courseId: course.id,
-        body: {
-          landing_overrides: {
-            ...overridesRef.current,
-            media: persistedMedia,
-          },
-        },
+        body,
+      })
+      // eslint-disable-next-line no-console
+      console.info('[CustomizeTab] save ← ok', {
+        id: result.id,
+        landing_overrides_keys: Object.keys(result.landing_overrides ?? {}),
+        text_keys: Object.keys(
+          (result.landing_overrides as { text?: Record<string, string> } | null)
+            ?.text ?? {},
+        ),
+        media_keys: Object.keys(
+          (result.landing_overrides as {
+            media?: Record<string, unknown>
+          } | null)?.media ?? {},
+        ),
       })
       setDirty(false)
       toast({ title: 'Landing saved' })
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       // eslint-disable-next-line no-console
-      console.error('[CustomizeTab] failed to save landing', err)
+      console.error('[CustomizeTab] save ← FAILED', err)
       toast({ title: 'Failed to save', description: message })
     }
   }
