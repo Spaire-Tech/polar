@@ -2055,6 +2055,7 @@ function RealLessonEpisodeThumb({
             width: '100%',
             height: '100%',
             objectFit: 'cover',
+            objectPosition: lesson.thumbnail_object_position ?? '50% 50%',
             opacity: peekActive ? 0 : 1,
             transition: 'opacity 400ms ease',
             zIndex: 1,
