@@ -81,17 +81,26 @@ def _price_amount_cents(product: Product) -> int:
 
 
 class PlatformBillingService:
-    async def ensure_free_subscription(
+    async def ensure_subscription(
         self,
         session: AsyncSession,
         organization: Organization,
+        *,
+        tier: TierKey,
+        managed_by: str | None = None,
     ) -> Subscription | None:
         """Ensure the creator organization has an active platform-org
-        subscription to the Free tier.
+        subscription to the given tier's product.
 
-        Idempotent: re-running is a no-op once subscription exists.
-        Returns None (without raising) when no platform org is configured
-        or when the new organization IS the platform org itself.
+        Idempotent: re-running is a no-op once an active subscription
+        exists for this creator (regardless of which tier — we never
+        downgrade a creator who already has a sub). Returns None when
+        no platform org is configured or when the organization IS the
+        platform org itself.
+
+        `managed_by` is stamped onto Subscription.user_metadata so
+        backfills (grandfather migrations, etc.) can be distinguished
+        from user-initiated subscriptions in analytics.
         """
         if not platform_service.is_configured():
             return None
@@ -110,19 +119,35 @@ class PlatformBillingService:
             return existing
 
         product_repo = platform_product_repository(session)
-        free_product = await product_repo.get_by_tier(
-            platform_org_id, TierKey.free.value
-        )
-        if free_product is None:
-            raise TierProductMissing(TierKey.free)
+        product = await product_repo.get_by_tier(platform_org_id, tier.value)
+        if product is None:
+            raise TierProductMissing(tier)
+
+        subscription_metadata: dict[str, str] = {}
+        if managed_by is not None:
+            subscription_metadata["managed_by"] = managed_by
 
         subscription = await self._create_subscription(
-            session, customer=customer, product=free_product
+            session,
+            customer=customer,
+            product=product,
+            subscription_metadata=subscription_metadata,
         )
         # Schedule a tier-fee sync so the creator's Account picks up the
-        # Free list rate. Safe no-op if the org doesn't have an Account yet.
+        # tier's list rate. Safe no-op if the org doesn't have an Account
+        # yet, or if the tier is legacy (sync exits early on legacy).
         enqueue_fee_sync(organization.id)
         return subscription
+
+    async def ensure_free_subscription(
+        self,
+        session: AsyncSession,
+        organization: Organization,
+    ) -> Subscription | None:
+        """Convenience wrapper for the org-creation hook."""
+        return await self.ensure_subscription(
+            session, organization, tier=TierKey.free
+        )
 
     async def _ensure_platform_customer(
         self,
@@ -153,6 +178,7 @@ class PlatformBillingService:
         *,
         customer: Customer,
         product: Product,
+        subscription_metadata: dict[str, str] | None = None,
     ) -> Subscription:
         recurring_interval = (
             product.recurring_interval or SubscriptionRecurringInterval.month
@@ -181,9 +207,10 @@ class PlatformBillingService:
             current_period_end=current_period_end,
             cancel_at_period_end=False,
             started_at=now,
-            customer_id=customer.id,
-            product_id=product.id,
+            customer=customer,
+            product=product,
             subscription_product_prices=subscription_prices,
+            user_metadata=subscription_metadata or {},
         )
         session.add(subscription)
         await session.flush()

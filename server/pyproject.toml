@@ -108,6 +108,7 @@ seeds_load = { cmd = "python -m scripts.seeds_load", help = "load sample/test da
 loadtest_setup = { cmd = "python -m scripts.loadtest_setup", help = "setup load test data for event ingestion" }
 platform_verify = { cmd = "python -m scripts.platform verify", help = "verify SPAIRE_PLATFORM_ORG_ID points to a real organization" }
 seed_platform_products = { cmd = "python -m scripts.seed_platform_products run", help = "idempotently seed Free/Pro/Scale products and overage meters in the platform organization" }
+grandfather_orgs = { cmd = "python -m scripts.grandfather_orgs run", help = "subscribe pre-existing creator orgs to the Spaire Legacy plan" }
 pre_deploy = { cmd = "task db_migrate", help = "Pre-deploy command run by Render" }
 
 [tool.pytest.ini_options]

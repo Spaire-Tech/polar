@@ -175,6 +175,67 @@ class TestEnsureFreeSubscription:
         assert customer_count == 1
         assert subscription_count == 1
 
+    async def test_ensure_subscription_with_legacy_tier_stamps_managed_by(
+        self,
+        mocker: MockerFixture,
+        session: AsyncSession,
+        save_fixture: SaveFixture,
+    ) -> None:
+        platform_org = await create_organization(save_fixture)
+        creator = await create_organization(save_fixture)
+        _patch_platform_org_id(mocker, platform_org.id)
+        await _seed_tier_product(
+            save_fixture, platform_org=platform_org, tier=TierKey.legacy.value
+        )
+
+        subscription = await platform_billing.ensure_subscription(
+            session,
+            creator,
+            tier=TierKey.legacy,
+            managed_by="grandfather_v1",
+        )
+
+        assert subscription is not None
+        assert subscription.product.user_metadata["tier"] == "legacy"
+        assert subscription.user_metadata.get("managed_by") == "grandfather_v1"
+
+    async def test_ensure_subscription_does_not_replace_existing_sub(
+        self,
+        mocker: MockerFixture,
+        session: AsyncSession,
+        save_fixture: SaveFixture,
+    ) -> None:
+        """If an org already has any active platform sub (Free, Pro, etc.),
+        a later call with a different tier returns the existing one rather
+        than creating a duplicate. Prevents the grandfather script from
+        downgrading orgs that signed up under PR 4 first."""
+        platform_org = await create_organization(save_fixture)
+        creator = await create_organization(save_fixture)
+        _patch_platform_org_id(mocker, platform_org.id)
+        await _seed_tier_product(
+            save_fixture, platform_org=platform_org, tier=TierKey.free.value
+        )
+        await _seed_tier_product(
+            save_fixture, platform_org=platform_org, tier=TierKey.legacy.value
+        )
+
+        first = await platform_billing.ensure_subscription(
+            session, creator, tier=TierKey.free
+        )
+        assert first is not None
+        assert first.product.user_metadata["tier"] == "free"
+
+        second = await platform_billing.ensure_subscription(
+            session,
+            creator,
+            tier=TierKey.legacy,
+            managed_by="grandfather_v1",
+        )
+        assert second is not None
+        assert second.id == first.id
+        # Still on Free, not "downgraded" to Legacy.
+        assert second.product.user_metadata["tier"] == "free"
+
     async def test_reuses_existing_customer_when_subscription_is_missing(
         self,
         mocker: MockerFixture,

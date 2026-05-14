@@ -169,6 +169,18 @@ class ProductSpec:
 
 PRODUCT_SPECS: list[ProductSpec] = [
     ProductSpec(
+        tier="legacy",
+        name="Spaire Legacy",
+        description=(
+            "Grandfathered plan for organizations created before tiered "
+            "pricing existed. Preserves the pre-tier transaction fee "
+            "(global default), no quota enforcement, full feature access. "
+            "Not available for new signups."
+        ),
+        recurring_interval=SubscriptionRecurringInterval.month,
+        price=PriceSpec(amount_type=ProductPriceAmountType.free),
+    ),
+    ProductSpec(
         tier="free",
         name="Spaire Free",
         description=(
