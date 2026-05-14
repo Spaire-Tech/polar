@@ -16,6 +16,7 @@ from polar.auth.models import AuthSubject
 from polar.auth.scope import Scope
 from polar.checkout.schemas import CheckoutProductCreate
 from polar.checkout.service import checkout as checkout_service
+from polar.customer.repository import CustomerRepository
 from polar.entitlements.tiers import TierKey
 from polar.exceptions import PolarError
 from polar.models import Checkout, Organization
@@ -89,6 +90,57 @@ def _is_synthetic_email(email: str | None) -> bool:
     return email.lower().endswith(_SYNTHETIC_EMAIL_SUFFIX)
 
 
+async def _resolve_billing_email_for_platform_customer(
+    session: AsyncSession,
+    *,
+    platform_org_id: UUID,
+    customer_id: UUID,
+    requested_email: str,
+    creator_org_slug: str,
+) -> str:
+    """Return an email safe to assign to a platform-org Customer without
+    colliding with the (platform_org_id, lower(email)) unique index.
+
+    If no other platform customer claims `requested_email`, returns it
+    as-is. Otherwise plus-addresses with the creator org's slug.
+    """
+    customer_repository = CustomerRepository.from_session(session)
+    existing = await customer_repository.get_by_email_and_organization(
+        requested_email, platform_org_id
+    )
+    if existing is None or existing.id == customer_id:
+        return requested_email
+    # Another platform customer already has this email. Use plus-
+    # addressing so the message still reaches the same inbox.
+    aliased = _plus_address(requested_email, creator_org_slug)
+    aliased_clash = await customer_repository.get_by_email_and_organization(
+        aliased, platform_org_id
+    )
+    if aliased_clash is None or aliased_clash.id == customer_id:
+        return aliased
+    # Aliased form ALSO collides (extremely unlikely — would require
+    # someone to manually craft that exact synthetic). Fall back to a
+    # +tag containing the customer id for guaranteed uniqueness.
+    return _plus_address(requested_email, f"{creator_org_slug}-{customer_id.hex[:8]}")
+
+
+def _plus_address(email: str, slug: str) -> str:
+    """Insert a +tag before @ so two creator orgs owned by the same
+    person can both upgrade with the same real billing email. Most
+    providers (Gmail, Outlook, Resend, Stripe) route bob+anything@gmail.com
+    back to bob@gmail.com.
+    """
+    if "@" not in email:
+        return email
+    localpart, _, domain = email.partition("@")
+    # Strip an existing +suffix if present so we don't end up with
+    # bob+orgA+orgB@gmail.com after two upgrades.
+    base = localpart.split("+", 1)[0]
+    # Sanitize the slug to be email-localpart-safe.
+    safe_slug = "".join(c if c.isalnum() or c in "-._" else "-" for c in slug)
+    return f"{base}+{safe_slug}@{domain}"
+
+
 class PlatformUpgradeService:
     async def create_checkout(
         self,
@@ -131,19 +183,26 @@ class PlatformUpgradeService:
 
         # The platform Customer was created with a synthetic email in PR 4
         # (creator-{slug}@billing.spairehq.internal). Replace it with the
-        # caller's real email before kicking off checkout so:
-        #   - Stripe charges the right customer record,
-        #   - Spaire invoices for the $49 / $299 subscription actually
-        #     reach the creator,
-        #   - the customer portal session (PR 18) shows the right email
-        #     in the UI.
-        if billing_email is not None and _is_synthetic_email(customer.email):
-            customer.email = billing_email
-            await session.flush()
-        elif billing_email is not None and customer.email != billing_email:
-            # Creator explicitly asked for a different billing address.
-            # Honor it — they'll see invoices there from now on.
-            customer.email = billing_email
+        # caller's real email before kicking off checkout so Stripe
+        # charges the right address, Spaire invoices reach the creator,
+        # and the customer portal session (PR 18) shows the right email.
+        #
+        # Collision handling: the (platform_org_id, lower(email)) unique
+        # index on the customers table blocks two platform-customer rows
+        # from sharing an email. If the same person owns multiple creator
+        # orgs and tries to upgrade them all with their personal email,
+        # the second upgrade would otherwise 500 on the index. Detect
+        # the collision and plus-address with the creator org's slug so
+        # the email stays deliverable but unique.
+        if billing_email is not None and customer.email != billing_email:
+            target_email = await _resolve_billing_email_for_platform_customer(
+                session,
+                platform_org_id=platform_org.id,
+                customer_id=customer.id,
+                requested_email=billing_email,
+                creator_org_slug=organization.slug,
+            )
+            customer.email = target_email
             await session.flush()
 
         # If the customer has an active subscription, it must currently be
