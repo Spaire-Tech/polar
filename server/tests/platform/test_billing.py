@@ -47,7 +47,7 @@ async def _seed_tier_product(
 
 
 @pytest.mark.asyncio
-class TestEnsurePromTrialSubscription:
+class TestEnsureProTrialSubscription:
     async def test_no_platform_org_configured_is_noop(
         self,
         mocker: MockerFixture,

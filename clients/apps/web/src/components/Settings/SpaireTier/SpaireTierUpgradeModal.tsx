@@ -8,6 +8,7 @@ import {
   PaidTierKey,
   SpaireTierKey,
   TierPlan,
+  tierDisplayName,
   useCreateUpgradeCheckout,
   useSpairePlans,
   useSpaireSubscription,
@@ -131,23 +132,12 @@ const SpaireTierUpgradeModal = ({
           }
         >
           {currentTier === selected
-            ? `Already on ${tierLabel(selected)}`
-            : `Continue to ${tierLabel(selected)} checkout`}
+            ? `Already on ${tierDisplayName(selected)}`
+            : `Continue to ${tierDisplayName(selected)} checkout`}
         </Button>
       </div>
     </div>
   )
-}
-
-const tierLabel = (tier: PaidTierKey): string => {
-  switch (tier) {
-    case 'pro':
-      return 'Pro'
-    case 'studio':
-      return 'Studio'
-    case 'scale':
-      return 'Scale'
-  }
 }
 
 interface PlanRowProps {

@@ -317,7 +317,7 @@ const PlanActions = ({
             Switch to {tierDisplayName(target)}
           </Button>
         ))}
-      {isPaid && (
+      {isPaid && !isTrial && (
         <Button
           variant="secondary"
           onClick={onOpenPortal}

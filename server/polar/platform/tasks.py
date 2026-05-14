@@ -22,6 +22,7 @@ from polar.worker import (
 
 from .billing import TierProductMissing, platform_billing
 from .fee_sync import platform_fee_sync
+from .trial_notifications import check_pending_trial_reminders
 
 log: structlog.stdlib.BoundLogger = structlog.get_logger()
 
@@ -179,6 +180,28 @@ async def platform_expire_trials() -> None:
                 if subscription.trial_end
                 else None,
             )
+
+
+# ---------------------------------------------------------------------------
+# Trial reminder emails (T-7, T-2, T-0 days before trial_end)
+# ---------------------------------------------------------------------------
+
+
+@actor(
+    actor_name="platform.notify_trial_reminders",
+    cron_trigger=CronTrigger(hour=14, minute=0),
+    priority=TaskPriority.LOW,
+    max_retries=0,
+)
+async def platform_notify_trial_reminders() -> None:
+    """Daily sweep: send the next due trial reminder for every still-
+    trialing platform-org subscription. Idempotency markers are
+    stamped on subscription.user_metadata so a delayed cron run can't
+    double-send.
+    """
+    async with AsyncSessionMaker() as session:
+        counters = await check_pending_trial_reminders(session)
+        log.info("platform.notify_trial_reminders.done", **counters)
 
 
 # ---------------------------------------------------------------------------

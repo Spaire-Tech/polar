@@ -20,14 +20,14 @@ Resolution path:
 from uuid import UUID
 
 from polar.models import Product
+from polar.platform.repository import (
+    platform_customer_repository,
+    platform_subscription_repository,
+)
 from polar.platform.service import platform as platform_service
 from polar.postgres import AsyncReadSession
 
 from .exceptions import FeatureNotInPlanError, TierLimitReachedError
-from .repository import (
-    platform_customer_repository,
-    platform_subscription_repository,
-)
 from .tiers import TierEntitlements, TierKey, get_definition
 
 
@@ -54,14 +54,14 @@ class EntitlementsService:
         platform_org_id = platform_service.get_id()
 
         customer_repo = platform_customer_repository(session)
-        customer = await customer_repo.get_platform_customer_for_creator_org(
+        customer = await customer_repo.get_for_creator_org(
             platform_org_id, organization_id
         )
         if customer is None:
             return TierKey.legacy
 
         subscription_repo = platform_subscription_repository(session)
-        subscription = await subscription_repo.get_active_for_customer_with_product(
+        subscription = await subscription_repo.get_active_for_customer(
             customer.id
         )
         if subscription is None:
