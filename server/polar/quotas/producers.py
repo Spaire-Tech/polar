@@ -142,6 +142,16 @@ async def enforce(
 ) -> QuotaCheckResult:
     """Check the quota and raise QuotaExceededError if disallowed.
 
+    Tier-aware behavior:
+      - Free / Legacy: hard-block once usage reaches the limit (matches
+        the previous behavior).
+      - Pro / Scale: allowed within the tier's overage grace (10% above
+        the limit today, see polar/entitlements/tiers.py). The operation
+        proceeds and the overage volume is logged via
+        ``quotas.enforce.overage`` so operators can reconcile against
+        the next platform-subscription invoice. Past the grace ceiling
+        the operation still hard-blocks.
+
     Note on TOCTOU: enforcement is best-effort. We do not lock the
     organization between check and the subsequent producer emit, so
     concurrent uploads can over-allocate by the size of one batch.
@@ -164,6 +174,17 @@ async def enforce(
             used=result.used,
             limit=result.limit,
             requested_storage_units=requested_storage_units,
+            overage_storage_units=result.overage_storage_units,
         )
         raise QuotaExceededError(result)
+    if result.is_overage:
+        log.info(
+            "quotas.enforce.overage",
+            organization_id=str(organization.id),
+            quota=quota.value,
+            used=result.used,
+            limit=result.limit,
+            requested_storage_units=requested_storage_units,
+            overage_storage_units=result.overage_storage_units,
+        )
     return result

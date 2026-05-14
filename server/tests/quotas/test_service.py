@@ -479,6 +479,119 @@ class TestCheck:
         assert result.reason == "unlimited"
         assert result.limit is None
 
+    async def test_pro_allows_overage_within_grace(
+        self,
+        mocker: MockerFixture,
+        session: AsyncSession,
+        save_fixture: SaveFixture,
+    ) -> None:
+        """Pro tier has a 10% overage grace: a request that pushes usage
+        just above the limit is allowed and surfaces overage details."""
+        platform_org = await create_organization(save_fixture)
+        _patch_platform_org_id(mocker, platform_org.id)
+        creator = await create_organization(save_fixture)
+        await _subscribe_to_tier(
+            save_fixture,
+            platform_org=platform_org,
+            creator=creator,
+            tier="pro",
+            monthly_cents=4900,
+        )
+        # Pro email cap = 250,000. Pre-fill 250,000 sends so the next
+        # request lands inside the grace band.
+        for _ in range(250_000):
+            await create_event(
+                save_fixture,
+                organization=creator,
+                source=EventSource.system,
+                name="spaire.email.sent",
+            )
+
+        result = await quotas.check(
+            session,
+            creator.id,
+            QuotaKey.email_sends_monthly,
+            requested_storage_units=1,
+        )
+
+        assert result.allowed is True
+        assert result.reason == "overage"
+        assert result.overage_storage_units == 1
+        assert result.is_overage is True
+
+    async def test_pro_blocks_past_grace(
+        self,
+        mocker: MockerFixture,
+        session: AsyncSession,
+        save_fixture: SaveFixture,
+    ) -> None:
+        """Pro tier still hard-blocks once usage crosses the 10% grace
+        ceiling (limit * 1.10 = 275,000 for monthly emails)."""
+        platform_org = await create_organization(save_fixture)
+        _patch_platform_org_id(mocker, platform_org.id)
+        creator = await create_organization(save_fixture)
+        await _subscribe_to_tier(
+            save_fixture,
+            platform_org=platform_org,
+            creator=creator,
+            tier="pro",
+            monthly_cents=4900,
+        )
+        # Past the grace ceiling: a single more send is blocked.
+        for _ in range(275_000):
+            await create_event(
+                save_fixture,
+                organization=creator,
+                source=EventSource.system,
+                name="spaire.email.sent",
+            )
+
+        result = await quotas.check(
+            session,
+            creator.id,
+            QuotaKey.email_sends_monthly,
+            requested_storage_units=1,
+        )
+
+        assert result.allowed is False
+        assert result.reason == "exceeded"
+        assert result.overage_storage_units > 0
+
+    async def test_free_has_no_overage_grace(
+        self,
+        mocker: MockerFixture,
+        session: AsyncSession,
+        save_fixture: SaveFixture,
+    ) -> None:
+        """Free tier hard-blocks at the limit — no grace band."""
+        platform_org = await create_organization(save_fixture)
+        _patch_platform_org_id(mocker, platform_org.id)
+        creator = await create_organization(save_fixture)
+        await _subscribe_to_tier(
+            save_fixture,
+            platform_org=platform_org,
+            creator=creator,
+            tier="free",
+            monthly_cents=0,
+        )
+        for _ in range(5000):
+            await create_event(
+                save_fixture,
+                organization=creator,
+                source=EventSource.system,
+                name="spaire.email.sent",
+            )
+
+        result = await quotas.check(
+            session,
+            creator.id,
+            QuotaKey.email_sends_monthly,
+            requested_storage_units=1,
+        )
+
+        assert result.allowed is False
+        assert result.reason == "exceeded"
+
     async def test_byte_precision_blocks_at_byte_level(
         self,
         mocker: MockerFixture,

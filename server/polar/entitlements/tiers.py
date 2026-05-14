@@ -84,6 +84,11 @@ class TierEntitlements:
     # The monthly fee Spaire charges for this tier itself (informational —
     # the actual billing is driven by the platform-org subscription).
     monthly_price_cents: int
+    # Soft overage grace above the limit, expressed as a percent. Free
+    # and Legacy use 0% (hard-block at the limit). Pro and Scale use 10%
+    # so creators are not surprised by abrupt blocks when they slightly
+    # exceed their cap; the overage is recorded for billing reconciliation.
+    overage_grace_pct: int
 
 
 # `legacy` matches the behavior the platform had before tier billing existed:
@@ -123,6 +128,7 @@ _LEGACY = TierEntitlements(
     ),
     rate_limit_group="default",
     monthly_price_cents=0,
+    overage_grace_pct=0,
 )
 
 
@@ -157,6 +163,7 @@ _FREE = TierEntitlements(
     ),
     rate_limit_group="default",
     monthly_price_cents=0,
+    overage_grace_pct=0,
 )
 
 
@@ -191,6 +198,7 @@ _PRO = TierEntitlements(
     ),
     rate_limit_group="elevated",
     monthly_price_cents=4900,
+    overage_grace_pct=10,
 )
 
 
@@ -225,6 +233,7 @@ _SCALE = TierEntitlements(
     ),
     rate_limit_group="elevated",
     monthly_price_cents=29900,
+    overage_grace_pct=10,
 )
 
 

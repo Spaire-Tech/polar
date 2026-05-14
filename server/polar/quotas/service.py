@@ -68,10 +68,19 @@ class QuotaCheckResult:
     requested_storage_units: int  # what the producer asked to consume
     remaining: int | None  # display units; None = unlimited
     reason: str
+    # Storage units past the tier limit, after this operation would have
+    # consumed `requested_storage_units`. 0 when under the limit. Positive
+    # when within overage grace ("soft" overage) and the operation is
+    # still allowed. Positive AND `allowed=False` when past grace too.
+    overage_storage_units: int = 0
 
     @property
     def is_unlimited(self) -> bool:
         return self.limit is None
+
+    @property
+    def is_overage(self) -> bool:
+        return self.overage_storage_units > 0
 
 
 def _limit_for(
@@ -145,6 +154,13 @@ class QuotasService:
           - count for video_views_monthly and email_sends_monthly
         Producers always know the precise amount they want to consume,
         so this is the natural interface.
+
+        Tier-aware grace:
+          - Free / Legacy: hard-block at the limit (grace = 0%).
+          - Pro / Scale: allow up to (limit * (1 + grace_pct / 100));
+            the operation is `allowed=True` with positive
+            `overage_storage_units` so the caller can record the
+            soft overage for billing.
         """
         usage = await self.get_usage(session, organization_id, quota)
 
@@ -163,7 +179,17 @@ class QuotasService:
         limit_storage = usage.limit * definition.storage_units_per_display_unit
         projected_storage = usage.used_storage_units + requested_storage_units
 
-        if projected_storage > limit_storage:
+        # Tier-defined overage grace lets paid plans temporarily exceed
+        # their limit so creators are not blocked by a single byte.
+        entitlements_dataclass = await entitlements_service.get_for_organization(
+            session, organization_id
+        )
+        grace_pct = entitlements_dataclass.overage_grace_pct
+        grace_limit_storage = limit_storage + (limit_storage * grace_pct // 100)
+
+        overage_storage = max(projected_storage - limit_storage, 0)
+
+        if projected_storage > grace_limit_storage:
             return QuotaCheckResult(
                 quota=quota,
                 allowed=False,
@@ -172,6 +198,19 @@ class QuotasService:
                 requested_storage_units=requested_storage_units,
                 remaining=usage.remaining,
                 reason="exceeded",
+                overage_storage_units=overage_storage,
+            )
+
+        if overage_storage > 0:
+            return QuotaCheckResult(
+                quota=quota,
+                allowed=True,
+                limit=usage.limit,
+                used=usage.used,
+                requested_storage_units=requested_storage_units,
+                remaining=usage.remaining,
+                reason="overage",
+                overage_storage_units=overage_storage,
             )
 
         return QuotaCheckResult(
@@ -182,6 +221,7 @@ class QuotasService:
             requested_storage_units=requested_storage_units,
             remaining=usage.remaining,
             reason="ok",
+            overage_storage_units=0,
         )
 
 
