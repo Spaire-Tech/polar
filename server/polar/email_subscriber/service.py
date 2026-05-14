@@ -104,11 +104,19 @@ class EmailSubscriberService:
         existing = await repository.get_by_email_and_organization(
             email, organization_id
         )
-        if existing is None:
-            # Net-new subscriber — gate against the tier's
-            # email_subscribers cap. Reactivations (existing branch
-            # below) don't count: the row already existed before, the
-            # creator just lost and regained that subscriber's consent.
+
+        # Gate against the tier's email_subscribers cap on any path
+        # that would result in a NEW active subscriber. That includes:
+        #   - net-new inserts (existing is None), and
+        #   - reactivations: existing row currently unsubscribed or
+        #     archived (these don't count toward count_by_organization,
+        #     which filters status == "active") becoming active.
+        # Active-row no-op writes don't trip the gate.
+        is_reactivation = existing is not None and existing.status in (
+            EmailSubscriberStatus.unsubscribed,
+            EmailSubscriberStatus.archived,
+        )
+        if existing is None or is_reactivation:
             current = await repository.count_by_organization(organization_id)
             await entitlements_service.require_under_limit(
                 session, organization_id, "email_subscribers", current=current
@@ -116,10 +124,7 @@ class EmailSubscriberService:
 
         if existing is not None:
             # Reactivate if previously unsubscribed/archived
-            if existing.status in (
-                EmailSubscriberStatus.unsubscribed,
-                EmailSubscriberStatus.archived,
-            ):
+            if is_reactivation:
                 existing.status = EmailSubscriberStatus.active
                 existing.unsubscribed_at = None
                 if name and not existing.name:
@@ -342,26 +347,38 @@ class EmailSubscriberService:
         # writes. PR 24 enforces the cap per-row inside self.create() —
         # that catches over-limit imports row-by-row but leaves the
         # creator with a partial-success state ("imported 4,952 of
-        # 50,000"). Counting new rows up-front lets us refuse the
-        # entire import with one clear error.
+        # 50,000"). Counting up-front lets us refuse the entire import
+        # with one clear error.
         #
-        # The guard is "would `current >= limit` after inserting the
-        # last new row?" — which is "would (current_active + new_rows)
-        # exceed the limit?". The helper raises when current >= limit,
-        # so we pass `current_active + new_rows - 1`: the count the
-        # final row would see right before it's inserted.
-        new_rows = sum(
-            1 for email_norm, _ in cleaned if email_norm not in existing_by_email
-        )
-        if new_rows > 0:
+        # Quota-affecting rows are inserts AND reactivations: rows in
+        # existing_by_email whose status is unsubscribed/archived will
+        # flip to active in the loop below and start counting against
+        # count_by_organization. Active-row name-backfills don't add a
+        # new active subscriber.
+        becoming_active = 0
+        for email_norm, _ in cleaned:
+            existing = existing_by_email.get(email_norm)
+            if existing is None:
+                becoming_active += 1
+            elif existing.status in (
+                EmailSubscriberStatus.unsubscribed,
+                EmailSubscriberStatus.archived,
+            ):
+                becoming_active += 1
+        if becoming_active > 0:
             current_active = await repository.count_by_organization(
                 organization_id
             )
+            # require_under_limit raises when current >= limit. We want
+            # to refuse if (current_active + becoming_active) exceeds
+            # the limit, so we pass current_active + becoming_active - 1
+            # (the count the final new-or-reactivated row would see
+            # right before its transition to active).
             await entitlements_service.require_under_limit(
                 session,
                 organization_id,
                 "email_subscribers",
-                current=current_active + new_rows - 1,
+                current=current_active + becoming_active - 1,
             )
 
         created = 0
