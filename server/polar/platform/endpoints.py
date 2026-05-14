@@ -30,6 +30,9 @@ from polar.openapi import APITag
 from polar.organization.repository import OrganizationRepository
 from polar.organization.schemas import OrganizationID
 from polar.postgres import AsyncReadSession, AsyncSession, get_db_read_session, get_db_session
+from polar.quotas.definitions import QuotaKey
+from polar.quotas.schemas import OrganizationUsage, QuotaUsage as QuotaUsageSchema
+from polar.quotas.service import quotas as quotas_service
 from polar.routing import APIRouter
 from polar.subscription.schemas import Subscription as SubscriptionSchema
 from polar.customer_session.service import (
@@ -178,6 +181,36 @@ async def get_subscription(
         cancel_at_period_end=cancel_at_period_end,
         entitlements=Entitlements.from_dataclass(entitlements_dataclass),
     )
+
+
+@router.get(
+    "/organizations/{organization_id}/usage",
+    summary="Get Quota Usage",
+    response_model=OrganizationUsage,
+)
+async def get_usage(
+    organization_id: OrganizationID,
+    auth_subject: auth.PlatformRead,
+    session: AsyncReadSession = Depends(get_db_read_session),
+) -> OrganizationUsage:
+    """Current usage and tier-defined limit for every gated quota.
+
+    Returns one entry per QuotaKey (video hours, video views, storage,
+    email sends). Unlimited quotas surface as ``limit: null`` and
+    ``remaining: null``. Used by the dashboard's "Usage" widget and
+    helpful for backoffice debugging.
+    """
+    org_repository = OrganizationRepository.from_session(session)
+    readable = org_repository.get_readable_statement(auth_subject).where(
+        OrganizationRepository.model.id == organization_id
+    )
+    organization = await org_repository.get_one_or_none(readable)
+    if organization is None:
+        raise ResourceNotFound("Organization not found.")
+
+    usage_map = await quotas_service.get_all_usage(session, organization.id)
+    items = [QuotaUsageSchema.from_dataclass(usage_map[k]) for k in QuotaKey]
+    return OrganizationUsage(items=items)
 
 
 @router.post(
