@@ -45,7 +45,15 @@ class QuotaDefinition:
     aggregation: QuotaAggregation
     aggregation_property: str | None  # required when aggregation == "sum"
     scope: QuotaScope
-    unit_divisor: int = 1
+    # Conversion factor from display units (the tier-limit unit) to the
+    # storage unit emitted by producers. Internally arithmetic happens in
+    # storage units so byte-level precision is preserved on the check
+    # path; `used` is converted back to display units for the caller.
+    #
+    #   storage_gb:          1 GB    = 1_073_741_824 bytes
+    #   video_hours_hosted:  1 hour  = 3_600 seconds
+    #   counts (sends, views): 1 unit display = 1 unit storage
+    storage_units_per_display_unit: int = 1
 
 
 _BYTES_IN_GB = 1024 * 1024 * 1024
@@ -58,7 +66,7 @@ _DEFINITIONS: dict[QuotaKey, QuotaDefinition] = {
         aggregation="sum",
         aggregation_property="duration_seconds",
         scope="lifetime",
-        unit_divisor=3600,
+        storage_units_per_display_unit=3600,
     ),
     QuotaKey.video_views_monthly: QuotaDefinition(
         key=QuotaKey.video_views_monthly,
@@ -73,7 +81,7 @@ _DEFINITIONS: dict[QuotaKey, QuotaDefinition] = {
         aggregation="sum",
         aggregation_property="bytes_delta",
         scope="lifetime",
-        unit_divisor=_BYTES_IN_GB,
+        storage_units_per_display_unit=_BYTES_IN_GB,
     ),
     QuotaKey.email_sends_monthly: QuotaDefinition(
         key=QuotaKey.email_sends_monthly,

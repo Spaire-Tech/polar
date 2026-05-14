@@ -382,7 +382,10 @@ class TestCheck:
         )
 
         result = await quotas.check(
-            session, creator.id, QuotaKey.email_sends_monthly, requested=100
+            session,
+            creator.id,
+            QuotaKey.email_sends_monthly,
+            requested_storage_units=100,
         )
 
         assert result.allowed is True
@@ -416,7 +419,10 @@ class TestCheck:
             )
 
         result = await quotas.check(
-            session, creator.id, QuotaKey.email_sends_monthly, requested=10
+            session,
+            creator.id,
+            QuotaKey.email_sends_monthly,
+            requested_storage_units=10,
         )
 
         assert result.allowed is False
@@ -445,7 +451,7 @@ class TestCheck:
             session,
             creator.id,
             QuotaKey.video_views_monthly,
-            requested=1_000_000,
+            requested_storage_units=1_000_000,
         )
 
         assert result.allowed is True
@@ -463,9 +469,58 @@ class TestCheck:
         creator = await create_organization(save_fixture)
 
         result = await quotas.check(
-            session, creator.id, QuotaKey.storage_gb, requested=999
+            session,
+            creator.id,
+            QuotaKey.storage_gb,
+            requested_storage_units=999 * 1024 * 1024 * 1024,
         )
 
         assert result.allowed is True
         assert result.reason == "unlimited"
         assert result.limit is None
+
+    async def test_byte_precision_blocks_at_byte_level(
+        self,
+        mocker: MockerFixture,
+        session: AsyncSession,
+        save_fixture: SaveFixture,
+    ) -> None:
+        """Storage check works at byte precision: an org under its 1 GB cap
+        cannot upload a single byte that would push it over."""
+        platform_org = await create_organization(save_fixture)
+        _patch_platform_org_id(mocker, platform_org.id)
+        creator = await create_organization(save_fixture)
+        await _subscribe_to_tier(
+            save_fixture,
+            platform_org=platform_org,
+            creator=creator,
+            tier="free",
+            monthly_cents=0,
+        )
+        gb = 1024 * 1024 * 1024
+        await create_event(
+            save_fixture,
+            organization=creator,
+            source=EventSource.system,
+            name="spaire.storage.bytes",
+            metadata={"bytes_delta": gb - 100},
+        )
+
+        # 200 bytes more would push past the cap.
+        block = await quotas.check(
+            session,
+            creator.id,
+            QuotaKey.storage_gb,
+            requested_storage_units=200,
+        )
+        assert block.allowed is False
+        assert block.reason == "exceeded"
+        # But 50 bytes still fits.
+        allow = await quotas.check(
+            session,
+            creator.id,
+            QuotaKey.storage_gb,
+            requested_storage_units=50,
+        )
+        assert allow.allowed is True
+        assert allow.reason == "ok"

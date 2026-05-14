@@ -5,14 +5,23 @@ the event aggregation repository (which gives current usage) to answer
 two questions:
 
   1. What's the current usage for quota X on org Y?
-  2. Would emitting `requested` more units of quota X exceed the cap?
+  2. Would emitting `requested` more storage units of quota X exceed the
+     cap?
 
 Producers (file upload, email send, mux webhook, video play) call
 `check_quota()` before doing the work and act on `result.allowed`:
 
-    result = await quotas.check(session, org_id, QuotaKey.email_sends_monthly)
+    # Storage producer: passes the file size in bytes.
+    result = await quotas.check(
+        session, org_id, QuotaKey.storage_gb,
+        requested_storage_units=file.size,
+    )
     if not result.allowed:
         raise QuotaExceededError(result)
+
+`used`/`limit`/`remaining` on the result are exposed in DISPLAY units
+(GB, hours, count) for UI rendering; arithmetic on the check path is
+done in STORAGE units (bytes, seconds, count) for precision.
 
 Enforcement policy (block vs. overage-bill) is a downstream decision —
 this service only reports facts.
@@ -31,12 +40,13 @@ from .repository import quota_event_repository
 
 @dataclass(frozen=True)
 class QuotaUsage:
-    """Snapshot of one quota for one organization."""
+    """Snapshot of one quota for one organization, in display units."""
 
     quota: QuotaKey
-    limit: int | None  # None = unlimited
-    used: int
-    remaining: int | None  # None = unlimited
+    limit: int | None  # display units; None = unlimited
+    used: int  # display units (floor of storage / units_per_display)
+    remaining: int | None  # display units; None = unlimited
+    used_storage_units: int  # for callers that need precise arithmetic
 
     @property
     def is_unlimited(self) -> bool:
@@ -53,10 +63,10 @@ class QuotaCheckResult:
 
     quota: QuotaKey
     allowed: bool
-    limit: int | None
-    used: int
-    requested: int
-    remaining: int | None  # None = unlimited
+    limit: int | None  # display units; None = unlimited
+    used: int  # display units
+    requested_storage_units: int  # what the producer asked to consume
+    remaining: int | None  # display units; None = unlimited
     reason: str
 
     @property
@@ -86,25 +96,27 @@ class QuotasService:
         entitlements = await entitlements_service.get_for_organization(
             session, organization_id
         )
-        limit = _limit_for(entitlements, quota)
+        limit_display = _limit_for(entitlements, quota)
 
         definition = get_definition(quota)
         repository = quota_event_repository(session)
-        used = await repository.get_quota_usage(
+        used_storage = await repository.get_quota_usage_storage_units(
             organization_id=organization_id, definition=definition
         )
+        used_display = used_storage // definition.storage_units_per_display_unit
 
-        remaining: int | None
-        if limit is None:
-            remaining = None
+        remaining_display: int | None
+        if limit_display is None:
+            remaining_display = None
         else:
-            remaining = max(limit - used, 0)
+            remaining_display = max(limit_display - used_display, 0)
 
         return QuotaUsage(
             quota=quota,
-            limit=limit,
-            used=used,
-            remaining=remaining,
+            limit=limit_display,
+            used=used_display,
+            remaining=remaining_display,
+            used_storage_units=used_storage,
         )
 
     async def get_all_usage(
@@ -123,8 +135,17 @@ class QuotasService:
         organization_id: UUID,
         quota: QuotaKey,
         *,
-        requested: int = 1,
+        requested_storage_units: int = 1,
     ) -> QuotaCheckResult:
+        """Returns a QuotaCheckResult.
+
+        `requested_storage_units` is in the quota's storage unit:
+          - bytes for storage_gb
+          - seconds for video_hours_hosted
+          - count for video_views_monthly and email_sends_monthly
+        Producers always know the precise amount they want to consume,
+        so this is the natural interface.
+        """
         usage = await self.get_usage(session, organization_id, quota)
 
         if usage.limit is None:
@@ -133,19 +154,22 @@ class QuotasService:
                 allowed=True,
                 limit=None,
                 used=usage.used,
-                requested=requested,
+                requested_storage_units=requested_storage_units,
                 remaining=None,
                 reason="unlimited",
             )
 
-        projected = usage.used + requested
-        if projected > usage.limit:
+        definition = get_definition(quota)
+        limit_storage = usage.limit * definition.storage_units_per_display_unit
+        projected_storage = usage.used_storage_units + requested_storage_units
+
+        if projected_storage > limit_storage:
             return QuotaCheckResult(
                 quota=quota,
                 allowed=False,
                 limit=usage.limit,
                 used=usage.used,
-                requested=requested,
+                requested_storage_units=requested_storage_units,
                 remaining=usage.remaining,
                 reason="exceeded",
             )
@@ -155,7 +179,7 @@ class QuotasService:
             allowed=True,
             limit=usage.limit,
             used=usage.used,
-            requested=requested,
+            requested_storage_units=requested_storage_units,
             remaining=usage.remaining,
             reason="ok",
         )

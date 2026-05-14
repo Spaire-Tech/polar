@@ -19,18 +19,22 @@ def _start_of_current_month_utc() -> datetime:
 class _QuotaEventRepository(RepositoryBase[Event]):
     model = Event
 
-    async def get_quota_usage(
+    async def get_quota_usage_storage_units(
         self,
         *,
         organization_id: UUID,
         definition: QuotaDefinition,
     ) -> int:
         """Aggregate matching events for an organization and return usage
-        in the quota's display unit (hours, GB, count, ...).
+        in storage units (bytes for storage_gb, seconds for video hours,
+        count for email/view quotas).
+
+        Display-unit conversion is the service's responsibility — callers
+        wanting "GB" or "hours" go through QuotasService.
 
         - Aggregation `count` returns the number of matching events.
         - Aggregation `sum` reads `user_metadata.<aggregation_property>`
-          as a float, sums it, then divides by `unit_divisor`.
+          as a float and sums it.
         - Scope `monthly` restricts events to the current UTC calendar month.
         """
         base = select().where(
@@ -57,11 +61,10 @@ class _QuotaEventRepository(RepositoryBase[Event]):
 
         result = await self.session.execute(statement)
         raw = result.scalar_one() or 0
-        # Clamp to non-negative — bytes_delta can be negative on delete, but
-        # cumulative storage usage below zero is nonsensical and would
-        # let a creator "earn" extra quota by deleting then re-uploading.
-        usage_raw = max(int(raw), 0)
-        return usage_raw // definition.unit_divisor
+        # Clamp at zero. Producers can emit negative deltas (e.g. file
+        # delete), but the running total dropping below zero would be a
+        # producer bug and must never let a creator "earn" extra quota.
+        return max(int(raw), 0)
 
 
 def quota_event_repository(session: AsyncReadSession) -> _QuotaEventRepository:
