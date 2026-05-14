@@ -4,6 +4,7 @@ from uuid import UUID
 from sqlalchemy import asc, desc
 
 from polar.auth.models import AuthSubject, Organization, User
+from polar.entitlements.service import entitlements as entitlements_service
 from polar.kit.pagination import PaginationParams
 from polar.kit.sorting import Sorting
 from polar.kit.utils import utc_now
@@ -103,6 +104,16 @@ class EmailSubscriberService:
         existing = await repository.get_by_email_and_organization(
             email, organization_id
         )
+        if existing is None:
+            # Net-new subscriber — gate against the tier's
+            # email_subscribers cap. Reactivations (existing branch
+            # below) don't count: the row already existed before, the
+            # creator just lost and regained that subscriber's consent.
+            current = await repository.count_by_organization(organization_id)
+            await entitlements_service.require_under_limit(
+                session, organization_id, "email_subscribers", current=current
+            )
+
         if existing is not None:
             # Reactivate if previously unsubscribed/archived
             if existing.status in (
