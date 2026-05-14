@@ -29,6 +29,9 @@ from polar.organization.schemas import OrganizationID
 from polar.postgres import AsyncReadSession, AsyncSession, get_db_read_session, get_db_session
 from polar.routing import APIRouter
 from polar.subscription.schemas import Subscription as SubscriptionSchema
+from polar.customer_session.service import (
+    customer_session as customer_session_service,
+)
 
 from . import auth
 from .management import platform_management
@@ -40,6 +43,8 @@ from .repository import (
 from .schemas import (
     CancelSpaireSubscription,
     CurrentSpaireSubscription,
+    CustomerPortalSession,
+    CustomerPortalSessionCreate,
     SwitchPlan,
     TierPlan,
     TierPlanList,
@@ -271,3 +276,63 @@ async def cancel_subscription(
         session, locker, organization=organization
     )
     return SubscriptionSchema.model_validate(subscription)
+
+
+@router.post(
+    "/organizations/{organization_id}/customer-portal-session",
+    summary="Mint Customer Portal Session",
+    response_model=CustomerPortalSession,
+    status_code=201,
+)
+async def create_customer_portal_session(
+    organization_id: OrganizationID,
+    body: CustomerPortalSessionCreate,
+    auth_subject: auth.PlatformWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> CustomerPortalSession:
+    """Mint a short-lived customer-portal session for the platform-org
+    customer that represents this creator. Returns a URL the creator
+    can visit to view invoices, update payment methods, and cancel
+    their Spaire subscription.
+
+    The session token authenticates as the platform-org customer, which
+    is necessarily a different identity from the dashboard user — so the
+    portal shows the Spaire subscription (creator-as-buyer view), not the
+    creator's own customers.
+    """
+    org_repository = OrganizationRepository.from_session(session)
+    readable = org_repository.get_readable_statement(auth_subject).where(
+        OrganizationRepository.model.id == organization_id
+    )
+    organization = await org_repository.get_one_or_none(readable)
+    if organization is None:
+        raise ResourceNotFound("Organization not found.")
+
+    if not platform_service.is_configured():
+        raise ResourceNotFound(
+            "Spaire platform billing is not configured on this server."
+        )
+
+    platform_org_id = platform_service.get_id()
+    customer_repo = platform_customer_repository(session)
+    customer = await customer_repo.get_for_creator_org(
+        platform_org_id, organization.id
+    )
+    if customer is None:
+        # Should have been created by PR 4 on org-create or by PR 6's
+        # grandfather migration; surface as 404 if neither has run.
+        raise ResourceNotFound(
+            "Your organization has not been provisioned on Spaire billing yet."
+        )
+
+    return_url = body.return_url
+    token, customer_session = await customer_session_service.create_customer_session(
+        session, customer, return_url=None if return_url is None else return_url  # type: ignore[arg-type]
+    )
+    customer_session.raw_token = token
+
+    return CustomerPortalSession(
+        token=token,
+        expires_at=customer_session.expires_at,
+        customer_portal_url=customer_session.customer_portal_url,
+    )

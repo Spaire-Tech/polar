@@ -104,3 +104,24 @@ class CancelSpaireSubscription(Schema):
     to Free when the cancellation revokes."""
 
     pass
+
+
+class CustomerPortalSessionCreate(Schema):
+    return_url: str | None = Field(
+        default=None,
+        description=(
+            "URL the customer portal will link back to (shows a 'Back' "
+            "control). Use the dashboard URL the creator came from."
+        ),
+    )
+
+
+class CustomerPortalSession(Schema):
+    token: str = Field(description="Short-lived customer portal token.")
+    expires_at: datetime
+    customer_portal_url: str = Field(
+        description=(
+            "URL the creator visits to manage their Spaire subscription "
+            "(view invoices, change payment method, cancel)."
+        )
+    )
