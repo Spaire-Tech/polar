@@ -29,6 +29,7 @@ import {
 import { useEditor } from './EditorContext'
 import { EditBlock, EditMedia, EditText } from './EditPrimitives'
 import { HeroMedia } from './HeroMedia'
+import { SectionModuleSheet } from './SectionModuleSheet'
 
 // Imperative handlers wired by the host (CustomizeTab) so episode tiles can
 // persist edits to the actual course lesson — title, description, thumbnail
@@ -38,7 +39,11 @@ import { HeroMedia } from './HeroMedia'
 export type LessonHandlers = {
   updateLesson: (
     lessonId: string,
-    patch: { title?: string; description?: string | null },
+    patch: {
+      title?: string
+      description?: string | null
+      thumbnail_object_position?: string | null
+    },
   ) => Promise<void>
   uploadThumbnail: (lessonId: string, file: File) => Promise<void>
   uploadVideo: (
@@ -186,7 +191,12 @@ export function EditableCourseLandingView({
           },
           sections: {
             label: 'Sections',
-            node: <MobileSectionsRoadmap course={course} />,
+            node: (
+              <MobileSectionsRoadmap
+                course={course}
+                flatLessons={flatLessons}
+              />
+            ),
           },
           lessons: {
             label: 'Free preview',
@@ -199,6 +209,10 @@ export function EditableCourseLandingView({
                 onEnroll={enroll}
                 enrolling={enrolling}
                 canEnroll={canEnroll}
+                courseThumbnailUrl={course.thumbnail_url ?? null}
+                courseThumbnailObjectPosition={
+                  course.thumbnail_object_position ?? null
+                }
               />
             ),
           },
@@ -235,7 +249,9 @@ export function EditableCourseLandingView({
           },
           sections: {
             label: 'Sections',
-            node: <CourseSections course={course} />,
+            node: (
+              <CourseSections course={course} flatLessons={flatLessons} />
+            ),
           },
           lessons: {
             label: 'Free preview',
@@ -368,6 +384,7 @@ function Hero({
         <HeroMediaSurface
           fallbackImageUrl={course.thumbnail_url ?? null}
           fallbackTrailerUrl={course.trailer_url ?? null}
+          fallbackImageObjectPosition={course.thumbnail_object_position ?? null}
         />
       </EditMedia>
 
@@ -711,15 +728,23 @@ export function TrailerModal({
 function HeroMediaSurface({
   fallbackImageUrl,
   fallbackTrailerUrl,
+  fallbackImageObjectPosition,
 }: {
   fallbackImageUrl: string | null
   fallbackTrailerUrl: string | null
+  fallbackImageObjectPosition?: string | null
 }) {
   const ed = useEditor()
   const heroImage = ed.m('hero.backdrop')
   const heroTrailer = ed.m('hero.trailer')
   const imageUrl =
     heroImage && heroImage.kind === 'image' ? heroImage.url : fallbackImageUrl
+  // Prefer the override slot's position when present (so dragging on the
+  // landing canvas wins), fall back to the persisted course field.
+  const imageObjectPosition =
+    (heroImage && heroImage.kind === 'image'
+      ? heroImage.objectPosition
+      : null) ?? fallbackImageObjectPosition ?? null
   const trailerUrl =
     heroTrailer && heroTrailer.kind === 'video'
       ? heroTrailer.url
@@ -727,7 +752,12 @@ function HeroMediaSurface({
         ? heroImage.url
         : fallbackTrailerUrl
   return (
-    <HeroMedia imageUrl={imageUrl} trailerUrl={trailerUrl} peekSeconds={10} />
+    <HeroMedia
+      imageUrl={imageUrl}
+      imageObjectPosition={imageObjectPosition}
+      trailerUrl={trailerUrl}
+      peekSeconds={10}
+    />
   )
 }
 
@@ -740,6 +770,7 @@ function HeroMediaControls() {
   const [tipOpen, setTipOpen] = useState(false)
   const [busyImage, setBusyImage] = useState(false)
   const [busyTrailer, setBusyTrailer] = useState(false)
+  const [reposMode, setReposMode] = useState(false)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const trailerInputRef = useRef<HTMLInputElement>(null)
   if (ed.mode !== 'edit') return null
@@ -822,17 +853,27 @@ function HeroMediaControls() {
   })
 
   return (
-    <div
-      style={{
-        position: 'absolute',
-        right: 24,
-        top: 24,
-        zIndex: 6,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-      }}
-    >
+    <>
+      {reposMode && hasImage && heroImage && heroImage.kind === 'image' && (
+        <ImageReposOverlay
+          currentPosition={heroImage.objectPosition ?? '50% 50%'}
+          onChange={(next) =>
+            ed.setMedia('hero.backdrop', { ...heroImage, objectPosition: next })
+          }
+          onDone={() => setReposMode(false)}
+        />
+      )}
+      <div
+        style={{
+          position: 'absolute',
+          right: 24,
+          top: 24,
+          zIndex: 6,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+        }}
+      >
       <input
         ref={imageInputRef}
         type="file"
@@ -859,6 +900,16 @@ function HeroMediaControls() {
             ? '↺ Replace image'
             : '＋ Add image'}
       </button>
+      {hasImage && (
+        <button
+          type="button"
+          onClick={() => setReposMode(true)}
+          style={pillBtn(false)}
+          title="Drag to reposition the hero image. Saves automatically."
+        >
+          ⤧ Reposition
+        </button>
+      )}
       <button
         type="button"
         onClick={() => trailerInputRef.current?.click()}
@@ -925,6 +976,7 @@ function HeroMediaControls() {
         )}
       </div>
     </div>
+    </>
   )
 }
 
@@ -990,10 +1042,12 @@ function SectionCard({
   module: mod,
   index,
   pointer,
+  onClick,
 }: {
   module: CourseRead['modules'][number]
   index: number
   pointer: 'top' | 'bottom'
+  onClick?: () => void
 }) {
   const isAbove = pointer === 'bottom'
   const hue = [35, 195, 285, 145, 25, 320][index % 6]
@@ -1014,6 +1068,19 @@ function SectionCard({
   )
   return (
     <div
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onClick()
+              }
+            }
+          : undefined
+      }
       style={{
         position: 'relative',
         width: '100%',
@@ -1024,6 +1091,8 @@ function SectionCard({
         border: '1px solid oklch(0.945 0.003 280)',
         display: 'flex',
         flexDirection: 'column',
+        cursor: onClick ? 'pointer' : 'default',
+        transition: 'transform 220ms cubic-bezier(0.2, 0.9, 0.3, 1.1), box-shadow 220ms ease',
       }}
     >
       {isAbove && thumb}
@@ -1086,10 +1155,12 @@ function SectionZigzagRow({
   modules,
   startIndex,
   totalColumns,
+  onOpen,
 }: {
   modules: CourseRead['modules']
   startIndex: number
   totalColumns: number
+  onOpen?: (absoluteIndex: number) => void
 }) {
   // Always lay out `totalColumns` cells so cards keep the same width
   // whether the row is fully populated or only partially filled. Empty
@@ -1128,6 +1199,7 @@ function SectionZigzagRow({
                 module={mod}
                 index={absoluteIndex}
                 pointer="bottom"
+                onClick={onOpen ? () => onOpen(absoluteIndex) : undefined}
               />
             </div>
           ) : (
@@ -1208,7 +1280,12 @@ function SectionZigzagRow({
                 alignItems: 'flex-start',
               }}
             >
-              <SectionCard module={mod} index={absoluteIndex} pointer="top" />
+              <SectionCard
+              module={mod}
+              index={absoluteIndex}
+              pointer="top"
+              onClick={onOpen ? () => onOpen(absoluteIndex) : undefined}
+            />
             </div>
           ) : (
             <div key={mod.id} />
@@ -1219,8 +1296,15 @@ function SectionZigzagRow({
   )
 }
 
-function CourseSections({ course }: { course: CourseRead }) {
+function CourseSections({
+  course,
+  flatLessons,
+}: {
+  course: CourseRead
+  flatLessons: CourseLessonRead[]
+}) {
   const modules = [...course.modules].sort((a, b) => a.position - b.position)
+  const [openIdx, setOpenIdx] = useState<number | null>(null)
   if (modules.length === 0) return null
   // Cap each row at 4 cards so the cards stay readable. With more modules,
   // the zigzag stacks into multiple rows — but every row reuses the same
@@ -1232,6 +1316,23 @@ function CourseSections({ course }: { course: CourseRead }) {
   for (let i = 0; i < modules.length; i += MAX_PER_ROW) {
     chunks.push(modules.slice(i, i + MAX_PER_ROW))
   }
+  // Group flatLessons by module so the section sheet can list the lessons
+  // for the clicked section without having to refetch. Falls back to
+  // `module.lessons` when flatLessons doesn't carry module_id (e.g. the
+  // wizard preview's fake lesson list).
+  const lessonsByModule = new Map<string, CourseLessonRead[]>()
+  for (const lesson of flatLessons) {
+    if (!lesson.module_id) continue
+    const list = lessonsByModule.get(lesson.module_id)
+    if (list) list.push(lesson)
+    else lessonsByModule.set(lesson.module_id, [lesson])
+  }
+  const lessonsFor = (mod: CourseRead['modules'][number]) => {
+    const grouped = lessonsByModule.get(mod.id)
+    if (grouped && grouped.length > 0) return grouped
+    return mod.lessons ?? []
+  }
+  const openModule = openIdx !== null ? modules[openIdx] : null
 
   return (
     <section
@@ -1306,9 +1407,18 @@ function CourseSections({ course }: { course: CourseRead }) {
             modules={chunk}
             startIndex={ci * MAX_PER_ROW}
             totalColumns={rowColumns}
+            onOpen={(i) => setOpenIdx(i)}
           />
         ))}
       </div>
+      {openModule && openIdx !== null && (
+        <SectionModuleSheet
+          module={openModule}
+          index={openIdx}
+          lessons={lessonsFor(openModule)}
+          onClose={() => setOpenIdx(null)}
+        />
+      )}
     </section>
   )
 }
@@ -1717,6 +1827,10 @@ function EpisodeGrid({
                   lesson={lesson}
                   index={freeLessons.length + i + 1}
                   hue={thumbHues[i % thumbHues.length]}
+                  fallbackThumbnailUrl={course.thumbnail_url ?? null}
+                  fallbackObjectPosition={
+                    course.thumbnail_object_position ?? null
+                  }
                 />
               ))}
               {lockedCount > 4 && (
@@ -2030,6 +2144,15 @@ function RealLessonEpisodeThumb({
   const thumbInputRef = useRef<HTMLInputElement>(null)
   const videoInputRef = useRef<HTMLInputElement>(null)
 
+  // Reposition mode — when active, an inline drag overlay tracks the
+  // user's pointer over the thumbnail and commits the new
+  // thumbnail_object_position to the lesson on release. The same lesson
+  // record drives every other place the thumbnail shows (outline, mobile
+  // landing, customer portal), so the change is visible everywhere.
+  const [reposMode, setReposMode] = useState(false)
+  const [livePos, setLivePos] = useState<string | null>(null)
+  const repositionCommitRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   const playbackId =
     lesson.mux_playback_id && lesson.mux_status === 'ready'
       ? lesson.mux_playback_id
@@ -2037,6 +2160,34 @@ function RealLessonEpisodeThumb({
   const localVideoUrl = lessonHandlers?.getLocalVideoUrl?.(lesson.id) ?? null
   const hasPeekVideo = !!playbackId || !!localVideoUrl
   const thumbnailUrl = lesson.thumbnail_url ?? null
+  const effectivePosition =
+    livePos ?? lesson.thumbnail_object_position ?? '50% 50%'
+
+  const commitPosition = (next: string) => {
+    if (!lessonHandlers) return
+    if (repositionCommitRef.current) {
+      clearTimeout(repositionCommitRef.current)
+    }
+    repositionCommitRef.current = setTimeout(() => {
+      lessonHandlers
+        .updateLesson(lesson.id, { thumbnail_object_position: next })
+        .catch((err) => {
+          toast({
+            title: 'Failed to save thumbnail position',
+            description: err instanceof Error ? err.message : String(err),
+          })
+        })
+    }, 250)
+  }
+
+  useEffect(
+    () => () => {
+      if (repositionCommitRef.current) {
+        clearTimeout(repositionCommitRef.current)
+      }
+    },
+    [],
+  )
 
   // Drive the hover-triggered peek. Re-evaluate when `hovered` flips.
   useEffect(() => {
@@ -2135,7 +2286,7 @@ function RealLessonEpisodeThumb({
             width: '100%',
             height: '100%',
             objectFit: 'cover',
-            objectPosition: lesson.thumbnail_object_position ?? '50% 50%',
+            objectPosition: effectivePosition,
             opacity: peekActive ? 0 : 1,
             transition: 'opacity 400ms ease',
             zIndex: 1,
@@ -2252,7 +2403,7 @@ function RealLessonEpisodeThumb({
               transition: 'border-color 150ms ease',
             }}
           />
-          {hovered && (
+          {hovered && !reposMode && (
             <div
               style={{
                 position: 'absolute',
@@ -2276,6 +2427,16 @@ function RealLessonEpisodeThumb({
                     ? 'Replace thumbnail'
                     : 'Add thumbnail'}
               </button>
+              {thumbnailUrl && (
+                <button
+                  type="button"
+                  onClick={() => setReposMode(true)}
+                  style={lessonPillBtn}
+                  title="Drag to reposition the thumbnail. Saves automatically."
+                >
+                  Reposition
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => videoInputRef.current?.click()}
@@ -2291,6 +2452,16 @@ function RealLessonEpisodeThumb({
                     : 'Add video'}
               </button>
             </div>
+          )}
+          {reposMode && thumbnailUrl && (
+            <ImageReposOverlay
+              currentPosition={effectivePosition}
+              onChange={(next) => {
+                setLivePos(next)
+                commitPosition(next)
+              }}
+              onDone={() => setReposMode(false)}
+            />
           )}
           {lesson.mux_upload_id && !playbackId && (
             <div
@@ -2329,6 +2500,146 @@ const lessonPillBtn: React.CSSProperties = {
   cursor: 'pointer',
   border: '1px solid rgba(255,255,255,0.08)',
   fontFamily: 'Inter, system-ui, sans-serif',
+}
+
+// Inline reposition overlay for the lesson card. Same drag-on-image UX
+// as the EditMedia ReposOverlay but persists via `lessonHandlers` so the
+// new position lands on the actual lesson record (where every other
+// surface — outline grid, mobile landing, customer portal — reads it).
+function ImageReposOverlay({
+  currentPosition,
+  onChange,
+  onDone,
+}: {
+  currentPosition: string
+  onChange: (next: string) => void
+  onDone: () => void
+}) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState(() => {
+    const parts = currentPosition.trim().split(/\s+/)
+    const x = parseFloat(parts[0])
+    const y = parseFloat(parts[1])
+    return {
+      x: Number.isFinite(x) ? Math.min(100, Math.max(0, x)) : 50,
+      y: Number.isFinite(y) ? Math.min(100, Math.max(0, y)) : 50,
+    }
+  })
+  const [dragging, setDragging] = useState(false)
+  const setFromPoint = (clientX: number, clientY: number) => {
+    const el = containerRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const x = Math.min(100, Math.max(0, ((clientX - rect.left) / rect.width) * 100))
+    const y = Math.min(100, Math.max(0, ((clientY - rect.top) / rect.height) * 100))
+    setPos({ x, y })
+    onChange(`${x.toFixed(1)}% ${y.toFixed(1)}%`)
+  }
+  useEffect(() => {
+    if (!dragging) return
+    const onMove = (e: MouseEvent) => {
+      e.preventDefault()
+      setFromPoint(e.clientX, e.clientY)
+    }
+    const onUp = () => setDragging(false)
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+  }, [dragging])
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' || e.key === 'Enter') onDone()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onDone])
+  return (
+    <>
+      <div
+        ref={containerRef}
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          setFromPoint(e.clientX, e.clientY)
+          setDragging(true)
+        }}
+        onTouchStart={(e) => {
+          const t = e.touches[0]
+          if (t) setFromPoint(t.clientX, t.clientY)
+        }}
+        onTouchMove={(e) => {
+          const t = e.touches[0]
+          if (t) setFromPoint(t.clientX, t.clientY)
+        }}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          zIndex: 7,
+          cursor: dragging ? 'grabbing' : 'grab',
+          background:
+            'radial-gradient(circle at var(--rp-x) var(--rp-y), rgba(99,102,241,0.18) 0%, rgba(0,0,0,0.35) 60%, rgba(0,0,0,0.55) 100%)',
+          ...({
+            '--rp-x': `${pos.x}%`,
+            '--rp-y': `${pos.y}%`,
+          } as React.CSSProperties),
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          left: `${pos.x}%`,
+          top: `${pos.y}%`,
+          width: 14,
+          height: 14,
+          marginLeft: -7,
+          marginTop: -7,
+          borderRadius: '50%',
+          background: 'rgba(255,255,255,0.95)',
+          border: '2px solid #6366f1',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+          zIndex: 8,
+          pointerEvents: 'none',
+        }}
+      />
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: 'absolute',
+          right: 10,
+          top: 10,
+          zIndex: 9,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: '6px 8px 6px 12px',
+          borderRadius: 999,
+          background: 'rgba(20,20,22,0.92)',
+          color: 'white',
+          fontFamily: 'Inter, system-ui, sans-serif',
+        }}
+      >
+        <span style={{ fontSize: 11.5, fontWeight: 600 }}>
+          Drag to reposition · {pos.x.toFixed(0)}% × {pos.y.toFixed(0)}%
+        </span>
+        <button
+          type="button"
+          onClick={onDone}
+          style={{
+            ...lessonPillBtn,
+            background: 'white',
+            color: '#111',
+            padding: '5px 11px',
+          }}
+        >
+          Done
+        </button>
+      </div>
+    </>
+  )
 }
 
 function EpisodeInfo({
@@ -2660,11 +2971,22 @@ function LockedGlassItem({
   lesson,
   index,
   hue,
+  fallbackThumbnailUrl,
+  fallbackObjectPosition,
 }: {
   lesson: CourseLessonRead
   index: number
   hue: number
+  fallbackThumbnailUrl?: string | null
+  fallbackObjectPosition?: string | null
 }) {
+  // Prefer the lesson's own cover so each locked card reads like a real
+  // episode tile; fall back to the course thumbnail so the paywall doesn't
+  // end up showing a row of identical color-swatch placeholders. The hue
+  // gradient stays as the last-resort backdrop.
+  const coverUrl = lesson.thumbnail_url ?? fallbackThumbnailUrl ?? null
+  const coverPosition =
+    lesson.thumbnail_object_position ?? fallbackObjectPosition ?? '50% 50%'
   return (
     <div
       style={{
@@ -2687,22 +3009,61 @@ function LockedGlassItem({
             'inset 0 1px 0 rgba(255,255,255,0.7), 0 1px 2px rgba(0,0,0,0.04)',
         }}
       >
+        {coverUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={coverUrl}
+            alt=""
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              objectPosition: coverPosition,
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: `linear-gradient(150deg, oklch(0.78 0.05 ${hue}) 0%, oklch(0.86 0.02 280) 100%)`,
+            }}
+          />
+        )}
+        {/* Darkening layer + soft saturation drop so the image reads as
+            "members only" without going fully opaque. With no image, the
+            same overlay just dims the placeholder gradient. */}
         <div
           style={{
             position: 'absolute',
             inset: 0,
-            background: `linear-gradient(150deg, oklch(0.78 0.05 ${hue}) 0%, oklch(0.86 0.02 280) 100%)`,
+            background: coverUrl
+              ? 'linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.55) 100%)'
+              : 'rgba(255,255,255,0.45)',
+            backdropFilter: coverUrl
+              ? 'saturate(0.7)'
+              : 'blur(10px) saturate(150%)',
+            WebkitBackdropFilter: coverUrl
+              ? 'saturate(0.7)'
+              : 'blur(10px) saturate(150%)',
           }}
         />
+        {/* Lock icon centered on top */}
         <div
           style={{
             position: 'absolute',
             inset: 0,
-            background: 'rgba(255,255,255,0.45)',
-            backdropFilter: 'blur(10px) saturate(150%)',
-            WebkitBackdropFilter: 'blur(10px) saturate(150%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: coverUrl ? 'rgba(255,255,255,0.92)' : 'oklch(0.45 0.012 280)',
           }}
-        />
+          aria-hidden
+        >
+          <LockedItemLockIcon />
+        </div>
       </div>
       <div style={{ minWidth: 0 }}>
         <div
@@ -2734,6 +3095,27 @@ function LockedGlassItem({
         </div>
       </div>
     </div>
+  )
+}
+
+function LockedItemLockIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{
+        filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.35))',
+      }}
+    >
+      <rect x="3.25" y="7" width="9.5" height="6.5" rx="1.3" />
+      <path d="M5.25 7V5a2.75 2.75 0 015.5 0v2" />
+    </svg>
   )
 }
 

@@ -8,6 +8,7 @@ import {
   useCreateMuxUpload,
   useDeleteLessonAttachment,
   usePreviewAccess,
+  useUpdateCourseLesson,
   useUploadLessonAttachment,
   useUploadLessonThumbnail,
 } from '@/hooks/queries/courses'
@@ -126,8 +127,43 @@ export function LessonDetail({
     useState<LessonAttachment[]>(initialAttachments)
   const createMuxUpload = useCreateMuxUpload()
   const uploadThumbnail = useUploadLessonThumbnail()
+  const updateLessonMut = useUpdateCourseLesson()
   const uploadAttachment = useUploadLessonAttachment()
   const deleteAttachment = useDeleteLessonAttachment()
+
+  // Persist the thumbnail position the moment the user releases the drag,
+  // so every other site that shows the lesson (outline grid, landing
+  // preview, customer portal, mobile preview) reflects the new position
+  // without having to wait for the user to remember to click Save.
+  const positionCommitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  )
+  const commitThumbnailPosition = (next: string) => {
+    if (positionCommitTimerRef.current) {
+      clearTimeout(positionCommitTimerRef.current)
+    }
+    positionCommitTimerRef.current = setTimeout(() => {
+      updateLessonMut
+        .mutateAsync({
+          lessonId: lesson.id,
+          body: { thumbnail_object_position: next },
+        })
+        .catch((err) => {
+          toast({
+            title: 'Failed to save thumbnail position',
+            description: err instanceof Error ? err.message : String(err),
+          })
+        })
+    }, 250)
+  }
+  useEffect(
+    () => () => {
+      if (positionCommitTimerRef.current) {
+        clearTimeout(positionCommitTimerRef.current)
+      }
+    },
+    [],
+  )
 
   useEffect(() => {
     setEdits(initEdits(lesson, module))
@@ -610,6 +646,7 @@ export function LessonDetail({
                   src={thumbnailUrl}
                   value={edits.thumbnailObjectPosition}
                   onChange={(next) => update('thumbnailObjectPosition', next)}
+                  onCommit={commitThumbnailPosition}
                 />
                 <p className="text-xs text-gray-500">
                   Drag the image to reposition it inside the card.

@@ -120,6 +120,13 @@ export type LandingMedia = {
   kind: LandingMediaKind
   url: string
   name?: string
+  /**
+   * CSS object-position string (e.g. "50% 30%") used when the media is
+   * rendered with object-fit: cover. Persisted on the media slot so the
+   * same crop applies wherever the slot is shown — landing, mobile view,
+   * customer portal.
+   */
+  objectPosition?: string
 }
 
 export type LandingTheme = {

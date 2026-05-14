@@ -162,6 +162,11 @@ export const EditMedia = forwardRef<
   const [popoverOpen, setPopoverOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
+  // When true, an inline draggable overlay lets the user reposition the
+  // image's object-position. The result persists to `m.objectPosition`
+  // through ed.setMedia and propagates to every other render site that
+  // reads from this slot.
+  const [reposMode, setReposMode] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const replaceBtnRef = useRef<HTMLButtonElement>(null)
   const [popoverPos, setPopoverPos] = useState<{
@@ -269,6 +274,7 @@ export const EditMedia = forwardRef<
     width: '100%',
     height: '100%',
     objectFit: fit,
+    objectPosition: m?.objectPosition ?? '50% 50%',
     zIndex: 1,
   }
 
@@ -417,7 +423,7 @@ export const EditMedia = forwardRef<
               {label}
             </div>
           )}
-          {hover && (
+          {hover && !reposMode && (
             <div
               style={{
                 position: 'absolute',
@@ -440,6 +446,20 @@ export const EditMedia = forwardRef<
               >
                 {busy ? 'Uploading…' : m ? 'Replace' : 'Add media'}
               </button>
+              {m && m.kind === 'image' && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setReposMode(true)
+                    setPopoverOpen(false)
+                  }}
+                  style={pillBtn}
+                  title="Drag to reposition the image inside this frame"
+                >
+                  Reposition
+                </button>
+              )}
               {m && (
                 <button
                   type="button"
@@ -453,6 +473,15 @@ export const EditMedia = forwardRef<
                 </button>
               )}
             </div>
+          )}
+          {reposMode && m && m.kind === 'image' && (
+            <ReposOverlay
+              media={m}
+              onChange={(next) =>
+                ed.setMedia(id, { ...m, objectPosition: next })
+              }
+              onDone={() => setReposMode(false)}
+            />
           )}
           {popoverOpen &&
             popoverPos &&
@@ -561,6 +590,168 @@ const popoverBtn: CSSProperties = {
   textAlign: 'left',
   cursor: 'pointer',
   border: 'none',
+}
+
+// ── ReposOverlay ────────────────────────────────────────────────────────────
+
+// Inline drag-to-reposition overlay. Sits on top of the actual rendered
+// image at the same size, so what the user sees while dragging IS what
+// will show on the public landing — no separate mini-positioner widget.
+// Emits the new object-position on every move and persists on release.
+function clampPct(value: number) {
+  return Math.min(100, Math.max(0, value))
+}
+function parsePos(value: string | undefined): { x: number; y: number } {
+  const fallback = { x: 50, y: 50 }
+  if (!value) return fallback
+  const parts = value.trim().split(/\s+/)
+  if (parts.length !== 2) return fallback
+  const x = parseFloat(parts[0])
+  const y = parseFloat(parts[1])
+  if (Number.isNaN(x) || Number.isNaN(y)) return fallback
+  return { x: clampPct(x), y: clampPct(y) }
+}
+function fmtPos(x: number, y: number) {
+  return `${x.toFixed(1)}% ${y.toFixed(1)}%`
+}
+
+function ReposOverlay({
+  media,
+  onChange,
+  onDone,
+}: {
+  media: LandingMedia
+  onChange: (next: string) => void
+  onDone: () => void
+}) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState(() => parsePos(media.objectPosition))
+  const [dragging, setDragging] = useState(false)
+
+  const setFromPoint = (clientX: number, clientY: number) => {
+    const el = containerRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const x = clampPct(((clientX - rect.left) / rect.width) * 100)
+    const y = clampPct(((clientY - rect.top) / rect.height) * 100)
+    setPos({ x, y })
+    onChange(fmtPos(x, y))
+  }
+
+  useEffect(() => {
+    if (!dragging) return
+    const onMove = (e: MouseEvent) => {
+      e.preventDefault()
+      setFromPoint(e.clientX, e.clientY)
+    }
+    const onUp = () => setDragging(false)
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+  }, [dragging])
+
+  // Esc / Enter / Outside-click → finish reposition mode. The position was
+  // already committed via onChange on every move, so this is purely UI.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' || e.key === 'Enter') onDone()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onDone])
+
+  return (
+    <>
+      {/* Click target — covers the image itself */}
+      <div
+        ref={containerRef}
+        onMouseDown={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          setFromPoint(e.clientX, e.clientY)
+          setDragging(true)
+        }}
+        onTouchStart={(e) => {
+          const t = e.touches[0]
+          if (t) setFromPoint(t.clientX, t.clientY)
+        }}
+        onTouchMove={(e) => {
+          const t = e.touches[0]
+          if (t) setFromPoint(t.clientX, t.clientY)
+        }}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          zIndex: 7,
+          cursor: dragging ? 'grabbing' : 'grab',
+          background:
+            'radial-gradient(circle at var(--rp-x) var(--rp-y), rgba(99,102,241,0.18) 0%, rgba(0,0,0,0.35) 60%, rgba(0,0,0,0.55) 100%)',
+          // CSS custom prop for the radial highlight; updated via inline style
+          ...({
+            '--rp-x': `${pos.x}%`,
+            '--rp-y': `${pos.y}%`,
+          } as CSSProperties),
+        }}
+      />
+      {/* Cross-hair indicator */}
+      <div
+        style={{
+          position: 'absolute',
+          left: `${pos.x}%`,
+          top: `${pos.y}%`,
+          width: 14,
+          height: 14,
+          marginLeft: -7,
+          marginTop: -7,
+          borderRadius: '50%',
+          background: 'rgba(255,255,255,0.95)',
+          border: '2px solid #6366f1',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+          zIndex: 8,
+          pointerEvents: 'none',
+        }}
+      />
+      {/* Help text + Done button — top-right */}
+      <div
+        style={{
+          position: 'absolute',
+          right: 12,
+          top: 12,
+          zIndex: 9,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: '6px 8px 6px 12px',
+          borderRadius: 999,
+          background: 'rgba(20,20,22,0.92)',
+          color: 'white',
+          fontFamily: 'Inter, system-ui, sans-serif',
+        }}
+      >
+        <span style={{ fontSize: 11.5, fontWeight: 600 }}>
+          Drag to reposition · {pos.x.toFixed(0)}% × {pos.y.toFixed(0)}%
+        </span>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            onDone()
+          }}
+          style={{
+            ...pillBtn,
+            background: 'white',
+            color: '#111',
+            padding: '5px 11px',
+          }}
+        >
+          Done
+        </button>
+      </div>
+    </>
+  )
 }
 
 // ── EditBlock ───────────────────────────────────────────────────────────────

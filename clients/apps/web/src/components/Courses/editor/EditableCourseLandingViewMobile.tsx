@@ -7,10 +7,11 @@
 // to mobile or when the page is viewed on a real phone.
 
 import type { CourseLessonRead, CourseRead } from '@/hooks/queries/courses'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { TrailerModal } from './EditableCourseLandingView'
 import { useEditor } from './EditorContext'
 import { EditMedia, EditText } from './EditPrimitives'
+import { SectionModuleSheet } from './SectionModuleSheet'
 
 const FONT_VAR = 'var(--font-body, "Poppins", system-ui, sans-serif)'
 const HEADING_VAR = 'var(--font-heading, ' + FONT_VAR + ')'
@@ -69,6 +70,12 @@ export function MobileHero({
     (heroImage && heroImage.kind === 'image' ? heroImage.url : null) ??
     course.thumbnail_url ??
     null
+  const backdropObjectPosition =
+    (heroImage && heroImage.kind === 'image'
+      ? heroImage.objectPosition
+      : null) ??
+    course.thumbnail_object_position ??
+    null
   const canPlayTrailer = !!trailerUrl
 
   return (
@@ -94,9 +101,11 @@ export function MobileHero({
           overflow: 'hidden',
         }}
         renderMedia={() => null}
-        chromeless
       >
-        <MobileHeroBackdrop imageUrl={backdropUrl} />
+        <MobileHeroBackdrop
+          imageUrl={backdropUrl}
+          objectPosition={backdropObjectPosition}
+        />
       </EditMedia>
 
       {/* Vignette */}
@@ -319,7 +328,13 @@ export function MobileHero({
   )
 }
 
-function MobileHeroBackdrop({ imageUrl }: { imageUrl: string | null }) {
+function MobileHeroBackdrop({
+  imageUrl,
+  objectPosition,
+}: {
+  imageUrl: string | null
+  objectPosition?: string | null
+}) {
   if (imageUrl) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
@@ -332,6 +347,7 @@ function MobileHeroBackdrop({ imageUrl }: { imageUrl: string | null }) {
           width: '100%',
           height: '100%',
           objectFit: 'cover',
+          objectPosition: objectPosition ?? '50% 50%',
         }}
       />
     )
@@ -374,8 +390,36 @@ function MobileHeroBackdrop({ imageUrl }: { imageUrl: string | null }) {
 
 // ── Sections roadmap ──────────────────────────────────────────────────────
 
-export function MobileSectionsRoadmap({ course }: { course: CourseRead }) {
+export function MobileSectionsRoadmap({
+  course,
+  flatLessons,
+}: {
+  course: CourseRead
+  flatLessons: CourseLessonRead[]
+}) {
   const modules = [...course.modules].sort((a, b) => a.position - b.position)
+  const [openIdx, setOpenIdx] = useState<number | null>(null)
+
+  // Group lessons by module so we can show the per-section list when the
+  // user taps a card, and so the lesson count under each card stays
+  // accurate on the public landing (where mod.lessons is empty and the
+  // real lesson list lives in `flatLessons` only).
+  const lessonsByModule = useMemo(() => {
+    const map = new Map<string, CourseLessonRead[]>()
+    for (const lesson of flatLessons) {
+      if (!lesson.module_id) continue
+      const list = map.get(lesson.module_id)
+      if (list) list.push(lesson)
+      else map.set(lesson.module_id, [lesson])
+    }
+    return map
+  }, [flatLessons])
+  const lessonsFor = (mod: CourseRead['modules'][number]) => {
+    const grouped = lessonsByModule.get(mod.id)
+    if (grouped && grouped.length > 0) return grouped
+    return mod.lessons ?? []
+  }
+  const openModule = openIdx !== null ? modules[openIdx] : null
 
   return (
     <section
@@ -449,7 +493,7 @@ export function MobileSectionsRoadmap({ course }: { course: CourseRead }) {
         {modules.map((mod, i) => {
           const hue = SECTION_HUES[i % SECTION_HUES.length]
           const side: 'left' | 'right' = i % 2 === 0 ? 'left' : 'right'
-          const lessonCount = mod.lessons?.length ?? 0
+          const lessonCount = lessonsFor(mod).length
           return (
             <div
               key={mod.id}
@@ -494,6 +538,15 @@ export function MobileSectionsRoadmap({ course }: { course: CourseRead }) {
               </div>
 
               <div
+                role="button"
+                tabIndex={0}
+                onClick={() => setOpenIdx(i)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setOpenIdx(i)
+                  }
+                }}
                 style={{
                   position: 'relative',
                   gridColumn: side === 'left' ? '1 / 2' : '3 / 4',
@@ -505,6 +558,7 @@ export function MobileSectionsRoadmap({ course }: { course: CourseRead }) {
                     '0 1px 2px oklch(0 0 0 / 0.04), 0 10px 24px oklch(0 0 0 / 0.06)',
                   display: 'flex',
                   flexDirection: 'column',
+                  cursor: 'pointer',
                 }}
               >
                 <EditMedia
@@ -588,6 +642,21 @@ export function MobileSectionsRoadmap({ course }: { course: CourseRead }) {
           )
         })}
       </div>
+
+      {openModule && openIdx !== null && (
+        <SectionModuleSheet
+          module={openModule}
+          index={openIdx}
+          lessons={lessonsFor(openModule)}
+          onClose={() => setOpenIdx(null)}
+          placeholder={
+            <SectionThumbFallback
+              hue={SECTION_HUES[openIdx % SECTION_HUES.length]}
+              n={openIdx + 1}
+            />
+          }
+        />
+      )}
     </section>
   )
 }
@@ -644,6 +713,8 @@ export function MobileEpisodes({
   enrolling,
   canEnroll,
   onOpenLesson,
+  courseThumbnailUrl,
+  courseThumbnailObjectPosition,
 }: {
   freeLessons: CourseLessonRead[]
   paidLessons: CourseLessonRead[]
@@ -653,6 +724,9 @@ export function MobileEpisodes({
   enrolling: boolean
   canEnroll: boolean
   onOpenLesson?: (lesson: CourseLessonRead) => void
+  /** Fallback cover when a paid lesson has no thumbnail of its own. */
+  courseThumbnailUrl?: string | null
+  courseThumbnailObjectPosition?: string | null
 }) {
   return (
     <section
@@ -858,6 +932,8 @@ export function MobileEpisodes({
             onEnroll={onEnroll}
             enrolling={enrolling}
             canEnroll={canEnroll}
+            courseThumbnailUrl={courseThumbnailUrl}
+            courseThumbnailObjectPosition={courseThumbnailObjectPosition}
           />
         </div>
       )}
@@ -930,6 +1006,8 @@ function MobilePaywall({
   onEnroll,
   enrolling,
   canEnroll,
+  courseThumbnailUrl,
+  courseThumbnailObjectPosition,
 }: {
   paidLessons: CourseLessonRead[]
   lockedCount: number
@@ -937,6 +1015,8 @@ function MobilePaywall({
   onEnroll: () => void
   enrolling: boolean
   canEnroll: boolean
+  courseThumbnailUrl?: string | null
+  courseThumbnailObjectPosition?: string | null
 }) {
   const peek = paidLessons.slice(0, 3)
   const remaining = lockedCount - peek.length
@@ -1178,6 +1258,8 @@ function MobilePaywall({
                 lesson={lesson}
                 hue={hues[i % hues.length]}
                 index={i}
+                fallbackThumbnailUrl={courseThumbnailUrl ?? null}
+                fallbackObjectPosition={courseThumbnailObjectPosition ?? null}
               />
             ))}
           </div>
@@ -1206,11 +1288,18 @@ function LockedLessonRow({
   lesson,
   hue,
   index,
+  fallbackThumbnailUrl,
+  fallbackObjectPosition,
 }: {
   lesson: CourseLessonRead
   hue: number
   index: number
+  fallbackThumbnailUrl?: string | null
+  fallbackObjectPosition?: string | null
 }) {
+  const coverUrl = lesson.thumbnail_url ?? fallbackThumbnailUrl ?? null
+  const coverPosition =
+    lesson.thumbnail_object_position ?? fallbackObjectPosition ?? '50% 50%'
   return (
     <div
       style={{
@@ -1239,10 +1328,10 @@ function LockedLessonRow({
           justifyContent: 'center',
         }}
       >
-        {lesson.thumbnail_url ? (
+        {coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={lesson.thumbnail_url}
+            src={coverUrl}
             alt=""
             style={{
               position: 'absolute',
@@ -1250,8 +1339,7 @@ function LockedLessonRow({
               width: '100%',
               height: '100%',
               objectFit: 'cover',
-              objectPosition: lesson.thumbnail_object_position ?? '50% 50%',
-              filter: 'blur(6px) saturate(120%)',
+              objectPosition: coverPosition,
             }}
           />
         ) : (
@@ -1263,21 +1351,34 @@ function LockedLessonRow({
             }}
           />
         )}
+        {/* Darken when we have a real cover so the image reads as
+            "members only"; soft-blur the placeholder when we don't. */}
         <div
           style={{
             position: 'absolute',
             inset: 0,
-            background: 'rgba(255,255,255,0.45)',
-            backdropFilter: 'blur(8px) saturate(150%)',
-            WebkitBackdropFilter: 'blur(8px) saturate(150%)',
+            background: coverUrl
+              ? 'rgba(0,0,0,0.50)'
+              : 'rgba(255,255,255,0.45)',
+            backdropFilter: coverUrl
+              ? 'saturate(0.7)'
+              : 'blur(8px) saturate(150%)',
+            WebkitBackdropFilter: coverUrl
+              ? 'saturate(0.7)'
+              : 'blur(8px) saturate(150%)',
           }}
         />
         <div
           style={{
             position: 'relative',
             zIndex: 2,
-            color: 'var(--fg-2, oklch(0.52 0.008 280))',
+            color: coverUrl
+              ? 'rgba(255,255,255,0.92)'
+              : 'var(--fg-2, oklch(0.52 0.008 280))',
             display: 'flex',
+            filter: coverUrl
+              ? 'drop-shadow(0 1px 2px rgba(0,0,0,0.35))'
+              : undefined,
           }}
         >
           <LockIcon size={11} />

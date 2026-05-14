@@ -19,6 +19,7 @@ import { useProduct } from '@/hooks/queries/products'
 import { schemas } from '@spaire/client'
 import { useMemo, useRef, useState } from 'react'
 import { toast } from '../../Toast/use-toast'
+import { CoursePhoneFrame } from './CoursePhoneFrame'
 import {
   EditableCourseLandingView,
   type LessonHandlers,
@@ -26,6 +27,7 @@ import {
 import {
   EditorProvider,
   mergeOverrides,
+  useEditor,
   type ResolvedOverrides,
 } from './EditorContext'
 
@@ -137,6 +139,11 @@ export function CustomizeTab({
       merged.media['hero.backdrop'] = {
         kind: 'image',
         url: course.thumbnail_url,
+        // Seed the slot's crop from the canonical course column so the
+        // first render in the canvas matches what the customer portal
+        // already shows. Subsequent repositions stay on the slot and are
+        // mirrored back to course.thumbnail_object_position on save.
+        objectPosition: course.thumbnail_object_position ?? undefined,
       }
     }
     if (course.trailer_url && !merged.media['trailer.video']) {
@@ -197,15 +204,31 @@ export function CustomizeTab({
   const handleSave = async () => {
     const persistedMedia = { ...overridesRef.current.media }
     // hero image / trailer are mirrored onto course columns, so don't
-    // double-store them in landing_overrides.
+    // double-store them in landing_overrides. We do, however, want the
+    // hero image's repositioning (objectPosition) to survive — promote
+    // it onto course.thumbnail_object_position before dropping the slot
+    // so the customer portal, course list, etc. see the same crop.
+    const heroBackdrop = persistedMedia['hero.backdrop']
+    const heroBackdropPosition =
+      heroBackdrop && heroBackdrop.kind === 'image'
+        ? heroBackdrop.objectPosition
+        : undefined
     delete persistedMedia['hero.backdrop']
     delete persistedMedia['hero.trailer']
     delete persistedMedia['trailer.video']
-    const body = {
+    const body: Parameters<
+      typeof updateCourse.mutateAsync
+    >[0]['body'] = {
       landing_overrides: {
         ...overridesRef.current,
         media: persistedMedia,
       },
+    }
+    if (
+      heroBackdropPosition &&
+      heroBackdropPosition !== (course.thumbnail_object_position ?? undefined)
+    ) {
+      body.thumbnail_object_position = heroBackdropPosition
     }
     // Surface what's being sent so the user can confirm in the network
     // tab that their edits made it into the PATCH payload.
@@ -267,19 +290,68 @@ export function CustomizeTab({
           saving={saving}
           onSave={handleSave}
         />
-        <div className="flex-1 overflow-y-auto">
-          <EditableCourseLandingView
-            course={course}
-            organizationName={organization.name}
-            organizationSlug={organization.slug}
-            flatLessons={flatLessons}
-            product={product}
-            lessonHandlers={lessonHandlers}
-          />
-        </div>
+        <CustomizeCanvas
+          course={course}
+          organization={organization}
+          flatLessons={flatLessons}
+          product={product}
+          lessonHandlers={lessonHandlers}
+        />
       </div>
     </EditorProvider>
   )
+}
+
+// The canvas reads `ed.device` from the EditorProvider so the desktop /
+// mobile toggle in CustomizeBar can swap between the desktop layout and
+// the real mobile components wrapped in an iPhone frame. Mobile mode
+// uses the same EditableCourseLandingView — it already branches its
+// sectionMap on `ed.device === 'mobile'`.
+function CustomizeCanvas({
+  course,
+  organization,
+  flatLessons,
+  product,
+  lessonHandlers,
+}: {
+  course: CourseRead
+  organization: schemas['Organization']
+  flatLessons: CourseRead['modules'][number]['lessons']
+  product: schemas['Product'] | undefined
+  lessonHandlers: LessonHandlers
+}) {
+  const ed = useEditor()
+  const isMobileMode = ed.device === 'mobile'
+
+  const landing = (
+    <EditableCourseLandingView
+      course={course}
+      organizationName={organization.name}
+      organizationSlug={organization.slug}
+      flatLessons={flatLessons}
+      product={product}
+      lessonHandlers={lessonHandlers}
+    />
+  )
+
+  if (isMobileMode) {
+    return (
+      <div
+        className="flex-1 overflow-y-auto"
+        style={{
+          background: 'oklch(0.96 0.005 280)',
+          padding: '32px 16px',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'flex-start',
+        }}
+      >
+        <CoursePhoneFrame>{landing}</CoursePhoneFrame>
+      </div>
+    )
+  }
+
+  return <div className="flex-1 overflow-y-auto">{landing}</div>
 }
 
 // Slim top bar — the only chrome in the customize page. No left rail, no
@@ -298,13 +370,18 @@ function CustomizeBar({
   onSave: () => void
 }) {
   return (
-    <div className="flex h-12 flex-shrink-0 items-center justify-between gap-3 border-b border-gray-200 bg-white px-4">
+    <div className="relative flex h-12 flex-shrink-0 items-center justify-between gap-3 border-b border-gray-200 bg-white px-4">
       <div className="flex min-w-0 items-center gap-2">
         <span className="text-[12px] text-gray-500">Course landing</span>
         <span className="text-[13px] text-gray-400">›</span>
         <span className="truncate text-[13px] font-medium text-gray-900">
           {courseTitle}
         </span>
+      </div>
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+        <div className="pointer-events-auto">
+          <DeviceToggle />
+        </div>
       </div>
       <div className="flex items-center gap-2">
         <span className="text-[11.5px] text-gray-400">
@@ -328,5 +405,104 @@ function CustomizeBar({
         </button>
       </div>
     </div>
+  )
+}
+
+// Centred segmented control that switches between the desktop layout and
+// the iPhone-framed real mobile components. Lives inside EditorProvider so
+// it can read/write `ed.device` directly.
+function DeviceToggle() {
+  const ed = useEditor()
+  return (
+    <div
+      role="tablist"
+      aria-label="Preview device"
+      className="flex items-center gap-0.5 rounded-md border border-gray-200 bg-gray-50 p-0.5"
+    >
+      <DeviceButton
+        active={ed.device !== 'mobile'}
+        onClick={() => ed.setDevice('desktop')}
+        label="Desktop preview"
+      >
+        <DesktopIcon />
+        <span>Desktop</span>
+      </DeviceButton>
+      <DeviceButton
+        active={ed.device === 'mobile'}
+        onClick={() => ed.setDevice('mobile')}
+        label="Mobile preview"
+      >
+        <PhoneIcon />
+        <span>Mobile</span>
+      </DeviceButton>
+    </div>
+  )
+}
+
+function DeviceButton({
+  active,
+  onClick,
+  label,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  label: string
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      aria-label={label}
+      onClick={onClick}
+      className={[
+        'flex items-center gap-1.5 rounded px-2.5 py-1 text-[11.5px] font-medium tracking-tight transition-colors',
+        active
+          ? 'bg-white text-gray-900 shadow-sm'
+          : 'text-gray-500 hover:text-gray-800',
+      ].join(' ')}
+    >
+      {children}
+    </button>
+  )
+}
+
+function DesktopIcon() {
+  return (
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="2" y="3" width="12" height="8.5" rx="1.2" />
+      <path d="M6 14h4M8 11.5V14" />
+    </svg>
+  )
+}
+
+function PhoneIcon() {
+  return (
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="5" y="2" width="6" height="12" rx="1.4" />
+      <path d="M7.25 12.5h1.5" />
+    </svg>
   )
 }
