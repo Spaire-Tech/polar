@@ -1,6 +1,6 @@
 """Add email_sender_resend_id and email_sender_dns_records to organizations
 
-Revision ID: a1b2c3d4e5f6
+Revision ID: e76d1c4a82b9
 Revises: 9a8c1d2e3f4b
 Create Date: 2026-05-14 17:30:00.000000
 
@@ -16,7 +16,7 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = "a1b2c3d4e5f6"
+revision = "e76d1c4a82b9"
 down_revision = "9a8c1d2e3f4b"
 branch_labels: tuple[str] | None = None
 depends_on: tuple[str] | None = None
