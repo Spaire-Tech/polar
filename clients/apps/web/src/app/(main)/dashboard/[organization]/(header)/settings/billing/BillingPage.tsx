@@ -6,6 +6,8 @@ import OrganizationCustomerEmailSettings from '@/components/Settings/Organizatio
 import OrganizationCustomerPortalSettings from '@/components/Settings/OrganizationCustomerPortalSettings'
 import OrganizationSubscriptionSettings from '@/components/Settings/OrganizationSubscriptionSettings'
 import { Section, SectionDescription } from '@/components/Settings/Section'
+import QuotaUsageCard from '@/components/Settings/SpaireTier/QuotaUsageCard'
+import SpaireTierSection from '@/components/Settings/SpaireTier/SpaireTierSection'
 import { schemas } from '@spaire/client'
 
 export default function BillingPage({
@@ -16,6 +18,22 @@ export default function BillingPage({
   return (
     <DashboardBody wrapperClassName="max-w-(--breakpoint-sm)!" title="Billing">
       <div className="flex flex-col gap-y-12">
+        <Section id="spaire_plan">
+          <SectionDescription
+            title="Your Spaire plan"
+            description="Choose how you pay Spaire. The plan controls your transaction fees and unlocks creator features."
+          />
+          <SpaireTierSection organization={org} />
+        </Section>
+
+        <Section id="spaire_usage">
+          <SectionDescription
+            title="Usage this period"
+            description="What your organization has consumed against the limits on your current plan."
+          />
+          <QuotaUsageCard organization={org} />
+        </Section>
+
         <Section id="payments">
           <SectionDescription title="Payments" />
           <OrganizationPaymentSettings organization={org} />
