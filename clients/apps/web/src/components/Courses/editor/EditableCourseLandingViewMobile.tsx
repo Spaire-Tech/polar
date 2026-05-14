@@ -713,6 +713,8 @@ export function MobileEpisodes({
   enrolling,
   canEnroll,
   onOpenLesson,
+  courseThumbnailUrl,
+  courseThumbnailObjectPosition,
 }: {
   freeLessons: CourseLessonRead[]
   paidLessons: CourseLessonRead[]
@@ -722,6 +724,9 @@ export function MobileEpisodes({
   enrolling: boolean
   canEnroll: boolean
   onOpenLesson?: (lesson: CourseLessonRead) => void
+  /** Fallback cover when a paid lesson has no thumbnail of its own. */
+  courseThumbnailUrl?: string | null
+  courseThumbnailObjectPosition?: string | null
 }) {
   return (
     <section
@@ -927,6 +932,8 @@ export function MobileEpisodes({
             onEnroll={onEnroll}
             enrolling={enrolling}
             canEnroll={canEnroll}
+            courseThumbnailUrl={courseThumbnailUrl}
+            courseThumbnailObjectPosition={courseThumbnailObjectPosition}
           />
         </div>
       )}
@@ -999,6 +1006,8 @@ function MobilePaywall({
   onEnroll,
   enrolling,
   canEnroll,
+  courseThumbnailUrl,
+  courseThumbnailObjectPosition,
 }: {
   paidLessons: CourseLessonRead[]
   lockedCount: number
@@ -1006,6 +1015,8 @@ function MobilePaywall({
   onEnroll: () => void
   enrolling: boolean
   canEnroll: boolean
+  courseThumbnailUrl?: string | null
+  courseThumbnailObjectPosition?: string | null
 }) {
   const peek = paidLessons.slice(0, 3)
   const remaining = lockedCount - peek.length
@@ -1247,6 +1258,8 @@ function MobilePaywall({
                 lesson={lesson}
                 hue={hues[i % hues.length]}
                 index={i}
+                fallbackThumbnailUrl={courseThumbnailUrl ?? null}
+                fallbackObjectPosition={courseThumbnailObjectPosition ?? null}
               />
             ))}
           </div>
@@ -1275,11 +1288,18 @@ function LockedLessonRow({
   lesson,
   hue,
   index,
+  fallbackThumbnailUrl,
+  fallbackObjectPosition,
 }: {
   lesson: CourseLessonRead
   hue: number
   index: number
+  fallbackThumbnailUrl?: string | null
+  fallbackObjectPosition?: string | null
 }) {
+  const coverUrl = lesson.thumbnail_url ?? fallbackThumbnailUrl ?? null
+  const coverPosition =
+    lesson.thumbnail_object_position ?? fallbackObjectPosition ?? '50% 50%'
   return (
     <div
       style={{
@@ -1308,10 +1328,10 @@ function LockedLessonRow({
           justifyContent: 'center',
         }}
       >
-        {lesson.thumbnail_url ? (
+        {coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={lesson.thumbnail_url}
+            src={coverUrl}
             alt=""
             style={{
               position: 'absolute',
@@ -1319,8 +1339,7 @@ function LockedLessonRow({
               width: '100%',
               height: '100%',
               objectFit: 'cover',
-              objectPosition: lesson.thumbnail_object_position ?? '50% 50%',
-              filter: 'blur(6px) saturate(120%)',
+              objectPosition: coverPosition,
             }}
           />
         ) : (
@@ -1332,21 +1351,34 @@ function LockedLessonRow({
             }}
           />
         )}
+        {/* Darken when we have a real cover so the image reads as
+            "members only"; soft-blur the placeholder when we don't. */}
         <div
           style={{
             position: 'absolute',
             inset: 0,
-            background: 'rgba(255,255,255,0.45)',
-            backdropFilter: 'blur(8px) saturate(150%)',
-            WebkitBackdropFilter: 'blur(8px) saturate(150%)',
+            background: coverUrl
+              ? 'rgba(0,0,0,0.50)'
+              : 'rgba(255,255,255,0.45)',
+            backdropFilter: coverUrl
+              ? 'saturate(0.7)'
+              : 'blur(8px) saturate(150%)',
+            WebkitBackdropFilter: coverUrl
+              ? 'saturate(0.7)'
+              : 'blur(8px) saturate(150%)',
           }}
         />
         <div
           style={{
             position: 'relative',
             zIndex: 2,
-            color: 'var(--fg-2, oklch(0.52 0.008 280))',
+            color: coverUrl
+              ? 'rgba(255,255,255,0.92)'
+              : 'var(--fg-2, oklch(0.52 0.008 280))',
             display: 'flex',
+            filter: coverUrl
+              ? 'drop-shadow(0 1px 2px rgba(0,0,0,0.35))'
+              : undefined,
           }}
         >
           <LockIcon size={11} />

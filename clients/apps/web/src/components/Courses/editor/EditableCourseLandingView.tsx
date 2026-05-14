@@ -209,6 +209,10 @@ export function EditableCourseLandingView({
                 onEnroll={enroll}
                 enrolling={enrolling}
                 canEnroll={canEnroll}
+                courseThumbnailUrl={course.thumbnail_url ?? null}
+                courseThumbnailObjectPosition={
+                  course.thumbnail_object_position ?? null
+                }
               />
             ),
           },
@@ -1823,6 +1827,10 @@ function EpisodeGrid({
                   lesson={lesson}
                   index={freeLessons.length + i + 1}
                   hue={thumbHues[i % thumbHues.length]}
+                  fallbackThumbnailUrl={course.thumbnail_url ?? null}
+                  fallbackObjectPosition={
+                    course.thumbnail_object_position ?? null
+                  }
                 />
               ))}
               {lockedCount > 4 && (
@@ -2963,11 +2971,22 @@ function LockedGlassItem({
   lesson,
   index,
   hue,
+  fallbackThumbnailUrl,
+  fallbackObjectPosition,
 }: {
   lesson: CourseLessonRead
   index: number
   hue: number
+  fallbackThumbnailUrl?: string | null
+  fallbackObjectPosition?: string | null
 }) {
+  // Prefer the lesson's own cover so each locked card reads like a real
+  // episode tile; fall back to the course thumbnail so the paywall doesn't
+  // end up showing a row of identical color-swatch placeholders. The hue
+  // gradient stays as the last-resort backdrop.
+  const coverUrl = lesson.thumbnail_url ?? fallbackThumbnailUrl ?? null
+  const coverPosition =
+    lesson.thumbnail_object_position ?? fallbackObjectPosition ?? '50% 50%'
   return (
     <div
       style={{
@@ -2990,22 +3009,61 @@ function LockedGlassItem({
             'inset 0 1px 0 rgba(255,255,255,0.7), 0 1px 2px rgba(0,0,0,0.04)',
         }}
       >
+        {coverUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={coverUrl}
+            alt=""
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              objectPosition: coverPosition,
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: `linear-gradient(150deg, oklch(0.78 0.05 ${hue}) 0%, oklch(0.86 0.02 280) 100%)`,
+            }}
+          />
+        )}
+        {/* Darkening layer + soft saturation drop so the image reads as
+            "members only" without going fully opaque. With no image, the
+            same overlay just dims the placeholder gradient. */}
         <div
           style={{
             position: 'absolute',
             inset: 0,
-            background: `linear-gradient(150deg, oklch(0.78 0.05 ${hue}) 0%, oklch(0.86 0.02 280) 100%)`,
+            background: coverUrl
+              ? 'linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.55) 100%)'
+              : 'rgba(255,255,255,0.45)',
+            backdropFilter: coverUrl
+              ? 'saturate(0.7)'
+              : 'blur(10px) saturate(150%)',
+            WebkitBackdropFilter: coverUrl
+              ? 'saturate(0.7)'
+              : 'blur(10px) saturate(150%)',
           }}
         />
+        {/* Lock icon centered on top */}
         <div
           style={{
             position: 'absolute',
             inset: 0,
-            background: 'rgba(255,255,255,0.45)',
-            backdropFilter: 'blur(10px) saturate(150%)',
-            WebkitBackdropFilter: 'blur(10px) saturate(150%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: coverUrl ? 'rgba(255,255,255,0.92)' : 'oklch(0.45 0.012 280)',
           }}
-        />
+          aria-hidden
+        >
+          <LockedItemLockIcon />
+        </div>
       </div>
       <div style={{ minWidth: 0 }}>
         <div
@@ -3037,6 +3095,27 @@ function LockedGlassItem({
         </div>
       </div>
     </div>
+  )
+}
+
+function LockedItemLockIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{
+        filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.35))',
+      }}
+    >
+      <rect x="3.25" y="7" width="9.5" height="6.5" rx="1.3" />
+      <path d="M5.25 7V5a2.75 2.75 0 015.5 0v2" />
+    </svg>
   )
 }
 
