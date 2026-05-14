@@ -78,7 +78,9 @@ const SpaireTierUpgradeModal = ({
 
   return (
     <div className="flex flex-col">
-      <InlineModalHeader hide={hide} title="Upgrade your Spaire plan" />
+      <InlineModalHeader hide={hide}>
+        <h2>Upgrade your Spaire plan</h2>
+      </InlineModalHeader>
       <div className="flex flex-col gap-y-6 p-6">
         <p className="text-sm text-gray-500">
           Pick the plan that fits how you sell today. You can switch or
