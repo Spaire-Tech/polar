@@ -355,9 +355,19 @@ class Organization(RateLimitGroupMixin, RecordModel):
     email_sender_verified_at: Mapped[datetime | None] = mapped_column(
         TIMESTAMP(timezone=True), nullable=True, default=None
     )
-    """Timestamp when Resend DKIM verification succeeded. Manually stamped
-    by operations today; a follow-up will automate the Resend round-trip.
-    """
+    """Timestamp when Resend DKIM verification succeeded."""
+
+    email_sender_resend_id: Mapped[str | None] = mapped_column(
+        String(64), nullable=True, default=None
+    )
+    """Resend's domain id, populated when the creator's domain is
+    registered via POST https://api.resend.com/domains."""
+
+    email_sender_dns_records: Mapped[list[dict[str, Any]] | None] = mapped_column(
+        "email_sender_dns_records", JSONB, nullable=True, default=None
+    )
+    """Cached DNS records (TXT/MX/CNAME) the creator needs to install
+    before DKIM can verify. Returned by Resend at domain-creation time."""
 
     @property
     def has_verified_sender_domain(self) -> bool:

@@ -19,6 +19,7 @@ from polar.customer.repository import CustomerRepository
 from polar.entitlements.service import entitlements as entitlements_service
 from polar.enums import InvoiceNumbering
 from polar.exceptions import NotPermitted, PolarError, SpaireRequestValidationError
+from polar.integrations.resend import domains as resend_domains
 from polar.integrations.loops.service import loops as loops_service
 from polar.integrations.plain.service import plain as plain_service
 from polar.kit.anonymization import anonymize_email_for_deletion, anonymize_for_deletion
@@ -269,7 +270,10 @@ class OrganizationService:
         # the tier feature; clearing it back to None / empty string is
         # always allowed so creators can revert after a downgrade. Any
         # change to the domain clears email_sender_verified_at — DKIM
-        # has to be re-confirmed against the new domain.
+        # has to be re-confirmed against the new domain. When the
+        # change persists, we register the new domain with Resend and
+        # cache the DNS records the creator needs to install before
+        # verification can succeed.
         if "email_sender_domain" in update_schema.model_fields_set:
             requested = update_schema.email_sender_domain
             new_domain = requested.strip() if requested else None
@@ -278,8 +282,36 @@ class OrganizationService:
                     session, organization.id, "custom_email_sender_domain"
                 )
             if new_domain != organization.email_sender_domain:
+                # Drop the old Resend registration first so we don't
+                # leak orphan domains in Resend's account.
+                if organization.email_sender_resend_id is not None:
+                    try:
+                        await resend_domains.delete_domain(
+                            organization.email_sender_resend_id
+                        )
+                    except resend_domains.ResendDomainsError as exc:
+                        # Don't block the local change if Resend cleanup
+                        # fails — log and move on.
+                        log.warning(
+                            "resend.domains.delete_failed",
+                            organization_id=str(organization.id),
+                            resend_id=organization.email_sender_resend_id,
+                            error=str(exc),
+                        )
+
                 organization.email_sender_domain = new_domain
                 organization.email_sender_verified_at = None
+                organization.email_sender_resend_id = None
+                organization.email_sender_dns_records = None
+
+                if new_domain is not None:
+                    response = await resend_domains.create_domain(name=new_domain)
+                    resend_id = response.get("id")
+                    records = response.get("records")
+                    if isinstance(resend_id, str):
+                        organization.email_sender_resend_id = resend_id
+                    if isinstance(records, list):
+                        organization.email_sender_dns_records = records
 
         previous_details = organization.details
         update_dict = update_schema.model_dump(

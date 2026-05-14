@@ -23,6 +23,8 @@ from polar.entitlements.schemas import Entitlements
 from polar.entitlements.service import entitlements as entitlements_service
 from polar.entitlements.tiers import TierKey, get_definition
 from polar.exceptions import ResourceNotFound
+from polar.integrations.resend import domains as resend_domains
+from polar.kit.utils import utc_now
 from polar.locker import Locker, get_locker
 from polar.openapi import APITag
 from polar.organization.repository import OrganizationRepository
@@ -46,6 +48,7 @@ from .schemas import (
     CurrentSpaireSubscription,
     CustomerPortalSession,
     CustomerPortalSessionCreate,
+    EmailSenderDomainStatus,
     SwitchPlan,
     TierPlan,
     TierPlanList,
@@ -346,4 +349,93 @@ async def create_customer_portal_session(
         token=token,
         expires_at=customer_session.expires_at,
         customer_portal_url=customer_session.customer_portal_url,
+    )
+
+
+@router.get(
+    "/organizations/{organization_id}/email-sender-domain",
+    summary="Get Custom Email Sender Domain Status",
+    response_model=EmailSenderDomainStatus,
+)
+async def get_email_sender_domain(
+    organization_id: OrganizationID,
+    auth_subject: auth.PlatformRead,
+    session: AsyncReadSession = Depends(get_db_read_session),
+) -> EmailSenderDomainStatus:
+    """Current state of the org's custom outbound email sender domain:
+    configured domain, Resend id, the DNS records the creator must
+    install, and whether DKIM has verified.
+    """
+    org_repository = OrganizationRepository.from_session(session)
+    readable = org_repository.get_readable_statement(auth_subject).where(
+        OrganizationRepository.model.id == organization_id
+    )
+    organization = await org_repository.get_one_or_none(readable)
+    if organization is None:
+        raise ResourceNotFound("Organization not found.")
+    return EmailSenderDomainStatus(
+        domain=organization.email_sender_domain,
+        verified_at=organization.email_sender_verified_at,
+        resend_id=organization.email_sender_resend_id,
+        dns_records=organization.email_sender_dns_records,
+    )
+
+
+@router.post(
+    "/organizations/{organization_id}/email-sender-domain/verify",
+    summary="Verify Custom Email Sender Domain",
+    response_model=EmailSenderDomainStatus,
+)
+async def verify_email_sender_domain(
+    organization_id: OrganizationID,
+    auth_subject: auth.PlatformWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> EmailSenderDomainStatus:
+    """Ask Resend to re-check the domain's DKIM records and stamp the
+    verification timestamp if successful. Returns the updated state.
+
+    The creator must have installed the DNS records returned by the
+    GET endpoint before this call will succeed.
+    """
+    org_repository = OrganizationRepository.from_session(session)
+    readable = org_repository.get_readable_statement(auth_subject).where(
+        OrganizationRepository.model.id == organization_id
+    )
+    organization = await org_repository.get_one_or_none(readable)
+    if organization is None:
+        raise ResourceNotFound("Organization not found.")
+
+    await entitlements_service.require_feature(
+        session, organization.id, "custom_email_sender_domain"
+    )
+
+    if organization.email_sender_resend_id is None:
+        raise ResourceNotFound(
+            "No domain registered. Set email_sender_domain first via "
+            "the organization update endpoint."
+        )
+
+    response = await resend_domains.verify_domain(
+        organization.email_sender_resend_id
+    )
+
+    # Update cached records (Resend sometimes returns refreshed values).
+    records = response.get("records")
+    if isinstance(records, list):
+        organization.email_sender_dns_records = records
+
+    status = response.get("status")
+    if status == "verified":
+        if organization.email_sender_verified_at is None:
+            organization.email_sender_verified_at = utc_now()
+    else:
+        # Status came back not_started / pending / failed — make sure
+        # we don't claim verification.
+        organization.email_sender_verified_at = None
+
+    return EmailSenderDomainStatus(
+        domain=organization.email_sender_domain,
+        verified_at=organization.email_sender_verified_at,
+        resend_id=organization.email_sender_resend_id,
+        dns_records=organization.email_sender_dns_records,
     )

@@ -134,3 +134,22 @@ class CustomerPortalSession(Schema):
             "(view invoices, change payment method, cancel)."
         )
     )
+
+
+class EmailSenderDomainStatus(Schema):
+    domain: str | None = Field(
+        description="Configured custom sender domain (None if cleared)."
+    )
+    verified_at: datetime | None = Field(
+        description="When DKIM verification last succeeded."
+    )
+    resend_id: str | None = Field(
+        description="Resend's domain id, present once registered."
+    )
+    dns_records: list[dict[str, str | int | None]] | None = Field(
+        description=(
+            "DNS records the creator must install (TXT/MX/CNAME). Each "
+            "entry follows Resend's payload shape (record, name, value, "
+            "type, status, ttl)."
+        )
+    )
