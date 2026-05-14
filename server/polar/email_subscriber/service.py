@@ -338,6 +338,32 @@ class EmailSubscriberService:
         )
         existing_by_email = {r.email.lower(): r for r in existing_rows}
 
+        # Pre-check the tier's email_subscribers cap before doing any
+        # writes. PR 24 enforces the cap per-row inside self.create() —
+        # that catches over-limit imports row-by-row but leaves the
+        # creator with a partial-success state ("imported 4,952 of
+        # 50,000"). Counting new rows up-front lets us refuse the
+        # entire import with one clear error.
+        #
+        # The guard is "would `current >= limit` after inserting the
+        # last new row?" — which is "would (current_active + new_rows)
+        # exceed the limit?". The helper raises when current >= limit,
+        # so we pass `current_active + new_rows - 1`: the count the
+        # final row would see right before it's inserted.
+        new_rows = sum(
+            1 for email_norm, _ in cleaned if email_norm not in existing_by_email
+        )
+        if new_rows > 0:
+            current_active = await repository.count_by_organization(
+                organization_id
+            )
+            await entitlements_service.require_under_limit(
+                session,
+                organization_id,
+                "email_subscribers",
+                current=current_active + new_rows - 1,
+            )
+
         created = 0
         updated = 0
         for email_norm, name in cleaned:
