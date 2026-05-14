@@ -4,6 +4,7 @@ from datetime import timedelta
 from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, Literal
+from uuid import UUID
 
 from annotated_types import Ge
 from pydantic import AfterValidator, DirectoryPath, Field, PostgresDsn
@@ -380,6 +381,12 @@ class Settings(BaseSettings):
     }
     PLATFORM_FEE_BASIS_POINTS: int = 400
     PLATFORM_FEE_FIXED: int = 40
+
+    # The Organization that represents Spaire itself. This org sells the
+    # Free/Pro/Scale subscriptions to every other creator org, and every
+    # creator org is a Customer of it. Unset = no tier billing is wired up
+    # (single-tenant / development).
+    PLATFORM_ORG_ID: UUID | None = None
 
     ORGANIZATION_SLUG_RESERVED_KEYWORDS: list[str] = [
         # Landing pages
