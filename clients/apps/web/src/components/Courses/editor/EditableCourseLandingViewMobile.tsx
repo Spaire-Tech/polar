@@ -7,10 +7,11 @@
 // to mobile or when the page is viewed on a real phone.
 
 import type { CourseLessonRead, CourseRead } from '@/hooks/queries/courses'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { TrailerModal } from './EditableCourseLandingView'
 import { useEditor } from './EditorContext'
 import { EditMedia, EditText } from './EditPrimitives'
+import { SectionModuleSheet } from './SectionModuleSheet'
 
 const FONT_VAR = 'var(--font-body, "Poppins", system-ui, sans-serif)'
 const HEADING_VAR = 'var(--font-heading, ' + FONT_VAR + ')'
@@ -389,8 +390,36 @@ function MobileHeroBackdrop({
 
 // ── Sections roadmap ──────────────────────────────────────────────────────
 
-export function MobileSectionsRoadmap({ course }: { course: CourseRead }) {
+export function MobileSectionsRoadmap({
+  course,
+  flatLessons,
+}: {
+  course: CourseRead
+  flatLessons: CourseLessonRead[]
+}) {
   const modules = [...course.modules].sort((a, b) => a.position - b.position)
+  const [openIdx, setOpenIdx] = useState<number | null>(null)
+
+  // Group lessons by module so we can show the per-section list when the
+  // user taps a card, and so the lesson count under each card stays
+  // accurate on the public landing (where mod.lessons is empty and the
+  // real lesson list lives in `flatLessons` only).
+  const lessonsByModule = useMemo(() => {
+    const map = new Map<string, CourseLessonRead[]>()
+    for (const lesson of flatLessons) {
+      if (!lesson.module_id) continue
+      const list = map.get(lesson.module_id)
+      if (list) list.push(lesson)
+      else map.set(lesson.module_id, [lesson])
+    }
+    return map
+  }, [flatLessons])
+  const lessonsFor = (mod: CourseRead['modules'][number]) => {
+    const grouped = lessonsByModule.get(mod.id)
+    if (grouped && grouped.length > 0) return grouped
+    return mod.lessons ?? []
+  }
+  const openModule = openIdx !== null ? modules[openIdx] : null
 
   return (
     <section
@@ -464,7 +493,7 @@ export function MobileSectionsRoadmap({ course }: { course: CourseRead }) {
         {modules.map((mod, i) => {
           const hue = SECTION_HUES[i % SECTION_HUES.length]
           const side: 'left' | 'right' = i % 2 === 0 ? 'left' : 'right'
-          const lessonCount = mod.lessons?.length ?? 0
+          const lessonCount = lessonsFor(mod).length
           return (
             <div
               key={mod.id}
@@ -509,6 +538,15 @@ export function MobileSectionsRoadmap({ course }: { course: CourseRead }) {
               </div>
 
               <div
+                role="button"
+                tabIndex={0}
+                onClick={() => setOpenIdx(i)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setOpenIdx(i)
+                  }
+                }}
                 style={{
                   position: 'relative',
                   gridColumn: side === 'left' ? '1 / 2' : '3 / 4',
@@ -520,6 +558,7 @@ export function MobileSectionsRoadmap({ course }: { course: CourseRead }) {
                     '0 1px 2px oklch(0 0 0 / 0.04), 0 10px 24px oklch(0 0 0 / 0.06)',
                   display: 'flex',
                   flexDirection: 'column',
+                  cursor: 'pointer',
                 }}
               >
                 <EditMedia
@@ -603,6 +642,21 @@ export function MobileSectionsRoadmap({ course }: { course: CourseRead }) {
           )
         })}
       </div>
+
+      {openModule && openIdx !== null && (
+        <SectionModuleSheet
+          module={openModule}
+          index={openIdx}
+          lessons={lessonsFor(openModule)}
+          onClose={() => setOpenIdx(null)}
+          placeholder={
+            <SectionThumbFallback
+              hue={SECTION_HUES[openIdx % SECTION_HUES.length]}
+              n={openIdx + 1}
+            />
+          }
+        />
+      )}
     </section>
   )
 }

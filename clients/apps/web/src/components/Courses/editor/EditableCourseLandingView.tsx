@@ -29,6 +29,7 @@ import {
 import { useEditor } from './EditorContext'
 import { EditBlock, EditMedia, EditText } from './EditPrimitives'
 import { HeroMedia } from './HeroMedia'
+import { SectionModuleSheet } from './SectionModuleSheet'
 
 // Imperative handlers wired by the host (CustomizeTab) so episode tiles can
 // persist edits to the actual course lesson — title, description, thumbnail
@@ -190,7 +191,12 @@ export function EditableCourseLandingView({
           },
           sections: {
             label: 'Sections',
-            node: <MobileSectionsRoadmap course={course} />,
+            node: (
+              <MobileSectionsRoadmap
+                course={course}
+                flatLessons={flatLessons}
+              />
+            ),
           },
           lessons: {
             label: 'Free preview',
@@ -239,7 +245,9 @@ export function EditableCourseLandingView({
           },
           sections: {
             label: 'Sections',
-            node: <CourseSections course={course} />,
+            node: (
+              <CourseSections course={course} flatLessons={flatLessons} />
+            ),
           },
           lessons: {
             label: 'Free preview',
@@ -1030,10 +1038,12 @@ function SectionCard({
   module: mod,
   index,
   pointer,
+  onClick,
 }: {
   module: CourseRead['modules'][number]
   index: number
   pointer: 'top' | 'bottom'
+  onClick?: () => void
 }) {
   const isAbove = pointer === 'bottom'
   const hue = [35, 195, 285, 145, 25, 320][index % 6]
@@ -1054,6 +1064,19 @@ function SectionCard({
   )
   return (
     <div
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onClick()
+              }
+            }
+          : undefined
+      }
       style={{
         position: 'relative',
         width: '100%',
@@ -1064,6 +1087,8 @@ function SectionCard({
         border: '1px solid oklch(0.945 0.003 280)',
         display: 'flex',
         flexDirection: 'column',
+        cursor: onClick ? 'pointer' : 'default',
+        transition: 'transform 220ms cubic-bezier(0.2, 0.9, 0.3, 1.1), box-shadow 220ms ease',
       }}
     >
       {isAbove && thumb}
@@ -1126,10 +1151,12 @@ function SectionZigzagRow({
   modules,
   startIndex,
   totalColumns,
+  onOpen,
 }: {
   modules: CourseRead['modules']
   startIndex: number
   totalColumns: number
+  onOpen?: (absoluteIndex: number) => void
 }) {
   // Always lay out `totalColumns` cells so cards keep the same width
   // whether the row is fully populated or only partially filled. Empty
@@ -1168,6 +1195,7 @@ function SectionZigzagRow({
                 module={mod}
                 index={absoluteIndex}
                 pointer="bottom"
+                onClick={onOpen ? () => onOpen(absoluteIndex) : undefined}
               />
             </div>
           ) : (
@@ -1248,7 +1276,12 @@ function SectionZigzagRow({
                 alignItems: 'flex-start',
               }}
             >
-              <SectionCard module={mod} index={absoluteIndex} pointer="top" />
+              <SectionCard
+              module={mod}
+              index={absoluteIndex}
+              pointer="top"
+              onClick={onOpen ? () => onOpen(absoluteIndex) : undefined}
+            />
             </div>
           ) : (
             <div key={mod.id} />
@@ -1259,8 +1292,15 @@ function SectionZigzagRow({
   )
 }
 
-function CourseSections({ course }: { course: CourseRead }) {
+function CourseSections({
+  course,
+  flatLessons,
+}: {
+  course: CourseRead
+  flatLessons: CourseLessonRead[]
+}) {
   const modules = [...course.modules].sort((a, b) => a.position - b.position)
+  const [openIdx, setOpenIdx] = useState<number | null>(null)
   if (modules.length === 0) return null
   // Cap each row at 4 cards so the cards stay readable. With more modules,
   // the zigzag stacks into multiple rows — but every row reuses the same
@@ -1272,6 +1312,23 @@ function CourseSections({ course }: { course: CourseRead }) {
   for (let i = 0; i < modules.length; i += MAX_PER_ROW) {
     chunks.push(modules.slice(i, i + MAX_PER_ROW))
   }
+  // Group flatLessons by module so the section sheet can list the lessons
+  // for the clicked section without having to refetch. Falls back to
+  // `module.lessons` when flatLessons doesn't carry module_id (e.g. the
+  // wizard preview's fake lesson list).
+  const lessonsByModule = new Map<string, CourseLessonRead[]>()
+  for (const lesson of flatLessons) {
+    if (!lesson.module_id) continue
+    const list = lessonsByModule.get(lesson.module_id)
+    if (list) list.push(lesson)
+    else lessonsByModule.set(lesson.module_id, [lesson])
+  }
+  const lessonsFor = (mod: CourseRead['modules'][number]) => {
+    const grouped = lessonsByModule.get(mod.id)
+    if (grouped && grouped.length > 0) return grouped
+    return mod.lessons ?? []
+  }
+  const openModule = openIdx !== null ? modules[openIdx] : null
 
   return (
     <section
@@ -1346,9 +1403,18 @@ function CourseSections({ course }: { course: CourseRead }) {
             modules={chunk}
             startIndex={ci * MAX_PER_ROW}
             totalColumns={rowColumns}
+            onOpen={(i) => setOpenIdx(i)}
           />
         ))}
       </div>
+      {openModule && openIdx !== null && (
+        <SectionModuleSheet
+          module={openModule}
+          index={openIdx}
+          lessons={lessonsFor(openModule)}
+          onClose={() => setOpenIdx(null)}
+        />
+      )}
     </section>
   )
 }
