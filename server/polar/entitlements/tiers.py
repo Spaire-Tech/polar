@@ -187,10 +187,15 @@ _PRO = TierEntitlements(
         drip_scheduling=True,
         email_sequences_and_segments=True,
         email_ab_testing=True,
-        stackable_discounts=True,
+        # stackable_discounts: roadmap — discount engine doesn't support
+        # combining codes yet. Flip to True when the engine ships it.
+        stackable_discounts=False,
         custom_email_sender_domain=True,
         seat_based_product_pricing=True,
-        cohort_analytics=True,
+        # cohort_analytics: roadmap — only basic churn rate is computed
+        # today. Flip to True when retention curves and segment-level
+        # cohort views ship.
+        cohort_analytics=False,
         custom_pricing_negotiation=False,
         customer_wallet=False,
         white_label_course_player=False,
@@ -223,14 +228,18 @@ _SCALE = TierEntitlements(
         drip_scheduling=True,
         email_sequences_and_segments=True,
         email_ab_testing=True,
-        stackable_discounts=True,
+        # stackable_discounts: roadmap — see Pro definition.
+        stackable_discounts=False,
         custom_email_sender_domain=True,
         seat_based_product_pricing=True,
-        cohort_analytics=True,
+        # cohort_analytics: roadmap — see Pro definition.
+        cohort_analytics=False,
         custom_pricing_negotiation=True,
         customer_wallet=True,
         white_label_course_player=True,
-        sandbox_mode=True,
+        # sandbox_mode: roadmap — no per-org Stripe test-mode toggle
+        # exists today. Flip when sandbox-org infrastructure ships.
+        sandbox_mode=False,
         custom_storefront_domain=False,
         custom_checkout_domain=False,
         sso=False,

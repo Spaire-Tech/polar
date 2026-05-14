@@ -57,7 +57,7 @@ The following are part of the product on every tier. Gating any of these would b
 | Email sends / month ‡ | 5,000 | 250,000 | 2,000,000 |
 | Email sequences & segments | — | ✓ | ✓ |
 | Email A/B testing | — | ✓ | ✓ |
-| Stackable / cart-rule discounts ★ | — | ✓ | ✓ |
+| Stackable / cart-rule discounts ★ | — | roadmap | roadmap |
 | Checkout links | ✓ | ✓ | ✓ |
 | Embedded checkout on your site | ✓ | ✓ | ✓ |
 | Custom email sender domain ★ | — | ✓ | ✓ |
@@ -65,11 +65,11 @@ The following are part of the product on every tier. Gating any of these would b
 | Seat-based product pricing (B2B sales) | — | ✓ | ✓ |
 | Customer wallet (prepaid balance, auto-top-up) | — | ✓ | ✓ |
 | Analytics — revenue, MRR, churn rate | ✓ | ✓ | ✓ |
-| Analytics — cohort retention curves ★ | — | ✓ | ✓ |
+| Analytics — cohort retention curves ★ | — | roadmap | roadmap |
 | CSV exports of analytics & customer data | ✓ | ✓ | ✓ |
 | Dashboard team seats | 1 | 5 | unlimited |
 | API rate limits | standard | higher | highest + custom |
-| Sandbox / test mode ★ | — | — | ✓ |
+| Sandbox / test mode ★ | — | — | roadmap |
 | Custom storefront domain ★ | — | — | roadmap |
 | Custom checkout domain ★ | — | — | roadmap |
 | SSO + audit logs ★ | — | — | roadmap |
