@@ -23,6 +23,7 @@ from polar.models import Product
 from polar.platform.service import platform as platform_service
 from polar.postgres import AsyncReadSession
 
+from .exceptions import FeatureNotInPlanError, TierLimitReachedError
 from .repository import (
     platform_customer_repository,
     platform_subscription_repository,
@@ -78,6 +79,56 @@ class EntitlementsService:
             return TierKey(tier_value)
         except ValueError:
             return TierKey.legacy
+
+    # ------------------------------------------------------------------
+    # Guards — call-site helpers that check and raise.
+    # ------------------------------------------------------------------
+
+    async def require_feature(
+        self,
+        session: AsyncReadSession,
+        organization_id: UUID,
+        feature: str,
+    ) -> None:
+        """Raise FeatureNotInPlanError if the org's tier doesn't include
+        `feature`. The feature name must match a boolean field on
+        TierFeatures (see polar/entitlements/tiers.py).
+        """
+        entitlements_dataclass = await self.get_for_organization(
+            session, organization_id
+        )
+        try:
+            allowed = getattr(entitlements_dataclass.features, feature)
+        except AttributeError as exc:
+            raise ValueError(f"Unknown feature: {feature}") from exc
+        if not allowed:
+            raise FeatureNotInPlanError(feature, entitlements_dataclass.tier)
+
+    async def require_under_limit(
+        self,
+        session: AsyncReadSession,
+        organization_id: UUID,
+        key: str,
+        current: int,
+    ) -> None:
+        """Raise TierLimitReachedError if creating one more resource would
+        push past the tier's limit. `current` is the count BEFORE the
+        proposed insert, so the comparison is `current >= limit`.
+
+        Returns silently when the tier sets the limit to None (unlimited).
+        The limit name must match an integer-or-None field on TierLimits.
+        """
+        entitlements_dataclass = await self.get_for_organization(
+            session, organization_id
+        )
+        try:
+            limit = getattr(entitlements_dataclass.limits, key)
+        except AttributeError as exc:
+            raise ValueError(f"Unknown limit: {key}") from exc
+        if limit is None:
+            return
+        if current >= limit:
+            raise TierLimitReachedError(key, limit, entitlements_dataclass.tier)
 
 
 entitlements = EntitlementsService()
