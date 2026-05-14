@@ -20,6 +20,9 @@ from polar.models.email_sequence_step_send import (
 from polar.models.email_subscriber import EmailSubscriber, EmailSubscriberStatus
 from polar.models.organization import Organization
 from polar.postgres import AsyncSession
+from polar.quotas.definitions import QuotaKey
+from polar.quotas.exceptions import QuotaExceededError
+from polar.quotas.producers import emit_email_sent, enforce
 from polar.worker import (
     AsyncSessionMaker,
     CronTrigger,
@@ -392,6 +395,36 @@ async def _send_email_step(
     from polar.email_subscriber.unsubscribe_token import build_unsubscribe_url
 
     unsubscribe_url = build_unsubscribe_url(enrollment.subscriber_id)
+
+    # Block this step send if the org is out of monthly email quota.
+    # Record the attempt as failed so the enrollment moves on instead of
+    # looping. organization can be None for very old sequences with no
+    # org link; in that case we skip enforcement gracefully.
+    if organization is not None:
+        try:
+            await enforce(
+                session,
+                organization,
+                QuotaKey.email_sends_monthly,
+                requested_storage_units=1,
+            )
+        except QuotaExceededError:
+            log.info(
+                "email_sequence.send_quota_exceeded",
+                enrollment_id=str(enrollment.id),
+                step_id=str(step.id),
+                organization_id=str(organization.id),
+            )
+            session.add(
+                EmailSequenceStepSend(
+                    enrollment_id=enrollment.id,
+                    step_id=step.id,
+                    subscriber_id=enrollment.subscriber_id,
+                    status=EmailSequenceStepSendStatus.failed,
+                )
+            )
+            return
+
     try:
         wrapped_html = render_email_template(
             MarketingEmail(
@@ -434,6 +467,10 @@ async def _send_email_step(
                 sent_at=utc_now(),
             )
         )
+        if organization is not None:
+            emit_email_sent(
+                session, organization_id=organization.id, count=1
+            )
     except Exception:
         log.exception(
             "email_sequence.send_step_failed",
