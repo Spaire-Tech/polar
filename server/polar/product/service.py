@@ -9,6 +9,7 @@ from sqlalchemy.orm import contains_eager, selectinload
 
 from polar.auth.models import AuthSubject, is_user
 from polar.benefit.service import benefit as benefit_service
+from polar.entitlements.service import entitlements as entitlements_service
 from polar.checkout_link.repository import CheckoutLinkRepository
 from polar.custom_field.service import custom_field as custom_field_service
 from polar.enums import SubscriptionRecurringInterval
@@ -159,6 +160,20 @@ class ProductService:
         organization = await get_payload_organization(
             session, auth_subject, create_schema
         )
+
+        # Seat-based product pricing is Pro+. Gate before validating
+        # the rest of the prices so the error surface is consistent.
+        from polar.models.product_price import ProductPriceAmountType
+
+        has_seat_price = any(
+            getattr(price, "amount_type", None)
+            == ProductPriceAmountType.seat_based
+            for price in (create_schema.prices or [])
+        )
+        if has_seat_price:
+            await entitlements_service.require_feature(
+                session, organization.id, "seat_based_product_pricing"
+            )
 
         errors: list[ValidationError] = []
         prices, _, _, prices_errors = await self.get_validated_prices(

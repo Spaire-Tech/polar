@@ -33,6 +33,19 @@ class CourseRepository(
             Course.organization_id == organization_id
         )
 
+    async def count_by_organization(self, organization_id: UUID) -> int:
+        """Number of (non-soft-deleted) courses owned by the organization.
+
+        Used by the entitlements guard at create time. We count *all*
+        courses, draft or live, so the tier limit applies to anything
+        that uses Course storage / Spaire's course builder.
+        """
+        statement = select(func.count(Course.id)).where(
+            Course.organization_id == organization_id,
+            Course.deleted_at.is_(None),
+        )
+        return (await self.session.execute(statement)).scalar_one()
+
     def get_readable_statement(
         self, auth_subject: AuthSubject[User | Organization]
     ) -> Select[tuple[Course]]:

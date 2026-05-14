@@ -5,6 +5,7 @@ from uuid import UUID
 import structlog
 
 from polar.auth.models import AuthSubject, Organization, User
+from polar.entitlements.service import entitlements as entitlements_service
 from polar.exceptions import PolarError
 from polar.kit.pagination import PaginationParams
 from polar.kit.utils import utc_now
@@ -199,6 +200,12 @@ class EmailSequenceService:
         course_id: UUID | None = None,
         lesson_id: UUID | None = None,
     ) -> EmailSequence:
+        # Email sequences require Pro+. The legacy tier exempts grandfathered
+        # orgs so existing sequences don't break.
+        await entitlements_service.require_feature(
+            session, organization_id, "email_sequences_and_segments"
+        )
+
         repository = EmailSequenceRepository.from_session(session)
         sequence = EmailSequence(
             organization_id=organization_id,

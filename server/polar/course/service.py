@@ -2,10 +2,9 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from polar.email_sequence.events import fire_event
 from polar.email_subscriber.repository import EmailSubscriberRepository
+from polar.entitlements.service import entitlements as entitlements_service
 from polar.models.course import Course
 from polar.models.course_enrollment import CourseEnrollment
 from polar.models.course_lesson import CourseLesson
@@ -14,6 +13,7 @@ from polar.models.course_module import CourseModule
 from polar.models.course_note import CourseNote
 from polar.models.customer import Customer
 from polar.models.lesson_comment import LessonComment
+from polar.postgres import AsyncSession
 
 from .repository import (
     CourseEnrollmentRepository,
@@ -77,6 +77,16 @@ class CourseService:
         self, session: AsyncSession, create_schema: CourseCreate
     ) -> Course:
         repo = CourseRepository.from_session(session)
+
+        # Enforce the tier's published_courses cap. Counts all non-deleted
+        # courses owned by the org (draft + public — both occupy a slot).
+        current = await repo.count_by_organization(create_schema.organization_id)
+        await entitlements_service.require_under_limit(
+            session,
+            create_schema.organization_id,
+            "published_courses",
+            current=current,
+        )
 
         course = Course(
             product_id=create_schema.product_id,
@@ -207,6 +217,29 @@ class CourseService:
         create_schema: CourseLessonCreate,
     ) -> CourseLesson:
         lesson_repo = CourseLessonRepository.from_session(session)
+
+        # Resolve the owning org through module.course_id so we can gate
+        # against the tier's lessons-per-course limit.
+        course_repo = CourseRepository.from_session(session)
+        course = await course_repo.get_by_id(module.course_id)
+        if course is not None:
+            current = await lesson_repo.count_by_course(module.course_id)
+            await entitlements_service.require_under_limit(
+                session,
+                course.organization_id,
+                "lessons_per_course",
+                current=current,
+            )
+            # Drip scheduling is Pro+. Block setting drip_days or
+            # release_at on lessons for orgs without the feature.
+            if (
+                create_schema.drip_days is not None
+                or create_schema.release_at is not None
+            ):
+                await entitlements_service.require_feature(
+                    session, course.organization_id, "drip_scheduling"
+                )
+
         lesson = _build_lesson(create_schema)
         lesson.module_id = module.id
         return await lesson_repo.create(lesson, flush=True)
@@ -219,6 +252,23 @@ class CourseService:
     ) -> CourseLesson:
         lesson_repo = CourseLessonRepository.from_session(session)
         update_dict = update_schema.model_dump(exclude_unset=True)
+
+        # Block enabling drip scheduling on tiers that don't include it.
+        # Clearing drip (None) is always allowed so creators on Free can
+        # remove drip from a previously-Pro lesson after a downgrade.
+        setting_drip = (
+            update_dict.get("drip_days") is not None
+            or update_dict.get("release_at") is not None
+        )
+        if setting_drip:
+            organization_id = await lesson_repo.get_organization_id_for_lesson(
+                lesson.id
+            )
+            if organization_id is not None:
+                await entitlements_service.require_feature(
+                    session, organization_id, "drip_scheduling"
+                )
+
         return await lesson_repo.update(lesson, update_dict=update_dict)
 
     async def get_lesson_by_id(
