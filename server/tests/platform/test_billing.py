@@ -47,7 +47,7 @@ async def _seed_tier_product(
 
 
 @pytest.mark.asyncio
-class TestEnsureFreeSubscription:
+class TestEnsurePromTrialSubscription:
     async def test_no_platform_org_configured_is_noop(
         self,
         mocker: MockerFixture,
@@ -57,7 +57,7 @@ class TestEnsureFreeSubscription:
         _patch_platform_org_id(mocker, None)
         creator = await create_organization(save_fixture)
 
-        result = await platform_billing.ensure_free_subscription(session, creator)
+        result = await platform_billing.ensure_pro_trial_subscription(session, creator)
 
         assert result is None
         # No platform-org Customer or Subscription should exist.
@@ -79,7 +79,7 @@ class TestEnsureFreeSubscription:
         platform_org = await create_organization(save_fixture)
         _patch_platform_org_id(mocker, platform_org.id)
 
-        result = await platform_billing.ensure_free_subscription(
+        result = await platform_billing.ensure_pro_trial_subscription(
             session, platform_org
         )
 
@@ -89,7 +89,7 @@ class TestEnsureFreeSubscription:
         ).scalar_one()
         assert customer_count == 0
 
-    async def test_missing_free_product_raises(
+    async def test_missing_pro_product_raises(
         self,
         mocker: MockerFixture,
         session: AsyncSession,
@@ -100,7 +100,7 @@ class TestEnsureFreeSubscription:
         _patch_platform_org_id(mocker, platform_org.id)
 
         with pytest.raises(TierProductMissing):
-            await platform_billing.ensure_free_subscription(session, creator)
+            await platform_billing.ensure_pro_trial_subscription(session, creator)
 
     async def test_creates_customer_and_active_subscription(
         self,
@@ -111,16 +111,16 @@ class TestEnsureFreeSubscription:
         platform_org = await create_organization(save_fixture)
         creator = await create_organization(save_fixture)
         _patch_platform_org_id(mocker, platform_org.id)
-        free_product = await _seed_tier_product(
-            save_fixture, platform_org=platform_org, tier=TierKey.free.value
+        pro_product = await _seed_tier_product(
+            save_fixture, platform_org=platform_org, tier=TierKey.pro.value
         )
 
-        subscription = await platform_billing.ensure_free_subscription(
+        subscription = await platform_billing.ensure_pro_trial_subscription(
             session, creator
         )
 
         assert subscription is not None
-        assert subscription.product_id == free_product.id
+        assert subscription.product_id == pro_product.id
         assert subscription.status == SubscriptionStatus.active
         assert subscription.amount == 0
         assert subscription.net_amount == 0
@@ -147,13 +147,13 @@ class TestEnsureFreeSubscription:
         creator = await create_organization(save_fixture)
         _patch_platform_org_id(mocker, platform_org.id)
         await _seed_tier_product(
-            save_fixture, platform_org=platform_org, tier=TierKey.free.value
+            save_fixture, platform_org=platform_org, tier=TierKey.pro.value
         )
 
-        first = await platform_billing.ensure_free_subscription(session, creator)
+        first = await platform_billing.ensure_pro_trial_subscription(session, creator)
         assert first is not None
 
-        second = await platform_billing.ensure_free_subscription(session, creator)
+        second = await platform_billing.ensure_pro_trial_subscription(session, creator)
         assert second is not None
         assert second.id == first.id
 
@@ -205,25 +205,25 @@ class TestEnsureFreeSubscription:
         session: AsyncSession,
         save_fixture: SaveFixture,
     ) -> None:
-        """If an org already has any active platform sub (Free, Pro, etc.),
-        a later call with a different tier returns the existing one rather
-        than creating a duplicate. Prevents the grandfather script from
-        downgrading orgs that signed up under PR 4 first."""
+        """If an org already has any active platform sub (Pro trial, Studio,
+        etc.), a later call with a different tier returns the existing one
+        rather than creating a duplicate. Prevents the grandfather script
+        from downgrading orgs that signed up under PR 4 first."""
         platform_org = await create_organization(save_fixture)
         creator = await create_organization(save_fixture)
         _patch_platform_org_id(mocker, platform_org.id)
         await _seed_tier_product(
-            save_fixture, platform_org=platform_org, tier=TierKey.free.value
+            save_fixture, platform_org=platform_org, tier=TierKey.pro.value
         )
         await _seed_tier_product(
             save_fixture, platform_org=platform_org, tier=TierKey.legacy.value
         )
 
         first = await platform_billing.ensure_subscription(
-            session, creator, tier=TierKey.free
+            session, creator, tier=TierKey.pro
         )
         assert first is not None
-        assert first.product.user_metadata["tier"] == "free"
+        assert first.product.user_metadata["tier"] == "pro"
 
         second = await platform_billing.ensure_subscription(
             session,
@@ -233,8 +233,8 @@ class TestEnsureFreeSubscription:
         )
         assert second is not None
         assert second.id == first.id
-        # Still on Free, not "downgraded" to Legacy.
-        assert second.product.user_metadata["tier"] == "free"
+        # Still on Pro, not "downgraded" to Legacy.
+        assert second.product.user_metadata["tier"] == "pro"
 
     async def test_reuses_existing_customer_when_subscription_is_missing(
         self,
@@ -248,7 +248,7 @@ class TestEnsureFreeSubscription:
         creator = await create_organization(save_fixture)
         _patch_platform_org_id(mocker, platform_org.id)
         await _seed_tier_product(
-            save_fixture, platform_org=platform_org, tier=TierKey.free.value
+            save_fixture, platform_org=platform_org, tier=TierKey.pro.value
         )
 
         existing_customer = Customer(
@@ -259,7 +259,7 @@ class TestEnsureFreeSubscription:
         )
         await save_fixture(existing_customer)
 
-        subscription = await platform_billing.ensure_free_subscription(
+        subscription = await platform_billing.ensure_pro_trial_subscription(
             session, creator
         )
 

@@ -120,7 +120,7 @@ class Entitlements(Schema):
         description="API rate-limit group assigned to this tier."
     )
     monthly_price_cents: int = Field(
-        description="Monthly Spaire subscription price, in cents (0 = Free or Legacy)."
+        description="Monthly Spaire subscription price, in cents (0 = Legacy)."
     )
 
     @classmethod

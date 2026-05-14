@@ -30,7 +30,7 @@ from polar.postgres import AsyncSession
 log: structlog.stdlib.BoundLogger = structlog.get_logger()
 
 
-_UPGRADEABLE_TIERS = (TierKey.pro, TierKey.scale)
+_UPGRADEABLE_TIERS = (TierKey.pro, TierKey.studio, TierKey.scale)
 
 
 class PlatformUpgradeError(PolarError): ...
@@ -40,7 +40,7 @@ class TierNotUpgradeable(PlatformUpgradeError):
     def __init__(self, tier: TierKey) -> None:
         super().__init__(
             f"Tier '{tier.value}' is not a valid upgrade target. "
-            "Use 'pro' or 'scale'.",
+            "Use 'pro', 'studio', or 'scale'.",
             400,
         )
 
@@ -147,9 +147,9 @@ class PlatformUpgradeService:
             await session.flush()
 
         # If the customer has an active subscription, it must currently be
-        # on a Free or Legacy product. The CheckoutProductCreate path uses
-        # `subscription_id` to upgrade in-place; it requires the existing
-        # subscription to be on free pricing.
+        # on a Legacy product or in a trialing state on one of the paid
+        # tiers. The CheckoutProductCreate path uses `subscription_id` to
+        # upgrade / convert the trial in-place.
         subscription_repo = platform_subscription_repository(session)
         existing_sub = await subscription_repo.get_active_for_customer(customer.id)
 
@@ -160,16 +160,22 @@ class PlatformUpgradeService:
                 if existing_sub.product is not None
                 else None
             )
-            if existing_tier in (TierKey.free.value, TierKey.legacy.value):
+            if existing_tier == TierKey.legacy.value:
+                existing_subscription_id = existing_sub.id
+            elif existing_sub.trialing:
+                # Trial conversion: upgrade-checkout captures the payment
+                # method and converts the trialing subscription in-place
+                # to whichever tier the customer picked at checkout.
                 existing_subscription_id = existing_sub.id
             elif existing_tier == tier.value:
                 # Already on the requested tier — surface as 409 so the
                 # frontend can refresh and show the existing subscription.
                 raise AlreadyOnPaidTier()
             else:
-                # Pro <-> Scale switches use subscription.update_product,
-                # not the upgrade checkout path. Surface clearly so the
-                # frontend can route to the right flow.
+                # Switches between paid tiers (Pro <-> Studio <-> Scale)
+                # use subscription.update_product, not the upgrade checkout
+                # path. Surface clearly so the frontend can route to the
+                # right flow.
                 raise AlreadyOnPaidTier()
 
         # Use model_validate so pydantic coerces success_url (a plain str)

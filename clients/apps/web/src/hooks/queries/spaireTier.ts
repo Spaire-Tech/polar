@@ -23,7 +23,9 @@ const platformApi = api as unknown as any
 // Types — mirror polar/platform/schemas.py
 // -----------------------------------------------------------------------------
 
-export type SpaireTierKey = 'free' | 'pro' | 'scale' | 'legacy'
+export type SpaireTierKey = 'pro' | 'studio' | 'scale' | 'legacy'
+
+export type PaidTierKey = 'pro' | 'studio' | 'scale'
 
 export interface TransactionFee {
   percent_basis_points: number
@@ -170,7 +172,7 @@ export const useCreateUpgradeCheckout = (organizationId: string) => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (input: {
-      tier: 'pro' | 'scale'
+      tier: PaidTierKey
       success_url?: string
       billing_email?: string
     }): Promise<UpgradeCheckout> => {
@@ -195,7 +197,7 @@ export const useCreateUpgradeCheckout = (organizationId: string) => {
 export const useSwitchSpairePlan = (organizationId: string) => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (input: { tier: 'pro' | 'scale' }) => {
+    mutationFn: async (input: { tier: PaidTierKey }) => {
       const { data, error } = await platformApi.POST(
         '/v1/platform/organizations/{organization_id}/switch-plan',
         {
@@ -258,7 +260,7 @@ export const useCreateCustomerPortalSession = (organizationId: string) =>
 // -----------------------------------------------------------------------------
 
 export const formatMonthlyPrice = (cents: number, currency = 'usd'): string => {
-  if (cents === 0) return 'Free'
+  if (cents === 0) return '$0'
   const dollars = cents / 100
   const formatter = new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -277,8 +279,8 @@ export const formatTransactionFee = (fee: TransactionFee): string => {
 }
 
 const TIER_DISPLAY_NAME: Record<SpaireTierKey, string> = {
-  free: 'Free',
   pro: 'Pro',
+  studio: 'Studio',
   scale: 'Scale',
   legacy: 'Legacy',
 }

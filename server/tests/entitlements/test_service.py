@@ -120,8 +120,8 @@ class TestGetTier:
     @pytest.mark.parametrize(
         "tier_label,expected,monthly_cents",
         [
-            ("free", TierKey.free, 0),
             ("pro", TierKey.pro, 4900),
+            ("studio", TierKey.studio, 12900),
             ("scale", TierKey.scale, 29900),
         ],
     )
@@ -298,19 +298,20 @@ class TestGetForOrganization:
 class TestTierDefinitions:
     """Smoke-test the static tier definitions to guard the pricing-page contract."""
 
-    def test_free_shape(self) -> None:
+    def test_studio_shape(self) -> None:
         from polar.entitlements.tiers import get_definition
 
-        free = get_definition(TierKey.free)
-        assert free.monthly_price_cents == 0
-        assert free.transaction_fee.percent_basis_points == 500
-        assert free.transaction_fee.fixed_cents == 50
-        assert free.limits.published_courses == 1
-        assert free.limits.lessons_per_course == 10
-        assert free.limits.video_hours_hosted == 5
-        assert free.limits.email_sends_monthly == 5000
-        assert free.features.email_sequences_and_segments is False
-        assert free.features.custom_pricing_negotiation is False
+        studio = get_definition(TierKey.studio)
+        assert studio.monthly_price_cents == 12900
+        assert studio.transaction_fee.percent_basis_points == 380
+        assert studio.transaction_fee.fixed_cents == 35
+        assert studio.limits.published_courses is None
+        assert studio.limits.video_hours_hosted == 200
+        assert studio.limits.email_sends_monthly == 1_000_000
+        assert studio.limits.dashboard_team_seats == 15
+        assert studio.features.white_label_course_player is True
+        assert studio.features.customer_wallet is True
+        assert studio.features.custom_pricing_negotiation is False
 
     def test_pro_shape(self) -> None:
         from polar.entitlements.tiers import get_definition

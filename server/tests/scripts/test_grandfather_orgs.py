@@ -106,26 +106,26 @@ class TestGrandfatherOrganizations:
         save_fixture: SaveFixture,
     ) -> None:
         """An org that already has any active platform-org subscription
-        (e.g. a Free sub created by PR 4) must not be touched."""
+        (e.g. a Pro trial created by the org-create hook) must not be touched."""
         platform_org = await create_organization(save_fixture)
         _patch_platform_org_id(mocker, platform_org.id)
-        free_product = await _seed_tier_product(
-            save_fixture, platform_org=platform_org, tier=TierKey.free.value
+        pro_product = await _seed_tier_product(
+            save_fixture, platform_org=platform_org, tier=TierKey.pro.value
         )
         await _seed_tier_product(
             save_fixture, platform_org=platform_org, tier=TierKey.legacy.value
         )
 
-        already_on_free = await create_organization(save_fixture)
+        already_on_pro = await create_organization(save_fixture)
         existing_customer = await create_customer(
             save_fixture,
             organization=platform_org,
-            email=f"creator-{already_on_free.id}@billing.spaire",
-            user_metadata={"creator_org_id": str(already_on_free.id)},
+            email=f"creator-{already_on_pro.id}@billing.spaire",
+            user_metadata={"creator_org_id": str(already_on_pro.id)},
         )
         await create_subscription(
             save_fixture,
-            product=free_product,
+            product=pro_product,
             customer=existing_customer,
             status=SubscriptionStatus.active,
         )
@@ -142,7 +142,7 @@ class TestGrandfatherOrganizations:
         assert stats.already_subscribed == 1
         assert stats.grandfathered == 1
 
-        # The already-on-Free org's subscription is unchanged (still on Free,
+        # The already-on-Pro org's subscription is unchanged (still on Pro,
         # not downgraded to Legacy).
         unchanged = (
             await session.execute(
@@ -152,7 +152,7 @@ class TestGrandfatherOrganizations:
             )
         ).scalars().all()
         assert len(unchanged) == 1
-        assert unchanged[0].product_id == free_product.id
+        assert unchanged[0].product_id == pro_product.id
 
         # The other org got grandfathered.
         new_customer = (

@@ -71,13 +71,15 @@ async def organization_created(organization_id: uuid.UUID) -> None:
         if organization is None:
             raise OrganizationDoesNotExist(organization_id)
 
-        # Auto-subscribe the new org to Spaire's Free plan. Best-effort:
-        # never block org creation if the platform org isn't configured
-        # or its products aren't seeded — the EntitlementsService falls
-        # back to legacy entitlements when no subscription exists, so
-        # the creator can still use the product.
+        # Start the new org on a 14-day Pro trial. Best-effort: never
+        # block org creation if the platform org isn't configured or its
+        # products aren't seeded — the EntitlementsService falls back to
+        # legacy entitlements when no subscription exists, so the creator
+        # can still use the product.
         try:
-            await platform_billing.ensure_free_subscription(session, organization)
+            await platform_billing.ensure_pro_trial_subscription(
+                session, organization
+            )
         except TierProductMissing as e:
             log.warning(
                 "organization.created.platform_billing_skipped",

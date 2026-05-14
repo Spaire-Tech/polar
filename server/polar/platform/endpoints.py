@@ -1,16 +1,16 @@
 """Dashboard-facing endpoints for Spaire's own platform billing.
 
   GET  /v1/platform/plans
-      Lists Free/Pro/Scale with their pricing and entitlements.
+      Lists Pro/Studio/Scale with their pricing and entitlements.
 
   GET  /v1/platform/organizations/{organization_id}/subscription
       Current Spaire subscription state for a creator org plus the
       resolved entitlements.
 
   POST /v1/platform/organizations/{organization_id}/upgrade-checkout
-      Starts a Polar checkout for the target Pro/Scale tier. Returns
-      a URL the creator visits to enter their card and complete the
-      upgrade.
+      Starts a Polar checkout for the target Pro/Studio/Scale tier.
+      Returns a URL the creator visits to enter their card and complete
+      the upgrade.
 """
 
 from datetime import datetime
@@ -64,16 +64,16 @@ from .upgrade import platform_upgrade
 router = APIRouter(prefix="/platform", tags=["platform", APITag.private])
 
 
-_PLAN_TIERS = (TierKey.free, TierKey.pro, TierKey.scale)
+_PLAN_TIERS = (TierKey.pro, TierKey.studio, TierKey.scale)
 _TIER_NAMES = {
-    TierKey.free: "Spaire Free",
     TierKey.pro: "Spaire Pro",
+    TierKey.studio: "Spaire Studio",
     TierKey.scale: "Spaire Scale",
 }
 _TIER_TRIAL_DAYS = {
-    TierKey.free: None,
     TierKey.pro: 14,
-    TierKey.scale: None,
+    TierKey.studio: 14,
+    TierKey.scale: 14,
 }
 
 
@@ -109,7 +109,7 @@ async def list_plans(
     auth_subject: auth.PlatformRead,
     session: AsyncReadSession = Depends(get_db_read_session),
 ) -> TierPlanList:
-    """Return the three subscribable Spaire plans (Free, Pro, Scale)
+    """Return the three subscribable Spaire plans (Pro, Studio, Scale)
     with their list pricing, trial config, and entitlements.
 
     Used by the dashboard to render the upgrade modal.
@@ -273,10 +273,10 @@ async def switch_plan(
     session: AsyncSession = Depends(get_db_session),
 ) -> SubscriptionSchema:
     """Switch a creator's current Spaire subscription from one paid tier
-    to another (Pro <-> Scale). The card on file is reused; proration is
-    invoiced immediately. Use the upgrade-checkout endpoint to start a
-    paid subscription from Free, and the cancel endpoint to downgrade
-    to Free.
+    to another (Pro <-> Studio <-> Scale). The card on file is reused;
+    proration is invoiced immediately. Use the upgrade-checkout endpoint
+    to convert a trialing or Legacy subscription, and the cancel endpoint
+    to end the paid subscription (org falls back to Legacy).
     """
     org_repository = OrganizationRepository.from_session(session)
     readable = org_repository.get_readable_statement(auth_subject).where(
@@ -306,9 +306,10 @@ async def cancel_subscription(
 ) -> SubscriptionSchema:
     """Schedule the creator's current paid Spaire subscription to cancel
     at the end of the current billing period. When the subscription
-    revokes the org is automatically re-subscribed to Free.
+    revokes the org is automatically re-subscribed to Legacy (no charge,
+    no enforcement).
 
-    Canceling on Free is a no-op (the Free subscription stays active).
+    Canceling on Legacy is a no-op (the Legacy subscription stays active).
     """
     _ = body  # Body kept for future cancel-reason capture.
     org_repository = OrganizationRepository.from_session(session)

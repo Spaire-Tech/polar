@@ -5,6 +5,7 @@ import { toast } from '@/components/Toast/use-toast'
 import {
   formatMonthlyPrice,
   formatTransactionFee,
+  PaidTierKey,
   SpaireTierKey,
   TierPlan,
   useCreateUpgradeCheckout,
@@ -22,14 +23,15 @@ interface SpaireTierUpgradeModalProps {
   organizationId: string
   hide: () => void
   // When provided, the modal opens with this tier highlighted.
-  defaultTier?: 'pro' | 'scale'
+  defaultTier?: PaidTierKey
 }
 
 /**
- * Side-by-side comparison of Free / Pro / Scale plans, laid out as a
+ * Side-by-side comparison of Pro / Studio / Scale plans, laid out as a
  * vertical list of plan rows inside the InlineModal side panel. The
  * panel is 540px wide by default which is too narrow for a 3-column
- * card grid; stacking rows keeps each plan readable.
+ * card grid; stacking rows keeps each plan readable. Every paid tier
+ * comes with a 14-day free trial so the CTA stays consistent.
  */
 const SpaireTierUpgradeModal = ({
   organizationId,
@@ -40,16 +42,16 @@ const SpaireTierUpgradeModal = ({
   const plans = useSpairePlans()
   const subscription = useSpaireSubscription(organizationId)
   const createCheckout = useCreateUpgradeCheckout(organizationId)
-  const [selected, setSelected] = useState<'pro' | 'scale'>(defaultTier)
+  const [selected, setSelected] = useState<PaidTierKey>(defaultTier)
 
   const currentTier: SpaireTierKey | undefined = subscription.data?.tier
 
-  // Order: Free, Pro, Scale. Drop Legacy from the comparison — it's
+  // Order: Pro, Studio, Scale. Drop Legacy from the comparison — it's
   // not a selectable upgrade target.
   const ordered = useMemo(() => {
     if (!plans.data?.items) return []
     const map = new Map(plans.data.items.map((p) => [p.tier, p]))
-    return (['free', 'pro', 'scale'] as const)
+    return (['pro', 'studio', 'scale'] as const)
       .map((t) => map.get(t))
       .filter((p): p is TierPlan => Boolean(p))
   }, [plans.data])
@@ -106,8 +108,8 @@ const SpaireTierUpgradeModal = ({
                 isCurrent={plan.tier === currentTier}
                 isSelected={plan.tier === selected}
                 onSelect={() => {
-                  if (plan.tier === 'free') return
-                  setSelected(plan.tier as 'pro' | 'scale')
+                  if (plan.tier === 'legacy') return
+                  setSelected(plan.tier as PaidTierKey)
                 }}
               />
             ))}
@@ -137,8 +139,16 @@ const SpaireTierUpgradeModal = ({
   )
 }
 
-const tierLabel = (tier: 'pro' | 'scale') =>
-  tier === 'pro' ? 'Pro' : 'Scale'
+const tierLabel = (tier: PaidTierKey): string => {
+  switch (tier) {
+    case 'pro':
+      return 'Pro'
+    case 'studio':
+      return 'Studio'
+    case 'scale':
+      return 'Scale'
+  }
+}
 
 interface PlanRowProps {
   plan: TierPlan
@@ -148,8 +158,9 @@ interface PlanRowProps {
 }
 
 const PlanRow = ({ plan, isCurrent, isSelected, onSelect }: PlanRowProps) => {
-  const isFree = plan.tier === 'free'
-  const clickable = !isFree
+  // Only Legacy is non-selectable (no upgrade target). Pro/Studio/Scale
+  // are all paid and clickable.
+  const clickable = plan.tier !== 'legacy'
 
   // Pick the 5 most-differentiating features to keep the row compact.
   const highlights: Array<{ on: boolean; label: string }> = [

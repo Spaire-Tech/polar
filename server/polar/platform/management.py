@@ -1,7 +1,7 @@
 """Server-side helpers for managing an existing Spaire subscription:
-switching between paid tiers (Pro <-> Scale) and canceling a paid
-subscription. Cancellation triggers auto-resubscribe-to-Free via
-polar.platform.fee_sync.maybe_enqueue_resubscribe_from_revoke when
+switching between paid tiers (Pro <-> Studio <-> Scale) and canceling
+a paid subscription. Cancellation triggers auto-resubscribe-to-Legacy
+via polar.platform.fee_sync.maybe_enqueue_resubscribe_from_revoke when
 the subscription actually revokes.
 """
 
@@ -24,7 +24,7 @@ from polar.subscription.service import subscription as subscription_service
 log: structlog.stdlib.BoundLogger = structlog.get_logger()
 
 
-_PAID_TIERS = (TierKey.pro, TierKey.scale)
+_PAID_TIERS = (TierKey.pro, TierKey.studio, TierKey.scale)
 
 
 class PlatformManagementError(PolarError): ...
@@ -46,10 +46,10 @@ class CannotSwitchToSameTier(PlatformManagementError):
         )
 
 
-class CannotSwitchToFree(PlatformManagementError):
+class CannotSwitchToNonPaidTier(PlatformManagementError):
     def __init__(self) -> None:
         super().__init__(
-            "Use the cancel endpoint to downgrade to Free.",
+            "Use the cancel endpoint to end your paid Spaire subscription.",
             400,
         )
 
@@ -109,22 +109,23 @@ class PlatformManagementService:
         organization: Organization,
         target_tier: TierKey,
     ) -> Subscription:
-        """Switch a creator org from one paid tier to another (Pro <-> Scale).
+        """Switch a creator org from one paid tier to another (Pro <-> Studio
+        <-> Scale).
 
         Uses subscription.update_product directly (no checkout needed —
         the customer's card is already on file). Proration is invoice-
         immediately so the customer sees the change on their next bill.
         """
-        if target_tier == TierKey.free or target_tier == TierKey.legacy:
-            raise CannotSwitchToFree()
+        if target_tier == TierKey.legacy:
+            raise CannotSwitchToNonPaidTier()
         if target_tier not in _PAID_TIERS:
-            raise CannotSwitchToFree()
+            raise CannotSwitchToNonPaidTier()
 
         resolved = await _resolve_active(session, organization)
 
         if resolved.current_tier not in _PAID_TIERS:
-            # Free -> paid goes through checkout, not update_product, since
-            # no card is on file yet. Surface a 409 with a hint.
+            # Legacy / trial -> paid goes through checkout, not update_product,
+            # since no card is on file yet. Surface a 409 with a hint.
             raise SwitchRequiresPaidTier()
 
         if resolved.current_tier == target_tier:
@@ -163,13 +164,13 @@ class PlatformManagementService:
     ) -> Subscription:
         """Schedule the creator org's paid Spaire subscription to cancel
         at the end of the current billing period. When the subscription
-        revokes, the platform.resubscribe_to_free actor will create a
-        fresh Free subscription so the org keeps a valid tier record.
+        revokes, the platform.resubscribe_to_legacy actor creates a fresh
+        Legacy subscription so the org keeps a valid tier record.
         """
         resolved = await _resolve_active(session, organization)
 
         if resolved.current_tier not in _PAID_TIERS:
-            # Cancelling Free has no effect — they already have no payment
+            # Cancelling Legacy has no effect — there's no payment
             # liability. Surface as a no-op success rather than an error.
             return resolved.subscription
 

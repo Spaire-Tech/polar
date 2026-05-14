@@ -1,5 +1,5 @@
-"""Seed the Free/Pro/Scale subscription products and overage meters in the
-Spaire platform organization.
+"""Seed the Pro/Studio/Scale subscription products and overage meters in
+the Spaire platform organization.
 
 Idempotent: re-running updates existing rows in place rather than creating
 duplicates. Products and meters are identified by metadata tier key and
@@ -75,7 +75,7 @@ def typer_async(f):  # type: ignore
 
 
 # ---------------------------------------------------------------------------
-# Specs — the source of truth for what Spaire Free/Pro/Scale look like.
+# Specs — the source of truth for what Spaire Pro/Studio/Scale look like.
 # ---------------------------------------------------------------------------
 
 
@@ -159,7 +159,7 @@ class PriceSpec:
 
 @dataclass(frozen=True)
 class ProductSpec:
-    tier: str  # "free" | "pro" | "scale" — stamped onto user_metadata["tier"]
+    tier: str  # "pro" | "studio" | "scale" | "legacy" — stamped onto user_metadata["tier"]
     name: str
     description: str
     recurring_interval: SubscriptionRecurringInterval
@@ -181,22 +181,12 @@ PRODUCT_SPECS: list[ProductSpec] = [
         price=PriceSpec(amount_type=ProductPriceAmountType.free),
     ),
     ProductSpec(
-        tier="free",
-        name="Spaire Free",
-        description=(
-            "Get started for free. 5% + $0.50 per transaction. "
-            "1 published course, 1,000 email subscribers, 5,000 sends/month."
-        ),
-        recurring_interval=SubscriptionRecurringInterval.month,
-        price=PriceSpec(amount_type=ProductPriceAmountType.free),
-    ),
-    ProductSpec(
         tier="pro",
         name="Spaire Pro",
         description=(
-            "Grow your business. $49/month + 4% + $0.40 per transaction. "
+            "For solo creators. $49/month + 4% + $0.40 per transaction. "
             "Unlimited courses, email sequences, custom email sender domain, "
-            "B2B seat-based pricing, embedded checkout, customer wallet."
+            "B2B seat-based pricing, embedded checkout. 14-day free trial."
         ),
         recurring_interval=SubscriptionRecurringInterval.month,
         price=PriceSpec(
@@ -206,19 +196,36 @@ PRODUCT_SPECS: list[ProductSpec] = [
         trial=TrialSpec(interval=TrialInterval.day, count=14),
     ),
     ProductSpec(
+        tier="studio",
+        name="Spaire Studio",
+        description=(
+            "For small teams. $129/month + 3.8% + $0.35 per transaction. "
+            "Everything in Pro plus white-label course player, customer "
+            "wallet, 15 team seats, and higher quotas (200 video hours, "
+            "1M monthly email sends, 100GB storage). 14-day free trial."
+        ),
+        recurring_interval=SubscriptionRecurringInterval.month,
+        price=PriceSpec(
+            amount_type=ProductPriceAmountType.fixed,
+            price_amount_cents=12900,
+        ),
+        trial=TrialSpec(interval=TrialInterval.day, count=14),
+    ),
+    ProductSpec(
         tier="scale",
         name="Spaire Scale",
         description=(
-            "For high-volume businesses. $299/month + 3.5% + $0.30 per "
+            "For established businesses. $299/month + 3.5% + $0.30 per "
             "transaction, with custom pricing available above $50,000/month "
-            "GMV. White-label course player, sandbox/test mode, dedicated "
-            "support."
+            "GMV. Unlimited everything, sandbox/test mode, audit logs, "
+            "dedicated support. 14-day free trial."
         ),
         recurring_interval=SubscriptionRecurringInterval.month,
         price=PriceSpec(
             amount_type=ProductPriceAmountType.fixed,
             price_amount_cents=29900,
         ),
+        trial=TrialSpec(interval=TrialInterval.day, count=14),
     ),
 ]
 
@@ -445,8 +452,8 @@ def _format_billing_type(spec: ProductSpec) -> str:
 
 @cli.command(
     help=(
-        "Seed Free/Pro/Scale subscription products and overage meters in the "
-        "platform organization."
+        "Seed Pro/Studio/Scale subscription products and overage meters in "
+        "the platform organization."
     )
 )
 @typer_async

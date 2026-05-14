@@ -53,7 +53,7 @@ class CurrentSpaireSubscription(Schema):
         )
     )
     monthly_price_cents: int = Field(
-        description="Recurring monthly cost in cents (0 for Free/Legacy)."
+        description="Recurring monthly cost in cents (0 for Legacy)."
     )
     currency: str = Field(default="usd")
     current_period_end: datetime | None = Field(
@@ -70,7 +70,7 @@ class CurrentSpaireSubscription(Schema):
 
 class UpgradeCheckoutCreate(Schema):
     tier: TierKey = Field(
-        description="Target tier to upgrade to (must be Pro or Scale)."
+        description="Target tier to upgrade to (must be Pro, Studio, or Scale)."
     )
     success_url: str | None = Field(
         default=None,
@@ -101,8 +101,8 @@ class SwitchPlan(Schema):
     tier: TierKey = Field(
         description=(
             "Target tier. Must be a different paid tier than the current "
-            "one (e.g. pro -> scale or scale -> pro). Use the cancel "
-            "endpoint to downgrade to Free."
+            "one (e.g. pro -> studio, studio -> scale). Use the cancel "
+            "endpoint to end your paid subscription."
         )
     )
 
@@ -110,7 +110,7 @@ class SwitchPlan(Schema):
 class CancelSpaireSubscription(Schema):
     """Schedule the current Spaire subscription for cancellation at the
     end of the current billing period. The org will be auto-resubscribed
-    to Free when the cancellation revokes."""
+    to Legacy (no charge, no enforcement) when the cancellation revokes."""
 
     pass
 

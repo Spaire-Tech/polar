@@ -147,25 +147,25 @@ class TestSeedPlatformProducts:
             )
         await session.flush()
 
-        # Free
-        free = (
+        # Legacy — $0, no trial, grandfather-only
+        legacy = (
             await session.execute(
                 select(Product)
                 .where(Product.organization_id == platform_org.id)
-                .where(Product.user_metadata["tier"].astext == "free")
+                .where(Product.user_metadata["tier"].astext == "legacy")
             )
         ).scalar_one()
-        assert free.name == "Spaire Free"
-        assert free.trial_interval is None
-        free_price = (
+        assert legacy.name == "Spaire Legacy"
+        assert legacy.trial_interval is None
+        legacy_price = (
             await session.execute(
                 select(ProductPrice)
-                .where(ProductPrice.product_id == free.id)
+                .where(ProductPrice.product_id == legacy.id)
                 .where(ProductPrice.is_archived.is_(False))
             )
         ).scalar_one()
-        assert isinstance(free_price, ProductPriceFree)
-        assert free_price.amount_type == ProductPriceAmountType.free
+        assert isinstance(legacy_price, ProductPriceFree)
+        assert legacy_price.amount_type == ProductPriceAmountType.free
 
         # Pro — $49/mo, 14-day trial
         pro = (
@@ -189,7 +189,28 @@ class TestSeedPlatformProducts:
         assert pro_price.price_amount == 4900
         assert pro_price.price_currency == "usd"
 
-        # Scale — $299/mo, no trial
+        # Studio — $129/mo, 14-day trial
+        studio = (
+            await session.execute(
+                select(Product)
+                .where(Product.organization_id == platform_org.id)
+                .where(Product.user_metadata["tier"].astext == "studio")
+            )
+        ).scalar_one()
+        assert studio.name == "Spaire Studio"
+        assert studio.trial_interval is not None
+        assert studio.trial_interval_count == 14
+        studio_price = (
+            await session.execute(
+                select(ProductPrice)
+                .where(ProductPrice.product_id == studio.id)
+                .where(ProductPrice.is_archived.is_(False))
+            )
+        ).scalar_one()
+        assert isinstance(studio_price, ProductPriceFixed)
+        assert studio_price.price_amount == 12900
+
+        # Scale — $299/mo, 14-day trial
         scale = (
             await session.execute(
                 select(Product)
@@ -198,7 +219,8 @@ class TestSeedPlatformProducts:
             )
         ).scalar_one()
         assert scale.name == "Spaire Scale"
-        assert scale.trial_interval is None
+        assert scale.trial_interval is not None
+        assert scale.trial_interval_count == 14
         scale_price = (
             await session.execute(
                 select(ProductPrice)

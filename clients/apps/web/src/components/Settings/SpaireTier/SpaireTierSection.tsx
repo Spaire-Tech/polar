@@ -7,6 +7,7 @@ import {
   CurrentSpaireSubscription,
   formatMonthlyPrice,
   formatTransactionFee,
+  PaidTierKey,
   tierDisplayName,
   useCancelSpaireSubscription,
   useCreateCustomerPortalSession,
@@ -33,29 +34,27 @@ interface SpaireTierSectionProps {
  * and how do I upgrade/cancel" card that lives in Settings → Billing.
  *
  * This is creator-facing UI for the platform-org subscription created
- * by polar/platform/billing.py. Free / Pro / Scale / Legacy correspond
+ * by polar/platform/billing.py. Pro / Studio / Scale / Legacy correspond
  * to the tier products seeded by `uv run task seed_platform_products`.
  */
 const SpaireTierSection = ({ organization }: SpaireTierSectionProps) => {
   const subscription = useSpaireSubscription(organization.id)
   const upgrade = useModal()
   const confirmCancel = useModal()
-  const [pendingTarget, setPendingTarget] = useState<'pro' | 'scale' | null>(
-    null,
-  )
+  const [pendingTarget, setPendingTarget] = useState<PaidTierKey | null>(null)
 
   const switchPlan = useSwitchSpairePlan(organization.id)
   const cancelSub = useCancelSpaireSubscription(organization.id)
   const customerPortal = useCreateCustomerPortalSession(organization.id)
 
   const onSwitch = useCallback(
-    async (tier: 'pro' | 'scale') => {
+    async (tier: PaidTierKey) => {
       setPendingTarget(tier)
       try {
         await switchPlan.mutateAsync({ tier })
         toast({
           title: 'Plan switched',
-          description: `You're now on Spaire ${tier === 'pro' ? 'Pro' : 'Scale'}.`,
+          description: `You're now on Spaire ${tierDisplayName(tier)}.`,
         })
       } catch (err) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -77,7 +76,7 @@ const SpaireTierSection = ({ organization }: SpaireTierSectionProps) => {
       toast({
         title: 'Subscription canceled',
         description:
-          'Your Spaire subscription will end at the close of the current billing period. Your org will be re-enrolled on Free automatically.',
+          'Your Spaire subscription will end at the close of the current billing period. Your org will be moved to the Legacy plan automatically.',
       })
       confirmCancel.hide()
     } catch (err) {
@@ -151,9 +150,7 @@ const SpaireTierSection = ({ organization }: SpaireTierSectionProps) => {
           <SpaireTierUpgradeModal
             organizationId={organization.id}
             hide={upgrade.hide}
-            defaultTier={
-              subscription.data?.tier === 'pro' ? 'scale' : 'pro'
-            }
+            defaultTier={defaultUpgradeTarget(subscription.data?.tier)}
           />
         }
       />
@@ -166,8 +163,8 @@ const SpaireTierSection = ({ organization }: SpaireTierSectionProps) => {
           subscription.data?.current_period_end
             ? `Your plan stays active through ${new Date(
                 subscription.data.current_period_end,
-              ).toLocaleDateString()}. After that you'll be re-enrolled on the Free plan automatically.`
-            : 'Your plan will be canceled at the end of the current billing period and you will be re-enrolled on Free.'
+              ).toLocaleDateString()}. After that your org moves to the Legacy plan automatically.`
+            : 'Your plan will be canceled at the end of the current billing period and your org will be moved to Legacy.'
         }
         destructiveText="Yes, cancel"
         destructive
@@ -213,14 +210,43 @@ const PlanSummary = ({ sub }: { sub: CurrentSpaireSubscription }) => {
   )
 }
 
-const describeAction = (sub: CurrentSpaireSubscription): string => {
-  switch (sub.tier) {
-    case 'free':
-      return 'Upgrade to Pro or Scale to unlock higher limits and creator features.'
-    case 'legacy':
-      return "You're on the legacy plan, grandfathered at the pre-tier rate. You can upgrade to Pro or Scale to access the new features."
+const PAID_TIERS: PaidTierKey[] = ['pro', 'studio', 'scale']
+
+const isPaidTier = (tier: CurrentSpaireSubscription['tier']): tier is PaidTierKey =>
+  (PAID_TIERS as string[]).includes(tier)
+
+const defaultUpgradeTarget = (
+  current: CurrentSpaireSubscription['tier'] | undefined,
+): PaidTierKey => {
+  // Pre-select the next tier up so the modal CTA matches the user's
+  // most likely intent. From Pro / Studio that's the next paid step;
+  // from Scale or Legacy we fall back to Pro (the entry point).
+  switch (current) {
     case 'pro':
-      return 'Switch to Scale for unlimited everything, or manage your payment method and invoices.'
+      return 'studio'
+    case 'studio':
+      return 'scale'
+    default:
+      return 'pro'
+  }
+}
+
+const describeAction = (sub: CurrentSpaireSubscription): string => {
+  if (sub.status === 'trialing') {
+    const trialEnd = sub.trial_end
+      ? new Date(sub.trial_end).toLocaleDateString()
+      : null
+    return trialEnd
+      ? `You're on a free trial of Spaire ${tierDisplayName(sub.tier)} through ${trialEnd}. Add a payment method to keep your access after the trial.`
+      : `You're on a free trial of Spaire ${tierDisplayName(sub.tier)}. Add a payment method to keep your access after the trial.`
+  }
+  switch (sub.tier) {
+    case 'legacy':
+      return "You're on the Legacy plan, grandfathered at the pre-tier rate. Upgrade to Pro, Studio, or Scale to unlock the new pricing and feature set."
+    case 'pro':
+      return 'Switch to Studio or Scale for higher limits, or manage your payment method and invoices.'
+    case 'studio':
+      return 'Switch to Scale for unlimited everything, downgrade to Pro, or manage your payment method.'
     case 'scale':
       return 'Manage your payment method, view invoices, or contact us for volume pricing.'
   }
@@ -228,11 +254,11 @@ const describeAction = (sub: CurrentSpaireSubscription): string => {
 
 interface PlanActionsProps {
   sub: CurrentSpaireSubscription
-  pendingTarget: 'pro' | 'scale' | null
+  pendingTarget: PaidTierKey | null
   isSwitching: boolean
   isPortalLoading: boolean
   onUpgrade: () => void
-  onSwitch: (tier: 'pro' | 'scale') => void
+  onSwitch: (tier: PaidTierKey) => void
   onCancel: () => void
   onOpenPortal: () => void
 }
@@ -247,38 +273,45 @@ const PlanActions = ({
   onCancel,
   onOpenPortal,
 }: PlanActionsProps) => {
-  const isPaid = sub.tier === 'pro' || sub.tier === 'scale'
-  const isFreeish = sub.tier === 'free' || sub.tier === 'legacy'
+  const isPaid = isPaidTier(sub.tier)
+  const isLegacy = sub.tier === 'legacy'
+  const isTrial = sub.status === 'trialing'
+
+  // Trialing creators need to convert through checkout (capture payment
+  // method); legacy creators are starting fresh on the new tier set.
+  const showUpgradeCta = isTrial || isLegacy
+
+  // Other-tier switch buttons: only render the two paid tiers the
+  // creator isn't currently on.
+  const switchTargets: PaidTierKey[] = isPaid
+    ? PAID_TIERS.filter((t) => t !== sub.tier)
+    : []
 
   return (
     <>
-      {isFreeish && (
-        <Button onClick={onUpgrade}>Upgrade to Pro</Button>
+      {showUpgradeCta && (
+        <Button onClick={onUpgrade}>
+          {isTrial ? 'Add payment & keep your plan' : 'Upgrade to Pro'}
+        </Button>
       )}
-      {isFreeish && (
+      {showUpgradeCta && (
         <Button variant="secondary" onClick={onUpgrade}>
           Compare plans
         </Button>
       )}
-      {sub.tier === 'pro' && (
-        <Button
-          onClick={() => onSwitch('scale')}
-          loading={isSwitching && pendingTarget === 'scale'}
-          disabled={isSwitching}
-        >
-          Switch to Scale
-        </Button>
-      )}
-      {sub.tier === 'scale' && (
-        <Button
-          variant="secondary"
-          onClick={() => onSwitch('pro')}
-          loading={isSwitching && pendingTarget === 'pro'}
-          disabled={isSwitching}
-        >
-          Switch to Pro
-        </Button>
-      )}
+      {isPaid &&
+        !isTrial &&
+        switchTargets.map((target, idx) => (
+          <Button
+            key={target}
+            variant={idx === 0 ? 'default' : 'secondary'}
+            onClick={() => onSwitch(target)}
+            loading={isSwitching && pendingTarget === target}
+            disabled={isSwitching}
+          >
+            Switch to {tierDisplayName(target)}
+          </Button>
+        ))}
       {isPaid && (
         <Button
           variant="secondary"
@@ -289,7 +322,7 @@ const PlanActions = ({
           Manage payment <OpenInNewOutlined fontSize="inherit" className="ml-1" />
         </Button>
       )}
-      {isPaid && !sub.cancel_at_period_end && (
+      {isPaid && !isTrial && !sub.cancel_at_period_end && (
         <Button variant="ghost" onClick={onCancel}>
           Cancel plan
         </Button>

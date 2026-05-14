@@ -11,8 +11,8 @@ from polar.config import settings
 
 
 class TierKey(StrEnum):
-    free = "free"
     pro = "pro"
+    studio = "studio"
     scale = "scale"
     # Fallback for orgs that don't have a platform-org subscription yet:
     # either because the platform is not configured (single-tenant /
@@ -85,9 +85,9 @@ class TierEntitlements:
     # The monthly fee Spaire charges for this tier itself (informational —
     # the actual billing is driven by the platform-org subscription).
     monthly_price_cents: int
-    # Soft overage grace above the limit, expressed as a percent. Free
-    # and Legacy use 0% (hard-block at the limit). Pro and Scale use 10%
-    # so creators are not surprised by abrupt blocks when they slightly
+    # Soft overage grace above the limit, expressed as a percent. Legacy
+    # uses 0% (no enforcement anyway). Pro/Studio/Scale use 10% so
+    # creators are not surprised by abrupt blocks when they slightly
     # exceed their cap; the overage is recorded for billing reconciliation.
     overage_grace_pct: int
 
@@ -134,42 +134,6 @@ _LEGACY = TierEntitlements(
 )
 
 
-_FREE = TierEntitlements(
-    tier=TierKey.free,
-    transaction_fee=TransactionFee(percent_basis_points=500, fixed_cents=50),
-    limits=TierLimits(
-        published_courses=1,
-        lessons_per_course=10,
-        video_hours_hosted=5,
-        video_views_monthly=1000,
-        storage_gb=1,
-        email_subscribers=1000,
-        email_sends_monthly=5000,
-        dashboard_team_seats=1,
-    ),
-    features=TierFeatures(
-        drip_scheduling=False,
-        email_sequences_and_segments=False,
-        email_ab_testing=False,
-        stackable_discounts=False,
-        custom_email_sender_domain=False,
-        seat_based_product_pricing=False,
-        cohort_analytics=False,
-        custom_pricing_negotiation=False,
-        customer_wallet=False,
-        white_label_course_player=False,
-        sandbox_mode=False,
-        custom_storefront_domain=False,
-        custom_checkout_domain=False,
-        sso=False,
-        audit_logs=False,
-    ),
-    rate_limit_group="default",
-    monthly_price_cents=0,
-    overage_grace_pct=0,
-)
-
-
 _PRO = TierEntitlements(
     tier=TierKey.pro,
     transaction_fee=TransactionFee(percent_basis_points=400, fixed_cents=40),
@@ -207,6 +171,44 @@ _PRO = TierEntitlements(
     ),
     rate_limit_group="elevated",
     monthly_price_cents=4900,
+    overage_grace_pct=10,
+)
+
+
+_STUDIO = TierEntitlements(
+    tier=TierKey.studio,
+    transaction_fee=TransactionFee(percent_basis_points=380, fixed_cents=35),
+    limits=TierLimits(
+        published_courses=None,
+        lessons_per_course=None,
+        video_hours_hosted=200,
+        video_views_monthly=250_000,
+        storage_gb=100,
+        email_subscribers=100_000,
+        email_sends_monthly=1_000_000,
+        dashboard_team_seats=15,
+    ),
+    features=TierFeatures(
+        drip_scheduling=True,
+        email_sequences_and_segments=True,
+        email_ab_testing=True,
+        # stackable_discounts: roadmap — see Pro definition.
+        stackable_discounts=False,
+        custom_email_sender_domain=True,
+        seat_based_product_pricing=True,
+        # cohort_analytics: roadmap — see Pro definition.
+        cohort_analytics=False,
+        custom_pricing_negotiation=False,
+        customer_wallet=True,
+        white_label_course_player=True,
+        sandbox_mode=False,
+        custom_storefront_domain=False,
+        custom_checkout_domain=False,
+        sso=False,
+        audit_logs=False,
+    ),
+    rate_limit_group="elevated",
+    monthly_price_cents=12900,
     overage_grace_pct=10,
 )
 
@@ -256,8 +258,8 @@ def get_definition(tier: TierKey) -> TierEntitlements:
 
 
 _TIER_DEFINITIONS: dict[TierKey, TierEntitlements] = {
-    TierKey.free: _FREE,
     TierKey.pro: _PRO,
+    TierKey.studio: _STUDIO,
     TierKey.scale: _SCALE,
     TierKey.legacy: _LEGACY,
 }

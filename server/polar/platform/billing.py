@@ -1,5 +1,5 @@
 """Platform-side billing: subscribe creator organizations to Spaire's own
-Free/Pro/Scale plans.
+Pro/Studio/Scale plans.
 
 This is the write counterpart to polar.entitlements.service (read-only).
 Spaire is itself an Organization (the "platform org"); every creator org
@@ -8,6 +8,7 @@ the platform's products. This module manages that linkage.
 """
 
 import logging
+from datetime import datetime
 from uuid import UUID
 
 import structlog
@@ -59,10 +60,10 @@ class TierProductMissing(PlatformBillingError):
 
 def _billing_email(organization: Organization) -> str:
     """Synthetic Customer.email for the platform-org Customer that anchors
-    this creator org's Spaire subscription. Free customers are never sent
-    invoices, so the address doesn't need to be deliverable. When the
-    creator upgrades, real billing details are captured at checkout and
-    overwrite this synthetic value.
+    this creator org's Spaire subscription. During the Pro trial Spaire
+    doesn't send invoices, so the address doesn't need to be deliverable.
+    When the creator goes through checkout to convert / upgrade, real
+    billing details are captured and overwrite this synthetic value.
     """
     return f"creator-{organization.slug}@billing.spairehq.internal"
 
@@ -139,14 +140,21 @@ class PlatformBillingService:
         enqueue_fee_sync(organization.id)
         return subscription
 
-    async def ensure_free_subscription(
+    async def ensure_pro_trial_subscription(
         self,
         session: AsyncSession,
         organization: Organization,
     ) -> Subscription | None:
-        """Convenience wrapper for the org-creation hook."""
+        """Convenience wrapper for the org-creation hook.
+
+        Starts a 14-day Pro trial. The Pro product carries the trial
+        configuration (trial_interval=day, count=14) and `_create_subscription`
+        promotes that to a `trialing` status with `trial_end` set 14 days
+        from now. After the trial expires the subscription needs to convert
+        through checkout (to capture a payment method) or it lapses.
+        """
         return await self.ensure_subscription(
-            session, organization, tier=TierKey.free
+            session, organization, tier=TierKey.pro, managed_by="trial"
         )
 
     async def _ensure_platform_customer(
@@ -188,9 +196,32 @@ class PlatformBillingService:
         currency = "usd"
 
         now = utc_now()
-        current_period_end = recurring_interval.get_next_period(
-            now, recurring_interval_count
+
+        # If the product carries a trial configuration, the subscription
+        # starts in `trialing` status and its first period ends when the
+        # trial does. Conversion (capture a payment method, transition to
+        # `active`) happens via the upgrade-checkout flow.
+        is_trial = (
+            product.trial_interval is not None
+            and product.trial_interval_count is not None
         )
+        if is_trial:
+            assert product.trial_interval is not None
+            assert product.trial_interval_count is not None
+            trial_end = product.trial_interval.get_end(
+                now, product.trial_interval_count
+            )
+            status = SubscriptionStatus.trialing
+            current_period_end = trial_end
+            trial_start: datetime | None = now
+            trial_end_at: datetime | None = trial_end
+        else:
+            status = SubscriptionStatus.active
+            current_period_end = recurring_interval.get_next_period(
+                now, recurring_interval_count
+            )
+            trial_start = None
+            trial_end_at = None
 
         subscription_prices = [
             SubscriptionProductPrice.from_price(price) for price in product.prices
@@ -202,11 +233,13 @@ class PlatformBillingService:
             currency=currency,
             recurring_interval=recurring_interval,
             recurring_interval_count=recurring_interval_count,
-            status=SubscriptionStatus.active,
+            status=status,
             current_period_start=now,
             current_period_end=current_period_end,
             cancel_at_period_end=False,
             started_at=now,
+            trial_start=trial_start,
+            trial_end=trial_end_at,
             customer=customer,
             product=product,
             subscription_product_prices=subscription_prices,
@@ -216,11 +249,14 @@ class PlatformBillingService:
         await session.flush()
 
         log.info(
-            "platform_billing.subscribed_to_free",
+            "platform_billing.subscription_created",
             creator_org_id=customer.user_metadata.get("creator_org_id"),
             customer_id=str(customer.id),
             subscription_id=str(subscription.id),
             product_id=str(product.id),
+            tier=(product.user_metadata or {}).get("tier"),
+            status=status.value,
+            trial_end=trial_end_at.isoformat() if trial_end_at else None,
         )
         return subscription
 

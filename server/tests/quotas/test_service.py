@@ -90,7 +90,7 @@ class TestGetUsage:
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="free",
+            tier="pro",
             monthly_cents=0,
         )
 
@@ -125,7 +125,7 @@ class TestGetUsage:
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="free",
+            tier="pro",
             monthly_cents=0,
         )
 
@@ -221,7 +221,7 @@ class TestGetUsage:
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="free",
+            tier="pro",
             monthly_cents=0,
         )
 
@@ -254,7 +254,7 @@ class TestGetUsage:
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="free",
+            tier="pro",
             monthly_cents=0,
         )
 
@@ -296,7 +296,7 @@ class TestGetUsage:
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="free",
+            tier="pro",
             monthly_cents=0,
         )
 
@@ -377,7 +377,7 @@ class TestCheck:
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="free",
+            tier="pro",
             monthly_cents=0,
         )
 
@@ -407,7 +407,7 @@ class TestCheck:
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="free",
+            tier="pro",
             monthly_cents=0,
         )
         for _ in range(4999):
@@ -571,7 +571,7 @@ class TestCheck:
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="free",
+            tier="pro",
             monthly_cents=0,
         )
         for _ in range(5000):
@@ -607,7 +607,7 @@ class TestCheck:
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="free",
+            tier="pro",
             monthly_cents=0,
         )
         gb = 1024 * 1024 * 1024

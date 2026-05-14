@@ -91,7 +91,7 @@ class TestRequireFeature:
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="free",
+            tier="pro",
             monthly_cents=0,
         )
 
@@ -101,7 +101,7 @@ class TestRequireFeature:
                 session, creator.id, "email_sequences_and_segments"
             )
         assert excinfo.value.feature == "email_sequences_and_segments"
-        assert excinfo.value.tier == TierKey.free
+        assert excinfo.value.tier == TierKey.pro
         assert excinfo.value.status_code == 402
 
     async def test_passes_when_feature_enabled(
@@ -166,7 +166,7 @@ class TestRequireFeature:
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="free",
+            tier="pro",
             monthly_cents=0,
         )
 
@@ -206,7 +206,7 @@ class TestRequireUnderLimit:
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="free",
+            tier="pro",
             monthly_cents=0,
         )
 
@@ -218,7 +218,7 @@ class TestRequireUnderLimit:
             )
         assert excinfo.value.key == "published_courses"
         assert excinfo.value.limit == 1
-        assert excinfo.value.tier == TierKey.free
+        assert excinfo.value.tier == TierKey.pro
         assert excinfo.value.status_code == 402
 
     async def test_raises_when_above_limit(
@@ -236,7 +236,7 @@ class TestRequireUnderLimit:
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="free",
+            tier="pro",
             monthly_cents=0,
         )
 
@@ -258,7 +258,7 @@ class TestRequireUnderLimit:
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="free",
+            tier="pro",
             monthly_cents=0,
         )
 
@@ -302,7 +302,7 @@ class TestRequireUnderLimit:
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="free",
+            tier="pro",
             monthly_cents=0,
         )
 

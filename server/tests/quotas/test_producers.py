@@ -207,7 +207,7 @@ class TestEnforce:
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="free",
+            tier="pro",
             monthly_cents=0,
         )
         # Free email cap is 5000/mo. Use 4999 emails, then request 2.

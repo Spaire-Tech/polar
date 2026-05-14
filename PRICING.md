@@ -1,6 +1,6 @@
 # Spaire Pricing
 
-Three tiers — **Free**, **Pro**, **Scale** — calibrated against what the platform actually ships today and benchmarked against Kajabi, Podia, Thinkific, Lemon Squeezy, Paddle, and Gumroad.
+Three paid tiers — **Pro**, **Studio**, **Scale** — calibrated against what the platform actually ships today and benchmarked against Kajabi, Podia, Thinkific, Lemon Squeezy, Paddle, and Gumroad. Every paid tier ships with a **14-day free trial** so creators can build inside Spaire before being charged.
 
 Spaire's positioning vs. those competitors:
 
@@ -12,12 +12,13 @@ The tiering story: "Stripe-grade infra + Kajabi-grade creator tools + MoR tax ha
 
 ---
 
-## Universal — applies to Free, Pro, and Scale
+## Universal — applies to Pro, Studio, and Scale
 
 The following are part of the product on every tier. Gating any of these would break delivery for paying customers.
 
 | Item | Policy |
 |---|---|
+| Free trial on every paid tier | 14 days, no card required up front |
 | Merchant of Record (tax/VAT handled) | ✓ |
 | Customer portal (login, manage subs, access purchases) | ✓ |
 | Course player + lesson access for buyers | ✓ |
@@ -29,7 +30,7 @@ The following are part of the product on every tier. Gating any of these would b
 | Email broadcasts | ✓ |
 | Discount codes (creator-shared) | ✓ |
 | CSV exports of analytics & customer data | ✓ |
-| "Powered by Spaire" badge on storefront & checkout | shown on all tiers |
+| "Powered by Spaire" badge on storefront & checkout | shown on Pro; removable on Studio & Scale |
 | Payout settlement | 7-day delay from transaction date |
 | Settlement grandfathering | orgs created before May 12, 2026 keep instant payouts |
 | Stripe chargeback fee | $15 passthrough to creator |
@@ -41,41 +42,43 @@ The following are part of the product on every tier. Gating any of these would b
 
 ## Tier differentiators
 
-| Lever | Free | Pro | Scale |
+| Lever | Pro | Studio | Scale |
 |---|---|---|---|
-| **Monthly** | $0 | $49 | $299 |
-| **Transaction fee** | 5% + $0.50 | 4% + $0.40 | 3.5% + $0.30 |
+| **Best for** | Solo creators starting out | Small teams scaling up | Established businesses |
+| **Free trial** | 14 days | 14 days | 14 days |
+| **Monthly** | $49 | $129 | $299 |
+| **Transaction fee** | 4% + $0.40 | 3.8% + $0.35 | 3.5% + $0.30 |
 | **Custom pricing at scale** | — | — | available above $50k/mo GMV |
 | Products (one-time, sub, downloads, license keys, usage-based) | unlimited | unlimited | unlimited |
-| Published courses | 1 | unlimited | unlimited |
-| Lessons per course | 10 | unlimited | unlimited |
-| Drip scheduling | — | ✓ | ✓ |
-| Course video hours hosted ‡ | 5 | 50 | unlimited |
-| Course video views / month ‡ | 1,000 | 50,000 | unlimited |
-| Downloadables storage ‡ | 1 GB | 25 GB | unlimited |
-| Email subscribers | 1,000 | 25,000 | unlimited |
-| Email sends / month ‡ | 5,000 | 250,000 | 2,000,000 |
-| Email sequences & segments | — | ✓ | ✓ |
-| Email A/B testing | — | ✓ | ✓ |
-| Stackable / cart-rule discounts ★ | — | roadmap | roadmap |
+| Published courses | unlimited | unlimited | unlimited |
+| Lessons per course | unlimited | unlimited | unlimited |
+| Drip scheduling | ✓ | ✓ | ✓ |
+| Course video hours hosted ‡ | 50 | 200 | unlimited |
+| Course video views / month ‡ | 50,000 | 250,000 | unlimited |
+| Downloadables storage ‡ | 25 GB | 100 GB | unlimited |
+| Email subscribers | 25,000 | 100,000 | unlimited |
+| Email sends / month ‡ | 250,000 | 1,000,000 | 2,000,000 |
+| Email sequences & segments | ✓ | ✓ | ✓ |
+| Email A/B testing | ✓ | ✓ | ✓ |
+| Stackable / cart-rule discounts ★ | roadmap | roadmap | roadmap |
 | Checkout links | ✓ | ✓ | ✓ |
 | Embedded checkout on your site | ✓ | ✓ | ✓ |
-| Custom email sender domain ★ | — | ✓ | ✓ |
-| White-label course player ★ | — | — | ✓ |
-| Seat-based product pricing (B2B sales) | — | ✓ | ✓ |
+| Custom email sender domain ★ | ✓ | ✓ | ✓ |
+| White-label course player ★ | — | ✓ | ✓ |
+| Seat-based product pricing (B2B sales) | ✓ | ✓ | ✓ |
 | Customer wallet (prepaid balance, auto-top-up) | — | ✓ | ✓ |
 | Analytics — revenue, MRR, churn rate | ✓ | ✓ | ✓ |
-| Analytics — cohort retention curves ★ | — | roadmap | roadmap |
+| Analytics — cohort retention curves ★ | roadmap | roadmap | roadmap |
 | CSV exports of analytics & customer data | ✓ | ✓ | ✓ |
-| Dashboard team seats | 1 | 5 | unlimited |
-| API rate limits | standard | higher | highest + custom |
+| Dashboard team seats | 5 | 15 | unlimited |
+| API rate limits | higher | higher | highest + custom |
 | Sandbox / test mode ★ | — | — | roadmap |
 | Custom storefront domain ★ | — | — | roadmap |
 | Custom checkout domain ★ | — | — | roadmap |
 | SSO + audit logs ★ | — | — | roadmap |
-| Support | community (Discord) | email, 1 business day | Slack + dedicated AM, 4-hour SLA |
+| Support | email, 1 business day | priority email, same day | Slack + dedicated AM, 4-hour SLA |
 
-‡ = quota enforcement must be built before this row is shippable.
+‡ = quota enforcement enforced via metered events.
 ★ = feature itself must be built or completed before this row is shippable.
 
 ---
@@ -100,6 +103,8 @@ The following are part of the product on every tier. Gating any of these would b
 
 **Sandbox / test mode:** a non-production environment for testing integrations without real payments or transaction fees.
 
+**Legacy:** internal-only fallback tier for organizations created before tiered pricing existed, plus the $0 destination an org lands on after canceling. Not a public plan; not selectable from the upgrade modal.
+
 ---
 
 ## Pricing math sanity check
@@ -119,17 +124,24 @@ Spaire's true per-transaction cost as MoR on Stripe is roughly:
 
 This is why:
 
-- **Free at 5% + $0.50** leaves margin without a monthly fee.
-- **Pro at 4% + $0.40** matches the Polar precedent and is sustainable with the monthly anchor.
-- **Scale at 3.5% + $0.30** is at-cost; the monthly fee is the margin. Below 3.5% requires negotiated volume commitments.
+- **Pro at $49/mo + 4% + $0.40** is the entry point — the monthly fee covers compliance overhead while the per-transaction rate keeps margin on US card volume.
+- **Studio at $129/mo + 3.8% + $0.35** trades a higher fixed fee for a lower variable rate. It pays off for creators above ~$15k/mo GMV.
+- **Scale at $299/mo + 3.5% + $0.30** is at-cost on the variable side; the monthly fee is the margin. Below 3.5% requires negotiated volume commitments.
 
 Custom pricing for the Scale tier kicks in above $50k/month GMV. The negotiated floor is around 3.0% — Stripe's processing cost — and is the same floor competitors like Paddle hold to at scale.
 
 ---
 
-## Audit findings — what's built today vs. needs work
+## Trial & onboarding flow
 
-Audit ran against `/home/user/polar` to verify each pricing-page row is backed by code.
+1. Creator signs up → backend auto-starts a **14-day Pro trial** subscription on the platform org. No card required at signup.
+2. During the trial the creator has Pro entitlements (limits + features) and can build courses, send emails, etc.
+3. At any point the creator can switch the target tier (Pro / Studio / Scale) via the upgrade modal in `Settings → Billing`. The upgrade-checkout endpoint converts the trialing subscription in-place — they enter a payment method, the trial keeps running for the remaining days, then bills at the picked tier.
+4. If the trial expires without conversion, the subscription lapses and the org is moved to **Legacy** (no charge, no enforcement) so creators don't hard-lose access mid-month while ops follows up.
+
+---
+
+## Audit findings — what's built today vs. needs work
 
 ### Built and shippable today
 
@@ -148,29 +160,29 @@ Audit ran against `/home/user/polar` to verify each pricing-page row is backed b
 - Webhooks, full REST API, OAuth2 for end-customers
 - Team members with roles (`member/` module)
 - Basic revenue / MRR / churn-rate analytics
+- 14-day trial machinery on Product (`trial_interval`, `trial_interval_count`)
+- Quota enforcement: video hours hosted, video views/month, storage bytes, email sends/month
 
 ### Built infrastructure, needs surfacing or completion
 
-- Custom email sender domain — default sender exists, no verification UI for per-org domains.
+- Custom email sender domain — Resend integration with verification hourly cron, needs the rest of the dashboard UX polished.
 - White-label course player — YouTube embeds use `modestbranding=1`, main lesson player has no toggle.
 - Cohort analysis — only aggregate churn rate today, no retention curves.
 - Refund/chargeback fee policy — fee types tracked (`ProcessorFeeType.dispute`, `ProcessorFeeType.refund`), no policy config for absorption.
-
-### Not built — required before launch
-
-Cost-control prerequisites for the Free tier. Without these, a single user can incur more in vendor cost than the entire Free tier earns:
-
-- Video hours-hosted cap and views-per-month cap (Mux usage tracking + enforcement).
-- Downloadables storage GB cap (S3 usage tracking + enforcement).
-- Email sends-per-month cap (per-org outbound email tracking).
 
 ### Not built — Scale-tier roadmap
 
 - Custom storefront domain (was previously removed in `2024-06-21-1348_remove_organization_custom_domain.py`; needs to be rebuilt).
 - Custom checkout domain (no DNS verification, SSL provisioning, or domain routing).
 - SSO / SAML for the merchant dashboard.
-- Audit logs.
+- Audit logs (model + endpoints exist; UI surface still pending).
 - Sandbox / test mode (no per-org Stripe test/live toggle today).
+
+### Trial conversion follow-ups
+
+- Cron task to expire / lapse Pro trials that didn't capture a payment method by day 14 — currently Pro-trial subscriptions run indefinitely once `trial_end` passes; they need to be flipped to `past_due` or canceled, then auto-resubscribed to Legacy via the existing `platform.resubscribe_to_legacy` actor.
+- Creator-facing reminder emails at trial day 7, day 12, and day 14.
+- "Trial extension" override for support to give a creator more time.
 
 ### Deliberately removed from the table
 
@@ -182,7 +194,8 @@ Cost-control prerequisites for the Free tier. Without these, a single user can i
 
 ## Recommended ship order
 
-1. **Free-tier blockers** — video hours/views cap, storage GB cap, email send cap. Without these, Free is unsafe to launch.
-2. **Pro-tier polish** — custom email sender domain verification UI, white-label player toggle, cohort retention curves.
-3. **Scale-tier build** — sandbox/test mode, audit logs.
-4. **Defer until paying Scale demand exists** — custom storefront and checkout domains, SSO, SCIM, course certificates, affiliate portal.
+1. **Trial conversion plumbing** — lapse-expired-trial cron, reminder emails, support extension. This is the highest-leverage gap; without it Pro trials sit in `trialing` forever.
+2. **Studio differentiators** — white-label player toggle, customer wallet polish so the +$80 between Pro and Studio is visible.
+3. **Cohort retention curves** — closes the cohort_analytics roadmap row that's open across all three tiers.
+4. **Scale-tier build** — sandbox/test mode, audit logs UI, then the domain bundles.
+5. **Defer until paying Scale demand exists** — SSO, SCIM, course certificates, affiliate portal.

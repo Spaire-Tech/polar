@@ -1,15 +1,13 @@
 """Startup verification for Spaire-on-Spaire billing.
 
 When SPAIRE_PLATFORM_ORG_ID is set, the API requires the four tier
-products (legacy, free, pro, scale) and the four overage meters to
+products (legacy, pro, studio, scale) and the four overage meters to
 exist on the platform org. Without them:
 
-  - organization.created actor can't subscribe new orgs to Free
+  - organization.created actor can't start the new org on a Pro trial
     (TierProductMissing), leaving them with no platform subscription.
-  - EntitlementsService falls back to "legacy" for those orgs.
-  - Legacy uses settings.PLATFORM_FEE_BASIS_POINTS (400 = 4%) instead
-    of Free's 500 (5%) — every new signup silently undercharges by
-    1%+10c until ops notices.
+  - EntitlementsService falls back to "legacy" (unlimited) for those
+    orgs, so they aren't billed correctly until ops notices.
 
 This module surfaces that failure mode at boot time. Run
 `uv run task seed_platform_products` before starting the API on any
@@ -38,7 +36,7 @@ class PlatformStartupError(Exception):
     so the operator knows exactly what to run."""
 
 
-_REQUIRED_TIERS = (TierKey.legacy, TierKey.free, TierKey.pro, TierKey.scale)
+_REQUIRED_TIERS = (TierKey.legacy, TierKey.pro, TierKey.studio, TierKey.scale)
 
 
 async def verify_platform_setup(session: AsyncSession) -> None:

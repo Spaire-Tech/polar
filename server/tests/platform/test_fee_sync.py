@@ -169,7 +169,7 @@ class TestSyncForOrganization:
         creator, account, _ = await _setup_subscribed_creator(
             mocker=mocker,
             save_fixture=save_fixture,
-            tier=TierKey.free,
+            tier=TierKey.pro,
             monthly_cents=0,
         )
 

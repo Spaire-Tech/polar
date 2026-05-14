@@ -169,7 +169,7 @@ async def maybe_enqueue_resubscribe_from_revoke(
     session: AsyncSession, subscription: Subscription
 ) -> None:
     """If `subscription` belongs to a creator on the platform org and has
-    just been revoked, enqueue a job that re-creates an active Free
+    just been revoked, enqueue a job that re-creates an active Legacy
     subscription so the org keeps a valid Spaire entitlement record.
 
     Otherwise a no-op. Called from subscription/service.py inside
@@ -180,14 +180,14 @@ async def maybe_enqueue_resubscribe_from_revoke(
         return
     try:
         enqueue_job(
-            "platform.resubscribe_to_free", organization_id=creator_org_id
+            "platform.resubscribe_to_legacy", organization_id=creator_org_id
         )
     except LookupError:
         # Scripts / tests without a JobQueueManager — same logic as
         # enqueue_sync above. The caller can re-run platform_billing
-        # .ensure_subscription(tier=free) manually if needed.
+        # .ensure_subscription(tier=legacy) manually if needed.
         log.debug(
-            "platform.resubscribe_to_free.enqueue_skipped_no_queue_manager",
+            "platform.resubscribe_to_legacy.enqueue_skipped_no_queue_manager",
             organization_id=str(creator_org_id),
         )
 

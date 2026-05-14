@@ -50,13 +50,18 @@ async def platform_fee_sync_task(organization_id: uuid.UUID) -> None:
 
 
 @actor(
-    actor_name="platform.resubscribe_to_free",
+    actor_name="platform.resubscribe_to_legacy",
     priority=TaskPriority.LOW,
 )
-async def platform_resubscribe_to_free(organization_id: uuid.UUID) -> None:
-    """Auto-resubscribe a creator org to the Free plan after their paid
+async def platform_resubscribe_to_legacy(organization_id: uuid.UUID) -> None:
+    """Auto-resubscribe a creator org to the Legacy plan after their paid
     Spaire subscription is revoked (cancellation reaches end of period
     or immediate revoke).
+
+    With the Free tier removed, Legacy is the only $0 fallback we can
+    drop a churned creator onto so they don't hard-lose access mid-month.
+    Operationally Legacy is "unlimited but grandfathered"; an admin can
+    archive these subs once a churn flow lands.
 
     Idempotent: ensure_subscription returns the existing active sub if
     one exists, so multiple revoke events in rapid succession do not
@@ -67,7 +72,7 @@ async def platform_resubscribe_to_free(organization_id: uuid.UUID) -> None:
         organization = await org_repo.get_by_id(organization_id, include_blocked=True)
         if organization is None:
             log.warning(
-                "platform.resubscribe_to_free.org_missing",
+                "platform.resubscribe_to_legacy.org_missing",
                 organization_id=str(organization_id),
             )
             return
@@ -76,19 +81,19 @@ async def platform_resubscribe_to_free(organization_id: uuid.UUID) -> None:
             subscription = await platform_billing.ensure_subscription(
                 session,
                 organization,
-                tier=TierKey.free,
+                tier=TierKey.legacy,
                 managed_by="auto_downgrade_on_revoke",
             )
         except TierProductMissing as e:
             log.warning(
-                "platform.resubscribe_to_free.skipped",
+                "platform.resubscribe_to_legacy.skipped",
                 organization_id=str(organization_id),
                 reason=e.message,
             )
             return
 
         log.info(
-            "platform.resubscribe_to_free.done",
+            "platform.resubscribe_to_legacy.done",
             organization_id=str(organization_id),
             subscription_id=str(subscription.id) if subscription else None,
         )

@@ -31,7 +31,7 @@ class PlatformOrganizationNotFound(PlatformError):
 class PlatformService:
     """The Organization that represents Spaire itself.
 
-    Spaire sells Free/Pro/Scale subscriptions to every other creator org
+    Spaire sells Pro/Studio/Scale subscriptions to every other creator org
     using its own product/subscription/checkout machinery. The platform
     organization is the seller; every creator org is a Customer of it.
     """
