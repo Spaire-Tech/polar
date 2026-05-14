@@ -80,6 +80,15 @@ class UpgradeCheckoutCreate(Schema):
             "completed checkout's id."
         ),
     )
+    billing_email: str | None = Field(
+        default=None,
+        description=(
+            "Email address for Spaire's own billing of this subscription. "
+            "If omitted, the calling user's email is used. Stored on the "
+            "platform-org customer record so invoices and receipts reach "
+            "the creator."
+        ),
+    )
 
 
 class UpgradeCheckout(Schema):

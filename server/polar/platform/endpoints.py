@@ -18,6 +18,7 @@ from uuid import UUID
 
 from fastapi import Depends
 
+from polar.auth.models import is_user
 from polar.entitlements.schemas import Entitlements
 from polar.entitlements.service import entitlements as entitlements_service
 from polar.entitlements.tiers import TierKey, get_definition
@@ -200,11 +201,21 @@ async def create_upgrade_checkout(
     if organization is None:
         raise ResourceNotFound("Organization not found.")
 
+    # Resolve the billing email to stamp onto the platform customer.
+    # Prefer an explicit value from the request; otherwise fall back to
+    # the calling user's email. With either, the synthetic placeholder
+    # email from PR 4 is replaced before checkout runs, so Stripe and
+    # the customer portal see the real address.
+    billing_email = body.billing_email
+    if billing_email is None and is_user(auth_subject):
+        billing_email = auth_subject.subject.email
+
     checkout = await platform_upgrade.create_checkout(
         session,
         organization=organization,
         tier=body.tier,
         success_url=body.success_url,
+        billing_email=billing_email,
     )
 
     return UpgradeCheckout(

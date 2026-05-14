@@ -80,6 +80,15 @@ class MissingPlatformCustomer(PlatformUpgradeError):
         )
 
 
+_SYNTHETIC_EMAIL_SUFFIX = "@billing.spairehq.internal"
+
+
+def _is_synthetic_email(email: str | None) -> bool:
+    if email is None:
+        return False
+    return email.lower().endswith(_SYNTHETIC_EMAIL_SUFFIX)
+
+
 class PlatformUpgradeService:
     async def create_checkout(
         self,
@@ -88,6 +97,7 @@ class PlatformUpgradeService:
         organization: Organization,
         tier: TierKey,
         success_url: str | None = None,
+        billing_email: str | None = None,
     ) -> Checkout:
         if tier not in _UPGRADEABLE_TIERS:
             raise TierNotUpgradeable(tier)
@@ -118,6 +128,23 @@ class PlatformUpgradeService:
             # backfills existing orgs. If it's still missing the operator
             # hasn't run the grandfather migration yet.
             raise MissingPlatformCustomer()
+
+        # The platform Customer was created with a synthetic email in PR 4
+        # (creator-{slug}@billing.spairehq.internal). Replace it with the
+        # caller's real email before kicking off checkout so:
+        #   - Stripe charges the right customer record,
+        #   - Spaire invoices for the $49 / $299 subscription actually
+        #     reach the creator,
+        #   - the customer portal session (PR 18) shows the right email
+        #     in the UI.
+        if billing_email is not None and _is_synthetic_email(customer.email):
+            customer.email = billing_email
+            await session.flush()
+        elif billing_email is not None and customer.email != billing_email:
+            # Creator explicitly asked for a different billing address.
+            # Honor it — they'll see invoices there from now on.
+            customer.email = billing_email
+            await session.flush()
 
         # If the customer has an active subscription, it must currently be
         # on a Free or Legacy product. The CheckoutProductCreate path uses
