@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from polar.kit.repository import RepositoryBase
 from polar.models import Customer, Product, Subscription
@@ -48,6 +49,10 @@ class _PlatformSubscriptionRepository(RepositoryBase[Subscription]):
     async def get_active_for_customer(
         self, customer_id: UUID
     ) -> Subscription | None:
+        # Subscription.product is lazy="raise" so we have to eager-load
+        # it here — every caller of this method reads .product (to read
+        # user_metadata.tier or product.id) so deferring would just trip
+        # InvalidRequestError on the access.
         statement = (
             select(Subscription)
             .where(Subscription.customer_id == customer_id)
@@ -55,6 +60,7 @@ class _PlatformSubscriptionRepository(RepositoryBase[Subscription]):
                 Subscription.status.in_(SubscriptionStatus.active_statuses())
             )
             .where(Subscription.deleted_at.is_(None))
+            .options(selectinload(Subscription.product))
             .order_by(Subscription.created_at.desc())
             .limit(1)
         )

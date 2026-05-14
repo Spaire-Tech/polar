@@ -26,11 +26,10 @@ interface SpaireTierUpgradeModalProps {
 }
 
 /**
- * Side-by-side comparison of Free / Pro / Scale plans. Selecting Pro
- * or Scale fires upgrade-checkout and redirects the creator to the
- * Polar checkout URL where they enter their card and complete the
- * subscription. Free is shown for reference but isn't clickable from
- * here (downgrading happens through the Cancel flow).
+ * Side-by-side comparison of Free / Pro / Scale plans, laid out as a
+ * vertical list of plan rows inside the InlineModal side panel. The
+ * panel is 540px wide by default which is too narrow for a 3-column
+ * card grid; stacking rows keeps each plan readable.
  */
 const SpaireTierUpgradeModal = ({
   organizationId,
@@ -61,7 +60,6 @@ const SpaireTierUpgradeModal = ({
         tier: selected,
         success_url: `${window.location.origin}/dashboard/${organizationId}/settings/billing?upgraded=1`,
       })
-      // Refresh subscription state once the user comes back.
       queryClient.invalidateQueries({
         queryKey: ['spaire', 'subscription', organizationId],
       })
@@ -77,31 +75,32 @@ const SpaireTierUpgradeModal = ({
   }, [createCheckout, organizationId, queryClient, selected])
 
   return (
-    <div className="flex flex-col">
+    <div className="flex h-full flex-col">
       <InlineModalHeader hide={hide}>
         <h2>Upgrade your Spaire plan</h2>
       </InlineModalHeader>
-      <div className="flex flex-col gap-y-6 p-6">
+
+      <div className="flex flex-1 flex-col gap-y-5 overflow-y-auto px-8 pb-6">
         <p className="text-sm text-gray-500">
           Pick the plan that fits how you sell today. You can switch or
           cancel anytime from this page.
         </p>
 
         {plans.isLoading && (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="flex flex-col gap-y-3">
             {[0, 1, 2].map((i) => (
               <div
                 key={i}
-                className="h-72 animate-pulse rounded-2xl bg-gray-100"
+                className="h-32 w-full animate-pulse rounded-2xl bg-gray-100"
               />
             ))}
           </div>
         )}
 
         {plans.data && (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="flex flex-col gap-y-3">
             {ordered.map((plan) => (
-              <PlanCard
+              <PlanRow
                 key={plan.tier}
                 plan={plan}
                 isCurrent={plan.tier === currentTier}
@@ -114,40 +113,73 @@ const SpaireTierUpgradeModal = ({
             ))}
           </div>
         )}
+      </div>
 
-        <div className="flex flex-row items-center justify-end gap-x-3">
-          <Button variant="ghost" onClick={hide} type="button">
-            Cancel
-          </Button>
-          <Button
-            onClick={onUpgrade}
-            loading={createCheckout.isPending}
-            disabled={
-              createCheckout.isPending ||
-              !plans.data ||
-              currentTier === selected
-            }
-          >
-            {currentTier === selected
-              ? `Already on ${selected}`
-              : `Continue to ${selected === 'pro' ? 'Pro' : 'Scale'} checkout`}
-          </Button>
-        </div>
+      <div className="flex flex-row items-center justify-end gap-x-3 border-t border-gray-100 px-8 py-4">
+        <Button variant="ghost" onClick={hide} type="button">
+          Cancel
+        </Button>
+        <Button
+          onClick={onUpgrade}
+          loading={createCheckout.isPending}
+          disabled={
+            createCheckout.isPending ||
+            !plans.data ||
+            currentTier === selected
+          }
+        >
+          {currentTier === selected
+            ? `Already on ${tierLabel(selected)}`
+            : `Continue to ${tierLabel(selected)} checkout`}
+        </Button>
       </div>
     </div>
   )
 }
 
-interface PlanCardProps {
+const tierLabel = (tier: 'pro' | 'scale') =>
+  tier === 'pro' ? 'Pro' : 'Scale'
+
+interface PlanRowProps {
   plan: TierPlan
   isCurrent: boolean
   isSelected: boolean
   onSelect: () => void
 }
 
-const PlanCard = ({ plan, isCurrent, isSelected, onSelect }: PlanCardProps) => {
+const PlanRow = ({ plan, isCurrent, isSelected, onSelect }: PlanRowProps) => {
   const isFree = plan.tier === 'free'
   const clickable = !isFree
+
+  // Pick the 5 most-differentiating features to keep the row compact.
+  const highlights: Array<{ on: boolean; label: string }> = [
+    {
+      on: plan.limits.published_courses === null,
+      label:
+        plan.limits.published_courses === null
+          ? 'Unlimited courses'
+          : `${plan.limits.published_courses} course${plan.limits.published_courses === 1 ? '' : 's'}`,
+    },
+    {
+      on: plan.limits.email_sends_monthly === null,
+      label:
+        plan.limits.email_sends_monthly === null
+          ? 'Unlimited monthly sends'
+          : `${formatCount(plan.limits.email_sends_monthly)} email sends / mo`,
+    },
+    {
+      on: plan.features.email_sequences_and_segments,
+      label: 'Email sequences & segments',
+    },
+    {
+      on: plan.features.custom_email_sender_domain,
+      label: 'Custom sender domain',
+    },
+    {
+      on: plan.features.white_label_course_player,
+      label: 'White-label player',
+    },
+  ]
 
   return (
     <button
@@ -155,7 +187,7 @@ const PlanCard = ({ plan, isCurrent, isSelected, onSelect }: PlanCardProps) => {
       disabled={!clickable}
       onClick={onSelect}
       className={twMerge(
-        'flex flex-col rounded-2xl border bg-white p-5 text-left transition-colors',
+        'flex w-full flex-col gap-y-3 rounded-2xl border bg-white p-5 text-left transition-colors',
         'disabled:cursor-default',
         isSelected
           ? 'border-blue-500 ring-2 ring-blue-500'
@@ -165,101 +197,65 @@ const PlanCard = ({ plan, isCurrent, isSelected, onSelect }: PlanCardProps) => {
           : '',
       )}
     >
-      <div className="flex flex-row items-center justify-between">
-        <h3 className="text-base font-medium">{plan.name}</h3>
-        {isCurrent && (
-          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
-            Current plan
+      <div className="flex flex-row items-center justify-between gap-x-4">
+        <div className="flex flex-col">
+          <div className="flex flex-row items-center gap-x-2">
+            <h3 className="text-base font-medium">{plan.name}</h3>
+            {isCurrent && (
+              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+                Current
+              </span>
+            )}
+          </div>
+          <p className="mt-0.5 text-xs text-gray-500">
+            {formatTransactionFee(plan.transaction_fee)} per transaction
+          </p>
+        </div>
+        <div className="flex flex-col items-end">
+          <span className="text-xl font-medium">
+            {formatMonthlyPrice(plan.monthly_price_cents, plan.currency)}
           </span>
-        )}
+          {plan.trial_days && (
+            <span className="text-xs text-blue-500">
+              {plan.trial_days}-day free trial
+            </span>
+          )}
+        </div>
       </div>
 
-      <div className="mt-4 flex flex-row items-baseline gap-x-1">
-        <span className="text-2xl font-medium">
-          {formatMonthlyPrice(plan.monthly_price_cents, plan.currency)}
-        </span>
-        {plan.trial_days && (
-          <span className="text-xs text-gray-500">
-            ({plan.trial_days}-day trial)
-          </span>
-        )}
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+        {highlights.map(({ on, label }) => (
+          <div
+            key={label}
+            className="flex flex-row items-center gap-x-1.5 text-xs"
+          >
+            {on ? (
+              <CheckCircleOutlined
+                className="text-blue-500"
+                style={{ fontSize: 14 }}
+              />
+            ) : (
+              <RadioButtonUncheckedOutlined
+                className="text-gray-300"
+                style={{ fontSize: 14 }}
+              />
+            )}
+            <span
+              className={on ? 'text-gray-900' : 'text-gray-400 line-through'}
+            >
+              {label}
+            </span>
+          </div>
+        ))}
       </div>
-
-      <p className="mt-1 text-xs text-gray-500">
-        Transaction fee: {formatTransactionFee(plan.transaction_fee)}
-      </p>
-
-      <ul className="mt-5 flex flex-col gap-y-2">
-        <PlanFeature
-          on={plan.limits.published_courses === null}
-          label={
-            plan.limits.published_courses === null
-              ? 'Unlimited published courses'
-              : `${plan.limits.published_courses} published course${
-                  plan.limits.published_courses === 1 ? '' : 's'
-                }`
-          }
-        />
-        <PlanFeature
-          on={plan.limits.email_sends_monthly === null}
-          label={
-            plan.limits.email_sends_monthly === null
-              ? 'Unlimited monthly email sends'
-              : `${plan.limits.email_sends_monthly.toLocaleString()} email sends / month`
-          }
-        />
-        <PlanFeature
-          on={plan.limits.video_hours_hosted === null}
-          label={
-            plan.limits.video_hours_hosted === null
-              ? 'Unlimited video hosting'
-              : `${plan.limits.video_hours_hosted} hours of video hosting`
-          }
-        />
-        <PlanFeature
-          on={plan.features.email_sequences_and_segments}
-          label="Email sequences & segments"
-        />
-        <PlanFeature
-          on={plan.features.email_ab_testing}
-          label="Email A/B testing"
-        />
-        <PlanFeature
-          on={plan.features.custom_email_sender_domain}
-          label="Custom email sender domain"
-        />
-        <PlanFeature
-          on={plan.features.seat_based_product_pricing}
-          label="Seat-based B2B pricing"
-        />
-        <PlanFeature
-          on={plan.features.white_label_course_player}
-          label="White-label course player"
-        />
-        <PlanFeature
-          on={plan.features.audit_logs}
-          label="Audit logs"
-        />
-      </ul>
     </button>
   )
 }
 
-const PlanFeature = ({ on, label }: { on: boolean; label: string }) => (
-  <li className="flex flex-row items-center gap-x-2 text-xs">
-    {on ? (
-      <CheckCircleOutlined
-        className="text-blue-500"
-        style={{ fontSize: 16 }}
-      />
-    ) : (
-      <RadioButtonUncheckedOutlined
-        className="text-gray-300"
-        style={{ fontSize: 16 }}
-      />
-    )}
-    <span className={on ? 'text-gray-900' : 'text-gray-400'}>{label}</span>
-  </li>
-)
+const formatCount = (n: number): string => {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`
+  return n.toString()
+}
 
 export default SpaireTierUpgradeModal
