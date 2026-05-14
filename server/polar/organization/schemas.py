@@ -566,6 +566,18 @@ class OrganizationUpdate(Schema):
     customer_portal_settings: OrganizationCustomerPortalSettings | None = None
     storefront_settings: OrganizationStorefrontSettings | None = None
 
+    email_sender_domain: str | None = Field(
+        default=None,
+        description=(
+            "Custom outbound email sender domain (Pro+). Setting this "
+            "clears the verification timestamp; operations re-verifies "
+            "DKIM and stamps email_sender_verified_at when ready. Pass "
+            "an empty string to clear the domain (reverts to the platform "
+            "default sender)."
+        ),
+        max_length=253,
+    )
+
 
 class OrganizationPaymentStep(Schema):
     id: str = Field(description="Step identifier")

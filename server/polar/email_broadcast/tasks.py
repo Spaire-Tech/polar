@@ -5,7 +5,7 @@ from sqlalchemy import select
 
 from polar.email.react import render_email_template
 from polar.email.schemas import MarketingEmail, MarketingEmailProps
-from polar.email.sender import email_sender
+from polar.email.sender import email_sender, resolve_creator_from_address
 from polar.kit.utils import utc_now
 from polar.models.email_broadcast import EmailBroadcast, EmailBroadcastStatus
 from polar.models.email_broadcast_ab_test import EmailBroadcastABTest
@@ -68,12 +68,17 @@ async def send_broadcast_email(
         broadcast, organization, unsubscribe_url=unsubscribe_url
     )
     base_subject = subject_override if subject_override is not None else broadcast.subject
+    from_name, from_email = resolve_creator_from_address(
+        organization=organization,
+        requested_email=broadcast.sender_email,
+        requested_name=broadcast.sender_name,
+    )
     return await email_sender.send(
         to_email_addr=to_email,
         subject=f"{extra_subject_prefix}{base_subject}",
         html_content=wrapped_html,
-        from_name=broadcast.sender_name,
-        from_email_addr=broadcast.sender_email,
+        from_name=from_name,
+        from_email_addr=from_email,
         email_headers={
             "List-Unsubscribe": f"<{unsubscribe_url}>",
             "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",

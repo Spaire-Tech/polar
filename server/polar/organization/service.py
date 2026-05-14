@@ -265,6 +265,22 @@ class OrganizationService:
                 ),
             }
 
+        # Custom outbound email sender domain (Pro+). Setting it requires
+        # the tier feature; clearing it back to None / empty string is
+        # always allowed so creators can revert after a downgrade. Any
+        # change to the domain clears email_sender_verified_at — DKIM
+        # has to be re-confirmed against the new domain.
+        if "email_sender_domain" in update_schema.model_fields_set:
+            requested = update_schema.email_sender_domain
+            new_domain = requested.strip() if requested else None
+            if new_domain:
+                await entitlements_service.require_feature(
+                    session, organization.id, "custom_email_sender_domain"
+                )
+            if new_domain != organization.email_sender_domain:
+                organization.email_sender_domain = new_domain
+                organization.email_sender_verified_at = None
+
         previous_details = organization.details
         update_dict = update_schema.model_dump(
             by_alias=True,
@@ -275,6 +291,7 @@ class OrganizationService:
                 "subscription_settings",
                 "storefront_settings",
                 "details",
+                "email_sender_domain",
             },
         )
 

@@ -341,6 +341,32 @@ class Organization(RateLimitGroupMixin, RecordModel):
     )
 
     #
+    # Custom outbound email sender (Pro+)
+    #
+
+    email_sender_domain: Mapped[str | None] = mapped_column(
+        String(253), nullable=True, default=None
+    )
+    """The creator's verified email domain, e.g. "creator.com". When set
+    AND email_sender_verified_at is set, broadcasts and sequence steps
+    use this domain in their From address instead of the platform default.
+    """
+
+    email_sender_verified_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True, default=None
+    )
+    """Timestamp when Resend DKIM verification succeeded. Manually stamped
+    by operations today; a follow-up will automate the Resend round-trip.
+    """
+
+    @property
+    def has_verified_sender_domain(self) -> bool:
+        return (
+            self.email_sender_domain is not None
+            and self.email_sender_verified_at is not None
+        )
+
+    #
     # Currency settings
     #
     default_presentment_currency: Mapped[PresentmentCurrency] = mapped_column(

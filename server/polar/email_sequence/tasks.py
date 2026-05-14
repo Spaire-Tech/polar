@@ -5,7 +5,7 @@ import structlog
 
 from polar.email.react import render_email_template
 from polar.email.schemas import MarketingEmail, MarketingEmailProps
-from polar.email.sender import email_sender
+from polar.email.sender import email_sender, resolve_creator_from_address
 from polar.kit.utils import utc_now
 from polar.models.email_sequence import EmailSequence, EmailSequenceStatus
 from polar.models.email_sequence_enrollment import (
@@ -443,13 +443,17 @@ async def _send_email_step(
                 )
             )
         )
+        from_name, from_email = resolve_creator_from_address(
+            organization=organization,
+            requested_email=step.sender_email,
+            requested_name=step.sender_name,
+        )
         resend_email_id = await email_sender.send(
             to_email_addr=subscriber.email,
             subject=step.subject,
             html_content=wrapped_html,
-            from_name=step.sender_name,
-            from_email_addr=step.sender_email
-            or "noreply@notifications.spairehq.com",
+            from_name=from_name,
+            from_email_addr=from_email,
             email_headers={
                 "List-Unsubscribe": f"<{unsubscribe_url}>",
                 "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
