@@ -26,6 +26,7 @@ from polar.models.subscription_product_price import SubscriptionProductPrice
 from polar.platform.service import platform as platform_service
 from polar.postgres import AsyncSession
 
+from .fee_sync import enqueue_sync as enqueue_fee_sync
 from .repository import (
     platform_customer_repository,
     platform_product_repository,
@@ -115,9 +116,13 @@ class PlatformBillingService:
         if free_product is None:
             raise TierProductMissing(TierKey.free)
 
-        return await self._create_subscription(
+        subscription = await self._create_subscription(
             session, customer=customer, product=free_product
         )
+        # Schedule a tier-fee sync so the creator's Account picks up the
+        # Free list rate. Safe no-op if the org doesn't have an Account yet.
+        enqueue_fee_sync(organization.id)
+        return subscription
 
     async def _ensure_platform_customer(
         self,

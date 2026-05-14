@@ -21,6 +21,7 @@ from polar.platform.billing import (
     TierProductMissing,
     platform_billing,
 )
+from polar.platform.fee_sync import enqueue_sync as enqueue_platform_fee_sync
 from polar.user.repository import UserRepository
 from polar.worker import AsyncSessionMaker, TaskPriority, actor
 
@@ -102,6 +103,10 @@ async def organization_account_set(organization_id: uuid.UUID) -> None:
             raise AccountDoesNotExist(organization.account_id)
 
         await held_balance_service.release_account(session, account)
+
+        # The org now has an Account that can carry per-account fee values.
+        # Sync them to the current tier list rate.
+        enqueue_platform_fee_sync(organization.id)
 
 
 @actor(actor_name="organization.under_review", priority=TaskPriority.LOW)

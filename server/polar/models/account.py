@@ -1,8 +1,9 @@
+from datetime import datetime
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
-from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, Uuid
+from sqlalchemy import TIMESTAMP, Boolean, ForeignKey, Integer, String, Text, Uuid
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
 
@@ -74,6 +75,12 @@ class Account(RecordModel):
     _platform_fee_fixed: Mapped[int | None] = mapped_column(
         Integer, name="platform_fee_fixed", nullable=True, default=None
     )
+    platform_fee_locked_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True, default=None
+    )
+    """When set, the platform fee is treated as manually negotiated and
+    the tier-sync job skips this account. Used for Scale customers with
+    bespoke rates."""
 
     business_type: Mapped[str | None] = mapped_column(
         String(255), nullable=True, default=None

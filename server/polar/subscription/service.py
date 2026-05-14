@@ -81,6 +81,7 @@ from polar.notifications.notification import (
 from polar.notifications.service import PartialNotification
 from polar.notifications.service import notifications as notifications_service
 from polar.organization.repository import OrganizationRepository
+from polar.platform.fee_sync import maybe_enqueue_sync_from_subscription
 from polar.product.guard import (
     is_custom_price,
     is_fixed_price,
@@ -802,6 +803,11 @@ class SubscriptionService:
         await self._send_webhook(
             session, subscription, WebhookEventType.subscription_created
         )
+
+        # If this subscription is on the Spaire platform org (i.e. a
+        # creator's Spaire tier subscription), keep the creator's
+        # Account.platform_fee aligned with the tier's list rate.
+        await maybe_enqueue_sync_from_subscription(session, subscription)
 
         assert subscription.started_at is not None
         await event_service.create_event(
@@ -1958,6 +1964,10 @@ class SubscriptionService:
         await self._send_webhook(
             session, subscription, WebhookEventType.subscription_updated
         )
+
+        # Tier-aware fee sync: upgrades and downgrades on the platform
+        # org change which Account fee rate the creator org pays.
+        await maybe_enqueue_sync_from_subscription(session, subscription)
 
     async def _on_subscription_activated(
         self,
