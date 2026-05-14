@@ -69,6 +69,12 @@ export function MobileHero({
     (heroImage && heroImage.kind === 'image' ? heroImage.url : null) ??
     course.thumbnail_url ??
     null
+  const backdropObjectPosition =
+    (heroImage && heroImage.kind === 'image'
+      ? heroImage.objectPosition
+      : null) ??
+    course.thumbnail_object_position ??
+    null
   const canPlayTrailer = !!trailerUrl
 
   return (
@@ -94,9 +100,11 @@ export function MobileHero({
           overflow: 'hidden',
         }}
         renderMedia={() => null}
-        chromeless
       >
-        <MobileHeroBackdrop imageUrl={backdropUrl} />
+        <MobileHeroBackdrop
+          imageUrl={backdropUrl}
+          objectPosition={backdropObjectPosition}
+        />
       </EditMedia>
 
       {/* Vignette */}
@@ -319,7 +327,13 @@ export function MobileHero({
   )
 }
 
-function MobileHeroBackdrop({ imageUrl }: { imageUrl: string | null }) {
+function MobileHeroBackdrop({
+  imageUrl,
+  objectPosition,
+}: {
+  imageUrl: string | null
+  objectPosition?: string | null
+}) {
   if (imageUrl) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
@@ -332,6 +346,7 @@ function MobileHeroBackdrop({ imageUrl }: { imageUrl: string | null }) {
           width: '100%',
           height: '100%',
           objectFit: 'cover',
+          objectPosition: objectPosition ?? '50% 50%',
         }}
       />
     )

@@ -9,10 +9,12 @@ import { useEffect, useRef, useState } from 'react'
 
 export function HeroMedia({
   imageUrl,
+  imageObjectPosition,
   trailerUrl,
   peekSeconds = 10,
 }: {
   imageUrl: string | null
+  imageObjectPosition?: string | null
   trailerUrl: string | null
   peekSeconds?: number
 }) {
@@ -89,6 +91,7 @@ export function HeroMedia({
             width: '100%',
             height: '100%',
             objectFit: 'cover',
+            objectPosition: imageObjectPosition ?? '50% 50%',
             opacity: phase === 'image' || !trailerUrl ? 1 : 0,
             transition: 'opacity 600ms ease',
           }}

@@ -7,6 +7,13 @@ interface ThumbnailPositionerProps {
   src: string
   value: string | null
   onChange: (next: string) => void
+  /**
+   * Fires once when the user releases the drag (mouseup / touchend) or hits
+   * Reset. Pair this with a debounced PATCH so the position propagates to
+   * every other site that shows the thumbnail — outline grid, landing
+   * preview, customer portal — without forcing the user to click Save.
+   */
+  onCommit?: (next: string) => void
   className?: string
 }
 
@@ -33,11 +40,13 @@ export const ThumbnailPositioner = ({
   src,
   value,
   onChange,
+  onCommit,
   className,
 }: ThumbnailPositionerProps) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState(() => parsePosition(value))
   const [dragging, setDragging] = useState(false)
+  const lastEmittedRef = useRef<string>(value ?? DEFAULT_POSITION)
 
   useEffect(() => {
     setPos(parsePosition(value))
@@ -50,7 +59,9 @@ export const ThumbnailPositioner = ({
     const x = clamp(((clientX - rect.left) / rect.width) * 100, 0, 100)
     const y = clamp(((clientY - rect.top) / rect.height) * 100, 0, 100)
     setPos({ x, y })
-    onChange(formatPosition(x, y))
+    const next = formatPosition(x, y)
+    lastEmittedRef.current = next
+    onChange(next)
   }
 
   useEffect(() => {
@@ -59,14 +70,17 @@ export const ThumbnailPositioner = ({
       e.preventDefault()
       setFromClientPoint(e.clientX, e.clientY)
     }
-    const handleUp = () => setDragging(false)
+    const handleUp = () => {
+      setDragging(false)
+      onCommit?.(lastEmittedRef.current)
+    }
     window.addEventListener('mousemove', handleMove)
     window.addEventListener('mouseup', handleUp)
     return () => {
       window.removeEventListener('mousemove', handleMove)
       window.removeEventListener('mouseup', handleUp)
     }
-  }, [dragging])
+  }, [dragging, onCommit])
 
   const handleMouseDown = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -84,9 +98,15 @@ export const ThumbnailPositioner = ({
     if (t) setFromClientPoint(t.clientX, t.clientY)
   }
 
+  const handleTouchEnd = () => {
+    onCommit?.(lastEmittedRef.current)
+  }
+
   const reset = () => {
     setPos({ x: 50, y: 50 })
+    lastEmittedRef.current = DEFAULT_POSITION
     onChange(DEFAULT_POSITION)
+    onCommit?.(DEFAULT_POSITION)
   }
 
   return (
@@ -96,6 +116,7 @@ export const ThumbnailPositioner = ({
         onMouseDown={handleMouseDown}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
         className="group relative aspect-video w-full overflow-hidden rounded-xl border border-gray-200 bg-gray-100 select-none"
         style={{ cursor: dragging ? 'grabbing' : 'grab' }}
       >

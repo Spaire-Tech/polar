@@ -31,9 +31,11 @@ const THUMB_GRADIENTS: [string, string][] = [
 
 function ThumbArt({
   thumbnailUrl,
+  objectPosition,
   position,
 }: {
   thumbnailUrl: string | null
+  objectPosition?: string | null
   position: number
 }) {
   if (thumbnailUrl) {
@@ -42,6 +44,7 @@ function ThumbArt({
         src={thumbnailUrl}
         alt=""
         className="absolute inset-0 h-full w-full object-cover"
+        style={{ objectPosition: objectPosition ?? '50% 50%' }}
       />
     )
   }
@@ -101,6 +104,7 @@ function LessonCard({
       <div className="relative aspect-video w-full overflow-hidden">
         <ThumbArt
           thumbnailUrl={lesson.thumbnail_url ?? null}
+          objectPosition={lesson.thumbnail_object_position ?? null}
           position={position}
         />
         <div className="absolute top-[7px] left-2 text-[9px] font-semibold tracking-[0.07em] text-white/75 uppercase [text-shadow:0_1px_3px_rgba(0,0,0,0.5)]">

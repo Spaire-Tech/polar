@@ -38,7 +38,11 @@ import { HeroMedia } from './HeroMedia'
 export type LessonHandlers = {
   updateLesson: (
     lessonId: string,
-    patch: { title?: string; description?: string | null },
+    patch: {
+      title?: string
+      description?: string | null
+      thumbnail_object_position?: string | null
+    },
   ) => Promise<void>
   uploadThumbnail: (lessonId: string, file: File) => Promise<void>
   uploadVideo: (
@@ -368,6 +372,7 @@ function Hero({
         <HeroMediaSurface
           fallbackImageUrl={course.thumbnail_url ?? null}
           fallbackTrailerUrl={course.trailer_url ?? null}
+          fallbackImageObjectPosition={course.thumbnail_object_position ?? null}
         />
       </EditMedia>
 
@@ -711,15 +716,23 @@ export function TrailerModal({
 function HeroMediaSurface({
   fallbackImageUrl,
   fallbackTrailerUrl,
+  fallbackImageObjectPosition,
 }: {
   fallbackImageUrl: string | null
   fallbackTrailerUrl: string | null
+  fallbackImageObjectPosition?: string | null
 }) {
   const ed = useEditor()
   const heroImage = ed.m('hero.backdrop')
   const heroTrailer = ed.m('hero.trailer')
   const imageUrl =
     heroImage && heroImage.kind === 'image' ? heroImage.url : fallbackImageUrl
+  // Prefer the override slot's position when present (so dragging on the
+  // landing canvas wins), fall back to the persisted course field.
+  const imageObjectPosition =
+    (heroImage && heroImage.kind === 'image'
+      ? heroImage.objectPosition
+      : null) ?? fallbackImageObjectPosition ?? null
   const trailerUrl =
     heroTrailer && heroTrailer.kind === 'video'
       ? heroTrailer.url
@@ -727,7 +740,12 @@ function HeroMediaSurface({
         ? heroImage.url
         : fallbackTrailerUrl
   return (
-    <HeroMedia imageUrl={imageUrl} trailerUrl={trailerUrl} peekSeconds={10} />
+    <HeroMedia
+      imageUrl={imageUrl}
+      imageObjectPosition={imageObjectPosition}
+      trailerUrl={trailerUrl}
+      peekSeconds={10}
+    />
   )
 }
 
@@ -740,6 +758,7 @@ function HeroMediaControls() {
   const [tipOpen, setTipOpen] = useState(false)
   const [busyImage, setBusyImage] = useState(false)
   const [busyTrailer, setBusyTrailer] = useState(false)
+  const [reposMode, setReposMode] = useState(false)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const trailerInputRef = useRef<HTMLInputElement>(null)
   if (ed.mode !== 'edit') return null
@@ -822,17 +841,27 @@ function HeroMediaControls() {
   })
 
   return (
-    <div
-      style={{
-        position: 'absolute',
-        right: 24,
-        top: 24,
-        zIndex: 6,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-      }}
-    >
+    <>
+      {reposMode && hasImage && heroImage && heroImage.kind === 'image' && (
+        <ImageReposOverlay
+          currentPosition={heroImage.objectPosition ?? '50% 50%'}
+          onChange={(next) =>
+            ed.setMedia('hero.backdrop', { ...heroImage, objectPosition: next })
+          }
+          onDone={() => setReposMode(false)}
+        />
+      )}
+      <div
+        style={{
+          position: 'absolute',
+          right: 24,
+          top: 24,
+          zIndex: 6,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+        }}
+      >
       <input
         ref={imageInputRef}
         type="file"
@@ -859,6 +888,16 @@ function HeroMediaControls() {
             ? '↺ Replace image'
             : '＋ Add image'}
       </button>
+      {hasImage && (
+        <button
+          type="button"
+          onClick={() => setReposMode(true)}
+          style={pillBtn(false)}
+          title="Drag to reposition the hero image. Saves automatically."
+        >
+          ⤧ Reposition
+        </button>
+      )}
       <button
         type="button"
         onClick={() => trailerInputRef.current?.click()}
@@ -925,6 +964,7 @@ function HeroMediaControls() {
         )}
       </div>
     </div>
+    </>
   )
 }
 
@@ -2030,6 +2070,15 @@ function RealLessonEpisodeThumb({
   const thumbInputRef = useRef<HTMLInputElement>(null)
   const videoInputRef = useRef<HTMLInputElement>(null)
 
+  // Reposition mode — when active, an inline drag overlay tracks the
+  // user's pointer over the thumbnail and commits the new
+  // thumbnail_object_position to the lesson on release. The same lesson
+  // record drives every other place the thumbnail shows (outline, mobile
+  // landing, customer portal), so the change is visible everywhere.
+  const [reposMode, setReposMode] = useState(false)
+  const [livePos, setLivePos] = useState<string | null>(null)
+  const repositionCommitRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   const playbackId =
     lesson.mux_playback_id && lesson.mux_status === 'ready'
       ? lesson.mux_playback_id
@@ -2037,6 +2086,34 @@ function RealLessonEpisodeThumb({
   const localVideoUrl = lessonHandlers?.getLocalVideoUrl?.(lesson.id) ?? null
   const hasPeekVideo = !!playbackId || !!localVideoUrl
   const thumbnailUrl = lesson.thumbnail_url ?? null
+  const effectivePosition =
+    livePos ?? lesson.thumbnail_object_position ?? '50% 50%'
+
+  const commitPosition = (next: string) => {
+    if (!lessonHandlers) return
+    if (repositionCommitRef.current) {
+      clearTimeout(repositionCommitRef.current)
+    }
+    repositionCommitRef.current = setTimeout(() => {
+      lessonHandlers
+        .updateLesson(lesson.id, { thumbnail_object_position: next })
+        .catch((err) => {
+          toast({
+            title: 'Failed to save thumbnail position',
+            description: err instanceof Error ? err.message : String(err),
+          })
+        })
+    }, 250)
+  }
+
+  useEffect(
+    () => () => {
+      if (repositionCommitRef.current) {
+        clearTimeout(repositionCommitRef.current)
+      }
+    },
+    [],
+  )
 
   // Drive the hover-triggered peek. Re-evaluate when `hovered` flips.
   useEffect(() => {
@@ -2135,7 +2212,7 @@ function RealLessonEpisodeThumb({
             width: '100%',
             height: '100%',
             objectFit: 'cover',
-            objectPosition: lesson.thumbnail_object_position ?? '50% 50%',
+            objectPosition: effectivePosition,
             opacity: peekActive ? 0 : 1,
             transition: 'opacity 400ms ease',
             zIndex: 1,
@@ -2252,7 +2329,7 @@ function RealLessonEpisodeThumb({
               transition: 'border-color 150ms ease',
             }}
           />
-          {hovered && (
+          {hovered && !reposMode && (
             <div
               style={{
                 position: 'absolute',
@@ -2276,6 +2353,16 @@ function RealLessonEpisodeThumb({
                     ? 'Replace thumbnail'
                     : 'Add thumbnail'}
               </button>
+              {thumbnailUrl && (
+                <button
+                  type="button"
+                  onClick={() => setReposMode(true)}
+                  style={lessonPillBtn}
+                  title="Drag to reposition the thumbnail. Saves automatically."
+                >
+                  Reposition
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => videoInputRef.current?.click()}
@@ -2291,6 +2378,16 @@ function RealLessonEpisodeThumb({
                     : 'Add video'}
               </button>
             </div>
+          )}
+          {reposMode && thumbnailUrl && (
+            <ImageReposOverlay
+              currentPosition={effectivePosition}
+              onChange={(next) => {
+                setLivePos(next)
+                commitPosition(next)
+              }}
+              onDone={() => setReposMode(false)}
+            />
           )}
           {lesson.mux_upload_id && !playbackId && (
             <div
@@ -2329,6 +2426,146 @@ const lessonPillBtn: React.CSSProperties = {
   cursor: 'pointer',
   border: '1px solid rgba(255,255,255,0.08)',
   fontFamily: 'Inter, system-ui, sans-serif',
+}
+
+// Inline reposition overlay for the lesson card. Same drag-on-image UX
+// as the EditMedia ReposOverlay but persists via `lessonHandlers` so the
+// new position lands on the actual lesson record (where every other
+// surface — outline grid, mobile landing, customer portal — reads it).
+function ImageReposOverlay({
+  currentPosition,
+  onChange,
+  onDone,
+}: {
+  currentPosition: string
+  onChange: (next: string) => void
+  onDone: () => void
+}) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState(() => {
+    const parts = currentPosition.trim().split(/\s+/)
+    const x = parseFloat(parts[0])
+    const y = parseFloat(parts[1])
+    return {
+      x: Number.isFinite(x) ? Math.min(100, Math.max(0, x)) : 50,
+      y: Number.isFinite(y) ? Math.min(100, Math.max(0, y)) : 50,
+    }
+  })
+  const [dragging, setDragging] = useState(false)
+  const setFromPoint = (clientX: number, clientY: number) => {
+    const el = containerRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const x = Math.min(100, Math.max(0, ((clientX - rect.left) / rect.width) * 100))
+    const y = Math.min(100, Math.max(0, ((clientY - rect.top) / rect.height) * 100))
+    setPos({ x, y })
+    onChange(`${x.toFixed(1)}% ${y.toFixed(1)}%`)
+  }
+  useEffect(() => {
+    if (!dragging) return
+    const onMove = (e: MouseEvent) => {
+      e.preventDefault()
+      setFromPoint(e.clientX, e.clientY)
+    }
+    const onUp = () => setDragging(false)
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+  }, [dragging])
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' || e.key === 'Enter') onDone()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onDone])
+  return (
+    <>
+      <div
+        ref={containerRef}
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          setFromPoint(e.clientX, e.clientY)
+          setDragging(true)
+        }}
+        onTouchStart={(e) => {
+          const t = e.touches[0]
+          if (t) setFromPoint(t.clientX, t.clientY)
+        }}
+        onTouchMove={(e) => {
+          const t = e.touches[0]
+          if (t) setFromPoint(t.clientX, t.clientY)
+        }}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          zIndex: 7,
+          cursor: dragging ? 'grabbing' : 'grab',
+          background:
+            'radial-gradient(circle at var(--rp-x) var(--rp-y), rgba(99,102,241,0.18) 0%, rgba(0,0,0,0.35) 60%, rgba(0,0,0,0.55) 100%)',
+          ...({
+            '--rp-x': `${pos.x}%`,
+            '--rp-y': `${pos.y}%`,
+          } as React.CSSProperties),
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          left: `${pos.x}%`,
+          top: `${pos.y}%`,
+          width: 14,
+          height: 14,
+          marginLeft: -7,
+          marginTop: -7,
+          borderRadius: '50%',
+          background: 'rgba(255,255,255,0.95)',
+          border: '2px solid #6366f1',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+          zIndex: 8,
+          pointerEvents: 'none',
+        }}
+      />
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: 'absolute',
+          right: 10,
+          top: 10,
+          zIndex: 9,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: '6px 8px 6px 12px',
+          borderRadius: 999,
+          background: 'rgba(20,20,22,0.92)',
+          color: 'white',
+          fontFamily: 'Inter, system-ui, sans-serif',
+        }}
+      >
+        <span style={{ fontSize: 11.5, fontWeight: 600 }}>
+          Drag to reposition · {pos.x.toFixed(0)}% × {pos.y.toFixed(0)}%
+        </span>
+        <button
+          type="button"
+          onClick={onDone}
+          style={{
+            ...lessonPillBtn,
+            background: 'white',
+            color: '#111',
+            padding: '5px 11px',
+          }}
+        >
+          Done
+        </button>
+      </div>
+    </>
+  )
 }
 
 function EpisodeInfo({
