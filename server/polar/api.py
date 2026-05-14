@@ -54,6 +54,7 @@ from polar.organization_access_token.endpoints import (
 )
 from polar.payment.endpoints import router as payment_router
 from polar.payout.endpoints import router as payout_router
+from polar.platform.endpoints import router as platform_router
 from polar.course.endpoints import router as course_router
 from polar.personal_access_token.endpoints import router as pat_router
 from polar.product.endpoints import router as product_router
@@ -126,6 +127,8 @@ router.include_router(files_router)
 router.include_router(metrics_router)
 # /entitlements
 router.include_router(entitlements_router)
+# /platform
+router.include_router(platform_router)
 # /integrations/google
 router.include_router(google_router)
 # /license-keys
