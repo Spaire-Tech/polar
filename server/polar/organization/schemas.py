@@ -79,6 +79,13 @@ class OrganizationFeatureSettings(Schema):
     seat_based_pricing_enabled: bool = Field(
         False, description="If this organization has seat-based pricing enabled"
     )
+    course_player_white_label: bool = Field(
+        False,
+        description=(
+            "When true, the course lesson player hides Spaire branding. "
+            "Requires the white_label_course_player tier feature (Scale)."
+        ),
+    )
     revops_enabled: bool = Field(
         False, description="If this organization has RevOps enabled"
     )

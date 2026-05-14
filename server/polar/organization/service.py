@@ -16,6 +16,7 @@ from polar.auth.models import AuthSubject
 from polar.checkout_link.repository import CheckoutLinkRepository
 from polar.config import Environment, settings
 from polar.customer.repository import CustomerRepository
+from polar.entitlements.service import entitlements as entitlements_service
 from polar.enums import InvoiceNumbering
 from polar.exceptions import NotPermitted, PolarError, SpaireRequestValidationError
 from polar.integrations.loops.service import loops as loops_service
@@ -234,11 +235,20 @@ class OrganizationService:
             organization.onboarded_at = datetime.now(UTC)
 
         if update_schema.feature_settings is not None:
+            settings_update = update_schema.feature_settings.model_dump(
+                mode="json", exclude_unset=True, exclude_none=True
+            )
+            # Gate setting course_player_white_label=True on the tier's
+            # feature flag. Disabling (False) is always allowed so creators
+            # can roll back after a downgrade. Same pattern as drip
+            # scheduling in course/service.py.
+            if settings_update.get("course_player_white_label") is True:
+                await entitlements_service.require_feature(
+                    session, organization.id, "white_label_course_player"
+                )
             organization.feature_settings = {
                 **organization.feature_settings,
-                **update_schema.feature_settings.model_dump(
-                    mode="json", exclude_unset=True, exclude_none=True
-                ),
+                **settings_update,
             }
 
         if update_schema.subscription_settings is not None:
