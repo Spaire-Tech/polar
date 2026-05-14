@@ -1,5 +1,6 @@
 import uuid
 
+import structlog
 from sqlalchemy.orm import joinedload
 
 from polar.account.repository import AccountRepository
@@ -13,13 +14,19 @@ from polar.email.schemas import (
 from polar.email.sender import enqueue_email
 from polar.exceptions import PolarTaskError
 from polar.held_balance.service import held_balance as held_balance_service
+from polar.integrations.plain.service import plain as plain_service
 from polar.models import Organization
 from polar.models.organization import OrganizationStatus
-from polar.integrations.plain.service import plain as plain_service
+from polar.platform.billing import (
+    TierProductMissing,
+    platform_billing,
+)
 from polar.user.repository import UserRepository
 from polar.worker import AsyncSessionMaker, TaskPriority, actor
 
 from .repository import OrganizationRepository
+
+log: structlog.stdlib.BoundLogger = structlog.get_logger()
 
 
 class OrganizationTaskError(PolarTaskError): ...
@@ -62,6 +69,20 @@ async def organization_created(organization_id: uuid.UUID) -> None:
         organization = await repository.get_by_id(organization_id)
         if organization is None:
             raise OrganizationDoesNotExist(organization_id)
+
+        # Auto-subscribe the new org to Spaire's Free plan. Best-effort:
+        # never block org creation if the platform org isn't configured
+        # or its products aren't seeded — the EntitlementsService falls
+        # back to legacy entitlements when no subscription exists, so
+        # the creator can still use the product.
+        try:
+            await platform_billing.ensure_free_subscription(session, organization)
+        except TierProductMissing as e:
+            log.warning(
+                "organization.created.platform_billing_skipped",
+                organization_id=str(organization_id),
+                reason=e.message,
+            )
 
 
 @actor(actor_name="organization.account_set", priority=TaskPriority.LOW)
