@@ -135,6 +135,21 @@ class CourseLessonRepository(
         )
         return await self.get_one_or_none(statement)
 
+    async def get_organization_id_for_lesson(
+        self, lesson_id: UUID
+    ) -> UUID | None:
+        """Resolve the owning organization of a lesson via its module/course
+        chain. Used by quota enforcement and the Mux webhook handler.
+        """
+        statement = (
+            select(Course.organization_id)
+            .join(CourseModule, CourseModule.course_id == Course.id)
+            .join(CourseLesson, CourseLesson.module_id == CourseModule.id)
+            .where(CourseLesson.id == lesson_id)
+        )
+        result = await self.session.execute(statement)
+        return result.scalar_one_or_none()
+
 
 class CourseEnrollmentRepository(
     RepositorySoftDeletionIDMixin[CourseEnrollment, UUID],
