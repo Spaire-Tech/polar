@@ -11,6 +11,10 @@ log = logging.getLogger(__name__)
 from polar.auth.models import is_customer, is_member
 from polar.course import mux as mux_client
 from polar.course.repository import CourseLessonRepository
+from polar.organization.repository import OrganizationRepository
+from polar.quotas.definitions import QuotaKey
+from polar.quotas.exceptions import QuotaExceededError
+from polar.quotas.producers import emit_video_viewed, enforce
 from polar.course.schemas import (
     CourseLessonFlatRead,
     CourseLandingPageRead,
@@ -477,6 +481,64 @@ async def submit_quiz_attempt(
         correct_count=correct_count,
         answers=answer_results,
     )
+
+
+@router.post(
+    "/{course_id}/lessons/{lesson_id}/playback-url",
+    summary="Mint Lesson Playback URL",
+)
+async def mint_lesson_playback_url(
+    course_id: UUID,
+    lesson_id: UUID,
+    auth_subject: auth.CustomerPortalUnionRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> dict[str, str | None]:
+    """Authorize and mint a signed Mux playback URL for the lesson.
+
+    The client should call this endpoint each time it starts video
+    playback. Doing so records one view against the course owner's
+    monthly video-view quota. When the org has exhausted its quota,
+    this endpoint returns 402 and no playback URL is issued — the
+    customer sees an explanatory message instead of the video.
+    """
+    customer_id = get_customer_id(auth_subject)
+    enrollment, lesson = await _verify_lesson_in_enrolled_course(
+        session, customer_id, course_id, lesson_id
+    )
+    if lesson.content_type != "video":
+        raise HTTPException(
+            status_code=400, detail="Lesson is not a video lesson"
+        )
+    playback_id = getattr(lesson, "mux_playback_id", None)
+    if not playback_id:
+        raise HTTPException(
+            status_code=404, detail="Lesson video is not available yet"
+        )
+
+    lesson_repo = CourseLessonRepository.from_session(session)
+    organization_id = await lesson_repo.get_organization_id_for_lesson(lesson.id)
+    if organization_id is not None:
+        org_repo = OrganizationRepository.from_session(session)
+        organization = await org_repo.get_by_id(organization_id)
+        if organization is not None:
+            try:
+                await enforce(
+                    session,
+                    organization,
+                    QuotaKey.video_views_monthly,
+                    requested_storage_units=1,
+                )
+            except QuotaExceededError as exc:
+                raise HTTPException(
+                    status_code=402, detail=exc.message
+                ) from exc
+            emit_video_viewed(session, organization_id=organization.id)
+    _ = enrollment
+
+    return {
+        "mux_playback_id": playback_id,
+        "mux_playback_url": mux_client.playback_url(playback_id),
+    }
 
 
 @router.post(
