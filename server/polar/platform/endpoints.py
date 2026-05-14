@@ -22,20 +22,25 @@ from polar.entitlements.schemas import Entitlements
 from polar.entitlements.service import entitlements as entitlements_service
 from polar.entitlements.tiers import TierKey, get_definition
 from polar.exceptions import ResourceNotFound
+from polar.locker import Locker, get_locker
 from polar.openapi import APITag
 from polar.organization.repository import OrganizationRepository
 from polar.organization.schemas import OrganizationID
 from polar.postgres import AsyncReadSession, AsyncSession, get_db_read_session, get_db_session
 from polar.routing import APIRouter
+from polar.subscription.schemas import Subscription as SubscriptionSchema
 
 from . import auth
+from .management import platform_management
 from .repository import (
     platform_customer_repository,
     platform_product_repository,
     platform_subscription_repository,
 )
 from .schemas import (
+    CancelSpaireSubscription,
     CurrentSpaireSubscription,
+    SwitchPlan,
     TierPlan,
     TierPlanList,
     UpgradeCheckout,
@@ -202,3 +207,67 @@ async def create_upgrade_checkout(
         checkout_url=checkout.url,
         client_secret=checkout.client_secret,
     )
+
+
+@router.post(
+    "/organizations/{organization_id}/switch-plan",
+    summary="Switch Spaire Plan",
+    response_model=SubscriptionSchema,
+)
+async def switch_plan(
+    organization_id: OrganizationID,
+    body: SwitchPlan,
+    auth_subject: auth.PlatformWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> SubscriptionSchema:
+    """Switch a creator's current Spaire subscription from one paid tier
+    to another (Pro <-> Scale). The card on file is reused; proration is
+    invoiced immediately. Use the upgrade-checkout endpoint to start a
+    paid subscription from Free, and the cancel endpoint to downgrade
+    to Free.
+    """
+    org_repository = OrganizationRepository.from_session(session)
+    readable = org_repository.get_readable_statement(auth_subject).where(
+        OrganizationRepository.model.id == organization_id
+    )
+    organization = await org_repository.get_one_or_none(readable)
+    if organization is None:
+        raise ResourceNotFound("Organization not found.")
+
+    subscription = await platform_management.switch_plan(
+        session, organization=organization, target_tier=body.tier
+    )
+    return SubscriptionSchema.model_validate(subscription)
+
+
+@router.post(
+    "/organizations/{organization_id}/cancel",
+    summary="Cancel Spaire Subscription",
+    response_model=SubscriptionSchema,
+)
+async def cancel_subscription(
+    organization_id: OrganizationID,
+    body: CancelSpaireSubscription,
+    auth_subject: auth.PlatformWrite,
+    session: AsyncSession = Depends(get_db_session),
+    locker: Locker = Depends(get_locker),
+) -> SubscriptionSchema:
+    """Schedule the creator's current paid Spaire subscription to cancel
+    at the end of the current billing period. When the subscription
+    revokes the org is automatically re-subscribed to Free.
+
+    Canceling on Free is a no-op (the Free subscription stays active).
+    """
+    _ = body  # Body kept for future cancel-reason capture.
+    org_repository = OrganizationRepository.from_session(session)
+    readable = org_repository.get_readable_statement(auth_subject).where(
+        OrganizationRepository.model.id == organization_id
+    )
+    organization = await org_repository.get_one_or_none(readable)
+    if organization is None:
+        raise ResourceNotFound("Organization not found.")
+
+    subscription = await platform_management.cancel_at_period_end(
+        session, locker, organization=organization
+    )
+    return SubscriptionSchema.model_validate(subscription)

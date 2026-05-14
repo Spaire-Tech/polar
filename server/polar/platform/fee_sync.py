@@ -148,24 +148,50 @@ async def maybe_enqueue_sync_from_subscription(
     so creator orgs that upgrade or downgrade through the normal checkout
     path get their fees updated automatically.
     """
-    if not platform_service.is_configured():
+    creator_org_id = await _platform_creator_org_id(session, subscription)
+    if creator_org_id is not None:
+        enqueue_sync(creator_org_id)
+
+
+async def maybe_enqueue_resubscribe_from_revoke(
+    session: AsyncSession, subscription: Subscription
+) -> None:
+    """If `subscription` belongs to a creator on the platform org and has
+    just been revoked, enqueue a job that re-creates an active Free
+    subscription so the org keeps a valid Spaire entitlement record.
+
+    Otherwise a no-op. Called from subscription/service.py inside
+    _on_subscription_revoked.
+    """
+    creator_org_id = await _platform_creator_org_id(session, subscription)
+    if creator_org_id is None:
         return
+    enqueue_job("platform.resubscribe_to_free", organization_id=creator_org_id)
+
+
+async def _platform_creator_org_id(
+    session: AsyncSession, subscription: Subscription
+) -> UUID | None:
+    """Resolve the creator-org id linked to a platform-org subscription's
+    customer record. Returns None when the subscription isn't on the
+    platform org, the customer is missing, or the metadata lookup fails.
+    """
+    if not platform_service.is_configured():
+        return None
 
     customer_repository = CustomerRepository.from_session(session)
     customer = await customer_repository.get_by_id(subscription.customer_id)
     if customer is None:
-        return
+        return None
 
     if not platform_service.is_platform_organization(customer.organization_id):
-        return
+        return None
 
     creator_org_id_raw = (customer.user_metadata or {}).get("creator_org_id")
     if not isinstance(creator_org_id_raw, str):
-        return
+        return None
 
     try:
-        creator_org_id = UUID(creator_org_id_raw)
+        return UUID(creator_org_id_raw)
     except ValueError:
-        return
-
-    enqueue_sync(creator_org_id)
+        return None

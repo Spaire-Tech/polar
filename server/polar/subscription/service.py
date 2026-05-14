@@ -81,7 +81,10 @@ from polar.notifications.notification import (
 from polar.notifications.service import PartialNotification
 from polar.notifications.service import notifications as notifications_service
 from polar.organization.repository import OrganizationRepository
-from polar.platform.fee_sync import maybe_enqueue_sync_from_subscription
+from polar.platform.fee_sync import (
+    maybe_enqueue_resubscribe_from_revoke,
+    maybe_enqueue_sync_from_subscription,
+)
 from polar.product.guard import (
     is_custom_price,
     is_fixed_price,
@@ -2076,6 +2079,11 @@ class SubscriptionService:
         await self._send_webhook(
             session, subscription, WebhookEventType.subscription_revoked
         )
+
+        # If this was a creator's Spaire subscription, schedule an
+        # auto-resubscribe to Free so they don't lose tier resolution
+        # (which would otherwise fall back to legacy entitlements).
+        await maybe_enqueue_resubscribe_from_revoke(session, subscription)
 
         await event_service.create_event(
             session,

@@ -86,3 +86,21 @@ class UpgradeCheckout(Schema):
     checkout_id: UUID
     checkout_url: str
     client_secret: str
+
+
+class SwitchPlan(Schema):
+    tier: TierKey = Field(
+        description=(
+            "Target tier. Must be a different paid tier than the current "
+            "one (e.g. pro -> scale or scale -> pro). Use the cancel "
+            "endpoint to downgrade to Free."
+        )
+    )
+
+
+class CancelSpaireSubscription(Schema):
+    """Schedule the current Spaire subscription for cancellation at the
+    end of the current billing period. The org will be auto-resubscribed
+    to Free when the cancellation revokes."""
+
+    pass
