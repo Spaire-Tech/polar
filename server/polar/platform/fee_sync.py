@@ -134,8 +134,20 @@ def enqueue_sync(organization_id: UUID) -> None:
     Safe to call from synchronous hot paths. The actor (registered in
     `polar/platform/tasks.py`) reloads state in a fresh session and applies
     the sync idempotently.
+
+    No-op when running outside the API/worker process (one-off scripts,
+    tests) where Dramatiq's JobQueueManager hasn't been initialized. In
+    those contexts the caller is expected to either set up
+    `JobQueueManager.open(...)` itself or accept that the sync will run
+    on the next API request that touches this org via PR 5's hook.
     """
-    enqueue_job("platform.fee_sync", organization_id=organization_id)
+    try:
+        enqueue_job("platform.fee_sync", organization_id=organization_id)
+    except LookupError:
+        log.debug(
+            "platform.fee_sync.enqueue_skipped_no_queue_manager",
+            organization_id=str(organization_id),
+        )
 
 
 async def maybe_enqueue_sync_from_subscription(
@@ -166,7 +178,18 @@ async def maybe_enqueue_resubscribe_from_revoke(
     creator_org_id = await _platform_creator_org_id(session, subscription)
     if creator_org_id is None:
         return
-    enqueue_job("platform.resubscribe_to_free", organization_id=creator_org_id)
+    try:
+        enqueue_job(
+            "platform.resubscribe_to_free", organization_id=creator_org_id
+        )
+    except LookupError:
+        # Scripts / tests without a JobQueueManager — same logic as
+        # enqueue_sync above. The caller can re-run platform_billing
+        # .ensure_subscription(tier=free) manually if needed.
+        log.debug(
+            "platform.resubscribe_to_free.enqueue_skipped_no_queue_manager",
+            organization_id=str(creator_org_id),
+        )
 
 
 async def _platform_creator_org_id(
