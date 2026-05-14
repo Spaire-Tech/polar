@@ -81,7 +81,8 @@ class TierFeatures(Schema):
     sandbox_mode: bool
     custom_storefront_domain: bool
     custom_checkout_domain: bool
-    sso_and_audit_logs: bool
+    sso: bool
+    audit_logs: bool
 
     @classmethod
     def from_dataclass(cls, source: TierFeaturesDataclass) -> "TierFeatures":
@@ -99,7 +100,8 @@ class TierFeatures(Schema):
             sandbox_mode=source.sandbox_mode,
             custom_storefront_domain=source.custom_storefront_domain,
             custom_checkout_domain=source.custom_checkout_domain,
-            sso_and_audit_logs=source.sso_and_audit_logs,
+            sso=source.sso,
+            audit_logs=source.audit_logs,
         )
 
 

@@ -23,7 +23,8 @@ _FEATURE_LABEL: dict[str, str] = {
     "sandbox_mode": "Sandbox / test mode",
     "custom_storefront_domain": "Custom storefront domain",
     "custom_checkout_domain": "Custom checkout domain",
-    "sso_and_audit_logs": "SSO and audit logs",
+    "sso": "Single sign-on (SSO)",
+    "audit_logs": "Audit logs",
 }
 
 

@@ -69,7 +69,8 @@ class TierFeatures:
     sandbox_mode: bool
     custom_storefront_domain: bool
     custom_checkout_domain: bool
-    sso_and_audit_logs: bool
+    sso: bool
+    audit_logs: bool
 
 
 @dataclass(frozen=True)
@@ -124,7 +125,8 @@ _LEGACY = TierEntitlements(
         sandbox_mode=True,
         custom_storefront_domain=True,
         custom_checkout_domain=True,
-        sso_and_audit_logs=True,
+        sso=True,
+        audit_logs=True,
     ),
     rate_limit_group="default",
     monthly_price_cents=0,
@@ -159,7 +161,8 @@ _FREE = TierEntitlements(
         sandbox_mode=False,
         custom_storefront_domain=False,
         custom_checkout_domain=False,
-        sso_and_audit_logs=False,
+        sso=False,
+        audit_logs=False,
     ),
     rate_limit_group="default",
     monthly_price_cents=0,
@@ -194,7 +197,8 @@ _PRO = TierEntitlements(
         sandbox_mode=False,
         custom_storefront_domain=False,
         custom_checkout_domain=False,
-        sso_and_audit_logs=False,
+        sso=False,
+        audit_logs=False,
     ),
     rate_limit_group="elevated",
     monthly_price_cents=4900,
@@ -229,7 +233,8 @@ _SCALE = TierEntitlements(
         sandbox_mode=True,
         custom_storefront_domain=False,
         custom_checkout_domain=False,
-        sso_and_audit_logs=False,
+        sso=False,
+        audit_logs=True,
     ),
     rate_limit_group="elevated",
     monthly_price_cents=29900,

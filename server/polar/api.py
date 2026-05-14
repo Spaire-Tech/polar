@@ -20,6 +20,7 @@ from polar.email_segment.endpoints import router as email_segment_router
 from polar.email_sequence.endpoints import router as email_sequence_router
 from polar.email_subscriber.endpoints import router as email_subscriber_router
 from polar.email_update.endpoints import router as email_update_router
+from polar.audit_log.endpoints import router as audit_log_router
 from polar.entitlements.endpoints import router as entitlements_router
 from polar.event.endpoints import router as event_router
 from polar.event_type.endpoints import router as event_type_router
@@ -129,6 +130,8 @@ router.include_router(metrics_router)
 router.include_router(entitlements_router)
 # /platform
 router.include_router(platform_router)
+# /audit-log
+router.include_router(audit_log_router)
 # /integrations/google
 router.include_router(google_router)
 # /license-keys
