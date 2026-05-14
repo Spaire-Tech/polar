@@ -1,3 +1,4 @@
+import dataclasses
 from uuid import UUID
 
 import pytest
@@ -8,7 +9,7 @@ from polar.entitlements.exceptions import (
     TierLimitReachedError,
 )
 from polar.entitlements.service import entitlements
-from polar.entitlements.tiers import TierKey
+from polar.entitlements.tiers import TierKey, get_definition
 from polar.enums import SubscriptionRecurringInterval
 from polar.models import Organization, Product
 from polar.models.subscription import SubscriptionStatus
@@ -25,6 +26,26 @@ from tests.fixtures.random_objects import (
 
 def _patch_platform_org_id(mocker: MockerFixture, org_id: UUID | None) -> None:
     mocker.patch("polar.platform.service.settings.PLATFORM_ORG_ID", org_id)
+
+
+def _patch_pro_limits(mocker: MockerFixture, **limit_overrides: int | None) -> None:
+    """Override Pro's TierLimits so the limit-reached tests can assert
+    against small values (Pro's real limits — unlimited courses /
+    lessons, 250k email sends — make the original Free-shaped tests
+    meaningless without an override)."""
+    base = get_definition(TierKey.pro)
+    overridden = dataclasses.replace(
+        base, limits=dataclasses.replace(base.limits, **limit_overrides)
+    )
+
+    def _resolve(tier: TierKey) -> "object":
+        if tier == TierKey.pro:
+            return overridden
+        return get_definition(tier)
+
+    mocker.patch(
+        "polar.entitlements.service.get_definition", side_effect=_resolve
+    )
 
 
 async def _seed_tier_product(
@@ -201,6 +222,9 @@ class TestRequireUnderLimit:
     ) -> None:
         platform_org = await create_organization(save_fixture)
         _patch_platform_org_id(mocker, platform_org.id)
+        # Patch Pro down to 1 published course so the "at-cap" branch
+        # can be exercised. Pro's real limit is unlimited.
+        _patch_pro_limits(mocker, published_courses=1)
         creator = await create_organization(save_fixture)
         await _subscribe(
             save_fixture,
@@ -210,8 +234,6 @@ class TestRequireUnderLimit:
             monthly_cents=0,
         )
 
-        # Free allows 1 published course. Already at 1 -> next create should
-        # fail.
         with pytest.raises(TierLimitReachedError) as excinfo:
             await entitlements.require_under_limit(
                 session, creator.id, "published_courses", current=1
@@ -231,6 +253,7 @@ class TestRequireUnderLimit:
         # should still be blocked.
         platform_org = await create_organization(save_fixture)
         _patch_platform_org_id(mocker, platform_org.id)
+        _patch_pro_limits(mocker, lessons_per_course=10)
         creator = await create_organization(save_fixture)
         await _subscribe(
             save_fixture,
@@ -253,6 +276,7 @@ class TestRequireUnderLimit:
     ) -> None:
         platform_org = await create_organization(save_fixture)
         _patch_platform_org_id(mocker, platform_org.id)
+        _patch_pro_limits(mocker, lessons_per_course=10)
         creator = await create_organization(save_fixture)
         await _subscribe(
             save_fixture,
@@ -262,7 +286,7 @@ class TestRequireUnderLimit:
             monthly_cents=0,
         )
 
-        # Free: 10 lessons per course. At 9 -> next one fits.
+        # 10 lessons per course (patched). At 9 -> next one fits.
         await entitlements.require_under_limit(
             session, creator.id, "lessons_per_course", current=9
         )

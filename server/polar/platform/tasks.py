@@ -8,7 +8,10 @@ from polar.exceptions import PolarTaskError
 from polar.integrations.resend import domains as resend_domains
 from polar.kit.utils import utc_now
 from polar.models import Organization
+from polar.models.subscription import SubscriptionStatus
 from polar.organization.repository import OrganizationRepository
+from polar.platform.repository import platform_subscription_repository
+from polar.platform.service import platform as platform_service
 from polar.worker import (
     AsyncSessionMaker,
     CronTrigger,
@@ -97,6 +100,85 @@ async def platform_resubscribe_to_legacy(organization_id: uuid.UUID) -> None:
             organization_id=str(organization_id),
             subscription_id=str(subscription.id) if subscription else None,
         )
+
+
+# ---------------------------------------------------------------------------
+# Trial expiry: lapse trialing platform-org subscriptions whose trial_end
+# has already passed so the creator falls back to Legacy entitlements.
+# ---------------------------------------------------------------------------
+
+
+@actor(
+    actor_name="platform.expire_trials",
+    cron_trigger=CronTrigger(minute=5),
+    priority=TaskPriority.LOW,
+    max_retries=0,
+)
+async def platform_expire_trials() -> None:
+    """Hourly sweep: any platform-org subscription still in `trialing`
+    after `trial_end` is canceled in-place and the creator org is
+    enqueued for resubscribe to Legacy.
+
+    No Stripe round-trip — these subscriptions are platform-internal.
+    Conversion (capturing a payment method during the trial) goes
+    through the upgrade-checkout endpoint, which calls
+    subscription.update on the trialing sub directly; that path won't
+    leave a sub in trialing past its end. So anything we find here
+    really did expire without converting.
+    """
+    if not platform_service.is_configured():
+        return
+
+    platform_org_id = platform_service.get_id()
+    now = utc_now()
+
+    async with AsyncSessionMaker() as session:
+        subscription_repo = platform_subscription_repository(session)
+        expired = await subscription_repo.list_expired_trials(
+            platform_org_id, before=now
+        )
+        if not expired:
+            log.info("platform.expire_trials.none_found")
+            return
+
+        for subscription in expired:
+            subscription.status = SubscriptionStatus.canceled
+            subscription.ended_at = now
+            subscription.canceled_at = now
+
+            creator_org_id_raw = (
+                subscription.customer.user_metadata or {}
+            ).get("creator_org_id")
+            if not isinstance(creator_org_id_raw, str):
+                log.warning(
+                    "platform.expire_trials.missing_creator_org_id",
+                    subscription_id=str(subscription.id),
+                )
+                continue
+
+            try:
+                creator_org_id = uuid.UUID(creator_org_id_raw)
+            except ValueError:
+                log.warning(
+                    "platform.expire_trials.bad_creator_org_id",
+                    subscription_id=str(subscription.id),
+                    creator_org_id=creator_org_id_raw,
+                )
+                continue
+
+            enqueue_job(
+                "platform.resubscribe_to_legacy",
+                organization_id=creator_org_id,
+            )
+            log.info(
+                "platform.expire_trials.expired",
+                subscription_id=str(subscription.id),
+                creator_org_id=creator_org_id_raw,
+                tier=(subscription.product.user_metadata or {}).get("tier"),
+                trial_end=subscription.trial_end.isoformat()
+                if subscription.trial_end
+                else None,
+            )
 
 
 # ---------------------------------------------------------------------------

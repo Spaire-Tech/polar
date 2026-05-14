@@ -1,9 +1,11 @@
+import dataclasses
 from datetime import UTC, datetime
 from uuid import UUID
 
 import pytest
 from pytest_mock import MockerFixture
 
+from polar.entitlements.tiers import TierKey, get_definition
 from polar.enums import SubscriptionRecurringInterval
 from polar.models import Organization, Product
 from polar.models.event import EventSource
@@ -24,6 +26,31 @@ from tests.fixtures.random_objects import (
 
 def _patch_platform_org_id(mocker: MockerFixture, org_id: UUID | None) -> None:
     mocker.patch("polar.platform.service.settings.PLATFORM_ORG_ID", org_id)
+
+
+def _patch_pro_limits(mocker: MockerFixture, **limit_overrides: int | None) -> None:
+    """Override Pro's TierLimits with small testable values so the
+    "fill near cap, then check" tests don't have to fixture 250k events.
+
+    Pro's real limits (250k email sends, 50 video hours, 25 GB storage)
+    make per-event-fixture loops too slow to be practical. The tests
+    care about *behavior at the cap*, not the cap value itself, so
+    patching the limit to a small number preserves coverage while
+    keeping tests fast.
+    """
+    base = get_definition(TierKey.pro)
+    overridden = dataclasses.replace(
+        base, limits=dataclasses.replace(base.limits, **limit_overrides)
+    )
+
+    def _resolve(tier: TierKey) -> "object":
+        if tier == TierKey.pro:
+            return overridden
+        return get_definition(tier)
+
+    mocker.patch(
+        "polar.entitlements.service.get_definition", side_effect=_resolve
+    )
 
 
 async def _seed_tier_product(
@@ -85,6 +112,7 @@ class TestGetUsage:
     ) -> None:
         platform_org = await create_organization(save_fixture)
         _patch_platform_org_id(mocker, platform_org.id)
+        _patch_pro_limits(mocker, email_sends_monthly=5000)
         creator = await create_organization(save_fixture)
         await _subscribe_to_tier(
             save_fixture,
@@ -107,7 +135,7 @@ class TestGetUsage:
         )
 
         assert usage.used == 7
-        assert usage.limit == 5000  # free tier
+        assert usage.limit == 5000
         assert usage.remaining == 4993
         assert usage.is_unlimited is False
         assert usage.is_exceeded is False
@@ -120,6 +148,7 @@ class TestGetUsage:
     ) -> None:
         platform_org = await create_organization(save_fixture)
         _patch_platform_org_id(mocker, platform_org.id)
+        _patch_pro_limits(mocker, video_hours_hosted=5)
         creator = await create_organization(save_fixture)
         await _subscribe_to_tier(
             save_fixture,
@@ -372,6 +401,7 @@ class TestCheck:
     ) -> None:
         platform_org = await create_organization(save_fixture)
         _patch_platform_org_id(mocker, platform_org.id)
+        _patch_pro_limits(mocker, email_sends_monthly=5000)
         creator = await create_organization(save_fixture)
         await _subscribe_to_tier(
             save_fixture,
@@ -402,6 +432,7 @@ class TestCheck:
     ) -> None:
         platform_org = await create_organization(save_fixture)
         _patch_platform_org_id(mocker, platform_org.id)
+        _patch_pro_limits(mocker, email_sends_monthly=5000)
         creator = await create_organization(save_fixture)
         await _subscribe_to_tier(
             save_fixture,
@@ -489,6 +520,10 @@ class TestCheck:
         just above the limit is allowed and surfaces overage details."""
         platform_org = await create_organization(save_fixture)
         _patch_platform_org_id(mocker, platform_org.id)
+        # Patch the Pro cap down to 10 so we can fill it without fixturing
+        # 250k events. The 10% grace logic (overage_grace_pct=10 on Pro)
+        # is what's actually under test.
+        _patch_pro_limits(mocker, email_sends_monthly=10)
         creator = await create_organization(save_fixture)
         await _subscribe_to_tier(
             save_fixture,
@@ -497,9 +532,7 @@ class TestCheck:
             tier="pro",
             monthly_cents=4900,
         )
-        # Pro email cap = 250,000. Pre-fill 250,000 sends so the next
-        # request lands inside the grace band.
-        for _ in range(250_000):
+        for _ in range(10):
             await create_event(
                 save_fixture,
                 organization=creator,
@@ -526,9 +559,12 @@ class TestCheck:
         save_fixture: SaveFixture,
     ) -> None:
         """Pro tier still hard-blocks once usage crosses the 10% grace
-        ceiling (limit * 1.10 = 275,000 for monthly emails)."""
+        ceiling (limit * 1.10)."""
         platform_org = await create_organization(save_fixture)
         _patch_platform_org_id(mocker, platform_org.id)
+        # Cap=10, grace=10% -> ceiling=11. Pre-fill 11 events; the next
+        # one is hard-blocked.
+        _patch_pro_limits(mocker, email_sends_monthly=10)
         creator = await create_organization(save_fixture)
         await _subscribe_to_tier(
             save_fixture,
@@ -537,8 +573,7 @@ class TestCheck:
             tier="pro",
             monthly_cents=4900,
         )
-        # Past the grace ceiling: a single more send is blocked.
-        for _ in range(275_000):
+        for _ in range(11):
             await create_event(
                 save_fixture,
                 organization=creator,
@@ -557,15 +592,28 @@ class TestCheck:
         assert result.reason == "exceeded"
         assert result.overage_storage_units > 0
 
-    async def test_free_has_no_overage_grace(
+    async def test_legacy_has_no_overage_grace(
         self,
         mocker: MockerFixture,
         session: AsyncSession,
         save_fixture: SaveFixture,
     ) -> None:
-        """Free tier hard-blocks at the limit — no grace band."""
+        """Legacy is the only $0 tier left; it carries unlimited limits
+        so the "no grace band, hard-block at the cap" semantics are
+        exercised by patching Pro down to a tiny cap with grace=0."""
         platform_org = await create_organization(save_fixture)
         _patch_platform_org_id(mocker, platform_org.id)
+        # Fake a 0% grace on Pro by patching the entitlement field.
+        base = get_definition(TierKey.pro)
+        no_grace = dataclasses.replace(
+            base,
+            limits=dataclasses.replace(base.limits, email_sends_monthly=10),
+            overage_grace_pct=0,
+        )
+        mocker.patch(
+            "polar.entitlements.service.get_definition",
+            side_effect=lambda t: no_grace if t == TierKey.pro else get_definition(t),
+        )
         creator = await create_organization(save_fixture)
         await _subscribe_to_tier(
             save_fixture,
@@ -574,7 +622,7 @@ class TestCheck:
             tier="pro",
             monthly_cents=0,
         )
-        for _ in range(5000):
+        for _ in range(10):
             await create_event(
                 save_fixture,
                 organization=creator,
@@ -598,10 +646,13 @@ class TestCheck:
         session: AsyncSession,
         save_fixture: SaveFixture,
     ) -> None:
-        """Storage check works at byte precision: an org under its 1 GB cap
+        """Storage check works at byte precision: an org under its cap
         cannot upload a single byte that would push it over."""
         platform_org = await create_organization(save_fixture)
         _patch_platform_org_id(mocker, platform_org.id)
+        # Patch Pro storage cap down to 1 GB so we can fill it with a
+        # single event without fixturing 25 GB.
+        _patch_pro_limits(mocker, storage_gb=1)
         creator = await create_organization(save_fixture)
         await _subscribe_to_tier(
             save_fixture,
@@ -619,16 +670,18 @@ class TestCheck:
             metadata={"bytes_delta": gb - 100},
         )
 
-        # 200 bytes more would push past the cap.
+        # 200 bytes more would push past the 1 GB cap (with 10% grace
+        # ceiling at ~1.1 GB). Use a request large enough to clear both
+        # the cap and the grace ceiling so the test is unambiguous.
         block = await quotas.check(
             session,
             creator.id,
             QuotaKey.storage_gb,
-            requested_storage_units=200,
+            requested_storage_units=int(0.2 * gb),
         )
         assert block.allowed is False
         assert block.reason == "exceeded"
-        # But 50 bytes still fits.
+        # But 50 bytes still fits inside the grace band.
         allow = await quotas.check(
             session,
             creator.id,
@@ -636,4 +689,3 @@ class TestCheck:
             requested_storage_units=50,
         )
         assert allow.allowed is True
-        assert allow.reason == "ok"

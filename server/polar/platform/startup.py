@@ -38,6 +38,10 @@ class PlatformStartupError(Exception):
 
 _REQUIRED_TIERS = (TierKey.legacy, TierKey.pro, TierKey.studio, TierKey.scale)
 
+# Tiers that must carry a 14-day trial configuration on their Product row.
+# Legacy is intentionally excluded — it's a $0 grandfather product, no trial.
+_TRIAL_REQUIRED_TIERS = (TierKey.pro, TierKey.studio, TierKey.scale)
+
 
 async def verify_platform_setup(session: AsyncSession) -> None:
     """Block boot if PLATFORM_ORG_ID is set but the seed hasn't been
@@ -58,10 +62,21 @@ async def verify_platform_setup(session: AsyncSession) -> None:
 
     product_repo = platform_product_repository(session)
     missing_tiers: list[str] = []
+    missing_trial_tiers: list[str] = []
     for tier in _REQUIRED_TIERS:
         product = await product_repo.get_by_tier(platform_org.id, tier.value)
         if product is None:
             missing_tiers.append(tier.value)
+            continue
+        if tier in _TRIAL_REQUIRED_TIERS:
+            # Pro/Studio/Scale must carry a trial configuration; if not,
+            # platform_billing._create_subscription falls through to
+            # status=active (no trial), and new orgs get free Pro forever.
+            if (
+                product.trial_interval is None
+                or product.trial_interval_count is None
+            ):
+                missing_trial_tiers.append(tier.value)
 
     if missing_tiers:
         raise PlatformStartupError(
@@ -70,6 +85,15 @@ async def verify_platform_setup(session: AsyncSession) -> None:
             "`uv run task seed_platform_products` before starting the API. "
             "Without these products new signups silently fall back to legacy "
             "entitlements and undercharged transaction fees."
+        )
+
+    if missing_trial_tiers:
+        raise PlatformStartupError(
+            f"Platform organization '{platform_org.slug}' has tier products "
+            f"missing a trial configuration: {', '.join(missing_trial_tiers)}. "
+            "Re-run `uv run task seed_platform_products` so Pro/Studio/Scale "
+            "carry their 14-day trial — without it, every new org receives "
+            "active (non-trial) Pro for $0 indefinitely."
         )
 
     log.info(

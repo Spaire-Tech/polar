@@ -70,24 +70,27 @@ const SpaireTierSection = ({ organization }: SpaireTierSectionProps) => {
     [switchPlan],
   )
 
+  const isTrial = subscription.data?.status === 'trialing'
+
   const onCancel = useCallback(async () => {
     try {
       await cancelSub.mutateAsync()
       toast({
-        title: 'Subscription canceled',
-        description:
-          'Your Spaire subscription will end at the close of the current billing period. Your org will be moved to the Legacy plan automatically.',
+        title: isTrial ? 'Trial ended' : 'Subscription canceled',
+        description: isTrial
+          ? 'Your Pro trial has ended. Your org has been moved to the Legacy plan; upgrade any time from this page.'
+          : 'Your Spaire subscription will end at the close of the current billing period. Your org will be moved to the Legacy plan automatically.',
       })
       confirmCancel.hide()
     } catch (err) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const detail = (err as any)?.detail ?? 'Failed to cancel.'
       toast({
-        title: 'Cancel failed',
+        title: isTrial ? 'End trial failed' : 'Cancel failed',
         description: String(detail),
       })
     }
-  }, [cancelSub, confirmCancel])
+  }, [cancelSub, confirmCancel, isTrial])
 
   const onOpenPortal = useCallback(async () => {
     try {
@@ -158,15 +161,17 @@ const SpaireTierSection = ({ organization }: SpaireTierSectionProps) => {
       <ConfirmModal
         isShown={confirmCancel.isShown}
         hide={confirmCancel.hide}
-        title="Cancel your Spaire plan?"
+        title={isTrial ? 'End your Pro trial?' : 'Cancel your Spaire plan?'}
         description={
-          subscription.data?.current_period_end
+          isTrial
+            ? 'Your Pro trial will end immediately. You will lose Pro features and your org will move to the Legacy plan. You can upgrade again at any time.'
+            : subscription.data?.current_period_end
             ? `Your plan stays active through ${new Date(
                 subscription.data.current_period_end,
               ).toLocaleDateString()}. After that your org moves to the Legacy plan automatically.`
             : 'Your plan will be canceled at the end of the current billing period and your org will be moved to Legacy.'
         }
-        destructiveText="Yes, cancel"
+        destructiveText={isTrial ? 'Yes, end trial' : 'Yes, cancel'}
         destructive
         onConfirm={onCancel}
       />
@@ -325,6 +330,11 @@ const PlanActions = ({
       {isPaid && !isTrial && !sub.cancel_at_period_end && (
         <Button variant="ghost" onClick={onCancel}>
           Cancel plan
+        </Button>
+      )}
+      {isTrial && (
+        <Button variant="ghost" onClick={onCancel}>
+          End trial
         </Button>
       )}
     </>

@@ -1,9 +1,11 @@
+import dataclasses
 from uuid import UUID
 
 import pytest
 from pytest_mock import MockerFixture
 from sqlalchemy import func, select
 
+from polar.entitlements.tiers import TierKey, get_definition
 from polar.enums import SubscriptionRecurringInterval
 from polar.models import Event, Organization, Product
 from polar.models.event import EventSource
@@ -32,6 +34,23 @@ from tests.fixtures.random_objects import (
 
 def _patch_platform_org_id(mocker: MockerFixture, org_id: UUID | None) -> None:
     mocker.patch("polar.platform.service.settings.PLATFORM_ORG_ID", org_id)
+
+
+def _patch_pro_limits(mocker: MockerFixture, **limit_overrides: int | None) -> None:
+    """See tests/quotas/test_service.py:_patch_pro_limits."""
+    base = get_definition(TierKey.pro)
+    overridden = dataclasses.replace(
+        base, limits=dataclasses.replace(base.limits, **limit_overrides)
+    )
+
+    def _resolve(tier: TierKey) -> "object":
+        if tier == TierKey.pro:
+            return overridden
+        return get_definition(tier)
+
+    mocker.patch(
+        "polar.entitlements.service.get_definition", side_effect=_resolve
+    )
 
 
 async def _seed_tier_product(
@@ -202,6 +221,9 @@ class TestEnforce:
     ) -> None:
         platform_org = await create_organization(save_fixture)
         _patch_platform_org_id(mocker, platform_org.id)
+        # Patch Pro down to 5000/mo so we can fill near-cap with 4999
+        # events. Pro's real limit is 250k.
+        _patch_pro_limits(mocker, email_sends_monthly=5000)
         creator = await create_organization(save_fixture)
         await _subscribe(
             save_fixture,
@@ -210,7 +232,9 @@ class TestEnforce:
             tier="pro",
             monthly_cents=0,
         )
-        # Free email cap is 5000/mo. Use 4999 emails, then request 2.
+        # Pro grace = 10%, ceiling = 5500. 4999 + requested=2 lands in
+        # the grace band (5001), which is allowed. Bump request past
+        # the ceiling so the test exercises the "exceeded" branch.
         for _ in range(4999):
             await create_event(
                 save_fixture,
@@ -224,7 +248,7 @@ class TestEnforce:
                 session,
                 creator,
                 QuotaKey.email_sends_monthly,
-                requested_storage_units=2,
+                requested_storage_units=600,
             )
         result = excinfo.value.result
         assert result.allowed is False

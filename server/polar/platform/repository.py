@@ -1,3 +1,4 @@
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import select
@@ -65,6 +66,29 @@ class _PlatformSubscriptionRepository(RepositoryBase[Subscription]):
             .limit(1)
         )
         return await self.get_one_or_none(statement)
+
+    async def list_expired_trials(
+        self, platform_org_id: UUID, *, before: datetime
+    ) -> list[Subscription]:
+        """All trialing platform-org subscriptions whose `trial_end`
+        has already passed `before`. Joined to Customer so the cron task
+        can read user_metadata.creator_org_id without an extra round-trip.
+        """
+        statement = (
+            select(Subscription)
+            .join(Customer, Subscription.customer_id == Customer.id)
+            .where(Customer.organization_id == platform_org_id)
+            .where(Customer.deleted_at.is_(None))
+            .where(Subscription.status == SubscriptionStatus.trialing)
+            .where(Subscription.deleted_at.is_(None))
+            .where(Subscription.trial_end.is_not(None))
+            .where(Subscription.trial_end < before)
+            .options(
+                selectinload(Subscription.product),
+                selectinload(Subscription.customer),
+            )
+        )
+        return list(await self.get_all(statement))
 
 
 def platform_product_repository(

@@ -24,8 +24,10 @@ from polar.entitlements.service import entitlements as entitlements_service
 from polar.entitlements.tiers import TierKey, get_definition
 from polar.exceptions import ResourceNotFound
 from polar.integrations.resend import domains as resend_domains
+from polar.kit.trial import TrialInterval
 from polar.kit.utils import utc_now
 from polar.locker import Locker, get_locker
+from polar.models import Product
 from polar.openapi import APITag
 from polar.organization.repository import OrganizationRepository
 from polar.organization.schemas import OrganizationID
@@ -70,30 +72,41 @@ _TIER_NAMES = {
     TierKey.studio: "Spaire Studio",
     TierKey.scale: "Spaire Scale",
 }
-_TIER_TRIAL_DAYS = {
-    TierKey.pro: 14,
-    TierKey.studio: 14,
-    TierKey.scale: 14,
-}
+
+
+def _trial_days_from_product(product: Product | None) -> int | None:
+    """Resolve trial length from the seeded Product row. Source of truth
+    is `seed_platform_products.PRODUCT_SPECS[*].trial`; the frontend
+    surfaces this number on the upgrade modal cards.
+
+    Only `day`-interval trials are translated to a days integer (every
+    spec uses `day` today). Other intervals or unset trial config
+    return None.
+    """
+    if product is None:
+        return None
+    if product.trial_interval is None or product.trial_interval_count is None:
+        return None
+    if product.trial_interval == TrialInterval.day:
+        return product.trial_interval_count
+    return None
 
 
 async def _plan_for_tier(
     session: AsyncReadSession, platform_org_id: UUID | None, tier: TierKey
 ) -> TierPlan:
     definition = get_definition(tier)
-    product_id: UUID | None = None
+    product: Product | None = None
     if platform_org_id is not None:
         product_repo = platform_product_repository(session)
         product = await product_repo.get_by_tier(platform_org_id, tier.value)
-        if product is not None:
-            product_id = product.id
     return TierPlan(
         tier=tier,
         name=_TIER_NAMES[tier],
         description=None,
-        product_id=product_id,
+        product_id=product.id if product is not None else None,
         monthly_price_cents=definition.monthly_price_cents,
-        trial_days=_TIER_TRIAL_DAYS[tier],
+        trial_days=_trial_days_from_product(product),
         transaction_fee=Entitlements.from_dataclass(definition).transaction_fee,
         features=Entitlements.from_dataclass(definition).features,
         limits=Entitlements.from_dataclass(definition).limits,

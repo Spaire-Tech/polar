@@ -2,7 +2,9 @@
 switching between paid tiers (Pro <-> Studio <-> Scale) and canceling
 a paid subscription. Cancellation triggers auto-resubscribe-to-Legacy
 via polar.platform.fee_sync.maybe_enqueue_resubscribe_from_revoke when
-the subscription actually revokes.
+the subscription actually revokes; trialing subs are revoked
+immediately (no end-of-period schedule, since there's no payment cycle
+to wait for).
 """
 
 import structlog
@@ -10,8 +12,10 @@ import structlog
 from polar.entitlements.tiers import TierKey
 from polar.enums import SubscriptionProrationBehavior
 from polar.exceptions import PolarError
+from polar.kit.utils import utc_now
 from polar.locker import Locker
 from polar.models import Organization, Subscription
+from polar.models.subscription import SubscriptionStatus
 from polar.platform.repository import (
     platform_customer_repository,
     platform_product_repository,
@@ -20,6 +24,7 @@ from polar.platform.repository import (
 from polar.platform.service import platform as platform_service
 from polar.postgres import AsyncSession
 from polar.subscription.service import subscription as subscription_service
+from polar.worker import enqueue_job
 
 log: structlog.stdlib.BoundLogger = structlog.get_logger()
 
@@ -59,6 +64,16 @@ class SwitchRequiresPaidTier(PlatformManagementError):
         super().__init__(
             "Plan switching is only available between paid tiers. Use the "
             "upgrade-checkout endpoint to start a paid subscription.",
+            409,
+        )
+
+
+class CannotSwitchDuringTrial(PlatformManagementError):
+    def __init__(self) -> None:
+        super().__init__(
+            "Plan switching is disabled while your trial is active. Convert "
+            "your trial through the upgrade-checkout endpoint and pick the "
+            "tier you want there.",
             409,
         )
 
@@ -124,9 +139,16 @@ class PlatformManagementService:
         resolved = await _resolve_active(session, organization)
 
         if resolved.current_tier not in _PAID_TIERS:
-            # Legacy / trial -> paid goes through checkout, not update_product,
+            # Legacy -> paid goes through checkout, not update_product,
             # since no card is on file yet. Surface a 409 with a hint.
             raise SwitchRequiresPaidTier()
+
+        if resolved.subscription.trialing:
+            # subscription_service.update_product raises TrialingSubscription
+            # on trialing subs; surface a domain-specific 409 here so the
+            # frontend can route the user to the trial-conversion flow
+            # instead of bouncing on a generic error.
+            raise CannotSwitchDuringTrial()
 
         if resolved.current_tier == target_tier:
             raise CannotSwitchToSameTier()
@@ -162,16 +184,41 @@ class PlatformManagementService:
         *,
         organization: Organization,
     ) -> Subscription:
-        """Schedule the creator org's paid Spaire subscription to cancel
-        at the end of the current billing period. When the subscription
-        revokes, the platform.resubscribe_to_legacy actor creates a fresh
-        Legacy subscription so the org keeps a valid tier record.
+        """Cancel the creator org's Spaire subscription.
+
+        - Active paid subs schedule end-of-period cancellation; the
+          subscription stays valid through the current billing window
+          and the `platform.resubscribe_to_legacy` actor takes over
+          when the revoke event fires.
+        - Trialing subs (no payment method, no billing cycle to honor)
+          are revoked immediately. The customer loses Pro/Studio/Scale
+          entitlements right away and is enqueued for resubscribe to
+          Legacy on the next worker pass.
+        - Legacy is a no-op (no payment liability to release).
         """
         resolved = await _resolve_active(session, organization)
 
         if resolved.current_tier not in _PAID_TIERS:
-            # Cancelling Legacy has no effect — there's no payment
-            # liability. Surface as a no-op success rather than an error.
+            return resolved.subscription
+
+        if resolved.subscription.trialing:
+            now = utc_now()
+            resolved.subscription.status = SubscriptionStatus.canceled
+            resolved.subscription.canceled_at = now
+            resolved.subscription.ended_at = now
+            resolved.subscription.cancel_at_period_end = False
+            await session.flush()
+
+            enqueue_job(
+                "platform.resubscribe_to_legacy",
+                organization_id=organization.id,
+            )
+
+            log.info(
+                "platform.cancel.trial_revoked",
+                organization_id=str(organization.id),
+                subscription_id=str(resolved.subscription.id),
+            )
             return resolved.subscription
 
         async with subscription_service.lock(locker, resolved.subscription):
