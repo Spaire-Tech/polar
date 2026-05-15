@@ -2,6 +2,7 @@
 
 import { schemas } from '@spaire/client'
 import { usePathname, useSearchParams } from 'next/navigation'
+import { MobileTabBar } from './_components/MobileTabBar'
 import { TopBar } from './_components/TopBar'
 import './portal.css'
 
@@ -43,19 +44,23 @@ export const PortalShell = ({
 
   // The course portal page renders its own full-bleed layout (cinematic hero
   // + module rows) and so opts out of the standard .sp-page max-width wrapper.
+  // Mobile bottom tab bar stays — the customer needs to be able to leave the
+  // course back to Overview / Orders / Billing.
   if (isCourseRoute(pathname)) {
     return (
-      <div className="spaire-portal sp-app">
+      <div className="spaire-portal sp-app sp-app--mobile-tabs">
         <TopBar organization={organization} />
         <main className="sp-course-portal">{children}</main>
+        <MobileTabBar organization={organization} />
       </div>
     )
   }
 
   return (
-    <div className="spaire-portal sp-app">
+    <div className="spaire-portal sp-app sp-app--mobile-tabs">
       <TopBar organization={organization} />
       <main className="sp-page">{children}</main>
+      <MobileTabBar organization={organization} />
     </div>
   )
 }

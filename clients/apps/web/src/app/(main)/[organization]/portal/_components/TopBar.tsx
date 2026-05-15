@@ -150,6 +150,17 @@ export const TopBar = ({
               aria-label="Search"
             />
           </label>
+          {/* Mobile-only — the desktop label above turns into a compact
+              icon button on narrow viewports (where the long search
+              input would crowd the brand + tab row). */}
+          <button
+            type="button"
+            className="sp-iconbtn sp-iconbtn--mobile"
+            aria-label="Search"
+            title="Search"
+          >
+            <SearchIcon size={18} />
+          </button>
           <button
             type="button"
             className="sp-iconbtn"
