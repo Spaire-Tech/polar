@@ -22,7 +22,7 @@ import typer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from polar.enums import SubscriptionRecurringInterval
+from polar.enums import SubscriptionRecurringInterval, TaxBehaviorOption
 from polar.kit.db.postgres import create_async_sessionmaker
 from polar.kit.trial import TrialInterval
 from polar.meter.aggregation import (
@@ -155,6 +155,11 @@ class PriceSpec:
     amount_type: ProductPriceAmountType
     price_currency: str = "usd"
     price_amount_cents: int | None = None  # required if amount_type == fixed
+    # tax_behavior=inclusive on Pro/Studio/Scale means the headline price
+    # ($49 / $129 / $299) is what the creator pays — Spaire absorbs the
+    # sales tax internally rather than tacking it on top. Legacy stays
+    # None (no tax to compute on a $0 product).
+    tax_behavior: TaxBehaviorOption | None = None
 
 
 @dataclass(frozen=True)
@@ -222,6 +227,7 @@ PRODUCT_SPECS: list[ProductSpec] = [
         recurring_interval=SubscriptionRecurringInterval.month,
         price=PriceSpec(
             amount_type=ProductPriceAmountType.fixed,
+            tax_behavior=TaxBehaviorOption.inclusive,
             price_amount_cents=4900,
         ),
         trial=TrialSpec(interval=TrialInterval.day, count=14),
@@ -234,6 +240,7 @@ PRODUCT_SPECS: list[ProductSpec] = [
         recurring_interval=SubscriptionRecurringInterval.year,
         price=PriceSpec(
             amount_type=ProductPriceAmountType.fixed,
+            tax_behavior=TaxBehaviorOption.inclusive,
             price_amount_cents=_ANNUAL_PRO_CENTS,
         ),
         trial=TrialSpec(interval=TrialInterval.day, count=14),
@@ -247,6 +254,7 @@ PRODUCT_SPECS: list[ProductSpec] = [
         recurring_interval=SubscriptionRecurringInterval.month,
         price=PriceSpec(
             amount_type=ProductPriceAmountType.fixed,
+            tax_behavior=TaxBehaviorOption.inclusive,
             price_amount_cents=12900,
         ),
         trial=TrialSpec(interval=TrialInterval.day, count=14),
@@ -259,6 +267,7 @@ PRODUCT_SPECS: list[ProductSpec] = [
         recurring_interval=SubscriptionRecurringInterval.year,
         price=PriceSpec(
             amount_type=ProductPriceAmountType.fixed,
+            tax_behavior=TaxBehaviorOption.inclusive,
             price_amount_cents=_ANNUAL_STUDIO_CENTS,
         ),
         trial=TrialSpec(interval=TrialInterval.day, count=14),
@@ -272,6 +281,7 @@ PRODUCT_SPECS: list[ProductSpec] = [
         recurring_interval=SubscriptionRecurringInterval.month,
         price=PriceSpec(
             amount_type=ProductPriceAmountType.fixed,
+            tax_behavior=TaxBehaviorOption.inclusive,
             price_amount_cents=29900,
         ),
         trial=TrialSpec(interval=TrialInterval.day, count=14),
@@ -284,6 +294,7 @@ PRODUCT_SPECS: list[ProductSpec] = [
         recurring_interval=SubscriptionRecurringInterval.year,
         price=PriceSpec(
             amount_type=ProductPriceAmountType.fixed,
+            tax_behavior=TaxBehaviorOption.inclusive,
             price_amount_cents=_ANNUAL_SCALE_CENTS,
         ),
         trial=TrialSpec(interval=TrialInterval.day, count=14),
@@ -479,10 +490,11 @@ async def _upsert_catalog_price(
         if price.price_currency != spec.price_currency:
             return False
         if spec.amount_type == ProductPriceAmountType.fixed:
-            return (
-                isinstance(price, ProductPriceFixed)
-                and price.price_amount == spec.price_amount_cents
-            )
+            if not isinstance(price, ProductPriceFixed):
+                return False
+            if price.price_amount != spec.price_amount_cents:
+                return False
+            return True
         if spec.amount_type == ProductPriceAmountType.free:
             return isinstance(price, ProductPriceFree)
         return False
@@ -490,7 +502,18 @@ async def _upsert_catalog_price(
     matching = [p for p in existing_catalog if _matches(p)]
     stale = [p for p in existing_catalog if not _matches(p)]
 
-    if matching and not stale:
+    # tax_behavior is mutable in place — Stripe accepts price updates that
+    # only flip inclusive/exclusive without archiving the price. So we
+    # reconcile it on the matching row separately rather than treating it
+    # as a "different price."
+    tax_behavior_changed = False
+    for price in matching:
+        if price.tax_behavior != spec.tax_behavior:
+            if not dry_run:
+                price.tax_behavior = spec.tax_behavior
+            tax_behavior_changed = True
+
+    if matching and not stale and not tax_behavior_changed:
         return "unchanged"
 
     if not dry_run:
@@ -498,7 +521,8 @@ async def _upsert_catalog_price(
             price.is_archived = True
 
     if matching:
-        # The desired price already exists; archived the stale ones above.
+        # The desired price already exists; archived the stale ones above
+        # and possibly flipped tax_behavior in place.
         return "updated"
 
     # Need to create the target price.
@@ -509,6 +533,7 @@ async def _upsert_catalog_price(
             product_id=product.id,
             price_currency=spec.price_currency,
             price_amount=spec.price_amount_cents,
+            tax_behavior=spec.tax_behavior,
         )
     elif spec.amount_type == ProductPriceAmountType.free:
         new_price = ProductPriceFree(

@@ -125,9 +125,19 @@ class PlatformUpgradeService:
             platform_org.id, organization.id
         )
         if customer is None:
-            # PR 4's hook should have created this on org create, and PR 6
-            # backfills existing orgs. If it's still missing the operator
-            # hasn't run the grandfather migration yet.
+            # Brand-new org calling upgrade-checkout from the
+            # /onboarding/plan-select page can race the async
+            # `organization.created` actor that normally creates the
+            # platform Customer + Pro trial. Bootstrap them inline so
+            # the request can proceed in the same round-trip.
+            from .billing import platform_billing  # avoid import cycle
+            await platform_billing.ensure_pro_trial_subscription(
+                session, organization
+            )
+            customer = await customer_repo.get_for_creator_org(
+                platform_org.id, organization.id
+            )
+        if customer is None:
             raise MissingPlatformCustomer()
 
         # The platform Customer was created with a synthetic email in PR 4

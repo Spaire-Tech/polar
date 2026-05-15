@@ -2,6 +2,7 @@
 
 import revalidate from '@/app/actions'
 import { EditableProfileCard } from '@/components/Customization/InlineEdit/EditableProfileCard'
+import { OnboardingProgressBar } from '@/components/Onboarding/OnboardingProgressBar'
 import { ForceLightMode } from '@/components/Profile/ForceLightMode'
 import {
   isValidSocialUrl,
@@ -119,10 +120,15 @@ export default function ReviewPage() {
     <Form {...form}>
       <ForceLightMode />
       <div className="spaire-editor flex h-full min-h-0 w-full flex-col bg-white">
-        {/* Top bar — minimal: just the publish action. No settings tab. */}
-        <div className="flex shrink-0 flex-row items-center justify-between border-b border-gray-200 bg-white px-8 py-4">
-          <div className="text-[14px] font-medium text-gray-900">
-            Create your Space Card
+        {/* Top bar — progress (step 2 of plan-then-profile) + publish action. */}
+        <div className="flex shrink-0 flex-row items-center justify-between gap-x-6 border-b border-gray-200 bg-white px-8 py-4">
+          <div className="flex flex-1 flex-row items-center gap-x-6">
+            <div className="text-[14px] font-medium text-gray-900">
+              Create your Space Card
+            </div>
+            <div className="hidden max-w-xs flex-1 md:block">
+              <OnboardingProgressBar currentStep={2} totalSteps={2} />
+            </div>
           </div>
           <Button
             className="rounded-full px-6"
