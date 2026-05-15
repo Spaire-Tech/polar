@@ -15,7 +15,6 @@ import {
 import { api } from '@/utils/client'
 import CheckOutlined from '@mui/icons-material/CheckOutlined'
 import Button from '@spaire/ui/components/atoms/Button'
-import { useRouter } from 'next/navigation'
 import { useCallback, useMemo, useState } from 'react'
 import { twMerge } from 'tailwind-merge'
 
@@ -40,7 +39,6 @@ interface PlanSelectPageProps {
  * avoid a third form on the way in.
  */
 const PlanSelectPage = ({ userDisplayName }: PlanSelectPageProps) => {
-  const router = useRouter()
   const plans = useSpairePlans()
   const createOrg = useCreateOrganization()
 
@@ -61,7 +59,8 @@ const PlanSelectPage = ({ userDisplayName }: PlanSelectPageProps) => {
       setPending(tier)
       try {
         // 1. Auto-create the org with a derived slug. The user can
-        //    rename + flesh out profile basics on the next step.
+        //    rename + flesh out profile basics on the next step
+        //    (the existing "Create your Space Card" page).
         const slug = await uniqueSlug(userDisplayName)
         const createResult = await createOrg.mutateAsync({
           name: slug,
@@ -75,16 +74,12 @@ const PlanSelectPage = ({ userDisplayName }: PlanSelectPageProps) => {
         }
         const organization = createResult.data
 
-        // 2a. Pro = no card capture. Org-created hook attaches the
-        //     14-day Pro trial; head straight to profile basics.
-        if (tier === 'pro') {
-          router.push(`/dashboard/${organization.slug}/onboarding/review`)
-          return
-        }
-
-        // 2b. Studio / Scale = capture a card via upgrade-checkout.
-        //     The trial subscription gets created on this tier; the
-        //     success_url lands the creator on profile basics.
+        // 2. Kick off checkout for the chosen tier — every tier (Pro
+        //    included) captures a card up front so the 14-day trial
+        //    converts automatically when it ends. The upgrade-checkout
+        //    endpoint converts the auto-attached Pro trial in place;
+        //    when checkout completes, success_url lands the creator
+        //    on /onboarding/review (the existing profile-basics step).
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const platformApi = api as unknown as any
         const { data, error } = await platformApi.POST(
@@ -107,12 +102,12 @@ const PlanSelectPage = ({ userDisplayName }: PlanSelectPageProps) => {
         window.location.href = (data as { checkout_url: string }).checkout_url
       } catch (err) {
         const message =
-          err instanceof Error ? err.message : "Something went wrong."
+          err instanceof Error ? err.message : 'Something went wrong.'
         toast({ title: 'Plan setup failed', description: message })
         setPending(null)
       }
     },
-    [createOrg, interval, pending, router, userDisplayName],
+    [createOrg, interval, pending, userDisplayName],
   )
 
   return (
@@ -228,10 +223,6 @@ const PlanSelectCard = ({
   // plan (more revenue than Pro, lower commit than Scale, and the
   // best "you get what you need without overpaying" framing).
   const isRecommended = tier === 'studio'
-  // Card capture is required to start a Studio/Scale trial (so the
-  // sub can convert without a separate checkout). Pro has no payment
-  // surface yet, so no card is needed.
-  const cardRequired = tier !== 'pro'
 
   return (
     <div
@@ -288,9 +279,7 @@ const PlanSelectCard = ({
           Start free trial
         </Button>
         <p className="mt-2 text-center text-xs text-gray-400">
-          {cardRequired
-            ? "Card required. Won't be charged during the 14-day trial."
-            : 'No card required. Free for 14 days.'}
+          Card required. Won&apos;t be charged during the 14-day trial.
         </p>
       </div>
     </div>
