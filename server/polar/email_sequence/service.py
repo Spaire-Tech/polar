@@ -242,6 +242,25 @@ class EmailSequenceService:
         if trigger_config is not None:
             sequence.trigger_config = trigger_config
         if status is not None:
+            # Gate activations against the tier's active_email_sequences
+            # cap (Pro 1, Studio 10, Scale unlimited). Activation only —
+            # creators can keep as many drafts / paused sequences as they
+            # want; the cap is on simultaneously-running funnels.
+            transitioning_to_active = (
+                status == EmailSequenceStatus.active
+                and sequence.status != EmailSequenceStatus.active
+            )
+            if transitioning_to_active:
+                already_active = await repository.count_active_for_org(
+                    sequence.organization_id,
+                    exclude_sequence_id=sequence.id,
+                )
+                await entitlements_service.require_under_limit(
+                    session,
+                    sequence.organization_id,
+                    "active_email_sequences",
+                    current=already_active,
+                )
             sequence.status = status
         if course_id is not None:
             sequence.course_id = course_id

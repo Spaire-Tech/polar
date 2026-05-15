@@ -27,7 +27,9 @@ from polar.integrations.resend import domains as resend_domains
 from polar.kit.trial import TrialInterval
 from polar.kit.utils import utc_now
 from polar.locker import Locker, get_locker
+from polar.enums import SubscriptionRecurringInterval
 from polar.models import Product
+from polar.models.product_price import ProductPriceFixed
 from polar.openapi import APITag
 from polar.organization.repository import OrganizationRepository
 from polar.organization.schemas import OrganizationID
@@ -92,21 +94,42 @@ def _trial_days_from_product(product: Product | None) -> int | None:
     return None
 
 
+def _annual_price_cents(annual_product: Product | None) -> int | None:
+    """Pull the actual yearly amount off the annual Product's catalog
+    price row. Returns None when annual hasn't been seeded so the
+    frontend can hide the annual toggle for that tier."""
+    if annual_product is None:
+        return None
+    for price in annual_product.prices:
+        if isinstance(price, ProductPriceFixed) and not price.is_archived:
+            return price.price_amount
+    return None
+
+
 async def _plan_for_tier(
     session: AsyncReadSession, platform_org_id: UUID | None, tier: TierKey
 ) -> TierPlan:
     definition = get_definition(tier)
-    product: Product | None = None
+    monthly_product: Product | None = None
+    annual_product: Product | None = None
     if platform_org_id is not None:
         product_repo = platform_product_repository(session)
-        product = await product_repo.get_by_tier(platform_org_id, tier.value)
+        monthly_product = await product_repo.get_by_tier_and_interval(
+            platform_org_id, tier.value, "month"
+        )
+        annual_product = await product_repo.get_by_tier_and_interval(
+            platform_org_id, tier.value, "year"
+        )
     return TierPlan(
         tier=tier,
         name=_TIER_NAMES[tier],
         description=None,
-        product_id=product.id if product is not None else None,
+        product_id=monthly_product.id if monthly_product is not None else None,
+        annual_product_id=annual_product.id if annual_product is not None else None,
         monthly_price_cents=definition.monthly_price_cents,
-        trial_days=_trial_days_from_product(product),
+        annual_price_cents=_annual_price_cents(annual_product),
+        annual_savings_percent=20,
+        trial_days=_trial_days_from_product(monthly_product),
         transaction_fee=Entitlements.from_dataclass(definition).transaction_fee,
         features=Entitlements.from_dataclass(definition).features,
         limits=Entitlements.from_dataclass(definition).limits,
@@ -166,6 +189,7 @@ async def get_subscription(
     current_period_end: datetime | None = None
     trial_end: datetime | None = None
     cancel_at_period_end = False
+    billing_interval: str | None = None
 
     if platform_service.is_configured():
         platform_org_id = platform_service.get_id()
@@ -180,13 +204,24 @@ async def get_subscription(
             )
             if subscription is not None:
                 status_label = subscription.status.value
-                monthly_price_cents = subscription.amount
+                # `amount` on the subscription row is the per-period
+                # amount (monthly for month subs, yearly for year subs).
+                # Normalize to a monthly figure for the dashboard so the
+                # "Recurring monthly cost" copy stays accurate even on
+                # annual plans.
+                if subscription.recurring_interval == SubscriptionRecurringInterval.year:
+                    billing_interval = "year"
+                    monthly_price_cents = subscription.amount // 12
+                else:
+                    billing_interval = "month"
+                    monthly_price_cents = subscription.amount
                 current_period_end = subscription.current_period_end
                 trial_end = subscription.trial_end
                 cancel_at_period_end = subscription.cancel_at_period_end
 
     return CurrentSpaireSubscription(
         tier=entitlements_dataclass.tier,
+        billing_interval=billing_interval,  # type: ignore[arg-type]
         status=status_label,
         monthly_price_cents=monthly_price_cents,
         current_period_end=current_period_end,
@@ -263,6 +298,7 @@ async def create_upgrade_checkout(
         session,
         organization=organization,
         tier=body.tier,
+        billing_interval=body.billing_interval,
         success_url=body.success_url,
         billing_email=billing_email,
     )
@@ -300,7 +336,10 @@ async def switch_plan(
         raise ResourceNotFound("Organization not found.")
 
     subscription = await platform_management.switch_plan(
-        session, organization=organization, target_tier=body.tier
+        session,
+        organization=organization,
+        target_tier=body.tier,
+        target_interval=body.billing_interval,
     )
     return SubscriptionSchema.model_validate(subscription)
 

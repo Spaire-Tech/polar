@@ -147,89 +147,78 @@ class TestSeedPlatformProducts:
             )
         await session.flush()
 
-        # Legacy — $0, no trial, grandfather-only
-        legacy = (
-            await session.execute(
-                select(Product)
-                .where(Product.organization_id == platform_org.id)
-                .where(Product.user_metadata["tier"].astext == "legacy")
-            )
-        ).scalar_one()
+        async def _find(tier: str, billing_interval: str) -> Product:
+            return (
+                await session.execute(
+                    select(Product)
+                    .where(Product.organization_id == platform_org.id)
+                    .where(Product.user_metadata["tier"].astext == tier)
+                    .where(
+                        Product.user_metadata["billing_interval"].astext
+                        == billing_interval
+                    )
+                )
+            ).scalar_one()
+
+        async def _price_for(product: Product) -> ProductPrice:
+            return (
+                await session.execute(
+                    select(ProductPrice)
+                    .where(ProductPrice.product_id == product.id)
+                    .where(ProductPrice.is_archived.is_(False))
+                )
+            ).scalar_one()
+
+        # Legacy — $0, no trial, grandfather-only.
+        legacy = await _find("legacy", "month")
         assert legacy.name == "Spaire Legacy"
         assert legacy.trial_interval is None
-        legacy_price = (
-            await session.execute(
-                select(ProductPrice)
-                .where(ProductPrice.product_id == legacy.id)
-                .where(ProductPrice.is_archived.is_(False))
-            )
-        ).scalar_one()
+        legacy_price = await _price_for(legacy)
         assert isinstance(legacy_price, ProductPriceFree)
         assert legacy_price.amount_type == ProductPriceAmountType.free
 
-        # Pro — $49/mo, 14-day trial
-        pro = (
-            await session.execute(
-                select(Product)
-                .where(Product.organization_id == platform_org.id)
-                .where(Product.user_metadata["tier"].astext == "pro")
-            )
-        ).scalar_one()
-        assert pro.name == "Spaire Pro"
-        assert pro.trial_interval is not None
-        assert pro.trial_interval_count == 14
-        pro_price = (
-            await session.execute(
-                select(ProductPrice)
-                .where(ProductPrice.product_id == pro.id)
-                .where(ProductPrice.is_archived.is_(False))
-            )
-        ).scalar_one()
-        assert isinstance(pro_price, ProductPriceFixed)
-        assert pro_price.price_amount == 4900
-        assert pro_price.price_currency == "usd"
+        # Pro — monthly $49 + annual $470.40 (20% off 12 × $49 = $588).
+        pro_monthly = await _find("pro", "month")
+        assert pro_monthly.name == "Spaire Pro"
+        assert pro_monthly.trial_interval_count == 14
+        pro_monthly_price = await _price_for(pro_monthly)
+        assert isinstance(pro_monthly_price, ProductPriceFixed)
+        assert pro_monthly_price.price_amount == 4900
 
-        # Studio — $129/mo, 14-day trial
-        studio = (
-            await session.execute(
-                select(Product)
-                .where(Product.organization_id == platform_org.id)
-                .where(Product.user_metadata["tier"].astext == "studio")
-            )
-        ).scalar_one()
-        assert studio.name == "Spaire Studio"
-        assert studio.trial_interval is not None
-        assert studio.trial_interval_count == 14
-        studio_price = (
-            await session.execute(
-                select(ProductPrice)
-                .where(ProductPrice.product_id == studio.id)
-                .where(ProductPrice.is_archived.is_(False))
-            )
-        ).scalar_one()
-        assert isinstance(studio_price, ProductPriceFixed)
-        assert studio_price.price_amount == 12900
+        pro_annual = await _find("pro", "year")
+        assert pro_annual.name == "Spaire Pro (Annual)"
+        assert pro_annual.trial_interval_count == 14
+        pro_annual_price = await _price_for(pro_annual)
+        assert isinstance(pro_annual_price, ProductPriceFixed)
+        assert pro_annual_price.price_amount == 4900 * 12 * 80 // 100  # 47,040
 
-        # Scale — $299/mo, 14-day trial
-        scale = (
-            await session.execute(
-                select(Product)
-                .where(Product.organization_id == platform_org.id)
-                .where(Product.user_metadata["tier"].astext == "scale")
-            )
-        ).scalar_one()
-        assert scale.name == "Spaire Scale"
-        assert scale.trial_interval is not None
-        assert scale.trial_interval_count == 14
-        scale_price = (
-            await session.execute(
-                select(ProductPrice)
-                .where(ProductPrice.product_id == scale.id)
-                .where(ProductPrice.is_archived.is_(False))
-            )
-        ).scalar_one()
-        assert isinstance(scale_price, ProductPriceFixed)
-        assert scale_price.price_amount == 29900
+        # Studio — monthly $129 + annual $1,238.40.
+        studio_monthly = await _find("studio", "month")
+        assert studio_monthly.name == "Spaire Studio"
+        assert studio_monthly.trial_interval_count == 14
+        studio_monthly_price = await _price_for(studio_monthly)
+        assert isinstance(studio_monthly_price, ProductPriceFixed)
+        assert studio_monthly_price.price_amount == 12900
+
+        studio_annual = await _find("studio", "year")
+        assert studio_annual.name == "Spaire Studio (Annual)"
+        studio_annual_price = await _price_for(studio_annual)
+        assert isinstance(studio_annual_price, ProductPriceFixed)
+        assert studio_annual_price.price_amount == 12900 * 12 * 80 // 100
+
+        # Scale — monthly $299 + annual $2,870.40.
+        scale_monthly = await _find("scale", "month")
+        assert scale_monthly.name == "Spaire Scale"
+        assert scale_monthly.trial_interval_count == 14
+        scale_monthly_price = await _price_for(scale_monthly)
+        assert isinstance(scale_monthly_price, ProductPriceFixed)
+        assert scale_monthly_price.price_amount == 29900
+
+        scale_annual = await _find("scale", "year")
+        assert scale_annual.name == "Spaire Scale (Annual)"
+        scale_annual_price = await _price_for(scale_annual)
+        assert isinstance(scale_annual_price, ProductPriceFixed)
+        assert scale_annual_price.price_amount == 29900 * 12 * 80 // 100
 
     async def test_archives_stale_price_when_amount_changes(
         self,

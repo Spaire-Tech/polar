@@ -16,14 +16,51 @@ class _PlatformProductRepository(RepositoryBase[Product]):
     async def get_by_tier(
         self, platform_org_id: UUID, tier: str
     ) -> Product | None:
+        """Return the monthly product for a tier — kept as the default
+        lookup for the startup check and any caller that doesn't care
+        about billing interval. For interval-aware lookups, use
+        `get_by_tier_and_interval`."""
+        return await self.get_by_tier_and_interval(
+            platform_org_id, tier, "month"
+        )
+
+    async def get_by_tier_and_interval(
+        self,
+        platform_org_id: UUID,
+        tier: str,
+        billing_interval: str,
+    ) -> Product | None:
+        """Resolve the platform-org Product for (tier, billing_interval).
+
+        Falls back to ignoring billing_interval when no row stores it
+        (pre-annual seed) — that way a stale DB still returns the
+        monthly row for "month" lookups before re-seeding lands.
+        """
         statement = (
+            select(Product)
+            .where(Product.organization_id == platform_org_id)
+            .where(Product.user_metadata["tier"].astext == tier)
+            .where(
+                Product.user_metadata["billing_interval"].astext == billing_interval
+            )
+            .where(Product.deleted_at.is_(None))
+            .where(Product.is_archived.is_(False))
+        )
+        product = await self.get_one_or_none(statement)
+        if product is not None or billing_interval != "month":
+            return product
+
+        # Backcompat: a pre-annual seed didn't stamp billing_interval.
+        # For a "month" lookup, fall back to any tier-matching product
+        # without the key so existing deploys still work.
+        fallback = (
             select(Product)
             .where(Product.organization_id == platform_org_id)
             .where(Product.user_metadata["tier"].astext == tier)
             .where(Product.deleted_at.is_(None))
             .where(Product.is_archived.is_(False))
         )
-        return await self.get_one_or_none(statement)
+        return await self.get_one_or_none(fallback)
 
 
 class _PlatformCustomerRepository(RepositoryBase[Customer]):

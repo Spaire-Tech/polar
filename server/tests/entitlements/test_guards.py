@@ -304,13 +304,15 @@ class TestRequireUnderLimit:
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="pro",
-            monthly_cents=4900,
+            tier="scale",
+            monthly_cents=29900,
         )
 
-        # Pro: unlimited published courses.
+        # Scale: unlimited lessons per course (None). require_under_limit
+        # returns silently when the limit is None — that's the path
+        # under test.
         await entitlements.require_under_limit(
-            session, creator.id, "published_courses", current=10_000
+            session, creator.id, "lessons_per_course", current=10_000
         )
 
     async def test_unknown_limit_raises_value_error(

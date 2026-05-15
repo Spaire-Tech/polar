@@ -42,6 +42,7 @@ class TierLimits:
 
     published_courses: int | None
     lessons_per_course: int | None
+    active_email_sequences: int | None
     video_hours_hosted: int | None
     video_views_monthly: int | None
     storage_gb: int | None
@@ -104,6 +105,7 @@ _LEGACY = TierEntitlements(
     limits=TierLimits(
         published_courses=None,
         lessons_per_course=None,
+        active_email_sequences=None,
         video_hours_hosted=None,
         video_views_monthly=None,
         storage_gb=None,
@@ -138,24 +140,38 @@ _PRO = TierEntitlements(
     tier=TierKey.pro,
     transaction_fee=TransactionFee(percent_basis_points=400, fixed_cents=40),
     limits=TierLimits(
-        published_courses=None,
-        lessons_per_course=None,
-        video_hours_hosted=50,
-        video_views_monthly=50_000,
-        storage_gb=25,
-        email_subscribers=25_000,
-        email_sends_monthly=250_000,
-        dashboard_team_seats=5,
+        # Tight caps on Pro by design — the cheapest tier intentionally
+        # squeezes any creator with a real catalog / list / team into
+        # Studio so the $80 jump pays for itself.
+        published_courses=3,
+        lessons_per_course=50,
+        active_email_sequences=1,
+        video_hours_hosted=10,
+        video_views_monthly=5_000,
+        storage_gb=5,
+        email_subscribers=1_000,
+        email_sends_monthly=10_000,
+        dashboard_team_seats=1,
     ),
     features=TierFeatures(
         drip_scheduling=True,
+        # email_sequences gate exists; the limit on the count lives in
+        # TierLimits.active_email_sequences. Pro gets 1; Studio gets 10.
         email_sequences_and_segments=True,
-        email_ab_testing=True,
+        # Pulled up to Studio+. Pro doesn't get A/B testing — most Pro
+        # customers have lists under 1,000, where A/B testing has no
+        # statistical power anyway.
+        email_ab_testing=False,
         # stackable_discounts: roadmap — discount engine doesn't support
         # combining codes yet. Flip to True when the engine ships it.
         stackable_discounts=False,
-        custom_email_sender_domain=True,
-        seat_based_product_pricing=True,
+        # Pulled up to Studio+. Domain warming + DKIM is a serious-
+        # business need; making it a Studio differentiator helps justify
+        # the Studio price.
+        custom_email_sender_domain=False,
+        # Pulled up to Studio+. B2B seat pricing is for orgs selling to
+        # other orgs — that's not a $49 starter use case.
+        seat_based_product_pricing=False,
         # cohort_analytics: roadmap — only basic churn rate is computed
         # today. Flip to True when retention curves and segment-level
         # cohort views ship.
@@ -182,14 +198,19 @@ _STUDIO = TierEntitlements(
     tier=TierKey.studio,
     transaction_fee=TransactionFee(percent_basis_points=380, fixed_cents=35),
     limits=TierLimits(
-        published_courses=None,
+        # Studio is the "real business" tier — generous on courses /
+        # lessons / sequences (no working creator hits these caps often)
+        # but bounded on contacts / sends / video so Scale stays
+        # meaningful.
+        published_courses=15,
         lessons_per_course=None,
-        video_hours_hosted=200,
-        video_views_monthly=250_000,
-        storage_gb=100,
-        email_subscribers=100_000,
-        email_sends_monthly=1_000_000,
-        dashboard_team_seats=15,
+        active_email_sequences=10,
+        video_hours_hosted=50,
+        video_views_monthly=50_000,
+        storage_gb=50,
+        email_subscribers=10_000,
+        email_sends_monthly=100_000,
+        dashboard_team_seats=5,
     ),
     features=TierFeatures(
         drip_scheduling=True,
@@ -221,14 +242,19 @@ _SCALE = TierEntitlements(
     tier=TierKey.scale,
     transaction_fee=TransactionFee(percent_basis_points=350, fixed_cents=30),
     limits=TierLimits(
-        published_courses=None,
+        # Scale caps are the ceiling above which custom pricing kicks
+        # in. Anything bigger → talk-to-sales. Email sequences are
+        # genuinely unlimited because a Scale customer running enough
+        # parallel funnels to abuse this is already paying $299/mo.
+        published_courses=100,
         lessons_per_course=None,
-        video_hours_hosted=None,
-        video_views_monthly=None,
-        storage_gb=None,
-        email_subscribers=None,
-        email_sends_monthly=2_000_000,
-        dashboard_team_seats=None,
+        active_email_sequences=None,
+        video_hours_hosted=200,
+        video_views_monthly=250_000,
+        storage_gb=250,
+        email_subscribers=50_000,
+        email_sends_monthly=500_000,
+        dashboard_team_seats=20,
     ),
     features=TierFeatures(
         drip_scheduling=True,

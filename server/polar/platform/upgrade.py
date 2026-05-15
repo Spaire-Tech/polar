@@ -96,6 +96,7 @@ class PlatformUpgradeService:
         *,
         organization: Organization,
         tier: TierKey,
+        billing_interval: Literal["month", "year"] = "month",
         success_url: str | None = None,
         billing_email: str | None = None,
     ) -> Checkout:
@@ -110,10 +111,10 @@ class PlatformUpgradeService:
             # Defensive — the platform org cannot upgrade itself.
             raise TierNotUpgradeable(tier)
 
-        # Find the target tier's product.
+        # Find the target tier's product for the chosen billing interval.
         product_repo = platform_product_repository(session)
-        target_product = await product_repo.get_by_tier(
-            platform_org.id, tier.value
+        target_product = await product_repo.get_by_tier_and_interval(
+            platform_org.id, tier.value, billing_interval
         )
         if target_product is None:
             raise TierProductNotFound(tier)
@@ -211,6 +212,7 @@ class PlatformUpgradeService:
             "platform.upgrade_checkout.created",
             organization_id=str(organization.id),
             tier=tier.value,
+            billing_interval=billing_interval,
             checkout_id=str(checkout.id),
             existing_subscription_id=(
                 str(existing_subscription_id) if existing_subscription_id else None

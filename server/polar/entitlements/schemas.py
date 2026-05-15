@@ -34,6 +34,9 @@ class TierLimits(Schema):
     lessons_per_course: int | None = Field(
         description="Max lessons per course (null = unlimited)."
     )
+    active_email_sequences: int | None = Field(
+        description="Max simultaneously-active email sequences (null = unlimited)."
+    )
     video_hours_hosted: int | None = Field(
         description="Max video hours hosted (null = unlimited)."
     )
@@ -58,6 +61,7 @@ class TierLimits(Schema):
         return cls(
             published_courses=source.published_courses,
             lessons_per_course=source.lessons_per_course,
+            active_email_sequences=source.active_email_sequences,
             video_hours_hosted=source.video_hours_hosted,
             video_views_monthly=source.video_views_monthly,
             storage_gb=source.storage_gb,

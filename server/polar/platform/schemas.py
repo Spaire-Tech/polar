@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import Field
@@ -13,6 +14,9 @@ from polar.entitlements.tiers import TierKey
 from polar.kit.schemas import Schema
 
 
+BillingInterval = Literal["month", "year"]
+
+
 class TierPlan(Schema):
     """A subscribable tier plan, as exposed to creators in the upgrade UI."""
 
@@ -21,16 +25,36 @@ class TierPlan(Schema):
     description: str | None = Field(description="Marketing description.")
     product_id: UUID | None = Field(
         description=(
-            "Platform-org Product id backing this tier (None if no product "
-            "has been seeded yet)."
+            "Platform-org monthly Product id backing this tier (None if "
+            "no product has been seeded yet). The annual Product id is "
+            "exposed separately via annual_product_id."
+        )
+    )
+    annual_product_id: UUID | None = Field(
+        description=(
+            "Platform-org annual Product id backing this tier (None if "
+            "no annual product has been seeded yet)."
         )
     )
     monthly_price_cents: int = Field(
         description="Monthly recurring price for this tier, in cents."
     )
+    annual_price_cents: int | None = Field(
+        description=(
+            "Total annual cost when billed yearly, in cents. None if "
+            "annual billing isn't seeded for this tier."
+        )
+    )
+    annual_savings_percent: int = Field(
+        default=20,
+        description=(
+            "Discount applied when billed annually vs. 12x monthly. "
+            "Source of truth for the upgrade-card 'save N%' label."
+        ),
+    )
     currency: str = Field(default="usd", description="Currency code (lowercased).")
     trial_days: int | None = Field(
-        description="Trial duration in days, if any (Pro has 14)."
+        description="Trial duration in days, if any."
     )
     transaction_fee: TransactionFee
     features: TierFeatures
@@ -46,6 +70,12 @@ class CurrentSpaireSubscription(Schema):
     complementary to the entitlements snapshot)."""
 
     tier: TierKey
+    billing_interval: BillingInterval | None = Field(
+        description=(
+            "The Product's recurring interval ('month' or 'year'). None "
+            "when the creator has no platform-org subscription (Legacy)."
+        )
+    )
     status: str = Field(
         description=(
             "Subscription status — 'active', 'trialing', 'past_due', "
@@ -57,7 +87,10 @@ class CurrentSpaireSubscription(Schema):
     )
     currency: str = Field(default="usd")
     current_period_end: datetime | None = Field(
-        description="When the current billing period ends."
+        description=(
+            "When the current billing period ends — also the next "
+            "renewal date for active subscriptions."
+        )
     )
     trial_end: datetime | None = Field(
         description="When the trial period ends, if currently trialing."
@@ -71,6 +104,14 @@ class CurrentSpaireSubscription(Schema):
 class UpgradeCheckoutCreate(Schema):
     tier: TierKey = Field(
         description="Target tier to upgrade to (must be Pro, Studio, or Scale)."
+    )
+    billing_interval: BillingInterval = Field(
+        default="month",
+        description=(
+            "'month' bills every 30 days. 'year' bills once annually at a "
+            "~20% discount (the exact price comes from the matching "
+            "platform-org Product row, not the client)."
+        ),
     )
     success_url: str | None = Field(
         default=None,
@@ -104,6 +145,14 @@ class SwitchPlan(Schema):
             "one (e.g. pro -> studio, studio -> scale). Use the cancel "
             "endpoint to end your paid subscription."
         )
+    )
+    billing_interval: BillingInterval | None = Field(
+        default=None,
+        description=(
+            "Optional new billing cadence. Omit to keep the current "
+            "subscription's interval; set to 'year' or 'month' to switch "
+            "annual <-> monthly on the same target tier."
+        ),
     )
 
 

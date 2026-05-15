@@ -160,6 +160,11 @@ class PriceSpec:
 @dataclass(frozen=True)
 class ProductSpec:
     tier: str  # "pro" | "studio" | "scale" | "legacy" — stamped onto user_metadata["tier"]
+    # "month" | "year" — stamped onto user_metadata["billing_interval"] so a
+    # creator can pick monthly vs annual at checkout. Legacy is "month" by
+    # convention (it's an internal grandfather product, the interval doesn't
+    # really matter).
+    billing_interval: str
     name: str
     description: str
     recurring_interval: SubscriptionRecurringInterval
@@ -167,9 +172,37 @@ class ProductSpec:
     trial: TrialSpec | None = None
 
 
+_PRO_DESCRIPTION = (
+    "For solo creators starting out. 4% + $0.40 per transaction. "
+    "3 published courses, 1,000 email subscribers, 10,000 monthly email "
+    "sends, 1 active email sequence, 10 hours of hosted video, sandbox "
+    "environment. 14-day free trial."
+)
+_STUDIO_DESCRIPTION = (
+    "For small teams scaling up. 3.8% + $0.35 per transaction. "
+    "Everything in Pro plus 15 published courses, 10,000 subscribers, "
+    "100k monthly sends, 10 active sequences, custom email sender domain, "
+    "A/B testing, white-label course player, customer wallet, 5 team "
+    "seats. 14-day free trial."
+)
+_SCALE_DESCRIPTION = (
+    "For established businesses. 3.5% + $0.30 per transaction, with "
+    "custom pricing available above $50,000/month GMV. 100 published "
+    "courses, 50,000 subscribers, 500k monthly sends, unlimited "
+    "sequences, 250 GB storage, 20 team seats. Audit logs and dedicated "
+    "support with a 4-hour SLA. 14-day free trial."
+)
+
+# 20% annual discount = pay for ~10 months, get 12. Stripe-standard.
+_ANNUAL_PRO_CENTS = 4900 * 12 * 80 // 100  # 47,040
+_ANNUAL_STUDIO_CENTS = 12900 * 12 * 80 // 100  # 123,840
+_ANNUAL_SCALE_CENTS = 29900 * 12 * 80 // 100  # 287,040
+
+
 PRODUCT_SPECS: list[ProductSpec] = [
     ProductSpec(
         tier="legacy",
+        billing_interval="month",
         name="Spaire Legacy",
         description=(
             "Grandfathered plan for organizations created before tiered "
@@ -180,14 +213,12 @@ PRODUCT_SPECS: list[ProductSpec] = [
         recurring_interval=SubscriptionRecurringInterval.month,
         price=PriceSpec(amount_type=ProductPriceAmountType.free),
     ),
+    # Pro — monthly + annual
     ProductSpec(
         tier="pro",
+        billing_interval="month",
         name="Spaire Pro",
-        description=(
-            "For solo creators. $49/month + 4% + $0.40 per transaction. "
-            "Unlimited courses, email sequences, custom email sender domain, "
-            "B2B seat-based pricing, embedded checkout. 14-day free trial."
-        ),
+        description=_PRO_DESCRIPTION,
         recurring_interval=SubscriptionRecurringInterval.month,
         price=PriceSpec(
             amount_type=ProductPriceAmountType.fixed,
@@ -196,14 +227,23 @@ PRODUCT_SPECS: list[ProductSpec] = [
         trial=TrialSpec(interval=TrialInterval.day, count=14),
     ),
     ProductSpec(
-        tier="studio",
-        name="Spaire Studio",
-        description=(
-            "For small teams. $129/month + 3.8% + $0.35 per transaction. "
-            "Everything in Pro plus white-label course player, customer "
-            "wallet, 15 team seats, and higher quotas (200 video hours, "
-            "1M monthly email sends, 100GB storage). 14-day free trial."
+        tier="pro",
+        billing_interval="year",
+        name="Spaire Pro (Annual)",
+        description=_PRO_DESCRIPTION + " Save 20% with annual billing.",
+        recurring_interval=SubscriptionRecurringInterval.year,
+        price=PriceSpec(
+            amount_type=ProductPriceAmountType.fixed,
+            price_amount_cents=_ANNUAL_PRO_CENTS,
         ),
+        trial=TrialSpec(interval=TrialInterval.day, count=14),
+    ),
+    # Studio — monthly + annual
+    ProductSpec(
+        tier="studio",
+        billing_interval="month",
+        name="Spaire Studio",
+        description=_STUDIO_DESCRIPTION,
         recurring_interval=SubscriptionRecurringInterval.month,
         price=PriceSpec(
             amount_type=ProductPriceAmountType.fixed,
@@ -212,19 +252,39 @@ PRODUCT_SPECS: list[ProductSpec] = [
         trial=TrialSpec(interval=TrialInterval.day, count=14),
     ),
     ProductSpec(
-        tier="scale",
-        name="Spaire Scale",
-        description=(
-            "For established businesses. $299/month + 3.5% + $0.30 per "
-            "transaction, with custom pricing available above $50,000/month "
-            "GMV. Unlimited courses, video, storage and team seats. Email "
-            "sends capped at 2M/month for deliverability protection. "
-            "Audit logs, dedicated support. 14-day free trial."
+        tier="studio",
+        billing_interval="year",
+        name="Spaire Studio (Annual)",
+        description=_STUDIO_DESCRIPTION + " Save 20% with annual billing.",
+        recurring_interval=SubscriptionRecurringInterval.year,
+        price=PriceSpec(
+            amount_type=ProductPriceAmountType.fixed,
+            price_amount_cents=_ANNUAL_STUDIO_CENTS,
         ),
+        trial=TrialSpec(interval=TrialInterval.day, count=14),
+    ),
+    # Scale — monthly + annual
+    ProductSpec(
+        tier="scale",
+        billing_interval="month",
+        name="Spaire Scale",
+        description=_SCALE_DESCRIPTION,
         recurring_interval=SubscriptionRecurringInterval.month,
         price=PriceSpec(
             amount_type=ProductPriceAmountType.fixed,
             price_amount_cents=29900,
+        ),
+        trial=TrialSpec(interval=TrialInterval.day, count=14),
+    ),
+    ProductSpec(
+        tier="scale",
+        billing_interval="year",
+        name="Spaire Scale (Annual)",
+        description=_SCALE_DESCRIPTION + " Save 20% with annual billing.",
+        recurring_interval=SubscriptionRecurringInterval.year,
+        price=PriceSpec(
+            amount_type=ProductPriceAmountType.fixed,
+            price_amount_cents=_ANNUAL_SCALE_CENTS,
         ),
         trial=TrialSpec(interval=TrialInterval.day, count=14),
     ),
@@ -278,22 +338,47 @@ async def _upsert_meter(
     return existing, "updated" if changed else "unchanged"
 
 
-async def _find_product_by_tier(
-    session: AsyncSession, platform_org_id: UUID, tier: str
+async def _find_product_by_tier_and_interval(
+    session: AsyncSession,
+    platform_org_id: UUID,
+    tier: str,
+    billing_interval: str,
 ) -> Product | None:
+    """Locate a previously-seeded Product by (tier, billing_interval).
+
+    Tier products created before annual billing existed lack the
+    `billing_interval` user_metadata key — we treat any monthly-recurring
+    product with the matching tier as the canonical "month" row so a
+    re-seed migrates it in place rather than duplicating it.
+    """
     result = await session.execute(
         select(Product)
         .where(Product.organization_id == platform_org_id)
         .where(Product.user_metadata["tier"].astext == tier)
         .where(Product.deleted_at.is_(None))
     )
-    products = result.scalars().all()
-    if len(products) > 1:
+    products = list(result.scalars().all())
+    matches: list[Product] = []
+    for product in products:
+        stored_interval = (product.user_metadata or {}).get("billing_interval")
+        if stored_interval is None:
+            # Legacy seed row — adopt it as the monthly row, mark below
+            # in _upsert_product when we stamp the new metadata.
+            if (
+                billing_interval == "month"
+                and product.recurring_interval == SubscriptionRecurringInterval.month
+            ):
+                matches.append(product)
+        elif stored_interval == billing_interval:
+            matches.append(product)
+
+    if len(matches) > 1:
         raise RuntimeError(
-            f"More than one product on platform org with metadata.tier='{tier}': "
-            f"{[str(p.id) for p in products]}. Resolve manually before re-seeding."
+            f"More than one product on platform org with "
+            f"metadata.tier='{tier}', billing_interval='{billing_interval}': "
+            f"{[str(p.id) for p in matches]}. Resolve manually before re-seeding."
         )
-    return products[0] if products else None
+    return matches[0] if matches else None
 
 
 async def _upsert_product(
@@ -303,10 +388,17 @@ async def _upsert_product(
     *,
     dry_run: bool,
 ) -> tuple[Product, str]:
-    existing = await _find_product_by_tier(session, platform_org.id, spec.tier)
+    existing = await _find_product_by_tier_and_interval(
+        session, platform_org.id, spec.tier, spec.billing_interval
+    )
 
     target_trial_interval = spec.trial.interval if spec.trial else None
     target_trial_count = spec.trial.count if spec.trial else None
+    target_metadata = {
+        "tier": spec.tier,
+        "billing_interval": spec.billing_interval,
+        "managed_by": "scripts.seed_platform_products",
+    }
 
     if existing is None:
         product = Product(
@@ -316,7 +408,7 @@ async def _upsert_product(
             recurring_interval=spec.recurring_interval,
             trial_interval=target_trial_interval,
             trial_interval_count=target_trial_count,
-            user_metadata={"tier": spec.tier, "managed_by": "scripts.seed_platform_products"},
+            user_metadata=target_metadata,
         )
         if not dry_run:
             session.add(product)
@@ -343,6 +435,14 @@ async def _upsert_product(
     if existing.trial_interval_count != target_trial_count:
         if not dry_run:
             existing.trial_interval_count = target_trial_count
+        changed = True
+    if (existing.user_metadata or {}).get("billing_interval") != spec.billing_interval:
+        # Stamp the interval onto pre-existing rows (the previous seed
+        # didn't store this key).
+        if not dry_run:
+            merged = dict(existing.user_metadata or {})
+            merged.update(target_metadata)
+            existing.user_metadata = merged
         changed = True
     return existing, "updated" if changed else "unchanged"
 
@@ -490,8 +590,10 @@ async def run(
                 session, platform_org, product_spec, dry_run=dry_run
             )
             typer.echo(
-                f"  {_format_action(action)}  {product_spec.name:<14} "
-                f"tier={product_spec.tier:<5} {_format_billing_type(product_spec)}"
+                f"  {_format_action(action)}  {product_spec.name:<22} "
+                f"tier={product_spec.tier:<6} "
+                f"interval={product_spec.billing_interval:<5} "
+                f"{_format_billing_type(product_spec)}"
             )
 
             price_action = await _upsert_catalog_price(

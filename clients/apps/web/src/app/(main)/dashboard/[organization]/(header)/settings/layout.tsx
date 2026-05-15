@@ -7,6 +7,7 @@ import { PropsWithChildren } from 'react'
 
 const settingsTabs = [
   { title: 'Organization', suffix: '' },
+  { title: 'Plan', suffix: '/plan' },
   { title: 'Billing', suffix: '/billing' },
   { title: 'Members', suffix: '/members' },
   { title: 'Webhooks', suffix: '/webhooks' },

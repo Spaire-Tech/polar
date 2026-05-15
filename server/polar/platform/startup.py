@@ -63,20 +63,31 @@ async def verify_platform_setup(session: AsyncSession) -> None:
     product_repo = platform_product_repository(session)
     missing_tiers: list[str] = []
     missing_trial_tiers: list[str] = []
+    missing_annual_tiers: list[str] = []
+
     for tier in _REQUIRED_TIERS:
-        product = await product_repo.get_by_tier(platform_org.id, tier.value)
-        if product is None:
-            missing_tiers.append(tier.value)
+        monthly = await product_repo.get_by_tier_and_interval(
+            platform_org.id, tier.value, "month"
+        )
+        if monthly is None:
+            missing_tiers.append(f"{tier.value} (monthly)")
             continue
         if tier in _TRIAL_REQUIRED_TIERS:
-            # Pro/Studio/Scale must carry a trial configuration; if not,
-            # platform_billing._create_subscription falls through to
-            # status=active (no trial), and new orgs get free Pro forever.
             if (
-                product.trial_interval is None
-                or product.trial_interval_count is None
+                monthly.trial_interval is None
+                or monthly.trial_interval_count is None
             ):
-                missing_trial_tiers.append(tier.value)
+                missing_trial_tiers.append(f"{tier.value} (monthly)")
+            annual = await product_repo.get_by_tier_and_interval(
+                platform_org.id, tier.value, "year"
+            )
+            if annual is None:
+                missing_annual_tiers.append(tier.value)
+            elif (
+                annual.trial_interval is None
+                or annual.trial_interval_count is None
+            ):
+                missing_trial_tiers.append(f"{tier.value} (annual)")
 
     if missing_tiers:
         raise PlatformStartupError(
@@ -85,6 +96,14 @@ async def verify_platform_setup(session: AsyncSession) -> None:
             "`uv run task seed_platform_products` before starting the API. "
             "Without these products new signups silently fall back to legacy "
             "entitlements and undercharged transaction fees."
+        )
+
+    if missing_annual_tiers:
+        raise PlatformStartupError(
+            f"Platform organization '{platform_org.slug}' is missing annual "
+            f"products for: {', '.join(missing_annual_tiers)}. Re-run "
+            "`uv run task seed_platform_products` so the annual billing "
+            "toggle on the Plan page has Products to point at."
         )
 
     if missing_trial_tiers:

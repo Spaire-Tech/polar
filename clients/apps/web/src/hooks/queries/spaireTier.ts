@@ -27,6 +27,8 @@ export type SpaireTierKey = 'pro' | 'studio' | 'scale' | 'legacy'
 
 export type PaidTierKey = 'pro' | 'studio' | 'scale'
 
+export type BillingInterval = 'month' | 'year'
+
 export interface TransactionFee {
   percent_basis_points: number
   fixed_cents: number
@@ -35,6 +37,7 @@ export interface TransactionFee {
 export interface TierLimits {
   published_courses: number | null
   lessons_per_course: number | null
+  active_email_sequences: number | null
   video_hours_hosted: number | null
   video_views_monthly: number | null
   storage_gb: number | null
@@ -75,7 +78,10 @@ export interface TierPlan {
   name: string
   description: string | null
   product_id: string | null
+  annual_product_id: string | null
   monthly_price_cents: number
+  annual_price_cents: number | null
+  annual_savings_percent: number
   currency: string
   trial_days: number | null
   transaction_fee: TransactionFee
@@ -85,6 +91,7 @@ export interface TierPlan {
 
 export interface CurrentSpaireSubscription {
   tier: SpaireTierKey
+  billing_interval: BillingInterval | null
   status: string
   monthly_price_cents: number
   currency: string
@@ -173,6 +180,7 @@ export const useCreateUpgradeCheckout = (organizationId: string) => {
   return useMutation({
     mutationFn: async (input: {
       tier: PaidTierKey
+      billing_interval?: BillingInterval
       success_url?: string
       billing_email?: string
     }): Promise<UpgradeCheckout> => {
@@ -197,7 +205,10 @@ export const useCreateUpgradeCheckout = (organizationId: string) => {
 export const useSwitchSpairePlan = (organizationId: string) => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (input: { tier: PaidTierKey }) => {
+    mutationFn: async (input: {
+      tier: PaidTierKey
+      billing_interval?: BillingInterval
+    }) => {
       const { data, error } = await platformApi.POST(
         '/v1/platform/organizations/{organization_id}/switch-plan',
         {
@@ -270,12 +281,60 @@ export const formatMonthlyPrice = (cents: number, currency = 'usd'): string => {
   return `${formatter.format(dollars)}/mo`
 }
 
+/**
+ * Headline price for a plan card, given the user-selected billing
+ * interval. Annual subs are displayed as their monthly equivalent
+ * (e.g. $39/mo with the "billed annually" subtitle) to match the
+ * Webflow / Framer pricing-card pattern.
+ */
+export const headlinePriceForPlan = (
+  plan: TierPlan,
+  interval: BillingInterval,
+): { dollars: number; cents: number } => {
+  if (interval === 'year' && plan.annual_price_cents != null) {
+    const monthlyEquivalentCents = Math.round(plan.annual_price_cents / 12)
+    return {
+      cents: monthlyEquivalentCents,
+      dollars: Math.round(monthlyEquivalentCents / 100),
+    }
+  }
+  return {
+    cents: plan.monthly_price_cents,
+    dollars: Math.round(plan.monthly_price_cents / 100),
+  }
+}
+
 export const formatTransactionFee = (fee: TransactionFee): string => {
   const pct = (fee.percent_basis_points / 100).toFixed(
     fee.percent_basis_points % 100 === 0 ? 0 : 1,
   )
   const dollars = fee.fixed_cents / 100
   return `${pct}% + $${dollars.toFixed(2)}`
+}
+
+/**
+ * Match the screenshot's renewal copy:
+ *   "This site is charged on a monthly basis and renews on Jun 12th, 2026."
+ * Returns null if there's no active subscription yet (Legacy / pre-trial).
+ */
+export const renewalSentence = (
+  sub: CurrentSpaireSubscription,
+): string | null => {
+  if (!sub.current_period_end) return null
+  const cadence = sub.billing_interval === 'year' ? 'annual' : 'monthly'
+  const date = new Date(sub.current_period_end)
+  const formatted = date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+  if (sub.cancel_at_period_end) {
+    return `This site is on a ${cadence} plan that ends on ${formatted}.`
+  }
+  if (sub.status === 'trialing') {
+    return `Your trial ends on ${formatted}. You won't be charged until then.`
+  }
+  return `This site is charged on a ${cadence} basis and renews on ${formatted}.`
 }
 
 const TIER_DISPLAY_NAME: Record<SpaireTierKey, string> = {

@@ -7,10 +7,12 @@ immediately (no end-of-period schedule, since there's no payment cycle
 to wait for).
 """
 
+from typing import Literal
+
 import structlog
 
 from polar.entitlements.tiers import TierKey
-from polar.enums import SubscriptionProrationBehavior
+from polar.enums import SubscriptionProrationBehavior, SubscriptionRecurringInterval
 from polar.exceptions import PolarError
 from polar.kit.utils import utc_now
 from polar.locker import Locker
@@ -79,11 +81,17 @@ class CannotSwitchDuringTrial(PlatformManagementError):
 
 
 class _ResolvedSubscription:
-    __slots__ = ("subscription", "current_tier")
+    __slots__ = ("subscription", "current_tier", "current_interval")
 
-    def __init__(self, subscription: Subscription, current_tier: TierKey) -> None:
+    def __init__(
+        self,
+        subscription: Subscription,
+        current_tier: TierKey,
+        current_interval: Literal["month", "year"],
+    ) -> None:
         self.subscription = subscription
         self.current_tier = current_tier
+        self.current_interval = current_interval
 
 
 async def _resolve_active(
@@ -113,7 +121,16 @@ async def _resolve_active(
     except ValueError as exc:
         raise NoActiveSubscription() from exc
 
-    return _ResolvedSubscription(subscription, current_tier)
+    # Derive the current billing interval from the subscription itself
+    # (single source of truth — the Product's user_metadata may not be
+    # stamped on legacy seed rows).
+    current_interval: Literal["month", "year"]
+    if subscription.recurring_interval == SubscriptionRecurringInterval.year:
+        current_interval = "year"
+    else:
+        current_interval = "month"
+
+    return _ResolvedSubscription(subscription, current_tier, current_interval)
 
 
 class PlatformManagementService:
@@ -123,13 +140,20 @@ class PlatformManagementService:
         *,
         organization: Organization,
         target_tier: TierKey,
+        target_interval: Literal["month", "year"] | None = None,
     ) -> Subscription:
-        """Switch a creator org from one paid tier to another (Pro <-> Studio
-        <-> Scale).
+        """Switch a creator org between paid tiers and/or billing intervals.
+
+        Examples (all valid):
+          - Pro monthly  -> Studio monthly  (tier switch)
+          - Studio monthly -> Studio yearly (interval switch, same tier)
+          - Pro monthly  -> Scale yearly    (both at once)
 
         Uses subscription.update_product directly (no checkout needed —
         the customer's card is already on file). Proration is invoice-
         immediately so the customer sees the change on their next bill.
+
+        `target_interval=None` keeps the current cadence.
         """
         if target_tier == TierKey.legacy:
             raise CannotSwitchToNonPaidTier()
@@ -150,15 +174,21 @@ class PlatformManagementService:
             # instead of bouncing on a generic error.
             raise CannotSwitchDuringTrial()
 
-        if resolved.current_tier == target_tier:
+        effective_interval = target_interval or resolved.current_interval
+        if (
+            resolved.current_tier == target_tier
+            and effective_interval == resolved.current_interval
+        ):
             raise CannotSwitchToSameTier()
 
         platform_org_id = platform_service.get_id()
         product_repo = platform_product_repository(session)
-        target_product = await product_repo.get_by_tier(
-            platform_org_id, target_tier.value
+        target_product = await product_repo.get_by_tier_and_interval(
+            platform_org_id, target_tier.value, effective_interval
         )
         if target_product is None:
+            # Bail with a 404-ish message; pre-deploy seed should have
+            # created every (tier, interval) pair.
             raise NoActiveSubscription()
 
         updated = await subscription_service.update_product(
@@ -172,7 +202,9 @@ class PlatformManagementService:
             "platform.switch_plan.done",
             organization_id=str(organization.id),
             from_tier=resolved.current_tier.value,
+            from_interval=resolved.current_interval,
             to_tier=target_tier.value,
+            to_interval=effective_interval,
             subscription_id=str(updated.id),
         )
         return updated

@@ -48,30 +48,32 @@ The following are part of the product on every tier. Gating any of these would b
 | **Best for** | Solo creators starting out | Small teams scaling up | Established businesses |
 | **Free trial** | 14 days | 14 days | 14 days |
 | **Monthly** | $49 | $129 | $299 |
+| **Annual** (save 20%) | $39/mo · $470/yr | $103/mo · $1,238/yr | $239/mo · $2,870/yr |
 | **Transaction fee** | 4% + $0.40 | 3.8% + $0.35 | 3.5% + $0.30 |
 | **Custom pricing at scale** | — | — | available above $50k/mo GMV |
+| **Published courses** | 3 | 15 | 100 |
+| **Lessons per course** | 50 | unlimited | unlimited |
+| **Active email sequences** | 1 | 10 | unlimited |
+| **Email subscribers** | 1,000 | 10,000 | 50,000 |
+| **Email sends / month** ‡ | 10,000 | 100,000 | 500,000 |
+| **Course video hours hosted** ‡ | 10 | 50 | 200 |
+| **Course video views / month** ‡ | 5,000 | 50,000 | 250,000 |
+| **Downloadables storage** ‡ | 5 GB | 50 GB | 250 GB |
+| **Dashboard team seats** | 1 | 5 | 20 |
 | Products (one-time, sub, downloads, license keys, usage-based) | unlimited | unlimited | unlimited |
-| Published courses | unlimited | unlimited | unlimited |
-| Lessons per course | unlimited | unlimited | unlimited |
 | Drip scheduling | ✓ | ✓ | ✓ |
-| Course video hours hosted ‡ | 50 | 200 | unlimited |
-| Course video views / month ‡ | 50,000 | 250,000 | unlimited |
-| Downloadables storage ‡ | 25 GB | 100 GB | unlimited |
-| Email subscribers | 25,000 | 100,000 | unlimited |
-| Email sends / month ‡ | 250,000 | 1,000,000 | 2,000,000 |
 | Email sequences & segments | ✓ | ✓ | ✓ |
-| Email A/B testing | ✓ | ✓ | ✓ |
+| Email A/B testing | — | ✓ | ✓ |
 | Stackable / cart-rule discounts ★ | roadmap | roadmap | roadmap |
 | Checkout links | ✓ | ✓ | ✓ |
 | Embedded checkout on your site | ✓ | ✓ | ✓ |
-| Custom email sender domain ★ | ✓ | ✓ | ✓ |
-| White-label course player ★ | — | ✓ | ✓ |
-| Seat-based product pricing (B2B sales) | ✓ | ✓ | ✓ |
+| Custom email sender domain | — | ✓ | ✓ |
+| White-label course player | — | ✓ | ✓ |
+| Seat-based product pricing (B2B sales) | — | ✓ | ✓ |
 | Customer wallet (prepaid balance, auto-top-up) | — | ✓ | ✓ |
 | Analytics — revenue, MRR, churn rate | ✓ | ✓ | ✓ |
 | Analytics — cohort retention curves ★ | roadmap | roadmap | roadmap |
 | CSV exports of analytics & customer data | ✓ | ✓ | ✓ |
-| Dashboard team seats | 5 | 15 | unlimited |
 | API rate limits | higher | higher | highest + custom |
 | Custom storefront domain ★ | — | — | roadmap |
 | Custom checkout domain ★ | — | — | roadmap |

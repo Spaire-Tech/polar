@@ -275,8 +275,9 @@ class TestGetForOrganization:
         assert result.features.email_sequences_and_segments is True
         assert result.features.white_label_course_player is False
         assert result.features.customer_wallet is False
-        assert result.limits.published_courses is None
-        assert result.limits.email_sends_monthly == 250_000
+        assert result.limits.published_courses == 3
+        assert result.limits.active_email_sequences == 1
+        assert result.limits.email_sends_monthly == 10_000
 
     async def test_legacy_has_unlimited_limits(
         self,
@@ -305,10 +306,11 @@ class TestTierDefinitions:
         assert studio.monthly_price_cents == 12900
         assert studio.transaction_fee.percent_basis_points == 380
         assert studio.transaction_fee.fixed_cents == 35
-        assert studio.limits.published_courses is None
-        assert studio.limits.video_hours_hosted == 200
-        assert studio.limits.email_sends_monthly == 1_000_000
-        assert studio.limits.dashboard_team_seats == 15
+        assert studio.limits.published_courses == 15
+        assert studio.limits.active_email_sequences == 10
+        assert studio.limits.video_hours_hosted == 50
+        assert studio.limits.email_sends_monthly == 100_000
+        assert studio.limits.dashboard_team_seats == 5
         assert studio.features.white_label_course_player is True
         assert studio.features.customer_wallet is True
         assert studio.features.custom_pricing_negotiation is False
@@ -320,9 +322,12 @@ class TestTierDefinitions:
         assert pro.monthly_price_cents == 4900
         assert pro.transaction_fee.percent_basis_points == 400
         assert pro.transaction_fee.fixed_cents == 40
-        assert pro.limits.published_courses is None
-        assert pro.limits.email_sends_monthly == 250_000
+        assert pro.limits.published_courses == 3
+        assert pro.limits.active_email_sequences == 1
+        assert pro.limits.email_sends_monthly == 10_000
         assert pro.features.email_sequences_and_segments is True
+        # email_ab_testing was pulled up to Studio+ so Pro doesn't have it.
+        assert pro.features.email_ab_testing is False
         assert pro.features.customer_wallet is False
         assert pro.rate_limit_group == "elevated"
 
@@ -333,8 +338,13 @@ class TestTierDefinitions:
         assert scale.monthly_price_cents == 29900
         assert scale.transaction_fee.percent_basis_points == 350
         assert scale.transaction_fee.fixed_cents == 30
-        assert scale.limits.video_hours_hosted is None
-        assert scale.limits.dashboard_team_seats is None
+        # Scale caps video at 200 hours; only Legacy is fully unlimited.
+        assert scale.limits.video_hours_hosted == 200
+        assert scale.limits.dashboard_team_seats == 20
+        # Email sequences are the one Scale limit the user explicitly
+        # wanted to remain unlimited (parallel funnel use case).
+        assert scale.limits.active_email_sequences is None
         assert scale.features.custom_pricing_negotiation is True
         assert scale.features.customer_wallet is True
         assert scale.features.white_label_course_player is True
+        assert scale.features.audit_logs is True

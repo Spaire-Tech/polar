@@ -45,6 +45,29 @@ class EmailSequenceRepository(
             )
         return statement
 
+    async def count_active_for_org(
+        self,
+        organization_id: UUID,
+        *,
+        exclude_sequence_id: UUID | None = None,
+    ) -> int:
+        """Count active (non-draft, non-paused) sequences for an org.
+
+        Used by the tier-limit gate when a creator tries to activate a
+        sequence. `exclude_sequence_id` lets callers skip the sequence
+        currently being transitioned so the gate compares the *target*
+        count, not the current one.
+        """
+        statement = select(func.count(EmailSequence.id)).where(
+            EmailSequence.organization_id == organization_id,
+            EmailSequence.status == EmailSequenceStatus.active,
+            EmailSequence.deleted_at.is_(None),
+        )
+        if exclude_sequence_id is not None:
+            statement = statement.where(EmailSequence.id != exclude_sequence_id)
+        result = await self.session.execute(statement)
+        return int(result.scalar_one())
+
     async def get_active_for_org_by_trigger(
         self,
         organization_id: UUID,
