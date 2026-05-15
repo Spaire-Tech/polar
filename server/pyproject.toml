@@ -110,7 +110,7 @@ platform_verify = { cmd = "python -m scripts.platform verify", help = "verify SP
 seed_platform_products = { cmd = "python -m scripts.seed_platform_products", help = "idempotently seed Pro/Studio/Scale products and overage meters in the platform organization" }
 grandfather_orgs = { cmd = "python -m scripts.grandfather_orgs", help = "subscribe pre-existing creator orgs to the Spaire Legacy plan" }
 extend_platform_trial = { cmd = "python -m scripts.extend_platform_trial", help = "extend a creator org's Pro/Studio/Scale trial (operator override)" }
-pre_deploy = { cmd = "task db_migrate", help = "Pre-deploy command run by Render" }
+pre_deploy = { cmd = "task db_migrate && task seed_platform_products", help = "Pre-deploy command run by Render. Migrates DB then re-seeds platform tier products so the startup check passes against any new code." }
 
 [tool.pytest.ini_options]
 markers = ["auth"]
