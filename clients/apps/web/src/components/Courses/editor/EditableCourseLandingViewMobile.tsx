@@ -82,14 +82,15 @@ export function MobileHero({
     <section
       style={{
         position: 'relative',
-        // Full-bleed — matches the customer portal's in-course hero so the
-        // image sits flush against the viewport edges instead of inside a
-        // rounded card. Looks correct both on a real phone and inside the
-        // studio's iPhone preview frame.
+        // Full-width (no horizontal margin) but with Apple-TV-style
+        // bottom corners — flush against the viewport on the sides
+        // and top, curving into the content below.
         height: 600,
         overflow: 'hidden',
         background: '#000',
         isolation: 'isolate',
+        borderBottomLeftRadius: 28,
+        borderBottomRightRadius: 28,
       }}
     >
       <EditMedia
