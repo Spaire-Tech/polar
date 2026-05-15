@@ -140,22 +140,15 @@ class PlatformUpgradeService:
         if customer is None:
             raise MissingPlatformCustomer()
 
-        # The platform Customer was created with a synthetic email in PR 4
-        # (creator-{slug}@billing.spairehq.internal). Replace it with the
-        # caller's real email before kicking off checkout so:
-        #   - Stripe charges the right customer record,
-        #   - Spaire invoices for the $49 / $299 subscription actually
-        #     reach the creator,
-        #   - the customer portal session (PR 18) shows the right email
-        #     in the UI.
-        if billing_email is not None and _is_synthetic_email(customer.email):
-            customer.email = billing_email
-            await session.flush()
-        elif billing_email is not None and customer.email != billing_email:
-            # Creator explicitly asked for a different billing address.
-            # Honor it — they'll see invoices there from now on.
-            customer.email = billing_email
-            await session.flush()
+        # We deliberately do NOT overwrite customer.email with the user's
+        # real email here. The platform-org `customers` table has a
+        # unique constraint on (organization_id, lower(email)), and a
+        # single creator who owns multiple Spaire orgs would have one
+        # Customer per org — they can't all share the same real email.
+        # The synthetic `creator-{slug}@billing.spairehq.internal`
+        # address keeps each Customer row unique. Stripe still gets the
+        # real email via CheckoutProductCreate.customer_email below, so
+        # receipts and tax invoices reach the creator's actual inbox.
 
         # If the customer has an active subscription, it must currently be
         # on a Legacy product or in a trialing state on one of the paid
@@ -191,14 +184,19 @@ class PlatformUpgradeService:
 
         # Use model_validate so pydantic coerces success_url (a plain str)
         # into the HttpUrl-shaped SuccessUrl type the schema requires.
-        checkout_create = CheckoutProductCreate.model_validate(
-            {
-                "product_id": target_product.id,
-                "customer_id": customer.id,
-                "subscription_id": existing_subscription_id,
-                "success_url": success_url,
-            }
-        )
+        # `customer_email` (when supplied) prefills the user's real email
+        # on the Polar/Stripe checkout form so receipts and tax invoices
+        # land in their actual inbox — independent of the synthetic
+        # platform-Customer email kept above for uniqueness.
+        checkout_payload: dict[str, object] = {
+            "product_id": target_product.id,
+            "customer_id": customer.id,
+            "subscription_id": existing_subscription_id,
+            "success_url": success_url,
+        }
+        if billing_email is not None:
+            checkout_payload["customer_email"] = billing_email
+        checkout_create = CheckoutProductCreate.model_validate(checkout_payload)
 
         # Construct an AuthSubject scoped to the platform org so the
         # checkout's auth-aware product lookup succeeds. The platform
