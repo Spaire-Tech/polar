@@ -1881,6 +1881,7 @@ function MobileLessonCard({
   onSelect: () => void
 }) {
   const watched = lesson.completed
+  const locked = !!lesson.locked
   const durationLabel = lesson.duration_seconds
     ? formatMinSec(lesson.duration_seconds)
     : null
@@ -1890,30 +1891,35 @@ function MobileLessonCard({
       type="button"
       onClick={onSelect}
       style={{
+        // Apple-TV-style portrait card — same shape and treatment as the
+        // public landing's free-preview cards so an enrolled customer
+        // browsing their course feels continuous with the storefront they
+        // bought from. Copy + duration pill sit overlaid on the thumb so
+        // each card reads as a single object.
         flex: '0 0 auto',
-        width: 268,
+        width: 280,
         scrollSnapAlign: 'start',
-        display: 'flex',
-        flexDirection: 'column',
         appearance: 'none',
-        background: 'none',
-        border: 0,
+        background: '#0a0a0a',
+        border: '1px solid oklch(0.20 0.005 280)',
+        borderRadius: 18,
+        overflow: 'hidden',
         padding: 0,
         margin: 0,
         textAlign: 'left',
         cursor: 'pointer',
         fontFamily: 'inherit',
         color: 'inherit',
+        boxShadow:
+          '0 1px 2px oklch(0 0 0 / 0.06), 0 12px 32px oklch(0 0 0 / 0.10)',
       }}
     >
       <div
         style={{
           position: 'relative',
           width: '100%',
-          aspectRatio: '16 / 9',
-          borderRadius: 10,
+          aspectRatio: '4 / 5',
           overflow: 'hidden',
-          background: '#111',
         }}
       >
         <LessonThumb
@@ -1924,88 +1930,168 @@ function MobileLessonCard({
           fallbackThumbnailUrl={fallbackThumbnailUrl}
           fallbackObjectPosition={fallbackObjectPosition}
         />
-        {watched && (
+
+        {/* Dim wash → ensures the bottom copy stack stays readable
+            against any thumbnail. Watched cards get an extra full-tile
+            overlay so they read as "done", and a centred lock + heavy
+            saturation drop on locked lessons. */}
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: locked
+              ? 'rgba(0,0,0,0.55)'
+              : 'linear-gradient(180deg, rgba(0,0,0,0) 30%, rgba(0,0,0,0.55) 65%, rgba(0,0,0,0.92) 100%)',
+            backdropFilter: locked ? 'saturate(0.6)' : undefined,
+            WebkitBackdropFilter: locked ? 'saturate(0.6)' : undefined,
+            pointerEvents: 'none',
+          }}
+        />
+        {watched && !locked && (
           <div
             style={{
               position: 'absolute',
               inset: 0,
-              background: 'rgba(0,0,0,0.30)',
+              background: 'rgba(0,0,0,0.25)',
+              pointerEvents: 'none',
             }}
           />
         )}
 
-        {durationLabel && (
-          <div
-            style={{
-              position: 'absolute',
-              left: 8,
-              bottom: 8,
-              fontSize: 10.5,
-              fontWeight: 500,
-              color: 'rgba(255,255,255,0.94)',
-              background: 'rgba(0,0,0,0.55)',
-              backdropFilter: 'blur(8px)',
-              WebkitBackdropFilter: 'blur(8px)',
-              padding: '2px 7px',
-              borderRadius: 4,
-              fontVariantNumeric: 'tabular-nums',
-            }}
-          >
-            {durationLabel}
-          </div>
-        )}
-
-        {watched && (
-          <div
-            style={{
-              position: 'absolute',
-              right: 8,
-              bottom: 8,
-              width: 22,
-              height: 22,
-              borderRadius: '50%',
-              background: 'rgba(255,255,255,0.97)',
-              color: '#000',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-            }}
-          >
-            <IconCheck size={11} />
-          </div>
-        )}
-      </div>
-
-      <div style={{ paddingTop: 9 }}>
-        {globalIndex != null && (
-          <div
-            style={{
-              fontSize: 9.5,
-              fontWeight: 600,
-              letterSpacing: '0.10em',
-              color: C.fg3,
-              marginBottom: 3,
-              textTransform: 'uppercase',
-            }}
-          >
-            LESSON {globalIndex}
-          </div>
-        )}
+        {/* Copy stack — episode label, title, optional description */}
         <div
           style={{
-            fontSize: 13.5,
-            fontWeight: 600,
-            letterSpacing: '-0.012em',
-            lineHeight: 1.28,
-            color: C.fg0,
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
+            position: 'absolute',
+            left: 16,
+            right: 16,
+            bottom: 48,
+            color: 'white',
+            zIndex: 2,
           }}
         >
-          {lesson.title}
+          {globalIndex != null && (
+            <div
+              style={{
+                fontSize: 9.5,
+                fontWeight: 600,
+                letterSpacing: '0.16em',
+                color: 'rgba(255,255,255,0.65)',
+                marginBottom: 6,
+              }}
+            >
+              LESSON {globalIndex}
+            </div>
+          )}
+          <div
+            style={{
+              fontSize: 17,
+              fontWeight: 600,
+              letterSpacing: '-0.02em',
+              lineHeight: 1.2,
+              color: 'white',
+              marginBottom: lesson.description ? 8 : 0,
+              textShadow: '0 2px 14px rgba(0,0,0,0.5)',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}
+          >
+            {lesson.title}
+          </div>
+          {lesson.description && (
+            <div
+              style={{
+                fontSize: 12,
+                lineHeight: 1.45,
+                color: 'rgba(255,255,255,0.78)',
+                display: '-webkit-box',
+                WebkitLineClamp: 3,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+                textWrap: 'pretty',
+              }}
+            >
+              {lesson.description}
+            </div>
+          )}
+        </div>
+
+        {/* Footer row — duration pill (left), state badge (right) */}
+        <div
+          style={{
+            position: 'absolute',
+            left: 14,
+            right: 14,
+            bottom: 14,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            zIndex: 3,
+          }}
+        >
+          {durationLabel ? (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: 11,
+                fontWeight: 500,
+                color: 'rgba(255,255,255,0.92)',
+                padding: '5px 9px 5px 8px',
+                background: 'rgba(255,255,255,0.14)',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255,255,255,0.18)',
+                borderRadius: 999,
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
+              <IconPlay size={11} />
+              <span>{durationLabel}</span>
+            </div>
+          ) : (
+            <span />
+          )}
+
+          {locked ? (
+            <div
+              style={{
+                width: 26,
+                height: 26,
+                borderRadius: '50%',
+                background: 'rgba(255,255,255,0.18)',
+                border: '1px solid rgba(255,255,255,0.3)',
+                color: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backdropFilter: 'blur(8px)',
+                WebkitBackdropFilter: 'blur(8px)',
+              }}
+              aria-label="Locked"
+            >
+              <IconLock size={12} />
+            </div>
+          ) : watched ? (
+            <div
+              style={{
+                width: 26,
+                height: 26,
+                borderRadius: '50%',
+                background: 'rgba(255,255,255,0.97)',
+                color: '#000',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+              }}
+              aria-label="Completed"
+            >
+              <IconCheck size={12} />
+            </div>
+          ) : null}
         </div>
       </div>
     </button>
