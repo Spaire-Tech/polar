@@ -1809,7 +1809,7 @@ function renderMobileLessonViewer(a: MobileVA): React.ReactElement {
               className="prose prose-sm max-w-none"
               style={{ fontSize: 14, lineHeight: 1.65 }}
             >
-              <MemoizedMarkdown id={lesson.id} content={textContent} />
+              <MemoizedMarkdown content={textContent} />
             </div>
           </section>
         )}
