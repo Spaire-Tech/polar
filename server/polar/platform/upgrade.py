@@ -81,15 +81,6 @@ class MissingPlatformCustomer(PlatformUpgradeError):
         )
 
 
-_SYNTHETIC_EMAIL_SUFFIX = "@billing.spairehq.internal"
-
-
-def _is_synthetic_email(email: str | None) -> bool:
-    if email is None:
-        return False
-    return email.lower().endswith(_SYNTHETIC_EMAIL_SUFFIX)
-
-
 class PlatformUpgradeService:
     async def create_checkout(
         self,
@@ -121,17 +112,16 @@ class PlatformUpgradeService:
             raise TierProductNotFound(tier)
 
         # Find the creator's existing platform-org customer record.
+        # The org-creation hook creates this synchronously now (no trial
+        # sub, just the Customer row), but a creator hitting this
+        # endpoint on a not-yet-processed actor still needs to be
+        # rescued — so we bootstrap inline as a safety net.
         customer_repo = platform_customer_repository(session)
         customer = await customer_repo.get_for_creator_org(
             platform_org.id, organization.id
         )
         if customer is None:
-            # Brand-new org calling upgrade-checkout from the
-            # onboarding plan-picker can race the async
-            # `organization.created` actor that creates the
-            # platform Customer + Pro trial. Bootstrap them inline
-            # so checkout can proceed in the same round-trip.
-            await platform_billing.ensure_pro_trial_subscription(
+            await platform_billing.ensure_platform_customer(
                 session, organization
             )
             customer = await customer_repo.get_for_creator_org(
@@ -150,10 +140,14 @@ class PlatformUpgradeService:
         # real email via CheckoutProductCreate.customer_email below, so
         # receipts and tax invoices reach the creator's actual inbox.
 
-        # If the customer has an active subscription, it must currently be
-        # on a Legacy product or in a trialing state on one of the paid
-        # tiers. The CheckoutProductCreate path uses `subscription_id` to
-        # upgrade / convert the trial in-place.
+        # `subscription_id` on CheckoutProductCreate is Polar's "convert
+        # from free to paid" hook — it only accepts subscriptions whose
+        # prices are all free. So we pass it ONLY when the creator is on
+        # the Legacy ($0) product (grandfathered orgs upgrading for the
+        # first time). For everyone else we leave it None: Polar's
+        # checkout will create a fresh subscription, and Stripe handles
+        # the 14-day trial via the Product's trial_interval. No
+        # platform-side trial sub means no orphan rows.
         subscription_repo = platform_subscription_repository(session)
         existing_sub = await subscription_repo.get_active_for_customer(customer.id)
 
@@ -165,22 +159,21 @@ class PlatformUpgradeService:
                 else None
             )
             if existing_tier == TierKey.legacy.value:
-                existing_subscription_id = existing_sub.id
-            elif existing_sub.trialing:
-                # Trial conversion: upgrade-checkout captures the payment
-                # method and converts the trialing subscription in-place
-                # to whichever tier the customer picked at checkout.
+                # Legacy is the only $0 product we ship; safe to pass to
+                # Polar's upgrade-from-free path.
                 existing_subscription_id = existing_sub.id
             elif existing_tier == tier.value:
-                # Already on the requested tier — surface as 409 so the
-                # frontend can refresh and show the existing subscription.
+                # Already on the requested paid tier — surface as 409.
                 raise AlreadyOnPaidTier()
-            else:
-                # Switches between paid tiers (Pro <-> Studio <-> Scale)
-                # use subscription.update_product, not the upgrade checkout
-                # path. Surface clearly so the frontend can route to the
-                # right flow.
+            elif not existing_sub.trialing:
+                # Paid sub on a different tier → use switch_plan, not
+                # upgrade-checkout.
                 raise AlreadyOnPaidTier()
+            # Trialing on a paid product: fall through with
+            # existing_subscription_id=None. Polar will create a fresh
+            # paid subscription on the chosen product (with Stripe-side
+            # trial). The old platform trial sub becomes inactive once
+            # the new sub is the most-recent active one on the customer.
 
         # Use model_validate so pydantic coerces success_url (a plain str)
         # into the HttpUrl-shaped SuccessUrl type the schema requires.

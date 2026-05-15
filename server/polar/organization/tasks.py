@@ -17,10 +17,7 @@ from polar.held_balance.service import held_balance as held_balance_service
 from polar.integrations.plain.service import plain as plain_service
 from polar.models import Organization
 from polar.models.organization import OrganizationStatus
-from polar.platform.billing import (
-    TierProductMissing,
-    platform_billing,
-)
+from polar.platform.billing import platform_billing
 from polar.platform.fee_sync import enqueue_sync as enqueue_platform_fee_sync
 from polar.user.repository import UserRepository
 from polar.worker import AsyncSessionMaker, TaskPriority, actor
@@ -71,21 +68,14 @@ async def organization_created(organization_id: uuid.UUID) -> None:
         if organization is None:
             raise OrganizationDoesNotExist(organization_id)
 
-        # Start the new org on a 14-day Pro trial. Best-effort: never
-        # block org creation if the platform org isn't configured or its
-        # products aren't seeded — the EntitlementsService falls back to
-        # legacy entitlements when no subscription exists, so the creator
-        # can still use the product.
-        try:
-            await platform_billing.ensure_pro_trial_subscription(
-                session, organization
-            )
-        except TierProductMissing as e:
-            log.warning(
-                "organization.created.platform_billing_skipped",
-                organization_id=str(organization_id),
-                reason=e.message,
-            )
+        # Create the platform-org Customer row for this creator so the
+        # upgrade-checkout endpoint has a customer_id to attach. We do
+        # NOT pre-create a Spaire subscription — the 14-day trial is
+        # initiated by Stripe at checkout (via Product.trial_interval),
+        # which keeps the platform DB clean of orphan trial subs and
+        # avoids tripping Polar's "only free subscriptions can be
+        # upgraded" guard inside CheckoutProductCreate.
+        await platform_billing.ensure_platform_customer(session, organization)
 
 
 @actor(actor_name="organization.account_set", priority=TaskPriority.LOW)

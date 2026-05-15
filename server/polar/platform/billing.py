@@ -152,9 +152,39 @@ class PlatformBillingService:
         promotes that to a `trialing` status with `trial_end` set 14 days
         from now. After the trial expires the subscription needs to convert
         through checkout (to capture a payment method) or it lapses.
+
+        NOTE: This is only called from operator scripts now (grandfather
+        migrations). The org-creation hook no longer pre-attaches a trial
+        because Polar's checkout `subscription_id` only accepts FREE
+        subscriptions for upgrade — a pre-attached Pro trial would block
+        the upgrade-checkout flow. Stripe handles the 14-day trial
+        natively via the Product's `trial_interval`, so the trial still
+        works end-to-end without us pre-creating a subscription.
         """
         return await self.ensure_subscription(
             session, organization, tier=TierKey.pro, managed_by="trial"
+        )
+
+    async def ensure_platform_customer(
+        self,
+        session: AsyncSession,
+        organization: Organization,
+    ) -> Customer | None:
+        """Idempotently create the platform-org Customer row for a creator
+        org. Used by the org-creation hook so /v1/platform/upgrade-checkout
+        can attach a real customer_id from the very first click. Does NOT
+        create a subscription — Stripe handles the trial when the creator
+        picks a plan and goes through checkout.
+
+        Returns None when the platform org isn't configured (dev mode).
+        """
+        if not platform_service.is_configured():
+            return None
+        platform_org_id = platform_service.get_id()
+        if organization.id == platform_org_id:
+            return None
+        return await self._ensure_platform_customer(
+            session, organization, platform_org_id
         )
 
     async def _ensure_platform_customer(
