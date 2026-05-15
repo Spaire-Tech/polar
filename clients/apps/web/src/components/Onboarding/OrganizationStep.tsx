@@ -267,7 +267,7 @@ export const OrganizationStep = ({
         ),
       )
     } else {
-      router.push(`/dashboard/${organization.slug}/onboarding/review`)
+      router.push(`/dashboard/${organization.slug}/onboarding/plan`)
     }
   }
 
@@ -276,7 +276,7 @@ export const OrganizationStep = ({
       {/* Progress bar */}
       {!hasExistingOrg && (
         <div className="mb-12 w-full max-w-lg">
-          <OnboardingProgressBar currentStep={1} totalSteps={2} />
+          <OnboardingProgressBar currentStep={1} totalSteps={3} />
         </div>
       )}
 

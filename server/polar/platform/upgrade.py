@@ -19,6 +19,7 @@ from polar.checkout.service import checkout as checkout_service
 from polar.entitlements.tiers import TierKey
 from polar.exceptions import PolarError
 from polar.models import Checkout, Organization
+from polar.platform.billing import platform_billing
 from polar.platform.repository import (
     platform_customer_repository,
     platform_product_repository,
@@ -126,11 +127,10 @@ class PlatformUpgradeService:
         )
         if customer is None:
             # Brand-new org calling upgrade-checkout from the
-            # /onboarding/plan-select page can race the async
-            # `organization.created` actor that normally creates the
-            # platform Customer + Pro trial. Bootstrap them inline so
-            # the request can proceed in the same round-trip.
-            from .billing import platform_billing  # avoid import cycle
+            # onboarding plan-picker can race the async
+            # `organization.created` actor that creates the
+            # platform Customer + Pro trial. Bootstrap them inline
+            # so checkout can proceed in the same round-trip.
             await platform_billing.ensure_pro_trial_subscription(
                 session, organization
             )

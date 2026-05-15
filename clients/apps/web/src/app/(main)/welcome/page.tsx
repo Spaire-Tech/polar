@@ -37,20 +37,12 @@ export default function WelcomePage() {
     if (!started) return
     const total = lastDelay + 520 + 700
     const t = setTimeout(() => {
-      // The `slug`/`auto` query params are part of an older
-      // self-serve org creation entry path. If they're set, honor
-      // that path and skip plan selection — the plan picker is for
-      // brand-new signups arriving from the marketing site.
+      const params = new URLSearchParams({ from_welcome: 'true' })
       const slug = searchParams.get('slug')
       const auto = searchParams.get('auto')
-      if (slug || auto) {
-        const params = new URLSearchParams({ from_welcome: 'true' })
-        if (slug) params.set('slug', slug)
-        if (auto) params.set('auto', auto)
-        router.push(`/dashboard/create?${params}`)
-        return
-      }
-      router.push('/onboarding/plan-select')
+      if (slug) params.set('slug', slug)
+      if (auto) params.set('auto', auto)
+      router.push(`/dashboard/create?${params}`)
     }, total)
     return () => clearTimeout(t)
   }, [started, lastDelay, router, searchParams])

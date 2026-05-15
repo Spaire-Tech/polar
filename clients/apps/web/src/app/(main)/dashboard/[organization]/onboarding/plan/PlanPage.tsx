@@ -2,7 +2,6 @@
 
 import { OnboardingProgressBar } from '@/components/Onboarding/OnboardingProgressBar'
 import { toast } from '@/components/Toast/use-toast'
-import { useCreateOrganization } from '@/hooks/queries'
 import {
   BillingInterval,
   formatTransactionFee,
@@ -12,36 +11,30 @@ import {
   tierDisplayName,
   useSpairePlans,
 } from '@/hooks/queries/spaireTier'
+import { OrganizationContext } from '@/providers/maintainerOrganization'
 import { api } from '@/utils/client'
 import CheckOutlined from '@mui/icons-material/CheckOutlined'
 import Button from '@spaire/ui/components/atoms/Button'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useContext, useMemo, useState } from 'react'
 import { twMerge } from 'tailwind-merge'
 
-interface PlanSelectPageProps {
-  userDisplayName: string
-}
-
 /**
- * The "choose your plan" step of the post-signup onboarding flow.
- * Sits between /welcome and /dashboard/[org]/onboarding/review (the
- * profile-basics step). Auto-creates the org with a derived slug on
- * tier confirmation, then either:
+ * Plan + checkout step of the new-signup flow.
  *
- *   - lands the creator on /onboarding/review for Pro (no card needed
- *     for the 14-day Pro trial — the org-created actor attaches it),
- *   - kicks off Spaire's own upgrade-checkout for Studio/Scale and
- *     redirects to Stripe; success_url returns to /onboarding/review
- *     once the trial subscription is captured.
+ * Sits between OrganizationStep ("name + slug + logo", at /dashboard/create)
+ * and ReviewPage ("Create your Space Card", at /onboarding/review).
  *
- * The user can rename the org and fill in profile basics on the next
- * step; we generate a placeholder slug here from their account name to
- * avoid a third form on the way in.
+ * By the time the user reaches this page their org exists and the
+ * organization.created hook has attached a 14-day Pro trial. Clicking
+ * any tier card hands off to the upgrade-checkout endpoint, which
+ * converts the trialing subscription in place (capturing a card on
+ * file) and redirects the user through Polar-hosted checkout. The
+ * checkout's success_url returns to /onboarding/review, so the next
+ * thing the user sees is the existing Space Card editor.
  */
-const PlanSelectPage = ({ userDisplayName }: PlanSelectPageProps) => {
+export default function PlanPage() {
+  const { organization } = useContext(OrganizationContext)
   const plans = useSpairePlans()
-  const createOrg = useCreateOrganization()
-
   const [interval, setInterval] = useState<BillingInterval>('month')
   const [pending, setPending] = useState<PaidTierKey | null>(null)
 
@@ -53,33 +46,11 @@ const PlanSelectPage = ({ userDisplayName }: PlanSelectPageProps) => {
       .filter((p): p is TierPlan => Boolean(p))
   }, [plans.data])
 
-  const startTrial = useCallback(
+  const startCheckout = useCallback(
     async (tier: PaidTierKey) => {
       if (pending) return
       setPending(tier)
       try {
-        // 1. Auto-create the org with a derived slug. The user can
-        //    rename + flesh out profile basics on the next step
-        //    (the existing "Create your Space Card" page).
-        const slug = await uniqueSlug(userDisplayName)
-        const createResult = await createOrg.mutateAsync({
-          name: slug,
-          slug,
-        })
-        if (createResult.error || !createResult.data) {
-          throw new Error(
-            createResult.error?.detail?.[0]?.msg ??
-              "Couldn't create your workspace. Try again.",
-          )
-        }
-        const organization = createResult.data
-
-        // 2. Kick off checkout for the chosen tier — every tier (Pro
-        //    included) captures a card up front so the 14-day trial
-        //    converts automatically when it ends. The upgrade-checkout
-        //    endpoint converts the auto-attached Pro trial in place;
-        //    when checkout completes, success_url lands the creator
-        //    on /onboarding/review (the existing profile-basics step).
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const platformApi = api as unknown as any
         const { data, error } = await platformApi.POST(
@@ -99,31 +70,36 @@ const PlanSelectPage = ({ userDisplayName }: PlanSelectPageProps) => {
             (error as any)?.detail ?? "Couldn't start checkout for this plan.",
           )
         }
-        window.location.href = (data as { checkout_url: string }).checkout_url
+        const checkout = data as { checkout_url?: string }
+        if (!checkout.checkout_url) {
+          throw new Error('Checkout URL missing from server response.')
+        }
+        window.location.href = checkout.checkout_url
       } catch (err) {
         const message =
           err instanceof Error ? err.message : 'Something went wrong.'
-        toast({ title: 'Plan setup failed', description: message })
+        toast({ title: 'Checkout failed', description: message })
         setPending(null)
       }
     },
-    [createOrg, interval, pending, userDisplayName],
+    [interval, organization.id, organization.slug, pending],
   )
 
   return (
     <div className="flex min-h-screen w-full flex-col items-center bg-white px-4 py-12">
       <div className="mb-12 w-full max-w-lg">
-        <OnboardingProgressBar currentStep={1} totalSteps={2} />
+        <OnboardingProgressBar currentStep={2} totalSteps={3} />
       </div>
 
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-y-10">
         <header className="flex flex-col items-center gap-y-3 text-center">
           <h1 className="text-2xl font-medium tracking-tight text-gray-900">
-            Choose a plan
+            Choose your plan
           </h1>
           <p className="max-w-2xl text-sm text-gray-500">
-            Every plan starts with a 14-day free trial. You won&apos;t be charged
-            during the trial. Switch or cancel any time from Settings.
+            Every plan starts with a 14-day free trial. You won&apos;t be
+            charged during the trial — switch or cancel anytime from
+            Settings.
           </p>
           <IntervalToggle interval={interval} onChange={setInterval} />
         </header>
@@ -140,13 +116,13 @@ const PlanSelectPage = ({ userDisplayName }: PlanSelectPageProps) => {
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             {ordered.map((plan, idx) => (
-              <PlanSelectCard
+              <PlanCard
                 key={plan.tier}
                 plan={plan}
                 previousPlanName={idx === 0 ? null : ordered[idx - 1].name}
                 interval={interval}
                 pending={pending}
-                onChoose={startTrial}
+                onChoose={startCheckout}
               />
             ))}
           </div>
@@ -194,7 +170,7 @@ const IntervalToggle = ({
   </div>
 )
 
-interface PlanSelectCardProps {
+interface PlanCardProps {
   plan: TierPlan
   previousPlanName: string | null
   interval: BillingInterval
@@ -202,13 +178,13 @@ interface PlanSelectCardProps {
   onChoose: (tier: PaidTierKey) => void
 }
 
-const PlanSelectCard = ({
+const PlanCard = ({
   plan,
   previousPlanName,
   interval,
   pending,
   onChoose,
-}: PlanSelectCardProps) => {
+}: PlanCardProps) => {
   const tier = plan.tier as PaidTierKey
   const annualAvailable = plan.annual_price_cents != null
   const effectiveInterval: BillingInterval =
@@ -217,11 +193,6 @@ const PlanSelectCard = ({
   const featureLines = featuresForTier(plan)
   const isPending = pending === tier
   const disabled = pending !== null && pending !== tier
-
-  // Studio is the middle tier and the value pick — standard SaaS
-  // pricing pattern is to nudge new signups toward the mid-priced
-  // plan (more revenue than Pro, lower commit than Scale, and the
-  // best "you get what you need without overpaying" framing).
   const isRecommended = tier === 'studio'
 
   return (
@@ -302,13 +273,6 @@ const formatCount = (n: number): string => {
   return String(n)
 }
 
-/**
- * Feature lines per tier. Pro lists the baseline (everything a creator
- * needs to know they're getting); Studio and Scale list only the
- * incremental delta — the "Everything from X, plus:" header above them
- * carries the inheritance, so re-listing transaction fee / subscriber
- * caps that just changed in value would feel redundant.
- */
 const featuresForTier = (plan: TierPlan): string[] => {
   if (plan.tier === 'pro') {
     return [
@@ -346,32 +310,3 @@ const featuresForTier = (plan: TierPlan): string[] => {
   }
   return []
 }
-
-// Slug generation: kebab-case the user's display name + a 5-char
-// random suffix so we can always create the org without bouncing
-// against unique constraints. The user can rename in the next step.
-const NANOID_ALPHABET =
-  'abcdefghijklmnopqrstuvwxyz0123456789'
-
-const randomSuffix = (length = 5): string => {
-  let out = ''
-  for (let i = 0; i < length; i += 1) {
-    out += NANOID_ALPHABET[Math.floor(Math.random() * NANOID_ALPHABET.length)]
-  }
-  return out
-}
-
-const slugify = (input: string): string =>
-  input
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 32) || 'workspace'
-
-const uniqueSlug = async (displayHint: string): Promise<string> =>
-  // Email local-part is the most likely available chunk; everything
-  // before the @ becomes the slug base.
-  `${slugify(displayHint.split('@')[0] ?? 'workspace')}-${randomSuffix()}`
-
-export default PlanSelectPage
