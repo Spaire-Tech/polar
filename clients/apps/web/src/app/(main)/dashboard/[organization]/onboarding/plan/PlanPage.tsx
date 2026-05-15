@@ -65,10 +65,21 @@ export default function PlanPage() {
           },
         )
         if (error || !data) {
-          throw new Error(
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (error as any)?.detail ?? "Couldn't start checkout for this plan.",
-          )
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const e = error as any
+          // FastAPI 422 returns { detail: [{loc, msg, type, input}, ...] }
+          // Surface the first validation error so we can fix it instead
+          // of swallowing it as "Couldn't start checkout for this plan."
+          let message = "Couldn't start checkout for this plan."
+          if (Array.isArray(e?.detail) && e.detail.length > 0) {
+            const first = e.detail[0]
+            message = `${first?.msg ?? 'Validation failed'} (loc=${(first?.loc ?? []).join('.')})`
+          } else if (typeof e?.detail === 'string') {
+            message = e.detail
+          }
+          // eslint-disable-next-line no-console
+          console.error('upgrade-checkout failed', e)
+          throw new Error(message)
         }
         const checkout = data as { checkout_url?: string }
         if (!checkout.checkout_url) {
