@@ -163,7 +163,10 @@ _PRO = TierEntitlements(
         custom_pricing_negotiation=False,
         customer_wallet=False,
         white_label_course_player=False,
-        sandbox_mode=False,
+        # Sandbox is a separate environment (sandbox.spairehq.com)
+        # available to every creator; the entitlement is informational
+        # and not used as a require_feature gate.
+        sandbox_mode=True,
         custom_storefront_domain=False,
         custom_checkout_domain=False,
         sso=False,
@@ -201,7 +204,8 @@ _STUDIO = TierEntitlements(
         custom_pricing_negotiation=False,
         customer_wallet=True,
         white_label_course_player=True,
-        sandbox_mode=False,
+        # See Pro definition.
+        sandbox_mode=True,
         custom_storefront_domain=False,
         custom_checkout_domain=False,
         sso=False,
@@ -239,9 +243,8 @@ _SCALE = TierEntitlements(
         custom_pricing_negotiation=True,
         customer_wallet=True,
         white_label_course_player=True,
-        # sandbox_mode: roadmap — no per-org Stripe test-mode toggle
-        # exists today. Flip when sandbox-org infrastructure ships.
-        sandbox_mode=False,
+        # See Pro definition.
+        sandbox_mode=True,
         custom_storefront_domain=False,
         custom_checkout_domain=False,
         sso=False,

@@ -217,8 +217,9 @@ PRODUCT_SPECS: list[ProductSpec] = [
         description=(
             "For established businesses. $299/month + 3.5% + $0.30 per "
             "transaction, with custom pricing available above $50,000/month "
-            "GMV. Unlimited everything, sandbox/test mode, audit logs, "
-            "dedicated support. 14-day free trial."
+            "GMV. Unlimited courses, video, storage and team seats. Email "
+            "sends capped at 2M/month for deliverability protection. "
+            "Audit logs, dedicated support. 14-day free trial."
         ),
         recurring_interval=SubscriptionRecurringInterval.month,
         price=PriceSpec(

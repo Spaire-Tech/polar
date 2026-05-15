@@ -19,6 +19,7 @@ The following are part of the product on every tier. Gating any of these would b
 | Item | Policy |
 |---|---|
 | Free trial on every paid tier | 14 days, no card required up front |
+| Sandbox / test environment (sandbox.spairehq.com) | every creator, no charge |
 | Merchant of Record (tax/VAT handled) | ✓ |
 | Customer portal (login, manage subs, access purchases) | ✓ |
 | Course player + lesson access for buyers | ✓ |
@@ -72,10 +73,10 @@ The following are part of the product on every tier. Gating any of these would b
 | CSV exports of analytics & customer data | ✓ | ✓ | ✓ |
 | Dashboard team seats | 5 | 15 | unlimited |
 | API rate limits | higher | higher | highest + custom |
-| Sandbox / test mode ★ | — | — | roadmap |
 | Custom storefront domain ★ | — | — | roadmap |
 | Custom checkout domain ★ | — | — | roadmap |
-| SSO + audit logs ★ | — | — | roadmap |
+| Audit logs | — | — | ✓ |
+| SSO ★ | — | — | roadmap |
 | Support | email, 1 business day | priority email, same day | Slack + dedicated AM, 4-hour SLA |
 
 ‡ = quota enforcement enforced via metered events.
