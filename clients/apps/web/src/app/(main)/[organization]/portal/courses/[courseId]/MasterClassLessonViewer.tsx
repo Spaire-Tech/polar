@@ -31,6 +31,7 @@ export interface MasterClassLessonViewerProps {
     completed: boolean
     content?: Record<string, unknown> | null
     comments_mode?: 'visible' | 'hidden' | 'locked'
+    description?: string | null
   }
   lessonIndex: number
   totalLessons: number
@@ -300,7 +301,6 @@ export const MasterClassLessonViewer = ({
       lessonIndex,
       totalLessons,
       lessons,
-      courseTitle,
       instructorName,
       activeTab,
       setActiveTab,
@@ -1189,7 +1189,6 @@ type MobileVA = {
   lessonIndex: number
   totalLessons: number
   lessons: MasterClassLessonViewerProps['lessons']
-  courseTitle: string
   instructorName: string | null | undefined
   activeTab: 'lessons' | 'notes'
   setActiveTab: (t: 'lessons' | 'notes') => void
