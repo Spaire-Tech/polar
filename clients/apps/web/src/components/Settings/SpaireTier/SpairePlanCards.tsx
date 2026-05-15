@@ -612,7 +612,12 @@ const formatCount = (n: number): string => {
   return String(n)
 }
 
+// Pro lists the full baseline. Studio and Scale list only the
+// incremental delta — the "Everything from X, plus:" header above them
+// in the card carries the inheritance, so re-listing identical rows
+// would just inflate the cards.
 const proLines = (plan: TierPlan): string[] => [
+  'Merchant of Record — Spaire handles tax & VAT',
   `${formatTransactionFee(plan.transaction_fee)} per transaction`,
   `${plan.limits.published_courses} published courses`,
   `${formatCount(plan.limits.email_subscribers ?? 0)} email subscribers`,
@@ -623,7 +628,7 @@ const proLines = (plan: TierPlan): string[] => [
 ]
 
 const studioLines = (plan: TierPlan): string[] => [
-  `${formatTransactionFee(plan.transaction_fee)} per transaction`,
+  `${formatTransactionFee(plan.transaction_fee)} per transaction (saves ~0.2%)`,
   `${plan.limits.published_courses} published courses`,
   `${formatCount(plan.limits.email_subscribers ?? 0)} email subscribers`,
   `${plan.limits.active_email_sequences} active email sequences`,
@@ -634,7 +639,7 @@ const studioLines = (plan: TierPlan): string[] => [
 ]
 
 const scaleLines = (plan: TierPlan): string[] => [
-  `${formatTransactionFee(plan.transaction_fee)} per transaction`,
+  `${formatTransactionFee(plan.transaction_fee)} per transaction (saves ~0.5%)`,
   `${plan.limits.published_courses} published courses`,
   `${formatCount(plan.limits.email_subscribers ?? 0)} email subscribers`,
   'Unlimited email sequences',

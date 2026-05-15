@@ -144,10 +144,11 @@ const PlanSelectPage = ({ userDisplayName }: PlanSelectPageProps) => {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            {ordered.map((plan) => (
+            {ordered.map((plan, idx) => (
               <PlanSelectCard
                 key={plan.tier}
                 plan={plan}
+                previousPlanName={idx === 0 ? null : ordered[idx - 1].name}
                 interval={interval}
                 pending={pending}
                 onChoose={startTrial}
@@ -200,6 +201,7 @@ const IntervalToggle = ({
 
 interface PlanSelectCardProps {
   plan: TierPlan
+  previousPlanName: string | null
   interval: BillingInterval
   pending: PaidTierKey | null
   onChoose: (tier: PaidTierKey) => void
@@ -207,6 +209,7 @@ interface PlanSelectCardProps {
 
 const PlanSelectCard = ({
   plan,
+  previousPlanName,
   interval,
   pending,
   onChoose,
@@ -220,9 +223,15 @@ const PlanSelectCard = ({
   const isPending = pending === tier
   const disabled = pending !== null && pending !== tier
 
-  // Pro is the headline default — recommend it visually so first-time
-  // visitors don't feel forced into picking a paid card.
-  const isRecommended = tier === 'pro'
+  // Studio is the middle tier and the value pick — standard SaaS
+  // pricing pattern is to nudge new signups toward the mid-priced
+  // plan (more revenue than Pro, lower commit than Scale, and the
+  // best "you get what you need without overpaying" framing).
+  const isRecommended = tier === 'studio'
+  // Card capture is required to start a Studio/Scale trial (so the
+  // sub can convert without a separate checkout). Pro has no payment
+  // surface yet, so no card is needed.
+  const cardRequired = tier !== 'pro'
 
   return (
     <div
@@ -259,6 +268,11 @@ const PlanSelectCard = ({
       </div>
 
       <div className="mt-6 flex flex-1 flex-col gap-y-2.5">
+        {previousPlanName && (
+          <p className="text-sm font-medium text-gray-900">
+            Everything from {previousPlanName}, plus:
+          </p>
+        )}
         {featureLines.map((line, i) => (
           <FeatureRow key={i} label={line} />
         ))}
@@ -271,15 +285,13 @@ const PlanSelectCard = ({
           disabled={disabled || isPending}
           className="w-full bg-black text-white hover:bg-gray-800"
         >
-          {tier === 'pro'
-            ? 'Start free trial'
-            : `Start ${tierDisplayName(tier)} trial`}
+          Start free trial
         </Button>
-        {tier !== 'pro' && (
-          <p className="mt-2 text-center text-xs text-gray-400">
-            Card required. Won&apos;t be charged during the 14-day trial.
-          </p>
-        )}
+        <p className="mt-2 text-center text-xs text-gray-400">
+          {cardRequired
+            ? "Card required. Won't be charged during the 14-day trial."
+            : 'No card required. Free for 14 days.'}
+        </p>
       </div>
     </div>
   )
@@ -301,9 +313,17 @@ const formatCount = (n: number): string => {
   return String(n)
 }
 
+/**
+ * Feature lines per tier. Pro lists the baseline (everything a creator
+ * needs to know they're getting); Studio and Scale list only the
+ * incremental delta — the "Everything from X, plus:" header above them
+ * carries the inheritance, so re-listing transaction fee / subscriber
+ * caps that just changed in value would feel redundant.
+ */
 const featuresForTier = (plan: TierPlan): string[] => {
   if (plan.tier === 'pro') {
     return [
+      'Merchant of Record — Spaire handles tax & VAT',
       `${formatTransactionFee(plan.transaction_fee)} per transaction`,
       `${plan.limits.published_courses} published courses`,
       `${formatCount(plan.limits.email_subscribers ?? 0)} email subscribers`,
@@ -314,7 +334,7 @@ const featuresForTier = (plan: TierPlan): string[] => {
   }
   if (plan.tier === 'studio') {
     return [
-      `${formatTransactionFee(plan.transaction_fee)} per transaction`,
+      `${formatTransactionFee(plan.transaction_fee)} per transaction (saves ~0.2%)`,
       `${plan.limits.published_courses} published courses`,
       `${formatCount(plan.limits.email_subscribers ?? 0)} email subscribers`,
       `${plan.limits.active_email_sequences} active email sequences`,
@@ -326,7 +346,7 @@ const featuresForTier = (plan: TierPlan): string[] => {
   }
   if (plan.tier === 'scale') {
     return [
-      `${formatTransactionFee(plan.transaction_fee)} per transaction`,
+      `${formatTransactionFee(plan.transaction_fee)} per transaction (saves ~0.5%)`,
       `${plan.limits.published_courses} published courses`,
       `${formatCount(plan.limits.email_subscribers ?? 0)} email subscribers`,
       'Unlimited email sequences',
