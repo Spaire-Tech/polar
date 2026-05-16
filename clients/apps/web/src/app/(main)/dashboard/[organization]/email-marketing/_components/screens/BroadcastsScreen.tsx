@@ -13,7 +13,6 @@ import { schemas } from '@spaire/client'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { ActionMenu } from '../ActionMenu'
-import { fmtPctDelta, fmtPtDelta } from '../analyticsFormat'
 import { useDialogs } from '../dialogs'
 import { Icon } from '../Icon'
 import { MetricTile, Stat } from '../shared'
@@ -67,8 +66,7 @@ export const BroadcastsScreen = ({
     limit: PAGE_SIZE,
   })
   const aggregateQuery = useBroadcastAggregateAnalytics(orgId, {
-    days: 30,
-    comparePrior: true,
+    comparePrior: false,
   })
   const subStatsQuery = useEmailSubscriberStats(orgId)
 
@@ -81,7 +79,6 @@ export const BroadcastsScreen = ({
   const totalCount = broadcastsQuery.data?.pagination.total_count ?? 0
   const maxPage = broadcastsQuery.data?.pagination.max_page ?? 1
   const aggregate = aggregateQuery.data?.current
-  const aggregateDelta = aggregateQuery.data?.delta
   const aggregateIndustry = aggregateQuery.data?.industry
   const subStats = subStatsQuery.data
 
@@ -141,9 +138,7 @@ export const BroadcastsScreen = ({
         <MetricTile
           value={(aggregate?.total_sent ?? 0).toLocaleString()}
           label="Emails sent"
-          delta={fmtPctDelta(aggregateDelta?.total_sent_pct)}
-          deltaLabel="last 30 days"
-          down={(aggregateDelta?.total_sent_pct ?? 0) < 0}
+          deltaLabel="lifetime"
         />
         <MetricTile
           value={
@@ -152,13 +147,11 @@ export const BroadcastsScreen = ({
               : `${aggregate.open_rate.toFixed(1)}%`
           }
           label="Avg. open rate"
-          delta={fmtPtDelta(aggregateDelta?.open_rate_pt)}
           deltaLabel={
             aggregateIndustry
               ? `vs ${aggregateIndustry.label} (${aggregateIndustry.open_rate.toFixed(0)}%)`
-              : 'vs prior 30d'
+              : 'lifetime'
           }
-          down={(aggregateDelta?.open_rate_pt ?? 0) < 0}
         />
         <MetricTile
           value={
@@ -167,9 +160,7 @@ export const BroadcastsScreen = ({
               : `${aggregate.click_rate.toFixed(1)}%`
           }
           label="Avg. click rate"
-          delta={fmtPtDelta(aggregateDelta?.click_rate_pt)}
-          deltaLabel="vs prior 30d"
-          down={(aggregateDelta?.click_rate_pt ?? 0) < 0}
+          deltaLabel="lifetime"
         />
         <MetricTile
           value={
@@ -179,19 +170,12 @@ export const BroadcastsScreen = ({
           }
           label="Avg. unsub rate"
           delta={
-            aggregateDelta?.unsub_rate_pt !== undefined
-              ? fmtPtDelta(aggregateDelta.unsub_rate_pt)
-              : subStats
-                ? `${subStats.unsubs_30d.toLocaleString()}`
-                : undefined
+            subStats
+              ? `${subStats.unsubs_30d.toLocaleString()}`
+              : undefined
           }
-          deltaLabel={
-            aggregateDelta?.unsub_rate_pt !== undefined
-              ? 'vs prior 30d'
-              : 'unsubs / 30d'
-          }
+          deltaLabel="unsubs / 30d"
           subtle
-          down={(aggregateDelta?.unsub_rate_pt ?? 0) > 0}
         />
       </div>
 

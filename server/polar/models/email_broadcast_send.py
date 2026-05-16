@@ -4,6 +4,7 @@ from uuid import UUID
 
 from sqlalchemy import (
     TIMESTAMP,
+    Boolean,
     ForeignKey,
     Index,
     Integer,
@@ -48,10 +49,12 @@ class EmailBroadcastSend(RecordModel):
         nullable=False,
         index=True,
     )
-    subscriber_id: Mapped[UUID] = mapped_column(
+    # Nullable to support test sends: when a creator clicks "Send Test"
+    # the recipient is often their own inbox, not a subscriber row.
+    subscriber_id: Mapped[UUID | None] = mapped_column(
         Uuid,
         ForeignKey("email_subscribers.id", ondelete="cascade"),
-        nullable=False,
+        nullable=True,
         index=True,
     )
     status: Mapped[str] = mapped_column(
@@ -87,6 +90,14 @@ class EmailBroadcastSend(RecordModel):
     # winner (or the only) variant — see EmailBroadcastABTest.
     variant: Mapped[str | None] = mapped_column(
         String(1), nullable=True, default=None
+    )
+    # True for rows created by the "Send Test" feature. Test rows are
+    # excluded from campaign-level analytics (open_rate, click_rate)
+    # but webhook events still update them, so authors can verify their
+    # tracking pipeline by sending a test to themselves and watching
+    # the test-send card on the broadcast detail.
+    is_test: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
     )
 
     @declared_attr
