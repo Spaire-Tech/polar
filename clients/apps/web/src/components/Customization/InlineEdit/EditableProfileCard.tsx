@@ -443,6 +443,10 @@ export const EditableProfileCard = ({
 
   const onCoverPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!headerUrl) return
+    // Don't hijack pointer events that originated on the hover-control
+    // buttons (Replace, etc.). setPointerCapture on the parent would
+    // otherwise eat the click before it reaches the button.
+    if ((e.target as HTMLElement).closest('.hover-controls')) return
     const rect = e.currentTarget.getBoundingClientRect()
     if (rect.width === 0 || rect.height === 0) return
     e.currentTarget.setPointerCapture(e.pointerId)

@@ -1,6 +1,7 @@
 'use client'
 
 import { ProductCard } from '@/components/Products/ProductCard'
+import { CATEGORY_LABELS } from '@/components/Profile/categoryLabels'
 import { SectionLabel } from '@/components/Profile/SectionLabel'
 import {
   type LinksLayout,
@@ -192,11 +193,13 @@ const ProductsBlock = ({
   organization,
   products,
   productOrder,
+  categoryOrder,
   onUnfeature,
 }: {
   organization: schemas['Organization']
   products: schemas['ProductStorefront'][]
   productOrder: string[]
+  categoryOrder: string[]
   onUnfeature: (productId: string) => void
 }) => {
   const settings = organization.storefront_settings
@@ -215,9 +218,7 @@ const ProductsBlock = ({
 
   // Apply the creator's manual product_order as a ranking hint.
   // Products not yet ranked (newly added) fall through to the back in
-  // their original server order. Categories are NOT used to group —
-  // the grid is one flat list so creators can reorder freely across
-  // categories (e.g. put an ebook above a course).
+  // their original server order.
   const orderedVisible = useMemo(() => {
     if (productOrder.length === 0) return visible
     const rank = new Map(productOrder.map((id, i) => [id, i]))
@@ -228,51 +229,107 @@ const ProductsBlock = ({
     return [...ranked, ...unranked]
   }, [visible, productOrder])
 
+  const sections = useMemo(() => {
+    const buckets: Record<string, schemas['ProductStorefront'][]> = {}
+    const uncat: schemas['ProductStorefront'][] = []
+    for (const p of orderedVisible) {
+      const cat = p.category
+      if (cat && cat in CATEGORY_LABELS) (buckets[cat] ??= []).push(p)
+      else uncat.push(p)
+    }
+    // Categories present in this storefront (excluding the bucket that
+    // will become "Other").
+    const presentKeys = Object.keys(buckets).filter(
+      (k) => k !== 'other' && buckets[k].length > 0 && k in CATEGORY_LABELS,
+    )
+    // User's preferred order first, then any unranked categories in the
+    // default catalog order.
+    const rank = new Map(categoryOrder.map((k, i) => [k, i]))
+    const ranked = presentKeys
+      .filter((k) => rank.has(k))
+      .sort((a, b) => rank.get(a)! - rank.get(b)!)
+    const unranked = (
+      Object.keys(CATEGORY_LABELS) as Array<keyof typeof CATEGORY_LABELS>
+    )
+      .filter((k) => k !== 'other' && presentKeys.includes(k) && !rank.has(k))
+    const orderedKeys = [...ranked, ...unranked]
+    const ordered = orderedKeys.map((k) => ({
+      key: k,
+      label: CATEGORY_LABELS[k],
+      items: buckets[k],
+    }))
+    const otherItems = [...(buckets.other ?? []), ...uncat]
+    if (otherItems.length > 0) {
+      ordered.push({
+        key: 'other',
+        label: CATEGORY_LABELS.other,
+        items: otherItems,
+      })
+    }
+    return ordered
+  }, [orderedVisible, categoryOrder])
+
   // The fully-empty case is handled at the canvas level (single hero,
   // see below). Returning null here keeps a partial canvas (links but
   // no products) from rendering a redundant empty state.
-  if (orderedVisible.length === 0) return null
+  if (visible.length === 0) return null
 
   return (
-    <SortableContext
-      items={orderedVisible.map((p) => PRODUCT_PREFIX + p.id)}
-      strategy={rectSortingStrategy}
-    >
-      <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-2">
-        {orderedVisible.map((product) => (
-          <SortableItem key={product.id} id={product.id} prefix={PRODUCT_PREFIX}>
-            {({ listeners, attributes }) => (
-              <div className="item-hover">
-                <ProductCard
-                  product={product}
-                  showDetails={showDetails}
-                  thumbnailSize={
-                    thumbnailSize as 'small' | 'medium' | 'large'
-                  }
-                />
-                <div className="item-actions">
-                  <ItemDragHandle
-                    listeners={listeners}
-                    attributes={attributes}
-                    label={`Drag ${product.name} to reorder`}
-                  />
-                  <button
-                    type="button"
-                    className="item-action"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onUnfeature(product.id)
-                    }}
-                  >
-                    {featuredMode === 'curated' ? 'Remove' : 'Hide'}
-                  </button>
-                </div>
-              </div>
-            )}
-          </SortableItem>
-        ))}
-      </div>
-    </SortableContext>
+    <div className="flex flex-col gap-12">
+      {sections.map((section) => (
+        <section
+          key={section.key}
+          className="flex scroll-mt-24 flex-col gap-6"
+        >
+          <SectionLabel count={section.items.length}>
+            {section.label}
+          </SectionLabel>
+          <SortableContext
+            items={section.items.map((p) => PRODUCT_PREFIX + p.id)}
+            strategy={rectSortingStrategy}
+          >
+            <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-2">
+              {section.items.map((product) => (
+                <SortableItem
+                  key={product.id}
+                  id={product.id}
+                  prefix={PRODUCT_PREFIX}
+                >
+                  {({ listeners, attributes }) => (
+                    <div className="item-hover">
+                      <ProductCard
+                        product={product}
+                        showDetails={showDetails}
+                        thumbnailSize={
+                          thumbnailSize as 'small' | 'medium' | 'large'
+                        }
+                      />
+                      <div className="item-actions">
+                        <ItemDragHandle
+                          listeners={listeners}
+                          attributes={attributes}
+                          label={`Drag ${product.name} to reorder`}
+                        />
+                        <button
+                          type="button"
+                          className="item-action"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onUnfeature(product.id)
+                          }}
+                        >
+                          {featuredMode === 'curated' ? 'Remove' : 'Hide'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </SortableItem>
+              ))}
+            </div>
+          </SortableContext>
+        </section>
+      ))}
+    </div>
   )
 }
 
@@ -550,6 +607,11 @@ export const DraggableBlocks = ({
   // not in the list (newly created products, or products in 'all'
   // mode that haven't been touched) fall through to server order.
   const productOrder = settings?.featured_product_ids ?? []
+  // User-defined ordering for the category sections themselves.
+  // Categories not in the list fall through to CATEGORY_LABELS order.
+  const categoryOrder =
+    ((settings as { category_order?: string[] } | undefined)?.category_order ??
+      []) as string[]
 
   const orgWithSettings = { ...org, storefront_settings: settings ?? {} } as schemas['Organization']
 
@@ -740,6 +802,7 @@ export const DraggableBlocks = ({
           organization={orgWithSettings}
           products={products}
           productOrder={productOrder}
+          categoryOrder={categoryOrder}
           onUnfeature={onUnfeatureProduct}
         />
       )
