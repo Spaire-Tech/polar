@@ -1,6 +1,6 @@
 'use client'
 
-import { focalPointToObjectPosition } from '@/components/Customization/Storefront/StorefrontSidebar'
+import { focalPointToObjectPosition } from '@/components/Customization/Storefront/StorefrontSidebar/utils'
 import {
   LANGUAGE_OPTIONS,
   PROFILE_TITLE_OPTIONS,
@@ -996,9 +996,28 @@ export const EditableProfileCard = ({
         title="Available for work"
         open={popover === 'available'}
         onClose={() => setPopover(null)}
-        onConfirm={() =>
-          updateSetting('contact_url', contactDraft.trim() || null)
-        }
+        onConfirm={() => {
+          const next = contactDraft.trim()
+          if (!next) {
+            updateSetting('contact_url', null)
+            return
+          }
+          // Same scheme allowlist the backend enforces (organization/
+          // schemas.py:_validate_contact_url). Doing it client-side
+          // means the user finds out the typo before they hit Publish.
+          const scheme = next.includes(':')
+            ? next.split(':', 1)[0]!.toLowerCase()
+            : ''
+          if (scheme !== 'http' && scheme !== 'https' && scheme !== 'mailto') {
+            toast({
+              title: 'Contact link not saved',
+              description:
+                'Must start with https://, http://, or mailto:',
+            })
+            return
+          }
+          updateSetting('contact_url', next)
+        }}
       >
         <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3">
           <div>
@@ -1027,7 +1046,7 @@ export const EditableProfileCard = ({
               className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-gray-300 focus:outline-none"
             />
             <p className="text-[11px] text-gray-400">
-              When set, the badge becomes a clickable link.
+              Use an https:// or mailto: link.
             </p>
           </div>
         )}
@@ -1036,7 +1055,16 @@ export const EditableProfileCard = ({
       <EditPopover
         title="Social links"
         open={popover === 'socials'}
-        onClose={() => setPopover(null)}
+        onClose={() => {
+          // Drop empty rows on close so they don't sit in form state
+          // dirtying the form (and so the user doesn't have to click
+          // the X on every blank row they accidentally added).
+          const cleaned = socials.filter((s) => s.url?.trim())
+          if (cleaned.length !== socials.length) {
+            setValue('socials', cleaned, { shouldDirty: true })
+          }
+          setPopover(null)
+        }}
       >
         <div className="flex flex-col gap-3">
           {socials.map((social, idx) => (

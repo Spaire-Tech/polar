@@ -485,12 +485,10 @@ const Customization = ({
 
   // ── Editor mode — single-canvas WYSIWYG ─────────────────────────
   // Toolbar (back / status / settings / publish) sticks to the top.
-  // Canvas renders ProfileCard (left, sticky) + Storefront content
-  // blocks (right) using our existing public-Space components for
-  // visual fidelity. A floating "+ Add to Space" FAB sits at the
-  // bottom. The Settings (gear) button toggles a slide-in panel that
-  // wraps the existing StorefrontEditorForm for now; PR D ships the
-  // redesigned panel and PR C wires inline-edit on the canvas itself.
+  // Canvas renders the EditableProfileCard (left, sticky) + the
+  // DraggableBlocks product/links grid (right). Both subscribe to form
+  // state directly. The Settings / Arrange / Links panels slide in
+  // from the right; a floating "+ Add to Space" FAB opens the picker.
 
   // Shared dirty-check used by every code path that takes the user
   // away from the editor (client-side navigations don't fire

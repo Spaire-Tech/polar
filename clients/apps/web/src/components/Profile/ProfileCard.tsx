@@ -1,7 +1,7 @@
 'use client'
 
 import { useStorefrontSubscribe } from '@/hooks/queries/emailMarketing'
-import { focalPointToObjectPosition } from '@/components/Customization/Storefront/StorefrontSidebar'
+import { focalPointToObjectPosition } from '@/components/Customization/Storefront/StorefrontSidebar/utils'
 import { schemas } from '@spaire/client'
 import Avatar from '@spaire/ui/components/atoms/Avatar'
 import {

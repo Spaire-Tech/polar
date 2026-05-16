@@ -7,6 +7,7 @@ import {
   EmbedCard,
   type LinksLayout,
   StorefrontLinkItem,
+  UrlLink,
 } from '@/components/Profile/StorefrontLinks'
 import {
   buildEmbedUrl,
@@ -462,16 +463,12 @@ const LinksBlock = ({
   )
 }
 
-const getDomain = (url: string): string => {
-  try {
-    return new URL(url).hostname.replace(/^www\./, '')
-  } catch {
-    return url
-  }
-}
-
-// Lightweight link card per layout — click does nothing in edit mode
-// (preview-only). Hover reveals the Remove button via .item-hover.
+// Thin wrapper that reuses the SAME components the public Space
+// renders, so the editor preview matches what visitors see at every
+// layout (description, external-link icon, gradient overlay, hover
+// transitions — all of it). `preview` swaps the outer <a> for a
+// non-navigating <div>; the .item-hover parent absolutely-positions
+// the Remove + drag handle on top.
 const LinkRow = ({
   link,
   layout,
@@ -481,12 +478,6 @@ const LinkRow = ({
   layout: LinksLayout
   embedded?: boolean
 }) => {
-  // Embedded links use the SAME EmbedCard the public Space renders, so
-  // the editor preview matches what visitors will see (real YouTube /
-  // Spotify / TikTok / Instagram player, not a static thumbnail). The
-  // .item-actions cluster in the parent .item-hover sits at z-index 6
-  // and pointer-events:auto on hover, so the Drag / Remove buttons
-  // stay clickable over the iframe.
   if (
     embedded &&
     isEmbeddablePlatform(link.platform) &&
@@ -494,109 +485,7 @@ const LinkRow = ({
   ) {
     return <EmbedCard link={link} />
   }
-
-  const effectiveLayout = embedded ? 'card' : layout
-  const title = link.title || getDomain(link.url)
-  const host = getDomain(link.url)
-  const cover = link.image_url
-
-  if (effectiveLayout === 'classic') {
-    return (
-      <div className="flex items-center gap-4 rounded-2xl border border-gray-200 bg-white px-4 py-3.5 shadow-sm">
-        <div
-          className="h-12 w-12 shrink-0 rounded-xl bg-gray-100"
-          style={
-            cover
-              ? {
-                  backgroundImage: `url(${cover})`,
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                }
-              : undefined
-          }
-        />
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-semibold text-gray-900">
-            {title}
-          </div>
-          <div className="truncate text-[11px] text-gray-400">{host}</div>
-        </div>
-      </div>
-    )
-  }
-
-  if (effectiveLayout === 'image_grid') {
-    return (
-      <div
-        className="relative aspect-square overflow-hidden rounded-2xl bg-gray-100 shadow-sm"
-        style={
-          cover
-            ? {
-                backgroundImage: `url(${cover})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-              }
-            : undefined
-        }
-      >
-        <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/60 to-transparent p-3">
-          <p className="line-clamp-2 text-sm font-semibold text-white">
-            {title}
-          </p>
-        </div>
-      </div>
-    )
-  }
-
-  if (effectiveLayout === 'carousel') {
-    return (
-      <div className="flex w-[240px] shrink-0 snap-start flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-        <div
-          className="aspect-[4/3] w-full bg-gray-100"
-          style={
-            cover
-              ? {
-                  backgroundImage: `url(${cover})`,
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                }
-              : undefined
-          }
-        />
-        <div className="p-3">
-          <div className="line-clamp-2 text-sm font-semibold text-gray-900">
-            {title}
-          </div>
-          <div className="truncate text-[11px] text-gray-400">{host}</div>
-        </div>
-      </div>
-    )
-  }
-
-  // card layout
-  return (
-    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-      <div
-        className="aspect-[16/9] w-full bg-gray-100"
-        style={
-          cover
-            ? {
-                backgroundImage: `url(${cover})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-              }
-            : undefined
-        }
-      />
-      <div className="p-4">
-        <div className="text-base font-bold text-gray-900">{title}</div>
-        {link.description && (
-          <p className="line-clamp-2 text-sm text-gray-500">{link.description}</p>
-        )}
-        <div className="mt-1 truncate text-[11px] text-gray-400">{host}</div>
-      </div>
-    </div>
-  )
+  return <UrlLink link={link} layout={embedded ? 'card' : layout} preview />
 }
 
 // ─── DraggableBlocks export ───────────────────────────────────────
