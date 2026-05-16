@@ -155,7 +155,7 @@ class FileService:
         # Emitting only on completion (not generate_presigned_upload)
         # avoids counting orphaned/abandoned uploads.
         emit_storage_delta(
-            session, organization=file.organization, bytes_delta=file.size
+            session, organization_id=file.organization_id, bytes_delta=file.size
         )
 
         return file
@@ -183,7 +183,9 @@ class FileService:
         # never added storage in the first place.
         if file.is_uploaded:
             emit_storage_delta(
-                session, organization=file.organization, bytes_delta=-file.size
+                session,
+                organization_id=file.organization_id,
+                bytes_delta=-file.size,
             )
 
         # Delete ProductMedia association table records

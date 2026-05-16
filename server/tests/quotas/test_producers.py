@@ -111,7 +111,7 @@ class TestEmitStorageDelta:
     ) -> None:
         creator = await create_organization(save_fixture)
 
-        emit_storage_delta(session, organization=creator, bytes_delta=1234567)
+        emit_storage_delta(session, organization_id=creator.id, bytes_delta=1234567)
         await session.flush()
 
         events = (
@@ -131,7 +131,7 @@ class TestEmitStorageDelta:
     ) -> None:
         creator = await create_organization(save_fixture)
 
-        emit_storage_delta(session, organization=creator, bytes_delta=-500_000)
+        emit_storage_delta(session, organization_id=creator.id, bytes_delta=-500_000)
         await session.flush()
 
         event = (
@@ -330,9 +330,9 @@ class TestProducersIntegrateWithService:
         )
 
         gb = 1024 * 1024 * 1024
-        emit_storage_delta(session, organization=creator, bytes_delta=3 * gb)
-        emit_storage_delta(session, organization=creator, bytes_delta=2 * gb)
-        emit_storage_delta(session, organization=creator, bytes_delta=-1 * gb)
+        emit_storage_delta(session, organization_id=creator.id, bytes_delta=3 * gb)
+        emit_storage_delta(session, organization_id=creator.id, bytes_delta=2 * gb)
+        emit_storage_delta(session, organization_id=creator.id, bytes_delta=-1 * gb)
         await session.flush()
 
         usage = await quotas.get_usage(
