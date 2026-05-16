@@ -1,5 +1,6 @@
 'use client'
 
+import { FeatureGate } from '@/components/Entitlements/FeatureGate'
 import {
   SequenceTemplate,
   useCreateSequenceFromTemplate,
@@ -1174,10 +1175,16 @@ export const SequencesRoute = ({
   const router = useRouter()
   const base = `/dashboard/${organization.slug}/email-marketing/sequences`
   return (
-    <SequencesScreen
-      organization={organization}
-      onNew={() => router.push(`${base}/new`)}
-      onEdit={(id) => router.push(`${base}/${id}/edit`)}
-    />
+    <FeatureGate
+      feature="email_sequences_and_segments"
+      organizationId={organization.id}
+      organizationSlug={organization.slug}
+    >
+      <SequencesScreen
+        organization={organization}
+        onNew={() => router.push(`${base}/new`)}
+        onEdit={(id) => router.push(`${base}/${id}/edit`)}
+      />
+    </FeatureGate>
   )
 }
