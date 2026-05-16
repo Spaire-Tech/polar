@@ -4,6 +4,7 @@ import { HlsVideo } from '@/components/Courses/HlsVideo'
 import { QuizPlayer } from '@/components/Courses/QuizPlayer'
 import { MemoizedMarkdown } from '@/components/Markdown/MemoizedMarkdown'
 import { useLessonNote, useUpsertLessonNote } from '@/hooks/queries/courses'
+import { useIsMobile } from '@/utils/mobile'
 import Bookmark from '@mui/icons-material/Bookmark'
 import BookmarkBorderOutlined from '@mui/icons-material/BookmarkBorderOutlined'
 import CheckCircle from '@mui/icons-material/CheckCircle'
@@ -30,6 +31,7 @@ export interface MasterClassLessonViewerProps {
     completed: boolean
     content?: Record<string, unknown> | null
     comments_mode?: 'visible' | 'hidden' | 'locked'
+    description?: string | null
   }
   lessonIndex: number
   totalLessons: number
@@ -102,6 +104,7 @@ export const MasterClassLessonViewer = ({
   customerName,
   mode = 'portal',
 }: MasterClassLessonViewerProps) => {
+  const { isMobile } = useIsMobile()
   const [playing, setPlaying] = useState(false)
   const [activeTab, setActiveTab] = useState<'lessons' | 'notes'>('lessons')
   const [noteText, setNoteText] = useState('')
@@ -290,6 +293,36 @@ export const MasterClassLessonViewer = ({
     }
 
     return <div className="w-full bg-black" style={{ aspectRatio: '16/9' }} />
+  }
+
+  if (isMobile) {
+    return renderMobileLessonViewer({
+      lesson,
+      lessonIndex,
+      totalLessons,
+      lessons,
+      instructorName,
+      activeTab,
+      setActiveTab,
+      noteText,
+      handleNoteChange,
+      handleClearNote,
+      bookmarked,
+      handleBookmark,
+      handleShare,
+      shareCopied,
+      isQuiz,
+      textContent,
+      attachments,
+      firstAttachment,
+      renderVideoArea,
+      onBack,
+      onSelectLesson,
+      onMarkComplete,
+      token,
+      courseId,
+      customerName,
+    })
   }
 
   return (
@@ -1128,4 +1161,745 @@ function ActionBtn({
       <span>{label}</span>
     </button>
   )
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Mobile lesson player
+// ────────────────────────────────────────────────────────────────────────────
+//
+// Phone-shaped layout for the same lesson player surface — keeps every
+// piece of working logic (notes auto-save, bookmark localStorage, share
+// clipboard copy, mark-complete, lesson navigation, quiz / text fallback)
+// and just rearranges the markup so it reads on a phone:
+//
+//   • Sticky compact top bar (back · counter · bookmark · share)
+//   • Full-bleed 16:9 video frame
+//   • Meta block: "LESSON N · duration · instructor", big title, description
+//   • Mark-complete pill
+//   • Sticky tab strip — All Lessons / My Notes
+//   • Lessons tab → vertical list of compact rows (matches the rest of
+//     the customer-portal mobile look)
+//   • Notes tab → full-width textarea
+//   • Text content / first attachment / comments below the tabs
+
+const mFont = "'Poppins', var(--font-poppins), system-ui, sans-serif"
+
+type MobileVA = {
+  lesson: MasterClassLessonViewerProps['lesson']
+  lessonIndex: number
+  totalLessons: number
+  lessons: MasterClassLessonViewerProps['lessons']
+  instructorName: string | null | undefined
+  activeTab: 'lessons' | 'notes'
+  setActiveTab: (t: 'lessons' | 'notes') => void
+  noteText: string
+  handleNoteChange: (t: string) => void
+  handleClearNote: () => void
+  bookmarked: boolean
+  handleBookmark: () => void
+  handleShare: () => void
+  shareCopied: boolean
+  isQuiz: boolean
+  textContent: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  attachments: any[]
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  firstAttachment: any
+  renderVideoArea: () => React.ReactNode
+  onBack: () => void
+  onSelectLesson: (lessonId: string) => void
+  onMarkComplete: () => void
+  token: string
+  courseId: string
+  customerName: string | null | undefined
+}
+
+function renderMobileLessonViewer(a: MobileVA): React.ReactElement {
+  const {
+    lesson,
+    lessonIndex,
+    totalLessons,
+    lessons,
+    instructorName,
+    activeTab,
+    setActiveTab,
+    noteText,
+    handleNoteChange,
+    handleClearNote,
+    bookmarked,
+    handleBookmark,
+    handleShare,
+    shareCopied,
+    isQuiz,
+    textContent,
+    firstAttachment,
+    renderVideoArea,
+    onBack,
+    onSelectLesson,
+    onMarkComplete,
+    token,
+    courseId,
+    customerName,
+  } = a
+
+  const activeIdx = lessons.findIndex((l) => l.id === lesson.id)
+  const nextUpId =
+    lessons.find((l, i) => i > activeIdx && !l.completed && !l.locked)?.id ??
+    lessons.find((l) => !l.completed && !l.locked)?.id ??
+    null
+
+  const durationLabel = lesson.duration_seconds
+    ? formatDuration(lesson.duration_seconds)
+    : null
+
+  return (
+    <div
+      className="min-h-screen w-full"
+      style={{
+        background: '#ffffff',
+        color: 'oklch(0.18 0.008 280)',
+        fontFamily: mFont,
+        letterSpacing: '-0.005em',
+        WebkitFontSmoothing: 'antialiased',
+        MozOsxFontSmoothing: 'grayscale',
+      }}
+    >
+      <header
+        className="sticky top-0 z-40"
+        style={{
+          background: 'rgba(255,255,255,0.92)',
+          backdropFilter: 'saturate(180%) blur(20px)',
+          WebkitBackdropFilter: 'saturate(180%) blur(20px)',
+          borderBottom: '1px solid oklch(0.945 0.003 280)',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '10px 12px',
+            gap: 6,
+          }}
+        >
+          <button
+            type="button"
+            onClick={onBack}
+            aria-label="Back to course"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              padding: '6px 10px 6px 6px',
+              borderRadius: 999,
+              border: 0,
+              background: 'transparent',
+              color: 'oklch(0.32 0.008 280)',
+              fontFamily: mFont,
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: 'pointer',
+            }}
+          >
+            <KeyboardArrowLeft sx={{ fontSize: 22 }} />
+            Course
+          </button>
+          <span
+            style={{
+              fontSize: 12,
+              fontWeight: 500,
+              color: 'oklch(0.52 0.008 280)',
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {lessonIndex + 1} of {totalLessons}
+          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <button
+              type="button"
+              onClick={handleBookmark}
+              aria-label={bookmarked ? 'Remove bookmark' : 'Add bookmark'}
+              style={mobileIconBtnStyle(bookmarked)}
+            >
+              {bookmarked ? (
+                <Bookmark sx={{ fontSize: 18 }} />
+              ) : (
+                <BookmarkBorderOutlined sx={{ fontSize: 18 }} />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={handleShare}
+              aria-label="Share lesson"
+              style={mobileIconBtnStyle(false)}
+            >
+              <IosShareOutlined sx={{ fontSize: 18 }} />
+            </button>
+          </div>
+        </div>
+        {shareCopied && (
+          <div
+            style={{
+              padding: '4px 16px 8px',
+              fontSize: 11.5,
+              color: 'oklch(0.32 0.008 280)',
+              textAlign: 'right',
+            }}
+            role="status"
+          >
+            Link copied
+          </div>
+        )}
+      </header>
+
+      <main style={{ paddingBottom: 'calc(120px + env(safe-area-inset-bottom, 0px))' }}>
+        {/* Full-bleed video (no rounded card edges — the device frame
+            already provides the screen radius). */}
+        <div
+          style={{
+            position: 'relative',
+            width: '100%',
+            aspectRatio: '16 / 9',
+            background: '#000',
+          }}
+        >
+          {renderVideoArea()}
+        </div>
+
+        <section style={{ padding: '16px 18px 4px' }}>
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              gap: 8,
+              fontSize: 10.5,
+              fontWeight: 600,
+              letterSpacing: '0.16em',
+              color: 'oklch(0.52 0.008 280)',
+              textTransform: 'uppercase',
+              marginBottom: 8,
+            }}
+          >
+            <span>LESSON {lessonIndex + 1}</span>
+            {durationLabel && (
+              <>
+                <span
+                  style={{
+                    width: 3,
+                    height: 3,
+                    borderRadius: '50%',
+                    background: 'oklch(0.66 0.006 280)',
+                  }}
+                />
+                <span>{durationLabel}</span>
+              </>
+            )}
+          </div>
+          <h1
+            style={{
+              margin: 0,
+              fontSize: 22,
+              fontWeight: 700,
+              letterSpacing: '-0.022em',
+              lineHeight: 1.22,
+              color: 'oklch(0.18 0.008 280)',
+            }}
+          >
+            {lesson.title}
+          </h1>
+          {instructorName && (
+            <div
+              style={{
+                marginTop: 6,
+                fontSize: 12.5,
+                color: 'oklch(0.52 0.008 280)',
+              }}
+            >
+              with {instructorName}
+            </div>
+          )}
+          {lesson.description && (
+            <p
+              style={{
+                marginTop: 12,
+                marginBottom: 0,
+                fontSize: 13.5,
+                lineHeight: 1.55,
+                color: 'oklch(0.32 0.008 280)',
+                textWrap: 'pretty' as React.CSSProperties['textWrap'],
+              }}
+            >
+              {lesson.description}
+            </p>
+          )}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              marginTop: 14,
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                if (!lesson.completed) onMarkComplete()
+              }}
+              disabled={lesson.completed}
+              style={{
+                appearance: 'none',
+                border: 0,
+                cursor: lesson.completed ? 'default' : 'pointer',
+                fontFamily: mFont,
+                fontSize: 12.5,
+                fontWeight: 600,
+                padding: '8px 14px',
+                borderRadius: 999,
+                background: lesson.completed
+                  ? 'oklch(0.95 0.04 145)'
+                  : '#0a0a0a',
+                color: lesson.completed ? 'oklch(0.32 0.10 145)' : 'white',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                opacity: lesson.completed ? 1 : 1,
+              }}
+            >
+              {lesson.completed ? (
+                <CheckCircle sx={{ fontSize: 14 }} />
+              ) : (
+                <CheckCircleOutline sx={{ fontSize: 14 }} />
+              )}
+              {lesson.completed ? 'Completed' : 'Mark complete'}
+            </button>
+          </div>
+        </section>
+
+        {/* Tabs — sticky just below the top bar so the lesson list / notes
+            switcher stays reachable while reading. */}
+        <div
+          style={{
+            position: 'sticky',
+            top: 52,
+            zIndex: 30,
+            background: 'rgba(255,255,255,0.92)',
+            backdropFilter: 'saturate(180%) blur(20px)',
+            WebkitBackdropFilter: 'saturate(180%) blur(20px)',
+            borderBottom: '1px solid oklch(0.945 0.003 280)',
+            marginTop: 16,
+          }}
+        >
+          <div
+            role="tablist"
+            aria-label="Lesson sidebar"
+            style={{ display: 'flex', gap: 4, padding: '0 18px' }}
+          >
+            {(['lessons', 'notes'] as const).map((tab) => {
+              const active = activeTab === tab
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setActiveTab(tab)}
+                  style={{
+                    appearance: 'none',
+                    border: 0,
+                    background: 'transparent',
+                    padding: '11px 12px',
+                    fontSize: 13,
+                    fontWeight: 500,
+                    color: active
+                      ? 'oklch(0.18 0.008 280)'
+                      : 'oklch(0.52 0.008 280)',
+                    fontFamily: mFont,
+                    cursor: 'pointer',
+                    position: 'relative',
+                  }}
+                >
+                  {tab === 'lessons' ? 'All Lessons' : 'My Notes'}
+                  {active && (
+                    <span
+                      style={{
+                        position: 'absolute',
+                        left: 12,
+                        right: 12,
+                        bottom: 0,
+                        height: 2,
+                        background: 'oklch(0.18 0.008 280)',
+                        borderRadius: 2,
+                      }}
+                      aria-hidden
+                    />
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {activeTab === 'lessons' && (
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              padding: '8px 12px 24px',
+            }}
+          >
+            {lessons.map((l, idx) => {
+              const active = l.id === lesson.id
+              const locked = !!l.locked
+              const isNext = !active && l.id === nextUpId
+              const unlockDate = l.locked_until ? new Date(l.locked_until) : null
+              const unlockLabel =
+                unlockDate && !Number.isNaN(unlockDate.getTime())
+                  ? unlockDate.toLocaleDateString()
+                  : null
+              const status = active
+                ? 'Now playing'
+                : l.completed
+                  ? 'Watched'
+                  : locked
+                    ? unlockLabel
+                      ? `Unlocks ${unlockLabel}`
+                      : 'Locked'
+                    : isNext
+                      ? 'Up next'
+                      : l.duration_seconds
+                        ? formatDuration(l.duration_seconds)
+                        : `Lesson ${idx + 1}`
+              const thumb =
+                l.thumbnail_url ||
+                (l.mux_playback_id
+                  ? `https://image.mux.com/${l.mux_playback_id}/thumbnail.jpg?time=1`
+                  : null)
+              return (
+                <button
+                  key={l.id}
+                  type="button"
+                  onClick={() => {
+                    if (!locked) onSelectLesson(l.id)
+                  }}
+                  disabled={locked}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'stretch',
+                    gap: 12,
+                    padding: 8,
+                    borderRadius: 12,
+                    width: '100%',
+                    textAlign: 'left',
+                    background: active
+                      ? 'oklch(0.97 0.002 280)'
+                      : 'transparent',
+                    border: 0,
+                    cursor: locked ? 'not-allowed' : 'pointer',
+                    opacity: locked ? 0.6 : 1,
+                    fontFamily: mFont,
+                    color: 'inherit',
+                  }}
+                >
+                  <div
+                    style={{
+                      position: 'relative',
+                      width: 116,
+                      height: 70,
+                      flexShrink: 0,
+                      borderRadius: 10,
+                      overflow: 'hidden',
+                      background: '#1c1c1c',
+                    }}
+                  >
+                    {thumb ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={thumb}
+                        alt=""
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          objectPosition:
+                            l.thumbnail_object_position ?? '50% 50%',
+                        }}
+                      />
+                    ) : null}
+                    {active && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          background: 'rgba(0,0,0,0.4)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: 'white',
+                        }}
+                      >
+                        <PlayArrow sx={{ fontSize: 18 }} />
+                      </div>
+                    )}
+                    {locked && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          background: 'rgba(0,0,0,0.55)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: 'white',
+                        }}
+                      >
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <rect x="3" y="11" width="18" height="11" rx="2" />
+                          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                        </svg>
+                      </div>
+                    )}
+                    {l.duration_seconds ? (
+                      <span
+                        style={{
+                          position: 'absolute',
+                          right: 4,
+                          bottom: 4,
+                          fontSize: 10,
+                          fontWeight: 600,
+                          color: 'white',
+                          background: 'rgba(0,0,0,0.75)',
+                          padding: '2px 5px',
+                          borderRadius: 3,
+                          fontVariantNumeric: 'tabular-nums',
+                        }}
+                      >
+                        {formatDuration(l.duration_seconds)}
+                      </span>
+                    ) : null}
+                  </div>
+                  <div
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center',
+                      gap: 3,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 13.5,
+                        fontWeight: 500,
+                        lineHeight: 1.32,
+                        color: 'oklch(0.18 0.008 280)',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      {l.title}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 11.5,
+                        color: l.completed
+                          ? 'oklch(0.40 0.10 145)'
+                          : active
+                            ? 'oklch(0.40 0.12 285)'
+                            : 'oklch(0.52 0.008 280)',
+                        fontWeight: active || l.completed ? 600 : 500,
+                      }}
+                    >
+                      {status}
+                    </div>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        {activeTab === 'notes' && (
+          <div style={{ padding: '14px 18px 24px' }}>
+            <textarea
+              value={noteText}
+              onChange={(e) => handleNoteChange(e.target.value)}
+              placeholder="Capture a thought, a question, a quote — saves automatically."
+              rows={8}
+              style={{
+                width: '100%',
+                appearance: 'none',
+                border: '1px solid oklch(0.92 0.003 280)',
+                borderRadius: 12,
+                background: '#fff',
+                padding: '12px 14px',
+                fontFamily: mFont,
+                fontSize: 13.5,
+                lineHeight: 1.5,
+                color: 'oklch(0.18 0.008 280)',
+                resize: 'vertical',
+                outline: 'none',
+              }}
+            />
+            <div
+              style={{
+                marginTop: 8,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                fontSize: 11.5,
+                color: 'oklch(0.52 0.008 280)',
+              }}
+            >
+              <span>Notes save automatically.</span>
+              {noteText.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleClearNote}
+                  style={{
+                    appearance: 'none',
+                    background: 'transparent',
+                    border: 0,
+                    color: 'oklch(0.32 0.008 280)',
+                    fontFamily: mFont,
+                    fontSize: 12,
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Clear note
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Below-the-fold content — text lesson body, attachments,
+            comments. Keeps the existing data wired in without trying to
+            recreate the desktop's two-column flow on a phone. */}
+        {!isQuiz && textContent && (
+          <section style={{ padding: '8px 18px 24px' }}>
+            <div
+              style={{
+                fontSize: 10.5,
+                fontWeight: 600,
+                letterSpacing: '0.16em',
+                color: 'oklch(0.52 0.008 280)',
+                textTransform: 'uppercase',
+                marginBottom: 10,
+              }}
+            >
+              About this lesson
+            </div>
+            <div
+              className="prose prose-sm max-w-none"
+              style={{ fontSize: 14, lineHeight: 1.65 }}
+            >
+              <MemoizedMarkdown content={textContent} />
+            </div>
+          </section>
+        )}
+
+        {firstAttachment && (
+          <section style={{ padding: '0 18px 24px' }}>
+            <a
+              href={firstAttachment.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                padding: '12px 14px',
+                borderRadius: 12,
+                border: '1px solid oklch(0.92 0.003 280)',
+                background: 'oklch(0.975 0.002 280)',
+                color: 'inherit',
+                textDecoration: 'none',
+                fontFamily: mFont,
+              }}
+            >
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 9,
+                  background: '#0a0a0a',
+                  color: 'white',
+                  display: 'grid',
+                  placeItems: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <DownloadOutlined sx={{ fontSize: 18 }} />
+              </div>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: 'oklch(0.18 0.008 280)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {firstAttachment.name ?? 'Lesson resource'}
+                </div>
+                <div
+                  style={{
+                    fontSize: 11.5,
+                    color: 'oklch(0.52 0.008 280)',
+                  }}
+                >
+                  Download attachment
+                </div>
+              </div>
+            </a>
+          </section>
+        )}
+
+        <section style={{ padding: '0 18px 24px' }}>
+          <CommentThread
+            token={token}
+            courseId={courseId}
+            lessonId={lesson.id}
+            customerName={customerName ?? null}
+            commentsMode={lesson.comments_mode ?? 'visible'}
+          />
+        </section>
+      </main>
+    </div>
+  )
+}
+
+function mobileIconBtnStyle(active: boolean): React.CSSProperties {
+  return {
+    appearance: 'none',
+    border: 0,
+    background: active ? 'oklch(0.95 0.003 280)' : 'transparent',
+    color: active ? 'oklch(0.18 0.008 280)' : 'oklch(0.32 0.008 280)',
+    width: 36,
+    height: 36,
+    borderRadius: 999,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+  }
 }

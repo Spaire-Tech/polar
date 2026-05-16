@@ -5,6 +5,7 @@ import type {
   CustomerLessonRead,
   CustomerModuleRead,
 } from '@/hooks/queries/courses'
+import { useIsMobile } from '@/utils/mobile'
 import { useState } from 'react'
 
 const FONT = "'Poppins', var(--font-poppins), system-ui, sans-serif"
@@ -1138,7 +1139,16 @@ export interface CoursePortalViewProps {
   onSelectLesson: (lesson: CustomerLessonRead) => void
 }
 
-export function CoursePortalView({
+export function CoursePortalView(props: CoursePortalViewProps) {
+  const { isMobile } = useIsMobile()
+  // The mobile layout is structurally different (vertical hero, horizontal-
+  // scroll module rows, larger touch targets) so we render a dedicated
+  // component instead of trying to collapse the desktop layout via CSS.
+  if (isMobile) return <CoursePortalViewMobile {...props} />
+  return <CoursePortalViewDesktop {...props} />
+}
+
+function CoursePortalViewDesktop({
   data,
   organizationName,
   onSelectLesson,
@@ -1284,5 +1294,806 @@ export function CoursePortalView({
         </div>
       </footer>
     </div>
+  )
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Mobile layout (≤ 720px)
+// ────────────────────────────────────────────────────────────────────────────
+//
+// Mirrors the Spaire Course Portal Mobile design hand-off:
+//
+//   • Vertical cinematic hero with eyebrow + progress %, big title,
+//     tagline + instructor, "Up Next" mini-card, Resume + bookmark CTA
+//   • Per-module rows with horizontal scroll-snap lesson cards (16:9 thumb
+//     + duration pill + completion check / in-progress bar)
+//   • Plain footer (no inner tab bar — the global `MobileTabBar` from
+//     PortalShell handles cross-portal navigation)
+//
+// All data flows through the same `CustomerCourseDetail` the desktop view
+// uses; helpers (HeroBackdrop, LessonThumb, formatHrMin, pickContinueLesson,
+// moduleHue, icons) are reused above to keep the two layouts in sync.
+
+function CoursePortalViewMobile({
+  data,
+  organizationName,
+  onSelectLesson,
+}: CoursePortalViewProps) {
+  const course = data.course
+  const modules: CustomerModuleRead[] = course.modules
+
+  const positionToGlobalIndex = new Map<string, number>()
+  let runningIndex = 0
+  for (const m of modules) {
+    for (const lesson of m.lessons) {
+      runningIndex += 1
+      positionToGlobalIndex.set(lesson.id, runningIndex)
+    }
+  }
+
+  const totalDurationSeconds = modules.reduce(
+    (acc, m) =>
+      acc + m.lessons.reduce((s, l) => s + (l.duration_seconds ?? 0), 0),
+    0,
+  )
+  const totalLessons = data.progress.total_lessons
+  const overallPct = Math.round(data.progress.completion_percent)
+
+  const cont = pickContinueLesson(modules)
+  const courseComplete = cont?.kind === 'complete'
+  const continueLesson = cont && cont.kind !== 'complete' ? cont.lesson : null
+  const continueModuleTitle =
+    cont && cont.kind !== 'complete' ? cont.module.title : null
+  const continueLessonNumber = continueLesson
+    ? (positionToGlobalIndex.get(continueLesson.id) ?? null)
+    : null
+  const continuePill =
+    cont?.kind === 'complete'
+      ? 'COURSE COMPLETE'
+      : cont?.kind === 'start'
+        ? 'START LEARNING'
+        : cont?.kind === 'continue'
+          ? 'CONTINUE WATCHING'
+          : null
+
+  const aiLanding = (course.landing_overrides?.ai_landing ?? null) as
+    | { tagline?: string }
+    | null
+  const tagline =
+    (aiLanding?.tagline && aiLanding.tagline.trim()) ||
+    (course.description ? course.description.split('\n')[0]! : '') ||
+    'Your purchased course.'
+
+  const heroHue = moduleHue(0)
+
+  return (
+    <div
+      data-screen-label="Spaire Course Portal (Mobile)"
+      style={{
+        background: C.bg0,
+        color: C.fg0,
+        fontFamily: FONT,
+      }}
+    >
+      <MobileHero
+        course={course}
+        heroHue={heroHue}
+        overallPct={overallPct}
+        totalLessons={totalLessons}
+        totalDurationSeconds={totalDurationSeconds}
+        continueLesson={continueLesson}
+        continueModuleTitle={continueModuleTitle}
+        continueLessonNumber={continueLessonNumber}
+        continuePill={continuePill}
+        tagline={tagline}
+        onResume={() => {
+          if (continueLesson) onSelectLesson(continueLesson)
+          else if (courseComplete && modules[0]?.lessons[0])
+            onSelectLesson(modules[0].lessons[0])
+        }}
+      />
+
+      <div style={{ height: 8 }} />
+
+      {modules.map((m, i) => (
+        <MobileModuleRow
+          key={m.id}
+          module={m}
+          moduleIndex={i}
+          positionToGlobalIndex={positionToGlobalIndex}
+          fallbackThumbnailUrl={course.thumbnail_url ?? null}
+          fallbackObjectPosition={course.thumbnail_object_position ?? null}
+          onSelectLesson={onSelectLesson}
+        />
+      ))}
+
+      <footer
+        style={{
+          padding: '28px 20px 24px',
+          borderTop: `1px solid ${C.line}`,
+          marginTop: 32,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 6,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+          <span
+            style={{
+              fontSize: 15,
+              fontWeight: 600,
+              letterSpacing: '-0.02em',
+              color: C.fg0,
+            }}
+          >
+            Spaire
+          </span>
+          <span style={{ fontSize: 11, color: C.fg3 }}>{organizationName}</span>
+        </div>
+        <span style={{ fontSize: 11.5, color: C.fg3 }}>
+          Premium courses, sold by creators.
+        </span>
+      </footer>
+    </div>
+  )
+}
+
+function MobileHero({
+  course,
+  heroHue,
+  overallPct,
+  totalLessons,
+  totalDurationSeconds,
+  continueLesson,
+  continueModuleTitle,
+  continueLessonNumber,
+  continuePill,
+  tagline,
+  onResume,
+}: {
+  course: CustomerCourseDetail['course']
+  heroHue: number
+  overallPct: number
+  totalLessons: number
+  totalDurationSeconds: number
+  continueLesson: CustomerLessonRead | null
+  continueModuleTitle: string | null
+  continueLessonNumber: number | null
+  continuePill: string | null
+  tagline: string
+  onResume: () => void
+}) {
+  const remainingMin = continueLesson?.duration_seconds
+    ? Math.max(1, Math.ceil(continueLesson.duration_seconds / 60))
+    : null
+
+  return (
+    <section
+      style={{
+        position: 'relative',
+        // Hero sits below the global TopBar (sticky white) so it doesn't try
+        // to extend behind a status bar like the standalone design did.
+        paddingTop: 14,
+        paddingBottom: 24,
+        minHeight: 620,
+        overflow: 'hidden',
+        background: '#000',
+        color: 'white',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      <div style={{ position: 'absolute', inset: 0 }}>
+        <HeroBackdrop
+          hue={heroHue}
+          thumbnailUrl={course.thumbnail_url ?? null}
+          thumbnailObjectPosition={course.thumbnail_object_position ?? null}
+        />
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background:
+              'linear-gradient(180deg, oklch(0 0 0 / 0.55) 0%, oklch(0 0 0 / 0) 22%, oklch(0 0 0 / 0) 38%, oklch(0 0 0 / 0.75) 78%, oklch(0 0 0 / 0.96) 100%)',
+          }}
+        />
+      </div>
+
+      <div
+        style={{
+          position: 'relative',
+          zIndex: 2,
+          padding: '4px 20px 0',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 7,
+          fontSize: 10,
+          letterSpacing: '0.18em',
+          fontWeight: 600,
+          color: 'rgba(255,255,255,0.78)',
+        }}
+      >
+        <span
+          style={{
+            width: 5,
+            height: 5,
+            borderRadius: '50%',
+            background: 'oklch(0.72 0.16 25)',
+            boxShadow: '0 0 8px oklch(0.72 0.16 25)',
+          }}
+        />
+        <span>SPAIRE ORIGINAL</span>
+        <span style={{ flex: 1 }} />
+        <span
+          style={{
+            fontSize: 10,
+            letterSpacing: '0.16em',
+            color: 'rgba(255,255,255,0.5)',
+          }}
+        >
+          YOUR PROGRESS
+        </span>
+        <span
+          style={{
+            fontSize: 12,
+            fontWeight: 600,
+            letterSpacing: '-0.01em',
+            color: 'white',
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
+          {overallPct}%
+        </span>
+      </div>
+
+      <div style={{ flex: 1 }} />
+
+      <div
+        style={{ position: 'relative', zIndex: 2, padding: '0 20px 12px' }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            fontSize: 11,
+            color: 'rgba(255,255,255,0.62)',
+            marginBottom: 12,
+            flexWrap: 'wrap',
+          }}
+        >
+          {continuePill && (
+            <span
+              style={{
+                padding: '3px 9px',
+                background: 'rgba(255,255,255,0.13)',
+                backdropFilter: 'blur(16px)',
+                WebkitBackdropFilter: 'blur(16px)',
+                borderRadius: 999,
+                border: '1px solid rgba(255,255,255,0.18)',
+                fontSize: 9.5,
+                letterSpacing: '0.12em',
+                fontWeight: 600,
+                color: 'white',
+              }}
+            >
+              {continuePill}
+            </span>
+          )}
+          <span>
+            {totalLessons} {totalLessons === 1 ? 'lesson' : 'lessons'}
+          </span>
+          {totalDurationSeconds > 0 && (
+            <>
+              <span style={{ color: 'rgba(255,255,255,0.3)' }}>·</span>
+              <span>{formatHrMin(totalDurationSeconds)}</span>
+            </>
+          )}
+        </div>
+
+        <h1
+          style={{
+            fontSize: 40,
+            fontWeight: 700,
+            letterSpacing: '-0.04em',
+            lineHeight: 0.95,
+            margin: '0 0 12px',
+            color: 'white',
+            textShadow: '0 2px 24px oklch(0 0 0 / 0.35)',
+            textWrap: 'balance',
+          }}
+        >
+          {course.title}
+        </h1>
+
+        <div
+          style={{
+            fontSize: 13,
+            color: 'rgba(255,255,255,0.78)',
+            lineHeight: 1.4,
+            marginBottom: continueLesson ? 18 : 0,
+          }}
+        >
+          {tagline}
+          {course.instructor_name && (
+            <span style={{ color: 'rgba(255,255,255,0.48)' }}>
+              {' '}— with {course.instructor_name}
+            </span>
+          )}
+        </div>
+
+        {continueLesson && (
+          <div
+            style={{
+              background: 'rgba(255,255,255,0.08)',
+              backdropFilter: 'blur(18px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(18px) saturate(180%)',
+              border: '1px solid rgba(255,255,255,0.14)',
+              borderRadius: 14,
+              padding: '12px 14px',
+              marginBottom: 14,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 9.5,
+                letterSpacing: '0.16em',
+                fontWeight: 600,
+                color: 'rgba(255,255,255,0.55)',
+                marginBottom: 4,
+              }}
+            >
+              UP NEXT
+              {continueLessonNumber != null && (
+                <> · LESSON {continueLessonNumber}</>
+              )}
+            </div>
+            <div
+              style={{
+                fontSize: 14,
+                fontWeight: 600,
+                color: 'white',
+                marginBottom: 4,
+                letterSpacing: '-0.015em',
+              }}
+            >
+              {continueLesson.title}
+            </div>
+            {(continueModuleTitle || remainingMin != null) && (
+              <div
+                style={{
+                  fontSize: 11,
+                  color: 'rgba(255,255,255,0.55)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 7,
+                  flexWrap: 'wrap',
+                }}
+              >
+                {continueModuleTitle && <span>{continueModuleTitle}</span>}
+                {continueModuleTitle && remainingMin != null && (
+                  <span style={{ color: 'rgba(255,255,255,0.3)' }}>·</span>
+                )}
+                {remainingMin != null && <span>{remainingMin} min</span>}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            type="button"
+            onClick={onResume}
+            style={{
+              flex: 1,
+              height: 48,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 10,
+              paddingLeft: 6,
+              paddingRight: 14,
+              background: 'white',
+              color: 'oklch(0.14 0.006 280)',
+              borderRadius: 999,
+              border: 'none',
+              fontFamily: 'inherit',
+              cursor: 'pointer',
+              boxShadow: '0 8px 24px oklch(0 0 0 / 0.35)',
+            }}
+          >
+            <span
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: '50%',
+                background: 'oklch(0.14 0.006 280)',
+                color: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                paddingLeft: 2,
+              }}
+            >
+              <IconPlay size={14} />
+            </span>
+            <span style={{ fontSize: 14, fontWeight: 600 }}>
+              {continuePill === 'COURSE COMPLETE'
+                ? 'Watch again'
+                : continueLessonNumber != null
+                  ? `Resume lesson ${continueLessonNumber}`
+                  : 'Start course'}
+            </span>
+          </button>
+          <button
+            type="button"
+            aria-label="Bookmark"
+            style={{
+              width: 48,
+              height: 48,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'rgba(255,255,255,0.10)',
+              backdropFilter: 'blur(20px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+              border: '1px solid rgba(255,255,255,0.18)',
+              color: 'white',
+              borderRadius: '50%',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              flexShrink: 0,
+            }}
+          >
+            <IconBookmark size={16} />
+          </button>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function MobileModuleRow({
+  module: mod,
+  moduleIndex,
+  positionToGlobalIndex,
+  fallbackThumbnailUrl,
+  fallbackObjectPosition,
+  onSelectLesson,
+}: {
+  module: CustomerModuleRead
+  moduleIndex: number
+  positionToGlobalIndex: Map<string, number>
+  fallbackThumbnailUrl: string | null
+  fallbackObjectPosition: string | null
+  onSelectLesson: (lesson: CustomerLessonRead) => void
+}) {
+  const hue = moduleHue(moduleIndex)
+  const total = mod.lessons.length
+  const watched = mod.lessons.filter((l) => l.completed).length
+  const allDone = total > 0 && watched === total
+  const inProg = !allDone && watched > 0
+
+  return (
+    <div style={{ marginTop: 32 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'baseline',
+          gap: 8,
+          padding: '0 20px',
+          marginBottom: 12,
+        }}
+      >
+        <h2
+          style={{
+            fontSize: 19,
+            fontWeight: 600,
+            letterSpacing: '-0.025em',
+            color: C.fg0,
+            margin: 0,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+          }}
+        >
+          {mod.title}
+          <IconChevronRight
+            size={16}
+            style={{ color: C.fg1, marginLeft: 2 }}
+          />
+        </h2>
+        <span
+          style={{
+            fontSize: 11,
+            color: C.fg3,
+            fontVariantNumeric: 'tabular-nums',
+            fontWeight: 500,
+          }}
+        >
+          {allDone ? (
+            <span
+              style={{
+                color: C.fg1,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+              }}
+            >
+              <IconCheck size={10} /> Complete
+            </span>
+          ) : inProg ? (
+            <span style={{ color: 'oklch(0.55 0.18 25)' }}>
+              In progress · {watched}/{total}
+            </span>
+          ) : (
+            <span>
+              {watched}/{total}
+            </span>
+          )}
+        </span>
+      </div>
+      <div
+        className="m-hscroll"
+        style={{
+          display: 'flex',
+          gap: 12,
+          overflowX: 'auto',
+          overflowY: 'hidden',
+          padding: '0 20px 4px',
+          scrollSnapType: 'x mandatory',
+          WebkitOverflowScrolling: 'touch',
+          scrollbarWidth: 'none',
+        }}
+      >
+        {mod.lessons.map((lesson) => {
+          const globalIndex = positionToGlobalIndex.get(lesson.id) ?? null
+          return (
+            <MobileLessonCard
+              key={lesson.id}
+              lesson={lesson}
+              hue={hue}
+              globalIndex={globalIndex}
+              fallbackThumbnailUrl={fallbackThumbnailUrl}
+              fallbackObjectPosition={fallbackObjectPosition}
+              onSelect={() => onSelectLesson(lesson)}
+            />
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function MobileLessonCard({
+  lesson,
+  hue,
+  globalIndex,
+  fallbackThumbnailUrl,
+  fallbackObjectPosition,
+  onSelect,
+}: {
+  lesson: CustomerLessonRead
+  hue: number
+  globalIndex: number | null
+  fallbackThumbnailUrl: string | null
+  fallbackObjectPosition: string | null
+  onSelect: () => void
+}) {
+  const watched = lesson.completed
+  const locked = !!lesson.locked
+  const durationLabel = lesson.duration_seconds
+    ? formatMinSec(lesson.duration_seconds)
+    : null
+
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      style={{
+        // Apple-TV-style portrait card — same shape and treatment as the
+        // public landing's free-preview cards so an enrolled customer
+        // browsing their course feels continuous with the storefront they
+        // bought from. Copy + duration pill sit overlaid on the thumb so
+        // each card reads as a single object.
+        flex: '0 0 auto',
+        width: 280,
+        scrollSnapAlign: 'start',
+        appearance: 'none',
+        background: '#0a0a0a',
+        border: '1px solid oklch(0.20 0.005 280)',
+        borderRadius: 18,
+        overflow: 'hidden',
+        padding: 0,
+        margin: 0,
+        textAlign: 'left',
+        cursor: 'pointer',
+        fontFamily: 'inherit',
+        color: 'inherit',
+        boxShadow:
+          '0 1px 2px oklch(0 0 0 / 0.06), 0 12px 32px oklch(0 0 0 / 0.10)',
+      }}
+    >
+      <div
+        style={{
+          position: 'relative',
+          width: '100%',
+          aspectRatio: '4 / 5',
+          overflow: 'hidden',
+        }}
+      >
+        <LessonThumb
+          hue={hue}
+          thumbnailUrl={lesson.thumbnail_url ?? null}
+          thumbnailObjectPosition={lesson.thumbnail_object_position ?? null}
+          muxPlaybackId={lesson.mux_playback_id ?? null}
+          fallbackThumbnailUrl={fallbackThumbnailUrl}
+          fallbackObjectPosition={fallbackObjectPosition}
+        />
+
+        {/* Dim wash → ensures the bottom copy stack stays readable
+            against any thumbnail. Watched cards get an extra full-tile
+            overlay so they read as "done", and a centred lock + heavy
+            saturation drop on locked lessons. */}
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: locked
+              ? 'rgba(0,0,0,0.55)'
+              : 'linear-gradient(180deg, rgba(0,0,0,0) 30%, rgba(0,0,0,0.55) 65%, rgba(0,0,0,0.92) 100%)',
+            backdropFilter: locked ? 'saturate(0.6)' : undefined,
+            WebkitBackdropFilter: locked ? 'saturate(0.6)' : undefined,
+            pointerEvents: 'none',
+          }}
+        />
+        {watched && !locked && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'rgba(0,0,0,0.25)',
+              pointerEvents: 'none',
+            }}
+          />
+        )}
+
+        {/* Copy stack — episode label, title, optional description */}
+        <div
+          style={{
+            position: 'absolute',
+            left: 16,
+            right: 16,
+            bottom: 48,
+            color: 'white',
+            zIndex: 2,
+          }}
+        >
+          {globalIndex != null && (
+            <div
+              style={{
+                fontSize: 9.5,
+                fontWeight: 600,
+                letterSpacing: '0.16em',
+                color: 'rgba(255,255,255,0.65)',
+                marginBottom: 6,
+              }}
+            >
+              LESSON {globalIndex}
+            </div>
+          )}
+          <div
+            style={{
+              fontSize: 17,
+              fontWeight: 600,
+              letterSpacing: '-0.02em',
+              lineHeight: 1.2,
+              color: 'white',
+              marginBottom: lesson.description ? 8 : 0,
+              textShadow: '0 2px 14px rgba(0,0,0,0.5)',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}
+          >
+            {lesson.title}
+          </div>
+          {lesson.description && (
+            <div
+              style={{
+                fontSize: 12,
+                lineHeight: 1.45,
+                color: 'rgba(255,255,255,0.78)',
+                display: '-webkit-box',
+                WebkitLineClamp: 3,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+                textWrap: 'pretty',
+              }}
+            >
+              {lesson.description}
+            </div>
+          )}
+        </div>
+
+        {/* Footer row — duration pill (left), state badge (right) */}
+        <div
+          style={{
+            position: 'absolute',
+            left: 14,
+            right: 14,
+            bottom: 14,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            zIndex: 3,
+          }}
+        >
+          {durationLabel ? (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: 11,
+                fontWeight: 500,
+                color: 'rgba(255,255,255,0.92)',
+                padding: '5px 9px 5px 8px',
+                background: 'rgba(255,255,255,0.14)',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255,255,255,0.18)',
+                borderRadius: 999,
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
+              <IconPlay size={11} />
+              <span>{durationLabel}</span>
+            </div>
+          ) : (
+            <span />
+          )}
+
+          {locked ? (
+            <div
+              style={{
+                width: 26,
+                height: 26,
+                borderRadius: '50%',
+                background: 'rgba(255,255,255,0.18)',
+                border: '1px solid rgba(255,255,255,0.3)',
+                color: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backdropFilter: 'blur(8px)',
+                WebkitBackdropFilter: 'blur(8px)',
+              }}
+              aria-label="Locked"
+            >
+              <IconLock size={12} />
+            </div>
+          ) : watched ? (
+            <div
+              style={{
+                width: 26,
+                height: 26,
+                borderRadius: '50%',
+                background: 'rgba(255,255,255,0.97)',
+                color: '#000',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+              }}
+              aria-label="Completed"
+            >
+              <IconCheck size={12} />
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </button>
   )
 }

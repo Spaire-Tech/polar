@@ -158,6 +158,11 @@
 .spaire-portal .sp-iconbtn:hover {
   background: #f4f4f4;
 }
+/* Mobile-only icon variants stay hidden on desktop and reveal at
+   the mobile breakpoint via the media query below. */
+.spaire-portal .sp-iconbtn--mobile {
+  display: none;
+}
 .spaire-portal .sp-iconbtn .sp-dot {
   position: absolute;
   top: 8px;
@@ -924,26 +929,307 @@
   }
 }
 
-/* ── Mobile tabs (overflow with scroll) ───────────────────────────────── */
+/* ────────────────────────────────────────────────────────────────────────
+   Mobile bottom tab bar (only visible on mobile via media query below)
+   ──────────────────────────────────────────────────────────────────────── */
+.spaire-portal .sp-tabbar {
+  display: none;
+}
+.spaire-portal .sp-tabbar-inner {
+  display: grid;
+  grid-template-columns: repeat(var(--sp-tabbar-cols, 5), 1fr);
+  padding: 8px 6px max(8px, env(safe-area-inset-bottom));
+}
+.spaire-portal .sp-tabbar-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 2px;
+  color: var(--sp-muted-2);
+  text-decoration: none;
+  font-family: var(--sp-font);
+  transition: color 0.15s;
+}
+.spaire-portal .sp-tabbar-item.is-active {
+  color: var(--sp-ink);
+}
+.spaire-portal .sp-tabbar-icon {
+  display: grid;
+  place-items: center;
+  width: 50px;
+  height: 30px;
+  border-radius: 14px;
+  background: transparent;
+  transition: background 0.18s;
+}
+.spaire-portal .sp-tabbar-item.is-active .sp-tabbar-icon {
+  background: #f0f0f0;
+}
+.spaire-portal .sp-tabbar-label {
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.005em;
+}
+.spaire-portal .sp-tabbar-item.is-active .sp-tabbar-label {
+  font-weight: 600;
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   Mobile layout (≤ 720px)
+   ──────────────────────────────────────────────────────────────────────── */
 @media (max-width: 720px) {
-  .spaire-portal .sp-tabs {
-    margin-left: 4px;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
+  /* Tab bar reveals on mobile and clears the home-indicator inset. */
+  .spaire-portal .sp-tabbar {
+    display: block;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 60;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: saturate(160%) blur(20px);
+    -webkit-backdrop-filter: saturate(160%) blur(20px);
+    border-top: 1px solid var(--sp-line);
   }
-  .spaire-portal .sp-tabs::-webkit-scrollbar {
+  /* Push page content above the fixed tab bar — ~56px tab height plus
+     the home-indicator inset plus a bit of breathing room. */
+  .spaire-portal.sp-app--mobile-tabs .sp-page,
+  .spaire-portal.sp-app--mobile-tabs .sp-course-portal {
+    padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Top bar collapses to brand + 3 icon buttons. The desktop search
+     input is hidden; tapping the search-icon button is the mobile entry.
+     The route tab strip is hidden — the bottom tab bar replaces it. */
+  .spaire-portal .sp-topbar-inner {
+    padding: 10px 16px 12px;
+    gap: 8px;
+  }
+  .spaire-portal .sp-tabs {
     display: none;
   }
   .spaire-portal .sp-search {
     display: none;
   }
-  .spaire-portal .sp-page {
-    padding: 24px 16px 60px;
+  .spaire-portal .sp-iconbtn--mobile {
+    display: grid;
   }
-  .spaire-portal .sp-topbar-inner {
-    padding: 12px 16px;
+  .spaire-portal .sp-right {
+    gap: 2px;
+  }
+  /* Hide avatar on mobile — settings live behind a dedicated tab and
+     the small avatar chip reads as visual noise on a narrow viewport. */
+  .spaire-portal .sp-avatar {
+    display: none;
+  }
+  .spaire-portal .sp-brand {
+    font-size: 16px;
+  }
+  .spaire-portal .sp-brand-mark {
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+    font-size: 12px;
+  }
+  .spaire-portal .sp-iconbtn {
+    width: 36px;
+    height: 36px;
+  }
+
+  /* Page chrome — tighter padding, smaller title, stacked head row. */
+  .spaire-portal .sp-page {
+    padding: 18px 16px 24px;
+  }
+  .spaire-portal .sp-page-head {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+  .spaire-portal .sp-page-title {
+    font-size: 28px;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+  }
+  .spaire-portal .sp-page-sub {
+    font-size: 13px;
+  }
+  /* Section heads tighten too. */
+  .spaire-portal .sp-sec-head {
+    margin: 24px 0 12px;
+  }
+  .spaire-portal .sp-sec-title {
+    font-size: 16px;
+  }
+
+  /* Course / download grids collapse to a single column. */
+  .spaire-portal .sp-grid {
+    grid-template-columns: 1fr;
+    gap: 22px;
+  }
+  .spaire-portal .sp-card-media {
+    aspect-ratio: 16 / 10;
+    border-radius: 14px;
+  }
+  .spaire-portal .sp-card-title {
+    font-size: 15.5px;
+    letter-spacing: -0.01em;
+  }
+  .spaire-portal .sp-card-body {
+    padding: 10px 2px 0;
+  }
+  /* Hover-zoom on touch reads as jitter; pin the image. */
+  .spaire-portal .sp-card:hover .sp-card-media img,
+  .spaire-portal .sp-dl-card:hover .sp-dl-cover img {
+    transform: none;
+  }
+
+  /* Stats card row — the 4-up desktop bar becomes 2x2 with rounded
+     individual cards rather than a single bordered strip. */
+  .spaire-portal .sp-stats {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 22px;
+    overflow: visible;
+  }
+  .spaire-portal .sp-stat,
+  .spaire-portal .sp-stat:nth-child(2n),
+  .spaire-portal .sp-stat:nth-child(-n + 2) {
+    border: 1px solid var(--sp-line);
+    border-radius: 14px;
+    padding: 14px 16px;
+    background: #fff;
+  }
+  .spaire-portal .sp-stat-value {
+    font-size: 22px;
+  }
+  .spaire-portal .sp-stat-label {
+    font-size: 11px;
+    margin-bottom: 6px;
+  }
+
+  /* Library / subscription nudge at the bottom of Overview — soft card. */
+  .spaire-portal .sp-lib {
+    margin-top: 24px;
+    border-radius: 14px;
+    padding: 16px 18px;
+  }
+  .spaire-portal .sp-lib-title {
+    font-size: 15px;
+  }
+
+  /* Filter chips already wrap on desktop; on mobile, make them a
+     horizontal scroll strip so all categories fit one row. */
+  .spaire-portal .sp-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    margin-bottom: 18px;
+    /* Bleed to the page edge so the strip looks natural. */
+    margin-left: -16px;
+    margin-right: -16px;
+    padding: 0 16px 4px;
+  }
+  .spaire-portal .sp-chips::-webkit-scrollbar {
+    display: none;
+  }
+  .spaire-portal .sp-chip {
+    flex: none;
+    white-space: nowrap;
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+
+  /* Downloads — compact row layout: 74-square thumb on left, title +
+     meta on right, download button as a square on the right edge. */
+  .spaire-portal .sp-dl-card {
+    flex-direction: row;
     gap: 12px;
+    align-items: stretch;
+    border: 1px solid var(--sp-line);
+    border-radius: 14px;
+    padding: 10px;
+    background: #fff;
+  }
+  .spaire-portal .sp-dl-cover {
+    width: 74px;
+    height: 74px;
+    aspect-ratio: auto;
+    border-radius: 10px;
+    flex: none;
+  }
+  .spaire-portal .sp-dl-format {
+    top: auto;
+    bottom: 5px;
+    left: 5px;
+    padding: 2px 5px;
+    font-size: 9.5px;
+  }
+  .spaire-portal .sp-dl-done {
+    top: 5px;
+    right: 5px;
+    width: 20px;
+    height: 20px;
+  }
+  .spaire-portal .sp-dl-body {
+    padding: 2px 0;
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .spaire-portal .sp-dl-meta {
+    font-size: 11.5px;
+    margin-bottom: 0;
+  }
+  .spaire-portal .sp-dl-actions {
+    align-self: center;
+    margin-top: 0;
+    gap: 6px;
+  }
+  .spaire-portal .sp-dl-actions .sp-btn {
+    flex: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    padding: 0;
+    background: var(--sp-ink);
+    color: #fff;
+  }
+  .spaire-portal .sp-dl-actions .sp-btn span,
+  .spaire-portal .sp-dl-actions .sp-btn .sp-btn-label {
+    display: none;
+  }
+  /* If the download row has multiple action buttons, the leading text
+     button drops back to icon-only, the trailing icon button stays a
+     compact square. */
+  .spaire-portal .sp-dl-actions .sp-icon-action {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+  }
+}
+
+/* On very tight phones, the brand + 3 icons strip can crowd — shrink
+   the brand mark and label one more notch. */
+@media (max-width: 380px) {
+  .spaire-portal .sp-brand {
+    font-size: 15px;
+  }
+  .spaire-portal .sp-brand-mark {
+    width: 24px;
+    height: 24px;
+  }
+  .spaire-portal .sp-iconbtn {
+    width: 34px;
+    height: 34px;
   }
 }
 

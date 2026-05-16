@@ -82,13 +82,15 @@ export function MobileHero({
     <section
       style={{
         position: 'relative',
-        margin: '12px 12px 0',
+        // Full-width (no horizontal margin) but with Apple-TV-style
+        // bottom corners — flush against the viewport on the sides
+        // and top, curving into the content below.
         height: 600,
-        borderRadius: 28,
         overflow: 'hidden',
         background: '#000',
         isolation: 'isolate',
-        boxShadow: '0 2px 6px rgba(0,0,0,0.06), 0 24px 60px rgba(0,0,0,0.10)',
+        borderBottomLeftRadius: 28,
+        borderBottomRightRadius: 28,
       }}
     >
       <EditMedia
