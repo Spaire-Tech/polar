@@ -90,14 +90,26 @@ class EmailBroadcastService:
         out: dict[UUID, dict[str, int | float]] = {}
         for bid, c in raw.items():
             delivered = c["delivered"]
+            opened = c["opened"]
+            clicked = c["clicked"]
+            total = c["total"]
+            # Fall back to total-sent as denominator when Resend isn't
+            # firing `email.delivered` for this account but opens do
+            # land — keeps rates visible instead of stuck at 0%.
+            if delivered > 0:
+                denom = delivered
+            elif (opened > 0 or clicked > 0) and total > 0:
+                denom = total
+            else:
+                denom = 0
             out[bid] = {
-                "recipients": c["total"],
+                "recipients": total,
                 "delivered": delivered,
-                "opens": c["opened"],
-                "clicks": c["clicked"],
+                "opens": opened,
+                "clicks": clicked,
                 "unsubs": c["unsubscribed"],
-                "open_rate": (c["opened"] / delivered * 100) if delivered else 0.0,
-                "click_rate": (c["clicked"] / delivered * 100) if delivered else 0.0,
+                "open_rate": (opened / denom * 100) if denom else 0.0,
+                "click_rate": (clicked / denom * 100) if denom else 0.0,
             }
         return out
 
@@ -466,6 +478,14 @@ class EmailBroadcastService:
         broadcast.scheduled_at = scheduled_at
         return await repository.update(broadcast)
 
+    async def get_test_send_summary(
+        self,
+        session: AsyncReadSession,
+        broadcast_id: UUID,
+    ) -> dict[str, int | str | None]:
+        repository = EmailBroadcastRepository.from_session(session)
+        return await repository.get_test_send_summary(broadcast_id)
+
     async def get_analytics(
         self,
         session: AsyncReadSession,
@@ -517,14 +537,23 @@ class EmailBroadcastService:
         opened = counts["opened"]
         clicked = counts["clicked"]
         unsubscribed = counts["unsubscribed"]
-        # Audit issue #11 / fix-list #30: previously we silently fell back
-        # from `delivered` to `total_sent` when delivered was zero, so an
-        # org whose Resend webhooks weren't wired up saw inflated open /
-        # click rates (opens divided by sends rather than confirmed
-        # deliveries). Now we use delivered when we have it, and surface
-        # null rates when we don't — the UI already renders "—" for
-        # missing values, which beats a fabricated number.
-        denom = delivered if delivered > 0 else None
+        # Denominator preference:
+        #   1. `delivered` when Resend confirmed deliveries — the most
+        #      accurate baseline for "of the emails that landed, how
+        #      many opened?".
+        #   2. `total_sent` when we have *some* engagement signal
+        #      (opens/clicks) but no delivered events — Resend doesn't
+        #      always emit `email.delivered` for every account, and
+        #      silently nulling the rate hid working tracking from users
+        #      whose webhook just doesn't fire `delivered`.
+        #   3. None when there's nothing to divide by — the UI renders
+        #      "—" for missing values.
+        if delivered > 0:
+            denom: int | None = delivered
+        elif (opened > 0 or clicked > 0) and total_sent > 0:
+            denom = total_sent
+        else:
+            denom = None
         open_rate = (opened / denom * 100) if denom else None
         click_rate = (clicked / denom * 100) if denom else None
         unsub_rate = (unsubscribed / denom * 100) if denom else None
@@ -537,7 +566,7 @@ class EmailBroadcastService:
             # `webhook_signal_present` lets the UI render a "Connect
             # Resend webhooks for accurate rates" prompt instead of
             # silent dashes when delivered is zero but sends exist.
-            "webhook_signal_present": delivered > 0,
+            "webhook_signal_present": delivered > 0 or opened > 0 or clicked > 0,
             "open_rate": open_rate,
             "click_rate": click_rate,
             "unsub_rate": unsub_rate,
