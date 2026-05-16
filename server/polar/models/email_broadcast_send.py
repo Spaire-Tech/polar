@@ -40,6 +40,11 @@ class EmailBroadcastSend(RecordModel):
             "broadcast_id",
             "status",
         ),
+        # Webhook lookup index — every Resend event arrives keyed on this.
+        Index(
+            "ix_email_broadcast_sends_resend_email_id",
+            "resend_email_id",
+        ),
     )
 
     broadcast_id: Mapped[UUID] = mapped_column(

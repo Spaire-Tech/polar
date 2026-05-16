@@ -56,8 +56,24 @@ class EmailSender(ABC):
         reply_to_name: str | None = DEFAULT_REPLY_TO_NAME,
         reply_to_email_addr: str | None = DEFAULT_REPLY_TO_EMAIL_ADDRESS,
         attachments: Iterable[Attachment] | None = None,
+        track_opens: bool = False,
+        track_clicks: bool = False,
+        tags: list[dict[str, str]] | None = None,
+        idempotency_key: str | None = None,
     ) -> str | None:
-        """Send an email. Returns the provider email ID if available."""
+        """Send an email. Returns the provider email ID if available.
+
+        track_opens / track_clicks: marketing sends should pass True to force
+        Resend's open-pixel injection and link rewriting on per-send (otherwise
+        we'd depend on dashboard-level domain config, which silently defaults
+        OFF for new accounts — see audit issue: zero open/click rates).
+
+        tags: forwarded to Resend as ``{"name": "...", "value": "..."}``
+        entries for dashboard filtering (org_id, broadcast_id, sequence_id).
+
+        idempotency_key: forwarded as ``Idempotency-Key`` header to dedupe
+        retried sends on Resend's side.
+        """
         pass
 
 
@@ -74,6 +90,10 @@ class LoggingEmailSender(EmailSender):
         reply_to_name: str | None = DEFAULT_REPLY_TO_NAME,
         reply_to_email_addr: str | None = DEFAULT_REPLY_TO_EMAIL_ADDRESS,
         attachments: Iterable[Attachment] | None = None,
+        track_opens: bool = False,
+        track_clicks: bool = False,
+        tags: list[dict[str, str]] | None = None,
+        idempotency_key: str | None = None,
     ) -> str | None:
         log.info(
             "Sending an email",
@@ -81,6 +101,8 @@ class LoggingEmailSender(EmailSender):
             subject=subject,
             from_name=from_name,
             from_email_addr=to_ascii_email(from_email_addr),
+            track_opens=track_opens,
+            track_clicks=track_clicks,
         )
         return None
 
@@ -104,6 +126,10 @@ class ResendEmailSender(EmailSender):
         reply_to_name: str | None = DEFAULT_REPLY_TO_NAME,
         reply_to_email_addr: str | None = DEFAULT_REPLY_TO_EMAIL_ADDRESS,
         attachments: Iterable[Attachment] | None = None,
+        track_opens: bool = False,
+        track_clicks: bool = False,
+        tags: list[dict[str, str]] | None = None,
+        idempotency_key: str | None = None,
     ) -> str | None:
         to_email_addr_ascii = to_ascii_email(to_email_addr)
         payload: dict[str, Any] = {
@@ -130,9 +156,26 @@ class ResendEmailSender(EmailSender):
             payload["reply_to"] = (
                 f"{reply_to_name} <{to_ascii_email(reply_to_email_addr)}>"
             )
+        # Resend defaults open/click tracking OFF unless the domain dashboard
+        # has it enabled. We force per-send so marketing tracking works even
+        # on new accounts that haven't toggled the dashboard switch.
+        if track_opens:
+            payload["track_opens"] = True
+        if track_clicks:
+            payload["track_clicks"] = True
+        if tags:
+            payload["tags"] = tags
+
+        request_headers: dict[str, str] = {}
+        if idempotency_key:
+            request_headers["Idempotency-Key"] = idempotency_key
 
         try:
-            response = await self.client.post("/emails", json=payload)
+            response = await self.client.post(
+                "/emails",
+                json=payload,
+                headers=request_headers or None,
+            )
             response.raise_for_status()
             email = response.json()
         except httpx.HTTPError as e:
@@ -150,6 +193,8 @@ class ResendEmailSender(EmailSender):
             to_email_addr=to_email_addr_ascii,
             subject=subject,
             email_id=email_id,
+            track_opens=track_opens,
+            track_clicks=track_clicks,
         )
         return email_id
 
@@ -189,6 +234,19 @@ def resolve_creator_from_address(
         return (
             requested_name or DEFAULT_FROM_NAME,
             requested_email,
+        )
+    if requested_email is not None:
+        # Loud about silent fallback: creators set a custom From, see no
+        # error in the UI, but emails ship from the platform default.
+        log.info(
+            "email.sender_fallback_to_default",
+            organization_id=str(organization.id) if organization else None,
+            requested_email=requested_email,
+            requested_name=requested_name,
+            org_verified=bool(
+                organization and organization.has_verified_sender_domain
+            ),
+            org_domain=organization.email_sender_domain if organization else None,
         )
     return (DEFAULT_FROM_NAME, DEFAULT_FROM_EMAIL_ADDRESS)
 

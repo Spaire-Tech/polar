@@ -89,6 +89,8 @@ async def send_test_step(step_id: UUID, to_email: str) -> None:
                 },
                 reply_to_name=step.sender_name if step.reply_to_email else None,
                 reply_to_email_addr=step.reply_to_email,
+                track_opens=True,
+                track_clicks=True,
             )
         except Exception:
             log.exception(
@@ -448,6 +450,16 @@ async def _send_email_step(
             requested_email=step.sender_email,
             requested_name=step.sender_name,
         )
+        sequence_tags: list[dict[str, str]] = [
+            {"name": "kind", "value": "sequence"},
+            {"name": "sequence_id", "value": str(sequence.id)},
+            {"name": "step_id", "value": str(step.id)},
+            {"name": "enrollment_id", "value": str(enrollment.id)},
+        ]
+        if organization is not None:
+            sequence_tags.append(
+                {"name": "organization_id", "value": str(organization.id)}
+            )
         resend_email_id = await email_sender.send(
             to_email_addr=subscriber.email,
             subject=step.subject,
@@ -460,6 +472,14 @@ async def _send_email_step(
             },
             reply_to_name=step.sender_name if step.reply_to_email else None,
             reply_to_email_addr=step.reply_to_email,
+            track_opens=True,
+            track_clicks=True,
+            tags=sequence_tags,
+            # Same enrollment+step send is at most once; this dedupes any
+            # worker retry on Resend's side without us having to track it.
+            idempotency_key=(
+                f"sequence:{sequence.id}:{enrollment.id}:{step.id}"
+            ),
         )
         session.add(
             EmailSequenceStepSend(
@@ -471,6 +491,11 @@ async def _send_email_step(
                 sent_at=utc_now(),
             )
         )
+        # Flush narrows the visibility gap so subsequent reads in this
+        # session see resend_email_id. The deferred-resolve queue in the
+        # webhook handler covers the remaining cross-process race when a
+        # sub-second Resend event lands before this actor commits.
+        await session.flush()
         if organization is not None:
             emit_email_sent(
                 session, organization_id=organization.id, count=1
@@ -531,6 +556,13 @@ async def _send_inline(
                 "List-Unsubscribe": f"<{unsubscribe_url}>",
                 "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
             },
+            track_opens=True,
+            track_clicks=True,
+            tags=[
+                {"name": "kind", "value": "sequence_inline"},
+                {"name": "sequence_id", "value": str(sequence.id)},
+                {"name": "enrollment_id", "value": str(enrollment.id)},
+            ],
         )
     except Exception:
         log.exception(

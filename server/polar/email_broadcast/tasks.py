@@ -62,6 +62,8 @@ async def send_broadcast_email(
     unsubscribe_url: str,
     extra_subject_prefix: str = "",
     subject_override: str | None = None,
+    send_id: UUID | None = None,
+    variant: str | None = None,
 ) -> str | None:
     """Render and send a single broadcast email. Returns the Resend email id."""
     wrapped_html = _render_broadcast_html(
@@ -73,6 +75,14 @@ async def send_broadcast_email(
         requested_email=broadcast.sender_email,
         requested_name=broadcast.sender_name,
     )
+    tags: list[dict[str, str]] = [
+        {"name": "kind", "value": "broadcast"},
+        {"name": "broadcast_id", "value": str(broadcast.id)},
+    ]
+    if organization is not None:
+        tags.append({"name": "organization_id", "value": str(organization.id)})
+    if variant is not None:
+        tags.append({"name": "variant", "value": variant})
     return await email_sender.send(
         to_email_addr=to_email,
         subject=f"{extra_subject_prefix}{base_subject}",
@@ -85,6 +95,14 @@ async def send_broadcast_email(
         },
         reply_to_name=broadcast.sender_name if broadcast.reply_to_email else None,
         reply_to_email_addr=broadcast.reply_to_email,
+        track_opens=True,
+        track_clicks=True,
+        tags=tags,
+        # Idempotency key dedupes any worker retry on the Resend side so we
+        # never bill twice or deliver twice for the same (broadcast, recipient).
+        idempotency_key=(
+            f"broadcast:{broadcast.id}:{send_id}" if send_id is not None else None
+        ),
     )
 
 
@@ -187,11 +205,21 @@ async def send_emails(
                     to_email=subscriber.email,
                     unsubscribe_url=unsubscribe_url,
                     subject_override=subject_override,
+                    send_id=send.id,
+                    variant=send.variant,
                 )
                 send.status = EmailBroadcastSendStatus.sent
                 send.sent_at = utc_now()
                 if resend_email_id:
                     send.resend_email_id = resend_email_id
+                # Flush makes the row visible within this session, and
+                # narrows the post-commit visibility gap for the webhook
+                # worker (another process) — though only the per-batch
+                # commit makes it truly readable cross-process. The
+                # deferred-resolve queue in the webhook handler closes
+                # the remaining race when a sub-second Resend event
+                # lands before the batch commits.
+                await session.flush()
                 emit_email_sent(
                     session, organization_id=organization.id, count=1
                 )
@@ -236,6 +264,8 @@ async def send_test_broadcast(broadcast_id: UUID, to_email: str) -> None:
         organization = await session.get(Organization, broadcast.organization_id)
 
         try:
+            # Tracking flags are turned on inside send_broadcast_email so
+            # test sends exercise the same Resend behaviour real sends do.
             await send_broadcast_email(
                 broadcast,
                 organization,
