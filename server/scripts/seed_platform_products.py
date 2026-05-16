@@ -417,6 +417,12 @@ async def _upsert_product(
             name=spec.name,
             description=spec.description,
             recurring_interval=spec.recurring_interval,
+            # Polar's checkout asserts product.recurring_interval_count
+            # is not None when creating a subscription. We always bill
+            # every interval (every month or every year), so 1 is the
+            # right value for every tier; setting it explicitly avoids
+            # a bare AssertionError deep inside the checkout flow.
+            recurring_interval_count=1,
             trial_interval=target_trial_interval,
             trial_interval_count=target_trial_count,
             user_metadata=target_metadata,
@@ -438,6 +444,12 @@ async def _upsert_product(
     if existing.recurring_interval != spec.recurring_interval:
         if not dry_run:
             existing.recurring_interval = spec.recurring_interval
+        changed = True
+    if existing.recurring_interval_count != 1:
+        # Backfill the field on previously-seeded rows so the next
+        # checkout doesn't trip Polar's assertion.
+        if not dry_run:
+            existing.recurring_interval_count = 1
         changed = True
     if existing.trial_interval != target_trial_interval:
         if not dry_run:
