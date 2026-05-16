@@ -478,14 +478,6 @@ class EmailBroadcastService:
         broadcast.scheduled_at = scheduled_at
         return await repository.update(broadcast)
 
-    async def get_test_send_summary(
-        self,
-        session: AsyncReadSession,
-        broadcast_id: UUID,
-    ) -> dict[str, int | str | None]:
-        repository = EmailBroadcastRepository.from_session(session)
-        return await repository.get_test_send_summary(broadcast_id)
-
     async def get_analytics(
         self,
         session: AsyncReadSession,
