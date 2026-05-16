@@ -1,7 +1,6 @@
 'use client'
 
 import LogoIcon from '@/components/Brand/LogoIcon'
-import { TrialBanner } from '@/components/Entitlements/TrialBanner'
 import { useAuth } from '@/hooks/auth'
 import { OrganizationContext } from '@/providers/maintainerOrganization'
 import { setLastVisitedOrg } from '@/utils/cookies'
@@ -67,7 +66,6 @@ const DashboardLayout = (
         >
           {/* On large devices, scroll here. On small devices the _document_ is the only element that should scroll. */}
           <main className="relative flex min-h-0 min-w-0 grow flex-col">
-            <TrialBanner />
             {props.children}
           </main>
         </div>
