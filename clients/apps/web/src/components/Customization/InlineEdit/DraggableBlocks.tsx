@@ -4,9 +4,14 @@ import { ProductCard } from '@/components/Products/ProductCard'
 import { CATEGORY_LABELS } from '@/components/Profile/categoryLabels'
 import { SectionLabel } from '@/components/Profile/SectionLabel'
 import {
+  EmbedCard,
   type LinksLayout,
   StorefrontLinkItem,
 } from '@/components/Profile/StorefrontLinks'
+import {
+  buildEmbedUrl,
+  isEmbeddablePlatform,
+} from '@/components/Profile/linkPlatforms'
 import { toast } from '@/components/Toast/use-toast'
 import {
   closestCorners,
@@ -476,6 +481,20 @@ const LinkRow = ({
   layout: LinksLayout
   embedded?: boolean
 }) => {
+  // Embedded links use the SAME EmbedCard the public Space renders, so
+  // the editor preview matches what visitors will see (real YouTube /
+  // Spotify / TikTok / Instagram player, not a static thumbnail). The
+  // .item-actions cluster in the parent .item-hover sits at z-index 6
+  // and pointer-events:auto on hover, so the Drag / Remove buttons
+  // stay clickable over the iframe.
+  if (
+    embedded &&
+    isEmbeddablePlatform(link.platform) &&
+    buildEmbedUrl(link.url, link.platform ?? '')
+  ) {
+    return <EmbedCard link={link} />
+  }
+
   const effectiveLayout = embedded ? 'card' : layout
   const title = link.title || getDomain(link.url)
   const host = getDomain(link.url)

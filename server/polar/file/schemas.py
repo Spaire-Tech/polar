@@ -90,7 +90,7 @@ class StorefrontLinkFileCreate(FileCreateBase):
         description=(
             "MIME type of the file. Only images are supported for this type of file."
         ),
-        pattern=r"^image\/(jpeg|png|gif|webp|svg\+xml)$",
+        pattern=r"^image\/(jpeg|png|gif|webp|svg\+xml|heic|heif|avif|bmp|tiff)$",
     )
     size: int = Field(
         description=(

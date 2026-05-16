@@ -3,7 +3,11 @@
 import LinkOutlined from '@mui/icons-material/LinkOutlined'
 import OpenInNewOutlined from '@mui/icons-material/OpenInNewOutlined'
 import { SectionLabel } from './SectionLabel'
-import { getDomain } from './linkPlatforms'
+import {
+  buildEmbedUrl,
+  getDomain,
+  getPlatformConfig,
+} from './linkPlatforms'
 
 export type StorefrontLinkItem = {
   id: string
@@ -17,92 +21,58 @@ export type StorefrontLinkItem = {
 
 export type LinksLayout = 'classic' | 'carousel' | 'image_grid' | 'card'
 
-function buildEmbedUrl(url: string, platform: string): string | null {
-  switch (platform) {
-    case 'youtube': {
-      const videoId = url.match(
-        /(?:v=|youtu\.be\/|\/shorts\/)([a-zA-Z0-9_-]{11})/,
-      )?.[1]
-      if (!videoId) return null
-      const p = new URLSearchParams({ rel: '0', modestbranding: '1' })
-      return `https://www.youtube.com/embed/${videoId}?${p}`
-    }
-    case 'spotify': {
-      const m = url.match(
-        /open\.spotify\.com\/(track|album|playlist|artist|episode|show)\/([a-zA-Z0-9]+)/,
-      )
-      if (!m) return null
-      const p = new URLSearchParams({ utm_source: 'generator' })
-      return `https://open.spotify.com/embed/${m[1]}/${m[2]}?${p}`
-    }
-    case 'soundcloud': {
-      const p = new URLSearchParams({
-        url,
-        color: '#ff5500',
-        auto_play: 'false',
-        hide_related: 'true',
-        show_comments: 'false',
-        show_user: 'true',
-        show_reposts: 'false',
-        show_teaser: 'false',
-      })
-      return `https://w.soundcloud.com/player/?${p}`
-    }
-    default:
-      return null
-  }
-}
-
 // ─── Embed iframe ───────────────────────────────────────────────────────────
+// Reads aspect ratio / fixed height from the platform config so adding a
+// new embeddable platform is a one-file change in linkPlatforms.ts.
 
-const EmbedFrame = ({ link }: { link: StorefrontLinkItem }) => {
+export const EmbedFrame = ({ link }: { link: StorefrontLinkItem }) => {
   const platform = link.platform ?? ''
   const src = buildEmbedUrl(link.url, platform)
   if (!src) return null
+  const cfg = getPlatformConfig(platform)
 
-  // Embeds render at full container width. YouTube keeps a 16:9 aspect ratio,
-  // Spotify/SoundCloud have native fixed heights.
-  if (platform === 'youtube') {
+  const commonProps = {
+    src,
+    frameBorder: '0',
+    allow:
+      'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen',
+    allowFullScreen: true,
+    loading: 'lazy' as const,
+    title: link.title ?? platform,
+  }
+
+  if (cfg?.embedAspect) {
+    // Responsive aspect-ratio iframe. paddingTop in % keeps the ratio
+    // intact across container widths.
+    const padding = (1 / cfg.embedAspect) * 100
     return (
-      <div className="relative w-full overflow-hidden pt-[56.25%]">
+      <div
+        className="relative w-full overflow-hidden"
+        style={{ paddingTop: `${padding}%` }}
+      >
         <iframe
-          src={src}
-          frameBorder="0"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-          allowFullScreen
-          loading="lazy"
+          {...commonProps}
+          scrolling={platform === 'soundcloud' ? 'no' : undefined}
           className="absolute inset-0 block h-full w-full"
-          title={link.title ?? platform}
         />
       </div>
     )
   }
 
-  const heights: Record<string, number> = {
-    spotify: 80,
-    soundcloud: 116,
-  }
-  const h = heights[platform] ?? 180
-
   return (
     <iframe
-      src={src}
+      {...commonProps}
       width="100%"
-      height={h}
-      frameBorder="0"
-      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-      allowFullScreen
+      height={cfg?.embedHeight ?? 180}
       scrolling={platform === 'soundcloud' ? 'no' : undefined}
-      loading="lazy"
       className="block w-full"
-      title={link.title ?? platform}
     />
   )
 }
 
 // ─── Shared thumbnail ───────────────────────────────────────────────────────
 
-const Thumb = ({
+export const Thumb = ({
   link,
   className,
 }: {
@@ -266,7 +236,7 @@ const URL_LAYOUTS: Record<
 // Embeds always take the full container width so they make full use of the
 // right-side space column.
 
-const EmbedCard = ({ link }: { link: StorefrontLinkItem }) => {
+export const EmbedCard = ({ link }: { link: StorefrontLinkItem }) => {
   const canEmbed =
     link.type === 'embedded' &&
     link.platform &&

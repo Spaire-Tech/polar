@@ -2,6 +2,7 @@
 
 import { CustomizationProvider } from '@/components/Customization/CustomizationProvider'
 import { ForceLightMode } from '@/components/Profile/ForceLightMode'
+import { detectPlatform } from '@/components/Profile/linkPlatforms'
 import { ProfileCard } from '@/components/Profile/ProfileCard'
 import { Storefront } from '@/components/Profile/Storefront'
 import { StorefrontLinkItem } from '@/components/Profile/StorefrontLinks'
@@ -108,14 +109,20 @@ const Customization = ({
 
   const pickerCallbacks: AddToSpacePickerCallbacks = {
     onAddLink: (payload) => {
+      // If the URL tab receives a known embeddable URL (YouTube,
+      // TikTok, Instagram, etc.), auto-upgrade it to an embed so the
+      // creator doesn't have to know which tab to use — pasting just
+      // works.
+      const detected = detectPlatform(payload.url)
+      const upgrade = detected?.canEmbed === true
       appendStorefrontLink({
         id: crypto.randomUUID(),
         url: payload.url,
         title: payload.title,
         description: payload.description,
         image_url: payload.image_url,
-        type: 'standard',
-        platform: null,
+        type: upgrade ? 'embedded' : 'standard',
+        platform: detected?.id ?? null,
       })
     },
     onAddEmbed: ({ url, platform, title, description, image_url }) => {
