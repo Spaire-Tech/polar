@@ -145,6 +145,12 @@ async def export_broadcast_analytics(
         session, organization_id, days=max(days, 30)
     )
 
+    def _cell(v: object) -> object:
+        # csv.writer renders None as the literal string "None" which is
+        # confusing in spreadsheets; render empty cells instead so users
+        # can see "data unavailable" vs "0".
+        return "" if v is None else v
+
     buf = io.StringIO()
     writer = csv.writer(buf)
     writer.writerow([f"# Email analytics export — last {days} days"])
@@ -160,11 +166,15 @@ async def export_broadcast_analytics(
         ("Unsub rate %", current.get("unsub_rate"), prior.get("unsub_rate"), delta.get("unsub_rate_pt")),
     ]
     for label, cur, pri, d in rows:
-        writer.writerow([label, cur, pri, d])
+        writer.writerow([label, _cell(cur), _cell(pri), _cell(d)])
     writer.writerow([])
     writer.writerow(["Day", "Open rate %", "Click rate %"])
     for r in daily:
-        writer.writerow([r.get("day"), r.get("open_rate"), r.get("click_rate")])
+        writer.writerow([
+            r.get("day"),
+            _cell(r.get("open_rate")),
+            _cell(r.get("click_rate")),
+        ])
     writer.writerow([])
     writer.writerow(["Top links — URL", "Clicks", "CTR %"])
     for r in top_links:

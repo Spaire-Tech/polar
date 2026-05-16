@@ -323,6 +323,11 @@ class EmailBroadcastRepository(
                     if bid is not None:
                         broadcast_ids.add(bid)
             if broadcast_ids:
+                # Same `created_at >= cutoff` window as the click query.
+                # Without it, deliveries from older broadcasts that
+                # happened to contain the link inflate the denominator
+                # and the CTR drops artificially for popular evergreen
+                # links (audit issue #142).
                 delivery_q = (
                     select(
                         EmailBroadcastSend.broadcast_id,
@@ -331,6 +336,7 @@ class EmailBroadcastRepository(
                     .where(
                         EmailBroadcastSend.broadcast_id.in_(broadcast_ids),
                         EmailBroadcastSend.deleted_at.is_(None),
+                        EmailBroadcastSend.created_at >= cutoff,
                         EmailBroadcastSend.status.in_(
                             [
                                 EmailBroadcastSendStatus.delivered,
@@ -404,10 +410,25 @@ class EmailBroadcastRepository(
 
         cutoff = utc_now() - timedelta(days=days)
         day_col = cast(EmailBroadcastSend.created_at, Date).label("day")
+        # Denominator is "delivered" — sends that actually reached the
+        # inbox. The label here used to be "delivered" but counted every
+        # send in the .where() set (including raw `sent` rows for which
+        # Resend hadn't yet confirmed delivery). That made the rate look
+        # artificially low while delivery webhooks were still in flight
+        # (audit issue #140). Restrict the count to delivered/opened/
+        # clicked statuses; rows still in `sent` show up in tomorrow's
+        # numbers once Resend confirms.
+        delivered_statuses = [
+            EmailBroadcastSendStatus.delivered,
+            EmailBroadcastSendStatus.opened,
+            EmailBroadcastSendStatus.clicked,
+        ]
         statement = (
             select(
                 day_col,
-                func.count(EmailBroadcastSend.id).label("delivered"),
+                func.count(EmailBroadcastSend.id)
+                .filter(EmailBroadcastSend.status.in_(delivered_statuses))
+                .label("delivered"),
                 func.count(EmailBroadcastSend.id)
                 .filter(EmailBroadcastSend.opened_at.is_not(None))
                 .label("opened"),
@@ -477,11 +498,25 @@ class EmailBroadcastRepository(
         dow = func.extract("dow", EmailBroadcastSend.created_at).label("dow")
         hour = func.extract("hour", EmailBroadcastSend.created_at).label("hour")
         opened_filter = EmailBroadcastSend.opened_at.is_not(None)
+        # "sends" was previously a raw count that included pending /
+        # failed / bounced rows. Those skew the "best time to send"
+        # rate down (failures concentrate at the start of large send
+        # batches). Restrict to the same delivered-or-later statuses
+        # the daily query uses (audit issue #141).
+        delivered_or_later = EmailBroadcastSend.status.in_(
+            [
+                EmailBroadcastSendStatus.delivered,
+                EmailBroadcastSendStatus.opened,
+                EmailBroadcastSendStatus.clicked,
+            ]
+        )
         statement = (
             select(
                 dow,
                 hour,
-                func.count(EmailBroadcastSend.id).label("sends"),
+                func.count(EmailBroadcastSend.id)
+                .filter(delivered_or_later)
+                .label("sends"),
                 func.count(EmailBroadcastSend.id).filter(opened_filter).label("opens"),
             )
             .join(EmailBroadcast, EmailBroadcastSend.broadcast_id == EmailBroadcast.id)
