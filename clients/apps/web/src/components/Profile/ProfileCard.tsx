@@ -108,7 +108,7 @@ export const ProfileCard = ({
   // all active products show up. featured_product_ids is also the
   // ranking hint, so the strip honors the order the creator set when
   // dragging. Only products with images are shown.
-  const featuredMode: 'all' | 'curated' = settings?.featured_mode ?? 'all'
+  const featuredMode: 'all' | 'curated' = settings?.featured_mode ?? 'curated'
   const featuredIds = settings?.featured_product_ids ?? []
   const highlights = (() => {
     if (!showCardProducts) return []
@@ -291,37 +291,56 @@ export const ProfileCard = ({
           </div>
         )}
 
-        {/* Highlights — slow auto-scrolling carousel of products that
-            live on the Space. Loops by duplicating the track. */}
-        {highlights.length > 0 && (
-          <div
-            className="profile-card-marquee mt-5"
-            aria-label="Featured products"
-          >
+        {/* Highlights — auto-scrolling carousel of products that live on
+            the Space. The marquee duplicates the track to loop seamlessly,
+            but with fewer than MARQUEE_MIN items the duplicate is visible
+            side-by-side (e.g. one course rendered twice), so we render a
+            static row in that case. */}
+        {highlights.length > 0 && (() => {
+          const MARQUEE_MIN = 4
+          const shouldMarquee = highlights.length >= MARQUEE_MIN
+          if (!shouldMarquee) {
+            return (
+              <div className="mt-5 flex flex-row gap-2 overflow-x-auto pb-1">
+                {highlights.map((product) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={product.id}
+                    src={product.medias[0].public_url}
+                    alt={product.name}
+                    className="h-16 w-16 shrink-0 rounded-lg object-cover"
+                  />
+                ))}
+              </div>
+            )
+          }
+          return (
             <div
-              className="profile-card-marquee-track"
-              style={
-                {
-                  // ~3.5s per item, floored at 8s so a single-product
-                  // strip still has perceptible motion. The track is
-                  // duplicated in markup so the loop is seamless.
-                  '--marquee-duration': `${Math.max(8, highlights.length * 3.5)}s`,
-                } as React.CSSProperties
-              }
+              className="profile-card-marquee mt-5"
+              aria-label="Featured products"
             >
-              {[...highlights, ...highlights].map((product, idx) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  key={`${product.id}-${idx}`}
-                  src={product.medias[0].public_url}
-                  alt={product.name}
-                  aria-hidden={idx >= highlights.length}
-                  className="h-16 w-16 shrink-0 rounded-lg object-cover"
-                />
-              ))}
+              <div
+                className="profile-card-marquee-track"
+                style={
+                  {
+                    '--marquee-duration': `${Math.max(8, highlights.length * 3.5)}s`,
+                  } as React.CSSProperties
+                }
+              >
+                {[...highlights, ...highlights].map((product, idx) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={`${product.id}-${idx < highlights.length ? 'a' : 'b'}`}
+                    src={product.medias[0].public_url}
+                    alt={product.name}
+                    aria-hidden={idx >= highlights.length}
+                    className="h-16 w-16 shrink-0 rounded-lg object-cover"
+                  />
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )
+        })()}
 
         {/* Email Subscribe */}
         {subscribed ? (

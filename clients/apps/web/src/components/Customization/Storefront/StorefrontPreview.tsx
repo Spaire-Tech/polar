@@ -25,7 +25,7 @@ export const StorefrontLivePreview = ({
 
   // Honor featured_mode: 'all' shows every product, 'curated' shows only
   // the IDs the user has explicitly selected.
-  const featuredMode = organization.storefront_settings?.featured_mode ?? 'all'
+  const featuredMode = organization.storefront_settings?.featured_mode ?? 'curated'
   const featuredIds =
     organization.storefront_settings?.featured_product_ids ?? []
   const products =

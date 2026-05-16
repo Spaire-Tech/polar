@@ -126,7 +126,7 @@ export const ArrangePanel = ({
     organization.storefront_settings ??
     {}) as Settings
 
-  const featuredMode = settings.featured_mode ?? 'all'
+  const featuredMode = settings.featured_mode ?? 'curated'
   const featuredIds = settings.featured_product_ids ?? []
   const categoryOrder =
     (settings as { category_order?: string[] }).category_order ?? []

@@ -76,7 +76,7 @@ export default async function Page(props: {
   // is also sorted by featured_product_ids when set, so the "more"
   // strip matches the order on the Space landing page.
   const settings = organization.storefront_settings
-  const featuredMode = settings?.featured_mode ?? 'all'
+  const featuredMode = settings?.featured_mode ?? 'curated'
   const featuredIds = settings?.featured_product_ids ?? []
   const scoped =
     featuredMode === 'curated'

@@ -39,8 +39,8 @@ export const Storefront = ({
 
   const featuredMode: 'all' | 'curated' =
     'storefront_settings' in organization
-      ? (organization.storefront_settings?.featured_mode ?? 'all')
-      : 'all'
+      ? (organization.storefront_settings?.featured_mode ?? 'curated')
+      : 'curated'
 
   const featuredIds =
     'storefront_settings' in organization

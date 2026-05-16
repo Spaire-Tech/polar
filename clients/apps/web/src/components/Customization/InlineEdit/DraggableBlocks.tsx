@@ -203,7 +203,7 @@ const ProductsBlock = ({
   onUnfeature: (productId: string) => void
 }) => {
   const settings = organization.storefront_settings
-  const featuredMode = settings?.featured_mode ?? 'all'
+  const featuredMode = settings?.featured_mode ?? 'curated'
   const featuredIds = settings?.featured_product_ids ?? []
   const showDetails = settings?.show_product_details ?? true
   const thumbnailSize = settings?.thumbnail_size ?? 'medium'
@@ -640,7 +640,7 @@ export const DraggableBlocks = ({
   }
 
   const onUnfeatureProduct = (productId: string) => {
-    const featuredMode = settings?.featured_mode ?? 'all'
+    const featuredMode = settings?.featured_mode ?? 'curated'
     const featuredIds = settings?.featured_product_ids ?? []
 
     if (featuredMode === 'curated') {
@@ -723,7 +723,7 @@ export const DraggableBlocks = ({
       // mustn't expand it with hidden products — that would silently
       // un-curate everything. In 'all' mode the visible set is every
       // product, so this collapses to the same arrayMove.
-      const featuredMode = settings?.featured_mode ?? 'all'
+      const featuredMode = settings?.featured_mode ?? 'curated'
       const visibleIds =
         featuredMode === 'curated'
           ? productOrder.filter((id) => products.some((p) => p.id === id))
@@ -824,7 +824,7 @@ export const DraggableBlocks = ({
 
   // If the whole canvas is empty, collapse the per-block heroes into a
   // single one — two stacked heroes would just be noise.
-  const featuredMode = settings?.featured_mode ?? 'all'
+  const featuredMode = settings?.featured_mode ?? 'curated'
   const featuredIds = settings?.featured_product_ids ?? []
   const visibleProductCount =
     featuredMode === 'curated'
