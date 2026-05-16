@@ -13,6 +13,7 @@ import {
   useUpdateSequenceStep,
   useUploadSequenceImage,
 } from '@/hooks/queries/emailMarketing'
+import { FeatureGate } from '@/components/Entitlements/FeatureGate'
 import { useCourseById } from '@/hooks/queries/courses'
 import { useProducts } from '@/hooks/queries/products'
 import { schemas } from '@spaire/client'
@@ -2429,7 +2430,11 @@ export const NewSequenceRoute = ({
   }
 
   return (
-    <>
+    <FeatureGate
+      feature="email_sequences_and_segments"
+      organizationId={organization.id}
+      organizationSlug={organization.slug}
+    >
       {embed ? (
         <style>{`
           [data-dashboard-sidebar],
@@ -2457,7 +2462,7 @@ export const NewSequenceRoute = ({
           }
         }}
       />
-    </>
+    </FeatureGate>
   )
 }
 

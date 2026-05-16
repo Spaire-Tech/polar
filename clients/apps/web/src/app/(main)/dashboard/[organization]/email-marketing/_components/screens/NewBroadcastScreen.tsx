@@ -1,6 +1,8 @@
 'use client'
 
+import { useEntitlements } from '@/hooks/queries/entitlements'
 import { useAuth } from '@/hooks/auth'
+import Link from 'next/link'
 import {
   BroadcastWritePayload,
   FilterRule,
@@ -537,6 +539,7 @@ const ComposerInner = ({
               setDraft={updateDraft}
               abDraft={abDraft}
               setAbDraft={setAbDraft}
+              organization={organization}
             />
           )}
           {step === 'content' && (
@@ -621,17 +624,39 @@ const ComposerInner = ({
   )
 }
 
+const StudioOnlyPill = () => (
+  <span
+    style={{
+      fontSize: 10,
+      fontWeight: 600,
+      letterSpacing: 0.4,
+      color: '#3b82f6',
+      background: '#eff6ff',
+      padding: '2px 8px',
+      borderRadius: 9999,
+    }}
+  >
+    STUDIO
+  </span>
+)
+
 const DetailsSection = ({
   draft,
   setDraft,
   abDraft,
   setAbDraft,
+  organization,
 }: {
   draft: Draft
   setDraft: (p: Partial<Draft>) => void
   abDraft: ABDraft | null
   setAbDraft: (next: ABDraft | null) => void
-}) => (
+  organization: schemas['Organization']
+}) => {
+  const { hasFeature } = useEntitlements(organization.id)
+  const abTestingUnlocked = hasFeature('email_ab_testing')
+
+  return (
   <Section
     title="The basics"
     sub="Subject and preview text are the first — sometimes only — thing your readers see."
@@ -709,25 +734,56 @@ const DetailsSection = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          marginBottom: abDraft ? 24 : 0,
+          marginBottom: abDraft && abTestingUnlocked ? 24 : 0,
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <Icon name="flask" size={18} style={{ color: 'var(--ink-2)' }} />
           <div>
-            <div style={{ fontSize: 14, fontWeight: 500 }}>Run an A/B test</div>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                fontSize: 14,
+                fontWeight: 500,
+              }}
+            >
+              Run an A/B test
+              {!abTestingUnlocked && <StudioOnlyPill />}
+            </div>
             <div style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>
-              Test subject lines on a slice of your audience first; we&apos;ll
-              send the winner to the rest.
+              {abTestingUnlocked
+                ? "Test subject lines on a slice of your audience first; we'll send the winner to the rest."
+                : 'A/B testing is part of Studio and Scale. Upgrade to test subject lines on a slice of your audience.'}
             </div>
           </div>
         </div>
-        <Toggle
-          on={abDraft !== null}
-          onChange={(next) => setAbDraft(next ? (abDraft ?? blankAb()) : null)}
-        />
+        {abTestingUnlocked ? (
+          <Toggle
+            on={abDraft !== null}
+            onChange={(next) =>
+              setAbDraft(next ? (abDraft ?? blankAb()) : null)
+            }
+          />
+        ) : (
+          <Link
+            href={`/dashboard/${organization.slug}/settings/plan`}
+            style={{
+              fontSize: 12,
+              fontWeight: 500,
+              color: 'white',
+              background: '#000',
+              padding: '6px 12px',
+              borderRadius: 9999,
+              textDecoration: 'none',
+            }}
+          >
+            Upgrade to Studio
+          </Link>
+        )}
       </div>
-      {abDraft && (
+      {abDraft && abTestingUnlocked && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
             <span
@@ -886,7 +942,8 @@ const DetailsSection = ({
       )}
     </div>
   </Section>
-)
+  )
+}
 
 const ContentSection = ({
   draft,
