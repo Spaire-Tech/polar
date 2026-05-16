@@ -227,35 +227,39 @@ async def _engagement_score(
     doesn't accidentally exclude someone.
     """
     cutoff = utc_now() - timedelta(days=window_days)
-    statement = (
-        select(
-            EmailSequenceStepSend.status,
-            func.count(EmailSequenceStepSend.id),
+    # Opens/clicks come from the timestamp columns rather than status —
+    # status can drift when webhooks arrive out of order or when a late
+    # bounce overwrites engagement, which would understate the score.
+    statement = select(
+        func.count(EmailSequenceStepSend.id)
+        .filter(
+            EmailSequenceStepSend.status.in_(
+                (
+                    EmailSequenceStepSendStatus.sent,
+                    EmailSequenceStepSendStatus.delivered,
+                    EmailSequenceStepSendStatus.opened,
+                    EmailSequenceStepSendStatus.clicked,
+                )
+            )
         )
-        .where(
-            EmailSequenceStepSend.subscriber_id == subscriber_id,
-            EmailSequenceStepSend.deleted_at.is_(None),
-            EmailSequenceStepSend.created_at >= cutoff,
-        )
-        .group_by(EmailSequenceStepSend.status)
+        .label("sent_total"),
+        func.count(EmailSequenceStepSend.id)
+        .filter(EmailSequenceStepSend.opened_at.is_not(None))
+        .label("opens"),
+        func.count(EmailSequenceStepSend.id)
+        .filter(EmailSequenceStepSend.clicked_at.is_not(None))
+        .label("clicks"),
+    ).where(
+        EmailSequenceStepSend.subscriber_id == subscriber_id,
+        EmailSequenceStepSend.deleted_at.is_(None),
+        EmailSequenceStepSend.created_at >= cutoff,
     )
-    result = await session.execute(statement)
-    counts = {row[0]: row[1] for row in result.all()}
-    sent_total = sum(
-        counts.get(s, 0)
-        for s in (
-            EmailSequenceStepSendStatus.sent,
-            EmailSequenceStepSendStatus.delivered,
-            EmailSequenceStepSendStatus.opened,
-            EmailSequenceStepSendStatus.clicked,
-        )
-    )
+    row = (await session.execute(statement)).one()
+    sent_total = int(row[0] or 0)
+    opens = int(row[1] or 0)
+    clicks = int(row[2] or 0)
     if sent_total == 0:
         return 50.0
-    opens = counts.get(EmailSequenceStepSendStatus.opened, 0) + counts.get(
-        EmailSequenceStepSendStatus.clicked, 0
-    )
-    clicks = counts.get(EmailSequenceStepSendStatus.clicked, 0)
     raw = (opens / sent_total) * 70.0 + (clicks / sent_total) * 30.0
     return max(0.0, min(100.0, raw))
 

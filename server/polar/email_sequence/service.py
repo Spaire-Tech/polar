@@ -642,14 +642,18 @@ class EmailSequenceService:
         repository = EmailSequenceRepository.from_session(session)
         send_counts = await repository.get_analytics_counts(sequence_id)
         enrollment_counts = await repository.get_enrollment_counts(sequence_id)
+        # Read opens/clicks from `opened_at` / `clicked_at` (source of
+        # truth) rather than from the status enum, which can lag or be
+        # overwritten by late webhooks.
+        engagement = await repository.get_engagement_counts(sequence_id)
 
         delivered = (
             send_counts.get("delivered", 0)
             + send_counts.get("opened", 0)
             + send_counts.get("clicked", 0)
         )
-        opened = send_counts.get("opened", 0) + send_counts.get("clicked", 0)
-        clicked = send_counts.get("clicked", 0)
+        opened = engagement["opened"]
+        clicked = engagement["clicked"]
         total_sent = sum(v for k, v in send_counts.items() if k not in ("pending", "failed"))
         total_enrolled = sum(enrollment_counts.values())
 
@@ -673,24 +677,27 @@ class EmailSequenceService:
     ) -> list[dict]:
         """Per-step open / click rates derived from EmailSequenceStepSend rows.
 
-        Open and click events bubble up the status enum (sent → delivered →
-        opened → clicked) so 'opened' counts include 'clicked', and the
-        delivered bucket counts everything that landed.
+        Delivered counts come from the status enum, but opens/clicks are
+        read from `opened_at` / `clicked_at` so out-of-order webhooks
+        (e.g. a late bounce after an open, or `email.opened` arriving
+        before `email.delivered`) don't silently drop engagement.
         """
         repository = EmailSequenceRepository.from_session(session)
         steps = await repository.list_steps(sequence_id)
         per_step = await repository.get_step_analytics_counts(sequence_id)
+        per_step_engagement = await repository.get_step_engagement_counts(sequence_id)
 
         rows: list[dict] = []
         for step in steps:
             counts = per_step.get(step.id, {})
+            engagement = per_step_engagement.get(step.id, {"opened": 0, "clicked": 0})
             delivered = (
                 counts.get("delivered", 0)
                 + counts.get("opened", 0)
                 + counts.get("clicked", 0)
             )
-            opened = counts.get("opened", 0) + counts.get("clicked", 0)
-            clicked = counts.get("clicked", 0)
+            opened = engagement["opened"]
+            clicked = engagement["clicked"]
             sent = sum(
                 v for k, v in counts.items() if k not in ("pending", "failed")
             )
