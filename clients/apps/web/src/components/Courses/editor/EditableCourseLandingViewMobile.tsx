@@ -82,15 +82,16 @@ export function MobileHero({
     <section
       style={{
         position: 'relative',
-        // Full-width (no horizontal margin) but with Apple-TV-style
-        // bottom corners — flush against the viewport on the sides
-        // and top, curving into the content below.
+        // Apple-TV-style card: small breathing room on all four sides
+        // so the 28px corners are visible top + bottom, not just
+        // bottom. Still phone-native — the hero hugs the viewport
+        // with the smallest gutter that lets the corner radius read.
+        margin: '12px 12px 0',
         height: 600,
         overflow: 'hidden',
         background: '#000',
         isolation: 'isolate',
-        borderBottomLeftRadius: 28,
-        borderBottomRightRadius: 28,
+        borderRadius: 28,
       }}
     >
       <EditMedia
