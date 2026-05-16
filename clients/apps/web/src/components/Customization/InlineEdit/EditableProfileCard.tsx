@@ -46,6 +46,7 @@ import { createPortal } from 'react-dom'
 import { type FileRejection } from 'react-dropzone'
 import { useFormContext } from 'react-hook-form'
 import { useUpdateOrganization } from '@/hooks/queries'
+import { AvatarCropModal } from './AvatarCropModal'
 import { Editable } from './Editable'
 import { EditPopover } from './EditPopover'
 
@@ -341,6 +342,11 @@ export const EditableProfileCard = ({
       'image/gif': [],
       'image/webp': [],
       'image/svg+xml': [],
+      'image/heic': ['.heic'],
+      'image/heif': ['.heif'],
+      'image/avif': [],
+      'image/bmp': [],
+      'image/tiff': [],
     },
     maxSize: 10 * 1024 * 1024,
     onFilesUpdated: onBannerFilesUpdated,
@@ -381,24 +387,46 @@ export const EditableProfileCard = ({
     [setValue, resetField, updateOrganization, org.id],
   )
 
-  const {
-    getInputProps: getAvatarInputProps,
-    open: openAvatarPicker,
-  } = useFileUpload({
+  // Avatar pipeline: pick → crop → upload. We bypass the dropzone's
+  // built-in onDrop and call `uploadFile` ourselves with the cropped
+  // JPEG so what hits S3 is always a square 512×512 image regardless
+  // of input format (HEIC, AVIF, etc. just have to decode locally).
+  const { uploadFile: uploadAvatarFile } = useFileUpload({
     organization: org,
     service: 'organization_avatar',
-    accept: {
-      'image/jpeg': [],
-      'image/png': [],
-      'image/gif': [],
-      'image/webp': [],
-      'image/svg+xml': [],
-    },
-    maxSize: 1 * 1024 * 1024,
+    accept: undefined,
+    maxSize: 5 * 1024 * 1024,
     onFilesUpdated: onAvatarFilesUpdated,
     onFilesRejected,
     initialFiles: [],
   })
+
+  const avatarInputRef = useRef<HTMLInputElement | null>(null)
+  const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null)
+
+  const openAvatarPicker = () => avatarInputRef.current?.click()
+
+  const onAvatarInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    // Reset the input value so picking the same file twice in a row
+    // still fires onChange.
+    e.target.value = ''
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: 'Unsupported file',
+        description: 'Please choose an image.',
+      })
+      return
+    }
+    setPendingAvatarFile(file)
+  }
+
+  const onAvatarCropSave = (blob: Blob) => {
+    const cropped = new File([blob], 'avatar.jpg', { type: 'image/jpeg' })
+    uploadAvatarFile(cropped)
+    setPendingAvatarFile(null)
+  }
 
   // ── Cover drag-to-reposition ───────────────────────────────────
   const coverPos = parseFocalPosition(headerFocal)
@@ -533,7 +561,13 @@ export const EditableProfileCard = ({
         {showLogo && (
           <div className={showHeader ? '-mt-10' : 'mt-6'}>
             <div className="hover-zone editable-image relative inline-block">
-              <input {...getAvatarInputProps()} />
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/*,.heic,.heif"
+                onChange={onAvatarInputChange}
+                className="hidden"
+              />
               {avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -1026,6 +1060,14 @@ export const EditableProfileCard = ({
           </button>
         </div>
       </EditPopover>
+
+      {pendingAvatarFile && (
+        <AvatarCropModal
+          file={pendingAvatarFile}
+          onCancel={() => setPendingAvatarFile(null)}
+          onSave={onAvatarCropSave}
+        />
+      )}
     </div>
   )
 }

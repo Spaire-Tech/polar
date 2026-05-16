@@ -54,13 +54,13 @@ class OrganizationAvatarFileCreate(FileCreateBase):
         description=(
             "MIME type of the file. Only images are supported for this type of file."
         ),
-        pattern=r"^image\/(jpeg|png|gif|webp|svg\+xml)$",
+        pattern=r"^image\/(jpeg|png|gif|webp|svg\+xml|heic|heif|avif|bmp|tiff)$",
     )
     size: int = Field(
         description=(
-            "Size of the file. A maximum of 1 MB is allowed for this type of file."
+            "Size of the file. A maximum of 5 MB is allowed for this type of file."
         ),
-        le=1 * 1024 * 1024,
+        le=5 * 1024 * 1024,
     )
 
 
@@ -72,7 +72,7 @@ class StorefrontHeaderFileCreate(FileCreateBase):
         description=(
             "MIME type of the file. Only images are supported for this type of file."
         ),
-        pattern=r"^image\/(jpeg|png|gif|webp|svg\+xml)$",
+        pattern=r"^image\/(jpeg|png|gif|webp|svg\+xml|heic|heif|avif|bmp|tiff)$",
     )
     size: int = Field(
         description=(
