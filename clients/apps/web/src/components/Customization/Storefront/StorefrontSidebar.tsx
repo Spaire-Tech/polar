@@ -240,7 +240,7 @@ export const StorefrontEditorForm = ({
   // Products — for featured selection
   const allProducts =
     useProducts(organization.id, { is_archived: false }).data?.items ?? []
-  const featuredMode: 'all' | 'curated' = settings?.featured_mode ?? 'all'
+  const featuredMode: 'all' | 'curated' = settings?.featured_mode ?? 'curated'
   const featuredIds: string[] = settings?.featured_product_ids ?? []
   const isCurated = featuredMode === 'curated'
 

@@ -138,8 +138,6 @@ const Customization = ({
     onChangeProducts: (addIds, removeIds) => {
       // Diff-based update. The picker shows already-featured products
       // pre-selected; toggling them off becomes a `removeIds` entry.
-      // We respect the current featured_mode — adding via the picker
-      // shouldn't trap the user in curated mode if they're in 'all'.
       const settings = form.getValues('storefront_settings') ?? {}
       const typed = settings as {
         featured_product_ids?: string[]
@@ -153,7 +151,6 @@ const Customization = ({
           ...addIds,
         ]),
       )
-      const mode = typed.featured_mode ?? 'all'
       form.setValue(
         'storefront_settings',
         { ...settings, featured_product_ids: next },
@@ -166,10 +163,7 @@ const Customization = ({
         parts.push(`Removed ${removeIds.length} from your Space`)
       toast({
         title: parts.join(' · ') || 'Selection updated',
-        description:
-          mode === 'curated'
-            ? 'Featured in your curated list.'
-            : 'Publish to apply.',
+        description: 'Publish to apply.',
       })
     },
     onCreateProduct: () => {
@@ -295,7 +289,7 @@ const Customization = ({
     const previewOrg = storefrontData?.organization ?? organization
     const previewProducts = (storefrontData?.products ?? []) as schemas['ProductStorefront'][]
     const previewSettings = previewOrg.storefront_settings ?? {}
-    const previewFeaturedMode = previewSettings?.featured_mode ?? 'all'
+    const previewFeaturedMode = previewSettings?.featured_mode ?? 'curated'
     const previewFeaturedIds = previewSettings?.featured_product_ids ?? []
     const previewLinks = previewSettings?.storefront_links ?? []
     const visiblePreviewProductCount =
@@ -704,7 +698,7 @@ const Customization = ({
                 featured_mode?: 'all' | 'curated'
               }
             | undefined) ?? {}
-          const featuredMode = liveSettings.featured_mode ?? 'all'
+          const featuredMode = liveSettings.featured_mode ?? 'curated'
           const featuredIds = liveSettings.featured_product_ids ?? []
           const visibleProductCount =
             featuredMode === 'curated'

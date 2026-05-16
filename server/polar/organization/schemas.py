@@ -176,12 +176,12 @@ class OrganizationStorefrontSettings(Schema):
         EmptyStrToNoneValidator,
     ] = None
     featured_mode: Literal["all", "curated"] = Field(
-        "all",
+        "curated",
         description=(
-            "How to choose which products appear on the storefront. 'all' "
-            "(default) shows every active product, including ones created "
-            "after the storefront was set up. 'curated' shows only the IDs "
-            "in featured_product_ids."
+            "How to choose which products appear on the storefront. 'curated' "
+            "(default) shows only the products the creator explicitly added "
+            "via featured_product_ids. 'all' is a legacy mode that auto-shows "
+            "every active product; kept so existing rows still validate."
         ),
     )
     featured_product_ids: list[str] = Field(

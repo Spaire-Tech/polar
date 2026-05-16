@@ -19,6 +19,7 @@ import {
 } from '@/components/Profile/socialPlatforms'
 import { toast } from '@/components/Toast/use-toast'
 import AddOutlined from '@mui/icons-material/AddOutlined'
+import CloseOutlined from '@mui/icons-material/CloseOutlined'
 import EditOutlined from '@mui/icons-material/EditOutlined'
 import TranslateOutlined from '@mui/icons-material/TranslateOutlined'
 import Verified from '@mui/icons-material/Verified'
@@ -44,14 +45,20 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { createPortal } from 'react-dom'
 import { type FileRejection } from 'react-dropzone'
 import { useFormContext } from 'react-hook-form'
+import { useUpdateOrganization } from '@/hooks/queries'
+import { AvatarCropModal } from './AvatarCropModal'
 import { Editable } from './Editable'
 import { EditPopover } from './EditPopover'
 
-// Draggable thumbnail used in the highlights strip.
+// Draggable thumbnail used in the highlights strip. The remove (×)
+// button is a sibling element so its pointer events never trigger the
+// drag listeners that live on the image itself.
 const DraggableHighlight = ({
   product,
+  onRemove,
 }: {
   product: schemas['ProductStorefront']
+  onRemove: (productId: string) => void
 }) => {
   const {
     setNodeRef,
@@ -62,22 +69,38 @@ const DraggableHighlight = ({
     attributes,
   } = useSortable({ id: product.id })
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
+    <div
       ref={setNodeRef}
-      src={product.medias[0].public_url}
-      alt={product.name}
-      className="h-16 w-16 shrink-0 cursor-grab rounded-lg object-cover"
+      className="group relative shrink-0"
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.6 : 1,
-        touchAction: 'none',
       }}
-      draggable={false}
-      {...listeners}
-      {...attributes}
-    />
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={product.medias[0].public_url}
+        alt={product.name}
+        className="h-16 w-16 cursor-grab rounded-lg object-cover"
+        style={{ touchAction: 'none' }}
+        draggable={false}
+        {...listeners}
+        {...attributes}
+      />
+      <button
+        type="button"
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation()
+          onRemove(product.id)
+        }}
+        className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-gray-900 text-white opacity-0 shadow transition-opacity hover:bg-black focus:opacity-100 group-hover:opacity-100"
+        aria-label={`Remove ${product.name} from carousel`}
+      >
+        <CloseOutlined style={{ fontSize: 12 }} />
+      </button>
+    </div>
   )
 }
 
@@ -210,9 +233,11 @@ export const EditableProfileCard = ({
   organization: schemas['Organization']
   products?: schemas['ProductStorefront'][]
 }) => {
-  const { watch, setValue } = useFormContext<schemas['OrganizationUpdate']>()
+  const { watch, setValue, resetField } =
+    useFormContext<schemas['OrganizationUpdate']>()
   const watched = watch()
   const settings = watched.storefront_settings ?? org.storefront_settings ?? {}
+  const updateOrganization = useUpdateOrganization()
 
   // Sensors for the highlights-strip DnD context. Small activation
   // distance so the drag picks up the moment the pointer commits.
@@ -259,13 +284,41 @@ export const EditableProfileCard = ({
   )
 
   // ── Cover image upload ─────────────────────────────────────────
+  // Uploads persist immediately. The file is already on S3 once
+  // `useFileUpload` calls back, so we save the URL on the org without
+  // waiting for the global Publish button — otherwise users navigate
+  // away thinking it saved and the image silently disappears.
   const onBannerFilesUpdated = useCallback(
-    (files: FileObject<schemas['StorefrontHeaderFileRead']>[]) => {
+    async (files: FileObject<schemas['StorefrontHeaderFileRead']>[]) => {
       if (files.length === 0) return
       const last = files[files.length - 1]
       updateSetting('header_image_url', last.public_url)
+      const nextSettings = {
+        ...settings,
+        header_image_url: last.public_url,
+      } as schemas['OrganizationStorefrontSettings']
+      try {
+        const { error } = await updateOrganization.mutateAsync({
+          id: org.id,
+          body: { storefront_settings: nextSettings },
+        })
+        if (error) {
+          toast({
+            title: 'Cover save failed',
+            description: 'Your cover uploaded but couldn’t be saved. Try again.',
+          })
+          return
+        }
+        setValue('storefront_settings', nextSettings, { shouldDirty: false })
+        toast({ title: 'Cover updated' })
+      } catch {
+        toast({
+          title: 'Cover save failed',
+          description: 'Network error. Try again.',
+        })
+      }
     },
-    [updateSetting],
+    [updateSetting, settings, setValue, updateOrganization, org.id],
   )
 
   const onFilesRejected = useCallback((rejections: FileRejection[]) => {
@@ -289,6 +342,11 @@ export const EditableProfileCard = ({
       'image/gif': [],
       'image/webp': [],
       'image/svg+xml': [],
+      'image/heic': ['.heic'],
+      'image/heif': ['.heif'],
+      'image/avif': [],
+      'image/bmp': [],
+      'image/tiff': [],
     },
     maxSize: 10 * 1024 * 1024,
     onFilesUpdated: onBannerFilesUpdated,
@@ -297,33 +355,78 @@ export const EditableProfileCard = ({
   })
 
   // ── Avatar upload ──────────────────────────────────────────────
+  // Auto-persist on upload — same rationale as the banner above. We
+  // `resetField` so the form's dirty baseline now reflects the saved
+  // value and the Publish button stops insisting the avatar is unsaved.
   const onAvatarFilesUpdated = useCallback(
-    (files: FileObject<schemas['OrganizationAvatarFileRead']>[]) => {
+    async (files: FileObject<schemas['OrganizationAvatarFileRead']>[]) => {
       if (files.length === 0) return
       const last = files[files.length - 1]
       setValue('avatar_url', last.public_url, { shouldDirty: true })
+      try {
+        const { error } = await updateOrganization.mutateAsync({
+          id: org.id,
+          body: { avatar_url: last.public_url },
+        })
+        if (error) {
+          toast({
+            title: 'Avatar save failed',
+            description: 'Your avatar uploaded but couldn’t be saved. Try again.',
+          })
+          return
+        }
+        resetField('avatar_url', { defaultValue: last.public_url })
+        toast({ title: 'Avatar updated' })
+      } catch {
+        toast({
+          title: 'Avatar save failed',
+          description: 'Network error. Try again.',
+        })
+      }
     },
-    [setValue],
+    [setValue, resetField, updateOrganization, org.id],
   )
 
-  const {
-    getInputProps: getAvatarInputProps,
-    open: openAvatarPicker,
-  } = useFileUpload({
+  // Avatar pipeline: pick → crop → upload. We bypass the dropzone's
+  // built-in onDrop and call `uploadFile` ourselves with the cropped
+  // JPEG so what hits S3 is always a square 512×512 image regardless
+  // of input format (HEIC, AVIF, etc. just have to decode locally).
+  const { uploadFile: uploadAvatarFile } = useFileUpload({
     organization: org,
     service: 'organization_avatar',
-    accept: {
-      'image/jpeg': [],
-      'image/png': [],
-      'image/gif': [],
-      'image/webp': [],
-      'image/svg+xml': [],
-    },
-    maxSize: 1 * 1024 * 1024,
+    accept: undefined,
+    maxSize: 5 * 1024 * 1024,
     onFilesUpdated: onAvatarFilesUpdated,
     onFilesRejected,
     initialFiles: [],
   })
+
+  const avatarInputRef = useRef<HTMLInputElement | null>(null)
+  const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null)
+
+  const openAvatarPicker = () => avatarInputRef.current?.click()
+
+  const onAvatarInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    // Reset the input value so picking the same file twice in a row
+    // still fires onChange.
+    e.target.value = ''
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: 'Unsupported file',
+        description: 'Please choose an image.',
+      })
+      return
+    }
+    setPendingAvatarFile(file)
+  }
+
+  const onAvatarCropSave = (blob: Blob) => {
+    const cropped = new File([blob], 'avatar.jpg', { type: 'image/jpeg' })
+    uploadAvatarFile(cropped)
+    setPendingAvatarFile(null)
+  }
 
   // ── Cover drag-to-reposition ───────────────────────────────────
   const coverPos = parseFocalPosition(headerFocal)
@@ -458,7 +561,13 @@ export const EditableProfileCard = ({
         {showLogo && (
           <div className={showHeader ? '-mt-10' : 'mt-6'}>
             <div className="hover-zone editable-image relative inline-block">
-              <input {...getAvatarInputProps()} />
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/*,.heic,.heif"
+                onChange={onAvatarInputChange}
+                className="hidden"
+              />
               {avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -666,7 +775,8 @@ export const EditableProfileCard = ({
           const showCardProducts = settings?.show_card_products ?? true
           if (!showCardProducts) return null
           const featuredMode =
-            (settings?.featured_mode as 'all' | 'curated' | undefined) ?? 'all'
+            (settings?.featured_mode as 'all' | 'curated' | undefined) ??
+            'curated'
           const featuredIds = (settings?.featured_product_ids ?? []) as string[]
           const scoped =
             featuredMode === 'curated'
@@ -734,6 +844,36 @@ export const EditableProfileCard = ({
             )
           }
 
+          const handleRemove = (productId: string) => {
+            if (featuredMode === 'curated') {
+              setValue(
+                'storefront_settings',
+                {
+                  ...(settings ?? {}),
+                  featured_product_ids: featuredIds.filter(
+                    (id) => id !== productId,
+                  ),
+                } as schemas['OrganizationStorefrontSettings'],
+                { shouldDirty: true },
+              )
+            } else {
+              // 'all' mode (legacy): removing one item means switching
+              // to curated with everything else preserved.
+              const remaining = withImages
+                .filter((p) => p.id !== productId)
+                .map((p) => p.id)
+              setValue(
+                'storefront_settings',
+                {
+                  ...(settings ?? {}),
+                  featured_mode: 'curated',
+                  featured_product_ids: remaining,
+                } as schemas['OrganizationStorefrontSettings'],
+                { shouldDirty: true },
+              )
+            }
+          }
+
           return (
             <DndContext
               sensors={highlightSensors}
@@ -746,7 +886,11 @@ export const EditableProfileCard = ({
               >
                 <div className="mt-5 flex flex-row gap-2 overflow-x-auto pb-1">
                   {withImages.map((product) => (
-                    <DraggableHighlight key={product.id} product={product} />
+                    <DraggableHighlight
+                      key={product.id}
+                      product={product}
+                      onRemove={handleRemove}
+                    />
                   ))}
                 </div>
               </SortableContext>
@@ -916,6 +1060,14 @@ export const EditableProfileCard = ({
           </button>
         </div>
       </EditPopover>
+
+      {pendingAvatarFile && (
+        <AvatarCropModal
+          file={pendingAvatarFile}
+          onCancel={() => setPendingAvatarFile(null)}
+          onSave={onAvatarCropSave}
+        />
+      )}
     </div>
   )
 }
