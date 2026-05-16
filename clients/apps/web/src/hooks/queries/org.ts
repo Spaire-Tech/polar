@@ -113,12 +113,24 @@ export const useUpdateOrganization = () =>
       queryClient.invalidateQueries({
         queryKey: ['storefront', { organizationSlug: data.slug }],
       })
-      await revalidate(`organizations:${data.id}`)
-      await revalidate(`organizations:${data.slug}`)
-      await revalidate(`storefront:${data.slug}`)
+      // Server-cache revalidation is best-effort. If a single tag flush
+      // fails we don't want to fail the whole mutation — the PATCH
+      // already succeeded — so swallow individual errors here. Worst
+      // case the public storefront page serves stale content for one
+      // ISR window.
+      const safeRevalidate = async (tag: string, opts?: { expire?: number }) => {
+        try {
+          await revalidate(tag, opts)
+        } catch {
+          // ignore — see comment above
+        }
+      }
+      await safeRevalidate(`organizations:${data.id}`)
+      await safeRevalidate(`organizations:${data.slug}`)
+      await safeRevalidate(`storefront:${data.slug}`)
 
       if (variables.userId) {
-        await revalidate(`users:${variables.userId}:organizations`, {
+        await safeRevalidate(`users:${variables.userId}:organizations`, {
           expire: 0,
         })
       }

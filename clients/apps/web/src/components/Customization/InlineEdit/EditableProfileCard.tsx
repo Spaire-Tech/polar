@@ -463,6 +463,13 @@ export const EditableProfileCard = ({
     }
   }
 
+  // Live preview position during drag — stays in local state so the
+  // form isn't dirtied 60 times per second. We commit to form state
+  // (and storefront_settings.header_focal_point) ONCE on pointerup.
+  const [dragFocal, setDragFocal] = useState<{ x: number; y: number } | null>(
+    null,
+  )
+
   const onCoverPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current
     if (!drag || drag.pointerId !== e.pointerId || !isDragging) return
@@ -470,16 +477,20 @@ export const EditableProfileCard = ({
     const dyPct = ((e.clientY - drag.startY) / drag.height) * 100
     const newX = Math.max(0, Math.min(100, drag.posX - dxPct))
     const newY = Math.max(0, Math.min(100, drag.posY - dyPct))
-    updateSetting(
-      'header_focal_point',
-      `${newX.toFixed(1)}% ${newY.toFixed(1)}%`,
-    )
+    setDragFocal({ x: newX, y: newY })
   }
 
   const onCoverPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current
     if (drag && e.currentTarget.hasPointerCapture(drag.pointerId)) {
       e.currentTarget.releasePointerCapture(drag.pointerId)
+    }
+    if (dragFocal) {
+      updateSetting(
+        'header_focal_point',
+        `${dragFocal.x.toFixed(1)}% ${dragFocal.y.toFixed(1)}%`,
+      )
+      setDragFocal(null)
     }
     setIsDragging(false)
     dragRef.current = null
@@ -529,7 +540,11 @@ export const EditableProfileCard = ({
               src={headerUrl}
               alt=""
               className="aspect-[16/5] w-full object-cover"
-              style={{ objectPosition: focalPointToObjectPosition(headerFocal) }}
+              style={{
+                objectPosition: dragFocal
+                  ? `${dragFocal.x.toFixed(1)}% ${dragFocal.y.toFixed(1)}%`
+                  : focalPointToObjectPosition(headerFocal),
+              }}
               draggable={false}
             />
           ) : (

@@ -67,7 +67,10 @@ const Customization = ({
       name: organization.name,
       avatar_url: organization.avatar_url,
       socials: organization.socials,
-      storefront_settings: organization.storefront_settings,
+      // Fall back to an empty object so brand-new orgs (where
+      // storefront_settings is null) can still have settings flipped
+      // on. Spreading null is a silent no-op everywhere downstream.
+      storefront_settings: organization.storefront_settings ?? {},
     },
   })
 
@@ -174,12 +177,14 @@ const Customization = ({
       })
     },
     onCreateProduct: () => {
+      if (!confirmIfDirty()) return
       const returnTo = `/dashboard/${organization.slug}/storefront`
       router.push(
         `/dashboard/${organization.slug}/products/new?type=digital&returnTo=${encodeURIComponent(returnTo)}`,
       )
     },
     onCreateCourse: () => {
+      if (!confirmIfDirty()) return
       const returnTo = `/dashboard/${organization.slug}/storefront`
       router.push(
         `/dashboard/${organization.slug}/products/new?type=course&returnTo=${encodeURIComponent(returnTo)}`,
@@ -322,7 +327,10 @@ const Customization = ({
           <div className="flex flex-row items-center justify-between border-b border-gray-200 bg-white px-8 py-4">
             <button
               type="button"
-              onClick={() => router.push(`/dashboard/${organization.slug}`)}
+              onClick={() => {
+                if (!confirmIfDirty()) return
+                router.push(`/dashboard/${organization.slug}`)
+              }}
               className="text-[14px] text-gray-500 transition-colors hover:text-gray-700"
             >
               &larr; Back to dashboard
@@ -484,15 +492,18 @@ const Customization = ({
   // wraps the existing StorefrontEditorForm for now; PR D ships the
   // redesigned panel and PR C wires inline-edit on the canvas itself.
 
+  // Shared dirty-check used by every code path that takes the user
+  // away from the editor (client-side navigations don't fire
+  // beforeunload, so we have to ask explicitly).
+  const confirmIfDirty = useCallback((): boolean => {
+    if (!isDirty) return true
+    return window.confirm(
+      'You have unpublished changes. Leave without publishing?',
+    )
+  }, [isDirty])
+
   const handleBack = () => {
-    if (
-      isDirty &&
-      !window.confirm(
-        'You have unpublished changes. Leave without publishing?',
-      )
-    ) {
-      return
-    }
+    if (!confirmIfDirty()) return
     if (isSpaceEnabled) {
       setIsEditing(false)
     } else {
@@ -502,17 +513,25 @@ const Customization = ({
 
   const discardChanges = () => {
     if (
-      window.confirm(
+      !window.confirm(
         'Discard all unpublished edits and revert to the published version?',
       )
     ) {
-      form.reset({
-        name: organization.name,
-        avatar_url: organization.avatar_url,
-        socials: organization.socials,
-        storefront_settings: organization.storefront_settings,
-      })
+      return
     }
+    // form.reset() with no args reverts to the most-recent defaults,
+    // which handlePublish updates after every successful publish — so
+    // we revert to what's actually published right now, not to the
+    // (potentially stale) SSR'd organization prop.
+    form.reset()
+    setSettingsOpen(false)
+    setArrangeOpen(false)
+    setLinksMode(false)
+    setPickerOpen(false)
+    toast({
+      title: 'Changes discarded',
+      description: 'Your Space is back to its last published state.',
+    })
   }
 
   return (
