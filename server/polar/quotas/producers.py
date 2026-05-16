@@ -49,7 +49,7 @@ def _add_quota_event(
 def emit_storage_delta(
     session: AsyncSession,
     *,
-    organization: Organization,
+    organization_id: UUID,
     bytes_delta: int,
 ) -> Event:
     """Record a storage usage change. Positive delta on upload, negative
@@ -61,7 +61,7 @@ def emit_storage_delta(
     definition = get_definition(QuotaKey.storage_gb)
     return _add_quota_event(
         session,
-        organization_id=organization.id,
+        organization_id=organization_id,
         name=definition.event_name,
         metadata={"bytes_delta": int(bytes_delta)},
     )
