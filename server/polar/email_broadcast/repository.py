@@ -55,7 +55,15 @@ class EmailBroadcastRepository(
     async def get_analytics_counts_for_broadcasts(
         self, broadcast_ids: list[UUID]
     ) -> dict[UUID, dict[str, int]]:
-        """Per-broadcast send/open/click/unsub counts, in one query."""
+        """Per-broadcast send/open/click/unsub counts, in one query.
+
+        Opens/clicks are counted from `opened_at`/`clicked_at` rather than
+        status. The status enum can drift (Resend webhooks arrive out of
+        order; a delayed bounce can clobber an `opened` row) but the
+        timestamp columns are append-only — they're set the first time we
+        see the event and never cleared, which makes them the only
+        reliable source-of-truth for engagement analytics.
+        """
         if not broadcast_ids:
             return {}
         statement = (
@@ -74,19 +82,10 @@ class EmailBroadcastRepository(
                 )
                 .label("delivered"),
                 func.count(EmailBroadcastSend.id)
-                .filter(
-                    EmailBroadcastSend.status.in_(
-                        [
-                            EmailBroadcastSendStatus.opened,
-                            EmailBroadcastSendStatus.clicked,
-                        ]
-                    )
-                )
+                .filter(EmailBroadcastSend.opened_at.is_not(None))
                 .label("opened"),
                 func.count(EmailBroadcastSend.id)
-                .filter(
-                    EmailBroadcastSend.status == EmailBroadcastSendStatus.clicked
-                )
+                .filter(EmailBroadcastSend.clicked_at.is_not(None))
                 .label("clicked"),
                 func.count(EmailBroadcastSend.id)
                 .filter(EmailBroadcastSend.unsubscribed_at.isnot(None))
@@ -176,6 +175,9 @@ class EmailBroadcastRepository(
         period-over-period delta query so the prior window can be
         compared against the current one.
         """
+        # Opens/clicks are counted from the timestamp columns rather than
+        # status — see `get_analytics_counts_for_broadcasts` for the
+        # rationale.
         statement = (
             select(
                 func.count(EmailBroadcastSend.id).label("total_sent"),
@@ -187,13 +189,10 @@ class EmailBroadcastRepository(
                     ])
                 ).label("delivered"),
                 func.count(EmailBroadcastSend.id).filter(
-                    EmailBroadcastSend.status.in_([
-                        EmailBroadcastSendStatus.opened,
-                        EmailBroadcastSendStatus.clicked,
-                    ])
+                    EmailBroadcastSend.opened_at.is_not(None)
                 ).label("opened"),
                 func.count(EmailBroadcastSend.id).filter(
-                    EmailBroadcastSend.status == EmailBroadcastSendStatus.clicked
+                    EmailBroadcastSend.clicked_at.is_not(None)
                 ).label("clicked"),
                 func.count(EmailBroadcastSend.id).filter(
                     EmailBroadcastSend.unsubscribed_at.isnot(None)
@@ -443,10 +442,7 @@ class EmailBroadcastRepository(
         # "best time to send" really asks.
         dow = func.extract("dow", EmailBroadcastSend.created_at).label("dow")
         hour = func.extract("hour", EmailBroadcastSend.created_at).label("hour")
-        opened_filter = EmailBroadcastSend.status.in_([
-            EmailBroadcastSendStatus.opened,
-            EmailBroadcastSendStatus.clicked,
-        ])
+        opened_filter = EmailBroadcastSend.opened_at.is_not(None)
         statement = (
             select(
                 dow,

@@ -91,14 +91,29 @@ async def _apply_broadcast_event(
     event_data: dict[str, Any] | None = None,
 ) -> None:
     if event_type == "email.delivered":
-        if send.status in (EmailBroadcastSendStatus.pending, EmailBroadcastSendStatus.sent):
+        # Don't downgrade an already opened/clicked row — Resend can emit
+        # events out of order and we don't want a late `delivered` to hide
+        # the engagement bucket from status-based reporting.
+        if send.status in (
+            EmailBroadcastSendStatus.pending,
+            EmailBroadcastSendStatus.sent,
+        ):
             send.status = EmailBroadcastSendStatus.delivered
 
     elif event_type == "email.opened":
         send.open_count += 1
         if send.opened_at is None:
             send.opened_at = now
-        if send.status in (EmailBroadcastSendStatus.sent, EmailBroadcastSendStatus.delivered):
+        # Promote to `opened` from any pre-engagement state. Resend
+        # sometimes delivers `email.opened` before `email.delivered`, and
+        # if the send-batch transaction hasn't committed yet we may still
+        # see `pending`. Don't overwrite `clicked` (a stronger signal) or
+        # terminal states.
+        if send.status in (
+            EmailBroadcastSendStatus.pending,
+            EmailBroadcastSendStatus.sent,
+            EmailBroadcastSendStatus.delivered,
+        ):
             send.status = EmailBroadcastSendStatus.opened
         ua = _extract_user_agent(event_data)
         if ua:
@@ -111,7 +126,13 @@ async def _apply_broadcast_event(
         if send.opened_at is None:
             send.opened_at = now
             send.open_count += 1
-        send.status = EmailBroadcastSendStatus.clicked
+        # Click is the strongest engagement signal — always promote
+        # unless we're in a terminal failure state.
+        if send.status not in (
+            EmailBroadcastSendStatus.bounced,
+            EmailBroadcastSendStatus.failed,
+        ):
+            send.status = EmailBroadcastSendStatus.clicked
         ua = _extract_user_agent(event_data)
         if ua:
             send.last_user_agent = ua[:500]
@@ -123,8 +144,15 @@ async def _apply_broadcast_event(
             send.clicked_links = existing
 
     elif event_type == "email.bounced":
-        send.status = EmailBroadcastSendStatus.bounced
         send.bounced_at = now
+        # Preserve engagement status if the recipient already opened/clicked
+        # before the bounce landed — otherwise we'd silently erase real
+        # opens from analytics.
+        if send.status not in (
+            EmailBroadcastSendStatus.opened,
+            EmailBroadcastSendStatus.clicked,
+        ):
+            send.status = EmailBroadcastSendStatus.bounced
         await session.execute(_update_subscriber_on_bounce(session, send.subscriber_id))
 
     elif event_type == "email.complained":
@@ -139,14 +167,23 @@ async def _apply_sequence_event(
     now: Any,
 ) -> None:
     if event_type == "email.delivered":
-        if send.status in (EmailSequenceStepSendStatus.pending, EmailSequenceStepSendStatus.sent):
+        # Don't overwrite a row that's already opened/clicked.
+        if send.status in (
+            EmailSequenceStepSendStatus.pending,
+            EmailSequenceStepSendStatus.sent,
+        ):
             send.status = EmailSequenceStepSendStatus.delivered
 
     elif event_type == "email.opened":
         send.open_count += 1
         if send.opened_at is None:
             send.opened_at = now
-        if send.status in (EmailSequenceStepSendStatus.sent, EmailSequenceStepSendStatus.delivered):
+        # Allow `pending` → `opened` for out-of-order webhook delivery.
+        if send.status in (
+            EmailSequenceStepSendStatus.pending,
+            EmailSequenceStepSendStatus.sent,
+            EmailSequenceStepSendStatus.delivered,
+        ):
             send.status = EmailSequenceStepSendStatus.opened
 
     elif event_type == "email.clicked":
@@ -156,11 +193,19 @@ async def _apply_sequence_event(
         if send.opened_at is None:
             send.opened_at = now
             send.open_count += 1
-        send.status = EmailSequenceStepSendStatus.clicked
+        if send.status not in (
+            EmailSequenceStepSendStatus.bounced,
+            EmailSequenceStepSendStatus.failed,
+        ):
+            send.status = EmailSequenceStepSendStatus.clicked
 
     elif event_type == "email.bounced":
-        send.status = EmailSequenceStepSendStatus.bounced
         send.bounced_at = now
+        if send.status not in (
+            EmailSequenceStepSendStatus.opened,
+            EmailSequenceStepSendStatus.clicked,
+        ):
+            send.status = EmailSequenceStepSendStatus.bounced
         await session.execute(_update_subscriber_on_bounce(session, send.subscriber_id))
 
     elif event_type == "email.complained":

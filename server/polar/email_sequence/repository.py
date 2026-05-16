@@ -254,6 +254,65 @@ class EmailSequenceRepository(
         result = await self.session.execute(statement)
         return {row[0]: row[1] for row in result.all()}
 
+    async def get_engagement_counts(self, sequence_id: UUID) -> dict[str, int]:
+        """Count opens/clicks across a sequence by timestamp columns.
+
+        Status enum buckets miss opens whose webhook arrived out of order
+        (e.g. `email.opened` before `email.delivered` left the row in
+        `sent`, or a late bounce clobbered an `opened` row). The
+        `opened_at` / `clicked_at` columns are the source of truth.
+        """
+        statement = (
+            select(
+                func.count(EmailSequenceStepSend.id)
+                .filter(EmailSequenceStepSend.opened_at.is_not(None))
+                .label("opened"),
+                func.count(EmailSequenceStepSend.id)
+                .filter(EmailSequenceStepSend.clicked_at.is_not(None))
+                .label("clicked"),
+            )
+            .join(
+                EmailSequenceEnrollment,
+                EmailSequenceStepSend.enrollment_id == EmailSequenceEnrollment.id,
+            )
+            .where(
+                EmailSequenceEnrollment.sequence_id == sequence_id,
+                EmailSequenceStepSend.deleted_at.is_(None),
+            )
+        )
+        row = (await self.session.execute(statement)).one()
+        return {"opened": int(row[0] or 0), "clicked": int(row[1] or 0)}
+
+    async def get_step_engagement_counts(
+        self, sequence_id: UUID
+    ) -> dict[UUID, dict[str, int]]:
+        """Per-step opens/clicks counted by timestamp columns."""
+        statement = (
+            select(
+                EmailSequenceStepSend.step_id,
+                func.count(EmailSequenceStepSend.id)
+                .filter(EmailSequenceStepSend.opened_at.is_not(None))
+                .label("opened"),
+                func.count(EmailSequenceStepSend.id)
+                .filter(EmailSequenceStepSend.clicked_at.is_not(None))
+                .label("clicked"),
+            )
+            .join(
+                EmailSequenceEnrollment,
+                EmailSequenceStepSend.enrollment_id == EmailSequenceEnrollment.id,
+            )
+            .where(
+                EmailSequenceEnrollment.sequence_id == sequence_id,
+                EmailSequenceStepSend.deleted_at.is_(None),
+            )
+            .group_by(EmailSequenceStepSend.step_id)
+        )
+        result = await self.session.execute(statement)
+        return {
+            row[0]: {"opened": int(row[1] or 0), "clicked": int(row[2] or 0)}
+            for row in result.all()
+        }
+
     async def count_recent_sends_for_subscriber(
         self,
         subscriber_id: UUID,

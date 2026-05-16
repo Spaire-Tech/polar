@@ -471,21 +471,29 @@ class EmailBroadcastService:
         session: AsyncReadSession,
         broadcast_id: UUID,
     ) -> dict[str, int | float]:
-        """Get analytics for a broadcast."""
+        """Get analytics for a broadcast.
+
+        Engagement counts (opened/clicked) come from the per-broadcast
+        engagement query that reads `opened_at`/`clicked_at` directly —
+        the status enum is unreliable for analytics because Resend
+        webhooks can arrive out of order and late events (a bounce
+        landing after an open) can overwrite engagement status.
+        """
         repository = EmailBroadcastRepository.from_session(session)
         counts = await repository.get_analytics_counts(broadcast_id)
+        engagement = (
+            await repository.get_analytics_counts_for_broadcasts([broadcast_id])
+        ).get(broadcast_id, {})
 
         total = sum(counts.values())
-        delivered = (
+        delivered = engagement.get(
+            "delivered",
             counts.get(EmailBroadcastSendStatus.delivered, 0)
             + counts.get(EmailBroadcastSendStatus.opened, 0)
-            + counts.get(EmailBroadcastSendStatus.clicked, 0)
+            + counts.get(EmailBroadcastSendStatus.clicked, 0),
         )
-        opened = (
-            counts.get(EmailBroadcastSendStatus.opened, 0)
-            + counts.get(EmailBroadcastSendStatus.clicked, 0)
-        )
-        clicked = counts.get(EmailBroadcastSendStatus.clicked, 0)
+        opened = engagement.get("opened", 0)
+        clicked = engagement.get("clicked", 0)
         bounced = counts.get(EmailBroadcastSendStatus.bounced, 0)
         unsubscribed = await repository.count_unsubscribed_for_broadcast(broadcast_id)
 
