@@ -109,7 +109,6 @@ class EmailBroadcastRepository(
             .where(
                 EmailBroadcastSend.broadcast_id.in_(broadcast_ids),
                 EmailBroadcastSend.deleted_at.is_(None),
-                EmailBroadcastSend.is_test.is_(False),
             )
             .group_by(EmailBroadcastSend.broadcast_id)
         )
@@ -125,39 +124,6 @@ class EmailBroadcastRepository(
             }
         return out
 
-    async def get_test_send_summary(self, broadcast_id: UUID) -> dict[str, int | str | None]:
-        """Headline numbers for the 'Send Test' card on broadcast detail.
-
-        Returns counts of test sends plus when the most recent test was
-        sent / opened / clicked, so authors can confirm their tracking
-        pipeline works without polluting campaign metrics.
-        """
-        statement = select(
-            func.count(EmailBroadcastSend.id).label("count"),
-            func.count(EmailBroadcastSend.id)
-            .filter(EmailBroadcastSend.opened_at.is_not(None))
-            .label("opened"),
-            func.count(EmailBroadcastSend.id)
-            .filter(EmailBroadcastSend.clicked_at.is_not(None))
-            .label("clicked"),
-            func.max(EmailBroadcastSend.sent_at).label("last_sent_at"),
-            func.max(EmailBroadcastSend.opened_at).label("last_opened_at"),
-            func.max(EmailBroadcastSend.clicked_at).label("last_clicked_at"),
-        ).where(
-            EmailBroadcastSend.broadcast_id == broadcast_id,
-            EmailBroadcastSend.is_test.is_(True),
-            EmailBroadcastSend.deleted_at.is_(None),
-        )
-        row = (await self.session.execute(statement)).one()
-        return {
-            "count": int(row[0] or 0),
-            "opened": int(row[1] or 0),
-            "clicked": int(row[2] or 0),
-            "last_sent_at": row[3].isoformat() if row[3] is not None else None,
-            "last_opened_at": row[4].isoformat() if row[4] is not None else None,
-            "last_clicked_at": row[5].isoformat() if row[5] is not None else None,
-        }
-
     async def list_sends(
         self, broadcast_id: UUID, *, limit: int, page: int
     ) -> tuple[list[EmailBroadcastSend], int]:
@@ -165,13 +131,9 @@ class EmailBroadcastRepository(
         from sqlalchemy.orm import joinedload
 
         offset = (page - 1) * limit
-        # Test sends have no subscriber and are surfaced through the
-        # `/test-sends` endpoint instead — exclude them here so the
-        # recipient list only shows real audience members.
         base = select(EmailBroadcastSend).where(
             EmailBroadcastSend.broadcast_id == broadcast_id,
             EmailBroadcastSend.deleted_at.is_(None),
-            EmailBroadcastSend.is_test.is_(False),
         )
         count_stmt = select(func.count()).select_from(base.subquery())
         count = (await self.session.execute(count_stmt)).scalar_one()
@@ -194,7 +156,6 @@ class EmailBroadcastRepository(
             .where(
                 EmailBroadcastSend.broadcast_id == broadcast_id,
                 EmailBroadcastSend.deleted_at.is_(None),
-                EmailBroadcastSend.is_test.is_(False),
             )
             .group_by(EmailBroadcastSend.status)
         )
@@ -211,7 +172,6 @@ class EmailBroadcastRepository(
                 EmailBroadcastSend.broadcast_id == broadcast_id,
                 EmailBroadcastSend.unsubscribed_at.isnot(None),
                 EmailBroadcastSend.deleted_at.is_(None),
-                EmailBroadcastSend.is_test.is_(False),
             )
         )
         result = await self.session.execute(statement)
@@ -269,7 +229,6 @@ class EmailBroadcastRepository(
             .where(
                 EmailBroadcast.organization_id == organization_id,
                 EmailBroadcastSend.deleted_at.is_(None),
-                EmailBroadcastSend.is_test.is_(False),
             )
         )
         if since is not None:
@@ -321,7 +280,6 @@ class EmailBroadcastRepository(
             .where(
                 EmailBroadcast.organization_id == organization_id,
                 EmailBroadcastSend.deleted_at.is_(None),
-                EmailBroadcastSend.is_test.is_(False),
                 EmailBroadcastSend.created_at >= cutoff,
             )
             .subquery()
@@ -366,7 +324,6 @@ class EmailBroadcastRepository(
                     .where(
                         EmailBroadcastSend.broadcast_id.in_(broadcast_ids),
                         EmailBroadcastSend.deleted_at.is_(None),
-                        EmailBroadcastSend.is_test.is_(False),
                         EmailBroadcastSend.status.in_(
                             [
                                 EmailBroadcastSendStatus.delivered,
@@ -411,7 +368,6 @@ class EmailBroadcastRepository(
             .where(
                 EmailBroadcast.organization_id == organization_id,
                 EmailBroadcastSend.deleted_at.is_(None),
-                EmailBroadcastSend.is_test.is_(False),
                 EmailBroadcastSend.created_at >= cutoff,
                 EmailBroadcastSend.last_user_agent.is_not(None),
             )
@@ -459,7 +415,6 @@ class EmailBroadcastRepository(
             .where(
                 EmailBroadcast.organization_id == organization_id,
                 EmailBroadcastSend.deleted_at.is_(None),
-                EmailBroadcastSend.is_test.is_(False),
                 EmailBroadcastSend.created_at >= cutoff,
                 EmailBroadcastSend.status.in_(
                     [
@@ -526,7 +481,6 @@ class EmailBroadcastRepository(
             .where(
                 EmailBroadcast.organization_id == organization_id,
                 EmailBroadcastSend.deleted_at.is_(None),
-                EmailBroadcastSend.is_test.is_(False),
                 EmailBroadcastSend.created_at >= cutoff,
             )
             .group_by(dow, hour)
@@ -556,7 +510,6 @@ class EmailBroadcastRepository(
             .where(
                 EmailBroadcast.organization_id == organization_id,
                 EmailBroadcastSend.deleted_at.is_(None),
-                EmailBroadcastSend.is_test.is_(False),
                 cast(EmailBroadcastSend.created_at, Date) >= start_date,
             )
             .group_by(cast(EmailBroadcastSend.created_at, Date))
@@ -628,7 +581,6 @@ class EmailBroadcastABTestRepository(
             .where(
                 EmailBroadcastSend.broadcast_id == broadcast_id,
                 EmailBroadcastSend.deleted_at.is_(None),
-                EmailBroadcastSend.is_test.is_(False),
                 EmailBroadcastSend.variant.in_(["a", "b"]),
             )
             .group_by(EmailBroadcastSend.variant)
@@ -671,7 +623,6 @@ class EmailBroadcastABTestRepository(
                 EmailBroadcastSend.broadcast_id == broadcast_id,
                 EmailBroadcastSend.variant.is_(None),
                 EmailBroadcastSend.deleted_at.is_(None),
-                EmailBroadcastSend.is_test.is_(False),
             )
             .values(variant=variant)
         )

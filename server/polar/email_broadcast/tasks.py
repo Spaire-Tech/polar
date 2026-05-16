@@ -221,11 +221,6 @@ async def send_emails(
 async def send_test_broadcast(broadcast_id: UUID, to_email: str) -> None:
     """Render and deliver a single test send of a broadcast.
 
-    Creates an `EmailBroadcastSend` row flagged `is_test=True` so the
-    webhook handler can match opens/clicks against the test email and
-    surface them on the broadcast detail. Test rows are excluded from
-    campaign-level metrics by analytics queries.
-
     Wired from `EmailBroadcastService.send_test`. Runs in the worker so the
     API request returns immediately and we get Dramatiq retries on transient
     Resend failures.
@@ -240,29 +235,15 @@ async def send_test_broadcast(broadcast_id: UUID, to_email: str) -> None:
             return
         organization = await session.get(Organization, broadcast.organization_id)
 
-        send = EmailBroadcastSend(
-            broadcast_id=broadcast_id,
-            subscriber_id=None,
-            status=EmailBroadcastSendStatus.pending,
-            is_test=True,
-        )
-        session.add(send)
-        await session.flush()
-
         try:
-            resend_email_id = await send_broadcast_email(
+            await send_broadcast_email(
                 broadcast,
                 organization,
                 to_email=to_email,
                 unsubscribe_url=build_test_unsubscribe_url(),
                 extra_subject_prefix="[TEST] ",
             )
-            send.status = EmailBroadcastSendStatus.sent
-            send.sent_at = utc_now()
-            if resend_email_id:
-                send.resend_email_id = resend_email_id
         except Exception:
-            send.status = EmailBroadcastSendStatus.failed
             log.exception(
                 "email_broadcast.send_test_failed",
                 broadcast_id=str(broadcast_id),

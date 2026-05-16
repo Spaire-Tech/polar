@@ -153,19 +153,11 @@ async def _apply_broadcast_event(
             EmailBroadcastSendStatus.clicked,
         ):
             send.status = EmailBroadcastSendStatus.bounced
-        # Test sends are not tied to a subscriber, so there's no row to
-        # flag as invalid.
-        if send.subscriber_id is not None:
-            await session.execute(
-                _update_subscriber_on_bounce(session, send.subscriber_id)
-            )
+        await session.execute(_update_subscriber_on_bounce(session, send.subscriber_id))
 
     elif event_type == "email.complained":
         send.unsubscribed_at = now
-        if send.subscriber_id is not None:
-            await session.execute(
-                _update_subscriber_on_complaint(session, send.subscriber_id, now)
-            )
+        await session.execute(_update_subscriber_on_complaint(session, send.subscriber_id, now))
 
 
 async def _apply_sequence_event(

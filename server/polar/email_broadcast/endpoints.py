@@ -345,27 +345,6 @@ async def get_email_broadcast_analytics(
     return EmailBroadcastAnalytics(**analytics)
 
 
-@router.get("/{broadcast_id}/test-sends")
-async def get_email_broadcast_test_sends(
-    auth_subject: EmailSubscribersRead,
-    broadcast_id: UUID4,
-    session: AsyncReadSession = Depends(get_db_read_session),
-) -> dict:
-    """Status of the most recent "Send Test" deliveries for this broadcast.
-
-    Lets the composer confirm tracking works by sending a test to
-    their own inbox and watching open / click timestamps land.
-    """
-    broadcast = await email_broadcast_service.get_by_id(
-        session, auth_subject, broadcast_id
-    )
-    if broadcast is None:
-        raise ResourceNotFound()
-    return await email_broadcast_service.get_test_send_summary(
-        session, broadcast_id
-    )
-
-
 @router.get(
     "/{broadcast_id}/sends", response_model=ListResource[EmailBroadcastSendRow]
 )
