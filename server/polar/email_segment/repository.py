@@ -90,9 +90,20 @@ class EmailSegmentRepository(
                 ),
             )
         elif segment.type == EmailSegmentType.manual:
-            statement = select(func.count(EmailSegmentSubscriber.id)).where(
-                EmailSegmentSubscriber.segment_id == segment.id,
-                EmailSegmentSubscriber.deleted_at.is_(None),
+            # Count only members that still belong to the segment's org —
+            # matches the filter applied in get_subscriber_ids_for_segment.
+            statement = (
+                select(func.count(EmailSegmentSubscriber.id))
+                .join(
+                    EmailSubscriber,
+                    EmailSubscriber.id == EmailSegmentSubscriber.subscriber_id,
+                )
+                .where(
+                    EmailSegmentSubscriber.segment_id == segment.id,
+                    EmailSegmentSubscriber.deleted_at.is_(None),
+                    EmailSubscriber.organization_id == segment.organization_id,
+                    EmailSubscriber.deleted_at.is_(None),
+                )
             )
         elif segment.type == EmailSegmentType.archived:
             statement = select(func.count(EmailSubscriber.id)).where(
@@ -139,6 +150,10 @@ class EmailSegmentRepository(
                 ),
             )
         elif segment.type == EmailSegmentType.manual:
+            # Defence in depth: even if a stale row exists from a pre-fix
+            # cross-org insert, the org constraint here drops it from the
+            # results. The service-side guard in add_subscribers prevents
+            # new rows from being created.
             statement = (
                 select(EmailSegmentSubscriber.subscriber_id)
                 .join(
@@ -148,6 +163,7 @@ class EmailSegmentRepository(
                 .where(
                     EmailSegmentSubscriber.segment_id == segment.id,
                     EmailSegmentSubscriber.deleted_at.is_(None),
+                    EmailSubscriber.organization_id == segment.organization_id,
                     EmailSubscriber.status == EmailSubscriberStatus.active,
                     EmailSubscriber.deleted_at.is_(None),
                 )
