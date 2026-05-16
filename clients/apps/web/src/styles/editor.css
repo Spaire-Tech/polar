@@ -1347,15 +1347,6 @@
   text-overflow: ellipsis;
 }
 
-.spaire-editor .arrange-panel .ap-row-chip {
-  flex-shrink: 0;
-  font-size: 11px;
-  color: var(--muted);
-  background: var(--surface-2);
-  padding: 2px 8px;
-  border-radius: 999px;
-}
-
 .spaire-editor .arrange-panel .ap-row-action {
   width: 28px;
   height: 28px;
@@ -1418,28 +1409,31 @@
 }
 
 .spaire-editor .arrange-panel .ap-arrow {
-  width: 22px;
-  height: 22px;
-  border-radius: 5px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--muted);
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: white;
+  color: var(--ink);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
 }
 
 .spaire-editor .arrange-panel .ap-arrow:hover:not(:disabled) {
-  background: white;
-  border-color: var(--line);
+  background: var(--surface-2);
+  border-color: var(--ink);
   color: var(--ink);
 }
 
 .spaire-editor .arrange-panel .ap-arrow:disabled {
-  opacity: 0.3;
+  opacity: 0.35;
   cursor: not-allowed;
+  background: transparent;
+  border-color: transparent;
 }
 
 /* dnd-kit clears its own transforms on drop, but we want a visible
