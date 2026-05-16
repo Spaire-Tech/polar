@@ -6,7 +6,7 @@ from sqlalchemy import Date, Select, cast, func, select, update
 from polar.auth.models import AuthSubject, Organization, User, is_organization, is_user
 from polar.kit.repository import RepositoryBase, RepositorySoftDeletionMixin
 from polar.models import UserOrganization
-from polar.models.email_broadcast import EmailBroadcast
+from polar.models.email_broadcast import EmailBroadcast, EmailBroadcastStatus
 from polar.models.email_broadcast_ab_test import EmailBroadcastABTest
 from polar.models.email_broadcast_send import (
     EmailBroadcastSend,
@@ -190,6 +190,11 @@ class EmailBroadcastRepository(
         period-over-period delta query so the prior window can be
         compared against the current one.
         """
+        # Only count sends that belong to a broadcast the creator
+        # actually finished sending. Drafts, scheduled, sending (still
+        # in flight), failed, and pending_approval broadcasts must not
+        # contribute to "Emails sent" — even if stale `EmailBroadcastSend`
+        # rows exist from an aborted send.
         # `total_sent` only counts rows that actually left Polar — i.e.
         # status reached `sent` or later. Including `pending` / `failed`
         # in this number was the cause of "Emails sent: 0 (or wrong)"
@@ -228,6 +233,8 @@ class EmailBroadcastRepository(
             .join(EmailBroadcast, EmailBroadcastSend.broadcast_id == EmailBroadcast.id)
             .where(
                 EmailBroadcast.organization_id == organization_id,
+                EmailBroadcast.status == EmailBroadcastStatus.sent,
+                EmailBroadcast.deleted_at.is_(None),
                 EmailBroadcastSend.deleted_at.is_(None),
             )
         )
