@@ -20,6 +20,8 @@ from polar.email_segment.endpoints import router as email_segment_router
 from polar.email_sequence.endpoints import router as email_sequence_router
 from polar.email_subscriber.endpoints import router as email_subscriber_router
 from polar.email_update.endpoints import router as email_update_router
+from polar.audit_log.endpoints import router as audit_log_router
+from polar.entitlements.endpoints import router as entitlements_router
 from polar.event.endpoints import router as event_router
 from polar.event_type.endpoints import router as event_type_router
 from polar.eventstream.endpoints import router as stream_router
@@ -53,6 +55,7 @@ from polar.organization_access_token.endpoints import (
 )
 from polar.payment.endpoints import router as payment_router
 from polar.payout.endpoints import router as payout_router
+from polar.platform.endpoints import router as platform_router
 from polar.course.endpoints import router as course_router
 from polar.personal_access_token.endpoints import router as pat_router
 from polar.product.endpoints import router as product_router
@@ -123,6 +126,12 @@ router.include_router(cli_router)
 router.include_router(files_router)
 # /metrics
 router.include_router(metrics_router)
+# /entitlements
+router.include_router(entitlements_router)
+# /platform
+router.include_router(platform_router)
+# /audit-log
+router.include_router(audit_log_router)
 # /integrations/google
 router.include_router(google_router)
 # /license-keys

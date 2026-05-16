@@ -11,6 +11,7 @@ from polar.config import settings
 from polar.email.react import render_email_template
 from polar.email.schemas import OrganizationInviteEmail, OrganizationInviteProps
 from polar.email.sender import enqueue_email
+from polar.entitlements.service import entitlements as entitlements_service
 from polar.exceptions import (
     NotPermitted,
     SpaireRequestValidationError,
@@ -368,6 +369,16 @@ async def invite_member(
     if user_org is not None:
         response.status_code = status.HTTP_200_OK
         return OrganizationMember.model_validate(user_org)
+
+    # Enforce the tier's dashboard_team_seats cap. The currently-existing
+    # members count is the pre-insert value, so a Free org at 1 seat
+    # cannot invite a 2nd. The org owner already occupies seat 1.
+    current_seats = await user_organization_service.get_member_count(
+        session, organization.id
+    )
+    await entitlements_service.require_under_limit(
+        session, organization.id, "dashboard_team_seats", current=current_seats
+    )
 
     # Add user to organization
     await organization_service.add_user(session, organization, user)

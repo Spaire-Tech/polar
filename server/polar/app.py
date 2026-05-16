@@ -47,6 +47,7 @@ from polar.observability.remote_write import (
 )
 from polar.observability.slo import start_slo_metrics, stop_slo_metrics
 from polar.openapi import OPENAPI_PARAMETERS, APITag, set_openapi_generator
+from polar.platform.startup import verify_platform_setup
 from polar.postgres import (
     AsyncSessionMiddleware,
     create_async_engine,
@@ -148,6 +149,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[State]:
     instrument_sqlalchemy(instrument_engines)
 
     redis = create_redis("app")
+
+    # Block boot if SPAIRE_PLATFORM_ORG_ID is set but the four tier
+    # products haven't been seeded — without them new signups get
+    # legacy entitlements and undercharged transaction fees.
+    async with async_sessionmaker() as bootstrap_session:
+        await verify_platform_setup(bootstrap_session)
 
     try:
         ip_geolocation_client = ip_geolocation.get_client()

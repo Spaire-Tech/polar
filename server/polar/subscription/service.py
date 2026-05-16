@@ -81,6 +81,10 @@ from polar.notifications.notification import (
 from polar.notifications.service import PartialNotification
 from polar.notifications.service import notifications as notifications_service
 from polar.organization.repository import OrganizationRepository
+from polar.platform.fee_sync import (
+    maybe_enqueue_resubscribe_from_revoke,
+    maybe_enqueue_sync_from_subscription,
+)
 from polar.product.guard import (
     is_custom_price,
     is_fixed_price,
@@ -802,6 +806,11 @@ class SubscriptionService:
         await self._send_webhook(
             session, subscription, WebhookEventType.subscription_created
         )
+
+        # If this subscription is on the Spaire platform org (i.e. a
+        # creator's Spaire tier subscription), keep the creator's
+        # Account.platform_fee aligned with the tier's list rate.
+        await maybe_enqueue_sync_from_subscription(session, subscription)
 
         assert subscription.started_at is not None
         await event_service.create_event(
@@ -1959,6 +1968,10 @@ class SubscriptionService:
             session, subscription, WebhookEventType.subscription_updated
         )
 
+        # Tier-aware fee sync: upgrades and downgrades on the platform
+        # org change which Account fee rate the creator org pays.
+        await maybe_enqueue_sync_from_subscription(session, subscription)
+
     async def _on_subscription_activated(
         self,
         session: AsyncSession,
@@ -2066,6 +2079,11 @@ class SubscriptionService:
         await self._send_webhook(
             session, subscription, WebhookEventType.subscription_revoked
         )
+
+        # If this was a creator's Spaire subscription, schedule an
+        # auto-resubscribe to Free so they don't lose tier resolution
+        # (which would otherwise fall back to legacy entitlements).
+        await maybe_enqueue_resubscribe_from_revoke(session, subscription)
 
         await event_service.create_event(
             session,

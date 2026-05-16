@@ -5,7 +5,7 @@ from sqlalchemy import select
 
 from polar.email.react import render_email_template
 from polar.email.schemas import MarketingEmail, MarketingEmailProps
-from polar.email.sender import email_sender
+from polar.email.sender import email_sender, resolve_creator_from_address
 from polar.kit.utils import utc_now
 from polar.models.email_broadcast import EmailBroadcast, EmailBroadcastStatus
 from polar.models.email_broadcast_ab_test import EmailBroadcastABTest
@@ -15,6 +15,9 @@ from polar.models.email_broadcast_send import (
 )
 from polar.models.email_subscriber import EmailSubscriber
 from polar.models.organization import Organization
+from polar.quotas.definitions import QuotaKey
+from polar.quotas.exceptions import QuotaExceededError
+from polar.quotas.producers import emit_email_sent, enforce
 from polar.worker import (
     AsyncSessionMaker,
     CronTrigger,
@@ -65,12 +68,17 @@ async def send_broadcast_email(
         broadcast, organization, unsubscribe_url=unsubscribe_url
     )
     base_subject = subject_override if subject_override is not None else broadcast.subject
+    from_name, from_email = resolve_creator_from_address(
+        organization=organization,
+        requested_email=broadcast.sender_email,
+        requested_name=broadcast.sender_name,
+    )
     return await email_sender.send(
         to_email_addr=to_email,
         subject=f"{extra_subject_prefix}{base_subject}",
         html_content=wrapped_html,
-        from_name=broadcast.sender_name,
-        from_email_addr=broadcast.sender_email,
+        from_name=from_name,
+        from_email_addr=from_email,
         email_headers={
             "List-Unsubscribe": f"<{unsubscribe_url}>",
             "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
@@ -100,6 +108,15 @@ async def send_emails(
             return
 
         organization = await session.get(Organization, broadcast.organization_id)
+        if organization is None:
+            # Should never happen — broadcasts have FK to org — but bail
+            # cleanly rather than crash the actor.
+            log.error(
+                "email_broadcast.organization_missing",
+                broadcast_id=str(broadcast_id),
+                organization_id=str(broadcast.organization_id),
+            )
+            return
 
         ab_test: EmailBroadcastABTest | None = None
         ab_stmt = select(EmailBroadcastABTest).where(
@@ -122,10 +139,36 @@ async def send_emails(
         result = await session.execute(statement)
         sends = result.scalars().all()
 
+        quota_blocked = False
         for send in sends:
             subscriber = await session.get(EmailSubscriber, send.subscriber_id)
             if subscriber is None:
                 send.status = EmailBroadcastSendStatus.failed
+                continue
+
+            # Skip the rest of the batch once we hit the quota — no point
+            # paying Resend to mark sends as failed afterward.
+            if quota_blocked:
+                send.status = EmailBroadcastSendStatus.failed
+                continue
+
+            # Per-recipient quota check. Skips the send (marks failed) if
+            # this would push the org past its monthly email cap.
+            try:
+                await enforce(
+                    session,
+                    organization,
+                    QuotaKey.email_sends_monthly,
+                    requested_storage_units=1,
+                )
+            except QuotaExceededError:
+                log.info(
+                    "email_broadcast.send_quota_exceeded",
+                    broadcast_id=str(broadcast_id),
+                    organization_id=str(organization.id),
+                )
+                send.status = EmailBroadcastSendStatus.failed
+                quota_blocked = True
                 continue
 
             subject_override: str | None = None
@@ -149,6 +192,9 @@ async def send_emails(
                 send.sent_at = utc_now()
                 if resend_email_id:
                     send.resend_email_id = resend_email_id
+                emit_email_sent(
+                    session, organization_id=organization.id, count=1
+                )
             except Exception:
                 log.exception(
                     "email_broadcast.send_failed",

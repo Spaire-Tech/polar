@@ -79,6 +79,13 @@ class OrganizationFeatureSettings(Schema):
     seat_based_pricing_enabled: bool = Field(
         False, description="If this organization has seat-based pricing enabled"
     )
+    course_player_white_label: bool = Field(
+        False,
+        description=(
+            "When true, the course lesson player hides Spaire branding. "
+            "Requires the white_label_course_player tier feature (Scale)."
+        ),
+    )
     revops_enabled: bool = Field(
         False, description="If this organization has RevOps enabled"
     )
@@ -558,6 +565,18 @@ class OrganizationUpdate(Schema):
     customer_email_settings: OrganizationCustomerEmailSettings | None = None
     customer_portal_settings: OrganizationCustomerPortalSettings | None = None
     storefront_settings: OrganizationStorefrontSettings | None = None
+
+    email_sender_domain: str | None = Field(
+        default=None,
+        description=(
+            "Custom outbound email sender domain (Pro+). Setting this "
+            "clears the verification timestamp; operations re-verifies "
+            "DKIM and stamps email_sender_verified_at when ready. Pass "
+            "an empty string to clear the domain (reverts to the platform "
+            "default sender)."
+        ),
+        max_length=253,
+    )
 
 
 class OrganizationPaymentStep(Schema):

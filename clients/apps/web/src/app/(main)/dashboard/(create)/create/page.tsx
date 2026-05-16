@@ -60,7 +60,7 @@ export default async function Page(props: {
       await revalidate(`storefront:${organization.slug}`)
       const currentUser = await getAuthenticatedUser()
       await revalidate(`users:${currentUser?.id}:organizations`, { expire: 0 })
-      return redirect(`/dashboard/${organization.slug}/onboarding/review`)
+      return redirect(`/dashboard/${organization.slug}/onboarding/plan`)
     }
   }
 

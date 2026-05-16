@@ -1,5 +1,6 @@
 import uuid
 
+import structlog
 from sqlalchemy.orm import joinedload
 
 from polar.account.repository import AccountRepository
@@ -13,13 +14,17 @@ from polar.email.schemas import (
 from polar.email.sender import enqueue_email
 from polar.exceptions import PolarTaskError
 from polar.held_balance.service import held_balance as held_balance_service
+from polar.integrations.plain.service import plain as plain_service
 from polar.models import Organization
 from polar.models.organization import OrganizationStatus
-from polar.integrations.plain.service import plain as plain_service
+from polar.platform.billing import platform_billing
+from polar.platform.fee_sync import enqueue_sync as enqueue_platform_fee_sync
 from polar.user.repository import UserRepository
 from polar.worker import AsyncSessionMaker, TaskPriority, actor
 
 from .repository import OrganizationRepository
+
+log: structlog.stdlib.BoundLogger = structlog.get_logger()
 
 
 class OrganizationTaskError(PolarTaskError): ...
@@ -63,6 +68,15 @@ async def organization_created(organization_id: uuid.UUID) -> None:
         if organization is None:
             raise OrganizationDoesNotExist(organization_id)
 
+        # Create the platform-org Customer row for this creator so the
+        # upgrade-checkout endpoint has a customer_id to attach. We do
+        # NOT pre-create a Spaire subscription — the 14-day trial is
+        # initiated by Stripe at checkout (via Product.trial_interval),
+        # which keeps the platform DB clean of orphan trial subs and
+        # avoids tripping Polar's "only free subscriptions can be
+        # upgraded" guard inside CheckoutProductCreate.
+        await platform_billing.ensure_platform_customer(session, organization)
+
 
 @actor(actor_name="organization.account_set", priority=TaskPriority.LOW)
 async def organization_account_set(organization_id: uuid.UUID) -> None:
@@ -81,6 +95,10 @@ async def organization_account_set(organization_id: uuid.UUID) -> None:
             raise AccountDoesNotExist(organization.account_id)
 
         await held_balance_service.release_account(session, account)
+
+        # The org now has an Account that can carry per-account fee values.
+        # Sync them to the current tier list rate.
+        enqueue_platform_fee_sync(organization.id)
 
 
 @actor(actor_name="organization.under_review", priority=TaskPriority.LOW)

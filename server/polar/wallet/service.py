@@ -4,6 +4,7 @@ from collections.abc import Sequence
 import stripe as stripe_lib
 
 from polar.auth.models import AuthSubject, Organization, User
+from polar.entitlements.service import entitlements as entitlements_service
 from polar.enums import PaymentProcessor, TaxBehaviorOption
 from polar.exceptions import PolarError
 from polar.integrations.stripe.service import stripe as stripe_service
@@ -229,6 +230,11 @@ class WalletService:
             WalletType.billing, currency, customer.id
         )
         if wallet is None:
+            # Customer wallets (prepaid balance) require Pro+. Gate on the
+            # creator org that owns this customer, not the customer itself.
+            await entitlements_service.require_feature(
+                session, customer.organization_id, "customer_wallet"
+            )
             wallet = await repository.create(
                 Wallet(
                     type=WalletType.billing,

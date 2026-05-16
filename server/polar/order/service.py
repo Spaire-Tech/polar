@@ -815,11 +815,20 @@ class OrderService:
         )
 
         repository = OrderRepository.from_session(session)
+        subtotal_amount = sum(item.amount for item in items)
         order = await repository.create(
             Order(
                 status=OrderStatus.paid,
-                subtotal_amount=sum(item.amount for item in items),
+                subtotal_amount=subtotal_amount,
                 discount_amount=0,
+                # net_amount mirrors subtotal here: trials carry no
+                # discount and no tax (they're $0 placeholder orders).
+                # Without this the DB rejects the insert because
+                # Order.net_amount is NOT NULL, which silently stalled
+                # the entire post-checkout pipeline (subscription
+                # creation, confirmation emails, status flip from
+                # `confirmed` to `succeeded`).
+                net_amount=subtotal_amount,
                 tax_amount=0,
                 currency=subscription.currency,
                 billing_reason=billing_reason,

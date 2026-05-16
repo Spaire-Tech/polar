@@ -161,6 +161,38 @@ class EmailFromReply(TypedDict):
     reply_to_email_addr: str
 
 
+def resolve_creator_from_address(
+    *,
+    organization: Any,
+    requested_email: str | None,
+    requested_name: str | None,
+) -> tuple[str, str]:
+    """Pick the From address for a creator-initiated email (broadcasts,
+    sequence steps).
+
+    Falls back to the platform default unless ALL of:
+      - the org has email_sender_verified_at set,
+      - email_sender_domain is configured, and
+      - the requested email ends with @<email_sender_domain>.
+    The third check guards against creators trying to send as a domain
+    they haven't verified — Resend would reject it anyway, but this
+    fails fast with the global default before we make the API call.
+    """
+    if (
+        organization is not None
+        and organization.has_verified_sender_domain
+        and requested_email is not None
+        and requested_email.lower().endswith(
+            "@" + organization.email_sender_domain.lower()
+        )
+    ):
+        return (
+            requested_name or DEFAULT_FROM_NAME,
+            requested_email,
+        )
+    return (DEFAULT_FROM_NAME, DEFAULT_FROM_EMAIL_ADDRESS)
+
+
 def enqueue_email(
     to_email_addr: str,
     subject: str,

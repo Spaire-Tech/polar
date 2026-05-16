@@ -1,6 +1,6 @@
 """Add course_id and lesson_id to email_sequences
 
-Revision ID: a1b2c3d4e5f6
+Revision ID: e51c8d7a4b9c
 Revises: f4d5e9b2c1a7
 Create Date: 2026-05-11 00:00:00.000000
 
@@ -9,7 +9,7 @@ Create Date: 2026-05-11 00:00:00.000000
 import sqlalchemy as sa
 from alembic import op
 
-revision = "a1b2c3d4e5f6"
+revision = "e51c8d7a4b9c"
 down_revision = "f4d5e9b2c1a7"
 branch_labels: tuple[str] | None = None
 depends_on: tuple[str] | None = None

@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from uuid import UUID
 
 from polar.auth.models import AuthSubject, Organization, User
+from polar.entitlements.service import entitlements as entitlements_service
 from polar.exceptions import PolarError
 from polar.kit.pagination import PaginationParams
 from polar.kit.utils import utc_now
@@ -159,6 +160,13 @@ class EmailBroadcastService:
         decide_after_minutes: int,
         winner_metric: str,
     ) -> EmailBroadcastABTest:
+        # A/B testing is Pro+. Existing tests on Free are not retroactively
+        # disabled (we never delete on downgrade), but new ones cannot be
+        # configured.
+        await entitlements_service.require_feature(
+            session, broadcast.organization_id, "email_ab_testing"
+        )
+
         if broadcast.status not in (
             EmailBroadcastStatus.draft,
             EmailBroadcastStatus.scheduled,

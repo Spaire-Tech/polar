@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from polar.auth.models import AuthSubject, Organization, User
+from polar.entitlements.service import entitlements as entitlements_service
 from polar.exceptions import PolarError
 from polar.kit.utils import utc_now
 from polar.models.email_segment import EmailSegment, EmailSegmentType
@@ -106,6 +107,11 @@ class EmailSegmentService:
         type: str = EmailSegmentType.manual,
         product_id: UUID | None = None,
     ) -> EmailSegment:
+        # Same gate as email sequences — segments are Pro+ only.
+        await entitlements_service.require_feature(
+            session, organization_id, "email_sequences_and_segments"
+        )
+
         repository = EmailSegmentRepository.from_session(session)
 
         # Pre-check the (org, slug) uniqueness so we can raise a domain-

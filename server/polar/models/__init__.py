@@ -66,6 +66,7 @@ from .oauth2_grant import OAuth2Grant
 from .oauth2_token import OAuth2Token
 from .order import Order
 from .order_item import OrderItem
+from .quota_notification import QuotaNotification
 from .organization import Organization
 from .organization_access_token import OrganizationAccessToken
 from .organization_review import OrganizationReview
@@ -204,6 +205,7 @@ __all__ = [
     "ProductPriceMeteredUnit",
     "ProductPriceSeatUnit",
     "ProductVisibility",
+    "QuotaNotification",
     "Refund",
     "SeatStatus",
     "Subscription",

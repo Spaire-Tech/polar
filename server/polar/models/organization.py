@@ -341,6 +341,42 @@ class Organization(RateLimitGroupMixin, RecordModel):
     )
 
     #
+    # Custom outbound email sender (Pro+)
+    #
+
+    email_sender_domain: Mapped[str | None] = mapped_column(
+        String(253), nullable=True, default=None
+    )
+    """The creator's verified email domain, e.g. "creator.com". When set
+    AND email_sender_verified_at is set, broadcasts and sequence steps
+    use this domain in their From address instead of the platform default.
+    """
+
+    email_sender_verified_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True, default=None
+    )
+    """Timestamp when Resend DKIM verification succeeded."""
+
+    email_sender_resend_id: Mapped[str | None] = mapped_column(
+        String(64), nullable=True, default=None
+    )
+    """Resend's domain id, populated when the creator's domain is
+    registered via POST https://api.resend.com/domains."""
+
+    email_sender_dns_records: Mapped[list[dict[str, Any]] | None] = mapped_column(
+        "email_sender_dns_records", JSONB, nullable=True, default=None
+    )
+    """Cached DNS records (TXT/MX/CNAME) the creator needs to install
+    before DKIM can verify. Returned by Resend at domain-creation time."""
+
+    @property
+    def has_verified_sender_domain(self) -> bool:
+        return (
+            self.email_sender_domain is not None
+            and self.email_sender_verified_at is not None
+        )
+
+    #
     # Currency settings
     #
     default_presentment_currency: Mapped[PresentmentCurrency] = mapped_column(

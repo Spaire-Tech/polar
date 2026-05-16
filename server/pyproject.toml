@@ -106,7 +106,11 @@ verify_github_app = { cmd = "python -m polar.verify_github_app", help = "verify 
 generate_dev_jwks = { cmd = "python -m polar.kit.jwk polar_dev > ./.jwks.json", help = "generate a development JWKS file" }
 seeds_load = { cmd = "python -m scripts.seeds_load", help = "load sample/test data into the database" }
 loadtest_setup = { cmd = "python -m scripts.loadtest_setup", help = "setup load test data for event ingestion" }
-pre_deploy = { cmd = "task db_migrate", help = "Pre-deploy command run by Render" }
+platform_verify = { cmd = "python -m scripts.platform verify", help = "verify SPAIRE_PLATFORM_ORG_ID points to a real organization" }
+seed_platform_products = { cmd = "python -m scripts.seed_platform_products", help = "idempotently seed Pro/Studio/Scale products and overage meters in the platform organization" }
+grandfather_orgs = { cmd = "python -m scripts.grandfather_orgs", help = "subscribe pre-existing creator orgs to the Spaire Legacy plan" }
+extend_platform_trial = { cmd = "python -m scripts.extend_platform_trial", help = "extend a creator org's Pro/Studio/Scale trial (operator override)" }
+pre_deploy = { cmd = "task db_migrate && task seed_platform_products", help = "Pre-deploy command run by Render. Migrates DB then re-seeds platform tier products so the startup check passes against any new code." }
 
 [tool.pytest.ini_options]
 markers = ["auth"]

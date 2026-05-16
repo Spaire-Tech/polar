@@ -14,7 +14,11 @@ from polar.models import Organization, UserOrganization
 from polar.models.course_lesson import CourseLesson
 from polar.models.customer import Customer
 from polar.openapi import APITag
+from polar.organization.repository import OrganizationRepository
 from polar.postgres import AsyncSession, get_db_session
+from polar.quotas.definitions import QuotaKey
+from polar.quotas.exceptions import QuotaExceededError
+from polar.quotas.producers import emit_video_uploaded, enforce
 from polar.routing import APIRouter
 
 from . import auth
@@ -466,6 +470,28 @@ async def create_mux_upload(
     if lesson is None:
         raise HTTPException(status_code=404, detail="Lesson not found")
 
+    # Block new uploads if the org is already at its video-hours cap.
+    # Duration is unknown until Mux processes the asset, so we can't
+    # check projected usage precisely — we instead refuse new uploads
+    # outright once the existing total exceeds the limit. Creators can
+    # delete old lessons to make room.
+    organization_id = await lesson_repo.get_organization_id_for_lesson(lesson.id)
+    if organization_id is not None:
+        org_repo = OrganizationRepository.from_session(session)
+        organization = await org_repo.get_by_id(organization_id)
+        if organization is not None:
+            try:
+                await enforce(
+                    session,
+                    organization,
+                    QuotaKey.video_hours_hosted,
+                    requested_storage_units=0,
+                )
+            except QuotaExceededError as exc:
+                raise HTTPException(
+                    status_code=402, detail=exc.message
+                ) from exc
+
     try:
         result = await mux_client.create_direct_upload()
     except Exception as e:
@@ -867,6 +893,9 @@ async def mux_webhook(
         if upload_id and asset_id and playback_id:
             lesson = await _find_lesson_by_upload(upload_id)
             if lesson:
+                # Only emit on first transition to ready, so retried
+                # webhooks don't double-count the same asset.
+                previously_ready = lesson.mux_status == "ready"
                 update: dict = {
                     "mux_asset_id": asset_id,
                     "mux_playback_id": playback_id,
@@ -875,6 +904,19 @@ async def mux_webhook(
                 if duration:
                     update["duration_seconds"] = int(duration)
                 await lesson_repo.update(lesson, update_dict=update)
+
+                if not previously_ready and duration:
+                    organization_id = (
+                        await lesson_repo.get_organization_id_for_lesson(
+                            lesson.id
+                        )
+                    )
+                    if organization_id is not None:
+                        emit_video_uploaded(
+                            session,
+                            organization_id=organization_id,
+                            duration_seconds=int(duration),
+                        )
 
     elif event_type in ("video.upload.errored", "video.asset.errored"):
         upload_id = data.get("upload_id") or data.get("id")
@@ -903,6 +945,8 @@ async def mux_webhook(
         if upload_id:
             lesson = await _find_lesson_by_upload(upload_id)
             if lesson:
+                previous_duration = lesson.duration_seconds
+                previously_ready = lesson.mux_status == "ready"
                 await lesson_repo.update(
                     lesson,
                     update_dict={
@@ -911,3 +955,18 @@ async def mux_webhook(
                         "mux_asset_id": None,
                     },
                 )
+                # Free up the org's video-hours quota. Only emit if the
+                # asset had reached ready (i.e. its duration had been
+                # counted in the first place).
+                if previously_ready and previous_duration:
+                    organization_id = (
+                        await lesson_repo.get_organization_id_for_lesson(
+                            lesson.id
+                        )
+                    )
+                    if organization_id is not None:
+                        emit_video_uploaded(
+                            session,
+                            organization_id=organization_id,
+                            duration_seconds=-int(previous_duration),
+                        )

@@ -9,6 +9,8 @@ from polar.kit.pagination import PaginationParams
 from polar.models import Organization, ProductMedia, User
 from polar.models.file import File, ProductMediaFile
 from polar.postgres import AsyncReadSession, AsyncSession, sql
+from polar.quotas.definitions import QuotaKey
+from polar.quotas.producers import emit_storage_delta, enforce
 
 from .repository import FileRepository
 from .s3 import S3_SERVICES
@@ -89,6 +91,17 @@ class FileService:
         organization: Organization,
         create_schema: FileCreate,
     ) -> FileUpload:
+        # Block uploads that would push the org past its tier's storage cap.
+        # Done before creating the S3 multipart upload to avoid leaving
+        # orphaned uploads on quota failures. Best-effort under concurrent
+        # uploads — see polar/quotas/producers.py:enforce.
+        await enforce(
+            session,
+            organization,
+            QuotaKey.storage_gb,
+            requested_storage_units=create_schema.size,
+        )
+
         s3_service = S3_SERVICES[create_schema.service]
         upload = s3_service.create_multipart_upload(
             create_schema, namespace=create_schema.service.value
@@ -138,6 +151,13 @@ class FileService:
         assert file.checksum_etag is not None
         assert file.last_modified_at is not None
 
+        # Record the storage usage now that the upload has succeeded.
+        # Emitting only on completion (not generate_presigned_upload)
+        # avoids counting orphaned/abandoned uploads.
+        emit_storage_delta(
+            session, organization=file.organization, bytes_delta=file.size
+        )
+
         return file
 
     def generate_download_url(self, file: File) -> tuple[str, datetime]:
@@ -157,6 +177,14 @@ class FileService:
         file.set_deleted_at()
         session.add(file)
         assert file.deleted_at is not None
+
+        # Free up the storage quota the file was occupying. Only emit
+        # for files that were actually uploaded — abandoned uploads
+        # never added storage in the first place.
+        if file.is_uploaded:
+            emit_storage_delta(
+                session, organization=file.organization, bytes_delta=-file.size
+            )
 
         # Delete ProductMedia association table records
         statement = sql.delete(ProductMedia).where(ProductMedia.file_id == file.id)
