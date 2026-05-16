@@ -93,12 +93,12 @@ class EmailBroadcastService:
             opened = c["opened"]
             clicked = c["clicked"]
             total = c["total"]
-            # Fall back to total-sent as denominator when Resend isn't
-            # firing `email.delivered` for this account but opens do
-            # land — keeps rates visible instead of stuck at 0%.
+            # Fall back to total-sent as denominator whenever Resend
+            # isn't firing `email.delivered` — keeps rates visible
+            # instead of forcing the row to read 0%/—.
             if delivered > 0:
                 denom = delivered
-            elif (opened > 0 or clicked > 0) and total > 0:
+            elif total > 0:
                 denom = total
             else:
                 denom = 0
@@ -507,18 +507,29 @@ class EmailBroadcastService:
         opened = engagement.get("opened", 0)
         clicked = engagement.get("clicked", 0)
         bounced = counts.get(EmailBroadcastSendStatus.bounced, 0)
+        sent_count = total - counts.get(EmailBroadcastSendStatus.pending, 0) - counts.get(EmailBroadcastSendStatus.failed, 0)
         unsubscribed = await repository.count_unsubscribed_for_broadcast(broadcast_id)
+
+        # Same denominator fallback as the aggregate: prefer delivered,
+        # fall back to actually-sent count when Resend doesn't fire
+        # `email.delivered` so rates remain visible.
+        if delivered > 0:
+            denom = delivered
+        elif sent_count > 0:
+            denom = sent_count
+        else:
+            denom = 0
 
         return {
             "total_recipients": total,
-            "sent": total - counts.get(EmailBroadcastSendStatus.pending, 0) - counts.get(EmailBroadcastSendStatus.failed, 0),
+            "sent": sent_count,
             "delivered": delivered,
             "opened": opened,
             "clicked": clicked,
             "bounced": bounced,
             "unsubscribed": unsubscribed,
-            "open_rate": (opened / delivered * 100) if delivered > 0 else 0.0,
-            "click_rate": (clicked / delivered * 100) if delivered > 0 else 0.0,
+            "open_rate": (opened / denom * 100) if denom else 0.0,
+            "click_rate": (clicked / denom * 100) if denom else 0.0,
         }
 
 
@@ -529,20 +540,16 @@ class EmailBroadcastService:
         opened = counts["opened"]
         clicked = counts["clicked"]
         unsubscribed = counts["unsubscribed"]
-        # Denominator preference:
-        #   1. `delivered` when Resend confirmed deliveries — the most
-        #      accurate baseline for "of the emails that landed, how
-        #      many opened?".
-        #   2. `total_sent` when we have *some* engagement signal
-        #      (opens/clicks) but no delivered events — Resend doesn't
-        #      always emit `email.delivered` for every account, and
-        #      silently nulling the rate hid working tracking from users
-        #      whose webhook just doesn't fire `delivered`.
-        #   3. None when there's nothing to divide by — the UI renders
-        #      "—" for missing values.
+        # Denominator: prefer `delivered` when Resend confirms it, fall
+        # back to `total_sent` whenever there are sends to count
+        # against. The strict "delivered or null" version surfaced "—"
+        # on the dashboard even when there were sends to compute a rate
+        # against — users read that as "broken". Falling back to
+        # total_sent makes the rate visible (0% if no opens, real % if
+        # opens arrive without delivered webhooks).
         if delivered > 0:
             denom: int | None = delivered
-        elif (opened > 0 or clicked > 0) and total_sent > 0:
+        elif total_sent > 0:
             denom = total_sent
         else:
             denom = None
