@@ -7,30 +7,38 @@ type Status = 'pending' | 'done' | 'invalid' | 'failed'
 
 // Read once, sync, on first render. Window is accessed inside a `useState`
 // initializer so it only runs in the browser and survives Next's SSR.
+//
+// The unsubscribe URL is signed: build_unsubscribe_url on the backend
+// emits `?token=<JWT>`. (An earlier version of this page read `?sid=` —
+// that broke every real unsubscribe because the backend stopped sending
+// raw subscriber UUIDs to avoid leaking existence.) We also accept `sid`
+// for the test-render preview path and as a defensive fallback.
 const readQuery = () => {
-  if (typeof window === 'undefined') return { sid: null, isTest: false }
+  if (typeof window === 'undefined') {
+    return { token: null, isTest: false }
+  }
   const params = new URLSearchParams(window.location.search)
   return {
-    sid: params.get('sid'),
+    token: params.get('token'),
     isTest: params.get('test') === '1',
   }
 }
 
 export default function EmailUnsubscribePage() {
-  const [{ sid, isTest }] = useState(readQuery)
+  const [{ token, isTest }] = useState(readQuery)
   const [status, setStatus] = useState<Status>(() => {
     if (typeof window === 'undefined') return 'pending'
     const q = readQuery()
     if (q.isTest) return 'done'
-    if (!q.sid) return 'invalid'
+    if (!q.token) return 'invalid'
     return 'pending'
   })
 
   useEffect(() => {
-    if (status !== 'pending' || !sid) return
+    if (status !== 'pending' || !token) return
     let cancelled = false
     const url = getServerURL(
-      `/v1/email-subscribers/unsubscribe?sid=${encodeURIComponent(sid)}`,
+      `/v1/email-subscribers/unsubscribe?token=${encodeURIComponent(token)}`,
     )
     fetch(url, { method: 'POST' })
       .then(async (res) => {
@@ -48,7 +56,7 @@ export default function EmailUnsubscribePage() {
     return () => {
       cancelled = true
     }
-  }, [sid, status])
+  }, [token, status])
 
   return (
     <main
@@ -128,7 +136,7 @@ export default function EmailUnsubscribePage() {
                 ? "This was a test send from the broadcast composer — there's no real subscription to remove."
                 : "We won't send you any more emails. You can resubscribe at any time from the sender's site."}
             </p>
-            {sid && !isTest && (
+            {token && !isTest && (
               <p
                 style={{
                   fontSize: 11.5,
@@ -137,7 +145,7 @@ export default function EmailUnsubscribePage() {
                   fontFamily: 'JetBrains Mono, monospace',
                 }}
               >
-                Reference {sid.slice(0, 8)}
+                Reference {token.slice(0, 8)}
               </p>
             )}
           </>

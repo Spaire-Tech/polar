@@ -181,6 +181,7 @@ async def process_resend_event(
                 event_data=event_data,
                 webhook_event_id=webhook_event_id,
                 deferred_retry=deferred_retry + 1,
+                delay=_DEFERRED_RESOLVE_DELAY_SECONDS * 1000,
             )
             return
 
