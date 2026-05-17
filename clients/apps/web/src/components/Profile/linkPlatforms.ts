@@ -138,6 +138,34 @@ export function getPlatformConfig(
 }
 
 /**
+ * Returns the aspect ratio (width / height) the iframe for this URL
+ * should render at, or null if the platform uses a fixed height
+ * instead. Smaller than 1 = portrait ("reel") and the renderer will
+ * cap the width so it doesn't dominate the column.
+ *
+ * Per-URL because the same platform can host both shapes — e.g. an
+ * Instagram /reel/ is 9:16 vertical while a /p/ post is roughly
+ * square, and a YouTube /shorts/ is vertical while a normal /watch?v=
+ * is 16:9.
+ */
+export function getEmbedAspect(
+  url: string,
+  platform: PlatformId | string,
+): number | null {
+  const cfg = getPlatformConfig(platform)
+  if (!cfg) return null
+  switch (platform) {
+    case 'youtube':
+      return /\/shorts\//.test(url) ? 9 / 16 : 16 / 9
+    case 'instagram':
+      // /reel/ and /tv/ are vertical; /p/ posts embed as ~1:1 cards.
+      return /instagram\.com\/(reel|tv)\//.test(url) ? 9 / 16 : 1
+    default:
+      return cfg.embedAspect ?? null
+  }
+}
+
+/**
  * Build an embeddable iframe URL for a platform URL. Returns null when
  * we don't know how to embed it (unknown platform, malformed URL, or a
  * platform whose iframe needs a JS widget we don't ship).

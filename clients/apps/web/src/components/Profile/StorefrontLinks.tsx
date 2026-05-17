@@ -6,6 +6,7 @@ import { SectionLabel } from './SectionLabel'
 import {
   buildEmbedUrl,
   getDomain,
+  getEmbedAspect,
   getPlatformConfig,
 } from './linkPlatforms'
 
@@ -25,11 +26,18 @@ export type LinksLayout = 'classic' | 'carousel' | 'image_grid' | 'card'
 // Reads aspect ratio / fixed height from the platform config so adding a
 // new embeddable platform is a one-file change in linkPlatforms.ts.
 
+// Max width for portrait/"reel" embeds (TikTok, Instagram reels,
+// YouTube shorts). A 9:16 iframe at full column width becomes ~750px
+// tall and dominates the page — cap the WIDTH instead so the embed
+// reads like the reel viewers see on the source platform.
+const REEL_MAX_WIDTH = 380
+
 export const EmbedFrame = ({ link }: { link: StorefrontLinkItem }) => {
   const platform = link.platform ?? ''
   const src = buildEmbedUrl(link.url, platform)
   if (!src) return null
   const cfg = getPlatformConfig(platform)
+  const aspect = getEmbedAspect(link.url, platform)
 
   const commonProps = {
     src,
@@ -41,14 +49,22 @@ export const EmbedFrame = ({ link }: { link: StorefrontLinkItem }) => {
     title: link.title ?? platform,
   }
 
-  if (cfg?.embedAspect) {
-    // Responsive aspect-ratio iframe. paddingTop in % keeps the ratio
-    // intact across container widths.
-    const padding = (1 / cfg.embedAspect) * 100
+  if (aspect) {
+    // Responsive aspect-ratio iframe. paddingTop% is relative to the
+    // element's WIDTH, so a capped max-width naturally caps the height.
+    // Reels / shorts (aspect < 1) get a narrow centered card so they
+    // read like the source platform, not a 750px wall of video.
+    const padding = (1 / aspect) * 100
+    const isReel = aspect < 1
     return (
       <div
-        className="relative w-full overflow-hidden"
-        style={{ paddingTop: `${padding}%` }}
+        className={`relative w-full overflow-hidden bg-black ${
+          isReel ? 'mx-auto' : ''
+        }`}
+        style={{
+          maxWidth: isReel ? REEL_MAX_WIDTH : undefined,
+          paddingTop: `${padding}%`,
+        }}
       >
         <iframe
           {...commonProps}
