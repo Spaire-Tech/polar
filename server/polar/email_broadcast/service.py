@@ -530,6 +530,12 @@ class EmailBroadcastService:
             "unsubscribed": unsubscribed,
             "open_rate": (opened / denom * 100) if denom else 0.0,
             "click_rate": (clicked / denom * 100) if denom else 0.0,
+            # Same hint as the aggregate analytics — false means we
+            # delivered emails but haven't seen any engagement webhooks
+            # yet, which usually means domain-level tracking is OFF.
+            # The UI uses this to render a "tracking not detected"
+            # banner instead of a misleading 0% engagement readout.
+            "webhook_signal_present": delivered > 0 or opened > 0 or clicked > 0,
         }
 
 

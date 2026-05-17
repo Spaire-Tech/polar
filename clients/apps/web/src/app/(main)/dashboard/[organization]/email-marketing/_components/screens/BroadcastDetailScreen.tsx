@@ -190,6 +190,42 @@ export const BroadcastDetailScreen = ({
         </div>
       </div>
 
+      {/*
+        Tracking-status banner. "Open rate / Click rate = 0%" used to be
+        indistinguishable from "tracking not configured" — every customer
+        who saw a zero-rate broadcast thought the product was broken.
+        Now: if the broadcast has been delivered for at least an hour and
+        no engagement webhooks have landed, surface a hint that domain-
+        level tracking is the likely culprit.
+       */}
+      {analytics &&
+        analytics.delivered > 0 &&
+        analytics.webhook_signal_present === false && (
+          <div
+            style={{
+              marginBottom: 16,
+              padding: '12px 14px',
+              borderRadius: 12,
+              border: '1px solid #fcd34d',
+              background: '#fffbeb',
+              color: '#78350f',
+              fontSize: 13,
+              lineHeight: 1.5,
+            }}
+            role="status"
+          >
+            <strong style={{ fontWeight: 600 }}>
+              Tracking not detected.
+            </strong>{' '}
+            We delivered{' '}
+            {analytics.delivered.toLocaleString()} emails but haven't seen
+            any open or click events. Open/click tracking has to be
+            enabled on your sending domain — check Resend's dashboard or
+            verify your custom sender domain is fully set up. Engagement
+            metrics will fill in retroactively once events start arriving.
+          </div>
+        )}
+
       <div
         style={{
           display: 'grid',
