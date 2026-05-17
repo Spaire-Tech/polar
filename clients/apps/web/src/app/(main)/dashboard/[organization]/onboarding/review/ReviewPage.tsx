@@ -10,6 +10,7 @@ import {
 import { toast } from '@/components/Toast/use-toast'
 import { useProducts, useUpdateOrganization } from '@/hooks/queries'
 import { OrganizationContext } from '@/providers/maintainerOrganization'
+import { api } from '@/utils/client'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import { Form } from '@spaire/ui/components/ui/form'
@@ -100,6 +101,17 @@ export default function ReviewPage() {
         setPublishing(false)
         return
       }
+
+      // Stamp ai_onboarding_completed_at so the dashboard plan-gate
+      // releases. Idempotent server-side — the endpoint no-ops if the
+      // flag is already set (e.g. user already finished the assistant
+      // path). Failures here are non-fatal: the publish succeeded, and
+      // the assistant flow can still set the flag later.
+      await api
+        .POST('/v1/organizations/{id}/ai-onboarding-complete', {
+          params: { path: { id: organization.id } },
+        })
+        .catch(() => undefined)
 
       await revalidate(`organizations:${org.id}`)
       await revalidate(`organizations:${org.slug}`)

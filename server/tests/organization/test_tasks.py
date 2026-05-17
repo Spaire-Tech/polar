@@ -40,6 +40,57 @@ class TestOrganizationCreated:
 
         await organization_created(organization.id)
 
+    async def test_starts_pro_trial(
+        self,
+        mocker: MockerFixture,
+        organization: Organization,
+        session: AsyncSession,
+    ) -> None:
+        """The org-creation hook auto-attaches a 14-day Pro trial so the
+        new creator lands on real Pro entitlements instead of silently
+        falling through EntitlementsService's no-sub -> legacy branch
+        (which used to grant unlimited everything)."""
+        ensure_trial_mock = mocker.patch(
+            "polar.organization.tasks.platform_billing.ensure_pro_trial_subscription",
+            return_value=None,
+        )
+
+        session.expunge_all()
+
+        await organization_created(organization.id)
+
+        ensure_trial_mock.assert_called_once()
+        called_org = ensure_trial_mock.call_args.args[1]
+        assert called_org.id == organization.id
+
+    async def test_falls_back_to_customer_when_tier_products_missing(
+        self,
+        mocker: MockerFixture,
+        organization: Organization,
+        session: AsyncSession,
+    ) -> None:
+        """Dev / single-tenant deploys won't have the platform tier
+        products seeded yet — the hook should log and still create the
+        platform Customer row so upgrade-checkout has something to
+        attach to once the products land."""
+        from polar.entitlements.tiers import TierKey
+        from polar.platform.billing import TierProductMissing as _TPM
+
+        mocker.patch(
+            "polar.organization.tasks.platform_billing.ensure_pro_trial_subscription",
+            side_effect=_TPM(TierKey.pro),
+        )
+        ensure_customer_mock = mocker.patch(
+            "polar.organization.tasks.platform_billing.ensure_platform_customer",
+            return_value=None,
+        )
+
+        session.expunge_all()
+
+        await organization_created(organization.id)
+
+        ensure_customer_mock.assert_called_once()
+
 
 @pytest.mark.asyncio
 class TestOrganizationUnderReview:

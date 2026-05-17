@@ -267,6 +267,11 @@ export async function proxy(request: NextRequest) {
 
   const headers: Record<string, string> = {
     'x-spaire-distinct-id': distinctId,
+    // Forward the request path so server layouts can route on it. The
+    // dashboard [organization]/layout.tsx uses this to skip the
+    // "redirect to /onboarding/plan" gate when the request is itself
+    // already an /onboarding route.
+    'x-spaire-pathname': request.nextUrl.pathname,
   }
   if (user) {
     headers['x-polar-user'] = JSON.stringify(user)

@@ -3,6 +3,7 @@ import { getServerSideAPI } from '@/utils/client/serverside'
 import { getOrganizationBySlugOrNotFound } from '@/utils/organization'
 import { getUserOrganizations } from '@/utils/user'
 import { Metadata } from 'next'
+import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import React from 'react'
 
@@ -49,6 +50,38 @@ export default async function Layout(props: {
   // If we can't find the organization even after a refresh, redirect
   if (!userOrganizations.some((org) => org.id === organization.id)) {
     return redirect('/dashboard')
+  }
+
+  // Plan-selection gate: keep half-onboarded creators out of the
+  // dashboard until they finish the onboarding flow. Until
+  // `ai_onboarding_completed_at` is stamped (which happens after
+  // plan + review + assistant complete), every dashboard route
+  // bounces back to /onboarding/plan. This closes the
+  // "create-slug-then-bookmark-the-dashboard" bypass that used to
+  // give a fresh org full feature access.
+  //
+  // /onboarding/* is exempted so the user can actually progress
+  // through onboarding; /finance/account is exempted so connect-
+  // a-payout flows initiated from the AI assistant can finish even
+  // when the assistant marks onboarding complete from a side path.
+  const requestHeaders = await headers()
+  const pathname = requestHeaders.get('x-spaire-pathname') ?? ''
+  const orgPathPrefix = `/dashboard/${params.organization}`
+  const isOnboardingRoute = pathname.startsWith(`${orgPathPrefix}/onboarding`)
+  const isFinanceAccountRoute = pathname.startsWith(
+    `${orgPathPrefix}/finance/account`,
+  )
+  const onboardingCompletedAt = (
+    organization as typeof organization & {
+      ai_onboarding_completed_at?: string | null
+    }
+  ).ai_onboarding_completed_at
+  if (
+    !onboardingCompletedAt &&
+    !isOnboardingRoute &&
+    !isFinanceAccountRoute
+  ) {
+    return redirect(`${orgPathPrefix}/onboarding/plan`)
   }
 
   return (
