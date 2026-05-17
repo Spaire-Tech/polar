@@ -376,6 +376,15 @@ function SpaireOnboardingPricingStyles() {
         letter-spacing: -0.005em;
         min-height: 100vh;
         background: #ffffff;
+        /* The onboarding layout is "flex flex-row" — without these the
+           plan page sizes to its content and pins to the left edge.
+           flex: 1 + width 100% makes us claim the full row, and the
+           internal align-items: center on .sp-stage takes over from there. */
+        flex: 1;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
       }
       .spaire-pricing *,
       .spaire-pricing *::before,
