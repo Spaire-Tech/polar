@@ -602,10 +602,20 @@ export default function CourseWizard({
         `/dashboard/${organization.slug}/courses/${created.id}?tab=outline`,
       )
     } catch (err) {
-      console.error('[CourseWizard] create error:', err)
+      // Surface the actual error so the creator (and us during triage) can
+      // see what failed. The previous generic "Something went wrong" hid
+      // both backend validation errors and product-creation Stripe errors
+      // alike.
+      const message =
+        err instanceof Error ? err.message : 'Unknown error'
+      // eslint-disable-next-line no-console
+      console.error('[CourseWizard] create error:', err, { format })
       toast({
-        title: 'Something went wrong',
-        description: 'Could not create the course. Please try again.',
+        title:
+          format === 'series'
+            ? 'Could not create the series'
+            : 'Could not create the course',
+        description: message.slice(0, 500),
       })
       setScreen('preview')
     }
