@@ -5,10 +5,7 @@ import Link from 'next/link'
 import { useParams, usePathname } from 'next/navigation'
 import { PropsWithChildren } from 'react'
 
-const customerTabs = [
-  { title: 'Customers', suffix: '' },
-  { title: 'Subscribers', suffix: '/subscribers' },
-]
+const customerTabs = [{ title: 'Customers', suffix: '' }]
 
 export default function CustomersLayout({ children }: PropsWithChildren) {
   const params = useParams<{ organization: string }>()

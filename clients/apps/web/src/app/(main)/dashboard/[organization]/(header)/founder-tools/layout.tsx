@@ -5,10 +5,7 @@ import Link from 'next/link'
 import { useParams, usePathname } from 'next/navigation'
 import { PropsWithChildren } from 'react'
 
-const founderToolsTabs = [
-  { title: 'Incorporate', suffix: '' },
-  { title: 'Perks', suffix: '/perks' },
-]
+const founderToolsTabs = [{ title: 'Perks', suffix: '/perks' }]
 
 export default function FounderToolsLayout({ children }: PropsWithChildren) {
   const params = useParams<{ organization: string }>()

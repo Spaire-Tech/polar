@@ -281,7 +281,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
     id: 'founder-tools',
     title: 'Founder Tools',
     icon: <LayersOutlined fontSize="inherit" />,
-    link: `/dashboard/${org?.slug}/founder-tools`,
+    link: `/dashboard/${org?.slug}/founder-tools/perks`,
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/founder-tools`)
     },
