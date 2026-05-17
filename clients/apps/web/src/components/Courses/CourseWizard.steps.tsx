@@ -592,14 +592,16 @@ export function Intro({
 
 // ─── Format chooser ───────────────────────────────────────────────────────────
 //
-// Ported 1:1 from the "Spaire Pick Format" design. Each card has a cinematic
-// hero (16:9), an apple-style hairline divider, and a "Best for" footer with
-// tag pills + an italic example line. The CSS-gradient backdrop in each hero
-// is a placeholder — drop JPG files at
+// Same wizard chrome as the rest of onboarding (top progress bar, TopBar with
+// step counter + close, so-stage / so-btn-cta / so-btn-back). The only thing
+// custom on this step is the two-card grid; everything else slots into the
+// existing visual language.
+//
+// Cover images live at:
 //   /clients/apps/web/public/assets/course.jpg
 //   /clients/apps/web/public/assets/series.jpg
-// to replace them. The <img> sits on top of the gradient and only paints when
-// it loads, so the gradient is a graceful fallback if the file is missing.
+// The CSS gradient + subject silhouette under each <img> is a graceful
+// fallback: the <img> is held at opacity 0 until onLoad fires.
 
 export type WizardFormat = 'course' | 'series'
 
@@ -613,7 +615,6 @@ type FormatOption = {
   example: string
   imageSrc: string
   tone: 'warm' | 'cool'
-  stillTag: string
 }
 
 const FORMAT_OPTIONS: FormatOption[] = [
@@ -623,12 +624,11 @@ const FORMAT_OPTIONS: FormatOption[] = [
     title: 'Course',
     oneliner: 'Step-by-step skill building.',
     description:
-      'Modules and lessons that progress from foundation to fluency. The viewer leaves with a thing they can do.',
-    bestFor: ['Skills', 'Frameworks', 'Step-by-step outcomes'],
+      'Modules and lessons that progress from foundation to fluency.',
+    bestFor: ['Skills', 'Frameworks', 'Outcomes'],
     example: 'Persuasive writing in 22 lessons.',
     imageSrc: '/assets/course.jpg',
     tone: 'warm',
-    stillTag: 'course · still placeholder',
   },
   {
     id: 'series',
@@ -636,16 +636,15 @@ const FORMAT_OPTIONS: FormatOption[] = [
     title: 'Series',
     oneliner: 'Episodic, in your voice.',
     description:
-      'Self-contained episodes that orbit a single theme. Watched like a documentary or a podcast season.',
+      'Self-contained episodes that orbit a single theme. Watched like a documentary.',
     bestFor: ['Mindset', 'Story', 'Identity', 'Behind the scenes'],
     example: 'An Olympian on the seven days before a final.',
     imageSrc: '/assets/series.jpg',
     tone: 'cool',
-    stillTag: 'series · still placeholder',
   },
 ]
 
-function FormatCardHero({
+function FormatHero({
   option,
   selected,
 }: {
@@ -654,45 +653,31 @@ function FormatCardHero({
 }) {
   const [imageLoaded, setImageLoaded] = useState(false)
   return (
-    <div className="fp-hero">
-      <div className={`fp-grad-${option.tone}`} />
-      <div className={`fp-glow-rim${option.tone === 'cool' ? '-cool' : ''}`} />
-      <div className={`fp-glow-fill fp-${option.tone}`} />
-      <div className={`fp-subject fp-${option.tone}`}>
-        <div className="fp-head" />
-        <div className="fp-body-silhouette" />
+    <div className="fmt-hero">
+      <div className={`fmt-grad-${option.tone}`} aria-hidden />
+      <div className={`fmt-glow-${option.tone}`} aria-hidden />
+      <div className={`fmt-subject fmt-${option.tone}`} aria-hidden>
+        <div className="fmt-head" />
+        <div className="fmt-body-silhouette" />
       </div>
-      <div className="fp-grain" />
-      <div className="fp-vignette" />
+      <div className="fmt-vignette" aria-hidden />
 
-      {/* Real photo (optional). Hidden until it loads so the gradient
-          fallback isn't briefly covered by a broken-image icon. */}
       <img
         src={option.imageSrc}
         alt=""
         aria-hidden
         onLoad={() => setImageLoaded(true)}
         onError={() => setImageLoaded(false)}
-        className="fp-cover"
+        className="fmt-cover"
         style={{ opacity: imageLoaded ? 1 : 0 }}
       />
 
-      <div className="fp-still-tag">{option.stillTag}</div>
-      <div className={`fp-hero-eyebrow fp-${option.tone}`}>
-        <span className="fp-pip" />
+      <div className={`fmt-eyebrow fmt-${option.tone}`}>
+        <span className="fmt-pip" />
         <span>{option.badge}</span>
       </div>
-      <div className="fp-check" data-selected={selected}>
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="3"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
+      <div className="fmt-check" data-selected={selected}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
           <path d="M20 6 9 17l-5-5" />
         </svg>
       </div>
@@ -705,7 +690,7 @@ export function StepFormat({
   onChange,
   onNext,
   onBack,
-  onClose: _onClose,
+  onClose,
 }: {
   value: WizardFormat
   onChange: (next: WizardFormat) => void
@@ -713,251 +698,179 @@ export function StepFormat({
   onBack: () => void
   onClose: () => void
 }) {
-  // Total steps in the wizard from the user's perspective. Step 1 is Format,
-  // 2 is Instructor, 3 is Course details, 4 is Pricing — so this screen is
-  // pip index 0 of 4.
-  const totalPips = 4
-  const activePip = 0
-
   return (
-    <div className="spaire-format-picker">
-      {/* Tiny progress pips, top-center */}
-      <div className="fp-progress" aria-hidden="true">
-        {Array.from({ length: totalPips }).map((_, i) => (
-          <div
-            key={i}
-            className={`fp-pip-bar${i === activePip ? ' fp-pip-bar--active' : ''}`}
-          />
-        ))}
-      </div>
+    <>
+      <ProgressBar pct={(1 / 4) * 100} />
+      <TopBar step={1} total={4} onClose={onClose} />
+      <div className="so-stage so-stage--format">
+        <div
+          className="so-screen"
+          style={{ maxWidth: 960, width: '100%' }}
+        >
+          <div className="fmt-header">
+            <h2 className="fmt-title">Pick your format</h2>
+            <p className="fmt-lede">
+              Not all knowledge is step-based. Choose a Course if you&apos;re
+              teaching a skill, a Series if you&apos;re sharing a story or a
+              way of seeing the world.
+            </p>
+          </div>
 
-      <div className="fp-stage" data-screen-label="Format Picker">
-        <header className="fp-header">
-          <div className="fp-eyebrow" />
-          <h1>Pick your format</h1>
-          <p className="fp-lede">
-            Not all knowledge is step-based. Choose a Course if you&apos;re
-            teaching a skill. Choose a Series if you&apos;re sharing a story, a
-            mindset, or a way of seeing the world.
-          </p>
-        </header>
-
-        <div className="fp-grid" role="radiogroup" aria-label="Format">
-          {FORMAT_OPTIONS.map((opt) => {
-            const selected = value === opt.id
-            return (
-              <button
-                type="button"
-                key={opt.id}
-                className="fp-card"
-                role="radio"
-                aria-checked={selected}
-                aria-selected={selected}
-                data-value={opt.id}
-                onClick={() => onChange(opt.id)}
-              >
-                <FormatCardHero option={opt} selected={selected} />
-
-                <div className="fp-card-body">
-                  <div className="fp-row1">
-                    <div className="fp-kicker" />
-                    <div className="fp-num" />
-                  </div>
-                  <h2 className="fp-title">{opt.title}</h2>
-                  <p className="fp-oneliner">{opt.oneliner}</p>
-                  <p className="fp-desc">{opt.description}</p>
-
-                  <div className="fp-hair" />
-
-                  <div className="fp-best-for">
-                    <div className="fp-best-for-label">Best for</div>
-                    <div className="fp-tags">
-                      {opt.bestFor.map((tag) => (
-                        <span key={tag} className="fp-tag">
-                          {tag}
-                        </span>
-                      ))}
+          <div className="fmt-grid" role="radiogroup" aria-label="Format">
+            {FORMAT_OPTIONS.map((opt) => {
+              const selected = value === opt.id
+              return (
+                <button
+                  type="button"
+                  key={opt.id}
+                  className="fmt-card"
+                  role="radio"
+                  aria-checked={selected}
+                  data-selected={selected}
+                  onClick={() => onChange(opt.id)}
+                >
+                  <FormatHero option={opt} selected={selected} />
+                  <div className="fmt-card-body">
+                    <div className="fmt-card-title">{opt.title}</div>
+                    <div className="fmt-card-oneliner">{opt.oneliner}</div>
+                    <p className="fmt-card-desc">{opt.description}</p>
+                    <div className="fmt-hair" />
+                    <div className="fmt-card-foot">
+                      <div className="fmt-best-label">Best for</div>
+                      <div className="fmt-tags">
+                        {opt.bestFor.map((tag) => (
+                          <span key={tag} className="fmt-tag">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                      <p className="fmt-example">
+                        <span className="fmt-eg">e.g.</span> {opt.example}
+                      </p>
                     </div>
-                    <p className="fp-example">{opt.example}</p>
                   </div>
-                </div>
-              </button>
-            )
-          })}
-        </div>
+                </button>
+              )
+            })}
+          </div>
 
-        <div className="fp-actions">
-          <button type="button" className="fp-back" onClick={onBack}>
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+          <div className="so-btn-row" style={{ marginTop: 24, justifyContent: 'center' }}>
+            <button
+              type="button"
+              className="so-btn-cta"
+              onClick={onNext}
+              disabled={!value}
             >
-              <path d="m15 18-6-6 6-6" />
-            </svg>
-            <span>Back</span>
-          </button>
-          <button
-            type="button"
-            className="fp-continue"
-            onClick={onNext}
-            disabled={!value}
-          >
-            <span>Continue</span>
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M5 12h14M12 5l7 7-7 7" />
-            </svg>
-          </button>
+              Continue
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                <path
+                  d="M2.5 6.5h8M7 3l3.5 3.5L7 10"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+            <button type="button" className="so-btn-back" onClick={onBack}>
+              ← Back
+            </button>
+          </div>
         </div>
       </div>
 
       <style jsx global>{`
-        .spaire-format-picker {
-          --fp-bg-0: oklch(0.985 0.003 280);
-          --fp-bg-1: #ffffff;
-          --fp-line: oklch(0.92 0.003 280);
-          --fp-line-soft: oklch(0.945 0.003 280);
-          --fp-fg-0: oklch(0.18 0.008 280);
-          --fp-fg-1: oklch(0.32 0.008 280);
-          --fp-fg-2: oklch(0.52 0.008 280);
-          --fp-fg-3: oklch(0.66 0.006 280);
-          color: var(--fp-fg-0);
-          font-family: var(--font-poppins), 'Poppins', system-ui, sans-serif;
-          font-size: 14px;
-          line-height: 1.5;
-          -webkit-font-smoothing: antialiased;
-          -moz-osx-font-smoothing: grayscale;
-          letter-spacing: -0.005em;
+        .so-stage--format {
+          /* Pull the stage tight so header + cards + CTA fit a single
+             viewport without scroll. Top accounts for the fixed TopBar
+             (56px), bottom is just breathing room. */
+          padding: 70px 24px 28px;
           min-height: 100vh;
-          width: 100%;
-          background:
-            radial-gradient(70% 50% at 50% 0%, oklch(0.99 0.003 280) 0%, transparent 70%),
-            radial-gradient(80% 60% at 50% 100%, oklch(0.93 0.005 280) 0%, transparent 80%),
-            var(--fp-bg-0);
         }
-        .spaire-format-picker *,
-        .spaire-format-picker *::before,
-        .spaire-format-picker *::after {
-          box-sizing: border-box;
-        }
-        .spaire-format-picker em {
-          font-style: italic;
-        }
-        .spaire-format-picker ::selection {
-          background: oklch(0.55 0.2 265 / 0.1);
-        }
-
-        /* ──────────── Layout ──────────── */
-        .fp-stage {
-          min-height: 100vh;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          padding: 56px 32px 48px;
-        }
-
-        .fp-header {
+        .fmt-header {
           text-align: center;
-          max-width: 620px;
-          margin-bottom: 44px;
+          max-width: 560px;
+          margin: 0 auto 22px;
         }
-        .fp-eyebrow {
-          font-size: 11px;
-          font-weight: 600;
-          letter-spacing: 0.22em;
-          text-transform: uppercase;
-          color: var(--fp-fg-3);
-          margin-bottom: 16px;
-        }
-        .spaire-format-picker h1 {
-          font-size: 44px;
-          font-weight: 600;
-          letter-spacing: -0.035em;
+        .fmt-title {
+          font-family: var(--font-poppins), system-ui, sans-serif;
+          font-size: clamp(26px, 3.4vw, 36px);
+          font-weight: 700;
+          letter-spacing: -0.03em;
           line-height: 1.05;
-          margin: 0 0 14px;
-          color: var(--fp-fg-0);
+          color: var(--so-black);
+          margin: 0 0 8px;
           text-wrap: balance;
         }
-        .fp-lede {
-          font-size: 15px;
-          color: var(--fp-fg-2);
-          text-wrap: pretty;
+        .fmt-lede {
+          font-size: 13.5px;
           line-height: 1.55;
-          max-width: 560px;
+          color: var(--so-gray4);
+          max-width: 520px;
           margin: 0 auto;
         }
 
-        /* ──────────── Card grid ──────────── */
-        .fp-grid {
+        .fmt-grid {
           display: grid;
           grid-template-columns: repeat(2, 1fr);
-          gap: 24px;
+          gap: 18px;
           width: 100%;
-          max-width: 960px;
-          margin-bottom: 44px;
+        }
+        @media (max-width: 760px) {
+          .fmt-grid {
+            grid-template-columns: 1fr;
+          }
         }
 
-        .fp-card {
+        .fmt-card {
           position: relative;
-          background: var(--fp-bg-1);
-          border-radius: 22px;
-          border: 1px solid var(--fp-line);
-          overflow: hidden;
-          isolation: isolate;
-          cursor: pointer;
-          transition:
-            transform 220ms cubic-bezier(0.34, 1.3, 0.64, 1),
-            box-shadow 220ms ease,
-            border-color 220ms ease;
-          box-shadow:
-            0 1px 2px oklch(0 0 0 / 0.04),
-            0 8px 24px oklch(0 0 0 / 0.06);
           display: flex;
           flex-direction: column;
-          font-family: inherit;
+          background: #ffffff;
+          border-radius: 18px;
+          border: 1px solid var(--so-gray2);
+          overflow: hidden;
+          cursor: pointer;
           padding: 0;
+          font-family: inherit;
           color: inherit;
           text-align: left;
           appearance: none;
-          border-style: solid;
-        }
-        .fp-card:hover {
-          transform: translateY(-3px);
+          transition:
+            transform 200ms cubic-bezier(0.34, 1.3, 0.64, 1),
+            box-shadow 200ms ease,
+            border-color 200ms ease;
           box-shadow:
-            0 2px 4px oklch(0 0 0 / 0.05),
-            0 18px 40px oklch(0 0 0 / 0.1);
+            0 1px 2px rgba(0, 0, 0, 0.03),
+            0 6px 18px rgba(0, 0, 0, 0.04);
         }
-        .fp-card[aria-checked='true'] {
-          border-color: var(--fp-fg-0);
+        .fmt-card:hover {
+          transform: translateY(-2px);
           box-shadow:
-            0 0 0 2px var(--fp-fg-0),
-            0 2px 4px oklch(0 0 0 / 0.06),
-            0 18px 44px oklch(0 0 0 / 0.12);
+            0 2px 4px rgba(0, 0, 0, 0.04),
+            0 14px 32px rgba(0, 0, 0, 0.08);
+          border-color: var(--so-gray3);
+        }
+        .fmt-card[data-selected='true'] {
+          border-color: var(--so-black);
+          box-shadow:
+            0 0 0 1.5px var(--so-black),
+            0 14px 36px rgba(0, 0, 0, 0.1);
         }
 
-        /* Hero — cinematic gradient */
-        .fp-hero {
+        /* Hero — shrinks with viewport height so the whole card stays in
+           view on shorter screens. Aspect kept loosely 16/9 but capped via
+           max-height so a short viewport doesn't blow the card past the
+           CTA. */
+        .fmt-hero {
           position: relative;
           width: 100%;
           aspect-ratio: 16 / 9;
+          max-height: clamp(150px, 28vh, 240px);
           overflow: hidden;
           background: #000;
         }
-        .fp-grad-warm {
+        .fmt-grad-warm {
           position: absolute;
           inset: 0;
           background: radial-gradient(
@@ -967,7 +880,7 @@ export function StepFormat({
             oklch(0.05 0.01 280) 100%
           );
         }
-        .fp-grad-cool {
+        .fmt-grad-cool {
           position: absolute;
           inset: 0;
           background: radial-gradient(
@@ -977,7 +890,7 @@ export function StepFormat({
             oklch(0.05 0.01 280) 100%
           );
         }
-        .fp-glow-rim {
+        .fmt-glow-warm {
           position: absolute;
           left: -8%;
           top: 0;
@@ -985,12 +898,12 @@ export function StepFormat({
           height: 70%;
           background: radial-gradient(
             ellipse,
-            oklch(0.88 0.08 75 / 0.3) 0%,
+            oklch(0.88 0.08 75 / 0.28) 0%,
             transparent 65%
           );
-          filter: blur(34px);
+          filter: blur(30px);
         }
-        .fp-glow-rim-cool {
+        .fmt-glow-cool {
           position: absolute;
           left: -8%;
           top: 0;
@@ -998,74 +911,34 @@ export function StepFormat({
           height: 70%;
           background: radial-gradient(
             ellipse,
-            oklch(0.85 0.1 220 / 0.28) 0%,
+            oklch(0.85 0.1 220 / 0.26) 0%,
             transparent 65%
           );
-          filter: blur(34px);
+          filter: blur(30px);
         }
-        .fp-glow-fill {
-          position: absolute;
-          right: -10%;
-          top: 25%;
-          width: 50%;
-          height: 55%;
-          filter: blur(40px);
-        }
-        .fp-glow-fill.fp-warm {
-          background: radial-gradient(
-            circle,
-            oklch(0.5 0.14 75 / 0.22) 0%,
-            transparent 70%
-          );
-        }
-        .fp-glow-fill.fp-cool {
-          background: radial-gradient(
-            circle,
-            oklch(0.55 0.14 295 / 0.24) 0%,
-            transparent 70%
-          );
-        }
-        .fp-grain {
-          position: absolute;
-          inset: 0;
-          background-image: radial-gradient(
-            circle at 50% 50%,
-            rgba(255, 255, 255, 0.025) 1px,
-            transparent 1px
-          );
-          background-size: 3px 3px;
-          opacity: 0.5;
-        }
-        .fp-vignette {
+        .fmt-vignette {
           position: absolute;
           inset: 0;
           background: linear-gradient(
             180deg,
-            oklch(0 0 0 / 0.15) 0%,
-            oklch(0 0 0 / 0) 30%,
-            oklch(0 0 0 / 0) 55%,
-            oklch(0 0 0 / 0.5) 85%,
-            oklch(0 0 0 / 0.85) 100%
+            rgba(0, 0, 0, 0.12) 0%,
+            rgba(0, 0, 0, 0) 35%,
+            rgba(0, 0, 0, 0) 65%,
+            rgba(0, 0, 0, 0.55) 100%
           );
           pointer-events: none;
         }
-
-        /* When the user drops a real JPG into /public/format-picker/, the
-           <img> below paints on top of the gradient. Sits above the
-           background art but below the eyebrow/check/still-tag chrome. */
-        .fp-cover {
+        .fmt-cover {
           position: absolute;
           inset: 0;
           width: 100%;
           height: 100%;
           object-fit: cover;
           object-position: center;
-          transition: opacity 280ms ease;
+          transition: opacity 240ms ease;
           z-index: 1;
         }
-
-        /* Subject silhouette — different gestures per card */
-        .fp-subject {
+        .fmt-subject {
           position: absolute;
           left: 50%;
           bottom: 0;
@@ -1074,30 +947,22 @@ export function StepFormat({
           height: 78%;
           pointer-events: none;
         }
-        .fp-subject .fp-head {
+        .fmt-subject .fmt-head {
           position: absolute;
           left: 50%;
           top: 4%;
           transform: translateX(-50%);
-          width: 32%;
+          width: 30%;
           aspect-ratio: 1;
           border-radius: 50%;
         }
-        .fp-subject.fp-warm .fp-head {
-          background: linear-gradient(
-            180deg,
-            oklch(0.5 0.05 35),
-            oklch(0.32 0.04 35)
-          );
+        .fmt-subject.fmt-warm .fmt-head {
+          background: linear-gradient(180deg, oklch(0.5 0.05 35), oklch(0.32 0.04 35));
         }
-        .fp-subject.fp-cool .fp-head {
-          background: linear-gradient(
-            180deg,
-            oklch(0.5 0.05 250),
-            oklch(0.32 0.04 250)
-          );
+        .fmt-subject.fmt-cool .fmt-head {
+          background: linear-gradient(180deg, oklch(0.5 0.05 250), oklch(0.32 0.04 250));
         }
-        .fp-subject .fp-body-silhouette {
+        .fmt-subject .fmt-body-silhouette {
           position: absolute;
           left: 0;
           right: 0;
@@ -1106,312 +971,155 @@ export function StepFormat({
           clip-path: polygon(22% 0, 78% 0, 100% 100%, 0% 100%);
           border-radius: 46% 46% 0 0;
         }
-        .fp-subject.fp-warm .fp-body-silhouette {
-          background: linear-gradient(
-            180deg,
-            oklch(0.3 0.04 35),
-            oklch(0.1 0.02 35)
-          );
+        .fmt-subject.fmt-warm .fmt-body-silhouette {
+          background: linear-gradient(180deg, oklch(0.3 0.04 35), oklch(0.1 0.02 35));
         }
-        .fp-subject.fp-cool .fp-body-silhouette {
-          background: linear-gradient(
-            180deg,
-            oklch(0.3 0.04 250),
-            oklch(0.1 0.02 250)
-          );
+        .fmt-subject.fmt-cool .fmt-body-silhouette {
+          background: linear-gradient(180deg, oklch(0.3 0.04 250), oklch(0.1 0.02 250));
         }
-
-        /* Cinematic-still placeholder tag */
-        .fp-still-tag {
+        .fmt-eyebrow {
           position: absolute;
-          left: 16px;
-          bottom: 14px;
-          font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-          font-size: 9.5px;
-          letter-spacing: 0.06em;
-          color: rgba(255, 255, 255, 0.32);
-          z-index: 2;
-        }
-
-        .fp-hero-eyebrow {
-          position: absolute;
-          right: 16px;
-          top: 14px;
+          right: 12px;
+          top: 11px;
           display: flex;
           align-items: center;
-          gap: 7px;
-          font-size: 9.5px;
+          gap: 6px;
+          font-size: 9px;
           font-weight: 600;
           letter-spacing: 0.2em;
-          color: rgba(255, 255, 255, 0.78);
+          color: rgba(255, 255, 255, 0.85);
           z-index: 2;
         }
-        .fp-hero-eyebrow .fp-pip {
+        .fmt-eyebrow .fmt-pip {
           width: 5px;
           height: 5px;
           border-radius: 50%;
         }
-        .fp-hero-eyebrow.fp-warm .fp-pip {
+        .fmt-eyebrow.fmt-warm .fmt-pip {
           background: oklch(0.72 0.16 25);
           box-shadow: 0 0 8px oklch(0.72 0.16 25);
         }
-        .fp-hero-eyebrow.fp-cool .fp-pip {
+        .fmt-eyebrow.fmt-cool .fmt-pip {
           background: oklch(0.72 0.14 220);
           box-shadow: 0 0 8px oklch(0.72 0.14 220);
         }
-
-        /* Selection ring + checkmark on hero */
-        .fp-check {
+        .fmt-check {
           position: absolute;
-          top: 16px;
-          left: 16px;
-          width: 26px;
-          height: 26px;
+          top: 11px;
+          left: 12px;
+          width: 22px;
+          height: 22px;
           border-radius: 50%;
           background: rgba(255, 255, 255, 0.12);
-          backdrop-filter: blur(14px) saturate(180%);
-          -webkit-backdrop-filter: blur(14px) saturate(180%);
+          backdrop-filter: blur(12px) saturate(180%);
+          -webkit-backdrop-filter: blur(12px) saturate(180%);
           border: 1px solid rgba(255, 255, 255, 0.32);
           display: flex;
           align-items: center;
           justify-content: center;
-          transition:
-            background 200ms ease,
-            border-color 200ms ease,
-            transform 200ms ease;
+          color: transparent;
           z-index: 2;
+          transition: background 200ms ease, border-color 200ms ease;
         }
-        .fp-check svg {
+        .fmt-check svg {
           opacity: 0;
-          transition: opacity 180ms ease;
+          transition: opacity 160ms ease;
         }
-        .fp-check[data-selected='true'] {
+        .fmt-check[data-selected='true'] {
           background: white;
           border-color: white;
-          transform: scale(1.02);
         }
-        .fp-check[data-selected='true'] svg {
+        .fmt-check[data-selected='true'] svg {
           opacity: 1;
-          color: var(--fp-fg-0);
+          color: var(--so-black);
         }
 
-        /* ──────────── Card body ──────────── */
-        .fp-card-body {
-          padding: 24px 26px 24px;
+        /* Card body — tight padding so a short screen still fits the
+           heading + lede + cards + CTA without scroll. */
+        .fmt-card-body {
+          padding: 16px 20px 18px;
           display: flex;
           flex-direction: column;
-          gap: 0;
           flex: 1;
         }
-        .fp-row1 {
-          display: flex;
-          align-items: baseline;
-          justify-content: space-between;
-          gap: 12px;
-          margin-bottom: 12px;
-        }
-        .fp-kicker {
-          font-size: 10.5px;
-          font-weight: 600;
-          letter-spacing: 0.22em;
-          text-transform: uppercase;
-          color: var(--fp-fg-3);
-        }
-        .fp-num {
-          font-size: 12px;
-          color: var(--fp-fg-3);
-          font-weight: 500;
-          font-variant-numeric: tabular-nums;
-        }
-        .fp-title {
-          font-size: 38px;
-          font-weight: 600;
-          letter-spacing: -0.035em;
+        .fmt-card-title {
+          font-family: var(--font-poppins), system-ui, sans-serif;
+          font-size: 26px;
+          font-weight: 700;
+          letter-spacing: -0.03em;
           line-height: 1;
-          margin: 0 0 10px;
-          color: var(--fp-fg-0);
+          color: var(--so-black);
+          margin-bottom: 6px;
         }
-        .fp-oneliner {
-          font-size: 15px;
-          color: var(--fp-fg-1);
+        .fmt-card-oneliner {
+          font-size: 13px;
           font-weight: 500;
-          letter-spacing: -0.01em;
-          margin: 0 0 16px;
+          color: var(--so-gray4);
+          letter-spacing: -0.005em;
+          margin-bottom: 10px;
         }
-        .fp-desc {
-          font-size: 13.5px;
-          color: var(--fp-fg-2);
-          line-height: 1.55;
+        .fmt-card-desc {
+          font-size: 12.5px;
+          color: var(--so-ink);
+          line-height: 1.5;
+          margin: 0 0 14px;
           text-wrap: pretty;
-          margin: 0 0 18px;
         }
-
-        /* Divider — Apple-style hairline with fade */
-        .fp-hair {
+        .fmt-hair {
           height: 1px;
           background: linear-gradient(
             90deg,
             transparent 0%,
-            var(--fp-line) 20%,
-            var(--fp-line) 80%,
+            var(--so-gray2) 18%,
+            var(--so-gray2) 82%,
             transparent 100%
           );
-          margin-bottom: 16px;
+          margin-bottom: 12px;
         }
-
-        /* Centered "Best for" block */
-        .fp-best-for {
+        .fmt-card-foot {
           text-align: center;
           margin-top: auto;
         }
-        .fp-best-for-label {
-          font-size: 10px;
+        .fmt-best-label {
+          font-size: 9.5px;
           font-weight: 600;
           letter-spacing: 0.18em;
           text-transform: uppercase;
-          color: var(--fp-fg-3);
+          color: var(--so-gray3);
+          margin-bottom: 8px;
+        }
+        .fmt-tags {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 5px;
+          justify-content: center;
           margin-bottom: 10px;
         }
-        .fp-tags {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 6px;
-          justify-content: center;
-          margin-bottom: 12px;
-        }
-        .fp-tag {
-          font-size: 11.5px;
-          color: var(--fp-fg-1);
+        .fmt-tag {
+          font-size: 11px;
+          color: var(--so-ink);
           font-weight: 500;
-          padding: 5px 11px;
+          padding: 4px 10px;
           border-radius: 999px;
           background: oklch(0.97 0.002 280);
-          border: 1px solid var(--fp-line-soft);
+          border: 1px solid var(--so-gray2);
         }
-        .fp-example {
-          font-size: 12.5px;
-          color: var(--fp-fg-2);
+        .fmt-example {
+          font-size: 11.5px;
+          color: var(--so-gray4);
           font-style: italic;
-          font-weight: 400;
-          line-height: 1.5;
-          text-wrap: pretty;
+          line-height: 1.45;
           margin: 0;
         }
-        .fp-example::before {
-          content: 'e.g.';
+        .fmt-eg {
           font-style: normal;
           font-weight: 600;
-          color: var(--fp-fg-3);
-          margin-right: 6px;
+          color: var(--so-gray3);
+          margin-right: 4px;
           letter-spacing: 0.02em;
         }
-
-        /* ──────────── Footer actions ──────────── */
-        .fp-actions {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 24px;
-          width: 100%;
-          max-width: 960px;
-          flex-wrap: wrap;
-        }
-        .fp-back {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          font-size: 13px;
-          color: var(--fp-fg-2);
-          padding: 10px 14px;
-          border-radius: 999px;
-          background: none;
-          border: none;
-          cursor: pointer;
-          font-family: inherit;
-          transition:
-            color 150ms ease,
-            background 150ms ease;
-        }
-        .fp-back:hover {
-          color: var(--fp-fg-0);
-          background: oklch(0.97 0.002 280);
-        }
-
-        .fp-continue {
-          padding: 14px 44px;
-          border-radius: 999px;
-          background: linear-gradient(
-            180deg,
-            oklch(0.28 0.008 280) 0%,
-            oklch(0.14 0.008 280) 100%
-          );
-          color: white;
-          font-size: 14px;
-          font-weight: 600;
-          letter-spacing: -0.01em;
-          border: none;
-          cursor: pointer;
-          font-family: inherit;
-          box-shadow:
-            inset 0 1px 0 rgba(255, 255, 255, 0.18),
-            inset 0 -1px 0 rgba(0, 0, 0, 0.4),
-            0 1px 2px rgba(0, 0, 0, 0.15),
-            0 6px 16px rgba(0, 0, 0, 0.18),
-            0 12px 30px rgba(0, 0, 0, 0.1);
-          transition:
-            transform 150ms ease,
-            box-shadow 150ms ease;
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-        }
-        .fp-continue:hover:not(:disabled) {
-          transform: translateY(-1px);
-        }
-        .fp-continue:disabled {
-          opacity: 0.45;
-          cursor: not-allowed;
-          transform: none;
-        }
-
-        /* ──────────── Step indicator ──────────── */
-        .fp-progress {
-          position: fixed;
-          top: 24px;
-          left: 50%;
-          transform: translateX(-50%);
-          display: flex;
-          gap: 6px;
-          z-index: 210;
-        }
-        .fp-pip-bar {
-          width: 22px;
-          height: 3px;
-          border-radius: 2px;
-          background: var(--fp-line);
-          transition:
-            background 200ms ease,
-            width 200ms ease;
-        }
-        .fp-pip-bar--active {
-          background: var(--fp-fg-0);
-          width: 30px;
-        }
-
-        @media (max-width: 880px) {
-          .fp-grid {
-            grid-template-columns: 1fr;
-            max-width: 480px;
-          }
-          .spaire-format-picker h1 {
-            font-size: 36px;
-          }
-          .fp-stage {
-            padding: 80px 20px 36px;
-          }
-        }
       `}</style>
-    </div>
+    </>
   )
 }
 
