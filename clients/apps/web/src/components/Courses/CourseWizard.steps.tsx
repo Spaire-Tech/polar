@@ -620,8 +620,8 @@ type FormatOption = {
 const FORMAT_OPTIONS: FormatOption[] = [
   {
     id: 'course',
-    badge: 'STRUCTURED',
-    title: 'Course',
+    badge: 'COURSE',
+    title: 'Structured',
     oneliner: 'Step-by-step skill building.',
     description:
       'Modules and lessons that progress from foundation to fluency.',
@@ -632,8 +632,8 @@ const FORMAT_OPTIONS: FormatOption[] = [
   },
   {
     id: 'series',
-    badge: 'NARRATIVE',
-    title: 'Series',
+    badge: 'SERIES',
+    title: 'Narrative',
     oneliner: 'Episodic, in your voice.',
     description:
       'Self-contained episodes that orbit a single theme. Watched like a documentary.',
@@ -790,7 +790,7 @@ export function StepFormat({
         .fmt-header {
           text-align: center;
           max-width: 560px;
-          margin: 0 auto 22px;
+          margin: 0 auto 44px;
         }
         .fmt-title {
           font-family: var(--font-poppins), system-ui, sans-serif;
