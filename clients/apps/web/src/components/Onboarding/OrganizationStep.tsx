@@ -99,6 +99,59 @@ export const OrganizationStep = ({
   const [coverPreview, setCoverPreview] = useState<string>('')
   const coverInputRef = useRef<HTMLInputElement>(null)
 
+  // Cover focal point (drag-to-reposition)
+  const [coverPos, setCoverPos] = useState<{ x: number; y: number }>({
+    x: 50,
+    y: 50,
+  })
+  const [isDraggingCover, setIsDraggingCover] = useState(false)
+  const coverDragRef = useRef<{
+    startX: number
+    startY: number
+    posX: number
+    posY: number
+    width: number
+    height: number
+    pointerId: number
+  } | null>(null)
+
+  const onCoverPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!coverPreview) return
+    if ((e.target as HTMLElement).closest('[data-cover-replace]')) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    if (rect.width === 0 || rect.height === 0) return
+    e.currentTarget.setPointerCapture(e.pointerId)
+    setIsDraggingCover(true)
+    coverDragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      posX: coverPos.x,
+      posY: coverPos.y,
+      width: rect.width,
+      height: rect.height,
+      pointerId: e.pointerId,
+    }
+  }
+
+  const onCoverPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = coverDragRef.current
+    if (!drag || drag.pointerId !== e.pointerId || !isDraggingCover) return
+    const dxPct = ((e.clientX - drag.startX) / drag.width) * 100
+    const dyPct = ((e.clientY - drag.startY) / drag.height) * 100
+    const newX = Math.max(0, Math.min(100, drag.posX - dxPct))
+    const newY = Math.max(0, Math.min(100, drag.posY - dyPct))
+    setCoverPos({ x: newX, y: newY })
+  }
+
+  const onCoverPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = coverDragRef.current
+    if (drag && e.currentTarget.hasPointerCapture(drag.pointerId)) {
+      e.currentTarget.releasePointerCapture(drag.pointerId)
+    }
+    setIsDraggingCover(false)
+    coverDragRef.current = null
+  }
+
   const router = useRouter()
 
   useEffect(() => {
@@ -228,6 +281,11 @@ export const OrganizationStep = ({
       const storefrontSettings = {
         ...(data.description ? { description: data.description } : {}),
         ...(uploadedCoverUrl ? { header_image_url: uploadedCoverUrl } : {}),
+        ...(uploadedCoverUrl
+          ? {
+              header_focal_point: `${coverPos.x.toFixed(1)}% ${coverPos.y.toFixed(1)}%`,
+            }
+          : {}),
       }
 
       await updateOrganization.mutateAsync({
@@ -316,28 +374,51 @@ export const OrganizationStep = ({
                 <div>
                   <Label>Cover Image</Label>
                   <p className="mt-0.5 text-xs text-gray-400">
-                    Shown as the banner on your Space Card.
+                    {coverPreview
+                      ? 'Drag to reposition. Click Replace to change.'
+                      : 'Shown as the banner on your Space Card.'}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => coverInputRef.current?.click()}
-                  className="relative flex h-28 w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 transition-colors hover:border-gray-300 hover:bg-gray-100"
-                >
-                  {coverPreview ? (
-                    // eslint-disable-next-line @next/next/no-img-element
+                {coverPreview ? (
+                  <div
+                    onPointerDown={onCoverPointerDown}
+                    onPointerMove={onCoverPointerMove}
+                    onPointerUp={onCoverPointerUp}
+                    onPointerCancel={onCoverPointerUp}
+                    className="relative h-28 w-full select-none overflow-hidden rounded-xl border border-gray-200 bg-gray-50"
+                    style={{ cursor: isDraggingCover ? 'grabbing' : 'grab' }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={coverPreview}
                       alt="Cover"
+                      draggable={false}
                       className="h-full w-full object-cover"
+                      style={{
+                        objectPosition: `${coverPos.x.toFixed(1)}% ${coverPos.y.toFixed(1)}%`,
+                      }}
                     />
-                  ) : (
+                    <button
+                      type="button"
+                      data-cover-replace
+                      onClick={() => coverInputRef.current?.click()}
+                      className="absolute right-2 top-2 rounded-lg bg-black/60 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm transition-colors hover:bg-black/75"
+                    >
+                      Replace
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => coverInputRef.current?.click()}
+                    className="relative flex h-28 w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 transition-colors hover:border-gray-300 hover:bg-gray-100"
+                  >
                     <div className="flex flex-col items-center gap-1 text-gray-400">
                       <AddPhotoAlternateOutlined fontSize="medium" />
                       <span className="text-xs">Upload cover image</span>
                     </div>
-                  )}
-                </button>
+                  </button>
+                )}
                 <input
                   ref={coverInputRef}
                   type="file"
@@ -348,6 +429,7 @@ export const OrganizationStep = ({
                     if (file) {
                       setCoverFile(file)
                       setCoverPreview(URL.createObjectURL(file))
+                      setCoverPos({ x: 50, y: 50 })
                     }
                   }}
                 />
