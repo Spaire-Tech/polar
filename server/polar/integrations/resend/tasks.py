@@ -124,6 +124,14 @@ async def process_resend_event(
         # Idempotency: try to claim this svix-id. If insert fails on the
         # unique constraint, another worker has already processed it (or
         # is processing it concurrently).
+        #
+        # Failure-tolerant: if the ``resend_webhook_events`` table doesn't
+        # exist yet (migration pending) or any other DB error fires
+        # against this single row, we fall through and process the event
+        # anyway. Losing dedup for one event is far less bad than
+        # silently dropping every webhook because the idempotency log
+        # isn't ready.
+        idempotency_claimed = False
         if webhook_event_id:
             try:
                 stmt = (
@@ -148,6 +156,7 @@ async def process_resend_event(
                         event_type=event_type,
                     )
                     return
+                idempotency_claimed = True
                 # Make the claim visible before any further write so a
                 # concurrent worker reading uncommitted data won't slip
                 # past the conflict check.
@@ -160,6 +169,20 @@ async def process_resend_event(
                     event_type=event_type,
                 )
                 return
+            except Exception as exc:
+                # Most likely: table doesn't exist (migration not run),
+                # or transient DB error claiming the row. The lookup-
+                # and-update below still has value; don't lose the event.
+                log.warning(
+                    "resend.webhook.idempotency_unavailable",
+                    webhook_event_id=webhook_event_id,
+                    email_id=email_id,
+                    event_type=event_type,
+                    error=str(exc),
+                )
+                # Roll the failed claim out of the session so subsequent
+                # statements aren't poisoned.
+                await session.rollback()
 
         # ── Try broadcast send first ──────────────────────────────────────
         broadcast_stmt = select(EmailBroadcastSend).where(
@@ -174,7 +197,7 @@ async def process_resend_event(
                 session, broadcast_send, event_type, now, event_data
             )
             # Stamp processed_at so we can audit lag from the idempotency table.
-            if webhook_event_id:
+            if webhook_event_id and idempotency_claimed:
                 await session.execute(
                     update(ResendWebhookEvent)
                     .where(ResendWebhookEvent.webhook_event_id == webhook_event_id)
@@ -219,7 +242,9 @@ async def process_resend_event(
         # short delay; release the idempotency claim so the retry can
         # actually process it.
         if deferred_retry < _MAX_DEFERRED_RESOLVE_RETRIES:
-            if webhook_event_id:
+            if webhook_event_id and idempotency_claimed:
+                # Release the idempotency claim so the requeued retry
+                # can claim it fresh on its next attempt.
                 await session.execute(
                     ResendWebhookEvent.__table__.delete().where(
                         ResendWebhookEvent.webhook_event_id == webhook_event_id
