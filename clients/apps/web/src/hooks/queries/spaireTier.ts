@@ -98,6 +98,11 @@ export interface CurrentSpaireSubscription {
   current_period_end: string | null
   trial_end: string | null
   cancel_at_period_end: boolean
+  // True only while the active sub is the auto-created Pro trial
+  // (managed_by=trial). Flips False once the creator goes through
+  // upgrade-checkout. Onboarding review uses this to verify a Stripe
+  // checkout actually finished when it sees ?upgraded=1.
+  is_default_trial: boolean
   entitlements: Entitlements
 }
 

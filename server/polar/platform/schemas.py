@@ -98,6 +98,17 @@ class CurrentSpaireSubscription(Schema):
     cancel_at_period_end: bool = Field(
         description="Whether the subscription is scheduled to cancel."
     )
+    is_default_trial: bool = Field(
+        default=False,
+        description=(
+            "True when the active subscription is the auto-created Pro "
+            "trial from the org-creation hook (i.e. `managed_by=trial`). "
+            "Becomes False once the creator goes through upgrade-checkout "
+            "and a payment method is captured. The onboarding review "
+            "page uses this to verify a Stripe checkout actually "
+            "completed when it sees `?upgraded=1` in the URL."
+        ),
+    )
     entitlements: Entitlements
 
 

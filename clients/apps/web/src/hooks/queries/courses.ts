@@ -911,6 +911,29 @@ export const useMarkLessonComplete = (
     },
   })
 
+// Mint a signed Mux playback URL for a lesson. Called when the player
+// transitions to "playing" so the server can enforce the
+// video_views_monthly quota and count the view. The course-read
+// response intentionally no longer inlines the URL — bypassing this
+// endpoint would also bypass quota enforcement.
+export type LessonPlaybackUrlResponse = {
+  mux_playback_id: string | null
+  mux_playback_url: string | null
+}
+
+export const useMintLessonPlaybackUrl = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+) =>
+  useMutation<LessonPlaybackUrlResponse, Error, string>({
+    mutationFn: (lessonId: string) =>
+      portalApiFetch<LessonPlaybackUrlResponse>(
+        `/v1/customer-portal/courses/${courseId}/lessons/${lessonId}/playback-url`,
+        token!,
+        { method: 'POST' },
+      ),
+  })
+
 // --- Lesson comments (customer portal) ---
 
 export type LessonCommentRead = {

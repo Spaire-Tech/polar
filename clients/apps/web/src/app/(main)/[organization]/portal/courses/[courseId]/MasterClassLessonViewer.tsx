@@ -3,7 +3,11 @@
 import { HlsVideo } from '@/components/Courses/HlsVideo'
 import { QuizPlayer } from '@/components/Courses/QuizPlayer'
 import { MemoizedMarkdown } from '@/components/Markdown/MemoizedMarkdown'
-import { useLessonNote, useUpsertLessonNote } from '@/hooks/queries/courses'
+import {
+  useLessonNote,
+  useMintLessonPlaybackUrl,
+  useUpsertLessonNote,
+} from '@/hooks/queries/courses'
 import { useIsMobile } from '@/utils/mobile'
 import Bookmark from '@mui/icons-material/Bookmark'
 import BookmarkBorderOutlined from '@mui/icons-material/BookmarkBorderOutlined'
@@ -106,10 +110,13 @@ export const MasterClassLessonViewer = ({
 }: MasterClassLessonViewerProps) => {
   const { isMobile } = useIsMobile()
   const [playing, setPlaying] = useState(false)
+  const [playbackUrl, setPlaybackUrl] = useState<string | null>(null)
+  const [playbackError, setPlaybackError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'lessons' | 'notes'>('lessons')
   const [noteText, setNoteText] = useState('')
   const [bookmarked, setBookmarked] = useState(false)
   const [shareCopied, setShareCopied] = useState(false)
+  const mintPlaybackUrl = useMintLessonPlaybackUrl(token, courseId)
   const noteDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   // Track whether the user has typed since the lesson switched. Prevents
   // the savedNote effect below from clobbering in-flight typing if the
@@ -123,6 +130,8 @@ export const MasterClassLessonViewer = ({
 
   useEffect(() => {
     setPlaying(false)
+    setPlaybackUrl(null)
+    setPlaybackError(null)
     // Cancel any pending debounced save from the previous lesson before
     // we swap state — otherwise the timer fires after the lesson change
     // and writes the previous draft into the new lesson's note.
@@ -136,6 +145,31 @@ export const MasterClassLessonViewer = ({
       setBookmarked(window.localStorage.getItem(bookmarkKey) !== null)
     }
   }, [lesson.id, bookmarkKey])
+
+  // Mint a fresh signed playback URL each time the user presses play.
+  // The course-read response no longer inlines mux_playback_url; the
+  // POST /playback-url call also enforces video_views_monthly and
+  // counts the view, so we can't skip it. Errors surface as a friendly
+  // message in the play area instead of a black box.
+  const handlePlayClicked = async () => {
+    if (mintPlaybackUrl.isPending) return
+    setPlaybackError(null)
+    setPlaying(true)
+    try {
+      const result = await mintPlaybackUrl.mutateAsync(lesson.id)
+      if (!result.mux_playback_url) {
+        throw new Error("This lesson's video isn't available right now.")
+      }
+      setPlaybackUrl(result.mux_playback_url)
+    } catch (err) {
+      setPlaying(false)
+      setPlaybackError(
+        err instanceof Error && err.message
+          ? err.message
+          : "Couldn't load this video. Please try again.",
+      )
+    }
+  }
 
   useEffect(() => {
     if (savedNote === undefined) return
@@ -223,12 +257,12 @@ export const MasterClassLessonViewer = ({
 
   const renderVideoArea = () => {
     if (lesson.mux_playback_id && lesson.mux_status === 'ready') {
-      if (playing) {
+      if (playing && playbackUrl) {
         return (
           <div className="w-full bg-black" style={{ aspectRatio: '16/9' }}>
             <HlsVideo
               playbackId={lesson.mux_playback_id}
-              playbackUrl={lesson.mux_playback_url}
+              playbackUrl={playbackUrl}
               poster={thumbnailSrc ?? undefined}
               autoPlay
               onEnded={() => {
@@ -240,8 +274,9 @@ export const MasterClassLessonViewer = ({
       }
       return (
         <button
-          onClick={() => setPlaying(true)}
-          className="group relative block w-full bg-black"
+          onClick={handlePlayClicked}
+          disabled={mintPlaybackUrl.isPending}
+          className="group relative block w-full bg-black disabled:cursor-wait"
           style={{ aspectRatio: '16/9' }}
         >
           {thumbnailSrc && (
@@ -269,6 +304,11 @@ export const MasterClassLessonViewer = ({
               <PlayArrow sx={{ fontSize: 30, color: '#000' }} />
             </div>
           </div>
+          {playbackError && (
+            <div className="absolute inset-x-0 bottom-0 bg-red-900/80 px-4 py-2 text-center text-xs text-white">
+              {playbackError}
+            </div>
+          )}
         </button>
       )
     }
