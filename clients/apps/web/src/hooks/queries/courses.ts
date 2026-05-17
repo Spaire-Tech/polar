@@ -95,11 +95,23 @@ export type CourseFormat = 'course' | 'series'
 // lesson and a window inside it (start_seconds + duration_seconds), and
 // the public landing renders an auto-play-on-scroll sub-hero clip of that
 // window. duration_seconds is enforced server-side to 5–180s.
+//
+// On the public landing endpoint, the same payload is enriched with the
+// lesson's playback data (mux_playback_id, signed url, title, poster) so
+// the player doesn't have to look the lesson up in flatLessons — public
+// lessons that aren't free-preview strip their mux_* fields, but the
+// sample intentionally bypasses that gate since it's a marketing slice.
 export type CourseSample = {
   enabled: boolean
   lesson_id: string
   start_seconds: number
   duration_seconds: number
+  // Public-landing-only fields. Absent in dashboard reads — the editor
+  // already has full lesson data via course.modules[].lessons.
+  lesson_title?: string | null
+  thumbnail_url?: string | null
+  mux_playback_id?: string | null
+  mux_playback_url?: string | null
 }
 
 export type CourseRead = {
