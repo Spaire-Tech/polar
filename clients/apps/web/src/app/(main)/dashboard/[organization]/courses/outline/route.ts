@@ -24,7 +24,8 @@ const seriesSystemPrompt = `You are a story editor for a premium series — clos
 
 Output format (important)
 - Return EXACTLY ONE module. Treat that module as the season itself; its "title" is the season tagline (2-6 words, editorial, NOT "Module 1"). Its "description" is one sentence framing the arc.
-- Inside that single module, return 6-10 "lessons" — these are the episodes. Each lesson title is the episode title.
+- Inside that single module, return EXACTLY 6 "lessons" — these are the episodes. Never more, never fewer. If the topic is huge, tighten and combine; if it's narrow, slow down and let scenes breathe. Always six.
+- Each lesson title is the episode title.
 - Pick "content_type" per episode: "video" for personal, on-camera reflection or behind-the-scenes (the default for a series), "text" only when the episode is genuinely better as a written piece (e.g. a letter, a journal entry, a written reflection).
 
 Voice & structure

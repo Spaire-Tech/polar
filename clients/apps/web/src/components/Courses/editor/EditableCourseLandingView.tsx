@@ -1306,6 +1306,11 @@ function CourseSections({
   const modules = [...course.modules].sort((a, b) => a.position - b.position)
   const [openIdx, setOpenIdx] = useState<number | null>(null)
   if (modules.length === 0) return null
+  // Series are flat episode lists — the zigzag-of-modules roadmap has no
+  // referent for them. The series landing prompt also returns an empty
+  // sections array, but we gate on format here so the strip stays hidden
+  // even for series that pre-date the prompt change.
+  if (course.format === 'series') return null
   // Cap each row at 4 cards so the cards stay readable. With more modules,
   // the zigzag stacks into multiple rows — but every row reuses the same
   // column count so cards stay the same width whether a row is full or
