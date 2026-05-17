@@ -296,6 +296,18 @@ const Customization = ({
     }
   }, [form, organization, updateOrganization, publishing, queryClient])
 
+  // Shared dirty-check used by every code path that takes the user
+  // away from the editor (client-side navigations don't fire
+  // beforeunload, so we have to ask explicitly). Declared here, BEFORE
+  // any early returns, so the hook count stays stable across edit and
+  // preview branches.
+  const confirmIfDirty = useCallback((): boolean => {
+    if (!isDirty) return true
+    return window.confirm(
+      'You have unpublished changes. Leave without publishing?',
+    )
+  }, [isDirty])
+
   // Published preview mode — card centered with Edit Space button
   if (!isEditing && isSpaceEnabled) {
     // Overlay any unpublished form edits on top of the published org
@@ -512,16 +524,6 @@ const Customization = ({
   // DraggableBlocks product/links grid (right). Both subscribe to form
   // state directly. The Settings / Arrange / Links panels slide in
   // from the right; a floating "+ Add to Space" FAB opens the picker.
-
-  // Shared dirty-check used by every code path that takes the user
-  // away from the editor (client-side navigations don't fire
-  // beforeunload, so we have to ask explicitly).
-  const confirmIfDirty = useCallback((): boolean => {
-    if (!isDirty) return true
-    return window.confirm(
-      'You have unpublished changes. Leave without publishing?',
-    )
-  }, [isDirty])
 
   const handleBack = () => {
     if (!confirmIfDirty()) return
