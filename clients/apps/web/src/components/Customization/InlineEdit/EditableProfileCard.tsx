@@ -1087,20 +1087,24 @@ export const EditableProfileCard = ({
           ))}
           <button
             type="button"
+            disabled={socials.length >= SOCIAL_PLATFORMS.length}
             onClick={() => {
+              // Default the new row to the first platform the creator
+              // hasn't already added — avoids the "two Twitters" trap.
+              // Once every platform has a row, the button is disabled.
+              const used = new Set(socials.map((s) => s.platform))
+              const next = SOCIAL_PLATFORMS.find((p) => !used.has(p.value))
+              if (!next) return
               setValue(
                 'socials',
                 [
                   ...socials,
-                  {
-                    platform: SOCIAL_PLATFORMS[0].value,
-                    url: '',
-                  } as SocialLink,
+                  { platform: next.value, url: '' } as SocialLink,
                 ],
                 { shouldDirty: true },
               )
             }}
-            className="flex flex-row items-center gap-x-2 rounded-xl border border-dashed border-gray-300 px-4 py-2.5 text-sm text-gray-500 transition-colors hover:border-gray-400 hover:text-gray-700"
+            className="flex flex-row items-center gap-x-2 rounded-xl border border-dashed border-gray-300 px-4 py-2.5 text-sm text-gray-500 transition-colors hover:border-gray-400 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-gray-300 disabled:hover:text-gray-500"
           >
             <AddOutlined style={{ fontSize: 18 }} />
             Add social link

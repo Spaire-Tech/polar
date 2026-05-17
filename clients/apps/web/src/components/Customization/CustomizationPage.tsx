@@ -298,7 +298,22 @@ const Customization = ({
 
   // Published preview mode — card centered with Edit Space button
   if (!isEditing && isSpaceEnabled) {
-    const previewOrg = storefrontData?.organization ?? organization
+    // Overlay any unpublished form edits on top of the published org
+    // so the preview branch shows "what publishing would produce" —
+    // not the stale published copy. The user can't edit while in
+    // preview, so a single getValues() snapshot at render is enough
+    // (no reactive watch() at page level, which would re-render the
+    // editor mode on every keystroke).
+    const publishedOrg = storefrontData?.organization ?? organization
+    const draft = form.getValues()
+    const previewOrg = {
+      ...publishedOrg,
+      name: draft.name ?? publishedOrg.name,
+      avatar_url: draft.avatar_url ?? publishedOrg.avatar_url,
+      socials: draft.socials ?? publishedOrg.socials,
+      storefront_settings:
+        draft.storefront_settings ?? publishedOrg.storefront_settings,
+    } as typeof publishedOrg
     const previewProducts = (storefrontData?.products ?? []) as schemas['ProductStorefront'][]
     const previewSettings = previewOrg.storefront_settings ?? {}
     const previewFeaturedMode = previewSettings?.featured_mode ?? 'curated'
@@ -395,6 +410,14 @@ const Customization = ({
             </div>
 
             <div className="flex items-center gap-3">
+              {isDirty && (
+                <span
+                  className="rounded-full bg-amber-100 px-3 py-1 text-[12px] font-medium text-amber-800"
+                  title="Showing your unpublished edits — visitors still see the published version."
+                >
+                  Unpublished preview
+                </span>
+              )}
               <a
                 href={spacePageLink(organization)}
                 target="_blank"
