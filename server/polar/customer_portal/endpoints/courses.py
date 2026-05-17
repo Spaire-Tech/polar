@@ -733,6 +733,36 @@ async def get_course_landing(
         }
         for m in sorted(course.modules, key=lambda m: m.position)
     ]
+
+    # Series-only "Episode Sample" block. Only surface the sample on the
+    # public payload if the lesson it points to (a) still exists on the
+    # course, (b) has a Mux asset that's ready to play. Either condition
+    # failing means the public landing simply omits the block — the editor
+    # banner separately tells the creator the sample is misconfigured.
+    sample_payload = None
+    raw_sample = course.sample
+    if (
+        raw_sample
+        and raw_sample.get("enabled")
+        and raw_sample.get("lesson_id")
+    ):
+        target_lesson_id = str(raw_sample["lesson_id"])
+        for module in course.modules:
+            for lesson in module.lessons:
+                if str(lesson.id) == target_lesson_id:
+                    if (lesson.mux_status or "").lower() == "ready":
+                        sample_payload = {
+                            "enabled": True,
+                            "lesson_id": target_lesson_id,
+                            "start_seconds": int(
+                                raw_sample.get("start_seconds") or 0
+                            ),
+                            "duration_seconds": int(
+                                raw_sample.get("duration_seconds") or 0
+                            ),
+                        }
+                    break
+
     return {
         "id": str(course.id),
         "title": course.title,
@@ -746,6 +776,7 @@ async def get_course_landing(
         "instructor_name_bold": course.instructor_name_bold,
         "instructor_name_uppercase": course.instructor_name_uppercase,
         "course_type": course.course_type,
+        "format": course.format,
         "lesson_count": len(flat_lessons),
         "total_duration_seconds": total_duration,
         "landing_overrides": course.landing_overrides,
@@ -754,6 +785,7 @@ async def get_course_landing(
         "paywall_enabled": bool(course.paywall_enabled),
         "paywall_position": course.paywall_position,
         "has_access": has_access,
+        "sample": sample_payload,
     }
 
 

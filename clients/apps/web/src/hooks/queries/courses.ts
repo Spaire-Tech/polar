@@ -91,6 +91,17 @@ export type CourseModuleRead = {
 
 export type CourseFormat = 'course' | 'series'
 
+// Series-only "Episode Sample" block configuration. The creator picks one
+// lesson and a window inside it (start_seconds + duration_seconds), and
+// the public landing renders an auto-play-on-scroll sub-hero clip of that
+// window. duration_seconds is enforced server-side to 5–180s.
+export type CourseSample = {
+  enabled: boolean
+  lesson_id: string
+  start_seconds: number
+  duration_seconds: number
+}
+
 export type CourseRead = {
   id: string
   product_id: string
@@ -113,6 +124,7 @@ export type CourseRead = {
   instructor_name_bold: boolean
   instructor_name_uppercase: boolean
   landing_overrides: LandingOverrides | null
+  sample: CourseSample | null
   modules: CourseModuleRead[]
   created_at: string
   modified_at: string | null
@@ -275,6 +287,7 @@ export const useUpdateCourse = () =>
         instructor_name_bold?: boolean
         instructor_name_uppercase?: boolean
         landing_overrides?: LandingOverrides | null
+        sample?: CourseSample | null
       }
     }) =>
       courseApiFetch<CourseRead>(`/v1/courses/${courseId}`, {

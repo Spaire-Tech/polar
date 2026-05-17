@@ -113,6 +113,26 @@ class Course(RecordModel):
         JSONB, nullable=True, default=None
     )
 
+    # Series-only "Episode Sample" block on the landing. A series creator
+    # picks one of their episodes and a window inside it (start_seconds +
+    # duration_seconds), and that slice auto-plays as a sub-hero below the
+    # main hero on the public landing. The block is a marketing surface —
+    # the clip can run past the free-preview boundary, but the rest of the
+    # episode stays paywalled.
+    #
+    # Shape: {
+    #   "enabled": bool,
+    #   "lesson_id": str (UUID, refers to a CourseLesson on this course),
+    #   "start_seconds": int,
+    #   "duration_seconds": int,    # 5-180, creator picks
+    # }
+    # All keys required when the object is present; setting the column to
+    # NULL or `enabled=false` hides the block. The lesson_id is validated
+    # at write time against the course's own lessons.
+    sample: Mapped[dict | None] = mapped_column(
+        JSONB, nullable=True, default=None
+    )
+
     @declared_attr
     def product(cls) -> Mapped["Product"]:
         return relationship("Product", lazy="raise")

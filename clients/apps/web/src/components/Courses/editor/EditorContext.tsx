@@ -168,6 +168,7 @@ export const DEFAULT_THEME: LandingTheme = {
 
 export const SECTION_ORDER_DEFAULT = [
   'hero',
+  'sample',
   'sections',
   'value',
   'trailer',

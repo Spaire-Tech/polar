@@ -6,6 +6,18 @@ from pydantic import UUID4, Field
 from polar.kit.schemas import Schema, TimestampedSchema
 
 
+# Series-only "Episode Sample" block. The creator picks one lesson and a
+# window inside it (start + duration in seconds), and that slice auto-plays
+# on scroll as a sub-hero on the public series landing. duration_seconds is
+# capped at three minutes so the sample stays a promotional teaser, not a
+# free episode in disguise.
+class CourseSample(Schema):
+    enabled: bool = True
+    lesson_id: UUID4
+    start_seconds: int = Field(ge=0)
+    duration_seconds: int = Field(ge=5, le=180)
+
+
 class CourseLessonCreate(Schema):
     title: str = Field(max_length=500)
     content_type: Literal["video", "text", "download", "quiz"] = "text"
@@ -155,6 +167,7 @@ class CourseCreate(Schema):
     instructor_name_bold: bool = True
     instructor_name_uppercase: bool = True
     landing_overrides: dict | None = None
+    sample: CourseSample | None = None
     modules: list[CourseModuleCreate] = Field(default_factory=list)
 
 
@@ -176,6 +189,10 @@ class CourseUpdate(Schema):
     instructor_name_bold: bool | None = None
     instructor_name_uppercase: bool | None = None
     landing_overrides: dict | None = None
+    # `null` clears the sample (block disappears). A full CourseSample
+    # object replaces whatever was there. Partial patches are not supported
+    # — send the complete object every time.
+    sample: CourseSample | None = None
 
 
 class QuizAnswerSubmission(Schema):
@@ -259,6 +276,7 @@ class CourseRead(TimestampedSchema):
     instructor_name_bold: bool = True
     instructor_name_uppercase: bool = True
     landing_overrides: dict | None = None
+    sample: CourseSample | None = None
     modules: list[CourseModuleRead]
 
 
@@ -282,6 +300,10 @@ class CourseLandingPageRead(TimestampedSchema):
     paywall_enabled: bool = False
     paywall_position: int | None = None
     has_access: bool = False
+    # Series-only sample block config. When enabled and the referenced
+    # lesson is still on the course (and its mux asset is ready), the
+    # public landing renders an auto-play-on-scroll sub-hero.
+    sample: CourseSample | None = None
 
 
 class CourseEnrollmentCustomer(Schema):

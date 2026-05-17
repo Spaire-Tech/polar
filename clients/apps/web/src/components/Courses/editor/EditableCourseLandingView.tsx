@@ -30,6 +30,7 @@ import { useEditor } from './EditorContext'
 import { EditBlock, EditMedia, EditText } from './EditPrimitives'
 import { HeroMedia } from './HeroMedia'
 import { SectionModuleSheet } from './SectionModuleSheet'
+import { SeriesSampleBlock } from './SeriesSampleBlock'
 
 // Imperative handlers wired by the host (CustomizeTab) so episode tiles can
 // persist edits to the actual course lesson — title, description, thumbnail
@@ -189,6 +190,19 @@ export function EditableCourseLandingView({
               />
             ),
           },
+          sample: {
+            label: 'Episode sample',
+            node: (
+              <SeriesSampleBlock
+                course={course}
+                flatLessons={flatLessons}
+                priceLabel={priceLabel}
+                onEnroll={enroll}
+                enrolling={enrolling}
+                canEnroll={canEnroll}
+              />
+            ),
+          },
           sections: {
             label: 'Sections',
             node: (
@@ -240,6 +254,19 @@ export function EditableCourseLandingView({
                 course={course}
                 flatLessons={flatLessons}
                 freeCount={freeLessons.length}
+                priceLabel={priceLabel}
+                onEnroll={enroll}
+                enrolling={enrolling}
+                canEnroll={canEnroll}
+              />
+            ),
+          },
+          sample: {
+            label: 'Episode sample',
+            node: (
+              <SeriesSampleBlock
+                course={course}
+                flatLessons={flatLessons}
                 priceLabel={priceLabel}
                 onEnroll={enroll}
                 enrolling={enrolling}
