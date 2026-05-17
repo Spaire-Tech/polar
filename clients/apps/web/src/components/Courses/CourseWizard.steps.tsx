@@ -596,8 +596,8 @@ export function Intro({
 // hero (16:9), an apple-style hairline divider, and a "Best for" footer with
 // tag pills + an italic example line. The CSS-gradient backdrop in each hero
 // is a placeholder — drop JPG files at
-//   /clients/apps/web/public/format-picker/course.jpg
-//   /clients/apps/web/public/format-picker/series.jpg
+//   /clients/apps/web/public/assets/course.jpg
+//   /clients/apps/web/public/assets/series.jpg
 // to replace them. The <img> sits on top of the gradient and only paints when
 // it loads, so the gradient is a graceful fallback if the file is missing.
 
@@ -626,7 +626,7 @@ const FORMAT_OPTIONS: FormatOption[] = [
       'Modules and lessons that progress from foundation to fluency. The viewer leaves with a thing they can do.',
     bestFor: ['Skills', 'Frameworks', 'Step-by-step outcomes'],
     example: 'Persuasive writing in 22 lessons.',
-    imageSrc: '/format-picker/course.jpg',
+    imageSrc: '/assets/course.jpg',
     tone: 'warm',
     stillTag: 'course · still placeholder',
   },
@@ -639,7 +639,7 @@ const FORMAT_OPTIONS: FormatOption[] = [
       'Self-contained episodes that orbit a single theme. Watched like a documentary or a podcast season.',
     bestFor: ['Mindset', 'Story', 'Identity', 'Behind the scenes'],
     example: 'An Olympian on the seven days before a final.',
-    imageSrc: '/format-picker/series.jpg',
+    imageSrc: '/assets/series.jpg',
     tone: 'cool',
     stillTag: 'series · still placeholder',
   },
