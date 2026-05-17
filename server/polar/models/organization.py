@@ -80,7 +80,7 @@ _default_storefront_settings: OrganizationStorefrontSettings = {
     "languages": [],
     "available_for_work": False,
     "contact_url": None,
-    "featured_mode": "all",
+    "featured_mode": "curated",
     "featured_product_ids": [],
     "show_card_products": True,
     "storefront_links": [],
