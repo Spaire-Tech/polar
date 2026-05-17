@@ -2,6 +2,7 @@
 
 import { CustomizationProvider } from '@/components/Customization/CustomizationProvider'
 import { ForceLightMode } from '@/components/Profile/ForceLightMode'
+import { detectPlatform } from '@/components/Profile/linkPlatforms'
 import { ProfileCard } from '@/components/Profile/ProfileCard'
 import { Storefront } from '@/components/Profile/Storefront'
 import { StorefrontLinkItem } from '@/components/Profile/StorefrontLinks'
@@ -66,7 +67,10 @@ const Customization = ({
       name: organization.name,
       avatar_url: organization.avatar_url,
       socials: organization.socials,
-      storefront_settings: organization.storefront_settings,
+      // Fall back to an empty object so brand-new orgs (where
+      // storefront_settings is null) can still have settings flipped
+      // on. Spreading null is a silent no-op everywhere downstream.
+      storefront_settings: organization.storefront_settings ?? {},
     },
   })
 
@@ -108,14 +112,20 @@ const Customization = ({
 
   const pickerCallbacks: AddToSpacePickerCallbacks = {
     onAddLink: (payload) => {
+      // If the URL tab receives a known embeddable URL (YouTube,
+      // TikTok, Instagram, etc.), auto-upgrade it to an embed so the
+      // creator doesn't have to know which tab to use — pasting just
+      // works.
+      const detected = detectPlatform(payload.url)
+      const upgrade = detected?.canEmbed === true
       appendStorefrontLink({
         id: crypto.randomUUID(),
         url: payload.url,
         title: payload.title,
         description: payload.description,
         image_url: payload.image_url,
-        type: 'standard',
-        platform: null,
+        type: upgrade ? 'embedded' : 'standard',
+        platform: detected?.id ?? null,
       })
     },
     onAddEmbed: ({ url, platform, title, description, image_url }) => {
@@ -167,12 +177,14 @@ const Customization = ({
       })
     },
     onCreateProduct: () => {
+      if (!confirmIfDirty()) return
       const returnTo = `/dashboard/${organization.slug}/storefront`
       router.push(
         `/dashboard/${organization.slug}/products/new?type=digital&returnTo=${encodeURIComponent(returnTo)}`,
       )
     },
     onCreateCourse: () => {
+      if (!confirmIfDirty()) return
       const returnTo = `/dashboard/${organization.slug}/storefront`
       router.push(
         `/dashboard/${organization.slug}/products/new?type=course&returnTo=${encodeURIComponent(returnTo)}`,
@@ -284,9 +296,36 @@ const Customization = ({
     }
   }, [form, organization, updateOrganization, publishing, queryClient])
 
+  // Shared dirty-check used by every code path that takes the user
+  // away from the editor (client-side navigations don't fire
+  // beforeunload, so we have to ask explicitly). Declared here, BEFORE
+  // any early returns, so the hook count stays stable across edit and
+  // preview branches.
+  const confirmIfDirty = useCallback((): boolean => {
+    if (!isDirty) return true
+    return window.confirm(
+      'You have unpublished changes. Leave without publishing?',
+    )
+  }, [isDirty])
+
   // Published preview mode — card centered with Edit Space button
   if (!isEditing && isSpaceEnabled) {
-    const previewOrg = storefrontData?.organization ?? organization
+    // Overlay any unpublished form edits on top of the published org
+    // so the preview branch shows "what publishing would produce" —
+    // not the stale published copy. The user can't edit while in
+    // preview, so a single getValues() snapshot at render is enough
+    // (no reactive watch() at page level, which would re-render the
+    // editor mode on every keystroke).
+    const publishedOrg = storefrontData?.organization ?? organization
+    const draft = form.getValues()
+    const previewOrg = {
+      ...publishedOrg,
+      name: draft.name ?? publishedOrg.name,
+      avatar_url: draft.avatar_url ?? publishedOrg.avatar_url,
+      socials: draft.socials ?? publishedOrg.socials,
+      storefront_settings:
+        draft.storefront_settings ?? publishedOrg.storefront_settings,
+    } as typeof publishedOrg
     const previewProducts = (storefrontData?.products ?? []) as schemas['ProductStorefront'][]
     const previewSettings = previewOrg.storefront_settings ?? {}
     const previewFeaturedMode = previewSettings?.featured_mode ?? 'curated'
@@ -315,7 +354,10 @@ const Customization = ({
           <div className="flex flex-row items-center justify-between border-b border-gray-200 bg-white px-8 py-4">
             <button
               type="button"
-              onClick={() => router.push(`/dashboard/${organization.slug}`)}
+              onClick={() => {
+                if (!confirmIfDirty()) return
+                router.push(`/dashboard/${organization.slug}`)
+              }}
               className="text-[14px] text-gray-500 transition-colors hover:text-gray-700"
             >
               &larr; Back to dashboard
@@ -380,6 +422,14 @@ const Customization = ({
             </div>
 
             <div className="flex items-center gap-3">
+              {isDirty && (
+                <span
+                  className="rounded-full bg-amber-100 px-3 py-1 text-[12px] font-medium text-amber-800"
+                  title="Showing your unpublished edits — visitors still see the published version."
+                >
+                  Unpublished preview
+                </span>
+              )}
               <a
                 href={spacePageLink(organization)}
                 target="_blank"
@@ -470,22 +520,13 @@ const Customization = ({
 
   // ── Editor mode — single-canvas WYSIWYG ─────────────────────────
   // Toolbar (back / status / settings / publish) sticks to the top.
-  // Canvas renders ProfileCard (left, sticky) + Storefront content
-  // blocks (right) using our existing public-Space components for
-  // visual fidelity. A floating "+ Add to Space" FAB sits at the
-  // bottom. The Settings (gear) button toggles a slide-in panel that
-  // wraps the existing StorefrontEditorForm for now; PR D ships the
-  // redesigned panel and PR C wires inline-edit on the canvas itself.
+  // Canvas renders the EditableProfileCard (left, sticky) + the
+  // DraggableBlocks product/links grid (right). Both subscribe to form
+  // state directly. The Settings / Arrange / Links panels slide in
+  // from the right; a floating "+ Add to Space" FAB opens the picker.
 
   const handleBack = () => {
-    if (
-      isDirty &&
-      !window.confirm(
-        'You have unpublished changes. Leave without publishing?',
-      )
-    ) {
-      return
-    }
+    if (!confirmIfDirty()) return
     if (isSpaceEnabled) {
       setIsEditing(false)
     } else {
@@ -495,17 +536,25 @@ const Customization = ({
 
   const discardChanges = () => {
     if (
-      window.confirm(
+      !window.confirm(
         'Discard all unpublished edits and revert to the published version?',
       )
     ) {
-      form.reset({
-        name: organization.name,
-        avatar_url: organization.avatar_url,
-        socials: organization.socials,
-        storefront_settings: organization.storefront_settings,
-      })
+      return
     }
+    // form.reset() with no args reverts to the most-recent defaults,
+    // which handlePublish updates after every successful publish — so
+    // we revert to what's actually published right now, not to the
+    // (potentially stale) SSR'd organization prop.
+    form.reset()
+    setSettingsOpen(false)
+    setArrangeOpen(false)
+    setLinksMode(false)
+    setPickerOpen(false)
+    toast({
+      title: 'Changes discarded',
+      description: 'Your Space is back to its last published state.',
+    })
   }
 
   return (

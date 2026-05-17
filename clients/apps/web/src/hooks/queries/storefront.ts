@@ -15,4 +15,10 @@ export const useStorefront = (organizationSlug: string) =>
         }),
       ),
     retry: defaultRetry,
+    // Long-lived editor sessions don't need to refetch the public
+    // storefront every time the user alt-tabs back to the page —
+    // useUpdateOrganization explicitly invalidates this key on publish,
+    // which is the only moment the storefront actually changes.
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
   })

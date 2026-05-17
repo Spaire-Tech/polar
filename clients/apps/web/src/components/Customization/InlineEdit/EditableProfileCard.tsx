@@ -1,6 +1,6 @@
 'use client'
 
-import { focalPointToObjectPosition } from '@/components/Customization/Storefront/StorefrontSidebar'
+import { focalPointToObjectPosition } from '@/components/Customization/Storefront/StorefrontSidebar/utils'
 import {
   LANGUAGE_OPTIONS,
   PROFILE_TITLE_OPTIONS,
@@ -463,6 +463,13 @@ export const EditableProfileCard = ({
     }
   }
 
+  // Live preview position during drag — stays in local state so the
+  // form isn't dirtied 60 times per second. We commit to form state
+  // (and storefront_settings.header_focal_point) ONCE on pointerup.
+  const [dragFocal, setDragFocal] = useState<{ x: number; y: number } | null>(
+    null,
+  )
+
   const onCoverPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current
     if (!drag || drag.pointerId !== e.pointerId || !isDragging) return
@@ -470,16 +477,20 @@ export const EditableProfileCard = ({
     const dyPct = ((e.clientY - drag.startY) / drag.height) * 100
     const newX = Math.max(0, Math.min(100, drag.posX - dxPct))
     const newY = Math.max(0, Math.min(100, drag.posY - dyPct))
-    updateSetting(
-      'header_focal_point',
-      `${newX.toFixed(1)}% ${newY.toFixed(1)}%`,
-    )
+    setDragFocal({ x: newX, y: newY })
   }
 
   const onCoverPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current
     if (drag && e.currentTarget.hasPointerCapture(drag.pointerId)) {
       e.currentTarget.releasePointerCapture(drag.pointerId)
+    }
+    if (dragFocal) {
+      updateSetting(
+        'header_focal_point',
+        `${dragFocal.x.toFixed(1)}% ${dragFocal.y.toFixed(1)}%`,
+      )
+      setDragFocal(null)
     }
     setIsDragging(false)
     dragRef.current = null
@@ -529,7 +540,11 @@ export const EditableProfileCard = ({
               src={headerUrl}
               alt=""
               className="aspect-[16/5] w-full object-cover"
-              style={{ objectPosition: focalPointToObjectPosition(headerFocal) }}
+              style={{
+                objectPosition: dragFocal
+                  ? `${dragFocal.x.toFixed(1)}% ${dragFocal.y.toFixed(1)}%`
+                  : focalPointToObjectPosition(headerFocal),
+              }}
               draggable={false}
             />
           ) : (
@@ -981,9 +996,28 @@ export const EditableProfileCard = ({
         title="Available for work"
         open={popover === 'available'}
         onClose={() => setPopover(null)}
-        onConfirm={() =>
-          updateSetting('contact_url', contactDraft.trim() || null)
-        }
+        onConfirm={() => {
+          const next = contactDraft.trim()
+          if (!next) {
+            updateSetting('contact_url', null)
+            return
+          }
+          // Same scheme allowlist the backend enforces (organization/
+          // schemas.py:_validate_contact_url). Doing it client-side
+          // means the user finds out the typo before they hit Publish.
+          const scheme = next.includes(':')
+            ? next.split(':', 1)[0]!.toLowerCase()
+            : ''
+          if (scheme !== 'http' && scheme !== 'https' && scheme !== 'mailto') {
+            toast({
+              title: 'Contact link not saved',
+              description:
+                'Must start with https://, http://, or mailto:',
+            })
+            return
+          }
+          updateSetting('contact_url', next)
+        }}
       >
         <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3">
           <div>
@@ -1012,7 +1046,7 @@ export const EditableProfileCard = ({
               className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-gray-300 focus:outline-none"
             />
             <p className="text-[11px] text-gray-400">
-              When set, the badge becomes a clickable link.
+              Use an https:// or mailto: link.
             </p>
           </div>
         )}
@@ -1021,7 +1055,16 @@ export const EditableProfileCard = ({
       <EditPopover
         title="Social links"
         open={popover === 'socials'}
-        onClose={() => setPopover(null)}
+        onClose={() => {
+          // Drop empty rows on close so they don't sit in form state
+          // dirtying the form (and so the user doesn't have to click
+          // the X on every blank row they accidentally added).
+          const cleaned = socials.filter((s) => s.url?.trim())
+          if (cleaned.length !== socials.length) {
+            setValue('socials', cleaned, { shouldDirty: true })
+          }
+          setPopover(null)
+        }}
       >
         <div className="flex flex-col gap-3">
           {socials.map((social, idx) => (
@@ -1044,20 +1087,24 @@ export const EditableProfileCard = ({
           ))}
           <button
             type="button"
+            disabled={socials.length >= SOCIAL_PLATFORMS.length}
             onClick={() => {
+              // Default the new row to the first platform the creator
+              // hasn't already added — avoids the "two Twitters" trap.
+              // Once every platform has a row, the button is disabled.
+              const used = new Set(socials.map((s) => s.platform))
+              const next = SOCIAL_PLATFORMS.find((p) => !used.has(p.value))
+              if (!next) return
               setValue(
                 'socials',
                 [
                   ...socials,
-                  {
-                    platform: SOCIAL_PLATFORMS[0].value,
-                    url: '',
-                  } as SocialLink,
+                  { platform: next.value, url: '' } as SocialLink,
                 ],
                 { shouldDirty: true },
               )
             }}
-            className="flex flex-row items-center gap-x-2 rounded-xl border border-dashed border-gray-300 px-4 py-2.5 text-sm text-gray-500 transition-colors hover:border-gray-400 hover:text-gray-700"
+            className="flex flex-row items-center gap-x-2 rounded-xl border border-dashed border-gray-300 px-4 py-2.5 text-sm text-gray-500 transition-colors hover:border-gray-400 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-gray-300 disabled:hover:text-gray-500"
           >
             <AddOutlined style={{ fontSize: 18 }} />
             Add social link

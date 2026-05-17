@@ -1,4 +1,9 @@
 import {
+  PLATFORMS,
+  type PlatformConfig,
+  type PlatformId,
+} from '@/components/Profile/linkPlatforms'
+import {
   AppleMusicLogo,
   InstagramLogo,
   SoundCloudLogo,
@@ -10,23 +15,12 @@ import {
   YouTubeLogo,
 } from './PlatformLogos'
 
-// Platforms shown in the Embed tab of the Add-to-Space picker. Mirrors
-// the design hand-off (8 tiles). Some embed inline (canEmbed: true);
-// the rest fall back to a stylized link card.
+// Picker-specific UI metadata. Adding a new platform = add it to
+// PLATFORMS in linkPlatforms.ts (data) AND to PLATFORM_UI here (chrome).
 
-export type EmbedPlatformId =
-  | 'youtube'
-  | 'spotify'
-  | 'soundcloud'
-  | 'vimeo'
-  | 'apple_music'
-  | 'tiktok'
-  | 'substack'
-  | 'instagram'
-  | 'x'
+export type EmbedPlatformId = PlatformId
 
-export type EmbedPlatform = {
-  id: EmbedPlatformId
+type PlatformUi = {
   label: string
   sub: string
   Icon: React.ComponentType<{
@@ -34,95 +28,70 @@ export type EmbedPlatform = {
     style?: React.CSSProperties
   }>
   bg: string
-  // True if the renderer plays this platform inline. False = falls back
-  // to a stylized link card.
-  canEmbed: boolean
-  hosts: string[]
 }
 
-export const EMBED_PLATFORMS: ReadonlyArray<EmbedPlatform> = [
-  {
-    id: 'youtube',
+const PLATFORM_UI: Record<EmbedPlatformId, PlatformUi> = {
+  youtube: {
     label: 'YouTube',
     sub: 'Videos & shorts',
     Icon: YouTubeLogo,
     bg: '#FF0000',
-    canEmbed: true,
-    hosts: ['youtube.com', 'youtu.be', 'm.youtube.com', 'music.youtube.com'],
   },
-  {
-    id: 'spotify',
+  spotify: {
     label: 'Spotify',
     sub: 'Tracks, episodes, playlists',
     Icon: SpotifyLogo,
     bg: '#1ED760',
-    canEmbed: true,
-    hosts: ['open.spotify.com', 'spotify.com'],
   },
-  {
-    id: 'soundcloud',
+  soundcloud: {
     label: 'SoundCloud',
     sub: 'Tracks & sets',
     Icon: SoundCloudLogo,
     bg: '#FF5500',
-    canEmbed: true,
-    hosts: ['soundcloud.com', 'm.soundcloud.com', 'on.soundcloud.com'],
   },
-  {
-    id: 'vimeo',
+  vimeo: {
     label: 'Vimeo',
     sub: 'Videos',
     Icon: VimeoLogo,
     bg: '#1AB7EA',
-    canEmbed: true,
-    hosts: ['vimeo.com', 'player.vimeo.com'],
   },
-  {
-    id: 'apple_music',
+  apple_music: {
     label: 'Apple Music',
     sub: 'Tracks & playlists',
     Icon: AppleMusicLogo,
     bg: '#FA243C',
-    canEmbed: true,
-    hosts: ['music.apple.com', 'embed.music.apple.com'],
   },
-  {
-    id: 'tiktok',
+  tiktok: {
     label: 'TikTok',
     sub: 'Videos',
     Icon: TikTokLogo,
     bg: '#000000',
-    canEmbed: true,
-    hosts: ['tiktok.com', 'm.tiktok.com', 'vm.tiktok.com', 'vt.tiktok.com'],
   },
-  {
-    id: 'substack',
+  substack: {
     label: 'Substack',
     sub: 'Newsletter posts',
     Icon: SubstackLogo,
     bg: '#FF6719',
-    canEmbed: false,
-    hosts: ['substack.com'],
   },
-  {
-    id: 'instagram',
+  instagram: {
     label: 'Instagram',
     sub: 'Posts & reels',
     Icon: InstagramLogo,
     bg: 'linear-gradient(135deg, #E4405F, #FCAF45)',
-    canEmbed: false,
-    hosts: ['instagram.com'],
   },
-  {
-    id: 'x',
+  x: {
     label: 'X',
     sub: 'Posts & threads',
     Icon: XLogo,
     bg: '#000000',
-    canEmbed: false,
-    hosts: ['x.com', 'twitter.com'],
   },
-]
+}
+
+export type EmbedPlatform = PlatformConfig & PlatformUi
+
+export const EMBED_PLATFORMS: ReadonlyArray<EmbedPlatform> = PLATFORMS.map(
+  (p) => ({ ...p, ...PLATFORM_UI[p.id] }),
+)
 
 export function detectEmbedPlatform(url: string): EmbedPlatform | null {
   let host: string

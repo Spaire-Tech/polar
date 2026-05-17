@@ -390,11 +390,11 @@ export const StorefrontLinksPanel = ({
     }
 
     const platform = detectPlatform(url)
-    const isEmbeddable = isEmbeddablePlatform(platform)
+    const isEmbeddable = isEmbeddablePlatform(platform?.id)
 
     if (mode === 'embed' && !isEmbeddable) {
       setAddError(
-        'Only YouTube, Spotify, and SoundCloud links can be embedded. Switch to URL to add this link.',
+        "We can't embed this link inline. Switch to URL to add it as a card.",
       )
       return
     }
@@ -408,7 +408,7 @@ export const StorefrontLinksPanel = ({
       description: null,
       image_url: null,
       type,
-      platform,
+      platform: platform?.id ?? null,
     }
 
     setNewUrl('')

@@ -78,11 +78,14 @@ export const LinkEditForm = ({
         <div>
           <label className="mb-1.5 block text-xs font-semibold tracking-wide text-gray-500 uppercase">
             Cover image
+            <span className="ml-1.5 normal-case tracking-normal text-[10px] font-normal text-gray-400">
+              Displays as 16:9 on your Space
+            </span>
           </label>
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
-            className="group relative flex h-[160px] w-full items-center justify-center overflow-hidden rounded-2xl border border-black/10 bg-white"
+            className="group relative flex aspect-[16/9] w-full items-center justify-center overflow-hidden rounded-2xl border border-black/10 bg-white"
             style={
               draft.image_url
                 ? {
@@ -96,7 +99,7 @@ export const LinkEditForm = ({
             <input
               ref={fileRef}
               type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
+              accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
               className="hidden"
               onChange={onPickCover}
             />

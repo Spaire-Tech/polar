@@ -3,15 +3,13 @@
 import { ProfileCard } from '@/components/Profile/ProfileCard'
 import { useProducts } from '@/hooks/queries'
 import { schemas } from '@spaire/client'
-import { useFormContext } from 'react-hook-form'
 import { DraggableBlocks } from './InlineEdit/DraggableBlocks'
 import { EditableProfileCard } from './InlineEdit/EditableProfileCard'
 
 // Renders the live preview of the user's Spaire Space inside the
-// editor canvas. The ProfileCard column uses the inline-editable
-// variant so click-to-edit affordances are wired up; the Storefront
-// content blocks stay read-only for now (drag + per-block edits land
-// in PR E).
+// editor canvas. Both children subscribe to form state directly via
+// useFormContext, so we DON'T watch here — otherwise every keystroke
+// in the profile card would re-render the entire product/links grid.
 
 export const SpaceEditorCanvas = ({
   organization: org,
@@ -22,17 +20,6 @@ export const SpaceEditorCanvas = ({
   hasSettingsPanel: boolean
   onAddToSpace?: () => void
 }) => {
-  const { watch } = useFormContext<schemas['OrganizationUpdate']>()
-  const watched = watch()
-
-  const organization = {
-    ...org,
-    name: watched.name ?? org.name,
-    avatar_url: watched.avatar_url ?? org.avatar_url,
-    socials: watched.socials ?? org.socials,
-    storefront_settings: watched.storefront_settings ?? org.storefront_settings,
-  } as schemas['Organization']
-
   // Bumped limit so the canvas + picker show the full catalog instead
   // of paginating at 10. 100 covers the long tail; users with more
   // than that can curate via the picker.
@@ -47,15 +34,12 @@ export const SpaceEditorCanvas = ({
       <div className="canvas">
         <aside className="col-left">
           <div className="canvas-card">
-            <EditableProfileCard
-              organization={organization}
-              products={products}
-            />
+            <EditableProfileCard organization={org} products={products} />
           </div>
         </aside>
         <main className="col-right">
           <DraggableBlocks
-            organization={organization}
+            organization={org}
             products={products}
             onAddToSpace={onAddToSpace}
           />
