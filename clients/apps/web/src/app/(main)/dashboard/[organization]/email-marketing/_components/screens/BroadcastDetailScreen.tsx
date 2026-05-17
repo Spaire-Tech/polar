@@ -107,6 +107,26 @@ export const BroadcastDetailScreen = ({
   const sendsTotal = sendsQuery.data?.pagination.total_count ?? 0
   const sendsMaxPage = sendsQuery.data?.pagination.max_page ?? 1
 
+  // Surface mutation failures via dialogs.alert so the user knows a
+  // click did nothing. Previously every mutation used .mutate() with
+  // no onError, so a 500 here would silently leave the user on the
+  // same screen.
+  const runMutation = async <T,>(
+    mutation: { mutateAsync: (input: T) => Promise<unknown> },
+    input: T,
+    failedLabel: string,
+  ): Promise<boolean> => {
+    try {
+      await mutation.mutateAsync(input)
+      return true
+    } catch (err) {
+      const message =
+        err instanceof Error && err.message ? err.message : 'Unknown error.'
+      await dialogs.alert({ title: failedLabel, message })
+      return false
+    }
+  }
+
   const onArchive = async () => {
     if (!broadcast) return
     const ok = await dialogs.confirm({
@@ -120,8 +140,12 @@ export const BroadcastDetailScreen = ({
       confirmLabel: 'Archive',
     })
     if (!ok) return
-    archiveMutation.mutate(broadcastId)
-    onBack()
+    const archived = await runMutation(
+      archiveMutation,
+      broadcastId,
+      'Could not archive',
+    )
+    if (archived) onBack()
   }
 
   return (
@@ -165,7 +189,9 @@ export const BroadcastDetailScreen = ({
         <div style={{ display: 'flex', gap: 10 }}>
           <button
             className="btn btn-secondary"
-            onClick={() => duplicateMutation.mutate(broadcastId)}
+            onClick={() =>
+              runMutation(duplicateMutation, broadcastId, 'Could not duplicate')
+            }
           >
             <Icon name="copy" size={14} />
             Duplicate
@@ -177,7 +203,12 @@ export const BroadcastDetailScreen = ({
                 label: 'Cancel schedule',
                 icon: 'x-circle',
                 hidden: broadcast?.status !== 'scheduled',
-                onClick: () => cancelMutation.mutate(broadcastId),
+                onClick: () =>
+                  runMutation(
+                    cancelMutation,
+                    broadcastId,
+                    'Could not cancel schedule',
+                  ),
               },
               {
                 label: 'Archive',

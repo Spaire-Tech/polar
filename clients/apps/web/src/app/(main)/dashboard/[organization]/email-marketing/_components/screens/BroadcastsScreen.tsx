@@ -82,6 +82,28 @@ export const BroadcastsScreen = ({
   const aggregateIndustry = aggregateQuery.data?.industry
   const subStats = subStatsQuery.data
 
+  // Wrapper that surfaces backend failures via the dialog system
+  // instead of swallowing them silently. The three mutations on this
+  // screen (duplicate/cancel/archive) all flowed through mutate() with
+  // no onError handler, so a 500 left the user staring at a list that
+  // hadn't moved with no idea why.
+  const runMutation = async <T,>(
+    mutation: { mutateAsync: (input: T) => Promise<unknown> },
+    input: T,
+    failedLabel: string,
+  ) => {
+    try {
+      await mutation.mutateAsync(input)
+    } catch (err) {
+      const message =
+        err instanceof Error && err.message ? err.message : 'Unknown error.'
+      await dialogs.alert({
+        title: failedLabel,
+        message,
+      })
+    }
+  }
+
   const onArchive = async (b: BroadcastRow) => {
     const ok = await dialogs.confirm({
       title: 'Archive broadcast?',
@@ -93,7 +115,7 @@ export const BroadcastsScreen = ({
       ),
       confirmLabel: 'Archive',
     })
-    if (ok) archiveMutation.mutate(b.id)
+    if (ok) await runMutation(archiveMutation, b.id, 'Could not archive')
   }
 
   return (
@@ -265,8 +287,12 @@ export const BroadcastsScreen = ({
               // broadcasts open in the analytics detail view.
               onOpen={() => (editable ? onEdit(b.id) : onOpen(b.id))}
               onEdit={() => onEdit(b.id)}
-              onDuplicate={() => duplicateMutation.mutate(b.id)}
-              onCancelSchedule={() => cancelMutation.mutate(b.id)}
+              onDuplicate={() =>
+                runMutation(duplicateMutation, b.id, 'Could not duplicate')
+              }
+              onCancelSchedule={() =>
+                runMutation(cancelMutation, b.id, 'Could not cancel schedule')
+              }
               onArchive={() => onArchive(b)}
               onViewReport={editable ? undefined : () => onOpen(b.id)}
             />
