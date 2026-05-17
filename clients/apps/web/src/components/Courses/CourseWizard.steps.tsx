@@ -590,6 +590,280 @@ export function Intro({
   )
 }
 
+// ─── Format chooser ───────────────────────────────────────────────────────────
+
+export type WizardFormat = 'course' | 'series'
+
+const FORMAT_OPTIONS: Array<{
+  id: WizardFormat
+  badge: string
+  title: string
+  tagline: string
+  description: string
+  bestFor: string
+  example: string
+}> = [
+  {
+    id: 'course',
+    badge: 'STRUCTURED',
+    title: 'Course',
+    tagline: 'Step-by-step skill building.',
+    description:
+      'Modules and lessons that progress from foundation to fluency. The viewer leaves with a thing they can do.',
+    bestFor: 'Skills · Frameworks · Step-by-step outcomes',
+    example: 'Persuasive writing in 22 lessons.',
+  },
+  {
+    id: 'series',
+    badge: 'NARRATIVE',
+    title: 'Series',
+    tagline: 'Episodic, in your voice.',
+    description:
+      'Self-contained episodes that orbit a single theme. Watched like a documentary or a podcast season — no homework, no progress bar.',
+    bestFor: 'Mindset · Story · Identity · Behind the scenes',
+    example: 'An Olympian on the seven days before a final.',
+  },
+]
+
+export function StepFormat({
+  value,
+  onChange,
+  onNext,
+  onBack,
+  onClose,
+}: {
+  value: WizardFormat
+  onChange: (next: WizardFormat) => void
+  onNext: () => void
+  onBack: () => void
+  onClose: () => void
+}) {
+  return (
+    <>
+      <ProgressBar pct={(1 / 4) * 100} />
+      <TopBar step={1} total={4} onClose={onClose} />
+      <div className="so-stage">
+        <div className="so-screen" style={{ maxWidth: 720 }}>
+          <div className="so-eyebrow">Step 1 of 4</div>
+          <h2 className="so-title">Pick your format</h2>
+          <p
+            className="so-hint"
+            style={{
+              marginTop: -22,
+              marginBottom: 28,
+              maxWidth: 520,
+              fontSize: 14,
+              lineHeight: 1.55,
+              color: 'var(--so-gray4)',
+            }}
+          >
+            Not all knowledge is step-based. Choose a Course if you’re teaching
+            a skill. Choose a Series if you’re sharing a story, a mindset, or a
+            way of seeing the world.
+          </p>
+
+          <div className="so-format-grid">
+            {FORMAT_OPTIONS.map((opt) => {
+              const selected = value === opt.id
+              return (
+                <button
+                  type="button"
+                  key={opt.id}
+                  onClick={() => onChange(opt.id)}
+                  className={twMerge(
+                    'so-format-card',
+                    selected && 'so-format-card--selected',
+                  )}
+                  aria-pressed={selected}
+                >
+                  <div className="so-format-card-header">
+                    <span className="so-format-badge">{opt.badge}</span>
+                    <span
+                      className={twMerge(
+                        'so-format-radio',
+                        selected && 'so-format-radio--on',
+                      )}
+                      aria-hidden
+                    >
+                      {selected && (
+                        <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                          <path
+                            d="M1 4l2.5 2.5L9 1"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      )}
+                    </span>
+                  </div>
+                  <div className="so-format-title">{opt.title}</div>
+                  <div className="so-format-tagline">{opt.tagline}</div>
+                  <p className="so-format-desc">{opt.description}</p>
+                  <div className="so-format-meta">
+                    <div className="so-format-meta-label">Best for</div>
+                    <div className="so-format-meta-value">{opt.bestFor}</div>
+                  </div>
+                  <div className="so-format-example">
+                    <span className="so-format-example-mark">e.g.</span>{' '}
+                    {opt.example}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="so-btn-row" style={{ marginTop: 32 }}>
+            <button
+              type="button"
+              className="so-btn-cta"
+              onClick={onNext}
+            >
+              Continue
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                <path
+                  d="M2.5 6.5h8M7 3l3.5 3.5L7 10"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+            <button type="button" className="so-btn-back" onClick={onBack}>
+              ← Back
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <style jsx global>{`
+        .so-format-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 16px;
+          margin-bottom: 8px;
+        }
+        @media (max-width: 720px) {
+          .so-format-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+        .so-format-card {
+          position: relative;
+          display: flex;
+          flex-direction: column;
+          align-items: stretch;
+          text-align: left;
+          padding: 22px 22px 20px 22px;
+          background: #ffffff;
+          border: 1.5px solid var(--so-gray2);
+          border-radius: 18px;
+          cursor: pointer;
+          transition:
+            border-color 0.18s ease,
+            box-shadow 0.18s ease,
+            transform 0.18s ease,
+            background 0.18s ease;
+          font-family: var(--font-poppins), system-ui, sans-serif;
+          color: var(--so-ink);
+        }
+        .so-format-card:hover {
+          border-color: var(--so-gray3);
+          transform: translateY(-1px);
+        }
+        .so-format-card--selected {
+          border-color: var(--so-black);
+          box-shadow: 0 0 0 1px var(--so-black);
+          background: #fafafa;
+        }
+        .so-format-card-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 18px;
+        }
+        .so-format-badge {
+          font-size: 10px;
+          font-weight: 600;
+          letter-spacing: 0.12em;
+          color: var(--so-gray4);
+          text-transform: uppercase;
+        }
+        .so-format-radio {
+          width: 22px;
+          height: 22px;
+          border-radius: 999px;
+          border: 1.5px solid var(--so-gray2);
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          color: transparent;
+          transition:
+            background 0.15s,
+            color 0.15s,
+            border-color 0.15s;
+        }
+        .so-format-radio--on {
+          background: var(--so-black);
+          border-color: var(--so-black);
+          color: var(--so-white);
+        }
+        .so-format-title {
+          font-size: 24px;
+          font-weight: 700;
+          letter-spacing: -0.02em;
+          line-height: 1.1;
+          margin-bottom: 4px;
+        }
+        .so-format-tagline {
+          font-size: 13px;
+          color: var(--so-gray4);
+          font-weight: 500;
+          margin-bottom: 14px;
+          letter-spacing: -0.005em;
+        }
+        .so-format-desc {
+          font-size: 13.5px;
+          line-height: 1.55;
+          color: var(--so-ink);
+          margin: 0 0 18px 0;
+        }
+        .so-format-meta {
+          padding-top: 14px;
+          border-top: 1px solid var(--so-gray2);
+          margin-bottom: 12px;
+        }
+        .so-format-meta-label {
+          font-size: 10px;
+          font-weight: 600;
+          letter-spacing: 0.1em;
+          color: var(--so-gray3);
+          text-transform: uppercase;
+          margin-bottom: 4px;
+        }
+        .so-format-meta-value {
+          font-size: 12.5px;
+          color: var(--so-gray4);
+          line-height: 1.5;
+        }
+        .so-format-example {
+          font-size: 12.5px;
+          color: var(--so-gray4);
+          font-style: normal;
+          line-height: 1.45;
+        }
+        .so-format-example-mark {
+          color: var(--so-gray3);
+          font-weight: 500;
+          margin-right: 2px;
+        }
+      `}</style>
+    </>
+  )
+}
+
 // ─── Step shell ───────────────────────────────────────────────────────────────
 
 export function StepShell({
@@ -679,18 +953,21 @@ export function StepInstructor({
   onNext,
   onBack,
   onClose,
+  format = 'course',
 }: {
   data: { name: string; bio: string }
   onChange: (next: { name: string; bio: string }) => void
   onNext: () => void
   onBack: () => void
   onClose: () => void
+  format?: WizardFormat
 }) {
+  const isSeries = format === 'series'
   return (
     <StepShell
-      step={1}
-      total={3}
-      title="Instructor details"
+      step={2}
+      total={4}
+      title={isSeries ? 'Creator details' : 'Instructor details'}
       onNext={onNext}
       onBack={onBack}
       onClose={onClose}
@@ -709,7 +986,9 @@ export function StepInstructor({
               if (e.key === 'Enter' && data.name.trim()) onNext()
             }}
           />
-          <span className="so-label">Instructor name</span>
+          <span className="so-label">
+            {isSeries ? 'Creator name' : 'Instructor name'}
+          </span>
         </label>
         <label className="so-field so-field--multiline">
           <textarea
@@ -727,7 +1006,7 @@ export function StepInstructor({
   )
 }
 
-// ─── Step 2: Course ───────────────────────────────────────────────────────────
+// ─── Step 3: Course / Series details ─────────────────────────────────────────
 
 export function StepCourse({
   data,
@@ -735,18 +1014,21 @@ export function StepCourse({
   onNext,
   onBack,
   onClose,
+  format = 'course',
 }: {
   data: { title: string; desc: string }
   onChange: (next: { title: string; desc: string }) => void
   onNext: () => void
   onBack: () => void
   onClose: () => void
+  format?: WizardFormat
 }) {
+  const isSeries = format === 'series'
   return (
     <StepShell
-      step={2}
-      total={3}
-      title="Course details"
+      step={3}
+      total={4}
+      title={isSeries ? 'Series details' : 'Course details'}
       onNext={onNext}
       onBack={onBack}
       onClose={onClose}
@@ -765,7 +1047,9 @@ export function StepCourse({
               if (e.key === 'Enter' && data.title.trim()) onNext()
             }}
           />
-          <span className="so-label">Course title</span>
+          <span className="so-label">
+            {isSeries ? 'Series title' : 'Course title'}
+          </span>
         </label>
         <label className="so-field so-field--multiline">
           <textarea
@@ -1639,6 +1923,7 @@ export function StepPricingWizard({
   courseTitle,
   courseDesc,
   courseLessons,
+  format = 'course',
 }: {
   organization: schemas['Organization']
   paywall: WizardPaywallState
@@ -1649,7 +1934,9 @@ export function StepPricingWizard({
   courseTitle?: string
   courseDesc?: string
   courseLessons?: number
+  format?: WizardFormat
 }) {
+  const isSeries = format === 'series'
   const { control, watch, setValue, getValues } =
     useFormContext<WizardPricingForm>()
 
@@ -1798,9 +2085,9 @@ export function StepPricingWizard({
 
   return (
     <StepShell
-      step={3}
-      total={3}
-      nextLabel="Generate outline"
+      step={4}
+      total={4}
+      nextLabel={isSeries ? 'Generate series' : 'Generate outline'}
       onNext={onNext}
       onBack={onBack}
       onClose={onClose}

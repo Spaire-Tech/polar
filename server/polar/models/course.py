@@ -44,6 +44,19 @@ class Course(RecordModel):
         default="evergreen",
     )
 
+    # "course" = structured modules → lessons (default).
+    # "series" = flat, episode-based, narrative format. Persisted on the
+    # same table because every downstream relationship (modules, lessons,
+    # paywall, enrollments, comments, mux assets) applies to both formats
+    # — series just renders the single implicit module as a flat episode
+    # list and skips progression UI.
+    format: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="course",
+        server_default="course",
+    )
+
     paywall_enabled: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False
     )

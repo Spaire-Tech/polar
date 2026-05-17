@@ -93,6 +93,7 @@ class CourseService:
             organization_id=create_schema.organization_id,
             title=create_schema.title,
             course_type=create_schema.course_type,
+            format=create_schema.format,
             paywall_enabled=create_schema.paywall_enabled,
             paywall_lesson_id=create_schema.paywall_lesson_id,
             ai_generated=create_schema.ai_generated,

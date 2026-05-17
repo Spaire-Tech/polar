@@ -5,22 +5,35 @@ import { memo, useMemo } from 'react'
 // ─── Generating screen ────────────────────────────────────────────────────────
 
 type Phase = 'outline' | 'landing'
+type Format = 'course' | 'series'
 
 const COPY: Record<
-  Phase,
-  { headline: string; sub: string; meta: string }
+  Format,
+  Record<Phase, { headline: string; sub: string; meta: string }>
 > = {
-  outline: {
-    headline: 'Generating outline',
-    sub:
-      "This can take a minute or two. We're drafting modules, lessons, and learning objectives — feel free to keep this tab open.",
-    meta: 'Working on it',
+  course: {
+    outline: {
+      headline: 'Generating outline',
+      sub: "This can take a minute or two. We're drafting modules, lessons, and learning objectives — feel free to keep this tab open.",
+      meta: 'Working on it',
+    },
+    landing: {
+      headline: 'One last step',
+      sub: "We're putting together your landing page — hero, curriculum, and pricing. Hang tight, you'll be ready to share it in a moment.",
+      meta: 'Almost done',
+    },
   },
-  landing: {
-    headline: 'One last step',
-    sub:
-      "We're putting together your landing page — hero, curriculum, and pricing. Hang tight, you'll be ready to share it in a moment.",
-    meta: 'Almost done',
+  series: {
+    outline: {
+      headline: 'Shaping the season',
+      sub: "This can take a minute or two. We're sketching the arc and the episode list. Keep this tab open.",
+      meta: 'Working on it',
+    },
+    landing: {
+      headline: 'One last step',
+      sub: "We're putting together your series page — hero, chapters, and episodes. Hang tight, you'll be ready to share it in a moment.",
+      meta: 'Almost done',
+    },
   },
 }
 
@@ -33,11 +46,13 @@ const COPY: Record<
 export const GeneratingScreen = memo(function GeneratingScreen({
   onClose: _onClose,
   phase = 'outline',
+  format = 'course',
 }: {
   onClose: () => void
   phase?: Phase
+  format?: Format
 }) {
-  const copy = COPY[phase]
+  const copy = COPY[format][phase]
 
   return (
     <div className="cg-stage">

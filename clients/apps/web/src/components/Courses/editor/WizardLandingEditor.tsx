@@ -98,6 +98,7 @@ export function WizardLandingEditor({
   onPublish,
   publishing,
   onBack,
+  format = 'course',
 }: {
   organization: schemas['Organization']
   draft: WizardEditorDraft
@@ -108,6 +109,7 @@ export function WizardLandingEditor({
   onPublish: (data: WizardFinalizationData) => void | Promise<void>
   publishing?: boolean
   onBack?: () => void
+  format?: 'course' | 'series'
 }) {
   const pendingFilesRef = useRef<Map<string, File>>(new Map())
   const pendingHeroFileRef = useRef<File | null>(initialThumbFile)
@@ -308,6 +310,7 @@ export function WizardLandingEditor({
       title: draft.courseTitle || 'Untitled course',
       slug: null,
       course_type: 'evergreen',
+      format,
       paywall_enabled: paywallEnabled,
       paywall_lesson_id: null,
       paywall_position: paywallPosition,

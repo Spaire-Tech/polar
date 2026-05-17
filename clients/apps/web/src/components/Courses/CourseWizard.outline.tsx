@@ -503,6 +503,164 @@ function ModuleOverlay({
   )
 }
 
+// ─── Series episode strip ─────────────────────────────────────────────────────
+// Series have a single implicit module containing every episode. The zigzag
+// roadmap is wrong here — it implies a four-step progression. We render a
+// flat episode grid instead: each card is one episode, in arc order, with
+// the same Apple-TV cinematic placeholder so the visual language matches the
+// published series landing.
+
+function SeriesEpisodeStrip({
+  outline,
+  isStreaming,
+}: {
+  outline: PartialOutline
+  isStreaming: boolean
+}) {
+  const seasonModule = outline.modules?.[0]
+  const episodes = seasonModule?.lessons ?? []
+  if (episodes.length === 0 && !isStreaming) return null
+
+  const streamingIdx = isStreaming ? episodes.length - 1 : -1
+
+  return (
+    <div className="so-zigzag">
+      {seasonModule?.title && (
+        <div
+          style={{
+            textAlign: 'center',
+            marginBottom: 28,
+            fontFamily: 'var(--font-poppins), system-ui, sans-serif',
+          }}
+        >
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 500,
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+              color: 'oklch(0.66 0.006 280)',
+              marginBottom: 6,
+            }}
+          >
+            The season
+          </div>
+          <div
+            style={{
+              fontSize: 18,
+              fontWeight: 600,
+              letterSpacing: '-0.02em',
+              color: 'oklch(0.18 0.008 280)',
+              maxWidth: 520,
+              margin: '0 auto',
+            }}
+          >
+            {seasonModule.title}
+          </div>
+          {seasonModule.description && (
+            <p
+              style={{
+                marginTop: 6,
+                fontSize: 13,
+                color: 'oklch(0.50 0.006 280)',
+                lineHeight: 1.5,
+                maxWidth: 520,
+                margin: '6px auto 0',
+              }}
+            >
+              {seasonModule.description}
+            </p>
+          )}
+        </div>
+      )}
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+          gap: 16,
+        }}
+      >
+        {episodes.map((ep, idx) => {
+          const hue = HUES[idx % HUES.length]
+          const streaming = idx === streamingIdx
+          return (
+            <div
+              key={idx}
+              className={`so-card${streaming ? ' streaming' : ''}`}
+              style={{
+                background: 'white',
+                borderRadius: 14,
+                overflow: 'hidden',
+                border: '1px solid oklch(0.945 0.003 280)',
+                boxShadow:
+                  '0 1px 2px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.06)',
+                display: 'flex',
+                flexDirection: 'column',
+                fontFamily: 'var(--font-poppins), system-ui, sans-serif',
+              }}
+            >
+              <SectionThumbPlaceholder
+                hue={hue}
+                n={idx + 1}
+                aspect="16 / 9"
+                radius="14px 14px 0 0"
+              />
+              <div style={{ padding: '12px 14px 14px' }}>
+                <div
+                  style={{
+                    fontSize: 10.5,
+                    fontWeight: 500,
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    color: 'oklch(0.66 0.006 280)',
+                    marginBottom: 4,
+                  }}
+                >
+                  {`Episode ${String(idx + 1).padStart(2, '0')}`}
+                  {ep?.content_type === 'text' ? ' · Notes' : ''}
+                </div>
+                <div
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 600,
+                    letterSpacing: '-0.018em',
+                    color: 'oklch(0.18 0.008 280)',
+                    lineHeight: 1.3,
+                  }}
+                >
+                  {ep?.title || (
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        height: 14,
+                        width: 160,
+                        background: 'oklch(0.92 0.006 280)',
+                        borderRadius: 4,
+                        animation: 'soPulseBg 1.4s ease-in-out infinite',
+                      }}
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {isStreaming && (
+        <div className="so-streaming-pill" aria-live="polite">
+          <span className="so-pulse" />
+          Writing
+          {episodes.length > 0 ? ` episode ${episodes.length + 1}` : ''}…
+        </div>
+      )}
+
+      <ZigzagStyles />
+    </div>
+  )
+}
+
 // ─── OutlineScreen ────────────────────────────────────────────────────────────
 
 export function OutlineScreen({
@@ -513,6 +671,7 @@ export function OutlineScreen({
   onRegenerate,
   onCreate,
   onClose,
+  format = 'course',
 }: {
   title: string
   partialOutline: PartialOutline
@@ -521,7 +680,9 @@ export function OutlineScreen({
   onRegenerate: () => void
   onCreate: () => void
   onClose: () => void
+  format?: 'course' | 'series'
 }) {
+  const isSeries = format === 'series'
   const modulesCount = partialOutline.modules?.length ?? 0
   const lessonsCount =
     partialOutline.modules?.reduce(
@@ -573,7 +734,9 @@ export function OutlineScreen({
               fontFamily: 'var(--font-poppins), system-ui, sans-serif',
             }}
           >
-            {modulesCount} modules · {lessonsCount} lessons
+            {isSeries
+              ? `${lessonsCount} ${lessonsCount === 1 ? 'episode' : 'episodes'}`
+              : `${modulesCount} modules · ${lessonsCount} lessons`}
             {isStreaming && ' · generating…'}
           </p>
         </div>
@@ -597,10 +760,17 @@ export function OutlineScreen({
           </div>
         )}
 
-        <ZigzagOutline
-          outline={partialOutline}
-          isStreaming={isStreaming}
-        />
+        {isSeries ? (
+          <SeriesEpisodeStrip
+            outline={partialOutline}
+            isStreaming={isStreaming}
+          />
+        ) : (
+          <ZigzagOutline
+            outline={partialOutline}
+            isStreaming={isStreaming}
+          />
+        )}
 
         <div
           style={{
@@ -618,8 +788,9 @@ export function OutlineScreen({
             marginRight: 'auto',
           }}
         >
-          This outline is just a starting point — you can edit modules, lessons,
-          and content after creating the course.
+          {isSeries
+            ? 'This is just a starting point — you can edit episodes and content after creating the series.'
+            : 'This outline is just a starting point — you can edit modules, lessons, and content after creating the course.'}
         </div>
 
         <div

@@ -89,6 +89,8 @@ export type CourseModuleRead = {
   modified_at: string | null
 }
 
+export type CourseFormat = 'course' | 'series'
+
 export type CourseRead = {
   id: string
   product_id: string
@@ -96,6 +98,7 @@ export type CourseRead = {
   title: string | null
   slug: string | null
   course_type: string
+  format: CourseFormat
   paywall_enabled: boolean
   paywall_lesson_id: string | null
   paywall_position: number | null
@@ -219,6 +222,7 @@ export const useCreateCourse = () =>
       organization_id: string
       title?: string | null
       course_type?: string
+      format?: CourseFormat
       paywall_enabled?: boolean
       ai_generated?: boolean
       description?: string | null
@@ -258,6 +262,7 @@ export const useUpdateCourse = () =>
         title?: string | null
         slug?: string | null
         course_type?: string
+        format?: CourseFormat
         paywall_enabled?: boolean
         paywall_position?: number | null
         description?: string | null
