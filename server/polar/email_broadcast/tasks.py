@@ -1,8 +1,11 @@
+from typing import Any
 from uuid import UUID, uuid4
 
 import structlog
 from sqlalchemy import select
 
+from polar.email.personalize import build_variables
+from polar.email.personalize import render as personalize
 from polar.email.react import render_email_template
 from polar.email.schemas import MarketingEmail, MarketingEmailProps
 from polar.email.sender import email_sender, resolve_creator_from_address
@@ -34,8 +37,19 @@ def _render_broadcast_html(
     organization: Organization | None,
     *,
     unsubscribe_url: str,
+    personalize_vars: dict[str, str] | None = None,
 ) -> str:
-    """Wrap the broadcast's content in the unified marketing email template."""
+    """Wrap the broadcast's content in the unified marketing email template.
+
+    When ``personalize_vars`` is provided, ``{{token}}`` placeholders in
+    the broadcast body are substituted before the outer template wraps
+    it. The outer template doesn't currently expose recipient-specific
+    fields, so a None map (test / preview sends) just leaves the body
+    untouched.
+    """
+    body_html = broadcast.content_html or "<p>No content</p>"
+    if personalize_vars is not None:
+        body_html = personalize(body_html, personalize_vars, html=True)
     return render_email_template(
         MarketingEmail(
             props=MarketingEmailProps(
@@ -46,7 +60,7 @@ def _render_broadcast_html(
                 if organization
                 else None,
                 organization_website=organization.website if organization else None,
-                html_content=broadcast.content_html or "<p>No content</p>",
+                html_content=body_html,
                 preview_text=broadcast.preview_text,
                 unsubscribe_url=unsubscribe_url,
             )
@@ -64,12 +78,31 @@ async def send_broadcast_email(
     subject_override: str | None = None,
     send_id: UUID | None = None,
     variant: str | None = None,
+    subscriber: Any = None,
+    custom_fields: dict[str, str | None] | None = None,
 ) -> str | None:
-    """Render and send a single broadcast email. Returns the Resend email id."""
+    """Render and send a single broadcast email. Returns the Resend email id.
+
+    ``subscriber`` and ``custom_fields`` drive ``{{token}}`` substitution
+    in the subject and body. Test sends (no real subscriber) pass None
+    so placeholders render literally — the recipient can see exactly
+    what an author wrote.
+    """
+    personalize_vars: dict[str, str] | None = None
+    if subscriber is not None:
+        personalize_vars = build_variables(
+            subscriber=subscriber, custom_fields=custom_fields
+        )
     wrapped_html = _render_broadcast_html(
-        broadcast, organization, unsubscribe_url=unsubscribe_url
+        broadcast,
+        organization,
+        unsubscribe_url=unsubscribe_url,
+        personalize_vars=personalize_vars,
     )
     base_subject = subject_override if subject_override is not None else broadcast.subject
+    if personalize_vars is not None and base_subject:
+        # Subject lines aren't HTML; don't escape.
+        base_subject = personalize(base_subject, personalize_vars, html=False)
     from_name, from_email = resolve_creator_from_address(
         organization=organization,
         requested_email=broadcast.sender_email,
@@ -199,6 +232,10 @@ async def send_emails(
                 )
 
                 unsubscribe_url = build_unsubscribe_url(send.subscriber_id)
+                # Load custom fields for ``{{custom.X}}`` substitution.
+                from polar.email_sequence.custom_fields import list_fields
+
+                custom_fields = await list_fields(session, subscriber.id)
                 resend_email_id = await send_broadcast_email(
                     broadcast,
                     organization,
@@ -207,6 +244,8 @@ async def send_emails(
                     subject_override=subject_override,
                     send_id=send.id,
                     variant=send.variant,
+                    subscriber=subscriber,
+                    custom_fields=custom_fields,
                 )
                 send.status = EmailBroadcastSendStatus.sent
                 send.sent_at = utc_now()

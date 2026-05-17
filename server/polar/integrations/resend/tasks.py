@@ -10,6 +10,10 @@ from polar.models.email_broadcast_send import (
     EmailBroadcastSend,
     EmailBroadcastSendStatus,
 )
+from polar.models.email_sequence_enrollment import (
+    EmailSequenceEnrollment,
+    EmailSequenceEnrollmentStatus,
+)
 from polar.models.email_sequence_step_send import (
     EmailSequenceStepSend,
     EmailSequenceStepSendStatus,
@@ -40,6 +44,60 @@ def _update_subscriber_on_complaint(session: Any, subscriber_id: Any, now: Any) 
         update(EmailSubscriber)
         .where(EmailSubscriber.id == subscriber_id)
         .values(status=EmailSubscriberStatus.unsubscribed, unsubscribed_at=now)
+    )
+
+
+async def _stop_outbound_for_subscriber(
+    session: Any,
+    subscriber_id: Any,
+    *,
+    reason: str,
+    now: Any,
+) -> None:
+    """Cancel everything queued for a subscriber that just bounced /
+    complained.
+
+    Without this, a hard bounce or spam complaint flipped the subscriber
+    to invalid/unsubscribed but every other active sequence enrollment
+    and every pending broadcast send row for that subscriber kept
+    marching, and the worker would happily ship more email to the same
+    dead address. Two cascades:
+
+    * Active sequence enrollments → status=cancelled. The send_step
+      actor refuses to advance non-active enrollments, so this stops
+      future steps cold.
+    * Pending broadcast sends → status=failed. The send_emails actor
+      only picks up `pending` rows, so flipping these to `failed` keeps
+      them out of the next batch.
+    """
+    # Active enrollments → cancelled
+    await session.execute(
+        update(EmailSequenceEnrollment)
+        .where(
+            EmailSequenceEnrollment.subscriber_id == subscriber_id,
+            EmailSequenceEnrollment.status
+            == EmailSequenceEnrollmentStatus.active,
+            EmailSequenceEnrollment.deleted_at.is_(None),
+        )
+        .values(
+            status=EmailSequenceEnrollmentStatus.cancelled,
+            completed_at=now,
+        )
+    )
+    # Pending broadcast sends → failed (so the send actor skips them).
+    await session.execute(
+        update(EmailBroadcastSend)
+        .where(
+            EmailBroadcastSend.subscriber_id == subscriber_id,
+            EmailBroadcastSend.status == EmailBroadcastSendStatus.pending,
+            EmailBroadcastSend.deleted_at.is_(None),
+        )
+        .values(status=EmailBroadcastSendStatus.failed)
+    )
+    log.info(
+        "email.subscriber_outbound_cancelled",
+        subscriber_id=str(subscriber_id),
+        reason=reason,
     )
 
 
@@ -274,10 +332,16 @@ async def _apply_broadcast_event(
         ):
             send.status = EmailBroadcastSendStatus.bounced
         await session.execute(_update_subscriber_on_bounce(session, send.subscriber_id))
+        await _stop_outbound_for_subscriber(
+            session, send.subscriber_id, reason="bounce", now=now
+        )
 
     elif event_type == "email.complained":
         send.unsubscribed_at = now
         await session.execute(_update_subscriber_on_complaint(session, send.subscriber_id, now))
+        await _stop_outbound_for_subscriber(
+            session, send.subscriber_id, reason="complaint", now=now
+        )
 
 
 async def _apply_sequence_event(
@@ -331,10 +395,16 @@ async def _apply_sequence_event(
         ):
             send.status = EmailSequenceStepSendStatus.bounced
         await session.execute(_update_subscriber_on_bounce(session, send.subscriber_id))
+        await _stop_outbound_for_subscriber(
+            session, send.subscriber_id, reason="bounce", now=now
+        )
 
     elif event_type == "email.complained":
         send.unsubscribed_at = now
         await session.execute(_update_subscriber_on_complaint(session, send.subscriber_id, now))
+        await _stop_outbound_for_subscriber(
+            session, send.subscriber_id, reason="complaint", now=now
+        )
 
 
 def _extract_click_url(event_data: dict[str, Any] | None) -> str | None:

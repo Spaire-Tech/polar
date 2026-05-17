@@ -458,7 +458,13 @@ class EmailSubscriberService:
 
         Returns True if a matching subscriber was found and is now
         unsubscribed (idempotent — already-unsubscribed counts as success).
+
+        Also cancels any active sequence enrolments and any pending
+        broadcast sends for this subscriber so we stop sending mail
+        immediately rather than waiting for the next worker tick.
         """
+        from polar.email_broadcast.repository import EmailBroadcastRepository
+        from polar.email_sequence.repository import EmailSequenceRepository
         from polar.kit.utils import utc_now
 
         repository = EmailSubscriberRepository.from_session(session)
@@ -469,10 +475,19 @@ class EmailSubscriberService:
         subscriber = await repository.get_one_or_none(statement)
         if subscriber is None:
             return False
+        now = utc_now()
         if subscriber.status != EmailSubscriberStatus.unsubscribed:
             subscriber.status = EmailSubscriberStatus.unsubscribed
-            subscriber.unsubscribed_at = utc_now()
+            subscriber.unsubscribed_at = now
             await repository.update(subscriber)
+        # Cascade: stop active sequences and pending broadcasts. Both
+        # operations are no-ops when nothing is queued.
+        sequence_repo = EmailSequenceRepository.from_session(session)
+        await sequence_repo.cancel_active_enrollments_for_subscriber(
+            subscriber_id, now=now
+        )
+        broadcast_repo = EmailBroadcastRepository.from_session(session)
+        await broadcast_repo.cancel_pending_sends_for_subscriber(subscriber_id)
         return True
 
     async def delete_permanently(

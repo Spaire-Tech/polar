@@ -560,6 +560,27 @@ class EmailBroadcastRepository(
         result = await self.session.execute(statement)
         return [{"day": str(row[0]), "count": row[1]} for row in result.all()]
 
+    async def cancel_pending_sends_for_subscriber(
+        self, subscriber_id: UUID
+    ) -> int:
+        """Flip any still-pending broadcast sends for this subscriber to
+        ``failed`` so the send actor stops picking them up.
+
+        Used when a subscriber bounces, complains, or unsubscribes —
+        we don't want to keep mailing a dead address while pending rows
+        drain the queue. Returns the number of rows flipped.
+        """
+        result = await self.session.execute(
+            update(EmailBroadcastSend)
+            .where(
+                EmailBroadcastSend.subscriber_id == subscriber_id,
+                EmailBroadcastSend.status == EmailBroadcastSendStatus.pending,
+                EmailBroadcastSend.deleted_at.is_(None),
+            )
+            .values(status=EmailBroadcastSendStatus.failed)
+        )
+        return int(result.rowcount or 0)
+
 
 class EmailBroadcastABTestRepository(
     RepositorySoftDeletionMixin[EmailBroadcastABTest],

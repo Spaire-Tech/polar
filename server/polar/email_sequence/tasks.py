@@ -373,7 +373,7 @@ async def _send_email_node(
         enrollment.current_step_position = ordinal + 1
         return None
 
-    await _send_email_step(
+    sent_ok = await _send_email_step(
         session,
         sequence=sequence,
         enrollment=enrollment,
@@ -381,7 +381,18 @@ async def _send_email_node(
         organization=organization,
         step=step,
     )
-    enrollment.current_step_position = ordinal + 1
+    if sent_ok:
+        enrollment.current_step_position = ordinal + 1
+    else:
+        # Transient failure or quota exhausted: push next_step_at out
+        # ~30 minutes so we retry on the same step instead of silently
+        # skipping it. Without this, a Resend 429 would still
+        # mark the enrollment as having "completed" that step, the
+        # subscriber would never receive it, and the next step would
+        # fire on schedule as if nothing happened.
+        from datetime import timedelta as _td
+
+        enrollment.next_step_at = utc_now() + _td(minutes=30)
     return None
 
 
@@ -393,15 +404,19 @@ async def _send_email_step(
     subscriber: EmailSubscriber,
     organization: Organization | None,
     step: EmailSequenceStep,
-) -> None:
+) -> bool:
+    """Send one step. Returns True on success, False if the step should
+    be retried (transient failure / quota exhausted) — the caller must
+    not advance ``current_step_position`` when this returns False, or
+    the enrollment will skip the step entirely.
+    """
     from polar.email_subscriber.unsubscribe_token import build_unsubscribe_url
 
     unsubscribe_url = build_unsubscribe_url(enrollment.subscriber_id)
 
     # Block this step send if the org is out of monthly email quota.
-    # Record the attempt as failed so the enrollment moves on instead of
-    # looping. organization can be None for very old sequences with no
-    # org link; in that case we skip enforcement gracefully.
+    # organization can be None for very old sequences with no org link;
+    # in that case we skip enforcement gracefully.
     if organization is not None:
         try:
             await enforce(
@@ -425,9 +440,28 @@ async def _send_email_step(
                     status=EmailSequenceStepSendStatus.failed,
                 )
             )
-            return
+            # Quota will be replenished next month — don't advance the
+            # enrollment, retry on the next tick.
+            return False
 
     try:
+        # Per-recipient placeholder substitution (``{{first_name}}`` etc.)
+        # before we hand the body to the outer marketing template wrapper.
+        from polar.email.personalize import build_variables
+        from polar.email.personalize import render as personalize
+
+        from .custom_fields import list_fields
+
+        custom_fields = await list_fields(session, subscriber.id)
+        personalize_vars = build_variables(
+            subscriber=subscriber, custom_fields=custom_fields
+        )
+        body_html = step.content_html or "<p>No content</p>"
+        body_html = personalize(body_html, personalize_vars, html=True)
+        subject_text = personalize(
+            step.subject or "", personalize_vars, html=False
+        )
+
         wrapped_html = render_email_template(
             MarketingEmail(
                 props=MarketingEmailProps(
@@ -440,7 +474,7 @@ async def _send_email_step(
                     organization_website=organization.website
                     if organization
                     else None,
-                    html_content=step.content_html or "<p>No content</p>",
+                    html_content=body_html,
                     unsubscribe_url=unsubscribe_url,
                 )
             )
@@ -462,7 +496,7 @@ async def _send_email_step(
             )
         resend_email_id = await email_sender.send(
             to_email_addr=subscriber.email,
-            subject=step.subject,
+            subject=subject_text,
             html_content=wrapped_html,
             from_name=from_name,
             from_email_addr=from_email,
@@ -500,6 +534,7 @@ async def _send_email_step(
             emit_email_sent(
                 session, organization_id=organization.id, count=1
             )
+        return True
     except Exception:
         log.exception(
             "email_sequence.send_step_failed",
@@ -514,6 +549,7 @@ async def _send_email_step(
                 status=EmailSequenceStepSendStatus.failed,
             )
         )
+        return False
 
 
 async def _send_inline(
