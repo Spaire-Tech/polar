@@ -11,6 +11,7 @@ import { useMemo, useState } from 'react'
 import { TrailerModal } from './EditableCourseLandingView'
 import { useEditor } from './EditorContext'
 import { EditMedia, EditText } from './EditPrimitives'
+import { HeroMedia } from './HeroMedia'
 import { SectionModuleSheet } from './SectionModuleSheet'
 
 const FONT_VAR = 'var(--font-body, "Poppins", system-ui, sans-serif)'
@@ -105,10 +106,21 @@ export function MobileHero({
         }}
         renderMedia={() => null}
       >
-        <MobileHeroBackdrop
-          imageUrl={backdropUrl}
-          objectPosition={backdropObjectPosition}
-        />
+        {/* Trailer-or-image with the same 10s peek behavior the desktop
+            hero uses. Falls through to the gradient placeholder when
+            neither a trailer nor an image is set. */}
+        {trailerUrl || backdropUrl ? (
+          <HeroMedia
+            imageUrl={backdropUrl}
+            imageObjectPosition={backdropObjectPosition}
+            trailerUrl={trailerUrl}
+          />
+        ) : (
+          <MobileHeroBackdrop
+            imageUrl={backdropUrl}
+            objectPosition={backdropObjectPosition}
+          />
+        )}
       </EditMedia>
 
       {/* Vignette */}

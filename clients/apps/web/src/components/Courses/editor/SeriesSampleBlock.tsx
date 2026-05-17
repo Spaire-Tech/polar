@@ -1152,88 +1152,23 @@ function SamplePlayerFrame({
           </button>
         )}
 
-        {/* End-of-clip paywall overlay */}
+        {/* End-of-clip paywall overlay. Styles live in the <style jsx> block
+            below so a @media query can shrink everything for narrow
+            viewports — overrides wouldn't apply through inline styles. */}
         {ended && (
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              background:
-                'linear-gradient(180deg, rgba(0,0,0,0.20) 0%, rgba(0,0,0,0.78) 65%, rgba(0,0,0,0.92) 100%)',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'flex-end',
-              padding: '24px 28px 26px',
-              color: '#fff',
-              fontFamily: FONT_VAR,
-              textAlign: 'center',
-              animation:
-                'sampleEndFade 320ms cubic-bezier(0.22, 1, 0.36, 1) both',
-            }}
-          >
-            <div
-              style={{
-                fontSize: 10.5,
-                fontWeight: 600,
-                letterSpacing: '0.22em',
-                textTransform: 'uppercase',
-                color: 'rgba(255,255,255,0.7)',
-                marginBottom: 10,
-              }}
-            >
-              Members only
-            </div>
-            <div
-              style={{
-                fontSize: 'clamp(22px, 3vw, 30px)',
-                fontWeight: 600,
-                letterSpacing: '-0.02em',
-                lineHeight: 1.1,
-                marginBottom: 8,
-                fontFamily: HEADING_VAR,
-              }}
-            >
-              Enroll to keep watching
-            </div>
-            <div
-              style={{
-                fontSize: 13.5,
-                color: 'rgba(255,255,255,0.75)',
-                lineHeight: 1.5,
-                marginBottom: 18,
-                maxWidth: 460,
-              }}
-            >
+          <div className="sample-end-overlay">
+            <div className="sample-end-eyebrow">Members only</div>
+            <div className="sample-end-title">Enroll to keep watching</div>
+            <div className="sample-end-sub">
               {lessonTitle}
               {priceLabel ? ` · ${priceLabel}` : ''} · lifetime access
             </div>
-            <div
-              style={{
-                display: 'flex',
-                gap: 10,
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                justifyContent: 'center',
-              }}
-            >
+            <div className="sample-end-actions">
               <button
                 type="button"
                 onClick={onEnroll}
                 disabled={!canEnroll || enrolling}
-                style={{
-                  padding: '12px 22px',
-                  borderRadius: 999,
-                  background: '#fff',
-                  color: 'oklch(0.18 0.008 280)',
-                  fontSize: 13.5,
-                  fontWeight: 600,
-                  letterSpacing: '-0.01em',
-                  border: 'none',
-                  cursor: canEnroll && !enrolling ? 'pointer' : 'not-allowed',
-                  opacity: canEnroll && !enrolling ? 1 : 0.55,
-                  fontFamily: FONT_VAR,
-                }}
+                className="sample-end-primary"
               >
                 {enrolling
                   ? 'Loading…'
@@ -1242,19 +1177,7 @@ function SamplePlayerFrame({
               <button
                 type="button"
                 onClick={handleReplay}
-                style={{
-                  padding: '11px 18px',
-                  borderRadius: 999,
-                  background: 'rgba(255,255,255,0.08)',
-                  border: '1px solid rgba(255,255,255,0.2)',
-                  color: '#fff',
-                  fontSize: 13,
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  fontFamily: FONT_VAR,
-                  backdropFilter: 'blur(10px)',
-                  WebkitBackdropFilter: 'blur(10px)',
-                }}
+                className="sample-end-secondary"
               >
                 Replay sample
               </button>
@@ -1272,6 +1195,139 @@ function SamplePlayerFrame({
           to {
             opacity: 1;
             transform: translateY(0);
+          }
+        }
+
+        /* End-of-clip paywall overlay. Sized for a desktop 16:9 frame, then
+           tightened twice (≤700px and ≤480px) so the headline + sub + CTAs
+           still fit inside the smaller 16:9 frame on phones. */
+        .sample-end-overlay {
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(
+            180deg,
+            rgba(0, 0, 0, 0.2) 0%,
+            rgba(0, 0, 0, 0.78) 65%,
+            rgba(0, 0, 0, 0.92) 100%
+          );
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: flex-end;
+          padding: 24px 28px 26px;
+          color: #fff;
+          font-family: var(--font-poppins), system-ui, sans-serif;
+          text-align: center;
+          animation: sampleEndFade 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+        .sample-end-eyebrow {
+          font-size: 10.5px;
+          font-weight: 600;
+          letter-spacing: 0.22em;
+          text-transform: uppercase;
+          color: rgba(255, 255, 255, 0.7);
+          margin-bottom: 10px;
+        }
+        .sample-end-title {
+          font-size: clamp(22px, 3vw, 30px);
+          font-weight: 600;
+          letter-spacing: -0.02em;
+          line-height: 1.1;
+          margin-bottom: 8px;
+          font-family: var(--font-poppins), system-ui, sans-serif;
+        }
+        .sample-end-sub {
+          font-size: 13.5px;
+          color: rgba(255, 255, 255, 0.75);
+          line-height: 1.5;
+          margin-bottom: 18px;
+          max-width: 460px;
+        }
+        .sample-end-actions {
+          display: flex;
+          gap: 10px;
+          align-items: center;
+          flex-wrap: wrap;
+          justify-content: center;
+        }
+        .sample-end-primary {
+          padding: 12px 22px;
+          border-radius: 999px;
+          background: #fff;
+          color: oklch(0.18 0.008 280);
+          font-size: 13.5px;
+          font-weight: 600;
+          letter-spacing: -0.01em;
+          border: none;
+          cursor: pointer;
+          font-family: inherit;
+        }
+        .sample-end-primary:disabled {
+          opacity: 0.55;
+          cursor: not-allowed;
+        }
+        .sample-end-secondary {
+          padding: 11px 18px;
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.08);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          color: #fff;
+          font-size: 13px;
+          font-weight: 500;
+          cursor: pointer;
+          font-family: inherit;
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
+        }
+
+        @media (max-width: 700px) {
+          .sample-end-overlay {
+            padding: 14px 16px 14px;
+          }
+          .sample-end-eyebrow {
+            font-size: 9px;
+            letter-spacing: 0.18em;
+            margin-bottom: 4px;
+          }
+          .sample-end-title {
+            font-size: 17px;
+            line-height: 1.1;
+            margin-bottom: 4px;
+          }
+          .sample-end-sub {
+            font-size: 11.5px;
+            line-height: 1.35;
+            margin-bottom: 10px;
+            /* Hide on phone — title + price-on-CTA carry the message. */
+            display: none;
+          }
+          .sample-end-actions {
+            gap: 6px;
+          }
+          .sample-end-primary {
+            padding: 9px 16px;
+            font-size: 12.5px;
+          }
+          .sample-end-secondary {
+            padding: 8px 14px;
+            font-size: 12px;
+          }
+        }
+
+        @media (max-width: 380px) {
+          .sample-end-overlay {
+            padding: 10px 12px 10px;
+          }
+          .sample-end-title {
+            font-size: 15px;
+          }
+          .sample-end-primary {
+            padding: 8px 14px;
+            font-size: 12px;
+          }
+          .sample-end-secondary {
+            padding: 7px 12px;
+            font-size: 11.5px;
           }
         }
       `}</style>

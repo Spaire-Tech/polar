@@ -16,6 +16,7 @@ import { CONFIG } from '@/utils/config'
 import { useIsMobile } from '@/utils/mobile'
 import type { schemas } from '@spaire/client'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { toast } from '../../Toast/use-toast'
 import { HlsVideo } from '../HlsVideo'
 import {
@@ -697,7 +698,15 @@ export function TrailerModal({
     }
   }, [onClose])
 
-  return (
+  // Render via a portal into document.body so the modal always escapes any
+  // ancestor that creates a containing block (the customize tab's iPhone
+  // preview frame has isolation/overflow chrome; on real iOS Safari,
+  // ancestors with backdrop-filter or transforms can clip a position:fixed
+  // child too). Without the portal, the modal renders trapped inside the
+  // landing's stacking context — and the user sees the page content
+  // "inside" the trailer.
+  if (typeof document === 'undefined') return null
+  return createPortal(
     <div
       onClick={onClose}
       style={{
@@ -746,7 +755,8 @@ export function TrailerModal({
       >
         ✕
       </button>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
