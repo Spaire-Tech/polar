@@ -107,6 +107,26 @@ export const BroadcastDetailScreen = ({
   const sendsTotal = sendsQuery.data?.pagination.total_count ?? 0
   const sendsMaxPage = sendsQuery.data?.pagination.max_page ?? 1
 
+  // Surface mutation failures via dialogs.alert so the user knows a
+  // click did nothing. Previously every mutation used .mutate() with
+  // no onError, so a 500 here would silently leave the user on the
+  // same screen.
+  const runMutation = async <T,>(
+    mutation: { mutateAsync: (input: T) => Promise<unknown> },
+    input: T,
+    failedLabel: string,
+  ): Promise<boolean> => {
+    try {
+      await mutation.mutateAsync(input)
+      return true
+    } catch (err) {
+      const message =
+        err instanceof Error && err.message ? err.message : 'Unknown error.'
+      await dialogs.alert({ title: failedLabel, message })
+      return false
+    }
+  }
+
   const onArchive = async () => {
     if (!broadcast) return
     const ok = await dialogs.confirm({
@@ -120,8 +140,12 @@ export const BroadcastDetailScreen = ({
       confirmLabel: 'Archive',
     })
     if (!ok) return
-    archiveMutation.mutate(broadcastId)
-    onBack()
+    const archived = await runMutation(
+      archiveMutation,
+      broadcastId,
+      'Could not archive',
+    )
+    if (archived) onBack()
   }
 
   return (
@@ -165,7 +189,9 @@ export const BroadcastDetailScreen = ({
         <div style={{ display: 'flex', gap: 10 }}>
           <button
             className="btn btn-secondary"
-            onClick={() => duplicateMutation.mutate(broadcastId)}
+            onClick={() =>
+              runMutation(duplicateMutation, broadcastId, 'Could not duplicate')
+            }
           >
             <Icon name="copy" size={14} />
             Duplicate
@@ -177,7 +203,12 @@ export const BroadcastDetailScreen = ({
                 label: 'Cancel schedule',
                 icon: 'x-circle',
                 hidden: broadcast?.status !== 'scheduled',
-                onClick: () => cancelMutation.mutate(broadcastId),
+                onClick: () =>
+                  runMutation(
+                    cancelMutation,
+                    broadcastId,
+                    'Could not cancel schedule',
+                  ),
               },
               {
                 label: 'Archive',
@@ -189,6 +220,42 @@ export const BroadcastDetailScreen = ({
           />
         </div>
       </div>
+
+      {/*
+        Tracking-status banner. "Open rate / Click rate = 0%" used to be
+        indistinguishable from "tracking not configured" — every customer
+        who saw a zero-rate broadcast thought the product was broken.
+        Now: if the broadcast has been delivered for at least an hour and
+        no engagement webhooks have landed, surface a hint that domain-
+        level tracking is the likely culprit.
+       */}
+      {analytics &&
+        analytics.delivered > 0 &&
+        analytics.webhook_signal_present === false && (
+          <div
+            style={{
+              marginBottom: 16,
+              padding: '12px 14px',
+              borderRadius: 12,
+              border: '1px solid #fcd34d',
+              background: '#fffbeb',
+              color: '#78350f',
+              fontSize: 13,
+              lineHeight: 1.5,
+            }}
+            role="status"
+          >
+            <strong style={{ fontWeight: 600 }}>
+              Tracking not detected.
+            </strong>{' '}
+            We delivered{' '}
+            {analytics.delivered.toLocaleString()} emails but haven't seen
+            any open or click events. Open/click tracking has to be
+            enabled on your sending domain — check Resend's dashboard or
+            verify your custom sender domain is fully set up. Engagement
+            metrics will fill in retroactively once events start arriving.
+          </div>
+        )}
 
       <div
         style={{

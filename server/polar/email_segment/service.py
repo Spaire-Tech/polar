@@ -163,13 +163,43 @@ class EmailSegmentService:
         segment: EmailSegment,
         subscriber_ids: list[UUID],
     ) -> int:
-        """Add subscribers to a manual segment. Returns count added."""
+        """Add subscribers to a manual segment. Returns count added.
+
+        Org scope: every subscriber must belong to the same organization
+        as the segment. Without this, a caller with org-A scope could pass
+        org-B's subscriber UUIDs and the segment would silently include
+        them — when used by a broadcast, those subscribers would receive
+        org-A's email. (Audit cross-org leak #49.)
+        """
         if segment.type != EmailSegmentType.manual:
             raise ValueError("Can only add subscribers to manual segments")
+
+        if not subscriber_ids:
+            return 0
+
+        from sqlalchemy import select
+
+        from polar.models.email_subscriber import EmailSubscriber
+
+        valid_ids = (
+            await session.execute(
+                select(EmailSubscriber.id).where(
+                    EmailSubscriber.id.in_(subscriber_ids),
+                    EmailSubscriber.organization_id == segment.organization_id,
+                    EmailSubscriber.deleted_at.is_(None),
+                )
+            )
+        ).scalars().all()
+        valid_set = set(valid_ids)
 
         repository = EmailSegmentRepository.from_session(session)
         added = 0
         for subscriber_id in subscriber_ids:
+            if subscriber_id not in valid_set:
+                # Quietly skip cross-org or deleted ids; the caller learns
+                # via the returned `added` count not matching what they
+                # passed in.
+                continue
             existing = await repository.get_segment_subscriber_entry(
                 segment.id, subscriber_id
             )
@@ -189,13 +219,36 @@ class EmailSegmentService:
         segment: EmailSegment,
         subscriber_ids: list[UUID],
     ) -> int:
-        """Remove subscribers from a manual segment. Returns count removed."""
+        """Remove subscribers from a manual segment. Returns count removed.
+
+        Same org-scope guard as add_subscribers — refuses to look up
+        membership rows that would require crossing organizations.
+        """
         if segment.type != EmailSegmentType.manual:
             raise ValueError("Can only remove subscribers from manual segments")
+
+        if not subscriber_ids:
+            return 0
+
+        from sqlalchemy import select
+
+        from polar.models.email_subscriber import EmailSubscriber
+
+        valid_ids = (
+            await session.execute(
+                select(EmailSubscriber.id).where(
+                    EmailSubscriber.id.in_(subscriber_ids),
+                    EmailSubscriber.organization_id == segment.organization_id,
+                )
+            )
+        ).scalars().all()
+        valid_set = set(valid_ids)
 
         repository = EmailSegmentRepository.from_session(session)
         removed = 0
         for subscriber_id in subscriber_ids:
+            if subscriber_id not in valid_set:
+                continue
             entry = await repository.get_segment_subscriber_entry(
                 segment.id, subscriber_id
             )

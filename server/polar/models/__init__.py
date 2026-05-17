@@ -94,6 +94,7 @@ from .product_price import (
 )
 from .product_review import ProductReview
 from .refund import Refund
+from .resend_webhook_event import ResendWebhookEvent
 from .subscription import Subscription
 from .subscription_meter import SubscriptionMeter
 from .subscription_product_price import SubscriptionProductPrice
@@ -207,6 +208,7 @@ __all__ = [
     "ProductVisibility",
     "QuotaNotification",
     "Refund",
+    "ResendWebhookEvent",
     "SeatStatus",
     "Subscription",
     "SubscriptionMeter",

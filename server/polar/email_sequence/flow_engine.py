@@ -290,7 +290,14 @@ async def _evaluate_product_bought(
     `product` is a UUID string in the branch_value (the editor stores the
     selected product id). Empty/missing product means "any product" — the
     branch yes-path then triggers when the subscriber has any paid order.
+
+    Org scope: customer_id can collide across organizations (it's a UUID,
+    but customer rows belong to specific orgs), and product_id is also
+    org-scoped. We join through Customer.organization_id and constrain
+    to the subscriber's own org so a branch can never read order data
+    from a different organization.
     """
+    from polar.models.customer import Customer
     from polar.models.email_subscriber import EmailSubscriber
     from polar.models.order import Order, OrderStatus
 
@@ -299,10 +306,15 @@ async def _evaluate_product_bought(
         return False
 
     product_id_raw = (branch_value.get("product") or "").strip()
-    statement = select(Order.id).where(
-        Order.customer_id == subscriber.customer_id,
-        Order.status == OrderStatus.paid,
-        Order.deleted_at.is_(None),
+    statement = (
+        select(Order.id)
+        .join(Customer, Customer.id == Order.customer_id)
+        .where(
+            Order.customer_id == subscriber.customer_id,
+            Customer.organization_id == subscriber.organization_id,
+            Order.status == OrderStatus.paid,
+            Order.deleted_at.is_(None),
+        )
     )
     if product_id_raw:
         try:

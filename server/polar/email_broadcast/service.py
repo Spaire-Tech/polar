@@ -530,6 +530,12 @@ class EmailBroadcastService:
             "unsubscribed": unsubscribed,
             "open_rate": (opened / denom * 100) if denom else 0.0,
             "click_rate": (clicked / denom * 100) if denom else 0.0,
+            # Same hint as the aggregate analytics — false means we
+            # delivered emails but haven't seen any engagement webhooks
+            # yet, which usually means domain-level tracking is OFF.
+            # The UI uses this to render a "tracking not detected"
+            # banner instead of a misleading 0% engagement readout.
+            "webhook_signal_present": delivered > 0 or opened > 0 or clicked > 0,
         }
 
 
@@ -602,7 +608,7 @@ class EmailBroadcastService:
         )
         current = self._shape_aggregate(current_counts)
 
-        delta: dict[str, float] = {}
+        delta: dict[str, float | None] = {}
         if compare_prior and days is not None and since is not None:
             prior_since = since - timedelta(days=days)
             prior_until = since
@@ -610,16 +616,28 @@ class EmailBroadcastService:
                 organization_id, since=prior_since, until=prior_until
             )
             prior = self._shape_aggregate(prior_counts)
+
+            def _pt_delta(current_val: float | None, prior_val: float | None) -> float | None:
+                # _shape_aggregate returns None for rates when the
+                # denominator is zero. Previously we float(None)'d both
+                # sides and 500'd. Return None so the UI renders "—".
+                if current_val is None or prior_val is None:
+                    return None
+                return float(current_val) - float(prior_val)
+
             delta = {
                 "total_sent_pct": _pct_delta(
                     current["total_sent"], prior["total_sent"]
                 ),
-                "open_rate_pt": float(current["open_rate"])
-                - float(prior["open_rate"]),
-                "click_rate_pt": float(current["click_rate"])
-                - float(prior["click_rate"]),
-                "unsub_rate_pt": float(current["unsub_rate"])
-                - float(prior["unsub_rate"]),
+                "open_rate_pt": _pt_delta(
+                    current["open_rate"], prior["open_rate"]
+                ),
+                "click_rate_pt": _pt_delta(
+                    current["click_rate"], prior["click_rate"]
+                ),
+                "unsub_rate_pt": _pt_delta(
+                    current["unsub_rate"], prior["unsub_rate"]
+                ),
             }
 
         # Industry benchmark (audit issue #10 / fix-list #29). The legacy

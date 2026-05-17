@@ -701,6 +701,12 @@ export type BroadcastAnalytics = {
   unsubscribed: number
   open_rate: number
   click_rate: number
+  // True if any delivered / opened / clicked webhook has landed for
+  // this broadcast — false means tracking probably isn't configured
+  // on the sending domain. The detail page uses this to distinguish
+  // "0% engagement" from "tracking off". Backend started returning
+  // this with the open/click rate tracking fix.
+  webhook_signal_present?: boolean
 }
 
 export const useEmailBroadcastAnalytics = (broadcastId: string) =>

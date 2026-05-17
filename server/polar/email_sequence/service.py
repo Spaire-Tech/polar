@@ -455,6 +455,19 @@ class EmailSequenceService:
             raise AlreadyEnrolled()
 
         now = utc_now()
+        # Recycle a non-active existing enrollment instead of trying to
+        # INSERT a second one. The unique constraint on
+        # (sequence_id, subscriber_id, deleted_at) covers (active,
+        # cancelled, paused, completed) all with deleted_at IS NULL, so
+        # a fresh insert would have collided. Resetting the existing
+        # row preserves its primary key (and any downstream FK rows)
+        # while flipping it back into the active state below.
+        recycle = (
+            existing
+            if existing is not None
+            and existing.status != EmailSequenceEnrollmentStatus.active
+            else None
+        )
         # If the sequence ships an authored flow_doc, the worker walks that
         # tree via flow_index. The initial next_step_at honours an opening
         # wait node so first emails don't fire mid-night for time-of-day
@@ -494,6 +507,19 @@ class EmailSequenceService:
             first_send = apply_send_window(
                 now, sequence.trigger_config, subscriber_timezone=sub_tz
             )
+
+        if recycle is not None:
+            # Reset every cursor so the recycled enrollment behaves like
+            # a fresh one (start over from the first step / first node).
+            recycle.status = EmailSequenceEnrollmentStatus.active
+            recycle.current_step_position = 0
+            recycle.flow_index = flow_index
+            recycle.flow_next_step_id = flow_next_step_id
+            recycle.enrolled_at = now
+            recycle.next_step_at = first_send
+            recycle.completed_at = None
+            await session.flush()
+            return recycle
 
         enrollment = EmailSequenceEnrollment(
             sequence_id=sequence.id,

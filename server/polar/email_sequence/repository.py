@@ -378,3 +378,28 @@ class EmailSequenceRepository(
         )
         result = await self.session.execute(statement)
         return {row[0]: row[1] for row in result.all()}
+
+    async def cancel_active_enrollments_for_subscriber(
+        self, subscriber_id: UUID, *, now: datetime
+    ) -> int:
+        """Cancel every active enrollment owned by a subscriber.
+
+        Used when a subscriber bounces, complains, or unsubscribes — the
+        worker refuses to advance non-active enrollments, so flipping
+        status here stops further sends immediately. Returns the number
+        of enrollments flipped.
+        """
+        result = await self.session.execute(
+            sa_update(EmailSequenceEnrollment)
+            .where(
+                EmailSequenceEnrollment.subscriber_id == subscriber_id,
+                EmailSequenceEnrollment.status
+                == EmailSequenceEnrollmentStatus.active,
+                EmailSequenceEnrollment.deleted_at.is_(None),
+            )
+            .values(
+                status=EmailSequenceEnrollmentStatus.cancelled,
+                completed_at=now,
+            )
+        )
+        return int(result.rowcount or 0)

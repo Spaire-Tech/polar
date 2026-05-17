@@ -1,8 +1,11 @@
+from typing import Any
 from uuid import UUID, uuid4
 
 import structlog
 from sqlalchemy import select
 
+from polar.email.personalize import build_variables
+from polar.email.personalize import render as personalize
 from polar.email.react import render_email_template
 from polar.email.schemas import MarketingEmail, MarketingEmailProps
 from polar.email.sender import email_sender, resolve_creator_from_address
@@ -34,8 +37,19 @@ def _render_broadcast_html(
     organization: Organization | None,
     *,
     unsubscribe_url: str,
+    personalize_vars: dict[str, str] | None = None,
 ) -> str:
-    """Wrap the broadcast's content in the unified marketing email template."""
+    """Wrap the broadcast's content in the unified marketing email template.
+
+    When ``personalize_vars`` is provided, ``{{token}}`` placeholders in
+    the broadcast body are substituted before the outer template wraps
+    it. The outer template doesn't currently expose recipient-specific
+    fields, so a None map (test / preview sends) just leaves the body
+    untouched.
+    """
+    body_html = broadcast.content_html or "<p>No content</p>"
+    if personalize_vars is not None:
+        body_html = personalize(body_html, personalize_vars, html=True)
     return render_email_template(
         MarketingEmail(
             props=MarketingEmailProps(
@@ -46,7 +60,7 @@ def _render_broadcast_html(
                 if organization
                 else None,
                 organization_website=organization.website if organization else None,
-                html_content=broadcast.content_html or "<p>No content</p>",
+                html_content=body_html,
                 preview_text=broadcast.preview_text,
                 unsubscribe_url=unsubscribe_url,
             )
@@ -62,17 +76,46 @@ async def send_broadcast_email(
     unsubscribe_url: str,
     extra_subject_prefix: str = "",
     subject_override: str | None = None,
+    send_id: UUID | None = None,
+    variant: str | None = None,
+    subscriber: Any = None,
+    custom_fields: dict[str, str | None] | None = None,
 ) -> str | None:
-    """Render and send a single broadcast email. Returns the Resend email id."""
+    """Render and send a single broadcast email. Returns the Resend email id.
+
+    ``subscriber`` and ``custom_fields`` drive ``{{token}}`` substitution
+    in the subject and body. Test sends (no real subscriber) pass None
+    so placeholders render literally — the recipient can see exactly
+    what an author wrote.
+    """
+    personalize_vars: dict[str, str] | None = None
+    if subscriber is not None:
+        personalize_vars = build_variables(
+            subscriber=subscriber, custom_fields=custom_fields
+        )
     wrapped_html = _render_broadcast_html(
-        broadcast, organization, unsubscribe_url=unsubscribe_url
+        broadcast,
+        organization,
+        unsubscribe_url=unsubscribe_url,
+        personalize_vars=personalize_vars,
     )
     base_subject = subject_override if subject_override is not None else broadcast.subject
+    if personalize_vars is not None and base_subject:
+        # Subject lines aren't HTML; don't escape.
+        base_subject = personalize(base_subject, personalize_vars, html=False)
     from_name, from_email = resolve_creator_from_address(
         organization=organization,
         requested_email=broadcast.sender_email,
         requested_name=broadcast.sender_name,
     )
+    tags: list[dict[str, str]] = [
+        {"name": "kind", "value": "broadcast"},
+        {"name": "broadcast_id", "value": str(broadcast.id)},
+    ]
+    if organization is not None:
+        tags.append({"name": "organization_id", "value": str(organization.id)})
+    if variant is not None:
+        tags.append({"name": "variant", "value": variant})
     return await email_sender.send(
         to_email_addr=to_email,
         subject=f"{extra_subject_prefix}{base_subject}",
@@ -85,6 +128,14 @@ async def send_broadcast_email(
         },
         reply_to_name=broadcast.sender_name if broadcast.reply_to_email else None,
         reply_to_email_addr=broadcast.reply_to_email,
+        track_opens=True,
+        track_clicks=True,
+        tags=tags,
+        # Idempotency key dedupes any worker retry on the Resend side so we
+        # never bill twice or deliver twice for the same (broadcast, recipient).
+        idempotency_key=(
+            f"broadcast:{broadcast.id}:{send_id}" if send_id is not None else None
+        ),
     )
 
 
@@ -181,17 +232,33 @@ async def send_emails(
                 )
 
                 unsubscribe_url = build_unsubscribe_url(send.subscriber_id)
+                # Load custom fields for ``{{custom.X}}`` substitution.
+                from polar.email_sequence.custom_fields import list_fields
+
+                custom_fields = await list_fields(session, subscriber.id)
                 resend_email_id = await send_broadcast_email(
                     broadcast,
                     organization,
                     to_email=subscriber.email,
                     unsubscribe_url=unsubscribe_url,
                     subject_override=subject_override,
+                    send_id=send.id,
+                    variant=send.variant,
+                    subscriber=subscriber,
+                    custom_fields=custom_fields,
                 )
                 send.status = EmailBroadcastSendStatus.sent
                 send.sent_at = utc_now()
                 if resend_email_id:
                     send.resend_email_id = resend_email_id
+                # Flush makes the row visible within this session, and
+                # narrows the post-commit visibility gap for the webhook
+                # worker (another process) — though only the per-batch
+                # commit makes it truly readable cross-process. The
+                # deferred-resolve queue in the webhook handler closes
+                # the remaining race when a sub-second Resend event
+                # lands before the batch commits.
+                await session.flush()
                 emit_email_sent(
                     session, organization_id=organization.id, count=1
                 )
@@ -236,6 +303,8 @@ async def send_test_broadcast(broadcast_id: UUID, to_email: str) -> None:
         organization = await session.get(Organization, broadcast.organization_id)
 
         try:
+            # Tracking flags are turned on inside send_broadcast_email so
+            # test sends exercise the same Resend behaviour real sends do.
             await send_broadcast_email(
                 broadcast,
                 organization,
