@@ -93,6 +93,7 @@ class CourseService:
             organization_id=create_schema.organization_id,
             title=create_schema.title,
             course_type=create_schema.course_type,
+            format=create_schema.format,
             paywall_enabled=create_schema.paywall_enabled,
             paywall_lesson_id=create_schema.paywall_lesson_id,
             ai_generated=create_schema.ai_generated,
@@ -102,6 +103,11 @@ class CourseService:
             instructor_name=create_schema.instructor_name,
             instructor_bio=create_schema.instructor_bio,
             trailer_url=create_schema.trailer_url,
+            sample=(
+                create_schema.sample.model_dump(mode="json")
+                if create_schema.sample is not None
+                else None
+            ),
             instructor_name_italic=create_schema.instructor_name_italic,
             instructor_name_bold=create_schema.instructor_name_bold,
             instructor_name_uppercase=create_schema.instructor_name_uppercase,
@@ -143,7 +149,23 @@ class CourseService:
         update_schema: CourseUpdate,
     ) -> Course:
         repo = CourseRepository.from_session(session)
-        update_dict = update_schema.model_dump(exclude_unset=True)
+        update_dict = update_schema.model_dump(exclude_unset=True, mode="json")
+
+        # Validate the sample's lesson_id refers to a lesson on this course.
+        # Falls back to disabling the sample silently if the lesson is gone
+        # (e.g. the user deleted the episode the sample pointed at after
+        # the editor staged the change).
+        if "sample" in update_dict and update_dict["sample"] is not None:
+            sample_dict = update_dict["sample"]
+            lesson_id_str = sample_dict.get("lesson_id")
+            lesson_ids = {
+                str(lesson.id)
+                for module in course.modules
+                for lesson in module.lessons
+            }
+            if lesson_id_str not in lesson_ids:
+                update_dict["sample"] = None
+
         return await repo.update(course, update_dict=update_dict)
 
     async def add_module(

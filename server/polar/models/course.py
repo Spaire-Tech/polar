@@ -44,6 +44,19 @@ class Course(RecordModel):
         default="evergreen",
     )
 
+    # "course" = structured modules → lessons (default).
+    # "series" = flat, episode-based, narrative format. Persisted on the
+    # same table because every downstream relationship (modules, lessons,
+    # paywall, enrollments, comments, mux assets) applies to both formats
+    # — series just renders the single implicit module as a flat episode
+    # list and skips progression UI.
+    format: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="course",
+        server_default="course",
+    )
+
     paywall_enabled: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False
     )
@@ -97,6 +110,26 @@ class Course(RecordModel):
     )
 
     landing_overrides: Mapped[dict | None] = mapped_column(
+        JSONB, nullable=True, default=None
+    )
+
+    # Series-only "Episode Sample" block on the landing. A series creator
+    # picks one of their episodes and a window inside it (start_seconds +
+    # duration_seconds), and that slice auto-plays as a sub-hero below the
+    # main hero on the public landing. The block is a marketing surface —
+    # the clip can run past the free-preview boundary, but the rest of the
+    # episode stays paywalled.
+    #
+    # Shape: {
+    #   "enabled": bool,
+    #   "lesson_id": str (UUID, refers to a CourseLesson on this course),
+    #   "start_seconds": int,
+    #   "duration_seconds": int,    # 5-180, creator picks
+    # }
+    # All keys required when the object is present; setting the column to
+    # NULL or `enabled=false` hides the block. The lesson_id is validated
+    # at write time against the course's own lessons.
+    sample: Mapped[dict | None] = mapped_column(
         JSONB, nullable=True, default=None
     )
 

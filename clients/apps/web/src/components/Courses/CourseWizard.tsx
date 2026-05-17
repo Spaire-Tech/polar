@@ -25,8 +25,10 @@ import {
   Intro,
   SpaireOnboardingStyles,
   StepCourse,
+  StepFormat,
   StepInstructor,
   StepPricingWizard,
+  type WizardFormat,
   type WizardPaywallState,
 } from './CourseWizard.steps'
 import {
@@ -37,6 +39,7 @@ import { landingSchema, outlineSchema } from './schemas'
 
 type WizardStep =
   | 'intro'
+  | 'format'
   | 'instructor'
   | 'course'
   | 'pricing'
@@ -105,6 +108,10 @@ export default function CourseWizard({
   const updateCourse = useUpdateCourse()
 
   const [screen, setScreen] = useState<WizardStep>('intro')
+  // Series vs Course discriminator. Drives the AI prompt branch on every
+  // generation call (outline, landing, lesson-content) and the format value
+  // persisted on the Course row when finalizeCourse runs.
+  const [format, setFormat] = useState<WizardFormat>('course')
   const [instructor, setInstructor] = useState<InstructorState>({
     name: organization.name ?? '',
     bio: '',
@@ -212,6 +219,7 @@ export default function CourseWizard({
       freePreviewLessons: paywall.paywallEnabled
         ? paywall.freePreviewLessons
         : null,
+      format,
     })
   }
 
@@ -248,6 +256,7 @@ export default function CourseWizard({
         paywall.paywallEnabled && billingType === 'subscription'
           ? recurringInterval
           : null,
+      format,
     })
   }
 
@@ -353,8 +362,12 @@ export default function CourseWizard({
       const created = await createCourse.mutateAsync({
         product_id: productResult.data.id,
         organization_id: organization.id,
-        title: draft.courseTitle || course.title || 'Untitled Course',
+        title:
+          draft.courseTitle ||
+          course.title ||
+          (format === 'series' ? 'Untitled Series' : 'Untitled Course'),
         course_type: 'evergreen',
+        format,
         paywall_enabled: paywall.paywallEnabled,
         ai_generated: true,
         description: humanDescription,
@@ -582,7 +595,7 @@ export default function CourseWizard({
       }
 
       toast({
-        title: 'Course Created',
+        title: format === 'series' ? 'Series Created' : 'Course Created',
         description: `"${draft.courseTitle || course.title}" is ready to edit`,
       })
       router.replace(
@@ -624,7 +637,16 @@ export default function CourseWizard({
         <div className="spaire-shell">
           {screen === 'intro' && (
             <Intro
+              onNext={() => setScreen('format')}
+              onClose={handleClose}
+            />
+          )}
+          {screen === 'format' && (
+            <StepFormat
+              value={format}
+              onChange={setFormat}
               onNext={() => setScreen('instructor')}
+              onBack={() => setScreen('intro')}
               onClose={handleClose}
             />
           )}
@@ -633,8 +655,9 @@ export default function CourseWizard({
               data={instructor}
               onChange={setInstructor}
               onNext={() => setScreen('course')}
-              onBack={() => setScreen('intro')}
+              onBack={() => setScreen('format')}
               onClose={handleClose}
+              format={format}
             />
           )}
           {screen === 'course' && (
@@ -647,6 +670,7 @@ export default function CourseWizard({
               }}
               onBack={() => setScreen('instructor')}
               onClose={handleClose}
+              format={format}
             />
           )}
           {screen === 'pricing' && (
@@ -660,10 +684,11 @@ export default function CourseWizard({
               courseTitle={draft.courseTitle || course.title}
               courseDesc={draft.desc || course.desc}
               courseLessons={12}
+              format={format}
             />
           )}
           {screen === 'generating-outline' && (
-            <GeneratingScreen onClose={handleClose} />
+            <GeneratingScreen onClose={handleClose} format={format} />
           )}
           {screen === 'outline' && (
             <OutlineScreen
@@ -677,10 +702,15 @@ export default function CourseWizard({
               }}
               onCreate={startLandingGeneration}
               onClose={handleClose}
+              format={format}
             />
           )}
           {screen === 'generating-landing' && (
-            <GeneratingScreen onClose={handleClose} phase="landing" />
+            <GeneratingScreen
+              onClose={handleClose}
+              phase="landing"
+              format={format}
+            />
           )}
           {screen === 'preview' &&
             (() => {
@@ -715,6 +745,7 @@ export default function CourseWizard({
                   initialThumbName=""
                   onPublish={finalizeCourse}
                   onBack={() => setScreen('outline')}
+                  format={format}
                 />
               )
             })()}

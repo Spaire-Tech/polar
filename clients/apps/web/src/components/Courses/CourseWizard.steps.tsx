@@ -590,6 +590,831 @@ export function Intro({
   )
 }
 
+// ─── Format chooser ───────────────────────────────────────────────────────────
+//
+// Ported 1:1 from the "Spaire Pick Format" design. Each card has a cinematic
+// hero (16:9), an apple-style hairline divider, and a "Best for" footer with
+// tag pills + an italic example line. The CSS-gradient backdrop in each hero
+// is a placeholder — drop JPG files at
+//   /clients/apps/web/public/assets/course.jpg
+//   /clients/apps/web/public/assets/series.jpg
+// to replace them. The <img> sits on top of the gradient and only paints when
+// it loads, so the gradient is a graceful fallback if the file is missing.
+
+export type WizardFormat = 'course' | 'series'
+
+type FormatOption = {
+  id: WizardFormat
+  badge: string
+  title: string
+  oneliner: string
+  description: string
+  bestFor: string[]
+  example: string
+  imageSrc: string
+  tone: 'warm' | 'cool'
+  stillTag: string
+}
+
+const FORMAT_OPTIONS: FormatOption[] = [
+  {
+    id: 'course',
+    badge: 'STRUCTURED',
+    title: 'Course',
+    oneliner: 'Step-by-step skill building.',
+    description:
+      'Modules and lessons that progress from foundation to fluency. The viewer leaves with a thing they can do.',
+    bestFor: ['Skills', 'Frameworks', 'Step-by-step outcomes'],
+    example: 'Persuasive writing in 22 lessons.',
+    imageSrc: '/assets/course.jpg',
+    tone: 'warm',
+    stillTag: 'course · still placeholder',
+  },
+  {
+    id: 'series',
+    badge: 'NARRATIVE',
+    title: 'Series',
+    oneliner: 'Episodic, in your voice.',
+    description:
+      'Self-contained episodes that orbit a single theme. Watched like a documentary or a podcast season.',
+    bestFor: ['Mindset', 'Story', 'Identity', 'Behind the scenes'],
+    example: 'An Olympian on the seven days before a final.',
+    imageSrc: '/assets/series.jpg',
+    tone: 'cool',
+    stillTag: 'series · still placeholder',
+  },
+]
+
+function FormatCardHero({
+  option,
+  selected,
+}: {
+  option: FormatOption
+  selected: boolean
+}) {
+  const [imageLoaded, setImageLoaded] = useState(false)
+  return (
+    <div className="fp-hero">
+      <div className={`fp-grad-${option.tone}`} />
+      <div className={`fp-glow-rim${option.tone === 'cool' ? '-cool' : ''}`} />
+      <div className={`fp-glow-fill fp-${option.tone}`} />
+      <div className={`fp-subject fp-${option.tone}`}>
+        <div className="fp-head" />
+        <div className="fp-body-silhouette" />
+      </div>
+      <div className="fp-grain" />
+      <div className="fp-vignette" />
+
+      {/* Real photo (optional). Hidden until it loads so the gradient
+          fallback isn't briefly covered by a broken-image icon. */}
+      <img
+        src={option.imageSrc}
+        alt=""
+        aria-hidden
+        onLoad={() => setImageLoaded(true)}
+        onError={() => setImageLoaded(false)}
+        className="fp-cover"
+        style={{ opacity: imageLoaded ? 1 : 0 }}
+      />
+
+      <div className="fp-still-tag">{option.stillTag}</div>
+      <div className={`fp-hero-eyebrow fp-${option.tone}`}>
+        <span className="fp-pip" />
+        <span>{option.badge}</span>
+      </div>
+      <div className="fp-check" data-selected={selected}>
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M20 6 9 17l-5-5" />
+        </svg>
+      </div>
+    </div>
+  )
+}
+
+export function StepFormat({
+  value,
+  onChange,
+  onNext,
+  onBack,
+  onClose: _onClose,
+}: {
+  value: WizardFormat
+  onChange: (next: WizardFormat) => void
+  onNext: () => void
+  onBack: () => void
+  onClose: () => void
+}) {
+  // Total steps in the wizard from the user's perspective. Step 1 is Format,
+  // 2 is Instructor, 3 is Course details, 4 is Pricing — so this screen is
+  // pip index 0 of 4.
+  const totalPips = 4
+  const activePip = 0
+
+  return (
+    <div className="spaire-format-picker">
+      {/* Tiny progress pips, top-center */}
+      <div className="fp-progress" aria-hidden="true">
+        {Array.from({ length: totalPips }).map((_, i) => (
+          <div
+            key={i}
+            className={`fp-pip-bar${i === activePip ? ' fp-pip-bar--active' : ''}`}
+          />
+        ))}
+      </div>
+
+      <div className="fp-stage" data-screen-label="Format Picker">
+        <header className="fp-header">
+          <div className="fp-eyebrow" />
+          <h1>Pick your format</h1>
+          <p className="fp-lede">
+            Not all knowledge is step-based. Choose a Course if you&apos;re
+            teaching a skill. Choose a Series if you&apos;re sharing a story, a
+            mindset, or a way of seeing the world.
+          </p>
+        </header>
+
+        <div className="fp-grid" role="radiogroup" aria-label="Format">
+          {FORMAT_OPTIONS.map((opt) => {
+            const selected = value === opt.id
+            return (
+              <button
+                type="button"
+                key={opt.id}
+                className="fp-card"
+                role="radio"
+                aria-checked={selected}
+                aria-selected={selected}
+                data-value={opt.id}
+                onClick={() => onChange(opt.id)}
+              >
+                <FormatCardHero option={opt} selected={selected} />
+
+                <div className="fp-card-body">
+                  <div className="fp-row1">
+                    <div className="fp-kicker" />
+                    <div className="fp-num" />
+                  </div>
+                  <h2 className="fp-title">{opt.title}</h2>
+                  <p className="fp-oneliner">{opt.oneliner}</p>
+                  <p className="fp-desc">{opt.description}</p>
+
+                  <div className="fp-hair" />
+
+                  <div className="fp-best-for">
+                    <div className="fp-best-for-label">Best for</div>
+                    <div className="fp-tags">
+                      {opt.bestFor.map((tag) => (
+                        <span key={tag} className="fp-tag">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                    <p className="fp-example">{opt.example}</p>
+                  </div>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+
+        <div className="fp-actions">
+          <button type="button" className="fp-back" onClick={onBack}>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="m15 18-6-6 6-6" />
+            </svg>
+            <span>Back</span>
+          </button>
+          <button
+            type="button"
+            className="fp-continue"
+            onClick={onNext}
+            disabled={!value}
+          >
+            <span>Continue</span>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M5 12h14M12 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <style jsx global>{`
+        .spaire-format-picker {
+          --fp-bg-0: oklch(0.985 0.003 280);
+          --fp-bg-1: #ffffff;
+          --fp-line: oklch(0.92 0.003 280);
+          --fp-line-soft: oklch(0.945 0.003 280);
+          --fp-fg-0: oklch(0.18 0.008 280);
+          --fp-fg-1: oklch(0.32 0.008 280);
+          --fp-fg-2: oklch(0.52 0.008 280);
+          --fp-fg-3: oklch(0.66 0.006 280);
+          color: var(--fp-fg-0);
+          font-family: var(--font-poppins), 'Poppins', system-ui, sans-serif;
+          font-size: 14px;
+          line-height: 1.5;
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
+          letter-spacing: -0.005em;
+          min-height: 100vh;
+          width: 100%;
+          background:
+            radial-gradient(70% 50% at 50% 0%, oklch(0.99 0.003 280) 0%, transparent 70%),
+            radial-gradient(80% 60% at 50% 100%, oklch(0.93 0.005 280) 0%, transparent 80%),
+            var(--fp-bg-0);
+        }
+        .spaire-format-picker *,
+        .spaire-format-picker *::before,
+        .spaire-format-picker *::after {
+          box-sizing: border-box;
+        }
+        .spaire-format-picker em {
+          font-style: italic;
+        }
+        .spaire-format-picker ::selection {
+          background: oklch(0.55 0.2 265 / 0.1);
+        }
+
+        /* ──────────── Layout ──────────── */
+        .fp-stage {
+          min-height: 100vh;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          padding: 56px 32px 48px;
+        }
+
+        .fp-header {
+          text-align: center;
+          max-width: 620px;
+          margin-bottom: 44px;
+        }
+        .fp-eyebrow {
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: 0.22em;
+          text-transform: uppercase;
+          color: var(--fp-fg-3);
+          margin-bottom: 16px;
+        }
+        .spaire-format-picker h1 {
+          font-size: 44px;
+          font-weight: 600;
+          letter-spacing: -0.035em;
+          line-height: 1.05;
+          margin: 0 0 14px;
+          color: var(--fp-fg-0);
+          text-wrap: balance;
+        }
+        .fp-lede {
+          font-size: 15px;
+          color: var(--fp-fg-2);
+          text-wrap: pretty;
+          line-height: 1.55;
+          max-width: 560px;
+          margin: 0 auto;
+        }
+
+        /* ──────────── Card grid ──────────── */
+        .fp-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 24px;
+          width: 100%;
+          max-width: 960px;
+          margin-bottom: 44px;
+        }
+
+        .fp-card {
+          position: relative;
+          background: var(--fp-bg-1);
+          border-radius: 22px;
+          border: 1px solid var(--fp-line);
+          overflow: hidden;
+          isolation: isolate;
+          cursor: pointer;
+          transition:
+            transform 220ms cubic-bezier(0.34, 1.3, 0.64, 1),
+            box-shadow 220ms ease,
+            border-color 220ms ease;
+          box-shadow:
+            0 1px 2px oklch(0 0 0 / 0.04),
+            0 8px 24px oklch(0 0 0 / 0.06);
+          display: flex;
+          flex-direction: column;
+          font-family: inherit;
+          padding: 0;
+          color: inherit;
+          text-align: left;
+          appearance: none;
+          border-style: solid;
+        }
+        .fp-card:hover {
+          transform: translateY(-3px);
+          box-shadow:
+            0 2px 4px oklch(0 0 0 / 0.05),
+            0 18px 40px oklch(0 0 0 / 0.1);
+        }
+        .fp-card[aria-checked='true'] {
+          border-color: var(--fp-fg-0);
+          box-shadow:
+            0 0 0 2px var(--fp-fg-0),
+            0 2px 4px oklch(0 0 0 / 0.06),
+            0 18px 44px oklch(0 0 0 / 0.12);
+        }
+
+        /* Hero — cinematic gradient */
+        .fp-hero {
+          position: relative;
+          width: 100%;
+          aspect-ratio: 16 / 9;
+          overflow: hidden;
+          background: #000;
+        }
+        .fp-grad-warm {
+          position: absolute;
+          inset: 0;
+          background: radial-gradient(
+            ellipse at 50% 28%,
+            oklch(0.46 0.12 35) 0%,
+            oklch(0.18 0.05 55) 55%,
+            oklch(0.05 0.01 280) 100%
+          );
+        }
+        .fp-grad-cool {
+          position: absolute;
+          inset: 0;
+          background: radial-gradient(
+            ellipse at 50% 28%,
+            oklch(0.42 0.13 250) 0%,
+            oklch(0.18 0.06 270) 55%,
+            oklch(0.05 0.01 280) 100%
+          );
+        }
+        .fp-glow-rim {
+          position: absolute;
+          left: -8%;
+          top: 0;
+          width: 55%;
+          height: 70%;
+          background: radial-gradient(
+            ellipse,
+            oklch(0.88 0.08 75 / 0.3) 0%,
+            transparent 65%
+          );
+          filter: blur(34px);
+        }
+        .fp-glow-rim-cool {
+          position: absolute;
+          left: -8%;
+          top: 0;
+          width: 55%;
+          height: 70%;
+          background: radial-gradient(
+            ellipse,
+            oklch(0.85 0.1 220 / 0.28) 0%,
+            transparent 65%
+          );
+          filter: blur(34px);
+        }
+        .fp-glow-fill {
+          position: absolute;
+          right: -10%;
+          top: 25%;
+          width: 50%;
+          height: 55%;
+          filter: blur(40px);
+        }
+        .fp-glow-fill.fp-warm {
+          background: radial-gradient(
+            circle,
+            oklch(0.5 0.14 75 / 0.22) 0%,
+            transparent 70%
+          );
+        }
+        .fp-glow-fill.fp-cool {
+          background: radial-gradient(
+            circle,
+            oklch(0.55 0.14 295 / 0.24) 0%,
+            transparent 70%
+          );
+        }
+        .fp-grain {
+          position: absolute;
+          inset: 0;
+          background-image: radial-gradient(
+            circle at 50% 50%,
+            rgba(255, 255, 255, 0.025) 1px,
+            transparent 1px
+          );
+          background-size: 3px 3px;
+          opacity: 0.5;
+        }
+        .fp-vignette {
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(
+            180deg,
+            oklch(0 0 0 / 0.15) 0%,
+            oklch(0 0 0 / 0) 30%,
+            oklch(0 0 0 / 0) 55%,
+            oklch(0 0 0 / 0.5) 85%,
+            oklch(0 0 0 / 0.85) 100%
+          );
+          pointer-events: none;
+        }
+
+        /* When the user drops a real JPG into /public/format-picker/, the
+           <img> below paints on top of the gradient. Sits above the
+           background art but below the eyebrow/check/still-tag chrome. */
+        .fp-cover {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          object-position: center;
+          transition: opacity 280ms ease;
+          z-index: 1;
+        }
+
+        /* Subject silhouette — different gestures per card */
+        .fp-subject {
+          position: absolute;
+          left: 50%;
+          bottom: 0;
+          transform: translateX(-50%);
+          width: 60%;
+          height: 78%;
+          pointer-events: none;
+        }
+        .fp-subject .fp-head {
+          position: absolute;
+          left: 50%;
+          top: 4%;
+          transform: translateX(-50%);
+          width: 32%;
+          aspect-ratio: 1;
+          border-radius: 50%;
+        }
+        .fp-subject.fp-warm .fp-head {
+          background: linear-gradient(
+            180deg,
+            oklch(0.5 0.05 35),
+            oklch(0.32 0.04 35)
+          );
+        }
+        .fp-subject.fp-cool .fp-head {
+          background: linear-gradient(
+            180deg,
+            oklch(0.5 0.05 250),
+            oklch(0.32 0.04 250)
+          );
+        }
+        .fp-subject .fp-body-silhouette {
+          position: absolute;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          height: 72%;
+          clip-path: polygon(22% 0, 78% 0, 100% 100%, 0% 100%);
+          border-radius: 46% 46% 0 0;
+        }
+        .fp-subject.fp-warm .fp-body-silhouette {
+          background: linear-gradient(
+            180deg,
+            oklch(0.3 0.04 35),
+            oklch(0.1 0.02 35)
+          );
+        }
+        .fp-subject.fp-cool .fp-body-silhouette {
+          background: linear-gradient(
+            180deg,
+            oklch(0.3 0.04 250),
+            oklch(0.1 0.02 250)
+          );
+        }
+
+        /* Cinematic-still placeholder tag */
+        .fp-still-tag {
+          position: absolute;
+          left: 16px;
+          bottom: 14px;
+          font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+          font-size: 9.5px;
+          letter-spacing: 0.06em;
+          color: rgba(255, 255, 255, 0.32);
+          z-index: 2;
+        }
+
+        .fp-hero-eyebrow {
+          position: absolute;
+          right: 16px;
+          top: 14px;
+          display: flex;
+          align-items: center;
+          gap: 7px;
+          font-size: 9.5px;
+          font-weight: 600;
+          letter-spacing: 0.2em;
+          color: rgba(255, 255, 255, 0.78);
+          z-index: 2;
+        }
+        .fp-hero-eyebrow .fp-pip {
+          width: 5px;
+          height: 5px;
+          border-radius: 50%;
+        }
+        .fp-hero-eyebrow.fp-warm .fp-pip {
+          background: oklch(0.72 0.16 25);
+          box-shadow: 0 0 8px oklch(0.72 0.16 25);
+        }
+        .fp-hero-eyebrow.fp-cool .fp-pip {
+          background: oklch(0.72 0.14 220);
+          box-shadow: 0 0 8px oklch(0.72 0.14 220);
+        }
+
+        /* Selection ring + checkmark on hero */
+        .fp-check {
+          position: absolute;
+          top: 16px;
+          left: 16px;
+          width: 26px;
+          height: 26px;
+          border-radius: 50%;
+          background: rgba(255, 255, 255, 0.12);
+          backdrop-filter: blur(14px) saturate(180%);
+          -webkit-backdrop-filter: blur(14px) saturate(180%);
+          border: 1px solid rgba(255, 255, 255, 0.32);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition:
+            background 200ms ease,
+            border-color 200ms ease,
+            transform 200ms ease;
+          z-index: 2;
+        }
+        .fp-check svg {
+          opacity: 0;
+          transition: opacity 180ms ease;
+        }
+        .fp-check[data-selected='true'] {
+          background: white;
+          border-color: white;
+          transform: scale(1.02);
+        }
+        .fp-check[data-selected='true'] svg {
+          opacity: 1;
+          color: var(--fp-fg-0);
+        }
+
+        /* ──────────── Card body ──────────── */
+        .fp-card-body {
+          padding: 24px 26px 24px;
+          display: flex;
+          flex-direction: column;
+          gap: 0;
+          flex: 1;
+        }
+        .fp-row1 {
+          display: flex;
+          align-items: baseline;
+          justify-content: space-between;
+          gap: 12px;
+          margin-bottom: 12px;
+        }
+        .fp-kicker {
+          font-size: 10.5px;
+          font-weight: 600;
+          letter-spacing: 0.22em;
+          text-transform: uppercase;
+          color: var(--fp-fg-3);
+        }
+        .fp-num {
+          font-size: 12px;
+          color: var(--fp-fg-3);
+          font-weight: 500;
+          font-variant-numeric: tabular-nums;
+        }
+        .fp-title {
+          font-size: 38px;
+          font-weight: 600;
+          letter-spacing: -0.035em;
+          line-height: 1;
+          margin: 0 0 10px;
+          color: var(--fp-fg-0);
+        }
+        .fp-oneliner {
+          font-size: 15px;
+          color: var(--fp-fg-1);
+          font-weight: 500;
+          letter-spacing: -0.01em;
+          margin: 0 0 16px;
+        }
+        .fp-desc {
+          font-size: 13.5px;
+          color: var(--fp-fg-2);
+          line-height: 1.55;
+          text-wrap: pretty;
+          margin: 0 0 18px;
+        }
+
+        /* Divider — Apple-style hairline with fade */
+        .fp-hair {
+          height: 1px;
+          background: linear-gradient(
+            90deg,
+            transparent 0%,
+            var(--fp-line) 20%,
+            var(--fp-line) 80%,
+            transparent 100%
+          );
+          margin-bottom: 16px;
+        }
+
+        /* Centered "Best for" block */
+        .fp-best-for {
+          text-align: center;
+          margin-top: auto;
+        }
+        .fp-best-for-label {
+          font-size: 10px;
+          font-weight: 600;
+          letter-spacing: 0.18em;
+          text-transform: uppercase;
+          color: var(--fp-fg-3);
+          margin-bottom: 10px;
+        }
+        .fp-tags {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+          justify-content: center;
+          margin-bottom: 12px;
+        }
+        .fp-tag {
+          font-size: 11.5px;
+          color: var(--fp-fg-1);
+          font-weight: 500;
+          padding: 5px 11px;
+          border-radius: 999px;
+          background: oklch(0.97 0.002 280);
+          border: 1px solid var(--fp-line-soft);
+        }
+        .fp-example {
+          font-size: 12.5px;
+          color: var(--fp-fg-2);
+          font-style: italic;
+          font-weight: 400;
+          line-height: 1.5;
+          text-wrap: pretty;
+          margin: 0;
+        }
+        .fp-example::before {
+          content: 'e.g.';
+          font-style: normal;
+          font-weight: 600;
+          color: var(--fp-fg-3);
+          margin-right: 6px;
+          letter-spacing: 0.02em;
+        }
+
+        /* ──────────── Footer actions ──────────── */
+        .fp-actions {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 24px;
+          width: 100%;
+          max-width: 960px;
+          flex-wrap: wrap;
+        }
+        .fp-back {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 13px;
+          color: var(--fp-fg-2);
+          padding: 10px 14px;
+          border-radius: 999px;
+          background: none;
+          border: none;
+          cursor: pointer;
+          font-family: inherit;
+          transition:
+            color 150ms ease,
+            background 150ms ease;
+        }
+        .fp-back:hover {
+          color: var(--fp-fg-0);
+          background: oklch(0.97 0.002 280);
+        }
+
+        .fp-continue {
+          padding: 14px 44px;
+          border-radius: 999px;
+          background: linear-gradient(
+            180deg,
+            oklch(0.28 0.008 280) 0%,
+            oklch(0.14 0.008 280) 100%
+          );
+          color: white;
+          font-size: 14px;
+          font-weight: 600;
+          letter-spacing: -0.01em;
+          border: none;
+          cursor: pointer;
+          font-family: inherit;
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.18),
+            inset 0 -1px 0 rgba(0, 0, 0, 0.4),
+            0 1px 2px rgba(0, 0, 0, 0.15),
+            0 6px 16px rgba(0, 0, 0, 0.18),
+            0 12px 30px rgba(0, 0, 0, 0.1);
+          transition:
+            transform 150ms ease,
+            box-shadow 150ms ease;
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .fp-continue:hover:not(:disabled) {
+          transform: translateY(-1px);
+        }
+        .fp-continue:disabled {
+          opacity: 0.45;
+          cursor: not-allowed;
+          transform: none;
+        }
+
+        /* ──────────── Step indicator ──────────── */
+        .fp-progress {
+          position: fixed;
+          top: 24px;
+          left: 50%;
+          transform: translateX(-50%);
+          display: flex;
+          gap: 6px;
+          z-index: 210;
+        }
+        .fp-pip-bar {
+          width: 22px;
+          height: 3px;
+          border-radius: 2px;
+          background: var(--fp-line);
+          transition:
+            background 200ms ease,
+            width 200ms ease;
+        }
+        .fp-pip-bar--active {
+          background: var(--fp-fg-0);
+          width: 30px;
+        }
+
+        @media (max-width: 880px) {
+          .fp-grid {
+            grid-template-columns: 1fr;
+            max-width: 480px;
+          }
+          .spaire-format-picker h1 {
+            font-size: 36px;
+          }
+          .fp-stage {
+            padding: 80px 20px 36px;
+          }
+        }
+      `}</style>
+    </div>
+  )
+}
+
 // ─── Step shell ───────────────────────────────────────────────────────────────
 
 export function StepShell({
@@ -679,18 +1504,21 @@ export function StepInstructor({
   onNext,
   onBack,
   onClose,
+  format = 'course',
 }: {
   data: { name: string; bio: string }
   onChange: (next: { name: string; bio: string }) => void
   onNext: () => void
   onBack: () => void
   onClose: () => void
+  format?: WizardFormat
 }) {
+  const isSeries = format === 'series'
   return (
     <StepShell
-      step={1}
-      total={3}
-      title="Instructor details"
+      step={2}
+      total={4}
+      title={isSeries ? 'Creator details' : 'Instructor details'}
       onNext={onNext}
       onBack={onBack}
       onClose={onClose}
@@ -709,7 +1537,9 @@ export function StepInstructor({
               if (e.key === 'Enter' && data.name.trim()) onNext()
             }}
           />
-          <span className="so-label">Instructor name</span>
+          <span className="so-label">
+            {isSeries ? 'Creator name' : 'Instructor name'}
+          </span>
         </label>
         <label className="so-field so-field--multiline">
           <textarea
@@ -727,7 +1557,7 @@ export function StepInstructor({
   )
 }
 
-// ─── Step 2: Course ───────────────────────────────────────────────────────────
+// ─── Step 3: Course / Series details ─────────────────────────────────────────
 
 export function StepCourse({
   data,
@@ -735,18 +1565,21 @@ export function StepCourse({
   onNext,
   onBack,
   onClose,
+  format = 'course',
 }: {
   data: { title: string; desc: string }
   onChange: (next: { title: string; desc: string }) => void
   onNext: () => void
   onBack: () => void
   onClose: () => void
+  format?: WizardFormat
 }) {
+  const isSeries = format === 'series'
   return (
     <StepShell
-      step={2}
-      total={3}
-      title="Course details"
+      step={3}
+      total={4}
+      title={isSeries ? 'Series details' : 'Course details'}
       onNext={onNext}
       onBack={onBack}
       onClose={onClose}
@@ -765,7 +1598,9 @@ export function StepCourse({
               if (e.key === 'Enter' && data.title.trim()) onNext()
             }}
           />
-          <span className="so-label">Course title</span>
+          <span className="so-label">
+            {isSeries ? 'Series title' : 'Course title'}
+          </span>
         </label>
         <label className="so-field so-field--multiline">
           <textarea
@@ -1639,6 +2474,7 @@ export function StepPricingWizard({
   courseTitle,
   courseDesc,
   courseLessons,
+  format = 'course',
 }: {
   organization: schemas['Organization']
   paywall: WizardPaywallState
@@ -1649,7 +2485,9 @@ export function StepPricingWizard({
   courseTitle?: string
   courseDesc?: string
   courseLessons?: number
+  format?: WizardFormat
 }) {
+  const isSeries = format === 'series'
   const { control, watch, setValue, getValues } =
     useFormContext<WizardPricingForm>()
 
@@ -1798,9 +2636,9 @@ export function StepPricingWizard({
 
   return (
     <StepShell
-      step={3}
-      total={3}
-      nextLabel="Generate outline"
+      step={4}
+      total={4}
+      nextLabel={isSeries ? 'Generate series' : 'Generate outline'}
       onNext={onNext}
       onBack={onBack}
       onClose={onClose}

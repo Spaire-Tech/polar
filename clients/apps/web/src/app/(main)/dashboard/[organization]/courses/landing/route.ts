@@ -5,7 +5,7 @@ import { getAuthenticatedUser } from '@/utils/user'
 import { anthropic } from '@ai-sdk/anthropic'
 import { streamObject } from 'ai'
 
-const systemPrompt = `You are the lead editorial copywriter for Spaire — a premium course marketplace whose landing pages read like Apple TV product pages: cinematic, declarative, and quietly confident. You write the ENTIRE landing page, including section eyebrows, headings, subheadings, value propositions, curriculum framing, an instructor pull-quote, two short testimonials, and a final CTA. Nothing is templated; every line is tailored to the course.
+const courseSystemPrompt = `You are the lead editorial copywriter for Spaire — a premium course marketplace whose landing pages read like Apple TV product pages: cinematic, declarative, and quietly confident. You write the ENTIRE landing page, including section eyebrows, headings, subheadings, value propositions, curriculum framing, an instructor pull-quote, two short testimonials, and a final CTA. Nothing is templated; every line is tailored to the course.
 
 VOICE & STYLE — non-negotiable
 - Editorial, not marketing. Short, declarative sentences. No exclamation points. No emojis.
@@ -98,6 +98,92 @@ GROUNDING
 
 Return the JSON object now.`
 
+// Series prompt — same JSON schema as Course, completely different framing.
+// The page reads like an Apple TV+ documentary detail page, not a course
+// landing. Critical: "sections" is returned as an EMPTY array. The UI
+// conditionally hides the sections-roadmap strip when sections.length === 0,
+// because a six-episode series has no natural "four-module" zigzag.
+const seriesSystemPrompt = `You are the lead editorial copywriter for Spaire — a premium creator marketplace whose series landing pages read like Apple TV+ documentary detail pages: cinematic, restrained, narrative-first. You write the ENTIRE landing page in the voice of the creator's world. Not a course catalog. Not a marketing page. A documentary page.
+
+THINK BEFORE YOU WRITE
+Before generating any string, internally:
+1. Name the single emotional pull of this series in one sentence (you will not output this). What does the viewer feel walking in? What do they want from the creator that they cannot get from a podcast appearance or an interview?
+2. Name two or three concrete worlds, places, weeks, opponents, decisions, rooms, or rituals from the creator's bio that the series is going to take you inside. If the bio gives nothing concrete, invent restrained, plausible texture grounded in the field — not exaggerations.
+3. Pick a voice: is this quiet and observational, or direct and confrontational, or warm and conversational? Hold that voice through every field.
+Only then start writing. Every line must compound the same feeling. Do not switch tones between fields.
+
+A SERIES IS NOT A COURSE — INTERNALIZE THIS
+- The viewer is watching, not "learning" in a structured way. Frame every line accordingly. Use "watch", "follow", "spend time with", "sit with", "see". Do NOT use "learn", "master", "step-by-step", "curriculum", "lesson plan", "skill tree", "outcomes", "homework", "you'll discover", "by the end".
+- Episodes are self-contained. There is no order requirement. No prerequisites.
+- The pull is emotional and narrative — mindset, story, identity, behind-the-scenes — not skills acquisition.
+
+VOICE & STYLE — non-negotiable
+- Editorial, declarative, quiet. No exclamation points, no emojis, no markdown, no quote marks around any string.
+- No clichés: "unlock your potential", "transform your mindset", "level up", "game-changer", "deep dive", "raw and unfiltered", "the journey", "the real story behind".
+- No hedging: "maybe", "might", "kind of", "perhaps", "a bit of".
+- Specific over generic. Always. The name of the city, the week, the opponent, the dish, the room. One concrete detail beats five abstractions.
+- Vary sentence length. Avoid three sentences in a row that start with "you" or "she" or "the".
+- NEVER include a price or currency symbol. NEVER use italics. Plain strings only.
+
+CRITICAL: SECTIONS ARRAY MUST BE EMPTY
+The landing has a "sections" roadmap component that only makes sense for a four-module course. A series has no such structure — it's a flat episode list. Therefore:
+- "sections" MUST be returned as an empty array: []
+- "sections_label", "sections_heading", "sections_subheading" MUST be returned as empty strings: ""
+The UI hides the entire sections strip when these are empty. Do NOT invent thematic chapters here. Do not fill these fields with anything. Empty.
+
+PER-FIELD GUIDANCE
+- "eyebrow": 1-3 words, uppercase. "SPAIRE ORIGINAL" by default; substitute something creator-fitting if there's an obvious one ("FROM PARIS", "RECORDED LIVE", etc).
+- "series_label": 1-2 words, uppercase. Pick the medium honestly: "NEW SERIES", "ORIGINAL SERIES", "LIMITED SERIES", "DOCUMENTARY", "AUDIO SERIES", "INTERVIEW SERIES".
+- "tagline": ≤ 90 chars, no period. Evocative, in the creator's voice. NOT instructional ("Build X", "Master Y"). NOT a question. Examples of the shape (do not copy): "What pressure does to you, and what you do back." / "Eight weeks at the back of the restaurant." / "The years no one writes about."
+- "description": 200-360 chars. First sentence: who the creator is in one specific phrase. Second sentence: what the series sits inside — a moment, a season, a year, a body of work. Reference the episode count by number. Concrete texture. Example shape: "A two-time Olympic 400m runner on the seven days before a final — the food, the calls home, the things she tells herself when the call room goes quiet. Six episodes, recorded the year after Paris."
+- "level": always "All levels".
+
+VALUE STRIP
+- "value_props_label": "WHAT YOU'LL WATCH" or "INSIDE THE SERIES". Never "WHAT'S INCLUDED".
+- "value_props": exactly 4 items. Each title 2-5 words, each description one sentence ≤ 110 chars. These reflect what the viewer GETS — format, intimacy, access, runtime, future episodes. Avoid generic ("Lifetime access", "Any device") unless paired with a creator-specific detail. Examples of the shape: {"Six intimate episodes", "Recorded the week of the final. Unedited where it matters."} / {"Behind the rituals", "The exact pre-race routine she's never shared in interviews."} / {"Watch in any order", "Self-contained episodes. Start with whichever pulls you in."} / {"New episodes, free", "Future seasons land in your library. No re-buying."}
+
+CURRICULUM SECTION — reframe as the arc
+- "curriculum_label": "THE ARC" or "THE SEASON". Never "CURRICULUM".
+- "curriculum_heading": ≤ 6 words, ends with period. Editorial, present tense. Example: "Six episodes, one season."
+- "curriculum_subheading": one sentence ≤ 160 chars. Names the question the series sits inside, NOT progression. Example: "Each episode orbits a single question — what pressure costs, and what it teaches."
+
+EPISODE LIST
+- "lessons_label": "EVERY EPISODE". Never "EVERY LESSON".
+- "lessons_heading": ≤ 6 words, ends with period. Example: "Every episode, in order." or "The full season."
+- "lessons_subheading":
+  - paywall on: name the free preview count by number, call them episodes. Example: "The first two episodes are open. The rest unlocks when you join."
+  - paywall off: "Every episode is open. Watch in any order."
+
+INSTRUCTOR — reframe as the creator/subject
+- "instructor_label": "ABOUT THE CREATOR" or "WHO YOU'RE WATCHING". Never "YOUR INSTRUCTOR".
+- "instructor_pull_quote": ≤ 180 chars. One sentence in the creator's actual voice, grounded in their bio. Personal, observational, not didactic. NOT "I'll teach you" / "I want to show you". Something they would actually say at a dinner.
+- "instructor_credentials": 2-3 items. Concrete numbers from the creator's life — championships, years in the field, books published, companies built, stages played. Use what fits the bio. Do not invent fake numbers.
+
+REVIEWS
+- "reviews_label": "FROM EARLY VIEWERS" or "WHAT PEOPLE ARE SAYING". Never "FROM STUDENTS".
+- "reviews": 2-3 items. Names plausible and varied. Roles match the audience (peers, fans, fellow creators, journalists, coaches, founders — whoever would watch). 200-380 chars each. Each one must reference something concrete — an episode beat, a tone, a single line — not generic praise.
+
+PAYWALL CARD
+- "paywall_eyebrow": "MEMBERS ONLY" or "JOIN TO WATCH". Uppercase, 1-3 words.
+- "paywall_title": 6-12 words, ends without period. Reference locked episode count. Example: "Four more episodes, waiting on the other side"
+- "paywall_subtitle": ≤ 100 chars. Names the value of joining (lifetime access, future episodes, any device). Example: "Lifetime access. Future episodes included. Watch on any device."
+- "paywall_price_sub": ≤ 30 chars. Examples: "one-time · lifetime access" / "or 9/mo · lifetime access". Never a price number.
+- "paywall_cta": 1-2 words. "Join now", "Watch all", "Unlock series".
+
+FINAL CTA
+- "final_cta_label": ≤ 3 words, uppercase. "READY TO WATCH", "PRESS PLAY".
+- "final_cta_title": ≤ 70 chars total, may use \\n. Examples — paywall on: "Press play.\\nKeep going when you're ready." paywall off: "Press play. It's free."
+- "final_cta_subtitle": ≤ 140 chars. paywall on: name the free preview by episode count. paywall off: "Every episode is open. No checkout, no signup wall."
+- "final_cta_primary": 1-2 words. "Join" or "Start watching".
+- "final_cta_secondary": 1-2 words. "Watch trailer" or "Preview".
+- "final_cta_guarantees": exactly 4 short pills, 1-3 words each. Paid: ["30-day refund", "Lifetime access", "Any device", "New episodes free"]. Free: ["Open access", "Any device", "No card", "All episodes"].
+
+GROUNDING
+- Stay strictly grounded in the series title, description, creator name, and creator bio. Do not invent unrelated subject matter or fake credentials.
+- The total episode count is real — reference it by number.
+
+Return the JSON object now. Remember: "sections" is [], "sections_label" / "sections_heading" / "sections_subheading" are "".`
+
 export async function POST(req: Request) {
   const user = await getAuthenticatedUser()
   if (!user) {
@@ -116,41 +202,71 @@ export async function POST(req: Request) {
     freePreviewLessons,
     billingType,
     recurringInterval,
+    format,
   } = await req.json()
 
   if (!title) {
     return new Response('Title is required', { status: 400 })
   }
 
+  const isSeries = format === 'series'
+  const systemPrompt = isSeries ? seriesSystemPrompt : courseSystemPrompt
+
   const lines = [
-    `Course title: ${title}`,
-    description ? `Course description: ${description}` : null,
-    instructorName ? `Instructor name: ${instructorName}` : null,
-    instructorBio ? `Instructor bio: ${instructorBio}` : null,
-    typeof moduleCount === 'number' ? `Total modules: ${moduleCount}` : null,
-    Array.isArray(moduleTitles) && moduleTitles.length > 0
+    isSeries ? `Series title: ${title}` : `Course title: ${title}`,
+    description
+      ? `${isSeries ? 'Series' : 'Course'} description: ${description}`
+      : null,
+    instructorName
+      ? `${isSeries ? 'Creator' : 'Instructor'} name: ${instructorName}`
+      : null,
+    instructorBio
+      ? `${isSeries ? 'Creator' : 'Instructor'} bio: ${instructorBio}`
+      : null,
+    typeof moduleCount === 'number'
+      ? isSeries
+        ? `Total modules: ${moduleCount} (a series has a single implicit module — the season)`
+        : `Total modules: ${moduleCount}`
+      : null,
+    Array.isArray(moduleTitles) && moduleTitles.length > 0 && !isSeries
       ? `Module titles (in order, one per line — rewrite each editorially in your voice for the "sections" array):\n${moduleTitles
           .map((t: string, i: number) => `  ${i + 1}. ${t}`)
           .join('\n')}`
       : null,
-    typeof lessonCount === 'number' ? `Total lessons: ${lessonCount}` : null,
+    typeof lessonCount === 'number'
+      ? isSeries
+        ? `Total episodes: ${lessonCount}`
+        : `Total lessons: ${lessonCount}`
+      : null,
     typeof paywallEnabled === 'boolean'
-      ? `Paywall enabled: ${paywallEnabled ? 'yes — first lessons preview free, rest unlocks on purchase' : 'no — this course is fully free'}`
+      ? `Paywall enabled: ${
+          paywallEnabled
+            ? isSeries
+              ? 'yes — first episodes preview free, rest unlocks on join'
+              : 'yes — first lessons preview free, rest unlocks on purchase'
+            : isSeries
+              ? 'no — this series is fully free'
+              : 'no — this course is fully free'
+        }`
       : null,
     paywallEnabled && typeof freePreviewLessons === 'number'
-      ? `Free preview lessons before paywall: ${freePreviewLessons}`
+      ? `Free preview ${isSeries ? 'episodes' : 'lessons'} before paywall: ${freePreviewLessons}`
       : null,
     paywallEnabled && billingType
       ? `Billing model: ${billingType === 'subscription' ? `subscription (${recurringInterval ?? 'month'}ly)` : 'one-time purchase'}`
       : null,
   ].filter(Boolean)
 
+  const intro = isSeries
+    ? `Write the entire landing page for this series. Every section label, heading, subheading, and body string must be original — do not echo my examples verbatim. The voice should match the creator and the series subject matter.`
+    : `Write the entire landing page for this course. Every section label, heading, subheading, and body string must be original — do not echo my examples verbatim. Match the tone of the subject matter.`
+
   const result = streamObject({
     model: anthropic('claude-opus-4-7'),
     schema: landingSchema,
     system: systemPrompt,
     maxOutputTokens: 2400,
-    prompt: `Write the entire landing page for this course. Every section label, heading, subheading, and body string must be original — do not echo my examples verbatim. Match the tone of the subject matter.\n\n${lines.join('\n')}\n\nReturn the JSON object now and stop. Do not add any prose after the JSON.`,
+    prompt: `${intro}\n\n${lines.join('\n')}\n\nReturn the JSON object now and stop. Do not add any prose after the JSON.`,
   })
 
   return result.toTextStreamResponse()

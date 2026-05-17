@@ -403,6 +403,9 @@ export function MobileSectionsRoadmap({
   const modules = [...course.modules].sort((a, b) => a.position - b.position)
   const [openIdx, setOpenIdx] = useState<number | null>(null)
 
+  // Hide the sections roadmap entirely for series — flat episode list only.
+  if (course.format === 'series') return null
+
   // Group lessons by module so we can show the per-section list when the
   // user taps a card, and so the lesson count under each card stays
   // accurate on the public landing (where mod.lessons is empty and the

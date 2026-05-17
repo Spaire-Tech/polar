@@ -89,6 +89,19 @@ export type CourseModuleRead = {
   modified_at: string | null
 }
 
+export type CourseFormat = 'course' | 'series'
+
+// Series-only "Episode Sample" block configuration. The creator picks one
+// lesson and a window inside it (start_seconds + duration_seconds), and
+// the public landing renders an auto-play-on-scroll sub-hero clip of that
+// window. duration_seconds is enforced server-side to 5–180s.
+export type CourseSample = {
+  enabled: boolean
+  lesson_id: string
+  start_seconds: number
+  duration_seconds: number
+}
+
 export type CourseRead = {
   id: string
   product_id: string
@@ -96,6 +109,7 @@ export type CourseRead = {
   title: string | null
   slug: string | null
   course_type: string
+  format: CourseFormat
   paywall_enabled: boolean
   paywall_lesson_id: string | null
   paywall_position: number | null
@@ -110,6 +124,7 @@ export type CourseRead = {
   instructor_name_bold: boolean
   instructor_name_uppercase: boolean
   landing_overrides: LandingOverrides | null
+  sample: CourseSample | null
   modules: CourseModuleRead[]
   created_at: string
   modified_at: string | null
@@ -219,6 +234,7 @@ export const useCreateCourse = () =>
       organization_id: string
       title?: string | null
       course_type?: string
+      format?: CourseFormat
       paywall_enabled?: boolean
       ai_generated?: boolean
       description?: string | null
@@ -258,6 +274,7 @@ export const useUpdateCourse = () =>
         title?: string | null
         slug?: string | null
         course_type?: string
+        format?: CourseFormat
         paywall_enabled?: boolean
         paywall_position?: number | null
         description?: string | null
@@ -270,6 +287,7 @@ export const useUpdateCourse = () =>
         instructor_name_bold?: boolean
         instructor_name_uppercase?: boolean
         landing_overrides?: LandingOverrides | null
+        sample?: CourseSample | null
       }
     }) =>
       courseApiFetch<CourseRead>(`/v1/courses/${courseId}`, {

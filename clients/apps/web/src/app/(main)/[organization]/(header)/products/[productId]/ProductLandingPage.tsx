@@ -212,6 +212,11 @@ function CourseLandingShell({
     title: landing.title ?? product.name,
     slug: null,
     course_type: landing.course_type,
+    format:
+      ((landing as { format?: string }).format as 'course' | 'series') ??
+      'course',
+    sample:
+      (landing as { sample?: CourseRead['sample'] }).sample ?? null,
     paywall_enabled: paywallEnabled,
     paywall_lesson_id: null,
     paywall_position: paywallPosition,

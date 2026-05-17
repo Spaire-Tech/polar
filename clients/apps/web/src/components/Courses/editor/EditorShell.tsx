@@ -833,6 +833,7 @@ function Thumb({ m }: { m: LandingMedia | null }) {
 
 const SECTIONS_PANEL: { id: string; label: string; hint: string }[] = [
   { id: 'hero', label: 'Hero', hint: 'Cinematic header' },
+  { id: 'sample', label: 'Episode sample', hint: 'Series-only auto-play clip' },
   { id: 'value', label: "What's included", hint: '4-column value strip' },
   { id: 'trailer', label: 'Trailer', hint: 'Video block' },
   { id: 'curriculum', label: 'Curriculum', hint: 'Chapter cards' },
