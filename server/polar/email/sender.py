@@ -215,14 +215,29 @@ def resolve_creator_from_address(
     """Pick the From address for a creator-initiated email (broadcasts,
     sequence steps).
 
-    Falls back to the platform default unless ALL of:
-      - the org has email_sender_verified_at set,
-      - email_sender_domain is configured, and
-      - the requested email ends with @<email_sender_domain>.
-    The third check guards against creators trying to send as a domain
-    they haven't verified — Resend would reject it anyway, but this
-    fails fast with the global default before we make the API call.
+    Three cases, in order:
+
+    1. The creator has a *verified custom sender domain* AND the
+       requested From email is on that domain — honour both name and
+       email. ``Robin Kaye <hi@email.mybrand.com>``. This is the Pro
+       tier feature.
+
+    2. The creator just wants a custom *display name* (no custom
+       domain, or didn't type an email at all) — honour the name and
+       ship from the platform default email. ``Robin Kaye
+       <mail@notifications.spairehq.com>``. This always works on
+       every tier; before the Pro domain feature landed it was the
+       only mode and it's what every existing creator depends on.
+
+    3. No name, no domain — fall all the way back to the platform
+       default name+email. ``Spaire <mail@notifications.spairehq.com>``.
+
+    The previous version of this function collapsed cases 2 and 3 into
+    the fallback, which silently regressed every creator who'd typed a
+    sender_name. ``requested_email`` on a domain the org hasn't
+    verified is still dropped (Resend would reject it anyway).
     """
+    # Case 1: verified custom domain + matching From address.
     if (
         organization is not None
         and organization.has_verified_sender_domain
@@ -235,19 +250,26 @@ def resolve_creator_from_address(
             requested_name or DEFAULT_FROM_NAME,
             requested_email,
         )
+
+    # Case 2: custom display name on the platform's default email.
+    # We log when a creator typed a custom email that we can't honour
+    # so support can see they're hitting the silently-dropped path.
     if requested_email is not None:
-        # Loud about silent fallback: creators set a custom From, see no
-        # error in the UI, but emails ship from the platform default.
         log.info(
-            "email.sender_fallback_to_default",
+            "email.sender_email_dropped_unverified_domain",
             organization_id=str(organization.id) if organization else None,
             requested_email=requested_email,
-            requested_name=requested_name,
+            org_domain=(
+                organization.email_sender_domain if organization else None
+            ),
             org_verified=bool(
                 organization and organization.has_verified_sender_domain
             ),
-            org_domain=organization.email_sender_domain if organization else None,
         )
+    if requested_name:
+        return (requested_name, DEFAULT_FROM_EMAIL_ADDRESS)
+
+    # Case 3: full fallback.
     return (DEFAULT_FROM_NAME, DEFAULT_FROM_EMAIL_ADDRESS)
 
 
