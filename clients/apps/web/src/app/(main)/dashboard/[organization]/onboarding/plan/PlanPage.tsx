@@ -13,8 +13,6 @@ import {
 } from '@/hooks/queries/spaireTier'
 import { OrganizationContext } from '@/providers/maintainerOrganization'
 import { api } from '@/utils/client'
-import CheckOutlined from '@mui/icons-material/CheckOutlined'
-import Button from '@spaire/ui/components/atoms/Button'
 import { useCallback, useContext, useMemo, useState } from 'react'
 import { twMerge } from 'tailwind-merge'
 
@@ -24,13 +22,11 @@ import { twMerge } from 'tailwind-merge'
  * Sits between OrganizationStep ("name + slug + logo", at /dashboard/create)
  * and ReviewPage ("Create your Space Card", at /onboarding/review).
  *
- * By the time the user reaches this page their org exists and the
- * organization.created hook has attached a 14-day Pro trial. Clicking
- * any tier card hands off to the upgrade-checkout endpoint, which
- * converts the trialing subscription in place (capturing a card on
- * file) and redirects the user through Polar-hosted checkout. The
- * checkout's success_url returns to /onboarding/review, so the next
- * thing the user sees is the existing Space Card editor.
+ * Visual port of the "Spaire Pricing" design — same data flow as before:
+ * Spaire-tier plans are loaded via useSpairePlans, the user picks a tier
+ * + billing interval, and clicking a CTA hands off to upgrade-checkout
+ * which converts the trialing subscription in place and redirects to
+ * Polar-hosted checkout. Success returns to /onboarding/review.
  */
 export default function PlanPage() {
   const { organization } = useContext(OrganizationContext)
@@ -67,9 +63,6 @@ export default function PlanPage() {
         if (error || !data) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const e = error as any
-          // FastAPI 422 returns { detail: [{loc, msg, type, input}, ...] }
-          // Surface the first validation error so we can fix it instead
-          // of swallowing it as "Couldn't start checkout for this plan."
           let message = "Couldn't start checkout for this plan."
           if (Array.isArray(e?.detail) && e.detail.length > 0) {
             const first = e.detail[0]
@@ -97,35 +90,35 @@ export default function PlanPage() {
   )
 
   return (
-    <div className="flex min-h-screen w-full flex-col items-center bg-white px-4 py-12">
-      <div className="mb-12 w-full max-w-lg">
+    <div className="spaire-pricing">
+      {/* Existing onboarding chrome — same OnboardingProgressBar the other
+          steps use, so the bar fill keeps progressing across the flow. */}
+      <div className="mx-auto mb-10 w-full max-w-lg px-4 pt-12">
         <OnboardingProgressBar currentStep={2} totalSteps={3} />
       </div>
 
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-y-10">
-        <header className="flex flex-col items-center gap-y-3 text-center">
-          <h1 className="text-2xl font-medium tracking-tight text-gray-900">
-            Choose your plan
-          </h1>
-          <p className="max-w-2xl text-sm text-gray-500">
+      <div className="sp-stage" data-screen-label="Pricing">
+        <header className="sp-header">
+          <h1 className="sp-title">Choose your plan</h1>
+          <p className="sp-lede">
             Every plan starts with a 14-day free trial. You won&apos;t be
-            charged during the trial — switch or cancel anytime from
-            Settings.
+            charged during the trial — switch or cancel anytime from Settings.
           </p>
-          <IntervalToggle interval={interval} onChange={setInterval} />
         </header>
 
+        <div className="sp-billing">
+          <IntervalToggle interval={interval} onChange={setInterval} />
+          <span className="sp-save-badge">Save 20%</span>
+        </div>
+
         {plans.isLoading ? (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="sp-grid sp-grid--loading">
             {[0, 1, 2].map((i) => (
-              <div
-                key={i}
-                className="h-[480px] animate-pulse rounded-2xl bg-gray-100"
-              />
+              <div key={i} className="sp-skeleton" />
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="sp-grid">
             {ordered.map((plan, idx) => (
               <PlanCard
                 key={plan.tier}
@@ -139,47 +132,80 @@ export default function PlanPage() {
           </div>
         )}
 
-        <p className="text-center text-sm text-gray-500">
-          Compare all plans and features
-        </p>
+        <button type="button" className="sp-compare">
+          <span>Compare all plans and features</span>
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M5 12h14M12 5l7 7-7 7" />
+          </svg>
+        </button>
       </div>
+
+      <SpaireOnboardingPricingStyles />
     </div>
   )
 }
 
-const IntervalToggle = ({
+// ── Billing toggle ──────────────────────────────────────────────────────────
+
+function IntervalToggle({
   interval,
   onChange,
 }: {
   interval: BillingInterval
   onChange: (interval: BillingInterval) => void
-}) => (
-  <div className="inline-flex items-center gap-x-2">
-    <div className="relative inline-flex rounded-full border border-gray-200 bg-white p-1">
-      {(['month', 'year'] as const).map((option) => {
-        const active = interval === option
-        return (
-          <button
-            key={option}
-            type="button"
-            onClick={() => onChange(option)}
-            className={twMerge(
-              'relative z-10 rounded-full px-4 py-1 text-xs font-medium transition-colors',
-              active
-                ? 'bg-black text-white'
-                : 'text-gray-500 hover:text-gray-900',
-            )}
-          >
-            {option === 'month' ? 'Monthly' : 'Annual'}
-          </button>
-        )
-      })}
+}) {
+  const isAnnual = interval === 'year'
+  return (
+    <div
+      className="sp-toggle"
+      role="tablist"
+      aria-label="Billing period"
+    >
+      {/* Sliding pill — CSS handles the position via the data attribute on
+          the container, so we don't have to measure widths in JS. */}
+      <span
+        className="sp-toggle-pill"
+        data-active={isAnnual ? 'annual' : 'monthly'}
+        aria-hidden
+      />
+      <button
+        type="button"
+        role="tab"
+        aria-selected={!isAnnual}
+        onClick={() => onChange('month')}
+        className={twMerge(
+          'sp-toggle-btn',
+          !isAnnual && 'sp-toggle-btn--active',
+        )}
+      >
+        Monthly
+      </button>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={isAnnual}
+        onClick={() => onChange('year')}
+        className={twMerge(
+          'sp-toggle-btn',
+          isAnnual && 'sp-toggle-btn--active',
+        )}
+      >
+        Annual
+      </button>
     </div>
-    <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-500">
-      Save 20%
-    </span>
-  </div>
-)
+  )
+}
+
+// ── Plan card ──────────────────────────────────────────────────────────────
 
 interface PlanCardProps {
   plan: TierPlan
@@ -189,13 +215,13 @@ interface PlanCardProps {
   onChoose: (tier: PaidTierKey) => void
 }
 
-const PlanCard = ({
+function PlanCard({
   plan,
   previousPlanName,
   interval,
   pending,
   onChoose,
-}: PlanCardProps) => {
+}: PlanCardProps) {
   const tier = plan.tier as PaidTierKey
   const annualAvailable = plan.annual_price_cents != null
   const effectiveInterval: BillingInterval =
@@ -207,76 +233,78 @@ const PlanCard = ({
   const isRecommended = tier === 'studio'
 
   return (
-    <div
-      className={twMerge(
-        'flex flex-col rounded-2xl border bg-white p-6 transition-shadow',
-        isRecommended ? 'border-blue-500' : 'border-gray-200',
-      )}
+    <article
+      className={twMerge('sp-card', isRecommended && 'sp-card--featured')}
+      data-plan={tier}
     >
-      <div className="flex flex-row items-center justify-between">
-        <h3 className="text-base font-medium text-gray-900">
-          {tierDisplayName(plan.tier)}
-        </h3>
-        {isRecommended && (
-          <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-500">
-            RECOMMENDED
-          </span>
-        )}
+      <div className="sp-plan-row">
+        <div className="sp-plan-name">{tierDisplayName(plan.tier)}</div>
+        {isRecommended && <span className="sp-badge">Recommended</span>}
       </div>
 
-      <div className="mt-6 flex flex-col">
-        <span className="text-4xl font-medium tracking-tight text-gray-900">
-          ${headline.dollars}
-        </span>
-        <span className="mt-1 text-sm text-gray-500">
-          {effectiveInterval === 'year'
-            ? 'Per month, billed annually'
-            : 'Per month, billed monthly'}
-        </span>
-        {effectiveInterval === 'year' && annualAvailable && (
-          <span className="mt-1 text-xs text-blue-500">
-            ${Math.round((plan.annual_price_cents ?? 0) / 100)} billed yearly
-          </span>
-        )}
+      <div className="sp-price">
+        <span className="sp-price-currency">$</span>
+        <span className="sp-price-amount">{headline.dollars}</span>
+      </div>
+      <div className="sp-price-sub">
+        {effectiveInterval === 'year'
+          ? 'Per month, billed annually'
+          : 'Per month, billed monthly'}
       </div>
 
-      <div className="mt-6 flex flex-1 flex-col gap-y-2.5">
-        {previousPlanName && (
-          <p className="text-sm font-medium text-gray-900">
-            Everything from {previousPlanName}, plus:
-          </p>
-        )}
+      {previousPlanName && (
+        <div className="sp-features-intro">
+          Everything from Spaire {previousPlanName}, plus:
+        </div>
+      )}
+      <ul className="sp-features">
         {featureLines.map((line, i) => (
-          <FeatureRow key={i} label={line} />
+          <li key={i}>
+            <CheckIcon />
+            <span>{line}</span>
+          </li>
         ))}
-      </div>
+      </ul>
 
-      <div className="mt-6">
-        <Button
+      <div className="sp-cta-wrap">
+        <button
+          type="button"
           onClick={() => onChoose(tier)}
-          loading={isPending}
           disabled={disabled || isPending}
-          className="w-full bg-black text-white hover:bg-gray-800"
+          className={twMerge(
+            'sp-cta',
+            isRecommended && 'sp-cta--featured',
+            (disabled || isPending) && 'sp-cta--disabled',
+          )}
         >
-          Start free trial
-        </Button>
-        <p className="mt-2 text-center text-xs text-gray-400">
+          {isPending ? 'Loading…' : 'Start free trial'}
+        </button>
+        <p className="sp-fine">
           Card required. Won&apos;t be charged during the 14-day trial.
         </p>
       </div>
-    </div>
+    </article>
   )
 }
 
-const FeatureRow = ({ label }: { label: string }) => (
-  <div className="flex flex-row items-start gap-x-2 text-sm text-gray-700">
-    <CheckOutlined
-      className="mt-0.5 text-gray-400"
-      style={{ fontSize: 16 }}
-    />
-    <span>{label}</span>
-  </div>
-)
+function CheckIcon() {
+  return (
+    <svg
+      className="sp-check"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M20 6 9 17l-5-5" />
+    </svg>
+  )
+}
+
+// ── Tier copy ───────────────────────────────────────────────────────────────
 
 const formatCount = (n: number): string => {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`
@@ -320,4 +348,395 @@ const featuresForTier = (plan: TierPlan): string[] => {
     ]
   }
   return []
+}
+
+// ── Scoped styles ──────────────────────────────────────────────────────────
+
+function SpaireOnboardingPricingStyles() {
+  return (
+    <style jsx global>{`
+      .spaire-pricing {
+        --sp-bg-0: oklch(0.985 0.003 280);
+        --sp-bg-1: #ffffff;
+        --sp-line: oklch(0.92 0.003 280);
+        --sp-line-soft: oklch(0.945 0.003 280);
+        --sp-fg-0: oklch(0.18 0.008 280);
+        --sp-fg-1: oklch(0.32 0.008 280);
+        --sp-fg-2: oklch(0.52 0.008 280);
+        --sp-fg-3: oklch(0.66 0.006 280);
+        --sp-accent: #3847cc;
+        --sp-accent-hover: #2d3aab;
+        --sp-accent-soft: oklch(0.95 0.04 270);
+        color: var(--sp-fg-0);
+        font-family: var(--font-poppins), 'Poppins', system-ui, sans-serif;
+        font-size: 14px;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        letter-spacing: -0.005em;
+        min-height: 100vh;
+        background: #ffffff;
+      }
+      .spaire-pricing *,
+      .spaire-pricing *::before,
+      .spaire-pricing *::after {
+        box-sizing: border-box;
+      }
+      .spaire-pricing ::selection {
+        background: rgb(56 71 204 / 0.12);
+      }
+
+      /* Stage */
+      .sp-stage {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 16px 32px 56px;
+      }
+
+      /* Header */
+      .sp-header {
+        text-align: center;
+        max-width: 640px;
+        margin-bottom: 28px;
+      }
+      .sp-title {
+        font-size: clamp(30px, 4vw, 44px);
+        font-weight: 600;
+        letter-spacing: -0.035em;
+        line-height: 1.05;
+        margin: 0 0 14px;
+        color: var(--sp-fg-0);
+        text-wrap: balance;
+      }
+      .sp-lede {
+        font-size: 15px;
+        color: var(--sp-fg-2);
+        text-wrap: pretty;
+        line-height: 1.55;
+        max-width: 540px;
+        margin: 0 auto;
+      }
+
+      /* Billing toggle */
+      .sp-billing {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 36px;
+      }
+      .sp-toggle {
+        display: inline-flex;
+        background: var(--sp-bg-1);
+        border: 1px solid var(--sp-line);
+        border-radius: 999px;
+        padding: 4px;
+        position: relative;
+        box-shadow: 0 1px 2px oklch(0 0 0 / 0.04);
+      }
+      .sp-toggle-btn {
+        position: relative;
+        padding: 8px 22px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--sp-fg-2);
+        border-radius: 999px;
+        transition: color 200ms ease;
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-family: inherit;
+        z-index: 1;
+      }
+      .sp-toggle-btn--active {
+        color: #fff;
+      }
+      .sp-toggle-pill {
+        position: absolute;
+        top: 4px;
+        bottom: 4px;
+        width: calc(50% - 4px);
+        border-radius: 999px;
+        background: linear-gradient(
+          180deg,
+          oklch(0.28 0.008 280) 0%,
+          oklch(0.14 0.008 280) 100%
+        );
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.18),
+          inset 0 -1px 0 rgba(0, 0, 0, 0.4),
+          0 1px 2px rgba(0, 0, 0, 0.18);
+        transition: transform 280ms cubic-bezier(0.34, 1.3, 0.64, 1);
+        z-index: 0;
+      }
+      .sp-toggle-pill[data-active='monthly'] {
+        left: 4px;
+        transform: translateX(0);
+      }
+      .sp-toggle-pill[data-active='annual'] {
+        left: 4px;
+        transform: translateX(100%);
+      }
+      .sp-save-badge {
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--sp-accent);
+        letter-spacing: -0.005em;
+      }
+
+      /* Card grid */
+      .sp-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 22px;
+        width: 100%;
+        max-width: 1100px;
+        margin-bottom: 28px;
+        align-items: stretch;
+      }
+      .sp-grid--loading .sp-skeleton {
+        height: 480px;
+        border-radius: 22px;
+        background: oklch(0.97 0.002 280);
+        animation: spSkeleton 1.4s ease-in-out infinite;
+      }
+      @keyframes spSkeleton {
+        0%,
+        100% {
+          opacity: 0.7;
+        }
+        50% {
+          opacity: 1;
+        }
+      }
+
+      .sp-card {
+        position: relative;
+        background: var(--sp-bg-1);
+        border-radius: 22px;
+        border: 1px solid var(--sp-line);
+        overflow: hidden;
+        isolation: isolate;
+        transition:
+          transform 220ms cubic-bezier(0.34, 1.3, 0.64, 1),
+          box-shadow 220ms ease,
+          border-color 220ms ease;
+        box-shadow:
+          0 1px 2px oklch(0 0 0 / 0.04),
+          0 8px 24px oklch(0 0 0 / 0.06);
+        display: flex;
+        flex-direction: column;
+        padding: 28px 26px 24px;
+      }
+      .sp-card:hover {
+        transform: translateY(-3px);
+        box-shadow:
+          0 2px 4px oklch(0 0 0 / 0.05),
+          0 18px 40px oklch(0 0 0 / 0.1);
+      }
+      .sp-card--featured {
+        border-color: var(--sp-accent);
+        box-shadow:
+          0 0 0 1px var(--sp-accent),
+          0 2px 6px oklch(0 0 0 / 0.06),
+          0 24px 50px rgb(56 71 204 / 0.14);
+      }
+      .sp-card--featured:hover {
+        box-shadow:
+          0 0 0 1px var(--sp-accent),
+          0 2px 6px oklch(0 0 0 / 0.06),
+          0 28px 56px rgb(56 71 204 / 0.2);
+      }
+
+      /* Card header */
+      .sp-plan-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 22px;
+        min-height: 26px;
+      }
+      .sp-plan-name {
+        font-size: 16px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        color: var(--sp-fg-0);
+      }
+      .sp-badge {
+        font-size: 9.5px;
+        font-weight: 600;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--sp-accent);
+        background: var(--sp-accent-soft);
+        padding: 5px 10px;
+        border-radius: 999px;
+      }
+
+      /* Price */
+      .sp-price {
+        display: flex;
+        align-items: baseline;
+        gap: 2px;
+        margin-bottom: 8px;
+      }
+      .sp-price-currency {
+        font-size: 24px;
+        font-weight: 500;
+        color: var(--sp-fg-0);
+        letter-spacing: -0.02em;
+        align-self: flex-start;
+        margin-top: 8px;
+      }
+      .sp-price-amount {
+        font-size: 56px;
+        font-weight: 600;
+        letter-spacing: -0.04em;
+        line-height: 1;
+        color: var(--sp-fg-0);
+        font-variant-numeric: tabular-nums;
+      }
+      .sp-price-sub {
+        font-size: 13px;
+        color: var(--sp-fg-2);
+        margin-bottom: 22px;
+      }
+
+      /* Features */
+      .sp-features-intro {
+        font-size: 13.5px;
+        font-weight: 600;
+        color: var(--sp-fg-0);
+        letter-spacing: -0.005em;
+        margin-bottom: 12px;
+      }
+      .sp-features {
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin: 0 0 22px;
+        padding: 0;
+      }
+      .sp-features li {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        font-size: 13.5px;
+        color: var(--sp-fg-1);
+        line-height: 1.5;
+        text-wrap: pretty;
+      }
+      .sp-check {
+        flex-shrink: 0;
+        width: 16px;
+        height: 16px;
+        margin-top: 2px;
+        color: var(--sp-fg-2);
+      }
+      .sp-card--featured .sp-check {
+        color: var(--sp-accent);
+      }
+
+      /* CTA */
+      .sp-cta-wrap {
+        margin-top: auto;
+        padding-top: 8px;
+      }
+      .sp-cta {
+        width: 100%;
+        padding: 14px 20px;
+        border-radius: 999px;
+        background: linear-gradient(
+          180deg,
+          oklch(0.28 0.008 280) 0%,
+          oklch(0.14 0.008 280) 100%
+        );
+        color: #fff;
+        font-size: 14px;
+        font-weight: 600;
+        letter-spacing: -0.005em;
+        border: none;
+        cursor: pointer;
+        font-family: inherit;
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.18),
+          inset 0 -1px 0 rgba(0, 0, 0, 0.4),
+          0 1px 2px rgba(0, 0, 0, 0.15),
+          0 6px 16px rgba(0, 0, 0, 0.18);
+        transition:
+          transform 150ms ease,
+          box-shadow 150ms ease,
+          opacity 150ms ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+      }
+      .sp-cta:hover {
+        transform: translateY(-1px);
+      }
+      .sp-cta--featured {
+        background: linear-gradient(180deg, #4756d8 0%, #2d3aab 100%);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.22),
+          inset 0 -1px 0 rgba(0, 0, 0, 0.3),
+          0 1px 2px rgba(0, 0, 0, 0.12),
+          0 8px 22px rgb(56 71 204 / 0.36);
+      }
+      .sp-cta--disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+        transform: none;
+      }
+      .sp-fine {
+        font-size: 11.5px;
+        color: var(--sp-fg-3);
+        text-align: center;
+        margin: 12px 0 0;
+        line-height: 1.5;
+        text-wrap: pretty;
+      }
+
+      /* Compare link */
+      .sp-compare {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13.5px;
+        color: var(--sp-fg-2);
+        padding: 10px 16px;
+        border-radius: 999px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-family: inherit;
+        transition:
+          color 150ms ease,
+          background 150ms ease;
+        margin-top: 4px;
+      }
+      .sp-compare:hover {
+        color: var(--sp-fg-0);
+        background: oklch(0.97 0.002 280);
+      }
+      .sp-compare svg {
+        transition: transform 200ms ease;
+      }
+      .sp-compare:hover svg {
+        transform: translateX(2px);
+      }
+
+      @media (max-width: 980px) {
+        .sp-grid {
+          grid-template-columns: 1fr;
+          max-width: 480px;
+        }
+        .sp-stage {
+          padding: 8px 20px 40px;
+        }
+      }
+    `}</style>
+  )
 }
