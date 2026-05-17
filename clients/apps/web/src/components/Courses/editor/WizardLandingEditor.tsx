@@ -18,9 +18,12 @@ import {
   CourseLessonRead,
   CourseRead,
   LandingMedia,
+  useStageMuxUpload,
+  useStageOrgMedia,
 } from '@/hooks/queries/courses'
 import { schemas } from '@spaire/client'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { toast } from '../../Toast/use-toast'
 import {
   EditableCourseLandingView,
   type LessonHandlers,
@@ -36,13 +39,28 @@ import {
 // user makes on the customize step are buffered here keyed by the wizard
 // placeholder id ("wizard-N", 1-indexed) and replayed by CourseWizard once
 // the lessons have actually been persisted.
+//
+// Files are uploaded the moment the user picks them — the lesson row
+// doesn't exist yet, so we stage the upload (Mux direct upload / S3
+// staging media) and remember the resulting identifiers. CourseWizard
+// passes them straight into CourseLessonCreate at finalize time so the
+// new lesson is already pointing at the uploaded asset.
 export type WizardLessonEdit = {
   title?: string
   description?: string | null
   thumbnailFile?: File
   thumbnailObjectUrl?: string
+  // Uploaded URL of the thumbnail (S3 staging). Set once the upload
+  // completes. When present, CourseWizard skips re-uploading at finalize.
+  thumbnailStagedUrl?: string
   videoFile?: File
   videoObjectUrl?: string
+  // Mux upload id created the moment the user picked the video file. The
+  // webhook will resolve this id back to the lesson once Mux is done.
+  muxUploadId?: string
+  // Tracks in-flight uploads so the publish handler can surface a
+  // "still uploading" message instead of dropping the file silently.
+  uploading?: boolean
 }
 
 export type WizardEditorOutline = {
@@ -74,12 +92,20 @@ export type WizardEditorDraft = {
 
 export type WizardFinalizationData = {
   overrides: ResolvedOverrides
-  /** Files keyed by slot id that need to be uploaded after course creation. */
+  /**
+   * Files the user picked but whose upload has NOT completed yet. The
+   * publish handler awaits these — uploads started while the wizard was
+   * open finish in the background, and finalize only needs the URLs.
+   */
   pendingFiles: Map<string, File>
-  /** New thumbnail file the user picked inline (replaces media.thumbFile). */
+  /** Already-uploaded hero/trailer URLs (S3 staging). */
+  stagedHeroUrl: string | null
+  stagedTrailerUrl: string | null
+  /** Original files (kept as a fallback if a staging upload failed). */
   pendingHeroFile: File | null
-  /** New trailer file the user picked inline. */
   pendingTrailerFile: File | null
+  /** Already-uploaded URLs for landing-overrides media slots. */
+  stagedSlotMedia: Map<string, { url: string; kind: 'image' | 'video' }>
   /**
    * Per-lesson edits the user made in the wizard preview, keyed by the wizard
    * placeholder id ("wizard-N"). The host maps these back onto the real
@@ -114,7 +140,14 @@ export function WizardLandingEditor({
   const pendingFilesRef = useRef<Map<string, File>>(new Map())
   const pendingHeroFileRef = useRef<File | null>(initialThumbFile)
   const pendingTrailerFileRef = useRef<File | null>(null)
+  const stagedHeroUrlRef = useRef<string | null>(null)
+  const stagedTrailerUrlRef = useRef<string | null>(null)
+  const stagedSlotMediaRef = useRef<
+    Map<string, { url: string; kind: 'image' | 'video' }>
+  >(new Map())
   const objectUrlsRef = useRef<string[]>([])
+  const stageMedia = useStageOrgMedia()
+  const stageMux = useStageMuxUpload()
 
   const initialOverrides = useMemo(() => {
     const merged = mergeOverrides(null)
@@ -217,26 +250,52 @@ export function WizardLandingEditor({
     overridesRef.current = next
   }
 
+  // Slot upload — fires the moment the user picks a file. Returns an
+  // immediate object URL so the canvas previews live; the real S3
+  // upload kicks off in the background and the staged URL replaces the
+  // object URL once it lands. Finalize won't re-upload anything that
+  // has already staged successfully.
   const wizardUpload = async (
     slotId: string,
     file: File,
   ): Promise<LandingMedia> => {
-    const url = URL.createObjectURL(file)
-    objectUrlsRef.current.push(url)
+    const localUrl = URL.createObjectURL(file)
+    objectUrlsRef.current.push(localUrl)
     pendingFilesRef.current.set(slotId, file)
-    if (slotId === 'hero.backdrop' && file.type.startsWith('image')) {
-      pendingHeroFileRef.current = file
-    }
-    if (
-      slotId === 'trailer.video' ||
-      (slotId === 'hero.backdrop' && file.type.startsWith('video'))
-    ) {
-      pendingTrailerFileRef.current = file
-    }
     const kind: LandingMedia['kind'] = file.type.startsWith('video')
       ? 'video'
       : 'image'
-    return { kind, url, name: file.name }
+
+    const isHeroImage =
+      slotId === 'hero.backdrop' && file.type.startsWith('image')
+    const isTrailer =
+      slotId === 'trailer.video' ||
+      (slotId === 'hero.backdrop' && file.type.startsWith('video'))
+    if (isHeroImage) pendingHeroFileRef.current = file
+    if (isTrailer) pendingTrailerFileRef.current = file
+
+    // Kick the real upload off in the background. Failure is non-fatal
+    // here — the file is still in pendingFiles, so finalize falls back
+    // to uploading it then. We surface a toast either way so the user
+    // knows their pick made it.
+    stageMedia
+      .mutateAsync({ organizationId: organization.id, file })
+      .then((res) => {
+        pendingFilesRef.current.delete(slotId)
+        if (isHeroImage) stagedHeroUrlRef.current = res.url
+        else if (isTrailer) stagedTrailerUrlRef.current = res.url
+        else stagedSlotMediaRef.current.set(slotId, res)
+      })
+      .catch((err) => {
+        // eslint-disable-next-line no-console
+        console.warn('[WizardLandingEditor] staged upload failed', slotId, err)
+        toast({
+          title: 'Upload still pending — will retry on Create',
+          description: err instanceof Error ? err.message : undefined,
+        })
+      })
+
+    return { kind, url: localUrl, name: file.name }
   }
 
   // Build a fake CourseRead so the EditableCourseLandingView (which expects a
@@ -389,7 +448,30 @@ export function WizardLandingEditor({
         updateLessonEdit(lessonId, {
           thumbnailFile: file,
           thumbnailObjectUrl: url,
+          uploading: true,
         })
+        // Fire the staging upload immediately so the file is in S3 by
+        // the time the user clicks Create.
+        try {
+          const res = await stageMedia.mutateAsync({
+            organizationId: organization.id,
+            file,
+          })
+          updateLessonEdit(lessonId, {
+            thumbnailStagedUrl: res.url,
+            uploading: false,
+          })
+        } catch (err) {
+          updateLessonEdit(lessonId, { uploading: false })
+          // eslint-disable-next-line no-console
+          console.warn(
+            '[WizardLandingEditor] lesson thumbnail staging failed',
+            lessonId,
+            err,
+          )
+          // Keep the File around — finalize re-tries once the course
+          // exists.
+        }
       },
       uploadVideo: async (lessonId, file) => {
         const url = URL.createObjectURL(file)
@@ -397,7 +479,42 @@ export function WizardLandingEditor({
         updateLessonEdit(lessonId, {
           videoFile: file,
           videoObjectUrl: url,
+          uploading: true,
         })
+        // Start the Mux upload immediately. The lesson row doesn't
+        // exist yet, so we use the staging endpoint which mints a Mux
+        // direct upload that isn't tied to any lesson; the upload_id
+        // rides along on CourseLessonCreate so the webhook attaches
+        // the asset once Mux finishes.
+        try {
+          const { upload_id, upload_url } = await stageMux.mutateAsync(
+            organization.id,
+          )
+          await new Promise<void>((resolve, reject) => {
+            const xhr = new XMLHttpRequest()
+            xhr.onload = () =>
+              xhr.status >= 200 && xhr.status < 300
+                ? resolve()
+                : reject(new Error(`Upload failed (${xhr.status})`))
+            xhr.onerror = () =>
+              reject(new Error('Network error during upload'))
+            xhr.open('PUT', upload_url)
+            xhr.send(file)
+          })
+          updateLessonEdit(lessonId, {
+            muxUploadId: upload_id,
+            uploading: false,
+          })
+        } catch (err) {
+          updateLessonEdit(lessonId, { uploading: false })
+          // eslint-disable-next-line no-console
+          console.warn(
+            '[WizardLandingEditor] lesson video staging failed',
+            lessonId,
+            err,
+          )
+          // Leave videoFile in the edit so finalize re-tries.
+        }
       },
       getLocalVideoUrl: (lessonId) => lessonEdits.get(lessonId)?.videoObjectUrl,
     }),
@@ -451,8 +568,11 @@ export function WizardLandingEditor({
               onPublish({
                 overrides: overridesRef.current,
                 pendingFiles: pendingFilesRef.current,
+                stagedHeroUrl: stagedHeroUrlRef.current,
+                stagedTrailerUrl: stagedTrailerUrlRef.current,
                 pendingHeroFile: pendingHeroFileRef.current,
                 pendingTrailerFile: pendingTrailerFileRef.current,
+                stagedSlotMedia: stagedSlotMediaRef.current,
                 lessonEdits: lessonEditsRef.current,
               })
             }

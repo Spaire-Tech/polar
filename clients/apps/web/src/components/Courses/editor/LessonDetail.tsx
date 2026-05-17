@@ -36,10 +36,8 @@ export type LessonEdits = {
   description: string
   media: Media
   textContent: string
-  videoUrl: string
   published: boolean
   commentsMode: 'visible' | 'hidden' | 'locked'
-  thumbnailObjectPosition: string | null
 }
 
 export function LessonDetail({
@@ -50,6 +48,7 @@ export function LessonDetail({
   organizationSlug,
   onSave,
   onDelete,
+  onDirtyChange,
   isSaving,
   onGenerateAI,
   isGenerating,
@@ -62,6 +61,10 @@ export function LessonDetail({
   organizationSlug: string
   onSave: (edits: LessonEdits) => void
   onDelete: () => void
+  // Bubble dirty state to the host so it can guard navigation (lesson
+  // swap, tab change) instead of silently dropping the user's unsaved
+  // edits.
+  onDirtyChange?: (dirty: boolean) => void
   isSaving: boolean
   onGenerateAI?: (
     edits: LessonEdits,
@@ -89,6 +92,30 @@ export function LessonDetail({
   const [edits, setEdits] = useState<LessonEdits>(() =>
     initEdits(lesson, module),
   )
+  // Thumbnail crop is committed on drag-release (see commitThumbnailPosition
+  // below) — it does not flow through `edits` / Save. Holding it as a separate
+  // piece of state lets the positioner re-render after a server roundtrip
+  // without it ever participating in dirty tracking.
+  const [thumbnailPosition, setThumbnailPosition] = useState<string | null>(
+    lesson.thumbnail_object_position ?? null,
+  )
+  // Recompute the "what the server has" snapshot on every render so a
+  // successful save flips Save → Saved automatically when the refetched
+  // lesson data flows back through props.
+  const initialSnapshot = useMemo(
+    () => JSON.stringify(initEdits(lesson, module)),
+    [
+      lesson.id,
+      lesson.title,
+      lesson.description,
+      lesson.content,
+      lesson.published,
+      lesson.content_type,
+      lesson.comments_mode,
+      module.id,
+    ],
+  )
+  const isDirty = JSON.stringify(edits) !== initialSnapshot
   const [moduleSelectOpen, setModuleSelectOpen] = useState(false)
   const moduleSelectRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -168,10 +195,30 @@ export function LessonDetail({
   useEffect(() => {
     setEdits(initEdits(lesson, module))
     setThumbnailUrl(lesson.thumbnail_url ?? null)
+    setThumbnailPosition(lesson.thumbnail_object_position ?? null)
     setAttachments(
       (lesson.content?.attachments as LessonAttachment[] | undefined) ?? [],
     )
   }, [lesson.id, module.id])
+
+  // Warn before the user navigates away from a dirty lesson via a
+  // browser-level transition (close tab, reload, back). Component-level
+  // lesson swaps are caught by the host through onDirtyChange + a
+  // confirm prompt; this covers the tab-close case the host can't see.
+  useEffect(() => {
+    if (!isDirty) return
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [isDirty])
+
+  // Mirror dirty state to the host on every change.
+  useEffect(() => {
+    onDirtyChange?.(isDirty)
+  }, [isDirty, onDirtyChange])
 
   const handleAttachmentFileChange = async (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -326,11 +373,17 @@ export function LessonDetail({
           </button>
           <button
             onClick={handleSaveClick}
-            disabled={isSaving || titleError}
-            title={titleError ? 'Title is required' : undefined}
+            disabled={isSaving || titleError || !isDirty}
+            title={
+              titleError
+                ? 'Title is required'
+                : !isDirty
+                  ? 'No unsaved changes'
+                  : undefined
+            }
             className="px-1 py-[5px] text-[12px] font-medium tracking-tight text-blue-600 transition-opacity hover:opacity-70 disabled:opacity-50"
           >
-            {isSaving ? 'Saving…' : 'Save'}
+            {isSaving ? 'Saving…' : isDirty ? 'Save' : 'Saved'}
           </button>
           <span className="ml-1 text-[11px] tracking-tight">
             {edits.published ? (
@@ -644,20 +697,52 @@ export function LessonDetail({
               <div className="flex flex-col gap-3">
                 <ThumbnailPositioner
                   src={thumbnailUrl}
-                  value={edits.thumbnailObjectPosition}
-                  onChange={(next) => update('thumbnailObjectPosition', next)}
+                  value={thumbnailPosition}
+                  onChange={setThumbnailPosition}
                   onCommit={commitThumbnailPosition}
                 />
                 <p className="text-xs text-gray-500">
                   Drag the image to reposition it inside the card.
                 </p>
-                <button
-                  className="rounded-full bg-gray-900 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
-                  onClick={() => thumbnailInputRef.current?.click()}
-                  disabled={uploadThumbnail.isPending}
-                >
-                  {uploadThumbnail.isPending ? 'Uploading…' : 'Replace'}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    className="rounded-full bg-gray-900 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
+                    onClick={() => thumbnailInputRef.current?.click()}
+                    disabled={
+                      uploadThumbnail.isPending || updateLessonMut.isPending
+                    }
+                  >
+                    {uploadThumbnail.isPending ? 'Uploading…' : 'Replace'}
+                  </button>
+                  <button
+                    className="rounded-full border border-gray-300 px-4 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
+                    onClick={async () => {
+                      // PATCH with thumbnail_url: null clears the
+                      // column on the server (CourseLessonUpdate honors
+                      // explicit nulls). Local state mirrors immediately
+                      // so the dropzone reappears without waiting for a
+                      // refetch.
+                      try {
+                        await updateLessonMut.mutateAsync({
+                          lessonId: lesson.id,
+                          body: { thumbnail_url: null },
+                        })
+                        setThumbnailUrl(null)
+                        setThumbnailPosition(null)
+                        toast({ title: 'Thumbnail removed' })
+                      } catch (err) {
+                        toast({
+                          title: 'Failed to remove thumbnail',
+                          description:
+                            err instanceof Error ? err.message : undefined,
+                        })
+                      }
+                    }}
+                    disabled={updateLessonMut.isPending}
+                  >
+                    {updateLessonMut.isPending ? 'Removing…' : 'Remove'}
+                  </button>
+                </div>
               </div>
             ) : (
               <>
@@ -832,13 +917,11 @@ function initEdits(
     description: (lesson as any).description ?? '',
     media,
     textContent: text,
-    videoUrl: lesson.video_asset_id ?? '',
     published: lesson.published,
     commentsMode: ((lesson as any).comments_mode ?? 'visible') as
       | 'visible'
       | 'hidden'
       | 'locked',
-    thumbnailObjectPosition: lesson.thumbnail_object_position ?? null,
   }
 }
 

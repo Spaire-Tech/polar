@@ -31,6 +31,13 @@ class CourseLessonCreate(Schema):
     release_at: datetime | None = None
     drip_days: int | None = None
     comments_mode: Literal["visible", "hidden", "locked"] = "visible"
+    # When the client has already created a Mux direct upload via the
+    # staging endpoint (so video upload could start before the lesson row
+    # existed), pass the resulting upload id here. The lesson is then
+    # created with `mux_status='waiting'` so the Mux webhook can attach
+    # the asset / playback id by upload_id lookup.
+    mux_upload_id: str | None = None
+    thumbnail_url: str | None = None
 
 
 class CourseLessonUpdate(Schema):
