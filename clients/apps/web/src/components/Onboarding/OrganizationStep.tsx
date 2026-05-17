@@ -243,40 +243,30 @@ export const OrganizationStep = ({
       return
     }
 
-    await revalidate(`users:${currentUser?.id}:organizations`, {
-      expire: 0,
-    })
+    // Kick off the users revalidation in parallel with the file
+    // uploads — it only needs the new org to exist, not the uploads
+    // to finish.
+    const usersRevalidate = revalidate(
+      `users:${currentUser?.id}:organizations`,
+      { expire: 0 },
+    ).catch(() => undefined)
     setUserOrganizations((orgs) => [...orgs, organization])
 
     if (!hasExistingOrg) {
-      let uploadedAvatarUrl: string | undefined
-      let uploadedCoverUrl: string | undefined
-
-      // Upload avatar
-      if (logoFile) {
-        try {
-          uploadedAvatarUrl = await uploadFile(
-            organization,
-            'organization_avatar',
-            logoFile,
-          )
-        } catch {
-          // continue without avatar
-        }
-      }
-
-      // Upload cover image
-      if (coverFile) {
-        try {
-          uploadedCoverUrl = await uploadFile(
-            organization,
-            'storefront_header',
-            coverFile,
-          )
-        } catch {
-          // continue without cover
-        }
-      }
+      // Run avatar + cover uploads concurrently. Each failure
+      // collapses to `undefined` so the rest of the flow proceeds.
+      const [uploadedAvatarUrl, uploadedCoverUrl] = await Promise.all([
+        logoFile
+          ? uploadFile(organization, 'organization_avatar', logoFile).catch(
+              () => undefined,
+            )
+          : Promise.resolve(undefined),
+        coverFile
+          ? uploadFile(organization, 'storefront_header', coverFile).catch(
+              () => undefined,
+            )
+          : Promise.resolve(undefined),
+      ])
 
       const storefrontSettings = {
         ...(data.description ? { description: data.description } : {}),
@@ -308,12 +298,18 @@ export const OrganizationStep = ({
         )
       }
 
-      await revalidate(`organizations:${organization.id}`)
-      await revalidate(`organizations:${organization.slug}`)
+      await Promise.all([
+        usersRevalidate,
+        revalidate(`organizations:${organization.id}`).catch(() => undefined),
+        revalidate(`organizations:${organization.slug}`).catch(() => undefined),
+      ])
+    } else {
+      await usersRevalidate
     }
 
     if (!hasExistingOrg) {
-      await trackStepCompleted('org', organization.id)
+      // Don't block navigation on analytics.
+      void trackStepCompleted('org', organization.id)
     }
 
     if (hasExistingOrg) {
