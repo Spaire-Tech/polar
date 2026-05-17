@@ -93,7 +93,7 @@ export default function PlanPage() {
     <div className="spaire-pricing">
       {/* Existing onboarding chrome — same OnboardingProgressBar the other
           steps use, so the bar fill keeps progressing across the flow. */}
-      <div className="mx-auto mb-10 w-full max-w-lg px-4 pt-12">
+      <div className="mx-auto mb-5 w-full max-w-lg px-4 pt-6">
         <OnboardingProgressBar currentStep={2} totalSteps={3} />
       </div>
 
@@ -400,30 +400,30 @@ function SpaireOnboardingPricingStyles() {
         display: flex;
         flex-direction: column;
         align-items: center;
-        padding: 16px 32px 56px;
+        padding: 8px 32px 28px;
       }
 
       /* Header */
       .sp-header {
         text-align: center;
-        max-width: 640px;
-        margin-bottom: 28px;
+        max-width: 580px;
+        margin-bottom: 18px;
       }
       .sp-title {
-        font-size: clamp(30px, 4vw, 44px);
+        font-size: clamp(24px, 3vw, 32px);
         font-weight: 600;
-        letter-spacing: -0.035em;
-        line-height: 1.05;
-        margin: 0 0 14px;
+        letter-spacing: -0.03em;
+        line-height: 1.08;
+        margin: 0 0 8px;
         color: var(--sp-fg-0);
         text-wrap: balance;
       }
       .sp-lede {
-        font-size: 15px;
+        font-size: 13px;
         color: var(--sp-fg-2);
         text-wrap: pretty;
-        line-height: 1.55;
-        max-width: 540px;
+        line-height: 1.5;
+        max-width: 500px;
         margin: 0 auto;
       }
 
@@ -431,22 +431,22 @@ function SpaireOnboardingPricingStyles() {
       .sp-billing {
         display: flex;
         align-items: center;
-        gap: 16px;
-        margin-bottom: 36px;
+        gap: 12px;
+        margin-bottom: 22px;
       }
       .sp-toggle {
         display: inline-flex;
         background: var(--sp-bg-1);
         border: 1px solid var(--sp-line);
         border-radius: 999px;
-        padding: 4px;
+        padding: 3px;
         position: relative;
         box-shadow: 0 1px 2px oklch(0 0 0 / 0.04);
       }
       .sp-toggle-btn {
         position: relative;
-        padding: 8px 22px;
-        font-size: 13px;
+        padding: 6px 18px;
+        font-size: 12px;
         font-weight: 500;
         color: var(--sp-fg-2);
         border-radius: 999px;
@@ -462,9 +462,9 @@ function SpaireOnboardingPricingStyles() {
       }
       .sp-toggle-pill {
         position: absolute;
-        top: 4px;
-        bottom: 4px;
-        width: calc(50% - 4px);
+        top: 3px;
+        bottom: 3px;
+        width: calc(50% - 3px);
         border-radius: 999px;
         background: linear-gradient(
           180deg,
@@ -479,15 +479,15 @@ function SpaireOnboardingPricingStyles() {
         z-index: 0;
       }
       .sp-toggle-pill[data-active='monthly'] {
-        left: 4px;
+        left: 3px;
         transform: translateX(0);
       }
       .sp-toggle-pill[data-active='annual'] {
-        left: 4px;
+        left: 3px;
         transform: translateX(100%);
       }
       .sp-save-badge {
-        font-size: 12.5px;
+        font-size: 11.5px;
         font-weight: 600;
         color: var(--sp-accent);
         letter-spacing: -0.005em;
@@ -497,15 +497,15 @@ function SpaireOnboardingPricingStyles() {
       .sp-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
-        gap: 22px;
+        gap: 16px;
         width: 100%;
-        max-width: 1100px;
-        margin-bottom: 28px;
+        max-width: 940px;
+        margin-bottom: 18px;
         align-items: stretch;
       }
       .sp-grid--loading .sp-skeleton {
-        height: 480px;
-        border-radius: 22px;
+        height: 380px;
+        border-radius: 18px;
         background: oklch(0.97 0.002 280);
         animation: spSkeleton 1.4s ease-in-out infinite;
       }
@@ -522,7 +522,7 @@ function SpaireOnboardingPricingStyles() {
       .sp-card {
         position: relative;
         background: var(--sp-bg-1);
-        border-radius: 22px;
+        border-radius: 18px;
         border: 1px solid var(--sp-line);
         overflow: hidden;
         isolation: isolate;
@@ -532,29 +532,29 @@ function SpaireOnboardingPricingStyles() {
           border-color 220ms ease;
         box-shadow:
           0 1px 2px oklch(0 0 0 / 0.04),
-          0 8px 24px oklch(0 0 0 / 0.06);
+          0 6px 18px oklch(0 0 0 / 0.05);
         display: flex;
         flex-direction: column;
-        padding: 28px 26px 24px;
+        padding: 20px 20px 18px;
       }
       .sp-card:hover {
-        transform: translateY(-3px);
+        transform: translateY(-2px);
         box-shadow:
           0 2px 4px oklch(0 0 0 / 0.05),
-          0 18px 40px oklch(0 0 0 / 0.1);
+          0 14px 32px oklch(0 0 0 / 0.09);
       }
       .sp-card--featured {
         border-color: var(--sp-accent);
         box-shadow:
           0 0 0 1px var(--sp-accent),
-          0 2px 6px oklch(0 0 0 / 0.06),
-          0 24px 50px rgb(56 71 204 / 0.14);
+          0 2px 5px oklch(0 0 0 / 0.06),
+          0 18px 38px rgb(56 71 204 / 0.13);
       }
       .sp-card--featured:hover {
         box-shadow:
           0 0 0 1px var(--sp-accent),
-          0 2px 6px oklch(0 0 0 / 0.06),
-          0 28px 56px rgb(56 71 204 / 0.2);
+          0 2px 5px oklch(0 0 0 / 0.06),
+          0 22px 44px rgb(56 71 204 / 0.18);
       }
 
       /* Card header */
@@ -562,24 +562,24 @@ function SpaireOnboardingPricingStyles() {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 12px;
-        margin-bottom: 22px;
-        min-height: 26px;
+        gap: 10px;
+        margin-bottom: 14px;
+        min-height: 22px;
       }
       .sp-plan-name {
-        font-size: 16px;
+        font-size: 14px;
         font-weight: 600;
         letter-spacing: -0.01em;
         color: var(--sp-fg-0);
       }
       .sp-badge {
-        font-size: 9.5px;
+        font-size: 8.5px;
         font-weight: 600;
         letter-spacing: 0.16em;
         text-transform: uppercase;
         color: var(--sp-accent);
         background: var(--sp-accent-soft);
-        padding: 5px 10px;
+        padding: 4px 9px;
         border-radius: 999px;
       }
 
@@ -588,18 +588,18 @@ function SpaireOnboardingPricingStyles() {
         display: flex;
         align-items: baseline;
         gap: 2px;
-        margin-bottom: 8px;
+        margin-bottom: 4px;
       }
       .sp-price-currency {
-        font-size: 24px;
+        font-size: 18px;
         font-weight: 500;
         color: var(--sp-fg-0);
         letter-spacing: -0.02em;
         align-self: flex-start;
-        margin-top: 8px;
+        margin-top: 6px;
       }
       .sp-price-amount {
-        font-size: 56px;
+        font-size: 42px;
         font-weight: 600;
         letter-spacing: -0.04em;
         line-height: 1;
@@ -607,40 +607,40 @@ function SpaireOnboardingPricingStyles() {
         font-variant-numeric: tabular-nums;
       }
       .sp-price-sub {
-        font-size: 13px;
+        font-size: 12px;
         color: var(--sp-fg-2);
-        margin-bottom: 22px;
+        margin-bottom: 16px;
       }
 
       /* Features */
       .sp-features-intro {
-        font-size: 13.5px;
+        font-size: 12.5px;
         font-weight: 600;
         color: var(--sp-fg-0);
         letter-spacing: -0.005em;
-        margin-bottom: 12px;
+        margin-bottom: 10px;
       }
       .sp-features {
         list-style: none;
         display: flex;
         flex-direction: column;
-        gap: 10px;
-        margin: 0 0 22px;
+        gap: 7px;
+        margin: 0 0 16px;
         padding: 0;
       }
       .sp-features li {
         display: flex;
         align-items: flex-start;
-        gap: 10px;
-        font-size: 13.5px;
+        gap: 8px;
+        font-size: 12px;
         color: var(--sp-fg-1);
-        line-height: 1.5;
+        line-height: 1.45;
         text-wrap: pretty;
       }
       .sp-check {
         flex-shrink: 0;
-        width: 16px;
-        height: 16px;
+        width: 14px;
+        height: 14px;
         margin-top: 2px;
         color: var(--sp-fg-2);
       }
@@ -651,11 +651,11 @@ function SpaireOnboardingPricingStyles() {
       /* CTA */
       .sp-cta-wrap {
         margin-top: auto;
-        padding-top: 8px;
+        padding-top: 6px;
       }
       .sp-cta {
         width: 100%;
-        padding: 14px 20px;
+        padding: 11px 18px;
         border-radius: 999px;
         background: linear-gradient(
           180deg,
@@ -663,7 +663,7 @@ function SpaireOnboardingPricingStyles() {
           oklch(0.14 0.008 280) 100%
         );
         color: #fff;
-        font-size: 14px;
+        font-size: 13px;
         font-weight: 600;
         letter-spacing: -0.005em;
         border: none;
@@ -673,7 +673,7 @@ function SpaireOnboardingPricingStyles() {
           inset 0 1px 0 rgba(255, 255, 255, 0.18),
           inset 0 -1px 0 rgba(0, 0, 0, 0.4),
           0 1px 2px rgba(0, 0, 0, 0.15),
-          0 6px 16px rgba(0, 0, 0, 0.18);
+          0 5px 14px rgba(0, 0, 0, 0.16);
         transition:
           transform 150ms ease,
           box-shadow 150ms ease,
@@ -692,7 +692,7 @@ function SpaireOnboardingPricingStyles() {
           inset 0 1px 0 rgba(255, 255, 255, 0.22),
           inset 0 -1px 0 rgba(0, 0, 0, 0.3),
           0 1px 2px rgba(0, 0, 0, 0.12),
-          0 8px 22px rgb(56 71 204 / 0.36);
+          0 6px 18px rgb(56 71 204 / 0.32);
       }
       .sp-cta--disabled {
         opacity: 0.55;
@@ -700,11 +700,11 @@ function SpaireOnboardingPricingStyles() {
         transform: none;
       }
       .sp-fine {
-        font-size: 11.5px;
+        font-size: 10.5px;
         color: var(--sp-fg-3);
         text-align: center;
-        margin: 12px 0 0;
-        line-height: 1.5;
+        margin: 8px 0 0;
+        line-height: 1.45;
         text-wrap: pretty;
       }
 
@@ -713,9 +713,9 @@ function SpaireOnboardingPricingStyles() {
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        font-size: 13.5px;
+        font-size: 12.5px;
         color: var(--sp-fg-2);
-        padding: 10px 16px;
+        padding: 8px 14px;
         border-radius: 999px;
         background: none;
         border: none;
@@ -724,7 +724,6 @@ function SpaireOnboardingPricingStyles() {
         transition:
           color 150ms ease,
           background 150ms ease;
-        margin-top: 4px;
       }
       .sp-compare:hover {
         color: var(--sp-fg-0);
@@ -740,10 +739,10 @@ function SpaireOnboardingPricingStyles() {
       @media (max-width: 980px) {
         .sp-grid {
           grid-template-columns: 1fr;
-          max-width: 480px;
+          max-width: 420px;
         }
         .sp-stage {
-          padding: 8px 20px 40px;
+          padding: 8px 20px 32px;
         }
       }
     `}</style>
