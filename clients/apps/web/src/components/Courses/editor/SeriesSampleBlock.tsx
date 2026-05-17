@@ -757,11 +757,21 @@ export function SeriesSampleBlock({
   // the creator can configure it.
   const sample = course.sample
   const lesson = findLesson(course, flatLessons, sample?.lesson_id ?? null)
-  const hasUsableSample =
-    sample &&
-    sample.enabled &&
-    lesson &&
-    (lesson.mux_status ?? '').toLowerCase() === 'ready'
+  // Sample is "usable" when we have playback data, from either source:
+  //   - public landing: sample.mux_playback_id / sample.mux_playback_url
+  //     are embedded directly on the payload (the server bypasses the
+  //     free-preview lesson-strip gate for the sample on purpose).
+  //   - dashboard editor: we look the lesson up via flatLessons /
+  //     course.modules and read mux_playback_id off it.
+  const samplePlaybackId =
+    sample?.mux_playback_id ?? lesson?.mux_playback_id ?? null
+  const samplePlaybackUrl =
+    sample?.mux_playback_url ??
+    (lesson as { mux_playback_url?: string | null } | null)?.mux_playback_url ??
+    null
+  const hasUsableSample = Boolean(
+    sample && sample.enabled && (samplePlaybackId || samplePlaybackUrl),
+  )
 
   if (course.format !== 'series') return null
   if (!inEditMode && !hasUsableSample) return null
@@ -781,10 +791,17 @@ export function SeriesSampleBlock({
           margin: '0 auto',
         }}
       >
-        {hasUsableSample && lesson && sample ? (
+        {hasUsableSample && sample ? (
           <SamplePlayerFrame
             course={course}
-            lesson={lesson}
+            lessonTitle={
+              sample.lesson_title ?? lesson?.title ?? 'Sample'
+            }
+            lessonThumbnailUrl={
+              sample.thumbnail_url ?? lesson?.thumbnail_url ?? null
+            }
+            playbackId={samplePlaybackId}
+            playbackUrl={samplePlaybackUrl}
             sample={sample}
             priceLabel={priceLabel}
             onEnroll={onEnroll}
@@ -919,7 +936,10 @@ function SampleEmptyState({ onConfigure }: { onConfigure: () => void }) {
 
 function SamplePlayerFrame({
   course: _course,
-  lesson,
+  lessonTitle,
+  lessonThumbnailUrl,
+  playbackId,
+  playbackUrl,
   sample,
   priceLabel,
   onEnroll,
@@ -927,7 +947,10 @@ function SamplePlayerFrame({
   enrolling,
 }: {
   course: CourseRead
-  lesson: CourseLessonRead
+  lessonTitle: string
+  lessonThumbnailUrl: string | null
+  playbackId: string | null
+  playbackUrl: string | null
   sample: NonNullable<CourseRead['sample']>
   priceLabel: string | null
   onEnroll: () => void
@@ -1024,7 +1047,7 @@ function SamplePlayerFrame({
           fontFamily: HEADING_VAR,
         }}
       >
-        {lesson.title}
+        {lessonTitle}
       </div>
 
       <div
@@ -1041,12 +1064,9 @@ function SamplePlayerFrame({
         }}
       >
         <SampleHlsPlayer
-          playbackId={lesson.mux_playback_id ?? null}
-          playbackUrl={
-            (lesson as { mux_playback_url?: string | null })
-              .mux_playback_url ?? null
-          }
-          poster={lesson.thumbnail_url ?? null}
+          playbackId={playbackId}
+          playbackUrl={playbackUrl}
+          poster={lessonThumbnailUrl}
           startSeconds={sample.start_seconds}
           durationSeconds={sample.duration_seconds}
           playing={playing}
@@ -1185,7 +1205,7 @@ function SamplePlayerFrame({
                 maxWidth: 460,
               }}
             >
-              {lesson.title}
+              {lessonTitle}
               {priceLabel ? ` · ${priceLabel}` : ''} · lifetime access
             </div>
             <div

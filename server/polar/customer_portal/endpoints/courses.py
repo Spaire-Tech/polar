@@ -734,10 +734,15 @@ async def get_course_landing(
         for m in sorted(course.modules, key=lambda m: m.position)
     ]
 
-    # Series-only "Episode Sample" block. Only surface the sample on the
-    # public payload if the lesson it points to (a) still exists on the
-    # course, (b) has a Mux asset that's ready to play. Either condition
-    # failing means the public landing simply omits the block — the editor
+    # Series-only "Episode Sample" block. Self-contained: we embed the
+    # playback id / signed playback url / title / poster on the sample
+    # payload itself, so the frontend doesn't have to look the lesson up
+    # in `flat_lessons` (which strips mux_* fields for any lesson that
+    # isn't free-preview — the sample is meant as a promotional slice that
+    # intentionally bypasses the paywall boundary, per product spec).
+    #
+    # Gates: lesson must still exist on the course, AND its mux asset must
+    # be ready to play. Either failing means we omit the block; the editor
     # banner separately tells the creator the sample is misconfigured.
     sample_payload = None
     raw_sample = course.sample
@@ -751,6 +756,7 @@ async def get_course_landing(
             for lesson in module.lessons:
                 if str(lesson.id) == target_lesson_id:
                     if (lesson.mux_status or "").lower() == "ready":
+                        playback_id = getattr(lesson, "mux_playback_id", None)
                         sample_payload = {
                             "enabled": True,
                             "lesson_id": target_lesson_id,
@@ -759,6 +765,16 @@ async def get_course_landing(
                             ),
                             "duration_seconds": int(
                                 raw_sample.get("duration_seconds") or 0
+                            ),
+                            "lesson_title": lesson.title,
+                            "thumbnail_url": getattr(
+                                lesson, "thumbnail_url", None
+                            ),
+                            "mux_playback_id": playback_id,
+                            "mux_playback_url": (
+                                mux_client.playback_url(playback_id)
+                                if playback_id
+                                else None
                             ),
                         }
                     break
