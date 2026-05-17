@@ -1,14 +1,13 @@
 'use client'
 
 // HeroMedia — Netflix/YouTube-style preview. If a trailer URL is set, plays
-// the first `peekSeconds` of it, then fades to the still image. Starts
-// muted (browsers reject unmuted autoplay without a prior user gesture)
-// and auto-unmutes on the first interaction with the page. Renders a
-// small volume toggle in the corner so the viewer can mute again or
-// turn sound on early on touch devices where document interactions
-// already counted.
+// the first `peekSeconds` of it, then fades AND pauses, settling on the
+// still image. Audio only kicks in on the public landing (preview mode)
+// — the studio's customize canvas always stays muted so the creator
+// isn't blasted with sound while editing.
 
 import { useEffect, useRef, useState } from 'react'
+import { useEditor } from './EditorContext'
 
 export function HeroMedia({
   imageUrl,
@@ -21,19 +20,28 @@ export function HeroMedia({
   trailerUrl: string | null
   peekSeconds?: number
 }) {
+  const ed = useEditor()
+  // Audio is a public-landing thing only. In the studio (mode === 'edit')
+  // the trailer always stays silent so the creator can work without the
+  // soundtrack starting up every time they switch tabs.
+  const audioAllowed = ed.mode === 'preview'
+
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const [phase, setPhase] = useState<'video' | 'image'>(
     trailerUrl ? 'video' : 'image',
   )
-  // Start muted so the browser always allows autoplay. A user gesture
-  // (anywhere on the page, including the unmute button itself) flips
-  // this to false and we call .play() again to re-enter audio.
+  // Default muted (autoplay requires it). When `audioAllowed` is true a
+  // user gesture flips this to false; we also flip it back to true when
+  // the peek ends so the audio stops cleanly.
   const [muted, setMuted] = useState(true)
 
   useEffect(() => {
     setPhase(trailerUrl ? 'video' : 'image')
   }, [trailerUrl])
 
+  // Peek timer — once the trailer has buffered, schedule the fade back
+  // to the still image. The cleanup also runs when the trailer URL
+  // changes or the component unmounts, so timers never leak.
   useEffect(() => {
     if (phase !== 'video') return
     const v = videoRef.current
@@ -49,18 +57,32 @@ export function HeroMedia({
     }
   }, [phase, peekSeconds, trailerUrl])
 
-  // Auto-unmute on the first user interaction with the page. Most
-  // browsers count a pointerdown / keydown / touchstart as an
-  // engagement signal, so we listen for any of those once and flip
-  // muted to false. If the user navigated to this page from a click
-  // on a previous page, the first listener call usually fires within
-  // a few hundred ms of mount.
+  // Stop the trailer when the peek ends — pause the element AND
+  // re-mute it. Pausing alone usually stops audio in modern browsers,
+  // but resetting `muted` keeps the audio guaranteed-silent even if
+  // some browser keeps decoding in the background.
   useEffect(() => {
-    if (!trailerUrl) return
-    if (!muted) return
-    const tryUnmute = () => {
-      setMuted(false)
+    const v = videoRef.current
+    if (!v) return
+    if (phase === 'image') {
+      try {
+        v.pause()
+      } catch {
+        // ignore — non-interactive .pause() never throws but be safe
+      }
+      setMuted(true)
     }
+  }, [phase])
+
+  // First-gesture auto-unmute — only on the public landing, only while
+  // the peek is still showing. After the peek ends the effect above
+  // re-mutes us, and this listener doesn't refire.
+  useEffect(() => {
+    if (!audioAllowed) return
+    if (!trailerUrl) return
+    if (phase !== 'video') return
+    if (!muted) return
+    const tryUnmute = () => setMuted(false)
     const opts = { once: true, capture: true } as const
     window.addEventListener('pointerdown', tryUnmute, opts)
     window.addEventListener('keydown', tryUnmute, opts)
@@ -70,22 +92,19 @@ export function HeroMedia({
       window.removeEventListener('keydown', tryUnmute, opts)
       window.removeEventListener('touchstart', tryUnmute, opts)
     }
-  }, [trailerUrl, muted])
+  }, [audioAllowed, trailerUrl, phase, muted])
 
-  // Reflect the muted state onto the actual <video> element. When
-  // switching from muted → unmuted, the browser may pause the stream
-  // on some autoplay-restricted pages — call .play() again and fall
-  // back to muted if the promise rejects.
+  // Reflect the muted state onto the actual <video>. When transitioning
+  // from muted → unmuted some browsers pause the stream; re-issue
+  // .play() and fall back to muted if it rejects.
   useEffect(() => {
     const v = videoRef.current
     if (!v) return
     v.muted = muted
-    if (!muted) {
-      v.play().catch(() => {
-        setMuted(true)
-      })
+    if (!muted && phase === 'video') {
+      v.play().catch(() => setMuted(true))
     }
-  }, [muted])
+  }, [muted, phase])
 
   if (!trailerUrl && !imageUrl) return null
 
@@ -96,8 +115,6 @@ export function HeroMedia({
           ref={videoRef}
           src={trailerUrl}
           autoPlay
-          // `muted` attribute mirrors the React state — see the effect
-          // above. Initial render is muted so autoplay is allowed.
           muted={muted}
           playsInline
           preload="auto"
@@ -144,7 +161,7 @@ export function HeroMedia({
           }}
         />
       )}
-      {trailerUrl && phase === 'video' && (
+      {audioAllowed && trailerUrl && phase === 'video' && (
         <button
           type="button"
           onClick={(e) => {
@@ -171,8 +188,6 @@ export function HeroMedia({
             WebkitBackdropFilter: 'blur(8px) saturate(180%)',
             cursor: 'pointer',
             fontFamily: 'inherit',
-            transition: 'opacity 200ms ease',
-            opacity: phase === 'video' ? 1 : 0,
           }}
         >
           {muted ? <VolumeOffIcon /> : <VolumeOnIcon />}
