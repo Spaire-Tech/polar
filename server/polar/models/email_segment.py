@@ -41,7 +41,11 @@ class EmailSegment(RecordModel):
     )
     product_id: Mapped[UUID | None] = mapped_column(
         Uuid,
-        ForeignKey("products.id", ondelete="cascade"),
+        # SET NULL (not CASCADE) so deleting a product orphans the
+        # segment instead of silently nuking the entire segment
+        # config. Orphaned segments still render in the UI; the
+        # service layer can detect and clean them up explicitly.
+        ForeignKey("products.id", ondelete="set null"),
         nullable=True,
         default=None,
     )
