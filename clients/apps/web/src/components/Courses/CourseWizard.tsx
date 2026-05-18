@@ -359,6 +359,7 @@ export default function CourseWizard({
 
       const humanDescription = draft.desc || course.desc || null
 
+      const outlineModules = outline.modules
       const created = await createCourse.mutateAsync({
         product_id: productResult.data.id,
         organization_id: organization.id,
@@ -378,7 +379,7 @@ export default function CourseWizard({
         instructor_name_italic: false,
         instructor_name_bold: draft.nameBold,
         instructor_name_uppercase: draft.nameUppercase,
-        modules: outline.modules
+        modules: outlineModules
           .filter(
             (
               m,
@@ -403,7 +404,7 @@ export default function CourseWizard({
               position: i,
               lessons: lessonInputs.map((lesson, j) => {
                 const flatIdx =
-                  outline.modules
+                  outlineModules
                     .slice(0, i)
                     .reduce((acc, m2) => {
                       return (
