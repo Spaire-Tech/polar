@@ -407,6 +407,7 @@ export const useUpdateCourseLesson = () =>
         published?: boolean
         release_at?: string | null
         drip_days?: number | null
+        thumbnail_url?: string | null
         thumbnail_object_position?: string | null
         comments_mode?: 'visible' | 'hidden' | 'locked'
       }
