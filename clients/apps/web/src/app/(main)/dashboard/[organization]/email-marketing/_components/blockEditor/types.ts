@@ -152,6 +152,101 @@ export type DigestItemBlock = {
   body: string
 }
 
+// ── Newsletter-specific blocks ──────────────────────────────────────
+//
+// These exist alongside the broadcast-flavoured blocks above. The
+// renderer and editor switch on `type` so old broadcast drafts never
+// see them and new newsletter posts can use the full set.
+
+// Large centred serif quotation — distinct from `QuoteBlock` (which is
+// the boxed testimonial with an accent bar + cite). A pull quote is a
+// visual break in editorial copy, not an endorsement.
+export type PullQuoteBlock = {
+  id: BlockId
+  type: 'pull'
+  text: string
+}
+
+// Boxed editor's-note / aside. Carries an optional label ("From the
+// desk", "Editor's note") rendered above the body.
+export type CalloutBlock = {
+  id: BlockId
+  type: 'callout'
+  label?: string
+  text: string
+}
+
+// Side-by-side photo grid. 2-3 images sharing a single row, each with
+// an optional caption.
+export type GalleryImage = {
+  id: string
+  src: string
+  alt?: string
+  caption?: string
+}
+
+export type GalleryBlock = {
+  id: BlockId
+  type: 'gallery'
+  images: GalleryImage[]
+}
+
+// Generic third-party embed (X/Twitter, YouTube, Spotify, oEmbed, …).
+// Authoring stores just the URL; render resolves it server-side once
+// we wire oEmbed (deferred). For V1, the editor offers raw embed_html
+// as an escape hatch.
+export type EmbedBlock = {
+  id: BlockId
+  type: 'embed'
+  url: string
+  embed_html?: string
+  caption?: string
+}
+
+// Subscriber poll. The vote storage lives in `newsletter_polls` /
+// `newsletter_poll_votes` (Phase 1 backend; voting endpoint is Phase 2
+// frontend). The block carries the question + option list only; the
+// poll-id is allocated server-side on first save.
+export type PollOption = {
+  id: string
+  text: string
+}
+
+export type PollBlock = {
+  id: BlockId
+  type: 'poll'
+  question: string
+  options: PollOption[]
+  // Set on first server save. Used to scope vote queries to this poll
+  // even across post duplications.
+  poll_id?: string
+  allow_multiple?: boolean
+}
+
+// Paywall marker. Truncates the render for non-entitled customers and
+// inserts an upsell CTA. The cta_text / cta_url default to a
+// "Subscribe to <newsletter>" pitch when blank.
+export type PaywallBlock = {
+  id: BlockId
+  type: 'paywall'
+  cta_text?: string
+  cta_url?: string
+  headline?: string
+  body?: string
+}
+
+// Audio newsletter block. Uploaded MP3/WAV URL or external host
+// (Spotify, Apple Podcasts) link. Renders as a styled play card in
+// email, native <audio> on the web archive.
+export type AudioBlock = {
+  id: BlockId
+  type: 'audio'
+  src?: string
+  embed_url?: string
+  title?: string
+  duration_seconds?: number
+}
+
 export type Block =
   | EyebrowBlock
   | HeadingBlock
@@ -169,6 +264,13 @@ export type Block =
   | EventCardBlock
   | ReceiptBlock
   | DigestItemBlock
+  | PullQuoteBlock
+  | CalloutBlock
+  | GalleryBlock
+  | EmbedBlock
+  | PollBlock
+  | PaywallBlock
+  | AudioBlock
 
 export type BlockType = Block['type']
 
@@ -309,6 +411,56 @@ export const blankBlock = (type: BlockType): Block => {
         meta: '4 min · Source',
         body: 'A one-line summary of the story.',
       }
+    case 'pull':
+      return {
+        id: newId(),
+        type: 'pull',
+        text: 'A short, memorable line worth pulling out.',
+      }
+    case 'callout':
+      return {
+        id: newId(),
+        type: 'callout',
+        label: "Editor's note",
+        text: 'A boxed aside readers should notice.',
+      }
+    case 'gallery':
+      return {
+        id: newId(),
+        type: 'gallery',
+        images: [
+          { id: newId(), src: '', alt: '' },
+          { id: newId(), src: '', alt: '' },
+        ],
+      }
+    case 'embed':
+      return {
+        id: newId(),
+        type: 'embed',
+        url: '',
+      }
+    case 'poll':
+      return {
+        id: newId(),
+        type: 'poll',
+        question: 'Ask your subscribers a question',
+        options: [
+          { id: newId(), text: 'Option one' },
+          { id: newId(), text: 'Option two' },
+        ],
+      }
+    case 'paywall':
+      return {
+        id: newId(),
+        type: 'paywall',
+        cta_text: 'Subscribe to keep reading',
+      }
+    case 'audio':
+      return {
+        id: newId(),
+        type: 'audio',
+        title: 'Listen to this issue',
+      }
   }
 }
 
@@ -345,7 +497,61 @@ const KNOWN_BLOCK_TYPES = new Set<string>([
   'event-card',
   'receipt',
   'digest-item',
+  'pull',
+  'callout',
+  'gallery',
+  'embed',
+  'poll',
+  'paywall',
+  'audio',
 ])
+
+// Block library specific to the newsletter post composer. Mirrors the
+// design's slash menu — grouped by section, includes the seven new
+// newsletter-only block types, and skips broadcast-flavoured items
+// (eyebrow, badge, columns, checklist, event-card, receipt,
+// digest-item) that don't fit the long-form editorial format.
+export const newsletterBlockLibrary: {
+  section: string
+  items: { type: BlockType; label: string; desc: string; icon: string }[]
+}[] = [
+  {
+    section: 'Text',
+    items: [
+      { type: 'heading', label: 'Heading', desc: 'Section title', icon: 'heading' },
+      { type: 'subheading', label: 'Subheading', desc: 'Smaller heading', icon: 'heading' },
+      { type: 'paragraph', label: 'Paragraph', desc: 'Body text', icon: 'text' },
+      { type: 'quote', label: 'Quote', desc: 'Boxed testimonial', icon: 'quote' },
+      { type: 'pull', label: 'Pull quote', desc: 'Large centred line', icon: 'quote' },
+      { type: 'list', label: 'List', desc: 'Bulleted or numbered', icon: 'list' },
+    ],
+  },
+  {
+    section: 'Media',
+    items: [
+      { type: 'image', label: 'Image', desc: 'Full-width photo', icon: 'image' },
+      { type: 'gallery', label: 'Gallery', desc: 'Side-by-side photos', icon: 'grid' },
+      { type: 'video', label: 'Video', desc: 'YouTube, Vimeo, Loom', icon: 'play' },
+      { type: 'audio', label: 'Audio', desc: 'Podcast / voiceover', icon: 'play' },
+      { type: 'embed', label: 'Embed', desc: 'X, Spotify, oEmbed', icon: 'link' },
+    ],
+  },
+  {
+    section: 'Structure',
+    items: [
+      { type: 'divider', label: 'Divider', desc: 'Section break', icon: 'divider' },
+      { type: 'button', label: 'Button', desc: 'Call to action', icon: 'button-icon' },
+      { type: 'callout', label: 'Callout', desc: 'Highlighted aside', icon: 'info' },
+    ],
+  },
+  {
+    section: 'Advanced',
+    items: [
+      { type: 'poll', label: 'Poll', desc: 'Ask your subscribers', icon: 'list' },
+      { type: 'paywall', label: 'Paywall', desc: 'Gate premium content', icon: 'lock' },
+    ],
+  },
+]
 
 /**
  * Coerce a freshly-loaded ContentDoc into the canonical shape.

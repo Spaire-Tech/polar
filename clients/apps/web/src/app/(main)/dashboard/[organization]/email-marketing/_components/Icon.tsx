@@ -66,6 +66,10 @@ type IconName =
   | 'grid'
   | 'globe-2'
   | 'drag'
+  | 'lock'
+  | 'info'
+  | 'refresh'
+  | 'eye-off'
 
 type IconProps = {
   name: IconName | string
@@ -533,6 +537,39 @@ export const Icon = ({
           <circle cx="15" cy="6" r="1.2" fill="currentColor" />
           <circle cx="15" cy="12" r="1.2" fill="currentColor" />
           <circle cx="15" cy="18" r="1.2" fill="currentColor" />
+        </svg>
+      )
+    case 'lock':
+      return (
+        <svg {...props}>
+          <rect x="3" y="11" width="18" height="11" rx="2" />
+          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+        </svg>
+      )
+    case 'info':
+      return (
+        <svg {...props}>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 11v5" />
+          <circle cx="12" cy="8" r=".6" fill="currentColor" />
+        </svg>
+      )
+    case 'refresh':
+      return (
+        <svg {...props}>
+          <polyline points="23 4 23 10 17 10" />
+          <polyline points="1 20 1 14 7 14" />
+          <path d="M3.5 9A9 9 0 0 1 18.4 5.6L23 10" />
+          <path d="M20.5 15A9 9 0 0 1 5.6 18.4L1 14" />
+        </svg>
+      )
+    case 'eye-off':
+      return (
+        <svg {...props}>
+          <path d="M17.9 17.9A11 11 0 0 1 12 20c-7 0-11-8-11-8a20 20 0 0 1 5.1-5.9" />
+          <path d="M9.9 4.2A11 11 0 0 1 12 4c7 0 11 8 11 8a20 20 0 0 1-2.4 3.4" />
+          <path d="M14.1 14.1A3 3 0 1 1 9.9 9.9" />
+          <path d="M1 1l22 22" />
         </svg>
       )
     default:

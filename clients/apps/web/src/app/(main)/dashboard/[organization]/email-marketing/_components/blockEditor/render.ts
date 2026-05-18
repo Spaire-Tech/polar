@@ -189,6 +189,77 @@ const renderBlockUnsafe = (block: Block, accent: string): string => {
     }
     case 'digest-item':
       return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:14px 0;width:100%"><tr><td valign="top" style="width:48px;font-size:20px;font-weight:700;color:${accent};font-family:monospace;line-height:1">${escape(block.num)}</td><td style="padding-left:14px"><div style="font-size:15px;font-weight:600;color:#1d1d1f;letter-spacing:-0.01em;margin-bottom:3px;line-height:1.3">${escape(block.title)}</div><div style="font-size:11px;color:#86868b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px">${escape(block.meta)}</div><div style="font-size:13px;color:#3a3a3c;line-height:1.55">${escape(block.body)}</div></td></tr></table>`
+    case 'pull':
+      return `<div style="margin:36px 0;padding:0 16px;text-align:center;font-family:Georgia,'New York','Iowan Old Style',serif;font-size:24px;line-height:1.35;color:#1d1d1f;font-style:italic;letter-spacing:-0.01em">&ldquo;${escape(block.text || '')}&rdquo;</div>`
+    case 'callout': {
+      const body = paragraphText(block.text || '')
+      const label = block.label
+        ? `<div style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#86868b;font-weight:600;margin-bottom:6px">${escape(block.label)}</div>`
+        : ''
+      return `<div style="margin:24px 0;padding:18px 22px;border:1px solid #e8e8ed;border-radius:10px;background:#fafafa">${label}<div style="font-size:15px;line-height:1.6;color:#1d1d1f">${body}</div></div>`
+    }
+    case 'gallery': {
+      const cells = (block.images ?? [])
+        .map((img) => {
+          const src = safeUrl(img.src)
+          if (!src) return ''
+          const alt = escape(img.alt || '')
+          const caption = img.caption
+            ? `<div style="font-size:11.5px;color:#86868b;margin-top:6px;text-align:center;line-height:1.4">${escape(img.caption)}</div>`
+            : ''
+          return `<td valign="top" style="vertical-align:top;width:50%;padding:0 4px"><img src="${escape(src)}" alt="${alt}" style="max-width:100%;height:auto;display:block;border-radius:8px">${caption}</td>`
+        })
+        .filter(Boolean)
+        .join('')
+      if (!cells) return ''
+      return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width:100%;margin:20px 0"><tr>${cells}</tr></table>`
+    }
+    case 'embed': {
+      const url = safeUrl(block.url)
+      if (!url) return ''
+      const caption = block.caption
+        ? `<div style="font-size:12px;color:#86868b;margin-top:8px">${escape(block.caption)}</div>`
+        : ''
+      return `<div style="margin:22px 0;padding:18px 22px;border:1px solid #e8e8ed;border-radius:10px;background:#fafafa"><div style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#86868b;font-weight:600;margin-bottom:6px">Embed</div><a href="${escape(url)}" target="_blank" rel="noreferrer" style="font-size:14px;color:#1d1d1f;word-break:break-all;text-decoration:none">${escape(url)}</a>${caption}</div>`
+    }
+    case 'poll': {
+      const question = escape(block.question || '')
+      const rows = (block.options ?? [])
+        .map(
+          (opt) =>
+            `<tr><td style="padding:10px 14px;border:1px solid #e8e8ed;border-radius:8px;font-size:14px;color:#1d1d1f;background:#ffffff">${escape(opt.text || '')}</td></tr><tr><td height="8"></td></tr>`,
+        )
+        .join('')
+      const body =
+        rows ||
+        '<tr><td style="font-size:13px;color:#86868b">(No options yet)</td></tr>'
+      return `<div style="margin:24px 0;padding:20px;border:1px solid #e8e8ed;border-radius:12px;background:#fafafa"><div style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:${accent};font-weight:600;margin-bottom:8px">Poll</div><div style="font-size:16px;font-weight:600;color:#1d1d1f;margin-bottom:14px;letter-spacing:-0.01em">${question}</div><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width:100%">${body}</table></div>`
+    }
+    case 'paywall': {
+      const headline = escape(block.headline || 'Subscribe to keep reading')
+      const bodyHtml = paragraphText(
+        block.body || 'The rest of this post is for paying subscribers.',
+      )
+      const ctaText = escape(block.cta_text || 'Become a subscriber')
+      const ctaUrl = safeUrl(block.cta_url)
+      const cta = ctaUrl
+        ? `<a href="${escape(ctaUrl)}" target="_blank" rel="noreferrer" style="display:inline-block;background:${accent};color:#fff;padding:11px 22px;border-radius:8px;font-size:14px;font-weight:500;text-decoration:none;margin-top:14px">${ctaText}</a>`
+        : `<span style="display:inline-block;background:${accent};color:#fff;padding:11px 22px;border-radius:8px;font-size:14px;font-weight:500;margin-top:14px">${ctaText}</span>`
+      return `<div style="margin:32px 0;padding:28px;border:1px solid #e8e8ed;border-radius:14px;background:#ffffff;text-align:center"><div style="font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:${accent};font-weight:700;margin-bottom:10px">✨ Members only</div><div style="font-size:20px;font-weight:600;color:#1d1d1f;letter-spacing:-0.01em;margin-bottom:8px">${headline}</div><div style="font-size:14px;line-height:1.55;color:#6e6e73">${bodyHtml}</div>${cta}</div>`
+    }
+    case 'audio': {
+      const target = safeUrl(block.embed_url) || safeUrl(block.src)
+      if (!target) return ''
+      const title = escape(block.title || 'Listen to this issue')
+      let meta = ''
+      const dur = block.duration_seconds
+      if (typeof dur === 'number' && dur > 0) {
+        const minutes = Math.floor(dur / 60)
+        const seconds = Math.floor(dur % 60)
+        meta = `<div style="font-size:11.5px;color:#86868b;margin-top:2px">${minutes}:${seconds.toString().padStart(2, '0')}</div>`
+      }
+      return `<a href="${escape(target)}" target="_blank" rel="noreferrer" style="display:block;text-decoration:none;margin:22px 0"><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width:100%;background:#fafafa;border:1px solid #e8e8ed;border-radius:12px"><tr><td style="width:54px;padding:14px 0 14px 16px"><div style="width:40px;height:40px;border-radius:50%;background:${accent};color:#fff;display:inline-block;text-align:center;line-height:40px;font-size:14px">▶</div></td><td style="padding:14px 16px"><div style="font-size:14px;font-weight:600;color:#1d1d1f;letter-spacing:-0.005em">${title}</div>${meta}</td></tr></table></a>`
+    }
     default:
       return ''
   }

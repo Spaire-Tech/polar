@@ -374,6 +374,206 @@ def _render_digest_item(block: dict[str, Any], accent: str) -> str:
     )
 
 
+def _render_pull(block: dict[str, Any]) -> str:
+    text = _esc(block.get("text") or "")
+    return (
+        f'<div style="margin:36px 0;padding:0 16px;text-align:center;'
+        f'font-family:Georgia,\'New York\',\'Iowan Old Style\',serif;'
+        f'font-size:24px;line-height:1.35;color:#1d1d1f;'
+        f'font-style:italic;letter-spacing:-0.01em">'
+        f"“{text}”</div>"
+    )
+
+
+def _render_callout(block: dict[str, Any]) -> str:
+    label_raw = block.get("label")
+    body = _paragraph_text(block.get("text") or "")
+    label = (
+        f'<div style="font-size:11px;letter-spacing:0.1em;'
+        f'text-transform:uppercase;color:#86868b;font-weight:600;'
+        f'margin-bottom:6px">{_esc(label_raw)}</div>'
+        if label_raw
+        else ""
+    )
+    return (
+        f'<div style="margin:24px 0;padding:18px 22px;'
+        f'border:1px solid #e8e8ed;border-radius:10px;background:#fafafa">'
+        f"{label}"
+        f'<div style="font-size:15px;line-height:1.6;color:#1d1d1f">'
+        f"{body}</div></div>"
+    )
+
+
+def _render_gallery(block: dict[str, Any]) -> str:
+    images = block.get("images") or []
+    if not isinstance(images, list):
+        return ""
+    cells: list[str] = []
+    for img in images:
+        if not isinstance(img, dict):
+            continue
+        src = _safe_url(img.get("src"))
+        if not src:
+            continue
+        alt = _attr(img.get("alt") or "")
+        caption_raw = img.get("caption")
+        caption = (
+            f'<div style="font-size:11.5px;color:#86868b;'
+            f'margin-top:6px;text-align:center;line-height:1.4">'
+            f"{_esc(caption_raw)}</div>"
+            if caption_raw
+            else ""
+        )
+        cells.append(
+            f'<td valign="top" style="vertical-align:top;width:50%;'
+            f'padding:0 4px">'
+            f'<img src="{_attr(src)}" alt="{alt}" '
+            f'style="max-width:100%;height:auto;display:block;'
+            f'border-radius:8px">{caption}</td>'
+        )
+    if not cells:
+        return ""
+    return (
+        '<table role="presentation" cellspacing="0" cellpadding="0" '
+        'border="0" style="width:100%;margin:20px 0"><tr>'
+        + "".join(cells)
+        + "</tr></table>"
+    )
+
+
+def _render_embed(block: dict[str, Any]) -> str:
+    # Email clients won't load arbitrary iframes — fall back to a card
+    # with the URL and an optional caption. Once oEmbed resolution lands
+    # server-side we can swap to a preview thumbnail.
+    url = _safe_url(block.get("url"))
+    if not url:
+        return ""
+    caption_raw = block.get("caption")
+    caption = (
+        f'<div style="font-size:12px;color:#86868b;margin-top:8px">'
+        f"{_esc(caption_raw)}</div>"
+        if caption_raw
+        else ""
+    )
+    return (
+        f'<div style="margin:22px 0;padding:18px 22px;'
+        f'border:1px solid #e8e8ed;border-radius:10px;background:#fafafa">'
+        f'<div style="font-size:11px;letter-spacing:0.1em;'
+        f'text-transform:uppercase;color:#86868b;font-weight:600;'
+        f'margin-bottom:6px">Embed</div>'
+        f'<a href="{_attr(url)}" target="_blank" rel="noreferrer" '
+        f'style="font-size:14px;color:#1d1d1f;word-break:break-all;'
+        f'text-decoration:none">{_esc(url)}</a>'
+        f"{caption}</div>"
+    )
+
+
+def _render_poll(block: dict[str, Any], accent: str) -> str:
+    question = _esc(block.get("question") or "")
+    options = block.get("options") or []
+    if not isinstance(options, list):
+        options = []
+    rows: list[str] = []
+    for opt in options:
+        if not isinstance(opt, dict):
+            continue
+        text = _esc(opt.get("text") or "")
+        rows.append(
+            f'<tr><td style="padding:10px 14px;border:1px solid #e8e8ed;'
+            f'border-radius:8px;font-size:14px;color:#1d1d1f;'
+            f'background:#ffffff">{text}</td></tr>'
+            f'<tr><td height="8"></td></tr>'
+        )
+    body = "".join(rows) if rows else (
+        '<tr><td style="font-size:13px;color:#86868b">'
+        "(No options yet)</td></tr>"
+    )
+    return (
+        f'<div style="margin:24px 0;padding:20px;border:1px solid #e8e8ed;'
+        f'border-radius:12px;background:#fafafa">'
+        f'<div style="font-size:11px;letter-spacing:0.1em;'
+        f'text-transform:uppercase;color:{accent};font-weight:600;'
+        f'margin-bottom:8px">Poll</div>'
+        f'<div style="font-size:16px;font-weight:600;color:#1d1d1f;'
+        f'margin-bottom:14px;letter-spacing:-0.01em">{question}</div>'
+        f'<table role="presentation" cellspacing="0" cellpadding="0" '
+        f'border="0" style="width:100%">{body}</table></div>'
+    )
+
+
+def _render_paywall(block: dict[str, Any], accent: str) -> str:
+    # The block is a marker — at send time, per-recipient render decides
+    # whether to keep showing content past this point or truncate. This
+    # function renders the "subscribe to continue" card itself; the
+    # truncation lives in the publish task / web archive route.
+    headline = _esc(block.get("headline") or "Subscribe to keep reading")
+    body_raw = block.get("body") or (
+        "The rest of this post is for paying subscribers."
+    )
+    body = _paragraph_text(body_raw)
+    cta_text = _esc(block.get("cta_text") or "Become a subscriber")
+    cta_url = _safe_url(block.get("cta_url"))
+    cta = (
+        f'<a href="{_attr(cta_url)}" target="_blank" rel="noreferrer" '
+        f'style="display:inline-block;background:{accent};color:#fff;'
+        f'padding:11px 22px;border-radius:8px;font-size:14px;'
+        f'font-weight:500;text-decoration:none;margin-top:14px">'
+        f"{cta_text}</a>"
+        if cta_url
+        else (
+            f'<span style="display:inline-block;background:{accent};'
+            f'color:#fff;padding:11px 22px;border-radius:8px;'
+            f'font-size:14px;font-weight:500;margin-top:14px">'
+            f"{cta_text}</span>"
+        )
+    )
+    return (
+        f'<div style="margin:32px 0;padding:28px;border:1px solid #e8e8ed;'
+        f'border-radius:14px;background:#ffffff;text-align:center">'
+        f'<div style="font-size:11px;letter-spacing:0.12em;'
+        f'text-transform:uppercase;color:{accent};font-weight:700;'
+        f'margin-bottom:10px">✨ Members only</div>'
+        f'<div style="font-size:20px;font-weight:600;color:#1d1d1f;'
+        f'letter-spacing:-0.01em;margin-bottom:8px">{headline}</div>'
+        f'<div style="font-size:14px;line-height:1.55;color:#6e6e73">'
+        f"{body}</div>{cta}</div>"
+    )
+
+
+def _render_audio(block: dict[str, Any], accent: str) -> str:
+    # Email clients ignore <audio>. Render a styled play card linking
+    # out to the hosted audio. The web archive substitutes a native
+    # <audio> element using the same `src`.
+    target = _safe_url(block.get("embed_url")) or _safe_url(block.get("src"))
+    if not target:
+        return ""
+    title = _esc(block.get("title") or "Listen to this issue")
+    duration = block.get("duration_seconds")
+    meta = ""
+    if isinstance(duration, (int, float)) and duration > 0:
+        minutes = int(duration // 60)
+        seconds = int(duration % 60)
+        meta = (
+            f'<div style="font-size:11.5px;color:#86868b;margin-top:2px">'
+            f"{minutes}:{seconds:02d}</div>"
+        )
+    return (
+        f'<a href="{_attr(target)}" target="_blank" rel="noreferrer" '
+        f'style="display:block;text-decoration:none;margin:22px 0">'
+        f'<table role="presentation" cellspacing="0" cellpadding="0" '
+        f'border="0" style="width:100%;background:#fafafa;'
+        f'border:1px solid #e8e8ed;border-radius:12px"><tr>'
+        f'<td style="width:54px;padding:14px 0 14px 16px">'
+        f'<div style="width:40px;height:40px;border-radius:50%;'
+        f'background:{accent};color:#fff;display:inline-block;'
+        f'text-align:center;line-height:40px;font-size:14px">▶</div></td>'
+        f'<td style="padding:14px 16px">'
+        f'<div style="font-size:14px;font-weight:600;color:#1d1d1f;'
+        f'letter-spacing:-0.005em">{title}</div>{meta}</td>'
+        f"</tr></table></a>"
+    )
+
+
 def _safe_color(color: Any) -> str:
     if not isinstance(color, str):
         return "#1d1d1f"
@@ -466,6 +666,20 @@ def render_blocks_to_html(content_json: dict[str, Any] | None) -> str:
             chunk = _render_receipt(block)
         elif block_type == "digest-item":
             chunk = _render_digest_item(block, accent)
+        elif block_type == "pull":
+            chunk = _render_pull(block)
+        elif block_type == "callout":
+            chunk = _render_callout(block)
+        elif block_type == "gallery":
+            chunk = _render_gallery(block)
+        elif block_type == "embed":
+            chunk = _render_embed(block)
+        elif block_type == "poll":
+            chunk = _render_poll(block, accent)
+        elif block_type == "paywall":
+            chunk = _render_paywall(block, accent)
+        elif block_type == "audio":
+            chunk = _render_audio(block, accent)
         if chunk:
             rendered.append(chunk)
     return "\n".join(rendered)
