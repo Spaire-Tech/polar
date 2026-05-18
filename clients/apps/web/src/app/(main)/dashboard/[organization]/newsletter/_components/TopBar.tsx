@@ -33,6 +33,8 @@ export function TopBar({
   onOpenPalette,
   onPublish,
   userInitials,
+  railOpen,
+  setRailOpen,
 }: {
   organizationName: string
   newsletterName: string | null
@@ -49,6 +51,8 @@ export function TopBar({
   onOpenPalette: () => void
   onPublish: () => void
   userInitials: string
+  railOpen: boolean
+  setRailOpen: (next: boolean) => void
 }) {
   return (
     <header
@@ -66,6 +70,25 @@ export function TopBar({
         backdropFilter: 'saturate(180%) blur(12px)',
       }}
     >
+      <button
+        type="button"
+        title={railOpen ? 'Hide sidebar' : 'Show sidebar'}
+        aria-label={railOpen ? 'Hide sidebar' : 'Show sidebar'}
+        onClick={() => setRailOpen(!railOpen)}
+        style={{
+          width: 28,
+          height: 28,
+          borderRadius: 6,
+          border: '1px solid #e5e5ea',
+          background: railOpen ? '#f0f0f3' : '#fff',
+          display: 'grid',
+          placeItems: 'center',
+          cursor: 'pointer',
+          color: '#3a3a3c',
+        }}
+      >
+        <Icon name="list" size={13} />
+      </button>
       <Brand />
       <Breadcrumb
         organizationName={organizationName}

@@ -186,3 +186,18 @@ class NewsletterSubscriptionRead(TimestampedSchema):
     tier: Literal["free", "paid"]
     subscribed_at: datetime
     unsubscribed_at: datetime | None
+
+
+# ---- AI transform ----------------------------------------------------
+
+
+class NewsletterPostAITransformRequest(Schema):
+    text: str = Field(min_length=1, max_length=4000)
+    action: Literal["polish", "shorter", "longer", "grammar", "tone"]
+    # Free-form tone label used when action == "tone"
+    # (e.g. "warm", "formal", "playful"). Ignored otherwise.
+    tone: str | None = Field(default=None, max_length=40)
+
+
+class NewsletterPostAITransformResponse(Schema):
+    text: str

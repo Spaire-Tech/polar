@@ -52,6 +52,11 @@ export type PostMeta = {
   tags: string[]
 }
 
+export type TextSelectionAnchor = {
+  text: string
+  rect: { left: number; top: number; right: number; bottom: number }
+}
+
 export function PostEditor({
   meta,
   setMeta,
@@ -59,6 +64,7 @@ export function PostEditor({
   setDoc,
   accent,
   uploadImage,
+  onTextSelection,
 }: {
   meta: PostMeta
   setMeta: (next: PostMeta) => void
@@ -66,6 +72,11 @@ export function PostEditor({
   setDoc: (next: PostDoc) => void
   accent?: string
   uploadImage?: CoverImageUploader
+  // Notify the host whenever the user makes (or clears) a non-empty
+  // selection inside the body. The host renders the AI popover; we
+  // just report rect + text so the popover can anchor and the host
+  // can do the splice.
+  onTextSelection?: (anchor: TextSelectionAnchor | null) => void
 }) {
   const [slash, setSlash] = useState<{
     x: number
@@ -92,8 +103,42 @@ export function PostEditor({
   const openSlash = (afterId: BlockId | null, anchor: DOMRect) =>
     setSlash({ afterId, x: anchor.left, y: anchor.bottom + 6 })
 
+  // Surface a non-empty selection inside the canvas to the host so it
+  // can show the AI popover. Fires on mouseup (selection just ended)
+  // and on keyup (selection extended via shift+arrow keys).
+  const reportSelection = () => {
+    if (!onTextSelection) return
+    const sel = window.getSelection()
+    if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
+      onTextSelection(null)
+      return
+    }
+    const text = sel.toString()
+    if (!text.trim()) {
+      onTextSelection(null)
+      return
+    }
+    const rect = sel.getRangeAt(0).getBoundingClientRect()
+    if (rect.width === 0 && rect.height === 0) {
+      // Selection collapsed in some way between read and rect; bail.
+      onTextSelection(null)
+      return
+    }
+    onTextSelection({
+      text,
+      rect: {
+        left: rect.left,
+        top: rect.top,
+        right: rect.right,
+        bottom: rect.bottom,
+      },
+    })
+  }
+
   return (
     <div
+      onMouseUp={reportSelection}
+      onKeyUp={reportSelection}
       style={{
         maxWidth: 720,
         margin: '0 auto',

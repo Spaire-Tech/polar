@@ -138,12 +138,20 @@ export function StyleView({
   theme,
   setTheme,
   onSendTest,
+  onSaveAsNewsletterDefault,
+  saveAsDefaultStatus,
 }: {
   meta: PostMeta
   doc: ContentDoc
   theme: Theme
   setTheme: (next: Theme) => void
   onSendTest?: () => void
+  // When provided, the Presets row shows a "Save as newsletter
+  // default" button that promotes the resolved post-level theme onto
+  // Newsletter.theme so every future post in this newsletter inherits
+  // it. The host owns the mutation + status.
+  onSaveAsNewsletterDefault?: () => void
+  saveAsDefaultStatus?: 'idle' | 'saving' | 'saved' | 'error'
 }) {
   const [device, setDevice] = useState<Device>('desktop')
   const [tab, setTab] = useState<'basic' | 'advanced'>('basic')
@@ -186,6 +194,8 @@ export function StyleView({
         patchColors={patchColors}
         patchTypography={patchTypography}
         patchSpacing={patchSpacing}
+        onSaveAsNewsletterDefault={onSaveAsNewsletterDefault}
+        saveAsDefaultStatus={saveAsDefaultStatus}
       />
     </div>
   )
@@ -460,6 +470,8 @@ function SidePanel({
   patchColors,
   patchTypography,
   patchSpacing,
+  onSaveAsNewsletterDefault,
+  saveAsDefaultStatus,
 }: {
   tab: 'basic' | 'advanced'
   setTab: (t: 'basic' | 'advanced') => void
@@ -468,6 +480,8 @@ function SidePanel({
   patchColors: (delta: Partial<NonNullable<Theme['colors']>>) => void
   patchTypography: (delta: Partial<NonNullable<Theme['typography']>>) => void
   patchSpacing: (delta: Partial<NonNullable<Theme['spacing']>>) => void
+  onSaveAsNewsletterDefault?: () => void
+  saveAsDefaultStatus?: 'idle' | 'saving' | 'saved' | 'error'
 }) {
   return (
     <aside
@@ -576,6 +590,55 @@ function SidePanel({
       )}
 
       <Presets onPick={onPickPreset} />
+
+      {onSaveAsNewsletterDefault && (
+        <button
+          type="button"
+          onClick={onSaveAsNewsletterDefault}
+          disabled={saveAsDefaultStatus === 'saving'}
+          style={{
+            marginTop: 14,
+            width: '100%',
+            padding: '9px 12px',
+            border: '1px solid #e5e5ea',
+            borderRadius: 8,
+            background: '#fff',
+            fontSize: 12.5,
+            color: '#1d1d1f',
+            cursor:
+              saveAsDefaultStatus === 'saving' ? 'default' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+          }}
+        >
+          {saveAsDefaultStatus === 'saving' ? (
+            'Saving…'
+          ) : saveAsDefaultStatus === 'saved' ? (
+            <>
+              <Icon name="check" size={12} /> Saved as default
+            </>
+          ) : saveAsDefaultStatus === 'error' ? (
+            'Save failed — retry'
+          ) : (
+            'Save as newsletter default'
+          )}
+        </button>
+      )}
+      {onSaveAsNewsletterDefault && (
+        <div
+          style={{
+            marginTop: 6,
+            fontSize: 11,
+            color: '#86868b',
+            lineHeight: 1.45,
+          }}
+        >
+          Applies this theme to every future post in this newsletter.
+          Existing posts keep their own overrides.
+        </div>
+      )}
     </aside>
   )
 }

@@ -278,6 +278,33 @@ export const useTestSendNewsletterPost = () =>
       ),
   })
 
+export type AITransformAction =
+  | 'polish'
+  | 'shorter'
+  | 'longer'
+  | 'grammar'
+  | 'tone'
+
+export const useAITransformNewsletterPost = () =>
+  useMutation({
+    mutationFn: ({
+      postId,
+      text,
+      action,
+      tone,
+    }: {
+      postId: string
+      text: string
+      action: AITransformAction
+      tone?: string
+    }) =>
+      fetchApiWrite<{ text: string }>(
+        `/v1/newsletters/posts/${postId}/ai-transform`,
+        'POST',
+        { text, action, tone },
+      ),
+  })
+
 // ── Public archive ────────────────────────────────────────────────────
 
 export type PublicNewsletterPost = {

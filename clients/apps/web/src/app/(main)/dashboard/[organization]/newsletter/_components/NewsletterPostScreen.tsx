@@ -4,12 +4,13 @@ import { useUploadEmailImage } from '@/hooks/queries/emailMarketing'
 import {
   useNewsletter,
   useNewsletterPost,
+  useUpdateNewsletter,
   useUpdateNewsletterPost,
 } from '@/hooks/queries/newsletters'
 import { useAuth } from '@/hooks'
 import { schemas } from '@spaire/client'
 import { useRouter } from 'next/navigation'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Icon } from '../../email-marketing/_components/Icon'
 import { useAutosave } from '../../email-marketing/_components/blockEditor/useAutosave'
 import { useDocHistory } from '../../email-marketing/_components/blockEditor/useDocHistory'
@@ -18,8 +19,10 @@ import {
   ContentDoc,
 } from '../../email-marketing/_components/blockEditor/types'
 import { Theme } from '../../email-marketing/_components/blockEditor/render'
+import { AIPopover } from './AIPopover'
 import { CommandPalette, Command } from './CommandPalette'
-import { PostEditor, PostMeta } from './PostEditor'
+import { LeftRail } from './LeftRail'
+import { PostEditor, PostMeta, TextSelectionAnchor } from './PostEditor'
 import { StyleView } from './StyleView'
 import { EditorMode, TopBar } from './TopBar'
 
@@ -51,6 +54,7 @@ export function NewsletterPostScreen({
   const { data: post, isLoading, error } = useNewsletterPost(postId)
   const { data: newsletter } = useNewsletter(post?.newsletter_id)
   const updateMutation = useUpdateNewsletterPost()
+  const updateNewsletter = useUpdateNewsletter()
   const uploadMutation = useUploadEmailImage(organization.id)
   const { currentUser } = useAuth()
 
@@ -131,10 +135,88 @@ export function NewsletterPostScreen({
   )
   const status = useAutosave({ meta, doc, theme }, save, { enabled: hydrated })
 
-  // ── Mode / palette ──────────────────────────────────────────────
+  // ── Mode / palette / AI ─────────────────────────────────────────
 
   const [mode, setMode] = useState<EditorMode>('write')
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const [railOpen, setRailOpen] = useState(true)
+  const [saveDefaultStatus, setSaveDefaultStatus] = useState<
+    'idle' | 'saving' | 'saved' | 'error'
+  >('idle')
+
+  // Promote the post-level theme overrides onto Newsletter.theme so
+  // every future post in this newsletter inherits this look. We also
+  // clear the post's own overrides since they now exactly match the
+  // newsletter default — keeping them around would shadow future
+  // newsletter-level edits.
+  const saveThemeAsDefault = useCallback(async () => {
+    if (!post) return
+    setSaveDefaultStatus('saving')
+    try {
+      await updateNewsletter.mutateAsync({
+        newsletterId: post.newsletter_id,
+        body: { theme: theme as unknown as Record<string, unknown> },
+      })
+      await updateMutation.mutateAsync({
+        postId: post.id,
+        body: { theme_overrides: null },
+      })
+      setTheme({})
+      setSaveDefaultStatus('saved')
+      window.setTimeout(() => setSaveDefaultStatus('idle'), 2000)
+    } catch {
+      setSaveDefaultStatus('error')
+      window.setTimeout(() => setSaveDefaultStatus('idle'), 2500)
+    }
+  }, [post, theme, updateNewsletter, updateMutation])
+  const [aiAnchor, setAiAnchor] = useState<TextSelectionAnchor | null>(null)
+  // The Range captured at the moment the selection was reported. We
+  // keep it in a ref because the popover renders synchronously, but
+  // when the user clicks Apply we splice the AI result back at the
+  // ORIGINAL selection (not whatever's selected now — they may have
+  // clicked into the popover).
+  const aiRangeRef = useRef<Range | null>(null)
+  const handleTextSelection = useCallback(
+    (anchor: TextSelectionAnchor | null) => {
+      if (anchor) {
+        const sel = window.getSelection()
+        if (sel && sel.rangeCount > 0) {
+          aiRangeRef.current = sel.getRangeAt(0).cloneRange()
+        }
+        setAiAnchor(anchor)
+      } else {
+        aiRangeRef.current = null
+        setAiAnchor(null)
+      }
+    },
+    [],
+  )
+  const applyAITransform = useCallback((next: string) => {
+    const range = aiRangeRef.current
+    aiRangeRef.current = null
+    setAiAnchor(null)
+    if (!range) return
+    // Splice the new text into the contentEditable that owned the
+    // selection. We dispatch an `input` event afterwards so
+    // EditableText's listener re-reads the DOM and pushes the new
+    // value up to React state — same path a regular keystroke takes.
+    try {
+      range.deleteContents()
+      range.insertNode(document.createTextNode(next))
+      const container =
+        range.startContainer.nodeType === Node.ELEMENT_NODE
+          ? (range.startContainer as Element)
+          : range.startContainer.parentElement
+      const editable = container?.closest('[contenteditable="true"]')
+      if (editable) {
+        editable.dispatchEvent(new Event('input', { bubbles: true }))
+      }
+    } catch {
+      // Range invalidated (e.g. block deleted between trigger and
+      // apply). Swallow — the popover is already closed, and the
+      // user can retry.
+    }
+  }, [])
 
   // ── Actions (declared before keyboard listener so it can capture them) ──
 
@@ -233,30 +315,64 @@ export function NewsletterPostScreen({
         onOpenPalette={() => setPaletteOpen(true)}
         onPublish={publish}
         userInitials={userInitials}
+        railOpen={railOpen}
+        setRailOpen={setRailOpen}
       />
 
-      {mode === 'write' ? (
-        <PostEditor
-          meta={meta}
-          setMeta={setMeta}
-          doc={doc}
-          setDoc={history.set}
-          uploadImage={uploadImage}
-          accent={doc.accent}
-        />
-      ) : (
-        <StyleView
-          meta={meta}
-          doc={doc}
-          theme={theme}
-          setTheme={setTheme}
-        />
-      )}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: railOpen && mode === 'write' ? '220px 1fr' : '1fr',
+          minHeight: 'calc(100vh - 56px)',
+        }}
+      >
+        {railOpen && mode === 'write' && (
+          <LeftRail
+            organizationSlug={organization.slug}
+            currentPostId={postId}
+            newsletterId={post.newsletter_id}
+            doc={doc}
+            wordCount={wordCount}
+          />
+        )}
+        {mode === 'write' ? (
+          <PostEditor
+            meta={meta}
+            setMeta={setMeta}
+            doc={doc}
+            setDoc={history.set}
+            uploadImage={uploadImage}
+            accent={doc.accent}
+            onTextSelection={handleTextSelection}
+          />
+        ) : (
+          <StyleView
+            meta={meta}
+            doc={doc}
+            theme={theme}
+            setTheme={setTheme}
+            onSaveAsNewsletterDefault={saveThemeAsDefault}
+            saveAsDefaultStatus={saveDefaultStatus}
+          />
+        )}
+      </div>
 
       {paletteOpen && (
         <CommandPalette
           commands={commands}
           onClose={() => setPaletteOpen(false)}
+        />
+      )}
+
+      {aiAnchor && mode === 'write' && (
+        <AIPopover
+          postId={postId}
+          anchor={aiAnchor}
+          onApply={applyAITransform}
+          onClose={() => {
+            aiRangeRef.current = null
+            setAiAnchor(null)
+          }}
         />
       )}
     </div>

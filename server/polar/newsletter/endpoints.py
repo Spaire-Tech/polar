@@ -21,6 +21,8 @@ from polar.kit.schemas import Schema
 
 from .schemas import (
     NewsletterCreate,
+    NewsletterPostAITransformRequest,
+    NewsletterPostAITransformResponse,
     NewsletterPostCreate,
     NewsletterPostRead,
     NewsletterPostUpdate,
@@ -370,3 +372,44 @@ async def test_send_post(
     if post is None:
         raise HTTPException(status_code=404, detail="Post not found")
     await newsletter_service.send_test_post(session, post, to_email=body.email)
+
+
+# ---- AI transform --------------------------------------------------
+#
+# Stateless text-in / text-out endpoint backing the editor's inline AI
+# popover. The auth check verifies the requester owns a post — we
+# don't need the post itself, just the org ACL — and then the request
+# delegates to the transformer service. We deliberately don't persist
+# the prompt / response (the document on disk is the source of truth
+# and the user can always re-run the action).
+
+
+@router.post(
+    "/posts/{post_id}/ai-transform",
+    response_model=NewsletterPostAITransformResponse,
+)
+async def ai_transform_post(
+    post_id: UUID,
+    body: NewsletterPostAITransformRequest,
+    auth_subject: auth.NewslettersWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> NewsletterPostAITransformResponse:
+    repo = NewsletterPostRepository.from_session(session)
+    post = await repo.get_readable_by_id(post_id, auth_subject)
+    if post is None:
+        raise HTTPException(status_code=404, detail="Post not found")
+    from .ai import get_ai_transformer
+
+    try:
+        text = await get_ai_transformer().transform(
+            text=body.text,
+            action=body.action,
+            tone=body.tone,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except TimeoutError as exc:
+        raise HTTPException(
+            status_code=504, detail="AI transform timed out"
+        ) from exc
+    return NewsletterPostAITransformResponse(text=text)
