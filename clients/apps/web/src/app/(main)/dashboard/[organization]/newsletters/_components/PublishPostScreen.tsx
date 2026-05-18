@@ -65,9 +65,11 @@ const fromPost = (p: NewsletterPostRow): Snapshot => ({
 
 export function PublishPostScreen({
   organization,
+  newsletterId,
   postId,
 }: {
   organization: schemas['Organization']
+  newsletterId: string
   postId: string
 }) {
   const router = useRouter()
@@ -113,12 +115,12 @@ export function PublishPostScreen({
       {
         onSuccess: () => {
           router.push(
-            `/dashboard/${organization.slug}/newsletter/${post.id}`,
+            `/dashboard/${organization.slug}/newsletters/${newsletterId}/posts/${post.id}`,
           )
         },
       },
     )
-  }, [post, publishMutation, router, organization.slug])
+  }, [post, publishMutation, router, organization.slug, newsletterId])
 
   const onTestSend = useCallback(
     async (email: string) => {
@@ -146,7 +148,7 @@ export function PublishPostScreen({
         }}
       >
         <BackLink
-          href={`/dashboard/${organization.slug}/newsletter/${post.id}`}
+          href={`/dashboard/${organization.slug}/newsletters/${newsletterId}/posts/${post.id}`}
         />
 
         <h1
@@ -776,7 +778,6 @@ function ScheduleCard({
           icon="zap"
           label="Smart-time"
           desc="Each subscriber gets it at their most-likely-to-open hour."
-          accent
           onClick={() => onChange({ send_mode: 'smart_time' })}
         />
         <ScheduleOption
@@ -827,14 +828,12 @@ function ScheduleOption({
   icon,
   label,
   desc,
-  accent,
   onClick,
 }: {
   on: boolean
   icon: string
   label: string
   desc: string
-  accent?: boolean
   onClick: () => void
 }) {
   return (
@@ -867,18 +866,6 @@ function ScheduleOption({
       <div style={{ marginTop: 4, fontSize: 12, color: '#86868b', lineHeight: 1.45 }}>
         {desc}
       </div>
-      {accent && (
-        <div
-          style={{
-            marginTop: 6,
-            fontSize: 11.5,
-            fontWeight: 500,
-            color: '#4f46e5',
-          }}
-        >
-          +18% open rate on average
-        </div>
-      )}
     </button>
   )
 }

@@ -41,6 +41,24 @@ export type Theme = {
   }
 }
 
+// Shallow merge for the resolved theme. Same shape semantics as the
+// server's `resolve_theme`: top-level scope keys (colors / typography
+// / spacing) shallow-merge their values. The newsletter is the base
+// and the post override wins per-key. Either side may be undefined.
+export function resolveTheme(
+  newsletterTheme: Theme | undefined | null,
+  postOverrides: Theme | undefined | null,
+): Theme {
+  if (!newsletterTheme && !postOverrides) return {}
+  const a = (newsletterTheme ?? {}) as Theme
+  const b = (postOverrides ?? {}) as Theme
+  return {
+    colors: { ...(a.colors ?? {}), ...(b.colors ?? {}) },
+    typography: { ...(a.typography ?? {}), ...(b.typography ?? {}) },
+    spacing: { ...(a.spacing ?? {}), ...(b.spacing ?? {}) },
+  }
+}
+
 // Mirrors FONT_STACKS in server/polar/newsletter/theme.py.
 const FONT_STACKS: Record<string, string> = {
   default:

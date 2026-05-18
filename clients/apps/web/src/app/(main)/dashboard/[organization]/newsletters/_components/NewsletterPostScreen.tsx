@@ -4,6 +4,7 @@ import { useUploadEmailImage } from '@/hooks/queries/emailMarketing'
 import {
   useNewsletter,
   useNewsletterPost,
+  useTestSendNewsletterPost,
   useUpdateNewsletter,
   useUpdateNewsletterPost,
 } from '@/hooks/queries/newsletters'
@@ -18,7 +19,10 @@ import {
   Block,
   ContentDoc,
 } from '../../email-marketing/_components/blockEditor/types'
-import { Theme } from '../../email-marketing/_components/blockEditor/render'
+import {
+  Theme,
+  resolveTheme,
+} from '../../email-marketing/_components/blockEditor/render'
 import { AIPopover } from './AIPopover'
 import { CommandPalette, Command } from './CommandPalette'
 import { LeftRail } from './LeftRail'
@@ -45,9 +49,11 @@ const BLANK_META: PostMeta = {
 
 export function NewsletterPostScreen({
   organization,
+  newsletterId,
   postId,
 }: {
   organization: schemas['Organization']
+  newsletterId: string
   postId: string
 }) {
   const router = useRouter()
@@ -79,7 +85,6 @@ export function NewsletterPostScreen({
     // disallows setState in effects in general, but this is the legit
     // hydration pattern: the editor takes ownership of an async-loaded
     // document so typing is instant and autosave debounces locally.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMeta({
       title: post.title ?? '',
       subtitle: post.subtitle ?? '',
@@ -90,11 +95,34 @@ export function NewsletterPostScreen({
     if (post.content_json && isContentDoc(post.content_json)) {
       setDocRaw(post.content_json)
     }
+    // Hydrate `theme` with the RESOLVED merge of newsletter.theme +
+    // post.theme_overrides, not just the override. That way the Style
+    // view's preview shows what the post actually renders with
+    // (audit fix #6) — including newsletter-level brand defaults.
+    // We can't read newsletter.theme synchronously here (it loads via
+    // its own query), so the hook below re-resolves once `newsletter`
+    // arrives. For the first paint we use whatever the post carries.
     if (post.theme_overrides && typeof post.theme_overrides === 'object') {
       setTheme(post.theme_overrides as Theme)
     }
     setHydrated(true)
   }, [post, hydrated])
+
+  // After the newsletter loads, fold its `theme` into the local state
+  // (additive — the post overrides we may have already set win). This
+  // runs once when the newsletter arrives, then never again — the
+  // user's edits drive the state from here on.
+  const [themeMerged, setThemeMerged] = useState(false)
+  useEffect(() => {
+    if (themeMerged || !newsletter || !hydrated) return
+    const resolved = resolveTheme(
+      newsletter.theme as Theme | undefined,
+      theme,
+    )
+    setTheme(resolved)
+    setThemeMerged(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [newsletter, hydrated, themeMerged])
 
   // ── Uploads ─────────────────────────────────────────────────────
 
@@ -105,6 +133,24 @@ export function NewsletterPostScreen({
     },
     [uploadMutation],
   )
+
+  // Surfaced in the Style view's preview pill. Prompts the user for
+  // an inbox; on confirm, hits the same backend test-send the Publish
+  // screen uses. window.prompt is intentionally minimal — Phase 7e
+  // polish leaves the heavier inline-flow to the Publish footer where
+  // it already lives.
+  const testSend = useTestSendNewsletterPost()
+  const onSendTestFromStyle = useCallback(async () => {
+    if (!post) return
+    const email = window.prompt('Send a test of this post to which inbox?')
+    if (!email) return
+    try {
+      await testSend.mutateAsync({ postId: post.id, email })
+      window.alert('Test sent.')
+    } catch {
+      window.alert('Failed to send test.')
+    }
+  }, [post, testSend])
 
   // ── Persistence (autosave) ──────────────────────────────────────
   // Skip while we haven't hydrated yet (avoids overwriting the fetched
@@ -161,7 +207,11 @@ export function NewsletterPostScreen({
         postId: post.id,
         body: { theme_overrides: null },
       })
-      setTheme({})
+      // Audit fix #6: don't drop local `theme` to {} here. The newsletter
+      // now carries the saved values; the post override is null; the
+      // user should keep SEEING what they just saved. The next render
+      // resolves to the same dict (newsletter.theme + null override =
+      // newsletter.theme), so we explicitly set it.
       setSaveDefaultStatus('saved')
       window.setTimeout(() => setSaveDefaultStatus('idle'), 2000)
     } catch {
@@ -227,9 +277,9 @@ export function NewsletterPostScreen({
   const publish = useCallback(() => {
     if (!post) return
     router.push(
-      `/dashboard/${organization.slug}/newsletter/${post.id}/publish`,
+      `/dashboard/${organization.slug}/newsletters/${newsletterId}/posts/${post.id}/publish`,
     )
-  }, [post, router, organization.slug])
+  }, [post, router, organization.slug, newsletterId])
 
   const insertBlockType = useCallback(() => {
     // Palette inserts route through the PostEditor's slash menu in V1;
@@ -351,6 +401,7 @@ export function NewsletterPostScreen({
             doc={doc}
             theme={theme}
             setTheme={setTheme}
+            onSendTest={onSendTestFromStyle}
             onSaveAsNewsletterDefault={saveThemeAsDefault}
             saveAsDefaultStatus={saveDefaultStatus}
           />

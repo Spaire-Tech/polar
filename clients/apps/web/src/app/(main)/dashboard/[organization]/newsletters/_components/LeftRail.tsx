@@ -145,7 +145,7 @@ function PageItem({
 }) {
   return (
     <Link
-      href={`/dashboard/${organizationSlug}/newsletter/${post.id}`}
+      href={`/dashboard/${organizationSlug}/newsletters/${post.newsletter_id}/posts/${post.id}`}
       style={{
         display: 'flex',
         alignItems: 'center',

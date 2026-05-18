@@ -1,14 +1,18 @@
 import { getServerSideAPI } from '@/utils/client/serverside'
 import { getOrganizationBySlugOrNotFound } from '@/utils/organization'
 import { Metadata } from 'next'
-import { NewsletterPostScreen } from '../_components/NewsletterPostScreen'
+import { NewsletterPostScreen } from '../../../_components/NewsletterPostScreen'
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: 'Newsletter post' }
 }
 
 export default async function Page(props: {
-  params: Promise<{ organization: string; postId: string }>
+  params: Promise<{
+    organization: string
+    newsletterId: string
+    postId: string
+  }>
 }) {
   const params = await props.params
   const api = await getServerSideAPI()
@@ -17,6 +21,10 @@ export default async function Page(props: {
     params.organization,
   )
   return (
-    <NewsletterPostScreen organization={organization} postId={params.postId} />
+    <NewsletterPostScreen
+      organization={organization}
+      newsletterId={params.newsletterId}
+      postId={params.postId}
+    />
   )
 }

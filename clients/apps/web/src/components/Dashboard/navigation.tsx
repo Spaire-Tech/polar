@@ -5,6 +5,7 @@ import CodeOutlined from '@mui/icons-material/CodeOutlined'
 import ExtensionOutlined from '@mui/icons-material/ExtensionOutlined'
 import HiveOutlined from '@mui/icons-material/HiveOutlined'
 import LayersOutlined from '@mui/icons-material/LayersOutlined'
+import ArticleOutlined from '@mui/icons-material/ArticleOutlined'
 import MailOutlined from '@mui/icons-material/MailOutlined'
 import OndemandVideoOutlined from '@mui/icons-material/OndemandVideoOutlined'
 import PeopleAltOutlined from '@mui/icons-material/PeopleAltOutlined'
@@ -264,6 +265,16 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
     link: `/dashboard/${org?.slug}/email-marketing`,
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/email-marketing`)
+    },
+    if: true,
+  },
+  {
+    id: 'newsletters',
+    title: 'Newsletters',
+    icon: <ArticleOutlined fontSize="inherit" />,
+    link: `/dashboard/${org?.slug}/newsletters`,
+    checkIsActive: (currentRoute: string): boolean => {
+      return currentRoute.startsWith(`/dashboard/${org?.slug}/newsletters`)
     },
     if: true,
   },
