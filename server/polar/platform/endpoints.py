@@ -190,6 +190,7 @@ async def get_subscription(
     trial_end: datetime | None = None
     cancel_at_period_end = False
     billing_interval: str | None = None
+    is_default_trial = False
 
     if platform_service.is_configured():
         platform_org_id = platform_service.get_id()
@@ -218,6 +219,18 @@ async def get_subscription(
                 current_period_end = subscription.current_period_end
                 trial_end = subscription.trial_end
                 cancel_at_period_end = subscription.cancel_at_period_end
+                # The org-creation hook stamps managed_by=trial on the
+                # auto-attached Pro trial. After the creator goes
+                # through upgrade-checkout, Polar creates a new
+                # subscription on the chosen tier and that becomes the
+                # most-recent active sub — it carries no managed_by, so
+                # is_default_trial flips False. The onboarding review
+                # page reads this to verify a Stripe checkout actually
+                # completed when it sees ?upgraded=1.
+                managed_by = (subscription.user_metadata or {}).get(
+                    "managed_by"
+                )
+                is_default_trial = managed_by == "trial"
 
     return CurrentSpaireSubscription(
         tier=entitlements_dataclass.tier,
@@ -227,6 +240,7 @@ async def get_subscription(
         current_period_end=current_period_end,
         trial_end=trial_end,
         cancel_at_period_end=cancel_at_period_end,
+        is_default_trial=is_default_trial,
         entitlements=Entitlements.from_dataclass(entitlements_dataclass),
     )
 

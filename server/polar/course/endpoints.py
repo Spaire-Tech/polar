@@ -52,6 +52,13 @@ router = APIRouter(
     tags=["courses", APITag.private],
 )
 
+# Conservative projected duration used when reserving quota at upload-
+# initiate time. Mux returns the real duration in the webhook later;
+# this number is just a guard against "upload-initiate always passes
+# because we passed requested_storage_units=0". 10 minutes sits at the
+# 95th percentile of lesson length we see in practice.
+_ESTIMATED_LESSON_SECONDS = 600
+
 
 def _lesson_read(lesson) -> CourseLessonRead:
     return CourseLessonRead(
@@ -591,11 +598,15 @@ async def create_mux_upload(
     if lesson is None:
         raise HTTPException(status_code=404, detail="Lesson not found")
 
-    # Block new uploads if the org is already at its video-hours cap.
-    # Duration is unknown until Mux processes the asset, so we can't
-    # check projected usage precisely — we instead refuse new uploads
-    # outright once the existing total exceeds the limit. Creators can
-    # delete old lessons to make room.
+    # Block new uploads if the org would exceed its video-hours cap.
+    # The actual duration isn't known until Mux processes the asset, so
+    # we project against a conservative 10-minute estimate — that's at
+    # the upper end of a typical short lesson and ensures the cap holds
+    # for normal content. Once Mux reports the real duration in the
+    # webhook handler we run the check again with the precise value
+    # and flip the lesson to `quota_exceeded` if it pushes past the
+    # grace ceiling, so a single oversized upload can't blow through
+    # the limit either.
     organization_id = await lesson_repo.get_organization_id_for_lesson(lesson.id)
     if organization_id is not None:
         org_repo = OrganizationRepository.from_session(session)
@@ -606,7 +617,7 @@ async def create_mux_upload(
                     session,
                     organization,
                     QuotaKey.video_hours_hosted,
-                    requested_storage_units=0,
+                    requested_storage_units=_ESTIMATED_LESSON_SECONDS,
                 )
             except QuotaExceededError as exc:
                 raise HTTPException(
@@ -1017,27 +1028,66 @@ async def mux_webhook(
                 # Only emit on first transition to ready, so retried
                 # webhooks don't double-count the same asset.
                 previously_ready = lesson.mux_status == "ready"
+                organization_id = (
+                    await lesson_repo.get_organization_id_for_lesson(lesson.id)
+                    if not previously_ready and duration
+                    else None
+                )
+
+                # Post-completion quota check: now that Mux has told us
+                # the real duration, see if adding it would push the org
+                # past their video-hours grace ceiling. The upload-
+                # initiate check was a conservative estimate; this is
+                # the definitive value. If it exceeds, flip the lesson
+                # to `quota_exceeded` instead of `ready` and skip the
+                # count emit — the asset stays on Mux but the
+                # customer-portal playback-url endpoint will refuse to
+                # mint a URL for it until the creator upgrades or
+                # deletes other content.
+                target_status = "ready"
+                if organization_id is not None:
+                    org_repo = OrganizationRepository.from_session(session)
+                    organization = await org_repo.get_by_id(organization_id)
+                    if organization is not None:
+                        from polar.quotas.service import quotas as _quotas
+
+                        check = await _quotas.check(
+                            session,
+                            organization.id,
+                            QuotaKey.video_hours_hosted,
+                            requested_storage_units=int(duration),
+                        )
+                        if not check.allowed:
+                            target_status = "quota_exceeded"
+                            log.warning(
+                                "course.upload.over_quota",
+                                organization_id=str(organization.id),
+                                lesson_id=str(lesson.id),
+                                duration_seconds=int(duration),
+                                used=check.used,
+                                limit=check.limit,
+                            )
+
                 update: dict = {
                     "mux_asset_id": asset_id,
                     "mux_playback_id": playback_id,
-                    "mux_status": "ready",
+                    "mux_status": target_status,
                 }
                 if duration:
                     update["duration_seconds"] = int(duration)
                 await lesson_repo.update(lesson, update_dict=update)
 
-                if not previously_ready and duration:
-                    organization_id = (
-                        await lesson_repo.get_organization_id_for_lesson(
-                            lesson.id
-                        )
+                if (
+                    not previously_ready
+                    and duration
+                    and organization_id is not None
+                    and target_status == "ready"
+                ):
+                    emit_video_uploaded(
+                        session,
+                        organization_id=organization_id,
+                        duration_seconds=int(duration),
                     )
-                    if organization_id is not None:
-                        emit_video_uploaded(
-                            session,
-                            organization_id=organization_id,
-                            duration_seconds=int(duration),
-                        )
 
     elif event_type in ("video.upload.errored", "video.asset.errored"):
         upload_id = data.get("upload_id") or data.get("id")
