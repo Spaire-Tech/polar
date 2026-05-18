@@ -38,7 +38,7 @@ def _build_lesson(schema: CourseLessonCreate) -> CourseLesson:
     """Build a CourseLesson from a create schema, persisting every declared
     field (description, drip, comments_mode, thumbnails, etc.). Without this,
     fields silently drop on initial create and require a follow-up PATCH."""
-    return CourseLesson(
+    lesson = CourseLesson(
         title=schema.title,
         content_type=schema.content_type,
         content=schema.content,
@@ -51,7 +51,16 @@ def _build_lesson(schema: CourseLessonCreate) -> CourseLesson:
         release_at=schema.release_at,
         drip_days=schema.drip_days,
         comments_mode=schema.comments_mode,
+        thumbnail_url=schema.thumbnail_url,
     )
+    # Attach a pre-staged Mux upload. The webhook resolves lessons by
+    # mux_upload_id, so once Mux finishes the playback id will land on
+    # this row automatically — no follow-up PATCH required.
+    if schema.mux_upload_id:
+        lesson.mux_upload_id = schema.mux_upload_id
+        lesson.mux_status = "waiting"
+        lesson.content_type = "video"
+    return lesson
 
 
 class CourseService:

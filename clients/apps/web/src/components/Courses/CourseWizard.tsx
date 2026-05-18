@@ -359,6 +359,7 @@ export default function CourseWizard({
 
       const humanDescription = draft.desc || course.desc || null
 
+      const outlineModules = outline.modules
       const created = await createCourse.mutateAsync({
         product_id: productResult.data.id,
         organization_id: organization.id,
@@ -378,7 +379,7 @@ export default function CourseWizard({
         instructor_name_italic: false,
         instructor_name_bold: draft.nameBold,
         instructor_name_uppercase: draft.nameUppercase,
-        modules: outline.modules
+        modules: outlineModules
           .filter(
             (
               m,
@@ -388,21 +389,49 @@ export default function CourseWizard({
               lessons?: { title?: string; content_type?: 'text' | 'video' }[]
             } => Boolean(m?.title),
           )
-          .map((mod, i) => ({
-            title: mod.title!,
-            description: mod.description ?? null,
-            position: i,
-            lessons: (mod.lessons ?? [])
-              .filter(
-                (l): l is { title: string; content_type: 'text' | 'video' } =>
-                  Boolean(l?.title && l?.content_type),
-              )
-              .map((lesson, j) => ({
-                title: lesson.title,
-                content_type: lesson.content_type,
-                position: j,
-              })),
-          })),
+          .map((mod, i) => {
+            // Match the wizard preview's filter (title-only — see
+            // WizardLandingEditor.fakeCourse) so the flat wizard-N
+            // index maps 1:1 to the lessons we're about to create.
+            // Default content_type to 'text' when missing.
+            const lessonInputs = (mod.lessons ?? []).filter(
+              (l): l is { title: string; content_type?: 'text' | 'video' } =>
+                Boolean(l?.title),
+            )
+            return {
+              title: mod.title!,
+              description: mod.description ?? null,
+              position: i,
+              lessons: lessonInputs.map((lesson, j) => {
+                const flatIdx =
+                  outlineModules
+                    .slice(0, i)
+                    .reduce((acc, m2) => {
+                      return (
+                        acc +
+                        (m2?.lessons?.filter((l) => Boolean(l?.title))
+                          .length ?? 0)
+                      )
+                    }, 0) + j
+                const wizardId = `wizard-${flatIdx + 1}`
+                const edit = wizardData?.lessonEdits.get(wizardId)
+                const baseContentType: 'text' | 'video' =
+                  lesson.content_type ?? 'text'
+                return {
+                  title: edit?.title ?? lesson.title,
+                  content_type: edit?.muxUploadId ? 'video' : baseContentType,
+                  position: j,
+                  // Pass pre-staged uploads straight into the create
+                  // payload so the lesson is born already pointing at
+                  // its video / thumbnail.
+                  mux_upload_id: edit?.muxUploadId ?? null,
+                  thumbnail_url: edit?.thumbnailStagedUrl ?? null,
+                  description:
+                    edit?.description !== undefined ? edit.description : null,
+                }
+              }),
+            }
+          }),
       })
 
       // The create endpoint doesn't accept paywall_position; patch it in
@@ -418,9 +447,11 @@ export default function CourseWizard({
         }
       }
 
-      // Apply landing overrides + upload buffered media now that the course
-      // exists. Hero is already uploaded above; trailer + slot media follow.
-      // The full AI landing JSON also rides along on landing_overrides.
+      // Apply landing overrides + upload anything that didn't finish
+      // staging during the wizard. The wizard kicks uploads off the
+      // moment the user picks each file, so by the time we get here the
+      // common case is "all done already" — we only re-upload the
+      // stragglers (files in pendingFiles, files where staging failed).
       if (wizardData) {
         const ov = { ...wizardData.overrides }
         ov.media = { ...ov.media }
@@ -428,8 +459,21 @@ export default function CourseWizard({
         // Drop the hero blob URL — the canonical hero lives on
         // course.thumbnail_url which we just set.
         delete ov.media['hero.backdrop']
-        // Trailer upload
-        if (wizardData.pendingTrailerFile) {
+
+        // Trailer: prefer the URL that landed via staging during the
+        // wizard. Fall back to the buffered File only if staging
+        // failed.
+        if (wizardData.stagedTrailerUrl) {
+          try {
+            await updateCourse.mutateAsync({
+              courseId: created.id,
+              body: { trailer_url: wizardData.stagedTrailerUrl },
+            })
+          } catch (e) {
+            console.warn('[CourseWizard] trailer URL patch failed:', e)
+          }
+          delete ov.media['trailer.video']
+        } else if (wizardData.pendingTrailerFile) {
           try {
             await uploadTrailerMutation.mutateAsync({
               courseId: created.id,
@@ -440,9 +484,23 @@ export default function CourseWizard({
           }
           delete ov.media['trailer.video']
         }
-        // Other media slots
+
+        // Promote already-staged slot media URLs straight onto
+        // landing_overrides.media so the canonical landing renders the
+        // S3 URL (not a dead blob: URL that only lived in the wizard).
+        for (const [
+          slotId,
+          res,
+        ] of wizardData.stagedSlotMedia.entries()) {
+          if (slotId === 'hero.backdrop' || slotId === 'trailer.video') continue
+          ov.media[slotId] = { kind: res.kind, url: res.url }
+        }
+        // Stragglers — slots whose staging upload didn't land before
+        // Create was clicked. Upload them through the per-course
+        // landing-media endpoint, then drop them from `pendingFiles`.
         for (const [slotId, file] of wizardData.pendingFiles.entries()) {
           if (slotId === 'hero.backdrop' || slotId === 'trailer.video') continue
+          if (wizardData.stagedSlotMedia.has(slotId)) continue
           try {
             const res = await uploadLandingMediaMutation.mutateAsync({
               courseId: created.id,
@@ -515,10 +573,11 @@ export default function CourseWizard({
           console.warn('[CourseWizard] landing_overrides patch failed:', e)
         }
 
-        // Replay buffered per-lesson edits (title/description/thumbnail/video)
-        // onto the lessons that were just created. Wizard placeholder ids are
-        // "wizard-N" (1-indexed) and lessons come back in flat order, so we
-        // map by position.
+        // Replay buffered per-lesson edits onto the real lessons. The
+        // create payload already carried mux_upload_id + thumbnail_url
+        // for anything that staged successfully — so this loop only has
+        // to handle title/description text edits and rare uploads that
+        // didn't make it through staging.
         if (wizardData.lessonEdits && wizardData.lessonEdits.size > 0) {
           const flatCreatedLessons = (created.modules ?? []).flatMap(
             (m) => m.lessons ?? [],
@@ -529,14 +588,21 @@ export default function CourseWizard({
             const lessonIdx = parseInt(idxMatch[1], 10) - 1
             const realLesson = flatCreatedLessons[lessonIdx]
             if (!realLesson) continue
-            // Patch title/description if the user changed them.
-            if (edit.title !== undefined || edit.description !== undefined) {
+            // Patch title/description if the user changed them. Title /
+            // description go through CourseLessonCreate now, so only
+            // patch when the edit value differs from what came back.
+            const needsTitlePatch =
+              edit.title !== undefined && edit.title !== realLesson.title
+            const needsDescriptionPatch =
+              edit.description !== undefined &&
+              edit.description !== realLesson.description
+            if (needsTitlePatch || needsDescriptionPatch) {
               try {
                 await updateLessonMutation.mutateAsync({
                   lessonId: realLesson.id,
                   body: {
-                    ...(edit.title !== undefined ? { title: edit.title } : {}),
-                    ...(edit.description !== undefined
+                    ...(needsTitlePatch ? { title: edit.title } : {}),
+                    ...(needsDescriptionPatch
                       ? { description: edit.description }
                       : {}),
                   },
@@ -549,8 +615,8 @@ export default function CourseWizard({
                 )
               }
             }
-            // Upload thumbnail.
-            if (edit.thumbnailFile) {
+            // Thumbnail fallback — only when staging didn't land.
+            if (edit.thumbnailFile && !edit.thumbnailStagedUrl) {
               try {
                 await uploadLessonThumbMutation.mutateAsync({
                   lessonId: realLesson.id,
@@ -564,10 +630,9 @@ export default function CourseWizard({
                 )
               }
             }
-            // Kick off the Mux upload for the buffered video. We don't await
-            // Mux processing — the lesson record will pick up mux_playback_id
-            // when the webhook lands.
-            if (edit.videoFile) {
+            // Video fallback — only when the staged Mux upload didn't
+            // make it through (network blip, page kept open too short).
+            if (edit.videoFile && !edit.muxUploadId) {
               try {
                 const { upload_url } =
                   await createMuxUploadMutation.mutateAsync(realLesson.id)
