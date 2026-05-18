@@ -6,8 +6,24 @@ import {
   CourseRead,
   usePreviewAccess,
 } from '@/hooks/queries/courses'
+import {
+  DndContext,
+  DragEndEvent,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  arrayMove,
+  rectSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import AddOutlined from '@mui/icons-material/AddOutlined'
 import DeleteOutlineOutlined from '@mui/icons-material/DeleteOutlineOutlined'
+import DragIndicatorOutlined from '@mui/icons-material/DragIndicatorOutlined'
 import EditOutlined from '@mui/icons-material/EditOutlined'
 import LockOutlined from '@mui/icons-material/LockOutlined'
 import MoreHorizOutlined from '@mui/icons-material/MoreHorizOutlined'
@@ -89,6 +105,7 @@ function LessonCard({
   position,
   locked,
   isSelected,
+  isReorderable,
   onSelect,
   onDelete,
 }: {
@@ -96,20 +113,51 @@ function LessonCard({
   position: number
   locked: boolean
   isSelected: boolean
+  isReorderable: boolean
   onSelect: () => void
   onDelete: () => void
 }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: lesson.id, disabled: !isReorderable })
+
   return (
-    <div onClick={onSelect} className={cardWrapperClass(isSelected)}>
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.4 : 1,
+      }}
+      onClick={onSelect}
+      className={cardWrapperClass(isSelected, isDragging)}
+    >
       <div className="relative aspect-video w-full overflow-hidden">
         <ThumbArt
           thumbnailUrl={lesson.thumbnail_url ?? null}
           objectPosition={lesson.thumbnail_object_position ?? null}
           position={position}
         />
-        <div className="absolute top-[7px] left-2 text-[9px] font-semibold tracking-[0.07em] text-white/75 uppercase [text-shadow:0_1px_3px_rgba(0,0,0,0.5)]">
+        {/* Ep badge — fades out on hover so the drag handle can sit in the same spot. */}
+        <div className="absolute top-[7px] left-2 z-10 text-[9px] font-semibold tracking-[0.07em] text-white/75 uppercase [text-shadow:0_1px_3px_rgba(0,0,0,0.5)] transition-opacity group-hover:opacity-0">
           Ep {position}
         </div>
+        {isReorderable && (
+          <button
+            {...attributes}
+            {...listeners}
+            onClick={(e) => e.stopPropagation()}
+            aria-label="Drag to reorder lesson"
+            className="absolute top-[7px] left-2 z-20 flex h-[18px] w-[18px] cursor-grab items-center justify-center rounded-md bg-black/45 opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100 active:cursor-grabbing"
+          >
+            <DragIndicatorOutlined sx={{ fontSize: 11 }} className="text-white" />
+          </button>
+        )}
         {locked && (
           <div className="absolute top-[7px] right-2 flex h-[18px] w-[18px] items-center justify-center rounded-full bg-black/45 backdrop-blur-sm">
             <LockOutlined sx={{ fontSize: 10 }} className="text-white" />
@@ -146,10 +194,12 @@ function LessonCard({
   )
 }
 
-function cardWrapperClass(selected: boolean): string {
+function cardWrapperClass(selected: boolean, dragging: boolean = false): string {
   return [
     'group relative cursor-pointer overflow-hidden rounded-2xl border bg-white transition-all',
-    'shadow-[0_1px_4px_rgba(0,0,0,0.05),0_2px_10px_rgba(0,0,0,0.03)]',
+    dragging
+      ? 'z-30 shadow-[0_18px_50px_rgba(0,0,0,0.18),0_4px_10px_rgba(0,0,0,0.08)]'
+      : 'shadow-[0_1px_4px_rgba(0,0,0,0.05),0_2px_10px_rgba(0,0,0,0.03)]',
     'hover:-translate-y-0.5 hover:shadow-[0_6px_24px_rgba(0,0,0,0.10),0_1px_4px_rgba(0,0,0,0.06)]',
     selected ? 'border-gray-900' : 'border-gray-200 hover:border-gray-300',
   ].join(' ')
@@ -186,6 +236,7 @@ export function OutlineTab({
   onSelectLesson,
   onAddLesson,
   onDeleteLesson,
+  onReorderLessons,
   onEditPaywall,
   onAddModule,
   onRenameModule,
@@ -325,10 +376,12 @@ export function OutlineTab({
           <ModuleGroups
             groups={freeGroups}
             locked={false}
+            isReorderable={!trimmed}
             selectedLessonId={selectedLessonId}
             onSelectLesson={onSelectLesson}
             onAddLesson={onAddLesson}
             onDeleteLesson={onDeleteLesson}
+            onReorderLessons={onReorderLessons}
             onRenameModule={onRenameModule}
             onDeleteModule={onDeleteModule}
           />
@@ -341,10 +394,12 @@ export function OutlineTab({
               <ModuleGroups
                 groups={paidGroups}
                 locked
+                isReorderable={!trimmed}
                 selectedLessonId={selectedLessonId}
                 onSelectLesson={onSelectLesson}
                 onAddLesson={onAddLesson}
                 onDeleteLesson={onDeleteLesson}
+                onReorderLessons={onReorderLessons}
                 onRenameModule={onRenameModule}
                 onDeleteModule={onDeleteModule}
               />
@@ -356,6 +411,7 @@ export function OutlineTab({
             <ModuleGroups
               groups={emptyModules}
               locked={false}
+              isReorderable={false}
               selectedLessonId={selectedLessonId}
               onSelectLesson={onSelectLesson}
               onAddLesson={onAddLesson}
@@ -390,15 +446,18 @@ export function OutlineTab({
 function ModuleGroups({
   groups,
   locked,
+  isReorderable,
   selectedLessonId,
   onSelectLesson,
   onAddLesson,
   onDeleteLesson,
+  onReorderLessons,
   onRenameModule,
   onDeleteModule,
 }: {
   groups: ModuleGroup[]
   locked: boolean
+  isReorderable: boolean
   selectedLessonId: string | null
   onSelectLesson: (lessonId: string) => void
   onAddLesson?: (
@@ -406,29 +465,43 @@ function ModuleGroups({
     contentType: LessonContentType,
   ) => void
   onDeleteLesson: (lesson: CourseLessonRead) => void
+  onReorderLessons?: (moduleId: string, orderedIds: string[]) => void
   onRenameModule?: (module: CourseModuleRead, title: string) => void
   onDeleteModule?: (module: CourseModuleRead) => void
 }) {
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  )
   if (groups.length === 0) return null
+
+  const canReorder = isReorderable && !!onReorderLessons
+
+  const handleDragEnd = (group: ModuleGroup) => (e: DragEndEvent) => {
+    if (!onReorderLessons) return
+    const { active, over } = e
+    if (!over || active.id === over.id) return
+    // The visible items in this group may be a paywall-split subset of the
+    // module's full lesson list. Swap inside the visible subset, then merge
+    // back into the full module order so lessons outside the visible range
+    // keep their positions.
+    const visibleIds = group.items.map((x) => x.lesson.id)
+    const fullIds = group.module.lessons.map((l) => l.id)
+    const from = visibleIds.indexOf(String(active.id))
+    const to = visibleIds.indexOf(String(over.id))
+    if (from < 0 || to < 0) return
+    const newVisible = arrayMove(visibleIds, from, to)
+    const visibleSet = new Set(visibleIds)
+    let i = 0
+    const reordered = fullIds.map((id) =>
+      visibleSet.has(id) ? newVisible[i++] : id,
+    )
+    onReorderLessons(group.module.id, reordered)
+  }
+
   return (
     <div className="mb-6 flex flex-col gap-5">
-      {groups.map((group) => (
-        <div key={group.module.id}>
-          <ModuleHeader
-            module={group.module}
-            count={group.items.length}
-            onAddLesson={
-              onAddLesson ? () => onAddLesson(group.module, 'video') : undefined
-            }
-            onRename={
-              onRenameModule
-                ? (title) => onRenameModule(group.module, title)
-                : undefined
-            }
-            onDelete={
-              onDeleteModule ? () => onDeleteModule(group.module) : undefined
-            }
-          />
+      {groups.map((group) => {
+        const lessonGrid = (
           <LessonGrid>
             {group.items.map(({ lesson, globalIndex }) => (
               <LessonCard
@@ -436,14 +509,53 @@ function ModuleGroups({
                 lesson={lesson}
                 position={globalIndex}
                 locked={locked}
+                isReorderable={canReorder && group.items.length > 1}
                 isSelected={selectedLessonId === lesson.id}
                 onSelect={() => onSelectLesson(lesson.id)}
                 onDelete={() => onDeleteLesson(lesson)}
               />
             ))}
           </LessonGrid>
-        </div>
-      ))}
+        )
+
+        return (
+          <div key={group.module.id}>
+            <ModuleHeader
+              module={group.module}
+              count={group.items.length}
+              onAddLesson={
+                onAddLesson
+                  ? () => onAddLesson(group.module, 'video')
+                  : undefined
+              }
+              onRename={
+                onRenameModule
+                  ? (title) => onRenameModule(group.module, title)
+                  : undefined
+              }
+              onDelete={
+                onDeleteModule ? () => onDeleteModule(group.module) : undefined
+              }
+            />
+            {canReorder && group.items.length > 1 ? (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd(group)}
+              >
+                <SortableContext
+                  items={group.items.map((x) => x.lesson.id)}
+                  strategy={rectSortingStrategy}
+                >
+                  {lessonGrid}
+                </SortableContext>
+              </DndContext>
+            ) : (
+              lessonGrid
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }
