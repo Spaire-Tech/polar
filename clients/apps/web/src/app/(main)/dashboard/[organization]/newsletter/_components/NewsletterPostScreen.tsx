@@ -17,8 +17,10 @@ import {
   Block,
   ContentDoc,
 } from '../../email-marketing/_components/blockEditor/types'
+import { Theme } from '../../email-marketing/_components/blockEditor/render'
 import { CommandPalette, Command } from './CommandPalette'
 import { PostEditor, PostMeta } from './PostEditor'
+import { StyleView } from './StyleView'
 import { EditorMode, TopBar } from './TopBar'
 
 // Fallback document used while the server response is loading or when
@@ -60,6 +62,11 @@ export function NewsletterPostScreen({
   const [hydrated, setHydrated] = useState(false)
   const [meta, setMeta] = useState<PostMeta>(BLANK_META)
   const [doc, setDocRaw] = useState<ContentDoc>(BLANK_DOC)
+  // The post's theme overrides. Picking a preset / tweaking a swatch
+  // updates this and the autosave PATCH writes it back as
+  // `theme_overrides`. Phase 6 will surface a "save to newsletter
+  // default" affordance that promotes the snapshot onto Newsletter.theme.
+  const [theme, setTheme] = useState<Theme>({})
   const history = useDocHistory(doc, setDocRaw)
 
   useEffect(() => {
@@ -79,6 +86,9 @@ export function NewsletterPostScreen({
     if (post.content_json && isContentDoc(post.content_json)) {
       setDocRaw(post.content_json)
     }
+    if (post.theme_overrides && typeof post.theme_overrides === 'object') {
+      setTheme(post.theme_overrides as Theme)
+    }
     setHydrated(true)
   }, [post, hydrated])
 
@@ -96,8 +106,12 @@ export function NewsletterPostScreen({
   // Skip while we haven't hydrated yet (avoids overwriting the fetched
   // post with the BLANK_DOC fallback during the first paint).
   const save = useCallback(
-    async (snapshot: { meta: PostMeta; doc: ContentDoc }) => {
+    async (snapshot: { meta: PostMeta; doc: ContentDoc; theme: Theme }) => {
       if (!post) return
+      // theme_overrides is sparse — only send when the user has
+      // actually customised something. An empty {} means "inherit
+      // everything from the newsletter default", which we still want
+      // to clear on the server when the user resets.
       await updateMutation.mutateAsync({
         postId: post.id,
         body: {
@@ -107,12 +121,15 @@ export function NewsletterPostScreen({
           cover_visible: snapshot.meta.cover_visible,
           tags: snapshot.meta.tags,
           content_json: snapshot.doc as unknown as Record<string, unknown>,
+          theme_overrides: Object.keys(snapshot.theme).length
+            ? (snapshot.theme as unknown as Record<string, unknown>)
+            : null,
         },
       })
     },
     [post, updateMutation],
   )
-  const status = useAutosave({ meta, doc }, save, { enabled: hydrated })
+  const status = useAutosave({ meta, doc, theme }, save, { enabled: hydrated })
 
   // ── Mode / palette ──────────────────────────────────────────────
 
@@ -151,7 +168,7 @@ export function NewsletterPostScreen({
         setPaletteOpen((v) => !v)
       } else if (key === 's') {
         e.preventDefault()
-        save({ meta, doc })
+        save({ meta, doc, theme })
       } else if (key === '1') {
         e.preventDefault()
         setMode('write')
@@ -165,7 +182,7 @@ export function NewsletterPostScreen({
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [meta, doc, save, publish])
+  }, [meta, doc, theme, save, publish])
 
   // ── Derived ─────────────────────────────────────────────────────
 
@@ -182,11 +199,11 @@ export function NewsletterPostScreen({
     () =>
       buildCommands({
         setMode,
-        onSave: () => save({ meta, doc }),
+        onSave: () => save({ meta, doc, theme }),
         onPublish: publish,
         onInsert: insertBlockType,
       }),
-    [save, publish, meta, doc, insertBlockType],
+    [save, publish, meta, doc, theme, insertBlockType],
   )
 
   // ── Render ──────────────────────────────────────────────────────
@@ -212,7 +229,7 @@ export function NewsletterPostScreen({
         canRedo={history.canRedo}
         onUndo={history.undo}
         onRedo={history.redo}
-        onSave={() => save({ meta, doc })}
+        onSave={() => save({ meta, doc, theme })}
         onOpenPalette={() => setPaletteOpen(true)}
         onPublish={publish}
         userInitials={userInitials}
@@ -228,7 +245,12 @@ export function NewsletterPostScreen({
           accent={doc.accent}
         />
       ) : (
-        <StylePlaceholder />
+        <StyleView
+          meta={meta}
+          doc={doc}
+          theme={theme}
+          setTheme={setTheme}
+        />
       )}
 
       {paletteOpen && (
@@ -447,31 +469,3 @@ function ErrorShell({ message }: { message: string }) {
   )
 }
 
-function StylePlaceholder() {
-  return (
-    <div
-      style={{
-        maxWidth: 720,
-        margin: '0 auto',
-        padding: '120px 24px',
-        textAlign: 'center',
-      }}
-    >
-      <div
-        style={{
-          fontSize: 16,
-          fontWeight: 600,
-          color: '#1d1d1f',
-          marginBottom: 8,
-        }}
-      >
-        Style view
-      </div>
-      <div style={{ fontSize: 13, color: '#86868b', lineHeight: 1.6 }}>
-        Theme tokens (colours, typography, spacing) and the per-element
-        inspector land in Phase 4. For now switch back to Write mode to
-        keep editing.
-      </div>
-    </div>
-  )
-}

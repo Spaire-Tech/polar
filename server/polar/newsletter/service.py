@@ -4,6 +4,8 @@ from uuid import UUID
 
 from polar.email_broadcast.render import render_blocks_to_html
 from polar.email_broadcast.repository import EmailBroadcastRepository
+
+from .theme import resolve_theme
 from polar.email_subscriber.repository import EmailSubscriberRepository
 from polar.exceptions import PolarError
 from polar.kit.utils import utc_now
@@ -284,7 +286,11 @@ class NewsletterService:
         sender_email = newsletter.default_sender_email if newsletter else None
         reply_to_email = newsletter.default_reply_to_email if newsletter else None
 
-        content_html = render_blocks_to_html(post.content_json or {}) or ""
+        theme = resolve_theme(
+            newsletter.theme if newsletter else None,
+            post.theme_overrides,
+        )
+        content_html = render_blocks_to_html(post.content_json or {}, theme) or ""
 
         broadcast = EmailBroadcast(
             organization_id=post.organization_id,

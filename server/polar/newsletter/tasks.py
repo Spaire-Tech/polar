@@ -12,6 +12,7 @@ from polar.organization.repository import OrganizationRepository
 from polar.worker import AsyncSessionMaker, TaskPriority, actor, enqueue_job
 
 from .repository import NewsletterPostRepository, NewsletterRepository
+from .theme import resolve_theme
 
 log = structlog.get_logger()
 
@@ -22,19 +23,6 @@ class NewsletterTaskError(PolarTaskError): ...
 class NewsletterPostNotFoundForTask(NewsletterTaskError):
     def __init__(self, post_id: UUID) -> None:
         super().__init__(f"NewsletterPost {post_id} not found for publish task")
-
-
-def _merge_theme(newsletter_theme: dict | None, overrides: dict | None) -> dict:
-    """Shallow merge: newsletter theme is the base, post overrides win.
-
-    Nested element-level overrides are NOT deep-merged here — Phase 4 can
-    decide whether to support that. For V1, an override of `colors` would
-    replace the entire `colors` sub-object.
-    """
-    base = dict(newsletter_theme or {})
-    if overrides:
-        base.update(overrides)
-    return base
 
 
 @actor(actor_name="newsletter.post.publish", priority=TaskPriority.HIGH)
@@ -65,13 +53,13 @@ async def newsletter_post_publish(post_id: UUID) -> None:
         org_repo = OrganizationRepository.from_session(session)
         organization = await org_repo.get_by_id(post.organization_id)
 
-        # Re-render HTML at send time so theme changes between save and
-        # publish are picked up. Pass the merged theme down once the
-        # renderer is theme-aware (Phase 4); for now `render_blocks_to_html`
-        # ignores any theme arg, so this still produces the hardcoded-style
-        # email.
-        _theme = _merge_theme(newsletter.theme, post.theme_overrides)
-        content_html = render_blocks_to_html(post.content_json or {}) or ""
+        # Re-render HTML at send time so any theme edits between draft
+        # save and publish are picked up. The renderer (Phase 4) now
+        # threads the resolved theme through every block; legacy
+        # broadcasts that pass theme=None still produce byte-identical
+        # output against the existing parity golden.
+        theme = resolve_theme(newsletter.theme, post.theme_overrides)
+        content_html = render_blocks_to_html(post.content_json or {}, theme) or ""
 
         subject = (
             post.subject_override
