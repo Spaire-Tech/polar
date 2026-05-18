@@ -66,6 +66,8 @@ export type CourseLessonRead = {
   thumbnail_object_position: string | null
   description?: string | null
   comments_mode?: 'visible' | 'hidden' | 'locked'
+  release_at?: string | null
+  drip_days?: number | null
   created_at: string
   modified_at: string | null
 }

@@ -32,6 +32,10 @@ import ScheduleOutlined from '@mui/icons-material/ScheduleOutlined'
 import SearchOutlined from '@mui/icons-material/SearchOutlined'
 import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined'
 import { useMemo, useState } from 'react'
+import {
+  LessonOptionsMenu,
+  LessonOptionsPatch,
+} from './LessonOptionsMenu'
 import { LessonContentType } from './ModuleCard'
 import { PaywallRow } from './PaywallRow'
 
@@ -107,6 +111,7 @@ function LessonCard({
   isSelected,
   isReorderable,
   onSelect,
+  onUpdate,
   onDelete,
 }: {
   lesson: CourseLessonRead
@@ -115,6 +120,7 @@ function LessonCard({
   isSelected: boolean
   isReorderable: boolean
   onSelect: () => void
+  onUpdate: (patch: LessonOptionsPatch) => void
   onDelete: () => void
 }) {
   const {
@@ -125,6 +131,7 @@ function LessonCard({
     transition,
     isDragging,
   } = useSortable({ id: lesson.id, disabled: !isReorderable })
+  const [menuOpen, setMenuOpen] = useState(false)
 
   return (
     <div
@@ -135,9 +142,9 @@ function LessonCard({
         opacity: isDragging ? 0.4 : 1,
       }}
       onClick={onSelect}
-      className={cardWrapperClass(isSelected, isDragging)}
+      className={cardWrapperClass(isSelected, isDragging, menuOpen)}
     >
-      <div className="relative aspect-video w-full overflow-hidden">
+      <div className="relative aspect-video w-full overflow-hidden rounded-t-2xl">
         <ThumbArt
           thumbnailUrl={lesson.thumbnail_url ?? null}
           objectPosition={lesson.thumbnail_object_position ?? null}
@@ -178,27 +185,45 @@ function LessonCard({
             <ScheduleOutlined sx={{ fontSize: 10 }} />
             {formatDuration(lesson.duration_seconds)}
           </div>
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              onDelete()
-            }}
-            className="flex items-center rounded-md p-[2px_3px] text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
-            aria-label="Lesson actions"
-          >
-            <MoreHorizOutlined sx={{ fontSize: 14 }} />
-          </button>
+          <div className="relative">
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                setMenuOpen((v) => !v)
+              }}
+              className="flex items-center rounded-md p-[2px_3px] text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+              aria-label="Lesson options"
+            >
+              <MoreHorizOutlined sx={{ fontSize: 14 }} />
+            </button>
+            {menuOpen && (
+              <LessonOptionsMenu
+                lesson={lesson}
+                onUpdate={onUpdate}
+                onDelete={onDelete}
+                onClose={() => setMenuOpen(false)}
+              />
+            )}
+          </div>
         </div>
       </div>
     </div>
   )
 }
 
-function cardWrapperClass(selected: boolean, dragging: boolean = false): string {
+function cardWrapperClass(
+  selected: boolean,
+  dragging: boolean = false,
+  menuOpen: boolean = false,
+): string {
+  // No overflow-hidden on the outer — the lesson options menu pops below the
+  // card and would otherwise be clipped. The thumbnail clips itself via
+  // rounded-t-2xl on its own container.
   return [
-    'group relative cursor-pointer overflow-hidden rounded-2xl border bg-white transition-all',
+    'group relative cursor-pointer rounded-2xl border bg-white transition-all',
+    menuOpen ? 'z-40' : dragging ? 'z-30' : '',
     dragging
-      ? 'z-30 shadow-[0_18px_50px_rgba(0,0,0,0.18),0_4px_10px_rgba(0,0,0,0.08)]'
+      ? 'shadow-[0_18px_50px_rgba(0,0,0,0.18),0_4px_10px_rgba(0,0,0,0.08)]'
       : 'shadow-[0_1px_4px_rgba(0,0,0,0.05),0_2px_10px_rgba(0,0,0,0.03)]',
     'hover:-translate-y-0.5 hover:shadow-[0_6px_24px_rgba(0,0,0,0.10),0_1px_4px_rgba(0,0,0,0.06)]',
     selected ? 'border-gray-900' : 'border-gray-200 hover:border-gray-300',
@@ -235,6 +260,7 @@ export function OutlineTab({
   selectedLessonId,
   onSelectLesson,
   onAddLesson,
+  onUpdateLesson,
   onDeleteLesson,
   onReorderLessons,
   onEditPaywall,
@@ -249,6 +275,10 @@ export function OutlineTab({
   onAddLesson: (
     module: CourseModuleRead,
     contentType: LessonContentType,
+  ) => void
+  onUpdateLesson: (
+    lesson: CourseLessonRead,
+    patch: LessonOptionsPatch,
   ) => void
   onDeleteLesson: (lesson: CourseLessonRead) => void
   onReorderLessons: (moduleId: string, orderedIds: string[]) => void
@@ -380,6 +410,7 @@ export function OutlineTab({
             selectedLessonId={selectedLessonId}
             onSelectLesson={onSelectLesson}
             onAddLesson={onAddLesson}
+            onUpdateLesson={onUpdateLesson}
             onDeleteLesson={onDeleteLesson}
             onReorderLessons={onReorderLessons}
             onRenameModule={onRenameModule}
@@ -398,6 +429,7 @@ export function OutlineTab({
                 selectedLessonId={selectedLessonId}
                 onSelectLesson={onSelectLesson}
                 onAddLesson={onAddLesson}
+                onUpdateLesson={onUpdateLesson}
                 onDeleteLesson={onDeleteLesson}
                 onReorderLessons={onReorderLessons}
                 onRenameModule={onRenameModule}
@@ -415,6 +447,7 @@ export function OutlineTab({
               selectedLessonId={selectedLessonId}
               onSelectLesson={onSelectLesson}
               onAddLesson={onAddLesson}
+              onUpdateLesson={onUpdateLesson}
               onDeleteLesson={onDeleteLesson}
               onRenameModule={onRenameModule}
               onDeleteModule={onDeleteModule}
@@ -450,6 +483,7 @@ function ModuleGroups({
   selectedLessonId,
   onSelectLesson,
   onAddLesson,
+  onUpdateLesson,
   onDeleteLesson,
   onReorderLessons,
   onRenameModule,
@@ -463,6 +497,10 @@ function ModuleGroups({
   onAddLesson?: (
     module: CourseModuleRead,
     contentType: LessonContentType,
+  ) => void
+  onUpdateLesson: (
+    lesson: CourseLessonRead,
+    patch: LessonOptionsPatch,
   ) => void
   onDeleteLesson: (lesson: CourseLessonRead) => void
   onReorderLessons?: (moduleId: string, orderedIds: string[]) => void
@@ -512,6 +550,7 @@ function ModuleGroups({
                 isReorderable={canReorder && group.items.length > 1}
                 isSelected={selectedLessonId === lesson.id}
                 onSelect={() => onSelectLesson(lesson.id)}
+                onUpdate={(patch) => onUpdateLesson(lesson, patch)}
                 onDelete={() => onDeleteLesson(lesson)}
               />
             ))}
