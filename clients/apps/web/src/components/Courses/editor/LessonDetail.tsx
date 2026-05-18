@@ -395,9 +395,9 @@ export function LessonDetail({
         </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1">
         {/* Main column — centered, generous reading width */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1">
           <div className="mx-auto flex w-full max-w-[820px] flex-col gap-2.5 px-6 pt-6 pb-20">
             <Card>
               <CardHeader title="Lesson Details" />
@@ -652,7 +652,7 @@ export function LessonDetail({
         </div>
 
         {/* Right sidebar — flush right */}
-        <div className="flex w-80 flex-shrink-0 flex-col gap-6 overflow-y-auto border-l border-gray-200 bg-white px-5 pt-4 pb-10">
+        <div className="flex w-80 flex-shrink-0 flex-col gap-6 border-l border-gray-200 bg-white px-5 pt-4 pb-10">
           <SbSection label="Status">
             <div className="overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
               <StatusOpt

@@ -1,12 +1,10 @@
-import { Metadata } from 'next'
-import FormationLandingPage from '@/components/CompanyFormation/FormationLandingPage'
+import { redirect } from 'next/navigation'
 
-export async function generateMetadata(): Promise<Metadata> {
-  return {
-    title: 'Incorporate',
-  }
-}
-
-export default function Page() {
-  return <FormationLandingPage />
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ organization: string }>
+}) {
+  const { organization } = await params
+  redirect(`/dashboard/${organization}/founder-tools/perks`)
 }
