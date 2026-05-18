@@ -1,56 +1,47 @@
-import { Preview, Section, Text } from '@react-email/components'
-import Button from '../components/Button'
+import { Preview, Section } from '@react-email/components'
+import BodyText from '../components/BodyText'
 import Footer from '../components/Footer'
+import IntroWithHi from '../components/IntroWithHi'
 import WrapperPolar from '../components/WrapperPolar'
 import type { schemas } from '../types'
 
 export function UserWelcome({ email }: schemas['UserWelcomeProps']) {
   return (
     <WrapperPolar>
-      <Preview>Thanks for signing up to Spaire.</Preview>
+      <Preview>Welcome to Spaire — a quick note from Bass</Preview>
+      <IntroWithHi hiMsg="Hey,">
+        Thanks for starting your trial with Spaire — really glad you&apos;re
+        here.
+      </IntroWithHi>
       <Section>
-        <Text>Hey,</Text>
-        <Text>Thanks for signing up to Spaire.</Text>
-        <Text>
-          We&apos;re really glad you&apos;re here. We built Spaire to make this
-          part of running a SaaS feel a lot simpler, and we&apos;re around if
-          you need anything while getting set up.
-        </Text>
-        <Text>To get going:</Text>
-        <Text>
-          <span className="font-bold">Create your first product</span>
-          <br />
-          Set up subscriptions, one time payments, or usage based pricing.
-        </Text>
-        <Text>
-          <span className="font-bold">Set up checkout</span>
-          <br />
-          Use a checkout link on your site, or plug it directly into your
-          product.
-        </Text>
-        <Text>
-          <span className="font-bold">Make your first sale</span>
-          <br />
-          Once that&apos;s live, you&apos;re good to go.
-        </Text>
-      </Section>
-      <Section className="text-center">
-        <Button href="https://docs.spairehq.com">Read the docs</Button>
-      </Section>
-      <Section>
-        <Text>
-          If anything feels unclear or you get stuck, reach out to us at{' '}
-          <a href="mailto:support@spairehq.com">support@spairehq.com</a> and
-          we&apos;ll help you out.
-        </Text>
-        <Text>
-          Cheers,
-          <br />
-          <br />
+        <BodyText>
+          I&apos;m Bass, founder and CEO. I started Spaire because I kept
+          watching talented creators hand over a huge cut of what they earn to
+          platforms that didn&apos;t really care whether they succeeded. Spaire
+          exists to flip that: give you the tools to actually monetize your
+          creativity, and get out of your way.
+        </BodyText>
+        <BodyText>
+          Over the next 14 days you&apos;ve got the full run of the product. A
+          few things I&apos;d suggest trying first:
+        </BodyText>
+        <BodyText>
+          – Set up your first offer (course, newsletter, digital product —
+          whatever fits)
+          <br />– Connect your payouts so you can start taking real payments
+          <br />– Customize your storefront so it feels like yours
+        </BodyText>
+        <BodyText>
+          If you get stuck, hit reply. This inbox comes to me. I read
+          everything, and especially in these early days, the fastest way to
+          make Spaire better for you is to tell me what&apos;s not working.
+        </BodyText>
+        <BodyText>Excited to see what you build.</BodyText>
+        <BodyText>
           Bass
           <br />
-          Founder | Spaire
-        </Text>
+          Founder &amp; CEO, Spaire
+        </BodyText>
       </Section>
       <Footer email={email} />
     </WrapperPolar>

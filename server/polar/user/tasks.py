@@ -32,7 +32,7 @@ async def user_on_after_signup(user_id: uuid.UUID) -> None:
         )
         enqueue_email(
             to_email_addr=user.email,
-            subject="Hey, thanks for signing up to Spaire.",
+            subject="welcome to Spaire",
             html_content=body,
             from_name=DEFAULT_FROM_NAME,
             from_email_addr=DEFAULT_FROM_EMAIL_ADDRESS,
